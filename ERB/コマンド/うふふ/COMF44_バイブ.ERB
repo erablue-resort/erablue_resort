@@ -1,0 +1,235 @@
+﻿;-------------------------------------------------
+;バイブ
+;道具使用コマンド、レベル2
+;-------------------------------------------------
+@COMNAME44
+#FUNCTIONS
+TSTR:コマンド名受渡 = バイブ
+SIF TEQUIP:バイブ
+	TSTR:コマンド名受渡 = バイブ解除
+
+;弱点コマンド欄に専用の文字列を表示したい場合、これを設定すること
+弱点コマンド欄表示名 = バイブ
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_44
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("道具系")
+弱点コマンドカテゴリ = V
+SIF TEQUIP:バイブ
+	弱点コマンドカテゴリ = 
+
+@COM_TOOLTIP_44
+LOCALS = <br>■バイブ<br>
+LOCALS += "電動バイブを挿入し、膣内を刺激するコマンド。<br>バイブ装備状態となり、外すか性行為を終了するまで持続的に快楽が発生する。<br>[処女]を失う。"
+LOCALS += "<br>COMタイプ：道具系<br>取得ソース：快Ｖ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：道具使用経験(あなた)・Ｖ経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM44
+;着脱の処理
+TEQUIP:バイブ = !TEQUIP:バイブ
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 30
+DOWNBASE:気力 += 100
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER,250)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 20)
+
+;苦痛
+LOCAL = 100 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;処女喪失
+CALL LOST_VIRGIN(TARGET, PLAYER, 2)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;挿入時はＶ経験+
+EXP:Ｖ経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:PLAYER:同性愛経験 += 1
+ENDIF
+
+EXP:PLAYER:道具使用経験 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;装着継続の処理
+;-------------------------------------------------
+@EQUIP_COM44(ARG)
+;バイブ挿入中
+PRINTL ＜バイブ挿入中＞
+TEQUIP:TARGET:膣 = 1
+DOWNBASE:ARG:体力 += 10
+DOWNBASE:ARG:気力 += 50
+
+CALL SOURCE_CALC_快Ｖ(TARGET, -1,125)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 10)
+;苦痛
+LOCAL = 25 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;自慰実行時は経験＋１
+SIF EXP_UP(22,TARGET)
+	EXP:ARG:Ｖ経験 += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE44
+;バイブ実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(44)
+	RETURN RESULT
+;解除はいつでも可能
+SIF TEQUIP:13
+	RETURN 1
+;オトコだとダメ
+SIF !(TALENT:性別 & 1)
+	RETURN 0
+;アイテムを持っているか、アイテムなし設定でないとダメ
+SIF ITEM:4 == 0 && NOITEM == 0
+	RETURN 0
+
+;下半身着衣
+;前鎧、めくれない服、タイツ、前張りがあると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	RETURN 0
+SIF TEQUIP:下半身下着あり == 2
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM44
+;解除時
+IF !TEQUIP:バイブ
+	PRINTFORML %CALLNAME:TARGET%から蠢くバイブをゆっくりと引き抜いた
+	;Ｖ経験200以上＋恋慕か親愛
+	IF EXP:Ｖ経験 > 200 && TALENT:恋慕
+		PRINTFORM %CALLNAME:TARGET%は、膣内の喪失感に耐えかねて涙と涎をこぼし
+	;Ｖ経験150以上＋恋慕か親愛
+	ELSEIF EXP:Ｖ経験 > 150 && TALENT:恋慕
+		PRINTFORM %CALLNAME:TARGET%の膣内に溜まっていた粘液が掻き出されて滴り、水溜りを作っ
+	;Ｖ経験120以上＋恋慕か親愛
+	ELSEIF EXP:Ｖ経験 > 120 && TALENT:恋慕
+		PRINTFORM バイブが抜かれた%CALLNAME:TARGET%の肉襞からボタボタと愛液が滴っ
+	;Ｖ経験70以上＋恋慕か親愛
+	ELSEIF EXP:Ｖ経験 > 70 && TALENT:恋慕
+		PRINTFORM %CALLNAME:TARGET%はもじもじと股を擦り合わせて%CALLNAME:PLAYER%の方を見
+	;Ｖ経験40以上
+	ELSEIF EXP:Ｖ経験 > 40 && TALENT:恋慕
+		PRINTFORM %CALLNAME:TARGET%は熱のこもった吐息を吐い
+	;Ｖ経験20以上
+	ELSEIF EXP:Ｖ経験 > 20
+		PRINTFORM %CALLNAME:TARGET%はゆるんだ膣口をひくつかせ
+	;それ以外
+	ELSE
+		PRINTFORM %CALLNAME:TARGET%はホッとしたような表情をし
+	ENDIF
+	PRINTL ている…
+ELSEIF TCVAR:100 == PLAYER
+	PRINTFORML %CALLNAME:TARGET%からペニスを引き抜くと先程まで犯していた\@ TALENT:種族 < 0 ? 幼いワレメ # 秘裂 \@にバイブをあてがい一気に挿入した
+		IF EXP:Ｖ経験 > 100
+			IF TALENT:恋慕
+				PRINTFORML %CALLNAME:TARGET%は一瞬抗議するような視線を投げかけたが、すぐさまバイブのもたらす快感にとろけ\@ TALENT:種族 < 0 ? 可愛らしい # 艶っぽい \@嬌声をあげ始めた…
+			ELSE
+				PRINTFORML %CALLNAME:TARGET%は一瞬ほっとしたような表情を浮かべたが、すぐさまバイブのもたらす快感にとろけ\@ TALENT:種族 < 0 ? 可愛らしい # 艶っぽい \@嬌声をあげ始めた…
+			ENDIF
+		ELSEIF TALENT:恋慕
+			PRINTFORML %CALLNAME:TARGET%はバイブのもたらす快感にとろけ\@ TALENT:種族 < 0 ? 可愛らしい # 艶っぽい \@嬌声をあげながらも、%CALLNAME:MASTER%の股間に熱っぽい視線を投げかかている…
+		ELSEIF EXP:Ｖ経験 > 20
+			PRINTFORML %CALLNAME:TARGET%はバイブのもたらす快感にとろけ\@ TALENT:種族 < 0 ? 可愛らしい # 艶っぽい \@嬌声をあげている…
+		ELSE
+			PRINTFORML %CALLNAME:TARGET%は不慣れなバイブの刺激に身をよじらせてよがっている…
+		ENDIF
+ELSE
+	SIF ABL:Ｖ感覚 >= 4 && TALENT:淫乱
+		PRINT 腰を浮かせておねだりしている
+	PRINTFORM %CALLNAME:TARGET%の
+	SIF TEQUIP:下半身下着あり
+		PRINTFORM 下着をずらし、
+	;潤滑LV5以上でさらに追加
+	SIF PALAM:潤滑 >= PALAMLV:5
+		PRINT たっぷりと
+	;潤滑LV3以上でさらに追加
+	SIF PALAM:潤滑 >= PALAMLV:3
+		PRINT 粘液をたたえた
+	;小柄体型
+	IF TALENT:種族 < 0
+		PRINT 幼いワレメに
+	ELSE
+		PRINT 秘裂に
+	ENDIF
+	PRINTL バイブの先端をあてがい馴染ませていく…
+
+	PRINTFORM %CALLNAME:TARGET%は
+	;処女＋淫乱か娼婦
+	IF TALENT:処女 == 1 && TALENT:淫乱
+		PRINT 自分が処女である事を忘れているかのような笑みを見せ
+	;処女＋恋慕か親愛
+	ELSEIF TALENT:処女 == 1 && TALENT:恋慕
+		PRINTFORM 少し寂しそうな目で%CALLNAME:PLAYER%を見
+	;処女＋淫乱
+	ELSEIF TALENT:処女 == 1 && TALENT:淫乱
+		PRINT 処女である事もお構いなしに、腰を揺らしておねだりをし
+	;処女＋一線越えない
+	ELSEIF TALENT:処女 == 1 && TALENT:一線越えない
+		PRINT 何かを諦めた表情で目にうっすら涙を浮かべ
+	;処女
+	ELSEIF TALENT:処女 == 1
+		PRINT ガタガタと震え、喪失の恐怖に怯え
+
+	;Ｖ経験200以上＋淫乱か娼婦
+	ELSEIF EXP:Ｖ経験 > 200 && TALENT:淫乱
+		PRINT 挿入への期待だけでガクガクと腰を震わせてイきそうになっ
+	;Ｖ経験150以上＋淫乱か娼婦
+	ELSEIF EXP:Ｖ経験 > 150 && TALENT:淫乱
+		PRINTFORM とろけきった目で%CALLNAME:PLAYER%を見つめ、自分から陰唇を擦りつけ
+	;Ｖ経験120以上＋淫乱か娼婦
+	ELSEIF EXP:Ｖ経験 > 120 && TALENT:淫乱
+		PRINT 恍惚とした表情で待ちきれないように腰をくねらせ
+	;Ｖ経験70以上＋淫乱か娼婦
+	ELSEIF EXP:Ｖ経験 > 70 && TALENT:淫乱
+		PRINTFORM もの欲しそうに目を潤ませ%CALLNAME:PLAYER%の方を見
+	;Ｖ経験40以上
+	ELSEIF EXP:Ｖ経験 > 40
+		PRINT バイブの擦れる感触に陶酔しきった吐息をつい
+	;Ｖ経験20以上
+	ELSEIF EXP:Ｖ経験 > 20
+		PRINT バイブの擦れる感触に身をよじらせ愛液を滲ませて
+	;それ以外
+	ELSE
+		PRINT バイブの擦れる感触に肉襞をひくつかせ
+	ENDIF
+	PRINTL ている…
+	PRINTFORM %CALLNAME:TARGET%の
+	;潤滑LV4以上
+	SIF PALAM:潤滑 >= PALAMLV:4
+		PRINT 濡れそぼった
+	PRINTFORML 性器にバイブを挿し込んだ
+ENDIF
+

@@ -1,0 +1,145 @@
+﻿
+@性癖開拓処理
+#DIM 表示候補, 200
+#DIM 現在ページ
+#DIM 開拓対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+DRAWLINE
+PRINTL 図書室の蔵書から該当するエロ本が任意のキャラに渡るよう細工し、キャラの性癖を開拓します
+PRINTL 誰の性癖を開拓しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;非滞在は出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL}]%NAME:(表示候補:LOCAL)%", LOCAL
+	PRINTL 
+NEXT
+
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+;広告対象のINPUT
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		開拓対象 = 表示候補:RESULT
+ENDSELECT
+
+DRAWLINE
+PRINTFORML %CALLNAME:開拓対象%の性癖開拓を行います
+PRINTL どの性癖を開拓しますか？
+DRAWLINE
+
+;ここで性癖一覧を並べるが今は野外だけなのでとりあえずぽん置きしておく
+
+PRINTBUTTON "[1]野外オナニー", 1
+PRINTL
+
+PRINTL
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP_2
+INPUT
+
+SELECTCASE RESULT
+	CASE 1
+		PRINTFORML %CALLNAME:開拓対象%に野外オナニーのエロ本が渡るように細工を行います
+		PRINTW ※結果は一日の終了時に表示されます
+		性癖素質:開拓対象:性癖開発用フラグ変数 = RESULT
+	CASE 999
+		GOTO 表示_LOOP
+	CASEELSE
+		GOTO INPUT_LOOP_2
+ENDSELECT
+
+@性癖開拓チャレンジ処理_1(ARG)
+;野外オナニー
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「外で自慰をするシチュ」のエロ本が渡るように小細工した…
+PRINTL
+
+;エロ本を読むかどうか
+IF 知識素質:ARG:性知識 < 1 && EXP:ARG:自慰経験 < 1
+	;性知識が0か-1であり、オナニー経験がないと本の内容を理解できない
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本をぱらぱらと開いてみたが、よく意味がわからなかったようだ…
+	DRAWLINE
+	RETURN 0
+ENDIF
+
+;基礎確率は2/10
+LOCAL = 2
+;自制心、性的興味、性欲が影響
+LOCAL -= TALENT:ARG:自制心
+LOCAL += TALENT:ARG:性的興味 * 2
+LOCAL += TALENT:ARG:性欲
+SIF BASE:ARG:性欲 > 6000
+	LOCAL += 1
+;露出癖が影響
+LOCAL += ABL:ARG:露出癖
+
+;自慰しやすいが影響
+LOCAL += TALENT:ARG:自慰しやすい * 2
+;最低確率1割は確保
+LOCAL = MAX(LOCAL, 1)
+;補正確率より低ければ読む
+IF RAND:10 < LOCAL
+	;読むパターン
+	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
+	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
+	PRINTL
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー]を取得した
+	性癖素質:ARG:野外オナニー = 1
+ELSE
+	;読まないパターン
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
+ENDIF

@@ -1,0 +1,1719 @@
+﻿;CUP計算用関数
+;ARG	被行為者
+;ARG:1	行為者
+;ARG:2	強度
+;--------------------------------------------------------------------------------------------------
+;CUP一覧と上昇PALAM
+;--------------------------------------------------------------------------------------------------
+;CALC_快Ｃ：快Ｃ・潤滑・欲情
+;CALC_快Ｖ：快Ｖ・潤滑・欲情
+;CALC_快Ａ：快Ａ・潤滑・欲情・屈服
+;CALC_快Ｂ：快Ｂ・潤滑・欲情
+;CALC_快Ｓ：快Ｓ・潤滑・欲情
+;CALC_接触：欲情・不快・好感度UP
+;CALC_液体：潤滑
+;CALC_露出：欲情・潤滑・恥情・反感・屈服
+;CALC_苦痛：苦痛・欲情・潤滑・反感・屈服
+;CALC_拘束：欲情・潤滑・反感・屈服
+;CALC_歓楽：好感度UP・欲情
+;CALC_奉仕：習得・奉仕・反感・屈服
+;CALC_征服：欲情・恥情・征服
+;CALC_不潔：不快・反感・屈服
+;CALC_絶頂：欲情・潤滑・恥情
+;CALC_精液：屈服・不快
+;CALC_不快:不快
+;CALC_反感：反感
+;--------------------------------------------------------------------------------------------------
+;基礎値処理
+;--------------------------------------------------------------------------------------------------
+@SOURCE_COMMON_CHECK(被行為者, 行為者, 行為強度, ソース種別)
+#DIM 被行為者
+#DIM 行為者
+#DIM 行為強度
+#DIM ソース種別
+
+;好感度などから基礎値を導く
+;ソース種別に応じて基礎値の補正が変動する
+;基本的にMAXで200になるよう調整だが、ABLの数値によっては限界突破する
+
+
+SELECTCASE ソース種別
+	CASE 0 TO 5
+		;物理的な快楽は好感度などの補正が最小限
+		IF 行為者 == MASTER
+			LOCAL = ((CFLAG:被行為者:好感度レベル + CFLAG:被行為者:恋慕レベル) / 4) + ABL:被行為者:ソース種別 * 15
+			LOCAL = (LOCAL + 50) * 行為強度 / 100
+		ELSE
+			;MASTER関係ない場合、100%ABLで計算する
+			LOCAL = ABL:被行為者:ソース種別 * 20 * 行為強度 / 100 + 50
+		ENDIF
+	CASE 10 TO 15
+		;精神的な快楽は好感度がそこそこ影響する
+		IF 行為者 == MASTER
+			LOCAL = ((CFLAG:被行為者:好感度レベル + CFLAG:被行為者:恋慕レベル) / 2) + ABL:被行為者:ソース種別 * 10
+			LOCAL = (LOCAL + 50) * 行為強度 / 100
+		ELSE
+			;MASTER関係ない場合、100%ABLで計算する
+			LOCAL = ABL:被行為者:ソース種別 * 20 * 行為強度 / 100 + 50
+		ENDIF
+	CASE 20, 999
+		;技巧、歓楽・好感度・恋慕度は好感度のみ影響する
+		IF 行為者 == MASTER
+			LOCAL = (CFLAG:被行為者:好感度レベル + CFLAG:被行為者:恋慕レベル+ 50) * 行為強度 / 100
+		ELSE
+			;MASTER関係ない場合、Lv50（友人相手にした時）として計算する
+			LOCAL = 行為強度 / 2
+		ENDIF
+ENDSELECT
+;全ソース影響する要素
+;貞操観念はあらゆるソースを減少させる（恋慕後は無効）
+SIF TALENT:被行為者:貞操 > 0 && !TALENT:被行為者:恋慕
+	LOCAL = LOCAL * 9 / 10
+;抵抗はあらゆるソースを減少させる（恋慕後は無効）
+SIF TALENT:被行為者:抵抗 > 0 && !TALENT:被行為者:恋慕
+	LOCAL = LOCAL * 9 / 10
+;性転換は陥落があるなら増加、ないなら減少
+IF TALENT:被行為者:性転換 && TALENT:被行為者:性転換 == TALENT:行為者:性別
+	IF TALENT:被行為者:恋慕 || TALENT:被行為者:セフレ
+		LOCAL = LOCAL * 11 / 10
+	ELSE
+		LOCAL = LOCAL * 9 / 10
+	ENDIF
+ENDIF
+;発情期はなんでも喜ぶ
+SIF CFLAG:被行為者:発情期フラグ < 0
+	LOCAL = LOCAL * 15 / 10
+
+;基礎値は最大で200（後々限界突破は作る）
+RETURN LOCAL
+
+
+@NEGATIVE_SOURCE_COMMON_CHECK(被行為者, 行為者, 行為強度)
+#DIM 被行為者
+#DIM 行為者
+#DIM 行為強度
+#DIM ソース種別
+
+;こっちは増加することでデメリットが発生するソースの基礎値計算（反感・不快）
+;好感度などから基礎値を導く
+;ソース種別に応じて基礎値の補正が変動する
+;行為強度が一定値以下なら1に補正
+
+
+;物理的な快楽は好感度などの補正が最小限
+IF 行為者 == MASTER
+	;基本値
+	LOCAL = (2000 * 行為強度 / 100)
+	;一定値以下の行為強度の場合は1に補正
+	;一定値は素質によって変動
+	LOCAL:1 = 40
+	LOCAL:1 += CFLAG:被行為者:好感度レベル / 5
+	LOCAL:1 += CFLAG:被行為者:恋慕レベル
+	LOCAL:1 += TALENT:被行為者:恋慕 * 20
+	LOCAL:1 += TALENT:被行為者:態度 * -10
+	LOCAL:1 += TALENT:被行為者:プライド * -15
+	IF CFLAG:被行為者:好感度レベル < 51
+		LOCAL:1 += TALENT:被行為者:ツンデレ * -10
+	ELSE
+		LOCAL:1 += 15
+		LOCAL:1 += TALENT:被行為者:ツンデレ * 20
+	ENDIF
+	LOCAL:1 += TALENT:被行為者:無関心 * 10
+	LOCAL:1 += TALENT:被行為者:感情乏しい * 10
+	LOCAL:1 += TALENT:被行為者:抵抗 * -20
+	
+	SIF LOCAL:1 >= 行為強度
+		LOCAL = 0
+	RETURN LOCAL
+ELSE
+	;MASTER関係ない場合0
+	RETURN 0
+ENDIF
+
+RETURN LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;数値減衰処理
+;--------------------------------------------------------------------------------------------------
+@SOURCE_上限減衰(ARG, ARG:1)
+#FUNCTION
+
+LOCAL:1 = 6000
+
+IF ARG:1
+	ARG:1 = MIN(ARG:1, 1000)
+	LOCAL:1 = LOCAL:1 * (666 + ARG:1) / 666
+ENDIF
+
+LOCAL = ARG
+;一回のコマンドで与えるソースの量がインフレしないように上限を設ける
+IF LOCAL >= LOCAL:1
+	LOCAL = (LOCAL - LOCAL:1) / 4 + LOCAL:1
+ENDIF
+
+IF LOCAL >= LOCAL:1 + 500
+	LOCAL = (LOCAL - (LOCAL:1 + 500)) / 10 + (LOCAL:1 + 500)
+ENDIF
+
+IF LOCAL >= LOCAL:1 + 1000
+	LOCAL = (LOCAL - (LOCAL:1 + 1000)) / 100 + (LOCAL:1 + 1000)
+ENDIF
+
+RETURNF LOCAL
+
+@NEGATIVE_SOURCE_上限減衰(ARG, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+LOCAL = ARG
+;反感不快が発生しているのに実質０にならないよう、1/10に減衰ラインを設ける
+IF LOCAL >= 基礎値 * 8 / 10
+	LOCAL = (LOCAL - (基礎値 * 8 / 10)) / 4 + (基礎値 * 8 / 10)
+ENDIF
+IF LOCAL >= 基礎値 * 9 / 10
+	LOCAL = (LOCAL - (基礎値 * 9 / 10)) / 10 + (基礎値 * 9 / 10)
+ENDIF
+
+RETURNF LOCAL
+
+@数値丸め(ARG, ARG:1)
+#FUNCTION
+;ARGの値をARG:1周辺を減衰ラインにして丸める
+
+;第一減衰ライン
+LOCAL = ARG:1 * 4 / 5
+;第二減衰ライン
+LOCAL:1 = ARG:1
+;第三減衰ライン
+LOCAL:2 = ARG:1 * 6 / 5
+;第四減衰ライン
+LOCAL:3 = ARG:1 * 7 / 5
+
+IF ARG > LOCAL
+	ARG = (ARG - LOCAL) / 4 + LOCAL
+ENDIF
+
+IF ARG > LOCAL:1
+	ARG = (ARG - LOCAL:1) / 10 + LOCAL:1
+ENDIF
+
+IF ARG > LOCAL:2
+	ARG = (ARG - LOCAL:2) / 100 + LOCAL:2
+ENDIF
+
+IF ARG > LOCAL:3
+	ARG = (ARG - LOCAL:3) / 1000 + LOCAL:3
+ENDIF
+
+RETURNF ARG
+
+;--------------------------------------------------------------------------------------------------
+;快Ｃ
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_快Ｃ(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+;快Ｃ計算
+;基礎値
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "Ｃ感覚"))
+	LOCAL = RESULT + 1000
+;物理枠（Ａ枠）
+	;技巧(3で等倍、それ以下やそれ以上だと補正、最大+35%)
+	SIF ARG:1 >= 0
+		LOCAL:1 += (ABL:(ARG:1):技巧 - 3) * 5
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;Ｃ感度(-20%～+20%)
+	SIF TALENT:ARG:Ｃ感度
+		LOCAL:1 += TALENT:ARG:Ｃ感度 * 20
+;経験枠（Ｂ枠）
+	;Ｃ経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｃ経験, 250)
+	;Ｃ絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｃ絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+LOCAL = LOCAL * (1000 + 数値丸め(EXP:ARG:肉体熟知, 1000)) / 1000
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:快Ｃ += LOCAL
+;勃起度上昇
+IF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL)
+ENDIF
+;快Ｃ計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:快感応答 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;快Ｖ
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_快Ｖ(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+
+;快Ｖ計算
+;基礎値
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "Ｖ感覚"))
+	LOCAL = RESULT
+;物理枠（Ａ枠）
+	;技巧(3で等倍、それ以下やそれ以上だと補正、最大+35%)
+	SIF ARG:1 >= 0
+		LOCAL:1 += (ABL:(ARG:1):技巧 - 3) * 5
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;Ｖ感度(-20%～+20%)
+	SIF TALENT:ARG:Ｖ感度
+		LOCAL:1 += TALENT:ARG:Ｖ感度 * 20
+	;PALAM:潤滑(拡張経験があると軽減)
+	IF PALAM:ARG:潤滑 < PALAMLV:1
+		LOCAL:1 += MIN(-80 + EXP:ARG:Ｖ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+		LOCAL:1 += MIN(-60 + EXP:ARG:Ｖ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+		LOCAL:1 += MIN(-40 + EXP:ARG:Ｖ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+		LOCAL:1 += MIN(-20 + EXP:ARG:Ｖ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+		LOCAL:1 += 0
+	ENDIF
+;経験枠（Ｂ枠）
+	;Ｖ経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｖ経験, 250)
+	;Ｖ絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｖ絶頂経験, 250)
+	;処女
+	SIF TALENT:ARG:処女
+		LOCAL:2 += -30
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = LOCAL * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+IF TCVAR:ARG:Ｇスポ開発フラグ
+	LOCAL:1 = MIN(EXP:ARG:Ｇスポ開発, 1000)
+	LOCAL = LOCAL * (200 + LOCAL:1) / 200
+	LOCAL = SOURCE_上限減衰(LOCAL, EXP:ARG:Ｇスポ開発)
+ELSEIF TCVAR:ARG:ポルチオ開発フラグ
+	LOCAL:1 = MIN(EXP:ARG:ポルチオ開発, 1000)
+	LOCAL = LOCAL * (200 + LOCAL:1) / 200
+	LOCAL = SOURCE_上限減衰(LOCAL, EXP:ARG:ポルチオ開発)
+ELSE
+	LOCAL = SOURCE_上限減衰(LOCAL)
+ENDIF
+LOCAL = LOCAL * (1000 + 数値丸め(EXP:ARG:肉体熟知, 1000)) / 1000
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:快Ｖ += LOCAL
+;快Ｖ計算ここまで
+
+;女性、ふたなり
+IF TALENT:ARG:性別 & 1
+	CUP:ARG:潤滑 += (LOCAL / 10) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+ELSE
+	CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+ENDIF
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:快感応答 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;快Ａ
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_快Ａ(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+
+
+;快Ａ計算
+;基礎値
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "Ａ感覚"))
+	LOCAL = RESULT
+;物理枠（Ａ枠）
+	;技巧(3で等倍、それ以下やそれ以上だと補正、最大+35%)
+	SIF ARG:1 >= 0
+		LOCAL:1 += (ABL:(ARG:1):技巧 - 3) * 5
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;Ａ感度(-20%～+20%)
+	SIF TALENT:ARG:Ａ感度
+		LOCAL:1 += TALENT:ARG:Ａ感度 * 20
+	;PALAM:潤滑(拡張経験があると軽減)
+	IF PALAM:ARG:潤滑 < PALAMLV:1
+		LOCAL:1 += MIN(-80 + EXP:ARG:Ａ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+		LOCAL:1 += MIN(-60 + EXP:ARG:Ａ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+		LOCAL:1 += MIN(-40 + EXP:ARG:Ａ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+		LOCAL:1 += MIN(-20 + EXP:ARG:Ａ拡張経験, 0)
+	ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+		LOCAL:1 += 0
+	ENDIF
+;経験枠（Ｂ枠）
+	;Ａ経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ａ経験, 250)
+	;Ａ絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ａ絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = LOCAL * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+IF TCVAR:ARG:前立腺開発フラグ
+	LOCAL:1 = MIN(EXP:ARG:前立腺開発, 1000)
+	LOCAL = LOCAL * (200 + LOCAL:1) / 200
+	LOCAL = SOURCE_上限減衰(LOCAL, EXP:ARG:前立腺開発)
+ELSEIF TCVAR:ARG:Ｓ字結腸開発フラグ
+	LOCAL:1 = MIN(EXP:ARG:Ｓ字結腸開発, 1000)
+	LOCAL = LOCAL * (200 + LOCAL:1) / 200
+	LOCAL = SOURCE_上限減衰(LOCAL, EXP:ARG:Ｓ字結腸開発)
+ELSE
+	LOCAL = SOURCE_上限減衰(LOCAL)
+ENDIF
+LOCAL = LOCAL * (1000 + 数値丸め(EXP:ARG:肉体熟知, 1000)) / 1000
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:快Ａ += LOCAL
+;快Ａ計算ここまで
+
+;女性、ふたなり
+IF TALENT:ARG:性別 & 1
+	CUP:ARG:潤滑 += (LOCAL / 10) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+ELSE
+	CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+ENDIF
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:快感応答 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:Ａ感度 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+;--------------------------------------------------------------------------------------------------
+;快Ｂ
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_快Ｂ(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+;快Ｂ計算
+;基礎値
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "Ｂ感覚"))
+	IF TALENT:ARG:性別 & 1
+		LOCAL = RESULT + 500
+	ELSE
+		LOCAL = RESULT
+	ENDIF
+;物理枠（Ａ枠）
+	;技巧(3で等倍、それ以下やそれ以上だと補正、最大+35%)
+	SIF ARG:1 >= 0
+		LOCAL:1 += (ABL:(ARG:1):技巧 - 3) * 5
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;Ｂ感度(-20%～+20%)
+	LOCAL:1 += TALENT:ARG:Ｂ感度 * 20
+	;ドラフ(+30%)
+	SIF TALENT:ARG:種族 == 3
+		LOCAL:1 += 30
+;経験枠（Ｂ枠）
+	;Ｂ経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｂ経験, 250)
+	;Ｂ絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｂ絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+IF TCVAR:ARG:乳首開発フラグ
+	LOCAL:1 = MIN(EXP:ARG:乳首開発, 1000)
+	LOCAL = LOCAL * (200 + LOCAL:1) / 200
+	LOCAL = SOURCE_上限減衰(LOCAL, EXP:ARG:乳首開発)
+ELSE
+	LOCAL = SOURCE_上限減衰(LOCAL)
+ENDIF
+LOCAL = LOCAL * (1000 + 数値丸め(EXP:ARG:肉体熟知, 1000)) / 1000
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:快Ｂ += LOCAL
+;快Ｂ計算ここまで
+
+;潤滑＋
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:快感応答 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;快Ｓ
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_快Ｓ(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+;快Ｓ計算(他の感覚に比べ上昇しづらい)
+;基礎値
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 3, GETNUM(ABL, "Ｓ感覚"))
+	LOCAL = RESULT
+;物理枠（Ａ枠）
+	;技巧(3で等倍、それ以下やそれ以上だと補正、最大+35%)
+	SIF ARG:1 >= 0
+		LOCAL:1 += (ABL:(ARG:1):技巧 - 3) * 5
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;Ｓ感度(-20%～+20%)
+	SIF TALENT:ARG:Ｓ感度
+		LOCAL:1 += TALENT:ARG:Ｓ感度 * 20
+;経験枠（Ｂ枠）
+	;Ｓ経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｓ経験, 250)
+	;Ｓ絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:Ｓ絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+LOCAL = LOCAL * (1000 + 数値丸め(EXP:ARG:肉体熟知, 1000)) / 1000
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:快Ｓ += LOCAL
+;快Ｓ計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 5, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:快感応答 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+
+;--------------------------------------------------------------------------------------------------
+;接触
+;--------------------------------------------------------------------------------------------------
+;欲情、不快の珠、好感度UP
+@SOURCE_CALC_接触(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;性欲の強さ
+	LOCAL:1 = TALENT:ARG:性欲 * 20
+	;体の開発度
+	LOCAL:1 += ABL:ARG:Ｃ感覚 + ABL:ARG:Ｖ感覚 + ABL:ARG:Ａ感覚 + ABL:ARG:Ｂ感覚 + ABL:ARG:Ｓ感覚
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+;好感度UP
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;PLAYER限定
+SIF ARG:1 == PLAYER
+	NOWEX:ARG:好感度上昇格納 += LOCAL
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
+;好感度UPここまで
+
+
+;不快
+;恋慕時は発生しない
+SIF TALENT:ARG:恋慕 > 0
+	RETURN 0
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_不快(ARG, ARG:1, RESULT)
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:不快 += LOCAL - LOCAL:1
+;不快ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;接触（不快なし）
+;主にAUTOCOM（相手からの行動）で使用
+;--------------------------------------------------------------------------------------------------
+;欲情、不快の珠、好感度UP
+@SOURCE_CALC_接触_不快無し(ARG, ARG:1, ARG:2)
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;性欲の強さ
+	LOCAL:1 = TALENT:ARG:性欲 * 20
+	;体の開発度
+	LOCAL:1 += ABL:ARG:Ｃ感覚 + ABL:ARG:Ｖ感覚 + ABL:ARG:Ａ感覚 + ABL:ARG:Ｂ感覚 + ABL:ARG:Ｓ感覚
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+;好感度UP
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;PLAYER限定
+SIF ARG:1 == PLAYER
+	NOWEX:ARG:好感度上昇格納 += LOCAL
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
+;好感度UPここまで
+
+;--------------------------------------------------------------------------------------------------
+;液体追加
+;ローション等の固定値を想定
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_液体(ARG, ARG:1, ARG:2)
+	CUP:ARG:潤滑 += ARG:2
+
+
+;--------------------------------------------------------------------------------------------------
+;露出
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_露出(ARG, ARG:1, ARG:2)
+;欲情、恥情、反感,屈服
+
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;羞恥心
+	LOCAL:1 = TALENT:ARG:羞恥心 * 20
+	;ABL:露出癖
+	LOCAL:1 += ABL:ARG:露出癖 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+
+;恥情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "露出癖"))
+	LOCAL = PALAM変換_恥情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;酩酊
+	LOCAL:1 = BASE:ARG:酩酊 / -20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:恥情 += LOCAL
+;恥情計算ここまで
+
+;反感
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:2 = (ABL:ARG:マゾ性感 + ABL:ARG:露出癖) * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = ABL:ARG:露出癖 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;露出（反感なし）
+;主にAUTOCOM（相手からの行動）で使用
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_露出_反感無し(ARG, ARG:1, ARG:2)
+;欲情、恥情、反感,屈服
+
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;羞恥心
+	LOCAL:1 = TALENT:ARG:羞恥心 * 20
+	;ABL:露出癖
+	LOCAL:1 += ABL:ARG:露出癖 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+
+;恥情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "露出癖"))
+	LOCAL = PALAM変換_恥情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:恥情 += LOCAL
+;欲情計算ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = ABL:ARG:露出癖 * 20
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;苦痛
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_苦痛(ARG, ARG:1, ARG:2)
+;苦痛,欲情,反感,屈服
+
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;ABL:露出癖
+	LOCAL:1 = ABL:ARG:マゾ性感 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+	;苦痛快楽経験
+	LOCAL:1 += MIN(EXP:ARG:苦痛快楽経験 + EXP:ARG:苦痛絶頂経験, 250)
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;苦痛計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_苦痛(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:苦痛 += LOCAL
+;苦痛計算ここまで
+
+;反感
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:2 = ABL:ARG:マゾ性感 * 10
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+	;苦痛刻印
+	LOCAL:2 += MARK:ARG:苦痛刻印 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = ABL:ARG:マゾ性感 * 10
+	;苦痛刻印
+	LOCAL:1 += MARK:ARG:苦痛刻印 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;拘束
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_拘束(ARG, ARG:1, ARG:2)
+;欲情,反感,屈服
+
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;ABL:露出癖
+	LOCAL:1 = ABL:ARG:マゾ性感 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+CUP:ARG:潤滑 += (LOCAL / 20) * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;反感
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;倒錯的
+	LOCAL:2 = TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;歓楽
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_歓楽(ARG, ARG:1, ARG:2)
+;好意
+VARSET LOCAL
+;好感度UP
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;PLAYER限定
+SIF ARG:1 == PLAYER
+	NOWEX:ARG:好感度上昇格納 += LOCAL
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
+;好感度UPここまで
+
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 10, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;愛情
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_愛情(ARG, ARG:1, ARG:2)
+;好意
+VARSET LOCAL
+;好感度UP
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;PLAYER限定
+SIF ARG:1 == PLAYER
+	NOWEX:ARG:好感度上昇格納 += LOCAL
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	NOWEX:ARG:恋慕度上昇格納 += LOCAL
+EXP:ARG:愛情経験 += MAX(LOCAL / 100, 1)
+;好感度UPここまで
+
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 5, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;奉仕
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_奉仕(ARG, ARG:1, ARG:2)
+;習得,恭順,反感,屈服
+VARSET LOCAL
+
+;習得計算
+;基礎値＆枠計算
+CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "技巧"))
+LOCAL = PALAM変換_習得(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:習得 += LOCAL
+;習得計算ここまで
+
+
+;奉仕計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "奉仕精神"))
+	LOCAL = PALAM変換_奉仕(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;ABL:露出癖
+	LOCAL:1 = ABL:ARG:マゾ性感 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:奉仕 += LOCAL
+;奉仕計算ここまで
+
+;技巧EXP処理
+技巧経験値:ARG:0 += MAX((ARG:2 / 100), 1)
+
+;反感
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;性的興味
+	LOCAL:2 = TALENT:ARG:性的興味 * 10
+	;献身的
+	LOCAL:2 += TALENT:ARG:献身的 * 20
+	;奉仕精神
+	SELECTCASE ABL:ARG:奉仕精神
+		CASE 0
+			LOCAL:2 += -30
+		CASE 1
+			LOCAL:2 += 10
+		CASE 2
+			LOCAL:2 += 15
+		CASE 3
+			LOCAL:2 += 20
+		CASE 4
+			LOCAL:2 += 25
+		CASE 5
+			LOCAL:2 += 30
+		CASE 6
+			LOCAL:2 += 35
+		CASE 7
+			LOCAL:2 += 40
+		CASE 8
+			LOCAL:2 += 45
+		CASE 9
+			LOCAL:2 += 50
+		CASEELSE
+			LOCAL:2 += 60
+	ENDSELECT
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで
+
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = ABL:ARG:奉仕精神 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;征服
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_征服(ARG, ARG:1, ARG:2)
+;優越,欲情,恥情
+VARSET LOCAL
+
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 10, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;ABL:露出癖
+	LOCAL:1 = ABL:ARG:サド性感 * 10
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+;征服計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "サド性感"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:征服 += LOCAL
+;征服計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;不潔
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_不潔(ARG, ARG:1, ARG:2)
+;不快、反感,屈服
+VARSET LOCAL
+
+;不快
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_不快(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:2 = TALENT:ARG:汚臭耐性 * 25
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:不快 += LOCAL - LOCAL:1
+;不快ここまで
+
+;反感
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:2 = TALENT:ARG:汚臭耐性 * 25
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = TALENT:ARG:汚臭耐性 * -20
+	;倒錯的
+	LOCAL:1 += TALENT:ARG:倒錯的 * 10
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;絶頂
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_絶頂(ARG, ARG:1, ARG:2)
+;欲情、恥情
+VARSET LOCAL
+
+;欲情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "欲望"))
+	LOCAL = PALAM変換_欲情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;快感応答
+	LOCAL:1 = TALENT:ARG:快感応答 * 25
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;弱点コマンド
+SIF TFLAG:弱点コマンドフラグ
+	LOCAL = LOCAL * 15 / 10
+CUP:ARG:欲情 += LOCAL
+;勃起度上昇
+SIF TALENT:ARG:性別 & 2
+	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
+;欲情計算ここまで
+
+CUP:ARG:潤滑 += LOCAL * (100 + TALENT:ARG:濡れやすさ * 20) / 100
+
+;恥情計算
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 4, GETNUM(ABL, "露出癖"))
+	LOCAL = PALAM変換_恥情(ARG, ARG:1, RESULT)
+;ソース別独自枠
+;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:恥情 += LOCAL
+;恥情計算ここまで
+
+;--------------------------------------------------------------------------------------------------
+;精液
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_精液(ARG, ARG:1, ARG:2)
+;恭順、屈服、不快
+VARSET LOCAL
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = MIN(EXP:ARG:精液経験, 100)
+	LOCAL:1 += TALENT:ARG:汚臭耐性 * 15
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+;不快
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2 / 2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_不快(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = MIN(EXP:ARG:精液経験, 100)
+	LOCAL:2 = TALENT:ARG:汚臭耐性 * 25
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:不快 += LOCAL - LOCAL:1
+;不快ここまで
+
+
+;--------------------------------------------------------------------------------------------------
+;精液(不快なし)
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_精液_不快なし(ARG, ARG:1, ARG:2)
+;恭順、屈服、不快
+VARSET LOCAL
+
+;屈服計算
+;基礎値＆枠計算(基礎値は半分)
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, GETNUM(ABL, "マゾ性感"))
+	LOCAL = PALAM変換_屈服(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	LOCAL:1 = MIN(EXP:ARG:精液経験, 100)
+	LOCAL:1 += TALENT:ARG:汚臭耐性 * 15
+LOCAL = LOCAL * (LOCAL:1 + 100) / 100
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+CUP:ARG:屈服 += LOCAL
+;屈服計算ここまで
+
+
+
+;--------------------------------------------------------------------------------------------------
+;不快直接発生
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_不快(ARG, ARG:1, ARG:2)
+;不快
+VARSET LOCAL
+
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_不快(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:不快 += LOCAL - LOCAL:1
+;不快ここまで
+
+;--------------------------------------------------------------------------------------------------
+;反感直接発生
+;--------------------------------------------------------------------------------------------------
+@SOURCE_CALC_反感(ARG, ARG:1, ARG:2)
+;反感
+VARSET LOCAL
+
+;基礎値＆減算値計算
+	CALL NEGATIVE_SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2)
+	LOCAL = RESULT
+	LOCAL:1 = PALAM変換_反感(ARG, ARG:1, RESULT)
+;ソース別独自枠
+	;倒錯的
+	LOCAL:2 += TALENT:ARG:倒錯的 * 10
+LOCAL:1 = LOCAL:1 * (LOCAL:2 + 100) / 100
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL:1 /= 2
+;乱数(±5%)
+LOCAL:1 = LOCAL:1 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL:1 = NEGATIVE_SOURCE_上限減衰(LOCAL:1, LOCAL)
+;弱点コマンド
+IF TFLAG:弱点コマンドフラグ
+	LOCAL = 0
+	LOCAL:1 = 0
+ENDIF
+CUP:ARG:反感 += LOCAL - LOCAL:1
+;反感ここまで

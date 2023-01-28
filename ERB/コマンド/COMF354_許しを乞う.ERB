@@ -1,0 +1,66 @@
+﻿
+
+@COMNAME354
+#FUNCTIONS
+TSTR:コマンド名受渡 = 許しを乞う
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_354
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("いつでも")
+
+@COM_TOOLTIP_354
+LOCALS = <br>■許しを乞う<br>
+LOCALS += "怒り状態の相手の、怒りゲージを減少させるコマンド。<br>減少する量は好感度レベルに比例する。"
+LOCALS += "<br>COMタイプ：いつでも<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+;許しを乞う
+@COM354
+
+BASE:怒り -= CFLAG:好感度レベル * 5
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE354
+;告白する実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(354)
+	RETURN RESULT
+;いつでもだが相手がいないとダメ
+SIF !TARGET
+	RETURN 0
+;二人きりでないとだめ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;相手が怒っている必要あり
+SIF !CFLAG:怒り
+	RETURN 0
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM354
+PRINTFORML %CALLNAME:PLAYER%は誠心誠意、%CALLNAME:TARGET%に謝罪した
+IF BASE:TARGET:怒り > 0
+	PRINTL しかし、まだ許しては貰えないようだ…
+ELSE
+	PRINTL なんとか許してもらうことが出来た。次は気を付けよう…
+ENDIF

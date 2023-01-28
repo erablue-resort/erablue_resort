@@ -1,0 +1,259 @@
+﻿
+@COMNAME325
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳首当てゲーム
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_325
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ&飲み会")
+
+@COM_TOOLTIP_325
+LOCALS = <br>■乳首当てゲーム<br>
+LOCALS += "服の上から乳をつつき、乳首の位置を当てるゲームを行うコマンド。<br>相手の同意が必要。"
+LOCALS += "<br>COMタイプ：セクハラand飲み会<br>取得ソース：接触・露出・快Ｂ"
+LOCALS += "<br>固有の取得経験：乳首開発(一定条件時)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM325
+
+;乳首当てゲーム
+LOCAL = RAND:10
+SELECTCASE LOCAL
+	CASE 0 TO 4
+		TFLAG:コマンド結果受渡し変数４ = 1
+		TCVAR:乳首開発フラグ = 1
+		CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 100)
+	CASE 5 TO 8
+		TFLAG:コマンド結果受渡し変数４ = -1
+	CASE 9
+		TFLAG:コマンド結果受渡し変数４ = 2
+		TCVAR:乳首開発フラグ = 2
+		CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
+ENDSELECT
+
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:MASTER:同性愛経験 += 1
+ENDIF
+;結果に関わりなく発生する快楽部分
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+
+TIME += 20
+RETURN 1
+
+@CAN_COM325(ARG)
+SKIPDISP ARG
+PRINTL 乳首当てゲーム
+;-------------------------------------------------
+;実行できるかの判定
+;-------------------------------------------------
+A = 0
+S = 0
+
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+
+IF ABL:欲望
+	SIF S
+		PRINT  + 
+	A += ABL:欲望 * 1
+	PRINT 欲望
+	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 1,')
+	S = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 2
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 2,')
+	S = 1
+ENDIF
+
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 恥じらい
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 恋慕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;親愛
+IF TALENT:恋慕 > 1
+	SIF S
+		PRINT  + 
+	A += 10
+	PRINT 親愛
+	PRINTV '(,10,')
+	S = 10
+ENDIF
+
+CALL セクハラ反応タイプ判定(TARGET)
+;TFLAG:コマンド結果受渡し変数
+;1:拒絶  2:受け入れ 3:喜び
+;TFLAG:コマンド結果受渡し変数２
+;1:無知  2:無反応 3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+
+;セクハラ強は基本的に喜び以外に入らないはず（合意条件であり、合意に入るにはそれなりに仲良くならなければならないため）
+
+SELECTCASE TFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		SIF S
+			PRINT  + 
+		A += 10
+		PRINT 反応タイプ：無知
+		PRINTV '(,10,')
+		S = 10
+	CASE 2
+		;無反応
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 反応タイプ：無反応
+		PRINTV '(,10,')
+		S = 10
+	CASE 3
+		;嫌悪
+		SIF S
+			PRINT  - 
+		A -= 10
+		PRINT 反応タイプ：嫌悪
+		PRINTV '(,10,')
+		S = 10
+	CASE 4
+		;拒否
+		SIF S
+			PRINT  - 
+		A += 5
+		PRINT 反応タイプ：拒否
+		PRINTV '(,5,')
+		S = 5
+	CASE 5
+		;余裕
+		SIF S
+			PRINT  + 
+		A += 5
+		PRINT 反応タイプ：余裕
+		PRINTV '(,5,')
+		S = 5
+	CASE 6
+		;羞恥
+		SIF S
+			PRINT  - 
+		A -= 10
+		PRINT 反応タイプ：羞恥
+		PRINTV '(,10,')
+		S = 10
+	CASE 7
+		;愉悦
+		SIF S
+			PRINT  + 
+		A += 10
+		PRINT 反応タイプ：愉悦
+		PRINTV '(,10,')
+		S = 10
+ENDSELECT
+
+;合計を表示(20以上で実行)
+PRINT  = 
+PRINTV A
+
+V = 20
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE325
+;実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(325)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM325
+
+;乳首当てゲーム
+SELECTCASE TFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		PRINT 何が始まるのかよくわかっていない
+	CASE 2
+		;無反応
+		PRINT 何も気にしないかのように無表情の
+	CASE 3
+		;嫌悪
+		PRINT ドン引きしたような目であなたを見る
+	CASE 4
+		;拒否
+		PRINT 嫌そうな顔をしながらも待つ
+	CASE 5
+		;余裕
+		PRINT お酒を飲みながらこちらの様子を見ている
+	CASE 6
+		;羞恥
+		PRINT 頬を赤く染めて目を瞑って待つ
+	CASE 7
+		;愉悦
+		PRINT 挑発的に笑って待つ
+ENDSELECT
+
+PRINTFORMW %CALLNAME:TARGET%の胸に、乳首めがけて指を前に出した。
+SELECTCASE TFLAG:コマンド結果受渡し変数４
+	CASE 1
+		PRINTW 【的中！】
+		PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:TARGET%の乳首を突くことに成功した！
+	CASE -1
+		PRINTW 【ハズレ…】
+		PRINTFORML %CALLNAME:MASTER%は乳首の位置を見誤ってしまったようだ…
+	CASE 2
+		PRINTW 【的中！　…しかし】
+		PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:TARGET%の乳首に的中させたが、%CALLNAME:TARGET%は外れたと言い張っている。
+		PRINTFORML 突いた指をぐりぐりと動かしてやると、%CALLNAME:TARGET%はたまらず負けを認めた。
+ENDSELECT

@@ -1,0 +1,239 @@
+﻿;-------------------------------------------------
+;呼び出す
+;-------------------------------------------------
+@COMNAME210
+#FUNCTIONS
+TSTR:コマンド名受渡 = 呼び出す
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_210
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("複数人プレイ")
+
+@COM_TOOLTIP_210
+LOCALS = <br>■呼び出す<br>
+LOCALS += "性交渉中、他のキャラをこの場に呼び出すコマンド。<br>現在対象、及び呼び出す対象は[恋慕]か[セフレ]を所持していなければならない。"
+LOCALS += "<br>COMタイプ：複数人プレイ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM210
+
+#DIM 表示候補, 500
+#DIM 現在ページ
+#DIM 呼び出し対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+呼び出し対象 = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰を呼び出しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;滞在してないキャラは出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;セフレでも恋慕でもないキャラは出さない
+	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
+		CONTINUE
+	;睡眠中はアウト
+	SIF CFLAG:LOCAL:睡眠
+		CONTINUE
+	;今現在の相手はアウト
+	SIF LOCAL == TARGET
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTONLC @"[{LOCAL}]%NAME:(表示候補:LOCAL)%", LOCAL
+	IF TALENT:(表示候補:LOCAL):恋慕
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT 恋慕
+		RESETCOLOR
+	ELSEIF TALENT:(表示候補:LOCAL):セフレ
+		PRINT セフレ
+	ENDIF
+	PRINTL 
+NEXT
+
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]やめる", 999
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		呼び出し対象 = 表示候補:RESULT
+ENDSELECT
+
+CFLAG:呼び出し対象:現在位置 = CFLAG:PLAYER:現在位置
+CFLAG:呼び出し対象:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+CFLAG:呼び出し対象:うふふ = 1
+;先に同室フラグを建てることで発覚口上をスキップする
+CFLAG:呼び出し対象:同室 = 1
+TFLAG:コマンド結果受渡し変数 = 呼び出し対象
+
+
+@CAN_COM210(ARG)
+SKIPDISP ARG
+PRINTL 他のキャラを呼び出す
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+A = 0
+S = 0
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+;ABL:露出癖
+IF ABL:露出癖
+	SIF S
+		PRINT  + 
+	A += ABL:露出癖 * 10
+	PRINT 露出癖
+	PRINTV 'LV,ABL:露出癖,'(,ABL:露出癖 * 10,')
+	S = 1
+ENDIF
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 1
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 1,')
+	S = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,10)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:欲情,10) * 5
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,10),'(,GETPALAMLV(PALAM:欲情,10) * 5,')
+	S = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 5
+	PRINT 恥じらい
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 恋慕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;ニーア
+IF TARGET == 64
+	PRINT  - 
+	A -= 999
+	PRINT ニーア
+	PRINTV '(,999,')
+	S = 5
+ENDIF
+
+;合計を表示(14以上で実行)
+PRINT  = 
+PRINTV A
+
+V = 40
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE210
+;呼び出す
+SIF !TFLAG:100
+	RETURN 0
+;複数人プレイに入るためのコマンドのため、一括管理はせずここで全部記述する
+SIF TFLAG:調教モード != 2
+	RETURN 0
+SIF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || CFLAG:隠密
+	RETURN 0
+;既に二人目がいる場合アウト
+SIF TARGET:2 > 0
+	RETURN 0
+;隠密プレイ時は除外
+SIF CFLAG:PLAYER:隠密 || CFLAG:TARGET:隠密
+	RETURN 0
+;相手が恋慕、あるいはセフレでないときアウト
+SIF !TALENT:恋慕 && !TALENT:セフレ
+	RETURN 0
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM210
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:(TFLAG:コマンド結果受渡し変数)%を呼び出した
+

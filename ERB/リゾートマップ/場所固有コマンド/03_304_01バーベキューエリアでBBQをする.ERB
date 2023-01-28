@@ -1,0 +1,274 @@
+﻿
+;-------------------------------------------------
+;03_304_01バーベキューエリアで食事をする
+;-------------------------------------------------
+@COMNAME_PLACE_380_0_304
+#FUNCTION
+
+IF 施設改造度:3:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+TSTR:コマンド名受渡 = ＢＢＱをする
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_0_304
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_380_0_304
+LOCALS = <br>■ＢＢＱをする<br>
+LOCALS += "その場にいるキャラ全員とＢＢＱして食事するコマンド。一定確率で大成功、成功、失敗、大失敗に分岐。<br>所持している食材を提供すると、効果が上昇する。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+		
+@COM380_0_304
+#DIM 料理腕前
+;#DIM 提供食材, 5＞ERHにて記述
+
+VARSET 提供食材, -1
+VARSET LOCAL
+
+;TFLAG:コマンド結果受渡し変数 料理の成功度
+;TFLAG:194 料理人Lvが一番高いキャラ（複数いる場合はランダム）
+
+;追加食材の表示
+$食材_LOOP
+DRAWLINE
+LOCAL:1 = 0
+PRINTL 食材を追加しますか？
+FOR LOCAL, 0, 100
+	IF ITEM:(LOCAL + 200)
+		PRINTBUTTONLC @"■%ITEMNAME:(LOCAL + 200)% × {ITEM:(LOCAL + 200)}", LOCAL + 200
+		LOCAL:1 += 1
+	ENDIF
+	IF LOCAL:1 == 3
+		PRINTL 
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+SIF LOCAL:1
+	PRINTL 
+DRAWLINE
+;今選択している追加食材（３枠分）
+FOR LOCAL, 0, 3
+	PRINT ■
+	IF 提供食材:LOCAL == -1
+		PRINT ────────
+	ELSE
+		PRINTBUTTON @"%ITEMNAME:(提供食材:LOCAL)%", LOCAL + 1000
+	ENDIF
+	PRINTL 
+NEXT
+
+DRAWLINE
+IF MAX(提供食材:0, 提供食材:1, 提供食材:2) == -1
+	PRINTBUTTONLC "[999]何も追加しない", 999
+ELSE
+	PRINTBUTTONLC "[999]この食材を追加する", 999
+ENDIF
+PRINTBUTTON "[説明]", 998
+
+INPUT
+
+SELECTCASE RESULT
+	CASE 200 TO 299
+		IF ITEM:RESULT <= 0
+		ELSEIF 提供食材:0 == -1
+			提供食材:0 = RESULT
+			ITEM:RESULT -= 1
+		ELSEIF 提供食材:1 == -1
+			提供食材:1 = RESULT
+			ITEM:RESULT -= 1
+		ELSEIF 提供食材:2 == -1
+			提供食材:2 = RESULT
+			ITEM:RESULT -= 1
+		ELSE
+			;枠が全部埋まってる
+			PRINTW 食材枠が全て埋まっています。
+		ENDIF
+		GOTO 食材_LOOP
+	CASE 1000 TO 1010
+		ITEM:(提供食材:(RESULT - 1000)) += 1
+		提供食材:(RESULT - 1000) = -1
+		GOTO 食材_LOOP
+	CASE 998
+		PRINTL 手持ちの食材を追加提供することで、食事の効果を上昇させることが出来ます。
+		PRINTL （好感度の上昇量が増加するなど）
+		PRINTL 追加しなくてもマイナス補正が掛かったりすることはありません。
+		PRINTW また、キャラの好物を提供すると効果上昇量が増加します。（未実装）
+		GOTO 食材_LOOP
+	CASE 999
+		IF MAX(提供食材:0, 提供食材:1, 提供食材:2) == -1
+		ELSE
+			FOR LOCAL, 0, 3
+				IF 提供食材:LOCAL == -1
+				ELSE
+					PRINTFORM %ITEMNAME:(提供食材:LOCAL)%  
+				ENDIF
+			NEXT
+			PRINTW を追加しました。
+		ENDIF
+	CASEELSE
+		GOTO 食材_LOOP
+ENDSELECT
+
+;成功度の判定
+料理腕前 = 0
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	IF 料理腕前 < 知識素質:(TARGET:LOCAL):料理人
+		料理腕前 = 知識素質:(TARGET:LOCAL):料理人
+		TFLAG:194 = TARGET:LOCAL
+	ELSEIF 料理腕前 == 知識素質:(TARGET:LOCAL):料理人
+		SIF RAND:2 == 1
+			TFLAG:194 = TARGET:LOCAL
+	ENDIF
+NEXT
+
+料理腕前 = 料理腕前 * 15 + RAND:100
+SELECTCASE 料理腕前
+	CASE IS < 10
+		;大失敗
+		TFLAG:コマンド結果受渡し変数 = -2
+	CASE IS < 35
+		;失敗
+		TFLAG:コマンド結果受渡し変数 = -1
+	CASE IS < 100
+		;成功
+		TFLAG:コマンド結果受渡し変数 = 1
+	CASEELSE
+		;大成功
+		TFLAG:コマンド結果受渡し変数 = 2
+ENDSELECT
+
+DOWNBASE:MASTER:気力 += 100
+DOWNBASE:MASTER:体力 += 50
+
+;その場に居るTARGET全員で回す
+LOCAL:1 = TARGET
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):睡眠
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):隠密
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	CALL COM380_0_304_追加処理(提供食材:0, 提供食材:1, 提供食材:2, 提供食材:3, 提供食材:4)
+NEXT
+TARGET = LOCAL:1
+
+;食事後は三時間ほど食事不可
+TCVAR:MASTER:満腹 = 180
+;大失敗時は何も食べられない
+SIF TFLAG:コマンド結果受渡し変数 == -2
+	TCVAR:MASTER:満腹 = 0
+
+知識素質:PLAYER:料理人経験値 += ABS(TFLAG:コマンド結果受渡し変数) * 10 + RAND:20
+TIME += 60
+RETURN 1
+
+@COM380_0_304_追加処理(提供食材:0, 提供食材:1, 提供食材:2, 提供食材:3, 提供食材:4)
+
+;満腹時間が残ってるなら何もしない
+SIF TCVAR:満腹
+	RETURN 0
+
+DOWNBASE:気力 += 10
+
+;歓楽と征服の基礎値
+LOCAL:0 = 500
+LOCAL:1 = 300
+
+FOR LOCAL:2, 0, 5
+	IF 提供食材:(LOCAL:2) != -1
+		LOCAL:0 += 魚効力(提供食材:(LOCAL:2))
+	ENDIF
+NEXT
+
+;食事後は三時間ほど食事不可
+TCVAR:満腹 = 180
+
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE -2
+		TIMES LOCAL:0 , 0
+		TIMES LOCAL:1 , 0
+		DOWNBASE:気力 += 200
+		;大失敗時は何も食べられない
+		TCVAR:満腹 = 0
+	CASE -1
+		TIMES LOCAL:0 , 0.50
+		TIMES LOCAL:1 , 0.50
+		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 20 , MAXBASE:体力)
+		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 5 , MAXBASE:気力)
+	CASE 1
+		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 10 , MAXBASE:体力)
+		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 3 , MAXBASE:気力)
+	CASE 2
+		TIMES LOCAL:0 , 2.00
+		TIMES LOCAL:1 , 2.00
+		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 5 , MAXBASE:体力)
+		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 2 , MAXBASE:気力)
+ENDSELECT
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+知識素質:料理人経験値 += ABS(TFLAG:コマンド結果受渡し変数) * 10 + RAND:20
+
+
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE380_0_304
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;満腹
+SIF TCVAR:MASTER:満腹
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_0_304
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と
+PRINT バーベキューをした
+
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE -2
+		;大失敗時
+		PRINTL が、
+		PRINTW 料理を大失敗して何も食べられなかった…
+	CASE -1
+		;失敗時
+		PRINTL 
+		PRINTW ところどころコゲた肉や野菜が目立ったが、お腹はいっぱいになった。
+	CASE 1
+		;成功時
+		PRINTL 
+		PRINTFORMW %CALLNAME:(TFLAG:194)%が美味しく焼いた肉でお腹がいっぱいになった
+	CASE 2
+		;大成功時
+		PRINTL 
+		PRINTFORMW %CALLNAME:(TFLAG:194)%が焼いた串は絶品で、\@ GET_TARGETNUM() > 1 ? みんなは # ふたりとも\@大満足で満腹になった！
+ENDSELECT
+
+

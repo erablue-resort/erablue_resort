@@ -1,0 +1,212 @@
+﻿
+@COMNAME353
+#FUNCTIONS
+TSTR:コマンド名受渡 = 性交渉をお願いする
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_353
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
+
+@COM_TOOLTIP_353
+LOCALS = <br>■性交渉をお願いする<br>
+LOCALS += "相手に頼みこみ、ベッドに誘い性交渉を行うコマンド。<br>好感度レベルが下がる唯一のコマンド。性交渉まで必要な回数は素質によって増減する。<br>また、性知識がマイナスの場合は必ず成功する。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+;性交渉をお願いする
+@COM353
+;まず成功度の蓄積量を判定、蓄積100で成功
+;想定としては有利素質を盛りに盛って２回目（つまり上限は99）
+;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
+LOCAL = CFLAG:好感度レベル / 2
+LOCAL += CFLAG:恋慕レベル / 2
+SIF BASE:性欲 > 8000
+	LOCAL += 10
+SIF BASE:酩酊 > 0
+	LOCAL += 5
+SIF BASE:酩酊 > 500
+	LOCAL += 10
+SIF TALENT:処女
+	LOCAL -= 20
+SIF TALENT:度胸 == -1
+	LOCAL -= 5
+SIF TALENT:マイペース == -1
+	LOCAL += 10
+SIF TALENT:態度
+	LOCAL -= TALENT:態度 * 5
+SIF TALENT:応答
+	LOCAL -= TALENT:応答 * 5
+SIF TALENT:プライド
+	LOCAL -= TALENT:プライド * 10
+SIF TALENT:ツンデレ
+	LOCAL += 5
+SIF TALENT:自制心
+	LOCAL -= TALENT:自制心 * 5
+SIF TALENT:感情乏しい
+	LOCAL += 5
+SIF TALENT:性的興味
+	LOCAL += TALENT:性的興味 * 10
+SIF TALENT:一線越えない
+	LOCAL -= 15
+SIF TALENT:性欲
+	LOCAL += TALENT:性欲 * 5
+SIF TALENT:貞操
+	LOCAL -= TALENT:貞操 * 15
+SIF TALENT:抵抗
+	LOCAL -= 10
+SIF TALENT:羞恥心
+	LOCAL -= TALENT:羞恥心 * 5
+SIF TALENT:献身的
+	LOCAL += 5
+SIF TALENT:倒錯的
+	LOCAL += 10
+IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	LOCAL -= 20
+ELSEIF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
+	LOCAL -= 20
+ELSEIF TALENT:性別嗜好 == 3
+	LOCAL -= 20
+ENDIF
+LOCAL += CFLAG:TARGET:お願いックス回数 * 30
+;二回目以降は一発OKもアリ
+TFLAG:コマンド結果受渡し変数２ = MIN(LOCAL, 99 + CFLAG:TARGET:お願いックス回数)
+TFLAG:コマンド結果受渡し変数２ = MAX(TFLAG:コマンド結果受渡し変数２, 1)
+
+CFLAG:TARGET:お願いックス蓄積値 += TFLAG:コマンド結果受渡し変数２
+;性知識-2の場合基本OK
+IF 知識素質:TARGET:性知識 < -1
+	CFLAG:TARGET:お願いックス蓄積値 = 101
+ENDIF
+
+IF CFLAG:TARGET:お願いックス蓄積値 > 99
+	TFLAG:コマンド結果受渡し変数 = 1
+	CFLAG:TARGET:お願いックス蓄積値 = 0
+	;うふふへ移行
+	CFLAG:TARGET:うふふ = 1
+	CFLAG:MASTER:うふふ = 1
+	CFLAG:TARGET:お願いックス回数 += 1
+	IF 初体験日:TARGET:初うふふ == 0
+		初体験日:TARGET:初うふふ = DAY
+		TFLAG:初うふふフラグ = 1
+	ENDIF
+ELSE
+	TFLAG:コマンド結果受渡し変数 = 0
+
+	;好感度レベルを下げる。拒否度が高いと更に下がる
+	CFLAG:TARGET:好感度レベル -= 20
+	SIF TFLAG:コマンド結果受渡し変数２ < 16
+		CFLAG:TARGET:好感度レベル -= 10
+	;好感度をレベルに応じた値に減少
+	CFLAG:TARGET:好感度 = 経験値テーブル:(CFLAG:TARGET:好感度レベル)
+
+	;恋慕レベルを下げる。拒否度が高いと更に下がる
+	CFLAG:TARGET:恋慕レベル -= 20
+	SIF TFLAG:コマンド結果受渡し変数２ < 16
+		CFLAG:TARGET:恋慕レベル -= 10
+	CFLAG:TARGET:恋慕レベル = MAX(CFLAG:TARGET:恋慕レベル, 0)
+	;恋慕度をレベルに応じた値に減少
+	CFLAG:TARGET:恋慕度 = 経験値テーブル:(CFLAG:TARGET:恋慕レベル)
+ENDIF
+
+IF CFLAG:TARGET:お願いックス回数 >= 4
+	SETBIT CFLAG:1 , 0
+	TALENT:セフレ = 1
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE353
+;お願いする実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(353)
+	RETURN RESULT
+;飲み会時はだめ
+SIF TFLAG:調教モード == 3
+	RETURN 0
+;二人きりでないとだめ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;無二の友以上
+SIF CFLAG:好感度レベル < 81
+	RETURN 0
+;既に恋慕・セフレを得ている場合はだめ
+SIF TALENT:恋慕 || TALENT:セフレ
+	RETURN 0
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM353
+IF TFLAG:コマンド結果受渡し変数
+	PRINTFORM %CALLNAME:TARGET%は
+	IF 知識素質:TARGET:性知識 < 0
+		PRINT よくわかっていない様子で
+	ELSEIF TFLAG:コマンド結果受渡し変数２ < 16
+		PRINT 根負けした様子で
+	ENDIF
+	PRINTFORML %CALLNAME:PLAYER%の願いに答えてくれた。
+	IF 知識素質:TARGET:性知識 < 0
+		PRINT 何をするのか理解していないまま、
+	ELSEIF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		PRINT ベッドに寝転がり、
+	ELSEIF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)
+		PRINT 湯船から立ち上がり、
+	ELSEIF SWIMROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:LOCAL:現在位置)
+		PRINT 水着から水を滴らせたまま、
+	ENDIF
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%がどうするかを待っている…
+ELSE
+	PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%の願いを
+	IF TFLAG:コマンド結果受渡し変数２ < 16
+		PRINT きっぱりと
+	ELSEIF TFLAG:コマンド結果受渡し変数２ < 31
+		PRINT 呆れた様子で
+	ELSEIF TFLAG:コマンド結果受渡し変数２ < 50
+	ELSEIF TFLAG:コマンド結果受渡し変数２ < 71
+		PRINT 迷いながらも
+	ELSEIF TFLAG:コマンド結果受渡し変数２ < 99
+		PRINT 真っ赤になって
+	ENDIF
+	PRINTL 断った
+	
+	LOCAL = (100 - CFLAG:TARGET:お願いックス蓄積値) / TFLAG:コマンド結果受渡し変数２
+	IF LOCAL < 1
+		;次でイケる
+		PRINTL もうひと押しでイケそうな気がする…
+	ELSEIF LOCAL < 2
+		;あと２回
+		PRINTL 近いうちに願いを聞いてくれそうな気がする…
+	ELSEIF LOCAL < 4
+		;あと３～４回
+		PRINTL 願いを聞いてくれるには、まだ何度か回数を重ねる必要があるだろう…
+	ELSEIF LOCAL < 10
+		;５～１０回
+		PRINTL 願いを聞いてくれるには、かなり根気が必要そうだ…
+	ELSE
+		;それ以上
+		PRINTL 何かしらの手段を講じない限り、このままではほぼほぼ無理な話だろう…
+	ENDIF
+ENDIF
+
+IF CFLAG:TARGET:お願いックス回数 >= 4
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%と幾度か体を重ね、抵抗感が薄れてきたようだ…
+	PRINTFORML %CALLNAME:TARGET%は[セフレ]を得た
+ENDIF
+

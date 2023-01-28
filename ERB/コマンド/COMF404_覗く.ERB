@@ -1,0 +1,269 @@
+﻿
+@COMNAME404
+#FUNCTIONS
+TSTR:コマンド名受渡 = 覗く
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_404
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+@COM_TOOLTIP_404
+LOCALS = <br>■覗く<br>
+LOCALS += "脱衣所・更衣室・浴場などを覗くコマンド。<br>あるいは、野外オナニーをしている姿を覗くコマンド。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：対象キャラへの肉体熟知(あなた)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+;-------------------------------------------------
+;覗く
+;-------------------------------------------------
+@COM404
+#DIM 候補者, 200
+VARSET 候補者
+
+;覗き方をTFLAG:コマンド結果受渡し変数に投げる
+IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), 1) && GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), 3)
+	DRAWLINE
+	PRINTFORM %CALLNAME:PLAYER%は
+	IF TALENT:PLAYER:性別 == 2
+		PRINT 女性側
+	ELSE
+		PRINT 男性側
+	ENDIF
+	PRINTL を覗こうとしたが、誰かが隠れている気配も感じた…
+	PRINTBUTTONLC "[1]反対側を覗く", 1
+	PRINTBUTTONLC "[3]物陰を覗く", 3
+	PRINTL
+	$INPUT_LOOP
+	INPUT
+	IF RESULT == 1 || RESULT == 3
+		TFLAG:コマンド結果受渡し変数 = RESULT
+	ELSE
+		GOTO INPUT_LOOP
+	ENDIF
+ELSE
+	FOR LOCAL, 1, 4
+		IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), LOCAL)
+			TFLAG:コマンド結果受渡し変数 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+;覗き方で分岐
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE 1
+		;反対側を覗く
+		;候補者を持ってくる
+		LOCAL:1 = 0
+		SELECTCASE CFLAG:PLAYER:現在マップ種別
+			CASE 0
+				SELECTCASE CFLAG:PLAYER:現在位置
+					CASE 7
+						LOCAL:2 = 8
+					CASE 9
+						LOCAL:2 = 11
+					CASE 13
+						LOCAL:2 = 14
+					CASE 8
+						LOCAL:2 = 7
+					CASE 11
+						LOCAL:2 = 9
+					CASE 14
+						LOCAL:2 = 13
+				ENDSELECT
+		ENDSELECT
+		;全員の居場所をチェック
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:滞在期間 < 0
+				CONTINUE
+			SIF CFLAG:LOCAL:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+				CONTINUE
+			SIF CFLAG:LOCAL:隠密
+				CONTINUE
+			IF CFLAG:LOCAL:現在位置 == LOCAL:2
+				候補者:(LOCAL:1) = LOCAL
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+		;該当者からランダムで選択
+		IF LOCAL:1 == 0
+			;該当者なし
+			TFLAG:コマンド結果受渡し変数２ = 0
+		ELSE
+			LOCAL = RAND:(LOCAL:1)
+			TFLAG:コマンド結果受渡し変数２ = 候補者:LOCAL
+			SIF EXP:(候補者:LOCAL):肉体熟知 < 100
+				EXP:(候補者:LOCAL):肉体熟知 += 1
+			TCVAR:(候補者:LOCAL):覗き熟知フラグ = 1
+		ENDIF
+	CASE 2
+		;隠れて覗く
+		;単純にターゲットの姿を見る、誰もいない時はそもそもコマンドが出ないはず
+		TFLAG:コマンド結果受渡し変数２ = TARGET
+		SIF EXP:TARGET:肉体熟知 < 100
+			EXP:TARGET:肉体熟知 += 1
+		TCVAR:TARGET:覗き熟知フラグ = 1
+	CASE 3
+		;物陰で野外オナニーを見つける
+		TFLAG:コマンド結果受渡し変数２ = TARGET
+		SIF EXP:TARGET:肉体熟知 < 100
+			EXP:TARGET:肉体熟知 += 1
+		TCVAR:TARGET:覗き熟知フラグ = 1
+ENDSELECT
+
+TIME += 3
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE404
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(404) && GLOBAL_COMABLE_TYPE("隠密")
+	RETURN RESULT
+SIF !覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;覗ける場所設定
+;-------------------------------------------------
+@覗き_ABLE(ARG:1, ARG)
+#FUNCTION
+
+LOCAL = 0
+SELECTCASE ARG:1
+	CASE 0
+		;普通に覗ける場所
+		IF GROUPMATCH(ARG, 7, 9, 13) && TALENT:PLAYER:性別 == 2
+			SETBIT LOCAL, 1
+		ELSEIF GROUPMATCH(ARG, 8, 11, 14) && TALENT:PLAYER:性別 != 2
+			SETBIT LOCAL, 1
+		ENDIF
+		;隠密時に潜んで覗ける場所
+		IF GROUPMATCH(ARG, 8, 11, 12, 14) && CFLAG:PLAYER:隠密 && TALENT:PLAYER:性別 == 2 && !CFLAG:TARGET:隠密
+			SETBIT LOCAL, 2
+		ELSEIF GROUPMATCH(ARG, 7, 9, 10, 13) && CFLAG:PLAYER:隠密 && TALENT:PLAYER:性別 != 2 && !CFLAG:TARGET:隠密
+			SETBIT LOCAL, 2
+		ENDIF
+		;自分は隠密してないのにTARGETが隠密している時
+		SIF !CFLAG:PLAYER:隠密 && CFLAG:TARGET:隠密
+			SETBIT LOCAL, 3
+ENDSELECT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM404
+;TFLAG:コマンド結果受渡し変数２に対象が入っている
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 0
+		SELECTCASE TFLAG:コマンド結果受渡し変数
+			CASE 1
+				;反対側を覗く
+				PRINTFORM %CALLNAME:PLAYER%は壁の仕掛けを通じて
+				IF TALENT:PLAYER:性別 == 2
+					PRINT 女性側
+				ELSE
+					PRINT 男性側
+				ENDIF
+				PRINTL を覗き込んだ
+				IF TFLAG:コマンド結果受渡し変数２
+					PRINTFORM 向こう側では%CALLNAME:(TFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:PLAYER:現在位置
+						CASE 7, 8
+							PRINTL 服を脱いでいる様子が見える…
+						CASE 9, 11
+							PRINTDATA TFLAG:コマンド結果受渡し変数３
+								DATA 裸で湯船に浸かっている様子が見える…
+								DATA 石鹸で体を洗っている様子が見える…
+							ENDDATA
+							PRINTL 
+						CASE 13, 14
+							PRINTL 水着に着替えている様子が見える…
+					ENDSELECT
+				ELSE
+					PRINTL しかし、向こう側には誰もいないようだ…
+				ENDIF
+			CASE 2
+				;隠れて覗く
+				PRINTFORM %CALLNAME:PLAYER%は物陰に隠れながら、%CALLNAME:(TFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:PLAYER:現在位置
+						CASE 7, 8
+							PRINTL 服を脱いでいる姿をこっそり覗き見た…
+						CASE 9, 11
+							PRINTDATA TFLAG:コマンド結果受渡し変数３
+								DATA 裸で湯船に浸かっている姿をこっそり覗き見た…
+								DATA 石鹸で体を洗っている姿をこっそり覗き見た…
+							ENDDATA
+						CASE 13, 14
+							PRINTL 水着に着替えている姿をこっそり覗き見た…
+					ENDSELECT
+			CASE 3
+				;物陰で野外オナニーを見つける
+				PRINTFORM %CALLNAME:PLAYER%はこっそりと物陰を覗き込むと、そこでは%CALLNAME:(TFLAG:コマンド結果受渡し変数２)%が
+				IF 野外オナニー変数:(TFLAG:コマンド結果受渡し変数２):6
+					;絶頂シーン
+					TFLAG:コマンド結果受渡し変数４ = 野外オナニー変数:(TFLAG:コマンド結果受渡し変数２):6 - 10
+					PRINT 指を激しく動かし、自身の
+					SELECTCASE TFLAG:コマンド結果受渡し変数４
+						CASE 0
+							LOCALS = 秘核
+							SIF GETBIT(TALENT:(TFLAG:コマンド結果受渡し変数２):性別, 1)
+								LOCALS = 陰茎
+						CASE 1
+							LOCALS = 膣内
+						CASE 2
+							LOCALS = 尻穴
+						CASE 3
+							LOCALS = 胸
+					ENDSELECT
+					PRINTFORML %LOCALS%を責め立てていた。
+					PRINTFORML そのまま%CALLNAME:(TFLAG:コマンド結果受渡し変数２)%は絶頂を迎え、快楽の波が収まるまで余韻に浸っていた…
+				ELSE
+					;オナニーシーン
+					FOR LOCAL, 0, 5
+						IF 野外オナニー変数:(TFLAG:コマンド結果受渡し変数２):LOCAL
+							;オナニー部位取得
+							TFLAG:コマンド結果受渡し変数４ = LOCAL
+							BREAK
+						ENDIF
+					NEXT
+					PRINT 物陰で自身の
+					SELECTCASE TFLAG:コマンド結果受渡し変数４
+						CASE 0
+							LOCALS = 秘核
+							SIF GETBIT(TALENT:(TFLAG:コマンド結果受渡し変数２):性別, 1)
+								LOCALS = 陰茎
+						CASE 1
+							LOCALS = 膣内
+						CASE 2
+							LOCALS = 尻穴
+						CASE 3
+							LOCALS = 胸
+					ENDSELECT
+					PRINTFORML %LOCALS%を弄っている姿が見えた
+					IF ABL:(TFLAG:コマンド結果受渡し変数２):(TFLAG:コマンド結果受渡し変数４) > 4
+						PRINTFORML %CALLNAME:(TFLAG:コマンド結果受渡し変数２)%は自慰の快楽に浸りきり、無意識に腰がかくかくと揺れている…
+					ELSEIF ABL:(TFLAG:コマンド結果受渡し変数２):(TFLAG:コマンド結果受渡し変数４) > 2
+						PRINTFORML %CALLNAME:(TFLAG:コマンド結果受渡し変数２)%は強い快感を感じているようで、荒い呼吸を繰り返している…
+					ELSE
+						PRINTFORML %CALLNAME:(TFLAG:コマンド結果受渡し変数２)%はきょろきょろと周囲を確認しながら、しかし自慰を行う手は動き続けている…
+					ENDIF
+				ENDIF
+		ENDSELECT
+ENDSELECT
+
+
+
+

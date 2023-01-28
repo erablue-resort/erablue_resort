@@ -1,0 +1,294 @@
+﻿;COMABLE一括管理
+@GLOBAL_COMABLE(ARG)
+#FUNCTION
+#DIMS 分割文字列, 10
+;ARG = コマンド番号
+
+;コマンドフィルタ
+IF ARG >= 370 && ARG <= 374
+	LOCALS = /{ARG}_{NO:TARGET}/
+	IF STRCOUNT(SAVESTR:1,LOCALS)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ELSEIF ARG >= 380 && ARG <= 384
+	LOCALS = /{ARG}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}/
+	IF STRCOUNT(SAVESTR:1,LOCALS)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ELSE
+	LOCALS = /{ARG}/
+	IF STRCOUNT(SAVESTR:0,LOCALS)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ENDIF
+
+;コマンド種別による一括管理
+LOCALS = 
+VARSET 分割文字列
+TFLAG:コマンドタイプ受渡 = -1
+;種別取得
+IF ARG >= 370 && ARG <= 374
+	TRYCALLFORMF COMTYPE_{ARG}_{NO:TARGET}
+	SIF TFLAG:コマンドタイプ受渡 >= 0
+		LOCALS = %COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+ELSEIF ARG >= 380 && ARG <= 384
+	TRYCALLFORMF COMTYPE_{ARG}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+	SIF TFLAG:コマンドタイプ受渡 >= 0
+		LOCALS = %COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+ELSE
+	TRYCALLFORMF COMTYPE_{ARG}
+	SIF TFLAG:コマンドタイプ受渡 >= 0
+		LOCALS = %COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+ENDIF
+
+;&や_が入ってるとAND条件やOR条件になる
+IF TFLAG:コマンドタイプ受渡 == 100
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "&", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_COMABLE_TYPE(分割文字列:LOCAL)
+			;AND条件なので一個でも不許可（1が返ってくる）なら通さない
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部許可だったはずなので通す
+	RESULT = 0
+	RETURNF 0
+ENDIF
+
+IF TFLAG:コマンドタイプ受渡 == 101
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "_", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_COMABLE_TYPE(分割文字列:LOCAL) == 0
+			;OR条件なので一個でも許可（0が返ってくる）なら通す
+			RESULT = 0
+			RETURNF 0
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部不許可だったはずなので通さない
+	RESULT = 0
+	RETURNF 1
+ENDIF
+
+LOCAL = GLOBAL_COMABLE_TYPE(LOCALS)
+RESULT = 0
+
+RETURNF LOCAL
+
+@GLOBAL_COMABLE_S(ARGS)
+#FUNCTION
+#DIMS 分割文字列, 10
+LOCALS = /%ARGS%/
+IF STRCOUNT(SAVESTR:2,LOCALS)
+	RESULT = 0
+	RETURNF 1
+ENDIF
+
+;コマンド種別による一括管理
+LOCALS = 
+TFLAG:コマンドタイプ受渡 = -1
+;種別取得
+
+TRYCALLFORMF COMTYPE_S_%ARGS%
+SIF TFLAG:コマンドタイプ受渡 >= 0
+	LOCALS = %COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+
+VARSET 分割文字列
+;&や_が入ってるとAND条件やOR条件になる
+STRFIND LOCALS, "&"
+IF RESULT > -1
+	SPLIT LOCALS, "&", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_COMABLE_TYPE(分割文字列:LOCAL)
+			;AND条件なので一個でも不許可（1が返ってくる）なら通さない
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部許可だったはずなので通す
+	RESULT = 0
+	RETURNF 0
+ENDIF
+
+STRFIND LOCALS, "_"
+IF RESULT > -1
+	SPLIT LOCALS, "_", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_COMABLE_TYPE(分割文字列:LOCAL) == 0
+			;OR条件なので一個でも許可（0が返ってくる）なら通す
+			RESULT = 0
+			RETURNF 0
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部不許可だったはずなので通さない
+	RESULT = 0
+	RETURNF 1
+ENDIF
+
+LOCAL = GLOBAL_COMABLE_TYPE(LOCALS)
+RESULT = 0
+
+RETURNF LOCAL
+
+
+@GLOBAL_COMABLE_TYPE(ARGS)
+#FUNCTION
+LOCALS = %ARGS%
+
+IF LOCALS == "隠密"
+;隠密行動は隠密時のみ
+	IF !CFLAG:MASTER:隠密
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ELSEIF LOCALS == "被挿入中"
+;被挿入中コマンドは被挿入中のみ（現在逆アナルモードのみ）
+	IF !MODE_確認("逆アナル系", TARGET)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ELSE
+	;隠密時は相手も隠密じゃないとダメ
+	IF CFLAG:MASTER:隠密 && (!TARGET || !CFLAG:TARGET:隠密)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+	;被挿入中は基本全部アウト（現在逆アナルモードのみ）
+	IF MODE_確認("逆アナル系", TARGET)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+	SELECTCASE LOCALS
+;各コマンドのカテゴリで分ける
+;コマンド番号気にしなくてもあとから無秩序に追加できるように
+	CASE "日常"
+		IF TFLAG:調教モード != 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "セクハラ弱"
+		IF TFLAG:調教モード == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TCVAR:MASTER:130 < 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF (TARGET:1 <= 0 && 飲み会TARGET:1 <= 0) || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "セクハラ"
+		IF TFLAG:調教モード == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TCVAR:MASTER:130 < 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF (TARGET:1 <= 0 && 飲み会TARGET:1 <= 0) || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "セクハラ強"
+		IF TFLAG:調教モード == 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TCVAR:MASTER:130 < 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF !GETBIT(CFLAG:TARGET:1 , 0)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF (TARGET:1 <= 0 && 飲み会TARGET:1 <= 0) || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "探索"
+		IF TFLAG:調教モード > 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "うふふ"
+		IF TFLAG:調教モード != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "Ｖ系"
+		IF TFLAG:調教モード != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "Ａ系"
+		IF TFLAG:調教モード != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "道具系"
+		IF TFLAG:調教モード != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密)
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "単独可能"
+		IF TFLAG:調教モード > 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "複数人プレイ"
+		IF TFLAG:調教モード != 2
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:2 <= 0 || CFLAG:睡眠 == 1 || CFLAG:隠密
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "飲み会"
+		IF TFLAG:調教モード != 3
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "いつでも"
+	ENDSELECT
+ENDIF
+
+
+
+
+

@@ -1,0 +1,81 @@
+﻿
+@COMNAME500
+#FUNCTIONS
+TSTR:コマンド名受渡 = 酒を飲む
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_500
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("飲み会")
+
+@COM_TOOLTIP_500
+LOCALS = <br>酒を飲む<br>
+LOCALS += "飲み会に参加している皆で酒を飲み、酩酊ゲージを増加させるコマンド。<br>"
+LOCALS += "<br>COMタイプ：飲み会<br>取得ソース：歓楽"
+LOCALS += "<br>固有の取得経験：飲酒経験(全員)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM500
+
+;歓楽の基礎値
+LOCAL:0 = 500
+
+FOR LOCAL, 1, CHARANUM
+	SIF 飲み会TARGET:LOCAL < 1
+		BREAK
+
+	IF !初体験日:(飲み会TARGET:LOCAL):初飲酒
+		初体験日:(飲み会TARGET:LOCAL):初飲酒 = DAY
+		TFLAG:初飲酒フラグ = 1
+	ENDIF
+	EXP:(飲み会TARGET:LOCAL):飲酒経験 += RAND:5 + 1
+	BASE:(飲み会TARGET:LOCAL):酩酊 += RAND:100 + RAND:100 + 100
+	IF TALENT:(飲み会TARGET:LOCAL):酒に強い == 2
+		BASE:(飲み会TARGET:LOCAL):酩酊 = MAX(700, BASE:(飲み会TARGET:LOCAL):酩酊 - 70)
+	ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == 1
+		BASE:(飲み会TARGET:LOCAL):酩酊 -= 40
+	ELSEIF BASE:(飲み会TARGET:LOCAL):酩酊 == -1
+		BASE:(飲み会TARGET:LOCAL):酩酊 += 40
+	ENDIF
+	SIF BASE:(飲み会TARGET:LOCAL):酩酊 >= 1000
+		CFLAG:(飲み会TARGET:LOCAL):酔いすぎ = 1
+	CALL SOURCE_CALC_歓楽((飲み会TARGET:LOCAL), PLAYER, 300)
+NEXT
+
+EXP:MASTER:飲酒経験 += RAND:5 + 1
+
+;酔い強度
+BASE:MASTER:酩酊 += RAND:100 + RAND:100 + 100
+SIF BASE:MASTER:酩酊 >= 1000
+	CFLAG:MASTER:酔いすぎ = 1
+
+TIME += 15
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE500
+;会話実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(500)
+	RETURN RESULT
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM500
+PRINTFORM %CALLNAME:PLAYER%と%CALLNAME:TARGET%
+SIF GET_飲み会TARGETNUM() > 1
+	PRINT たち
+PRINTL は楽しくお酒を飲んだ
+
+

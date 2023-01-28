@@ -1,0 +1,376 @@
+﻿;時間経過処理
+@CHARA_MOVEMENT
+#DIM キャラ登録番号
+#DIM 追い出し先
+
+FOR LOCAL,0,CHARANUM
+	;滞在してないキャラはスルー
+	SIF CFLAG:LOCAL:滞在期間 == -1
+		CONTINUE
+	;マップ間移動処理
+	CALL キャラ居場所再設定(CFLAG:LOCAL:現在マップ種別, LOCAL)
+	SIF LOCAL == MASTER
+		CALL マップ種別変更(LOCAL)
+	
+;	;睡眠中、MASTERと同室なら追い出す
+;	IF LOCAL > 0 && CFLAG:LOCAL:睡眠 && CFLAG:LOCAL:現在位置 == CFLAG:MASTER:現在位置 && !TALENT:LOCAL:恋慕 && FLAG:(300 + CFLAG:MASTER:現在位置)
+;		IF CFLAG:LOCAL:衰弱
+;			PRINTFORML %CALLNAME:LOCAL%は疲れて眠ってしまった…
+;		ELSE
+;			PRINTFORML %CALLNAME:LOCAL%に追い出された…
+;		ENDIF
+;		;追い出し先
+;		FOR 追い出し先,0,20
+;			;移動可能な部屋が見つかるとそこに移動
+;			IF CAN_MOVE_1(CFLAG:MASTER:現在位置, 追い出し先) & 1
+;				CFLAG:MASTER:現在位置 = 追い出し先
+;				BREAK
+;			ENDIF
+;		NEXT
+;		;うふふリセット
+;		CVARSET CFLAG, 317
+;		TARGET = 0
+;	ENDIF
+	
+	;BASEの自然変動
+	;MASTERと同じ場所にいないとき
+	IF CFLAG:LOCAL:現在位置 != CFLAG:MASTER:現在位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+		BASE:LOCAL:ムード = BASE:LOCAL:ムード - TIME_PROGRESS(TFLAG:300) * 2 * (BASE:LOCAL:ムード + 1000) / 1000
+		BASE:LOCAL:ムード = MAX(0,BASE:LOCAL:ムード)
+		BASE:LOCAL:理性 = BASE:LOCAL:理性 + TIME_PROGRESS(TFLAG:300) * (MAXBASE:LOCAL:理性 + 1000) / ((BASE:LOCAL:理性 + 1000) * 2)
+		BASE:LOCAL:理性 = MIN(MAXBASE:LOCAL:理性,BASE:LOCAL:理性)
+	ENDIF
+	;怒りは常に減少する
+	BASE:LOCAL:怒り = BASE:LOCAL:怒り - TIME_PROGRESS(TFLAG:300) * 5 / (CFLAG:LOCAL:怒り + 1)
+	SIF BASE:LOCAL:怒り <= 0
+		CFLAG:LOCAL:怒り = 0
+	BASE:LOCAL:怒り = MAX(0,BASE:LOCAL:怒り)
+	;不機嫌
+	SIF CFLAG:LOCAL:不機嫌
+		BASE:LOCAL:怒り = MAXBASE:LOCAL:怒り
+	;勃起度の自然減少・増加
+	IF !TCVAR:LOCAL:イきそう && !CFLAG:LOCAL:うふふ
+		BASE:LOCAL:勃起 = MAX(0,BASE:LOCAL:勃起 - TIME_PROGRESS(TFLAG:300) * 20)
+	ELSE
+		BASE:LOCAL:勃起 = MIN(MAXBASE:LOCAL:勃起, BASE:LOCAL:勃起 + TIME_PROGRESS(TFLAG:300) * 20)
+	ENDIF
+	;陥没乳首勃起の自然減少
+	SIF TCVAR:LOCAL:陥没乳首露出フラグ && !CFLAG:LOCAL:うふふ
+		TCVAR:LOCAL:陥没乳首露出フラグ = MAX(0, TCVAR:LOCAL:陥没乳首露出フラグ - TIME_PROGRESS(TFLAG:300))
+	;衰弱の処理
+	IF CFLAG:LOCAL:衰弱
+		BASE:LOCAL:体力 = MIN(BASE:LOCAL:体力 + 2 * TIME_PROGRESS(TFLAG:300),MAXBASE:LOCAL:体力)
+		BASE:LOCAL:気力 = MIN(BASE:LOCAL:気力 + 2 * TIME_PROGRESS(TFLAG:300),MAXBASE:LOCAL:気力)
+		CFLAG:LOCAL:衰弱 = MAX(CFLAG:LOCAL:衰弱 - TIME_PROGRESS(TFLAG:300),0)
+	ENDIF
+	;酩酊の処理
+	IF BASE:LOCAL:酩酊 > 0
+		BASE:LOCAL:酩酊 = BASE:LOCAL:酩酊 - TIME_PROGRESS(TFLAG:300) * 5
+		BASE:LOCAL:酩酊 = MAX(0, BASE:LOCAL:酩酊)
+	ELSEIF BASE:LOCAL:酩酊 < 0
+		BASE:LOCAL:酩酊 = BASE:LOCAL:酩酊 + TIME_PROGRESS(TFLAG:300)
+		BASE:LOCAL:酩酊 = MIN(0, BASE:LOCAL:酩酊)
+	ENDIF
+	SIF BASE:LOCAL:酩酊 == 0
+		CFLAG:LOCAL:酔いすぎ = 0
+
+	;移動インターバルの減少
+	TCVAR:LOCAL:移動インターバル時間 = MAX(TCVAR:LOCAL:移動インターバル時間 - TIME_PROGRESS(TFLAG:300), 0)
+
+	;会話累積値　100を超えると会話不能フラグ
+	SIF TCVAR:LOCAL:301 > 100
+		TCVAR:LOCAL:302 = 1
+	;減衰
+	TCVAR:LOCAL:301 = MAX(TCVAR:LOCAL:301 - TIME_PROGRESS(TFLAG:300) , 0)
+	;0になると会話不能解除
+	SIF TCVAR:LOCAL:301 == 0
+		TCVAR:LOCAL:302 = 0
+	
+	;身体の清潔度
+	LOCAL:1 = CFLAG:LOCAL:風呂
+	CFLAG:LOCAL:風呂 += TIME_PROGRESS(TFLAG:300)
+	IF BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置)
+		SIF LOCAL == 0 && LOCAL:1
+			PRINTFORMW %CALLNAME:MASTER%は風呂に浸かった
+		CFLAG:LOCAL:風呂 = 0
+	ENDIF
+	
+	;同行フラグ（1時間持続）
+	;うふふ中・隠密中は同行フラグ消えない
+	IF CFLAG:LOCAL:うふふ || (CFLAG:LOCAL:隠密 && CFLAG:LOCAL:同行)
+		CFLAG:LOCAL:同行 = MAX(CFLAG:LOCAL:同行 - TIME_PROGRESS(TFLAG:300),0)
+		SIF !CFLAG:LOCAL:同行
+			CFLAG:LOCAL:同行 = 1
+	ELSE
+		CFLAG:LOCAL:同行 = MAX(CFLAG:LOCAL:同行 - TIME_PROGRESS(TFLAG:300),0)
+	ENDIF
+	IF CFLAG:LOCAL:同行
+		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+		CFLAG:LOCAL:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+	ENDIF
+
+	;うふふ中ではない、かつ同行終わったら隠密消去
+	SIF !CFLAG:LOCAL:同行 && !CFLAG:LOCAL:うふふ && LOCAL > 0
+		CFLAG:LOCAL:隠密 = 0
+
+	;性欲
+	SIF !CFLAG:LOCAL:睡眠
+		CALL 性欲ゲージ増加(LOCAL)
+
+	;野外オナニー処理
+	IF 性癖素質:LOCAL:野外オナニー && !CFLAG:LOCAL:うふふ
+		CALL 野外オナニー判定(LOCAL)
+		;1が帰ってきた時はオナニー中なので移動しない
+		SIF RESULT
+			CONTINUE
+	ENDIF
+
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF CFLAG:LOCAL:うふふ
+		CONTINUE
+	SIF CFLAG:LOCAL:同行
+		CONTINUE
+	SIF CFLAG:LOCAL:飲み会
+		CONTINUE
+	;部屋移動
+	CALL CHARA_MOVEMENT_T(LOCAL)
+;	IF RESULT
+;		;移動しないならLOCAL:2に0を代入
+;		LOCAL:2 = RESULT
+;		;%CALLNAME:MASTER%が見えたら態度に応じて接近しやすく
+;		SIF CAN_MOVE_1(CFLAG:LOCAL:現在位置, CFLAG:MASTER:現在位置) == 3
+;			RESULT:(CFLAG:MASTER:現在位置) += RESULT:(CFLAG:MASTER:現在位置) / 10 * CFLAG:LOCAL:6
+;		FOR LOCAL:1, 1, 20
+;			SIF RESULT:(LOCAL:2) < RESULT:(LOCAL:1)
+;				LOCAL:2 = LOCAL:1
+;		NEXT
+;		SIF (CAN_MOVE_1(CFLAG:MASTER:現在位置, CFLAG:LOCAL:現在位置) & 2 || CFLAG:LOCAL:同室) && !CFLAG:MASTER:睡眠
+;			PRINTFORMW %CALLNAME:LOCAL%は【%GETPLACENAME(CFLAG:LOCAL:現在位置)%】から【%GETPLACENAME(LOCAL:2)%】に移動した
+;		;移動処理
+;		IF LOCAL:2
+;			CFLAG:LOCAL:現在位置 = LOCAL:2
+;		ENDIF
+;	ENDIF
+NEXT
+
+FOR LOCAL, 1, 2100
+	SIF LOCAL == 20
+		CONTINUE
+	IF 存在しない移動先(0, LOCAL) == 0
+		雑務ゲージ:LOCAL = MIN(雑務ゲージ:LOCAL + TIME_PROGRESS(TFLAG:300), 10000)
+	ENDIF
+	SIF (LOCAL % 100) > 20
+		LOCAL += 79
+NEXT
+
+@CHARA_MOVEMENT_ACTIVETIME(ARG)
+#DIM 寝る
+#DIM 起きる
+
+CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "就寝時間")
+寝る = RESULT
+CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "起床時間")
+起きる = RESULT
+
+;時間設定ない場合は22時寝の8時起き
+SIF !寝る
+	寝る = 1320
+SIF !起きる
+	起きる = 480
+
+;泥酔時は常時寝る
+SIF CFLAG:ARG:酔いすぎ == 1
+	寝る = 0
+
+RETURN TIME < 起きる || TIME > 寝る || CFLAG:ARG:衰弱
+
+
+;@CHARA_MOVEMENT_MOVERATE(ARG)
+;;キャラごとの移動率補正呼び出し
+;RETURN 90 + CFLAG:ARG:移動率補正
+
+
+@CHARA_MOVEMENT_KOUHO(ARG,ARG:1)
+#DIM 移動先候補
+#DIM 移動キャラ
+
+移動先候補 = ARG
+移動キャラ = ARG:1
+
+;よく行く場所はあらゆる条件を無視して確率上昇
+
+SIF CFLAG:移動キャラ:よく行く場所 == 移動先候補
+	RETURN 200
+
+SELECTCASE 移動先候補
+	CASE 7,9,10,13
+		;女部分があるなら男子には入らない
+		IF TALENT:移動キャラ:性別 & 1 == 1
+			RETURN 0
+		ELSE
+			RETURN 100
+		ENDIF
+	CASE 8,11,12,14
+		;女部分がないなら女子には入らない
+		IF TALENT:移動キャラ:性別 & 1 == 1
+			RETURN 100
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE 20
+		;基本自室には来ない（後々恋慕状態だと来るように再設定すること）
+		RETURN 0
+	;ほかはまんべんなく移動する
+	CASEELSE
+		RETURN 100
+ENDSELECT
+
+
+@TIME_PROGRESS(ARG)
+#FUNCTION
+RETURNF TIME + DAY * 1440 - ARG
+
+@CHARA_SLEEP, ARG
+VARSET LOCAL
+
+;現在、キャラごとの個室がないのでまるごとオミット、寝る時にどっか行くだけ
+
+;IF (CAN_MOVE_1(CFLAG:MASTER:現在位置, CFLAG:ARG:現在位置) == 2 || CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置) && !CFLAG:MASTER:睡眠
+;	IF CFLAG:ARG:現在位置 == CFLAG:ARG:311
+;		IF TALENT:ARG:恋慕 == 1
+;			PRINTFORMW %CALLNAME:ARG%は眠っ\@CFLAG:ARG:睡眠 ? ている # た\@
+;			LOCAL = 2
+;		ELSE
+;			PRINTFORMW %CALLNAME:ARG%は眠そうにしている
+;			LOCAL = 1
+;		ENDIF
+;	ELSE
+;		IF CFLAG:ARG:衰弱 && TALENT:ARG:恋慕 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+;			PRINTFORMW %CALLNAME:ARG%を%GETPLACENAME(CFLAG:ARG:現在位置)%から%GETPLACENAME(CFLAG:ARG:311)%へ運びました
+;			LOCAL = 3
+;		ELSE
+;			PRINTFORMW %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在位置)%から%GETPLACENAME(CFLAG:ARG:311)%に戻りました
+;			LOCAL = 0
+;		ENDIF
+;	ENDIF
+;ENDIF
+
+
+IF !CFLAG:ARG:睡眠
+	TRYCALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "就寝場所")
+	IF CFLAG:ARG:酔いすぎ == 1
+		;泥酔時は基本そのまま
+	ELSEIF RESULT
+		;寝る場所指定がある場合はそこへ
+		CFLAG:ARG:現在位置 = RESULT
+	ELSE
+		;指定なしの場合、場所を宿泊エリアの個室に設定する
+		FOR LOCAL, 0, 100
+			IF 滞在者部屋割り配列:LOCAL == ARG
+				CFLAG:ARG:現在位置 = LOCAL
+				CFLAG:ARG:現在マップ種別 = 999
+			ENDIF
+		NEXT
+	ENDIF
+
+	IF CFLAG:ARG:酔いすぎ == 1
+		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+			;あなたがいる場合は部屋へと運ぶ
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 999
+			PRINTFORML %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+		ENDIF
+	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+		PRINTFORML %CALLNAME:ARG%は部屋に戻って眠るようだ。
+		;おやすみ口上
+		SIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+			CALL KOJO_EVENT(7, ARG, LOCAL)
+	ENDIF
+	;服をリセット
+	CALL CLOTHES_RESET_TRAIN(ARG)
+	;二日酔い処理のため、酩酊が残ってたら絶対値を負に
+	BASE:ARG:酩酊 = BASE:ARG:酩酊 * -1
+ENDIF
+
+CFLAG:ARG:同行 = 0
+CFLAG:ARG:睡眠 = 1
+CFLAG:ARG:うふふ = 0
+
+
+;SIF LOCAL == 3
+;	CFLAG:MASTER:現在位置 = CFLAG:ARG:311
+;施錠
+;FLAG:(300 + CFLAG:ARG:現在位置) = 1
+
+@CHARA_AWAKE, ARG
+
+;現在、キャラごとの個室がないのでまるごとオミット。起きたらどっかに出現するだけ
+
+;IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置
+;	SIF ARG > 0
+;	PRINTFORMW %CALLNAME:ARG%が目を覚ました
+;	;おはよう口上
+;	CALL KOJO_EVENT(6, ARG)
+;ENDIF
+;施錠
+;FLAG:(300 + CFLAG:ARG:現在位置) = 0
+
+IF CFLAG:ARG:睡眠
+	PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
+	CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "初期位置")
+	;起きても酩酊が残ってるなら二日酔い
+	SIF BASE:ARG:酩酊
+		CFLAG:ARG:酔いすぎ = 2
+ENDIF
+CFLAG:ARG:睡眠 = 0
+
+
+
+;ARG 移動させるキャラ番号
+@CHARA_MOVEMENT_T(ARG)
+;活動時間　睡眠時間ならRESULTに真、活動時間ならRESULTに偽を代入
+CALL CHARA_MOVEMENT_ACTIVETIME(ARG)
+
+;睡眠時間
+IF RESULT
+	CALL CHARA_SLEEP, ARG
+	RETURN 0
+;活動時間、CFLAG:睡眠が立っていれば起床処理
+ELSE
+	CALL CHARA_AWAKE, ARG
+ENDIF
+
+;ルーチンごとの移動処理
+IF TCVAR:ARG:移動インターバル時間 == 0
+	CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "移動処理")
+	IF RESULT
+		;RETURNが０でない＝移動したという意味なので3分のインターバル
+		TCVAR:ARG:移動インターバル時間 = 3
+	ENDIF
+ENDIF
+
+;ここから旧移動処理
+;開発の参考になるかもしれないので残す
+
+;移動頻度処理
+;RESULTに移動頻度を代入（小さければそれだけ移動しやすくなる）
+;CALL CHARA_MOVEMENT_MOVERATE(ARG)
+;SIF RAND:(TIME_PROGRESS(TFLAG:300) + 1) <= RAND:RESULT
+;	RETURN 0
+;SIF CFLAG:ARG:幽閉
+;	RETURN 0
+;移動場所の決定
+;VARSET RESULT
+;FOR LOCAL,1,MAXROOM()
+;	;各部屋ごとに移動傾向をRESULT代入
+;	CALL CHARA_MOVEMENT_KOUHO(LOCAL,ARG)
+;	;部屋番号LOCALの部屋が現在位置から移動可能ならばRESULT:部屋番号にRESULTを代入
+;	RESULT:LOCAL = RESULT * (CAN_MOVE_1(CFLAG:ARG:現在位置, LOCAL) & 1)
+;	SIF LOCAL == CFLAG:ARG:現在位置
+;		RESULT:LOCAL = 0
+;	;ランダマイズ
+;	SIF RESULT:LOCAL
+;		RESULT:LOCAL = RAND:(RESULT:LOCAL) + 1
+;NEXT
+RETURN 1

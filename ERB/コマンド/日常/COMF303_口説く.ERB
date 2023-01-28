@@ -1,0 +1,163 @@
+﻿
+@COMNAME303
+#FUNCTIONS
+TSTR:コマンド名受渡 = 口説く
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_303
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_303
+LOCALS = <br>■口説く<br>
+LOCALS += "相手を褒めたり好意的な言葉を掛けて親しくなろうとするコマンド。一定確率で大成功、成功、失敗に分岐。<br>短時間に実行しすぎると会話のネタが無くなり失敗する。素質：恋慕を所持している相手の場合、この制限は無効となる。<br>相手の性知識が０以下の場合、効果が低くなる。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：愛情・征服"
+LOCALS += "<br>固有の取得経験：会話経験(あなた)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM303
+;会話
+
+;会話累積値が閾値を超えると失敗
+IF TCVAR:302 && !TALENT:恋慕
+	PRINTFORML %CALLNAME:TARGET%に話しかけようとしたが言葉が見つからない
+	PRINTW あたりに気まずい空気が流れた…
+	TIME += 10
+	LOSEBASE:気力 += 100
+	DOWNBASE:MASTER:気力 += 100
+	RETURN 0
+ENDIF
+
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;10％で大成功
+	TFLAG:コマンド結果受渡し変数 = 1
+	EXP:MASTER:会話経験 ++
+ELSEIF LOCAL >= LOCAL:1
+	;10～1％で失敗
+	TFLAG:コマンド結果受渡し変数 = -1
+ELSE
+	;残りは成功
+	TFLAG:コマンド結果受渡し変数 = 0
+ENDIF
+;先制発生時は失敗しない
+SIF TCVAR:20
+	TFLAG:コマンド結果受渡し変数 = MAX(TFLAG:コマンド結果受渡し変数,0)
+
+;愛情強度
+LOCAL:0 = 300
+;征服強度
+LOCAL:1 = 100
+
+IF TFLAG:コマンド結果受渡し変数 == -1
+	TIMES LOCAL:0 , 0.10
+	TIMES LOCAL:1 , 0.50
+ELSEIF TFLAG:コマンド結果受渡し変数 == 0
+	TIMES LOCAL:0 , 1.00
+	TIMES LOCAL:1 , 1.00
+ELSE
+	TIMES LOCAL:0 , 2.00
+	TIMES LOCAL:1 , 2.00
+ENDIF
+SELECTCASE ABL:MASTER:話術技能
+	CASE 0
+		TIMES LOCAL:0 , 0.20
+		TIMES LOCAL:1 , 0.20
+	CASE 1
+		TIMES LOCAL:0 , 0.40
+		TIMES LOCAL:1 , 0.40
+	CASE 2
+		TIMES LOCAL:0 , 0.70
+		TIMES LOCAL:1 , 0.70
+	CASE 3
+		TIMES LOCAL:0 , 1.00
+		TIMES LOCAL:1 , 1.00
+	CASE 4
+		TIMES LOCAL:0 , 1.50
+		TIMES LOCAL:1 , 1.50
+	CASEELSE
+		TIMES LOCAL:0 , 2.00
+		TIMES LOCAL:1 , 2.00
+ENDSELECT
+
+DOWNBASE:気力 += 10
+DOWNBASE:MASTER:気力 += 10
+CALL SOURCE_CALC_愛情(TARGET, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+
+
+;会話累積値
+LOCAL = 200 - (TALENT:TARGET:会話資質 * 50) - (TALENT:PLAYER:会話資質 * 50)
+TCVAR:301 += LOCAL / (3 + ABL:MASTER:話術技能 + TALENT:TARGET:陽気／陰気)
+
+TIME += 15
+EXP:MASTER:会話経験 ++
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE303
+;会話実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(303)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;口を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:口 == 1
+	RETURN 0
+SIF TEQUIP:TARGET:口 == 1
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM303
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%
+IF TALENT:恋慕
+	PRINTDATA
+		DATAFORM へ、愛を伝える言葉を囁いた
+		DATAFORM へ、とろけるような甘い言葉を送った
+	ENDDATA
+ELSE
+	PRINTDATA
+		DATAFORM の美しさを褒めたたえた
+		DATAFORM の心が清らかだと誉めそやした
+		DATAFORM がとてもセクシーだと囁いた
+		DATAFORM ともっと親しくなりたいと距離を詰めた
+	ENDDATA
+ENDIF
+PRINTL 
+IF 知識素質:性知識 < 1
+		PRINTFORML %CALLNAME:TARGET%はよく意味がわかっていないようだ…
+ELSEIF TFLAG:コマンド結果受渡し変数 == 1
+	IF TALENT:恋慕
+		PRINTFORML %CALLNAME:TARGET%は喜んで、同じく愛の言葉を返してくれた
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%はまんざらでも無さそうだ
+	ENDIF
+ELSEIF TFLAG:コマンド結果受渡し変数 == 0
+	IF TALENT:恋慕
+		PRINTFORML %CALLNAME:TARGET%は笑って嬉しそうにしている
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%は笑って言葉を受け流している
+	ENDIF
+ELSEIF TFLAG:コマンド結果受渡し変数 == -1
+	PRINTFORML %CALLNAME:TARGET%にはあまり響かなかったようだ…
+ENDIF
+
+

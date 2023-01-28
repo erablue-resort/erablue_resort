@@ -1,0 +1,183 @@
+﻿;-------------------------------------------------
+;特殊な書式の文字列ARGSを読める文章に直す
+;行や命令は_で区切る事。そしてLOCALSは99までなので手加減してくれ
+;CASEを増やして、そのうち文字列を別作成しないで済むようにしたい
+;改行する時とWAITを付けて改行する時は、それぞれ以下のPRINT_STRL, PRINT_STRWを用いると間違いが少なくなるのでおすすめです
+;-------------------------------------------------
+@PRINT_STR, ARGS = "",ARG = -1
+#DIM LCOUNT
+#DIM 返し数
+#DIMS 返し文
+#DIM 文字色
+
+;FOR LCOUNT, 1, 3
+;	SIF ARGS:LCOUNT != ""
+;		ARGS = %ARGS%_%ARGS:LCOUNT%
+;NEXT
+SIF ARG == -1
+	ARG = TARGET
+LOCAL:2 = GETCOLOR()
+文字色 =  LOCAL:2
+
+VARSET LOCALS
+
+;文字列を分解する
+SPLIT ARGS, "_", LOCALS
+LOCAL = 0
+LOCAL:1 = 0
+FOR LCOUNT, 0, 100
+	;特殊な操作
+	SELECTCASE LOCALS:LCOUNT
+	;CASE ""
+	;	BREAK
+	CASE "CALLNAME:TARGET","調教対象","被調教者"
+		PRINTFORM %CALLNAME:TARGET%
+		CONTINUE
+	CASE "CALLNAME:PLAYER","調教者"
+		PRINTFORM %CALLNAME:PLAYER%
+		CONTINUE
+	CASE "CALLNAME:ASSI","助手呼","助手"
+		IF ASSI > -1
+			PRINTFORM %CALLNAME:ASSI%
+		ENDIF
+	CASE "CALLNAME:MASTER","主人","主人公"
+		PRINTFORM %CALLNAME:MASTER%
+		CONTINUE
+	; CASE "一人称"
+	; 	PRINTFORM %CSTR:ARG:一人称%
+	; 	CONTINUE
+	; CASE "二人称"
+	; 	IF ARG == TARGET && FLAG:ショップコマンド == [[ショップ:調教する]] && ASSIPLAY > 0 && ASSI > -1
+	; 		PRINTFORM %CALLNAME:ASSI%
+	; 	ELSE
+	; 		PRINTFORM %CSTR:ARG:二人称%
+	; 	ENDIF
+	; 	CONTINUE
+	; CASE "第三者"
+	; 	IF ARG == TARGET && FLAG:ショップコマンド == [[ショップ:調教する]] && ASSIPLAY > 0
+	; 		PRINTFORM %CSTR:ARG:二人称%
+	; 	ELSEIF ASSI > -1
+	; 		PRINTFORM %CALLNAME:ASSI%
+	; 	ENDIF
+	; 	CONTINUE
+	; CASE "主人呼"
+	; 	PRINTFORM %CSTR:ARG:二人称%
+	; 	CONTINUE
+	CASE "呼び名"
+		PRINTFORM %CALLNAME:ARG%
+		CONTINUE
+	CASE "名前"
+		PRINTFORM %NAME:ARG%
+		CONTINUE
+	CASE "BUTTON"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		PRINTBUTTON LOCALS:LCOUNT, LOCALS:LCOUNT
+		SETCOLOR LOCAL:2
+		CONTINUE
+	CASE "NOBUTTON"
+		;次の文字をボタンにしない
+		LCOUNT += 1
+		PRINTPLAINFORM %LOCALS:LCOUNT%
+		SETCOLOR LOCAL:2
+		CONTINUE
+	CASE "CALL"
+		;次の文字をCALLで呼び出す(引数なし)
+		LCOUNT += 1
+		CALLFORM %LOCALS:LCOUNT%
+		SETCOLOR LOCAL:2
+		CONTINUE
+	CASE "COLOR"
+		;次の文字の色を変更する
+		LCOUNT += 1
+		文字色 = TOINT(LOCALS:LCOUNT)
+		SETCOLOR 文字色
+		CONTINUE
+	CASE "INPUT"
+		;INPUTを呼び出す
+		INPUT
+		返し数 = RESULT
+		LOCAL = 1
+		CONTINUE
+	CASE "INPUTS"
+		;INPUTSを呼び出す
+		INPUTS
+		返し文 = %RESULTS%
+		LOCAL:1 = 1
+		CONTINUE
+	CASE "-"
+		;次の文字に打消し線を引く
+		FONTSTYLE 4
+		CONTINUE
+	CASE "B"
+		;次の文字を太字にする
+		FONTBOLD
+		CONTINUE
+	CASE "I"
+		;次の文字を斜体にする
+		FONTITALIC
+		CONTINUE
+	CASE "LINE"
+		;次の文字に下線を引く
+		FONTSTYLE 8
+		CONTINUE
+	CASE "L","改行"
+		PRINTL 
+		CONTINUE
+	CASE "W"
+		PRINTW 
+		CONTINUE
+	CASE "WAIT"
+		WAIT
+		CONTINUE
+	CASE "FORCEWAIT"
+		FORCEWAIT
+		CONTINUE
+	CASE "H"
+		PRINT_IMG "えっちハート"
+		CONTINUE
+	ENDSELECT
+	STRLENS LOCALS:LCOUNT
+	IF RESULT > 5
+		SUBSTRING LOCALS:LCOUNT,0,5
+		IF RESULTS == "CALL "
+			SUBSTRING LOCALS:LCOUNT,5,RESULT
+			CALLFORM %RESULTS%
+			CONTINUE
+		ENDIF
+	ENDIF
+	RESULT = 0
+
+	PRINTFORM %LOCALS:LCOUNT%
+	SETCOLOR LOCAL:2
+	文字色 = LOCAL:2
+	FONTSTYLE 0
+NEXT
+SIF LOCAL:1 > 0
+	RESULTS = %返し文%
+SIF LOCAL > 0
+	RETURN 返し数
+
+;-------------------------------------------------
+;PRINT_STRの最後の_Lと_Wを関数に織り込んだver
+;-------------------------------------------------
+@PRINT_STRL, ARGS = "",ARG = -1
+CALL PRINT_STR, ARGS , ARG
+PRINTL
+RETURN RESULT
+
+@PRINT_STRW, ARGS = "",ARG = -1
+CALL PRINT_STR, ARGS , ARG
+WAIT
+RETURN RESULT
+
+@PRINT_STR_INPUT, ARGS = "",ARG = -1
+CALL PRINT_STR, ARGS , ARG
+INPUT
+RETURN RESULT
+
+@PRINT_STR_INPUTS, ARGS = "",ARG = -1
+CALL PRINT_STR, ARGS , ARG
+INPUTS
+RETURN RESULT
+

@@ -1,0 +1,174 @@
+﻿
+;-------------------------------------------------
+;庭で一緒に遊ぶ
+;-------------------------------------------------
+@COMNAME_PLACE_380_0_3
+#FUNCTION
+TSTR:コマンド名受渡 = 一緒に遊ぶ
+IF 施設改造度:3:0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_0_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_380_0_3
+LOCALS = <br>■一緒に遊ぶ<br>
+LOCALS += "その場にいるキャラ全員と庭で一緒に遊ぶコマンド。一定確率で大成功、成功、失敗に分岐。<br>ボール遊び、模擬戦、お散歩の3つからランダムで選ばれる。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服(一定条件時)・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM380_0_3
+
+;成功度の判定
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;10％で大成功
+	TFLAG:コマンド結果受渡し変数 = 10
+ELSEIF LOCAL >= LOCAL:1
+	;10～1％で失敗
+	TFLAG:コマンド結果受渡し変数 = -1
+ELSE
+	;残りは成功
+	TFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+;遊びの種類をランダム決定
+;１：ボール遊び
+;２：模擬戦
+;３：散歩
+TFLAG:コマンド結果受渡し変数３ = RAND:3 + 1
+TFLAG:コマンド結果受渡し変数 = TFLAG:コマンド結果受渡し変数 * TFLAG:コマンド結果受渡し変数３
+
+
+DOWNBASE:MASTER:気力 += 100
+DOWNBASE:MASTER:体力 += 50
+;模擬戦なら追加で体力減少
+SIF TFLAG:コマンド結果受渡し変数３ == 2
+	DOWNBASE:MASTER:体力 += 100
+
+;その場に居るTARGET全員で回す
+LOCAL:1 = TARGET
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):睡眠
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):隠密
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	CALL COM380_0_3_追加処理
+NEXT
+TARGET = LOCAL:1
+
+TIME += 60
+RETURN 1
+
+@COM380_0_3_追加処理
+
+DOWNBASE:気力 += 10
+
+SELECTCASE TFLAG:コマンド結果受渡し変数３
+	CASE 1
+		;ボール遊び
+		DOWNBASE:体力 += 50
+		;歓楽強度
+		LOCAL:0 = 500
+		;征服強度
+		LOCAL:1 = 100
+	CASE 2
+		;模擬戦
+		DOWNBASE:体力 += 100
+		LOCAL:0 = 300
+		LOCAL:1 = 500
+		IF TALENT:戦闘好き > 0
+			LOCAL:0 += 100
+			LOCAL:1 += 200
+		ELSEIF TALENT:戦闘好き < 0
+			LOCAL:0 -= 100
+		ENDIF
+	CASE 3
+		;お散歩
+		LOCAL:0 = 700
+		LOCAL:1 = 10
+ENDSELECT
+
+IF TFLAG:コマンド結果受渡し変数 <= -1
+	TIMES LOCAL:0 , 0.10
+	TIMES LOCAL:1 , 0.50
+ELSEIF TFLAG:コマンド結果受渡し変数 <= 9
+	TIMES LOCAL:0 , 1.00
+	TIMES LOCAL:1 , 1.00
+ELSE
+	TIMES LOCAL:0 , 2.00
+	TIMES LOCAL:1 , 2.00
+ENDIF
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+IF TALENT:戦闘好き < 0 && TFLAG:コマンド結果受渡し変数３ == 2
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL:1)
+ELSE
+	CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+ENDIF
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE380_0_3
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_0_3
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と
+SELECTCASE TFLAG:コマンド結果受渡し変数３
+	CASE 1
+		;ボール遊び
+		PRINT ボールを使って遊んだ
+	CASE 2
+		;模擬戦
+		PRINT 模擬戦で体を動かした
+	CASE 3
+		;お散歩
+		PRINT のんびりと歩きながらお喋りをした
+ENDSELECT
+
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE IS <= -1
+		;失敗時
+		PRINTL が、
+		PRINTW あまり盛り上がらなかった…
+	CASE IS <= 9
+		;成功時
+		PRINTL 
+		PRINTFORMW \@ GET_TARGETNUM() > 1 ? みんなで # ふたりで\@楽しい時を過ごせた…
+	CASEELSE
+		;大成功時
+		PRINTL 
+		PRINTFORMW \@ GET_TARGETNUM() > 1 ? みんなで # ふたりで\@とても盛り上がった！
+ENDSELECT
+
+

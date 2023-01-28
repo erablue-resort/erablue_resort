@@ -1,0 +1,152 @@
+﻿;-------------------------------------------------
+;乳首責め
+;愛撫系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME7
+#FUNCTIONS
+IF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+	TSTR:コマンド名受渡 = 乳首ほじり
+ELSE
+	TSTR:コマンド名受渡 = 乳首責め
+ENDIF
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_7
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中")
+弱点コマンドカテゴリ = B
+
+@COM_TOOLTIP_7
+LOCALS = <br>■乳首責め<br>
+LOCALS += "相手の乳首を責め、愛撫するコマンド。<br>対象が[陥没乳首]を持つ場合、効果が増加する。<br>>対象が[陥没乳首]を持つ場合、一定以上の欲情時、陥没乳首が勃起して露出する。"
+LOCALS += "<br>COMタイプ：うふふor被挿入中<br>取得ソース：快Ｂ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM7
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 5
+DOWNBASE:気力 += 30
+
+TCVAR:乳首開発フラグ = 2
+
+SIF TALENT:陥没乳首 && PALAM:欲情 >= PALAMLV:3
+	TCVAR:陥没乳首露出フラグ = MIN(TCVAR:陥没乳首露出フラグ + 10, 100)
+
+IF TALENT:陥没乳首
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 200)
+ELSE
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 120)
+ENDIF
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE7
+;乳首責め
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(7)
+	RETURN RESULT
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:上半身服あり && (!TEQUIP:手差し込み可 && !TEQUIP:はだけ可)
+	RETURN 0
+SIF TEQUIP:上タイツあり && !TEQUIP:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:上半身下着あり
+	RETURN 0
+;ニプルキャップ使用中は不可
+SIF TEQUIP:16
+	RETURN 0
+;搾乳機使用中は不可
+SIF TEQUIP:17
+	RETURN 0
+;乳房電極装着中はダメ
+SIF TEQUIP:24
+	RETURN 0
+;指を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;胸に届かないなら無理
+SIF TEQUIP:TARGET:胸 == 2
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM7
+IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+	PRINTFORM %CALLNAME:TARGET%とつながったまま%OPPAI_DESCRIPTION(TARGET)%
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%
+ENDIF
+SELECTCASE TALENT:陥没乳首
+	CASE 0
+		;欲情のPALAMLV3以上
+		IF PALAM:欲情 >= PALAMLV:3
+			PRINT の先端の、すっかり硬くなった突起を
+			IF MODE_確認("授乳手コキ", TARGET)
+				PRINTL 舌で転がした…
+			ELSE
+				PRINTL つまみあげた…
+			ENDIF
+		ELSE
+			PRINT の先端の、まだ柔らかい突起を
+			IF MODE_確認("授乳手コキ", TARGET)
+				PRINTL 舌で転がした…
+			ELSE
+				PRINTL つまみあげた…
+			ENDIF
+		ENDIF
+	CASE 1
+		IF !TCVAR:陥没乳首露出フラグ
+			PRINT の凹みに指を入れ、隠れた乳首を
+			SIF MODE_確認("授乳手コキ", TARGET)
+				PRINT 舌で
+			PRINTL ほじり、弄った…
+		ELSEIF TCVAR:陥没乳首露出フラグ == 10
+			;フラグの数値が10になるのは勃起直後のみのはず
+			PRINT の凹みに
+			IF MODE_確認("授乳手コキ", TARGET)
+				PRINT 舌
+			ELSE
+				PRINT 指
+			ENDIF
+			PRINTL を入れてほじくると、
+			PRINTFORML こりこりに硬くなった%CALLNAME:TARGET%の乳首が外に顔を出した
+		ELSE
+			PRINT の先端の、すっかり硬くなった突起を
+			IF MODE_確認("授乳手コキ", TARGET)
+				PRINTL 舌で転がした…
+			ELSE
+				PRINTL つまみあげた…
+			ENDIF
+		ENDIF
+ENDSELECT
+

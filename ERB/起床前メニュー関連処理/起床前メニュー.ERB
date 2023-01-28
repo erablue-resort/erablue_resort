@@ -1,0 +1,155 @@
+﻿@SHOW_SHOP
+;奴隷購入ページフラグ
+TFLAG:100 = 0
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
+CALL イベント発生条件チェック
+
+DRAWLINE
+PRINTFORML {DAY}日目(%GET_DAY()%)
+PRINTFORML (所持金:{MONEY}%MONEYLABEL%)
+PRINTFORML リゾート滞在人数：{滞在キャラ数}人 / 最大{滞在キャラ上限}人
+PRINT 体力:
+CALL PRINT_COLORBAR, BASE:MASTER:0, MAXBASE:MASTER:0, 800, 100, BARCOLORSET("緑"), RESULT:1
+PRINTFORM ({BASE:MASTER:0,4}/{MAXBASE:MASTER:0,4}) 
+PRINT 気力:
+CALL PRINT_COLORBAR, BASE:MASTER:1, MAXBASE:MASTER:1, 800, 100, BARCOLORSET("赤"), RESULT:1
+PRINTFORM ({BASE:MASTER:1,4}/{MAXBASE:MASTER:1,4})
+PRINTL
+DRAWLINE
+LOCALS = <font color='#f39800'>-----[起床]-------------------------------------------------------------------------------------------------</font><br>
+LOCALS += "<button value='100'>[100] - 起床</button>"
+LOCALS += "<br><br>"
+LOCALS += "<font color='#f39800'>-----[リゾート]---------------------------------------------------------------------------------------------</font><br>"
+IF 滞在キャラ数 >= 滞在キャラ上限
+	IF ツールチップ切り替えOPTION記憶 == 0
+		LOCALS += "<font color='#666666'><nonbutton title='<br>滞在人数上限<br>'>[110] - リゾートの広告を出す</nonbutton></font>　　　　　　"
+	ELSE
+		LOCALS += "<font color='#666666'><nonbutton>[110] - リゾートの広告を出す</nonbutton></font>　　　　　　"
+	ENDIF
+ELSE
+	LOCALS += "<button value='110'>[110] - リゾートの広告を出す</button>　　　　　　"
+ENDIF
+IF ダンジョン変数_沿岸部の森:1:1
+	LOCALS += "<button value='111'>[111] - 施設改造</button>　　　　　　　　　　　　"
+ELSE
+	IF ツールチップ切り替えOPTION記憶 == 0
+		LOCALS += "<font color='#666666'><nonbutton title='<br>未開放機能<br>ダンジョン「沿岸部の森」クリアで解放<br>'>[111] - 施設改造</nonbutton></font>　　　　　　　　　　　　"
+	ELSE
+		LOCALS += "<font color='#666666'><nonbutton>[111] - 施設改造</nonbutton></font>　　　　　　　　　　　　"
+	ENDIF
+ENDIF
+IF ダンジョン変数_沿岸部の森:1:1
+	LOCALS += "<button value='112'>[112] - 従業員設定</button>　　　　　　　　　　　"
+ELSE
+	IF ツールチップ切り替えOPTION記憶 == 0
+		LOCALS += "<font color='#666666'><nonbutton title='<br>未開放機能<br>ダンジョン「沿岸部の森」クリアで解放<br>'>[112] - 従業員設定</nonbutton></font>　　　　　　　　　　　"
+	ELSE
+		LOCALS += "<font color='#666666'><nonbutton>[112] - 従業員設定</nonbutton></font>　　　　　　　　　　　"
+	ENDIF
+ENDIF
+LOCALS += "<button value='113'>[113] - 通信販売</button>　　　　　　　　　　　　"
+LOCALS += "<button value='114'>[114] - ZPショップ</button>　　　　　　　　　　　"
+LOCALS += "<br><br>"
+LOCALS += "<font color='#f39800'>-----[キャラクター]-----------------------------------------------------------------------------------------</font><br>"
+LOCALS += "<button value='120'>[120] - イベントリスト</button>　　　　　　　　　"
+LOCALS += "<button value='121'>[121] - 能力表示</button>　　　　　　　　　　　　"
+IF 施設改造度:5:1
+	LOCALS += "<button value='122'>[122] - 性癖開拓作戦</button>　　　　　　　　　　"
+ELSE
+	IF ツールチップ切り替えOPTION記憶 == 0
+		LOCALS += "<font color='#666666'><nonbutton title='<br>未開放機能<br>施設改造「遊戯室系列：図書室」達成で解放<br>'>[122] - 性癖開拓作戦</nonbutton></font>　　　　　　　　　　"
+	ELSE
+		LOCALS += "<font color='#666666'><nonbutton>[122] - 性癖開拓作戦</nonbutton></font>　　　　　　　　　　"
+	ENDIF
+ENDIF
+LOCALS += "<br><br>"
+LOCALS += "<font color='#f39800'>-----[オプション]-------------------------------------------------------------------------------------------</font><br>"
+LOCALS += "<button value='200'>[200] - 設定</button>　　　　　　　　　　　　　　"
+LOCALS += "<button value='201'>[201] - SAVE</button>　　　　　　　　　　　　　　"
+LOCALS += "<button value='202'>[202] - LOAD</button>　　　　　　　　　　　　　　"
+LOCALS += "<br>"
+LOCALS += "<button value='203'>[203] - OPTION</button>　　　　　　　　　　　　　"
+LOCALS += "<button value='204'>[204] - ゲームヘルプ</button>　　　　　　　　　　"
+LOCALS += "<br><br>"
+HTML_PRINT LOCALS
+
+
+@USERSHOP
+IF RESULT == 100
+	CALL TRAIN_MAIN
+	RETURN 1
+ELSEIF RESULT == 110
+	SIF 滞在キャラ数 < 滞在キャラ上限
+		CALL キャラクター招待
+ELSEIF RESULT == 111 && ダンジョン変数_沿岸部の森:1:1
+	CALL RESORT_POWERUP
+ELSEIF RESULT == 112 && ダンジョン変数_沿岸部の森:1:1
+	CALL 従業員メインメニュー
+ELSEIF RESULT == 113
+	CALL ITEM_BUY
+ELSEIF RESULT == 114
+	CALL ZP_SHOP
+ELSEIF RESULT == 120
+	CALL 起床前イベントリスト
+ELSEIF RESULT == 121
+	CALL SHOW_CHARADATA
+ELSEIF RESULT == 122 && 施設改造度:5:1
+	CALL 性癖開拓処理
+ELSEIF RESULT == 200
+	CALL SCHEDULE
+ELSEIF RESULT == 201
+	SAVEGAME
+ELSEIF RESULT == 202
+	LOADGAME
+ELSEIF RESULT == 203
+	CALL OPTION
+ELSEIF RESULT == 204
+	CALL チュートリアル_MAIN
+ENDIF
+
+
+@SCHEDULE
+PRINTL [0] - 起床時間設定
+
+;自室以外の部屋がないので一旦オミット
+;SIF FLAG:10
+;	PRINTL [1] - 私室設定
+
+PRINTL [100] - 戻る
+INPUT
+IF RESULT == 100
+	RETURN 0
+ELSEIF RESULT == 0
+	PRINTL 何時に起床しますか?(0～23を入力してください)
+	$INPUT_LOOP
+	INPUT
+	SIF RESULT < 0 || RESULT > 23
+		GOTO INPUT_LOOP
+	CFLAG:MASTER:312 = RESULT * 60
+ELSEIF RESULT == 1 && FLAG:10
+	PRINTL 寝起きする部屋を変えることが出来ます
+	PRINTL [0] - 自分の部屋
+	FOR LOCAL,1,CHARANUM
+		SIF TALENT:LOCAL:恋慕
+			PRINTFORML [{LOCAL}] - %CALLNAME:LOCAL%の部屋
+	NEXT
+	$INPUT_LOOP2
+	INPUT
+	
+	IF RESULT < 0 || RESULT >= CHARANUM
+		CLEARLINE 1
+		GOTO INPUT_LOOP2
+	ELSEIF RESULT == 0
+		CFLAG:MASTER:311 = 20
+	ELSEIF TALENT:RESULT:恋慕
+		CFLAG:MASTER:311 = CFLAG:RESULT:311
+	ELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP2
+	ENDIF
+	PRINTW 変更は翌日から反映されます
+ENDIF
+
+RETURN 1

@@ -1,0 +1,69 @@
+﻿
+@COMNAME351
+#FUNCTIONS
+TSTR:コマンド名受渡 = 連れ出す
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_351
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_351
+LOCALS = <br>■連れ出す<br>
+LOCALS += "一定値以上の好感度レベルを持つ相手を、自身に同行させるコマンド。<br>同時に連れ歩けるのは一人だけ。<br>同行してくれる時間は６０分。ただし、一緒に隠密中・うふふ中は同行が解除されない。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM351
+;一度に連れ歩けるのは一人まで
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	CFLAG:(TARGET:LOCAL):同行 = 0
+NEXT
+CFLAG:TARGET:同行 = 60
+PRINTFORMW %CALLNAME:TARGET%を連れ出します
+TFLAG:104 = TARGET
+TIME += 1
+
+;SOURCEまで回さないのでここで口上を表示させる
+;ボールギャグ
+IF TEQUIP:20 && SELECTCOM != 107 && FLAG:6 > 0
+	SELECTCOM = LOCAL
+	RETURN 1
+ELSE
+	RESULT = 0
+	RESULTS =
+	IF FLAG:6 > 0
+		SELECTCOM = LOCAL
+		RETURN 1
+	ENDIF
+	RESULT = 0
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_351
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE351
+;連れ出す実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(351)
+	RETURN RESULT
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;TARGETの好感度レベル
+SIF CFLAG:好感度レベル < 51
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------

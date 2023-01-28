@@ -1,0 +1,159 @@
+﻿
+
+@COMNAME324
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳首ひっかき
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_324
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
+弱点コマンドカテゴリ = B
+
+@COM_TOOLTIP_324
+LOCALS = <br>■乳首ひっかき<br>
+LOCALS += "服の上から相手の乳首を爪でカリカリと刺激するコマンド。<br>対象が上半身に鎧を着ている場合は実行不可。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：接触・露出・快Ｂ"
+LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM324
+;尻を揉む
+
+CALL セクハラ反応タイプ判定(TARGET)
+;TFLAG:コマンド結果受渡し変数
+;1:拒絶  2:受け入れ 3:喜び
+;TFLAG:コマンド結果受渡し変数２
+;1:無知  2:無反応 3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+
+;セクハラ強は基本的に喜び以外に入らないはず（合意条件であり、合意に入るにはそれなりに仲良くならなければならないため）
+
+SELECTCASE TFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 2
+		;無反応
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 3
+		;嫌悪
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 4
+		;拒否
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 5
+		;余裕
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 6
+		;羞恥
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 300)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 350)
+	CASE 7
+		;愉悦
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+	CASE 8
+		;汎用
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+ENDSELECT
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:MASTER:同性愛経験 += 1
+ENDIF
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+
+TCVAR:乳首開発フラグ = 1
+
+TIME += 10
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE324
+;乳首ひっかき実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(324)
+	RETURN RESULT
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM324
+
+PRINTFORM %CALLNAME:PLAYER%は
+IF TALENT:TARGET:種族 == 4 && TALENT:MASTER:種族 != 4
+	PRINT しゃがんで
+ENDIF
+PRINTFORM %CALLNAME:TARGET%の
+SELECTCASE TALENT:TARGET:バストサイズ
+	CASE -2
+		PRINT 殆ど膨らみがない、平らな胸に手を伸ばして
+	CASE -1
+		PRINT 小さく膨らみが見える胸に手を伸ばし、
+	CASE 0
+		PRINT 胸に手を伸ばし、
+	CASE 1 TO 2
+		PRINT 大きく柔らかな胸に手を伸ばし、
+	CASE 3
+		PRINT 両手に余るほど豊満な胸に手を伸ばし、
+ENDSELECT
+PRINTL 服の上から乳首をかりかりとひっかいた
+
+IF CUP:TARGET:快Ｂ > 3000
+	PRINTFORML %CALLNAME:TARGET%は嬌声を漏らし、乳首からの快楽に翻弄されている…
+ELSE
+	IF CUP:TARGET:快Ｂ > 1000
+	;一定以上の快楽が発生した時にちょっと声が出る
+	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	PRINTL
+	ENDIF
+
+	SELECTCASE TFLAG:コマンド結果受渡し変数２
+		CASE 1
+			;無知
+			PRINTFORML %CALLNAME:TARGET%はよくわかっていないが、%CALLNAME:PLAYER%が楽しいなら良いと嬉しそうにしている
+		CASE 2
+			;無反応
+			PRINTFORML %CALLNAME:TARGET%は平然としているが、少し顔を赤くして%CALLNAME:PLAYER%に体を擦り寄せてきた…
+		CASE 3
+			;嫌悪
+			PRINTFORML %CALLNAME:TARGET%はしょうがない人だな、という顔で%CALLNAME:PLAYER%の好きにさせている…
+		CASE 4
+			;拒否
+			PRINTFORML %CALLNAME:TARGET%は悪い気はしない様子で、%CALLNAME:PLAYER%の好きにさせている…
+		CASE 5
+			;余裕
+			PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に、周囲にバレないようこっそりと触るように言ってきた…
+		CASE 6
+			;羞恥
+			PRINTFORML %CALLNAME:TARGET%は赤くなった顔で%CALLNAME:PLAYER%を見つめ、そっと体を寄せてきた…
+		CASE 7
+			;愉悦
+			PRINTFORML %CALLNAME:TARGET%は他の場所も触るかと、色っぽい表情で%CALLNAME:PLAYER%を挑発している…
+		CASE 8
+			PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に触れられることを少し嬉しく思っているようだ…
+	ENDSELECT
+ENDIF

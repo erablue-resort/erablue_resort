@@ -1,0 +1,94 @@
+﻿
+@ダンジョンアイテム画面表示
+IF 選択用変数 > 0
+	詳細文文字列受け渡し変数 = 
+	TRYCALLFORM アイテム個別文章表示_%表示アイテム名:選択用変数%
+	TRYCALLFORM アイテム使用先表示_%表示アイテム名:選択用変数%
+	LOCALS = %詳細文文字列受け渡し変数%
+ELSE
+	VARSET 表示アイテム名
+	LOCALS = 
+	DT_COLUMN_NAMES "所持アイテムデータベース", 表示アイテム名
+	FOR LOCAL, 1, 25
+		IF 表示アイテム名:LOCAL != ""
+			LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 2}]%表示アイテム名:LOCAL, 40, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL))), 4%</button><br>"
+		ELSE
+			LOCALS += "<br>"
+		ENDIF
+	NEXT
+ENDIF
+
+HTML_PRINT @"<div rect = '40px, 33px, 470px, 470px'>%LOCALS%</div>", 1
+HTML_PRINT "<div rect = '40px, 448px, 470px, 30px'>　　　　　　　　　　　　　　　　　　　　　　　<button value = '999'>[999]戻る</button></div>", 1
+
+
+@DUNGEON_操作処理_アイテム画面
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+IF 選択用変数 > -1
+	IF LOCAL == 999
+		キャラ画像ボタン化フラグ = 0
+		CLEARLINE 1
+		選択用変数 = -1
+		RETURN -1
+	ENDIF
+	TRYCCALLFORM アイテム効果処理_%表示アイテム名:選択用変数%(LOCAL)
+		IF RESULT == 0
+			RETURN -1
+		ENDIF
+	CATCH
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	ENDCATCH
+ELSE
+	SELECTCASE LOCAL
+		CASE 1 TO 24
+			IF DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL)
+				選択用変数 = LOCAL
+			ELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+			ENDIF
+		CASE 999
+			ダンジョン表示モード = マップ画面
+			キャラ画像ボタン化フラグ = 1
+			選択用変数 = -1
+		CASEELSE
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+	ENDSELECT
+ENDIF
+RETURN -1
+
+
+
+@アイテム増減汎用処理(アイテム名, 個数)
+#DIMS アイテム名
+#DIM 個数
+
+;まず増減するアイテム名が誤字ってないかチェック
+TRYCCALLFORM アイテム個別文章表示_%アイテム名%
+CATCH
+	;個別文章がない場合はアイテムがないと判断
+	PRINTL 指定したアイテムがみつかりません
+	RETURN 0
+ENDCATCH
+
+;同じアイテムを持ってるかどうかチェック
+IF DT_COLUMN_EXIST("所持アイテムデータベース", アイテム名)
+	;持ってる
+	LOCAL:1 = DT_CELL_GET("所持アイテムデータベース", 0, アイテム名) + 個数
+	IF LOCAL:1 > 0
+		DT_CELL_SET "所持アイテムデータベース", 0, アイテム名, LOCAL:1
+	ELSE
+		DT_COLUMN_REMOVE "所持アイテムデータベース", アイテム名
+	ENDIF
+ELSE
+	;未所持
+	IF 個数 > 0
+		DT_COLUMN_ADD "所持アイテムデータベース", アイテム名, 1
+		DT_CELL_SET "所持アイテムデータベース", 0, アイテム名, 個数
+	ENDIF
+ENDIF

@@ -1,0 +1,199 @@
+﻿
+;-----------------------------------------------------------
+;遠距離移動処理
+;-----------------------------------------------------------
+
+@SKIP_MOVE_0(ARG, ARG:1)
+;ARG　目的地
+;ARG:1　移動キャラID
+
+#DIM スタート地点
+#DIM スタートマップ
+#DIM 目的マップ
+#DIM 移動キャラ = 0
+
+;現在位置取得
+スタート地点 = CFLAG:MASTER:現在位置
+IF ARG:1
+	移動キャラ = ARG:1
+	スタート地点 = CFLAG:移動キャラ:現在位置
+ENDIF
+
+$LOOP
+
+
+;暫定目的地に直接移動できる場合
+IF CAN_MOVE_1(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
+	;そこに移動
+	RETURN ARG
+ENDIF
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE スタート地点
+	CASE 1
+		RETURN 2
+	CASE 3
+		RETURN 2
+	CASE 4
+		RETURN 2
+	CASE 5
+		RETURN 2
+	CASE 10
+		RETURN 9
+	CASE 12
+		RETURN 11
+	CASE 20
+		RETURN 6
+	CASE 302 TO 307
+		RETURN 302
+	CASE 504 TO 506
+		RETURN 503
+	CASE 1503 TO 1507
+		IF TALENT:移動キャラ:性別 == 10
+			RETURN 1513
+		ELSE
+			RETURN 1514
+		ENDIF
+ENDSELECT
+
+;マップ間を移動する際の処理
+;（下のパターン分けでやると爆発的に量が増えていくため追加）
+;マップ種別取得
+スタートマップ = スタート地点 / 100
+目的マップ = ARG / 100
+IF スタートマップ != 目的マップ
+	;スタート種別ごとに場合分け
+	SELECTCASE スタートマップ
+		CASE 0
+			SELECTCASE 目的マップ
+				CASE 3
+					RETURN 3
+				CASE 5
+					RETURN 5
+				CASE 15
+					RETURN 15
+			ENDSELECT
+		CASE 3
+			RETURN 2
+		CASE 5
+			RETURN 2
+		CASE 15
+			RETURN 2
+	ENDSELECT
+ENDIF
+
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;地点追加時要フォロー（全ケース修正すること）
+SELECTCASE ARG
+CASE 1
+;玄関
+	;玄関へはロビー経由必須
+	RETURN 2
+CASE 2
+;ロビー
+	;7と8（脱衣所）からは廊下を目指す
+	IF (スタート地点 == 7) || (スタート地点 == 8)
+		RETURN 6
+	;9と11（男湯女湯）からはそれぞれ脱衣所を経由する
+	ELSEIF (スタート地点 == 9)
+		RETURN 7
+	ELSEIF (スタート地点 == 11)
+		RETURN 8
+	;15（プール）からは入れる方の更衣室を経由する
+	ELSEIF (スタート地点 == 15)
+		IF (TALENT:移動キャラ:性別 & 1 == 1)
+			;女部分があれば女子
+			RETURN 14
+		ELSE
+			RETURN 13
+		ENDIF
+	ENDIF
+CASE 3
+;庭
+	;庭へはロビー経由必須
+	RETURN 2
+CASE 4
+;ショー会場
+	;ショー会場へはロビー経由必須
+	RETURN 2
+CASE 5
+;遊戯場
+	;遊戯場へはロビー経由必須
+	RETURN 2
+CASE 6
+;廊下
+	;1.3.4.5.13.14からは2を目指す
+	IF GROUPMATCH(スタート地点,1,3,4,5,13,14)
+		RETURN 2
+	;9と11（男湯女湯）からはそれぞれ脱衣所を経由する
+	ELSEIF (スタート地点 == 9)
+		RETURN 7
+	ELSEIF (スタート地点 == 11)
+		RETURN 8
+	;15（プール）からは入れる方の更衣室を経由する
+	ELSEIF (スタート地点 == 15)
+		IF (TALENT:移動キャラ:性別 & 1 == 1)
+			;女部分があれば女子
+			RETURN 14
+		ELSE
+			RETURN 13
+		ENDIF
+	ENDIF
+CASE 7
+;男子脱衣所
+	;内部からは袋小路処理や直接移動処理でOKなので外から目指す場合
+	;男子脱衣所へはロビー経由必須
+	RETURN 6
+CASE 8
+;女子脱衣所
+	;内部からは袋小路処理や直接移動処理でOKなので外から目指す場合
+	;女子脱衣所へはロビー経由必須
+	RETURN 6
+CASE 9
+;男湯
+	;男湯へは脱衣所経由必須
+	RETURN 7
+CASE 10
+;男露天
+	;男露天へは男湯経由必須
+	RETURN 9
+CASE 11
+;女湯
+	;女湯へは脱衣所経由必須
+	RETURN 8
+CASE 12
+;女露天
+	;女露天へは女湯経由必須
+	RETURN 11
+CASE 13
+;男更衣室
+	;更衣室へはロビー経由必須
+	RETURN 2
+CASE 14
+;女更衣室
+	;更衣室へはロビー経由必須
+	RETURN 2
+CASE 15
+;プール
+	;入れる方の更衣室を目指す
+	IF (TALENT:移動キャラ:性別 & 1 == 1)
+		;女部分があれば女子
+		RETURN 14
+	ELSE
+		RETURN 13
+	ENDIF
+CASE 20
+;自室
+	;自室へはロビー経由必須
+	RETURN 6
+
+;バーエリアは現状全エリアが相互通行可能ではないため、CASE分けを一つだけ追加
+CASE 504 TO 506
+;ボドゲ・卓球
+	;バーエリアを目指す
+	RETURN 503
+
+ENDSELECT
+GOTO LOOP
+
+

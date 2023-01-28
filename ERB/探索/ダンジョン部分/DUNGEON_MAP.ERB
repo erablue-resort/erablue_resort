@@ -1,0 +1,569 @@
+﻿@DUNGEON_MAP描画
+#DIM X軸
+#DIM Y軸
+#DIM レイヤー番号
+レイヤー番号 = 1
+
+
+GDISPOSE レイヤー番号
+SPRITEDISPOSE ("ダンジョン_1")
+GCREATE レイヤー番号, 960, 500
+GSETFONT レイヤー番号, GETFONT(), 18
+GSETPEN レイヤー番号, 0x00FFFFFF, -1
+
+IF ダンジョン表示モード == "マップ画面"
+	;自己中心マップ表示
+	LOCAL = 0
+	LOCAL:1 = 0
+	FOR X軸, ダンジョン現在位置:0 - 7, ダンジョン現在位置:0 + 8
+		FOR Y軸, ダンジョン現在位置:1 - 7, ダンジョン現在位置:1 + 8
+			IF X軸 < 0 || X軸 >= ダンジョン最大広さ:0 || Y軸 < 0 || Y軸 >= ダンジョン最大広さ:1
+				SIF DUNGEON_MAP_外部 != ""
+					CALL 画像合成(レイヤー番号, DUNGEON_MAP_外部, 32 + (LOCAL * 32), 30 + (LOCAL:1 * 32), 32, 32)
+			ELSE
+				IF マップチップリソース名変換(SUBSTRINGU(DUNGEON_MAP_MASK:Y軸, X軸, 1)) != ""
+					CALL 画像合成(レイヤー番号, マップチップリソース名変換(SUBSTRINGU(DUNGEON_MAP_MASK:Y軸, X軸, 1)), 32 + (LOCAL * 32), 30 + (LOCAL:1 * 32), 32, 32)
+				ENDIF
+			ENDIF
+			LOCAL:1 += 1
+		NEXT
+		LOCAL:1 = 0
+		LOCAL += 1
+	NEXT
+	
+	;自機表示
+	CALL 画像合成(レイヤー番号, "自機アイコン", 256, 254, 32, 32)
+	;イベント描画
+	FOR LOCAL, 0, 50
+		SIF ダンジョンイベント:LOCAL:アイコン種類 < 1
+			CONTINUE
+		IF ダンジョンイベント:LOCAL:X軸位置 - ダンジョン現在位置:0 > -8 && ダンジョンイベント:LOCAL:X軸位置 - ダンジョン現在位置:0 < 8 && ダンジョンイベント:LOCAL:Y軸位置 - ダンジョン現在位置:1 > -8 && ダンジョンイベント:LOCAL:Y軸位置 - ダンジョン現在位置:1 < 8
+			LOCAL:1 = ダンジョンイベント:LOCAL:X軸位置 - ダンジョン現在位置:0 + 7
+			LOCAL:2 = ダンジョンイベント:LOCAL:Y軸位置 - ダンジョン現在位置:1 + 7
+			CALL 画像合成(レイヤー番号, @"%イベントアイコン数字リソース名変換(ダンジョンイベント:LOCAL:アイコン種類)%", 32 + (LOCAL:1 * 32), 30 + (LOCAL:2 * 32), 32, 32)
+		ENDIF
+	NEXT
+ELSEIF ダンジョン表示モード == "アイテム画面"
+	;周囲の枠
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	GFILLRECTANGLE レイヤー番号, 32 , 30, 480, 5
+	GFILLRECTANGLE レイヤー番号, 32 , 30, 5, 480
+	GFILLRECTANGLE レイヤー番号, 32 , 495, 480, 5
+	GFILLRECTANGLE レイヤー番号, 507 , 30, 5, 480
+ENDIF
+
+;基礎情報
+GDRAWTEXT レイヤー番号, @"{DAY}日目(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+CALL リソース登録(@"ダンジョン_1", レイヤー番号)
+
+
+@DUNGEON_キャラ描画
+#DIM レイヤー番号
+#DIM 縦幅
+#DIM 横幅
+#DIM 表示位置調整用
+レイヤー番号 = 2
+
+;ステータス
+FOR LOCAL, 0, 4
+	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+		BREAK
+	GDISPOSE レイヤー番号
+	GDISPOSE レイヤー番号 + 20
+	SPRITEDISPOSE (@"キャラ_{LOCAL}")
+	SPRITEDISPOSE (@"キャラ_{LOCAL}_ボタン")
+	GCREATE レイヤー番号, 394, 120
+	GCREATE レイヤー番号 + 20, 394, 120
+	GSETFONT レイヤー番号, GETFONT(), 18
+	GSETPEN レイヤー番号, 0x00FFFFFF, -1
+
+	SELECTCASE BATTLE_STATE:LOCAL:属性
+		CASE 0
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("火属性")
+		CASE 1
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("水属性")
+		CASE 2
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("風属性")
+		CASE 3
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("土属性")
+		CASE 4
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("光属性")
+		CASE 5
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("闇属性")
+	ENDSELECT
+	IF BATTLE_STATE:LOCAL:ＨＰ <= 0
+		GSETBRUSH レイヤー番号, カラーパレット_透明度込("戦闘不能")
+	ENDIF
+	GFILLRECTANGLE レイヤー番号, 0 , 0, 394, 120
+	GSETBRUSH レイヤー番号, 0xFF101010
+	GFILLRECTANGLE レイヤー番号, 5, 5, 384, 110
+	LOCAL:1 = NO:(BATTLE_STATE:LOCAL:キャラ番号)
+
+	IF SPRITECREATED(@"探索用_{LOCAL}_顔")
+		;縦横幅を取得して表示位置を調整
+		横幅 = SPRITEWIDTH(@"探索用_{LOCAL}_顔")
+		縦幅 = SPRITEHEIGHT(@"探索用_{LOCAL}_顔")
+		IF 横幅 > 縦幅
+			表示位置調整用 = (100 - (縦幅 * 100 / 横幅)) / 2
+			CALL 画像合成(レイヤー番号, @"探索用_{LOCAL}_顔", 10, 10 + 表示位置調整用, 100, 縦幅 * 100 / 横幅)
+		ELSEIF 横幅 < 縦幅
+			表示位置調整用 = (100 - (横幅 * 100 / 縦幅)) / 2
+			CALL 画像合成(レイヤー番号, @"探索用_{LOCAL}_顔", 10 + 表示位置調整用, 10, 横幅 * 100 / 縦幅, 100)
+		ELSE
+			表示位置調整用 = 0
+			CALL 画像合成(レイヤー番号, @"探索用_{LOCAL}_顔", 10, 10, 100, 100)
+		ENDIF
+	ELSE
+		CALL 画像合成(レイヤー番号, "Noimage_顔", 10, 10, 100, 100)
+	ENDIF
+
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	IF BATTLE_STATE:LOCAL:ＨＰ <= 0
+		GSETBRUSH レイヤー番号, カラーパレット_透明度込("戦闘不能")
+	ENDIF
+	GDRAWTEXT レイヤー番号, @"%CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%", 120, 10
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	LOCAL:2 = BATTLE_STATE:LOCAL:Lv
+	GDRAWTEXT レイヤー番号, @"Lv:{LOCAL:2, 3}", 240, 10
+	
+	SELECTCASE BATTLE_STATE:LOCAL:属性
+		CASE 0
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("火属性")
+		CASE 1
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("水属性")
+		CASE 2
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("風属性")
+		CASE 3
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("土属性")
+		CASE 4
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("光属性")
+		CASE 5
+			GSETBRUSH レイヤー番号, カラーパレット_透明度込("闇属性")
+	ENDSELECT
+	GDRAWTEXT レイヤー番号, @"属性:%属性数値文字列変換(BATTLE_STATE:LOCAL:属性)%", 310, 10
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+
+	LOCAL:2 = BATTLE_STATE:LOCAL:ＨＰ
+	LOCAL:3 = BATTLE_STATE:LOCAL:最大ＨＰ
+	GDRAWTEXT レイヤー番号, @"HP:{LOCAL:2, 4}/{LOCAL:3, 4}", 120, 30
+	IF LOCAL:2 < LOCAL:3 / 3
+		IF LOCAL:2 > 0
+			GSETBRUSH レイヤー番号, 0xFFE60033
+			GFILLRECTANGLE レイヤー番号, 240, 30, MAX(133 * LOCAL:2 / LOCAL:3, 1), 18
+		ENDIF
+		IF LOCAL:2 != LOCAL:3
+			GSETBRUSH レイヤー番号, 0xFF80001C
+			GFILLRECTANGLE レイヤー番号, 240 + (133 * LOCAL:2 / LOCAL:3), 30, MAX(133 - (133 * LOCAL:2 / LOCAL:3), 1), 18
+		ENDIF
+	ELSE
+		IF LOCAL:2 > 0
+			GSETBRUSH レイヤー番号, 0xFF00E64D
+			GFILLRECTANGLE レイヤー番号, 240, 30, MAX(133 * LOCAL:2 / LOCAL:3, 1), 18
+		ENDIF
+		IF LOCAL:2 != LOCAL:3
+			GSETBRUSH レイヤー番号, 0xFF00802B
+			GFILLRECTANGLE レイヤー番号, 240 + (133 * LOCAL:2 / LOCAL:3), 30, MAX(133 - (133 * LOCAL:2 / LOCAL:3), 1), 18
+		ENDIF
+	ENDIF
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	LOCAL:2 = BATTLE_STATE:LOCAL:ＭＰ
+	LOCAL:3 = BATTLE_STATE:LOCAL:最大ＭＰ
+	GDRAWTEXT レイヤー番号, @"MP:{LOCAL:2, 4}/{LOCAL:3, 4}", 120, 50
+	IF LOCAL:2 > 0
+		GSETBRUSH レイヤー番号, 0xFF2B00FF
+		GFILLRECTANGLE レイヤー番号, 240, 50, MAX(133 * LOCAL:2 / LOCAL:3, 1), 18
+	ENDIF
+	IF LOCAL:2 != LOCAL:3
+		GSETBRUSH レイヤー番号, 0xFF150080
+		GFILLRECTANGLE レイヤー番号, 240 + (133 * LOCAL:2 / LOCAL:3), 50, MAX(133 - (133 * LOCAL:2 / LOCAL:3), 1), 18
+	ENDIF
+
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	LOCAL:2 = MIN(BATTLE_STATE:LOCAL:奥義ゲージ, 100)
+	LOCAL:3 = 100
+	LOCAL:4 = MAX(BATTLE_STATE:LOCAL:奥義ゲージ - 100, 0)
+	GDRAWTEXT レイヤー番号, @"奥義:{LOCAL:2, 3}％", 120, 70
+	IF LOCAL:2 > 0
+		GSETBRUSH レイヤー番号, 0xFFFAC61E
+		GFILLRECTANGLE レイヤー番号, 240, 70, MAX(133 * LOCAL:2 / LOCAL:3, 1), 18
+	ENDIF
+	IF LOCAL:2 != LOCAL:3
+		GSETBRUSH レイヤー番号, 0xFF54430A
+		GFILLRECTANGLE レイヤー番号, 240 + (133 * LOCAL:2 / LOCAL:3), 70, MAX(133 - (133 * LOCAL:2 / LOCAL:3), 1), 18
+	ENDIF
+	IF LOCAL:4 > 0
+		GSETBRUSH レイヤー番号, 0xFFF7FA1E
+		GFILLRECTANGLE レイヤー番号, 240, 70, MAX(133 * LOCAL:4 / LOCAL:3, 1), 18
+	ENDIF
+
+	CALL リソース登録(@"キャラ_{LOCAL}", レイヤー番号)
+	GDRAWG レイヤー番号 + 20, レイヤー番号, 0 , 0, 470, 184, 0 , 0, 470, 184, ボタン化用カラーマトリクス:0:0
+	CALL リソース登録(@"キャラ_{LOCAL}_ボタン", レイヤー番号 + 20)
+	レイヤー番号 += 1
+NEXT
+
+@ダンジョン画像表示部分
+;表示部分
+IF ダンジョン表示モード == "マップ画面"
+	LOCALS = <p align='left'><img src='ダンジョン_1' height='500px' width='6000' ypos='-100'>
+	LOCALS += "<div rect='-420px,-18px,400px,800px'>"
+	FOR LOCAL, 0, 4
+		SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
+			BREAK
+		IF キャラ画像ボタン化フラグ == 1
+			LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}' srcb='キャラ_{LOCAL}_ボタン' height='750' width='2462' ypos='{LOCAL * 681}'></button>"
+		ELSE
+			LOCALS += @"<nonbutton><img src='キャラ_{LOCAL}' height='750' width='2462' ypos='{LOCAL * 681}'></nonbutton>"
+		ENDIF
+	NEXT
+	LOCALS += "</div><br>"
+	LOCALS += "<div rect='32px,470px,700px,20px'><button value='w'>[w]</button><button value='a'>[a]</button><button value='s'>[s]</button><button value='d'>[d]</button>ダンジョン内移動　<button value='i'>[i]アイテム</button>　<button value='p'>[p]テストダンジョンから抜ける</button></div>"
+	LOCALS += "<div rect='32px,490px,906px,270px'><nonbutton><img src='メッセージ欄' height='933' width='5635' ypos='0'></nonbutton></div>"
+	LOCALS += @"%TSTR:メッセージ欄文字列受け渡し_下側%"
+	HTML_PRINT LOCALS, 1
+	
+	RETURN 36
+ELSEIF ダンジョン表示モード == "アイテム画面"
+	CALL ダンジョンアイテム画面表示
+	LOCALS = <p align='left'><img src='ダンジョン_1' height='500px' width='6000' ypos='-100'>
+	LOCALS += "<div rect='-420px,-18px,400px,800px'>"
+	FOR LOCAL, 0, 4
+		SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
+			BREAK
+		IF キャラ画像ボタン化フラグ == 1
+			LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}' srcb='キャラ_{LOCAL}_ボタン' height='750' width='2462' ypos='{LOCAL * 681}'></button>"
+		ELSE
+			LOCALS += @"<nonbutton><img src='キャラ_{LOCAL}' height='750' width='2462' ypos='{LOCAL * 681}'></nonbutton>"
+		ENDIF
+	NEXT
+	LOCALS += "</div><br>"
+	LOCALS += "<div rect='32px,470px,700px,20px'><nonbutton><font color='#666666'>[w][a][s][d]ダンジョン内移動　</font></nonbutton><nonbutton><font color='yellow'>[i]アイテム</font></nonbutton>　<nonbutton><font color='#666666'>[p]テストダンジョンから抜ける</font></nonbutton></div>"
+	LOCALS += "<div rect='32px,490px,906px,270px'><nonbutton><img src='メッセージ欄' height='933' width='5635' ypos='0'></nonbutton></div>"
+	LOCALS += @"%TSTR:メッセージ欄文字列受け渡し_下側%"
+	HTML_PRINT LOCALS, 1
+	
+	RETURN 36
+ENDIF
+
+@DUNGEON_操作処理_マップ画面
+
+$INPUT_LOOP
+ONEINPUTS
+
+$切り替え_LOOP
+SELECTCASE RESULTS
+	CASE "p"
+		;テストダンジョン用離脱コマンド
+		ダンジョン終了フラグ = 1
+	CASE "w"
+		IF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョン現在位置:1 - 1), (ダンジョン現在位置:0), 1))
+			CLEARLINE 1
+			ダンジョン現在位置:1 -= 1
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP
+		ENDIF
+	CASE "a"
+		IF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョン現在位置:1), (ダンジョン現在位置:0 - 1), 1))
+			CLEARLINE 1
+			ダンジョン現在位置:0 -= 1
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP
+		ENDIF
+	CASE "s"
+		IF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョン現在位置:1 + 1), (ダンジョン現在位置:0), 1))
+			CLEARLINE 1
+			ダンジョン現在位置:1 += 1
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP
+		ENDIF
+	CASE "d"
+		IF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョン現在位置:1), (ダンジョン現在位置:0 + 1), 1))
+			CLEARLINE 1
+			ダンジョン現在位置:0 += 1
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP
+		ENDIF
+	CASE "i"
+		CLEARLINE 1
+		ダンジョン表示モード = アイテム画面
+		キャラ画像ボタン化フラグ = 0
+		選択用変数 = -1
+	CASE "0"
+		IF BATTLE_STATE:0:0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 戦闘能力表示画面(BATTLE_STATE:0:0)
+		CALL ダンジョン能力表示キャラ切り替え(0)
+		IF RESULT >= 0
+			RESULTS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "1"
+		IF BATTLE_STATE:1:0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 戦闘能力表示画面(BATTLE_STATE:1:0)
+		CALL ダンジョン能力表示キャラ切り替え(1)
+		IF RESULT >= 0
+			RESULTS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "2"
+		IF BATTLE_STATE:2:0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 戦闘能力表示画面(BATTLE_STATE:2:0)
+		CALL ダンジョン能力表示キャラ切り替え(2)
+		IF RESULT >= 0
+			RESULTS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "3"
+		IF BATTLE_STATE:3:0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 戦闘能力表示画面(BATTLE_STATE:3:0)
+		CALL ダンジョン能力表示キャラ切り替え(3)
+		IF RESULT >= 0
+			RESULTS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+RETURN 0
+
+@ダンジョン能力表示キャラ切り替え(ARG)
+DRAWLINE
+IF ARG > 0
+	PRINTBUTTONLC "[100]前のキャラへ", 100
+ELSE
+	PRINTLC  
+ENDIF
+IF BATTLE_STATE:(ARG + 1):0 > 0
+	PRINTBUTTONLC "[101]次のキャラへ", 101
+ELSE
+	PRINTLC  
+ENDIF
+PRINTBUTTONLC "[999]戻る", 999
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 100
+		IF ARG == 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		RETURN ARG - 1
+	CASE 101
+		IF BATTLE_STATE:(ARG + 1):0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		RETURN ARG + 1
+	CASE 999
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+
+@ダンジョンメッセージ欄表示(表示位置, 表示顔グラ対象番号)
+#DIM レイヤー番号
+#DIMS 表示位置
+#DIM 表示顔グラ対象番号
+VARSET LOCALS
+
+IF 表示位置 == "下"
+	レイヤー番号 = 9
+	;メッセージウィンドウ
+	GDISPOSE レイヤー番号
+	SPRITEDISPOSE ("メッセージ欄")
+	GCREATE レイヤー番号, 901, 150
+	GSETFONT レイヤー番号, GETFONT(), 18
+	GSETPEN レイヤー番号, 0x00FFFFFF, -1
+
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	GFILLRECTANGLE レイヤー番号, 0, 0, 901, 150
+	GSETBRUSH レイヤー番号, 0xFF101010
+	GFILLRECTANGLE レイヤー番号, 5, 5, 891, 140
+	;顔グラなしの場合、１行に４８文字まで
+	;顔グラありの場合、１行に４１文字まで
+	;一度に表示できるのは６行まで
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+
+	CALL リソース登録("メッセージ欄", レイヤー番号)
+ELSEIF 表示位置 == "上"
+	レイヤー番号 = 8
+	;戦闘時敵メッセージウィンドウ
+	GDISPOSE レイヤー番号
+	SPRITEDISPOSE ("上メッセージ欄")
+	GCREATE レイヤー番号, 901, 150
+	GSETFONT レイヤー番号, GETFONT(), 18
+	GSETPEN レイヤー番号, 0x00FFFFFF, -1
+
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	GFILLRECTANGLE レイヤー番号, 0, 0, 901, 150
+	GSETBRUSH レイヤー番号, 0xFF101010
+	GFILLRECTANGLE レイヤー番号, 5, 5, 891, 140
+	;顔グラなしの場合、１行に４８文字まで
+	;顔グラありの場合、１行に４１文字まで
+	;一度に表示できるのは６行まで
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+
+	IF 表示顔グラ対象番号
+		IF SPRITECREATED(@"{NO:表示顔グラ対象番号}_顔")
+			CALL 画像合成(レイヤー番号, @"{NO:表示顔グラ対象番号}_顔", 760, 10, 130, 130)
+		ELSE
+			CALL 画像合成(レイヤー番号, "Noimage_顔", 760, 10, 130, 130)
+		ENDIF
+	ENDIF
+	CALL リソース登録("上メッセージ欄", レイヤー番号)
+ENDIF
+
+
+@ダンジョンイベント_移動処理(イベント番号)
+#DIM イベント番号
+
+;0の場合はそもそも移動しないのでこの関数に飛んでこない
+SELECTCASE ダンジョンイベント:イベント番号:移動タイプ
+	CASE 1
+		;ランダム移動
+		LOCAL = RAND:4
+		SELECTCASE LOCAL
+			CASE 0
+				SIF ダンジョンイベント:イベント番号:Y軸位置 == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置 - 1), ダンジョンイベント:イベント番号:X軸位置, 1)) == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置 - 1), ダンジョンイベント:イベント番号:X軸位置, 1)) == 2
+					RETURN 0
+				ダンジョンイベント:イベント番号:Y軸位置 -= 1
+			CASE 1
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置), ダンジョンイベント:イベント番号:X軸位置 + 1, 1)) == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置), ダンジョンイベント:イベント番号:X軸位置 + 1, 1)) == 2
+					RETURN 0
+				ダンジョンイベント:イベント番号:X軸位置 += 1
+			CASE 2
+				SIF ダンジョンイベント:イベント番号:Y軸位置 == 99
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置 + 1), ダンジョンイベント:イベント番号:X軸位置, 1)) == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置 + 1), ダンジョンイベント:イベント番号:X軸位置, 1)) == 2
+					RETURN 0
+				ダンジョンイベント:イベント番号:Y軸位置 += 1
+			CASE 3
+				SIF ダンジョンイベント:イベント番号:X軸位置 == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置), ダンジョンイベント:イベント番号:X軸位置 - 1, 1)) == 0
+					RETURN 0
+				SIF TOINT(SUBSTRING(DUNGEON_MAP:(ダンジョンイベント:イベント番号:Y軸位置), ダンジョンイベント:イベント番号:X軸位置 - 1, 1)) == 2
+					RETURN 0
+				ダンジョンイベント:イベント番号:X軸位置 -= 1
+		ENDSELECT
+ENDSELECT
+
+
+
+;********************************************************************************************
+;画像セット関数
+;並べて表示したい場合に、画像一斉表示関数と合わせて使用する
+;横位置は指定したピクセル数分画像間の間隔を空ける
+;********************************************************************************************
+@ダンジョン用画像セット(画像名, 縦位置, 画像間隔, 拡大比率 = 100, レイヤー階数 = 0, 画像横幅, 画像縦幅, ボタン生成 = 0, VALUE = "", TITLE = "")
+#DIMS 画像名				;リソース名
+#DIMS マウスオーバー画像名	;マウスオーバー時に表示する画像名 省略可
+#DIMS 表示位置				;表示位置指定文字列
+#DIM  縦位置				;ピクセル指定 内部でフォントサイズ基準のパーセンテージに変換する
+#DIM  画像間隔				;ピクセル指定 内部でフォントサイズ基準のパーセンテージに変換する
+#DIM  拡大比率				;パーセンテージ指定 指定しなければ100
+#DIM  レイヤー階数			;重ね表示時の階数
+#DIM 画像縦幅
+#DIM 画像横幅
+#DIM ボタン生成				;ボタンとして使用するか デフォルトはしない
+#DIMS VALUE					;ボタンのバリュー
+#DIMS TITLE					;マウスオーバー時に表示する文字列
+
+SIF 描画開始行数 == 0
+	描画開始行数 = LINECOUNT
+;PRINTFORML %画像名%をチェック
+IF SPRITECREATED(画像名)
+	SIF TEMP_HTML:レイヤー階数 != "" && 画像間隔 > 0
+		TEMP_HTML:レイヤー階数 += @"%横位置HTML(画像間隔)%"
+
+	IF ボタン生成
+		LOCALS = <button
+		SIF VALUE != ""
+			LOCALS += @" value='%VALUE%'"
+		SIF TITLE != "" && ツールチップ切り替えOPTION記憶 == 0
+			LOCALS += @" title='%TITLE%'"
+		LOCALS += @" >"
+		TEMP_HTML:レイヤー階数 += @"%LOCALS%"
+	ENDIF
+
+	LOCAL = 縦位置 + 画像縦幅 * 拡大比率 / 100
+
+	TEMP_HTML:レイヤー階数 += @"%ダンジョン画像表示HTML(画像名, 縦位置, 拡大比率, レイヤー階数, 画像横幅, 画像縦幅)%"
+
+	SIF ボタン生成
+		TEMP_HTML:レイヤー階数 += "</button>"
+
+	SIF LOCAL > TEMP_HTML_MAX_HEIGHT
+		TEMP_HTML_MAX_HEIGHT = LOCAL
+
+	SIF MAX_LAYER_NUM < レイヤー階数
+		MAX_LAYER_NUM = レイヤー階数
+ELSE
+	RETURN 0
+ENDIF
+RETURN 1
+
+
+;********************************************************************************************
+;画像表示単独のHTML取得関数
+;諸々の計算は内部でするので指定するのは画像だけにしたい
+;拡大縮小したい場合を考えて一応拡大比率指定出来るように
+;********************************************************************************************
+@ダンジョン画像表示HTML(画像名, 縦位置, 拡大比率 = 100, レイヤー階数 = 0, 画像横幅, 画像縦幅)
+#FUNCTIONS
+#DIMS 画像名				;リソース名
+#DIMS マウスオーバー画像名	;マウスオーバー時に表示する画像名 省略可
+#DIM  拡大比率				;パーセンテージ指定 指定しなければ100
+#DIM  画像縦幅				;ややこしいがフォントサイズ基準のパーセンテージ
+#DIM  画像横幅				;上に同じ
+#DIM  縦位置				;ピクセル指定 内部でフォントサイズ基準のパーセンテージに変換する
+#DIM  画像反転フラグ		;画像反転を行うかのフラグ 1:横反転 2：縦反転 3:縦横反転
+#DIM  レイヤー階数			;重ね表示時の階数
+
+IF SPRITECREATED(画像名)
+	画像縦幅 = (画像縦幅 * 拡大比率) / GETCONFIG("フォントサイズ") * (GETBIT(画像反転フラグ, 1) ? -1 # 1 )
+	
+	画像横幅 = (画像横幅 * 拡大比率) / GETCONFIG("フォントサイズ") * (GETBIT(画像反転フラグ, 0) ? -1 # 1 )
+
+	;切捨て保護のため先に掛け算
+	縦位置   = (100 * 縦位置 / GETCONFIG("フォントサイズ")) - (100 * (LINECOUNT-描画開始行数+レイヤー階数) * (GETCONFIG("一行の高さ") / GETCONFIG("フォントサイズ")))
+
+	LOCALS = <img src='%画像名%' height='{画像縦幅}' width='{画像横幅}' ypos='{縦位置}'>
+	RETURNF LOCALS
+ELSE
+	PRINTFORML 画像リソースが見つかりません
+	RETURNF @""
+ENDIF
+

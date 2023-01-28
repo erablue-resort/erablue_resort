@@ -1,0 +1,94 @@
+﻿;------------------------------------------------------------------------------
+;V挿入時、自分で性感帯を刺激しはじめる
+;------------------------------------------------------------------------------
+@AUTOCOM31
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 0
+DOWNBASE:気力 += 20
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 600)
+CALL SOURCE_CALC_露出_反感無し(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+
+AUTOCOM用変数:TARGET:31:0 = TIME
+
+;-------------------------------------------------
+;部位決定
+;-------------------------------------------------
+LOCALS = 
+SIF EXP:Ｇスポ開発 > 99
+	LOCALS = Ｇスポ開発フラグ
+IF EXP:ポルチオ開発 > 99
+	IF LOCALS == ""
+		LOCALS = ポルチオ開発フラグ
+	ELSE
+		;両方100以上の場合はランダムで部位決定
+		SIF RAND:2
+			LOCALS = ポルチオ開発フラグ
+	ENDIF
+ENDIF
+
+SIF LOCALS != ""
+	TCVAR:LOCALS = 4
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ経験 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+@AUTOCOM_ABLE31
+SIF !TARGET
+	RETURN 0
+;V挿入時のみ
+SIF MODE_確認("Ｖ挿入系", TARGET) == 0
+	RETURN 0
+;30分に１回のみ発動
+SIF TIME - AUTOCOM用変数:TARGET:30:0 < 31
+	RETURN 0
+;欲情PALAMLv4必要
+SIF PALAM:欲情 < PALAMLV:4
+	RETURN 0
+;無関心はアウト、真面目、恥じらいは性欲必要
+SIF TALENT:自制心 > 0 && BASE:性欲 < 8000
+	RETURN 0
+SIF TALENT:無関心
+	RETURN 0
+SIF TALENT:羞恥心 > 0 && BASE:性欲 < 8000
+	RETURN 0
+;技巧2必要
+SIF ABL:技巧 < 2
+	RETURN 0
+;性感帯開発必須
+SIF EXP:ポルチオ開発 < 100 && EXP:Ｇスポ開発 < 100
+	RETURN 0
+;基礎確率1/4、素質により変動
+LOCAL = MAX(4 - TALENT:性的興味 - TALENT:快感応答 - TALENT:性欲, 1)
+SIF RAND:LOCAL
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM31
+PRINTFORM %CALLNAME:TARGET%は
+IF 知識素質:性知識 <= 0
+	PRINTFORML 本能的に腰を動かし、自分の"良い"ところに%CALLNAME:PLAYER%の陰茎を当てて快楽を堪能している…
+ELSEIF TALENT:羞恥心 > 0
+	PRINTFORML %CALLNAME:PLAYER%に気づかれないよう、自分の性感帯に当たるよう腰を動かしている
+	PRINTFORML それを指摘してやると、%CALLNAME:TARGET%は顔を真っ赤に染めてしまった…
+ELSE
+	PRINTFORML 腰の動きを調整し、自身の性感帯に陰茎を当てて快楽を堪能している…
+ENDIF
+

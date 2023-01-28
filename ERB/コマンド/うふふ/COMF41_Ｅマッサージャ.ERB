@@ -1,0 +1,120 @@
+﻿;-------------------------------------------------
+;Ｅマッサージャ
+;道具使用コマンド、レベル2
+;-------------------------------------------------
+@COMNAME41
+#FUNCTIONS
+TSTR:コマンド名受渡 = Ｅマッサージャ
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_41
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("道具系")
+弱点コマンドカテゴリ = C
+
+@COM_TOOLTIP_41
+LOCALS = <br>■Ｅマッサージャ<br>
+LOCALS += "振動する手持ちのマッサージ器具を使い、相手のクリトリスやペニスに強い刺激を与えるコマンド。"
+LOCALS += "<br>COMタイプ：道具系<br>取得ソース：快Ｃ・露出・接触"
+LOCALS += "<br>固有の取得経験：道具使用経験(あなた)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM41
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 30
+DOWNBASE:気力 += 150
+
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER,500)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 40)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 30)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:PLAYER:同性愛経験 += 1
+ENDIF
+
+EXP:PLAYER:道具使用経験 ++
+
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE41
+;Ｅマッサージャ実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(41)
+	RETURN RESULT
+;アイテムを持っているか、アイテムなし設定でないとダメ
+SIF ITEM:1 == 0 && NOITEM == 0
+	RETURN 0
+
+;下半身着衣
+;前鎧、めくれない服があると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+	
+;シャワー中はダメ
+SIF TEQUIP:32
+	RETURN 0
+;ベッドルームでないとダメ
+SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM41
+PRINTFORML %CALLNAME:TARGET%の秘所に
+IF TEQUIP:下半身服あり && TEQUIP:スカートめくり可
+	PRINT 服を捲り上げて
+ELSEIF TEQUIP:下半身服あり && TEQUIP:ずらし可
+	PRINT 服の上から
+ELSEIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	PRINT タイツの上から
+ELSEIF TEQUIP:下半身下着あり
+	PRINT 下着の上から
+ENDIF
+
+PRINTL 振動している電気あんまを押しつけた
+PRINTFORM %CALLNAME:TARGET%は
+;Ｃ感覚LV3未満＋欲情のPALAMLV3未満
+IF ABL:Ｃ感覚 < 3 && PALAM:欲情 < PALAMLV:3
+	PRINT とてもくすぐったがっているよう
+;Ｃ感覚LV3未満＋欲情のPALAMLV3以上
+ELSEIF ABL:Ｃ感覚 < 3 && PALAM:欲情 >= PALAMLV:3
+	PRINT 、…何も言えなくなっているよう
+;恋慕か親愛＋Ｃ感覚LV4以上＋欲情のPALAMLV3未満
+ELSEIF TALENT:恋慕 && ABL:Ｃ感覚 >= 4 && PALAM:欲情 < PALAMLV:3
+	PRINT 待ちわびたように足を開き、受け入れているよう
+;恋慕か親愛＋Ｃ感覚LV4以上＋欲情のPALAMLV3以上＋欲情のPALAMLV5未満
+ELSEIF TALENT:恋慕 && ABL:Ｃ感覚 >= 4 && PALAM:欲情 >= PALAMLV:3 && PALAM:欲情 < PALAMLV:5
+	PRINTFORM 快楽に涎をたらしながら、何度も%CALLNAME:PLAYER%の名を呼ん
+;恋慕か親愛＋Ｃ感覚LV4以上＋欲情のPALAMLV5以上
+ELSEIF TALENT:恋慕 && ABL:Ｃ感覚 >= 4 && PALAM:欲情 >= PALAMLV:5
+	PRINTFORM %CALLNAME:PLAYER%を掻き抱きながら絶頂の恍惚感に浸っているよう
+;Ｃ感覚LV3以上＋欲情のPALAMLV3未満
+ELSEIF ABL:Ｃ感覚 >= 3 && PALAM:欲情 < PALAMLV:3
+	PRINT 強い快感に顔を赤らめているよう
+;Ｃ感覚LV3以上＋欲情のPALAMLV3以上＋欲情のPALAMLV5未満
+ELSEIF ABL:Ｃ感覚 >= 3 && PALAM:欲情 >= PALAMLV:3 && PALAM:欲情 < PALAMLV:5
+	PRINT 惚けた目で快楽を貪っているよう
+;Ｃ感覚LV3以上＋欲情のPALAMLV5以上
+ELSEIF ABL:Ｃ感覚 >= 3 && PALAM:欲情 >= PALAMLV:5
+	PRINT 今にも絶頂に達してしまいそうな様子
+ENDIF
+PRINTL だ…
+
+

@@ -1,0 +1,376 @@
+﻿@EVENTCOM
+;ターン終了の処理
+
+
+@EVENTCOMEND0
+
+IF TFLAG:オートコマンドフラグ
+ELSE
+	;コマンド履歴の保存
+	コマンド履歴:19 = コマンド履歴:18
+	コマンド履歴:18 = コマンド履歴:17
+	コマンド履歴:17 = コマンド履歴:16
+	コマンド履歴:16 = コマンド履歴:15
+	コマンド履歴:15 = CFLAG:MASTER:現在マップ種別
+	コマンド履歴:14 = コマンド履歴:13
+	コマンド履歴:13 = コマンド履歴:12
+	コマンド履歴:12 = コマンド履歴:11
+	コマンド履歴:11 = コマンド履歴:10
+	コマンド履歴:10 = CFLAG:MASTER:現在位置
+	コマンド履歴:9 = コマンド履歴:8
+	コマンド履歴:8 = コマンド履歴:7
+	コマンド履歴:7 = コマンド履歴:6
+	コマンド履歴:6 = コマンド履歴:5
+	コマンド履歴:5 = TARGET
+	コマンド履歴:4 = コマンド履歴:3
+	コマンド履歴:3 = コマンド履歴:2
+	コマンド履歴:2 = コマンド履歴:1
+	コマンド履歴:1 = コマンド履歴:0
+	IF TSTR:SELECTCOM_S受け渡し == ""
+		コマンド履歴:0 = SELECTCOM
+	ELSE
+		コマンド履歴:0 = -1
+	ENDIF
+	派生コマンド履歴:4 = %派生コマンド履歴:3%
+	派生コマンド履歴:3 = %派生コマンド履歴:2%
+	派生コマンド履歴:2 = %派生コマンド履歴:1%
+	派生コマンド履歴:1 = %派生コマンド履歴:0%
+	派生コマンド履歴:0 = %TSTR:SELECTCOM_S受け渡し%
+ENDIF
+
+;リセット前に次ターン自動行動をするか判定
+CALL BEFORE_AUTOCOM
+TFLAG:オートコマンドフラグ = RESULT
+
+;キャラごとの特殊処理を呼び出す
+TRYCALLFORM TURNEND_CHARAEVENT_{NO:TARGET}
+
+;諸々リセット
+CALL TURN_RESET
+;パンツ収集要素……とりあえず封印
+;パンツ没収、収集
+;IF TFLAG:調教モード < 2
+;	IF TARGET > 0 && !CFLAG:睡眠
+;		IF STRLENS(CSTR:MASTER:12) && RAND:2
+;			PRINTL 
+;			PRINTFORMW %CALLNAME:TARGET%に見とがめられ身体検査をされた…
+;			PRINTFORMW 
+;			PRINTFORMW 
+;			PRINTFORMW 
+;			PRINTFORMW くすねたパンティを没収された
+;			SIF !GETBIT (CFLAG:10 ,0)
+;				PRINTFORMW %CALLNAME:TARGET%に弱みを握られた
+;			SETBIT CFLAG:10 ,0
+;			CALL KOJO_EVENT(11, TARGET, 0)
+;			CSTR:MASTER:12 =
+;		ENDIF
+;	ENDIF
+;ENDIF
+
+;知識系素質の取得処理
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	CALL 知識系素質の取得(LOCAL)
+NEXT
+
+IF BASE:MASTER:体力 <= 500 || CFLAG:MASTER:酔いすぎ == 1
+	IF CFLAG:MASTER:酔いすぎ != 1
+		PRINTW （体力が限界に来ています　一日を終了します）
+	ELSE
+		PRINTW （酔いつぶれてしまいました…　一日を終了します）
+		;二日酔い処理のため、酩酊が残ってたら絶対値を負に
+		BASE:MASTER:酩酊 = BASE:MASTER:酩酊 * -1
+	ENDIF
+	CFLAG:MASTER:睡眠 = 1
+	CFLAG:MASTER:就寝時間 = DAY * 1440 + TIME
+	IF TARGET > 0 && TALENT:恋慕 && BASE:体力 >= 500
+		PRINTFORMW %CALLNAME%が%CALLNAME:MASTER%を私室へと運んでくれた…
+		CFLAG:MASTER:現在位置 = CFLAG:MASTER:311
+		CFLAG:MASTER:現在マップ種別 = 0
+		CFLAG:現在位置 = CFLAG:MASTER:311
+		CFLAG:現在マップ種別 = 0
+		CALL KOJO_EVENT(7, TARGET, 5)
+	ENDIF
+	FOR LOCAL,0,CHARANUM
+		CFLAG:LOCAL:うふふ = 0
+		CFLAG:LOCAL:飲み会 = 0
+	NEXT
+	FLAG:一日終了 = 1
+ENDIF
+IF TARGET && TCVAR:不機嫌
+	PRINTFORMW %CALLNAME:TARGET%を怒らせてしまった…
+	FOR LOCAL,0,CHARANUM
+		CFLAG:LOCAL:うふふ = 0
+		CFLAG:LOCAL:飲み会 = 0
+		;モードもリセット
+		VARSET 体位モード格納:LOCAL:0
+	NEXT
+ENDIF
+IF TARGET && BASE:体力 < 500
+	PRINTFORMW （%CALLNAME:TARGET%の体力が限界に来ています）
+	CFLAG:衰弱 = 360
+	CALL CHARA_SLEEP, TARGET
+	FOR LOCAL,0,CHARANUM
+		CFLAG:LOCAL:うふふ = 0
+		CFLAG:LOCAL:飲み会 = 0
+		;モードもリセット
+		VARSET 体位モード格納:LOCAL:0
+	NEXT
+ENDIF
+
+
+WAIT
+
+
+
+
+@TURN_RESET
+;処女喪失
+FOR LOCAL,0,CHARANUM
+	SIF TCVAR:LOCAL:破瓜
+		TALENT:LOCAL:処女 = 0
+NEXT
+;童貞喪失
+IF TALENT:MASTER:2 & 2
+	SELECTCASE SELECTCOM
+		CASE 60,61,65,67,68
+			TALENT:MASTER:1 |= 1
+		CASE 62,63,66,69,70
+			TALENT:MASTER:1 |= 2
+	ENDSELECT
+ENDIF
+IF TALENT:2 & 2
+	SELECTCASE SELECTCOM
+		CASE 64
+			TALENT:1 |= 1
+		CASE 92,93,94
+			TALENT:1 |= 2
+		CASE 71
+			IF MASTER_POSE(6,1,1)
+				TALENT:1 |= 2
+		ELSE
+				TALENT:1 |= 1
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;既成事実
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:うふふ
+		SETBIT CFLAG:LOCAL:1 , 1
+NEXT
+;告白成功
+SIF SELECTCOM == 352 && TFLAG:コマンド結果受渡し変数
+		SETBIT CFLAG:1 , 0
+
+;食事
+SIF SELECTCOM == 414 || SELECTCOM == 415
+	FLAG:料理 = 0
+;脱衣コマンド
+SELECTCASE SELECTCOM
+	;上半身鎧脱衣
+	CASE 200
+		TEQUIP:上半身鎧あり = 0
+	;上半身服脱衣
+	CASE 201
+		TEQUIP:上半身服あり = 0
+		TEQUIP:脇出し = 0
+		TEQUIP:へそ出し = 0
+		TEQUIP:はだけ可 = 0
+		TEQUIP:手差し込み可 = 0
+		TEQUIP:パイズリ可 = 0
+		TEQUIP:上半身下着抜き取り可 = 0
+		;上下一体の場合ここで下も脱がす
+		IF TEQUIP:上下一体服
+			TEQUIP:下半身服あり = 0
+			TEQUIP:スカートめくり可 = 0
+			TEQUIP:下半身下着抜き取り可 = 0
+			TEQUIP:ずらし可 = 0
+			TEQUIP:上下一体服 = 0
+		ENDIF
+	;上半身タイツ脱衣
+	CASE 202
+		TEQUIP:上タイツあり = 0
+		TEQUIP:上タイツ破れ = 0
+		;上下一体の場合ここで下も脱がす
+		IF TEQUIP:上下一体タイツ
+			TEQUIP:下タイツあり = 0
+			TEQUIP:下タイツ破れ = 0
+			TEQUIP:上下一体タイツ = 0
+		ENDIF
+	;下半身鎧脱衣、前と後ろは一気に脱がす
+	CASE 203
+		TEQUIP:下腹部後鎧あり = 0
+		TEQUIP:下腹部前鎧あり = 0
+	;下半身服脱衣
+	CASE 204
+		TEQUIP:下半身服あり = 0
+		TEQUIP:スカートめくり可 = 0
+		TEQUIP:下半身下着抜き取り可 = 0
+		TEQUIP:ずらし可 = 0
+	;下半身タイツ脱衣
+	CASE 205
+		TEQUIP:下タイツあり = 0
+		TEQUIP:下タイツ破れ = 0
+	;ブラ脱衣
+	CASE 206
+		TEQUIP:上半身下着あり = 0
+	;下着脱衣
+	CASE 207
+		TEQUIP:下半身下着あり = 0
+ENDSELECT
+
+;調教履歴を1ターン保存
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	TCVAR:LOCAL:110 = TCVAR:LOCAL:10
+	TCVAR:LOCAL:112 = TCVAR:LOCAL:12
+	
+	SIF TCVAR:LOCAL:102
+		TCVAR:LOCAL:102 --
+	SIF !TCVAR:LOCAL:102
+		TCVAR:LOCAL:103 = -1
+	SIF TCVAR:LOCAL:104
+		TCVAR:LOCAL:104 --
+	SIF !TCVAR:LOCAL:104
+		TCVAR:LOCAL:105 = -1
+	;体位の保存
+	FOR LOCAL:1,1,11
+		TEQUIP:LOCAL:(110 + LOCAL:1) = TEQUIP:LOCAL:(100 + LOCAL:1)
+	NEXT
+	;体勢制御
+	IF TCVAR:LOCAL:体勢制御
+		TCVAR:LOCAL:体勢制御 --
+		SIF TCVAR:LOCAL:体勢制御 == 0
+			TCVAR:LOCAL:体勢 = 0
+	ENDIF
+	;位置関係制御
+	IF TCVAR:LOCAL:位置関係制御
+		TCVAR:LOCAL:位置関係制御 --
+		SIF TCVAR:LOCAL:位置関係制御 == 0
+			TCVAR:LOCAL:位置関係 = 0
+	ENDIF
+	;ついでに射精処理用文字列変数の初期化
+	CSTR:LOCAL:10 = /
+	CSTR:LOCAL:11 = /
+NEXT
+;BASEの変動
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;勃起度
+	;加算後
+	CFLAG:LOCAL:勃起度２ = BASE:LOCAL:勃起
+	IF NOWEX:LOCAL:11
+		IF !MASTER_POSE(6,1) && !MASTER_POSE(7,1)
+			BASE:LOCAL:勃起 = BASE:LOCAL:勃起 * (ABL:LOCAL:欲望 + 1) / (ABL:LOCAL:欲望 + 10)
+		ELSE
+			BASE:LOCAL:勃起 = 1000
+		ENDIF
+	ENDIF
+	BASE:LOCAL:勃起 = MIN(MAXBASE:LOCAL:勃起,BASE:LOCAL:勃起)
+	;満腹残り時間の減少
+	TCVAR:LOCAL:満腹 = MAX(TCVAR:LOCAL:満腹 - TIME_PROGRESS(TFLAG:300), 0)
+	
+	TCVAR:LOCAL:前ターン絶頂 = NOWEX:LOCAL:多重絶頂
+NEXT
+
+
+;フラグのリセット
+TFLAG:コマンド結果受渡し変数 = 0
+TFLAG:コマンド結果受渡し変数２ = 0
+TFLAG:コマンド結果受渡し変数３ = 0
+TFLAG:コマンド結果受渡し変数４ = 0
+TSTR:2 = 
+TSTR:SELECTCOM_S受け渡し = 
+TFLAG:フィニッシュ場所 = 0
+TFLAG:フィニッシュフラグ = 0
+TFLAG:ZP取得量 = 0
+TSTR:消去モード記録0 = 
+TSTR:消去モード記録1 = 
+TSTR:消去モード記録2 = 
+TSTR:消去モード記録3 = 
+TSTR:消去モード記録4 = 
+TSTR:消去モード記録0_非対象 = 
+TSTR:消去モード記録1_非対象 = 
+TSTR:消去モード記録2_非対象 = 
+TSTR:消去モード記録3_非対象 = 
+TSTR:消去モード記録4_非対象 = 
+
+;TCVARのリセット
+FOR LOCAL,0,100
+	FOR LOCAL:1,0,CHARANUM
+		TCVAR:(LOCAL:1):LOCAL = 0
+	NEXT
+NEXT
+;CUP等のリセット
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	VARSET CUP:LOCAL:0, 0
+	VARSET CDOWN:LOCAL:0, 0
+	VARSET DOWNBASE:LOCAL:0, 0
+	野外オナニー変数:LOCAL:6 = 0
+	;NOWEXのリセット
+	VARSET NOWEX:LOCAL:0, 0
+	;射精情報のリセット
+	; VARSET TA:0:0:0
+	;挿入履歴
+	TCVAR:LOCAL:100 = TEQUIP:LOCAL:50
+	TCVAR:LOCAL:101 = TEQUIP:LOCAL:51
+NEXT
+
+TFLAG:110 = TCVAR:MASTER:130
+
+;ビデオテープの残量
+SIF TEQUIP:ビデオ撮影
+	TEQUIP:ビデオ撮影 --
+
+
+;FIRSTTIMEにSELECTCOMをぶっこむ
+CALLF FIRSTTIME(TOSTR(SELECTCOM))
+FOR LOCAL,1,CHARANUM
+	SIF EXP_UP(15,LOCAL)
+		CALLF FIRSTTIME("精飲",0,LOCAL)
+NEXT
+;射精箇所
+FOR LOCAL:1,0,60
+	IF GETBIT(TFLAG:1,LOCAL:1)
+		LOCALS = "射精"{LOCAL:1}
+		CALLF FIRSTTIME(LOCALS,0,TARGET)
+	ENDIF
+NEXT
+PREVCOM = SELECTCOM
+;派生コマンドの履歴
+TFLAG:151 = TFLAG:50
+;前回のTARGET
+TFLAG:103 = TARGET
+TFLAG:150 = 0
+
+;経験値取表示用
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;現在位置の保存
+	CFLAG:LOCAL:前ターン位置 = CFLAG:LOCAL:現在位置
+	CFLAG:LOCAL:前マップ種別 = CFLAG:LOCAL:現在マップ種別
+	FOR LOCAL:1,0,200
+		TCVAR:LOCAL:(400 + LOCAL:1) = EXP:LOCAL:(LOCAL:1)
+	NEXT
+NEXT
+
+
+;TFLAGのリセット
+REPEAT 100
+	TFLAG:COUNT = 0
+REND
+
+;眠いと気力が減少していく
+IF TIME_PROGRESS(CFLAG:MASTER:314) >= 960 && !CFLAG:MASTER:睡眠
+	BASE:MASTER:体力 = MAX(BASE:MASTER:体力 - 3 * TIME_PROGRESS(TFLAG:300) , 0)
+	BASE:MASTER:気力 = MAX(BASE:MASTER:気力 - 5 * TIME_PROGRESS(TFLAG:300) , 0)
+ENDIF
+
+

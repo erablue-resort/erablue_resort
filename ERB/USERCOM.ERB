@@ -1,0 +1,674 @@
+﻿@SHOW_USERCOM
+TFLAG:100 = 1
+VARSET LOCAL
+IF TCVAR:MASTER:112 == 1
+	LOCAL:1 = MASTER_POSE(6,1,1)
+ELSEIF TCVAR:MASTER:112 == 2
+	LOCAL:1 = MASTER_POSE(7,1,1)
+ENDIF
+
+;コマンド表示
+CALL SHOW_COMMAND
+
+SIF !TFLAG:100
+	RETURN 0
+RESETCOLOR
+PRINTC 能力表示(マスター)[804]
+PRINTC コマンドフィルタ[809]
+IF CFLAG:うふふ
+	PRINTC 服を脱ぐ[820]
+	IF CFLAG:うふふ == 2
+		PRINTC 抜け出す[999]
+	ELSE
+		PRINTC 逢引終了[999]
+	ENDIF
+ENDIF
+IF CFLAG:飲み会
+	PRINTC 飲み会終了[998]
+ENDIF
+PRINTC 探索パーティ表示[830]
+SIF !CFLAG:TARGET:同行 && !CFLAG:MASTER:隠密
+	PRINTC 物陰に隠れる[840]
+SIF CFLAG:TARGET:同行 && !CFLAG:MASTER:隠密
+	PRINTC 一緒に隠れる[840]
+SIF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() < 2)
+	PRINTC 物陰から出る[841]
+SIF TARGET
+	PRINTC アイテムを使う[850]
+PRINTC debug用居場所表示[860]
+
+PRINTL 
+PRINT ＜コマンド履歴:
+FOR LOCAL, 0, 5
+	IF コマンド履歴:LOCAL >= 370 && コマンド履歴:LOCAL <= 374
+		SIF LOCAL > 0
+			PRINT  - 
+		;現在位置が同じかつCOMABLEが通るならボタン化
+		IF TARGET == コマンド履歴:(LOCAL + 5)
+			TRYCALLFORM COM_ABLE{コマンド履歴:LOCAL}
+			IF RESULT
+				PRINTBUTTON @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]", コマンド履歴:LOCAL
+			ELSE
+				PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+			ENDIF
+		ELSE
+			;一旦TARGETが違うなら一旦相手を保存してから固有コマンド表示
+			LOCAL:1 = TARGET
+			TARGET = コマンド履歴:(LOCAL + 5)
+			PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+			TARGET = LOCAL:1
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL >= 380 && コマンド履歴:LOCAL <= 384
+		SIF LOCAL > 0
+			PRINT  - 
+		;現在位置が同じかつCOMABLEが通るならボタン化
+		IF CFLAG:MASTER:現在位置 == コマンド履歴:(LOCAL + 10) && CFLAG:MASTER:現在マップ種別 == コマンド履歴:(LOCAL + 15)
+			TRYCALLFORM COM_ABLE{コマンド履歴:LOCAL}
+			IF RESULT
+				PRINTBUTTON @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]", コマンド履歴:LOCAL
+			ELSE
+				PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+			ENDIF
+		ELSE
+			;一旦現在位置が違うなら一旦位置を保存してから固有コマンド表示
+			LOCAL:1 = CFLAG:MASTER:現在位置
+			LOCAL:2 = CFLAG:MASTER:現在マップ種別
+			CFLAG:MASTER:現在位置 = コマンド履歴:(LOCAL + 10)
+			PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+			CFLAG:MASTER:現在位置 = LOCAL:1
+			CFLAG:MASTER:現在マップ種別 = LOCAL:2
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL >= 0
+		SIF LOCAL > 0
+			PRINT  - 
+		;COMABLEが通るならボタン化
+		TRYCALLFORM COM_ABLE{コマンド履歴:LOCAL}
+		IF RESULT
+			PRINTBUTTON @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]", コマンド履歴:LOCAL
+		ELSE
+			PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL == -1
+		SIF LOCAL > 0
+			PRINT  - 
+		;COMABLEが通るならボタン化
+		TRYCALLFORM COM_ABLE_S%派生コマンド履歴:LOCAL%
+		IF RESULT
+			PRINTBUTTON @"[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]", @"%派生コマンド履歴:LOCAL%"
+		ELSE
+			PRINTFORM [%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]
+		ENDIF
+	ENDIF
+NEXT
+PRINTL ＞
+
+@USERCOM
+#DIM 数値変換用
+;RETURN 0でSOURCE_CHECK以降に進む
+;NEXTCOMを仕込む
+IF NEXTCOM >= 0
+	RESULT = NEXTCOM
+	NEXTCOM = -1
+ENDIF
+
+IF TSTR:SELECTCOM_S受け渡し != ""
+	;受け渡しがある場合はRESULTSに派生コマンドが入っているはず
+	SELECTCOM = -1
+	SELECTCOM_S = %RESULTS%
+	TRYCALLFORM COM_ABLE_S%SELECTCOM_S%
+	SIF RESULT == 0 || RESULT == -1
+		RETURN 1
+	SIF TRAIN_COMNAME_S(SELECTCOM_S) == ""
+		RETURN 1
+	TSTR:SELECTCOM_S受け渡し = %SELECTCOM_S%
+	RESULT = 1
+	TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+	IF RESULT == 0
+		TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+		RETURN 1
+	ENDIF
+ELSEIF RESULT > 9100
+	RETURN 1
+ELSEIF RESULT == 9100
+;9100でINFO格納フィルタ
+	INVERTBIT INFO格納フィルタ:(RESULT - 9100), 0
+	RETURN 1
+ELSEIF RESULT >=9000
+;9000番代は簡易コマンドフィルタに使う
+	INVERTBIT 簡易コマンドフィルタ:(RESULT - 9000), 0
+	RETURN 1
+ELSEIF RESULT >=2000
+;2000番以降は相手変えのショートカットに使う
+	IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+		PRINTW 一緒に隠密中は相手を変更出来ません
+		RETURN 1
+	ENDIF
+	数値変換用 = RESULT - 2000
+	IF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
+		RETURN 1
+	ELSEIF CFLAG:数値変換用:同室
+		TFLAG:104 = 数値変換用
+	PREVCOM = RESULT
+	ENDIF
+	RETURN 1
+ELSEIF RESULT >= 0 && RESULT <= 700
+	IF RESULT == 351
+		CALL COM_ABLE351
+		SIF !RESULT
+			RETURN 0
+		PRINTL 連れ出す
+		STR:0 = 連れ出す
+		CALL COM351
+		RETURN RESULT
+	ENDIF
+	SELECTCOM = RESULT
+	TRYCALLFORM COM_ABLE{SELECTCOM}
+	SIF RESULT == 0
+		RETURN 1
+	SIF TRAIN_COMNAME(SELECTCOM) == ""
+		RETURN 1
+	TFLAG:SELECTCOM受け渡し = SELECTCOM
+	RESULT = 1
+	TRYCALLFORM CAN_COM{SELECTCOM}(1)
+	IF RESULT == 0
+		TRYCALLFORM CAN_COM{SELECTCOM}
+		RETURN 1
+	ENDIF
+ELSEIF RESULT == 803
+	CALL PRINT_STATE(TARGET)
+	RETURN 1
+ELSEIF RESULT == 804
+	CALL PRINT_STATE(MASTER)
+	RETURN 1
+ELSEIF RESULT == 809
+	CALL OPTION_COMMAND_FILTER
+	RETURN 1
+ELSEIF RESULT == 820 && CFLAG:うふふ
+	CALL CLOTHES_SETTING_TRAIN(PLAYER)
+	RETURN 1
+ELSEIF RESULT == 830
+	CALL SHOW_PARTYMEMBER
+	RETURN 1
+ELSEIF RESULT == 840
+	CFLAG:MASTER:隠密 = 1
+	SIF CFLAG:TARGET:同行
+		CFLAG:TARGET:隠密 = 1
+	RETURN 1
+ELSEIF RESULT == 841
+	CFLAG:MASTER:隠密 = 0
+	SIF CFLAG:TARGET:同行
+		CFLAG:TARGET:隠密 = 0
+	RETURN 1
+ELSEIF RESULT == 850
+	CALL ITEM_PROTO
+	RETURN 1
+ELSEIF RESULT == 860
+	CALL OPTION_DEBUG
+	RETURN 1
+ELSEIF RESULT == 888
+	FLAG:一日終了 = 1
+ELSEIF RESULT == 999 && CFLAG:うふふ
+	;IF CFLAG:(TARGET:1):うふふ == 2 && BASE:(TARGET:1):満足 < MAXBASE:(TARGET:1):満足
+	;	PRINTFORMW %CALLNAME:(TARGET:1)%が離してくれない…
+	;	CALL KOJO_EVENT, 13, TARGET, 1
+	;	RETURN 1
+	;ELSE
+	;	CALL KOJO_EVENT, 13, TARGET, 0
+	;ENDIF
+	FOR LOCAL,0,CHARANUM
+		SIF CFLAG:LOCAL:滞在期間 < 0
+			CONTINUE
+		CFLAG:LOCAL:うふふ = 0
+		;モードもリセット
+		VARSET 体位モード格納:LOCAL:0
+	NEXT
+	RETURN 1
+ELSEIF RESULT == 998 && CFLAG:飲み会
+	FOR LOCAL,0,CHARANUM
+		SIF CFLAG:LOCAL:滞在期間 < 0
+			CONTINUE
+		CFLAG:LOCAL:飲み会 = 0
+		;先にここでモードを変えておかないとTARGETが上手く格納されない
+		TFLAG:調教モード = 1
+		;モードもリセット
+		VARSET 体位モード格納:LOCAL:0
+	NEXT
+	RETURN 1
+ELSE
+	RETURN 1
+ENDIF
+RETURN 0
+
+@SHOW_COMMAND
+CALL SHOW_MODE(TARGET:1)
+SIF TARGET:2
+	CALL SHOW_MODE(TARGET:2)
+
+
+IF TFLAG:調教モード == 2
+	SETCOLOR 0xC0C0C0
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTPLAIN [通常]
+	PRINTL -------------------------------------------------------------------------------------------------
+	CALL SHOW_COMMAND_実処理("その他")
+PRINTL
+	SETCOLOR 0xFF66CC
+	SIF 簡易コマンドフィルタ:6
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[Ｖ系]", 9006
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:6
+		CALL SHOW_COMMAND_実処理("Ｖ系")
+PRINTL
+	SETCOLOR 0xDDFFDD
+	SIF 簡易コマンドフィルタ:7
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[Ａ系]", 9007
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:7
+		CALL SHOW_COMMAND_実処理("Ａ系")
+PRINTL
+	SETCOLOR 0xD3DEF1
+	SIF 簡易コマンドフィルタ:9
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[道具系]", 9009
+	PRINTL -----------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:9
+		CALL SHOW_COMMAND_実処理("道具系")
+PRINTL
+	SETCOLOR 0xD3DEF1
+	SIF 簡易コマンドフィルタ:12
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[複数人プレイ]", 9012
+	PRINTL -----------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:12
+		CALL SHOW_COMMAND_実処理("複数人プレイ")
+ELSEIF TFLAG:調教モード == 3
+	SETCOLOR 0xC0C0C0
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTPLAIN [飲み会]
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:49
+		CALL SHOW_COMMAND_実処理("その他")
+PRINTL
+	SETCOLOR 0xFF66CC
+	SIF 簡易コマンドフィルタ:6
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[セクハラ]", 9006
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:1
+		CALL SHOW_COMMAND_実処理("セクハラ")
+ELSE
+	SETCOLOR 0xC0C0C0
+	SIF 簡易コマンドフィルタ:0
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[日常]", 9000
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:0
+		CALL SHOW_COMMAND_実処理("日常")
+PRINTL
+	SETCOLOR 0xFF99EE
+	SIF 簡易コマンドフィルタ:1
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[セクハラ]", 9001
+	PRINTL ---------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:1
+		CALL SHOW_COMMAND_実処理("セクハラ")
+PRINTL
+	SETCOLOR 0xAADDAA
+	SIF 簡易コマンドフィルタ:4
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[探索]", 9004
+	PRINTL -------------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:4
+		CALL SHOW_COMMAND_実処理("探索")
+PRINTL
+	SETCOLOR 0xB0BBE0
+	SIF 簡易コマンドフィルタ:49
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[その他]", 9049
+	PRINTL -----------------------------------------------------------------------------------------------
+	SIF !簡易コマンドフィルタ:49
+		CALL SHOW_COMMAND_実処理("その他")
+ENDIF
+RESETCOLOR
+PRINTL
+DRAWLINE
+文字色保存 = 0
+
+@SHOW_COMMAND_実処理(ARGS)
+#DIMS 複合条件保存, 10
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
+
+VARSET LOCALS
+LOCAL:1 = 0
+LOCAL:2 = 0
+LOCAL:3 = COMTYPE(ARGS)
+;セクハラは全部まとめてセクハラ扱い
+SIF GROUPMATCH(LOCAL:3, 1, 2, 3)
+	LOCAL:3 = 1
+SIF ARGS == "その他"
+	LOCAL:3 = 49
+
+FOR LOCAL,0,700
+	TRYCCALLFORM COM_ABLE{LOCAL}
+		SIF RESULT == 0
+			CONTINUE
+	CATCH
+		CONTINUE
+	ENDCATCH
+		弱点コマンドカテゴリ = 
+	TRYCALLFORMF COMTYPE_{LOCAL}
+	;複合条件処理
+	IF TFLAG:コマンドタイプ受渡 > 99
+		IF TFLAG:コマンドタイプ受渡 == 100
+			SPLIT TSTR:複合コマンドタイプ受け渡し, "&", 複合条件保存
+		ELSEIF TFLAG:コマンドタイプ受渡 == 101
+			SPLIT TSTR:複合コマンドタイプ受け渡し, "_", 複合条件保存
+		ENDIF
+		FOR LOCAL:1, 0, RESULT
+			IF TFLAG:調教モード == 2
+				IF 複合条件保存:(LOCAL:1) == "複数人プレイ"
+					TFLAG:コマンドタイプ受渡 = 12
+					BREAK
+				ELSEIF 複合条件保存:(LOCAL:1) == "Ｖ系"
+					TFLAG:コマンドタイプ受渡 = 6
+					BREAK
+				ELSEIF 複合条件保存:(LOCAL:1) == "Ａ系"
+					TFLAG:コマンドタイプ受渡 = 7
+					BREAK
+				ELSEIF 複合条件保存:(LOCAL:1) == "道具系"
+					TFLAG:コマンドタイプ受渡 = 9
+					BREAK
+				ENDIF
+			ELSEIF TFLAG:調教モード == 3
+				IF GROUPMATCH(複合条件保存:(LOCAL:1), "セクハラ弱", "セクハラ", "セクハラ強")
+					TFLAG:コマンドタイプ受渡 = 1
+					BREAK
+				ENDIF
+			ELSE
+				IF 複合条件保存:(LOCAL:1) == "日常"
+					TFLAG:コマンドタイプ受渡 = 0
+					BREAK
+				ELSEIF GROUPMATCH(複合条件保存:(LOCAL:1), "セクハラ弱", "セクハラ", "セクハラ強")
+					TFLAG:コマンドタイプ受渡 = 1
+					BREAK
+				ELSEIF 複合条件保存:(LOCAL:1) == "探索"
+					TFLAG:コマンドタイプ受渡 = 4
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+	;指定カテゴリと同じコマンドだけ表示
+	SELECTCASE LOCAL:3
+		CASE 0 TO 48
+			IF GROUPMATCH(TFLAG:コマンドタイプ受渡, 1, 2, 3)
+				SIF LOCAL:3 != 1
+					CONTINUE
+			ELSEIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+				CONTINUE
+			ENDIF
+		CASE 49
+			SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 9)
+				CONTINUE
+			SIF 簡易コマンドフィルタ:49
+				CONTINUE
+	ENDSELECT
+	SIF 簡易コマンドフィルタ処理(LOCAL) == 1
+		CONTINUE
+	SELECTCASE LOCAL
+		CASE 370 TO 371
+			LOCALS:1 = {LOCAL}_{NO:TARGET}
+		CASE 380 TO 384
+			LOCALS:1 = {LOCAL}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+		CASEELSE
+			LOCALS:1 = {LOCAL}
+	ENDSELECT
+	IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+		LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+	ENDIF
+	FOR LOCAL:10, 0, 5
+		SIF 弱点看破:TARGET:(LOCAL:10) == 0
+			CONTINUE
+		SIF 弱点コマンドカテゴリ == ""
+			CONTINUE
+		IF 弱点コマンド枠:TARGET:(LOCAL:10) == LOCALS:1
+			LOCALS += "<font color='#FF3399'>"
+			LOCAL:4 = 1
+			BREAK
+		ENDIF
+	NEXT
+	IF STRLENS(TRAIN_COMNAME(LOCAL))
+		LOCALS += @"<button value = '{LOCAL}'"
+		TRYCCALLFORM COM_TOOLTIP_{LOCAL}
+			IF ツールチップ切り替えOPTION記憶 == 0
+				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
+			ELSE
+				LOCALS += @">"
+			ENDIF
+		CATCH
+			LOCALS += @">"
+		ENDCATCH
+		LOCALS += @"%TRAIN_COMNAME(LOCAL), 22%[{LOCAL, 3}]</button>"
+		IF LOCAL:4
+			LOCALS += "</font>"
+			LOCAL:4 = 0
+		ENDIF
+		LOCAL:2 += 1
+	ENDIF
+	IF LOCAL:2 >= 4
+		LOCAL:2 = 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+IF LOCALS != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+
+FOR LOCAL, 0, 500
+	LOCAL:2 = 0
+	SIF LOCAL >= 370 && LOCAL <= 390
+		CONTINUE
+	FOR LOCAL:1, 1, 50
+		TRYCCALLFORM COM_ABLE_S{LOCAL}_{LOCAL:1}
+			SIF RESULT == 0
+				CONTINUE
+		CATCH
+			CONTINUE
+		ENDCATCH
+		RESULT = 0
+		弱点コマンドカテゴリ = 
+		TRYCALLFORMF COMTYPE_S_{LOCAL}_{LOCAL:1}
+		;複合条件処理
+		IF TFLAG:コマンドタイプ受渡 > 99
+			IF TFLAG:コマンドタイプ受渡 == 100
+				SPLIT TSTR:複合コマンドタイプ受け渡し, "&", 複合条件保存
+			ELSEIF TFLAG:コマンドタイプ受渡 == 101
+				SPLIT TSTR:複合コマンドタイプ受け渡し, "_", 複合条件保存
+			ENDIF
+			FOR LOCAL:10, 0, RESULT
+				IF TFLAG:調教モード == 2
+					IF 複合条件保存:(LOCAL:10) == "複数人プレイ"
+						TFLAG:コマンドタイプ受渡 = 12
+						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "Ｖ系"
+						TFLAG:コマンドタイプ受渡 = 6
+						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "Ａ系"
+						TFLAG:コマンドタイプ受渡 = 7
+						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "道具系"
+						TFLAG:コマンドタイプ受渡 = 9
+						BREAK
+					ENDIF
+				ELSE
+					IF 複合条件保存:(LOCAL:10) == "日常"
+						TFLAG:コマンドタイプ受渡 = 0
+						BREAK
+					ELSEIF GROUPMATCH(複合条件保存:(LOCAL:10), "セクハラ弱", "セクハラ", "セクハラ強")
+						TFLAG:コマンドタイプ受渡 = 1
+						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "探索"
+						TFLAG:コマンドタイプ受渡 = 4
+						BREAK
+					ENDIF
+				ENDIF
+			NEXT
+		ENDIF
+		;指定カテゴリと同じコマンドだけ表示
+		SELECTCASE LOCAL:3
+			CASE 0 TO 48
+				IF GROUPMATCH(TFLAG:コマンドタイプ受渡, 1, 2, 3)
+					SIF LOCAL:3 != 1
+						CONTINUE
+				ELSEIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+					CONTINUE
+				ENDIF
+			CASE 49
+				SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 9)
+					CONTINUE
+				SIF 簡易コマンドフィルタ:49
+					CONTINUE
+		ENDSELECT
+		IF LOCAL:2 == 0
+			PRINTL
+			PRINTFORML ▼%TRAIN_COMNAME(LOCAL)%派生
+		ENDIF
+		LOCALS:1 = {LOCAL}_{LOCAL:1}
+		SIF 簡易コマンドフィルタ処理(LOCAL) == 1
+			CONTINUE
+		IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+			LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+		ENDIF
+		FOR LOCAL:10, 0, 5
+			SIF 弱点看破:TARGET:(LOCAL:10) == 0
+				CONTINUE
+			SIF 弱点コマンドカテゴリ == ""
+				CONTINUE
+			IF 弱点コマンド枠:TARGET:(LOCAL:10) == @"%LOCALS:1%"
+				LOCALS += "<font color='#FF3399'>"
+				LOCAL:4 = 1
+				BREAK
+			ENDIF
+		NEXT
+		LOCALS += @"<button value = '{LOCAL}_{LOCAL:1}'"
+		TRYCCALLFORM COM_TOOLTIP_S{LOCAL}_{LOCAL:1}
+			IF ツールチップ切り替えOPTION記憶 == 0
+				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
+			ELSE
+				LOCALS += @">"
+			ENDIF
+		CATCH
+			LOCALS += @">"
+		ENDCATCH
+		LOCALS += @"%TRAIN_COMNAME_S(LOCALS:1), 25%[%LOCALS:1,5%]</button>"
+		IF LOCAL:4
+			LOCALS += "</font>"
+			LOCAL:4 = 0
+		ENDIF
+		LOCAL:2 += 1
+		SETCOLOR 文字色保存
+		IF LOCAL:2 >= 4
+			LOCAL:2 = 0
+			HTML_PRINT LOCALS
+			LOCALS = 
+		ENDIF
+		; PRINTBUTTONC @"%TRAIN_COMNAME_S(LOCALS)%[%LOCALS,5%]", @"%LOCALS%"
+		; SETCOLOR 文字色保存
+		; LOCAL:2 = 1
+	NEXT
+	IF LOCALS != ""
+		LOCAL:2 = 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+
+
+
+@ITEM_PROTO
+$選択肢ループラベル
+DRAWLINE
+PRINTL 
+IF ITEM:100 > 0
+	PRINTBUTTON @"■%ITEMNAME:100% × {ITEM:100}", 100
+	PRINTL 
+ELSE
+	SETCOLOR 0x666666
+	PRINTFORML ■%ITEMNAME:100%を所持していません。
+	RESETCOLOR
+ENDIF
+IF 恋慕対象フラグ:0 == TARGET
+	IF ITEM:101 > 0
+		PRINTBUTTON @"■%ITEMNAME:101% × {ITEM:101}", 101
+		PRINTL 
+	ELSE
+		SETCOLOR 0x666666
+		PRINTFORML ■%ITEMNAME:101%を所持していません。
+		RESETCOLOR
+	ENDIF
+ENDIF
+PRINTL ※プロトタイプ開発中はバランス未調整のため、好感度と恋慕度を直接増加させるアイテムを仮実装しています。
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+INPUT
+
+SELECTCASE RESULT:0
+	CASE 100
+		IF ITEM:100 > 0
+			PRINTFORML %CALLNAME:TARGET%の好感度が上昇しました。
+			PRINTL 好感度＋10000
+			CFLAG:TARGET:好感度 += 10000
+			CALL FAVOR_LvUPCheck(TARGET)
+			ITEM:100 -= 1
+		ELSE
+			PRINTW 対象アイテムがありません。
+		ENDIF
+		GOTO 選択肢ループラベル
+	CASE 101
+		IF 恋慕対象フラグ:0 == TARGET
+			IF ITEM:101 > 0
+				PRINTFORML %CALLNAME:TARGET%の恋慕度が上昇しました。
+				PRINTL 恋慕度＋5000
+				CFLAG:TARGET:恋慕度 += 5000
+				CALL Love_LvUPCheck(TARGET)
+				ITEM:101 -= 1
+			ELSE
+				PRINTW 対象アイテムがありません。
+			ENDIF
+		GOTO 選択肢ループラベル
+		ENDIF
+	CASE 999
+		RETURN
+	CASEELSE
+		GOTO 選択肢ループラベル
+ENDSELECT
+
+
+

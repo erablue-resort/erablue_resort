@@ -1,0 +1,793 @@
+﻿
+;--------------------------------------------------------------------------------------------------
+;欲情などPALAM変換処理をひとまとめに
+;--------------------------------------------------------------------------------------------------
+;--------------------------------------------------------------------------------------------------
+;欲情
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_欲情(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+VARSET LOCAL
+
+;欲情計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;媚薬(+100%)
+	SIF TEQUIP:ARG:媚薬
+		LOCAL:1 += 100
+	;快楽刻印(最大+90%)
+	LOCAL:1 += (MARK:ARG:快楽刻印 * MARK:ARG:快楽刻印) * 10
+	;性欲ゲージ(最大+50%)
+	LOCAL:1 += BASE:ARG:性欲 / 20
+;経験枠（Ｂ枠）
+	;絶頂経験（最大+500%）
+	LOCAL:2 += MIN(EXP:ARG:絶頂経験, 500)
+	;愛情経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 200 , 3000)
+	;自制心(-20%～+10%)
+	LOCAL:3 += TALENT:ARG:自制心 * -10
+	;精神的余裕(-10%～+10%)
+	IF TALENT:ARG:精神的余裕 > 0
+		LOCAL:3 += -10
+	ELSEIF TALENT:ARG:精神的余裕 < 0
+		LOCAL:3 += 10
+	ENDIF
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;性的興味(±10%)
+	LOCAL:3 += TALENT:ARG:性的興味 * 10
+	;性欲(±10%)
+	LOCAL:3 += TALENT:ARG:性欲 * 10
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;恥情
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_恥情(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+VARSET LOCAL
+
+;恥情計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;性欲ゲージ(最大+50%)
+	LOCAL:1 += BASE:ARG:性欲 / 20
+;経験枠（Ｂ枠）
+	;露出快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:露出快楽経験, 250)
+	;露出絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:露出絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:恥情をみる
+	;恥ずかしさを感じれば感じるほどあまり恥ずかしくなくなる
+	IF PALAM:ARG:恥情 < PALAMLV:1
+		LOCAL:3 += 50
+	ELSEIF PALAM:ARG:恥情 < PALAMLV:2
+		LOCAL:3 += 30
+	ELSEIF PALAM:ARG:恥情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:恥情 < PALAMLV:4
+		LOCAL:3 += 10
+	ELSEIF PALAM:ARG:恥情 >= PALAMLV:4
+		LOCAL:3 += 0
+	ENDIF
+	;理性(上限1.5倍)
+	;理性があるほど恥ずかしい
+	LOCAL:3 += GET_REVISION(BASE:ARG:理性, 200 , 3000)
+	;精神的余裕(-10%～+10%)
+	IF TALENT:ARG:精神的余裕 > 0
+		LOCAL:3 += -10
+	ELSEIF TALENT:ARG:精神的余裕 < 0
+		LOCAL:3 += 10
+	ENDIF
+	;自制心(-10%～+20%)
+	LOCAL:3 += TALENT:ARG:自制心 * 10
+	;無関心(-15%)
+	LOCAL:3 += TALENT:ARG:無関心 * -15
+	;感情乏しい
+	LOCAL:3 += TALENT:ARG:感情乏しい * -15
+	;性的興味(±10%)
+	LOCAL:3 += TALENT:ARG:性的興味 * -10
+	;倒錯的
+	LOCAL:3 += TALENT:ARG:倒錯的 * 20
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;奉仕
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_奉仕(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+;欲情計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;屈服刻印(最大+90%)
+	LOCAL:1 += (MARK:ARG:屈服刻印 * MARK:ARG:屈服刻印) * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+;経験枠（Ｂ枠）
+	;苦痛快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛快楽経験, 500)
+	;苦痛絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:屈服をみる
+	IF PALAM:ARG:屈服 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:屈服 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:ムード, 200 , 3000)
+	;献身的(+25%)
+	LOCAL:3 += TALENT:ARG:献身的 * 25
+	;態度(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:態度 * -15
+	;応答(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:応答 * -15
+	;プライド(-20%～+20%)
+	LOCAL:3 += TALENT:ARG:プライド * -20
+	;自制心(-10%～+20%)
+	LOCAL:3 += TALENT:ARG:自制心 * 10
+	;性的興味(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:性的興味 * 10
+	;ツンデレ(-10%～+20%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+
+
+;--------------------------------------------------------------------------------------------------
+;屈服
+;--------------------------------------------------------------------------------------------------
+
+@PALAM変換_屈服(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+;欲情計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;屈服刻印(最大+90%)
+	LOCAL:1 += (MARK:ARG:屈服刻印 * MARK:ARG:屈服刻印) * 10
+;経験枠（Ｂ枠）
+	;苦痛快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛快楽経験, 500)
+	;苦痛絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:屈服をみる
+	IF PALAM:ARG:屈服 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:屈服 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:屈服 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;態度(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:態度 * -15
+	;精神的余裕(-10%～+10%)
+	IF TALENT:ARG:精神的余裕 > 0
+		LOCAL:3 += -10
+	ELSEIF TALENT:ARG:精神的余裕 < 0
+		LOCAL:3 += 10
+	ENDIF
+	;応答(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:応答 * -15
+	;プライド(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:プライド * -10
+	;倒錯的(-20%～+20%)
+	LOCAL:3 += TALENT:ARG:倒錯的 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;征服
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_征服(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;器用な指
+	LOCAL:1 += TALENT:ARG:器用な指 * 15
+	;舌使い
+	LOCAL:1 += TALENT:ARG:舌使い * 15
+	;各種知識は応用可能
+	LOCAL:1 += 知識素質:ARG:調合知識 * 10
+	LOCAL:1 += 知識素質:ARG:魔法知識 * 10
+	LOCAL:1 += 知識素質:ARG:機械知識 * 10
+	LOCAL:1 += 知識素質:ARG:錬金知識 * 10
+	LOCAL:1 += 知識素質:ARG:魔物知識 * 10
+	;ABL:技巧をみる
+	LOCAL:1 += ABL:ARG:技巧 * 5
+;経験枠（Ｂ枠）
+	;嗜虐快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:嗜虐快楽経験, 500)
+	;嗜虐絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:嗜虐絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:征服をみる
+	IF PALAM:ARG:征服 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:征服 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:征服 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:征服 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:征服 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;ABL:欲望をみる
+	LOCAL:1 += ABL:ARG:欲望 * 5
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;度胸(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:度胸 * 15
+	;態度(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:態度 * 15
+	;応答(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:応答 * 15
+	;プライド(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:プライド * 10
+	;倒錯的(-20%～+20%)
+	LOCAL:3 += TALENT:ARG:倒錯的 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;苦痛
+;--------------------------------------------------------------------------------------------------
+
+@PALAM変換_苦痛(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+;欲情計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;調教者サド性感
+	LOCAL:1 += ABL:(ARG:1):サド性感 * 10
+	;苦痛刻印(最大+90%)
+	LOCAL:1 += (MARK:ARG:苦痛刻印 * MARK:ARG:苦痛刻印) * 10
+	;星晶獣とか人外は丈夫
+	SIF  TALENT:ARG:種族 == 5 || TALENT:ARG:種族追記 == 1
+		LOCAL:1 += -80
+;経験枠（Ｂ枠）
+	;苦痛快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛快楽経験, 500)
+	;苦痛絶頂経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:苦痛絶頂経験, 250)
+;精神枠（Ｃ枠）
+	;PALAM:屈服をみる
+	IF PALAM:ARG:苦痛 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:苦痛 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:苦痛 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:苦痛 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:苦痛 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;度胸(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:度胸 * -15
+	;態度(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:態度 * -15
+	;応答(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:応答 * -15
+	;マイペース(-10%)
+	LOCAL:3 += TALENT:ARG:マイペース * -10
+	;プライド(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:プライド * -10
+	;倒錯的(-20%～+20%)
+	LOCAL:3 += TALENT:ARG:倒錯的 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += 30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += 30
+		CASE 3
+			LOCAL:3 += 30
+	ENDSELECT
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * (LOCAL:1 + 100) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;習得
+;--------------------------------------------------------------------------------------------------
+
+@PALAM変換_習得(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+
+;習得計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;習得速度
+	LOCAL:1 += TALENT:ARG:習得速度 * 25
+	;器用な指
+	LOCAL:1 += TALENT:ARG:器用な指 * 15
+	;舌使い
+	LOCAL:1 += TALENT:ARG:舌使い * 15
+	;各種知識は応用可能
+	LOCAL:1 += 知識素質:ARG:調合知識 * 10
+	LOCAL:1 += 知識素質:ARG:魔法知識 * 10
+	LOCAL:1 += 知識素質:ARG:機械知識 * 10
+	LOCAL:1 += 知識素質:ARG:錬金知識 * 10
+	LOCAL:1 += 知識素質:ARG:魔物知識 * 10
+	;ABL:奉仕精神をみる
+	SELECTCASE ABL:ARG:奉仕精神
+		CASE 0
+			LOCAL:1 += -30
+		CASE 1
+			LOCAL:1 += 10
+		CASE 2
+			LOCAL:1 += 25
+		CASE 3
+			LOCAL:1 += 50
+		CASE 4
+			LOCAL:1 += 75
+		CASE 5
+			LOCAL:1 += 100
+		CASE 6
+			LOCAL:1 += 120
+		CASE 7
+			LOCAL:1 += 140
+		CASE 8
+			LOCAL:1 += 160
+		CASE 9
+			LOCAL:1 += 180
+		CASEELSE
+			LOCAL:1 += 200
+	ENDSELECT
+	;ハーヴィン(+30%)
+	SIF TALENT:ARG:種族 == 4
+		LOCAL:1 += 30
+;経験枠（Ｂ枠）
+	;奉仕快楽経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:奉仕快楽経験, 250)
+	;愛情経験（最大+250%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 250)
+;精神枠（Ｃ枠）
+	;理性(上限1.5倍)(高いほど上昇)
+	LOCAL:3 += GET_REVISION(BASE:ARG:理性, 200 , 3000)
+	;態度(-15%～+15%)
+	LOCAL:3 += TALENT:ARG:態度 * -15
+	;抵抗(-20%)
+	LOCAL:3 += TALENT:ARG:抵抗 * -20
+	;自制心(-10%～+20%)
+	LOCAL:3 += TALENT:ARG:自制心 * 10
+	;性的興味(-20%～+20%)
+	LOCAL:3 += TALENT:ARG:性的興味 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += 30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += 30
+		CASE 3
+			LOCAL:3 += 30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * MAX(LOCAL:2 + 100, 1) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+
+;--------------------------------------------------------------------------------------------------
+;好感度UP
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_好感度(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+VARSET LOCAL
+
+;好感度計算
+;基礎値は向こうから受け渡される
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+;経験枠（Ｂ枠）
+	;性別嗜好経験(最大+150%)
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:2 += MIN(EXP:ARG:同性愛経験, 150)
+	;愛情経験（最大+500%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 500)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 200 , 3000)
+	;自制心(-10%～+5%)
+	LOCAL:3 += TALENT:ARG:自制心 * -5
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;感情乏しい(-10%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * -10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;--------------------------------------------------------------------------------------------------
+;不快
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_不快(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+VARSET LOCAL
+;基礎値が0のパターンが割りとあるので即戻す
+SIF 基礎値 == 0
+	RETURNF 0
+	
+;不快計算
+;ここで計算するのは減算量
+;減算基礎値
+	LOCAL = CFLAG:ARG:好感度レベル + CFLAG:ARG:恋慕レベル
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+	;マゾ性感(最大100%)
+	LOCAL:3 += ABL:ARG:マゾ性感 * 10
+;経験枠（Ｂ枠）
+	;苦痛快楽経験(最大+200%)
+	LOCAL:2 += MIN(EXP:ARG:苦痛快楽経験, 200)
+	;愛情経験（最大+500%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 500)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:1
+		LOCAL:3 += -20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 200 , 3000)
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(10%)
+	LOCAL:3 += TALENT:ARG:無関心 * 10
+	;感情乏しい(20%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * 10
+	;マイペース(0～10%)
+	SIF TALENT:ARG:マイペース > 0
+		LOCAL:3 += TALENT:ARG:マイペース * 10
+	;精神的余裕(-10%～+10%)
+	IF TALENT:ARG:精神的余裕 > 0
+		LOCAL:3 += 10
+	ELSEIF TALENT:ARG:精神的余裕 < 0
+		LOCAL:3 += -10
+	ENDIF
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 50
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -50
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+;--------------------------------------------------------------------------------------------------
+;反感
+;--------------------------------------------------------------------------------------------------
+@PALAM変換_反感(ARG, ARG:1, 基礎値)
+#FUNCTION
+#DIM 基礎値
+VARSET LOCAL
+;基礎値が0のパターンが割りとあるので即戻す
+SIF 基礎値 == 0
+	RETURNF 0
+	
+;不快計算
+;ここで計算するのは減算量
+;減算基礎値
+	LOCAL = CFLAG:ARG:好感度レベル + CFLAG:ARG:恋慕レベル
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+	;マゾ性感(最大100%)
+	LOCAL:3 += ABL:ARG:マゾ性感 * 10
+;経験枠（Ｂ枠）
+	;苦痛快楽経験(最大+200%)
+	LOCAL:2 += MIN(EXP:ARG:苦痛快楽経験, 200)
+	;愛情経験（最大+500%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 500)
+;精神枠（Ｃ枠）
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 200 , 3000)
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 200 , 3000)
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;精神的余裕(-10%～+10%)
+	IF TALENT:ARG:精神的余裕 > 0
+		LOCAL:3 += 10
+	ELSEIF TALENT:ARG:精神的余裕 < 0
+		LOCAL:3 += -10
+	ENDIF
+	;無関心(10%)
+	LOCAL:3 += TALENT:ARG:無関心 * 10
+	;感情乏しい(20%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * 10
+	;マイペース(0～10%)
+	SIF TALENT:ARG:マイペース > 0
+		LOCAL:3 += TALENT:ARG:マイペース * 10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 50
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -50
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+RETURNF LOCAL
+
+
+
+
+
+
+

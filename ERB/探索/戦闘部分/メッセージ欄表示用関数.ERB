@@ -1,0 +1,194 @@
+﻿
+
+@メッセージ欄表示用関数(画像リソース = "", 名前欄表示文字列 = "", 表示位置 = "下", WAITあり = 1)
+#DIMS 画像リソース
+#DIMS 名前欄表示文字列
+#DIMS 表示位置
+#DIM 表示行数カウント
+#DIM WAITあり
+	;１なら通常WAIT（デフォルト）、２ならFORCEWAIT、０でWAITなし
+VARSET LOCALS
+VARSET LOCAL
+表示行数カウント = 0
+
+TSTR:メッセージ欄文字列受け渡し_下側 = 
+LOCAL:2 = 7
+LOCAL = メッセージY軸位置(ダンジョン表示モード)
+
+IF 画像リソース != ""
+	;文字列に対応する画像リソースがない場合はNoimage顔
+	IF SPRITECREATED(画像リソース)
+		LOCALS = <div rect='{左顔グラなし}px,{LOCAL}px,906px,270px'><img src='%画像リソース%' ypos ='0px' height='130px' width='130px'></div>
+	ELSE
+		LOCALS = <div rect='{左顔グラなし}px,{LOCAL}px,906px,270px'><img src='Noimage_顔' ypos ='0px' height='130px' width='130px'></div>
+	ENDIF
+	LOCALS += @"<div rect='{左顔グラあり}px,{LOCAL}px,906px,270px'>"
+ELSE
+	LOCALS = <div rect='{左顔グラなし}px,{LOCAL}px,906px,270px'>
+ENDIF
+
+IF 名前欄表示文字列 != ""
+	LOCALS += @"%名前欄表示文字列%<br>------------------------------------------------------------------------------------------<br>"
+	LOCAL:2 = 5
+ENDIF
+
+;ここまでが文章スクロールをまたいでも表示し続ける要素なので、表示する文章がなくなるまでLOCALSに保持し続ける
+;文章スクロールで変動する部分はLOCALS:1に入れる
+
+FOR LOCAL,0,1000
+	SIF KCOLOR:LOCAL > -1
+		SETCOLOR KCOLOR:LOCAL
+	IF !(WSTR:LOCAL == "")
+		IF 	LOCAL:1 == 2
+			WAIT
+		ENDIF
+		CALL PRINT_STR_メッセージ用(WSTR:LOCAL)
+		LOCALS:1 += @"%RESULTS%<br>"
+		TSTR:メッセージ欄文字列受け渡し_下側 = %LOCALS%
+		TSTR:メッセージ欄文字列受け渡し_下側 += @"%LOCALS:1%</div>" 
+		CALL 画面再描画
+		WAIT
+		LOCAL:1 = 0
+		表示行数カウント += 1
+	ELSEIF !(KSTR:LOCAL == "")
+		IF 	LOCAL:1 == 2
+			WAIT
+		ENDIF
+		CALL PRINT_STR_メッセージ用(KSTR:LOCAL)
+		LOCALS:1 += @"%RESULTS%<br>"
+		LOCAL:1 = 1
+		表示行数カウント += 1
+	ELSEIF !(WNSTR:LOCAL == "")
+		IF 	LOCAL:1 == 2
+			WAIT
+		ENDIF
+		CALL PRINT_STR_メッセージ用(WNSTR:LOCAL)
+		LOCALS:1 += @"%RESULTS%"
+		TSTR:メッセージ欄文字列受け渡し_下側 = %LOCALS%
+		TSTR:メッセージ欄文字列受け渡し_下側 += @"%LOCALS:1%</div>" 
+		CALL 画面再描画
+		WAIT
+		LOCAL:1 = 0
+	ELSEIF !(NSTR:LOCAL == "")
+		IF 	LOCAL:1 == 2
+			WAIT
+		ENDIF
+		CALL PRINT_STR_メッセージ用(NSTR:LOCAL)
+		LOCALS:1 += @"%RESULTS%"
+		LOCAL:1 = 1
+	ENDIF
+
+	IF 表示行数カウント == LOCAL:2 || メッセージ欄ページ送り用フラグ == 1
+		IF LOCAL:1 == 1
+			TSTR:メッセージ欄文字列受け渡し_下側 = %LOCALS:0%
+			TSTR:メッセージ欄文字列受け渡し_下側 += @"%LOCALS:1%</div>" 
+			CALL 画面再描画
+		ENDIF
+		LOCALS:1 = 
+		LOCAL:1 = 2
+		メッセージ欄ページ送り用フラグ = 0
+	ENDIF
+NEXT
+IF LOCAL:1 == 1
+	TSTR:メッセージ欄文字列受け渡し_下側 = %LOCALS:0%
+	TSTR:メッセージ欄文字列受け渡し_下側 += @"%LOCALS:1%</div>" 
+	CALL 画面再描画
+ENDIF
+IF WAITあり == 1
+	WAIT
+ELSEIF WAITあり == 2
+	FORCEWAIT
+ENDIF
+RETURN 1
+
+
+@PRINT_STR_メッセージ用(ARGS = "")
+#DIM LCOUNT
+#DIM 返し数
+#DIMS 返し文
+#DIMS 表示文
+#DIM 文字色
+
+VARSET 表示文
+VARSET LOCALS
+
+;文字列を分解する
+SPLIT ARGS, "_", LOCALS
+LOCAL = 0
+LOCAL:1 = 0
+FOR LCOUNT, 0, 100
+	;特殊な操作
+	SELECTCASE LOCALS:LCOUNT
+	CASE "BUTTON"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		表示文 += @"<button value='%LOCALS:LCOUNT%'>%LOCALS:LCOUNT%</button>"
+		CONTINUE
+	CASE "CALL"
+		;次の文字をCALLで呼び出す(引数なし)
+		LCOUNT += 1
+		CALLFORM %LOCALS:LCOUNT%
+		CONTINUE
+	CASE "COLOR"
+		;次の文字の色を変更する
+		LCOUNT += 1
+		表示文 += @"<font color='#{TOINT(LOCALS:LCOUNT)}'>"
+		LCOUNT += 1
+		表示文 += @"%LOCALS:LCOUNT%"
+		CONTINUE
+	CASE "INPUT"
+		;INPUTを呼び出す
+		INPUT
+		返し数 = RESULT
+		LOCAL = 1
+		CONTINUE
+	CASE "INPUTS"
+		;INPUTSを呼び出す
+		INPUTS
+		返し文 = %RESULTS%
+		LOCAL:1 = 1
+		CONTINUE
+	CASE "-"
+		;次の文字に打消し線を引く
+		表示文 += @"<s>%LOCALS:LCOUNT%</s>"
+		CONTINUE
+	CASE "B"
+		;次の文字を太字にする
+		表示文 += @"<b>%LOCALS:LCOUNT%</b>"
+		CONTINUE
+	CASE "I"
+		;次の文字を斜体にする
+		表示文 += @"<i>%LOCALS:LCOUNT%</i>"
+		CONTINUE
+	CASE "LINE"
+		;次の文字に下線を引く
+		表示文 += @"<u>%LOCALS:LCOUNT%</u>"
+		CONTINUE
+	CASE "H"
+		表示文 += "<img src='えっちハート' height='18px' width='18px'>"
+		CONTINUE
+	CASE "PAGE"
+		メッセージ欄ページ送り用フラグ = 1
+		CONTINUE
+	ENDSELECT
+
+	表示文 += @"%LOCALS:LCOUNT%"
+NEXT
+RESULTS = %表示文%
+SIF LOCAL:1 > 0
+	RESULTS:1 = %返し文%
+SIF LOCAL > 0
+	RETURN 返し数
+
+
+
+@メッセージY軸位置(ARGS)
+#FUNCTION
+
+SELECTCASE ARGS
+	CASE "マップ画面"
+		RETURNF 500
+	CASE "戦闘画面"
+		RETURNF 690
+ENDSELECT
+

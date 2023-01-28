@@ -1,0 +1,146 @@
+﻿;------------------------------------------------------------------------------
+;A挿入時、快楽で腰が浮く
+;------------------------------------------------------------------------------
+@AUTOCOM50
+;お伺いを立ててくる
+PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%のアナルに挿入しても良いかと聞いてきた…
+PRINTBUTTON "[0]許可する", 0
+PRINTBUTTON "[1]拒否する", 1
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		TFLAG:コマンド結果受渡し変数 = 0
+		PRINTFORMW %CALLNAME:PLAYER%は心良く%CALLNAME:TARGET%を受け入れることに決めた
+		AUTOCOM用変数:TARGET:50:0 = TIME
+	CASE 1
+		TFLAG:コマンド結果受渡し変数 = 1
+		PRINTFORMW %CALLNAME:PLAYER%は%CALLNAME:TARGET%の申し出を拒否した
+		AUTOCOM用変数:TARGET:50:0 = TIME
+		RETURN 0
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 0
+DOWNBASE:気力 += 20
+
+CALL SOURCE_CALC_快Ａ(PLAYER, TARGET, 500)
+CALL SOURCE_CALC_露出_反感無し(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 300)
+
+LOCAL = RAND:12
+SELECTCASE LOCAL
+	CASE 0
+		CALL MODE_CHANGE("逆Ａ正常位")
+	CASE 1
+		CALL MODE_CHANGE("逆Ａ後背位")
+	CASE 2
+		CALL MODE_CHANGE("逆Ａ寝バック")
+	CASE 3
+		CALL MODE_CHANGE("逆Ａ対面座位")
+	CASE 4
+		CALL MODE_CHANGE("逆Ａ背面座位")
+	CASE 5
+		CALL MODE_CHANGE("逆Ａ騎乗位")
+	CASE 6
+		CALL MODE_CHANGE("逆Ａ側位")
+	CASE 7
+		CALL MODE_CHANGE("逆Ａ屈曲位")
+	CASE 8
+		CALL MODE_CHANGE("逆Ａ駅弁")
+	CASE 9
+		CALL MODE_CHANGE("逆Ａ逆駅弁")
+	CASE 10
+		CALL MODE_CHANGE("逆Ａ対面立位")
+	CASE 11
+		CALL MODE_CHANGE("逆Ａ立ちバック")
+ENDSELECT
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｃ経験 ++
+EXP:Ｃ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+@AUTOCOM_ABLE50
+SIF !TARGET
+	RETURN 0
+;欲情PALAMLv4必要
+SIF PALAM:欲情 < PALAMLV:4
+	RETURN 0
+;既に入れているとアウト
+SIF MODE_確認("逆アナル系")
+	RETURN 0
+;入れられてる時や他のモード時は黙る
+SIF MODE_確認("Ｖ挿入系") || MODE_確認("Ａ挿入系") || MODE_確認("フェラチオ系") || MODE_確認("パイズリ系") || MODE_確認("手コキ系")
+	RETURN 0
+;調教者がオトコ、半人半妖、ふたなりの場合はある程度勃起してないとダメ
+SIF (TALENT:TARGET:性別 & 2) && BASE:TARGET:勃起 < 1000
+	RETURN 0
+;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+SIF !(TALENT:TARGET:性別 & 2) && ITEM:PBAND == 0
+	RETURN 0
+;30分に１回のみ発動
+SIF TIME - AUTOCOM用変数:TARGET:50:0 < 31
+	RETURN 0
+;性知識２必要
+SIF 知識素質:性知識 < 2
+	RETURN 0
+;下半身着衣
+;前鎧、めくれない服、タイツ、前張りがあると無理
+SIF TEQUIP:PLAYER:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:PLAYER:下半身服あり && (!TEQUIP:PLAYER:スカートめくり可 && !TEQUIP:PLAYER:ずらし可)
+	RETURN 0
+SIF TEQUIP:PLAYER:下タイツあり && !TEQUIP:PLAYER:下タイツ破れ
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM50
+;TFLAG:コマンド結果受渡し変数で分岐
+
+IF TFLAG:コマンド結果受渡し変数 == 1
+	;拒否時
+	PRINTL
+	PRINTFORM %CALLNAME:TARGET%は残念そうに
+	IF TALENT:TARGET:性別 & 2
+		PRINTW 怒張した陰茎を抑えている…
+	ELSEIF ITEM:PBAND
+		PRINTW 装着したペニバンを抑えている…
+	ELSE
+		PRINTW している…
+	ENDIF
+ELSE
+	;許可時
+	PRINTL
+	PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:PLAYER%の腸内へと、ゆっくりと
+	IF TALENT:TARGET:性別 & 2
+		PRINTW 陰茎を差し入れた…
+	ELSEIF ITEM:PBAND
+		PRINTW ペニバンを差し入れた…
+	ELSE
+		PRINTW 侵入してきた…
+	ENDIF
+ENDIF
+
+
+
+
+

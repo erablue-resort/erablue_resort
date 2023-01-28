@@ -1,0 +1,95 @@
+﻿;------------------------------------------------------------------------------
+;キス時、相手からディープキスに派生する
+;------------------------------------------------------------------------------
+@AUTOCOM10
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("ディープキス")
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;奉仕快楽フラグ
+TFLAG:30 = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 0
+DOWNBASE:気力 += 20
+
+CALL SOURCE_CALC_露出_反感無し(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 250)
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+ENDIF
+
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+EXP:キス経験 ++
+EXP:PLAYER:キス経験 ++
+RETURN 1
+
+@AUTOCOM_ABLE10
+SIF !TARGET
+	RETURN 0
+;キスモードじゃない時はアウト
+SIF MODE_確認("キス", TARGET) == 0
+	RETURN 0
+;無関心はアウト、真面目、恥じらいは性欲必要
+SIF TALENT:自制心 > 0 && BASE:性欲 < 8000
+	RETURN 0
+SIF TALENT:無関心
+	RETURN 0
+SIF TALENT:羞恥心 > 0 && BASE:性欲 < 8000
+	RETURN 0
+;性知識1必要
+SIF 知識素質:性知識 < 1
+	RETURN 0
+;基礎確率1/4、素質により変動
+LOCAL = MAX(4 - TALENT:キス嗜好 - TALENT:恋慕 - TALENT:性的興味, 1)
+SIF RAND:LOCAL
+	RETURN 0
+;ディープキスのCANCOMがダメならアウト
+CALL CAN_COM_S20_1(1)
+SIF RESULT == 0
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM10
+PRINTFORM %CALLNAME:TARGET%は舌を入れ、%CALLNAME:PLAYER%の舌と絡めてきた…
+
+
+

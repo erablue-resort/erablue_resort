@@ -1,0 +1,44 @@
+﻿
+@アイテム個別文章表示_魔石
+LOCALS = 
+LOCALS += @"■魔石　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "魔石")}<br>"
+LOCALS += "魔力が多く含まれているありふれた鉱石。<br>"
+LOCALS += "砕くと、石から溢れた魔力でＭＰを回復することが出来る。<br>"
+LOCALS += "加工すればマナポーションになるが、このままでもそれなりの<br>"
+LOCALS += "効果がある<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方単体のＭＰを[３０]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_魔石
+CALL 汎用使用先表示("味方単体")
+
+@アイテム効果処理_魔石(ARG)
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:0
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "魔石") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＭＰ == BATTLE_STATE:ARG:ＭＰ
+	PRINTW ＭＰが最大です
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ < 100
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＭＰを{BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＭＰを100回復しました
+ENDIF
+
+BATTLE_STATE:ARG:ＭＰ = MIN(BATTLE_STATE:ARG:ＭＰ + 100, BATTLE_STATE:ARG:最大ＭＰ)
+CALL アイテム増減汎用処理("魔石", -1)
+
+RETURN 1

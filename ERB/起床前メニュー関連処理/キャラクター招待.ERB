@@ -1,0 +1,459 @@
+﻿@キャラクター招待
+;一日開始時メニューから呼び出し
+
+;まずランダム広告かダイレクトメールかを選ぶ
+$広告_LOOP
+DRAWLINE
+PRINTL リゾート地の広告を出します
+PRINTL どのような広告を出しますか？
+DRAWLINE
+IF 通常キャラ招待:0 || ＤＭキャラ招待
+	SETCOLOR 0x666666
+	PRINTPLAIN [1]通常の広告を打つ（本日分は既に実行済みです）
+	PRINTL
+	PRINTPLAIN [2]ＤＭを出す（本日分は既に実行済みです）
+	PRINTL
+ELSEIF 滞在キャラ数 >= 滞在キャラ上限
+	SETCOLOR 0x666666
+	PRINTPLAIN [1]通常の広告を打つ（滞在人数が上限に達しています）
+	PRINTL
+	PRINTPLAIN [2]ＤＭを出す（滞在人数が上限に達しています）
+	PRINTL
+	PRINTL 
+ELSE
+	PRINTBUTTON "[1]通常の広告を打つ", 1
+	PRINTL
+	PRINTBUTTON "[2]ＤＭを出す", 2
+	PRINTL
+ENDIF
+RESETCOLOR
+IF !ITEM:サプチケ
+	SETCOLOR 0x666666
+	PRINTPLAIN [3]サプチケ（開発版）を使う（チケットが足りません）
+ELSEIF サプチケキャラ招待
+	SETCOLOR 0x666666
+	PRINTPLAIN [3]サプチケ（開発版）を使う（本日分は既に実行済みです）
+ELSEIF 滞在キャラ数 + 集客人数 >= 滞在キャラ上限
+	SETCOLOR 0x666666
+	PRINTPLAIN [3]サプチケ（開発版）を使う（滞在予定人数が上限に達しています）
+ELSE
+	PRINTBUTTON "[3]サプチケ（開発版）を使う", 3
+ENDIF
+PRINTL
+PRINTL
+RESETCOLOR
+PRINTBUTTONLC "[999]やめる", 999
+PRINTBUTTON "[説明]", 998
+PRINTL 
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 1
+		IF 通常キャラ招待:0 || ＤＭキャラ招待
+			GOTO INPUT_LOOP
+		ENDIF
+		IF 滞在キャラ数 >= 滞在キャラ上限
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 通常広告
+		SIF RESULT == -1
+			GOTO 広告_LOOP
+	CASE 2
+		IF 通常キャラ招待:0 || ＤＭキャラ招待
+			GOTO INPUT_LOOP
+		ENDIF
+		IF 滞在キャラ数 >= 滞在キャラ上限
+			GOTO INPUT_LOOP
+		ENDIF
+		IF MONEY < 5000
+			PRINTW お金が足りません。
+			GOTO 広告_LOOP
+		ENDIF
+		CALL ＤＭ広告
+		SIF RESULT == -1
+			GOTO 広告_LOOP
+	CASE 3
+		IF !ITEM:サプチケ
+			PRINTW チケットが足りません。
+			GOTO 広告_LOOP
+		ENDIF
+		IF 滞在キャラ数 >= 滞在キャラ上限
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL サプチケ使用
+		SIF RESULT == -1
+			GOTO 広告_LOOP
+	CASE 998
+		DRAWLINE
+		PRINTL 島外に広告を出し、キャラクターがリゾートを訪れてくれる機能です。
+		PRINTL リゾートの施設改造度に応じて滞在可能な上限人数が設定されており、
+		PRINTL 上限以上に新たなキャラは訪れることはありません。
+		PRINTW また、広告を出せるのは一日一回までです。
+		PRINTL
+		PRINTL ■「通常の広告を打つ」について
+		PRINTL 広く様々な地域に広告を出すコマンドです。
+		PRINTL いくらルピを使うかで訪れてくれるキャラの人数が変化します。
+		PRINTW 消費するルピに対して訪れるキャラが多くなりやすいですが、反面特定のキャラを狙うことは出来ません。
+		PRINTL
+		PRINTL ■「ＤＭを出す」について
+		PRINTL 一定以上の好感度があるキャラに対して、手紙形式の広告を送ります。5000ルピの費用が掛かります。
+		PRINTL 指定したキャラを狙うことが出来ますが、消費するルピは割高な上に必ず訪れてくれるとは限りません。
+		PRINTW また、訪問確率は好感度を上げることで上昇します。
+		PRINTL
+		PRINTL ■「サプチケ（開発版）を使う」について
+		PRINTL 全てのキャラから選択して一人を選び、選択したキャラが必ずリゾートを訪れてくれます。
+		PRINTL キャラが多くなるにつれてお目当てのキャラの初来訪が狙いづらくなるため、そのフォローとして初期で１枚所持しています。
+		PRINTW 初期所持以外の入手法は検討中です。
+		GOTO 広告_LOOP
+	CASE 999
+		RETURN 0
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+RETURN 1
+
+
+@通常広告
+#DIM 集客候補, 200
+#DIM 候補人数
+VARSET 集客候補
+
+;広告プランの表示
+DRAWLINE
+PRINTL どのくらい広告を出しますか？
+DRAWLINE
+
+IF MONEY < 3000
+	SETCOLOR 0x666666
+	PRINTPLAIN [1]近くの島に広告を出す　（ルピが足りません）
+	PRINTL 
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[1]近くの島に広告を出す", 1
+	PRINTL （必要ルピ：3000ルピ　　集客予想値：２～３人）
+ENDIF
+IF MONEY < 5000
+	SETCOLOR 0x666666
+	PRINTPLAIN [2]広範囲に広告を出す　　（ルピが足りません）
+	PRINTL 
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[2]広範囲に広告を出す", 2
+	PRINTL （必要ルピ：5000ルピ　　集客予想値：３～５人）
+ENDIF
+IF MONEY < 10000
+	SETCOLOR 0x666666
+	PRINTPLAIN [3]空域全体に広告を出す　（ルピが足りません）
+	PRINTL 
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[3]空域全体に広告を出す", 3
+	PRINTL （必要ルピ：10000ルピ　　集客予想値：５～７人）
+ENDIF
+PRINTL 
+RESETCOLOR
+PRINTBUTTON "[999]戻る", 999
+PRINTL 
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 1
+		IF MONEY < 3000
+			PRINTW ルピが足りません
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTW 近くの島に広告を出しました。
+		MONEY -= 3000
+		集客人数 = RAND:2 + 2
+	CASE 2
+		IF MONEY < 5000
+			PRINTW ルピが足りません
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTW 遠くの島まで広告を出しました。
+		MONEY -= 5000
+		集客人数 = RAND:3 + 3
+	CASE 3
+		IF MONEY < 10000
+			PRINTW ルピが足りません
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTW 奮発して空域全体に広告を出しました！
+		MONEY -= 10000
+		集客人数 = RAND:3 + 5
+	CASE 999
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+;上限以下にする
+集客人数 = MIN(集客人数, (滞在キャラ上限 - 滞在キャラ数))
+
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF GETCHARA(LOCAL) == -1
+		CONTINUE
+	;招待不可キャラは排除
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	;サプチケで呼ぶ予定のキャラは排除
+	SIF LOCAL == サプチケキャラ招待
+		CONTINUE
+	;滞在状態ではないキャラをカウント
+	IF CFLAG:LOCAL:滞在期間 == -1
+		集客候補:(LOCAL:1) = LOCAL
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+候補人数 = LOCAL:1
+
+;（たぶんないと思うけど）候補人数が０の場合はそのまま終わる
+SIF 候補人数 == 0
+	RETURN 0
+
+;候補人数が集客人数より少ない場合は全員登録
+IF 候補人数 <= 集客人数
+	FOR LOCAL, 0, 候補人数
+		通常キャラ招待:LOCAL = 集客候補:LOCAL
+	NEXT
+ENDIF
+
+LOCAL:2 = 0
+LOCAL = 候補人数 - 1
+;集客候補配列をシャッフル
+WHILE LOCAL > 0
+	LOCAL:1 = RAND:(LOCAL - 1)
+	SWAP 集客候補:LOCAL, 集客候補:(LOCAL:1)
+	LOCAL -= 1
+	LOCAL:2 += 1
+	;必要分集まったらおしまい
+	SIF LOCAL:2 >= 集客人数
+		BREAK
+WEND
+;配列の後ろの方にランダムシャッフルされた候補が集まってるはずなので集客人数分取得
+FOR LOCAL, 0, 集客人数
+	通常キャラ招待:LOCAL = 集客候補:(候補人数 - 1 - LOCAL)
+NEXT
+
+@ＤＭ広告
+#DIM 表示候補, 200
+#DIM 現在ページ
+#DIM 広告対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰にダイレクトメールを出しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;招待不可キャラは排除
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	;好感度レベル11以上（顔見知り以上）条件
+	SIF CFLAG:LOCAL:好感度レベル < 11
+		CONTINUE
+	;滞在済みは出さない
+	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL,3,RIGHT}]%NAME:(表示候補:LOCAL), 50, LEFT%", LOCAL
+	SIF LOCAL / 2 == 0
+		PRINTL 
+NEXT
+PRINTL
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+;広告対象のINPUT
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		広告対象 = 表示候補:RESULT
+ENDSELECT
+
+DRAWLINE
+PRINTFORMW %CALLNAME:MASTER%は費用として5000ルピを支払い、%CALLNAME:広告対象%にダイレクトメールを送った。
+MONEY -= 5000
+
+LOCAL = RAND:100
+LOCAL:1 = 80
+集客人数 = 1
+;基礎確率50%の予定だけど仮実装なので80％まで上げとく、以下の素質で上下させる
+;好感度による確率上昇。＋０％～１８％
+LOCAL:1 += (CFLAG:広告対象:好感度レベル - 10) / 5
+
+;実際に来るかどうかわかるのは起床後の朝だが判定はここで確定させる
+ＤＭキャラ招待 = 広告対象
+;失敗時、負の数にする
+SIF LOCAL >= LOCAL:1
+	ＤＭキャラ招待 = ＤＭキャラ招待 * -1
+
+@サプチケ使用
+#DIM 表示候補, 500
+#DIM 現在ページ
+#DIM 広告対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰にサプチケを使いますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;招待不可キャラは排除
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	;DM配達済みは排除
+	SIF ABS(ＤＭキャラ招待) == LOCAL
+		CONTINUE
+	;滞在済みは出さない
+	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	LOCAL:3 = 0
+	FOR LOCAL:2, 0, 100
+		SIF 解放キャラ招待:(LOCAL:2) == 0
+			BREAK
+		IF 解放キャラ招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF LOCAL:3
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL,3,RIGHT}]%NAME:(表示候補:LOCAL), 50, LEFT%", LOCAL
+	SIF LOCAL / 2 == 0 && LOCAL
+		PRINTL 
+NEXT
+
+PRINTL 
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+;広告対象のINPUT
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		広告対象 = 表示候補:RESULT
+ENDSELECT
+
+DRAWLINE
+PRINTFORMW %CALLNAME:MASTER%はサプチケを使い、%CALLNAME:広告対象%をリゾートに招待した。
+ITEM:サプチケ -= 1
+
+サプチケキャラ招待 = 広告対象
+;他の招待と併用出来るので例外的にここで滞在キャラ数を+1する
+滞在キャラ数 += 1
+
+;通常招待とかぶる可能性があるため、被ってたら排除
+FOR LOCAL, 0, 10
+	SIF 通常キャラ招待:LOCAL == 0
+		BREAK
+	IF 通常キャラ招待:LOCAL == サプチケキャラ招待
+		通常キャラ招待:LOCAL = 10000
+		BREAK
+	ENDIF
+NEXT

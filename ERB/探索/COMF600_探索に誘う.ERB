@@ -1,0 +1,87 @@
+﻿;-------------------------------------------------
+;探索メンバーに誘う
+;-------------------------------------------------
+@COMNAME600
+#FUNCTIONS
+TSTR:コマンド名受渡 = 探索に誘う
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_600
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("探索")
+
+@COM600
+#DIM ループ用
+
+IF CFLAG:TARGET:好感度レベル < 11
+	TFLAG:コマンド結果受渡し変数 = 1
+	RETURN
+ENDIF
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;後々ここからメンバー入れ替え関数に飛ばす
+IF BATTLE_STATE:3:0
+	PRINTFORML メンバーがいっぱいです。
+	RETURN
+ENDIF
+
+;現状は無条件で勧誘可能
+FOR ループ用, 0, 4
+	IF !BATTLE_STATE:ループ用:0
+		BATTLE_STATE:ループ用:0 = TARGET
+		PRINTFORMW %NAME:TARGET%をメンバーに加えました。
+		BREAK
+	ENDIF
+NEXT
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE600
+#DIM ループ用
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(600)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;ランダムキャラ禁止
+SIF TALENT:TARGET:ランダムキャラ
+	RETURN 0
+;既にメンバーにいたら無効
+FOR ループ用, 0, 4
+	SIF BATTLE_STATE:ループ用:0 == TARGET
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM600
+#DIM ループ用
+
+IF TFLAG:コマンド結果受渡し変数
+	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%を探索に誘ったが、断られてしまった……
+	RETURN
+ENDIF
+
+FOR ループ用, 0, 4
+	IF BATTLE_STATE:ループ用:0 == TARGET
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%を探索に誘った。
+		PRINTFORML %CALLNAME:TARGET%は快く引き受けてくれた。
+		BREAK
+	ENDIF
+NEXT
+

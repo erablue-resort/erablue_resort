@@ -1,0 +1,884 @@
+﻿;オプション設定処理
+@OPTION
+PRINTL 設定項目を選択してください
+PRINTL [0] - 口上テキスト設定
+PRINTL [1] - コマンドフィルタ
+PRINTL [2] - 特定素質の切り替え
+PRINTL [3] - 機能切り替え
+; PRINT [2] - 消耗品の自動購入 
+; 	PRINTFORML \@ FLAG:1001 ? ON # OFF \@
+PRINTL [100]-戻る
+
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 0
+	CALL OPTION_TEXT_SETTING
+ELSEIF RESULT == 1
+	CALL OPTION_COMMAND_FILTER
+ELSEIF RESULT == 2
+	CALL OPTION_素質切り替え
+ELSEIF RESULT == 3
+	CALL OPTION_機能切り替え
+ELSEIF RESULT == 100
+	RETURN 0
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
+RESTART
+;テキスト関連
+@OPTION_TEXT_SETTING
+PRINTL テキストの設定をしてください
+PRINT 現在の設定：
+IF FLAG:6 == 1 && FLAG:7 == 2
+	PRINTL 【口上テキスト（常に表示）＋情景テキスト】
+ELSEIF FLAG:6 == 1 && FLAG:7 == -1
+	PRINTL 【情景テキストのみ】
+ELSEIF FLAG:6 == 0 && FLAG:7 == -1
+	PRINTL 【テキストを表示しない】
+ENDIF
+PRINTL 　
+PRINTL [0] - 口上テキスト＋情景テキスト
+PRINTL [1] - 情景テキストのみ
+PRINTL [2] - テキストを表示しない
+PRINTL [100]-戻る
+$INPUT_LOOP
+INPUT
+IF RESULT == 100
+	RETURN 0
+ELSEIF RESULT == 0
+	PRINTL 【口上テキスト＋情景テキスト】に設定しました
+	FLAG:汎用文章表示切り替えオプション = 1
+	FLAG:口上表示切り替えオプション = 2
+ELSEIF RESULT == 1
+	PRINTL 【情景テキストのみ】に設定しました
+	FLAG:汎用文章表示切り替えオプション = 1
+	FLAG:口上表示切り替えオプション = -1
+ELSEIF RESULT == 2
+	PRINTL 【テキストを表示しない】に設定しました
+	FLAG:汎用文章表示切り替えオプション = 0
+	FLAG:口上表示切り替えオプション = -1
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
+
+;文字列変数に保存してみた
+@OPTION_COMMAND_FILTER
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
+
+VARSET LOCAL
+FOR COUNT,0,500
+	LOCALS = /{COUNT}/
+	SIF STRCOUNT(SAVESTR:0,LOCALS)
+		LOCAL:COUNT = 1
+NEXT
+SIF SAVESTR:0 == ""
+	SAVESTR:0 = /
+DRAWLINE
+TFLAG:100 = 1
+LOCALS:1 = 
+LOCAL:2 = 0
+
+FOR COUNT,0,500
+	SIF COUNT >= 370 && COUNT <= 390
+		CONTINUE
+	LOCALS = /{COUNT}/
+	; SIF STRCOUNT(SAVESTR:0,LOCALS)
+	; 		SETCOLOR 0x666666
+	IF STRLENS(TRAIN_COMNAME(COUNT))
+		TSTR:ツールチップ受渡 = TRAIN_COMNAME(COUNT)
+		IF STRCOUNT(SAVESTR:0,LOCALS)
+			LOCALS:1 += @"<font color='#666666'><button value = '{COUNT}'"
+		ELSE
+			LOCALS:1 += @"<button value = '{COUNT}'"
+		ENDIF
+		TRYCCALLFORM COM_TOOLTIP_{COUNT}
+			IF ツールチップ切り替えOPTION記憶 == 0
+				LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
+			ELSE
+				LOCALS:1 += @">"
+			ENDIF
+		CATCH
+			LOCALS:1 += @">"
+		ENDCATCH
+		LOCALS:1 += @"%TRAIN_COMNAME(COUNT), 22%[{COUNT, 3}]</button>"
+		SIF STRCOUNT(SAVESTR:0,LOCALS)
+			LOCALS:1 += "</font>"
+		;PRINTFORMC %TRAIN_COMNAME(COUNT)%[{COUNT,3}]
+		LOCAL:2 += 1
+	ENDIF
+	IF LOCAL:2 >= 4
+		LOCAL:2 = 0
+		HTML_PRINT LOCALS:1
+		LOCALS:1 = 
+	ENDIF
+NEXT
+IF LOCALS:1 != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS:1
+	LOCALS:1 = 
+ENDIF
+
+TFLAG:100 = 0
+PRINTL 
+DRAWLINE
+PRINTL [1000] - 決定　　　　　　　　　 [1001] - 通常コマンドフィルタリセット
+PRINTL [1002] - コマンドフィルタの保存 [1003] - コマンドフィルタのロード
+SETCOLOR 0x666666
+PRINTPLAIN [1010] - SMフィルタ [1011] - Ｖフィルタ（未実装です）
+RESETCOLOR
+PRINTL
+PRINTL [1020] - 固有コマンドフィルタへ
+PRINTL [1021] - 派生コマンドフィルタへ
+INPUT
+IF RESULT == 1000
+	RETURN 0
+ELSEIF RESULT == 1001
+	SAVESTR:0 = 
+	RESTART
+ELSEIF RESULT == 1002
+	$INPUT_LOOP_SAVE
+	LOADGLOBAL
+	FOR LOCAL,0,3
+		PRINTFORM [{LOCAL}] - 
+		IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+			PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+		ELSE
+			PRINTL ----------
+		ENDIF
+	NEXT
+	PRINTL [100] - 戻る
+	INPUT
+	LOCAL = RESULT
+	IF RESULT == 100
+		RESTART
+	ELSEIF RESULT < 0 || RESULT > 2
+		GOTO INPUT_LOOP_SAVE
+	ENDIF
+	SIF STRLENS(GLOBALS:(RESULT * 2 + 1))
+		PRINTFORML 【%GLOBALS:(RESULT * 2 + 1)%】 このデータに上書きします
+	PRINTL 通常コマンドフィルタの名前を登録してください
+	INPUTS
+	GLOBALS:(LOCAL * 2 + 1) = %RESULTS%
+	GLOBALS:(LOCAL * 2) = %SAVESTR:0%
+	PRINTFORMW 通常コマンドフィルタ【%GLOBALS:(LOCAL * 2 + 1)%】を登録しました
+	SAVEGLOBAL
+	RESTART
+ELSEIF RESULT == 1003
+	$INPUT_LOOP_LOAD
+	LOADGLOBAL
+	FOR LOCAL,0,3
+		PRINTFORM [{LOCAL}] - 
+		IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+			PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+		ELSE
+			PRINTL ----------
+		ENDIF
+	NEXT
+	PRINTL [100] - 戻る
+	INPUT
+	IF RESULT == 100
+		RESTART
+	ELSEIF RESULT < 0 || RESULT > 2
+		GOTO INPUT_LOOP_LOAD
+	ENDIF
+	PRINTFORMW 通常コマンドフィルタ【%GLOBALS:(RESULT * 2 + 1)%】を読み込みました
+	SAVESTR:0 = %GLOBALS:(RESULT * 2)%
+	RESTART
+;各種フィルタ
+;ELSEIF RESULT == 1010 || RESULT == 1011
+;	FOR COUNT,0,500
+;		;SM
+;;		IF RESULT == 1010
+;			SIF (COUNT >= 100 && COUNT < 120) || (COUNT >= 140 && COUNT < 160)
+;				LOCAL:COUNT = 1
+;		;V
+;		ELSEIF RESULT == 1011
+;			SIF COUNT == 3 || COUNT == 44 || COUNT == 60 || COUNT == 61 || COUNT == 65 || COUNT == 67 || COUNT == 68 || COUNT == 71 || COUNT == 122|| COUNT == 141 || COUNT == 143 || COUNT == 185
+;				LOCAL:COUNT = 1
+;		ENDIF
+;	NEXT
+ELSEIF RESULT == 1020
+	$固有
+	CALL OPTION_固有COMMAND_FILTER
+	SIF RESULT == 999
+		GOTO 派生
+ELSEIF RESULT == 1021
+	$派生
+	CALL OPTION_派生COMMAND_FILTER
+	SIF RESULT == 999
+		GOTO 固有
+ELSEIF STRLENS(TRAIN_COMNAME(RESULT))
+	LOCAL:RESULT = !LOCAL:RESULT
+ELSE
+	RESTART
+ENDIF
+SAVESTR:0 = /
+FOR COUNT,0,500
+	SIF !LOCAL:COUNT
+		CONTINUE
+	LOCALS = /{COUNT}/
+	SIF !STRCOUNT(SAVESTR:0,LOCALS)
+		SAVESTR:0 = %SAVESTR:0%{COUNT}/
+NEXT
+RESTART
+
+
+@OPTION_固有COMMAND_FILTER
+#DIM COM番号
+#DIM ターゲット保存
+#DIM ターゲット保存２
+#DIM フィルタ配列, 20, 2000
+#DIMS RESULTS分割, 10
+
+VARSET LOCAL
+VARSET フィルタ配列
+FOR COM番号, 370, 375
+	FOR COUNT, 0, CHARANUM
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF STRCOUNT(SAVESTR:1, LOCALS)
+			フィルタ配列:(COM番号 - 370):COUNT = 1
+	NEXT
+NEXT
+FOR COM番号, 380, 385
+	FOR COUNT, 0, 2000
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF STRCOUNT(SAVESTR:1, LOCALS)
+			フィルタ配列:(COM番号 - 370):COUNT = 1
+		SIF (COUNT % 100) > 20
+			COUNT += 79
+	NEXT
+NEXT
+SIF SAVESTR:1 == ""
+	SAVESTR:1 = /
+DRAWLINE
+TFLAG:100 = 1
+
+ターゲット保存 = TARGET
+FOR COM番号, 370, 375
+	FOR COUNT, 1, CHARANUM
+		LOCALS = /{COM番号}_{COUNT}/
+		TARGET = COUNT
+		;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+		TRYCCALLFORM COM_ABLE{COM番号}_{NO:TARGET}
+			TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
+			IF STRCOUNT(SAVESTR:1,LOCALS)
+				LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{COUNT}'"
+			ELSE
+				LOCALS:1 += @"<button value = '{COM番号}_{COUNT}'"
+			ENDIF
+			TRYCCALLFORM COM_TOOLTIP_{COM番号}_{COUNT}
+				IF ツールチップ切り替えOPTION記憶 == 0
+					LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
+				ELSE
+					LOCALS:1 += @">"
+				ENDIF
+			CATCH
+				LOCALS:1 += @">"
+			ENDCATCH
+			LOCALS:1 += @"%CALLNAME:COUNT,20,RIGHT% - %TRAIN_COMNAME(COM番号), 22%[{COM番号}_{COUNT,3}]</button>"
+			SIF STRCOUNT(SAVESTR:1,LOCALS)
+				LOCALS:1 += "</font>"
+			LOCAL:2 += 1
+		CATCH
+		ENDCATCH
+		IF LOCAL:2 >= 2
+			LOCAL:2 = 0
+			HTML_PRINT LOCALS:1
+			LOCALS:1 = 
+		ENDIF
+	NEXT
+NEXT
+IF LOCALS:1 != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS:1
+	LOCALS:1 = 
+ENDIF
+TARGET = ターゲット保存
+PRINTL
+DRAWLINE
+ターゲット保存 = CFLAG:MASTER:現在位置
+ターゲット保存２ = CFLAG:MASTER:現在マップ種別
+FOR COM番号, 380, 385
+	FOR LOCAL:5, 0, 1
+		CFLAG:MASTER:現在マップ種別 = LOCAL:5
+		FOR COUNT, 1, 2000
+			LOCALS = /{COM番号}_{LOCAL:5}_{COUNT}/
+			CFLAG:MASTER:現在位置 = COUNT
+			;マップ種別とりあえず入れておくだけ
+			;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+			TRYCCALLFORM COM_ABLE{COM番号}_{LOCAL:5}_{COUNT}
+				IF TRAIN_COMNAME(COM番号) != ""
+					TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
+					IF STRCOUNT(SAVESTR:1,LOCALS)
+						LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{LOCAL:5}_{COUNT}'"
+					ELSE
+						LOCALS:1 += @"<button value = '{COM番号}_{LOCAL:5}_{COUNT}'"
+					ENDIF
+					TRYCCALLFORM COM_TOOLTIP_{COM番号}_{LOCAL:5}_{COUNT}
+						IF ツールチップ切り替えOPTION記憶 == 0
+							LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
+						ELSE
+							LOCALS:1 += @">"
+						ENDIF
+					CATCH
+						LOCALS:1 += @">"
+					ENDCATCH
+					LOCALS:1 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置),20,RIGHT% - %TRAIN_COMNAME(COM番号),18,RIGHT%[{COM番号}_{LOCAL:5,2}_{COUNT,4}]</button>"
+					SIF STRCOUNT(SAVESTR:1,LOCALS)
+						LOCALS:1 += "</font>"
+					LOCAL:2 += 1
+				ENDIF
+			CATCH
+			ENDCATCH
+			IF LOCAL:2 >= 2
+				LOCAL:2 = 0
+				HTML_PRINT LOCALS:1
+				LOCALS:1 = 
+			ENDIF
+			SIF (COUNT % 100) > 20
+				COUNT += 79
+		NEXT
+	NEXT
+NEXT
+IF LOCALS:1 != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS:1
+	LOCALS:1 = 
+ENDIF
+CFLAG:MASTER:現在位置 = ターゲット保存
+CFLAG:MASTER:現在マップ種別 = ターゲット保存２
+
+TFLAG:100 = 0
+PRINTL 
+DRAWLINE
+
+PRINTBUTTON "[1000] - 通常コマンドフィルタへ　　　", TOSTR(1000)
+PRINTBUTTON "[1001] - 派生コマンドフィルタへ　　　", TOSTR(1001)
+PRINTL
+PRINTBUTTON "[1002] - 固有コマンドフィルタリセット", TOSTR(1002)
+PRINTL
+PRINTBUTTON "[1003] - 固有コマンドフィルタの保存　", TOSTR(1003)
+PRINTBUTTON "[1004] - 固有コマンドフィルタのロード", TOSTR(1004)
+PRINTL
+
+INPUTS
+
+SELECTCASE RESULTS
+	CASE "1000"
+		RETURN 0
+	CASE "1001"
+		RETURN 999
+	CASE "1002"
+		SAVESTR:1 = 
+		RESTART
+	CASE "1003"
+		$INPUT_LOOP_SAVE
+		LOADGLOBAL
+		FOR LOCAL, 3, 6
+			PRINTFORM [{LOCAL}] - 
+			IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+				PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+			ELSE
+				PRINTL ----------
+			ENDIF
+		NEXT
+		PRINTL [100] - 戻る
+		INPUT
+		LOCAL = RESULT
+		IF LOCAL == 100
+			RESTART
+		ELSEIF LOCAL < 3 || LOCAL > 5
+			GOTO INPUT_LOOP_SAVE
+		ENDIF
+		SIF STRLENS(GLOBALS:(RESULT * 2 + 1))
+			PRINTFORML 【%GLOBALS:(LOCAL * 2 + 1)%】 このデータに上書きします
+		PRINTL 固有コマンドフィルタの名前を登録してください
+		INPUTS
+		GLOBALS:(LOCAL * 2 + 1) = %RESULTS%
+		GLOBALS:(LOCAL * 2) = %SAVESTR:1%
+		PRINTFORMW 固有コマンドフィルタ【%GLOBALS:(LOCAL * 2 + 1)%】を登録しました
+		SAVEGLOBAL
+		RESTART
+	CASE "1004"
+		$INPUT_LOOP_LOAD
+		LOADGLOBAL
+		FOR LOCAL, 3, 6
+			PRINTFORM [{LOCAL}] - 
+			IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+				PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+			ELSE
+				PRINTL ----------
+			ENDIF
+		NEXT
+		PRINTL [100] - 戻る
+		INPUT
+		IF RESULT == 100
+			RESTART
+		ELSEIF RESULT < 3 || RESULT > 5
+			GOTO INPUT_LOOP_LOAD
+		ENDIF
+		PRINTFORMW 固有コマンドフィルタ【%GLOBALS:(RESULT * 2 + 1)%】を読み込みました
+		SAVESTR:1 = %GLOBALS:(RESULT * 2)%
+		RESTART
+	CASEELSE
+		SPLIT RESULTS, "_", RESULTS分割
+		IF RESULT == 2
+			IF TOINT(RESULTS分割:0) >= 370 && TOINT(RESULTS分割:0) <= 374
+				フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1)) = !フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1))
+			ELSEIF TOINT(RESULTS分割:0) >= 380 && TOINT(RESULTS分割:0) <= 384
+				フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1)) = !フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1))
+			ENDIF
+		ELSE
+			RESTART
+		ENDIF
+ENDSELECT
+
+SAVESTR:1 = /
+FOR COM番号, 370, 375
+	FOR COUNT, 1, CHARANUM
+		SIF !フィルタ配列:(COM番号 - 370):COUNT
+			CONTINUE
+		PRINTFORML {フィルタ配列:(COM番号 - 370):COUNT}
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF !STRCOUNT(SAVESTR:1,LOCALS)
+			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
+	NEXT
+NEXT
+FOR COM番号, 380, 385
+	FOR COUNT, 1, 2000
+		SIF !フィルタ配列:(COM番号 - 370):COUNT
+			CONTINUE
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF !STRCOUNT(SAVESTR:1,LOCALS)
+			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
+		SIF (COUNT % 100) > 20
+			COUNT += 79
+	NEXT
+NEXT
+
+RESTART
+
+$処理部分ラベル
+
+
+@OPTION_派生COMMAND_FILTER
+#DIM COM番号
+#DIM ターゲット保存
+#DIM フィルタ配列, 500, 50
+#DIMS RESULTS分割, 10
+
+VARSET LOCAL
+VARSET フィルタ配列
+FOR COM番号, 0, 500
+	FOR COUNT, 1, 50
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF STRCOUNT(SAVESTR:2, LOCALS)
+			フィルタ配列:COM番号:COUNT = 1
+	NEXT
+NEXT
+SIF SAVESTR:2 == ""
+	SAVESTR:2 = /
+DRAWLINE
+TFLAG:100 = 1
+
+FOR COM番号, 0, 500
+	SIF COM番号 >= 370 && COM番号 <=390
+		CONTINUE
+	FOR COUNT, 1, 50
+		LOCALS = /{COM番号}_{COUNT}/
+		LOCALS:1 = {COM番号}_{COUNT}
+		SIF STRCOUNT(SAVESTR:2,LOCALS)
+			SETCOLOR 0x666666
+		;派生コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+		TRYCCALLFORM COM_ABLE_S%LOCALS:1%
+			IF TRAIN_COMNAME_S(LOCALS:1) != ""
+				TSTR:ツールチップ受渡 = TRAIN_COMNAME_S(LOCALS:1)
+				IF STRCOUNT(SAVESTR:2,LOCALS)
+					LOCALS:2 += @"<font color='#666666'><button value = '%LOCALS:1%'"
+				ELSE
+					LOCALS:2 += @"<button value = '%LOCALS:1%'"
+				ENDIF
+				TRYCCALLFORM COM_TOOLTIP_S{COM番号}_{COUNT}
+					IF ツールチップ切り替えOPTION記憶 == 0
+						LOCALS:2 += @" title = '%TSTR:ツールチップ受渡%'>"
+					ELSE
+						LOCALS:2 += @">"
+					ENDIF
+				CATCH
+					LOCALS:2 += @">"
+				ENDCATCH
+				LOCALS:2 += @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]</button>"
+				SIF STRCOUNT(SAVESTR:2,LOCALS)
+					LOCALS:2 += "</font>"
+				LOCAL:2 += 1
+				;PRINTBUTTON @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]", @"%LOCALS:1%"
+			ENDIF
+		CATCH
+		ENDCATCH
+		IF LOCAL:2 >= 2
+			LOCAL:2 = 0
+			HTML_PRINT LOCALS:2
+			LOCALS:2 = 
+		ENDIF
+	NEXT
+NEXT
+IF LOCALS:2 != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS:2
+	LOCALS:2 = 
+ENDIF
+
+TFLAG:100 = 0
+PRINTL 
+DRAWLINE
+
+PRINTBUTTON "[1000] - 通常コマンドフィルタへ　　　", TOSTR(1000)
+PRINTBUTTON "[1001] - 固有コマンドフィルタへ　　　", TOSTR(1001)
+PRINTL
+PRINTBUTTON "[1002] - 派生コマンドフィルタリセット", TOSTR(1002)
+PRINTL
+PRINTBUTTON "[1003] - 派生コマンドフィルタの保存　", TOSTR(1003)
+PRINTBUTTON "[1004] - 派生コマンドフィルタのロード", TOSTR(1004)
+PRINTL
+
+INPUTS
+
+SELECTCASE RESULTS
+	CASE "1000"
+		RETURN 0
+	CASE "1001"
+		RETURN 999
+	CASE "1002"
+		SAVESTR:2 = 
+		RESTART
+	CASE "1003"
+		$INPUT_LOOP_SAVE
+		LOADGLOBAL
+		FOR LOCAL, 6, 9
+			PRINTFORM [{LOCAL}] - 
+			IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+				PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+			ELSE
+				PRINTL ----------
+			ENDIF
+		NEXT
+		PRINTL [100] - 戻る
+		INPUT
+		LOCAL = RESULT
+		IF LOCAL == 100
+			RESTART
+		ELSEIF LOCAL < 6 || LOCAL > 8
+			GOTO INPUT_LOOP_SAVE
+		ENDIF
+		SIF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+			PRINTFORML 【%GLOBALS:(LOCAL * 2 + 1)%】 このデータに上書きします
+		PRINTL 派生コマンドフィルタの名前を登録してください
+		INPUTS
+		GLOBALS:(LOCAL * 2 + 1) = %RESULTS%
+		GLOBALS:(LOCAL * 2) = %SAVESTR:2%
+		PRINTFORMW 派生コマンドフィルタ【%GLOBALS:(LOCAL * 2 + 1)%】を登録しました
+		SAVEGLOBAL
+		RESTART
+	CASE "1004"
+		$INPUT_LOOP_LOAD
+		LOADGLOBAL
+		FOR LOCAL, 6, 9
+			PRINTFORM [{LOCAL}] - 
+			IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
+				PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+			ELSE
+				PRINTL ----------
+			ENDIF
+		NEXT
+		PRINTL [100] - 戻る
+		INPUT
+		IF RESULT == 100
+			RESTART
+		ELSEIF RESULT < 6 || RESULT > 8
+			GOTO INPUT_LOOP_LOAD
+		ENDIF
+		PRINTFORMW 派生コマンドフィルタ【%GLOBALS:(RESULT * 2 + 1)%】を読み込みました
+		SAVESTR:2 = %GLOBALS:(RESULT * 2)%
+		RESTART
+	CASEELSE
+		SPLIT RESULTS, "_", RESULTS分割
+		IF RESULT == 2
+			フィルタ配列:(TOINT(RESULTS分割:0)):(TOINT(RESULTS分割:1)) = !フィルタ配列:(TOINT(RESULTS分割:0)):(TOINT(RESULTS分割:1))
+		ELSE
+			RESTART
+		ENDIF
+ENDSELECT
+
+SAVESTR:2 = /
+FOR COM番号, 0, 500
+	FOR COUNT, 1, 50
+		SIF !フィルタ配列:COM番号:COUNT
+			CONTINUE
+		PRINTFORML {フィルタ配列:COM番号:COUNT}
+		LOCALS = /{COM番号}_{COUNT}/
+		SIF !STRCOUNT(SAVESTR:2,LOCALS)
+			SAVESTR:2 = %SAVESTR:2%{COM番号}_{COUNT}/
+	NEXT
+NEXT
+
+RESTART
+
+$処理部分ラベル
+
+
+@OPTION_素質切り替え
+DRAWLINE
+PRINTL すべてのキャラクターのうち、特定の素質を別の素質で置き換えます。
+PRINTL （※一度置き換えた後は戻すことが出来ません）
+DRAWLINE
+IF 素質切り替えOPTION記憶:ふたなり_女性
+	PRINTBUTTON "[0][ふたなり]を[女性]に変更する（適用済み）", 0
+ELSE
+	PRINTBUTTON "[0][ふたなり]を[女性]に変更する", 0
+ENDIF
+PRINTL
+IF 素質切り替えOPTION記憶:陥没乳首_なし
+	PRINTBUTTON "[1][陥没乳首]を[なし]に変更する（適用済み）", 1
+ELSE
+	PRINTBUTTON "[1][陥没乳首]を[なし]に変更する", 1
+ENDIF
+PRINTL
+IF 素質切り替えOPTION記憶:母乳体質_なし && 素質切り替えOPTION記憶:母乳体質_発情期_なし
+	PRINTBUTTON "[2][母乳体質]を[なし]に変更する（適用済み）", 2
+ELSE
+	PRINTBUTTON "[2][母乳体質]を[なし]に変更する", 2
+ENDIF
+PRINTL
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		IF 素質切り替えOPTION記憶:ふたなり_女性
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTL [ふたなり]を[女性]に変更します。変更後は元に戻すことは出来ません。
+		PRINTL よろしいですか？
+		PRINTBUTTON "[0]今後追加されるキャラも含めて変更する", 0
+		PRINTL
+		PRINTBUTTON "[1]今存在するキャラのみ変更する", 1
+		PRINTL
+		PRINTBUTTON "[2]関連する経験（射精経験）を今いるキャラから消す", 2
+		PRINTL
+		PRINTBUTTON "[10]変更しない", 10
+		PRINTL
+		$INPUT_LOOP2
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:性別 == 3
+						TALENT:LOCAL:性別 = 1
+					ENDIF
+				NEXT
+				素質切り替えOPTION記憶:ふたなり_女性 = 1
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 1
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:性別 == 3
+						TALENT:LOCAL:性別 = 1
+					ENDIF
+				NEXT
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 2
+				FOR LOCAL, 1, CHARANUM
+					IF EXP:LOCAL:射精経験
+						EXP:LOCAL:射精経験 = 0
+					ENDIF
+				NEXT
+				PRINTW 消去が終了しました。
+				RESTART
+			CASE 10
+				RESTART
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP2
+		ENDSELECT
+	CASE 1
+		IF 素質切り替えOPTION記憶:陥没乳首_なし
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTL [陥没乳首]を[なし]に変更します。変更後は元に戻すことは出来ません。
+		PRINTL よろしいですか？
+		PRINTBUTTON "[0]今後追加されるキャラも含めて変更する", 0
+		PRINTL
+		PRINTBUTTON "[1]今存在するキャラのみ変更する", 1
+		PRINTL
+		PRINTBUTTON "[10]変更しない", 10
+		PRINTL
+		$INPUT_LOOP3
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:陥没乳首
+						TALENT:LOCAL:陥没乳首 = 0
+					ENDIF
+				NEXT
+				素質切り替えOPTION記憶:陥没乳首_なし = 1
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 1
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:陥没乳首
+						TALENT:LOCAL:陥没乳首 = 0
+					ENDIF
+				NEXT
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 10
+				RESTART
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP3
+		ENDSELECT
+	CASE 2
+		IF 素質切り替えOPTION記憶:母乳体質_なし && 素質切り替えOPTION記憶:母乳体質_発情期_なし
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		PRINTL [母乳体質]を[なし]に変更します。変更後は元に戻すことは出来ません。
+		PRINTL よろしいですか？
+		IF 素質切り替えOPTION記憶:母乳体質_なし
+			SETCOLOR 0x666666
+			PRINTPLAIN [0]今後追加されるキャラも含めて変更する（適用済み）
+			PRINTL
+			PRINTPLAIN [1]今存在するキャラのみ変更する（適用済み）
+			PRINTL
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[0]今後追加されるキャラも含めて変更する", 0
+			PRINTL
+			PRINTBUTTON "[1]今存在するキャラのみ変更する", 1
+			PRINTL
+		ENDIF
+		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし
+			SETCOLOR 0x666666
+			PRINTPLAIN [2]ドラフの[母乳体質(発情期)]を消す（適用済み）
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[2]ドラフの[母乳体質(発情期)]を消す", 2
+		ENDIF
+		PRINTBUTTON "[3]関連する経験（噴乳経験）を今いるキャラから消す", 3
+		PRINTL
+		PRINTBUTTON "[10]変更しない", 10
+		PRINTL
+		$INPUT_LOOP4
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				IF 素質切り替えOPTION記憶:母乳体質_なし
+					REUSELASTLINE 
+					GOTO INPUT_LOOP4
+				ENDIF
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:母乳体質 == 1
+						TALENT:LOCAL:母乳体質 = 0
+					ENDIF
+				NEXT
+				素質切り替えOPTION記憶:母乳体質_なし = 1
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 1
+				IF 素質切り替えOPTION記憶:母乳体質_なし
+					REUSELASTLINE 
+					GOTO INPUT_LOOP4
+				ENDIF
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:母乳体質
+						TALENT:LOCAL:母乳体質 = 0
+					ENDIF
+				NEXT
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 2
+				IF 素質切り替えOPTION記憶:母乳体質_発情期_なし
+					REUSELASTLINE 
+					GOTO INPUT_LOOP4
+				ENDIF
+				FOR LOCAL, 1, CHARANUM
+					IF TALENT:LOCAL:母乳体質 == 2
+						TALENT:LOCAL:母乳体質 = 0
+					ENDIF
+				NEXT
+				素質切り替えOPTION記憶:母乳体質_発情期_なし = 1
+				PRINTW 変更が終了しました。
+				RESTART
+			CASE 3
+				FOR LOCAL, 1, CHARANUM
+					IF EXP:LOCAL:噴乳経験
+						EXP:LOCAL:噴乳経験 = 0
+					ENDIF
+				NEXT
+				PRINTW 消去が終了しました。
+				RESTART
+			CASE 10
+				RESTART
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP4
+		ENDSELECT
+	CASE 999
+		RETURN
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+@OPTION_機能切り替え
+DRAWLINE
+PRINTL ・ツールチップ切り替え
+PRINTL 特定の場所にマウスカーソルを合わせた際にポップアップ表示されるツールチップの表示を切り替えます。
+PRINTL （※本来得られるべき情報が得られなくなるため、通常時はONを強く推奨）
+PRINTL 
+PRINTL ・発情期切り替え
+PRINTL エルーンやドラフ、あるいは特定キャラに訪れる発情期のON/OFFを切り替えます。
+DRAWLINE
+IF ツールチップ切り替えOPTION記憶 == 0
+	PRINTBUTTON "[0]ツールチップをOFFにする（現在ON）", 0
+ELSEIF ツールチップ切り替えOPTION記憶
+	PRINTBUTTON "[0]ツールチップをONにする（現在OFF）", 0
+ENDIF
+PRINTL
+IF 発情期切り替えOPTION記憶 == 0
+	PRINTBUTTON "[1]発情期をOFFにする（現在ON）", 1
+ELSEIF 発情期切り替えOPTION記憶
+	PRINTBUTTON "[1]発情期をONにする（現在OFF）", 1
+ENDIF
+PRINTL
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		INVERTBIT ツールチップ切り替えOPTION記憶, 0
+		RESTART
+	CASE 1
+		INVERTBIT 発情期切り替えOPTION記憶, 0
+		RESTART
+	CASE 999
+		RETURN
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT

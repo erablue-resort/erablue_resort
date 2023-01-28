@@ -1,0 +1,228 @@
+﻿
+;-------------------------------------------------
+;罰ゲーム処理関連
+;-------------------------------------------------
+;代入した番号のキャラ相手に、罰ゲームを与えるか受けるかで分岐しつつ処理
+;-------------------------------------------------
+		
+@罰ゲーム(キャラ番号, 勝敗)
+#DIM キャラ番号
+#DIMS 勝敗
+#DIM 罰ゲーム種類
+
+
+SELECTCASE 勝敗
+	CASE "勝利"
+		$INPUT_LOOP
+		PRINTFORML %CALLNAME:キャラ番号%に何の罰ゲームを与えようか？
+		PRINTBUTTON "[0]でこぴんをする", 0
+		PRINTL 
+		PRINTBUTTON "[1]お酒を一杯飲む", 1
+		PRINTL 
+		CALL PRINT_えっちな罰ゲーム(キャラ番号)
+		INPUT
+		
+		罰ゲーム種類 = RESULT
+		SELECTCASE RESULT
+			CASE 0
+				TFLAG:コマンド結果受渡し変数２ = 0
+				PRINTFORML %CALLNAME:MASTER%は罰ゲームとして%CALLNAME:キャラ番号%に軽くデコピンした。
+				PRINTFORML %CALLNAME:キャラ番号%は痛そうにおでこを手でさすっている。
+			CASE 1
+				TFLAG:コマンド結果受渡し変数２ = 1
+				;いずれ子供キャラにはジュースにしたり、酩酊処理を挟んだりするが今は仮実装
+				PRINTFORML %CALLNAME:キャラ番号%は罰ゲームとしてお酒を一杯飲んだ。
+				PRINTFORML %CALLNAME:キャラ番号%の顔が少し赤くなっている。
+				IF !初体験日:キャラ番号:初飲酒
+					初体験日:キャラ番号:初飲酒 = DAY
+					TFLAG:初飲酒フラグ = 1
+				ENDIF
+				EXP:キャラ番号:飲酒経験 += RAND:3 + 1
+				BASE:キャラ番号:酩酊 += RAND:100 + 100
+				SIF BASE:キャラ番号:酩酊 >= 1000
+					CFLAG:キャラ番号:酔いすぎ = 1
+			CASE 10 TO 12
+				IF ABLE_えっちな罰ゲーム(キャラ番号) <= 50 && 罰ゲーム種類 == 10
+					GOTO INPUT_LOOP
+				ELSEIF ABLE_えっちな罰ゲーム(キャラ番号) <= 65 && 罰ゲーム種類 == 11
+					GOTO INPUT_LOOP
+				ELSEIF ABLE_えっちな罰ゲーム(キャラ番号) <= 80 && 罰ゲーム種類 == 12
+					GOTO INPUT_LOOP
+				ENDIF
+				TFLAG:コマンド結果受渡し変数２ = RESULT
+				CALL COM_えっちな罰ゲーム(キャラ番号, 罰ゲーム種類)
+				CALL MESSAGE_えっちな罰ゲーム(キャラ番号, 罰ゲーム種類)
+			CASEELSE
+				GOTO INPUT_LOOP
+		ENDSELECT
+		
+	CASE "敗北"
+		;いずれ素質で受ける罰ゲームを分岐させるが今は単純にデコピンだけ
+		PRINTFORML %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:MASTER%に軽くデコピンした。
+		PRINTL 少しおでこがひりひりする…
+ENDSELECT
+
+
+
+@PRINT_えっちな罰ゲーム(キャラ番号)
+#DIM キャラ番号
+;複数の罰ゲームに派生させるので別関数で処理する
+
+IF CFLAG:キャラ番号:好感度レベル < 50
+	SETCOLOR 0x666666
+	PRINTPLAIN [2]えっちな罰ゲーム（好感度レベルが足りません）
+	PRINTL
+	RESETCOLOR
+ELSE
+	PRINTL ▼えっちな罰ゲーム
+	;いずれ脱衣も実装する……絶対にだ……
+	IF ABLE_えっちな罰ゲーム(キャラ番号) > 50
+		PRINT ├
+		PRINTBUTTON "[10]下着の色を言う", 10
+		PRINTL 
+	ELSE
+		SETCOLOR 0x666666
+		PRINTPLAIN ├[10]？？？（条件が足りません）
+		PRINTL 
+		RESETCOLOR
+	ENDIF
+	IF ABLE_えっちな罰ゲーム(キャラ番号) > 65
+		PRINT ├
+		PRINTBUTTON "[11]セクシーポーズで淫語を言う", 11
+		PRINTL 
+	ELSE
+		SETCOLOR 0x666666
+		PRINTPLAIN ├[11]？？？（条件が足りません）
+		PRINTL 
+		RESETCOLOR
+	ENDIF
+	IF ABLE_えっちな罰ゲーム(キャラ番号) > 80
+		PRINT └
+		PRINTBUTTON "[12]乳首当てゲームをする", 12
+		PRINTL 
+	ELSE
+		SETCOLOR 0x666666
+		PRINTPLAIN └[12]？？？（条件が足りません）
+		PRINTL 
+		RESETCOLOR
+	ENDIF
+ENDIF
+
+
+
+
+@ABLE_えっちな罰ゲーム(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 許容値
+;どこまで罰ゲームを許してくれるかを表す数値、高いほどいろいろ許してくれる
+
+;初期値は好感度レベル
+許容値 = CFLAG:キャラ番号:好感度レベル
+
+;恋慕が低いとマイナス補正、恋慕が高いとプラス補正
+IF 恋慕対象フラグ:0 == キャラ番号
+	IF CFLAG:キャラ番号:恋慕レベル < 30
+		許容値 -= CFLAG:キャラ番号:恋慕レベル / 2
+	ELSE
+		許容値 += CFLAG:キャラ番号:恋慕レベル / 2
+	ENDIF
+ENDIF
+
+;素質に手を入れた後にいずれ色々追加すること
+
+RETURNF 許容値
+
+
+
+@COM_えっちな罰ゲーム(キャラ番号, ARG)
+#DIM キャラ番号
+
+SELECTCASE ARG
+	CASE 10
+		;下着の色を言う
+		CALL SOURCE_CALC_露出(キャラ番号, PLAYER, 100)
+	CASE 11
+		;セクシーポーズで淫語
+		CALL SOURCE_CALC_露出(キャラ番号, PLAYER, 200)
+	CASE 12
+		;乳首当てゲーム
+		CALL SOURCE_CALC_露出(キャラ番号, PLAYER, 200)
+		CALL SOURCE_CALC_快Ｂ(キャラ番号, PLAYER, 50)
+ENDSELECT
+
+
+@MESSAGE_えっちな罰ゲーム(キャラ番号, ARG)
+#DIM キャラ番号
+
+SELECTCASE ARG
+	CASE 10
+		;下着の色を言う
+		PRINTFORM %CALLNAME:キャラ番号%は
+		IF TALENT:キャラ番号:羞恥心 > 0
+			PRINT 顔を真っ赤にしながら
+		ELSEIF TALENT:キャラ番号:羞恥心 < 0
+			PRINT なんでも無いような顔で
+		ELSE
+			PRINT 少し恥ずかしそうに
+		ENDIF
+		IF TEQUIP:キャラ番号:下半身下着あり == 1
+			PRINTW 自身の下着の色を教えてくれた。
+		ELSEIF TEQUIP:キャラ番号:下半身下着あり == 0
+			PRINTW 履いてないことを教えてくれた。
+		ELSEIF TEQUIP:キャラ番号:下半身下着あり == 2
+			PRINTW 前張りだと教えてくれた。
+		ELSEIF TEQUIP:キャラ番号:下半身下着あり == 3
+			PRINTW ふんどしだと教えてくれた。
+		ENDIF
+	CASE 11
+		;セクシーポーズで淫語
+		PRINTFORM %CALLNAME:キャラ番号%は
+		IF TALENT:キャラ番号:羞恥心 > 0
+			PRINTL 心底恥ずかしそうに
+		ELSEIF TALENT:キャラ番号:羞恥心 < 0
+			PRINTL 少し乗り気な様子で
+		ELSE
+			PRINTL 困ったように笑いながら
+		ENDIF
+		IF 知識素質:キャラ番号:性知識 < 1
+			PRINTW とんちんかんなポーズと言葉を披露した。
+		ELSEIF 知識素質:キャラ番号:性知識 < 3
+			PRINTW ぎこちないセクシーポーズを取り、精一杯のえっちな言葉を並べた。
+		ELSEIF 知識素質:キャラ番号:性知識 < 5
+			PRINTW 魅惑的なポーズを取り、性欲を煽るような過激な言葉を語った。
+		ELSE
+			PRINTFORMW とても子供には見せられないエグいポーズを見せつけ、%CALLNAME:MASTER%の耳元で淫靡なセリフを囁いた。
+		ENDIF
+	CASE 12
+		;乳首当てゲーム
+		IF TALENT:キャラ番号:羞恥心 > 0
+			PRINT 頬を赤く染めて目を瞑って待つ
+		ELSEIF TALENT:キャラ番号:羞恥心 < 0
+			PRINT 当てられるかな？と笑う
+		ELSE
+			PRINT 
+		ENDIF
+		PRINTFORMW %CALLNAME:キャラ番号%の胸に、乳首めがけて指を前に出した。
+		SELECTCASE RAND:10
+			CASE 0 TO 4
+				TFLAG:コマンド結果受渡し変数４ = 1
+				PRINTL 【的中！】
+				PRINTFORMW %CALLNAME:MASTER%は見事%CALLNAME:キャラ番号%の乳首を突くことに成功した！
+				CALL SOURCE_CALC_快Ｂ(キャラ番号, PLAYER, 100)
+			CASE 5 TO 8
+				TFLAG:コマンド結果受渡し変数４ = -1
+				PRINTL 【ハズレ…】
+				PRINTFORMW %CALLNAME:MASTER%は乳首の位置を見誤ってしまったようだ…
+			CASE 9
+				TFLAG:コマンド結果受渡し変数４ = 2
+				PRINTL 【的中！　…しかし】
+				PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:キャラ番号%の乳首に的中させたが、%CALLNAME:キャラ番号%は外れたと言い張っている。
+				PRINTFORMW 突いた指をぐりぐりと動かしてやると、%CALLNAME:キャラ番号%はたまらず負けを認めた。
+				CALL SOURCE_CALC_快Ｂ(キャラ番号, PLAYER, 150)
+		ENDSELECT
+ENDSELECT
+
+
+
+

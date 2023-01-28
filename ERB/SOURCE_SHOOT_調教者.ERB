@@ -1,0 +1,496 @@
+﻿
+;-------------------------------------------------------------------------------------------
+;射精先の選択肢関連の処理
+;-------------------------------------------------------------------------------------------
+
+@EVENT_SHOOT_PLAYER
+#DIM 射精先キャラ, 2
+VARSET LOCAL
+
+;どこに射精するかを決定する
+
+;まずTARGETのうちうふふ状態の相手を探す
+FOR LOCAL, 1, CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	SIF LOCAL:1 > 1
+		BREAK
+	IF CFLAG:(TARGET:LOCAL):うふふ
+		射精先キャラ:(LOCAL:1) = LOCAL
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+
+PRINTL どこに射精しますか？
+DRAWLINE
+;射精先の一覧から可能な選択肢を引っ張ってくる
+LOCAL:1 = 0
+FOR LOCAL, 0, 30
+	TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:0)
+		;ABLEが通れば選択肢を出す
+		SIF !RESULT
+			CONTINUE
+		CALLFORM SHOOT_NAME_{LOCAL}
+		PRINTBUTTONLC @"[{LOCAL}]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%", LOCAL
+		LOCAL:1 += 1
+	CATCH
+	ENDCATCH
+NEXT
+IF LOCAL:1 == 0
+	;どれも引っかからなかった場合はその他選択肢を出す
+	CALL SHOOT_NAME_30()
+	PRINTBUTTONLC @"[30]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%", 30
+ENDIF
+PRINTL
+IF 射精先キャラ:1 > 0
+	LOCAL:1 = 0
+	FOR LOCAL, 0, 30
+		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:1)
+			;ABLEが通れば選択肢を出す
+			SIF !RESULT
+				CONTINUE
+			CALLFORM SHOOT_NAME_{LOCAL}
+			PRINTBUTTONLC @"[{LOCAL + 100}]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%", LOCAL + 100
+			LOCAL:1 += 1
+		CATCH
+		ENDCATCH
+	NEXT
+	IF LOCAL:1 == 0
+		;どれも引っかからなかった場合はその他選択肢を出す
+		CALL SHOOT_NAME_30()
+		PRINTBUTTONLC @"[130]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%", 130
+	ENDIF
+ENDIF
+PRINTL
+DRAWLINE
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 30
+		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:0)
+			IF !RESULT
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+			ENDIF
+			;射精実処理
+			TFLAG:フィニッシュ場所 = LOCAL
+			CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:0)
+			PRINTL
+			DRAWLINE
+			CALL SHOOT絶頂計算(TARGET:(射精先キャラ:0))
+			SIF TFLAG:被射精絶頂の強度
+				CALL SHOOT絶頂口上(TARGET:(射精先キャラ:0))
+			TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
+		CATCH
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDCATCH
+	CASE 100 TO 130
+		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:1)
+			IF !RESULT
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+			ENDIF
+			;射精実処理
+			TFLAG:フィニッシュ場所 = LOCAL
+			CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:1)
+			PRINTL
+			DRAWLINE
+			CALL SHOOT絶頂計算(TARGET:(射精先キャラ:1))
+			SIF TFLAG:被射精絶頂の強度
+				CALL SHOOT絶頂口上(TARGET:(射精先キャラ:1))
+			TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:1))}
+		CATCH
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDCATCH
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+RETURN 0
+
+
+@SHOOT絶頂計算(ARG)
+C = 0
+V = 0
+A = 0
+B = 0
+S = 0
+
+;絶頂Ｃ
+IF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4 * 5
+	C = 5
+	CDOWN:ARG:快Ｃ += (PALAMLV:4 * 5 - 1000)
+	NOWEX:ARG:Ｃ絶頂 = 5
+	;PRINTFORML 究極絶頂Ｃ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4 * 4
+	C = 4
+	CDOWN:ARG:快Ｃ += (PALAMLV:4 * 4 - 1000)
+	NOWEX:ARG:Ｃ絶頂 = 4
+	;PRINTFORML 最強絶頂Ｃ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4 * 3
+	C = 3
+	CDOWN:ARG:快Ｃ += (PALAMLV:4 * 3 - 1000)
+	NOWEX:ARG:Ｃ絶頂 = 3
+	;PRINTFORML 超強絶頂Ｃ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4 * 2
+	C = 2
+	CDOWN:ARG:快Ｃ += (PALAMLV:4 * 2 - 1000)
+	NOWEX:ARG:Ｃ絶頂 = 2
+	;PRINTFORML 強絶頂Ｃ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4
+	C = 1
+	CDOWN:ARG:快Ｃ += (PALAMLV:4 - 1000)
+	NOWEX:ARG:Ｃ絶頂 = 1
+	;PRINTFORML 絶頂Ｃ\@ARG == PLAYER?(調教者)#\@
+ENDIF
+;CDOWN:ARG:0で下げても絶頂以上なら
+;その値-1になるように調整（10000で絶頂なら9999）
+SIF CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - CDOWN:ARG:快Ｃ >= PALAMLV:4
+	CDOWN:ARG:快Ｃ = CUP:ARG:快Ｃ + PALAM:ARG:快Ｃ - PALAMLV:4 + 1
+
+;絶頂Ｖ
+IF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4 * 5
+	V = 5
+	CDOWN:ARG:快Ｖ += (PALAMLV:4 * 5 - 1000)
+	NOWEX:ARG:Ｖ絶頂 = 5
+	;PRINTFORML 究極絶頂Ｖ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4 * 4
+	V = 4
+	CDOWN:ARG:快Ｖ += (PALAMLV:4 * 4 - 1000)
+	NOWEX:ARG:Ｖ絶頂 = 4
+	;PRINTFORML 最強絶頂Ｖ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4 * 3
+	V = 3
+	CDOWN:ARG:快Ｖ += (PALAMLV:4 * 3 - 1000)
+	NOWEX:ARG:Ｖ絶頂 = 3
+	;PRINTFORML 超強絶頂Ｖ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4 * 2
+	V = 2
+	CDOWN:ARG:快Ｖ += (PALAMLV:4 * 2 - 1000)
+	NOWEX:ARG:Ｖ絶頂 = 2
+	;PRINTFORML 強絶頂Ｖ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4
+	V = 1
+	CDOWN:ARG:快Ｖ += (PALAMLV:4 - 1000)
+	NOWEX:ARG:Ｖ絶頂 = 1
+	;PRINTFORML 絶頂Ｖ\@ARG == PLAYER?(調教者)#\@
+ENDIF
+;CDOWN:ARG:1で下げても絶頂以上なら
+;その値-1になるように調整（10000で絶頂なら9999）
+SIF CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - CDOWN:ARG:快Ｖ >= PALAMLV:4
+	CDOWN:ARG:快Ｖ = CUP:ARG:快Ｖ + PALAM:ARG:快Ｖ - PALAMLV:4 + 1
+
+;絶頂Ａ
+IF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4 * 5
+	A = 5
+	CDOWN:ARG:快Ａ += (PALAMLV:4 * 5 - 1000)
+	NOWEX:ARG:Ａ絶頂 = 5
+	;PRINTFORML 究極絶頂Ａ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4 * 4
+	A = 4
+	CDOWN:ARG:快Ａ += (PALAMLV:4 * 4 - 1000)
+	NOWEX:ARG:Ａ絶頂 = 4
+	;PRINTFORML 最強絶頂Ａ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4 * 3
+	A = 3
+	CDOWN:ARG:快Ａ += (PALAMLV:4 * 3 - 1000)
+	NOWEX:ARG:Ａ絶頂 = 3
+	;PRINTFORML 超強絶頂Ａ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4 * 2
+	A = 2
+	CDOWN:ARG:快Ａ += (PALAMLV:4 * 2 - 1000)
+	NOWEX:ARG:Ａ絶頂 = 2
+	;PRINTFORML 強絶頂Ａ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4
+	A = 1
+	CDOWN:ARG:快Ａ += (PALAMLV:4 - 1000)
+	NOWEX:ARG:Ａ絶頂 = 1
+	;PRINTFORML 絶頂Ａ\@ARG == PLAYER?(調教者)#\@
+ENDIF
+;CDOWN:ARG:2で下げても絶頂以上なら
+;その値-1になるように調整（10000で絶頂なら9999）
+SIF CUP:ARG:快Ａ + PALAM:ARG:快Ａ - CDOWN:ARG:快Ａ >= PALAMLV:4
+	CDOWN:ARG:快Ａ = CUP:ARG:快Ａ + PALAM:ARG:快Ａ - PALAMLV:4 + 1
+
+;絶頂Ｂ
+IF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4 * 5
+	B = 5
+	CDOWN:ARG:快Ｂ += (PALAMLV:4 * 5 - 1000)
+	NOWEX:ARG:Ｂ絶頂 = 5
+	;PRINTFORML 究極絶頂Ｂ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4 * 4
+	B = 4
+	CDOWN:ARG:快Ｂ += (PALAMLV:4 * 4 - 1000)
+	NOWEX:ARG:Ｂ絶頂 = 4
+	;PRINTFORML 最強絶頂Ｂ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4 * 3
+	B = 3
+	CDOWN:ARG:快Ｂ += (PALAMLV:4 * 3 - 1000)
+	NOWEX:ARG:Ｂ絶頂 = 3
+	;PRINTFORML 超強絶頂Ｂ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4 * 2
+	B = 2
+	CDOWN:ARG:快Ｂ += (PALAMLV:4 * 2 - 1000)
+	NOWEX:ARG:Ｂ絶頂 = 2
+	;PRINTFORML 強絶頂Ｂ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4
+	B = 1
+	CDOWN:ARG:快Ｂ += (PALAMLV:4 - 1000)
+	NOWEX:ARG:Ｂ絶頂 = 1
+	;PRINTFORML 絶頂Ｂ\@ARG == PLAYER?(調教者)#\@
+ENDIF
+;CDOWN:ARG:快Ｂで下げても絶頂以上なら
+;その値-1になるように調整（10000で絶頂なら9999）
+SIF CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - CDOWN:ARG:快Ｂ >= PALAMLV:4
+	CDOWN:ARG:快Ｂ = CUP:ARG:快Ｂ + PALAM:ARG:快Ｂ - PALAMLV:4 + 1
+
+;絶頂Ｓ
+IF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4 * 5
+	S = 5
+	CDOWN:ARG:快Ｓ += (PALAMLV:4 * 5 - 1000)
+	NOWEX:ARG:Ｓ絶頂 = 5
+	;PRINTFORML 究極絶頂Ｓ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4 * 4
+	S = 4
+	CDOWN:ARG:快Ｓ += (PALAMLV:4 * 4 - 1000)
+	NOWEX:ARG:Ｓ絶頂 = 4
+	;PRINTFORML 最強絶頂Ｓ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4 * 3
+	S = 3
+	CDOWN:ARG:快Ｓ += (PALAMLV:4 * 3 - 1000)
+	NOWEX:ARG:Ｓ絶頂 = 3
+	;PRINTFORML 超強絶頂Ｓ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4 * 2
+	S = 2
+	CDOWN:ARG:快Ｓ += (PALAMLV:4 * 2 - 1000)
+	NOWEX:ARG:Ｓ絶頂 = 2
+	;PRINTFORML 強絶頂Ｓ\@ARG == PLAYER?(調教者)#\@
+ELSEIF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4
+	S = 1
+	CDOWN:ARG:快Ｓ += (PALAMLV:4 - 1000)
+	NOWEX:ARG:Ｓ絶頂 = 1
+	;PRINTFORML 絶頂Ｓ\@ARG == PLAYER?(調教者)#\@
+ENDIF
+;CDOWN:ARG:快Ｓで下げても絶頂以上なら
+;その値-1になるように調整（10000で絶頂なら9999）
+SIF CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4
+	CDOWN:ARG:快Ｓ = CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - PALAMLV:4 + 1
+
+;-------------------------------------------------
+;絶頂時の追加処理
+;-------------------------------------------------
+IF ARG == TARGET
+	TFLAG:絶頂の強度 = C + V + A + B + S
+	;快楽刻印の処理
+	IF TFLAG:絶頂の強度 > 3 && MARK:ARG:1 < 3
+		TCVAR:ARG:快楽強度 = 3
+	;Rが3以上で快楽刻印２に相当
+	ELSEIF TFLAG:絶頂の強度 > 2 && MARK:ARG:1 < 2
+		TCVAR:ARG:快楽強度 = 2
+	;Rが2以上で快楽刻印１に相当
+	ELSEIF TFLAG:絶頂の強度 > 1 && MARK:ARG:1 < 1
+		TCVAR:ARG:快楽強度 = 1
+	ELSEIF TFLAG:絶頂の強度 >= 1
+		TCVAR:ARG:快楽強度 = 0
+	ENDIF
+ENDIF
+
+;同時絶頂による補正
+L = 0
+SELECTCASE MIN(C, V, A, B, S)
+	CASE 5
+		L = 5
+		C *= 60
+		V *= 60
+		A *= 60
+		B *= 60
+		S *= 60
+	CASE 4
+		L = 5
+		C *= 48
+		V *= 48
+		A *= 48
+		B *= 48
+		S *= 48
+	CASE 3
+		L = 5
+		C *= 36
+		V *= 36
+		A *= 36
+		B *= 36
+		S *= 36
+	CASE 2
+		L = 5
+		C *= 24
+		V *= 24
+		A *= 24
+		B *= 24
+		S *= 24
+	CASE 1
+		L = 5
+		C *= 12
+		V *= 12
+		A *= 12
+		B *= 12
+		S *= 12
+	CASEELSE
+		;絶頂状態部位がいくつあるかを検索
+		SELECTCASE GROUPMATCH(0, C, V, A, B, S)
+			CASE 1
+				L = 4
+				LOCAL = 8
+			CASE 2
+				L = 3
+				LOCAL = 4
+			CASE 3
+				L = 2
+				LOCAL = 2
+			CASE 4
+				L = 1
+				LOCAL = 1
+			ENDSELECT
+		C *= LOCAL
+		V *= LOCAL
+		A *= LOCAL
+		B *= LOCAL
+		S *= LOCAL
+ENDSELECT
+
+IF C
+	SOURCE:ARG:露出 += 500 * C
+	SOURCE:ARG:屈従 += 200 * C
+	DOWNBASE:ARG:0 += 20
+	DOWNBASE:ARG:1 += 10
+ENDIF
+IF V
+	SOURCE:ARG:欲情 += 800 * V
+	SOURCE:ARG:恭順 += 500 * V
+	SOURCE:ARG:露出 += 700 * V
+	SOURCE:ARG:屈従 += 400 * V
+	DOWNBASE:ARG:0 += 40
+	DOWNBASE:ARG:1 += 20
+ENDIF
+IF A
+	SOURCE:ARG:欲情 += 500 * A
+	SOURCE:ARG:恭順 += 700 * A
+	SOURCE:ARG:露出 += 900 * A
+	SOURCE:ARG:屈従 += 500 * A
+	SOURCE:ARG:逸脱 += 200 * A
+	
+	DOWNBASE:ARG:0 += 60
+	DOWNBASE:ARG:1 += 30
+ENDIF
+IF B
+	SOURCE:ARG:露出 += 500 * B
+	SOURCE:ARG:屈従 += 200 * B
+	SIF TALENT:ARG:性別  == 10
+		SOURCE:ARG:逸脱 += 100 * B
+	DOWNBASE:ARG:0 += 20
+	DOWNBASE:ARG:1 += 10
+ENDIF
+IF S
+	SOURCE:ARG:露出 += 500 * S
+	SOURCE:ARG:屈従 += 200 * S
+	SOURCE:ARG:逸脱 += 100 * S
+	DOWNBASE:ARG:0 += 20
+	DOWNBASE:ARG:1 += 10
+ENDIF
+
+;NOWEXにデータを入れる（絶頂時口上に使う）
+SIF C
+	NOWEX:ARG:Ｃ絶頂 += C
+SIF C
+	NOWEX:ARG:Ｖ絶頂 += V
+SIF C
+	NOWEX:ARG:Ａ絶頂 += A
+SIF C
+	NOWEX:ARG:Ｂ絶頂 += B
+SIF C
+	NOWEX:ARG:Ｓ絶頂 += S
+
+NOWEX:ARG:多重絶頂 = L
+
+;絶頂回数を増やす
+EX:ARG:Ｃ絶頂 += C
+EX:ARG:Ｖ絶頂 += V
+EX:ARG:Ａ絶頂 += A
+EX:ARG:Ｂ絶頂 += B
+EX:ARG:Ｓ絶頂 += S
+EX:ARG:多重絶頂 += L
+
+;絶頂経験を増やす
+EXP:ARG:絶頂経験 += TFLAG:絶頂の強度
+EXP:ARG:Ｃ絶頂経験 += C
+EXP:ARG:Ｖ絶頂経験 += V
+EXP:ARG:Ａ絶頂経験 += A
+EXP:ARG:Ｂ絶頂経験 += B
+EXP:ARG:Ｓ絶頂経験 += S
+SIF TFLAG:露出コマンドフラグ
+	EXP:ARG:露出絶頂経験 += TFLAG:絶頂の強度
+SIF TFLAG:苦痛コマンドフラグ
+	EXP:ARG:苦痛絶頂経験 += TFLAG:絶頂の強度
+SIF TFLAG:嗜虐コマンドフラグ
+	EXP:ARG:嗜虐絶頂経験 += TFLAG:絶頂の強度
+SIF TFLAG:奉仕コマンドフラグ
+	EXP:ARG:奉仕絶頂経験 += TFLAG:絶頂の強度
+SIF TFLAG:道具コマンドフラグ
+	EXP:ARG:道具絶頂経験 += TFLAG:絶頂の強度
+
+;絶頂による欲望ＬＶアップ
+IF ARG == TARGET
+	;自制心があると１下がる
+	SIF TALENT:ARG:自制心
+		L -= 1
+	IF ABL:ARG:欲望 < L
+		ABL:ARG:欲望 = L
+		PRINT そして欲望がLV
+		PRINTV L
+		PRINTL になった
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;絶頂時の追加処理
+;-------------------------------------------------
+
+SIF TFLAG:絶頂の強度
+	TFLAG:被射精絶頂の強度 = TFLAG:絶頂の強度
+	
+;射精
+IF TALENT:ARG:性別 & 2
+	NOWEX:ARG:射精 = TFLAG:絶頂の強度
+ENDIF
+
+RETURN 1
+
+
+
+@SHOOT絶頂口上(ARG)
+;後々口上を入れる処理を入れ込む
+PRINTFORM %CALLNAME:ARG%は
+
+SELECTCASE TFLAG:フィニッシュ場所
+	CASE 0
+		;膣内
+		PRINTL 子宮に感じる暖かな精液の感覚で絶頂した
+	CASE 1
+		;腸内
+		PRINTL 腸内に感じる暖かな精液の感覚で絶頂した
+	CASE 2
+		;口内
+		PRINTFORML 口に%CALLNAME:PLAYER%の精液を出されて絶頂した
+	CASE 3
+		;乳内
+		PRINTL 乳房で感じる精液の感触で絶頂した
+ENDSELECT
+
+IF TALENT:ARG:性別 & 2
+	PRINTL 同時に、自らの陰茎からも精液を吐き出した…
+ENDIF
+
+

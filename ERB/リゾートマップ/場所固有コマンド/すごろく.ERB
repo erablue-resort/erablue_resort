@@ -1,0 +1,632 @@
+﻿
+;-------------------------------------------------
+;ポーカー処理関連
+;-------------------------------------------------
+;あなた勝利時は１
+;代入番号キャラ勝利時は-１
+;引き分け時は０を返り値とする
+;-------------------------------------------------
+		
+@すごろく勝負
+#DIM ターン終了, 10
+#DIM 分岐情報
+#DIM ターン数
+;ここからマップ描画用DIM
+#DIMS AA, 40
+#DIM SPOT
+#DIM MODE
+#DIM LOCATION
+#DIM LINENUM
+#DIM X_POINT
+;ここまでマップ描画用DIM
+
+VARSET 移動状態
+VARSET すごろく現在地, -1
+VARSET 参加者, -1
+VARSET ターン終了
+VARSET 分岐情報
+VARSET 一回休みフラグ
+ターン数 = 1
+行動手番 = 0
+
+;参加者を登録する（あなた含め１０人まで）
+;その場にいるキャラを全員登録。あなたとTARGETは参加保障
+参加者:0 = 0
+すごろく現在地:0 = 1
+参加者:1 = TARGET
+すごろく現在地:1 = 1
+LOCAL:1 = 2
+FOR LOCAL, 1, CHARANUM
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):睡眠
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):隠密
+		CONTINUE
+	SIF TARGET == TARGET:LOCAL
+		CONTINUE
+	;１０人目以降は非参加
+	;基本ここに１０人集まることはないと思うので問題ないはず……
+	IF LOCAL:1 < 10
+		参加者:(LOCAL:1) = TARGET:LOCAL
+		すごろく現在地:(LOCAL:1) = 1
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+
+;人数ですごろくMAP変化
+IF LOCAL:1 < 4
+	;２人～３人
+	すごろくマップ種別 = 1
+	;32マス分情報入力
+	FOR LOCAL, 1, 33
+		すごろくマス情報:LOCAL = RAND:4
+	NEXT
+	すごろくマス情報:1 = 10
+	すごろくマス情報:26 = 11
+ELSEIF LOCAL:1 < 7
+	;４人～６人
+	PRINTL ４～６
+	すごろくマップ種別 = 2
+	;61マス分情報入力
+	FOR LOCAL, 1, 62
+		すごろくマス情報:LOCAL = RAND:4
+	NEXT
+	すごろくマス情報:1 = 10
+	すごろくマス情報:47 = 11
+ELSE
+	;７人～１０人
+	PRINTL ７～１０
+	すごろくマップ種別 = 3
+	FOR LOCAL, 1, 104
+		すごろくマス情報:LOCAL = RAND:4
+	NEXT
+	すごろくマス情報:1 = 10
+	すごろくマス情報:44 = 11
+ENDIF
+
+$すごろく_LOOP
+;マップ描画処理
+
+IF 参加者:行動手番 < 0
+	;全員参加し終わったら抜ける
+	VARSET ターン終了
+	行動手番 = 0
+	ターン数 += 1
+	PRINTL ターンを終了します。
+	GOTO すごろく_LOOP
+ENDIF
+
+PRINTL 
+DRAWLINE
+PRINTFORML {ターン数}ターン目
+SETCOLOR すごろくカラーパレット(行動手番)
+PRINTFORML　　手番：%CALLNAME:(参加者:行動手番)%
+RESETCOLOR
+TRYCCALLFORM すごろくマップ_{すごろくマップ種別}(AA)
+CATCH
+	RETURN 0
+ENDCATCH
+
+FOR LINENUM, 0, VARSIZE("AA")
+	SIF AA:LINENUM == ""
+		CONTINUE
+	;行ごとに初期化
+	X_POINT = 0
+	RESULTS = I
+	;行の終端までループ
+	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
+		;1文字取り出す
+		SUBSTRINGU AA:LINENUM, X_POINT, 1
+		;数字は２文字分取る
+		IF ISNUMERIC(RESULTS)
+			SUBSTRINGU AA:LINENUM, X_POINT, 2
+			TRYCALLFORM DRAW_すごろくMAP_{すごろくマップ種別}(RESULTS)
+			X_POINT += 2
+		;ふつうの文字
+		ELSE
+			TRYCALLFORM DRAW_すごろくMAP_{すごろくマップ種別}(RESULTS)
+			X_POINT ++
+		ENDIF
+	WEND
+	PRINTL 
+NEXT
+
+RESETCOLOR
+
+IF すごろくマス情報:(すごろく現在地:行動手番) == 11
+;ゴールにたどり着いたらゴールラベルまで飛ばす
+	GOTO ゴールラベル
+ENDIF
+
+$移動処理スタート
+
+DRAWLINE
+IF !移動状態 && ターン終了:0
+	;自身の移動が終わり、マスのイベントを起こす
+	IF 行動手番 == 0
+		CALLFORM マスイベント処理_{すごろくマス情報:(すごろく現在地:行動手番)}(行動手番)
+		行動手番 += 1
+		GOTO すごろく_LOOP
+	ENDIF
+	;NPCの行動手番
+	IF 参加者:行動手番 < 0
+		;全員参加し終わったら抜ける
+		VARSET ターン終了
+		行動手番 = 0
+		ターン数 += 1
+		PRINTL ターンを終了します。
+		GOTO すごろく_LOOP
+	ENDIF
+	IF !移動状態:行動手番 && ターン終了:行動手番
+		;ダイス振り済みかつ移動量が残ってないなら、イベント処理後に手番を切り替えて次のループへ
+		CALLFORM マスイベント処理_{すごろくマス情報:(すごろく現在地:行動手番)}(行動手番)
+		行動手番 += 1
+		GOTO 移動処理スタート
+	ELSEIF !移動状態:行動手番
+		IF 一回休みフラグ:行動手番
+			;一回休みだとまるまるスキップ（コマのイベントも起こさない）
+			SETCOLOR すごろくカラーパレット(行動手番)
+			TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("手番_一回休み")
+			PRINTFORMW ■%CALLNAME:(参加者:行動手番)%は一回休み中です…
+			RESETCOLOR
+			一回休みフラグ:行動手番 = 0
+			ターン終了:行動手番 = 1
+			行動手番 += 1
+			GOTO すごろく_LOOP
+		ENDIF
+		移動状態:行動手番 = RAND:6 + 1
+		SETCOLOR すごろくカラーパレット(行動手番)
+		TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("手番_ダイスロール", ターン数)
+		PRINTFORML ■%CALLNAME:(参加者:行動手番)%のダイス
+		PRINT コロコロ……
+		TWAIT 200, 0
+		PRINTFORMW %TOFULL(TOSTR(移動状態:行動手番))%！
+		RESETCOLOR
+		GOTO 移動処理スタート
+	ELSE
+		;ダイス振り済みフラグを建てる
+		ターン終了:行動手番 = 1
+		;第二引数に１を入れると分かれ道が自動でランダムに振り分けられる
+		TWAIT 500, 0
+		CALL MOVE_すごろく(すごろくマップ種別, 1, 行動手番)
+		GOTO すごろく_LOOP
+	ENDIF
+ELSEIF !移動状態
+	;まだダイス振ってない状態
+	IF 一回休みフラグ:0
+		;一回休みだとまるまるスキップ（コマのイベントも起こさない）
+		一回休みフラグ:0 = 0
+		ターン終了:0 = 1
+		行動手番 = 1
+		SETCOLOR すごろくカラーパレット(0)
+		PRINTFORMW ■%CALLNAME:(参加者:0)%は一回休み中です…
+		RESETCOLOR
+		GOTO すごろく_LOOP
+	ENDIF
+	PRINTBUTTON "[0]ダイスを振る", 0
+	PRINT 　　　　 │■各プレイヤー現在地点
+	PRINTL
+	PRINTBUTTON "[9]説明", 9
+	PRINT 　　　　　　　　 │
+	LOCAL:1 = 現在地算出(0, すごろくマップ種別)
+	SETCOLOR すごろくカラーパレット(0)
+	PRINTFORM ■%CALLNAME:(参加者:0),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+	RESETCOLOR
+	LOCAL:1 = 現在地算出(1, すごろくマップ種別)
+	SETCOLOR すごろくカラーパレット(1)
+	PRINTFORM ■%CALLNAME:(参加者:1),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+	RESETCOLOR
+	PRINTL
+	PRINT 　　　　　　　　　　　　│
+	LOCAL:2 = 0
+	FOR LOCAL, 2, 10
+		IF 参加者:LOCAL < 0
+			PRINTL
+			BREAK
+		ENDIF
+		LOCAL:1 = 現在地算出(LOCAL, すごろくマップ種別)
+		SETCOLOR すごろくカラーパレット(LOCAL)
+		PRINTFORM ■%CALLNAME:(参加者:LOCAL),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+		RESETCOLOR
+		LOCAL:2 += 1
+		IF (LOCAL:2 % 2) == 0
+			PRINTL
+			PRINT 　　　　　　　　　　　　│
+		ENDIF
+	NEXT
+	SIF LOCAL:2 == 0
+		PRINTL
+	DRAWLINE
+ELSE
+	;ダイスを振って移動中の処理
+	;行動済みフラグをまず立て、次の行動手番者を入れる
+	ターン終了:0 = 1
+	TWAIT 500, 0
+	CALL MOVE_すごろく(すごろくマップ種別, 0, 0)
+	;入力が必要（＝分かれ道）なら道先のビットが、そうでないなら０が帰ってくる
+	分岐情報 = RESULT
+	IF 分岐情報 == 0
+		GOTO すごろく_LOOP
+	ELSE
+		;ビット０：上　ビット１：下　ビット２：左　ビット３：右
+		;へ道が続いている形
+		FOR LOCAL, 0, 3
+			IF GETBIT(分岐情報, LOCAL)
+				SELECTCASE LOCAL
+					CASE 0
+						PRINTBUTTON "[8]上へ進む", 8
+					CASE 1
+						PRINTBUTTON "[2]下へ進む", 2
+					CASE 2
+						PRINTBUTTON "[4]左へ進む", 4
+				ENDSELECT
+				BREAK
+			ENDIF
+		NEXT
+		PRINTL 　　　　　　 │■各プレイヤー現在地点
+		
+		FOR LOCAL, LOCAL, 4
+			IF GETBIT(分岐情報, LOCAL)
+				SELECTCASE LOCAL
+					CASE 1
+						PRINTBUTTON "[2]下へ進む", 2
+					CASE 2
+						PRINTBUTTON "[4]左へ進む", 4
+					CASE 3
+						PRINTBUTTON "[6]右へ進む", 6
+				ENDSELECT
+				BREAK
+			ENDIF
+		NEXT
+		PRINT 　　　　　　 │
+		LOCAL:1 = 現在地算出(0, すごろくマップ種別)
+		SETCOLOR すごろくカラーパレット(0)
+		PRINTFORM ■%CALLNAME:(参加者:0),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+		RESETCOLOR
+		LOCAL:1 = 現在地算出(1, すごろくマップ種別)
+		SETCOLOR すごろくカラーパレット(1)
+		PRINTFORM ■%CALLNAME:(参加者:1),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+		RESETCOLOR
+		PRINTL
+		
+		LOCAL:1 = 0
+		FOR LOCAL, LOCAL, 4
+			IF GETBIT(分岐情報, LOCAL)
+				SELECTCASE LOCAL
+					CASE 2
+						PRINTBUTTON "[4]左へ進む", 4
+					CASE 3
+						PRINTBUTTON "[6]右へ進む", 6
+				ENDSELECT
+				BREAK
+				LOCAL:1 = 1
+			ENDIF
+		NEXT
+		SIF !LOCAL:1
+			PRINT 　 　　　　
+		PRINT 　　　　　　 │
+		LOCAL:2 = 0
+		FOR LOCAL, 2, 10
+			IF 参加者:LOCAL < 0
+				PRINTL 
+				BREAK
+			ENDIF
+			LOCAL:1 = 現在地算出(LOCAL, すごろくマップ種別)
+			SETCOLOR すごろくカラーパレット(LOCAL)
+			PRINTFORM ■%CALLNAME:(参加者:LOCAL),14,LEFT%：ゴールまであと{LOCAL:1,8,LEFT}
+			RESETCOLOR
+			LOCAL:2 += 1
+			IF (LOCAL:2 % 2) == 0
+				PRINTL
+				PRINT 　　　　　　　　　　　　│
+			ENDIF
+		NEXT
+		SIF LOCAL:2 == 0
+			PRINTL
+		DRAWLINE
+	ENDIF
+ENDIF
+$INPUT_LOOP
+ONEINPUT
+
+SELECTCASE RESULT
+	CASE 0
+		IF 移動状態
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		移動状態 = RAND:6 + 1
+		SETCOLOR すごろくカラーパレット(行動手番)
+		PRINTFORML ■%CALLNAME:(参加者:0)%のダイス
+		PRINT コロコロ……
+		TWAIT 500, 0
+		PRINTFORMW %TOFULL(TOSTR(移動状態))%！
+		RESETCOLOR
+		GOTO 移動処理スタート
+	CASE 2
+		IF !移動状態
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TWAIT 500, 0
+		CALL MOVE_すごろく(すごろくマップ種別, 2, MASTER)
+		GOTO すごろく_LOOP
+	CASE 4
+		IF !移動状態
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TWAIT 500, 0
+		CALL MOVE_すごろく(すごろくマップ種別, 4, MASTER)
+		GOTO すごろく_LOOP
+	CASE 6
+		IF !移動状態
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TWAIT 500, 0
+		CALL MOVE_すごろく(すごろくマップ種別, 6, MASTER)
+		GOTO すごろく_LOOP
+	CASE 8
+		IF !移動状態
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TWAIT 500, 0
+		CALL MOVE_すごろく(すごろくマップ種別, 8, MASTER)
+		GOTO すごろく_LOOP
+	CASE 9
+		PRINTL すごろくのミニゲームです。
+		PRINTFORML %CALLNAME:MASTER%から順にダイスを振り、最初にゴールに到達した人の勝利です。
+		PRINTW （ぴったり止まる必要はありません）
+		PRINTL 
+		PRINTL ４種類のマスで構成されており、止まるとそれぞれのマス種類に応じたイベントがランダムで起こります。
+		PRINTL 例外として「ス」のマスはスタートマス、「ゴ」のマスはゴールマスとなっています。
+		PRINTL ■マス種類による傾向
+		PRINT_IMG "ダメアビ"
+		PRINTL …その場にいる全員に影響するイベントが起こるマスです。
+		PRINTL 　　マスを進んだり戻ったり罰ゲームだったりと、有利か不利かはわかりません。
+		PRINTL 　　このイベントでマスを移動した場合、移動先のイベントは発生しません。
+		PRINT_IMG "回復アビ"
+		PRINTL …衣装チェンジや簡単な罰ゲームなどのイベントが起こるマスです。
+		PRINTL 　　遊んでいる面子によっては、より過激な内容の罰ゲームが発生するかもしれません…（未実装）
+		PRINT_IMG "バフアビ"
+		PRINTL …「○マス進む」や「もう一回ダイスを振る」など、有利なイベントが起こるマスです。
+		PRINTL 　　このイベントでマスを移動した場合、移動先のイベントが更に発生します。
+		PRINT_IMG "弱体アビ"
+		PRINTW …「○マス戻る」や「一回休み」など、不利なイベントが起こるマスです。
+		PRINTL 　　このイベントでマスを移動した場合、移動先のイベントが更に発生します。
+		GOTO すごろく_LOOP
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+$ゴールラベル
+
+;現在の行動手番のキャラが勝利
+DRAWLINE
+SETCOLOR すごろくカラーパレット(行動手番)
+TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("ゴール！", ターン数)
+PRINTFORML %CALLNAME:(参加者:行動手番)%の勝利！！
+RESETCOLOR
+DRAWLINE
+
+@すごろくカラーパレット(ARG)
+#FUNCTION
+;何番手のプレイヤーかで色を変える
+
+SELECTCASE ARG
+	CASE 0
+		RETURNF 0xC0C0C0
+	CASE 1
+		RETURNF 0xff3333
+	CASE 2
+		RETURNF 0x00c0f0
+	CASE 3
+		RETURNF 0xf0c000
+	CASE 4
+		RETURNF 0x30c090
+	CASE 5
+		RETURNF 0xff99ff
+	CASE 6
+		RETURNF 0x9999ff
+	CASE 7
+		RETURNF 0x33ffff
+	CASE 8
+		RETURNF 0xff9966
+	CASE 9
+		RETURNF 0x33ff33
+ENDSELECT
+
+@マスイベント処理_0(行動手番)
+;ダメアビマスイベント、全体影響
+PRINTW 全体イベントマスだ！
+LOCAL = RAND:2
+SELECTCASE LOCAL
+	CASE 0
+		LOCAL:1 = RAND:3 + 1
+		PRINTFORMW 全員%TOFULL(TOSTR(LOCAL:1))%マス前に進む！　※分かれ道はランダム！
+		FOR LOCAL, 0, 10
+			SIF 参加者:LOCAL < 0
+				BREAK
+			移動状態:LOCAL = LOCAL:1
+			TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("全体イベント", LOCAL:1)
+			WHILE 移動状態:LOCAL
+				CALL MOVE_すごろく(すごろくマップ種別, 1, LOCAL)
+			WEND
+		NEXT
+	CASE 1
+		LOCAL:1 = (RAND:3 + 1) * -1
+		PRINTFORMW 全員%TOFULL(TOSTR(LOCAL:1))%マス前に戻る！　※分かれ道はランダム！
+		FOR LOCAL, 0, 10
+			SIF 参加者:LOCAL < 0
+				BREAK
+			移動状態:LOCAL = LOCAL:1
+			TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("全体イベント", LOCAL:1 * -1)
+			WHILE 移動状態:LOCAL
+				CALL MOVE_すごろく(すごろくマップ種別, 1, LOCAL)
+			WEND
+		NEXT
+ENDSELECT
+
+@マスイベント処理_1(行動手番)
+#DIM 参加人数
+;回復アビマスイベント、罰ゲームその他
+PRINTW 罰ゲームマスだ！
+SETCOLOR すごろくカラーパレット(行動手番)
+FOR 参加人数, 0, 10
+	SIF 参加者:(参加人数) < 0
+		BREAK
+NEXT
+参加人数 -= 1
+LOCAL:1 = RAND:6
+SELECTCASE LOCAL:1
+	CASE 0
+		PRINTL 不思議な力で衣装がバニーになってしまった！
+		PRINTW ※入浴するか一日が終わるまで継続
+		CALL CLOTHES_CHANGE_バニー服(参加者:行動手番)
+		SIF TALENT:(参加者:行動手番):羞恥心 > 0
+			CALL SOURCE_CALC_露出(参加者:行動手番, PLAYER, 50)
+	CASE 1
+		PRINTL 一発芸を披露することになった！
+		PRINTFORM %CALLNAME:(参加者:行動手番)%は
+		IF TALENT:(参加者:行動手番):羞恥心 > 0
+			PRINT 恥ずかしさでぎこちない動きになりながら、なんとか
+		ELSEIF TALENT:(参加者:行動手番):羞恥心 < 0 || TALENT:(参加者:行動手番):芸達者 > 0
+			PRINT ノリノリで準備を整え、見事な
+		ENDIF
+		PRINTW 一発芸を披露した。
+		SIF TALENT:(参加者:行動手番):羞恥心 >= 0 && TALENT:(参加者:行動手番):芸達者 <= 0
+			CALL SOURCE_CALC_露出(参加者:行動手番, PLAYER, 10)
+		SIF TALENT:(参加者:行動手番):羞恥心 > 0
+			CALL SOURCE_CALC_露出(参加者:行動手番, PLAYER, 50)
+	CASE 2
+		PRINTL 不思議な力で衣装がメイド服になってしまった！
+		PRINTW ※入浴するか一日が終わるまで継続
+		CALL CLOTHES_CHANGE_メイド服(参加者:行動手番)
+	CASE 3
+		LOCAL = RAND:参加人数
+		;自分が自分にしないように
+		WHILE LOCAL == 行動手番
+			LOCAL = RAND:参加人数
+		WEND
+		PRINTL 次のターンまで誰かを膝枕したままプレイすること！
+		PRINTFORMW ダイスを振り、%CALLNAME:(参加者:行動手番)%は%CALLNAME:(参加者:LOCAL)%の頭を膝に乗せた。
+		SIF LOCAL == 0
+			CALL SOURCE_CALC_接触(参加者:行動手番, PLAYER, 50)
+	CASE 4
+		LOCAL = RAND:参加人数
+		;自分が自分にしないように
+		WHILE LOCAL == 行動手番
+			LOCAL = RAND:参加人数
+		WEND
+		PRINTL 誰かから思いっきりくすぐられること！
+		PRINTFORML ダイスを振り、%CALLNAME:(参加者:LOCAL)%は思いっきり%CALLNAME:(参加者:行動手番)%をくすぐった！
+		IF TALENT:(参加者:行動手番):Ｓ感度 > 0
+			PRINTFORMW %CALLNAME:(参加者:行動手番)%は涙が浮かぶほど笑わせられている…
+		ELSEIF TALENT:(参加者:行動手番):Ｓ感度 < 0
+			PRINTFORMW くすぐりに強いのか、%CALLNAME:(参加者:行動手番)%は軽く笑いながらくすぐられている。
+		ELSE
+			PRINTFORMW 大きく笑いながら、%CALLNAME:(参加者:行動手番)%はくすぐりに耐えている。
+		ENDIF
+		SIF LOCAL == 0
+			CALL SOURCE_CALC_接触(参加者:行動手番, PLAYER, 100)
+	CASE 5
+		LOCAL = RAND:参加人数
+		;自分が自分にしないように
+		WHILE LOCAL == 行動手番
+			LOCAL = RAND:参加人数
+		WEND
+		PRINTL 誰かを思い切りハグする！
+		PRINTFORM ダイスを振り、%CALLNAME:(参加者:行動手番)%は
+		IF TALENT:(参加者:行動手番):羞恥心 > 0
+			PRINT おずおずと、遠慮しながら
+		ELSEIF TALENT:(参加者:行動手番):羞恥心 < 0
+			PRINT 両手を広げ、思いっきり
+		ENDIF
+		PRINTFORMW %CALLNAME:(参加者:LOCAL)%をぎゅぅと抱きしめた。
+		SIF LOCAL == 0
+			CALL SOURCE_CALC_接触(参加者:行動手番, PLAYER, 50)
+ENDSELECT
+TFLAG:コマンド結果受渡し変数２ = 参加者:LOCAL
+TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("罰ゲームイベント", LOCAL:1)
+IF GROUPMATCH(LOCAL:1, 3, 4, 5)
+	;相手が必要な罰ゲームの場合、相手側の口上も出す
+	SETCOLOR すごろくカラーパレット(LOCAL)
+	TRYCALLFORM KOJO_EVENT_すごろく_{TFLAG:コマンド結果受渡し変数２}("罰ゲームイベント_反応", LOCAL:1)
+ENDIF
+RESETCOLOR
+
+@マスイベント処理_2(行動手番)
+;バフアビマスイベント、有利イベ
+PRINTL 有利イベントマスだ！
+SETCOLOR すごろくカラーパレット(行動手番)
+
+LOCAL = RAND:4
+SELECTCASE LOCAL
+	CASE 0
+		;もっかいダイス
+		PRINTW もう一度ダイスを振って進む！
+		移動状態:行動手番 = RAND:6 + 1
+		PRINTFORML ■%CALLNAME:(参加者:行動手番)%のダイス
+		PRINT コロコロ……
+		TWAIT 200, 0
+		PRINTFORMW %TOFULL(TOSTR(移動状態:行動手番))%！
+	CASE 1
+		;２マス進む
+		PRINTW ２マス進む
+		移動状態:行動手番 = 2
+	CASE 2
+		;３マス進む
+		PRINTW ３マス進む
+		移動状態:行動手番 = 3
+	CASE 3
+		;４マス進む
+		PRINTW ４マス進む
+		移動状態:行動手番 = 4
+ENDSELECT
+TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("有利イベント", LOCAL)
+
+行動手番 -= 1
+RESETCOLOR
+
+
+@マスイベント処理_3(行動手番)
+;弱体アビマスイベント、不利イベ
+PRINTL 不利イベントマスだ！
+SETCOLOR すごろくカラーパレット(行動手番)
+LOCAL = RAND:4
+SELECTCASE LOCAL
+	CASE 0
+		;一回休み
+		PRINTW 一回休みになってしまった…
+		一回休みフラグ:行動手番 = 1
+	CASE 1
+		;２マス戻る
+		PRINTW ２マス後ろに戻されてしまう
+		移動状態:行動手番 = -2
+	CASE 2
+		;３マス戻る
+		PRINTW ３マス後ろに戻されてしまう
+		移動状態:行動手番 = -3
+	CASE 3
+		;４マス戻る
+		PRINTW ４マス後ろに戻されてしまう
+		移動状態:行動手番 = -4
+ENDSELECT
+TRYCALLFORM KOJO_EVENT_すごろく_{参加者:行動手番}("不利イベント", LOCAL)
+IF GROUPMATCH(LOCAL, 1, 2, 3)
+	行動手番 -= 1
+ENDIF
+RESETCOLOR
+
+@マスイベント処理_10(行動手番)
+;スタートマスなので特に何もなし
+
+@マスイベント処理_11(行動手番)
+;ゴールマスなので特に何もなし
+;ゴール処理は別の場所にあるのでこれは呼ばれないはずだけど一応記載
+
+

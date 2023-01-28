@@ -1,0 +1,351 @@
+﻿
+@野外オナニー判定(ARG)
+#DIM オナニー部位, 4
+#DIM オナニー候補, 4
+
+;既に野外オナニー変数に値が入ってる時はオナニー中
+FOR LOCAL, 0, 5
+	IF 野外オナニー変数:ARG:LOCAL > 0
+		;オナニー中にあなたが物陰に入ってきたパターン
+		IF CFLAG:PLAYER:隠密
+			DRAWLINE
+			PRINTFORML %CALLNAME:PLAYER%が物陰に入ると、そこにいた%CALLNAME:ARG%はひどく慌てた様子で身なりを整え
+			PRINTFORMW %CALLNAME:PLAYER%と目を合わせずに物陰から去っていった…
+			野外オナニー変数:ARG:LOCAL = 0
+			野外オナニー変数:ARG:6 = 0
+			CFLAG:ARG:隠密 = 0
+			RETURN 0
+		ENDIF
+		野外オナニー変数:ARG:LOCAL -= TIME_PROGRESS(TFLAG:300)
+		;残り時間がまだ残ってるなら隠密を入れ直して戻す
+		IF 野外オナニー変数:ARG:LOCAL > 0
+			CFLAG:ARG:隠密 = 1
+			RETURN 1
+		ELSE
+			;残ってないなら絶頂処理
+			;変数の６番で絶頂予約、部位+10で部位受け渡し
+			野外オナニー変数:ARG:6 = LOCAL + 10
+			CFLAG:ARG:隠密 = 1
+			RETURN 0
+		ENDIF
+	ENDIF
+NEXT
+
+;性知識が無い場合はオナニー出来ない
+SIF 知識素質:ARG:性知識 < 1 && EXP:ARG:自慰経験 <= 0
+	RETURN 0
+
+;性欲や自慰しやすいなどの条件を見る
+IF BASE:ARG:性欲 >= (8000 - TALENT:ARG:自慰しやすい * 2000)
+	;通常オナニー条件
+ELSEIF CFLAG:ARG:オナニー覚えたて
+	;覚えたて補正
+ELSE
+	;上記の条件に当てはまらないなら0で戻す
+	RETURN 0
+ENDIF
+
+;既に誰かが同じ場所で隠密してるなら出来ない
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:ARG:現在位置 == CFLAG:LOCAL:現在位置 && CFLAG:ARG:現在マップ種別 == CFLAG:LOCAL:現在マップ種別 && CFLAG:LOCAL:隠密
+		RETURN 0
+NEXT
+
+;条件を抜けてきたとしても、前回の野外オナニーから２時間経過してないとしない
+SIF 野外オナニー変数:ARG:5 + 120 > TIME
+	RETURN 0
+
+;感覚開発度と敏感鈍感で候補数値を決定
+オナニー部位:0 = ABL:ARG:Ｃ感覚 + TALENT:ARG:Ｃ感度
+オナニー部位:1 = ABL:ARG:Ｖ感覚 + TALENT:ARG:Ｖ感度
+;処女・男はVを使わない
+SIF !EXP:ARG:Ｖ経験 || GETBIT(TALENT:ARG:性別, 0) == 0
+	オナニー部位:1 = -1
+オナニー部位:2 = ABL:ARG:Ａ感覚 + TALENT:ARG:Ａ感度
+;アナル未経験はAを使わない
+SIF !EXP:ARG:Ａ経験
+	オナニー部位:2 = -1
+オナニー部位:3 = ABL:ARG:Ｂ感覚 + TALENT:ARG:Ｂ感度
+;男はいまんとこ胸を使わない
+SIF GETBIT(TALENT:ARG:性別, 0) == 0
+	オナニー部位:3 = -1
+
+;どの部位でオナニーするか決定する
+LOCAL:1 = 0
+FOR LOCAL, 0, 4
+	IF オナニー候補:0 < オナニー部位:LOCAL
+		LOCAL:1 = 0
+		VARSET オナニー候補, -1
+		オナニー候補:0 = LOCAL
+	ELSEIF オナニー候補:0 == オナニー部位:LOCAL
+		LOCAL:1 += 1
+		オナニー候補:(LOCAL:1) = LOCAL
+	ENDIF
+NEXT
+;候補の中からランダムで決定
+LOCAL = RAND:(LOCAL:1 + 1)
+;オナニー時間は15分
+野外オナニー変数:ARG:(オナニー候補:LOCAL) = 15
+;変数の5番にオナニー開始時間を記録
+野外オナニー変数:ARG:5 = TIME
+CFLAG:ARG:隠密 = 1
+
+RETURN 1
+
+@一日終了時オナニー判定(ARG)
+#DIM オナニー部位, 4
+#DIM オナニー候補, 4
+#DIM 決定部位
+#DIMS 部位名称
+
+;感覚開発度と敏感鈍感で候補数値を決定
+オナニー部位:0 = ABL:ARG:Ｃ感覚 + TALENT:ARG:Ｃ感度
+オナニー部位:1 = ABL:ARG:Ｖ感覚 + TALENT:ARG:Ｖ感度
+;処女・男はVを使わない
+SIF !EXP:ARG:Ｖ経験 || GETBIT(TALENT:ARG:性別, 0) == 0
+	オナニー部位:1 = -1
+オナニー部位:2 = ABL:ARG:Ａ感覚 + TALENT:ARG:Ａ感度
+;アナル未経験はAを使わない
+SIF !EXP:ARG:Ａ経験
+	オナニー部位:2 = -1
+オナニー部位:3 = ABL:ARG:Ｂ感覚 + TALENT:ARG:Ｂ感度
+;男はいまんとこ胸を使わない
+SIF GETBIT(TALENT:ARG:性別, 0) == 0
+	オナニー部位:3 = -1
+;S感覚は難しいので一旦オミット
+
+
+;母乳搾り
+IF TALENT:ARG:母乳体質 && BASE:ARG:母乳 >= (MAXBASE:ARG:母乳 * 4 / 5)
+	DRAWLINE
+	PRINTFORML %CALLNAME:ARG%は溜まってきた母乳を自室で絞っているようだ。
+	IF ABL:ARG:Ｂ感覚 >= 3 || ABL:ARG:欲望 >= 4
+		PRINTFORMW 絞っているうちに気持ちよくなってしまったのか、%CALLNAME:ARG%の手指はそのまま快楽を求めて乳首をこねくりまわしている…
+		LOCAL:1 = 3
+	ELSE
+		PRINTFORMW 乳首から母乳が出る感覚は、%CALLNAME:ARG%に少なくない快感を与えている…
+		LOCAL:1 = 0
+	ENDIF
+	
+	LOCAL = RAND:(ABL:ARG:Ｂ感覚 + 1) + LOCAL:1 + 1
+	EXP:ARG:自慰経験 += LOCAL
+	PRINTFORML 自慰経験 + {LOCAL}
+	BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 1000, 0)
+	BASE:ARG:母乳 = MAX(BASE:ARG:母乳 - LOCAL * 2000, 0)
+	LOCAL = MAX(LOCAL:1, RAND:(LOCAL))
+	JUEL:ARG:欲情 += MIN((ABL:ARG:欲望 + 1) * (ABL:ARG:欲望 + 1) * (ABL:ARG:欲望 + 1) * LOCAL, 500 * LOCAL)
+	JUEL:ARG:快Ｂ += MIN((ABL:ARG:Ｂ感覚 + 1) * (ABL:ARG:Ｂ感覚 + 1) * (ABL:ARG:Ｂ感覚 + 1) * LOCAL, 500 * LOCAL)
+	SIF TALENT:ARG:Ｂ感度 > 0
+		JUEL:ARG:快Ｂ += MIN((ABL:ARG:Ｂ感覚 + 1) * (ABL:ARG:Ｂ感覚 + 1) * (ABL:ARG:Ｂ感覚 + 1), 500)
+	
+	EXP:ARG:絶頂経験 += LOCAL
+	EXP:ARG:噴乳経験 += LOCAL
+	PRINTFORML 絶頂経験 + {LOCAL}
+	PRINTFORML 噴乳経験 + {LOCAL}
+	PRINTFORML ZP:{FLAG:ZP所持量} + {LOCAL}(%CALLNAME:ARG%) = {FLAG:ZP所持量 + LOCAL}
+	FLAG:ZP所持量 += LOCAL
+	BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 2000, 0)
+	
+	PRINTW
+	RETURN 0
+ENDIF
+
+;オナニー覚えたて
+IF CFLAG:ARG:オナニー覚えたて
+	;１０回以上オナニーしたら覚えたてボーナスおしまい
+	IF EXP:ARG:自慰経験 > 10
+		CFLAG:ARG:オナニー覚えたて = 0
+		GOTO 通常自慰ラベル
+	ENDIF
+	DRAWLINE
+	PRINTFORML %CALLNAME:ARG%は今夜も覚えたばかりの自慰の虜になっている
+	PRINTL 
+	決定部位 = CFLAG:ARG:オナニー覚えたて - 1
+	;決定部位+101で各種部位の感度のTALENT番号が、決定部位で各種部位の感覚ABL番号が、決定部位+5で絶頂経験のEXP番号が出る
+	SELECTCASE 決定部位
+		CASE 0
+			部位名称 = 秘核
+			SIF GETBIT(TALENT:ARG:性別, 1)
+				部位名称 = 陰茎
+		CASE 1
+			部位名称 = 膣内
+		CASE 2
+			部位名称 = 尻穴
+		CASE 3
+			部位名称 = %OPPAI_DESCRIPTION(ARG)%
+	ENDSELECT
+	
+	PRINTFORM %CALLNAME:ARG%は
+	SIF ABL:ARG:欲望 < 3
+		PRINT そっと
+	PRINTFORML 自らの%部位名称%に手を伸ばした
+	PRINTL
+	IF ABL:ARG:決定部位 >= 5
+		PRINTFORMW どうすれば自分が気持ち良いのか熟知した様子で指を動かし、幾度も幾度も絶頂を重ねている…
+		LOCAL:1 = 8
+	ELSEIF ABL:ARG:決定部位 >= 3 || ABL:ARG:欲望 >= 4
+		PRINTFORMW そのまま夢中になって、自慰が齎す快楽に自らの身を委ねている…
+		LOCAL:1 = 3
+	ELSE
+		PRINTFORMW 単調な手付きながら、自らを絶頂に導こうと励んでいる…
+		LOCAL:1 = 0
+	ENDIF
+	CALL オナニー実処理(ARG, 決定部位)
+	PRINTW
+	RETURN 0
+ENDIF
+
+$通常自慰ラベル
+
+;通常自慰
+IF BASE:ARG:性欲 >= (8000 - TALENT:ARG:自慰しやすい * 2000)
+	DRAWLINE
+	PRINTFORML %CALLNAME:ARG%は性欲が溜まり、むらむらとした気分になっている
+	;どの部位でオナニーするか決定する
+	LOCAL:1 = 0
+	FOR LOCAL, 0, 4
+		IF オナニー候補:0 < オナニー部位:LOCAL
+			LOCAL:1 = 0
+			VARSET オナニー候補, -1
+			オナニー候補:0 = LOCAL
+		ELSEIF オナニー候補:0 == オナニー部位:LOCAL
+			LOCAL:1 += 1
+			オナニー候補:(LOCAL:1) = LOCAL
+		ENDIF
+	NEXT
+	;候補の中からランダムで決定
+	LOCAL = RAND:(LOCAL:1 + 1)
+	決定部位 = オナニー候補:LOCAL
+	;性知識が無い場合はオナニー出来ない
+	IF 知識素質:ARG:性知識 < 1 && EXP:ARG:自慰経験 <= 0
+		PRINTFORML しかし %CALLNAME:ARG%はそれが何なのかわからず、ただ悶々としている…
+		IF RAND:10 == 9
+			;10%の確率でオナニーに目覚める
+			PRINTL 
+			PRINTL …しかしふとした拍子に、自らの肉体に触ると気持ち良い部位があることに気づいたようだ
+			CFLAG:ARG:オナニー覚えたて = 決定部位 + 1
+		ELSE
+			RETURN 0
+		ENDIF
+	ENDIF
+	;決定部位+101で各種部位の感度のTALENT番号が、決定部位で各種部位の感覚ABL番号が、決定部位+5で絶頂経験のEXP番号が出る
+	SELECTCASE 決定部位
+		CASE 0
+			部位名称 = 秘核
+			SIF GETBIT(TALENT:ARG:性別, 1)
+				部位名称 = 陰茎
+		CASE 1
+			部位名称 = 膣内
+		CASE 2
+			部位名称 = 尻穴
+		CASE 3
+			部位名称 = %OPPAI_DESCRIPTION(ARG)%
+	ENDSELECT
+	
+	PRINTFORM %CALLNAME:ARG%は
+	SIF ABL:ARG:欲望 < 3
+		PRINT そっと
+	PRINTFORML 自らの%部位名称%に手を伸ばした
+	PRINTL
+	IF ABL:ARG:決定部位 >= 5
+		PRINTFORMW どうすれば自分が気持ち良いのか熟知した様子で指を動かし、幾度も幾度も絶頂を重ねている…
+	ELSEIF ABL:ARG:決定部位 >= 3 || ABL:ARG:欲望 >= 4
+		PRINTFORMW そのまま夢中になって、自慰が齎す快楽に自らの身を委ねている…
+	ELSE
+		PRINTFORMW 単調な手付きながら、自らを絶頂に導こうと励んでいる…
+	ENDIF
+	CALL オナニー実処理(ARG, 決定部位)
+	PRINTW
+	RETURN 0
+ENDIF
+
+
+
+@オナニー実処理(ARG, 決定部位)
+#DIM 決定部位
+
+IF ABL:ARG:決定部位 >= 5
+	LOCAL:1 = 8
+ELSEIF ABL:ARG:決定部位 >= 3 || ABL:ARG:欲望 >= 4
+	LOCAL:1 = 3
+ELSE
+	LOCAL:1 = 0
+ENDIF
+	
+LOCAL = RAND:MAX(ABL:ARG:決定部位 + 1, 1) + (LOCAL:1) + 1
+EXP:ARG:自慰経験 += LOCAL
+PRINTFORML 自慰経験 + {LOCAL}
+EXP:ARG:決定部位 += LOCAL
+PRINTFORML %EXPNAME:決定部位% + {LOCAL}
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 1000, 0)
+
+LOCAL = MAX(LOCAL:1, RAND:(LOCAL + 1))
+JUEL:ARG:欲情 += MIN((ABL:ARG:欲望 + 1) * (ABL:ARG:欲望 + 1) * (ABL:ARG:欲望 + 1) * LOCAL, 500 * LOCAL)
+JUEL:ARG:決定部位 += MIN((ABL:ARG:決定部位 + 1) * (ABL:ARG:決定部位 + 1) * (ABL:ARG:決定部位 + 1) * LOCAL, 500 * LOCAL)
+SIF TALENT:ARG:(決定部位 + 101) > 0
+	JUEL:ARG:決定部位 += MIN((ABL:ARG:決定部位 + 1) * (ABL:ARG:決定部位 + 1) * (ABL:ARG:決定部位 + 1), 500)
+
+EXP:ARG:絶頂経験 += LOCAL
+EXP:ARG:(決定部位 + 5) += LOCAL
+PRINTFORML 絶頂経験 + {LOCAL}
+PRINTFORML %EXPNAME:(決定部位 + 5)% + {LOCAL}
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 2000, 0)
+IF GETBIT(TALENT:ARG:性別, 1)
+	;ちんこついてる時は射精経験も
+	SIF 決定部位 > 0
+		LOCAL:1 = RAND:(LOCAL + 1)
+	EXP:ARG:射精経験 += LOCAL:1
+	PRINTFORML 射精経験 + {LOCAL:1}
+ENDIF
+
+IF LOCAL
+	PRINTL 
+	PRINTFORMW ZP:{FLAG:ZP所持量} + {LOCAL}(%CALLNAME:ARG%) = {FLAG:ZP所持量 + LOCAL}
+	FLAG:ZP所持量 += LOCAL
+ENDIF
+
+
+
+
+@野外オナニー実処理(ARG, 決定部位)
+#DIM 決定部位
+
+IF ABL:ARG:決定部位 >= 5
+	LOCAL:1 = 8
+ELSEIF ABL:ARG:決定部位 >= 3 || ABL:ARG:欲望 >= 4
+	LOCAL:1 = 3
+ELSE
+	LOCAL:1 = 0
+ENDIF
+
+LOCAL = RAND:MAX(ABL:ARG:決定部位 + 1, 1) + (LOCAL:1) + 1
+EXP:ARG:自慰経験 += LOCAL
+EXP:ARG:決定部位 += LOCAL
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 1000, 0)
+EXP:ARG:露出快楽経験 += LOCAL
+
+CUP:ARG:欲情 += LOCAL * 1000
+CUP:ARG:決定部位 += LOCAL * 1000
+SIF TALENT:ARG:(決定部位 + 101) > 0
+	CUP:ARG:決定部位 += LOCAL * 1000
+CUP:ARG:恥情 += LOCAL * 1000
+
+LOCAL = MAX(LOCAL:1, RAND:(LOCAL + 1))
+EXP:ARG:絶頂経験 += LOCAL
+EXP:ARG:(決定部位 + 5) += LOCAL
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 2000, 0)
+IF GETBIT(TALENT:ARG:性別, 1)
+	;ちんこついてる時は射精経験も
+	SIF 決定部位 > 0
+		LOCAL:1 = RAND:(LOCAL + 1)
+	EXP:ARG:射精経験 += LOCAL:1
+ENDIF
+
+CUP:ARG:欲情 = MIN(CUP:ARG:欲情 + LOCAL * 1000 + RAND:1000, 9999)
+CUP:ARG:決定部位 = MIN(CUP:ARG:決定部位 + LOCAL * 1000 + RAND:1000, 9999)
+CUP:ARG:恥情 = MIN(CUP:ARG:恥情 + LOCAL * 1000 + RAND:1000, 9999)
+
+
+CALL ZP_取得処理(ARG, LOCAL)
+
+

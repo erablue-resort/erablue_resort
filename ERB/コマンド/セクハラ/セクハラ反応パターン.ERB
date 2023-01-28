@@ -1,0 +1,112 @@
+﻿
+
+@セクハラ反応タイプ判定(ARG)
+;ARG=キャラ番号
+
+;===================================================
+;反応タイプ判定
+;1:無知  2:無反応  3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+;===================================================
+
+;性知識不足と無反応は優先して判定
+IF 知識素質:ARG:性知識 < 0
+	TFLAG:コマンド結果受渡し変数２ = 1
+	GOTO 受け入れパターン
+ELSEIF TALENT:ARG:無関心 || TALENT:ARG:感情乏しい
+	TFLAG:コマンド結果受渡し変数２ = 2
+	GOTO 受け入れパターン
+ENDIF
+
+;嫌悪反応、拒否反応素質の集計
+;２つ以上あれば嫌悪拒否、１つの時に他のタイプ素質があればそちらを優先、カテゴリ素質が一個も無い場合は汎用反応
+VARSET LOCAL
+;嫌悪素質
+SIF TALENT:ARG:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	LOCAL += 1
+SIF TALENT:ARG:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
+	LOCAL += 1
+SIF TALENT:ARG:性別嗜好 == 3
+	LOCAL += 1
+SIF TALENT:ARG:ツンデレ && CFLAG:ARG:好感度レベル < 51
+	LOCAL += 1
+SIF TALENT:ARG:ツンデレ && CFLAG:ARG:好感度レベル > 50
+	LOCAL -= 2
+LOCAL += TALENT:ARG:貞操
+LOCAL += TALENT:ARG:抵抗
+LOCAL -= TALENT:ARG:倒錯的
+
+;拒否素質
+LOCAL:1 += TALENT:ARG:度胸
+SIF TALENT:ARG:態度 > 0
+	LOCAL:1 += 1
+LOCAL:1 += TALENT:ARG:応答
+LOCAL:1 += TALENT:ARG:プライド
+SIF TALENT:ARG:マイペース < 0
+	LOCAL:1 -= 1
+LOCAL:1 += TALENT:ARG:自制心
+LOCAL:1 -= TALENT:ARG:性的興味
+LOCAL:1 += TALENT:ARG:貞操
+LOCAL:1 -= TALENT:ARG:快感応答
+LOCAL:1 -= TALENT:ARG:倒錯的
+LOCAL:1 -= TALENT:ARG:陽気／陰気
+
+;要素が２以上だと確定
+IF LOCAL > 1
+	TFLAG:コマンド結果受渡し変数２ = 3
+	GOTO 受け入れパターン
+ELSEIF LOCAL:1 > 1
+	TFLAG:コマンド結果受渡し変数２ = 4
+	GOTO 受け入れパターン
+ENDIF
+
+;要素が１以下だと以下のタイプ分けに入る
+IF TALENT:ARG:経験豊富 > 0
+	TFLAG:コマンド結果受渡し変数２ = 7
+	GOTO 受け入れパターン
+ELSEIF TALENT:ARG:精神的余裕 > 0
+	TFLAG:コマンド結果受渡し変数２ = 5
+	GOTO 受け入れパターン
+ELSEIF TALENT:ARG:羞恥心 > 0
+	TFLAG:コマンド結果受渡し変数２ = 6
+	GOTO 受け入れパターン
+ENDIF
+
+;ここまで抜けてきたら改めて嫌悪拒否汎用で分ける
+IF LOCAL > 0
+	TFLAG:コマンド結果受渡し変数２ = 3
+ELSEIF LOCAL:1 > 0
+	TFLAG:コマンド結果受渡し変数２ = 4
+ELSE
+	TFLAG:コマンド結果受渡し変数２ = 8
+ENDIF
+
+$受け入れパターン
+;===================================================
+;次にセクハラが受け入れられるかどうか３パターン
+;1:拒絶 2:受け入れ 3:喜び
+;===================================================
+LOCAL = 51
+;拒否か嫌悪なら受け入れハードルが上がる
+SIF TFLAG:コマンド結果受渡し変数２ == 3 || TFLAG:コマンド結果受渡し変数２ == 4
+	LOCAL = 71
+;欲情PALAMでハードルが下がる
+LOCAL = LOCAL - (GETPALAMLV(PALAM:ARG:欲情, 15) * 4)
+
+IF CFLAG:ARG:好感度レベル > LOCAL
+	;親友以上なら２（受け入れ）保証
+	IF !GETBIT(CFLAG:ARG:1 , 0)
+		;合意済みなら３（喜び）
+		TFLAG:コマンド結果受渡し変数 = 3
+	ELSE
+		TFLAG:コマンド結果受渡し変数 = 2
+		;発情期は一個上の反応へ
+		SIF CFLAG:ARG:発情期フラグ < 0
+			TFLAG:コマンド結果受渡し変数 = 3
+	ENDIF
+ELSE
+	;親友未満なら１（拒否）
+	TFLAG:コマンド結果受渡し変数 = 1
+	;発情期は一個上の反応へ
+	SIF CFLAG:ARG:発情期フラグ < 0
+		TFLAG:コマンド結果受渡し変数 = 2
+ENDIF

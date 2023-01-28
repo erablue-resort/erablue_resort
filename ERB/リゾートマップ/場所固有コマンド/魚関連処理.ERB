@@ -1,0 +1,402 @@
+﻿
+;-------------------------------------------------
+;魚周りの処理をまとめる
+;-------------------------------------------------
+;魚はITEMの201～に存在
+;-------------------------------------------------
+;魚の効力
+;-------------------------------------------------
+@魚効力(ARG)
+#FUNCTION
+
+;魚を食事に追加した際、歓楽ソースがどのくらい増えるかを返す
+SELECTCASE ARG
+	CASE 200
+		;小魚
+		RETURNF 20
+	CASE 201
+		;ランページシェル
+		RETURNF 30
+	CASE 202
+		;マイトフィッシュ
+		RETURNF 40
+	CASE 203
+		;レインボーマス
+		RETURNF 100
+	CASE 204
+		;サケモン
+		RETURNF 120
+	CASE 205
+		;ンナギ
+		RETURNF 140
+	CASE 206
+		;アユウ
+		RETURNF 160
+	CASE 207
+		;ヤマァメ
+		RETURNF 180
+	CASE 208
+		;イワナン
+		RETURNF 200
+	CASE 209
+		;オパールエヴィ
+		RETURNF 250
+ENDSELECT
+
+;-------------------------------------------------
+;解説表示
+;-------------------------------------------------
+@簡易釣りモード説明
+DRAWLINE
+PRINTL 
+PRINTL 即座に魚が釣れます。
+PRINTL 釣れる魚は今まで釣ったことがある魚からランダムに選ばれます。
+PRINTL 何も釣ったことがないポイントで簡易釣りをしても何も釣れないことに注意してください。
+PRINTL 
+PRINTL 釣れる魚の数は%CALLNAME:MASTER%の釣り技能、及び一緒に釣りをしたキャラの釣り技能に応じて増加します。
+PRINTL 釣り技能は釣り経験が一定値以上まで累積した時に上昇します。
+PRINTW また素質「釣り好き」を持つキャラクターは釣れる魚の数を増加させます。
+
+@ちゃんと釣りモード説明
+DRAWLINE
+PRINTL 
+PRINTL 神経衰弱のミニゲームで魚を釣ります。
+PRINTL カードを規定回数めくり、絵柄が揃ったカードに応じた魚が手に入ります。
+PRINTW 一人で釣ることも出来ますが、誰かと一緒に釣った方がめくる回数は増加します。
+DRAWLINE
+PRINTL 
+PRINTL カードの総数は２４枚１２セットです。
+PRINTL 内訳はＮカードが１２枚６セット・Ｒカードが６枚３セット
+PRINTL ＳＲカードが４枚２セット・ＳＳＲカードが２枚１セットです。
+PRINTL 
+PRINTW 揃えることに成功したセットのレアリティに応じて、珍しい魚が釣れる可能性が高くなります。
+DRAWLINE
+PRINTL 
+PRINTL カードをめくる回数は、%CALLNAME:MASTER%の釣り技能、及び一緒に釣りをしたキャラの釣り技能に応じて増加します。
+PRINTL 釣り技能は釣り経験が一定値以上まで累積した時に上昇します。
+PRINTW また素質「釣り好き」を持つキャラクターはめくる回数を増加させます。
+
+
+
+;-------------------------------------------------
+;簡易釣りモード処理
+;-------------------------------------------------
+@簡易釣りモード(場所番号)
+#DIM 場所番号
+#DIM 釣れる魚種類, 20
+#DIM 魚候補, 20
+#DIM 総確率
+#DIM 個別確率, 20
+#DIM 候補の数
+#DIM 釣果, 50
+
+VARSET 釣れる魚種類
+VARSET 魚候補
+VARSET 総確率
+VARSET 個別確率
+VARSET 候補の数
+VARSET 釣果
+VARSET LOCAL
+
+;場所ごとに釣れる魚をセット
+;釣れる魚種類:0が最も釣れ易く、数字が増えるにつれ釣れづらくなる
+SELECTCASE 場所番号
+	CASE 305
+		釣れる魚種類:1 = 200
+		釣れる魚種類:2 = 201
+		釣れる魚種類:3 = 202
+		釣れる魚種類:4 = 203
+		釣れる魚種類:5 = 204
+		釣れる魚種類:6 = 205
+		釣れる魚種類:7 = 206
+		釣れる魚種類:8 = 207
+		釣れる魚種類:9 = 208
+		釣れる魚種類:10 = 209
+ENDSELECT
+
+;釣ったことがあるかどうか判定
+FOR LOCAL, 1, 20
+	SIF !釣れる魚種類:LOCAL
+		BREAK
+	IF 累計魚所持数:(釣れる魚種類:LOCAL - 200)
+		候補の数 += 1
+		魚候補:候補の数 = LOCAL
+	ENDIF
+NEXT
+
+IF 候補の数 == 0
+	PRINTW 何も釣れませんでした。
+	RETURN 0
+ENDIF
+
+;釣れる魚の数を産出
+TFLAG:194 = RAND:5 + ABL:PLAYER:釣り技能
+IF TARGET
+	TFLAG:194 += RAND:5 + ABL:TARGET:釣り技能
+	TFLAG:194 += (知識素質:TARGET:釣り好き * 3)
+ENDIF
+;最低１保障
+TFLAG:194 = MAX(TFLAG:194, 1)
+
+;確率の作成
+総確率 = SUMARRAY(魚候補, 1, 20)
+FOR LOCAL, 1, 21
+	SIF !魚候補:LOCAL
+		BREAK
+	個別確率:LOCAL = 魚候補:(候補の数 - LOCAL + 1)
+NEXT
+
+;魚種類の決定
+FOR LOCAL, 0, TFLAG:194
+	LOCAL:1 = RAND:総確率
+	LOCAL:3 = 0
+	FOR LOCAL:2, 候補の数, 0, -1
+		LOCAL:3 += 個別確率:(LOCAL:2)
+		IF LOCAL:1 < LOCAL:3
+			釣果:(魚候補:(LOCAL:2)) += 1
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+
+;入手物記述
+FOR LOCAL, 0, 20
+	IF 釣果:LOCAL
+		PRINTFORML %ITEMNAME:(釣れる魚種類:LOCAL)%が{釣果:LOCAL}匹釣れた！
+		ITEM:(釣れる魚種類:LOCAL) += 釣果:LOCAL
+		累計魚所持数:(釣れる魚種類:LOCAL - 200) += 釣果:LOCAL
+	ENDIF
+NEXT
+
+EXP:MASTER:釣り経験 += TFLAG:194
+SIF TARGET
+	EXP:TARGET:釣り経験 += TFLAG:194
+
+;-------------------------------------------------
+;ちゃんと釣りモード処理
+;-------------------------------------------------
+@ちゃんと釣りモード(場所番号)
+#DIM 場所番号
+#DIM 釣れる魚種類, 20
+#DIM 候補の数
+#DIM 配置カード, 24
+#DIM 表カード位置, 2
+#DIM 釣り回数
+#DIM 釣果, 50
+
+VARSET 釣れる魚種類
+VARSET 配置カード
+VARSET 釣果
+VARSET LOCAL
+
+;場所ごとに釣れる魚をセット
+;釣れる魚種類:0が最も釣れ易く、数字が増えるにつれ釣れづらくなる
+SELECTCASE 場所番号
+	CASE 305
+		釣れる魚種類:1 = 200
+		釣れる魚種類:2 = 201
+		釣れる魚種類:3 = 202
+		釣れる魚種類:4 = 203
+		釣れる魚種類:5 = 204
+		釣れる魚種類:6 = 205
+		釣れる魚種類:7 = 206
+		釣れる魚種類:8 = 207
+		釣れる魚種類:9 = 208
+		釣れる魚種類:10 = 209
+		候補の数 = 10
+ENDSELECT
+
+;何回カードをめくれるかをセット
+釣り回数 = (ABL:PLAYER:釣り技能 * 2) + 3
+IF TARGET
+	釣り回数 += (ABL:TARGET:釣り技能 * 2) + 1
+	釣り回数 += (知識素質:TARGET:釣り好き * 3)
+ENDIF
+
+;神経衰弱カード配置を設定
+FOR LOCAL, 0, 24
+	$CARD_LOOP
+	SELECTCASE RAND:24
+		CASE IS < 12
+			SIF LOCAL:1 >= 12
+				GOTO CARD_LOOP
+			配置カード:LOCAL = 1
+			LOCAL:1 += 1
+		CASE IS < 18
+			SIF LOCAL:2 >= 6
+				GOTO CARD_LOOP
+			配置カード:LOCAL = 2
+			LOCAL:2 += 1
+		CASE IS < 22
+			SIF LOCAL:3 >= 4
+				GOTO CARD_LOOP
+			配置カード:LOCAL = 3
+			LOCAL:3 += 1
+		CASEELSE
+			SIF LOCAL:4 >= 2
+				GOTO CARD_LOOP
+			配置カード:LOCAL = 4
+			LOCAL:4 += 1
+	ENDSELECT
+NEXT
+
+;どこを表にしているかの数値をリセット
+表カード位置:0 = -1
+表カード位置:1 = -1
+
+;カードの描画
+$描画_LOOP
+
+DRAWLINE
+PRINTL 
+
+PRINTFORML 残り釣り回数：{釣り回数}
+
+LOCAL:1 = 0
+LOCAL:2 = 0
+FOR LOCAL, 0, 24
+	IF 配置カード:LOCAL == -1
+		CALL ダミーセット( 0, 5, 50)
+		LOCAL:1 += 1
+		LOCAL:2 += 1
+	ELSEIF 表カード位置:0 == LOCAL
+		SELECTCASE 配置カード:LOCAL
+			CASE 1
+				CALL 画像セット("ノーマル", 0, 5, 50)
+			CASE 2
+				CALL 画像セット("レア", 0, 5, 50)
+			CASE 3
+				CALL 画像セット("ＳＲ", 0, 5, 50)
+			CASE 4
+				CALL 画像セット("ＳＳＲ", 0, 5, 50)
+		ENDSELECT
+	ELSEIF 表カード位置:1 == LOCAL
+		SELECTCASE 配置カード:LOCAL
+			CASE 1
+				CALL 画像セット("ノーマル", 0, 5, 50)
+			CASE 2
+				CALL 画像セット("レア", 0, 5, 50)
+			CASE 3
+				CALL 画像セット("ＳＲ", 0, 5, 50)
+			CASE 4
+				CALL 画像セット("ＳＳＲ", 0, 5, 50)
+		ENDSELECT
+	ELSE
+		CALL 画像セット("白抜き", 0, 5, 50, 0, 1, TOSTR(LOCAL))
+	ENDIF
+	IF ((LOCAL + 1) % 6) == 0
+		CALL 画像一斉表示("left", 0, 1)
+		IF LOCAL:2 == 6
+			PRINTL 
+			PRINTL 
+			PRINTL 
+			PRINTL 
+		ENDIF
+		LOCAL:2 = 0
+	ENDIF
+NEXT
+
+
+;カードが全部なくなったら残り回数分魚を手に入れて終了
+IF LOCAL:1 == 24
+	PRINTL このあたりの魚は全て釣り上げたようだ！
+	GOTO 釣りリザルト
+ENDIF
+
+
+DRAWLINE
+PRINTL 
+
+
+IF 表カード位置:1 >= 0
+	;二枚空いてるはずなので次へ進む
+ELSEIF 表カード位置:0 >= 0
+	INPUT
+	;一枚空いてるハズなので二枚目をめくって描画へ
+	SIF RESULT >= 0 && RESULT <= 23 && 配置カード:RESULT != -1
+			表カード位置:1 = RESULT
+	CLEARLINE 26
+	GOTO 描画_LOOP
+ELSEIF 表カード位置:0 == -1
+	INPUT
+	;どこも空いて無いはずなので一枚目をめくって描画へ
+	SIF RESULT >= 0 && RESULT <= 23 && 配置カード:RESULT != -1
+			表カード位置:0 = RESULT
+	CLEARLINE 26
+	GOTO 描画_LOOP
+ENDIF
+
+;カードの当たり外れ判定
+
+IF 配置カード:(表カード位置:0) == 配置カード:(表カード位置:1)
+	;当たり
+	SELECTCASE 配置カード:(表カード位置:0)
+		CASE 1
+			PRINTL 普通の魚だ
+			;候補のうち、下位４割が登場
+			LOCAL = (候補の数 * 2) / 5
+			LOCAL = RAND:LOCAL + 1
+		CASE 2
+			PRINTL ちょっと良い魚だ！
+			;候補のうち、上位６割が登場（最上位は出ない）
+			LOCAL = (候補の数 / 3) + 1
+			LOCAL = RAND:(候補の数 - LOCAL) + LOCAL + 1
+			SIF LOCAL == 10
+				LOCAL -= RAND:2 + 1
+		CASE 3
+			PRINTL 中々珍しい魚だ！
+			;候補のうち、上位３割が登場
+			LOCAL = (候補の数 / 3) * 2 + 1
+			LOCAL = RAND:(候補の数 - LOCAL) + LOCAL + 1
+		CASE 4
+			PRINTL とても珍しい魚だ！！
+			;候補の最上位確定
+			LOCAL = 候補の数
+	ENDSELECT
+	
+	LOCAL:1 = RAND:2 + 1
+	PRINTFORMW %ITEMNAME:(釣れる魚種類:LOCAL)%が{LOCAL:1}匹釣れた！
+	釣果:LOCAL += LOCAL:1
+	
+	;当たったカードを削除
+	配置カード:(表カード位置:0) = -1
+	配置カード:(表カード位置:1) = -1
+	釣り回数 -= 1
+	CLEARLINE 27
+ELSE
+	;ハズレ
+	PRINTW 何も釣れなかった…
+	釣り回数 -= 1
+	CLEARLINE 26
+ENDIF
+
+;回数がまだあるなら再チャレンジ
+IF 釣り回数 > 0
+	表カード位置:0 = -1
+	表カード位置:1 = -1
+	GOTO 描画_LOOP
+ENDIF
+
+$釣りリザルト
+;回数かカードが枯渇したらリザルト
+DRAWLINE
+
+PRINTL 今回の釣りで合計
+FOR LOCAL, 0, 20
+	IF 釣果:LOCAL
+		PRINTFORML %ITEMNAME:(釣れる魚種類:LOCAL)%が{釣果:LOCAL}匹釣れた！
+		ITEM:(釣れる魚種類:LOCAL) += 釣果:LOCAL
+		累計魚所持数:(釣れる魚種類:LOCAL - 200) += 釣果:LOCAL
+		TFLAG:194 += 釣果:LOCAL
+	ENDIF
+NEXT
+
+EXP:MASTER:釣り経験 += TFLAG:194
+SIF TFLAG:194 == 0
+	EXP:MASTER:釣り経験 += 1
+IF TARGET
+	EXP:TARGET:釣り経験 += TFLAG:194
+	SIF TFLAG:194 == 0
+		EXP:MASTER:釣り経験 += 1
+ENDIF
+

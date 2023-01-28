@@ -1,0 +1,555 @@
+﻿
+
+@ZP_取得処理(キャラ番号, 取得基礎値)
+#DIM キャラ番号
+#DIM 取得基礎値
+
+;あなたはZP算出しない
+SIF キャラ番号 < 1
+	RETURN
+
+;キャラの素質などにより取得料補正
+LOCAL = 取得基礎値
+
+;今は未実装
+
+
+;ZP加算
+TCVAR:キャラ番号:ZP取得量 += LOCAL
+TFLAG:ZP取得量 += LOCAL
+FLAG:ZP所持量 += LOCAL
+
+
+@ZP_SHOP
+DRAWLINE
+PRINTL ■ZPショップへようこそ
+PRINTFORML 所持ZP:{FLAG:ZP所持量}
+DRAWLINE
+PRINTBUTTON "[0]特別な能力を得る", 0
+PRINTL 
+PRINTBUTTON "[1]特別なアイテムを得る", 1
+PRINTL 
+PRINTBUTTON "[2]特別なキャラを招待候補に加える", 2
+PRINTL 
+PRINTBUTTON "[3]キャラの素質を強化する", 3
+PRINTL 
+PRINTL
+IF !FLAG:エンディング後フラグ
+	PRINTBUTTON "[100]目標分のZPを献上する（エンディングへ）", 100
+	PRINTL 
+	PRINTL
+ENDIF
+PRINTBUTTONLC "[999]戻る", 999
+PRINTBUTTONLC "[998]説明", 998
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		CALL ZP_SHOP_能力
+		RESTART
+	CASE 1
+		CALL ZP_SHOP_アイテム
+		RESTART
+	CASE 2
+		CALL ZP_SHOP_EXキャラ
+		RESTART
+	CASE 3
+		CALL ZP_SHOP_素質強化
+		RESTART
+	CASE 100
+		IF FLAG:エンディング後フラグ
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL ZP_SHOP_汎用エンディング
+		RESTART
+	CASE 999
+		RETURN 0
+	CASE 998
+		DRAWLINE
+		PRINTL ZP（絶頂ポイント）を消費して特別な効果を得るためのショップです。
+		PRINTL 任意のキャラが絶頂した際にZPを取得することが出来ます。（あなたの絶頂では取得出来ません）
+		PRINTW お気に入りの相手をガンガン絶頂させてドンドンZPを手に入れましょう！
+		RESTART
+ENDSELECT
+
+REUSELASTLINE 
+GOTO INPUT_LOOP
+
+
+@ZP_SHOP_能力
+DRAWLINE
+PRINTL どの能力を手に入れますか？
+PRINTFORML 所持ZP:{FLAG:ZP所持量}
+DRAWLINE
+IF !あなた特殊能力:ハーレム
+	PRINTBUTTON "[0]ハーレム入門を取得する", 0
+	PRINTL 　　　　　値段：50ZP
+	PRINTL 　　　　　…一度に複数人を恋慕対象にするための能力です。取得すると同時に３人まで対象に取ることが出来ます。
+	PRINTL 　　　　　　また、恋慕素質を獲得した人数に応じてこの能力は成長します。
+	PRINTL
+ENDIF
+IF !あなた特殊能力:ギャンブラー
+	PRINTBUTTON "[1]ギャンブラーを取得する", 1
+	PRINTL 　　　　　値段：30ZP
+	PRINTL 　　　　　…賭け事を多く経験するための能力です。取得するとカードや卓球勝負の際、確実に賭け事を行うことが出来ます。
+	PRINTL 　　　　　　別にゲーム自体に強くなるわけではない点には注意してください。
+	PRINTL
+ENDIF
+IF ABL:PLAYER:技巧 < 10
+	PRINTBUTTON "[2]技巧レベルを上昇させる", 2
+	PRINTFORML 　　　　　値段：{ABL:PLAYER:技巧 * ABL:PLAYER:技巧 * 5}ZP　　現在Lv:{ABL:PLAYER:技巧}
+	PRINTL 　　　　　…相手により大きな快楽を与えるための能力です。技巧レベルが高まるたびに値段は上昇します。
+	PRINTL
+ENDIF
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		IF FLAG:ZP所持量 < 50
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		IF !あなた特殊能力:ハーレム
+			PRINTL 50ZPを支払い、ハーレム入門を取得しますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			INPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= 50
+				あなた特殊能力:ハーレム = 1
+				PRINTW 能力[ハーレム入門]を取得しました。
+			ENDIF
+			RESTART
+			
+		ENDIF
+	CASE 1
+		IF FLAG:ZP所持量 < 30
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		IF !あなた特殊能力:ギャンブラー
+			PRINTL 30ZPを支払い、ギャンブラーを取得しますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			INPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= 30
+				あなた特殊能力:ギャンブラー = 1
+				PRINTW 能力[ギャンブラー]を取得しました。
+			ENDIF
+			RESTART
+		ENDIF
+	CASE 2
+		IF FLAG:ZP所持量 < (ABL:PLAYER:技巧 * ABL:PLAYER:技巧 * 5)
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		IF ABL:PLAYER:技巧 < 10
+			PRINTFORML {ABL:PLAYER:技巧 * ABL:PLAYER:技巧 * 5}ZPを支払い、技巧を上昇させますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			INPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= (ABL:PLAYER:技巧 * ABL:PLAYER:技巧 * 5)
+				ABL:PLAYER:技巧 += 1
+				PRINTFORMW 技巧がLv{ABL:PLAYER:技巧}に上昇しました。
+			ENDIF
+			RESTART
+		ENDIF
+	CASE 999
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+REUSELASTLINE 
+GOTO INPUT_LOOP
+
+@ZP_SHOP_アイテム
+DRAWLINE
+PRINTL ZPを消費し、特別なアイテムを入手できます。
+PRINTL どのアイテムを購入しますか？
+PRINTFORML 所持ZP:{FLAG:ZP所持量}
+DRAWLINE
+PRINTBUTTON "[0]サプチケを購入する", 0
+PRINTL 　　　　　値段：20ZP
+PRINTL 　　　　　…任意のキャラを必ず招待するチケット。開発中Ver専用の特売品です。
+PRINTL 　　　　　　開発が進み、正規の入手手段が実装された段階でこの項目は削除されます。
+PRINTL
+
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		IF FLAG:ZP所持量 < 20
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTL 20ZPを支払い、サプチケを一枚取得しますか？
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		$INPUT_LOOP2
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				FLAG:ZP所持量 -= 20
+				ITEM:サプチケ += 1
+				PRINTW サプチケを一枚購入しました。
+			CASE 1
+				RESTART
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP2
+		ENDSELECT
+	CASE 999
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+@ZP_SHOP_EXキャラ
+;現在招待不可フラグが１なキャラ一覧
+#DIM 表示候補, 200
+#DIM 現在ページ
+#DIM 広告対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL ZPを消費し、本来ならばリゾートを訪れることが出来ないキャラを導きます。
+PRINTL どのキャラを導きますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;フラグがないキャラは出さない
+	SIF CFLAG:LOCAL:招待不可フラグ != 1
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	SIF CFLAG:(表示候補:LOCAL):ZPショップ値段 == 0
+		CFLAG:(表示候補:LOCAL):ZPショップ値段 = 50
+	PRINTBUTTON @"[{LOCAL}]%NAME:(表示候補:LOCAL), 20, LEFT%：消費ZP{CFLAG:(表示候補:LOCAL):ZPショップ値段, 4, RIGHT}", LOCAL
+	PRINTL 
+NEXT
+
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASEELSE
+		IF 表示候補:RESULT >= CHARANUM
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ELSEIF 表示候補:LOCAL < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		IF CFLAG:(表示候補:LOCAL):ZPショップ値段 > FLAG:ZP所持量
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTFORML %NAME:(表示候補:LOCAL)%を導きます。
+		PRINTL よろしいですか？
+		PRINTBUTTONLC "[0]はい", 0 
+		PRINTBUTTONLC "[1]いいえ", 1
+		PRINTL
+		$INPUT_LOOP_2
+		INPUT
+		IF RESULT == 0
+			PRINTFORML %NAME:(表示候補:LOCAL)%が導かれました。
+			IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 > 0
+				PRINTW 起床後にリゾートを訪れます。
+				FOR LOCAL:1, 0, 100
+					IF 解放キャラ招待:(LOCAL:1) == 0
+						解放キャラ招待:(LOCAL:1) = 表示候補:LOCAL
+						滞在キャラ数 += 1
+						BREAK
+					ENDIF
+				NEXT
+			ELSE
+				PRINTW 滞在人数がいっぱいのため、今後の招待対象に追加します。
+			ENDIF
+			CFLAG:(表示候補:LOCAL):招待不可フラグ = 0
+			FLAG:ZP所持量 -= CFLAG:(表示候補:LOCAL):ZPショップ値段
+		ELSEIF RESULT == 1
+			RESTART
+		ELSE
+			REUSELASTLINE 
+			GOTO INPUT_LOOP_2
+		ENDIF
+		SIF RESULT == -1
+			RESTART
+ENDSELECT
+
+
+@ZP_SHOP_素質強化
+;現在滞在しているキャラ一覧
+#DIM 表示候補, 200
+#DIM 現在ページ
+#DIM 広告対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰の素質を強化しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;滞在してないキャラは出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL}]%NAME:(表示候補:LOCAL)%", LOCAL
+	PRINTL 
+NEXT
+
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = 0
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASEELSE
+		IF 表示候補:RESULT >= CHARANUM
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ELSEIF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL ZP_素質強化(表示候補:RESULT)
+		SIF RESULT == -1
+			RESTART
+ENDSELECT
+
+@ZP_素質強化(ARG)
+LOCAL = ARG
+
+DRAWLINE
+PRINTL ZPを消費してキャラの素質を変化させることが出来ます。
+PRINTL どの素質を変化させますか？
+DRAWLINE
+PRINTBUTTONLC "[1]感覚系素質を強化する", 1
+PRINTL
+PRINTBUTTONLC "[2]乳の大きさを変化させる", 2
+PRINTL
+PRINTBUTTONLC "[999]戻る", 999
+PRINTL
+
+$INPUT_LOOP
+INPUT
+SELECTCASE RESULT
+	CASE 1
+	CASE 2
+	CASE 999
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+
+IF RESULT == 1
+	;ここに来たらLOCALの中に現在リゾートにいるキャラの番号が入ってるはず
+	DRAWLINE
+	PRINTL ZPを消費してキャラに敏感系素質を付与することが出来ます。
+	PRINTL どの素質を敏感化しますか？
+	DRAWLINE
+	FOR LOCAL:1 , 101, 106,
+		IF TALENT:LOCAL:(LOCAL:1) > 0
+			PRINTFORML %TALENTNAME:(LOCAL:1)%は既に敏感です
+			CONTINUE
+		ENDIF
+		IF TALENT:LOCAL:(LOCAL:1) == -1
+			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:鈍感 > 通常", LOCAL:1
+			PRINTL 　　　必要ZP:100
+		ELSE
+			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:通常 > 敏感", LOCAL:1
+			PRINTL 　　　必要ZP:300
+		ENDIF
+	NEXT
+	PRINTBUTTON "[999]戻る", 999
+	$INPUT_LOOP2
+	INPUT
+	LOCAL:1 = RESULT
+	SELECTCASE RESULT
+		CASE 999
+			RESTART
+		CASE 101 TO 105
+			;敏感なのに入ってきてない？
+			IF TALENT:LOCAL:(LOCAL:1) > 0
+				REUSELASTLINE 
+				GOTO INPUT_LOOP2
+			ENDIF
+			;ZP足りる？
+			IF TALENT:LOCAL:(LOCAL:1) == -1 & FLAG:ZP所持量 < 100
+				PRINTW ZPが足りません
+				RESTART
+			ELSEIF TALENT:LOCAL:(LOCAL:1) == 0 & FLAG:ZP所持量 < 300
+				PRINTW ZPが足りません
+				RESTART
+			ENDIF
+			IF TALENT:LOCAL:(LOCAL:1) == -1
+				PRINT 100
+			ELSEIF TALENT:LOCAL:(LOCAL:1) == 0
+				PRINT 300
+			ENDIF
+			PRINTFORML ZPを支払い、%TALENTNAME:(LOCAL:1)%素質を上昇させますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			INPUT
+			IF RESULT == 0
+				IF TALENT:LOCAL:(LOCAL:1) == -1
+					FLAG:ZP所持量 -= 100
+					PRINTFORMW %TALENTNAME:(LOCAL:1)%が鈍感から通常に変化しました。
+				ELSEIF TALENT:LOCAL:(LOCAL:1) == 0
+					FLAG:ZP所持量 -= 300
+					PRINTFORMW %TALENTNAME:(LOCAL:1)%が通常から敏感に変化しました。
+				ENDIF
+				TALENT:LOCAL:(LOCAL:1) += 1
+			ENDIF
+			RESTART
+		CASEELSE
+			REUSELASTLINE 
+			GOTO INPUT_LOOP2
+
+	ENDSELECT
+ELSEIF RESULT == 2
+	;ここに来たらLOCALの中に現在リゾートにいるキャラの番号が入ってるはず
+	DRAWLINE
+	PRINTL ZPを消費してキャラの乳の大きさを変化させることができます。
+	PRINTL 任意の大きさを選択してください
+	DRAWLINE
+	FOR LOCAL:1 , -2, 4
+		IF TALENT:LOCAL:バストサイズ == LOCAL:1
+			SETCOLOR 0x666666
+			PRINTFORML [{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（現在の大きさ）
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（{ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20}）", LOCAL:1
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[999]戻る", 999
+	$INPUT_LOOP3
+	INPUT
+	LOCAL:1 = RESULT
+	SELECTCASE LOCAL:1
+		CASE 999
+			RESTART
+		CASE TALENT:LOCAL:バストサイズ
+			REUSELASTLINE 
+			GOTO INPUT_LOOP3
+		CASE -2 TO 3
+			;ZP足りる？
+			IF FLAG:ZP所持量 < ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20
+				PRINTW ZPが足りません
+			GOTO INPUT_LOOP3
+			ENDIF
+			PRINTFORM {ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20}
+			PRINTFORML ZPを支払い、バストサイズを変化させますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			INPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20
+				PRINTFORMW %CALLNAME:LOCAL%のバストサイズが%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%から%GET_TALENTNAME(205, LOCAL:1)%に変化しました。
+				TALENT:LOCAL:バストサイズ = LOCAL:1
+			ENDIF
+			RESTART
+		CASEELSE
+			REUSELASTLINE 
+			GOTO INPUT_LOOP3
+	ENDSELECT
+ENDIF

@@ -1,0 +1,340 @@
+﻿;-------------------------------------------------
+;フェラチオ
+;奉仕系コマンド、レベル2
+;-------------------------------------------------
+@COMNAME81
+#FUNCTIONS
+TSTR:コマンド名受渡 = フェラチオ
+SIF MODE_確認("パイズリ", TARGET)
+	TSTR:コマンド名受渡 = パイズリフェラ
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_81
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+
+@COM_TOOLTIP_81
+LOCALS = <br>■フェラチオ<br>
+LOCALS += "相手に口で自分のペニスを愛撫してもらうコマンド。<br>フェラチオモードとなり、モードを変更するか性行為を終了するまで持続的に特定のソースが発生する。<br>パイズリモード時、[パイズリフェラ]に変化。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：口淫経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM81
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+IF MODE_確認("パイズリ", TARGET) == 0
+	CALL MODE_CHANGE("フェラチオ")
+ELSE
+	CALL MODE_CHANGE("パイズリフェラ")
+ENDIF
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+
+;奉仕快楽
+TFLAG:30 = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 10
+DOWNBASE:気力 += 100
+
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 300)
+
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌使いによって、快感のソース増加
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では苦痛ちょいある
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(PLAYER, TARGET, 20)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;フェラ経験
+EXP:口淫経験 += 1
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 7
+	EXP:PLAYER:同性愛経験 += 7
+ENDIF
+
+;愛情経験
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+;奴隷が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+;精液汚れ
+SIF TCVAR:PLAYER:112 == 1 || TCVAR:PLAYER:112 == 2
+	EXP:精飲経験 ++
+
+RETURN 1
+
+
+@CAN_COM81(ARG)
+SKIPDISP ARG
+PRINTL フェラチオ
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+A = 0
+S = 0
+
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+
+;ABL:欲望
+IF ABL:欲望
+	SIF S
+		PRINT  + 
+	A += ABL:欲望 * 1
+	PRINT 欲望
+	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 1,')
+	S = 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	SIF S
+		PRINT  + 
+	A += ABL:奉仕精神 * 4
+	PRINT 奉仕精神
+	PRINTV 'LV,ABL:奉仕精神,'(,ABL:奉仕精神 * 4,')
+	S = 1
+ENDIF
+;ABL:精液中毒
+IF ABL:精液中毒
+	SIF S
+		PRINT  + 
+	A += ABL:精液中毒 * 3
+	PRINT 精液中毒
+	PRINTV 'LV,ABL:精液中毒,'(,ABL:精液中毒 * 3,')
+	S = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 1
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 1,')
+	S = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:欲情,5) * 1
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 1,')
+	S = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 恥じらい
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;汚臭鈍感
+IF TALENT:汚臭耐性 > 0
+	SIF S
+		PRINT  + 
+	A += 1
+	PRINT 汚臭鈍感
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	PRINT  - 
+	A -= 3
+	PRINT 汚臭敏感
+	PRINTV '(,3,')
+	S = 1
+ENDIF
+;献身的
+IF TALENT:献身的
+	SIF S
+		PRINT  + 
+	A += 6
+	PRINT 献身的
+	PRINTV '(,6,')
+	S = 1
+ENDIF
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	PRINT  - 
+	A -= 1
+	PRINT 快感の否定
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;男嫌い（恋慕、親愛で無効）
+IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER)
+	PRINT  - 
+	A -= 12
+	PRINT 男嫌い
+	PRINTV '(,12,')
+	S = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 恋慕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;親愛
+IF TALENT:恋慕 > 1
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 親愛
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+
+;調教者がふたなり
+IF (TALENT:PLAYER:性別 & 3) == 3
+	SIF S
+		PRINT  + 
+	A += 8
+	PRINT ふたなり
+	PRINTV '(,8,')
+	S = 1
+ENDIF
+
+
+;合計を表示(24以上で実行)
+PRINT  = 
+PRINTV A
+
+V = 24
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE81
+;フェラチオ実行判定
+SIF !TFLAG:100
+	RETURN 0
+SIF GLOBAL_COMABLE(81)
+	RETURN RESULT
+;調教者がオトコか半人半妖かふたなりじゃないとダメ
+SIF !(TALENT:PLAYER:性別 & 2)
+	RETURN 0
+;猫舌の奴隷の場合は技巧Lv2以上必要
+SIF TALENT:猫舌 && ABL:技巧 < 2
+	RETURN 0
+;ボールギャグ使用中は不可
+SIF TEQUIP:ボールギャグ
+	RETURN 0
+;口、ペニスを何かに使ってる・届かないなら無理
+IF MODE_確認("パイズリ", TARGET) == 0
+	SIF TEQUIP:PLAYER:ペニス
+		RETURN 0
+	SIF TEQUIP:TARGET:口
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM81
+VARSET LOCAL
+IF MASTER_POSE(6, 1, 1) > 0
+	LOCAL = MASTER_POSE(6, 1, 1)
+ELSEIF MASTER_POSE(7, 1, 1) > 0
+	LOCAL = MASTER_POSE(7, 1, 1)
+ENDIF
+
+;;お掃除
+;IF LOCAL && (TCVAR:LOCAL:103 == PLAYER || TCVAR:LOCAL:105 == PLAYER)
+;		PRINTFORML %CALLNAME:LOCAL%の中にたっぷりと射精してからペニスを抜き、
+;		PRINTFORML ペニスに付着した精液を%CALLNAME:TARGET%に舐め取らせた…
+;		SIF TFLAG:8
+;			PRINTFORML %CALLNAME:TARGET%は尿道に残った精液まで残らずきれいにしてから\@ ABL:精液中毒 > 2 ? 名残を惜しむかのように # \@ペニスから唇を離した…
+;ELSEIF NOWEX:MASTER:11 
+;	IF LOCAL == TARGET
+;		PRINTFORML 射精の直前に\@ MASTER_POSE(6,1,1) ? ヴァギナ # アナル \@からペニスを抜き%CALLNAME:TARGET%に咥えさせた…
+;	ELSEIF LOCAL
+;		PRINTFORML 射精の直前に%CALLNAME:LOCAL%からペニスを抜き%CALLNAME:TARGET%に咥えさせた…
+;	ELSE
+;		PRINTFORML 射精寸前のペニスを%CALLNAME:TARGET%に咥えさせた…
+;	ENDIF
+;	IF ABL:技巧 > 2
+;		IF ABL:精液中毒 > 2
+;			PRINTFORML %CALLNAME:TARGET%は唇で亀頭を包んでから高速で舌を動かし%CALLNAME:PLAYER%に射精を促している…
+;		ELSE
+;			PRINTFORML %CALLNAME:TARGET%はペニスの敏感な部分に舌をはわせ%CALLNAME:PLAYER%に射精を促している…
+;		ENDIF
+;	ELSE
+;		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%の反応を伺いながら懸命に舌を動かしている…
+;	ENDIF
+;ELSE
+
+IF MODE_確認("パイズリフェラ", TARGET)
+	PRINTFORM %CALLNAME:TARGET%は
+	;恋慕か親愛
+	SIF TALENT:恋慕
+		PRINT 慈しむような表情で、
+	;淫乱か娼婦
+	SIF TALENT:淫乱
+		PRINT 自ら
+	PRINTFORML パイズリをしていた%CALLNAME:PLAYER%のペニスを咥えた…
+ELSE
+	PRINTFORM %CALLNAME:TARGET%は
+	;恋慕か親愛
+	SIF TALENT:恋慕
+		PRINT 慈しむような表情で、
+	;淫乱か娼婦
+	SIF TALENT:淫乱
+		PRINT 自ら
+	PRINTFORML %CALLNAME:PLAYER%のペニスに舌を這わせている…
+ENDIF
+;ENDIF
+
+

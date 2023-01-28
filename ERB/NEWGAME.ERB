@@ -1,0 +1,704 @@
+﻿;-------------------------------------------------
+;ニューゲーム
+;-------------------------------------------------
+@EVENTFIRST
+TARGET = 0
+ASSI = 0
+
+PBAND = 12
+
+CALL DEFAULT_OPTION
+
+;モード選択（後々使うかもしれないから消さずにコメントアウト）
+;PRINTL ★★モードを選択してください★★
+;PRINTL [0]START
+;
+;$INPUT_LOOP
+;INPUT
+;IF RESULT == 0
+;	FLAG:5 = 0
+;ELSE
+;	GOTO INPUT_LOOP
+;ENDIF
+
+
+LOCAL = 0
+FOR LOCAL,CHARANUM,キャラクタ数上限
+	SIF !EXISTCSV(LOCAL)
+		CONTINUE
+	;ランダムキャラ排除
+	SIF LOCAL == 999
+		CONTINUE
+	ADDCHARA LOCAL
+NEXT
+
+CALL CUSTOM_CHARAMAKE(MASTER)
+SIF TALENT:MASTER:2 & 2
+	MAXBASE:MASTER:5 = 1500
+ITEM:サプチケ = 1
+
+CALL イベントデータベースセット
+CALL アイテムデータベースセット
+
+従業員キャラ上限 = 2
+施設改造度:0:0 = 1
+
+PRINTW パラメータの初期化処理を行います
+PRINTL 
+SAVESTR:10 = /
+LOCAL:1 = CHARANUM / 10
+REDRAW 0
+FOR LOCAL, 0, CHARANUM
+	CALL キャラクター初期化(LOCAL)
+	IF LOCAL % LOCAL:1 == 0
+		CLEARLINE 1
+		PRINTFORML 進行度……{LOCAL / LOCAL:1 * 10}\%
+		AWAIT
+		;TWAIT 100, 1
+	ENDIF
+NEXT
+CLEARLINE 1
+PRINTL 進行度……100%
+;起床時間
+CFLAG:MASTER:現在位置 = CFLAG:MASTER:311
+CFLAG:MASTER:滞在期間 = 999
+CFLAG:MASTER:312 = 420
+CFLAG:MASTER:睡眠 = 1
+初体験日:MASTER:初対面 = 999
+FLAG:従業員数 = 1
+DAY = 1
+MONEY = 5000
+
+ボタン化用カラーマトリクス:0:0 = 768,256,256,  0,  0
+ボタン化用カラーマトリクス:1:0 = 256,768,256,  0,  0
+ボタン化用カラーマトリクス:2:0 = 256,256,256,  0,  0
+ボタン化用カラーマトリクス:3:0 =   0,  0,  0,256,  0
+ボタン化用カラーマトリクス:4:0 =   0,  0,  0,  0,256
+
+REDRAW 1
+
+
+
+VARSET 通常キャラ招待
+VARSET ＤＭキャラ招待
+
+;初期値設定
+滞在キャラ数 = 0
+滞在キャラ上限 = 20
+
+PRINTW パラメータの初期化処理が終了しました
+
+;素質設定
+PRINTL
+PRINTW 素質の切り替えオプションを呼び出します。
+PRINTL
+CALL OPTION_素質切り替え
+PRINTL
+PRINTW このオプションはゲーム開始後もOPTIONから呼び出すことが出来ます。
+
+CALL シナリオ_OP
+
+BEGIN SHOP
+
+@EVENTLOAD
+CALL VERSION_UP
+
+
+
+
+@キャラクター初期化(ARG)
+#DIMS CSTR切り分け文字列格納, 2
+VARSET LOCALS
+VARSET CSTR切り分け文字列格納
+
+初期設定中 = 1
+
+;全員睡眠状態
+CFLAG:ARG:睡眠 = 1
+CFLAG:ARG:滞在期間 = -1
+CFLAG:ARG:現在位置 = 999
+BASE:ARG:酩酊 = 0
+MAXBASE:ARG:酩酊 = 1000
+BASE:ARG:母乳 = 0
+MAXBASE:ARG:母乳 = 10000
+BASE:ARG:性欲 = 0
+MAXBASE:ARG:性欲 = 10000
+CALL CLOTHES_RESET(ARG)
+
+;射精、勃起、ムード、理性、怒り
+BASE:ARG:射精 = 0
+BASE:ARG:勃起 = 0
+BASE:ARG:ムード = 0
+BASE:ARG:理性 = MAXBASE:ARG:11
+BASE:ARG:怒り = 0
+BASE:ARG:勃起 = 0
+BASE:ARG:満足 = 0
+CFLAG:ARG:勃起度 = 0
+CFLAG:ARG:同行 = 0
+CFLAG:ARG:酔いすぎ = 0
+;性交フラグ
+TEQUIP:ARG:50 = -1
+TEQUIP:ARG:51 = -1
+TCVAR:ARG:100 = -1
+TCVAR:ARG:101 = -1
+;中出し表示用フラグ
+TCVAR:ARG:103 = -1
+TCVAR:ARG:105 = -1
+;射精処理用文字列変数
+CSTR:ARG:10 = /
+CSTR:ARG:11 = /
+;発情期
+SIF 発情期判定(ARG)
+	CFLAG:ARG:発情期フラグ = RAND:9 + 1
+
+VARSET LOCALS
+;招待時同行キャラ
+REPLACE CSTR:ARG:同行キャラ, " ", ""
+SPLIT RESULTS, "%", LOCALS
+LOCAL:2 = RESULT - 1
+FOR LOCAL, 0, LOCAL:2
+	SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+	;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+	同行候補キャラ番号:ARG:LOCAL = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+	同行候補キャラ確率:ARG:LOCAL = TOINT(CSTR切り分け文字列格納:1)
+NEXT
+
+VARSET LOCALS
+;知識素質
+SUBSTRING CSTR:ARG:知識素質設定, 1, -1
+SPLIT RESULTS, " ", LOCALS
+LOCAL:2 = RESULT - 1
+FOR LOCAL, 0, LOCAL:2
+	SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+	;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+	知識素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
+NEXT
+
+;素質切り替え
+IF TALENT:LOCAL:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
+	TALENT:LOCAL:陥没乳首 = 0
+ENDIF
+IF TALENT:LOCAL:母乳体質 && 素質切り替えOPTION記憶:母乳体質_なし
+	TALENT:LOCAL:母乳体質 = 0
+ENDIF
+IF TALENT:LOCAL:性別 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
+	TALENT:LOCAL:性別 = 1
+ENDIF
+
+VARSET LOCALS
+;戦闘ステータス
+SUBSTRING CSTR:ARG:戦闘基礎ステータス設定, 1, -1
+SPLIT RESULTS, " ", LOCALS
+	;属性
+	SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
+	基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
+	;得意武器
+	SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
+	基礎BATTLE_STATE:ARG:得意武器 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
+	;初期ステータス
+	SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
+	CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
+
+
+CALL 弱点コマンド初期設定(ARG)
+TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
+初期設定中 = 0
+
+
+@弱点コマンド初期設定(ARG)
+#DIMS 弱点候補_セクハラ, 200
+#DIMS 弱点候補_うふふ, 200
+#DIMS 敏感弱点候補_セクハラ, 200
+#DIMS 敏感弱点候補_うふふ, 200
+#DIM 敏感セクハラ候補数
+#DIM 敏感うふふ候補数
+#DIM セクハラ候補数
+#DIM うふふ候補数
+#DIM 通常コマンド存在フラグ, 1000
+#DIM 場所固有コマンド存在フラグ, 5, 2, 20
+#DIM チェック完了
+
+;弱点初期化
+VARSET 弱点コマンド枠:ARG:0
+
+;まず口上側で弱点の設定があるか見に行く
+TRYCCALLFORM 弱点コマンド初期設定変更_{ARG}
+	;弱点が全て埋まった場合はここで処理終了
+	SIF MATCH(弱点コマンド枠:ARG:0, "", 0, 5)==0
+		RETURN
+CATCH
+ENDCATCH
+
+セクハラ候補数 = 0
+うふふ候補数 = 0
+敏感セクハラ候補数 = 0
+敏感うふふ候補数 = 0
+
+;コマンド存在チェック
+IF !チェック完了
+	;通常コマンド
+	FOR LOCAL, 0, 1000
+		IF EXISTFUNCTION(@"COMTYPE_{LOCAL}")
+			SETBIT 通常コマンド存在フラグ:LOCAL, 0
+			;派生コマンド
+			FOR LOCAL:1, 0, 20
+				SIF EXISTFUNCTION(@"COMTYPE_S_{LOCAL}_{LOCAL:1}")
+					SETBIT 通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1
+			NEXT
+		ENDIF
+	NEXT
+	;場所固有コマンド
+	FOR LOCAL, 0, 5
+		FOR LOCAL:3, 0, 1
+			FOR LOCAL:1, 0, 20
+				FOR LOCAL:2, 0, 20
+					SIF EXISTFUNCTION(@"COMTYPE_{LOCAL + 380}_{LOCAL:3}_{LOCAL:1 * 100 + LOCAL:2 + 1}")
+						SETBIT 場所固有コマンド存在フラグ:LOCAL:(LOCAL:3):(LOCAL:1), LOCAL:2
+				NEXT
+			NEXT
+		NEXT
+	NEXT
+	チェック完了 = 1
+ENDIF
+
+;敏感素質に対応した弱点候補をリスト化
+FOR LOCAL, 0, 1000
+	;通常コマンド
+	IF GETBIT(通常コマンド存在フラグ:LOCAL, 0)
+		;口上側と被ってない場合+敏感素質に対応してる場合のみ
+		IF !MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}", 0, 5) && 敏感素質対応判定(ARG, @"COMTYPE_{LOCAL}")
+			SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}")
+				CASE 1
+					敏感弱点候補_セクハラ:敏感セクハラ候補数 = {LOCAL}
+					敏感セクハラ候補数 += 1
+				CASE 2
+					敏感弱点候補_うふふ:敏感うふふ候補数 = {LOCAL}
+					敏感うふふ候補数 += 1
+			ENDSELECT
+		ENDIF
+		;派生コマンド
+		FOR LOCAL:1, 0, 20
+			SIF !GETBIT(通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1)
+				CONTINUE
+			;口上側と被ってるOR敏感素質に対応してないなら飛ばす
+			SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{LOCAL:1}", 0, 5) || !敏感素質対応判定(ARG, @"COMTYPE_S_{LOCAL}_{LOCAL:1}")
+				CONTINUE
+			SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_S_{LOCAL}_{LOCAL:1}")
+				CASE 1
+					敏感弱点候補_セクハラ:敏感セクハラ候補数 = {LOCAL}_{LOCAL:1}
+					敏感セクハラ候補数 += 1
+				CASE 2
+					敏感弱点候補_うふふ:敏感うふふ候補数 = {LOCAL}_{LOCAL:1}
+					敏感うふふ候補数 += 1
+			ENDSELECT
+		NEXT
+	ENDIF
+	;専用コマンド
+	IF INRANGE(LOCAL, 370, 374)
+		SIF !EXISTFUNCTION(@"COMTYPE_{LOCAL}_{NO:ARG}")
+			CONTINUE
+		;口上側と被ってるOR敏感素質に対応してないなら飛ばす
+		SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{NO:ARG}", 0, 5) || !敏感素質対応判定(ARG, @"COMTYPE_{LOCAL}_{NO:ARG}")
+			CONTINUE
+		SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}_{NO:ARG}")
+			CASE 1
+				敏感弱点候補_セクハラ:敏感セクハラ候補数 = {LOCAL}_{NO:ARG}
+				敏感セクハラ候補数 += 1
+			CASE 2
+				敏感弱点候補_うふふ:敏感うふふ候補数 = {LOCAL}_{NO:ARG}
+				敏感うふふ候補数 += 1
+		ENDSELECT
+	;場所固有コマンド
+	ELSEIF INRANGE(LOCAL, 380, 384)
+		FOR LOCAL:1, 0, 20
+			FOR LOCAL:5, 0, 1
+				FOR LOCAL:2, 0, 20
+					SIF !GETBIT(場所固有コマンド存在フラグ:(LOCAL - 380):(LOCAL:5):(LOCAL:1), LOCAL:2)
+						CONTINUE
+					LOCAL:3 = LOCAL:1 * 100 + LOCAL : 2 + 1
+					;口上側と被ってるなら飛ばす
+					SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{LOCAL:5}_{LOCAL:3}", 0, 5) || !敏感素質対応判定(ARG, @"COMTYPE_{LOCAL}_{LOCAL:5}_{LOCAL:3}")
+						CONTINUE
+					SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}_{LOCAL:5}_{LOCAL:3}")
+						CASE 1
+							敏感弱点候補_セクハラ:敏感セクハラ候補数 = {LOCAL}_{LOCAL:3}
+							敏感セクハラ候補数 += 1
+						CASE 2
+							敏感弱点候補_うふふ:敏感うふふ候補数 = {LOCAL}_{LOCAL:3}
+							敏感うふふ候補数 += 1
+					ENDSELECT
+				NEXT
+			NEXT
+		NEXT
+	ENDIF
+NEXT
+
+
+;敏感対応の候補からセクハラとうふふに一つずつ設定
+;ただし、以下の条件を守る
+;・弱点コマンド枠は最低一つ空ける
+;・うふふとセクハラのどちらか一つしか入らないならうふふ優先
+
+;うふふ設定
+LOCAL = 0
+WHILE 1
+	SIF LOCAL > 3 || !敏感うふふ候補数
+		BREAK
+	IF 弱点コマンド枠:ARG:LOCAL != ""
+		LOCAL ++
+		CONTINUE
+	ENDIF
+	LOCAL:1 = RAND:敏感うふふ候補数
+	弱点コマンド枠:ARG:LOCAL = %敏感弱点候補_うふふ:(LOCAL:1)%
+	BREAK
+WEND
+
+;セクハラ設定
+LOCAL = 0
+WHILE 1
+	SIF LOCAL > 3 || !敏感セクハラ候補数
+		BREAK
+	IF 弱点コマンド枠:ARG:LOCAL != ""
+		LOCAL ++
+		CONTINUE
+	ENDIF
+	LOCAL:1 = RAND:敏感セクハラ候補数
+	弱点コマンド枠:ARG:LOCAL = %敏感弱点候補_セクハラ:(LOCAL:1)%
+	BREAK
+WEND
+
+;弱点候補リスト化
+FOR LOCAL, 0, 1000
+	;通常コマンド
+	IF GETBIT(通常コマンド存在フラグ:LOCAL, 0)
+		;口上側と被ってない場合のみ
+		IF !MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}", 0, 5)
+			SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}")
+				CASE 1
+					弱点候補_セクハラ:セクハラ候補数 = {LOCAL}
+					セクハラ候補数 += 1
+				CASE 2
+					弱点候補_うふふ:うふふ候補数 = {LOCAL}
+					うふふ候補数 += 1
+			ENDSELECT
+		ENDIF
+		;派生コマンド
+		FOR LOCAL:1, 0, 20
+			SIF !GETBIT(通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1)
+				CONTINUE
+			;口上側と被ってるなら飛ばす
+			SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{LOCAL:1}", 0, 5)
+				CONTINUE
+			SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_S_{LOCAL}_{LOCAL:1}")
+				CASE 1
+					弱点候補_セクハラ:セクハラ候補数 = {LOCAL}_{LOCAL:1}
+					セクハラ候補数 += 1
+				CASE 2
+					弱点候補_うふふ:うふふ候補数 = {LOCAL}_{LOCAL:1}
+					うふふ候補数 += 1
+			ENDSELECT
+		NEXT
+	ENDIF
+	;専用コマンド
+	IF INRANGE(LOCAL, 370, 374)
+		SIF !EXISTFUNCTION(@"COMTYPE_{LOCAL}_{NO:ARG}")
+			CONTINUE
+		;口上側と被ってるなら飛ばす
+		SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{NO:ARG}", 0, 5)
+			CONTINUE
+		SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}_{NO:ARG}")
+			CASE 1
+				弱点候補_セクハラ:セクハラ候補数 = {LOCAL}_{NO:ARG}
+				セクハラ候補数 += 1
+			CASE 2
+				弱点候補_うふふ:うふふ候補数 = {LOCAL}_{NO:ARG}
+				うふふ候補数 += 1
+		ENDSELECT
+	;場所固有コマンド
+	ELSEIF INRANGE(LOCAL, 380, 384)
+		FOR LOCAL:1, 0, 20
+			FOR LOCAL:2, 0, 20
+				SIF !GETBIT(場所固有コマンド存在フラグ:(LOCAL - 380):(LOCAL:5):(LOCAL:1), LOCAL:2)
+					CONTINUE
+				LOCAL:3 = LOCAL:1 * 100 + LOCAL : 2 + 1
+				;口上側と被ってるなら飛ばす
+				SIF MATCH(弱点コマンド枠:ARG:0, @"{LOCAL}_{LOCAL:5}_{LOCAL:3}", 0, 5)
+					CONTINUE
+				SELECTCASE 弱点コマンド候補判定(ARG, @"COMTYPE_{LOCAL}_{LOCAL:5}_{LOCAL:3}")
+					CASE 1
+						弱点候補_セクハラ:セクハラ候補数 = {LOCAL}_{LOCAL:5}_{LOCAL:3}
+						セクハラ候補数 += 1
+					CASE 2
+						弱点候補_うふふ:うふふ候補数 = {LOCAL}_{LOCAL:5}_{LOCAL:3}
+						うふふ候補数 += 1
+				ENDSELECT
+			NEXT
+		NEXT
+	ENDIF
+NEXT
+
+;空いている枠にセクハラ系から２つ、うふふ系から２つ、完全ランダムで１つ設定する
+
+FOR LOCAL, 0, 5
+	SIF 弱点コマンド枠:ARG:LOCAL != ""
+		CONTINUE
+	SELECTCASE LOCAL
+		CASE 0 TO 1
+			LOCAL:1 = RAND:セクハラ候補数
+			弱点コマンド枠:ARG:LOCAL = %弱点候補_セクハラ:(LOCAL:1)%
+			FOR LOCAL:2, LOCAL:1, セクハラ候補数
+				弱点候補_セクハラ:(LOCAL:2) = %弱点候補_セクハラ:(LOCAL:2 + 1)%
+			NEXT
+			セクハラ候補数 -= 1
+		CASE 2 TO 3
+			LOCAL:1 = RAND:うふふ候補数
+			弱点コマンド枠:ARG:LOCAL = %弱点候補_うふふ:(LOCAL:1)%
+			FOR LOCAL:2, LOCAL:1, うふふ候補数
+				弱点候補_うふふ:(LOCAL:2) = %弱点候補_うふふ:(LOCAL:2 + 1)%
+			NEXT
+			うふふ候補数 -= 1
+		CASEELSE
+			LOCAL:1 = RAND:(セクハラ候補数 + うふふ候補数)
+			IF LOCAL:1 < セクハラ候補数
+				弱点コマンド枠:ARG:LOCAL = %弱点候補_セクハラ:(LOCAL:1)%
+			ELSE
+				弱点コマンド枠:ARG:LOCAL = %弱点候補_うふふ:(LOCAL:1 - セクハラ候補数)%
+			ENDIF
+	ENDSELECT
+NEXT
+
+@弱点コマンド候補判定(ARG, ARGS)
+;返り値
+;0=候補外
+;1=弱点候補_セクハラ
+;2=弱点候補_うふふ
+#FUNCTION
+弱点コマンドカテゴリ = 
+TFLAG:コマンドタイプ受渡 = 999
+CALLFORMF %ARGS%
+SIF 弱点コマンドカテゴリ == ""
+	RETURNF 0
+SIF STRFIND(弱点コマンドカテゴリ, "角") >= 0 && TALENT:ARG:角あり == 0
+	RETURNF 0
+SIF STRFIND(弱点コマンドカテゴリ, "尻尾") >= 0 && TALENT:ARG:尻尾あり == 0
+	RETURNF 0
+SIF STRFIND(弱点コマンドカテゴリ, "ちんこ") >= 0 && GETBIT(TALENT:ARG:性別, 1) == 0
+	RETURNF 0
+SELECTCASE TFLAG:コマンドタイプ受渡
+	CASE 1 TO 3
+		RETURNF 1
+	CASE 100, 101
+		;複数コマンド
+		SIF STRFIND(TSTR:複合コマンドタイプ受け渡し, "セクハラ") >= 0
+			RETURNF 1
+		SIF STRFIND(TSTR:複合コマンドタイプ受け渡し, "うふふ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "Ｖ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し,"Ａ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "道具系") >= 0
+			RETURNF 2
+	CASEELSE
+		;うふふ扱い
+		RETURNF 2
+ENDSELECT
+
+@敏感素質対応判定(ARG, ARGS)
+#FUNCTION
+;敏感素質を検出
+弱点コマンドカテゴリ = 
+CALLFORMF %ARGS%
+;弱点コマンドカテゴリに対応する敏感素質があれば1を返す
+SIF 弱点コマンドカテゴリ == ""
+	RETURNF 0
+SIF STRFIND(弱点コマンドカテゴリ, "C") >= 0 && TALENT:ARG:Ｃ感度 > 0
+	RETURNF 1
+SIF STRFIND(弱点コマンドカテゴリ, "V") >= 0 && TALENT:ARG:Ｖ感度 > 0
+	RETURNF 1
+SIF STRFIND(弱点コマンドカテゴリ, "A") >= 0 && TALENT:ARG:Ａ感度 > 0
+	RETURNF 1
+SIF STRFIND(弱点コマンドカテゴリ, "B") >= 0 && TALENT:ARG:Ｂ感度 > 0
+	RETURNF 1
+SIF STRFIND(弱点コマンドカテゴリ, "S") >= 0 && TALENT:ARG:Ｓ感度 > 0
+	RETURNF 1
+;ここまで来た時点で該当するものがないのでオワリ
+RETURNF 0
+
+
+@初期ステータス設定_テンプレート適用(初期ステータスタイプ, ARG)
+#DIMS 初期ステータスタイプ
+
+SELECTCASE 初期ステータスタイプ
+	CASE "バランス"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 0
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 200
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 100
+		基礎BATTLE_STATE:ARG:攻撃力 = 100
+		基礎BATTLE_STATE:ARG:防御力 = 100
+		基礎BATTLE_STATE:ARG:回復力 = 100
+		基礎BATTLE_STATE:ARG:行動速度 = 100
+		基礎BATTLE_STATE:ARG:DA率 = 10
+		基礎BATTLE_STATE:ARG:TA率 = 5
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 5
+	CASE "攻撃"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 1
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 180
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 120
+		基礎BATTLE_STATE:ARG:攻撃力 = 120
+		基礎BATTLE_STATE:ARG:防御力 = 80
+		基礎BATTLE_STATE:ARG:回復力 = 80
+		基礎BATTLE_STATE:ARG:行動速度 = 110
+		基礎BATTLE_STATE:ARG:DA率 = 10
+		基礎BATTLE_STATE:ARG:TA率 = 5
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 100
+		基礎BATTLE_STATE:ARG:回避率 = 5
+	CASE "防御"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 2
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 250
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 80
+		基礎BATTLE_STATE:ARG:攻撃力 = 90
+		基礎BATTLE_STATE:ARG:防御力 = 130
+		基礎BATTLE_STATE:ARG:回復力 = 110
+		基礎BATTLE_STATE:ARG:行動速度 = 90
+		基礎BATTLE_STATE:ARG:DA率 = 8
+		基礎BATTLE_STATE:ARG:TA率 = 3
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 0
+	CASE "回復"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 3
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 180
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 130
+		基礎BATTLE_STATE:ARG:攻撃力 = 90
+		基礎BATTLE_STATE:ARG:防御力 = 90
+		基礎BATTLE_STATE:ARG:回復力 = 130
+		基礎BATTLE_STATE:ARG:行動速度 = 120
+		基礎BATTLE_STATE:ARG:DA率 = 5
+		基礎BATTLE_STATE:ARG:TA率 = 3
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 5
+	CASE "サポート"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 4
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 190
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 130
+		基礎BATTLE_STATE:ARG:攻撃力 = 80
+		基礎BATTLE_STATE:ARG:防御力 = 90
+		基礎BATTLE_STATE:ARG:回復力 = 110
+		基礎BATTLE_STATE:ARG:行動速度 = 135
+		基礎BATTLE_STATE:ARG:DA率 = 5
+		基礎BATTLE_STATE:ARG:TA率 = 3
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 5
+	CASE "連撃"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 5
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 180
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 100
+		基礎BATTLE_STATE:ARG:攻撃力 = 110
+		基礎BATTLE_STATE:ARG:防御力 = 80
+		基礎BATTLE_STATE:ARG:回復力 = 80
+		基礎BATTLE_STATE:ARG:行動速度 = 130
+		基礎BATTLE_STATE:ARG:DA率 = 30
+		基礎BATTLE_STATE:ARG:TA率 = 10
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 5
+	CASE "回避"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 6
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 200
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 100
+		基礎BATTLE_STATE:ARG:攻撃力 = 90
+		基礎BATTLE_STATE:ARG:防御力 = 80
+		基礎BATTLE_STATE:ARG:回復力 = 100
+		基礎BATTLE_STATE:ARG:行動速度 = 150
+		基礎BATTLE_STATE:ARG:DA率 = 10
+		基礎BATTLE_STATE:ARG:TA率 = 5
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 100
+		基礎BATTLE_STATE:ARG:命中率 = 90
+		基礎BATTLE_STATE:ARG:回避率 = 15
+	CASE "奥義"
+		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 7
+		基礎BATTLE_STATE:ARG:Lv = 1
+		基礎BATTLE_STATE:ARG:最大ＨＰ = 200
+		基礎BATTLE_STATE:ARG:最大ＭＰ = 100
+		基礎BATTLE_STATE:ARG:攻撃力 = 110
+		基礎BATTLE_STATE:ARG:防御力 = 90
+		基礎BATTLE_STATE:ARG:回復力 = 100
+		基礎BATTLE_STATE:ARG:行動速度 = 90
+		基礎BATTLE_STATE:ARG:DA率 = 10
+		基礎BATTLE_STATE:ARG:TA率 = 5
+		基礎BATTLE_STATE:ARG:ゲージ上昇効率 = 100
+		基礎BATTLE_STATE:ARG:ゲージ最大値 = 200
+		基礎BATTLE_STATE:ARG:命中率 = 95
+		基礎BATTLE_STATE:ARG:回避率 = 5
+ENDSELECT
+
+@イベントデータベースセット
+
+DT_CREATE "各イベント用変数配列"
+DT_COLUMN_ADD "各イベント用変数配列", "イベント名"
+DT_COLUMN_ADD "各イベント用変数配列", "イベントカテゴリ", 1
+DT_COLUMN_ADD "各イベント用変数配列", "イベント発生フラグ", 1
+DT_COLUMN_ADD "各イベント用変数配列", "イベント完了フラグ", 1
+DT_COLUMN_ADD "各イベント用変数配列", "フリー変数１", 1
+DT_COLUMN_ADD "各イベント用変数配列", "フリー変数２", 1
+DT_COLUMN_ADD "各イベント用変数配列", "フリー変数３", 1
+DT_COLUMN_ADD "各イベント用変数配列", "フリー文字列１"
+DT_COLUMN_ADD "各イベント用変数配列", "フリー文字列２"
+DT_COLUMN_ADD "各イベント用変数配列", "フリー文字列３"
+CALL イベント追加チェック
+
+
+@イベント追加チェック
+#DIM イベント数
+#DIMS イベント名保存
+VARSET LOCAL
+VARSET LOCALS
+
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	LOCALS:LOCAL = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+NEXT
+
+イベント数 = ENUMFUNCBEGINSWITH("イベント関数_メインシナリオ_")
+
+FOR LOCAL, 0, イベント数
+	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 28)%
+	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
+		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", 1
+	ENDIF
+NEXT
+
+イベント数 = ENUMFUNCBEGINSWITH("イベント関数_サブイベント_")
+
+FOR LOCAL, 0, イベント数
+	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 26)%
+	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
+		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", 2
+	ENDIF
+NEXT
+イベント数 = ENUMFUNCBEGINSWITH("イベント関数_ＥＸイベント_")
+
+FOR LOCAL, 0, イベント数
+	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 26)%
+	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
+		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", 3
+	ENDIF
+NEXT
+
+@アイテムデータベースセット
+DT_CREATE "所持アイテムデータベース"
+DT_ROW_ADD "所持アイテムデータベース"
+DT_ROW_ADD "所持アイテムデータベース"

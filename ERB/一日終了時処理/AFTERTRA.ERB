@@ -1,0 +1,53 @@
+﻿;────────────────────────────────────
+;調教終了の処理
+;────────────────────────────────────
+@EVENTEND0
+PRINTL 一日が終わりました
+探索フラグ = 0
+SIF STRLENS(TSTR:1)
+	CALL SELL_VIDEO
+
+;睡眠フラグ
+CFLAG:MASTER:睡眠 = 1
+
+;何の珠を得られたか
+FOR LOCAL,0,CHARANUM
+	;滞在してないキャラはスルー
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	CALL JUEL_CHECK(LOCAL)
+	CALL DENIAL_CHECK(LOCAL)
+	IF 性癖素質:LOCAL:性癖開発用フラグ変数
+		;性癖開発チャレンジ
+		;チャレンジ時はオナニー判定が出ない
+		TRYCALLFORM 性癖開拓チャレンジ処理_{性癖素質:LOCAL:性癖開発用フラグ変数}(LOCAL)
+		性癖素質:LOCAL:性癖開発用フラグ変数 = 0
+	ELSE
+		;一日終了時自慰判定
+		CALL 一日終了時オナニー判定(LOCAL)
+	ENDIF
+NEXT
+
+;従業員数に応じて雑務減少
+FOR LOCAL, 1, 2100
+	IF LOCAL < 100 || 施設改造度:(LOCAL / 100):0
+		雑務ゲージ:LOCAL -= MAX(仕事人数表示用:1 * 100, 0)
+	ENDIF
+	SIF LOCAL > 20
+		LOCAL += 79
+NEXT
+
+DRAWLINE
+IF 仕事人数表示用:1 > 0
+	PRINTFORML {仕事人数表示用:1}名の従業員の働きにより、各場所の雑務ゲージが{仕事人数表示用:1 * 100}減少しました。
+ENDIF
+
+;変数初期化
+VARSET 野外オナニー変数
+VARSET 解放キャラ招待
+集客人数 = 0
+
+BEGIN ABLUP
+
+
+

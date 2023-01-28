@@ -1,0 +1,113 @@
+﻿ABLUP
+全自動で行っており、多量のJUELが必要な能力ほど優先順位が高めです
+FORで何重もぶんまわしているため時間がかかります。
+
+フラグの運命
+TCVAR:0～4
+	@COMF
+		TCVAR:A:0 = B(A:射精する人 B:射精させる人)
+		TCVAR:A:2 = B(A:射精する人 B:射精する箇所)
+		が設定される。
+		TCVAR:0はビットとなっておりTARGETとASSIの両方に奉仕させたいときなんかにも対応出来る。現状ではTARGET,PLAYER,MASTER,ASSIを登録出来る。ASSI:1やASSI:2も使いたい人は付け足してください。
+		BITなんて解らんという人はTCVAR:1でビットを使わずに設定出可能(自由度は下がる)。
+		TCVAR:2はフェラ、パイズリ、手淫などの各部位
+	@SOURCE
+		快CVABの処理が終わった後の絶頂処理として@EVENT_SHOOTが呼ばれます
+	@EVENT_SHOOT
+		まずここでTCVAR:1がTCVAR:0に翻訳される
+		またコンドーム着用ならTCVAR:3 = 1
+		
+		このあとでTCVAR:A:0に値が入っていればキャラごとに射精判定が行われ
+		TCVAR:A:0,TCVAR:A:102から「誰が誰のどの部位に」という情報を抽出してBASE:A:2に値を加える
+		BASE:A:2 > MAXBASE:A:2であれば
+		TCVAR:A:10 = TCVAR:A:0
+		TCVAR:A:12 = TCVAR:A:2
+		とし、TCVAR:10,12に値が受け渡され
+		NOWEX:A:11に1もしくは2（大量）が代入される
+		コンドーム装着ならTCVAR:13=1
+		
+		その後TCVARに応じてTFLAG:1に値をビットで割り振る
+		口上出力を簡略化するための処理であり、TCVARえば複雑な状況にも対応出来る
+	@KOJO
+		誰が誰のどの部位にどれだけ出すのかをTCVAR:A:10,TCVAR:A:11,NOWEX:A:11から判別し、地の文、口上を出力する
+	@EVENTCOMEND
+		TCVAR:0～99が初期化される
+TCVAR:100,101
+	@EVENTCOMEND でTEQUIP:50,51が代入される
+	前のターンで誰とセックスしていたかの判別に用いる
+TCVAR:102～105
+	中田氏されるとTCVAR:102 = 2 TCVAR:103 = 射精した人　と代入される
+	@EVENTCOMENDでTCVAR:102から-1する
+	前ターンで誰に中田氏されたかの判別に用いる
+
+射精周り
+	必要なもの
+		射精する人-射精される人-射精する部位 の情報
+			SELECTCOMに依存させる（従来の方法）
+				長所
+					改造しなくていい、汎用的な処理を考えなくていい
+				短所
+					追加するときにCOMFだけでは対応できない、追加するたびにコードが果てしなく煩雑になる
+			キャラ変数を使う
+				採用
+		快感強度
+			射精する人のSOURCE,UP,PALAMを用いる
+				
+			個別に設定する
+				採用
+
+
+
+
+経験について
+CVAB経験は各種快感を得たとき一律に+1（処女のVは除く）されます
+追加的に経験を取得させたい場合、MASTERやASSIに取得させたい場合にCOMF**.ERBに書き込んでください
+
+改造
+調教コマンドを追加する
+	1.TRAIN.CSVの適当な場所に調教名と番号を登録する
+	2.COMABLE.ERBに@COM_ABLE○(○は登録した調教番号)という関数を追加する。
+		その際
+			;愛撫実行判定
+			SIF !TFLAG:100
+				RETURN 0
+			;一括管理
+			SIF GLOBAL_COMABLE(○)
+		を関数の直後にコピペする。○には登録番号を入力してください
+		その後、ほかの@COM_ABLEを参考に実行できない条件を書き込む
+	3.COMF○.ERB及び@COM○を作成する
+		他の@COMを参考に埋めてください
+	4.EVENT_MASSAGE.ERBに@MESSAGE_COM○を作成し地の文を書き込む
+	5.VIDEO.ERBに調教のビデオ単価を追加する
+	6.ビデオカメラ片手に出来そうならCOMABLE2.ERBに書き込む
+
+ABLを追加、変更する
+	1.追加する場合はABLUP.ERBに
+		;マゾッ気
+		@ABLUP9
+		CALL ABL_UP(9)
+		のように対応する@ABLUPを追加する
+	2.ABL_UP_DATA.ERBにABLUPの条件を記述する
+		追加する場合は@JUEL_DEMAND、@EXP_DEMANDに項目を追加する
+		
+		@JUEL_DEMAND_XにはABL:Xの上昇に必要な宝珠を記述する
+			一定以上のABLが必要な場合(例：奉仕精神には従順が必要)
+				SIF ABL:従順 < ABL:奉仕精神 + 1
+					RETURNF -2
+			のように-2を返す
+
+			複数の上昇パターンを用意する際はARGを用いる
+				SIF ARG > 1
+					RETURNF -1
+			によりパターン0、パターン1以外は-1が渡され、能力アップ画面で表示されなくなる
+			とりあえず４パターンまで登録可能、それ以上はABLUP.ERBを弄る必要がある
+			
+			JUEL:Yに対応したLOCAL:Yに値を代入することでRETURNF LOCAL:(ARG:1)により値が返されるので
+			まずLOCALを初期化(VARSET LOCAL)したあとLOCAL:Yに値を代入していく
+		
+		@EXP_DEMAND_XにはABL:Xの上昇に必要な経験を記述する
+			@JUEL_DEMAND_XはRETURNF -1,-2によりパターンの表示と必要能力を制御していたがEXPではその必要はない
+			LOCAL:ZがEXP:Zに対応している
+			ほかは@JUEL_DEMAND_Xと同じ
+	3.ABL.CSVを書き換える
+

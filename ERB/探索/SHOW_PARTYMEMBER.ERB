@@ -1,0 +1,130 @@
+﻿
+
+@SHOW_PARTYMEMBER
+#DIM ループ用
+#DIM ループ用２
+#DIM 縦幅
+#DIM 横幅
+#DIM 表示位置調整用
+CALL 画像描画終了
+
+;後々もっといろんなステータスが見られるようにする。
+;今んとこ名前だけ
+
+
+IF !BATTLE_STATE:0:0
+	PRINTW 探索メンバーがいません。
+	RETURN 0
+ENDIF
+
+
+PRINTL ┌───────────┬───────────┬───────────┬───────────┐
+
+LOCALS = 
+FOR ループ用, 0, 4
+	IF BATTLE_STATE:ループ用:0 > 0
+		LOCALS:1 = {15 + ループ用 * 192}px, 0px, 180px, 360px
+		;リソース解放
+		SPRITEDISPOSE @"短冊グラ{ループ用}"
+		GDISPOSE 1000 + ループ用
+
+		IF CSTR:(BATTLE_STATE:ループ用:0):短冊グラ表示切り替え用文字列 == ""
+			GCREATEFROMFILE 1000 + ループ用, @"{NO:(BATTLE_STATE:ループ用:0)}%CALLNAME:(BATTLE_STATE:ループ用:0)%/短冊_デフォルト.png"
+		ELSE
+			GCREATEFROMFILE 1000 + ループ用, @"{NO:(BATTLE_STATE:ループ用:0)}%CALLNAME:(BATTLE_STATE:ループ用:0)%/%CSTR:(BATTLE_STATE:ループ用:0):短冊グラ表示切り替え用文字列%.png"
+		ENDIF
+		IF RESULT == 0
+			;該当画像が無い場合
+			IF CSTR:(BATTLE_STATE:ループ用:0):短冊グラ表示切り替え用文字列 == ""
+				;そもそもデフォルト画像が無い場合はNoimage画像で返す
+				LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><img src='Noimage_短冊' width='180px' height='360px'></button></div>"
+				CONTINUE
+			ELSE
+				;変更後画像が無い場合はデフォルト顔を表示させる
+				GCREATEFROMFILE 1000 + ループ用, @"{NO:(BATTLE_STATE:ループ用:0)}%CALLNAME:(BATTLE_STATE:ループ用:0)%/短冊_デフォルト.png"
+			ENDIF
+		ENDIF
+		SPRITECREATE @"短冊グラ{ループ用}", 1000 + ループ用
+
+		;縦横幅を取得して表示位置を調整
+		横幅 = SPRITEWIDTH(@"短冊グラ{ループ用}")
+		縦幅 = SPRITEHEIGHT(@"短冊グラ{ループ用}")
+		IF 横幅 * 2 > 縦幅
+			表示位置調整用 = (200 - (縦幅 * 100 / 横幅)) / 2 * 180 / 100
+			LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><img src='短冊グラ{ループ用}' width='180px' height='{縦幅 * 360 / (横幅 * 2)}px' ypos='{表示位置調整用}px'></button></div>"
+		ELSEIF 横幅 * 2 < 縦幅
+			表示位置調整用 = (50 - (横幅 * 100 / 縦幅)) / 2 * 180 / 100
+			LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><shape type='space' param='{表示位置調整用}px'><img src='短冊グラ{ループ用}' width='{横幅 * 360 / 縦幅}px' height='360px'></button></div>"
+		ELSE
+			表示位置調整用 = 0
+			LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><img src='短冊グラ{ループ用}' width='180px' height='360px'></button></div>"
+		ENDIF
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+FOR ループ用, 0, 20
+	PRINTL │　　　　　　　　　　　│　　　　　　　　　　　│　　　　　　　　　　　│　　　　　　　　　　　│
+NEXT
+
+PRINTL ├───────────┼───────────┼───────────┼───────────┤
+
+PRINT ｜
+FOR ループ用, 0, 4,
+	IF BATTLE_STATE:ループ用:0
+		PRINTBUTTON @"■%CALLNAME:(BATTLE_STATE:ループ用:0),20,LEFT%", ループ用
+		PRINT ｜
+	ELSE
+		PRINT ■ENPTY               ｜
+	ENDIF
+NEXT
+PRINTL 
+
+PRINTL └───────────┴───────────┴───────────┴───────────┘
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0 TO 3
+		CALL 探索個別ステータス表示(RESULT)
+		RESTART
+	CASE 999
+		RETURN
+	CASEELSE
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+@探索個別ステータス表示(ARG)
+;ARG=探索メンバー番号(0~3)
+
+;後々ステータスを表示したり装備を入れ替えたりする処理を入れ込むが、現在未実装
+;メンバーをPTから外す処理のみ
+
+PRINTFORML %CALLNAME:(BATTLE_STATE:ARG:0)%を探索メンバーから外しますか？
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		LOCAL = BATTLE_STATE:ARG:0
+		BATTLE_STATE:ARG:0 = BATTLE_STATE:(ARG + 1):0
+		BATTLE_STATE:(ARG + 1):0 = BATTLE_STATE:(ARG + 2):0
+		BATTLE_STATE:(ARG + 2):0 = BATTLE_STATE:(ARG + 3):0
+		BATTLE_STATE:(ARG + 3):0 = BATTLE_STATE:(ARG + 4):0
+		PRINTFORMW %CALLNAME:LOCAL%を探索メンバーから外しました
+		RETURN 0
+	CASE 1
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+ENDSELECT
+

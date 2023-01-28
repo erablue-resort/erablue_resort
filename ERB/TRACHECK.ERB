@@ -1,0 +1,776 @@
+﻿;-------------------------------------------------
+;時間経過
+;-------------------------------------------------
+@TRACHECK_TIME
+;めんどくさいので5分刻み
+SIF SELECTCOM < 200
+	TIME += 5
+;-------------------------------------------------
+;処女喪失時の処理
+;ARG		処女喪失対象
+;ARG:1	処女喪失させる人
+;ARG:2	処女喪失手段(=1 チンコ	=2 バイブ	=3 指)
+;-------------------------------------------------
+@LOST_VIRGIN(ARG, ARG:1, ARG:2)
+;非処女はスルー
+SIF !TALENT:ARG:処女
+	RETURN 0
+TCVAR:ARG:破瓜 = 1
+VARSET LOCAL
+;ビデオ撮影処理
+IF TEQUIP:ARG:28
+	;性交
+	IF ARG:2 == 1
+		LOCALS = LV1/
+	;バイブ
+	ELSEIF ARG:2 == 2
+		LOCALS = LV3/
+	;その他
+	ELSE
+		LOCALS = LV4/
+	ENDIF
+	TSTR:1 += LOCALS
+ENDIF
+;SOURCE追加
+IF TALENT:ARG:処女 == 1
+	PRINTW 処女喪失
+	;苦痛
+	;チンコ
+	IF ARG:2 == 1
+		LOCAL = 2000
+	;バイブ
+	ELSEIF ARG:2 == 2
+		LOCAL = 1500
+	;指
+	ELSEIF ARG:2 == 3
+		LOCAL = 1000
+	ENDIF
+	LOCAL = LOCAL * PAIN_CHECK_V(ARG) / 1000
+	CALL SOURCE_CALC_苦痛(ARG, ARG:1, LOCAL)
+	;不潔
+	;貞操観念
+	IF TALENT:ARG:貞操 > 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+		;恋愛対象以外の相手
+		ELSEIF ARG:1 != PLAYER
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 2000)
+		;チンコじゃない
+		ELSEIF ARG:2 != 1
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+		ENDIF
+	ELSEIF TALENT:ARG:貞操 == 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+		;恋愛対象以外の相手
+		ELSEIF ARG:1 != PLAYER
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+		;チンコじゃない
+		ELSEIF ARG:2 != 1
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+		ENDIF
+	ENDIF
+	;陥落素質による処理
+	;MASTERがTARGETの膣に挿入している
+	IF ARG:1 == PLAYER && ARG:2 == 1
+		;親愛かつ相手が主人
+		IF TALENT:ARG:恋慕 > 1
+			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初めての相手である事にこの上ない幸せを感じているようだ……
+			TFLAG:150 = 2
+			CALL SOURCE_CALC_歓楽(ARG, PLAYER, 5000)
+		;恋慕かつ相手が主人
+		ELSEIF TALENT:ARG:恋慕
+			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%に処女を捧げられた事に幸福を感じているようだ……
+			TFLAG:150 = 2
+			CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
+		ENDIF
+	ENDIF
+ELSEIF TALENT:ARG:恋慕 == 2
+	PRINTW 処女喪失
+	;苦痛
+	LOCAL = 1000 * PAIN_CHECK_V(ARG) / 1000
+	CALL SOURCE_CALC_苦痛(ARG, ARG:1, LOCAL)
+ENDIF
+
+;-------------------------------------------------
+;EXP取得
+;-------------------------------------------------
+@SOURCE_EXP(ARG)
+VARSET LOCAL
+IF CUP:ARG:快Ｃ
+	EXP:ARG:0 ++
+	SIF ARG == TARGET
+		EXP:ARG:肉体熟知 ++
+ENDIF
+IF CUP:ARG:快Ｖ && !TALENT:ARG:処女
+	EXP:ARG:1 ++
+	SIF ARG == TARGET
+		EXP:ARG:肉体熟知 ++
+ENDIF
+IF CUP:ARG:快Ａ
+	EXP:ARG:2 ++
+	SIF ARG == TARGET
+		EXP:ARG:肉体熟知 ++
+ENDIF
+IF CUP:ARG:快Ｂ
+	EXP:ARG:3 ++
+	SIF ARG == TARGET
+		EXP:ARG:肉体熟知 ++
+ENDIF
+IF CUP:ARG:快Ｓ
+	EXP:ARG:4 ++
+	SIF ARG == TARGET
+		EXP:ARG:肉体熟知 ++
+ENDIF
+
+SIF TCVAR:ARG:乳首開発フラグ
+	EXP:ARG:乳首開発 = MIN(EXP:ARG:乳首開発 + TCVAR:ARG:乳首開発フラグ, 1000)
+SIF TCVAR:ARG:Ｇスポ開発フラグ
+	EXP:ARG:Ｇスポ開発 = MIN(EXP:ARG:Ｇスポ開発 + TCVAR:ARG:Ｇスポ開発フラグ, 1000)
+SIF TCVAR:ARG:ポルチオ開発フラグ
+	EXP:ARG:ポルチオ開発 = MIN(EXP:ARG:ポルチオ開発 + TCVAR:ARG:ポルチオ開発フラグ, 1000)
+SIF TCVAR:ARG:前立腺開発フラグ
+	EXP:ARG:前立腺開発 = MIN(EXP:ARG:前立腺開発 + TCVAR:ARG:前立腺開発フラグ, 1000)
+SIF TCVAR:ARG:Ｓ字結腸開発フラグ
+	EXP:ARG:Ｓ字結腸開発 = MIN(EXP:ARG:Ｓ字結腸開発 + TCVAR:ARG:Ｓ字結腸開発フラグ, 1000)
+
+;-------------------------------------------------
+;体力、気力減少
+;-------------------------------------------------
+@SOURCE_DOWNBASE(ARG)
+BASE:ARG:体力 = MAX(0,BASE:ARG:体力 - DOWNBASE:ARG:体力)
+BASE:ARG:気力 = MAX(0,BASE:ARG:気力 - DOWNBASE:ARG:気力)
+;-------------------------------------------------
+;刻印取得のチェック
+;-------------------------------------------------
+@MARK_GOT_CHECK(ARG)
+;-------------------------------------------------
+;苦痛刻印
+;-------------------------------------------------
+IF CUP:ARG:苦痛 >= 2000 && CUP:ARG:苦痛 < 4000 && MARK:ARG:苦痛刻印 <= 0
+	MARK:ARG:苦痛刻印 = 1
+	TFLAG:22 = 1
+ELSEIF CUP:ARG:苦痛 >= 4000 && CUP:ARG:苦痛 < 8000 && MARK:ARG:苦痛刻印 <= 1
+	MARK:ARG:苦痛刻印 = 2
+	TFLAG:22 = 2
+	;気丈・感情乏しいの場合は苦痛刻印による屈服度アップはなし
+	IF TALENT:ARG:度胸 > 0 && !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 500, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ELSEIF CUP:ARG:苦痛 >= 8000 && MARK:ARG:苦痛刻印 <= 2
+	MARK:ARG:苦痛刻印 = 3
+	TFLAG:22 = 3
+	;気丈・感情乏しいの場合は苦痛刻印による屈服度アップはなし
+	IF TALENT:ARG:度胸 > 0 && !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 1000, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ENDIF
+
+
+;-------------------------------------------------
+;快楽刻印
+;-------------------------------------------------
+IF TCVAR:ARG:快楽強度 == 1 && MARK:ARG:快楽刻印 <= 0
+	MARK:ARG:快楽刻印 = 1
+	TFLAG:23 = 1
+ELSEIF TCVAR:ARG:快楽強度 == 2 && MARK:ARG:快楽刻印 <= 1
+	MARK:ARG:快楽刻印 = 2
+	TFLAG:23 = 2
+ELSEIF TCVAR:ARG:快楽強度 == 3 && MARK:ARG:快楽刻印 <= 2
+	MARK:ARG:快楽刻印 = 3
+	TFLAG:23 = 3
+	;自制心・感情乏しいの場合は快楽刻印による好感度・快楽堕ちアップはなし
+	IF !TALENT:ARG:自制心 && !TALENT:ARG:感情乏しい
+		CALL 関係性ゲージUP用関数(ARG, 500, "好感度")
+		SIF CFLAG:ARG:ゲージ起動分類 == 2
+			CALL 関係性ゲージUP用関数(ARG, 500, "快楽堕ち度")
+		TFLAG:25 = 1
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;屈服刻印
+;-------------------------------------------------
+A = CUP:ARG:快Ｃ + CUP:ARG:快Ｃ + CUP:ARG:快Ｃ + CUP:ARG:快Ｃ
+
+;快楽によるLvUPは10番+取得した屈服刻印のレベルのTFLAGを与える
+IF A >= 1000 && A < 2400 && MARK:ARG:快楽刻印 > MARK:ARG:屈服刻印 && MARK:ARG:屈服刻印 <= 0
+	MARK:ARG:屈服刻印 = 1
+	TFLAG:24 = 11
+ELSEIF A >= 2400 && A < 6000 && MARK:ARG:快楽刻印 > MARK:ARG:屈服刻印 && MARK:ARG:屈服刻印 <= 1
+	MARK:ARG:屈服刻印 = 2
+	TFLAG:24 = 12
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 500, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ELSEIF A >= 6000 && MARK:ARG:快楽刻印 > MARK:ARG:屈服刻印 && MARK:ARG:屈服刻印 <= 2
+	MARK:ARG:屈服刻印 = 3
+	TFLAG:24 = 13
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 1000, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ENDIF
+
+
+A = CUP:ARG:苦痛
+
+;苦痛と恐怖によるLvUPは20番+取得した屈服刻印のレベルのTFLAGを与える
+IF A >= 1000 && A < 2400 && MARK:ARG:屈服刻印 <= 0
+	MARK:ARG:屈服刻印 = 1
+	TFLAG:24 = 21
+ELSEIF A >= 2400 && A < 6000 && MARK:ARG:屈服刻印 <= 1
+	MARK:ARG:屈服刻印 = 2
+	TFLAG:24 = 22
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 500, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ELSEIF A >= 6000 && MARK:ARG:屈服刻印 <= 2
+	MARK:ARG:屈服刻印 = 3
+	TFLAG:24 = 23
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 1000, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ENDIF
+
+
+A = CUP:ARG:屈服
+
+;恭順と屈服によるLvUPは30番+取得した屈服刻印のレベルのTFLAGを与える
+IF A >= 1000 && A < 2400 && MARK:ARG:屈服刻印 <= 0
+	MARK:ARG:屈服刻印 = 1
+	TFLAG:24 = 31
+ELSEIF A >= 2400 && A < 6000 && MARK:ARG:屈服刻印 <= 1
+	MARK:ARG:屈服刻印 = 2
+	TFLAG:24 = 32
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 500, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ELSEIF A >= 6000 && MARK:ARG:屈服刻印 <= 2
+	MARK:ARG:屈服刻印 = 3
+	TFLAG:24 = 33
+	;感情乏しいの場合は屈服刻印による屈服度アップはなし
+	IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+		CALL 関係性ゲージUP用関数(ARG, 1000, "屈服度")
+		TFLAG:25 = 1
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;反発刻印
+;-------------------------------------------------
+;MASTERは除外
+SIF ARG == MASTER
+	RETURN 0
+A = MAX(CUP:ARG:反感, CUP:ARG:不快)
+IF A >= 1000 && A < 2000 && TFLAG:150 == 0 && MARK:ARG:反発刻印 <= 0
+	MARK:ARG:反発刻印 = 1
+	SIF MARK:ARG:4 < 1
+		MARK:ARG:4 = 1
+	TFLAG:21 = 1
+	CFLAG:ARG:不機嫌 = 1
+	CFLAG:ARG:怒り = 1
+	TCVAR:ARG:不機嫌 = 1
+ELSEIF A >= 2000 && A < 3000 && TFLAG:150 == 0 && MARK:ARG:反発刻印 <= 1
+	MARK:ARG:反発刻印 = 2
+	TFLAG:21 = 2
+	IF MARK:ARG:4 < 2
+		;感情乏しいの場合は反発刻印による屈服度ダウンはなし
+		IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+			CALL 関係性ゲージUP用関数(ARG, -1000, "屈服度")
+			TFLAG:25 = 1
+		ELSEIF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+			CALL 関係性ゲージUP用関数(ARG, -1000, "屈服度")
+			TFLAG:25 = 2
+		ENDIF
+	ENDIF
+	SIF MARK:ARG:4 < 2
+		MARK:ARG:4 = 2
+	CFLAG:ARG:不機嫌 = 2
+	CFLAG:ARG:怒り = 1
+	TCVAR:ARG:不機嫌 = 1
+ELSEIF A >= 3000 && TFLAG:150 == 0 && MARK:ARG:反発刻印 <= 2
+	MARK:ARG:反発刻印 = 3
+	TFLAG:21 = 3
+	IF MARK:ARG:4 < 3
+		;感情乏しいの場合は反発刻印による屈服度ダウンはなし
+		IF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+			CALL 関係性ゲージUP用関数(ARG, -1000, "屈服度")
+			TFLAG:25 = 1
+		ELSEIF !TALENT:ARG:感情乏しい && CFLAG:ARG:ゲージ起動分類 == 2
+			CALL 関係性ゲージUP用関数(ARG, -1000, "屈服度")
+			TFLAG:25 = 2
+		ENDIF
+	ENDIF
+	SIF MARK:ARG:4 < 3
+		MARK:ARG:4 = 3
+	CFLAG:ARG:不機嫌 = 3
+	CFLAG:ARG:怒り = 1
+	TCVAR:ARG:不機嫌 = 1
+ENDIF
+TFLAG:150 = 0
+
+;-------------------------------------------------
+;屈服・快楽堕ちの上昇による[抵抗]の消滅をチェック
+;-------------------------------------------------
+@JUJUN_UP_CHECK
+IF (CFLAG:屈服レベル >= 40 || CFLAG:快楽堕ちレベル >= 40)  && TALENT:抵抗
+	PRINTFORM %NAME:TARGET%は[抵抗]を失った
+	TALENT:抵抗 = 0
+	PRINTL 否定の珠が半分になった
+	JUEL:100 /= 2
+ENDIF
+
+;-------------------------------------------------
+;苦痛快楽経験、奉仕快楽経験のチェック
+;-------------------------------------------------
+@EXP_GOT_CHECK(ARG)
+;奉仕系である、奉仕快楽のチェック
+LOCAL = CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｂ
+LOCAL:1 = 0
+
+IF CUP:ARG:欲情 < 100
+	LOCAL = 0
+ELSEIF CUP:ARG:欲情 < 300
+	LOCAL *= 2
+ELSEIF CUP:ARG:欲情 < 700
+	LOCAL *= 3
+ELSEIF CUP:ARG:欲情 < 1500
+	LOCAL *= 4
+ELSE
+	LOCAL *= 5
+ENDIF
+
+IF TFLAG:30
+	IF LOCAL >= 12000
+		LOCAL:1 = 16
+		TIMES CUP:ARG:反感 , 0.30
+	ELSEIF LOCAL >= 8000
+		LOCAL:1 = 12
+		TIMES CUP:ARG:反感 , 0.40
+	ELSEIF LOCAL >= 5000
+		LOCAL:1 = 8
+		TIMES CUP:ARG:反感 , 0.50
+	ELSEIF LOCAL >= 3000
+		LOCAL:1 = 4
+		TIMES CUP:ARG:反感 , 0.60
+	ELSEIF LOCAL >= 2000
+		LOCAL:1 = 2
+		TIMES CUP:ARG:反感 , 0.70
+	ELSEIF LOCAL >= 1000
+		LOCAL:1 = 1
+		TIMES CUP:ARG:反感 , 0.80
+	ENDIF
+	EXP:ARG:奉仕快楽経験 += LOCAL:1
+ENDIF
+
+;苦痛快楽のチェック
+LOCAL = 0
+IF CUP:ARG:欲情 >= 3000 && CUP:ARG:苦痛 >= 2000
+	LOCAL = 16
+ELSEIF CUP:ARG:欲情 >= 2500 && CUP:ARG:苦痛 >= 1500
+	LOCAL = 12
+ELSEIF CUP:ARG:欲情 >= 1500 && CUP:ARG:苦痛 >= 1000
+	LOCAL = 8
+ELSEIF CUP:ARG:欲情 >= 1000 && CUP:ARG:苦痛 >= 700
+	LOCAL = 4
+ELSEIF CUP:ARG:欲情 >= 600 && CUP:ARG:苦痛 >= 500
+	LOCAL = 2
+ELSEIF CUP:ARG:欲情 >= 300 && CUP:ARG:苦痛 >= 300
+	LOCAL = 1
+ENDIF
+IF LOCAL > 0 && ARG > 0
+	EXP:ARG:苦痛快楽経験 += LOCAL
+
+	;嗜虐快楽経験
+	LOCAL = ABL:PLAYER:サド性感 + ABL:ARG:マゾ性感 - 1
+	SIF LOCAL > 0
+		EXP:PLAYER:嗜虐快楽経験 += LOCAL
+ENDIF
+
+;-------------------------------------------------
+;好感度処理
+;-------------------------------------------------
+@FAVOR_CALC(ARG)
+#DIM ループ用
+
+;SIF !TFLAG:調教モード
+;	RETURN 0
+SIF !ARG
+	RETURN 0
+;覗くの時は発生しない
+SIF SELECTCOM == 404
+	RETURN 0
+;主人(あなた)と対象の能力を計算
+
+;満足度
+BASE:ARG:満足 += MAXBASE:ARG:満足 * ((NOWEX:ARG:Ｃ絶頂 + NOWEX:ARG:Ｖ絶頂 + NOWEX:ARG:Ａ絶頂 + NOWEX:ARG:Ｂ絶頂 + 2 * NOWEX:ARG:射精) + 2 * (NOWEX:PLAYER:Ｃ絶頂 + NOWEX:PLAYER:Ｖ絶頂 + NOWEX:PLAYER:Ａ絶頂 + NOWEX:PLAYER:Ｂ絶頂 + 2 * NOWEX:PLAYER:射精)) / (5 + ABL:ARG:欲望)
+BASE:ARG:満足 = MIN(MAXBASE:ARG:満足, BASE:ARG:満足 + 2 * MAX(0, LOCAL) / (1 + ABL:ARG:欲望))
+
+;ついでにムードと理性
+	BASE:ARG:ムード += MIN(CFLAG:好感度レベル * NOWEX:ARG:好感度上昇格納 / 200, 200)
+	BASE:ARG:ムード += MIN(CFLAG:恋慕レベル * NOWEX:ARG:好感度上昇格納 / 100, 300)
+	BASE:ARG:ムード = MIN(BASE:ARG:ムード , MAXBASE:ARG:ムード )
+	BASE:ARG:ムード = MAX(BASE:ARG:ムード , 0 )
+	
+	BASE:ARG:理性 -= MIN(NOWEX:ARG:好感度上昇格納 / 100 * (GETPALAMLV(PALAM:ARG:欲情,5) + 1), 200)
+	BASE:ARG:理性 -= (CUP:ARG:快Ｂ + CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｓ) / 100
+	BASE:ARG:理性 = MIN(BASE:ARG:理性 , MAXBASE:ARG:理性 )
+	BASE:ARG:理性 = MAX(BASE:ARG:理性 , 0 )
+IF TFLAG:調教モード != 2
+	SIF SOURCE:ARG:反感 > 0 && TFLAG:調教モード == 1
+		BASE:ARG:怒り += SOURCE:ARG:反感 * 3 * (2000 - BASE:ARG:ムード) * (500 + BASE:ARG:理性) / ((2000 + BASE:ARG:ムード) * (500 + MAXBASE:ARG:理性))
+	SIF BASE:ARG:怒り > MAXBASE:ARG:怒り
+		CFLAG:ARG:怒り = 1
+	
+	BASE:ARG:怒り = MIN(BASE:ARG:怒り , MAXBASE:ARG:怒り )
+	SIF BASE:ARG:怒り == MAXBASE:ARG:怒り
+		TCVAR:ARG:不機嫌 = 1
+	IF CFLAG:ARG:不機嫌
+		BASE:ARG:怒り = MAXBASE:ARG:怒り
+		CFLAG:ARG:怒り = 1
+	ENDIF
+ENDIF
+
+;反感・不快と相殺する
+;まず反感
+IF CUP:ARG:反感 <= NOWEX:ARG:好感度上昇格納
+	NOWEX:ARG:好感度上昇格納 -= CUP:ARG:反感
+	CUP:ARG:反感 = 0
+ELSE
+	CUP:ARG:反感 -= NOWEX:ARG:好感度上昇格納
+	NOWEX:ARG:好感度上昇格納 = 0
+ENDIF
+;不快
+IF CUP:ARG:不快 <= NOWEX:ARG:好感度上昇格納
+	NOWEX:ARG:好感度上昇格納 -= CUP:ARG:不快
+	CUP:ARG:不快 = 0
+ELSE
+	CUP:ARG:不快 -= NOWEX:ARG:好感度上昇格納
+	NOWEX:ARG:好感度上昇格納 = 0
+ENDIF
+
+;好感度表示
+TFLAG:97 += NOWEX:ARG:好感度上昇格納
+CALL 関係性ゲージUP用関数(ARG, TFLAG:97, "好感度")
+
+;TARGET以外の好感度上昇も見る
+FOR ループ用, 0, CHARANUM
+	IF NOWEX:ループ用:好感度上昇格納 && ループ用 != ARG
+		CALL 関係性ゲージUP用関数(ループ用, NOWEX:ループ用:好感度上昇格納, "好感度")
+	ENDIF
+NEXT
+
+FLAG:12 += TFLAG:97
+
+
+
+;-------------------------------------------------
+;恋慕度処理
+;-------------------------------------------------
+@Love_CALC(ARG)
+#DIM ループ用
+
+;覗くの時は発生しない
+SIF SELECTCOM == 404
+	RETURN 0
+
+;反感・不快と相殺する
+;まず反感
+IF CUP:ARG:反感 <= NOWEX:ARG:恋慕度上昇格納
+	NOWEX:ARG:恋慕度上昇格納 -= CUP:ARG:反感
+	CUP:ARG:反感 = 0
+ELSE
+	CUP:ARG:反感 -= NOWEX:ARG:恋慕度上昇格納
+	NOWEX:ARG:恋慕度上昇格納 = 0
+ENDIF
+;不快
+IF CUP:ARG:不快 <= NOWEX:ARG:恋慕度上昇格納
+	NOWEX:ARG:恋慕度上昇格納 -= CUP:ARG:不快
+	CUP:ARG:不快 = 0
+ELSE
+	CUP:ARG:不快 -= NOWEX:ARG:恋慕度上昇格納
+	NOWEX:ARG:恋慕度上昇格納 = 0
+ENDIF
+
+
+;恋慕度
+SIF CFLAG:ARG:ゲージ起動分類 == 1 && NOWEX:ARG:恋慕度上昇格納
+	CALL 関係性ゲージUP用関数(ARG, NOWEX:ARG:恋慕度上昇格納, "恋慕度")
+
+;TARGET以外の恋慕度上昇も見る
+FOR ループ用, 0, CHARANUM
+	IF CFLAG:ループ用:ゲージ起動分類 == 1 && NOWEX:ループ用:恋慕度上昇格納 && ループ用 != ARG
+		CALL 関係性ゲージUP用関数(ループ用, NOWEX:ループ用:恋慕度上昇格納, "恋慕度")
+	ENDIF
+NEXT
+
+
+
+
+@関係性ゲージUP用関数(ARG, ARG:1, ARGS)
+;ARG：上昇対象キャラクター
+;ARG:1：ゲージ上昇量
+;ARGS：ゲージの種類
+
+SELECTCASE ARGS
+	CASE "好感度"
+	IF ARG:1 > 0
+		CFLAG:ARG:好感度 += ARG:1
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(ARG:1 >= 0) ? 好感度＋{ARG:1} # 好感度－{-ARG:1}\@
+		CALL FAVOR_LvUPCheck(ARG)
+	ENDIF
+	
+	CASE "恋慕度"
+	IF ARG:1 > 0
+		CFLAG:ARG:恋慕度 += ARG:1
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(ARG:1 >= 0) ? 恋慕度＋{ARG:1} # 恋慕度－{-ARG:1}\@
+		CALL Love_LvUPCheck(ARG)
+	ENDIF
+	
+	CASE "屈服度"
+	IF ARG:1 > 0
+		CFLAG:ARG:屈服度 += ARG:1
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(ARG:1 >= 0) ? 屈服度＋{ARG:1} # 屈服度－{-ARG:1}\@
+		;CALL Love_LvUPCheck(ARG)
+	ENDIF
+	
+	CASE "快楽堕ち度"
+	IF ARG:1 > 0
+		CFLAG:ARG:快楽堕ち度 += ARG:1
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(ARG:1 >= 0) ? 快楽堕ち度＋{ARG:1} # 快楽堕ち度－{-ARG:1}\@
+		;CALL Love_LvUPCheck(ARG)
+	ENDIF
+ENDSELECT
+
+
+
+
+@FAVOR_LvUPCheck(ARG)
+#DIM ループ用
+#DIM 計算後レベル
+
+;テーブルと比較してレベル算出
+FOR ループ用, 0, 100
+	IF 経験値テーブル:ループ用 >= CFLAG:ARG:好感度
+		BREAK
+	ENDIF
+NEXT
+計算後レベル = ループ用
+
+;現在レベルより高ければレベルアップ処理
+IF CFLAG:ARG:好感度レベル < 計算後レベル
+	PRINTFORML 好感度LvUP!! {CFLAG:ARG:好感度レベル} > {計算後レベル}
+	IF CFLAG:ARG:好感度レベル <= 0 && 計算後レベル > 0
+		PRINTL 初対面 > 他人
+		初体験日:ARG:初対面 = DAY
+	ENDIF
+	SIF CFLAG:ARG:好感度レベル <= 10 && 計算後レベル > 10
+		PRINTL 他人 > 顔見知り
+	SIF CFLAG:ARG:好感度レベル <= 20 && 計算後レベル > 20
+		PRINTL 顔見知り > 友人
+	SIF CFLAG:ARG:好感度レベル <= 50 && 計算後レベル > 50
+		PRINTL 友人 > 親友
+	SIF CFLAG:ARG:好感度レベル <= 80 && 計算後レベル > 80
+		PRINTL 親友 > 無二の友
+	CFLAG:ARG:好感度レベル = 計算後レベル
+ENDIF
+PRINTW 
+
+@Love_LvUPCheck(ARG)
+#DIM ループ用
+#DIM 計算後レベル
+
+;テーブルと比較してレベル算出
+FOR ループ用, 0, 100
+	IF 経験値テーブル:ループ用 >= CFLAG:ARG:恋慕度
+		BREAK
+	ENDIF
+NEXT
+計算後レベル = ループ用
+
+;現在レベルより高ければレベルアップ処理
+IF CFLAG:ARG:恋慕レベル < 計算後レベル
+	PRINTFORML 恋慕度LvUP!! {CFLAG:ARG:恋慕レベル} > {計算後レベル}
+	SIF CFLAG:ARG:恋慕レベル <= 0 && 計算後レベル > 0
+		PRINTL 脈ナシ > ちょっと気になる
+	SIF CFLAG:ARG:恋慕レベル <= 10 && 計算後レベル > 10
+		PRINTL ちょっと気になる > なんかいいかも
+	SIF CFLAG:ARG:恋慕レベル <= 20 && 計算後レベル > 20
+		PRINTL なんかいいかも > 好意を自覚
+	SIF CFLAG:ARG:恋慕レベル <= 50 && 計算後レベル > 50
+		PRINTL 好意を自覚 > ラブラブ
+	SIF CFLAG:ARG:恋慕レベル <= 80 && 計算後レベル > 80
+		PRINTL ラブラブ > 最愛の人
+	CFLAG:ARG:恋慕レベル = 計算後レベル
+ENDIF
+PRINTW 
+
+;V調教の苦痛、反発補正(フィストなど激しいものは別処理)(実際には1000倍されてるので使用時は1/1000に)
+@PAIN_CHECK_V(ARG)
+#FUNCTION
+VARSET LOCAL
+;EXP:Ｖ経験をみる
+IF EXP:ARG:Ｖ経験 < EXPLV:1
+	LOCAL = 20
+ELSEIF EXP:ARG:Ｖ経験 < EXPLV:2
+	LOCAL = 12
+ELSEIF EXP:ARG:Ｖ経験 < EXPLV:3
+	LOCAL = 10
+ELSEIF EXP:ARG:Ｖ経験 < EXPLV:4
+	LOCAL = 8
+ELSEIF EXP:ARG:Ｖ経験 < EXPLV:5
+	LOCAL = 6
+ELSEIF EXP:ARG:Ｖ経験 >= EXPLV:5
+	LOCAL = 4
+ELSE
+	LOCAL = 2
+ENDIF
+
+;PALAM:Ｖ感覚をみる
+IF PALAM:ARG:快Ｖ < PALAMLV:1
+	LOCAL:1 = 15
+ELSEIF PALAM:ARG:快Ｖ < EXPLV:2
+	LOCAL:1 = 12
+ELSEIF PALAM:ARG:快Ｖ < EXPLV:3
+	LOCAL:1 = 8
+ELSEIF PALAM:ARG:快Ｖ < EXPLV:4
+	LOCAL:1 = 5
+ELSEIF PALAM:ARG:快Ｖ < EXPLV:5
+	LOCAL:1 = 2
+ELSEIF PALAM:ARG:快Ｖ >= EXPLV:5
+	LOCAL:1 = 1
+ELSE
+	LOCAL:1 = 0
+ENDIF
+
+;PALAM:潤滑をみる
+IF PALAM:ARG:潤滑 < PALAMLV:1
+	LOCAL:2 = 15
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+	LOCAL:2 = 12
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+	LOCAL:2 = 10
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+	LOCAL:2 = 8
+ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+	LOCAL:2 = 5
+ELSE
+	LOCAL:2 = 2
+ENDIF
+
+RETURNF LOCAL * LOCAL:1 * LOCAL:2
+
+;アナル調教の苦痛補正(実際には1000倍されてるので使用時は1/1000に)
+@PAIN_CHECK_A(ARG)
+#FUNCTION
+VARSET LOCAL
+;EXP:Ａ経験をみる
+IF EXP:ARG:Ａ経験 < EXPLV:1
+	LOCAL = 20
+ELSEIF EXP:ARG:Ａ経験 < EXPLV:2
+	LOCAL = 12
+ELSEIF EXP:ARG:Ａ経験 < EXPLV:3
+	LOCAL = 10
+ELSEIF EXP:ARG:Ａ経験 < EXPLV:4
+	LOCAL = 8
+ELSEIF EXP:ARG:Ａ経験 < EXPLV:5
+	LOCAL = 6
+ELSEIF EXP:ARG:Ａ経験 >= EXPLV:5
+	LOCAL = 4
+ELSE
+	LOCAL = 2
+ENDIF
+
+;PALAM:Ａ感覚をみる
+IF PALAM:ARG:快Ａ < PALAMLV:1
+	LOCAL:1 = 20
+ELSEIF PALAM:ARG:快Ａ < EXPLV:2
+	LOCAL:1 = 15
+ELSEIF PALAM:ARG:快Ａ < EXPLV:3
+	LOCAL:1 = 10
+ELSEIF PALAM:ARG:快Ａ < EXPLV:4
+	LOCAL:1 = 6
+ELSEIF PALAM:ARG:快Ａ < EXPLV:5
+	LOCAL:1 = 2
+ELSEIF PALAM:ARG:快Ａ >= EXPLV:5
+	LOCAL:1 = 1
+ELSE
+	LOCAL:1 = 0
+ENDIF
+
+;PALAM:潤滑をみる
+IF PALAM:ARG:潤滑 < PALAMLV:1
+	LOCAL:2 = 15
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+	LOCAL:2 = 12
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+	LOCAL:2 = 10
+ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+	LOCAL:2 = 8
+ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+	LOCAL:2 = 5
+ELSE
+	LOCAL:2 = 2
+ENDIF
+
+RETURNF LOCAL * LOCAL:1 * LOCAL:2
+
+
+;-------------------------------------------------
+;パラメータUP処理
+;-------------------------------------------------
+@技巧上昇判定(ARG)
+;上昇必要量
+;0>1=10  1>2=20  2>3=50  3>4=100  4>5=170
+;技巧経験値は奉仕ソースを取得した時、その強度に応じて自動的に上昇する
+
+SIF ABL:ARG:技巧 > 4
+	RETURN 0
+
+IF 技巧経験値:ARG:0 > (ABL:ARG:技巧 * ABL:ARG:技巧 * 10 + 10)
+	技巧経験値:ARG:0 = 0
+	ABL:ARG:技巧 += 1
+	PRINTFORML %CALLNAME:ARG%の技巧Lvが{ABL:ARG:技巧}に上昇した
+	RETURN 1
+ENDIF
+
+RETURN 0
+
+@性知識上昇判定(ARG)
+
+;性知識マイナスは上昇しない。無知シチュ
+SIF 知識素質:ARG:性知識 < 0
+	RETURN 0
+
+SIF 知識素質:ARG:性知識 >= ABL:ARG:技巧
+	RETURN 0
+
+SIF 知識素質:ARG:性知識 > 2
+	RETURN 0
+
+IF 性知識経験値:ARG:0 > ((知識素質:ARG:性知識 + 1) *(知識素質:ARG:性知識 + 1) *(知識素質:ARG:性知識 + 1) * 10 + 10)
+	性知識経験値:ARG:0 = 0
+	知識素質:ARG:性知識 += 1
+	PRINTFORML %CALLNAME:ARG%の性知識Lvが%性知識段階表示(知識素質:ARG:性知識 - 1, ARG)%から%性知識段階表示(知識素質:ARG:性知識, ARG)%に上昇した
+	RETURN 1
+ENDIF
+
+RETURN 0

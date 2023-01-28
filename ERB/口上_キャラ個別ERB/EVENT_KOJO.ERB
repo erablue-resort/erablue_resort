@@ -1,0 +1,275 @@
+﻿;--------------------------------------------------
+;@KOJO_MESSAGE_COM関係
+;コマンド実行時に出力されます
+;--------------------------------------------------
+@KOJO_MESSAGE_COM
+#DIM 複数人プレイフラグ
+
+複数人プレイフラグ = 0
+VARSET LOCAL
+IF FLAG:汎用文章表示切り替えオプション > 0
+	IF TFLAG:弱点コマンドフラグ
+		DRAWLINE
+		SETCOLOR カラーパレット("えっちな色")
+		PRINTW <<<弱点コマンド！！>>>
+		RESETCOLOR
+	ENDIF
+	CALL TRAIN_MESSAGE
+	SIF RESULT
+		PRINTW
+	PRINTL
+ENDIF
+IF FLAG:口上表示切り替えオプション <= 0
+	RETURN 0
+ENDIF
+
+RESULT = 0
+;RESULTS =
+;口上の存在判定 and RESULTSに文字列代入
+;TRYCALLFORM KOJO_K{NO:TARGET}
+;IF !RESULT
+;	RETURN 0
+;ENDIF
+;RESULT = 0
+;ボールギャグ
+IF TEQUIP:ボールギャグ && SELECTCOM != 106
+	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
+;SELECTCOM
+ELSE
+	RESULT = 0
+	IF TFLAG:オートコマンドフラグ > 1000
+		TRYCALLFORM KOJO_AUTOCOM_{NO:TARGET}_{TFLAG:オートコマンドフラグ - 1000}
+	ELSEIF TFLAG:オートコマンドフラグ > 0
+		TRYCALLFORM KOJO_PREAUTOCOM_{NO:TARGET}_{TFLAG:オートコマンドフラグ}
+	ELSEIF TSTR:SELECTCOM_S受け渡し != ""
+		TRYCALLFORM KOJO_COM_{NO:TARGET}_%TSTR:SELECTCOM_S受け渡し%
+		TRYCALLFORMF COMTYPE_S_%TSTR:SELECTCOM_S受け渡し%
+		IF TFLAG:コマンドタイプ受渡 == 12
+			複数人プレイフラグ = 1
+		ENDIF
+	ELSEIF SELECTCOM >= 380 && SELECTCOM <= 384
+		TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+		TRYCALLFORMF COMTYPE_{SELECTCOM}
+		IF TFLAG:コマンドタイプ受渡 == 12
+			複数人プレイフラグ = 1
+		ENDIF
+	ELSEIF SELECTCOM >= 370 && SELECTCOM <= 374
+		TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}_{NO:TARGET}
+		TRYCALLFORMF COMTYPE_{SELECTCOM}
+		IF TFLAG:コマンドタイプ受渡 == 12
+			複数人プレイフラグ = 1
+		ENDIF
+	ELSEIF SELECTCOM == 404
+		;覗きは対象がTARGETじゃないことがあるので別枠で設定
+		TRYCALLFORM KOJO_COM_{TFLAG:コマンド結果受渡し変数２}_{SELECTCOM}
+	ELSE
+		TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}
+		TRYCALLFORMF COMTYPE_{SELECTCOM}
+		IF TFLAG:コマンドタイプ受渡 == 12
+			複数人プレイフラグ = 1
+		ENDIF
+	ENDIF
+ENDIF
+
+IF 複数人プレイフラグ
+	DRAWLINE
+	;複数人プレイコマンドなので、TARGETじゃない方のキャラも喋らせる
+	IF SELECTCOM == 210
+		;呼び出すだけはまだTARGET配列にキャラ番号が入ってないのでここで直接投げる
+		TRYCALLFORM KOJO_COM_{TFLAG:コマンド結果受渡し変数}_{SELECTCOM}_非対象側
+	ELSEIF TARGET != TARGET:1
+		TRYCALLFORM KOJO_COM_{TARGET:1}_{SELECTCOM}_非対象側
+	ELSEIF TARGET != TARGET:2
+		TRYCALLFORM KOJO_COM_{TARGET:2}_{SELECTCOM}_非対象側
+	ENDIF
+ENDIF
+
+;--------------------------------------------------
+;@KOJO_MESSAGE_COUNTER関係
+;カウンター実行時に出力されます
+;--------------------------------------------------
+;@KOJO_MESSAGE_COUNTER(ARG)
+;VARSET LOCAL
+;LOCAL = TARGET
+;TARGET = ARG
+;IF FLAG:7 <= 0
+;	IF FLAG:6 > 0
+;		CALL EVENT_COUNTER_MESSAGE
+;		TARGET = LOCAL
+;	ENDIF
+;	RETURN 0
+;ENDIF
+;
+;ボールギャグ
+;IF TEQUIP:ARG:20 && FLAG:6 > 0
+;	CALL EVENT_COUNTER_MESSAGE
+;	TARGET = LOCAL
+;ELSE
+;	RESULT = 0
+;	RESULTS =
+;	;口上の存在判定 and RESULTSに文字列代入
+;	TRYCALLFORM KOJO_K{NO:ARG}
+;	IF !RESULT && FLAG:6 > 0
+;		CALL EVENT_COUNTER_MESSAGE
+;		TARGET = LOCAL
+;		RETURN 0
+;	ENDIF
+;	TRYCALLFORM KOJO%RESULTS%_MESSAGE_COUNTER_K{NO:TARGET}_{TCVAR:20}
+;	TARGET = LOCAL
+;ENDIF
+;-------------------------------------------------
+;@KOJO_ORGASM_射精
+;キャラの射精時口上
+;-------------------------------------------------
+@KOJO_ORGASM_射精
+VARSET LOCAL
+IF FLAG:汎用文章表示切り替えオプション > 0
+	CALL PALAM_MESSAGE_射精
+	PRINTL
+ENDIF
+IF FLAG:口上表示切り替えオプション <= 0
+	RETURN 0
+ENDIF
+
+;ボールギャグ
+IF TEQUIP:ボールギャグ && SELECTCOM != 106
+	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
+;SELECTCOM
+ELSE
+	TRYCALLFORM KOJO_ORGASM_射精_{NO:TARGET}
+ENDIF
+
+;-------------------------------------------------
+;@KOJO_MESSAGE_PALAMCNG関係
+;パラメータ変動をトリガーにした口上
+;パラメータ変動後に口上を発動します
+;-------------------------------------------------
+@KOJO_ORGASM_絶頂
+VARSET LOCAL
+IF FLAG:汎用文章表示切り替えオプション > 0
+	CALL PALAM_MESSAGE_通常絶頂
+	PRINTL
+ENDIF
+IF FLAG:口上表示切り替えオプション <= 0
+	RETURN 0
+ENDIF
+
+;ボールギャグ
+IF TEQUIP:ボールギャグ && SELECTCOM != 106
+	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
+;SELECTCOM
+ELSE
+	;取得ソースなどで絶頂を分岐させる予定だけど上手い手段が思いつかないので一旦封印
+	
+	; IF TFLAG:露出コマンドフラグ
+	; 	TRYCALLFORM KOJO_ORGASM_露出絶頂_{NO:TARGET}
+	; ELSEIF TFLAG:苦痛コマンドフラグ
+	; 	TRYCALLFORM KOJO_ORGASM_苦痛絶頂_{NO:TARGET}
+	; ELSEIF TFLAG:嗜虐コマンドフラグ
+	; 	TRYCALLFORM KOJO_ORGASM_嗜虐絶頂_{NO:TARGET}
+	; ELSEIF TFLAG:奉仕コマンドフラグ
+	; 	TRYCALLFORM KOJO_ORGASM_奉仕絶頂_{NO:TARGET}
+	; ELSEIF TFLAG:道具コマンドフラグ
+	; 	TRYCALLFORM KOJO_ORGASM_道具絶頂_{NO:TARGET}
+	; ELSE
+		TRYCALLFORM KOJO_ORGASM_通常絶頂_{NO:TARGET}
+	; ENDIF
+ENDIF
+
+;-------------------------------------------------
+;@KOJO_MESSAGE_PALAMCNG関係
+;パラメータ変動をトリガーにした口上
+;パラメータ変動後に口上を発動します
+;-------------------------------------------------
+@KOJO_MESSAGE_PALAMCNG_D
+IF FLAG:汎用文章表示切り替えオプション > 0
+	CALL PALAM_MESSAGE_D
+	PRINTL
+ENDIF
+IF FLAG:口上表示切り替えオプション <= 0
+	RETURN 0
+ENDIF
+;-------------------------------------------------
+;@KOJO_MESSAGE_PALAMCNG関係
+;触手関連（未実装）
+;-------------------------------------------------
+@KOJO_MESSAGE_PALAMCNG_E
+IF FLAG:7 <= 0
+	SIF FLAG:6 > 0
+		CALL PALAM_MESSAGE_E
+	RETURN 0
+ENDIF
+RESULT = 0
+RESULTS =
+;口上の存在判定 and RESULTSに文字列代入
+TRYCALLFORM KOJO_K{NO:TARGET}
+IF !RESULT && FLAG:6 > 0
+	CALL PALAM_MESSAGE_E
+	RETURN 0
+ENDIF
+;ボールギャグ
+LOCALS = 
+IF TEQUIP:20 && SELECTCOM != 106
+	LOCALS = BALLGAG_
+ENDIF
+TRYCALLFORM KOJO%RESULTS%_MESSAGE_PALAMCNG_E_K%LOCALS%{NO:TARGET}
+
+;-------------------------------------------------
+;@KOJO_MESSAGE_MARKCNG関係
+;刻印変動をトリガーにした口上
+;刻印変動後に口上を発動します
+;-------------------------------------------------
+@KOJO_MESSAGE_MARKCNG
+IF FLAG:7 <= 0
+	SIF FLAG:6 > 0
+		CALL MARK_MESSAGE
+	RETURN 0
+ENDIF
+RESULT = 0
+RESULTS =
+;口上の存在判定 and RESULTSに文字列代入
+TRYCALLFORM KOJO_K{NO:TARGET}
+IF !RESULT && FLAG:6 > 0
+	CALL MARK_MESSAGE
+	RETURN 0
+ENDIF
+;ボールギャグ
+LOCALS = 
+IF TEQUIP:20 && SELECTCOM != 106
+	LOCALS = BALLGAG_
+ENDIF
+TRYCALLFORM KOJO%RESULTS%_MESSAGE_MARKCNG_%LOCALS%K{NO:TARGET}
+
+;-------------------------------------------------
+;@KOJO_MESSAGE_ENDING関係
+;イベント時の口上、イベント開始時に出力します
+;-------------------------------------------------
+@KOJO_MESSAGE_ENDING
+TRYCALLFORM KOJO_MESSAGE_ENDING_K{NO:TARGET}
+
+;-------------------------------------------------
+;@KOJO_EVENT
+;イベント時の口上、イベント開始時に出力します
+;-------------------------------------------------
+@KOJO_EVENT(ARG,ARG:1,ARG:2,ARG:3)
+;ARG イベント番号(0=屋敷で遭遇した
+;ARG:1 口上主
+;ARG:2～口上に渡す引数
+LOCAL = TARGET
+TARGET = ARG:1
+IF FLAG:7 <= 0
+	TRYCALLFORM KOJO_EVENT_{NO:ARG}(ARG:2,ARG:3)
+	TARGET = LOCAL
+	RETURN 0
+ENDIF
+RESULT = 0
+RESULTS =
+TRYCALLFORM KOJO_K{NO:TARGET}
+IF !RESULT
+	TRYCALLFORM KOJO_EVENT_{NO:ARG}(ARG:2,ARG:3)
+	TARGET = LOCAL
+	RETURN 0
+ENDIF
+TRYCALLFORM KOJO%RESULTS%_EVENT_K{NO:TARGET}_{NO:ARG}(ARG:2,ARG:3)
+TARGET = LOCAL
+

@@ -1,0 +1,549 @@
+﻿
+;ステータス表示
+@SHOW_CHARADATA
+#DIM 現在ページ
+#DIM 表示候補, 500
+#DIM ソート基準値, 500
+#DIM 候補人数
+現在ページ = 0
+
+$最初から
+;このR何？
+R = 0
+;表示候補選定＆ソート処理
+LOCAL:1 = 0
+VARSET 表示候補
+VARSET ソート基準値
+VARSET LOCALS
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	SIF STRCOUNT(キャラ一覧フィルタ:0, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:1, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:2, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
+		CONTINUE
+	;発情期はちょっと面倒だけどオール手打ち
+	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
+		CONTINUE
+	;条件を満たす場合はLOCAL:3に１以上が入る
+	LOCAL:3 = 1
+	FOR LOCAL:2, 0, 99
+		SIF キャラ一覧素質絞り込み:(LOCAL:2) == ""
+			BREAK
+		SPLIT キャラ一覧素質絞り込み:(LOCAL:2), "_", LOCALS
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:LOCAL:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+				;ANDの場合は一個でもアウトだとNG
+				LOCAL:3 = 0
+				BREAK
+			ENDIF
+		ELSE
+			LOCAL:3 = 0
+			IF TALENT:LOCAL:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+				;OR条件の場合は一個当てはまればOK
+				LOCAL:3 = 1
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	SIF LOCAL:3 == 0
+		CONTINUE
+
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+候補人数 = LOCAL:1
+LOCAL:1 = 1
+;ソート処理
+IF キャラ一覧ソート:0 != ""
+	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+		LOCAL:1 = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+		LOCAL:1 = -1
+	ENDIF
+	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+		LOCALS = CFLAG
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):好感度レベル * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):恋慕レベル * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((ABL:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ENDIF
+ENDIF
+
+$表示処理_LOOP
+DRAWLINE
+PRINTFORML 　[0]%NAME:MASTER%
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, 現在ページ * 30, 候補人数
+	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "<font color='#FF3399'>"
+	ENDIF
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}]%NAME:(表示候補:LOCAL),40,LEFT%</button>"
+	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+		LOCALS += @"　恋慕Lv：{CFLAG:(表示候補:LOCAL):恋慕レベル, 3}　 "
+		SIF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+			LOCALS += "</font>"
+	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+		LOCALS += @"%キャラ一覧ソート:0, 8%：{ABL:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
+	ELSE
+		LOCALS += "　　　　　　　　"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 29
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+IF 現在ページ > 0
+	PRINTLC  [900]前のページへ
+ELSE
+	PRINTLC  
+ENDIF
+IF 現在ページ < 候補人数 / 30
+	PRINTLC  [901]次のページへ
+ENDIF
+PRINTL
+DRAWLINE
+
+PRINTBUTTON "[2000]フィルタ機能", 2000
+PRINTL
+PRINTBUTTON "[3000]ソート機能", 3000
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 3100
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 3200
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[4000]素質絞り込み機能", 4000
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+PRINTBUTTON "[1000]戻る", 1000
+PRINTL
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 1000
+	RETURN 0
+ELSEIF RESULT == 2000
+	CALL SHOW_CHARADATA_FILTA
+	現在ページ = 0
+	RESTART
+ELSEIF RESULT == 3000
+	CALL SHOW_CHARADATA_SORT
+	現在ページ = 0
+	RESTART
+ELSEIF RESULT == 3100
+	キャラ一覧ソート:1 = 降順
+	現在ページ = 0
+	RESTART
+ELSEIF RESULT == 3200
+	キャラ一覧ソート:1 = 昇順
+	現在ページ = 0
+	RESTART
+ELSEIF RESULT == 4000
+	CALL SHOW_CHARADATA_素質絞り込み
+	現在ページ = 0
+	RESTART
+ELSEIF RESULT == 900
+	現在ページ = MAX(現在ページ - 1, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 901
+	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT < 0 || RESULT >= CHARANUM
+	REUSELASTLINE 
+	GOTO INPUT_LOOP
+ENDIF
+LOCAL = RESULT
+$再表示
+IF 候補人数 == 1
+	CALL PRINT_STATE(LOCAL, 0)
+ELSEIF 表示候補:0 == LOCAL
+	CALL PRINT_STATE(LOCAL, 2)
+ELSEIF 表示候補:(候補人数 - 1) == LOCAL
+	CALL PRINT_STATE(LOCAL, 1)
+ELSE
+	CALL PRINT_STATE(LOCAL, 3)
+ENDIF
+IF RESULT == 100
+	FOR LOCAL:1, 0, 候補人数
+		IF 表示候補:(LOCAL:1) == LOCAL
+			LOCAL = 表示候補:(LOCAL:1 - 1)
+			BREAK
+		ENDIF 
+	NEXT
+	GOTO 再表示
+ELSEIF RESULT == 101
+	FOR LOCAL:1, 0, 候補人数
+		IF 表示候補:(LOCAL:1) == LOCAL
+			LOCAL = 表示候補:(LOCAL:1 + 1)
+			BREAK
+		ENDIF 
+	NEXT
+	GOTO 再表示
+ENDIF
+
+GOTO 最初から
+
+
+@SHOW_CHARADATA_FILTA
+DRAWLINE
+PRINTL キャラクターの表示に以下の条件でフィルタを掛けます。
+PRINTL 暗い色で表示されている条件が非表示設定になっています。
+DRAWLINE
+PRINTL ■ 種族
+FOR LOCAL, 1, 7
+	SIF STRCOUNT(キャラ一覧フィルタ:0, GET_TALENTNAME(200, LOCAL))
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[%GET_TALENTNAME(200, LOCAL)%]", @"種族：%GET_TALENTNAME(200, LOCAL)%"
+	RESETCOLOR
+	IF LOCAL == 6
+		PRINT 　　　　　
+		PRINTBUTTON "[全て表示]", "種族：全て表示"
+		PRINT /
+		PRINTBUTTON "[全て非表示]", "種族：全て非表示"
+		PRINTL
+	ELSE
+		PRINT  / 
+	ENDIF
+NEXT
+DRAWLINE
+PRINTL ■ バストサイズ
+FOR LOCAL, -2, 4
+	SIF STRCOUNT(キャラ一覧フィルタ:1, GET_TALENTNAME(205, LOCAL))
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[%GET_TALENTNAME(205, LOCAL)%]", @"バストサイズ：%GET_TALENTNAME(205, LOCAL)%"
+	RESETCOLOR
+	IF LOCAL == 3
+		PRINT 　　　　　
+		PRINTBUTTON "[全て表示]", "バストサイズ：全て表示"
+		PRINT /
+		PRINTBUTTON "[全て非表示]", "バストサイズ：全て非表示"
+		PRINTL
+	ELSE
+		PRINT  / 
+	ENDIF
+NEXT
+DRAWLINE
+PRINTL ■ 性知識Lv
+FOR LOCAL, -2, 4
+	SIF STRCOUNT(キャラ一覧フィルタ:2, 性知識段階表示(LOCAL, 0))
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[%性知識段階表示(LOCAL, 0)%]", @"性知識Lv：%性知識段階表示(LOCAL, 0)%"
+	RESETCOLOR
+	IF LOCAL == 0
+		PRINT  / 
+		SIF STRCOUNT(キャラ一覧フィルタ:2, 性知識段階表示(0, 3))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%性知識段階表示(0, 3)%]", @"性知識Lv：%性知識段階表示(0, 3)%"
+		RESETCOLOR
+	ENDIF
+	IF LOCAL == 3
+		PRINT 　　　　　
+		PRINTBUTTON "[全て表示]", "性知識Lv：全て表示"
+		PRINT /
+		PRINTBUTTON "[全て非表示]", "性知識Lv：全て非表示"
+		PRINTL
+	ELSE
+		PRINT  / 
+	ENDIF
+NEXT
+DRAWLINE
+PRINTL ■ 発情期
+SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期なし")
+	SETCOLOR 0x666666
+PRINTBUTTON @"[発情期なし]", @"発情期フラグ：発情期なし"
+RESETCOLOR
+PRINT  / 
+SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情中")
+	SETCOLOR 0x666666
+PRINTBUTTON @"[発情中]", @"発情期フラグ：発情中"
+RESETCOLOR
+PRINT  / 
+SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期ではない")
+	SETCOLOR 0x666666
+PRINTBUTTON @"[発情期ではない]", @"発情期フラグ：発情期ではない"
+RESETCOLOR
+PRINT 　　　　　
+PRINTBUTTON "[全て表示]", "発情期フラグ：全て表示"
+PRINT /
+PRINTBUTTON "[全て非表示]", "発情期フラグ：全て非表示"
+PRINTL
+DRAWLINE
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP_ANY
+RESULT = 0
+RESULTS = 
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ENDIF
+IF RESULTS != ""
+	LOCALS = %RESULTS%
+	IF STRCOUNT(LOCALS, "種族")
+		LOCAL = 0
+	ELSEIF STRCOUNT(LOCALS, "バストサイズ")
+		LOCAL = 1
+	ELSEIF STRCOUNT(LOCALS, "性知識Lv")
+		LOCAL = 2
+	ELSEIF STRCOUNT(LOCALS, "発情期フラグ")
+		LOCAL = 3
+	ELSE
+		GOTO INPUT_LOOP_ANY
+	ENDIF
+	IF STRCOUNT(LOCALS, "全て表示")
+		キャラ一覧フィルタ:LOCAL =
+	ELSEIF STRCOUNT(LOCALS, "全て非表示")
+		SELECTCASE LOCAL
+			CASE 0
+				キャラ一覧フィルタ:0 = "種族：ヒューマン_種族：エルーン_種族：ドラフ_種族：ハーヴィン_種族：星晶獣_種族：その他_"
+			CASE 1
+				キャラ一覧フィルタ:1 = "バストサイズ：絶壁_バストサイズ：貧乳_バストサイズ：並乳_バストサイズ：巨乳_バストサイズ：爆乳_バストサイズ：ドラフ_"
+			CASE 2
+				キャラ一覧フィルタ:2 = "性知識Lv：無知_性知識Lv：獣並み_性知識Lv：疎い_性知識Lv：耳年増_性知識Lv：必要十分_性知識Lv：有識者_性知識Lv：百戦錬磨_"
+			CASE 3
+				キャラ一覧フィルタ:3 = "発情期フラグ：発情期なし_発情期フラグ：発情中_発情期フラグ：発情期ではない_"
+		ENDSELECT
+	ELSEIF STRCOUNT(キャラ一覧フィルタ:LOCAL, LOCALS)
+		REPLACE キャラ一覧フィルタ:LOCAL, @"%LOCALS%_", ""
+		キャラ一覧フィルタ:LOCAL = %RESULTS%
+	ELSE
+		キャラ一覧フィルタ:LOCAL += @"%LOCALS%_"
+	ENDIF
+ENDIF
+RESTART
+
+@SHOW_CHARADATA_SORT
+DRAWLINE
+PRINTL キャラクターの表示を任意の条件でソートします。
+PRINT 現在のソート条件：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%(%キャラ一覧ソート:1%)
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINT 　　　
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINTBUTTON "[降順にする]", "降順"
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINTBUTTON "[昇順にする]", "昇順"
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL ■ ソート条件一覧
+PRINTBUTTONLC "[なし(キャラ番号順)]", "なし"
+PRINTBUTTONLC "[好感度レベル]", "好感度レベル"
+PRINTBUTTONLC "[恋慕レベル]", "恋慕レベル"
+PRINTL
+DRAWLINE
+PRINTBUTTONLC "[Ｃ感覚]", "Ｃ感覚"
+PRINTBUTTONLC "[Ｖ感覚]", "Ｖ感覚"
+PRINTBUTTONLC "[Ａ感覚]", "Ａ感覚"
+PRINTBUTTONLC "[Ｂ感覚]", "Ｂ感覚"
+PRINTBUTTONLC "[Ｓ感覚]", "Ｓ感覚"
+PRINTBUTTONLC "[欲望]", "欲望"
+PRINTBUTTONLC "[露出癖]", "露出癖"
+PRINTBUTTONLC "[奉仕精神]", "奉仕精神"
+PRINTBUTTONLC "[マゾ性感]", "マゾ性感"
+PRINTBUTTONLC "[サド性感]", "サド性感"
+PRINTBUTTONLC "[同性愛]", "同性愛"
+PRINTBUTTONLC "[玩具嗜好]", "玩具嗜好"
+PRINTBUTTONLC "[技巧]", "技巧"
+PRINTBUTTONLC "[道具扱い]", "道具扱い"
+PRINTL
+DRAWLINE
+
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP_ANY
+RESULT = 0
+RESULTS = 
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ENDIF
+LOCALS = %RESULTS%
+SELECTCASE LOCALS
+	CASE "なし"
+		キャラ一覧ソート:0 = 
+		キャラ一覧ソート:1 = 降順
+	CASE "昇順"
+		IF STRCOUNT(キャラ一覧ソート:1, "降順")
+			キャラ一覧ソート:1 = 昇順
+		ENDIF
+		RETURN 0
+	CASE "降順"
+		IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+			キャラ一覧ソート:1 = 降順
+		ENDIF
+		RETURN 0
+	CASEELSE
+		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 
+			キャラ一覧ソート:0 = %LOCALS%
+			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+				キャラ一覧ソート:1 = 昇順
+			ELSE
+				キャラ一覧ソート:1 = 降順
+			ENDIF
+			RETURN 0
+		ENDIF
+ENDSELECT
+REUSELASTLINE 
+GOTO INPUT_LOOP_ANY
+
+
+@SHOW_CHARADATA_素質絞り込み
+DRAWLINE
+PRINTL キャラクターの表示を素質の有無で絞り込みします。
+PRINTL 複数選択時はAND条件とOR条件を切り替えることができます。
+DRAWLINE
+VARSET LOCAL
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT 現在の複数選択時設定：
+		PRINTBUTTON "[AND条件]", 201
+		PRINTL 
+	ELSE
+		PRINT 現在の複数選択時設定：
+		PRINTBUTTON "[OR条件]", 201
+		PRINTL 
+	ENDIF
+	PRINT 現在の絞り込み素質：
+	FOR LOCAL, 0, 99
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			CONTINUE
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTBUTTON @"[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]", LOCAL
+		LOCAL:10 += STRLENS(GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)))
+		IF LOCAL:10 > 50
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTL
+	PRINTBUTTON "[全消去]", 200
+ELSE
+	PRINT 現在の絞り込み素質：なし
+ENDIF
+PRINTL
+DRAWLINE
+FOR LOCAL, 0, 1000
+	SIF TALENTNAME:LOCAL == ""
+		CONTINUE
+	SIF LOCAL >= 200 && LOCAL <= 219
+		CONTINUE
+	SIF LOCAL < 5
+		CONTINUE
+	FOR LOCAL:1 , -10, 11
+		IF GET_TALENTNAME(LOCAL, LOCAL:1) != ""
+			LOCALS = [%GET_TALENTNAME(LOCAL, LOCAL:1)%]
+			PRINTBUTTON @"%LOCALS, 20, LEFT%", @"{LOCAL}_{LOCAL:1}"
+		ENDIF
+	NEXT
+NEXT
+PRINTL
+DRAWLINE
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP_ANY
+RESULT = -1
+RESULTS = 
+VARSET LOCALS
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ELSEIF RESULT == 201
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		キャラ一覧素質絞り込み:99 = 
+		RESTART
+	ELSE
+		キャラ一覧素質絞り込み:99 = AND
+		RESTART
+	ENDIF
+ELSEIF RESULT == 200
+	VARSET キャラ一覧素質絞り込み
+	RESTART
+ELSEIF RESULT >= 0 && RESULT < 99
+	LOCAL:1 = RESULT
+	IF キャラ一覧素質絞り込み:(LOCAL:1) != ""
+		FOR LOCAL, (LOCAL:1), 99
+			キャラ一覧素質絞り込み:LOCAL = %キャラ一覧素質絞り込み:(LOCAL + 1)%
+			SIF キャラ一覧素質絞り込み:LOCAL == ""
+				BREAK
+		NEXT
+		RESTART
+	ENDIF
+ENDIF
+LOCALS = %RESULTS%
+IF STRCOUNT(LOCALS, "_")
+	SPLIT LOCALS, "_", LOCALS
+	IF GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)) != ""
+		FOR LOCAL, 0, 99
+			IF キャラ一覧素質絞り込み:LOCAL == ""
+				キャラ一覧素質絞り込み:LOCAL = %LOCALS:0%_%LOCALS:1%
+				BREAK
+			ENDIF
+		NEXT
+		RESTART
+	ENDIF
+ENDIF
+REUSELASTLINE 
+GOTO INPUT_LOOP_ANY
+
+

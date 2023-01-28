@@ -1,0 +1,142 @@
+﻿;-------------------------------------------------
+;アナルビーズ
+;道具使用コマンド、レベル3
+;-------------------------------------------------
+@COMNAME46
+#FUNCTIONS
+TSTR:コマンド名受渡 = アナルビーズ
+SIF TEQUIP:アナルビーズ
+	TSTR:コマンド名受渡 = アナルビーズ解除
+
+;弱点コマンド欄に専用の文字列を表示したい場合、これを設定すること
+弱点コマンド欄表示名 = アナルビーズ解除
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_46
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("道具系")
+弱点コマンドカテゴリ = A
+SIF !TEQUIP:アナルビーズ && 初期設定中 == 0
+	弱点コマンドカテゴリ = 
+
+@COM_TOOLTIP_46
+LOCALS = <br>■アナルビーズ<br>
+LOCALS += "アナルビーズを挿入し、腸内を刺激するコマンド。<br>アナルビーズ装備状態となり、外すか性行為を終了するまで持続的に快楽が発生する。"
+LOCALS += "<br>COMタイプ：道具系<br>取得ソース：快Ａ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：道具使用経験(あなた)・Ａ経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM46
+;着脱の処理
+TEQUIP:アナルビーズ = !TEQUIP:アナルビーズ
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 60
+DOWNBASE:気力 += 150
+
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 20)
+
+LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;装着時
+IF TEQUIP:アナルビーズ
+	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER,200)
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+;外す時
+ELSEIF !TEQUIP:アナルビーズ
+	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER,750)
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 200)
+ENDIF
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+SIF !TEQUIP:アナルビーズ
+	EXP:Ａ経験 += 2
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:PLAYER:同性愛経験 += 1
+ENDIF
+
+EXP:PLAYER:道具使用経験 ++
+
+RETURN 1
+;-------------------------------------------------
+;装着継続の処理
+;-------------------------------------------------
+@EQUIP_COM46(ARG)
+;アナルビーズ挿入中
+
+PRINTL ＜アナルビーズ挿入中＞
+TEQUIP:TARGET:アナル = 1
+
+DOWNBASE:ARG:体力 += 60
+DOWNBASE:ARG:気力 += 150
+
+CALL SOURCE_CALC_快Ａ(TARGET, -1,50)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 25)
+LOCAL = 30 * PAIN_CHECK_A(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE46
+;アナルビーズ実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(46)
+	RETURN RESULT
+;解除はいつでも可能
+SIF TEQUIP:15
+	RETURN 1
+;アイテムを持っているか、アイテムなし設定でないとダメ
+SIF ITEM:6 == 0 && NOITEM == 0
+	RETURN 0
+
+
+;下半身着衣
+;後鎧、めくれない服、タイツがあると無理
+SIF TEQUIP:下腹部後鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	RETURN 0
+	
+;アナルバイブ使用中は不可
+SIF TEQUIP:14
+	RETURN 0
+;普通の浣腸使用中は不可
+SIF TEQUIP:21
+	RETURN 0
+;バルーン使用中は不可
+SIF TEQUIP:22
+	RETURN 0
+;電極使用中は不可
+SIF TEQUIP:23
+	RETURN 0
+;新妻プレイ中はダメ
+SIF TEQUIP:33
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM46
+IF !TEQUIP:アナルビーズ
+	PRINTFORML %CALLNAME:TARGET%のアヌスからアナルビーズを勢い良く引き抜いた…
+ELSE
+	PRINTFORML %CALLNAME:TARGET%の菊穴にアナルビーズをひとつづつ飲み込ませていった…
+ENDIF
+

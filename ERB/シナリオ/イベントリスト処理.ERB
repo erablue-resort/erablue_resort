@@ -1,0 +1,109 @@
+﻿
+@起床前イベントリスト
+#DIMS 表示用リスト, 100
+#DIM 表示候補数
+VARSET LOCAL
+VARSET LOCALS
+
+表示候補数 = DT_ROW_LENGTH("各イベント用変数配列")
+
+DRAWLINE
+PRINTL 開始するイベントを選んでください。
+DRAWLINE
+FOR LOCAL, 0, 表示候補数
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+		SELECTCASE DT_CELL_GET("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+			CASE 1
+				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+			CASE 2
+				LOCALS:2 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+			CASE 3
+				LOCALS:3 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+		ENDSELECT
+	ENDIF
+NEXT
+
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='25px,25px,310px,450px'>%LOCALS:1%</div>
+LOCALS += @"<div rect='333px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='345px,25px,310px,450px'>%LOCALS:2%</div>"
+LOCALS += @"<div rect='653px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='665px,25px,310px,450px'>%LOCALS:3%</div>"
+LOCALS += "<div width='120px' height='20px' xpos='54px' ypos='0' color='#101010'>メインシナリオ</div>"
+LOCALS += "<div width='106px' height='20px' xpos='374px' ypos='0' color='#101010'>サブイベント</div>"
+LOCALS += "<div width='106px' height='20px' xpos='694px' ypos='0' color='#101010'>ＥＸイベント</div>"
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE IS < 0
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+	CASE IS < 表示候補数
+		SELECTCASE DT_CELL_GET("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+			CASE 1
+				CALLFORM イベント関数_メインシナリオ_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			CASE 2
+				CALLFORM イベント関数_サブイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			CASE 3
+				CALLFORM イベント関数_ＥＸイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		ENDSELECT
+		RESTART
+	CASE 999
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+@イベント発生条件チェック
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
+		RESULT = 0
+		SELECTCASE DT_CELL_GET("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+			CASE 1
+				TRYCALLFORM イベント発生条件_メインシナリオ_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			CASE 2
+				TRYCALLFORM イベント発生条件_サブイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			CASE 3
+				TRYCALLFORM イベント発生条件_ＥＸイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		ENDSELECT
+		IF RESULT
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント発生フラグ", 1
+			IF LOCAL:1 == 0
+				PRINTL
+				PRINTL
+				DRAWLINE
+			ENDIF
+			SELECTCASE DT_CELL_GET("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+				CASE 1
+					PRINTFORMW メインシナリオ［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が新たに発生した！
+				CASE 2
+					PRINTFORMW サブイベント［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が新たに発生した！
+				CASE 3
+					PRINTFORMW ＥＸイベント［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が新たに発生した！
+			ENDSELECT
+			LOCAL:1 = 1
+		ENDIF
+	ENDIF
+NEXT
+
+
+
+@イベント完了フラグ汎用処理(ARGS)
+#DIM 行番号
+
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	LOCALS = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF LOCALS == ARGS
+		行番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+DT_CELL_SET "各イベント用変数配列", 行番号, "イベント完了フラグ", 1
+

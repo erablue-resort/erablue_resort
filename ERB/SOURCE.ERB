@@ -1,0 +1,419 @@
+﻿@SOURCE_CHECK
+SELECTCOM = TFLAG:SELECTCOM受け渡し
+SELECTCOM_S = %TSTR:SELECTCOM_S受け渡し%
+
+;調教SELECTCOMの時間経過
+CALL TRACHECK_TIME
+
+;-------------------------------------------------
+;身体接触の継続、解除
+;-------------------------------------------------
+CALL TOUCH_SUCCESSION(TARGET)
+
+;カウンター
+;FOR LOCAL,1,CHARANUM
+;	SIF TARGET:LOCAL <= 0
+;		CONTINUE
+;	CALL EVENT_COUNTER(TARGET:LOCAL,LOCAL)
+;	CALL EVENT_COUNTER_SOURCE(TARGET:LOCAL,LOCAL)
+;NEXT
+;CALL EVENT_COUNTER_COMBINATION
+
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;性交フラグの設定
+	IF TEQUIP:LOCAL:106 == 1
+		TEQUIP:LOCAL:50 = PLAYER
+	ELSE
+		TEQUIP:LOCAL:50 = -1
+	ENDIF
+	IF TEQUIP:LOCAL:107 == 1
+		TEQUIP:LOCAL:51 = PLAYER
+	ELSE
+		TEQUIP:LOCAL:51 = -1
+	ENDIF
+	
+	;逆レイプ
+	SIF TEQUIP:LOCAL:101 == 6
+		TEQUIP:PLAYER:50 = LOCAL
+	;逆アナル
+	SIF TEQUIP:LOCAL:101 == 7
+		TEQUIP:PLAYER:51 = LOCAL
+	;体位リセット
+	SIF TEQUIP:LOCAL:50 < 0 && TEQUIP:LOCAL:51 < 0
+		TEQUIP:LOCAL:体位 = 0
+	;ついでに勃起度の保存
+	CFLAG:LOCAL:勃起度 = BASE:LOCAL:勃起
+NEXT
+;-------------------------------------------------
+;@COMの呼び出し
+;-------------------------------------------------
+IF TFLAG:オートコマンドフラグ > 1000
+	TRYCALLFORM AUTOCOM{TFLAG:オートコマンドフラグ - 1000}
+ELSEIF TFLAG:オートコマンドフラグ > 0
+	TRYCALLFORM PRE_AUTOCOM{TFLAG:オートコマンドフラグ}
+ELSE
+	CALL CALL_COM(TARGET)
+ENDIF
+SIF RESULT == -1
+	RETURN -1
+SIF !RESULT
+	GOTO SKIP
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;野外オナニー絶頂判定
+	;野外オナニー変数の６番があると絶頂が予約されてるので処理呼び出し
+	IF 野外オナニー変数:LOCAL:6
+		CALL 野外オナニー実処理(LOCAL, (野外オナニー変数:LOCAL:6 - 10))
+		;相手を覗いている時以外（コマンドが覗きでない、対象がTARGETでない）は表示カット
+		SIF SELECTCOM != 404 || TFLAG:コマンド結果受渡し変数２ != LOCAL
+			TCVAR:LOCAL:表示カット = 1
+		CFLAG:LOCAL:隠密 = 0
+	ENDIF
+
+	;ローター挿入
+	IF CFLAG:LOCAL:ローター挿入
+		CALL SOURCE_CALC_快Ｖ(LOCAL, -1, TIME_PROGRESS(TFLAG:300) * 10)
+		CFLAG:LOCAL:ローター挿入 = MAX(CFLAG:LOCAL:ローター挿入 - TIME_PROGRESS(TFLAG:300),0)
+		IF CFLAG:LOCAL:ローター挿入 == 0
+			PRINTFORMW %CALLNAME:LOCAL%が装着していたローターの電池が切れた
+			IF TALENT:LOCAL:処女 == 0
+				EXP:LOCAL:Ｖ経験 += 9
+			ELSE
+				TFLAG:2 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+	IF CFLAG:LOCAL:ローターA挿入
+		CALL SOURCE_CALC_快Ａ(LOCAL, -1, TIME_PROGRESS(TFLAG:300) * 10)
+		CFLAG:LOCAL:ローターA挿入 = MAX(CFLAG:LOCAL:ローターA挿入 - TIME_PROGRESS(TFLAG:300),0)
+		IF CFLAG:LOCAL:ローターA挿入 == 0
+			PRINTFORMW %CALLNAME:LOCAL%が装着していたローターの電池が切れた
+			EXP:LOCAL:Ａ経験 += 9
+		ENDIF
+	ENDIF
+
+	;装着系は後で考える
+	SIF LOCAL > 0 && !CFLAG:LOCAL:同室
+		CONTINUE
+	;-------------------------------------------------
+	;中毒充足のチェック
+	;-------------------------------------------------
+	;-------------------------------------------------
+	;モード持続時チェック
+	;-------------------------------------------------
+	CALL MODE_CHECK(LOCAL)
+	;-------------------------------------------------
+	;バイブなど付けっぱなしアイテムのチェック
+	;-------------------------------------------------
+	CALL EQUIP_CHECK(LOCAL)
+	;-------------------------------------------------
+	;経験加算
+	;-------------------------------------------------
+	CALL SOURCE_EXP(LOCAL)
+NEXT
+;童貞喪失
+IF !TALENT:PLAYER:1 && TALENT:PLAYER:2 & 2
+	SELECTCASE SELECTCOM
+		CASE 60,62
+			PRINTW 童貞喪失
+	ENDSELECT
+ENDIF
+IF !TALENT:TARGET:1 && TALENT:TARGET:2 & 2
+	SELECTCASE SELECTCOM
+		CASE 64,92,93,94,71
+			PRINTFORMW 童貞喪失(%CALLNAME:TARGET%)
+	ENDSELECT
+ENDIF
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	TCVAR:LOCAL:150 = 0
+	;装着系は後で考える
+	SIF LOCAL > 0 && !CFLAG:LOCAL:同室
+		CONTINUE
+	;-------------------------------------------------
+	;絶頂処理
+	;-------------------------------------------------
+	CALL ORGASM_ADD(LOCAL)
+	;-------------------------------------------------
+	;調教対象の噴乳チェック
+	;-------------------------------------------------
+	CALL TARGET_MILK_CHECK(LOCAL)
+	;-------------------------------------------------
+	;中毒充足チェック
+	;-------------------------------------------------
+	;MADA
+	;-------------------------------------------------
+	;体力・気力の減少
+	;-------------------------------------------------
+	CALL SOURCE_DOWNBASE(LOCAL)
+	;-------------------------------------------------
+	;苦痛快楽経験、奉仕快楽経験のチェック
+	;-------------------------------------------------
+	CALL EXP_GOT_CHECK(LOCAL)
+NEXT
+
+;射精周りのフラグ設定
+; CALL SAMEN_SHOOT_FLAGSETTING
+$SKIP
+
+;-------------------------------------------------
+;マップごとの特殊処理を呼び出す
+;-------------------------------------------------
+TRYCALLFORM COM_END_PLACEEVENT_{CFLAG:MASTER:現在マップ種別}_{CFLAG:PLAYER:現在位置}
+
+;-------------------------------------------------
+;キャラごとの特殊処理を呼び出す
+;-------------------------------------------------
+TRYCALLFORM COM_END_CHARAEVENT_{NO:TARGET}
+;-------------------------------------------------
+;調教口上
+;-------------------------------------------------
+CALL KOJO_MESSAGE_COM
+;IF TARGET
+;DRAWLINE
+;FOR LOCAL,1,CHARANUM
+;	SIF TCVAR:(TARGET:LOCAL):30 > 1
+;		CONTINUE
+;	SIF TCVAR:(TARGET:LOCAL):20
+;	CALL KOJO_MESSAGE_COUNTER(TARGET:LOCAL)
+;NEXT
+;ENDIF
+;-------------------------------------------------
+;EXP取得表示
+;-------------------------------------------------
+LOCAL:2 = 0
+LOCAL:3 = 0
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	FOR LOCAL:1, 0, 200
+		SIF TCVAR:LOCAL:表示カット
+			CONTINUE
+		IF EXP_UP(LOCAL:1,LOCAL)
+			LOCAL:2 ++
+			LOCAL:3 ++
+			SIF LOCAL:2 == 1
+			PRINTL
+			LOCALS = %EXPNAME:(LOCAL:1)%
+			PRINTFORM %LOCALS,15,LEFT%
+			IF LOCAL:1 == 89
+				LOCALS = +{EXP_UP(LOCAL:1,LOCAL)}
+				PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:PLAYER% > %CALLNAME:LOCAL%)
+			ELSE
+				LOCALS = +{EXP_UP(LOCAL:1,LOCAL)}
+				PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:LOCAL%)
+			ENDIF
+		ENDIF
+	NEXT
+	LOCAL:2 = 0
+NEXT
+SIF LOCAL:3
+	WAIT
+;-------------------------------------------------
+;ABLUP
+;-------------------------------------------------
+FOR LOCAL,0,CHARANUM
+	SIF TCVAR:LOCAL:表示カット
+		CONTINUE
+	CALL SOURCE_ABLUP(LOCAL)
+NEXT
+;-------------------------------------------------
+;触手の射精時の口上
+;-------------------------------------------------
+;CALL KOJO_MESSAGE_PALAMCNG_E
+;触手未実装なので一旦コメントアウト
+;-------------------------------------------------
+;奴隷の絶頂時の口上
+;-------------------------------------------------
+CALL MESSAGE_PALAMCNG_絶頂強度表示
+SIF NOWEX:TARGET:多重絶頂
+	CALL KOJO_ORGASM_絶頂
+;-------------------------------------------------
+;奴隷射精時の口上
+;-------------------------------------------------
+IF NOWEX:TARGET:射精
+	SIF NOWEX:TARGET:射精 > 1
+		PRINT 大量
+	PRINTFORML 射精(%CALLNAME:TARGET%)
+	CALL KOJO_ORGASM_射精
+ENDIF
+;-------------------------------------------------
+;調教者射精時
+;-------------------------------------------------
+IF NOWEX:PLAYER:射精
+	SIF NOWEX:PLAYER:射精 > 1
+		PRINT 大量
+	PRINTFORML 射精(%CALLNAME:PLAYER%)
+	TFLAG:フィニッシュフラグ = NOWEX:PLAYER:11
+	CALL EVENT_SHOOT_PLAYER
+ELSE
+	TFLAG:フィニッシュフラグ = 0
+ENDIF
+;-------------------------------------------------
+;調教後の口上
+;-------------------------------------------------
+CALL KOJO_MESSAGE_PALAMCNG_AFTER
+;-------------------------------------------------
+;パラメータ変動とそれによる口上
+;-------------------------------------------------
+;CALL KOJO_MESSAGE_PALAMCNG_D
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	CALL 技巧上昇判定(LOCAL)
+	SIF RESULT
+		TRYCALLFORM KOJO_SKILLUP_技巧_{LOCAL}
+	CALL 性知識上昇判定(LOCAL)
+	SIF RESULT
+		TRYCALLFORM KOJO_SKILLUP_性知識_{LOCAL}
+NEXT
+;-------------------------------------------------
+;刻印取得のチェック
+;-------------------------------------------------
+CALL MARK_GOT_CHECK(TARGET)
+;-------------------------------------------------
+;刻印取得による口上
+;-------------------------------------------------
+CALL KOJO_MESSAGE_MARKCNG
+;-------------------------------------------------
+;屈服・快楽堕ちの上昇による[抵抗]の消滅チェック
+;-------------------------------------------------
+CALL JUJUN_UP_CHECK
+;-------------------------------------------------
+;調教ソースの表示
+;-------------------------------------------------
+CALL SHOW_SOURCE
+;-------------------------------------------------
+;数値変動の表示
+;-------------------------------------------------
+;気力０
+SIF BASE:1 <= 0
+	PRINTL ★気力０★
+LOCAL:1 = 0
+FOR LOCAL,0,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	IF DOWNBASE:LOCAL:体力
+		PRINTFORM 体力-{DOWNBASE:LOCAL:体力} 
+		LOCAL:1 ++
+	ENDIF
+	IF DOWNBASE:LOCAL:気力
+		PRINTFORM 気力-{DOWNBASE:LOCAL:気力} 
+		LOCAL:1 ++
+	ENDIF
+	SIF LOCAL:1
+		PRINTFORML (%CALLNAME:LOCAL%)
+	LOCAL:1 = 0
+NEXT
+PRINTL 
+;-------------------------------------------------
+;関係性ゲージ上昇
+;-------------------------------------------------
+;反感不快との相殺の関係で先に恋慕度から判定
+CALL Love_CALC(TARGET)
+CALL FAVOR_CALC(TARGET)
+
+;-------------------------------------------------
+;パラメータの上昇＆表示（DOWNもここで）
+;-------------------------------------------------
+VARSET LOCAL
+FOR LOCAL:1, 0, CHARANUM
+	SIF CFLAG:(LOCAL:1):滞在期間 < 0
+		CONTINUE
+	SIF TCVAR:(LOCAL:1):表示カット
+		SKIPDISP 1
+	LOCAL:3 = 0
+	FOR LOCAL,0,100
+		;コマンド入力前のCUPを追加
+		CUP:(LOCAL:1):LOCAL += TCVAR:(LOCAL:1):(600 + LOCAL)
+		SIF PALAMNAME:LOCAL == ""
+			CONTINUE
+		SIF CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL == 0
+			CONTINUE
+		IF !LOCAL:3
+			PRINTL
+			PRINTFORML %CALLNAME:(LOCAL:1)%
+		ENDIF
+		LOCAL:3 ++
+		LOCAL:2 = CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL + TCVAR:(LOCAL:1):(600 + LOCAL)
+		PRINTFORML %PALAMNAME:LOCAL,8,LEFT% {PALAM:(LOCAL:1):LOCAL,10,LEFT} + {CUP:(LOCAL:1):LOCAL,10,LEFT} =   {PALAM:(LOCAL:1):LOCAL + CUP:(LOCAL:1):LOCAL,10,LEFT}
+		PALAM:(LOCAL:1):LOCAL += CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL
+		PALAM:(LOCAL:1):LOCAL = MAX(0, PALAM:(LOCAL:1):LOCAL)
+		CUP:(LOCAL:1):LOCAL = 0
+		CDOWN:(LOCAL:1):LOCAL = 0
+	NEXT
+	SKIPDISP 0
+NEXT
+FOR LOCAL, 0, 100
+	CVARSET TCVAR, 600 + LOCAL, 0
+NEXT
+
+
+;-------------------------------------------------
+;ZPの取得量表示
+;-------------------------------------------------
+IF TFLAG:ZP取得量
+	PRINTL
+	PRINTFORM ZP:{FLAG:ZP所持量 - TFLAG:ZP取得量}
+	FOR LOCAL, 0, CHARANUM
+		IF TCVAR:LOCAL:ZP取得量
+			PRINTFORM  + {TFLAG:ZP取得量}(%CALLNAME:LOCAL%)
+		ENDIF
+	NEXT
+	PRINTFORM = {FLAG:ZP所持量}
+ENDIF
+
+;-------------------------------------------------
+;調教ソースの表示（DOWNもここで）
+;-------------------------------------------------
+@SHOW_SOURCE
+SIF TCVAR:表示カット
+	RETURN 0
+;PRINTL 　
+SIF SOURCE:快Ｃ > 0
+	PRINTFORM 快Ｃ({SOURCE:快Ｃ})
+SIF SOURCE:快Ｖ > 0
+	PRINTFORM 快Ｖ({SOURCE:快Ｖ})
+SIF SOURCE:快Ａ > 0
+	PRINTFORM 快Ａ({SOURCE:快Ａ})
+SIF SOURCE:快Ｂ > 0
+	PRINTFORM 快Ｂ({SOURCE:快Ｂ})
+SIF SOURCE:情愛 > 0
+	PRINTFORM 情愛({SOURCE:情愛})
+SIF SOURCE:性行動 > 0
+	PRINTFORM 性行動({SOURCE:性行動})
+SIF SOURCE:達成 > 0
+	PRINTFORM 達成感({SOURCE:達成})
+SIF SOURCE:苦痛 > 0
+	PRINTFORM 痛み({SOURCE:苦痛})
+SIF SOURCE:恐怖 > 0
+	PRINTFORM 恐れ({SOURCE:恐怖})
+SIF SOURCE:液体 > 0
+	PRINTFORM 液体({SOURCE:液体})
+SIF SOURCE:欲情 > 0
+	PRINTFORM 欲情({SOURCE:欲情})
+SIF SOURCE:恭順 > 0
+	PRINTFORM 恭順({SOURCE:恭順})
+SIF SOURCE:露出 > 0
+	PRINTFORM 露出({SOURCE:露出})
+SIF SOURCE:屈従 > 0
+	PRINTFORM 屈服({SOURCE:屈従})
+SIF SOURCE:歓楽 > 0
+	PRINTFORM 歓楽({SOURCE:歓楽})
+SIF SOURCE:征服 > 0
+	PRINTFORM 征服({SOURCE:征服})
+SIF SOURCE:受動 > 0
+	PRINTFORM 受動({SOURCE:受動})
+SIF SOURCE:不潔 > 0
+	PRINTFORM 不潔({SOURCE:不潔})
+SIF SOURCE:鬱屈 > 0
+	PRINTFORM 鬱屈({SOURCE:鬱屈})
+SIF SOURCE:逸脱 > 0
+	PRINTFORM 逸脱({SOURCE:逸脱})
+SIF SOURCE:反感 > 0
+	PRINTFORM 反発({SOURCE:反感})
+PRINTL 　

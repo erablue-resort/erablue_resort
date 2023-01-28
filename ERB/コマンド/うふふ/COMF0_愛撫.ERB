@@ -1,0 +1,135 @@
+﻿;-------------------------------------------------
+;愛撫
+;愛撫系コマンド　レベル2
+;-------------------------------------------------
+@COMNAME0
+#FUNCTIONS
+TSTR:コマンド名受渡 = 愛撫
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_0
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+弱点コマンドカテゴリ = CB
+
+@COM_TOOLTIP_0
+LOCALS = <br>■愛撫<br>
+LOCALS += "相手の胸とクリトリスへ軽い愛撫を行うコマンド。<br>実行者が[舌使い][器用な指][猫舌]を持っている場合、効果が増減する。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・快Ｂ・露出・接触"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM0
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 5
+DOWNBASE:気力 += 50
+
+;舌を使う調教では、舌使い,猫舌によって、快感のソース増減
+LOCAL = 80
+SIF TALENT:PLAYER:舌使い
+	TIMES LOCAL , 1.50
+SIF TALENT:PLAYER:器用な指
+	TIMES LOCAL , 1.50
+SIF TALENT:PLAYER:猫舌
+	TIMES LOCAL , 0.75
+
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, LOCAL)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, LOCAL)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+
+IF TEQUIP:20
+;ボールギャグ使用中もなし
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 40)
+ELSE
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+	;キス経験
+	EXP:キス経験 ++
+	EXP:PLAYER:キス経験 ++
+ENDIF
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+;調教者が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
+SIF TALENT:PLAYER:猫舌
+	EXP:PLAYER:嗜虐快楽経験 += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;愛撫実行判定
+;-------------------------------------------------
+@COM_ABLE0
+SIF !TFLAG:100
+	RETURN 0
+
+;上か下に鎧があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+
+;一括管理
+SIF GLOBAL_COMABLE(0)
+	RETURN RESULT
+;指を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;クリを何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:クリトリス
+	RETURN 0
+;パイズリ、フェラ系は体勢的に無理
+SIF MODE_確認("フェラチオ系", TARGET)
+	RETURN 0
+SIF MODE_確認("パイズリ系", TARGET)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;愛撫時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM0
+;キスをする場合
+SIF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+	PRINTFORM %CALLNAME:TARGET%とつながったまま
+PRINTFORM %CALLNAME:TARGET%の
+;小柄体型
+SIF TALENT:種族 == 4
+	PRINT 小柄な
+PRINTL 体を丹念に愛撫した…
+IF NOWEX:0 || NOWEX:1 || NOWEX:2 || NOWEX:3
+	IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+		PRINTFORML %CALLNAME:TARGET%の\@ TEQUIP:50 == PLAYER ? 膣 # アヌス \@は%CALLNAME:PLAYER%が体に触れるたびにびくびくと収縮し
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%が体に触れるたびにびくびくと震え
+	ENDIF
+	IF EXP_UP(27,TARGET)
+		PRINTFORML 快楽にとろけた顔で%CALLNAME:PLAYER%の唇を求めてきた…
+	ELSE
+		PRINTFORML 与えられる快楽にあえいでいる…
+	ENDIF
+ELSE
+	IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+		PRINTFORM %CALLNAME:TARGET%はくわえ込んだペニスを締め付けながら
+	ELSE
+		PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%にぴったりと寄り添いながら
+	ENDIF
+	IF EXP_UP(27,TARGET)
+		PRINTFORML %CALLNAME:PLAYER%の唇を求めてきた…
+	ELSE
+		PRINTFORML 与えられる快楽に体を震わせて反応している…
+	ENDIF
+ENDIF
+

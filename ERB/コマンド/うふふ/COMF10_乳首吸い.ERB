@@ -1,0 +1,120 @@
+﻿;-------------------------------------------------
+;乳首吸い
+;愛撫系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME10
+#FUNCTIONS
+
+TSTR:コマンド名受渡 = 乳首吸い
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_10
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中")
+弱点コマンドカテゴリ = B
+
+@COM10
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("乳首吸い")
+弱点コマンドカテゴリ = B
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 10
+DOWNBASE:気力 += 35
+
+TCVAR:乳首開発フラグ = 2
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 70)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 70)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 15)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 100)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+;口淫経験
+EXP:PLAYER:口淫経験 ++
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE10
+;乳首吸い
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(10)
+	RETURN RESULT
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:上半身服あり && (!TEQUIP:手差し込み可 && !TEQUIP:はだけ可)
+	RETURN 0
+SIF TEQUIP:上タイツあり && !TEQUIP:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:上半身下着あり
+	RETURN 0
+;ニプルキャップ使用中は不可
+SIF TEQUIP:16
+	RETURN 0
+;搾乳機使用中は不可
+SIF TEQUIP:17
+	RETURN 0
+;乳房電極装着中はダメ
+SIF TEQUIP:24
+	RETURN 0
+;口を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:口
+	RETURN 0
+;胸に届かないなら無理
+SIF TEQUIP:TARGET:胸 == 2
+	RETURN 0
+
+;陥没乳首は乳首露出させてからでないと不可
+SIF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+;授乳手コキや乳首責めとの調整は保留
+
+@MESSAGE_COM10
+IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+	PRINTFORM %CALLNAME:TARGET%とつながったまま%OPPAI_DESCRIPTION(TARGET)%
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%
+ENDIF
+
+;欲情のPALAMLV3以上
+IF PALAM:欲情 >= PALAMLV:3
+	PRINT の先端の、すっかり硬くなった突起に
+ELSE
+	PRINT の先端の、まだ柔らかい突起に
+ENDIF
+PRINTL 吸い付いた…
+

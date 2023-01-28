@@ -1,0 +1,162 @@
+﻿;---------------------------------------------------------------
+;現在地によるマップ種別変更処理
+;---------------------------------------------------------------
+@マップ種別変更(ARG)
+
+IF CFLAG:MASTER:現在位置 >= 303 && CFLAG:MASTER:現在位置 <= 307
+	;キャンプ
+	TFLAG:マップ種別 = 3
+ELSEIF CFLAG:MASTER:現在位置 >= 503 && CFLAG:MASTER:現在位置 <= 506
+	;遊戯室
+	TFLAG:マップ種別 = 5
+ELSEIF CFLAG:MASTER:現在位置 >= 1503 && CFLAG:MASTER:現在位置 <= 1506
+	;プール
+	TFLAG:マップ種別 = 15
+ELSEIF CFLAG:MASTER:現在位置 <= 20
+	TFLAG:マップ種別 = 0
+ENDIF
+
+;---------------------------------------------------------------
+;キャラの居場所再設定
+;---------------------------------------------------------------
+@キャラ居場所再設定(ARG:1, ARG)
+SELECTCASE ARG:1
+	CASE 0
+		;基本→キャンプ
+		IF CFLAG:ARG:現在位置 == 3 && 施設改造度:3:0
+			CFLAG:ARG:現在位置 = 303
+		ENDIF
+		;基本→遊戯
+		IF CFLAG:ARG:現在位置 == 5 && 施設改造度:5:0
+			CFLAG:ARG:現在位置 = 503
+		ENDIF
+		;基本→プール
+		IF CFLAG:ARG:現在位置 == 15 && 施設改造度:15:0
+			CFLAG:ARG:現在位置 = 1503
+		ENDIF
+		;キャンプ→基本
+		IF CFLAG:ARG:現在位置 == 302
+			CFLAG:ARG:現在位置 = 2
+		ENDIF
+		;遊戯→基本
+		IF CFLAG:ARG:現在位置 == 502
+			CFLAG:ARG:現在位置 = 2
+		ENDIF
+		;プール→基本
+		IF CFLAG:ARG:現在位置 == 1513
+			CFLAG:ARG:現在位置 = 13
+		ENDIF
+		IF CFLAG:ARG:現在位置 == 1514
+			CFLAG:ARG:現在位置 = 14
+		ENDIF
+ENDSELECT
+
+;---------------------------------------------------------------
+;マップ種別による移動先可否判定
+;---------------------------------------------------------------
+@存在しない移動先(ARG:1, ARG)
+#FUNCTION
+
+SELECTCASE ARG:1
+	CASE 0
+		IF ARG < 50
+			IF 施設改造度:ARG:0 > 0
+				;改装済みの場合、改装前の部屋は存在しない
+				RETURNF 0
+			ENDIF
+		ENDIF
+		IF (ARG >= 1 && ARG <= 15) || ARG == 20
+			;基本マップ
+			RETURNF 0
+		ELSEIF ARG >= 302 && ARG <= 307 && 施設改造度:3:0
+			;キャンプ場
+			RETURNF 0
+		ELSEIF ARG >= 502 && ARG <= 505 && 施設改造度:5:0
+			;遊戯室
+			RETURNF 0
+		ELSEIF ARG == 506 && 施設改造度:5:1
+			;遊戯室
+			RETURNF 0
+		ELSEIF ARG >= 1503 && ARG <= 1514 && 施設改造度:15:0
+			;プール
+			RETURNF 0
+		ENDIF
+ENDSELECT
+
+RETURNF 1
+
+;---------------------------------------------------------------
+;エリア移動を伴わないマップ切り替え構文
+;---------------------------------------------------------------
+@表示マップ切り替え判定(ARG)
+#FUNCTION
+
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 0
+		IF ARG > 49
+			RETURNF 0
+		ENDIF
+		IF 施設改造度:ARG:0
+			;派生マップがあると判定
+			TFLAG:マップ種別 = ARG
+			RETURNF 1
+		ENDIF
+ENDSELECT
+
+RETURNF 0
+
+;---------------------------------------------------------------
+;部屋名出力（各マップERBファイルに受渡し
+;---------------------------------------------------------------
+@GETPLACENAME(ARG, ARG:1)
+#FUNCTIONS
+#DIMS ローカル文字列
+
+TSTR:場所名受渡 = 
+
+IF ARG == 999
+	IF ARG:1 < 1000
+		IF 滞在者部屋割り配列:(ARG:1) < 1
+			LOCALS = 滞在者なし
+		ELSE
+			LOCALS = %CALLNAME:(滞在者部屋割り配列:(ARG:1))%
+		ENDIF
+		RETURNF @"客室{ARG:1}号室：%LOCALS%"
+	ELSE
+		IF 従業員部屋割り配列:(ARG:1 - 1000) < 1
+			LOCALS = 使用者なし
+		ELSE
+			LOCALS = %CALLNAME:(滞在者部屋割り配列:(ARG:1 - 1000))%
+		ENDIF
+		RETURNF @"従業員室{ARG:1}号室：%LOCALS%"
+	ENDIF
+ENDIF
+
+CALLFORMF GETPLACENAME_{ARG}_{ARG:1 / 100}(ARG:1)
+
+RETURNF TSTR:場所名受渡
+
+
+;---------------------------------------------------------------
+;同じ場所扱いになる部屋番号
+;---------------------------------------------------------------
+@同一場所判定(ARG, ARG:1)
+#FUNCTION
+
+IF GROUPMATCH(ARG, 2, 302, 502) && GROUPMATCH(ARG:1, 2, 302, 502)
+	RETURNF 1
+ELSEIF GROUPMATCH(ARG, 3, 303) && GROUPMATCH(ARG:1, 3, 303)
+	RETURNF 1
+ELSEIF GROUPMATCH(ARG, 5, 503) && GROUPMATCH(ARG:1, 5, 503)
+	RETURNF 1
+ELSEIF GROUPMATCH(ARG, 15, 1503) && GROUPMATCH(ARG:1, 15, 1503)
+	RETURNF 1
+ELSEIF GROUPMATCH(ARG, 13, 1513) && GROUPMATCH(ARG:1, 13, 1513)
+	RETURNF 1
+ELSEIF GROUPMATCH(ARG, 14, 1514) && GROUPMATCH(ARG:1, 14, 1514)
+	RETURNF 1
+ENDIF
+
+RETURNF 0
+
+

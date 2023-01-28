@@ -1,0 +1,210 @@
+﻿;-------------------------------------------------
+;探索に出かける
+;-------------------------------------------------
+@COMNAME601
+#FUNCTIONS
+TSTR:コマンド名受渡 = 探索に出かける
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_601
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_探索")
+
+@COM601
+#DIM ループ用
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;現状はお金がちょっと上がって好感度UP用の仮アイテムが手に入る
+
+IF 探索フラグ
+	PRINTL 探索は一日一回までです。
+	RETURN 0
+ENDIF
+
+DRAWLINE
+PRINTL 探索形式を選んでください。
+DRAWLINE
+PRINTBUTTONLC "[0] 簡易探索", 0
+PRINTL 
+PRINTL 　　　：周囲の安全な地帯を探索し、ルピや素材などを手に入れる（※開発中のため報酬が大幅に増加しています）
+PRINTL 
+IF BATTLE_STATE:ループ用:0
+	PRINTBUTTONLC "[1] ダンジョン探索", 1
+ELSE
+	SETCOLOR 0x666666
+	PRINTPLAIN [1] ダンジョン探索（パーティメンバーが一人以上必要です）
+ENDIF
+PRINTL 
+PRINTL 　　　：解放されたダンジョンを攻略する
+RESETCOLOR
+PRINTL 
+PRINTL
+PRINTBUTTONLC "[999] 戻る", 999
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTL 外を探索し、魔物を討伐しました。
+		PRINTL お金を50000ルピ手に入れました
+		MONEY += 50000
+
+		PRINTL 好感度上昇用のアイテムを５個手に入れました
+		PRINTL 恋慕上昇用のアイテムを５個手に入れました
+		ITEM:好感度上昇用仮アイテム += 5
+		ITEM:恋慕上昇用仮アイテム += 5
+
+		EXP:MASTER:探索経験 ++
+		FOR ループ用, 0, 4
+			IF BATTLE_STATE:ループ用:0
+				EXP:(BATTLE_STATE:ループ用:0):探索経験 ++
+			ENDIF
+		NEXT
+		PRINTW あなたとパーティメンバーの探索経験が増加しました
+	CASE 1
+		IF BATTLE_STATE:ループ用:0 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL ダンジョンリスト描画
+		SIF RESULT == -1
+			RETURN -1
+	CASE 999
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+TIME += 120
+探索フラグ ++
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE601
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(601)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;玄関
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 0
+		SIF CFLAG:MASTER:現在位置 != 1
+			RETURN 0
+	CASEELSE
+		RETURN 0
+ENDSELECT
+RETURN 1
+
+
+@ダンジョンリスト描画
+#DIMS 表示用リスト_島内, 50
+#DIMS 表示用リスト_島外, 100
+#DIMS ダンジョン名保存
+#DIM 表示候補数
+VARSET LOCAL
+VARSET LOCALS
+
+表示候補数 = ENUMFUNCBEGINSWITH("ダンジョン初期処理_")
+
+DRAWLINE
+PRINTL 侵入するダンジョンを選んでください。
+DRAWLINE
+
+
+VARSET LOCAL
+FOR LOCAL, 0, 表示候補数
+	ダンジョン名保存 = %SUBSTRING(RESULTS:LOCAL, 19)%
+	IF GETVAR(@"ダンジョン変数_%ダンジョン名保存%:0:50") == 1
+		表示用リスト_島内:(LOCAL:1) = %ダンジョン名保存%
+		LOCAL:1 += 1
+	ELSEIF GETVAR(@"ダンジョン変数_%ダンジョン名保存%:0:50") == 2
+		表示用リスト_島外:(LOCAL:2) = %ダンジョン名保存%
+		LOCAL:2 += 1
+	ENDIF
+NEXT
+
+VARSET LOCAL
+VARSET LOCALS
+FOR LOCAL, 0, 表示候補数
+	IF 表示用リスト_島内:LOCAL == ""
+		BREAK
+	ENDIF
+	IF GETVAR(@"ダンジョン変数_%表示用リスト_島内:LOCAL%:0:51")
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_島内:LOCAL%(クリア済)</button><br>"
+	ELSE
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_島内:LOCAL%</button><br>"
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, 表示候補数
+	IF 表示用リスト_島外:LOCAL == ""
+		BREAK
+	ENDIF
+	IF GETVAR(@"ダンジョン変数_%表示用リスト_島外:LOCAL%:0:51")
+		LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_島外:LOCAL%(クリア済)</button>"
+	ELSE
+		LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_島外:LOCAL%</button>"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2
+		LOCALS:2 += "<br>"
+	ELSE
+		LOCALS:2 += "　　　　　　"
+	ENDIF
+NEXT
+
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='333px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div width='120px' height='20px' xpos='54px' ypos='0' color='#101010'>島内ダンジョン</div>"
+LOCALS += "<div width='120px' height='20px' xpos='374px' ypos='0' color='#101010'>島外ダンジョン</div>"
+LOCALS += @"<div rect='25px,25px,310px,450px'>%LOCALS:1%</div>"
+LOCALS += @"<div rect='345px,25px,620px,450px'>%LOCALS:2%</div>"
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE IS < 0
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+	CASE IS < 50
+		IF 表示用リスト_島内:LOCAL == ""
+			REUSELASTLINE
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL DUNGEON_MAIN_LOOP(表示用リスト_島内:LOCAL)
+	CASE IS < 150
+		IF 表示用リスト_島外:LOCAL == ""
+			REUSELASTLINE
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL DUNGEON_MAIN_LOOP(表示用リスト_島内:LOCAL)
+	CASE 999
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+

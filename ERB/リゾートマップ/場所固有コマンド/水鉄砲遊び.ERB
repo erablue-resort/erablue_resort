@@ -1,0 +1,154 @@
+﻿
+;-------------------------------------------------
+;水鉄砲遊び
+;-------------------------------------------------
+		
+@水鉄砲遊び(キャラ番号)
+#DIM キャラ番号
+#DIM 難易度, 2
+#DIM タゲ行
+#DIM タゲ列
+#DIM クリック成功回数
+;ここからマップ描画用DIM
+#DIMS AA, 40
+#DIM SPOT
+#DIM MODE
+#DIM LOCATION
+#DIM LINENUM
+#DIM X_POINT
+;ここまでマップ描画用DIM
+
+クリック成功回数 = 0
+
+$難易度_LOOP
+;難易度選択
+DRAWLINE
+PRINTL どの難易度で遊びますか？
+PRINTBUTTON "[1]EASY（猶予時間２秒：回数５回）", 1
+PRINTL 
+PRINTBUTTON "[2]NOMAL（猶予時間１秒：回数７回）", 2
+PRINTL 
+PRINTBUTTON "[3]HARD（猶予時間０．５秒：回数１０回）", 3
+PRINTL 
+PRINTBUTTON "[4]十天衆（猶予時間０．１秒：回数１５回）", 4
+PRINTL 
+DRAWLINE
+PRINTBUTTONLC "[説明]", 998
+PRINTBUTTON "[戻る]", 999
+PRINTL
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 999
+		RETURN -1
+	CASE 998
+		DRAWLINE
+		PRINTL 画面の中でランダムに出現するターゲットを、時間内にクリックするミニゲームです。
+		PRINTL クリックに成功した回数が多いほどキャラと楽しく遊べたことになり、パラメータ上昇量が増加します。
+		PRINTW また、難易度が高いほどクリックのチャンスが増えます。
+		PRINTL 
+		PRINTL ■猶予時間・回数について
+		PRINTL 猶予時間とは、ターゲットが表示されてから失敗になるまでの時間のことです
+		PRINTL 回数とは、何回ターゲットを狙うチャンスがあるかのことです。
+		PRINTW 猶予時間が長いほど簡単で、回数が多いほど成功回数を稼ぐチャンスがあります。
+		PRINTL 
+		PRINTL （難易度十天衆は人間が成功出来るように作っていません）
+		PRINTW （今後猶予時間が増えたり回数が増やせるシステムを予定していますが未実装です）
+		GOTO 難易度_LOOP
+	CASE 1
+		難易度:0 = 2000
+		難易度:1 = 5
+	CASE 2
+		難易度:0 = 1000
+		難易度:1 = 7
+	CASE 3
+		難易度:0 = 500
+		難易度:1 = 10
+	CASE 4
+		難易度:0 = 100
+		難易度:1 = 15
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+;クリック領域生成
+AA:00 = ┌────────────────────┐
+AA:01 = │0102030405060708091011121314151617181920│
+AA:02 = │0102030405060708091011121314151617181920│
+AA:03 = │0102030405060708091011121314151617181920│
+AA:04 = │0102030405060708091011121314151617181920│
+AA:05 = │0102030405060708091011121314151617181920│
+AA:06 = │0102030405060708091011121314151617181920│
+AA:07 = │0102030405060708091011121314151617181920│
+AA:08 = │0102030405060708091011121314151617181920│
+AA:09 = │0102030405060708091011121314151617181920│
+AA:10 = │0102030405060708091011121314151617181920│
+AA:11 = │0102030405060708091011121314151617181920│
+AA:12 = │0102030405060708091011121314151617181920│
+AA:13 = │0102030405060708091011121314151617181920│
+AA:14 = │0102030405060708091011121314151617181920│
+AA:15 = │0102030405060708091011121314151617181920│
+AA:16 = │0102030405060708091011121314151617181920│
+AA:17 = └────────────────────┘
+
+$描画_LOOP
+;ターゲットの再設定
+タゲ行 = RAND:16 + 1
+タゲ列 = RAND:20 + 1
+
+;クリック領域描画
+FOR LINENUM, 0, VARSIZE("AA")
+	SIF AA:LINENUM == ""
+		CONTINUE
+	;行ごとに初期化
+	X_POINT = 0
+	RESULTS = I
+	;行の終端までループ
+	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
+		SUBSTRINGU AA:LINENUM, X_POINT, 1
+		IF ISNUMERIC(RESULTS)
+			;数字は２文字取る
+			SUBSTRINGU AA:LINENUM, X_POINT, 2
+			IF LINENUM == タゲ行 && TOINT(RESULTS) == タゲ列
+				SETCOLOR すごろくカラーパレット(1)
+				PRINTBUTTON "○", 999
+				RESETCOLOR
+			ELSE
+				PRINT 　
+			ENDIF
+			X_POINT += 2
+		ELSE
+			PRINTS RESULTS
+			X_POINT ++
+		ENDIF
+	WEND
+	PRINTL 
+NEXT
+
+;制限時間付きクリックタイム
+TINPUT 難易度, 0, 1, "失敗！"
+CLEARLINE 1
+
+IF RESULT == 999
+	PRINTL 成功！
+	クリック成功回数 += 1
+ENDIF
+
+難易度:1 -= 1
+IF 難易度:1
+	PRINTL 
+	PRINTFORM 残り回数：%TOFULL(TOSTR(難易度:1))%回　　　
+	PRINTFORMW 成功回数：%TOFULL(TOSTR(クリック成功回数))%回
+	GOTO 描画_LOOP
+ELSE
+	PRINTW 
+	DRAWLINE
+	PRINTL ゲーム終了！
+	PRINTFORMW 成功回数：%TOFULL(TOSTR(クリック成功回数))%回
+ENDIF
+
+RETURN クリック成功回数
+

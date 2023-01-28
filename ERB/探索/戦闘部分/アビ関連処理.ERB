@@ -1,0 +1,302 @@
+﻿
+@固有アビ名呼び出し(ARG)
+TSTR:コマンド名受渡 = 
+TRYCCALLFORM 固有アビ_{NO:ARG}("アビ名")
+CATCH
+	TRYCALLFORM 汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%("アビ名")
+ENDCATCH
+
+@固有アビリティ効果呼び出し(ARG)
+TRYCCALLFORM 固有アビ_{NO:ARG}("アビ効果")
+	RETURN RESULT
+CATCH
+	TRYCALLFORM 汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%("アビ効果")
+ENDCATCH
+IF RESULT == -1
+	RETURN -1
+ENDIF
+
+@固有アビリティ説明文呼び出し(ARG)
+TRYCCALLFORM 固有アビ_{NO:ARG}("アビ説明文")
+	RETURN RESULT
+CATCH
+	TRYCALLFORM 汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%("アビ説明文")
+ENDCATCH
+IF RESULT == -1
+	RETURN -1
+ENDIF
+
+
+@汎用固有アビ_火(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = ファイア
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>敵単体に火属性の［攻撃力✕２００％］ダメージを与える。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		KSTR:(K++) = 誰に使用しますか？
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = <button value='999'>[999]戻る</button>
+		エネミー画像ボタン化フラグ = 1
+		CALL メッセージ欄表示用関数(,,,0)
+		CALL 口上変数初期化
+		$INPUT_LOOP
+		INPUT
+		SELECTCASE RESULT
+			CASE 10 TO 19
+				IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				戦闘行動対象 = RESULT
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		LOCAL = BATTLE_STATE:戦闘行動キャラ:属性
+		BATTLE_STATE:戦闘行動キャラ:属性 = 0
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のファイア！
+		NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
+		CALL ダメージ計算処理(200)
+		KSTR:(K++) = {RESULT}のダメージ！
+		敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
+		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
+			CALL 戦闘不能時処理(戦闘行動対象)
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:属性 = LOCAL
+ENDSELECT
+
+@汎用固有アビ_水(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = ヒール
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>味方単体のＨＰを［回復力✕５０％］回復させる。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		KSTR:(K++) = 誰に使用しますか？
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = <button value='999'>[999]戻る</button>
+		キャラ画像ボタン化フラグ = 1
+		CALL メッセージ欄表示用関数(,,,0)
+		CALL 口上変数初期化
+		$INPUT_LOOP
+		INPUT
+		SELECTCASE RESULT
+			CASE 0 TO 3
+				IF BATTLE_STATE:RESULT:キャラ番号 < 1
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ELSEIF BATTLE_STATE:RESULT:ＨＰ == BATTLE_STATE:RESULT:最大ＨＰ
+					KSTR:(K++) = ＨＰが最大です
+					CALL メッセージ欄表示用関数()
+					CALL 口上変数初期化
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				戦闘行動対象 = RESULT
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のヒール！
+		NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%のＨＰが
+		CALL 回復量計算処理(50)
+		KSTR:(K++) = {RESULT}回復！
+		BATTLE_STATE:戦闘行動対象:ＨＰ = MIN(BATTLE_STATE:戦闘行動対象:ＨＰ + RESULT, BATTLE_STATE:戦闘行動対象:最大ＨＰ)
+ENDSELECT
+
+@汎用固有アビ_風(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = クイックアップ
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>味方全体の行動速度を３ターン［２０％/Ａ枠］増加させる。<br>味方全体の連続攻撃率を３ターン［１０％/Ａ枠］増加させる。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のクイックアップ！
+		FOR LOCAL, 0, 4
+			SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+				CONTINUE
+			IF 戦闘中バフ:LOCAL:行動速度A:効果量 <= 20
+				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の行動速度が２０％上昇！　
+				戦闘中バフ:LOCAL:行動速度A:効果量 = 20
+				戦闘中バフ:LOCAL:行動速度A:残りターン数 = 3
+			ELSE
+				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%には効果がなかった…
+			ENDIF
+			IF 戦闘中バフ:LOCAL:連続攻撃率A:効果量 <= 20
+				KSTR:(K++) = 連続攻撃率が１０％上昇！　
+				戦闘中バフ:LOCAL:連続攻撃率A:効果量 = 10
+				戦闘中バフ:LOCAL:連続攻撃率A:残りターン数 = 3
+			ELSE
+				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%には効果がなかった…
+			ENDIF
+		NEXT
+ENDSELECT
+
+@汎用固有アビ_土(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = 士気向上
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>味方全体の奥義ゲージを［１０％］増加させる。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の士気向上！
+		FOR LOCAL, 0, 4
+			SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+				CONTINUE
+			LOCAL:1 = MIN(10, BATTLE_STATE:LOCAL:ゲージ最大値 - BATTLE_STATE:LOCAL:奥義ゲージ)
+			IF LOCAL:1 > 0
+				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の奥義ゲージが{LOCAL:1}％上昇！
+			ELSE
+				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%には効果がなかった…
+			ENDIF
+			BATTLE_STATE:LOCAL:奥義ゲージ = MIN(BATTLE_STATE:LOCAL:奥義ゲージ + 10, BATTLE_STATE:LOCAL:ゲージ最大値)
+		NEXT
+ENDSELECT
+
+@汎用固有アビ_光(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = シャイニング
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>敵単体に光属性の［攻撃力✕８０％］ダメージを与える。<br>このアビリティは相手の防御力を無視する。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		KSTR:(K++) = 誰に使用しますか？
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = <button value='999'>[999]戻る</button>
+		エネミー画像ボタン化フラグ = 1
+		CALL メッセージ欄表示用関数(,,,0)
+		CALL 口上変数初期化
+		$INPUT_LOOP
+		INPUT
+		SELECTCASE RESULT
+			CASE 10 TO 19
+				IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				戦闘行動対象 = RESULT
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		LOCAL = BATTLE_STATE:戦闘行動キャラ:属性
+		BATTLE_STATE:戦闘行動キャラ:属性 = 4
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のシャイニング！
+		NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
+		CALL ダメージ計算処理(80, 100)
+		WSTR:(K++) = {RESULT}のダメージ！
+		敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
+		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
+			CALL 戦闘不能時処理(戦闘行動対象)
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:属性 = LOCAL
+ENDSELECT
+
+@汎用固有アビ_闇(ARGS)
+#DIM 消費ＭＰ = 10
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = ミゼラブルミスト
+	CASE "アビ説明文"
+		TSTR:コマンド名受渡 = 消費ＭＰ：１０<br>敵単体の攻撃力を３ターン［１０％/Ａ枠］減少させる。<br>敵単体の防御力を３ターン［１０％/Ａ枠］減少させる。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL 口上変数初期化
+		KSTR:(K++) = 誰に使用しますか？
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = 　
+		KSTR:(K++) = <button value='999'>[999]戻る</button>
+		エネミー画像ボタン化フラグ = 1
+		CALL メッセージ欄表示用関数(,,,0)
+		$INPUT_LOOP
+		INPUT
+		SELECTCASE RESULT
+			CASE 10 TO 19
+				IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				戦闘行動対象 = RESULT
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+		CALL 口上変数初期化
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のミゼラブルミスト！
+		IF 戦闘中デバフ:戦闘行動対象:攻撃力A:効果量 <= 10
+			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%の攻撃力が１０％減少！　
+			戦闘中デバフ:戦闘行動対象:攻撃力A:効果量 = 10
+			戦闘中デバフ:戦闘行動対象:攻撃力A:残りターン数 = 3
+		ELSE
+			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%には効果がなかった…　
+		ENDIF
+		IF 戦闘中デバフ:戦闘行動対象:防御力A:効果量 <= 10
+			KSTR:(K++) = 防御力が１０％減少！　
+			戦闘中デバフ:戦闘行動対象:防御力A:効果量 = 10
+			戦闘中デバフ:戦闘行動対象:防御力A:残りターン数 = 3
+		ELSE
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%には効果がなかった…　
+		ENDIF
+ENDSELECT

@@ -1,0 +1,130 @@
+﻿@従業員仕事割り振り
+#DIM 従業員一覧, 50
+VARSET 従業員一覧, -1
+VARSET 仕事人数表示用
+CLEARLINE LINECOUNT
+
+DRAWLINE
+PRINTL 従業員が行う仕事の設定を行います。
+PRINTL ※開発中のため、仕事が正しく挙動しないことがあります。
+DRAWLINE
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
+
+;現在いる従業員を一覧表示
+従業員一覧:0 = 0
+LOCAL:1 = 1
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	従業員一覧:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+LOCALS += "<div rect='25px,25px,310px,450px'>"
+FOR LOCAL, 0, 50
+	SIF 従業員一覧:LOCAL < 0
+		BREAK
+	仕事人数表示用:(現在仕事:(従業員一覧:LOCAL):0) += 1
+	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0)%]</button>"
+	LOCALS += "<br>"
+NEXT
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+;仕事の種類と現在そこに従事している人数を表示
+LOCALS += "<div rect='340px,25px,588px,450px'>"
+LOCALS += "仕事内容と従事人数一覧<br><br>"
+LOCALS += @"■%現在仕事数字文字列変換(0), 16, LEFT%：従事人数{仕事人数表示用:0,3}人<br>"
+LOCALS += @"■%現在仕事数字文字列変換(1), 16, LEFT%：従事人数{仕事人数表示用:1,3}人<br>"
+LOCALS += "</div>"
+
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 0 TO 49
+		IF 従業員一覧:LOCAL < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		CALL 従業員仕事割り振り_切り替え(従業員一覧:LOCAL)
+		RESTART
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+@従業員仕事割り振り_切り替え(ARG)
+CLEARLINE LINECOUNT
+
+DRAWLINE
+PRINTL 従業員が行う仕事の設定を行います。
+PRINTL ※開発中のため、仕事が正しく挙動しないことがあります。
+DRAWLINE
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='25px,25px,310px,450px'>"
+LOCALS += "<button value='0'>[0] なし　　　　　に変更</button><br>"
+LOCALS += "<button value='1'>[1] 雑務　　　　　に変更</button><br>"
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+;仕事の説明を表示
+LOCALS:1 = <div rect='340px,25px,588px,450px'>
+LOCALS:1 += "現在従事している業務<br>"
+LOCALS:1 += @"■%現在仕事数字文字列変換(現在仕事:ARG:0), 16, LEFT%"
+LOCALS:1 += "</div>"
+LOCALS:1 += "<div rect='370px,70px,588px,450px'>"
+LOCALS:1 += @"%現在仕事数字文字列変換(現在仕事:ARG:0, 1)%"
+LOCALS:1 += "</div>"
+
+
+HTML_PRINT LOCALS, 1
+HTML_PRINT LOCALS:1, 1
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 0 TO 1
+		現在仕事:ARG:0 = LOCAL
+		RESTART
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+@現在仕事数字文字列変換(ARG, ARG:1 = 0)
+#FUNCTIONS
+
+SELECTCASE ARG
+	CASE 1
+		IF ARG:1
+			RETURNF "リゾート内の細々とした雑務を処理する業務。<br>効果：一日の最後に、全ての場所の雑務ゲージが一人につき１００減少する。"
+		ENDIF
+		RETURNF "雑務"
+	CASEELSE
+		IF ARG:1
+			RETURNF "特に仕事を申し付けず、待機している状態。<br>効果：特になし"
+		ENDIF
+		RETURNF "なし"
+ENDSELECT

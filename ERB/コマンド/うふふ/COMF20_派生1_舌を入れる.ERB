@@ -1,0 +1,251 @@
+﻿
+@COMNAME_S20_1
+#FUNCTIONS
+TSTR:コマンド名受渡 = 舌を入れる
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_20_1
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
+弱点コマンドカテゴリ = S
+
+@COM_TOOLTIP_S20_1
+LOCALS = <br>■舌を入れる<br>
+LOCALS += "キスモード中、相手の口内に舌を入れて絡ませるコマンド。<br>ディープキスモードに移行。<br>[舌使い][猫舌]によって効果が増減。"
+LOCALS += "<br>COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：露出・接触・快Ｓ・不潔・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S20_1
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("ディープキス")
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;奉仕快楽フラグ
+TFLAG:30 = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 0
+DOWNBASE:気力 += 20
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 250)
+
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 50)
+
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+ENDIF
+
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+EXP:キス経験 ++
+EXP:PLAYER:キス経験 ++
+RETURN 1
+
+
+@CAN_COM_S20_1(ARG)
+SKIPDISP ARG
+PRINTL 舌を入れる
+;-------------------------------------------------
+;実行できるかの判定
+;-------------------------------------------------
+A = 0
+S = 0
+
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+
+;ABL:欲望
+IF ABL:欲望
+	SIF S
+		PRINT  + 
+	A += ABL:欲望 * 1
+	PRINT 欲望
+	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 1,')
+	S = 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	SIF S
+		PRINT  + 
+	A += ABL:奉仕精神 * 4
+	PRINT 奉仕精神
+	PRINTV 'LV,ABL:奉仕精神,'(,ABL:奉仕精神 * 4,')
+	S = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 2
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 2,')
+	S = 1
+ENDIF
+
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:欲情,5) * 1
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 1,')
+	S = 1
+ENDIF
+
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 恥じらい
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;汚臭鈍感
+IF TALENT:汚臭耐性 > 0
+	SIF S
+		PRINT  + 
+	A += 1
+	PRINT 汚臭鈍感
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	PRINT  - 
+	A -= 1
+	PRINT 汚臭敏感
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;献身的
+IF TALENT:献身的
+	SIF S
+		PRINT  + 
+	A += 6
+	PRINT 献身的
+	PRINTV '(,6,')
+	S = 1
+ENDIF
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	PRINT  - 
+	A -= 1
+	PRINT 快感の否定
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 恋慕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;親愛
+IF TALENT:恋慕 > 1
+	SIF S
+		PRINT  + 
+	A += 10
+	PRINT 親愛
+	PRINTV '(,10,')
+	S = 10
+ENDIF
+
+
+;合計を表示(15以上で実行)
+PRINT  = 
+PRINTV A
+
+V = 20
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S20_1
+;舌を入れる実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("20_1")
+	RETURN RESULT
+;ボールギャグ使用中は不可
+SIF TEQUIP:ボールギャグ
+	RETURN 0
+;猫舌の調教者の場合は技巧Lv2以上必要
+SIF TALENT:PLAYER:猫舌 && ABL:PLAYER:技巧 < 2
+	RETURN 0
+;キスモードじゃない時はアウト
+SIF MODE_確認("キス", TARGET) == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S20_1
+PRINTFORM %CALLNAME:PLAYER%
+IF TALENT:TARGET:恋慕
+	PRINTFORML が%CALLNAME:TARGET%の唇に舌で触れると、
+	PRINTFORML %CALLNAME:TARGET%は自ら口を開いて舌と舌を絡め合わせた…
+ELSE
+	PRINTFORML は%CALLNAME:TARGET%の唇の隙間に舌を割り込ませ、舌同士を絡め合わせた…
+ENDIF

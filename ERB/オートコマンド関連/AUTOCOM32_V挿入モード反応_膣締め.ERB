@@ -1,0 +1,63 @@
+﻿;------------------------------------------------------------------------------
+;V挿入時、膣締めであなたをイカせようとしてくる
+;------------------------------------------------------------------------------
+@AUTOCOM32
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 0
+DOWNBASE:気力 += 20
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 300)
+CALL SOURCE_CALC_露出_反感無し(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 800)
+
+AUTOCOM用変数:TARGET:32:0 = TIME
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ経験 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+@AUTOCOM_ABLE32
+SIF !TARGET
+	RETURN 0
+;V挿入時のみ
+SIF MODE_確認("Ｖ挿入系", TARGET) == 0
+	RETURN 0
+;30分に１回のみ発動
+SIF TIME - AUTOCOM用変数:TARGET:30:0 < 31
+	RETURN 0
+;技巧４必要
+SIF ABL:技巧 < 4
+	RETURN 0
+;性知識３必要
+SIF 知識素質:性知識 < 3
+	RETURN 0
+;無関心、恥じらいはアウト
+SIF TALENT:無関心
+	RETURN 0
+SIF TALENT:羞恥心 > 0
+	RETURN 0
+;基礎確率1/5、素質により変動
+LOCAL = MAX(5 - ABL:奉仕精神 - ABL:サド性感, 1)
+SIF RAND:LOCAL
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM32
+PRINTFORM %CALLNAME:TARGET%は腹筋に力を入れて膣を締め、%CALLNAME:PLAYER%に強い快楽を与えてきた…
+

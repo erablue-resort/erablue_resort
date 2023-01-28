@@ -1,0 +1,811 @@
+﻿;-------------------------------------------------
+;正常位
+;セックス系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME60
+#FUNCTIONS
+TSTR:コマンド名受渡 = Ｖ挿入する
+SIF MODE_確認("Ｖ挿入系", TARGET)
+	TSTR:コマンド名受渡 = 体位を変える
+
+;弱点コマンド欄に専用の文字列を表示したい場合、これを設定すること
+弱点コマンド欄表示名 = Ｖ挿入する
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_60
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
+弱点コマンドカテゴリ = V
+
+@COM_TOOLTIP_60
+LOCALS = <br>■Ｖ挿入する<br>
+LOCALS += "相手の膣に挿入し、セックスを行うコマンド。<br>Ｖ挿入系モード時、[体位を変える]に変化する。<br>Ｖ挿入系モードとなり、モードを変更するか性行為を終了するまで持続的に快楽が発生する。<br>[処女]を失う。"
+LOCALS += "<br>COMタイプ：Ｖ系<br>取得ソース：快Ｖ・露出・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ経験(TARGET)・Ｖ性交経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM60
+$体位_LOOP
+DRAWLINE
+PRINTL ■体位を選んでください
+PRINTL
+FOR LOCAL, 0, 20
+	TRYCCALLFORM COM_ABLE60_{LOCAL}
+		IF RESULT
+			SELECTCASE LOCAL
+				CASE 0
+					PRINTBUTTONLC "[0]正常位", 0
+				CASE 1
+					PRINTBUTTONLC "[1]後背位", 1
+				CASE 2
+					PRINTBUTTONLC "[2]寝バック", 2
+				CASE 3
+					PRINTBUTTONLC "[3]対面座位", 3
+				CASE 4
+					PRINTBUTTONLC "[4]背面座位", 4
+				CASE 5
+					PRINTBUTTONLC "[5]騎乗位", 5
+				CASE 6
+					PRINTBUTTONLC "[6]側位", 6
+				CASE 7
+					PRINTBUTTONLC "[7]屈曲位", 7
+				CASE 8
+					PRINTBUTTONLC "[8]駅弁", 8
+				CASE 9
+					PRINTBUTTONLC "[9]逆駅弁", 9
+				CASE 10
+					PRINTBUTTONLC "[10]対面立位", 10
+				CASE 11
+					PRINTBUTTONLC "[11]立ちバック", 11
+			ENDSELECT
+		ENDIF
+	CATCH
+		CONTINUE
+	ENDCATCH
+NEXT
+
+PRINTL
+PRINTL
+PRINTBUTTONLC "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 11
+		TRYCALLFORM COM_ABLE60_{LOCAL}
+		IF RESULT
+			TRYCALLFORM CAN_体位{LOCAL}(1)
+			IF !RESULT
+				TRYCALLFORM CAN_体位{LOCAL}(0)
+				GOTO 体位_LOOP
+			ENDIF
+			TRYCALLFORM COM60_{LOCAL}
+			;メッセージ用に体位の種類を保存
+			TFLAG:コマンド結果受渡し変数 = LOCAL
+			RETURN RESULT
+		ENDIF
+		GOTO INPUT_LOOP
+	CASE 999
+		RETURN -1
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+@COM60_0
+;引数は前から快楽量、露出量、接触量
+CALL 体位COM(400, 50, 150)
+CALL MODE_CHANGE("正常位")
+RETURN RESULT
+
+@COM60_1
+;後背位
+CALL 体位COM(400, 70, 100)
+CALL MODE_CHANGE("後背位")
+RETURN RESULT
+
+@COM60_2
+;寝バック
+CALL 体位COM(600, 50, 150)
+CALL MODE_CHANGE("寝バック")
+RETURN RESULT
+
+@COM60_3
+;対面座位
+CALL 体位COM(550, 70, 200)
+CALL MODE_CHANGE("対面座位")
+RETURN RESULT
+
+@COM60_4
+;背面座位
+CALL 体位COM(450, 90, 120)
+CALL MODE_CHANGE("背面座位")
+RETURN RESULT
+
+@COM60_5
+;騎乗位
+CALL 体位COM(500, 120, 150)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 250)
+CALL MODE_CHANGE("騎乗位")
+RETURN RESULT
+
+@COM60_6
+;側位
+CALL 体位COM(500, 70, 100)
+CALL MODE_CHANGE("側位")
+RETURN RESULT
+
+@COM60_7
+;屈曲位
+CALL 体位COM(550, 70, 100)
+CALL MODE_CHANGE("屈曲位")
+RETURN RESULT
+
+@COM60_8
+;駅弁
+CALL 体位COM(450, 70, 200)
+CALL MODE_CHANGE("駅弁")
+RETURN RESULT
+
+@COM60_9
+;逆駅弁
+CALL 体位COM(400, 110, 120)
+CALL MODE_CHANGE("逆駅弁")
+RETURN RESULT
+
+@COM60_10
+;対面立位
+CALL 体位COM(400, 70, 150)
+CALL MODE_CHANGE("対面立位")
+RETURN RESULT
+
+@COM60_11
+;立ちバック
+CALL 体位COM(450, 90, 100)
+CALL MODE_CHANGE("立ちバック")
+RETURN RESULT
+
+
+@体位COM(ARG, ARG:1, ARG:2)
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 50
+DOWNBASE:気力 += 100
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, ARG)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, ARG:1)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, ARG:2)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, ARG)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+;処女喪失
+CALL LOST_VIRGIN(TARGET, PLAYER, 1)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ経験 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+	EXP:愛情経験 += TALENT:恋慕 * 2
+	;処女
+	SIF TALENT:処女 && TALENT:恋慕
+		EXP:愛情経験 += ARG:2 / 15
+
+RETURN 1
+
+
+@CAN_体位0(ARG)
+;正常位
+;実行に必要な基準値を投げる
+SKIPDISP ARG
+CALL CAN_体位(20)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位1(ARG)
+;後背位
+SKIPDISP ARG
+CALL CAN_体位(22)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位2(ARG)
+;寝バック
+SKIPDISP ARG
+CALL CAN_体位(22)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位3(ARG)
+;対面座位
+SKIPDISP ARG
+CALL CAN_体位(35)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位4(ARG)
+;背面座位
+SKIPDISP ARG
+CALL CAN_体位(37)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位5(ARG)
+;騎乗位
+SKIPDISP ARG
+CALL CAN_体位(35)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位6(ARG)
+;側位
+SKIPDISP ARG
+CALL CAN_体位(30)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位7(ARG)
+;屈曲位
+SKIPDISP ARG
+CALL CAN_体位(40)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位8(ARG)
+;駅弁
+SKIPDISP ARG
+CALL CAN_体位(42)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位9(ARG)
+;逆駅弁
+SKIPDISP ARG
+CALL CAN_体位(44)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位10(ARG)
+;対面立位
+SKIPDISP ARG
+CALL CAN_体位(20)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位11(ARG)
+;立ちバック
+SKIPDISP ARG
+CALL CAN_体位(22)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+@CAN_体位(ARG)
+#DIM 実行値
+#DIM ＋表示フラグ
+
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+;縄で縛られている場合は無視（縄が無い時のみ実行判定を行う）
+IF TEQUIP:縄 == 0
+	実行値 = 0
+	＋表示フラグ = 0
+	;すべての命令に共通の要素を考慮
+	
+	CALL COM_ORDER
+	実行値 = RESULT
+
+	;ABL:欲望
+	IF ABL:欲望
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += ABL:欲望 * 3
+		PRINT 欲望
+		PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 3,')
+		＋表示フラグ = 1
+	ENDIF
+	;ABL:Ｖ感覚
+	IF ABL:Ｖ感覚
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += ABL:Ｖ感覚 * 2
+		PRINT Ｖ感覚
+		PRINTV 'LV,ABL:Ｖ感覚,'(,ABL:Ｖ感覚 * 2,')
+		＋表示フラグ = 1
+	ENDIF
+	;快楽刻印
+	IF MARK:快楽刻印
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += MARK:快楽刻印 * 3
+		PRINT 快楽刻印
+		PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 3,')
+		＋表示フラグ = 1
+	ENDIF
+	;PALAM:潤滑（の不足）
+	IF PALAM:潤滑 < PALAMLV:3
+		PRINT  - 
+		実行値 -= 5
+		PRINT 潤滑不足
+		PRINTV '(,5,')
+		＋表示フラグ = 1
+	ENDIF
+	;PALAM:欲情
+	IF GETPALAMLV(PALAM:欲情,5)
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += GETPALAMLV(PALAM:欲情,5) * 3
+		PRINT 欲情
+		PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 3,')
+		＋表示フラグ = 1
+	ENDIF
+	;恥じらい
+	IF TALENT:羞恥心 > 0
+		PRINT  - 
+		実行値 -= 2
+		PRINT 羞恥心
+		PRINTV '(,2,')
+		＋表示フラグ = 1
+	ENDIF
+	;快感の否定
+	IF TALENT:快感応答 < 0 && !TALENT:恋慕
+		PRINT  - 
+		実行値 -= 5
+		PRINT 快感の否定
+		PRINTV '(,5,')
+		＋表示フラグ = 1
+	ENDIF
+	;男嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER)
+		PRINT  - 
+		実行値 -= 12
+		PRINT 男嫌い
+		PRINTV '(,12,')
+		＋表示フラグ = 1
+	ENDIF
+	;恋慕
+	IF TALENT:恋慕
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += 15
+		PRINT 恋慕
+		PRINTV '(,15,')
+		＋表示フラグ = 1
+	ENDIF
+	;処女
+	LOCAL = MAX(10,40 - EXP:Ｖ経験)
+	IF TALENT:処女
+		PRINT  - 
+		実行値 -= LOCAL
+		PRINT 処女
+		PRINTV '(,LOCAL,')
+		＋表示フラグ = 1
+	;V経験
+	ELSEIF EXP:Ｖ経験 < EXPLV:2
+		PRINT  - 
+		実行値 -= 15
+		PRINT Ｖ経験
+		PRINT 不足
+		PRINTV '(,15,')
+		＋表示フラグ = 1
+	ENDIF
+
+	;調教者がふたなり
+	IF (TALENT:PLAYER:性別 & 3) == 3
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += 4
+		PRINT ふたなり
+		PRINTV '(,4,')
+		＋表示フラグ = 1
+	ENDIF
+
+	;媚薬
+	IF TEQUIP:媚薬
+		SIF ＋表示フラグ
+			PRINT  + 
+		実行値 += 6
+		PRINT 媚薬
+		PRINTV '(,6,')
+		＋表示フラグ = 1
+	ENDIF
+
+	;合計を表示(20以上で実行)
+	PRINT  = 
+	PRINTV 実行値
+
+	SIF 実行値 < ARG
+		PRINT  < 
+	SIF 実行値 == ARG
+		PRINT  = 
+	SIF 実行値 > ARG
+		PRINT  > 
+	PRINT 実行値
+	PRINTV ARG
+
+	WAIT
+
+	;実行できない
+	SIF 実行値 < ARG
+		RETURN 0
+ENDIF
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE60
+;V挿入共通実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(60)
+	RETURN RESULT
+;調教者がオトコ、半人半妖、ふたなりの場合はある程度勃起してないとダメ
+SIF (TALENT:PLAYER:性別 & 2) && BASE:MASTER:勃起 < 1000
+	RETURN 0
+;バイブ挿入中はダメ
+SIF TEQUIP:13
+	RETURN 0
+;オトコだとダメ
+SIF !(TALENT:性別 & 1)
+	RETURN 0
+
+;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+SIF !(TALENT:PLAYER:性別 & 2) && ITEM:PBAND == 0
+	RETURN 0
+;処女かつ潤滑不足はだめ
+SIF PALAM:潤滑 < PALAMLV:2 && TALENT:処女
+		RETURN 0
+
+;下半身着衣
+;前鎧、めくれない服、タイツ、前張りがあると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	RETURN 0
+SIF TEQUIP:下半身下着あり == 2
+	RETURN 0
+
+IF !MODE_確認("Ｖ挿入系", TARGET)
+	;ちんこを何かに使ってる・届かないなら無理（V挿入中は許可）
+	SIF TEQUIP:PLAYER:ペニス
+		RETURN 0
+	SIF TEQUIP:TARGET:膣
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+@COM_ABLE60_0
+;正常位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+@COM_ABLE60_1
+;後背位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_2
+;寝バック
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_3
+;対面座位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_4
+;背面座位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_5
+;騎乗位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_6
+;側位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_7
+;屈曲位
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF TEQUIP:31
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+RETURN 1
+
+@COM_ABLE60_8
+;駅弁
+;男側がハーヴィンかつ相手がハーヴィン以外だとダメ
+SIF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+	RETURN 0
+
+RETURN 1
+
+@COM_ABLE60_9
+;逆駅弁
+;男側がハーヴィンかつ相手がハーヴィン以外だとダメ
+SIF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+	RETURN 0
+
+RETURN 1
+
+@COM_ABLE60_10
+;対面立位
+;男側がハーヴィンかつ相手がハーヴィン以外だとダメ
+SIF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+	RETURN 0
+
+RETURN 1
+
+@COM_ABLE60_11
+;立ちバック
+;男側がハーヴィンかつ相手がハーヴィン以外だとダメ
+SIF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+	RETURN 0
+
+RETURN 1
+
+
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM60
+
+;;対面立位
+;IF TFLAG:コマンド結果受渡し変数
+;	;抜かず
+;	IF TCVAR:100 == PLAYER && TARGET == TFLAG:103
+;		IF NOWEX:MASTER:11
+;			PRINTFORML %CALLNAME:TARGET%を壁に押し付けて激しく腰を振り、
+;			PRINTFORML 射精の瞬間にペニスを膣の奥深くまで突き入れた…
+;		ELSEIF TCVAR:102
+;			PRINTFORML %CALLNAME:TARGET%の膣内に精液を注ぎ込み終えると、
+;			PRINTFORML ペニスが硬度を失わないうちに再び腰を動かし始めた…
+;		ELSEIF TEQUIP:体位２ == 1
+;			;調教者についてる
+;			IF TALENT:PLAYER:性別 & 2
+;				PRINTFORML %CALLNAME:TARGET%の膣内の感触を味わいながら、再び腰を動かし始めた…
+;			;ペニスバンドを使用している場合
+;			ELSE
+;				PRINTFORML %CALLNAME:TARGET%の膣内から抜かずに、再び腰を動かし始めた…
+;			ENDIF
+;		ELSE
+;			IF TEQUIP:体位２ == 1
+;				PRINTFORML %CALLNAME:TARGET%の膣内からペニス抜き去ることなく再び腰を動かし始めた…
+;			;背面立位から
+;			ELSE
+;				PRINTFORML 一旦%CALLNAME:TARGET%からペニスを抜いてこちらを振り向かせてから
+;				PRINTFORML 片足を持ち上げて挿入し再び腰を動かし始めた…
+;			ENDIF
+;		ENDIF
+;	ELSE
+;		IF TALENT:処女 == 1
+;			PRINTFORML %CALLNAME:TARGET%の片足を持ち上げて男を知らない\@ TALENT:種族 < 0 ? 幼いワレメ # 秘裂 \@に
+;			PRINTFORML 亀頭をあてがい一気に貫いた…
+;		ELSEIF MASTER_POSE(6,1,1) && MASTER_POSE(6,1,1) != TARGET
+;			PRINTFORML %CALLNAME:(MASTER_POSE(6,1,1))%からペニスを抜くと同時に
+;			PRINTFORML %CALLNAME:TARGET%に挿入した…
+;		ELSE
+;			PRINTFORM %CALLNAME:TARGET%の片足を持ち上げて
+;			SIF TEQUIP:下半身下着あり
+;				PRINTFORM 下着をずらし、
+;			SIF  PALAM:潤滑 >= PALAMLV:3
+;				PRINT 濡れそぼった
+;			IF TALENT:種族 < 0
+;				PRINT 幼いワレメに
+;			ELSE
+;				PRINT 秘裂に
+;			ENDIF
+;			PRINTL ペニスをあてがい貫いた…
+;		ENDIF
+;		IF TALENT:恋慕
+;			IF TALENT:処女
+;				PRINTFORML %CALLNAME:TARGET%は痛みに耐えながら%CALLNAME:PLAYER%にきゅっと抱きついた…
+;			ENDIF
+;		ENDIF
+;	ENDIF
+;;正常位
+;ELSE
+;	;抜かず
+;	IF TCVAR:100 == PLAYER && TARGET == TFLAG:103
+;		IF NOWEX:MASTER:11
+;			PRINTFORML 仰向けに寝かせた%CALLNAME:TARGET%に覆いかぶさりながら腰を振り、
+;			PRINTFORML 射精の瞬間にペニスを膣の奥深くまで突き入れた…
+;		ELSEIF TCVAR:102
+;			PRINTFORML %CALLNAME:TARGET%の膣内に精液を注ぎ込み終えると、
+;			PRINTFORML ペニスが硬度を失わないうちに再び腰を動かし始めた…
+;		ELSEIF TEQUIP:体位２ == 1
+;			;調教者についてる
+;			IF TALENT:PLAYER:性別 & 2
+;				PRINTFORML %CALLNAME:TARGET%の膣内の感触を味わいながら、再び腰を動かし始めた…
+;			;ペニスバンドを使用している場合
+;			ELSE
+;				PRINTFORML %CALLNAME:TARGET%の膣内から抜かずに、再び腰を動かし始めた…
+;			ENDIF
+;		ELSE
+;			PRINTFORML 膣内から抜き去ることなく%CALLNAME:TARGET%を仰向けに寝かせ、再び腰を動かし始めた…
+;		ENDIF
+;	ELSE
+;		IF TALENT:処女 == 1
+;			PRINTFORML 仰向けに寝かせた%CALLNAME:TARGET%の足を開き亀頭を浅く挿入してから、
+;			PRINTFORML 男を知らない\@ TALENT:種族 < 0 ? 幼いワレメ # 秘裂 \@を貫いていった…
+;		ELSEIF MASTER_POSE(6,1,1) && MASTER_POSE(6,1,1) != TARGET
+;			PRINTFORML %CALLNAME:(MASTER_POSE(6,1,1))%からペニスを抜くと同時に
+;			PRINTFORML %CALLNAME:TARGET%に挿入した…
+;		ELSE
+;			PRINTFORM 仰向けに寝かせた%CALLNAME:TARGET%の
+;			SIF TEQUIP:下半身下着あり
+;				PRINTFORM 下着をずらし、
+;			SIF  PALAM:潤滑 >= PALAMLV:3
+;				PRINT 濡れそぼった
+;			IF TALENT:種族 < 0
+;				PRINT 幼いワレメに
+;			ELSE
+;				PRINT 秘裂に
+;			ENDIF
+;			PRINTL ペニスをあてがい貫いた…
+;		ENDIF
+;		IF TALENT:恋慕
+;			IF TALENT:処女
+;				PRINTFORML %CALLNAME:TARGET%は痛みに耐えながら%CALLNAME:PLAYER%にきゅっと抱きついた…
+;			ENDIF
+;		ENDIF
+;	ENDIF
+;ENDIF
+
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE 0
+		;正常位
+		PRINTFORML %CALLNAME:PLAYER%は仰向けに寝転んだ%CALLNAME:TARGET%の膣内に硬くそそり立つ陰茎を挿入した
+	CASE 1
+		;後背位
+		PRINTFORML %CALLNAME:PLAYER%は四つん這いになった%CALLNAME:TARGET%の膣内に硬くそそり立つ陰茎を挿入した
+	CASE 2
+		;寝バック
+		PRINTFORML %CALLNAME:PLAYER%はうつ伏せに寝転んだ%CALLNAME:TARGET%の膣内に硬くそそり立つ陰茎を挿入した
+	CASE 3
+		;対面座位
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と向かい合うように座り、そのまま膣内へ硬くそそり立つ陰茎を挿入した
+	CASE 4
+		;背面座位
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%を自身の上に座らせ、そのまま膣内へ硬くそそり立つ陰茎を挿入した
+	CASE 5
+		;騎乗位
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に自ら膣内へ陰茎を挿入させた
+	CASE 6
+		;側位
+		PRINTFORML %CALLNAME:PLAYER%は横向きに寝転んだ%CALLNAME:TARGET%の膣内に硬くそそり立つ陰茎を挿入した
+	CASE 7
+		;屈曲位
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の脚を揃えて上げさせ、そのまま膣内へ硬くそそり立つ陰茎を挿入した
+	CASE 8
+		;駅弁
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%を向かい合ったまま抱え上げ、、そのまま膣内へ硬くそそり立つ陰茎を挿入した
+	CASE 9
+		;逆駅弁
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%を後ろ向きに抱え上げ、、そのまま膣内へ硬くそそり立つ陰茎を挿入した
+	CASE 10
+		;対面立位
+		PRINTFORML %CALLNAME:PLAYER%は立ったまま%CALLNAME:TARGET%と向かい合い、膣内へと陰茎を挿入した
+	CASE 11
+		;立ちバック
+		PRINTFORML %CALLNAME:PLAYER%は後ろ向きに尻を突き出した%CALLNAME:TARGET%の膣内へと陰茎を挿入した
+ENDSELECT
+
+IF TALENT:処女
+	PRINTFORML %CALLNAME:TARGET%は痛みに耐えながら%CALLNAME:PLAYER%の名前を呼んでいる…
+ENDIF
+

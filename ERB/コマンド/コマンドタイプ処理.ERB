@@ -1,0 +1,74 @@
+﻿;========================================
+;@COMTYPE(ARGS)
+;指定した調教コマンドタイプ名に対応した数値を返す
+;========================================
+@COMTYPE(ARGS)
+#FUNCTION
+#LOCALSSIZE 15
+TSTR:複合コマンドタイプ受け渡し = 
+SIF LOCALS == ""
+	SPLIT "日常_セクハラ弱_セクハラ_セクハラ強_探索_うふふ_Ｖ系_Ａ系_被挿入中_道具系_単独可能_隠密_複数人プレイ_いつでも_飲み会", "_", LOCALS
+IF STRFIND(ARGS, "&") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 100
+ELSEIF STRFIND(ARGS, "_") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 101
+ELSE
+	RETURNF FINDELEMENT(LOCALS,ARGS)
+ENDIF
+
+;こっちは数字から文字列で返す
+@COMTYPE_S(ARG)
+#FUNCTIONS
+#LOCALSSIZE 15
+SIF LOCALS == ""
+	SPLIT "日常_セクハラ弱_セクハラ_セクハラ強_探索_うふふ_Ｖ系_Ａ系_被挿入中_道具系_単独可能_隠密_複数人プレイ_いつでも_飲み会", "_", LOCALS
+SIF ARG >= 100
+	RETURNF ""
+RETURNF LOCALS:ARG
+
+@簡易コマンドフィルタ処理(ARG, ARGS)
+#FUNCTION
+#DIMS 分割文字列, 10
+VARSET 分割文字列
+;簡易フィルタに引っかかるなら1を返す、引っかからないなら0
+
+IF ARGS == ""
+	CALLFORMF COMTYPE_{ARG}
+ELSE
+	CALLFORMF COMTYPE_S_%ARGS%
+ENDIF
+
+;ARGが100だとAND条件、101だとOR条件
+IF TFLAG:コマンドタイプ受渡 == 100
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "&", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF 簡易コマンドフィルタ:(COMTYPE(分割文字列:LOCAL)) == 1
+			;AND条件なので一個でも不許可（1が返ってくる）なら通さない
+			RETURNF 1
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部許可だったはずなので通す
+	RETURNF 0
+ELSEIF TFLAG:コマンドタイプ受渡 == 101
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "_", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF 簡易コマンドフィルタ:(COMTYPE(分割文字列:LOCAL)) == 0
+			;OR条件なので一個でも許可（0が返ってくる）なら通す
+			RETURNF 0
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部不許可だったはずなので通さない
+	RETURNF 1
+ELSE
+	IF GROUPMATCH(TFLAG:コマンドタイプ受渡, 1, 2, 3)
+		TFLAG:コマンドタイプ受渡 = 1
+	ENDIF
+	SIF 簡易コマンドフィルタ:(TFLAG:コマンドタイプ受渡) == 1
+		RETURNF 1
+ENDIF
+
+

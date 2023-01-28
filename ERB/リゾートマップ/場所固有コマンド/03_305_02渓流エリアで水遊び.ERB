@@ -1,0 +1,122 @@
+﻿
+;-------------------------------------------------
+;03_305_02渓流エリアで水遊び
+;-------------------------------------------------
+@COMNAME_PLACE_381_0_305
+#FUNCTION
+
+IF 施設改造度:3:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+TSTR:コマンド名受渡 = 水遊びをする
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_381_0_305
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+		
+@COM381_0_305
+
+;成功度の判定
+LOCAL = RAND:100
+LOCAL:1 = 90 + GET_SUCCESS_RATE() / 5
+SIF LOCAL:1 > 99
+	LOCAL:1 = 99
+IF LOCAL <= 9
+	;10％で大成功
+	TFLAG:コマンド結果受渡し変数 = 10
+ELSEIF LOCAL >= LOCAL:1
+	;10～1％で失敗
+	TFLAG:コマンド結果受渡し変数 = -1
+ELSE
+	;残りは成功
+	TFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+
+DOWNBASE:MASTER:気力 += 100
+DOWNBASE:MASTER:体力 += 50
+
+;その場に居るTARGET全員で回す
+LOCAL:1 = TARGET
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):睡眠
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):隠密
+		CONTINUE
+	TARGET = TARGET:LOCAL
+	CALL COM381_0_305_追加処理
+NEXT
+TARGET = LOCAL:1
+
+TIME += 60
+RETURN 1
+
+
+@COM381_0_305_追加処理
+
+DOWNBASE:気力 += 10
+DOWNBASE:体力 += 100
+
+;歓楽強度
+LOCAL:0 = 500
+;征服強度
+LOCAL:1 = 100
+
+IF TFLAG:コマンド結果受渡し変数 <= -1
+	TIMES LOCAL:0 , 0.10
+	TIMES LOCAL:1 , 0.50
+ELSEIF TFLAG:コマンド結果受渡し変数 <= 9
+	TIMES LOCAL:0 , 1.00
+	TIMES LOCAL:1 , 1.00
+ELSE
+	TIMES LOCAL:0 , 2.00
+	TIMES LOCAL:1 , 2.00
+ENDIF
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+
+
+
+;-------------------------------------------------
+;実行判定
+;------------------------------------------------
+@COM_ABLE381_0_305
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(381)
+	RETURN RESULT
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM381_0_305
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と川辺で水遊びをした
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE IS <= -1
+		;失敗時
+		PRINTL が、
+		PRINTW あまり盛り上がらなかった…
+	CASE IS <= 9
+		;成功時
+		PRINTL 
+		PRINTFORMW \@ GET_TARGETNUM() > 1 ? みんなで # ふたりで\@楽しい時を過ごせた…
+	CASEELSE
+		;大成功時
+		PRINTL 
+		PRINTFORMW \@ GET_TARGETNUM() > 1 ? みんなで # ふたりで\@とても盛り上がった！
+ENDSELECT
+
+

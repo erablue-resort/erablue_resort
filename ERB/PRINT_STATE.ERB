@@ -1,0 +1,847 @@
+﻿@PRINT_STATE(ARG, ページめくりフラグ)
+#DIM ページめくりフラグ
+#DIM 戦闘能力表示
+
+$STATE_START
+;ツールチップ設定
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
+
+DRAWLINE
+
+IF 戦闘能力表示 == 0
+	CALL 通常能力表示画面(ARG)
+ELSE
+	CALL 戦闘能力表示画面(ARG)
+ENDIF
+
+
+IF ARG == MASTER
+	CALL PRINT_ITEMCOUNT
+	CALL 恋慕対象者表示
+	PRINTL
+	PRINTW
+ELSE
+	;CALL CHOICE_LOVE(ARG)
+	PRINTL
+	DRAWLINE
+	IF GETBIT(ページめくりフラグ, 0)
+		PRINTBUTTONLC "[100]前のキャラへ", 100
+	ELSE
+		PRINTLC  
+	ENDIF
+	IF GETBIT(ページめくりフラグ, 1)
+		PRINTBUTTONLC "[101]次のキャラへ", 101
+	ELSE
+		PRINTLC  
+	ENDIF
+	IF 戦闘能力表示
+		PRINTBUTTONLC "[99]通常能力表示へ", 99
+	ELSE
+		PRINTBUTTONLC "[99]戦闘能力表示へ", 99
+	ENDIF
+	PRINTL
+
+	LOCAL:2 = 恋慕枠判定()
+	LOCAL:1 = -1
+	FOR LOCAL, 0, LOCAL:2
+		IF 恋慕対象フラグ:LOCAL == ARG
+			LOCAL:1 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	IF LOCAL:1 >=0
+		PRINTBUTTON "[110]恋慕対象から外す", 110
+	ELSE
+		PRINTBUTTON "[110]恋慕対象に選ぶ", 110
+	ENDIF
+	PRINTL
+	PRINTBUTTON "[999]戻る", 999
+	PRINTL
+	$INPUT_LOOP
+	INPUT
+	SELECTCASE RESULT
+		CASE 100
+			RETURN 100
+		CASE 101
+			RETURN 101
+		CASE 99
+			INVERTBIT 戦闘能力表示, 0
+			RESTART
+		CASE 110
+			CALL CHOICE_LOVE(ARG)
+			RESTART
+		CASE 999
+			戦闘能力表示 = 0
+			RETURN 0
+		CASEELSE
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+	ENDSELECT
+ENDIF
+
+
+@通常能力表示画面(ARG)
+;ここで立ち絵表示
+CALL 画像描画終了
+HTML_PRINT @"<div rect='650px, 38px, 180px, 180px'>%顔グラ表示用文字列関数(ARG)%</div>", 1
+
+LOCALS = □ 招待時同行キャラ □-----------------<br>
+FOR LOCAL, 0, 15
+	IF 同行候補キャラ番号:ARG:LOCAL < 1
+		;LOCALS += "<br>"
+		;CONTINUE
+		BREAK
+	ENDIF
+	LOCALS += @"　%CALLNAME:(同行候補キャラ番号:ARG:LOCAL), 20, LEFT%"
+	LOCALS += @"：{同行候補キャラ確率:ARG:LOCAL}％<br>"
+NEXT
+LOCALS += "<br>□ 弱点コマンド □---------------------<br>"
+
+FOR LOCAL, 0, 5
+	IF 弱点看破:ARG:LOCAL
+		弱点コマンド欄表示名 = 
+		IF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
+			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", LOCALS
+			SELECTCASE TOINT(LOCALS:0)
+				CASE 370 TO 374
+					LOCAL:1 = TARGET
+					TARGET = TOINT(LOCALS:1)
+					CALLFORMF COMNAME%LOCALS:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS += @"　[キャラ固有：%弱点コマンド欄表示名%]<br>"
+					ELSE
+						LOCALS += @"　[キャラ固有：%TSTR:コマンド名受渡%]<br>"
+					ENDIF
+					TARGET = LOCAL:1
+				CASE 380 TO 384
+					LOCAL:1 = CFLAG:MASTER:現在位置
+					LOCAL:2 = CFLAG:MASTER:現在マップ種別
+					CFLAG:MASTER:現在位置 = TOINT(LOCALS:2)
+					CFLAG:MASTER:現在マップ種別 = TOINT(LOCALS:1)
+					CALLFORMF COMNAME%LOCALS:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS += @"　[場所固有：%弱点コマンド欄表示名%]<br>"
+					ELSE
+						LOCALS += @"　[場所固有：%TSTR:コマンド名受渡%]<br>"
+					ENDIF
+					CFLAG:MASTER:現在位置 = LOCAL:1
+					CFLAG:MASTER:現在マップ種別 = LOCAL:2
+				CASEELSE
+					CALLFORMF COMNAME%LOCALS:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS += @"　[%弱点コマンド欄表示名%派生："
+					ELSE
+						LOCALS += @"　[%TSTR:コマンド名受渡%派生："
+					ENDIF
+					弱点コマンド欄表示名 = 
+					CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS += @"%弱点コマンド欄表示名%]<br>"
+					ELSE
+						LOCALS += @"%TSTR:コマンド名受渡%]<br>"
+					ENDIF
+			ENDSELECT
+		ELSE
+			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
+			IF 弱点コマンド欄表示名 != ""
+				LOCALS += @"　[%弱点コマンド欄表示名%]<br>"
+			ELSE
+				LOCALS += @"　[%TSTR:コマンド名受渡%]<br>"
+			ENDIF
+		ENDIF
+	ELSE
+		LOCALS += @"　[？？？？？]<br>"
+	ENDIF
+NEXT
+HTML_PRINT @"<div rect = '640px, 203px, 400px, 700px'>%LOCALS%</div>"
+
+PRINTFORM ■%NAME:ARG%
+PRINTL
+PRINT 　体力:
+	CALL PRINT_COLORBAR, BASE:ARG:体力, MAXBASE:ARG:体力, 800, 100, BARCOLORSET("緑"), RESULT:1
+PRINTFORM ({BASE:ARG:0,4}/{MAXBASE:ARG:0,4}) 
+PRINT 　気力:
+	CALL PRINT_COLORBAR, BASE:ARG:気力, MAXBASE:ARG:気力, 800, 100, BARCOLORSET("赤"), RESULT:1
+PRINTFORML ({BASE:ARG:1,4}/{MAXBASE:ARG:1,4})
+;PRINTFORML 　肉体熟知:{EXP:ARG:肉体熟知, 5}
+IF ARG
+	PRINTL
+	PRINTL □ 関係 □---------------------------------------------------------------------
+	PRINT 　
+	CALL PRINT_好感度レベル表示(ARG)
+	IF FLAG:口上表示切り替えオプション > 0
+		PRINT 　
+		TRYCCALLFORM 口上_ステータス画面_好感度コメント_{NO:ARG}
+		CATCH
+			PRINTL 
+		ENDCATCH
+	ENDIF
+ENDIF
+IF 	CFLAG:ARG:ゲージ起動分類 == 1
+	PRINTL 
+	PRINT 　
+	CALL PRINT_恋慕レベル表示(ARG)
+	IF FLAG:口上表示切り替えオプション > 0
+		PRINT 　
+		TRYCCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}
+		CATCH
+			PRINTL 
+		ENDCATCH
+	ENDIF
+ENDIF
+PRINTL
+CALL PRINT_STATE_TALENT(ARG)
+CALL PRINT_STATE_CLOTH(ARG)
+CALL PRINT_STATE_ABL(ARG)
+PRINTL
+
+IF ARG != MASTER
+	PRINTL □ 刻印 □---------------------------------------------------------------------
+	PRINT 　
+	PRINT_MARK ARG
+ENDIF
+
+CALL PRINT_STATE_EXP(ARG)
+CALL PRINT_STATE_EX(ARG)
+
+@戦闘能力表示画面(ARG)
+;立ち絵表示
+CALL 画像描画終了
+
+HTML_PRINT @"<div rect='650px, 16px, 180px, 180px'>%顔グラ表示用文字列関数(ARG)%</div>"
+PRINTFORM ■%NAME:ARG%
+PRINTL
+PRINTL
+LOCALS = <div rect='0px,0px,180px,270px'>□ ステータス □------<br>
+LOCALS += @"Lv　　　　：{基礎BATTLE_STATE:ARG:Lv, 5}<br>"
+LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%属性")%
+LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性), 5%</font><br>"
+LOCALS += @"得意武器　：%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器), 5%<br>"
+LOCALS += @"最大ＨＰ　：{基礎BATTLE_STATE:ARG:最大ＨＰ, 5}<br>"
+LOCALS += @"最大ＭＰ　：{基礎BATTLE_STATE:ARG:最大ＭＰ, 5}<br>"
+LOCALS += @"攻撃力　　：{基礎BATTLE_STATE:ARG:攻撃力, 5}<br>"
+LOCALS += @"防御力　　：{基礎BATTLE_STATE:ARG:防御力, 5}<br>"
+LOCALS += @"回復力　　：{基礎BATTLE_STATE:ARG:回復力, 5}<br>"
+LOCALS += @"行動速度　：{基礎BATTLE_STATE:ARG:行動速度, 5}<br>"
+LOCALS += @"DA率　　　：{基礎BATTLE_STATE:ARG:DA率, 5}\%<br>"
+LOCALS += @"TA率　　　：{基礎BATTLE_STATE:ARG:TA率, 5}\%<br>"
+LOCALS += @"命中率　　：{基礎BATTLE_STATE:ARG:命中率, 5}\%<br>"
+LOCALS += @"回避率　　：{基礎BATTLE_STATE:ARG:回避率, 5}\%<br></div>"
+
+LOCALS += "<div rect='200px,0px,500px,126px'>□ 装備武器 □----------------------------------------<br>"
+LOCALS += "なし<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br></div>"
+
+LOCALS += "<div rect='200px,126px,500px,126px'>□ 装備衣装 □----------------------------------------<br>"
+IF CSTR:ARG:着せ替え服 != ""
+	LOCALS += @"■%CSTR:ARG:着せ替え服%"
+	SIF CSTR:ARG:着せ替え服追加名 != ""
+		LOCALS += @"（%CSTR:ARG:着せ替え服追加名%）"
+	LOCALS += "<br>"
+ELSE
+	LOCALS += @"■%CSTR:ARG:服名称%<br>"
+ENDIF
+LOCALS += "能力：なし<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br></div>"
+
+LOCALS += "<div rect='0px,270px,700px,126px'>□ アビリティ □---------------------------------------------------------------<br>"
+CALL 固有アビ名呼び出し(ARG)
+LOCALS:1 = %TSTR:コマンド名受渡%
+CALL 固有アビリティ説明文呼び出し(ARG)
+IF ツールチップ切り替えOPTION記憶 == 0
+	LOCALS += @"<nonbutton title='<br>%TSTR:コマンド名受渡%<br>'>アビリティ１：%LOCALS:1%</nonbutton><br>"
+ELSE
+	LOCALS += @"<nonbutton>アビリティ１：%LOCALS:1%</nonbutton><br>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<br></div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 17
+	PRINTL
+NEXT
+
+
+@CHOICE_LOVE(ARG)
+#DIM 恋慕枠数
+;現在の恋慕対象者表示
+CALL 恋慕対象者表示
+LOCAL:2 = RESULT
+恋慕枠数 = 恋慕枠判定()
+
+;まず恋慕対象かどうかを判定
+LOCAL:1 = -1
+FOR LOCAL, 0, LOCAL:2
+	IF 恋慕対象フラグ:LOCAL == ARG
+		LOCAL:1 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+IF TALENT:ARG:恋慕
+;既に恋慕達成済み時はそもそも選択肢すら出ない
+	SETCOLOR カラーパレット("えっちな色")
+	PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:ARG%と既に恋人です
+	PRINT_IMG "えっちハート"
+	RESETCOLOR
+	PRINT　　　
+ELSEIF LOCAL:1 >= 0
+	PRINTBUTTONLC @"[1] %CALLNAME:ARG%を恋慕対象から外す", 1
+ELSE
+	PRINTBUTTONLC @"[0] %CALLNAME:ARG%を恋慕対象にする", 0
+ENDIF
+PRINTBUTTONC "[9] 戻る", 9
+
+$INPUT_LOOP
+INPUT
+
+IF TALENT:ARG:恋慕
+	;既に恋慕達成済み時は何もしない
+	RETURN 0
+ELSEIF RESULT == 0
+	;既に対象の時何もせず戻す
+	SIF LOCAL:1 >= 0
+		GOTO INPUT_LOOP
+	IF 恋慕枠数 <= LOCAL:2
+		;もう枠がない場合、入れ替える
+		IF 恋慕枠数 == 1
+			IF TALENT:(恋慕対象フラグ:0):恋慕
+				PRINTFORMW 恋慕対象の%CALLNAME:(恋慕対象フラグ:0)%は既に%CALLNAME:PLAYER%と恋人のため、外すことが出来ません。
+				RETURN 0
+			ELSE
+				PRINTFORML 現在の恋慕対象に%CALLNAME:(恋慕対象フラグ:0)%が選ばれていますが、%CALLNAME:ARG%に変更しますか？
+				PRINTBUTTONLC "[0] はい", 0
+				PRINTBUTTONLC "[999] いいえ", 999
+			ENDIF
+		ELSE
+			PRINTFORML 現在の恋慕枠は一杯です。誰かと入れ替えますか？
+			FOR LOCAL, 0, 恋慕枠数
+				IF 恋慕対象フラグ:LOCAL
+					IF TALENT:(恋慕対象フラグ:LOCAL):恋慕
+						SETCOLOR 0x666666
+						PRINTFORML [{LOCAL}]%CALLNAME:(恋慕対象フラグ:LOCAL)%は恋人のため外すことが出来ません
+						RESETCOLOR
+					ELSE
+						PRINTBUTTON @"[{LOCAL}]%CALLNAME:(恋慕対象フラグ:LOCAL)%と入れ替える", LOCAL
+						PRINTL
+					ENDIF
+				ENDIF
+			NEXT
+			PRINTBUTTONLC "[999] いいえ", 999
+		ENDIF
+		$INPUT_LOOP2
+		INPUT
+		IF RESULT < 999
+			IF TALENT:(恋慕対象フラグ:RESULT):恋慕
+				GOTO INPUT_LOOP2
+			ELSEIF 恋慕対象フラグ:RESULT < 1
+				GOTO INPUT_LOOP2
+			ENDIF
+			CFLAG:(恋慕対象フラグ:RESULT):ゲージ起動分類 = 0
+			恋慕対象フラグ:RESULT = ARG
+			CFLAG:ARG:ゲージ起動分類 = 1
+			PRINTFORM %CALLNAME:(恋慕対象フラグ:RESULT)%を恋慕対象から外し、
+			PRINTFORMW %CALLNAME:ARG%を恋慕対象に設定しました。
+		ENDIF
+	ELSE
+		;枠が余ってる場合、そのまま入れる
+		FOR LOCAL, 0, 恋慕枠数
+			IF !恋慕対象フラグ:LOCAL
+				恋慕対象フラグ:LOCAL = ARG
+				BREAK
+			ENDIF
+		NEXT
+		CFLAG:ARG:ゲージ起動分類 = 1
+		PRINTFORMW %CALLNAME:ARG%を恋慕対象に設定しました。
+		RETURN 0
+	ENDIF
+ELSEIF RESULT == 1
+	恋慕対象フラグ:(LOCAL:1) = 0
+	CFLAG:ARG:ゲージ起動分類 = 0
+	PRINTFORML %CALLNAME:ARG%を恋慕対象から外しました。
+	PRINTW （恋慕レベルは現状のまま維持されます）
+	RETURN 0
+ELSEIF RESULT == 9
+	RETURN 0
+ENDIF
+RETURN 0
+
+@恋慕枠判定()
+#FUNCTION
+
+SELECTCASE あなた特殊能力:ハーレム
+	CASE 1
+		RETURNF 3
+	CASE 2
+		RETURNF 5
+	CASE 3
+		RETURNF 10
+	CASE 4
+		RETURNF 100
+	CASEELSE
+		RETURNF 1
+ENDSELECT
+
+@恋慕対象者表示()
+#DIM 恋慕枠数
+
+DRAWLINE
+恋慕枠数 = 恋慕枠判定()
+PRINTFORML 現在の恋慕対象者　　上限:{恋慕枠数}人
+LOCAL:2 = 0
+FOR LOCAL, 0, 恋慕枠数
+	IF 恋慕対象フラグ:LOCAL
+		PRINTPLAINFORM %CALLNAME:(恋慕対象フラグ:LOCAL), 25, LEFT%　　恋慕レベル:{CFLAG:(恋慕対象フラグ:LOCAL):恋慕レベル} / 100
+		PRINTL
+		LOCAL:2 += 1
+	ENDIF
+NEXT
+SIF LOCAL:2 == 0
+	PRINTL なし
+DRAWLINE
+
+RETURN LOCAL:2
+
+@PRINT_STATE_CLOTH(ARG)
+PRINTL
+PRINTL □ 服装 □---------------------------------------------------------------------
+VARSET LOCAL
+IF CSTR:ARG:着せ替え服 != ""
+	PRINTFORM 　■%CSTR:ARG:着せ替え服%
+	SIF CSTR:ARG:着せ替え服追加名 != ""
+		PRINTFORM （%CSTR:ARG:着せ替え服追加名%）
+ELSE
+	PRINTFORM 　■%CSTR:ARG:服名称%
+ENDIF
+
+PRINTL
+PRINT 　　
+;鎧
+SIF TEQUIP:ARG:上半身鎧あり
+	PRINT [上半身鎧]
+
+;上半身服
+IF TEQUIP:ARG:上半身服あり
+	PRINT [上半身服
+	SIF TEQUIP:ARG:脇出し
+		PRINT （脇露出）
+	SIF TEQUIP:ARG:へそ出し
+		PRINT （へそ露出）
+	SIF TEQUIP:ARG:はだけ可
+		PRINT （はだけ可）
+	SIF TEQUIP:ARG:手差し込み可
+		PRINT （差し込み可）
+	SIF TEQUIP:ARG:パイズリ可
+		PRINT （着衣パイズリ可）
+	SIF TEQUIP:ARG:上半身下着抜き取り可 && TEQUIP:ARG:上半身下着あり
+		PRINT （ブラ抜き取り可）
+	PRINTL ]
+	PRINT 　　
+ENDIF
+
+
+;鎧
+IF TEQUIP:ARG:下腹部前鎧あり && TEQUIP:ARG:下腹部後鎧あり
+	PRINT [下半身鎧]
+ELSEIF TEQUIP:ARG:下腹部後鎧あり
+	PRINT [下半身後方鎧]
+ELSEIF TEQUIP:ARG:下腹部前鎧あり
+	PRINT [下半身前方鎧]
+ENDIF
+
+;下半身服
+IF TEQUIP:ARG:下半身服あり
+	PRINT [下半身服
+	SIF TEQUIP:ARG:スカートめくり可
+		PRINT （めくり可）
+	SIF TEQUIP:ARG:ずらし可
+		PRINT （ずらし可）
+	SIF TEQUIP:ARG:下半身下着抜き取り可 && TEQUIP:ARG:下半身下着あり
+		PRINT （下着抜き取り可）
+	PRINTL ]
+	PRINT 　　
+ENDIF
+
+IF TEQUIP:ARG:上下一体タイツ
+	PRINT [上下タイツ
+	SIF TEQUIP:ARG:上タイツ破れ || TEQUIP:ARG:下タイツ破れ
+		PRINT （破れ）
+	PRINT ]
+ELSEIF TEQUIP:ARG:上タイツあり
+	PRINT [インナー
+	SIF TEQUIP:ARG:上タイツ破れ
+		PRINT （破れ）
+	PRINT ]
+ELSEIF TEQUIP:ARG:下タイツあり
+	PRINT [タイツ
+	SIF TEQUIP:ARG:下タイツ破れ
+		PRINT （破れ）
+	PRINT ]
+ENDIF
+
+
+SIF TEQUIP:ARG:上半身下着あり == 0
+	PRINT [ノーブラ]
+SIF TEQUIP:ARG:上半身下着あり == 1
+	PRINT [ブラ着用]
+SIF TEQUIP:ARG:上半身下着あり == 2
+	PRINT [ニプレス]
+SIF TEQUIP:ARG:下半身下着あり == 0
+	PRINT [ノーパン]
+SIF TEQUIP:ARG:下半身下着あり == 1
+	PRINT [下着着用]
+SIF TEQUIP:ARG:下半身下着あり == 2
+	PRINT [前張り]
+SIF TEQUIP:ARG:下半身下着あり == 3
+	PRINT [ふんどし]
+
+PRINTL 
+
+@PRINT_STATE_ABL(ARG)
+PRINTL
+PRINTL □ 能力 □---------------------------------------------------------------------
+LOCAL:1 = 0
+FOR LOCAL, 0, 30
+	SIF !STRLENS(ABLNAME:LOCAL)
+		CONTINUE
+	SIF LOCAL > 50 && ARG != MASTER
+		CONTINUE
+	;非表示
+	IF  GROUPMATCH(LOCAL, 16, 17, 21, 22, 23, 24, 25, 26, 28)
+		CONTINUE
+	ENDIF
+	PRINTFORM %ABLNAME:LOCAL,12%:{ABL:ARG:LOCAL,5,LEFT} 
+	LOCAL:1 ++
+	SIF LOCAL:1 % 4 == 0
+		PRINTL 
+NEXT
+;PRINTL □ 性技 □---------------------------------------------------------------------
+;LOCAL:1 = 0
+;FOR LOCAL,50,60
+;	SIF !STRLENS(ABLNAME:LOCAL)
+;		CONTINUE
+;	SIF !(TALENT:ARG:2 & 1) && (LOCAL == 52 || LOCAL == 54)
+;		CONTINUE
+;	PRINTFORM %ABLNAME:LOCAL,12%:{ABL:ARG:LOCAL,5,LEFT} 
+;	LOCAL:1 ++
+;	SIF LOCAL:1 % 4 == 0
+;		PRINTL 
+;NEXT
+@PRINT_STATE_TALENT(ARG)
+#DIM ループ用
+#DIMS 名前格納
+
+PRINTL □ 情報 □---------------------------------------------------------------------
+
+PRINT 　種族：
+IF TALENT:ARG:種族 == 1
+	PRINT ヒューマン
+ELSEIF TALENT:ARG:種族 == 2
+	PRINT エルーン
+ELSEIF TALENT:ARG:種族 == 3
+	PRINT ドラフ
+ELSEIF TALENT:ARG:種族 == 4
+	PRINT ハーヴィン
+ELSEIF TALENT:ARG:種族 == 5
+	PRINT 星晶獣
+ELSEIF TALENT:ARG:種族 == 6
+	PRINT その他
+ENDIF
+IF TALENT:ARG:種族追記 == 1
+	PRINT [六竜]
+ENDIF
+SIF TALENT:ARG:角あり
+	PRINT （角あり）
+SIF TALENT:ARG:尻尾あり
+	PRINT （尻尾）
+SIF TALENT:ARG:エルーン耳
+	PRINT （エルーン耳）
+SIF TALENT:ARG:ハーヴィン耳
+	PRINT （ハーヴィン耳）
+SIF TALENT:ARG:発情期あり
+	PRINT （発情期あり）
+IF CFLAG:ARG:発情期フラグ < 0
+	SETCOLOR カラーパレット("えっちな色")
+	PRINT (発情期
+	PRINT_IMG "えっちハート"
+	PRINT )
+	RESETCOLOR
+ENDIF
+PRINTL 
+
+PRINT 　
+名前格納 = 
+名前格納 += "性別："
+IF TALENT:ARG:性別 == 1
+	名前格納 += "女性"
+	SIF TALENT:ARG:処女
+		名前格納 += "（処女）"
+ELSEIF TALENT:ARG:性別 == 2
+	名前格納 += "男性"
+	SIF TALENT:ARG:童貞
+		名前格納 += "（童貞）"
+ELSEIF TALENT:ARG:性別 == 3
+	名前格納 += "ふたなり"
+	SIF TALENT:ARG:童貞
+		名前格納 += "(童貞)"
+	SIF TALENT:ARG:処女
+		名前格納 += "(処女)"
+ENDIF
+PRINTFORMLC %名前格納%
+
+名前格納 = 
+IF TALENT:ARG:性別 != 2
+	名前格納 += "  バストサイズ：" + GET_TALENTNAME(205,TALENT:ARG:バストサイズ)
+ENDIF
+PRINTFORMLC %名前格納%
+PRINTL 
+
+IF ツールチップ切り替えOPTION記憶 == 0
+	HTML_PRINT @"<nonbutton title = '%性知識段階表示(知識素質:ARG:性知識, ARG, 1)%'>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+ELSE
+	HTML_PRINT @"<nonbutton>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+ENDIF
+PRINTL 
+
+PRINTL □ 素質 □---------------------------------------------------------------------
+LOCAL:1 = 0
+LOCALS = 
+名前格納 = 
+FOR ループ用,10,200
+	IF STRLENS(GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0))
+		名前格納 += GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0)
+		IF ツールチップ切り替えOPTION記憶 == 0
+			LOCALS += @"<nonbutton title='%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 1)%'>[%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0)%]</nonbutton>"
+		ELSE
+			LOCALS += @"<nonbutton>[%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0)%]</nonbutton>"
+		ENDIF
+		IF STRLENS(名前格納) > 48
+			名前格納 = 
+			HTML_PRINT @"　%LOCALS%"
+			LOCALS = 
+		ENDIF
+	ENDIF
+NEXT
+FOR ループ用,220,300
+	IF STRLENS(GET_TALENTNAME(ループ用,TALENT:ARG:ループ用))
+		名前格納 += GET_TALENTNAME(ループ用,TALENT:ARG:ループ用)
+		IF ツールチップ切り替えOPTION記憶 == 0
+			LOCALS += @"<nonbutton title='%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 1)%'>[%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用)%]</nonbutton>"
+		ELSE
+			LOCALS += @"<nonbutton>[%GET_TALENTNAME(ループ用,TALENT:ARG:ループ用)%]</nonbutton>"
+		ENDIF
+		IF STRLENS(名前格納) > 50
+			名前格納 = 
+			HTML_PRINT @"　%LOCALS%"
+			LOCALS = 
+		ENDIF
+	ENDIF
+NEXT
+FOR ループ用,1,100
+	IF 知識素質:ARG:ループ用
+		名前格納 += @"[%ERDNAME(知識素質,ループ用)%Lv{知識素質:ARG:ループ用}]"
+		IF ツールチップ切り替えOPTION記憶 == 0
+			LOCALS += @"<nonbutton title='%ERDNAME(知識素質,ループ用)%'>[%ERDNAME(知識素質,ループ用)%Lv{知識素質:ARG:ループ用}]</nonbutton>"
+		ELSE
+			LOCALS += @"<nonbutton>[%ERDNAME(知識素質,ループ用)%Lv{知識素質:ARG:ループ用}]</nonbutton>"
+		ENDIF
+		IF STRLENS(名前格納) > 48
+			名前格納 = 
+			HTML_PRINT @"　%LOCALS%"
+			LOCALS = 
+		ENDIF
+	ENDIF
+NEXT
+HTML_PRINT @"　%LOCALS%"
+名前格納 = 
+LOCALS = 
+PRINTL 
+
+PRINTL □ 性癖 □---------------------------------------------------------------------
+FOR LOCAL, 1, 100
+	IF 性癖素質:ARG:LOCAL
+		名前格納 += ERDNAME(性癖素質, LOCAL)
+		TSTR:ツールチップ受渡 = ERDNAME(性癖素質, LOCAL)
+		TRYCALLFORM 性癖素質_TOOLTIP_%ERDNAME(性癖素質, LOCAL)%
+		IF ツールチップ切り替えOPTION記憶 == 0
+			LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%ERDNAME(性癖素質, LOCAL)%]</nonbutton>"
+		ELSE
+			LOCALS += @"<nonbutton>[%ERDNAME(性癖素質, LOCAL)%]</nonbutton>"
+		ENDIF
+		;PRINTFORM [%ERDNAME(性癖素質, LOCAL)%]
+		IF STRLENS(名前格納) > 50
+			名前格納 = 
+			HTML_PRINT @"　%LOCALS%"
+			LOCALS = 
+		ENDIF
+	ENDIF
+NEXT
+SIF 名前格納 != ""
+	HTML_PRINT @"　%LOCALS%"
+名前格納 = 
+LOCALS = 
+
+@PRINT_ITEMCOUNT
+#DIM ループ用
+PRINTL
+PRINTL □ 所持品 □---------------------------------------------------------------------
+PRINTFORML 　所持金：{MONEY}%MONEYLABEL%
+PRINTFORML 　所持ZP：{FLAG:ZP所持量}
+PRINT 　
+LOCAL:1 = 0
+FOR ループ用,0,200
+	IF ITEM:ループ用
+		PRINTFORMLC %ITEMNAME:ループ用%：{ITEM:ループ用}個
+		LOCAL:1 += 1
+		IF LOCAL:1 == 3
+			PRINTL
+			PRINT 　
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+NEXT
+
+FOR ループ用,1000,1100
+	IF ITEM:ループ用
+		PRINTFORMLC %ITEMNAME:ループ用%：{ITEM:ループ用}個
+		LOCAL:1 += 1
+		IF LOCAL:1 == 3
+			PRINTL
+			PRINT 　
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+NEXT
+
+FOR ループ用,1900,2000
+	IF ITEM:ループ用
+		PRINTFORMLC %ITEMNAME:ループ用%：{ITEM:ループ用}個
+		LOCAL:1 += 1
+		IF LOCAL:1 == 3
+			PRINTL
+			PRINT 　
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+NEXT
+PRINTL
+
+@PRINT_STATE_EXP(ARG)
+PRINTL
+PRINTL □ 経験 □---------------------------------------------------------------------
+LOCAL:1 = 0
+FOR LOCAL, 0, 200
+	;EXP.CSVに登録されていなければCONTINUE
+	;SIF !STRLENS(EXPNAME:LOCAL)
+	;	CONTINUE
+	;未経験を表示させない
+	SIF !EXP:ARG:LOCAL
+		CONTINUE
+	;肉体熟知は別枠
+	SIF LOCAL == 89
+		CONTINUE
+	;同性愛関係
+	IF !(TALENT:ARG:2 & 1) && LOCAL == 51
+		CONTINUE
+	ELSEIF TALENT:ARG:2 & 1 && LOCAL == 52
+		CONTINUE
+	ENDIF
+	PRINTFORM %EXPNAME:LOCAL,12%:{EXP:ARG:LOCAL,5,LEFT} 
+	LOCAL:1 += 1
+	SIF LOCAL:1 % 4 == 0
+		PRINTL 
+NEXT
+@PRINT_STATE_JUEL(ARG)
+PRINTL
+PRINTL □ 宝珠 □---------------------------------------------------------------------
+LOCAL:1 = 0
+FOR LOCAL,0,22
+	;PALAM.CSVに名称が登録されていないとCONTINUE
+	SIF !STRLENS(PALAMNAME:LOCAL)
+		CONTINUE
+	;潤滑
+	SIF LOCAL == 9
+		CONTINUE
+	;1000,1000000,単位で区切る
+	LOCALS = {JUEL:ARG:LOCAL}
+	SIF JUEL:ARG:LOCAL > 1000000
+		LOCALS = {JUEL:ARG:LOCAL / 1000}k
+	SIF JUEL:ARG:LOCAL > 1000000000
+		LOCALS = {JUEL:ARG:LOCAL / 1000000}m
+	PRINTFORM %PALAMNAME:LOCAL,6%の珠:%LOCALS,7,LEFT%
+	LOCAL:1 += 1
+	;改行or表示位置あけ
+	SIF LOCAL:1 % 4 == 0
+		PRINTL 
+NEXT
+;否定の珠
+LOCALS = {JUEL:ARG:100}
+SIF JUEL:ARG:100 > 1000000
+	LOCALS = {JUEL:ARG:100 / 1000}k
+PRINTFORM %PALAMNAME:100,6%の珠:%LOCALS,7,LEFT%
+
+@PRINT_STATE_EX(ARG)
+SIF EX:ARG:0 + EX:ARG:1 + EX:ARG:2 + EX:ARG:3 + EX:ARG:10 + EX:ARG:11 == 0
+	RETURN 0
+LOCAL:1 = 0
+PRINTL
+PRINTL □ 絶頂回数 □-----------------------------------------------------------------
+FOR LOCAL,0,20
+	SIF !STRLENS(EXNAME:LOCAL)
+		CONTINUE
+	SIF !EX:LOCAL
+		CONTINUE
+	PRINTFORM %EXNAME:LOCAL,12%:{EX:ARG:LOCAL,5,LEFT}
+	LOCAL:1 ++
+	SIF LOCAL:1 % 4 == 0
+	PRINTL
+NEXT
+PRINT
+
+@PRINT_好感度レベル表示(ARG)
+
+PRINTFORM 好感度:Lv{CFLAG:ARG:好感度レベル}　
+SELECTCASE CFLAG:ARG:好感度レベル
+	CASE IS == 0
+		PRINT 初対面
+	CASE IS <= 10
+		PRINT 他人
+	CASE IS <= 20
+		PRINT 顔見知り
+	CASE IS <= 50
+		PRINT 友人
+	CASE IS <= 80
+		PRINT 親友
+	CASE IS <= 100
+		PRINT 無二の友
+ENDSELECT
+
+@PRINT_恋慕レベル表示(ARG)
+
+PRINTFORM 恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
+SELECTCASE CFLAG:ARG:恋慕レベル
+	CASE IS == 0
+		PRINT 脈ナシ
+	CASE IS <= 10
+		PRINT ちょっと気になる
+	CASE IS <= 20
+		PRINT なんかいいかも
+	CASE IS <= 50
+		PRINT 好意を自覚
+	CASE IS <= 80
+		PRINT ラブラブ
+	CASE IS <= 100
+		PRINT 最愛の人
+ENDSELECT

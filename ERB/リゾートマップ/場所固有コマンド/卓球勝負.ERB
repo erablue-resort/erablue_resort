@@ -1,0 +1,289 @@
+﻿
+;-------------------------------------------------
+;卓球勝負処理関連
+;-------------------------------------------------
+;簡単なミニゲームで勝敗を決定する
+;-------------------------------------------------
+@卓球勝負(キャラ番号)
+#DIM キャラ番号
+#DIM 画像ID
+#DIM カード種類, 10
+#DIM カード数値, 10
+#DIM 勝利数, 2
+#DIM 選択カード, 2
+#DIM ポロリ済
+VARSET 勝利数
+ポロリ済 = 0
+
+;画像初期化
+CALL 画像描画終了
+FOR LOCAL, 0, 10
+	SPRITEDISPOSE @"手札{LOCAL}"
+	GDISPOSE LOCAL + 1
+NEXT
+画像ID = 1
+
+;カードの配布・カード画像の生成
+;0～4が自分手札、5～9が相手手札
+;卓球経験があればあるほど強くなるが、最大値は９
+
+FOR LOCAL, 0, 5
+	カード種類:LOCAL = RAND:3 + 1
+	カード数値:LOCAL = RAND:5 + 1 + (EXP:MASTER:卓球経験 / 100)
+	カード数値:LOCAL = MIN(カード数値:LOCAL, 9)
+	;一種類ずつは保証
+	SIF LOCAL == 0
+		カード種類:LOCAL = 1
+	SIF LOCAL == 1
+		カード種類:LOCAL = 2
+	SIF LOCAL == 2
+		カード種類:LOCAL = 3
+	SELECTCASE カード数値:LOCAL
+		CASE 1
+			LOCALS = １
+		CASE 2
+			LOCALS = ２
+		CASE 3
+			LOCALS = ３
+		CASE 4
+			LOCALS = ４
+		CASE 5
+			LOCALS = ５
+		CASE 6
+			LOCALS = ６
+		CASE 7
+			LOCALS = ７
+		CASE 8
+			LOCALS = ８
+		CASE 9
+			LOCALS = ９
+	ENDSELECT
+	GCREATE 画像ID, 50, 50
+	SELECTCASE カード種類:LOCAL
+		CASE 1
+			CALL 画像合成(画像ID, "ダメアビ")
+		CASE 2
+			CALL 画像合成(画像ID, "回復アビ")
+		CASE 3
+			CALL 画像合成(画像ID, "バフアビ")
+	ENDSELECT
+	CALL 画像合成(画像ID, LOCALS, 25, 25)
+	CALL リソース登録(@"手札{LOCAL}", 画像ID)
+	画像ID += 1
+NEXT
+
+
+FOR LOCAL, 5, 10
+	カード種類:LOCAL = RAND:3 + 1
+	カード数値:LOCAL = RAND:5 + 1 + (EXP:キャラ番号:卓球経験 / 100)
+	カード数値:LOCAL = MIN(カード数値:LOCAL, 9)
+	;一種類ずつは保証
+	SIF LOCAL == 5
+		カード種類:LOCAL = 1
+	SIF LOCAL == 6
+		カード種類:LOCAL = 2
+	SIF LOCAL == 7
+		カード種類:LOCAL = 3
+	SELECTCASE カード数値:LOCAL
+		CASE 1
+			LOCALS = １
+		CASE 2
+			LOCALS = ２
+		CASE 3
+			LOCALS = ３
+		CASE 4
+			LOCALS = ４
+		CASE 5
+			LOCALS = ５
+		CASE 6
+			LOCALS = ６
+		CASE 7
+			LOCALS = ７
+		CASE 8
+			LOCALS = ８
+		CASE 9
+			LOCALS = ９
+	ENDSELECT
+	GCREATE 画像ID, 50, 50
+	SELECTCASE カード種類:LOCAL
+		CASE 1
+			CALL 画像合成(画像ID, "ダメアビ")
+		CASE 2
+			CALL 画像合成(画像ID, "回復アビ")
+		CASE 3
+			CALL 画像合成(画像ID, "バフアビ")
+	ENDSELECT
+	CALL 画像合成(画像ID, LOCALS, 25, 25)
+	CALL リソース登録(@"手札{LOCAL}", 画像ID)
+	PRINTFORML {画像ID}
+	画像ID += 1
+NEXT
+
+;カード表示
+$卓球_LOOP
+DRAWLINE
+PRINTFORML %CALLNAME:キャラ番号%の手札（勝利ポイント：{勝利数:1}）
+
+FOR LOCAL, 5, 10
+	IF カード種類:LOCAL == -1
+		CALL ダミーセット(0, 5, 30)
+	ELSE
+		CALL 画像セット(@"手札{LOCAL}", 0, 5, 30)
+	ENDIF
+NEXT
+CALL 画像一斉表示("left", 0, 1)
+PRINTL
+PRINTL
+PRINTFORML %CALLNAME:MASTER%の手札（勝利ポイント：{勝利数:0}）
+
+FOR LOCAL, 0, 5
+	IF カード種類:LOCAL == -1
+		CALL ダミーセット(0, 5, 30)
+	ELSE
+		CALL 画像セット(@"手札{LOCAL}", 0, 5, 30, 0, 1, TOSTR(LOCAL))
+	ENDIF
+NEXT
+CALL 画像一斉表示("left", 0, 1)
+PRINTL
+PRINTBUTTON "[説明]", 998
+INPUT
+
+SELECTCASE RESULT
+	CASE 0 TO 4
+		;手札選択なので下の処理に進む
+		選択カード:0 = RESULT
+	CASE 998
+		PRINTL 卓球のミニゲームです。
+		PRINTL ゲーム開始時にそれぞれ５枚の手札が配られます。
+		PRINTL 互いにカードを一枚ずつ選んで場に出し、そのパワーを比較して勝った方が『勝利ポイント』を得ます。
+		PRINTFORML （同値の場合、%CALLNAME:MASTER%の勝利となります）
+		PRINTW 勝利ポイントを先に３つ貯めた方の勝利です。
+		PRINTL
+		PRINTL カードには色と模様で表される『戦術』と数字で表される『パワー』が記載されています。
+		PRINTL 戦術は以下の通りです。
+		PRINT_IMG "ダメアビ"
+		PRINTL …攻撃型の戦術です。相手がフェイント型の戦術だった場合、自身のパワーに＋３します。
+		PRINT_IMG "回復アビ"
+		PRINTL …耐久型の戦術です。相手が攻撃型の戦術だった場合、自身のパワーに＋３します。
+		PRINT_IMG "バフアビ"
+		PRINTL …フェイント型の戦術です。相手が耐久型の戦術だった場合、自身のパワーに＋１します。
+		PRINTW 　　このカードで勝利ポイントを得た時、『ポロリチャンス』が発生します。
+		PRINTL
+		PRINTL 『ポロリチャンス』
+		PRINTL ポロリチャンスが発生した時、相手キャラクターの服がはだけておっぱいが露出することがあります。
+		PRINTL 基礎確率は30%で、おっぱいが大きいほど確率は上昇します。（小さくても減少はしません）
+		PRINTW ポロリが成功した場合、その勝負中はポロリチャンスは発生しません。
+		GOTO 卓球_LOOP
+	CASEELSE
+		GOTO 卓球_LOOP
+ENDSELECT
+
+;相手のカード選択、ランダムでいいかな……
+LOCAL:1 = RAND:(5 - 勝利数:0 -勝利数:1) + 1
+LOCAL:2 = 0
+FOR LOCAL, 5, 10
+	;残ってるカードをカウント
+	SIF カード種類:LOCAL > 0
+		LOCAL:2 += 1
+	;ランダムで選んだ○番目のカードが見つかったら抜ける
+	SIF LOCAL:2 == LOCAL:1
+		BREAK
+NEXT
+選択カード:1 = LOCAL - 1
+
+DRAWLINE
+PRINTFORMLC %CALLNAME:MASTER%のカード
+PRINTFORMLC %CALLNAME:キャラ番号%のカード
+PRINTL 
+CALL 画像セット(@"手札{選択カード:0}", 0, 158, 30)
+CALL 画像セット(@"手札{選択カード:1}", 0, 158, 30)
+CALL 画像一斉表示("left", 0, 1)
+LOCALS = パワー：{カード数値:(選択カード:0)}
+LOCALS:1 = パワー：{カード数値:(選択カード:1)}
+IF カード種類:(選択カード:0) != カード種類:(選択カード:1)
+	IF カード種類:(選択カード:0) == 1
+		IF カード種類:(選択カード:1) == 2
+			LOCALS:1 += "+3"
+			カード数値:(選択カード:1) += 3
+		ELSEIF カード種類:(選択カード:1) == 3
+			LOCALS += "+3"
+			カード数値:(選択カード:0) += 3
+		ENDIF
+	ELSEIF カード種類:(選択カード:0) == 2
+		IF カード種類:(選択カード:1) == 1
+			LOCALS += "+3"
+			カード数値:(選択カード:0) += 3
+		ELSEIF カード種類:(選択カード:1) == 3
+			LOCALS:1 += "+1"
+			カード数値:(選択カード:1) += 1
+		ENDIF
+	ELSEIF カード種類:(選択カード:0) == 3
+		IF カード種類:(選択カード:1) == 1
+			LOCALS:1 += "+3"
+			カード数値:(選択カード:1) += 3
+		ELSEIF カード種類:(選択カード:1) == 2
+			LOCALS += "+1"
+			カード数値:(選択カード:0) += 1
+		ENDIF
+	ENDIF
+ENDIF
+TOFULL @"%LOCALS%"
+PRINTFORM %RESULTS, 19, LEFT%
+PRINT ＶＳ　 
+TOFULL @"%LOCALS:1%"
+PRINTFORMW %RESULTS%
+
+IF カード数値:(選択カード:0) < カード数値:(選択カード:1)
+	PRINTFORMW %CALLNAME:キャラ番号%の勝利ポイント：{勝利数:1}＞{勝利数:1 + 1}
+	勝利数:1 += 1
+	TRYCALLFORM KOJO_EVENT_卓球勝負中_{NO:キャラ番号}("TARGET勝利")
+ELSE
+	PRINTFORML %CALLNAME:MASTER%の勝利ポイント：{勝利数:0}＞{勝利数:0 + 1}
+	勝利数:0 += 1
+	IF カード種類:(選択カード:0) == 3 && ポロリ済 == 0 && TEQUIP:キャラ番号:はだけ可
+		SETCOLOR 0xFFD400
+		PRINTW ポロリチャンス発生！
+		RESETCOLOR
+		LOCAL = 3
+		SIF TALENT:キャラ番号:バストサイズ > 0
+			LOCAL += TALENT:キャラ番号:バストサイズ
+		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:MASTER%のフェイントで、左右に大きく動かされている！
+		PRINTFORMW %CALLNAME:キャラ番号%の服が、すこしはだけ始めた……！
+		PRINTW ………！
+		IF RAND:10 < LOCAL
+			PRINTFORML 激しい動きで%CALLNAME:キャラ番号%の服がはだけ、おっぱいが露出してしまった！
+			SETCOLOR 0xFFD400
+			PRINTW ポロリチャンス成功！
+			RESETCOLOR
+			PRINTFORMW %CALLNAME:キャラ番号%は慌てて服の乱れを直した。顔が少し赤くなっている。
+			CALL SOURCE_CALC_露出(キャラ番号, PLAYER, 100)
+			ポロリ済 = 1
+			TRYCALLFORM KOJO_EVENT_卓球勝負中_{NO:キャラ番号}("あなた勝利_ポロリ成功")
+		ELSE
+			PRINTFORML ……しかし、服の乱れに気づいた%CALLNAME:キャラ番号%が直してしまった。
+			PRINTW ポロリチャンス失敗…
+			TRYCALLFORM KOJO_EVENT_卓球勝負中_{NO:キャラ番号}("あなた勝利_ポロリ失敗")
+		ENDIF
+	ELSE
+		TRYCALLFORM KOJO_EVENT_卓球勝負中_{NO:キャラ番号}("あなた勝利_ポロリ無し")
+	ENDIF
+ENDIF
+
+カード種類:(選択カード:0) = -1
+カード種類:(選択カード:1) = -1
+
+IF 勝利数:0 == 3
+	PRINTFORMW %CALLNAME:MASTER%の勝利！！
+	RETURN 1
+ELSEIF 勝利数:1 == 3
+	PRINTFORMW %CALLNAME:キャラ番号%の勝利！！
+	RETURN -1
+ENDIF
+
+GOTO 卓球_LOOP
+
+
+
+
+
+

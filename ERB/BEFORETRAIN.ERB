@@ -1,0 +1,322 @@
+﻿@EVENTTRAIN0
+#DIM 同行キャラ可能枠
+VARSET TARGET
+
+;時間
+IF TIME >= CFLAG:MASTER:312
+	DAY ++
+	TIME -= 1440
+ENDIF
+
+;招待キャラがいる場合、滞在期間を増やす
+;基本的に５日～７日くらい？　後々調整する
+;まず同行キャラが入れる枠を計算
+同行キャラ可能枠 = 滞在キャラ上限 - 滞在キャラ数 - 集客人数
+
+IF 通常キャラ招待:0 > 0
+	FOR LOCAL, 0, 10
+		;値が１万だとサプチケと被ってる証拠
+		SIF 通常キャラ招待:LOCAL == 10000
+			CONTINUE
+		SIF 通常キャラ招待:LOCAL == 0
+			BREAK
+		;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+		SIF CFLAG:(通常キャラ招待:LOCAL):滞在期間 > 0
+			CONTINUE
+		CFLAG:(通常キャラ招待:LOCAL):滞在期間 = RAND:2 + 6
+		PRINTFORML %CALLNAME:(通常キャラ招待:LOCAL)%がリゾート地を訪れたようだ。
+		滞在キャラ数 += 1
+		CALL 滞在者部屋割り配列挿入処理(通常キャラ招待:LOCAL)
+		SIF 初体験日:(通常キャラ招待:LOCAL):リゾート初来訪 == 0
+			初体験日:(通常キャラ招待:LOCAL):リゾート初来訪 = DAY
+		;こっから同行キャラ判定
+		IF 同行キャラ可能枠 > 0
+			FOR LOCAL:1, 0, 100
+				SIF 同行キャラ可能枠 <= 0
+					BREAK
+				SIF 同行候補キャラ番号:(通常キャラ招待:LOCAL):(LOCAL:1) < 1
+					BREAK
+				SIF CFLAG:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1)):招待不可フラグ > 0
+					CONTINUE
+				LOCAL:2 = RAND:100
+				IF 同行候補キャラ確率:(通常キャラ招待:LOCAL):(LOCAL:1) > LOCAL:2
+					;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+					SIF CFLAG:(同行候補キャラ番号:(通常キャラ招待:LOCAL):(LOCAL:1)):滞在期間 > 0
+						CONTINUE
+					CFLAG:(同行候補キャラ番号:(通常キャラ招待:LOCAL):(LOCAL:1)):滞在期間 = CFLAG:(通常キャラ招待:LOCAL):滞在期間
+					PRINTFORML %CALLNAME:(通常キャラ招待:LOCAL)%と一緒に%CALLNAME:(同行候補キャラ番号:(通常キャラ招待:LOCAL):(LOCAL:1))%がリゾート地を訪れたようだ。
+					CALL 滞在者部屋割り配列挿入処理(同行候補キャラ番号:(通常キャラ招待:LOCAL):(LOCAL:1))
+					滞在キャラ数 += 1
+					同行キャラ可能枠　-= 1
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+VARSET 通常キャラ招待
+
+IF 解放キャラ招待:0 > 0
+	FOR LOCAL, 0, 100
+		SIF 解放キャラ招待:LOCAL == 0
+			BREAK
+		;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+		SIF CFLAG:(解放キャラ招待:LOCAL):滞在期間 > 0
+			CONTINUE
+		CFLAG:(解放キャラ招待:LOCAL):滞在期間 = RAND:2 + 6
+		PRINTFORML %CALLNAME:(解放キャラ招待:LOCAL)%が導かれ、リゾート地を訪れたようだ。
+		CALL 滞在者部屋割り配列挿入処理(解放キャラ招待:LOCAL)
+		SIF 初体験日:(解放キャラ招待:LOCAL):リゾート初来訪 == 0
+			初体験日:(解放キャラ招待:LOCAL):リゾート初来訪 = DAY
+		;こっから同行キャラ判定
+		IF 同行キャラ可能枠 > 0
+			FOR LOCAL:1, 0, 100
+				SIF 同行キャラ可能枠 <= 0
+					BREAK
+				SIF 同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1) < 1
+					BREAK
+				SIF CFLAG:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1)):招待不可フラグ > 0
+					CONTINUE
+				LOCAL:2 = RAND:100
+				IF 同行候補キャラ確率:(解放キャラ招待:LOCAL):(LOCAL:1) > LOCAL:2
+					;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+					SIF CFLAG:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1)):滞在期間 > 0
+						CONTINUE
+					CFLAG:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1)):滞在期間 = CFLAG:(解放キャラ招待:LOCAL):滞在期間
+					PRINTFORML %CALLNAME:(解放キャラ招待:LOCAL)%と一緒に%CALLNAME:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1))%がリゾート地を訪れたようだ。
+					CALL 滞在者部屋割り配列挿入処理(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1))
+					滞在キャラ数 += 1
+					同行キャラ可能枠　-= 1
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+VARSET 解放キャラ招待
+
+IF ＤＭキャラ招待
+	IF ＤＭキャラ招待 < 0
+		;招待失敗
+		PRINTFORML %CALLNAME:ABS(ＤＭキャラ招待)%は都合が合わず、来られなかったようだ…
+	ELSEIF ＤＭキャラ招待 > 0
+		PRINTFORML %CALLNAME:ＤＭキャラ招待%は招待を受け、リゾート地を訪れてくれた！
+		CFLAG:ＤＭキャラ招待:滞在期間 = RAND:2 + 6
+		CALL 滞在者部屋割り配列挿入処理(ＤＭキャラ招待)
+		滞在キャラ数 += 1
+	ENDIF
+	;こっから同行キャラ判定
+	IF 同行キャラ可能枠 > 0
+		FOR LOCAL:1, 0, 100
+			SIF 同行キャラ可能枠 <= 0
+				BREAK
+			SIF 同行候補キャラ番号:ＤＭキャラ招待:(LOCAL:1) < 1
+				BREAK
+			LOCAL:2 = RAND:100
+			IF 同行候補キャラ確率:ＤＭキャラ招待:(LOCAL:1) > LOCAL:2
+				;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+				SIF CFLAG:(同行候補キャラ番号:ＤＭキャラ招待:(LOCAL:1)):滞在期間 > 0
+					CONTINUE
+				CFLAG:(同行候補キャラ番号:ＤＭキャラ招待:(LOCAL:1)):滞在期間 = CFLAG:ＤＭキャラ招待:滞在期間
+				PRINTFORML %CALLNAME:ＤＭキャラ招待%と一緒に%CALLNAME:(同行候補キャラ番号:ＤＭキャラ招待:(LOCAL:1))%がリゾート地を訪れてくれた！
+				CALL 滞在者部屋割り配列挿入処理(同行候補キャラ番号:ＤＭキャラ招待:(LOCAL:1))
+				滞在キャラ数 += 1
+				同行キャラ可能枠　-= 1
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
+ＤＭキャラ招待 = 0
+
+
+IF サプチケキャラ招待
+	PRINTFORML %CALLNAME:サプチケキャラ招待%はサプチケ招待を受け、リゾート地を訪れてくれた！
+	CALL 滞在者部屋割り配列挿入処理(サプチケキャラ招待)
+	CFLAG:サプチケキャラ招待:滞在期間 = RAND:2 + 6
+	;こっから同行キャラ判定
+	IF 同行キャラ可能枠 > 0
+		FOR LOCAL:1, 0, 100
+			SIF 同行キャラ可能枠 <= 0
+				BREAK
+			SIF 同行候補キャラ番号:サプチケキャラ招待:(LOCAL:1) < 1
+				BREAK
+			LOCAL:2 = RAND:100
+			IF 同行候補キャラ確率:サプチケキャラ招待:(LOCAL:1) > LOCAL:2
+				;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+				SIF CFLAG:(同行候補キャラ番号:サプチケキャラ招待:(LOCAL:1)):滞在期間 > 0
+					CONTINUE
+				CFLAG:(同行候補キャラ番号:サプチケキャラ招待:(LOCAL:1)):滞在期間 = CFLAG:サプチケキャラ招待:滞在期間
+				PRINTFORML %CALLNAME:サプチケキャラ招待%と一緒に%CALLNAME:(同行候補キャラ番号:サプチケキャラ招待:(LOCAL:1))%がリゾート地を訪れてくれた！
+				CALL 滞在者部屋割り配列挿入処理(同行候補キャラ番号:サプチケキャラ招待:(LOCAL:1))
+				滞在キャラ数 += 1
+				同行キャラ可能枠　-= 1
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
+サプチケキャラ招待 = 0
+集客人数 = 0
+PRINTW
+
+;初期化・滞在期間処理
+FOR LOCAL,0,CHARANUM
+	;一日期間を減らす
+	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999 && !TALENT:LOCAL:恋慕
+		CFLAG:LOCAL:滞在期間 -= 1
+		IF CFLAG:LOCAL:滞在期間 == 0
+			;0になったら帰宅し滞在期間をマイナスに
+			PRINTFORML %CALLNAME:LOCAL%は滞在を終え、帰っていった
+			CALL 滞在終了時初期化(LOCAL)
+			CFLAG:LOCAL:滞在期間 = -1
+			滞在キャラ数 -= 1
+		ENDIF
+	ENDIF
+	;発情期、凡そ１０日に１回（滞在してなくてもカウント）
+	IF 発情期判定(LOCAL)
+		IF 発情期切り替えOPTION記憶
+			SIF CFLAG:LOCAL:発情期フラグ < 0
+				CFLAG:LOCAL:発情期フラグ = RAND:9 + 1
+		ELSE
+			CFLAG:LOCAL:発情期フラグ -= 1
+		ENDIF
+		SIF CFLAG:LOCAL:発情期フラグ == -4 - TALENT:LOCAL:性欲
+			CFLAG:LOCAL:発情期フラグ = 9 - TALENT:LOCAL:性欲
+	ENDIF
+	;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
+	IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
+		IF TALENT:LOCAL:種族 == 3 || LOCAL == 11
+			IF CFLAG:LOCAL:発情期フラグ < 0
+				SIF TALENT:LOCAL:母乳体質 == 0
+					TALENT:LOCAL:母乳体質 = 2
+			ELSE
+				SIF TALENT:LOCAL:母乳体質 == 2
+					TALENT:LOCAL:母乳体質 = 0
+			ENDIF
+		ENDIF
+	ENDIF
+	;滞在してないキャラはスルー
+	IF CFLAG:LOCAL:滞在期間 == -1
+		TCVAR:LOCAL:表示カット = 1
+		CONTINUE
+	ENDIF
+	;AUTOCOM変数のリセット
+	VARSET AUTOCOM用変数
+	;衣装設定
+	CALL CLOTHES_RESET(LOCAL)
+	;射精、勃起、ムード、理性、怒り
+	BASE:LOCAL:射精 = 0
+	BASE:LOCAL:勃起 = 0
+	BASE:LOCAL:ムード = 0
+	BASE:LOCAL:理性 = MAXBASE:LOCAL:11
+	BASE:LOCAL:怒り = 0
+	BASE:LOCAL:満足 = 0
+	CFLAG:LOCAL:勃起度 = 0
+	CFLAG:LOCAL:同行 = 0
+	CFLAG:LOCAL:酔いすぎ = 0
+	;経験表示用
+	FOR LOCAL:1, 0, 200
+		TCVAR:LOCAL:(400 + LOCAL:1) = EXP:LOCAL:(LOCAL:1)
+	NEXT
+	;性交フラグ
+	TEQUIP:LOCAL:50 = -1
+	TEQUIP:LOCAL:51 = -1
+	TCVAR:LOCAL:100 = -1
+	TCVAR:LOCAL:101 = -1
+	;中出し表示用フラグ
+	TCVAR:LOCAL:103 = -1
+	TCVAR:LOCAL:105 = -1
+	;射精処理用文字列変数
+	CSTR:LOCAL:10 = /
+	CSTR:LOCAL:11 = /
+	;一日の行動ルーチンの設定
+	CALL 移動ルーチンセット決定(LOCAL)
+NEXT
+SIF SAVESTR:10 == ""
+	SAVESTR:10 = /
+;料理
+FLAG:料理 = 0
+
+
+;15分毎に館内のキャラを移動させる
+LOCAL = 1
+WHILE LOCAL
+	IF TIME + 15 < CFLAG:MASTER:312
+		TFLAG:300 = TIME + 1440 * DAY
+		TIME += 15
+		CALL CHARA_MOVEMENT
+	ELSE
+		FOR LOCAL:1,0,CHARANUM
+			;現在位置の保存
+			CFLAG:(LOCAL:1):前ターン位置 = CFLAG:(LOCAL:1):現在位置
+			CFLAG:(LOCAL:1):前マップ種別 = CFLAG:(LOCAL:1):現在マップ種別
+		NEXT
+		TIME =  CFLAG:MASTER:312
+		TFLAG:300 = TIME + 1440 * DAY
+		CALL CHARA_MOVEMENT
+		BREAK
+	ENDIF
+WEND
+PRINTW 
+CALL GOODMORNING
+
+;起床時間の記録
+CFLAG:MASTER:起床時間 = 1440 * DAY + TIME
+
+;体力気力の回復
+BASE:MASTER:体力 += MAXBASE:MASTER:体力 * (CFLAG:MASTER:起床時間 - CFLAG:MASTER:就寝時間 ) / (2 * (480 -120 * TALENT:MASTER:回復速度))
+BASE:MASTER:気力 += MAXBASE:MASTER:気力 * (CFLAG:MASTER:起床時間 - CFLAG:MASTER:就寝時間 ) / (480 -120 * TALENT:MASTER:回復速度)
+BASE:MASTER:体力 = MIN(MAXBASE:MASTER:体力,BASE:MASTER:体力)
+BASE:MASTER:気力 = MIN(MAXBASE:MASTER:気力,BASE:MASTER:気力)
+BASE:MASTER:勃起 = MIN(1000 * BASE:MASTER:体力 / MAXBASE:MASTER:体力,1500)
+
+
+;調教者は誰か
+PLAYER = MASTER
+
+@GOODMORNING
+VARSET LOCAL
+TARGET = 0
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:MASTER:現在位置 == CFLAG:LOCAL:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:LOCAL:現在マップ種別
+		TARGET = LOCAL
+NEXT
+IF TARGET
+	IF CFLAG:TARGET:睡眠
+		PRINTFORMW %CALLNAME:MASTER%が目覚めると隣ではまだ%CALLNAME:TARGET%がすやすやと眠っていた
+		PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:TARGET%を起こさないように\@ BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) && !BATHROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) ? ベッド # その横 \@を抜け出し一日の準備を始めた
+	ELSE
+		IF TALENT:恋慕
+			PRINTFORMW %CALLNAME:MASTER%が目覚めると%CALLNAME:TARGET%と目があった
+			PRINTFORMW しばらく%CALLNAME:TARGET%と視線をかわしてから\@ BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) && !BATHROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) ? ベッド # その横 \@を抜け出し一日の準備を始めた
+		ELSE
+			PRINTFORMW %CALLNAME:MASTER%が目覚めると%CALLNAME:TARGET%と目があった
+			PRINTFORMW なぜ%CALLNAME:TARGET%が\@ BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) && !BATHROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) ? 部屋にいるのだろうと不審に思いながらもベッド # 隣にいるのだろうと不審に思いながらもその横 \@を抜け出し一日の準備を始めた
+		ENDIF
+		CALL KOJO_EVENT(6, TARGET, 1)
+	ENDIF
+ENDIF
+
+@滞在終了時初期化(ARG)
+#DIM ループ用
+
+CFLAG:ARG:オナニー覚えたて = 0
+CFLAG:ARG:現在マップ種別 = 0
+CFLAG:ARG:現在位置 = 999
+
+FOR ループ用, 0, 4
+	IF BATTLE_STATE:ループ用:0 == ARG
+		BATTLE_STATE:ループ用:0 = BATTLE_STATE:(ループ用 + 1):0
+		BATTLE_STATE:(ループ用 + 1):0 = BATTLE_STATE:(ループ用 + 2):0
+		BATTLE_STATE:(ループ用 + 2):0 = BATTLE_STATE:(ループ用 + 3):0
+		BATTLE_STATE:(ループ用 + 3):0 = BATTLE_STATE:(ループ用 + 4):0
+	ENDIF
+NEXT
+CALL 滞在者部屋割り配列削除処理(ARG)
+
+@発情期判定(ARG)
+#FUNCTION
+;種族がエルーンかドラフ、素質：発情期あり、もしくはガレヲンだったなら1を返す
+IF TALENT:ARG:種族 == 2 || TALENT:LOCAL:発情期あり || TALENT:ARG:種族 == 3 || ARG == 11
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
