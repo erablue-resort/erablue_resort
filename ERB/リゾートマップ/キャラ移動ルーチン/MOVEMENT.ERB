@@ -168,9 +168,11 @@ NEXT
 #DIM 寝る
 #DIM 起きる
 
-CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "就寝時間")
+RESULT = 0
+TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "就寝時間")
 寝る = RESULT
-CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "起床時間")
+RESULT = 0
+TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "起床時間")
 起きる = RESULT
 
 ;時間設定ない場合は22時寝の8時起き
@@ -258,7 +260,7 @@ VARSET LOCAL
 
 
 IF !CFLAG:ARG:睡眠
-	TRYCALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "就寝場所")
+	TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "就寝場所")
 	IF CFLAG:ARG:酔いすぎ == 1
 		;泥酔時は基本そのまま
 	ELSEIF RESULT
@@ -317,13 +319,21 @@ CFLAG:ARG:うふふ = 0
 ;FLAG:(300 + CFLAG:ARG:現在位置) = 0
 
 IF CFLAG:ARG:睡眠
+	CALL 移動ルーチンセット決定(ARG)
+	CALL CHARA_MOVEMENT_ACTIVETIME(ARG)
+	;睡眠時間
+	IF RESULT
+		CALL CHARA_SLEEP, ARG
+		RETURN 0
+	ENDIF
 	PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
-	CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "初期位置")
+	CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "初期位置")
 	;起きても酩酊が残ってるなら二日酔い
 	SIF BASE:ARG:酩酊
 		CFLAG:ARG:酔いすぎ = 2
 ENDIF
 CFLAG:ARG:睡眠 = 0
+RETURN 1
 
 
 
@@ -339,11 +349,13 @@ IF RESULT
 ;活動時間、CFLAG:睡眠が立っていれば起床処理
 ELSE
 	CALL CHARA_AWAKE, ARG
+	SIF RESULT == 0
+		RETURN 0
 ENDIF
 
 ;ルーチンごとの移動処理
 IF TCVAR:ARG:移動インターバル時間 == 0
-	CALLFORM MOVE_ROUTINE_{TCVAR:ARG:ルーチン番号}(ARG, "移動処理")
+	CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "移動処理")
 	IF RESULT
 		;RETURNが０でない＝移動したという意味なので3分のインターバル
 		TCVAR:ARG:移動インターバル時間 = 3
