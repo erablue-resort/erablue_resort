@@ -83,6 +83,7 @@ ENDIF
 
 
 @通常能力表示画面(ARG)
+#DIMS 弱点コマンドSPLIT用配列, 10
 ;ここで立ち絵表示
 CALL 画像描画終了
 HTML_PRINT @"<div rect='650px, 38px, 180px, 180px'>%顔グラ表示用文字列関数(ARG)%</div>", 1
@@ -103,12 +104,12 @@ FOR LOCAL, 0, 5
 	IF 弱点看破:ARG:LOCAL
 		弱点コマンド欄表示名 = 
 		IF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
-			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", LOCALS
-			SELECTCASE TOINT(LOCALS:0)
+			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
+			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
 				CASE 370 TO 374
 					LOCAL:1 = TARGET
-					TARGET = TOINT(LOCALS:1)
-					CALLFORMF COMNAME%LOCALS:0%
+					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
 					IF 弱点コマンド欄表示名 != ""
 						LOCALS += @"　[キャラ固有：%弱点コマンド欄表示名%]<br>"
 					ELSE
@@ -118,9 +119,9 @@ FOR LOCAL, 0, 5
 				CASE 380 TO 384
 					LOCAL:1 = CFLAG:MASTER:現在位置
 					LOCAL:2 = CFLAG:MASTER:現在マップ種別
-					CFLAG:MASTER:現在位置 = TOINT(LOCALS:2)
-					CFLAG:MASTER:現在マップ種別 = TOINT(LOCALS:1)
-					CALLFORMF COMNAME%LOCALS:0%
+					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
+					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
 					IF 弱点コマンド欄表示名 != ""
 						LOCALS += @"　[場所固有：%弱点コマンド欄表示名%]<br>"
 					ELSE
@@ -129,7 +130,7 @@ FOR LOCAL, 0, 5
 					CFLAG:MASTER:現在位置 = LOCAL:1
 					CFLAG:MASTER:現在マップ種別 = LOCAL:2
 				CASEELSE
-					CALLFORMF COMNAME%LOCALS:0%
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
 					IF 弱点コマンド欄表示名 != ""
 						LOCALS += @"　[%弱点コマンド欄表示名%派生："
 					ELSE
@@ -435,18 +436,41 @@ SIF TEQUIP:ARG:上半身鎧あり
 ;上半身服
 IF TEQUIP:ARG:上半身服あり
 	PRINT [上半身服
-	SIF TEQUIP:ARG:脇出し
+	LOCAL = 9
+	IF TEQUIP:ARG:脇出し
 		PRINT （脇露出）
-	SIF TEQUIP:ARG:へそ出し
+		LOCAL += 10
+	ENDIF
+	IF TEQUIP:ARG:へそ出し
 		PRINT （へそ露出）
-	SIF TEQUIP:ARG:はだけ可
+		LOCAL += 12
+	ENDIF
+	IF TEQUIP:ARG:はだけ可
 		PRINT （はだけ可）
-	SIF TEQUIP:ARG:手差し込み可
+		LOCAL += 12
+	ENDIF
+	IF TEQUIP:ARG:手差し込み可
 		PRINT （差し込み可）
-	SIF TEQUIP:ARG:パイズリ可
+		LOCAL += 14
+	ENDIF
+	IF TEQUIP:ARG:パイズリ可
+		LOCAL += 18
+		IF LOCAL > 70
+			PRINTL
+			PRINT 　　 　　　　
+			LOCAL = 0
+		ENDIF
 		PRINT （着衣パイズリ可）
-	SIF TEQUIP:ARG:上半身下着抜き取り可 && TEQUIP:ARG:上半身下着あり
+	ENDIF
+	IF TEQUIP:ARG:上半身下着抜き取り可 && TEQUIP:ARG:上半身下着あり
+		LOCAL += 18
+		IF LOCAL > 70
+			PRINTL
+			PRINT 　　 　　　　
+			LOCAL = 0
+		ENDIF
 		PRINT （ブラ抜き取り可）
+	ENDIF
 	PRINTL ]
 	PRINT 　　
 ENDIF
