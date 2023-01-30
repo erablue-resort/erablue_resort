@@ -20,31 +20,41 @@ SELECTCASE ARGS
 	
 	CASE "移動処理"
 		;まず現在ルーチン通りの場所にいるかどうかを判定
-		IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_1(キャラ番号)
-			;いるなら処理無し
-		ELSE
-			;いないならルーチン通りの場所へ向けて移動
-			IF ROUTINE_PLAN_1(キャラ番号) == 999
-				CALL 自室移動処理(キャラ番号)
+		IF CFLAG:キャラ番号:現在マップ種別 == ROUTINE_PLAN_1(キャラ番号, 1)
+			IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_1(キャラ番号)
+				;いるなら処理無し
 			ELSE
-				CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_1(キャラ番号), キャラ番号)
-				CALL 汎用移動処理(キャラ番号)
+				;いないならルーチン通りの場所へ向けて移動
+				IF ROUTINE_PLAN_1(キャラ番号) == 999
+					CALL 自室移動処理(キャラ番号)
+				ELSE
+					CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_1(キャラ番号), キャラ番号)
+					CALL 汎用移動処理(キャラ番号)
+				ENDIF
+				RETURN 1
 			ENDIF
-			RETURN 1
+		ELSE
+			;マップ種別から違う場合は目的のマップへ移動
+			CALL 汎用マップ間移動処理(キャラ番号)
 		ENDIF
 ENDSELECT
 
-@ROUTINE_PLAN_1(キャラ番号)
+@ROUTINE_PLAN_1(キャラ番号, マップ種別取得フラグ = 0)
 #FUNCTION
+#DIM マップ種別取得フラグ
 #DIM キャラ番号
 
 ;時間ごとにどの場所にいるべきかを決定
 SELECTCASE TIME
 	;9時より前はロビーにいる
 	CASE IS < 540
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 2
 	;プールの前後１５分は着替え
 	CASE IS < 555
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 13
 		ELSE
@@ -52,11 +62,15 @@ SELECTCASE TIME
 		ENDIF
 	;12時まではプールにいる
 	CASE IS < 705
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 1500 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 15
 	;プールの前後１５分は着替え
 	CASE IS < 720
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 13
 		ELSE
@@ -64,9 +78,13 @@ SELECTCASE TIME
 		ENDIF
 	;13時半までは食堂にいる
 	CASE IS < 810
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 4
 	;プールの前後１５分は着替え
 	CASE IS < 825
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 13
 		ELSE
@@ -74,11 +92,15 @@ SELECTCASE TIME
 		ENDIF
 	;18時まではプールにいる
 	CASE IS < 1065
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 1500 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 15
 	;プールの前後１５分は着替え
 	CASE IS < 1080
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 13
 		ELSE
@@ -86,9 +108,13 @@ SELECTCASE TIME
 		ENDIF
 	;19時半までは食堂にいる
 	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 4
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -96,6 +122,8 @@ SELECTCASE TIME
 		ENDIF
 	;21時までは風呂にいる
 	CASE IS < 1260
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 9
 		ELSE
@@ -103,6 +131,8 @@ SELECTCASE TIME
 		ENDIF
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -110,10 +140,12 @@ SELECTCASE TIME
 		ENDIF
 	;寝るまでは自室にいる
 	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURNF 999
 		RETURNF 999
 ENDSELECT
 
-		
+
 
 
 ;------------------------------------------------------------------------------
@@ -143,51 +175,69 @@ SELECTCASE ARGS
 	
 	CASE "移動処理"
 		;まず現在ルーチン通りの場所にいるかどうかを判定
-		IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_2(キャラ番号)
-			;いるなら処理無し
-		ELSE
-			;いないならルーチン通りの場所へ向けて移動
-			IF ROUTINE_PLAN_2(キャラ番号) == 999
-				CALL 自室移動処理(キャラ番号)
+		IF CFLAG:キャラ番号:現在マップ種別 == ROUTINE_PLAN_2(キャラ番号, 1)
+			IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_2(キャラ番号)
+				;いるなら処理無し
 			ELSE
-				CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_2(キャラ番号), キャラ番号)
-				CALL 汎用移動処理(キャラ番号)
+				;いないならルーチン通りの場所へ向けて移動
+				IF ROUTINE_PLAN_2(キャラ番号) == 999
+					CALL 自室移動処理(キャラ番号)
+				ELSE
+					CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_2(キャラ番号), キャラ番号)
+					CALL 汎用移動処理(キャラ番号)
+				ENDIF
+				RETURN 1
 			ENDIF
-			RETURN 1
+		ELSE
+			;マップ種別から違う場合は目的のマップへ移動
+			CALL 汎用マップ間移動処理(キャラ番号)
 		ENDIF
 ENDSELECT
 
-@ROUTINE_PLAN_2(キャラ番号)
+@ROUTINE_PLAN_2(キャラ番号, マップ種別取得フラグ = 0)
 #FUNCTION
+#DIM マップ種別取得フラグ
 #DIM キャラ番号
 
 ;時間ごとにどの場所にいるべきかを決定
 SELECTCASE TIME
 	;9時より前はロビーにいる
 	CASE IS < 540
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 2
 	;12時までは外にいる
 	CASE IS < 720
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 300 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 3
 	;13時半までは食堂にいる（キャンプ場改造済ならバーベキューエリア）
 	CASE IS < 810
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 304
 		RETURNF 4
 	;18時までは外にいる
 	CASE IS < 1080
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 300 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 3
 	;19時半までは食堂にいる（キャンプ場改造済ならバーベキューエリア）
 	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 304
 		RETURNF 4
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -195,6 +245,8 @@ SELECTCASE TIME
 		ENDIF
 	;21時までは風呂にいる
 	CASE IS < 1260
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 9
 		ELSE
@@ -202,6 +254,8 @@ SELECTCASE TIME
 		ENDIF
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -209,8 +263,13 @@ SELECTCASE TIME
 		ENDIF
 	;寝るまでは自室にいる（キャンプ場改造済ならメインテント）
 	CASEELSE
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
+		IF 移動ルーチン:キャラ番号:マップ内ルーチン番号
+			SIF マップ種別取得フラグ
+				RETURNF 0
 			RETURNF 303
+		ENDIF
+		SIF マップ種別取得フラグ
+			RETURNF 999
 		RETURNF 999
 ENDSELECT
 
@@ -239,47 +298,65 @@ SELECTCASE ARGS
 	
 	CASE "移動処理"
 		;まず現在ルーチン通りの場所にいるかどうかを判定
-		IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_3(キャラ番号)
-			;いるなら処理無し
-		ELSE
-			;いないならルーチン通りの場所へ向けて移動
-			IF ROUTINE_PLAN_3(キャラ番号) == 999
-				CALL 自室移動処理(キャラ番号)
+		IF CFLAG:キャラ番号:現在マップ種別 == ROUTINE_PLAN_3(キャラ番号, 1)
+			IF CFLAG:キャラ番号:現在位置 == ROUTINE_PLAN_3(キャラ番号)
+				;いるなら処理無し
 			ELSE
-				CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_3(キャラ番号), キャラ番号)
-				CALL 汎用移動処理(キャラ番号)
+				;いないならルーチン通りの場所へ向けて移動
+				IF ROUTINE_PLAN_3(キャラ番号) == 999
+					CALL 自室移動処理(キャラ番号)
+				ELSE
+					CALLFORM SKIP_MOVE_0(ROUTINE_PLAN_3(キャラ番号), キャラ番号)
+					CALL 汎用移動処理(キャラ番号)
+				ENDIF
+				RETURN 1
 			ENDIF
-			RETURN 1
+		ELSE
+			;マップ種別から違う場合は目的のマップへ移動
+			CALL 汎用マップ間移動処理(キャラ番号)
 		ENDIF
 ENDSELECT
 
-@ROUTINE_PLAN_3(キャラ番号)
+@ROUTINE_PLAN_3(キャラ番号, マップ種別取得フラグ = 0)
 #FUNCTION
+#DIM マップ種別取得フラグ
 #DIM キャラ番号
 
 ;時間ごとにどの場所にいるべきかを決定
 SELECTCASE TIME
 	;9時より前はロビーにいる
 	CASE IS < 540
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 2
 	;12時までは遊戯室にいる
 	CASE IS < 720
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 500 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 5
 	;13時半までは食堂にいる
 	CASE IS < 810
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 4
 	;18時までは遊戯室にいる
 	CASE IS < 1080
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		SIF 移動ルーチン:キャラ番号:マップ内ルーチン番号
 			RETURNF 500 + 移動ルーチン:キャラ番号:マップ内ルーチン番号
 		RETURNF 5
 	;19時半までは食堂にいる
 	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		RETURNF 4
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -287,6 +364,8 @@ SELECTCASE TIME
 		ENDIF
 	;21時までは風呂にいる
 	CASE IS < 1260
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 9
 		ELSE
@@ -294,6 +373,8 @@ SELECTCASE TIME
 		ENDIF
 	;風呂の前後１５分は脱衣所
 	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURNF 0
 		IF TALENT:キャラ番号:性別 == 2
 			RETURNF 7
 		ELSE
@@ -301,6 +382,8 @@ SELECTCASE TIME
 		ENDIF
 	;寝るまでは自室にいる
 	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURNF 999
 		RETURNF 999
 ENDSELECT
 
@@ -315,8 +398,28 @@ CFLAG:キャラ番号:現在位置 = RESULT
 ;マップ間移動処理
 CALL キャラ居場所再設定(CFLAG:キャラ番号:現在マップ種別, キャラ番号)
 ;同じ部屋に来たならPRINT
-SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠
+SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別 
 	PRINTFORMW %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
+
+
+@汎用マップ間移動処理(キャラ番号)
+;仮処理置き
+;マップ増やしたらちゃんと汎用化すること！！！！！！！！
+
+#DIM キャラ番号
+;同じ部屋にいるなら移動先PRINT
+LOCALS = %マップエリア名取得(ROUTINE_PLAN_3(キャラ番号, 1))%
+SIF CFLAG:キャラ番号:同室 && !CFLAG:MASTER:睡眠
+	PRINTFORMW %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から【%LOCALS%】に移動した
+;移動処理
+CFLAG:キャラ番号:現在位置 = マップ移動初期位置(CFLAG:キャラ番号:現在マップ種別, ROUTINE_PLAN_3(キャラ番号, 1))
+SIF CFLAG:キャラ番号:現在位置 == 999
+	CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+CFLAG:キャラ番号:現在マップ種別 = ROUTINE_PLAN_3(キャラ番号, 1)
+;同じ部屋に来たならPRINT
+SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別 
+	PRINTFORMW %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
+
 
 @自室移動処理(キャラ番号)
 #DIM キャラ番号
@@ -337,3 +440,21 @@ SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MA
 	PRINTFORMW %CALLNAME:キャラ番号%が自室に戻って来た
 
 
+
+@マップ移動初期位置(移動前マップ, 移動後マップ)
+#FUNCTION
+#DIM 移動前マップ
+#DIM 移動後マップ
+
+SELECTCASE 移動前マップ
+	CASE 0
+		SELECTCASE 移動後マップ
+			CASE 999
+				RETURNF 999
+		ENDSELECT
+	CASE 999
+		SELECTCASE 移動後マップ
+			CASE 0
+				RETURNF 0
+		ENDSELECT
+ENDSELECT
