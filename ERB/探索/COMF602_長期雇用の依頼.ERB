@@ -1,0 +1,86 @@
+﻿;-------------------------------------------------
+;長期雇用の依頼
+;-------------------------------------------------
+@COMNAME602
+#FUNCTIONS
+TSTR:コマンド名受渡 = 長期雇用の依頼
+SIF CFLAG:TARGET:長期雇用
+	TSTR:コマンド名受渡 = 長期雇用の取消
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_602
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("探索")
+
+@COM_TOOLTIP_602
+LOCALS = <br>■長期雇用の依頼<br>
+LOCALS += "相手を雇用し、リゾートに滞在しながら探索を手伝ってもらう契約を結ぶ。<br>"
+LOCALS += "この契約が続いている間は、相手はリゾートに滞在し続ける。<br>"
+LOCALS += "<br>COMタイプ：探索<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM602
+DRAWLINE
+IF CFLAG:TARGET:長期雇用
+	PRINTL ※既に長期雇用済みです
+	PRINTFORML %CALLNAME:TARGET%の長期雇用を取り消しますか？　（現在消費中ルピ：１日 / 1000ルピ）
+ELSE
+	PRINTL 探索の手伝いを長期に渡って依頼することで、毎日ルピを消費する代わりにキャラクターが帰宅しないようになります。
+	PRINTL ※探索パーティから外すことは可能です。
+	PRINTFORML %CALLNAME:TARGET%を長期雇用しますか？　（必要ルピ：１日 / 1000ルピ）
+ENDIF
+
+
+PRINTBUTTON "[0]はい", 0
+PRINTL
+PRINTBUTTON "[1]いいえ", 1
+PRINTL
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		CFLAG:TARGET:長期雇用 = !CFLAG:TARGET:長期雇用
+	CASE 1
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE602
+#DIM ループ用
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(602)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM602
+
+IF CFLAG:TARGET:長期雇用
+	PRINTFORML %CALLNAME:TARGET%を長期雇用しました。
+	PRINTL （一日の終了時にルピが1000消費されます）
+ELSE
+	PRINTFORML %CALLNAME:TARGET%の長期雇用を取り消しました。
+ENDIF
