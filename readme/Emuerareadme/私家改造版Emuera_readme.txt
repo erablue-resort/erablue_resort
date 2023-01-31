@@ -1,205 +1,217 @@
-﻿◎私家改造版について
-本家Emueraのバグ修正を行ったものとなります。
+�����Ɖ����łɂ���
+�{��Emuera�̃o�O�C�����s�������̂ƂȂ�܂��B
 
-◎開発方針
-Emuera本家が対応停止状態となっているため、私家改造版はコードのベースとするためにバグ修正以外の変更を行わないものとします
+���J�����j
+Emuera�{�Ƃ��Ή���~��ԂƂȂ��Ă��邽�߁A���Ɖ����ł̓R�[�h�̃x�[�X�Ƃ��邽�߂Ƀo�O�C���ȊO�̕ύX���s��Ȃ����̂Ƃ��܂�
 
-◎ライセンス
-Emuera本体に準じます。
+�����C�Z���X
+Emuera�{�̂ɏ����܂��B
 
-◎派生ソフトの作成について
-Emueraのライセンスに従っていただければ自由にフォークしていただいて構いません。
-むしろ、新機能が欲しい等の場合には積極的にフォークしていただければと思います。
-その際はEmueraのライセンスファイルの添付とともに、フォーク元になったベースバージョンの明記もお願いいたします。
-（Emueraのライセンスファイルが当ソフトのライセンスファイルを兼ねるため、本ファイルの添付は不要です。）
+���h���\�t�g�̍쐬�ɂ���
+Emuera�̃��C�Z���X�ɏ]���Ă���������Ύ��R�Ƀt�H�[�N���Ă��������č\���܂���B
+�ނ���A�V�@�\���~�������̏ꍇ�ɂ͐ϋɓI�Ƀt�H�[�N���Ă���������΂Ǝv���܂��B
+���̍ۂ�Emuera�̃��C�Z���X�t�@�C���̓Y�t�ƂƂ��ɁA�t�H�[�N���ɂȂ����x�[�X�o�[�W�����̖��L�����肢�������܂��B
+�iEmuera�̃��C�Z���X�t�@�C�������\�t�g�̃��C�Z���X�t�@�C�������˂邽�߁A�{�t�@�C���̓Y�t�͕s�v�ł��B�j
 
-◎現在のベースバージョン
-・Emuera1824+v15
-　○LOADTEXTでEmueraでは絶許である\rが紛れ込むあまりにも致命的な処理上の穴を塞いだ
-　　　
-・Emuera1824+v14
-　○resourceフォルダの読み込みで.csvXのようなゴミのついた拡張子もcsvファイルとして読みこんでしまうのを修正
-　○CSVでエラーをかました時の行表示処理で例外をはくのを修正
-　　　CSVファイルがエラーになった時のこと忘れてた（ﾃﾍﾍﾟﾛ
-　　　
-・Emuera1824+v13
-　○[SKIPSTART]～[SKIPEND]のブロック内に{や}があると、行連結と誤爆して例外を投げるのを修正
-　
-・Emuera1824+v12
-　○ADDSPCHARがSPキャラ互換設定有効時の処理がおかしいのを修正
-　○コード自体は内部のに保存せず、エラー時はファイルから読み取るように修正
-　　　大規模バリアントだと数百MBぐらいメモリ使ってくれちゃってたので
-　○一部コードの微修正
-　　　無駄な代入処理な引数を削除してみたり
-　○他にも何かあるかも（更新自体が久々過ぎて何やったかもう覚えてない
-　　　
-・Emuera1824+v11
-　○v10で取り込んだ変更を色々チューニング+微修正
-　　　古い実装ではUIのレスポンスが悪い+表示位置正しくならないため
+�����݂̃x�[�X�o�[�W����
+�EEmuera1824+v16
+�@��GDRAWSPRITE��bmp�t�@�C������ǂ݂��񂾉摜���g��\�����悤�Ƃ���Ƒz��O�̕\���ɂȂ�����C��
+�@�@�@�����̂�Emuera�ł͂Ȃ��āAMS�ł��邱�Ƃ����͋������Ă�������
+�@�@�@
+�EEmuera1824+v16
+�@��NOSAMES�̎��������S�ɊԈႦ�Ă����̂��C��
+�@�@�@����ŏ���̓���ɂȂ�킯���Ȃ�����
+�@���L����CSV��ISASSI�������͏�����L�[�ɒu���ƃG���[�ɂȂ��Ă����̂��Ȃ�Ȃ�����
+�@�@�@�������A������ւ�͋������ƂĂ��Ȃ��Ӗ��s���őΉ����邾�����Ԃ̖��ʂȂ̂ŁA�s�������Ă��ǂݎ̂Ă邾���B
+�@�������^�ŏ��l��-��t�������̋����̖��ɂ��Čx���őΉ�
+�@�@�@.Net���̏����̓s���Ȃ̂ŁA�������Ŗ�����������炵�悤�Ƃ͂��Ȃ�����
+�@�@�@
+�EEmuera1824+v15
+�@��LOADTEXT��Emuera�ł͐⋖�ł���\r�����ꍞ�ނ��܂�ɂ��v���I�ȏ�����̌����ǂ���
+�@�@�@
+�EEmuera1824+v14
+�@��resource�t�H���_�̓ǂݍ��݂�.csvX�̂悤�ȃS�~�̂����g���q��csv�t�@�C���Ƃ��ēǂ݂���ł��܂��̂��C��
+�@��CSV�ŃG���[�����܂������̍s�\�������ŗ�O���͂��̂��C��
+�@�@�@CSV�t�@�C�����G���[�ɂȂ������̂��ƖY��Ă��i�����
+�@�@�@
+�EEmuera1824+v13
+�@��[SKIPSTART]�`[SKIPEND]�̃u���b�N����{��}������ƁA�s�A���ƌ딚���ė�O�𓊂���̂��C��
+�@
+�EEmuera1824+v12
+�@��ADDSPCHAR��SP�L�����݊��ݒ�L�����̏��������������̂��C��
+�@���R�[�h���͓̂����̂ɕۑ������A�G���[���̓t�@�C������ǂݎ��悤�ɏC��
+�@�@�@��K�̓o���A���g���Ɛ��SMB���炢�������g���Ă��ꂿ����Ă��̂�
+�@���ꕔ�R�[�h�̔��C��
+�@�@�@���ʂȑ�������Ȉ������폜���Ă݂���
+�@�����ɂ��������邩���i�X�V���̂��v�X�߂��ĉ�������������o���ĂȂ�
+�@�@�@
+�EEmuera1824+v11
+�@��v10�Ŏ�荞�񂾕ύX��F�X�`���[�j���O+���C��
+�@�@�@�Â������ł�UI�̃��X�|���X������+�\���ʒu�������Ȃ�Ȃ�����
 
-◎過去の修正内容
-・Emuera1824+v10
-　○Emuera1823+v1のツールチップ周りの変更が1824に取り込まれてなかったので追加
-　○VARSETが特定条件で正常に機能しないのを修正
+���ߋ��̏C�����e
+�EEmuera1824+v10
+�@��Emuera1823+v1�̃c�[���`�b�v����̕ύX��1824�Ɏ�荞�܂�ĂȂ������̂Œǉ�
+�@��VARSET����������Ő���ɋ@�\���Ȃ��̂��C��
 
-・Emuera1824+v9
-　○ARRAYMSORTがInt32の範囲しか扱えないのをInt64の範囲全体に拡張
-　　　そのままではうまくいかないことも、ちょっと頭をひねればできてしまうものである。
-　○内部の変数定義でTYPOがあったのを修正
-　　　これまで問題にならなかった＝誰も使ってない　というわかりやすいロジック
+�EEmuera1824+v9
+�@��ARRAYMSORT��Int32�͈̔͂��������Ȃ��̂�Int64�͈̔͑S�̂Ɋg��
+�@�@�@���̂܂܂ł͂��܂������Ȃ����Ƃ��A������Ɠ����Ђ˂�΂ł��Ă��܂����̂ł���B
+�@�������̕ϐ���`��TYPO���������̂��C��
+�@�@�@����܂Ŗ��ɂȂ�Ȃ��������N���g���ĂȂ��@�Ƃ����킩��₷�����W�b�N
 
-・Emuera1824+v8.1
-　○例外発生時のエラーログ出力時のファイル名表示がフルパスなのをそうでないように
+�EEmuera1824+v8.1
+�@����O�������̃G���[���O�o�͎��̃t�@�C�����\�����t���p�X�Ȃ̂������łȂ��悤��
 
-・Emuera1824+v8
-　○再起動時の画像データのクリアがちゃんとできていないのを修正
-　○WINAPIモード時の再起動中に内部で例外が起こりそのまま落ちてしまうことがあったのを修正
+�EEmuera1824+v8
+�@���ċN�����̉摜�f�[�^�̃N���A�������Ƃł��Ă��Ȃ��̂��C��
+�@��WINAPI���[�h���̍ċN�����ɓ����ŗ�O���N���肻�̂܂ܗ����Ă��܂����Ƃ��������̂��C��
 
-・Emuera1824+v7
-　○ERHファイル中で起きたエラーを正しくキャッチして処理を止められていないバグを修正
-　　　そりゃ大量のエラー祭にもなるわけである
-　　　ちなみに構文そのものエラーと、行解析時のエラーの両方があるときだけ正しく動いていたとかいうギャグ
+�EEmuera1824+v7
+�@��ERH�t�@�C�����ŋN�����G���[�𐳂����L���b�`���ď������~�߂��Ă��Ȃ��o�O���C��
+�@�@�@������ʂ̃G���[�Ղɂ��Ȃ�킯�ł���
+�@�@�@���Ȃ݂ɍ\�����̂��̃G���[�ƁA�s��͎��̃G���[�̗���������Ƃ����������������Ă����Ƃ������M���O
 
-・Emuera1824+v6.2
-　○UNICODE関数の警告表示周りで事前解析時にRestructureされてる場合に.Net例外になるのを修正
-　　　実行中に発覚した場合とは処理変えないといけなかったですね、はい
+�EEmuera1824+v6.2
+�@��UNICODE�֐��̌x���\������Ŏ��O��͎���Restructure����Ă�ꍇ��.Net��O�ɂȂ�̂��C��
+�@�@�@���s���ɔ��o�����ꍇ�Ƃ͏����ς��Ȃ��Ƃ����Ȃ������ł��ˁA�͂�
 
-・Emuera1824+v6.1
-　○UNICODE関数周りの変更
-　　　改行に対応する制御文字0x0Aと0x0Dは通すように変更
-　　　ついでにごりおしで注意文を出すシステムを作ったので、警告かつ空文字列を返すように変更
+�EEmuera1824+v6.1
+�@��UNICODE�֐�����̕ύX
+�@�@�@���s�ɑΉ����鐧�䕶��0x0A��0x0D�͒ʂ��悤�ɕύX
+�@�@�@���łɂ��肨���Œ��ӕ����o���V�X�e����������̂ŁA�x�����󕶎����Ԃ��悤�ɕύX
 
-・Emuera1824+v6
-　○UNICODEメソッドが制御文字に対応する数字を受け付けないように
-　　　0では実害あるケース報告されてるものの他はあんま影響ないとは思うわけだが念のため
-　　　わざとか事故以外ないと思うのでエラー扱いでいいや
-　○内部コードの無駄を整理やら保守面での変更やら
-　　　雑なコードの多さが露わすぎたので
+�EEmuera1824+v6
+�@��UNICODE���\�b�h�����䕶���ɑΉ����鐔�����󂯕t���Ȃ��悤��
+�@�@�@0�ł͎��Q����P�[�X�񍐂���Ă���̂̑��͂���܉e���Ȃ��Ƃ͎v���킯�����O�̂���
+�@�@�@�킴�Ƃ����̈ȊO�Ȃ��Ǝv���̂ŃG���[�����ł�����
+�@�������R�[�h�̖��ʂ𐮗����ێ�ʂł̕ύX���
+�@�@�@�G�ȃR�[�h�̑������I�킷�����̂�
 
-・Emuera1824+v5
-　○STRJOIN内部処理の引数ハンドリングがザルで事故りまくりなのを修正
-　　　ほんと実装が中途半端すぎたorz
+�EEmuera1824+v5
+�@��STRJOIN���������̈����n���h�����O���U���Ŏ��̂�܂���Ȃ̂��C��
+�@�@�@�ق�Ǝ��������r���[������orz
 
-・Emuera1824+v4
-　○+v1の修正が中途半端でやっぱりエラー吐くのを修正
-　　　チェックが甘かった
-　○HTML_PRINTの<button>タグでvalueが32bit整数を超える値の場合ボタンにならないのを修正
-　　　実用的には問題にならない気もするが
+�EEmuera1824+v4
+�@��+v1�̏C�������r���[�ł���ς�G���[�f���̂��C��
+�@�@�@�`�F�b�N���Â�����
+�@��HTML_PRINT��<button>�^�O��value��32bit�����𒴂���l�̏ꍇ�{�^���ɂȂ�Ȃ��̂��C��
+�@�@�@���p�I�ɂ͖��ɂȂ�Ȃ��C�����邪
 
-・Emuera1824+v3
-　○行連結読み込み時にFORM文字列{数値変数}が先頭にあると豪快に誤爆して例外を放り投げてくるのを修正
-　　　そりゃ、この判定の仕方じゃ誤爆するよ、TrimStartしかしてないんだよ？
+�EEmuera1824+v3
+�@���s�A���ǂݍ��ݎ���FORM������{���l�ϐ�}���擪�ɂ���ƍ����Ɍ딚���ė�O����蓊���Ă���̂��C��
+�@�@�@�����A���̔���̎d������딚�����ATrimStart�������ĂȂ��񂾂�H
 
-・Emuera1824+v2
-　○HTML_GETPRINTEDSTRが正しくない返り値を返すケースがあるのを修正
-　　　こ　れ　は　ひ　ど　い
+�EEmuera1824+v2
+�@��HTML_GETPRINTEDSTR���������Ȃ��Ԃ�l��Ԃ��P�[�X������̂��C��
+�@�@�@���@��@�́@�Ё@�ǁ@��
 
-・Emuera1824+v1（差し替え版）
-　○STRJOINが豪快にバグってたどころか、仕様に対して実装がgdgdになっていたのを修正
-　　　おそらく、引数の仕様変えた時に実装が中途半端だったっぽいorz
+�EEmuera1824+v1�i�����ւ��Łj
+�@��STRJOIN�������Ƀo�O���Ă��ǂ��납�A�d�l�ɑ΂��Ď�����gdgd�ɂȂ��Ă����̂��C��
+�@�@�@�����炭�A�����̎d�l�ς������Ɏ��������r���[���������ۂ�orz
 
-・Emuera1823+v1
-　○TOOLTIP_SETDELAYとTOOLTIP_SETDURATIONを併用した場合にDELAYが働かないバグを修正
-　　　C#側に併用できる仕組みがないのが悪いんや…
-　○テスト版で行った残り時間非表示のTINPUTとAWAITの挙動変更を取り込み
-　　　もちろんがんがんテスト状態、事故ったらﾜｰｲヽ(ﾟ∀ﾟ)ﾒ(ﾟ∀ﾟ)ﾒ(ﾟ∀ﾟ)ﾉﾜｰｲ
+�EEmuera1823+v1
+�@��TOOLTIP_SETDELAY��TOOLTIP_SETDURATION�𕹗p�����ꍇ��DELAY�������Ȃ��o�O���C��
+�@�@�@C#���ɕ��p�ł���d�g�݂��Ȃ��̂��������c
+�@���e�X�g�łōs�����c�莞�Ԕ�\����TINPUT��AWAIT�̋����ύX����荞��
+�@�@�@������񂪂񂪂�e�X�g��ԁA���̂�����ܰ��R(߁��)�(߁��)�(߁��)�ܰ�
 
-・Emuera1822+v1
-　○解析モード時のチェックファイルの判定のエンバグ修正
-　　　1821+v11の履歴表示行数のバグ修正による事故でした
+�EEmuera1822+v1
+�@����̓��[�h���̃`�F�b�N�t�@�C���̔���̃G���o�O�C��
+�@�@�@1821+v11�̗���\���s���̃o�O�C���ɂ�鎖�̂ł���
 
-・Emuera1821+v11.1
-　○REPEAT、FORの入れ子をエラー扱いから警告扱いに引き下げ
-　　　個人的にはエラーでもいいが、現実的にはこっちの方が妥当かなーとか思い返してみる
-　　　ついでに警告文に無限ループの指摘を追加
+�EEmuera1821+v11.1
+�@��REPEAT�AFOR�̓���q���G���[��������x�������Ɉ�������
+�@�@�@�l�I�ɂ̓G���[�ł��������A�����I�ɂ͂������̕����Ó����ȁ[�Ƃ��v���Ԃ��Ă݂�
+�@�@�@���łɌx�����ɖ������[�v�̎w�E��ǉ�
 
-・Emuera1821+v11
-　○履歴表示行数が設定を無視して10000行固定になっていたのを修正
-　　　何でこんな中途半端なことしてたのやら…
-　○#REFで定義された変数の想定仕様と内部挙動がかみあってないのを修正
-　　　内部挙動の問題なのでコーディング上の影響はないと信じたい
-　○v9,v9.1の追加警告まわりの色々tweak
-　　　ちゃんとCOUNTの引数（定数の場合のみ）も見るように、eraMegaten母ちゃんあたりですごい誤爆してたので…
-　　　後、多重化で引っかかったREPEATやFORに対して対応なし警告がセットになってしまうので、それを出ないようにちょっといじった
+�EEmuera1821+v11
+�@������\���s�����ݒ�𖳎�����10000�s�Œ�ɂȂ��Ă����̂��C��
+�@�@�@���ł���Ȓ��r���[�Ȃ��Ƃ��Ă��̂��c
+�@��#REF�Œ�`���ꂽ�ϐ��̑z��d�l�Ɠ������������݂����ĂȂ��̂��C��
+�@�@�@���������̖��Ȃ̂ŃR�[�f�B���O��̉e���͂Ȃ��ƐM������
+�@��v9,v9.1�̒ǉ��x���܂��̐F�Xtweak
+�@�@�@������COUNT�̈����i�萔�̏ꍇ�̂݁j������悤�ɁAeraMegaten�ꂿ��񂠂���ł������딚���Ă��̂Łc
+�@�@�@��A���d���ň�����������REPEAT��FOR�ɑ΂��đΉ��Ȃ��x�����Z�b�g�ɂȂ��Ă��܂��̂ŁA������o�Ȃ��悤�ɂ�����Ƃ�������
 
-・Emuera1821+v10
-　○STRJOINが第1引数が～～NAMEのような定数文字列配列の場合豪快に例外吐くのを修正
-　　　この場合何が起こるか頭から抜けてた
-　○v9、9.1の変更部分で特定条件で例外が飛ぶのを修正
-　　　ただし、この例外が飛ぶ=その行がエラーを起こしている、なので、これが直ろうがその行は100%エラーです
+�EEmuera1821+v10
+�@��STRJOIN����1�������`�`NAME�̂悤�Ȓ萔������z��̏ꍇ�����ɗ�O�f���̂��C��
+�@�@�@���̏ꍇ�����N���邩�����甲���Ă�
+�@��v9�A9.1�̕ύX�����œ�������ŗ�O����Ԃ̂��C��
+�@�@�@�������A���̗�O�����=���̍s���G���[���N�����Ă���A�Ȃ̂ŁA���ꂪ���낤�����̍s��100%�G���[�ł�
 
-・Emuera1821+v9.1
-　○REPEATならびにCOUNTをループ変数にとるFORが多重になっている場合のエラー表示追加が引数をチェックしない場合豪快に例外吐くのを修正
-　　　うん、この設定のこと頭から抜け落ちてた
-　　　
-・Emuera1821+v9
-　○PRINTBUTTON系ならびにPRINTPLAIN系が特定条件でSETCOLORを反映しない問題を修正
-　　　うん、これは設計が悪い、間違いなく悪い
-　○REPEATならびにCOUNTをループ変数にとるFORが多重になっている場合のエラー表示追加
-　　　関数跨ぎだけはさすがに無理です
+�EEmuera1821+v9.1
+�@��REPEAT�Ȃ�т�COUNT�����[�v�ϐ��ɂƂ�FOR�����d�ɂȂ��Ă���ꍇ�̃G���[�\���ǉ����������`�F�b�N���Ȃ��ꍇ�����ɗ�O�f���̂��C��
+�@�@�@����A���̐ݒ�̂��Ɠ����甲�������Ă�
+�@�@�@
+�EEmuera1821+v9
+�@��PRINTBUTTON�n�Ȃ�т�PRINTPLAIN�n�����������SETCOLOR�𔽉f���Ȃ������C��
+�@�@�@����A����͐݌v�������A�ԈႢ�Ȃ�����
+�@��REPEAT�Ȃ�т�COUNT�����[�v�ϐ��ɂƂ�FOR�����d�ɂȂ��Ă���ꍇ�̃G���[�\���ǉ�
+�@�@�@�֐��ׂ������͂������ɖ����ł�
 
-・Emuera1821+v8
-　○COPYCHARA、ADDCOPYCHARAがユーザー定義キャラクタ変数をコピーしない問題を修正
-　　　作った後に増えた部分だから、Emuの人の作業漏れの公算大？
+�EEmuera1821+v8
+�@��COPYCHARA�AADDCOPYCHARA�����[�U�[��`�L�����N�^�ϐ����R�s�[���Ȃ������C��
+�@�@�@�������ɑ���������������AEmu�̐l�̍�ƘR��̌��Z��H
 
-・Emuera1821+v7.2
-　○文字列配列の結合関数STRJOINの追加
-　　　書式：STRJOIN(＜配列変数＞{, ＜区切り文字列＞, ＜配列添え字開始位置＞, ＜配列添え字要素数＞})
-　　　内容：ツールチップの最大表示時間を[表示時間(ms)]に設定
-　　　引数：＜配列変数＞：結合した配列変数、キャラ変数を指定した場合エラーになるかも
-　　　　　　＜区切り文字列＞：結合のさいに要素間に加える文字列、他の言語の同一処理同様、省略時は","が自動的に適用されます（区切り文字が必要ない場合は""を与えてください）
-　　　　　　＜配列添え字開始位置＞、＜配列添え字要素数＞：指定した場合　配列添え字開始位置≦i＜開始位置＋配列添え字要素数　の範囲で結合する
-　　　　　　後者を指定する場合、前者は省略不可
-　　　最初JOINにしようと思ったけど事故がありそうだからこうした
-　　　ver7.1で引数仕様変更
-　　　ver7.2で数値配列に変数、区切り文字列の処理に問題があったので修正
+�EEmuera1821+v7.2
+�@��������z��̌����֐�STRJOIN�̒ǉ�
+�@�@�@�����FSTRJOIN(���z��ϐ���{, ����؂蕶����, ���z��Y�����J�n�ʒu��, ���z��Y�����v�f����})
+�@�@�@���e�F�c�[���`�b�v�̍ő�\�����Ԃ�[�\������(ms)]�ɐݒ�
+�@�@�@�����F���z��ϐ����F���������z��ϐ��A�L�����ϐ����w�肵���ꍇ�G���[�ɂȂ邩��
+�@�@�@�@�@�@����؂蕶���񁄁F�����̂����ɗv�f�Ԃɉ����镶����A���̌���̓��ꏈ�����l�A�ȗ�����","�������I�ɓK�p����܂��i��؂蕶�����K�v�Ȃ��ꍇ��""��^���Ă��������j
+�@�@�@�@�@�@���z��Y�����J�n�ʒu���A���z��Y�����v�f�����F�w�肵���ꍇ�@�z��Y�����J�n�ʒu��i���J�n�ʒu�{�z��Y�����v�f���@�͈̔͂Ō�������
+�@�@�@�@�@�@��҂��w�肷��ꍇ�A�O�҂͏ȗ��s��
+�@�@�@�ŏ�JOIN�ɂ��悤�Ǝv�������ǎ��̂����肻�������炱������
+�@�@�@ver7.1�ň����d�l�ύX
+�@�@�@ver7.2�Ő��l�z��ɕϐ��A��؂蕶����̏����ɖ�肪�������̂ŏC��
 
-・Emuera1821+v6
-　○SORTCHARAをユーザー定義変数で行うと例外チュドーンになるのを修正
-　　　このパターン想定しないコードで放置してたの、どこのEmuの人ですかー？
+�EEmuera1821+v6
+�@��SORTCHARA�����[�U�[��`�ϐ��ōs���Ɨ�O�`���h�[���ɂȂ�̂��C��
+�@�@�@���̃p�^�[���z�肵�Ȃ��R�[�h�ŕ��u���Ă��́A�ǂ���Emu�̐l�ł����[�H
 
-・Emuera1821+v5.2
-　○@USERXXX系システム関数でREUSELASTLINEを利用したシステム内部処理渡しについて、
-　　REUSELASTLINE命令の引数が空白でない場合、システム側メッセージの表示を行わないように変更
-　　　ただし、これを利用してスクリプト側でREUSELASTLINEを用いてメッセージを表示させたい場合、
-　　　システム内部処理とタイミングが異なる関係上、入力値の表示を自動でクリアできないため、
-　　　入力値の表示を消したい場合、REUSELASTLINEの前にCLEARLINE 1を行う必要があります。
+�EEmuera1821+v5.2
+�@��@USERXXX�n�V�X�e���֐���REUSELASTLINE�𗘗p�����V�X�e�����������n���ɂ��āA
+�@�@REUSELASTLINE���߂̈������󔒂łȂ��ꍇ�A�V�X�e�������b�Z�[�W�̕\�����s��Ȃ��悤�ɕύX
+�@�@�@�������A����𗘗p���ăX�N���v�g����REUSELASTLINE��p���ă��b�Z�[�W��\�����������ꍇ�A
+�@�@�@�V�X�e�����������ƃ^�C�~���O���قȂ�֌W��A���͒l�̕\���������ŃN���A�ł��Ȃ����߁A
+�@�@�@���͒l�̕\�������������ꍇ�AREUSELASTLINE�̑O��CLEARLINE 1���s���K�v������܂��B
 
-・Emuera1821+v5.1
-　○v5の変更でSTRFORMの引数が文字列変数の場合の挙動がおかしくなったのを修正
-　　　引数チェックのタイミングで挙動が変わるのは非常によろしくない
-　○TOOLTIP_SETDURATIONが設定されているときのツールチップの表示位置のtweak
-　　　マウスカーソルのやや下に表示されるように位置設定
+�EEmuera1821+v5.1
+�@��v5�̕ύX��STRFORM�̈�����������ϐ��̏ꍇ�̋��������������Ȃ����̂��C��
+�@�@�@�����`�F�b�N�̃^�C�~���O�ŋ������ς��͔̂��ɂ�낵���Ȃ�
+�@��TOOLTIP_SETDURATION���ݒ肳��Ă���Ƃ��̃c�[���`�b�v�̕\���ʒu��tweak
+�@�@�@�}�E�X�J�[�\���̂�≺�ɕ\�������悤�Ɉʒu�ݒ�
 
-・Emuera1821+v5
-　○STRFORMが正しく振る舞わないバグを修正
-　　　かなりクリティカルなバグというか、ここまで判明しなかったのが驚きというレベル
+�EEmuera1821+v5
+�@��STRFORM���������U�镑��Ȃ��o�O���C��
+�@�@�@���Ȃ�N���e�B�J���ȃo�O�Ƃ������A�����܂Ŕ������Ȃ������̂������Ƃ������x��
 
-・Emuera1821+v4
-　○一部命令のエラー時の表示がおかしいのを修正
-　　　コピペしたら文面修正を忘れないのは大事な作業ですよ？
-　○解析モード時はコンフィグによらず10000行までデータを保持するように
-　　　一部バリアントはこれでも収まらないが、これ以上はメモリ不足との兼ね合いが生じ始めるためさすがにこれで許してください
+�EEmuera1821+v4
+�@���ꕔ���߂̃G���[���̕\�������������̂��C��
+�@�@�@�R�s�y�����當�ʏC����Y��Ȃ��̂͑厖�ȍ�Ƃł���H
+�@����̓��[�h���̓R���t�B�O�ɂ�炸10000�s�܂Ńf�[�^��ێ�����悤��
+�@�@�@�ꕔ�o���A���g�͂���ł����܂�Ȃ����A����ȏ�̓������s���Ƃ̌��ˍ����������n�߂邽�߂������ɂ���ŋ����Ă�������
 
-・Emuera1821+v3.1
-　○命令TOOLTIP_SETDURATIONの挙動に関するtweak
-　　　表示命令の時間指定引数にwindows側の仕様でshortの最大値である32767より大きな値を渡すと無視されるようなので
-　　　shortの最大値を超える場合は32767を引数とするように変更
+�EEmuera1821+v3.1
+�@������TOOLTIP_SETDURATION�̋����Ɋւ���tweak
+�@�@�@�\�����߂̎��Ԏw�������windows���̎d�l��short�̍ő�l�ł���32767���傫�Ȓl��n���Ɩ��������悤�Ȃ̂�
+�@�@�@short�̍ő�l�𒴂���ꍇ��32767�������Ƃ���悤�ɕύX
 
-・Emuera1821+v3
-　○ツールチップの表示時間を設定する命令TOOLTIP_SETDURATIONを追加
-　　　書式：TOOLTIP_SETDURATION [表示時間(ms)]
-　　　内容：ツールチップの最大表示時間を[表示時間(ms)]に設定
-　　　引数：[表示時間(ms)]：0以上の整数値　0の場合デフォルトの挙動になります、後タイマーの特性上極端に短い時間は想定通りに動かないかもねー
+�EEmuera1821+v3
+�@���c�[���`�b�v�̕\�����Ԃ�ݒ肷�閽��TOOLTIP_SETDURATION��ǉ�
+�@�@�@�����FTOOLTIP_SETDURATION [�\������(ms)]
+�@�@�@���e�F�c�[���`�b�v�̍ő�\�����Ԃ�[�\������(ms)]�ɐݒ�
+�@�@�@�����F[�\������(ms)]�F0�ȏ�̐����l�@0�̏ꍇ�f�t�H���g�̋����ɂȂ�܂��A��^�C�}�[�̓�����ɒ[�ɒZ�����Ԃ͑z��ʂ�ɓ����Ȃ������ˁ[
 
-・Emuera1821+v2.1（ﾃｽﾄ向け公開）
-　○再起動時、_fixed.configの変更に対して、コンフィグダイアログの固定状態が追随しないのを修正
+�EEmuera1821+v2.1�iýČ������J�j
+�@���ċN�����A_fixed.config�̕ύX�ɑ΂��āA�R���t�B�O�_�C�A���O�̌Œ��Ԃ��ǐ����Ȃ��̂��C��
 
-・Emuera1821+v2
-　○PRINT系命令の大半がSKIPDISPを無視するという実装漏れを修正
-　　　CALLTRAIN使うとひどいことになりますね、はい
+�EEmuera1821+v2
+�@��PRINT�n���߂̑唼��SKIPDISP�𖳎�����Ƃ��������R����C��
+�@�@�@CALLTRAIN�g���ƂЂǂ����ƂɂȂ�܂��ˁA�͂�
 
-・Emuera1821+v1
-　○1821+v2の修正がキャラクタ変数に適用されてないのを修正
+�EEmuera1821+v1
+�@��1821+v2�̏C�����L�����N�^�ϐ��ɓK�p����ĂȂ��̂��C��
 
-作業従事者：妊）|дﾟ)の中の人
+��Ə]���ҁF�D�j|�t�)�̒��̐l

@@ -1,7 +1,7 @@
-﻿タイトル：EmueraEE 最終更新日:2022/09/11
-バージョン：1.824+v15+EMv13fix+EEv23
+﻿タイトル：EmueraEM+EE 最終更新日:2023/01/31
+バージョン：1.824+v17+EMv17+EEv30
 改変者：Enter
-元となったアプリケーション：Emuera1.824+v15（妊）|дﾟ)の中の人、及びMinorShift制作）、WebP-wrapper(JosePineiro制作)、Emuera.EM（EvilMask制作）
+元となったアプリケーション：Emuera1.824+v17（妊）|дﾟ)の中の人、及びMinorShift制作）、WebP-wrapper(JosePineiro制作)、Emuera.EM（EvilMask制作）
 連絡先：Twitter/@eraBEMANI Discord/https://discord.gg/p5rb5uK
 eraシリーズまとめwikiのページ：https://seesaawiki.jp/eraseries/d/EmueraEM%2bEE%a4%ce%c4%c9%b2%c3%b5%a1%c7%bd
 docs：https://evilmask.gitlab.io/emuera.em.doc/
@@ -14,9 +14,9 @@ docs：https://evilmask.gitlab.io/emuera.em.doc/
 
 ※使用しているセキュリティソフト次第では危険なファイルとして警告・削除される場合があります
 　セキュリティソフトの設定を変更して使用することはできますが、自己責任でお願いします
-　virustotal(ファイルの安全性確認サイト)のリンク：https://www.virustotal.com/gui/file/4c28530bfd2bef3310424d11d797db0862f09d72c186e28c3f04c8dfa261ac34
+　virustotal(ファイルの安全性確認サイト)のリンク：https://www.virustotal.com/gui/file/43bfc22117635201402f67c2c32d7a5de213ef60fd85cb23b26ce1047557cbb5
 
-[v12にてEmuera.EMと機能統合。詳しくは同梱のEmuera.EM_read me.txtをご覧ください]
+[v12にてEmuera.EMと機能統合。上記リンクのドキュメント(docs)を参照]
 [EMv8+EEv15にてhtml形式のドキュメントを同梱。追加機能などがより詳しく書かれています]
 
 [報告]
@@ -160,6 +160,48 @@ COUNTを使用禁止変数に設定した場合は起動時にREPEAT行を警告
 
 ・INPUTANY
 数値、文字列両方の入力に対応したINPUT。数値型が入力されればRESULTに、文字列型が入力されればRESULTSに代入される
+
+・GETNUM拡張
+多次元配列ERDに対応するためGETNUMで第三引数に次元を指定できるように。左から1,2,3となる。式中関数VARSETの仕様(0,1,2)とは異なるため注意
+また、オプションにて式中関数VARSETの次元指定をERDと同じく1,2,3とするオプションを追加
+
+・ERDNAME 変数名, 要素(, 次元)
+TALENTNAMEやCFLAGNAMEのように数字から要素名を逆引きできる。式中関数としても使用可。次元指定は左から1,2,3
+上記GETNUMも含め、一次元配列変数で次元指定すると機能しない
+
+・INPUT拡張
+EM版の「クリックをEnterキーとみなす」の後に引数を追加
+非0を指定すると右クリックでのスキップ中にRESULTもしくはRESULTSにデフォルト値を入れてスキップされる
+「クリックをEnterキーとみなす」の引数が0の場合はRESULT:0,RESULTS:0に、非0の場合はRESULT:1,RESULTS:1にデフォルト値が入る
+
+・FLOWINPUT デフォルト値(, 左クリックをEnterキーとみなすか, 右クリックでスキップ可能か)
+SHOW_SHOP内などフロー上で行われるINPUTにデフォルト値、クリックをEnterキーとみなすオプション、右クリックでスキップ可能のオプションを設定できる
+
+・MOUSEB
+現在マウスオーバー中のボタン内容を取得する。MOUSEX,MOUSEYと同様にAWAITと組み合わせて使う
+実行時点でINPUTかINPUTSか確定していないため文字列型として返される点に注意
+
+・SPRITEDISPOSEALL
+スプライトをすべて破棄する。引数に0を指定するとERB上で作成したものだけ、非0を指定するとresourceフォルダ内のCSVで定義したものも含めて全部破棄する
+返り値はそれぞれ破棄されたスプライト数を返す
+
+・SKIPLOG
+引数に非0を渡すと右クリック等でスキップしてる状態にする。0を渡すとスキップ状態を強制解除する
+
+・多言語化対応
+詳しくは下記リンク
+https://evilmask.gitlab.io/emuera.em.doc/i18n/
+オプション→表示 から言語を変更可能。現在は日本語、英語、中国語に対応
+
+・Emuera-AnchorからClipboard機能を移植
+設定→クリップボードから設定可能。百聞は一見にしかず
+
+・ツールチップ機能拡張
+詳しくは→https://evilmask.gitlab.io/emuera.em.doc/Reference/TOOLTIP_EXTENSION/
+
+・日本語→英語の翻訳辞書機能を実装
+JukesBouver99氏のパッチにて実装。辞書ファイルは同梱済み
+コンフィグでオンオフ切替可能。不要な場合は辞書ファイルも削除可能
 
 ・UPDATECHECK
 アップデートチェック命令を追加。以下使い方

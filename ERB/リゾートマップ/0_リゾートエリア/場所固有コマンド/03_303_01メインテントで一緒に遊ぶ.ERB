@@ -1,24 +1,32 @@
 ﻿
 ;-------------------------------------------------
-;15_1504_01メインプールで一緒に遊ぶ
+;03_303_01メインテントで一緒に遊ぶ
 ;-------------------------------------------------
-@COMNAME_PLACE_380_0_1504
+@COMNAME_PLACE_380_0_303
 #FUNCTION
 
-IF 施設改造度:15:0 == 0
+IF 施設改造度:3:0 == 0
 	TSTR:コマンド名受渡 = 
 	RETURNF 0
 ENDIF
 TSTR:コマンド名受渡 = 一緒に遊ぶ
 RETURNF 1
+
 ;===================================================
 ;コマンドタイプ
 ;===================================================
-@COMTYPE_380_0_1504
+@COMTYPE_380_0_303
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
-		
-@COM380_0_1504
+
+@COM_TOOLTIP_380_0_303
+LOCALS = <br>■一緒に遊ぶ<br>
+LOCALS += "その場にいるキャラ全員とメインテント付近で一緒に遊ぶコマンド。一定確率で大成功、成功、失敗に分岐。<br>ボール遊び、模擬戦、お散歩の3つからランダムで選ばれる。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服(一定条件時)・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM380_0_303
 
 ;成功度の判定
 LOCAL = RAND:100
@@ -37,16 +45,16 @@ ELSE
 ENDIF
 
 ;遊びの種類をランダム決定
-;１：普通に遊ぶ
-;２：泳ぎで競争
-;３：浮き輪でのんびり浮かぶ
+;１：ボール遊び
+;２：模擬戦
+;３：散歩
 TFLAG:コマンド結果受渡し変数３ = RAND:3 + 1
 TFLAG:コマンド結果受渡し変数 = TFLAG:コマンド結果受渡し変数 * TFLAG:コマンド結果受渡し変数３
 
 
 DOWNBASE:MASTER:気力 += 100
 DOWNBASE:MASTER:体力 += 50
-;競争なら追加で体力減少
+;模擬戦なら追加で体力減少
 SIF TFLAG:コマンド結果受渡し変数３ == 2
 	DOWNBASE:MASTER:体力 += 100
 
@@ -60,32 +68,38 @@ FOR LOCAL,1,CHARANUM
 	SIF CFLAG:(TARGET:LOCAL):隠密
 		CONTINUE
 	TARGET = TARGET:LOCAL
-	CALL COM380_0_1504_追加処理
+	CALL COM380_0_303_追加処理
 NEXT
 TARGET = LOCAL:1
 
 TIME += 60
 RETURN 1
 
-@COM380_0_1504_追加処理
+@COM380_0_303_追加処理
 
 DOWNBASE:気力 += 10
 
 SELECTCASE TFLAG:コマンド結果受渡し変数３
 	CASE 1
-		;普通に遊ぶ
+		;ボール遊び
 		DOWNBASE:体力 += 50
 		;歓楽強度
 		LOCAL:0 = 500
 		;征服強度
 		LOCAL:1 = 100
 	CASE 2
-		;競争
+		;模擬戦
 		DOWNBASE:体力 += 100
 		LOCAL:0 = 300
 		LOCAL:1 = 500
+		IF TALENT:戦闘好き > 0
+			LOCAL:0 += 100
+			LOCAL:1 += 200
+		ELSEIF TALENT:戦闘好き < 0
+			LOCAL:0 -= 100
+		ENDIF
 	CASE 3
-		;浮き輪で浮かぶ
+		;お散歩
 		LOCAL:0 = 700
 		LOCAL:1 = 10
 ENDSELECT
@@ -102,12 +116,16 @@ ELSE
 ENDIF
 
 CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
-CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+IF TALENT:戦闘好き < 0 && TFLAG:コマンド結果受渡し変数３ == 2
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL:1)
+ELSE
+	CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+ENDIF
 
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-@COM_ABLE380_0_1504
+@COM_ABLE380_0_303
 ;条件に合う場合0（不許可）を返す
 ;どの条件にも引っかからないなら1（許可）を返す
 ;一括管理
@@ -115,6 +133,9 @@ SIF GLOBAL_COMABLE(380)
 	RETURN RESULT
 ;睡眠中
 SIF CFLAG:睡眠
+	RETURN 0
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
 	RETURN 0
 ;気力0
 SIF BASE:MASTER:気力 <= 0
@@ -124,19 +145,19 @@ RETURN 1
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
-@MESSAGE_COM380_0_1504
+@MESSAGE_COM380_0_303
 
 PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と
 SELECTCASE TFLAG:コマンド結果受渡し変数３
 	CASE 1
-		;普通に遊ぶ
-		PRINT プールで水遊びをした
+		;ボール遊び
+		PRINT ボールを使って遊んだ
 	CASE 2
-		;競争
-		PRINT 誰が一番早く泳げるか競争をした
+		;模擬戦
+		PRINT 模擬戦で体を動かした
 	CASE 3
-		;浮き輪で浮かぶ
-		PRINT のんびりと浮き輪で水面に浮かんだ
+		;お散歩
+		PRINT のんびりと歩きながらお喋りをした
 ENDSELECT
 
 SELECTCASE TFLAG:コマンド結果受渡し変数

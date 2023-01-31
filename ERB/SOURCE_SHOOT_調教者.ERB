@@ -17,13 +17,12 @@ FOR LOCAL, 1, CHARANUM
 		BREAK
 	IF CFLAG:(TARGET:LOCAL):うふふ
 		射精先キャラ:(LOCAL:1) = LOCAL
-		LOCAL:1 = 1
+		LOCAL:1 += 1
 	ENDIF
 NEXT
 
-PRINTL どこに射精しますか？
-DRAWLINE
 ;射精先の一覧から可能な選択肢を引っ張ってくる
+LOCALS =
 LOCAL:1 = 0
 FOR LOCAL, 0, 30
 	TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:0)
@@ -31,17 +30,15 @@ FOR LOCAL, 0, 30
 		SIF !RESULT
 			CONTINUE
 		CALLFORM SHOOT_NAME_{LOCAL}
-		PRINTBUTTONLC @"[{LOCAL}]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%", LOCAL
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%</button><br>"
 		LOCAL:1 += 1
+		LOCAL:2 = LOCAL
 	CATCH
 	ENDCATCH
 NEXT
-IF LOCAL:1 == 0
-	;どれも引っかからなかった場合はその他選択肢を出す
-	CALL SHOOT_NAME_30()
-	PRINTBUTTONLC @"[30]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%", 30
+IF LOCAL:1
+	LOCALS += "<br>"
 ENDIF
-PRINTL
 IF 射精先キャラ:1 > 0
 	LOCAL:1 = 0
 	FOR LOCAL, 0, 30
@@ -50,19 +47,39 @@ IF 射精先キャラ:1 > 0
 			SIF !RESULT
 				CONTINUE
 			CALLFORM SHOOT_NAME_{LOCAL}
-			PRINTBUTTONLC @"[{LOCAL + 100}]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%", LOCAL + 100
+			LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%</button><br>"
 			LOCAL:1 += 1
+			LOCAL:2 = LOCAL + 100
 		CATCH
 		ENDCATCH
 	NEXT
-	IF LOCAL:1 == 0
-		;どれも引っかからなかった場合はその他選択肢を出す
-		CALL SHOOT_NAME_30()
-		PRINTBUTTONLC @"[130]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%", 130
+	IF LOCAL:1
+		LOCALS += "<br>"
 	ENDIF
 ENDIF
 PRINTL
 DRAWLINE
+
+IF LOCAL:1 == 1
+	;射精先が一択の場合
+	TFLAG:フィニッシュ場所 = LOCAL:2 % 100
+	CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:(LOCAL:2 / 100))
+	CALL SHOOT絶頂計算(TARGET:(射精先キャラ:(LOCAL:2 / 100)))
+	SIF TFLAG:被射精絶頂の強度
+		CALL SHOOT絶頂口上(TARGET:(射精先キャラ:(LOCAL:2 / 100)))
+	TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:(LOCAL:2 / 100))
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:(LOCAL:2 / 100)))}
+	RETURN 0
+ELSEIF LOCAL:1 == 0
+	;汎用のみの場合
+	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
+	RETURN 0
+ENDIF
+PRINTL どこに射精しますか？
+DRAWLINE
+HTML_PRINT LOCALS
+
 $INPUT_LOOP
 INPUT
 
@@ -82,25 +99,27 @@ SELECTCASE LOCAL
 			CALL SHOOT絶頂計算(TARGET:(射精先キャラ:0))
 			SIF TFLAG:被射精絶頂の強度
 				CALL SHOOT絶頂口上(TARGET:(射精先キャラ:0))
+			TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:0)
 			TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
 		CATCH
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 		ENDCATCH
 	CASE 100 TO 130
-		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:1)
+		TRYCCALLFORM SHOOT_ABLE_{LOCAL - 100}(射精先キャラ:1)
 			IF !RESULT
 				REUSELASTLINE 
 				GOTO INPUT_LOOP
 			ENDIF
 			;射精実処理
-			TFLAG:フィニッシュ場所 = LOCAL
+			TFLAG:フィニッシュ場所 = LOCAL - 100
 			CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:1)
 			PRINTL
 			DRAWLINE
 			CALL SHOOT絶頂計算(TARGET:(射精先キャラ:1))
 			SIF TFLAG:被射精絶頂の強度
 				CALL SHOOT絶頂口上(TARGET:(射精先キャラ:1))
+			TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:1)
 			TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:1))}
 		CATCH
 			REUSELASTLINE 

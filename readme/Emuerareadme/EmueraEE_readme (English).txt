@@ -1,7 +1,7 @@
-﻿App name:EmueraEE Latest update:2022/09/11
-Version:1.824+v15+EMv13fix+EEv23
+﻿App name:EmueraEM+EE Latest update:2022/10/29
+Version:1.824+v16+EMv16fix+EEv25
 Developer:Enter
-Original Application:Emuera1.824+v15(Developed by 妊）|дﾟ)の中の人 and MinorShift),WebP-wrapper(Developed by JosePineiro)
+Original Application:Emuera1.824+v16(Developed by 妊）|дﾟ)の中の人 and MinorShift),WebP-wrapper(Developed by JosePineiro)
 Contact:Twitter/@eraBEMANI Discord/https://discord.gg/p5rb5uK
 
 ※eramaker's dev,MinorShift and 妊の人 were not relate EmueraEE's development.
@@ -37,7 +37,7 @@ These instructions are using Windows Media Player library. I think can play soun
 If RESULT:0=1(Left click), Button number will set to RESULT:5.
 
 ・GDRAWTEXT gID, "text", X, Y
-Draw text strings to gID. Can abbreviate X and Y.
+Draw text strings to gID. Can omit X and Y.
 This instruction is using brush of set by "GSETBRUSH".
 If succeed will set 1 to RESULT:0, width to RESULT:1, height to RESULT:2.
 
@@ -48,7 +48,7 @@ Get gID's font name set by "GSETFONT".
 Get gID's font size set by "GSETFONT".
 
 ・Can specifying filename and extension in "OUTPUTLOG"
-Can specifying output file name and directry by argument. Can abbreviate argument, That case will output "emuera.log".
+Can specifying output file name and directry by argument. Can omit argument, That case will output "emuera.log".
 
 ・EXISTFUNCTION("function name")
 Check exist function. If function is exist and normal function will return 1,
@@ -56,7 +56,7 @@ Integer user function will return 2, String user function will return 3.
 But can't check system function, This case will return 0.
 
 ・Can specifying font style in "GSETFONT"
-Specifying GSETFONT's fourth argument 4 bit integer(1=bold 2=italic 4=strike 8=underline). Can abbreviate this.
+Specifying GSETFONT's fourth argument 4 bit integer(1=bold 2=italic 4=strike 8=underline). Can omit this.
 
 ・GGETFONT gID
 Get 4 bit integer of gID's font style set by "GSETFONT".
@@ -71,7 +71,7 @@ Do CALLF with TRY.
 Do CALLFORMF with TRY.
 
 ・GDRAWGWITHROTATE destID, srcID, angle, X, Y
-Image drawing to destID from srcID with rotate. Can abbreviate X and Y.
+Image drawing to destID from srcID with rotate. Can omit X and Y.
 
 ・QUIT_AND_RESTART
 Quit Emuera and reboot Emuera.
@@ -108,6 +108,19 @@ Get strings froms textbox.
 
 ・SETTEXTBOX
 Set strings for textbox.
+
+・GETNUM Extension
+In order to support multidimensional array ERD, GETNUM can now specify the dimension as the third argument. From left to right: 1,2,3. Note that this is different from the specification (0,1,2) of the function VARSET in the expression.
+In addition, an option has been added to specify the dimension of the function VARSET in the expression as 1,2,3 as in ERD.
+
+・ERDNAME variableName, index(, dimension)
+Index names can be get numbers like TALENTNAME and CFLAGNAME. Can also be used as a function in an expression. Dimensions are 1,2,3 from left to right.
+(Including GETNUM, it does not work if the dimension is specified in a one-dimensional array variable.
+
+・Multilingual support
+For more information, please refer to the following links
+https://evilmask.gitlab.io/emuera.em.doc/i18n/
+Languages can be changed from the options. Currently supports Japanese, English, and Chinese.
 
 ・UPDATECHECK
 Browse server and check for new version.
