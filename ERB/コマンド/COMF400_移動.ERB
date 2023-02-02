@@ -30,6 +30,22 @@ CFLAG:TARGET:隠密 = 0
 ;表示マップ種類を代入
 TFLAG:マップ種別 = CFLAG:PLAYER:現在位置 / 100
 
+;エリア切り替え時の処理
+IF TFLAG:エリア切り替え時_目的地格納
+	CALLFORM エリア情報登録_{CFLAG:PLAYER:現在マップ種別}("エリア移動可能場所")
+	IF CFLAG:PLAYER:現在位置 == RESULT
+		CFLAG:PLAYER:現在マップ種別 = TFLAG:エリア切り替え時_目的地格納 - 100
+		CALLFORM エリア情報登録_{TFLAG:エリア切り替え時_目的地格納 - 100}("エリア移動可能場所")
+		CFLAG:PLAYER:現在位置 = RESULT
+		TFLAG:エリア切り替え時_目的地格納 = 0
+		TFLAG:195 = 0
+		TIME += 15
+		RETURN 0
+	ELSE
+		TFLAG:195 = RESULT
+	ENDIF
+ENDIF
+
 ;遠距離移動中の処理
 IF TFLAG:195
 	TIME += 1
@@ -92,6 +108,7 @@ IF TFLAG:195
 			;実際は0以外全部立ち止まる扱い
 				CALL KOJO_EVENT(10, LOCAL:2, 1)
 				TFLAG:195 = 0
+				TFLAG:エリア切り替え時_目的地格納 = 0
 				TFLAG:104 = LOCAL:2
 				RETURN 0
 			ENDIF
@@ -104,11 +121,12 @@ IF TFLAG:195
 		CFLAG:MASTER:現在位置 = (TFLAG:195)
 		;遠距離移動フラグ消去
 		TFLAG:195 = 0
-		RETURN 0
-		FOR LOCAL,1,CHARANUM
-			SIF CFLAG:LOCAL:同行
-				CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
-		NEXT
+		SIF !TFLAG:エリア切り替え時_目的地格納
+			RETURN 0
+		; FOR LOCAL,1,CHARANUM
+		; 	SIF CFLAG:LOCAL:同行
+		; 		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+		; NEXT
 	ELSE
 		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:195)
 		;現在位置を更新し、次も移動の扱いにする
@@ -122,7 +140,11 @@ ENDIF
 $DRAW_LOOP
 CALL DRAW_MAP
 
-PRINTL
+PRINTL 
+DRAWLINE
+PRINTBUTTON "[99]別のエリアに移動する", 99
+PRINTL 
+DRAWLINE
 PRINTL 
 PRINTFORML 現在{CFLAG:MASTER:現在位置}:%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%にいます
 
@@ -130,7 +152,7 @@ FOR LOCAL,0,21
 	SIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, LOCAL) & 1
 		PRINTFORML [{LOCAL}] - %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL)%
 NEXT
-PRINT [100] - 戻る
+PRINT [999] - 戻る
 $INPUT_LOOP
 INPUTS
 
@@ -144,8 +166,18 @@ IF RESULT == -1
 			RESULT = LOCAL
 	NEXT
 ENDIF
-IF RESULT == 100
+IF RESULT == 999
 	RETURN 0
+ELSEIF RESULT == 99
+	;エリア移動選択
+	CALL エリア移動選択画面表示
+	IF RESULT == -1
+		;移動しない場合
+		GOTO DRAW_LOOP
+	ELSEIF RESULT == 1
+		;移動処理
+		RESTART
+	ENDIF
 ELSEIF CFLAG:MASTER:現在位置 == RESULT
 	RETURN 0
 ELSEIF 表示マップ切り替え判定(RESULT)
@@ -261,3 +293,60 @@ RETURN 1
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
+
+
+
+
+;-------------------------------------------------
+;エリア移動
+;-------------------------------------------------
+@エリア移動選択画面表示
+DRAWLINE
+PRINTL どのエリアに移動しますか？
+DRAWLINE
+FOR LOCAL, 0, 10
+	TSTR:場所名受渡 = 
+	SIF CFLAG:PLAYER:現在マップ種別 == LOCAL
+		CONTINUE
+	TRYCCALLFORM エリア情報登録_{LOCAL}("エリア名")
+		IF TSTR:場所名受渡 != ""
+			PRINTBUTTON @"[{LOCAL}]%TSTR:場所名受渡%へ移動する", LOCAL
+			PRINTL 
+		ENDIF
+	CATCH
+		BREAK
+	ENDCATCH
+NEXT
+PRINTBUTTON "[999]戻る", 999
+PRINTL 
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		IF CFLAG:PLAYER:現在マップ種別 == 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		;０を入れると移動してない時と見分けがつかないため+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = 100
+	CASE 1
+		IF CFLAG:PLAYER:現在マップ種別 == 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TRYCALLFORM エリア情報登録_1("エリア名")
+		IF TSTR:場所名受渡 == ""
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		;+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = 101
+	CASE 999
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+RETURN 1
