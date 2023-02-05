@@ -1,0 +1,120 @@
+﻿
+@空挺港_店舗改装処理(店番号, 画面表示用変数)
+#DIM 店番号
+#DIM 画面表示用変数
+VARSET LOCALS
+
+DRAWLINE
+PRINTL 空挺港エリアの店舗を改装します。
+PRINTL どのような店舗にしますか？
+DRAWLINE
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='25px,25px,310px,450px'>"
+CALLFORMF 空挺港店舗名表示_{空挺港店舗状況:店番号:0}
+LOCALS += @"<button value='0'>[0] 現在の店舗：%TSTR:場所名受渡%</button>"
+LOCALS += "<br>"
+IF 空挺港店舗状況:店番号:0 != 0
+	LOCALS += "<button value='100'>[100] 空き部屋</button>"
+	LOCALS += "<br>"
+ENDIF
+IF 空挺港店舗状況:店番号:0 != 1
+	LOCALS += @"<button value='101'>[101] 道具屋</button>"
+	LOCALS += "<br>"
+ENDIF
+IF 空挺港店舗状況:店番号:0 != 2
+	LOCALS += @"<button value='102'>[102] 土産物屋</button>"
+	LOCALS += "<br>"
+ENDIF
+IF 空挺港店舗状況:店番号:0 != 3
+	LOCALS += @"<button value='103'>[103] 食事処</button>"
+	LOCALS += "<br>"
+ENDIF
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+;現在の店舗状況表示
+CALL 空挺港_店舗改装右画面表示(画面表示用変数, 店番号)
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE 画面表示用変数
+	CASE 0
+		SELECTCASE LOCAL
+			CASE 0
+				画面表示用変数 = 0
+				RESTART
+			CASE 100 TO 103
+				IF 空挺港店舗状況:店番号:0 == LOCAL - 100
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				画面表示用変数 = LOCAL
+				RESTART
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+	CASE 100 TO 103
+		SELECTCASE LOCAL
+			CASE 0
+				CALLFORM 空挺港店舗解説文_{画面表示用変数 - 100}(LOCALS:1)
+				LOCAL:1 = RESULT
+				IF MONEY < LOCAL:1
+					DRAWLINE
+					PRINTW ルピが足りません。
+					画面表示用変数 = 0
+					RESTART
+				ENDIF
+				CALLFORMF 空挺港店舗名表示_{画面表示用変数 - 100}
+				DRAWLINE
+				PRINTFORMW {LOCAL:1}ルピ消費し、店舗を%TSTR:場所名受渡%に改装しました。
+				空挺港店舗状況:店番号:0 = 画面表示用変数 - 100
+				画面表示用変数 = 0
+				MONEY -= LOCAL:1
+				RESTART
+			CASE 1
+				画面表示用変数 = 0
+				RESTART
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+ENDSELECT
+
+@空挺港_店舗改装右画面表示(画面表示用変数, 店番号)
+#DIM 画面表示用変数
+#DIM 店番号
+#DIMS 建物文章受け渡し文字列
+建物文章受け渡し文字列 = 
+
+SELECTCASE 画面表示用変数
+	CASE 0
+		LOCALS = <div rect='340px,25px,588px,450px'>
+		CALLFORM 空挺港店舗解説文_{空挺港店舗状況:店番号:0}(建物文章受け渡し文字列)
+		LOCALS += 建物文章受け渡し文字列
+		LOCALS += "</div>"
+	CASE 100 TO 103
+		LOCALS = <div rect='340px,25px,588px,450px'>
+		CALLFORM 空挺港店舗解説文_{画面表示用変数 - 100}(建物文章受け渡し文字列)
+		LOCALS += 建物文章受け渡し文字列
+		LOCALS += "<br>"
+		LOCALS += "この状態に改装しますか？<br>"
+		LOCALS += @"必要ルピ：{RESULT, 6}"
+		LOCALS += "<br>"
+		LOCALS += "<button value='0'>[0]はい</button><br>"
+		LOCALS += "<button value='1'>[1]いいえ</button><br>"
+		LOCALS += "</div>"
+ENDSELECT
+
+HTML_PRINT LOCALS, 1
