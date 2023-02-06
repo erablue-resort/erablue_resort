@@ -1,0 +1,82 @@
+﻿;-------------------------------------------------
+;配列にアイテム名と値段放り込んでこれを呼ぶとお店になる処理
+;完全に独立しているのでリゾートだろうがダンジョンだろうが呼べる
+;
+;汎用アイテム購入用_品揃え登録:0 = 薬草,200,ルピ
+;のように記述する
+;-------------------------------------------------
+@汎用アイテム購入画面処理
+#DIMS 商売文字列保存, 3
+VARSET LOCALS
+
+IF 汎用アイテム購入用_序文 != ""
+	DRAWLINE
+	HTML_PRINT 汎用アイテム購入用_序文
+	DRAWLINE
+ENDIF
+
+;枠作成
+LOCALS = <div rect='13px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='643px,5px,310px,150px' border='5px' bcolor='#C0C0C0'></div>"
+
+;中身描写
+FOR LOCAL, 0, 100
+	SIF 汎用アイテム購入用_品揃え登録:LOCAL == ""
+		BREAK
+	SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
+	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%商売文字列保存:0, 20, LEFT%{TOINT(商売文字列保存:1), 6}%商売文字列保存:2%</button>"
+	IF LOCAL % 2 == 1
+		LOCALS:1 += "<br>"
+	ELSE
+		LOCALS:1 += "　　　"
+	ENDIF
+NEXT
+LOCALS += @"<div rect='25px,25px,608px,430px'>%LOCALS:1%</div>"
+
+LOCALS += "<div rect='530px,420px,100px,20px'><button value='999'>[999]戻る</button></div>"
+
+LOCALS:2 = 所持ルピ：{MONEY}<br>
+LOCALS:2 += @"所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}"
+LOCALS += @"<div rect='655px,25px,298px,130px'>%LOCALS:2%</div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 26
+	PRINTL
+NEXT
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0 TO 99
+		IF 汎用アイテム購入用_品揃え登録:RESULT == ""
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		SPLIT 汎用アイテム購入用_品揃え登録:RESULT, ",", 商売文字列保存
+		IF 商売文字列保存:2 == "ルピ"
+			IF MONEY < TOINT(商売文字列保存:1)
+				PRINTW ルピが足りません
+				RESTART
+			ENDIF
+			MONEY -= TOINT(商売文字列保存:1)
+		ELSEIF 商売文字列保存:2 == "ZP"
+			IF FLAG:ZP所持量 < TOINT(商売文字列保存:1)
+				PRINTW ZPが足りません
+				RESTART
+			ENDIF
+			FLAG:ZP所持量 -= TOINT(商売文字列保存:1)
+		ENDIF
+		CALL アイテム増減汎用処理(商売文字列保存:0, 1)
+		PRINTFORMW %商売文字列保存:0%を購入しました。
+		RESTART
+	CASE 999
+		汎用アイテム購入用_序文 = 
+		VARSET 汎用アイテム購入用_品揃え登録
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
