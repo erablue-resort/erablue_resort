@@ -1,0 +1,57 @@
+﻿@短冊グラ表示用文字列関数(ARG, g_loop = 0)
+#FUNCTIONS
+#DIM g_loop
+;リソース解放
+SPRITEDISPOSE @"短冊グラ{g_loop}"
+GDISPOSE 3000 + g_loop
+
+IF CSTR:ARG:短冊グラ表示切り替え用文字列 == ""
+	GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/短冊_デフォルト.png"
+ELSE
+	GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/%CSTR:ARG:短冊グラ表示切り替え用文字列%.png"
+ENDIF
+IF RESULT == 0
+	;該当画像が無い場合
+	IF CSTR:ARG:短冊グラ表示切り替え用文字列 == ""
+		;そもそもデフォルト画像が無い場合はNoimage画像で返す
+		RETURNF @"<img src='Noimage_短冊' width='180px' height='360px'>"
+	ELSE
+		;変更後画像が無い場合はデフォルト短冊を表示させる
+		GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/短冊_デフォルト.png"
+	ENDIF
+ENDIF
+
+SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
+	LOCALS '= @"<img src='短冊グラ{g_loop}' width='180px' height='360px'>"
+
+RETURNF LOCALS
+
+@スプライト作成(ARGS, ARG, mode)
+#FUNCTION
+#DIM mode;0:正方形 1:縦長
+#DIM 縦幅
+#DIM 横幅
+#DIM 横始点
+
+SIF ARGS == ""
+	THROW スプライト名が指定されていません
+SIF !GCREATED(ARG)
+	THROW グラフィックID{ARG}は作成されていません
+
+横幅 = GWIDTH(ARG)
+縦幅 = GHEIGHT(ARG)
+mode ++
+IF 横幅 * 100 * mode > 縦幅 * 105
+	;横長の場合、はみ出した左右を切る
+	横始点 = (横幅 - 縦幅 / mode) / 2
+	横幅 = 縦幅 / mode
+ELSEIF 横幅 * 105 * mode < 縦幅 * 100
+	;縦長の場合、はみ出した下を切るだけ
+	横始点 = 0
+	縦幅 = 横幅 * mode
+ELSE
+	横始点 = 0
+ENDIF
+SPRITECREATE ARGS, ARG, 横始点, 0, 横幅, 縦幅
+RETURNF 1
+
