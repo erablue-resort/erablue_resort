@@ -1,4 +1,4 @@
-﻿﻿@短冊グラ表示用文字列関数(ARG, g_loop = 0)
+﻿@短冊グラ表示用文字列関数(ARG, g_loop = 0)
 #FUNCTIONS
 #DIM g_loop
 ;リソース解放
@@ -26,7 +26,7 @@ SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
 
 RETURNF LOCALS
 
-@スプライト作成(ARGS, ARG, mode)
+@スプライト作成(ARGS, ARG, mode = 0)
 #FUNCTION
 #DIM mode;0:正方形 1:縦長
 #DIM 縦幅
@@ -41,17 +41,47 @@ SIF !GCREATED(ARG)
 横幅 = GWIDTH(ARG)
 縦幅 = GHEIGHT(ARG)
 mode ++
-IF 横幅 * 100 * mode > 縦幅 * 105
-	;横長の場合、はみ出した左右を切る
-	横始点 = (横幅 - 縦幅 / mode) / 2
-	横幅 = 縦幅 / mode
-ELSEIF 横幅 * 105 * mode < 縦幅 * 100
-	;縦長の場合、はみ出した下を切るだけ
+
+IF 画像サイズ切り替えOPTION記憶:1
+	;拡大縮小処理
 	横始点 = 0
-	縦幅 = 横幅 * mode
+	GDISPOSE 1
+	IF 横幅 * mode > 縦幅
+		;横長の場合、縦にサイズを広げて再描画
+		GCREATE 1, 横幅, 横幅 * mode
+		GDRAWG 1, ARG, 0, (横幅 * mode - 縦幅) / 2, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		横幅 = GWIDTH(1)
+		縦幅 = GHEIGHT(1)
+		GDISPOSE ARG
+		GCREATE ARG, 横幅, 縦幅
+		GDRAWG ARG,1, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		GDISPOSE 1
+	ELSEIF 横幅 * mode < 縦幅
+		;縦長の場合、キャンバスを横に広げる
+		GCREATE 1, 縦幅 / mode, 縦幅
+		GDRAWG 1, ARG, (縦幅 - 横幅 * mode) / (2 * mode), 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		横幅 = GWIDTH(1)
+		縦幅 = GHEIGHT(1)
+		GDISPOSE ARG
+		GCREATE ARG, 横幅, 縦幅
+		GDRAWG ARG,1, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		GDISPOSE 1
+	ENDIF
 ELSE
-	横始点 = 0
+	;切り抜き処理
+	IF 横幅 * 100 * mode > 縦幅 * 105
+		;横長の場合、はみ出した左右を切る
+		横始点 = (横幅 - 縦幅 / mode) / 2
+		横幅 = 縦幅 / mode
+	ELSEIF 横幅 * 105 * mode < 縦幅 * 100
+		;縦長の場合、はみ出した下を切るだけ
+		横始点 = 0
+		縦幅 = 横幅 * mode
+	ELSE
+		横始点 = 0
+	ENDIF
 ENDIF
+
 SPRITECREATE ARGS, ARG, 横始点, 0, 横幅, 縦幅
 RETURNF 1
 
