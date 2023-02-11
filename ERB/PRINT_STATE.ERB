@@ -19,12 +19,7 @@ ELSEIF 能力表示 == 2
 ENDIF
 
 
-IF ARG == MASTER
-	CALL PRINT_ITEMCOUNT
-	CALL 恋慕対象者表示
-	PRINTL
-	PRINTW
-ELSE
+IF ARG != MASTER
 	;CALL CHOICE_LOVE(ARG)
 	PRINTL
 	DRAWLINE
@@ -91,6 +86,8 @@ ELSE
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 	ENDSELECT
+ELSE
+	PRINTW
 ENDIF
 
 
@@ -192,8 +189,13 @@ PRINTFORML ({BASE:ARG:1,4}/{MAXBASE:ARG:1,4})
 ;PRINTFORML 　肉体熟知:{EXP:ARG:肉体熟知, 5}
 CALL PRINT_STATE_TALENT(ARG)
 CALL PRINT_STATE_CLOTH(ARG)
-CALL PRINT_STATE_好感度詳細(ARG)
-
+IF ARG != PLAYER
+	CALL PRINT_STATE_好感度詳細(ARG)
+ELSE
+	CALL PRINT_ITEMCOUNT
+	CALL 恋慕対象者表示
+	PRINTL
+ENDIF
 L_C:1 = LINECOUNT - L_C:1
 IF  L_C:0 > L_C:1
 	FOR LOCAL, 0, L_C:0 - L_C:1
@@ -676,10 +678,29 @@ ENDIF
 PRINTFORMLC %名前格納%
 PRINTL 
 
-IF ツールチップ切り替えOPTION記憶 == 0
-	HTML_PRINT @"<nonbutton title = '%性知識段階表示(知識素質:ARG:性知識, ARG, 1)%'>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+IF ARG
+	IF ツールチップ切り替えOPTION記憶 == 0
+		HTML_PRINT @"<nonbutton title = '%性知識段階表示(知識素質:ARG:性知識, ARG, 1)%'>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+	ELSE
+		HTML_PRINT @"<nonbutton>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+	ENDIF
 ELSE
-	HTML_PRINT @"<nonbutton>　性知識Ｌｖ:%性知識段階表示(知識素質:ARG:性知識, ARG), 17, LEFT%</nonbutton><nonbutton>肉体熟知:{EXP:ARG:肉体熟知, 5}</nonbutton>"
+	PRINT 　美醜：
+	IF TALENT:ARG:美醜 == 0
+		PRINT フツメン　　
+	ELSE
+		PRINTFORM %GET_TALENTNAME(160,TALENT:ARG:美醜), 12, LEFT%
+	ENDIF
+	PRINTFORM 体格：%GET_TALENTNAME(161,TALENT:ARG:体格)%
+	SIF TALENT:ARG:体格 == 0
+		PRINT 普通
+	PRINTL
+	IF TALENT:ARG:性別 & 2
+		PRINTFORM 　男性器サイズ：%GET_TALENTNAME(162,TALENT:ARG:男性器サイズ)%
+		SIF TALENT:ARG:男性器サイズ == 0
+			PRINT 平凡
+		PRINTL
+	ENDIF
 ENDIF
 PRINTL 
 
@@ -687,7 +708,7 @@ PRINTL □ 素質 □-----------------------------------------------------------
 LOCAL:1 = 0
 LOCALS = 
 名前格納 = 
-FOR ループ用,10,200
+FOR ループ用,10,160
 	IF STRLENS(GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0))
 		名前格納 += GET_TALENTNAME(ループ用,TALENT:ARG:ループ用, 0)
 		IF ツールチップ切り替えOPTION記憶 == 0
@@ -922,10 +943,14 @@ IF ARG
 	CALL PRINT_好感度レベル表示(ARG)
 	PRINTL
 	IF CFLAG:ARG:友情度 >= 100500
-		PRINTFORML 　　├ 要素：友情 MAX!!
+		PRINTFORM 　　├ 要素：友情  MAX!!
+		HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 	ELSE
-		PRINTFORML 　　├ 要素：友情 {CFLAG:ARG:友情度,6}
+		PRINTFORM 　　├ 要素：友情 {CFLAG:ARG:友情度,6}
+		SIF CFLAG:ARG:友情度 > 182
+			HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:友情度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 	ENDIF
+	PRINTL
 	IF FLAG:口上表示切り替えオプション > 0
 		TRYCCALLFORM 口上_ステータス画面_友情コメント_{NO:ARG}
 		CATCH
@@ -933,10 +958,14 @@ IF ARG
 		ENDCATCH
 	ENDIF
 	IF CFLAG:ARG:信頼度 >= 100500
-		PRINTFORML 　　├ 要素：信頼 MAX!!
+		PRINTFORM 　　├ 要素：信頼  MAX!!
+		HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 	ELSE
-		PRINTFORML 　　├ 要素：信頼 {CFLAG:ARG:信頼度,6}
+		PRINTFORM 　　├ 要素：信頼 {CFLAG:ARG:信頼度,6}
+		SIF CFLAG:ARG:信頼度 > 182
+			HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:信頼度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 	ENDIF
+	PRINTL
 	IF FLAG:口上表示切り替えオプション > 0
 		TRYCCALLFORM 口上_ステータス画面_信頼コメント_{NO:ARG}
 		CATCH
@@ -944,10 +973,14 @@ IF ARG
 		ENDCATCH
 	ENDIF
 	IF CFLAG:ARG:恋心度 >= 100500
-		PRINTFORML 　　├ 要素：恋心 MAX!!
+		PRINTFORM 　　├ 要素：恋心  MAX!!
+		HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 	ELSE
-		PRINTFORML 　　├ 要素：恋心 {CFLAG:ARG:恋心度,6}
+		PRINTFORM 　　├ 要素：恋心 {CFLAG:ARG:恋心度,6}
+		SIF CFLAG:ARG:恋心度 > 182
+			HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:恋心度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 	ENDIF
+	PRINTL
 	IF FLAG:口上表示切り替えオプション > 0
 		TRYCCALLFORM 口上_ステータス画面_恋心コメント_{NO:ARG}
 		CATCH
@@ -956,19 +989,27 @@ IF ARG
 	ENDIF
 	IF CSTR:ARG:キャラ固有好感度要素 == ""
 		IF CFLAG:ARG:性愛度 >= 100500
-			PRINTFORML 　　└ 要素：性愛 MAX!!
+			PRINTFORM 　　└ 要素：性愛  MAX!!
+			HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 		ELSE
-			PRINTFORML 　　└ 要素：性愛 {CFLAG:ARG:性愛度,6}
+			PRINTFORM 　　└ 要素：性愛 {CFLAG:ARG:性愛度,6}
+			SIF CFLAG:ARG:性愛度 > 182
+				HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:性愛度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 		ENDIF
+		PRINTL
 		IF FLAG:口上表示切り替えオプション > 0
 			TRYCALLFORM 口上_ステータス画面_性愛コメント_{NO:ARG}
 		ENDIF
 	ELSE
 		IF CFLAG:ARG:性愛度 >= 100500
-			PRINTFORML 　　├ 要素：性愛 MAX!!
+			PRINTFORM 　　├ 要素：性愛  MAX!!
+			HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 		ELSE
-			PRINTFORML 　　├ 要素：性愛 {CFLAG:ARG:性愛度,6}
+			PRINTFORM 　　├ 要素：性愛 {CFLAG:ARG:性愛度,6}
+			SIF CFLAG:ARG:性愛度 > 182
+				HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:性愛度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 		ENDIF
+		PRINTL
 		IF FLAG:口上表示切り替えオプション > 0
 			TRYCCALLFORM 口上_ステータス画面_性愛コメント_{NO:ARG}
 			CATCH
@@ -976,10 +1017,14 @@ IF ARG
 			ENDCATCH
 		ENDIF
 		IF CFLAG:ARG:キャラ固有好感度 >= 100500
-			PRINTFORML 　　└ 要素：%CSTR:ARG:キャラ固有好感度要素% MAX!!
+			PRINTFORM 　　└ 要素：%CSTR:ARG:キャラ固有好感度要素%  MAX!!
+			HTML_PRINT "<shape type='rect' param='10px, 9px, 420px, 6px' color='red'>", 1
 		ELSE
-			PRINTFORML 　　└ 要素：%CSTR:ARG:キャラ固有好感度要素% {CFLAG:ARG:キャラ固有好感度,6}
+			PRINTFORM 　　└ 要素：%CSTR:ARG:キャラ固有好感度要素% {CFLAG:ARG:キャラ固有好感度,6}
+			SIF CFLAG:ARG:キャラ固有好感度 > 182
+				HTML_PRINT @"<shape type='rect' param='10px, 9px,{CFLAG:ARG:キャラ固有好感度 * 420 / 100500}px, 6px' color='#4db56a'>", 1
 		ENDIF
+		PRINTL
 		IF FLAG:口上表示切り替えオプション > 0
 			TRYCALLFORM 口上_ステータス画面_キャラ固有好感度要素コメント_{NO:ARG}
 		ENDIF
