@@ -82,9 +82,15 @@ PRINTL どの性癖を開拓しますか？
 DRAWLINE
 
 ;ここで性癖一覧を並べるが今は野外だけなのでとりあえずぽん置きしておく
-
-PRINTBUTTON "[1]野外オナニー", 1
-PRINTL
+FOR LOCAL, 1, 100
+	IF ERDNAME(性癖素質, LOCAL) != ""
+		;すでに性癖持ってるならスキップ
+		SIF 性癖素質:開拓対象:LOCAL
+			CONTINUE
+		PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+		PRINTL
+	ENDIF
+NEXT
 
 PRINTL
 PRINTBUTTON "[999]戻る", 999
@@ -93,13 +99,18 @@ $INPUT_LOOP_2
 INPUT
 
 SELECTCASE RESULT
-	CASE 1
-		PRINTFORML %CALLNAME:開拓対象%に野外オナニーのエロ本が渡るように細工を行います
+	CASE 1 TO 2
+		IF 性癖素質:開拓対象:LOCAL
+			REUSELASTLINE 
+			GOTO INPUT_LOOP_2
+		ENDIF
+		PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, LOCAL)%のエロ本が渡るように細工を行います
 		PRINTW ※結果は一日の終了時に表示されます
 		性癖素質:開拓対象:性癖開発用フラグ変数 = RESULT
 	CASE 999
 		GOTO 表示_LOOP
 	CASEELSE
+		REUSELASTLINE 
 		GOTO INPUT_LOOP_2
 ENDSELECT
 
@@ -139,6 +150,48 @@ IF RAND:10 < LOCAL
 	PRINTL
 	PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー]を取得した
 	性癖素質:ARG:野外オナニー = 1
+ELSE
+	;読まないパターン
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
+ENDIF
+
+@性癖開拓チャレンジ処理_2(ARG)
+;逆アナル
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「男性の尻穴になにかを挿入するシチュ」のエロ本が渡るように小細工した…
+PRINTL
+
+;エロ本を読むかどうか
+IF 知識素質:ARG:性知識 < 1 && EXP:ARG:自慰経験 < 1
+	;性知識が0か-1であり、オナニー経験がないと本の内容を理解できない
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本をぱらぱらと開いてみたが、よく意味がわからなかったようだ…
+	DRAWLINE
+	RETURN 0
+ENDIF
+
+;基礎確率は2/10
+LOCAL = 2
+;自制心、性的興味、性欲が影響
+LOCAL -= TALENT:ARG:自制心
+LOCAL += TALENT:ARG:性的興味 * 2
+LOCAL += TALENT:ARG:性欲
+SIF BASE:ARG:性欲 > 6000
+	LOCAL += 1
+;サド性感が影響
+LOCAL += ABL:ARG:サド性感
+
+;ふたなりだと影響大
+SIF TALENT:ARG:性別 == 3
+	LOCAL += 3
+;最低確率1割は確保
+LOCAL = MAX(LOCAL, 1)
+;補正確率より低ければ読む
+IF RAND:10 < LOCAL
+	;読むパターン
+	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
+	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
+	PRINTL
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[逆アナル]を取得した
+	性癖素質:ARG:逆アナル = 1
 ELSE
 	;読まないパターン
 	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
