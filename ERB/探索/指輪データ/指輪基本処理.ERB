@@ -1,0 +1,127 @@
+﻿;NEWGAMEに突っ込む用
+@指輪データベースセット
+DT_CREATE "所持指輪データベース"
+DT_COLUMN_ADD "所持指輪データベース", "指輪名"
+DT_COLUMN_ADD "所持指輪データベース", "基礎ステータス補正"
+DT_COLUMN_ADD "所持指輪データベース", "特殊ステータス補正"
+DT_COLUMN_ADD "所持指輪データベース", "オプションステータス補正"
+DT_COLUMN_ADD "所持指輪データベース", "オプション特殊ステータス補正"
+DT_COLUMN_ADD "所持指輪データベース", "装備者キャラ番号", 1
+
+
+@汎用指輪取得処理(指輪名, オプション数)
+#DIMS 指輪名
+#DIM オプション数
+
+;個別の指輪ERBに飛んでステータス補正を入れ込む
+TRYCCALLFORM 指輪ステータス決定_%指輪名%(オプション数)
+CATCH
+	PRINTW 指定の指輪が見つかりません。
+	RETURN -1
+ENDCATCH
+
+@指輪付け替え処理画面(キャラ番号)
+#DIM キャラ番号
+;表示部分
+;装備中指輪表示
+DRAWLINE
+CALL 現在指輪情報文字列取得(キャラ番号)
+LOCALS = <div rect='32px,0px,906px,200px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='42px, 10px, 180px, 180px'>%顔グラ表示用文字列関数(キャラ番号)%</div>"
+LOCALS += @"<div rect='222px,10px,886px,180px'>%TSTR:コマンド名受渡%</div>"
+
+;所持指輪リスト表示
+LOCALS += "<div rect='32px,210px,906px,600px' border='5px' bcolor='#C0C0C0'></div>"
+CALL 所持指輪リスト表示(キャラ番号)
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 45
+	PRINTL
+NEXT
+
+;BINPUT
+
+; SELECTCASE
+; CASE 
+; ENDSELECT
+
+
+
+
+@現在指輪情報文字列取得(キャラ番号)
+#DIM キャラ番号
+TSTR:コマンド名受渡 = 
+
+
+
+@所持指輪リスト表示(キャラ番号)
+#DIM キャラ番号
+#DIM ステータス
+;これ後でERHに入れる
+#DIM 表示用ステータス格納配列, 500, 10
+;まず指輪のステータス補正を全部変数になおして放り込む
+IF 表示用ステータス格納配列:0:0 == 0
+	FOR LOCAL, 0, 500
+		LOCALS = 
+		DT_CELL_GETS "所持指輪データベース", LOCAL, "指輪名"
+		IF RESULTS == ""
+			BREAK
+		ENDIF
+		表示用ステータス格納配列:LOCAL:0 = 1
+		SPLIT DT_CELL_GETS("所持指輪データベース", LOCAL, "基礎ステータス補正"), "_", LOCALS
+		FOR LOCAL:1, 0, 5
+			IF LOCALS:(LOCAL:1 * 2) != ""
+				SELECTCASE LOCALS:(LOCAL:1 * 2)
+					CASE "HP"
+						表示用ステータス格納配列:LOCAL:1 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "MP"
+						表示用ステータス格納配列:LOCAL:2 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "攻撃力"
+						表示用ステータス格納配列:LOCAL:3 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "防御力"
+						表示用ステータス格納配列:LOCAL:4 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "回復力"
+						表示用ステータス格納配列:LOCAL:5 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "行動速度"
+						表示用ステータス格納配列:LOCAL:6 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "DA率"
+						表示用ステータス格納配列:LOCAL:7 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+					CASE "TA率"
+						表示用ステータス格納配列:LOCAL:8 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				ENDSELECT
+			ENDIF
+		NEXT
+		IF DT_CELL_GETS("所持指輪データベース", LOCAL, "特殊ステータス補正") != "" || DT_CELL_GETS("所持指輪データベース", LOCAL, "オプション特殊ステータス補正") != ""
+			表示用ステータス格納配列:LOCAL:9 = 1
+		ENDIF
+	NEXT
+ENDIF
+
+LOCALS = <div rect='42px,220px,886px,580px'>
+LOCALS += "指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　　防御力　　回復力　　行動速度　　DA率　　TA率　　特殊効果<br>"
+LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
+FOR LOCAL, 0, 500
+	IF 表示用ステータス格納配列:LOCAL:0 == 0
+		BREAK
+	ENDIF
+	LOCALS += @"<button value='{LOCAL}'>"
+	LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:2, 8, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:3, 10, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:4, 10, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:5, 10, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:6, 12, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:7, 8, LEFT}"
+	LOCALS += @"{表示用ステータス格納配列:LOCAL:8, 8, LEFT}"
+	IF 表示用ステータス格納配列:LOCAL:9
+		LOCALS += "◯"
+	ELSE
+		LOCALS += "☓"
+	ENDIF
+	LOCALS += "</button><br>"
+NEXT
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
