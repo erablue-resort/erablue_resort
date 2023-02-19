@@ -407,6 +407,9 @@ ENDIF
 @FAVOR_CALC(ARG)
 #DIM ループ用
 
+;最大値を取る
+NOWEX:ARG:好感度上昇格納 = MAX(NOWEX:ARG:友情度上昇格納, NOWEX:ARG:信頼度上昇格納, NOWEX:ARG:恋心度上昇格納, NOWEX:ARG:性愛度上昇格納, NOWEX:ARG:キャラ固有好感度要素上昇格納)
+
 ;SIF !TFLAG:調教モード
 ;	RETURN 0
 SIF !ARG
@@ -463,14 +466,21 @@ ELSE
 	NOWEX:ARG:好感度上昇格納 = 0
 ENDIF
 
+;相殺分適用
+NOWEX:ARG:友情度上昇格納 = MIN(NOWEX:ARG:友情度上昇格納, NOWEX:ARG:好感度上昇格納)
+NOWEX:ARG:信頼度上昇格納 = MIN(NOWEX:ARG:信頼度上昇格納, NOWEX:ARG:好感度上昇格納)
+NOWEX:ARG:恋心度上昇格納 = MIN(NOWEX:ARG:恋心度上昇格納, NOWEX:ARG:好感度上昇格納)
+NOWEX:ARG:性愛度上昇格納 = MIN(NOWEX:ARG:性愛度上昇格納, NOWEX:ARG:好感度上昇格納)
+NOWEX:ARG:キャラ固有好感度要素上昇格納 = MIN(NOWEX:ARG:キャラ固有好感度要素上昇格納, NOWEX:ARG:好感度上昇格納)
+
 ;好感度表示
 TFLAG:97 += NOWEX:ARG:好感度上昇格納
 CALL 関係性ゲージUP用関数(ARG, TFLAG:97, "好感度")
 
 ;TARGET以外の好感度上昇も見る
 FOR ループ用, 0, CHARANUM
-	IF NOWEX:ループ用:好感度上昇格納 && ループ用 != ARG
-		CALL 関係性ゲージUP用関数(ループ用, NOWEX:ループ用:好感度上昇格納, "好感度")
+	IF ループ用 != ARG
+		CALL 関係性ゲージUP用関数(ループ用, 1, "好感度")
 	ENDIF
 NEXT
 
@@ -528,13 +538,46 @@ NEXT
 
 SELECTCASE ARGS
 	CASE "好感度"
-	IF ARG:1 > 0
-		CFLAG:ARG:友情度 += ARG:1
+	LOCAL = 0
+	IF NOWEX:ARG:友情度上昇格納
+		CFLAG:ARG:友情度 += NOWEX:ARG:友情度上昇格納
 		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORML \@(ARG:1 >= 0) ? 好感度＋{ARG:1} # 好感度－{-ARG:1}\@
-		CALL FAVOR_LvUPCheck(ARG)
+		PRINTFORML \@(NOWEX:ARG:友情度上昇格納 >= 0) ? 好感度要素：友情＋{NOWEX:ARG:友情度上昇格納} # 好感度要素：友情－{-NOWEX:ARG:友情度上昇格納}\@
+		LOCAL = 1
 	ENDIF
-	
+	IF NOWEX:ARG:信頼度上昇格納
+		CFLAG:ARG:信頼度 += NOWEX:ARG:信頼度上昇格納
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(NOWEX:ARG:信頼度上昇格納 >= 0) ? 好感度要素：信頼＋{NOWEX:ARG:信頼度上昇格納} # 好感度要素：信頼－{-NOWEX:ARG:信頼度上昇格納}\@
+		LOCAL = 1
+	ENDIF
+	IF NOWEX:ARG:恋心度上昇格納
+		CFLAG:ARG:恋心度 += NOWEX:ARG:恋心度上昇格納
+		CFLAG:ARG:恋慕度 = MAX(CFLAG:ARG:恋慕度, CFLAG:ARG:恋心度 / 3)
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(NOWEX:ARG:恋心度上昇格納 >= 0) ? 好感度要素：恋心＋{NOWEX:ARG:恋心度上昇格納} # 好感度要素：恋心－{-NOWEX:ARG:恋心度上昇格納}\@
+		LOCAL = 2
+	ENDIF
+	IF NOWEX:ARG:性愛度上昇格納
+		CFLAG:ARG:性愛度 += NOWEX:ARG:性愛度上昇格納
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(NOWEX:ARG:性愛度上昇格納 >= 0) ? 好感度要素：性愛＋{NOWEX:ARG:性愛度上昇格納} # 好感度要素：性愛－{-NOWEX:ARG:性愛度上昇格納}\@
+		LOCAL = 1
+	ENDIF
+	IF NOWEX:ARG:キャラ固有好感度要素上昇格納
+		CFLAG:ARG:キャラ固有好感度 += NOWEX:ARG:キャラ固有好感度要素上昇格納
+		PRINTFORM %CALLNAME:ARG%：
+		PRINTFORML \@(NOWEX:ARG:キャラ固有好感度要素上昇格納 >= 0) ? 好感度要素：%CSTR:ARG:キャラ固有好感度要素%＋{NOWEX:ARG:キャラ固有好感度要素上昇格納} # 好感度要素：%CSTR:ARG:キャラ固有好感度要素%－{-NOWEX:ARG:キャラ固有好感度要素上昇格納}\@
+		LOCAL = 1
+	ENDIF
+	SIF LOCAL
+		CALL FAVOR_LvUPCheck(ARG)
+	IF LOCAL == 2
+		SKIPDISP 1
+		CALL Love_LvUPCheck(ARG)
+		SKIPDISP 0
+	ENDIF
+
 	CASE "恋慕度"
 	IF ARG:1 > 0
 		CFLAG:ARG:恋慕度 += ARG:1
@@ -565,11 +608,13 @@ ENDSELECT
 
 @FAVOR_LvUPCheck(ARG)
 #DIM ループ用
+#DIM 要素最大値
 #DIM 計算後レベル
 
 ;テーブルと比較してレベル算出
+要素最大値 = MAX(CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
 FOR ループ用, 0, 100
-	IF 経験値テーブル:ループ用 >= CFLAG:ARG:友情度
+	IF 経験値テーブル:ループ用 >= 要素最大値
 		BREAK
 	ENDIF
 NEXT

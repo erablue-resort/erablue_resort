@@ -808,27 +808,6 @@ SIF TALENT:ARG:性別 & 2
 	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
 ;欲情計算ここまで
 
-;好感度UP
-;基礎値＆枠計算
-	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
-	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
-;気力
-SIF BASE:ARG:気力 <= 0
-	LOCAL /= 2
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;減衰
-LOCAL = SOURCE_上限減衰(LOCAL)
-;PLAYER限定
-SIF ARG:1 == PLAYER
-	NOWEX:ARG:好感度上昇格納 += LOCAL
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;恋慕度
-SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
-	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
-;好感度UPここまで
-
 
 ;不快
 ;恋慕時は発生しない
@@ -887,26 +866,6 @@ SIF TALENT:ARG:性別 & 2
 	BASE:ARG:勃起 = MIN(MAXBASE:ARG:勃起, BASE:ARG:勃起 + LOCAL / 5)
 ;欲情計算ここまで
 
-;好感度UP
-;基礎値＆枠計算
-	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
-	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
-;気力
-SIF BASE:ARG:気力 <= 0
-	LOCAL /= 2
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;減衰
-LOCAL = SOURCE_上限減衰(LOCAL)
-;PLAYER限定
-SIF ARG:1 == PLAYER
-	NOWEX:ARG:好感度上昇格納 += LOCAL
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;恋慕度
-SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
-	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
-;好感度UPここまで
 
 ;--------------------------------------------------------------------------------------------------
 ;液体追加
@@ -1258,28 +1217,6 @@ TRYCALLFORM PALAMUP_CHARAEVENT_{ARG}(12, LOCAL)
 ;歓楽
 ;--------------------------------------------------------------------------------------------------
 @SOURCE_CALC_歓楽(ARG, ARG:1, ARG:2)
-;好意
-VARSET LOCAL
-;好感度UP
-;基礎値＆枠計算
-	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
-	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
-;気力
-SIF BASE:ARG:気力 <= 0
-	LOCAL /= 2
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;減衰
-LOCAL = SOURCE_上限減衰(LOCAL)
-;PLAYER限定
-SIF ARG:1 == PLAYER
-	NOWEX:ARG:好感度上昇格納 += LOCAL
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;恋慕度
-SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
-	NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
-;好感度UPここまで
 
 
 ;欲情計算
@@ -1309,30 +1246,6 @@ SIF TALENT:ARG:性別 & 2
 @SOURCE_CALC_愛情(ARG, ARG:1, ARG:2)
 ;好意
 VARSET LOCAL
-;好感度UP
-;基礎値＆枠計算
-	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
-	LOCAL = PALAM変換_好感度(ARG, ARG:1, RESULT)
-;ソース別独自枠
-;LOCAL = LOCAL * (LOCAL:1 + 100) / 100
-;気力
-SIF BASE:ARG:気力 <= 0
-	LOCAL /= 2
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;減衰
-LOCAL = SOURCE_上限減衰(LOCAL)
-;PLAYER限定
-SIF ARG:1 == PLAYER
-	NOWEX:ARG:好感度上昇格納 += LOCAL
-;乱数(±5%)
-LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
-;恋慕度
-SIF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
-	NOWEX:ARG:恋慕度上昇格納 += LOCAL
-EXP:ARG:愛情経験 += MAX(LOCAL / 100, 1)
-;好感度UPここまで
-
 
 ;欲情計算
 ;基礎値＆枠計算
@@ -1778,3 +1691,436 @@ ENDIF
 CUP:ARG:反感 += LOCAL - LOCAL:1
 TRYCALLFORM PALAMUP_CHARAEVENT_{ARG}(30, LOCAL - LOCAL:1)
 ;反感ここまで
+
+
+@SOURCE_CALC_好感度要素_友情度UP(ARG, ARG:1, ARG:2)
+;好感度UP
+#DIM 基礎値
+VARSET LOCAL
+
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	基礎値 = RESULT
+
+;友情度計算
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+	;会話資質(-10%～+10%)
+	LOCAL:1 += TALENT:ARG:会話資質 * -10
+;経験枠（Ｂ枠）
+	;現在の友情度を見る
+	SELECTCASE CFLAG:ARG:友情度
+		CASE IS < 10000
+			LOCAL:2 = 0
+		CASE IS < 25000
+			LOCAL:2 = 20
+		CASE IS < 60000
+			LOCAL:2 = 40
+		CASEELSE
+			LOCAL:2 = 60
+	ENDSELECT
+;精神枠（Ｃ枠）
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 100 , 3000)
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 100 , 3000)
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;感情乏しい(-10%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * -10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;性別嗜好
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+LOCAL:1 = LOCAL * ((RAND:11 - 5) + 100) / 1000
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+LOCAL:1 = SOURCE_上限減衰(LOCAL:1)
+;PLAYER限定
+IF ARG:1 == PLAYER
+	TRYCCALLFORM 好感度要素_友情度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:友情度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:友情度上昇格納 += LOCAL
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_信頼度上昇反応_CHARAEVENT_{ARG}(LOCAL:1)
+		NOWEX:ARG:信頼度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:信頼度上昇格納 += LOCAL:1
+	ENDCATCH
+ENDIF
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+IF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	TRYCCALLFORM 恋慕度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:恋慕度上昇格納 += RESULT / 3
+	CATCH
+		NOWEX:ARG:恋慕度上昇格納 += LOCAL / 3
+	ENDCATCH
+ENDIF
+;友情度UPここまで
+
+
+@SOURCE_CALC_好感度要素_信頼度UP(ARG, ARG:1, ARG:2)
+;好感度UP
+#DIM 基礎値
+VARSET LOCAL
+
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	基礎値 = RESULT
+
+;友情度計算
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+;経験枠（Ｂ枠）
+	;現在の探索経験（＝一緒に探索した経験）を見る
+	SELECTCASE EXP:ARG:探索経験
+		CASE IS < 10
+			LOCAL:2 = 0
+		CASE IS < 40
+			LOCAL:2 = 10
+		CASE IS < 90
+			LOCAL:2 = 20
+		CASE IS < 160
+			LOCAL:2 = 30
+		CASE IS < 250
+			LOCAL:2 = 40
+		CASE IS < 360
+			LOCAL:2 = 50
+		CASEELSE
+			LOCAL:2 = 60
+	ENDSELECT
+;精神枠（Ｃ枠）
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 100 , 3000)
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 100 , 3000)
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;感情乏しい(-10%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * -10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;性別嗜好
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+LOCAL:1 = LOCAL * ((RAND:11 - 5) + 100) / 2000
+LOCAL:2 = LOCAL * ((RAND:11 - 5) + 100) / 1000
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+LOCAL:1 = SOURCE_上限減衰(LOCAL:1)
+LOCAL:2 = SOURCE_上限減衰(LOCAL:2)
+;PLAYER限定
+IF ARG:1 == PLAYER
+	TRYCCALLFORM 好感度要素_信頼度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:信頼度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:信頼度上昇格納 += LOCAL
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_友情度上昇反応_CHARAEVENT_{ARG}(LOCAL:1)
+		NOWEX:ARG:友情度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:友情度上昇格納 += LOCAL:1
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_恋心度上昇反応_CHARAEVENT_{ARG}(LOCAL:2)
+		NOWEX:ARG:恋心度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:恋心度上昇格納 += LOCAL:2
+	ENDCATCH
+ENDIF
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+IF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	TRYCCALLFORM 恋慕度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:恋慕度上昇格納 += RESULT / 2
+	CATCH
+		NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
+	ENDCATCH
+ENDIF
+;信頼度UPここまで
+
+@SOURCE_CALC_好感度要素_恋心度UP(ARG, ARG:1, ARG:2)
+;好感度UP
+#DIM 基礎値
+VARSET LOCAL
+
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	基礎値 = RESULT
+
+;友情度計算
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+;経験枠（Ｂ枠）
+	;愛情経験（最大+500%）
+	LOCAL:2 += MIN(EXP:ARG:愛情経験, 500)
+;精神枠（Ｃ枠）
+	;ムード(上限1.5倍)
+	LOCAL:3 += GET_REVISION(BASE:ARG:ムード, 200 , 3000)
+	;自制心(-10%～+5%)
+	LOCAL:3 += TALENT:ARG:自制心 * -5
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;感情乏しい(-10%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * -10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+LOCAL:1 = LOCAL * ((RAND:11 - 5) + 100) / 2000
+LOCAL:2 = LOCAL * ((RAND:11 - 5) + 100) / 1000
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+LOCAL:1 = SOURCE_上限減衰(LOCAL:1)
+LOCAL:2 = SOURCE_上限減衰(LOCAL:2)
+;PLAYER限定
+IF ARG:1 == PLAYER
+	TRYCCALLFORM 好感度要素_恋心度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:恋心度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:恋心度上昇格納 += LOCAL
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_性愛度上昇反応_CHARAEVENT_{ARG}(LOCAL:1)
+		NOWEX:ARG:性愛度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:性愛度上昇格納 += LOCAL:1
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_信頼度上昇反応_CHARAEVENT_{ARG}(LOCAL:2)
+		NOWEX:ARG:信頼度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:信頼度上昇格納 += LOCAL:2
+	ENDCATCH
+ENDIF
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+IF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	TRYCCALLFORM 恋慕度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:恋慕度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:恋慕度上昇格納 += LOCAL
+	ENDCATCH
+ENDIF
+;恋心度UPここまで
+
+@SOURCE_CALC_好感度要素_性愛度UP(ARG, ARG:1, ARG:2)
+;好感度UP
+#DIM 基礎値
+VARSET LOCAL
+
+;基礎値＆枠計算
+	CALL SOURCE_COMMON_CHECK(ARG, ARG:1, ARG:2, 999)
+	基礎値 = RESULT
+
+;友情度計算
+;物理枠（Ａ枠）
+	;話術(最大+100%)
+	SIF ARG >= 0 && ARG:1 >= 0
+		LOCAL:1 = ABL:(ARG:1):話術技能 * 10
+	;反発刻印(最大-90%)
+	LOCAL:1 += (MARK:ARG:反発刻印 * MARK:ARG:反発刻印) * -10
+;経験枠（Ｂ枠）
+	;性別嗜好経験(最大+150%)
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:2 += MIN(EXP:ARG:同性愛経験, 150)
+;精神枠（Ｃ枠）
+	;PALAM:欲情をみる
+	IF PALAM:ARG:欲情 < PALAMLV:2
+		LOCAL:3 += 0
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:3
+		LOCAL:3 += 20
+	ELSEIF PALAM:ARG:欲情 < PALAMLV:4
+		LOCAL:3 += 40
+	ELSEIF PALAM:ARG:欲情 >= PALAMLV:4
+		LOCAL:3 += 60
+	ENDIF
+	;理性(上限1.5倍)
+	LOCAL:3 += GET_REVISION(1000 - BASE:ARG:理性, 100 , 3000)
+	;自制心(-10%～+5%)
+	LOCAL:3 += TALENT:ARG:自制心 * -10
+	;態度(-10%～+10%)
+	LOCAL:3 += TALENT:ARG:態度 * -10
+	;無関心(-10%)
+	LOCAL:3 += TALENT:ARG:無関心 * -10
+	;感情乏しい(-10%)
+	LOCAL:3 += TALENT:ARG:感情乏しい * -10
+	;ツンデレ(-10%～+20%)
+	;プライド(-10%～+10%)
+	IF CFLAG:ARG:好感度レベル < 51
+		LOCAL:3 += TALENT:ARG:ツンデレ * -10
+		LOCAL:3 += TALENT:ARG:プライド * -10
+	ELSE
+		LOCAL:3 += TALENT:ARG:ツンデレ * 20
+	ENDIF
+	;恋慕
+	LOCAL:3 += TALENT:ARG:恋慕 * 20
+	;性別嗜好
+	SIF ARG >= 0 && ARG:1 >= 0 && HETEROSEX(ARG, ARG:1)
+		LOCAL:3 += ABL:ARG:同性愛 * 5
+	SELECTCASE TALENT:ARG:性別嗜好
+		CASE 1
+			SIF TALENT:(ARG:1):性別 == 2
+				LOCAL:3 += -30
+		CASE 2
+			SIF TALENT:(ARG:1):性別 == 1
+				LOCAL:3 += -30
+		CASE 3
+			LOCAL:3 += -30
+	ENDSELECT
+	;調教者のTALENT:謎の魅力をみる
+	SIF ARG:1 >= 0 && TALENT:(ARG:1):謎の魅力
+		LOCAL:3 += 20
+;枠統合計算(マイナスになる可能性がある枠は最低1%に)
+LOCAL = 基礎値 * MAX(LOCAL:1 + 100, 1) / 100 * (LOCAL:2 + 100) / 100 * MAX(LOCAL:3 + 100, 1) / 100
+
+;気力
+SIF BASE:ARG:気力 <= 0
+	LOCAL /= 2
+;乱数(±5%)
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+LOCAL:1 = LOCAL * ((RAND:11 - 5) + 100) / 1000
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+LOCAL:1 = SOURCE_上限減衰(LOCAL:1)
+;PLAYER限定
+IF ARG:1 == PLAYER
+	TRYCCALLFORM 好感度要素_性愛度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:性愛度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:性愛度上昇格納 += LOCAL
+	ENDCATCH
+	TRYCCALLFORM 好感度要素_恋心度上昇反応_CHARAEVENT_{ARG}(LOCAL:1)
+		NOWEX:ARG:恋心度上昇格納 += RESULT
+	CATCH
+		NOWEX:ARG:恋心度上昇格納 += LOCAL:1
+	ENDCATCH
+ENDIF
+;乱数(±5%)
+LOCAL = LOCAL * ((RAND:11 - 5) + 100) / 100
+;恋慕度
+IF CFLAG:ARG:ゲージ起動分類 == 1 && ARG:1 == PLAYER
+	TRYCCALLFORM 恋慕度上昇反応_CHARAEVENT_{ARG}(LOCAL)
+		NOWEX:ARG:恋慕度上昇格納 += RESULT / 2
+	CATCH
+		NOWEX:ARG:恋慕度上昇格納 += LOCAL / 2
+	ENDCATCH
+ENDIF
+;性愛度UPここまで
+
+
+@SOURCE_CALC_好感度要素_キャラ固有好感度UP(ARG, ARG:1, ARG:2)
+;好感度UP
+VARSET LOCAL
+;基本的に補正その他はここに来る前に掛かってるはずなので乱数と減衰のみ
+
+;乱数(±5%)
+LOCAL = ARG:2 * ((RAND:11 - 5) + 100) / 100
+;減衰
+LOCAL = SOURCE_上限減衰(LOCAL)
+;PLAYER限定
+SIF ARG:1 == PLAYER
+	NOWEX:ARG:キャラ固有好感度要素上昇格納 += LOCAL
+;キャラ固有好感度UPここまで
