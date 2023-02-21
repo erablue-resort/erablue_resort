@@ -66,6 +66,7 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN 0
 	CASE 1002
+		DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "装備者キャラ番号", 0
 		装備ステータス補正保存:キャラ番号:装備指輪番号 = 0
 		CALL 装備再計算処理(キャラ番号)
 		PRINTFORMW %CALLNAME:キャラ番号%は指輪を外した。
@@ -74,6 +75,7 @@ SELECTCASE LOCAL
 		RETURN 0
 	CASEELSE
 		装備ステータス補正保存:キャラ番号:装備指輪番号 = LOCAL
+		DT_CELL_SET "所持指輪データベース", LOCAL, "装備者キャラ番号", キャラ番号
 		CALL 装備再計算処理(キャラ番号)
 		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名")%を装備した。
 		VARSET 表示用ステータス格納配列:0:0
@@ -85,16 +87,15 @@ LOOP 1
 @所持指輪リスト表示(キャラ番号, ページ番号)
 #DIM キャラ番号
 #DIM ページ番号
-#DIM ステータス
 ;まず指輪のステータス補正を全部変数になおして放り込む
 IF 表示用ステータス格納配列:1:0 == 0
 	FOR LOCAL, 1, 500
-		LOCALS = 
+		VARSET LOCALS
 		DT_CELL_GETS "所持指輪データベース", LOCAL, "指輪名"
 		IF RESULTS == ""
 			BREAK
 		ENDIF
-		表示用ステータス格納配列:LOCAL:0 = 1
+		表示用ステータス格納配列:LOCAL:0 = LOCAL
 		SPLIT DT_CELL_GETS("所持指輪データベース", LOCAL, "基礎ステータス補正"), "_", LOCALS
 		FOR LOCAL:1, 0, 8
 			IF LOCALS:(LOCAL:1 * 2) != ""
@@ -118,36 +119,82 @@ IF 表示用ステータス格納配列:1:0 == 0
 				ENDSELECT
 			ENDIF
 		NEXT
-		IF DT_CELL_GETS("所持指輪データベース", LOCAL, "特殊ステータス補正") != "" || DT_CELL_GETS("所持指輪データベース", LOCAL, "オプション特殊ステータス補正") != ""
-			表示用ステータス格納配列:LOCAL:9 = 1
-		ENDIF
+		表示用ステータス格納配列:LOCAL:9 = DT_CELL_GET("所持指輪データベース", LOCAL, "装備者キャラ番号")
 	NEXT
 ENDIF
 
 LOCALS = <div rect='42px,220px,886px,580px'>
-LOCALS += "指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　　防御力　　回復力　　行動速度　　DA率　　TA率　　特殊効果<br>"
+LOCALS += "指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率　　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
-FOR LOCAL, 1, 500
-	IF 表示用ステータス格納配列:LOCAL:0 == 0
-		BREAK
-	ENDIF
-	LOCALS += @"<button value='{LOCAL}'>"
-	LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:2, 8, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:3, 10, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:4, 10, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:5, 10, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:6, 12, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:7, 8, LEFT}"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:8, 8, LEFT}"
-	IF 表示用ステータス格納配列:LOCAL:9
-		LOCALS += "◯"
-	ELSE
-		LOCALS += "☓"
-	ENDIF
-	LOCALS += "</button><br>"
-NEXT
+IF キャラ番号 > 0
+	LOCAL:1 = 装備ステータス補正保存:キャラ番号:装備指輪番号
+	FOR LOCAL, 1, 500
+		IF 表示用ステータス格納配列:LOCAL:0 == 0
+			BREAK
+		ENDIF
+		IF LOCAL:1 == LOCAL
+			LOCALS += "<font color='#CCCC00'>"
+		ENDIF
+		LOCALS += @"<button value='{LOCAL}'>"
+		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
+		FOR LOCAL:2, 1, 9
+			IF 表示用ステータス格納配列:LOCAL:(LOCAL:2) > 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
+				IF LOCAL:2 == 6
+					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}</font>"
+				ELSEIF LOCAL:2 == 7
+					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}</font>"
+				ELSE
+					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}</font>"
+				ENDIF
+			ELSEIF 表示用ステータス格納配列:LOCAL:(LOCAL:2) < 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
+				IF LOCAL:2 == 6
+					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}</font>"
+				ELSEIF LOCAL:2 == 7
+					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}</font>"
+				ELSE
+					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}</font>"
+				ENDIF
+			ELSE
+				IF LOCAL:2 == 6
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}"
+				ELSEIF LOCAL:2 == 7
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}"
+				ELSE
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}"
+				ENDIF
+			ENDIF
+		NEXT
+		IF 表示用ステータス格納配列:LOCAL:9 > 0
+			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		ENDIF
+		LOCALS += "</button>"
+		IF LOCAL:1 == LOCAL
+			LOCALS += "</font>"
+		ENDIF
+		LOCALS += "<br>"
+	NEXT
+ELSE
+	LOCAL:1 = 0
+	FOR LOCAL, 1, 500
+		IF 表示用ステータス格納配列:LOCAL:0 == 0
+			BREAK
+		ENDIF
+		LOCALS += @"<button value='{LOCAL}'>"
+		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:2, 8, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:3, 8, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:4, 8, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:5, 8, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:6, 10, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:7, 6, LEFT}"
+		LOCALS += @"{表示用ステータス格納配列:LOCAL:8, 8, LEFT}"
+		IF 表示用ステータス格納配列:LOCAL:9 > 0
+			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		ENDIF
+		LOCALS += "</button><br>"
+	NEXT
+ENDIF
 LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
