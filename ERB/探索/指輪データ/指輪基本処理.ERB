@@ -49,7 +49,7 @@ IF 装備ステータス補正保存:キャラ番号:装備指輪番号 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
 ENDIF
-LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
 
 HTML_PRINT LOCALS, 1
 
@@ -61,7 +61,7 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE 999
+	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
 		RETURN 0
@@ -73,7 +73,10 @@ SELECTCASE LOCAL
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
 		RETURN 0
-	CASEELSE
+	CASE IS < 500
+		IF 装備ステータス補正保存:キャラ番号:装備指輪番号 > 0
+			DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "装備者キャラ番号", 0
+		ENDIF
 		装備ステータス補正保存:キャラ番号:装備指輪番号 = LOCAL
 		DT_CELL_SET "所持指輪データベース", LOCAL, "装備者キャラ番号", キャラ番号
 		CALL 装備再計算処理(キャラ番号)
@@ -81,6 +84,14 @@ SELECTCASE LOCAL
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
 		RETURN 0
+	CASE IS < 1000
+		TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
+		LOCALS = %詳細文文字列受け渡し変数%
+		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
+		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		HTML_PRINT LOCALS
+		WAIT
+		RESTART
 ENDSELECT
 LOOP 1
 
@@ -123,8 +134,8 @@ IF 表示用ステータス格納配列:1:0 == 0
 	NEXT
 ENDIF
 
-LOCALS = <div rect='42px,220px,886px,580px'>
-LOCALS += "指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率　　装備者<br>"
+LOCALS = <div rect='42px,220px,886px,580px'><nobr>
+LOCALS += "　　　 指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 IF キャラ番号 > 0
 	LOCAL:1 = 装備ステータス補正保存:キャラ番号:装備指輪番号
@@ -132,6 +143,7 @@ IF キャラ番号 > 0
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
+		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
 		IF LOCAL:1 == LOCAL
 			LOCALS += "<font color='#CCCC00'>"
 		ENDIF
@@ -139,29 +151,38 @@ IF キャラ番号 > 0
 		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
 		FOR LOCAL:2, 1, 9
 			IF 表示用ステータス格納配列:LOCAL:(LOCAL:2) > 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
-				IF LOCAL:2 == 6
-					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}</font>"
-				ELSEIF LOCAL:2 == 7
-					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}</font>"
-				ELSE
-					LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}</font>"
-				ENDIF
+				SELECTCASE LOCAL:2
+					CASE 1 TO 2
+						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
+					CASE 3 TO 5
+						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　</font>"
+					CASE 6
+						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　</font>"
+					CASE 7 TO 8
+						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　</font>"
+				ENDSELECT
 			ELSEIF 表示用ステータス格納配列:LOCAL:(LOCAL:2) < 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
-				IF LOCAL:2 == 6
-					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}</font>"
-				ELSEIF LOCAL:2 == 7
-					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}</font>"
-				ELSE
-					LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}</font>"
-				ENDIF
+				SELECTCASE LOCAL:2
+					CASE 1 TO 2
+						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
+					CASE 3 TO 5
+						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　</font>"
+					CASE 6
+						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　</font>"
+					CASE 7 TO 8
+						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　</font>"
+				ENDSELECT
 			ELSE
-				IF LOCAL:2 == 6
-					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 10, LEFT}"
-				ELSEIF LOCAL:2 == 7
-					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6, LEFT}"
-				ELSE
-					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8, LEFT}"
-				ENDIF
+				SELECTCASE LOCAL:2
+					CASE 1 TO 2
+						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　"
+					CASE 3 TO 5
+						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　"
+					CASE 6
+						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　"
+					CASE 7 TO 8
+						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　"
+				ENDSELECT
 			ENDIF
 		NEXT
 		IF 表示用ステータス格納配列:LOCAL:9 > 0
