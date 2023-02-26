@@ -3,17 +3,41 @@
 TSTR:コマンド名受渡 = 
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義名")
 CATCH
-	TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義名")
+	TRYCCALLFORM 奥義名補正_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義名補正"), 26, LEFT%
+	CATCH
+		TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義名")
+	ENDCATCH
 ENDCATCH
 
 @奥義威力呼び出し(ARG)
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義威力")
-	RETURN RESULT
+	LOCAL = RESULT
+	IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "奥義威力")
+		CALLFORM 奥義威力_効果量_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%
+		LOCAL += RESULT
+	ENDIF
+	RETURN LOCAL
 CATCH
-	RETURN 300
+	LOCAL = 300
+	IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "奥義威力")
+		CALLFORM 奥義威力_効果量_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%
+		LOCAL += RESULT
+	ENDIF
+	RETURN LOCAL
 ENDCATCH
 
+@奥義追加効果呼び出し(ARG)
+VARSET LOCALS
 
+TRYCALLFORM 固有奥義_{NO:ARG}("奥義追加効果")
+SPLIT DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正", "_", LOCALS
+FOR LOCAL, 0, 10
+	SIF LOCALS:LOCAL == ""
+		BREAK
+	SIF LOCALS:LOCAL == "奥義威力"
+		CONTINUE
+	TRYCALLFORM 奥義補正処理関数_%LOCALS:LOCAL%
+NEXT
 
 
 @汎用奥義_剣(ARGS)
