@@ -1,12 +1,11 @@
 ﻿;NEWGAMEに突っ込む用
 
 
-@汎用耳飾り取得処理(耳飾り名, オプション数)
+@汎用耳飾り取得処理(耳飾り名)
 #DIMS 耳飾り名
-#DIM オプション数
 
 ;個別の耳飾りERBに飛んでステータス補正を入れ込む
-TRYCCALLFORM 耳飾りステータス決定_%耳飾り名%(オプション数)
+TRYCCALLFORM 耳飾りステータス決定_%耳飾り名%
 CATCH
 	PRINTW 指定の耳飾りが見つかりません。
 	RETURN -1
@@ -98,49 +97,14 @@ LOOP 1
 @所持耳飾りリスト表示(キャラ番号, ページ番号)
 #DIM キャラ番号
 #DIM ページ番号
-;まず耳飾りのステータス補正を全部変数になおして放り込む
-IF 表示用ステータス格納配列:1:0 == 0
-	FOR LOCAL, 1, 500
-		VARSET LOCALS
-		DT_CELL_GETS "所持耳飾りデータベース", LOCAL, "耳飾り名"
-		IF RESULTS == ""
-			BREAK
-		ENDIF
-		表示用ステータス格納配列:LOCAL:0 = LOCAL
-		SPLIT DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "基礎ステータス補正"), "_", LOCALS
-		FOR LOCAL:1, 0, 8
-			IF LOCALS:(LOCAL:1 * 2) != ""
-				SELECTCASE LOCALS:(LOCAL:1 * 2)
-					CASE "最大ＨＰ"
-						表示用ステータス格納配列:LOCAL:1 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "最大ＭＰ"
-						表示用ステータス格納配列:LOCAL:2 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "攻撃力"
-						表示用ステータス格納配列:LOCAL:3 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "防御力"
-						表示用ステータス格納配列:LOCAL:4 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "回復力"
-						表示用ステータス格納配列:LOCAL:5 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "行動速度"
-						表示用ステータス格納配列:LOCAL:6 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "DA率"
-						表示用ステータス格納配列:LOCAL:7 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "TA率"
-						表示用ステータス格納配列:LOCAL:8 = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-				ENDSELECT
-			ENDIF
-		NEXT
-		表示用ステータス格納配列:LOCAL:9 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号")
-	NEXT
-ENDIF
 
 LOCALS = <div rect='42px,220px,886px,580px'><nobr>
-LOCALS += "　　　 耳飾り名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率　装備者<br>"
+LOCALS += "　　　 耳飾り名　　　　　　　　　属性　奥義補正　　　　　　　　　　　　　　　　　　　　　　　　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 IF キャラ番号 > 0
 	LOCAL:1 = 装備ステータス補正保存:キャラ番号:装備耳飾り番号
 	FOR LOCAL, 1, 500
-		IF 表示用ステータス格納配列:LOCAL:0 == 0
+		IF DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名") == ""
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
@@ -149,44 +113,12 @@ IF キャラ番号 > 0
 		ENDIF
 		LOCALS += @"<button value='{LOCAL}'>"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
-		FOR LOCAL:2, 1, 9
-			IF 表示用ステータス格納配列:LOCAL:(LOCAL:2) > 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
-				SELECTCASE LOCAL:2
-					CASE 1 TO 2
-						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
-					CASE 3 TO 5
-						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　</font>"
-					CASE 6
-						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　</font>"
-					CASE 7 TO 8
-						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　</font>"
-				ENDSELECT
-			ELSEIF 表示用ステータス格納配列:LOCAL:(LOCAL:2) < 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
-				SELECTCASE LOCAL:2
-					CASE 1 TO 2
-						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
-					CASE 3 TO 5
-						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　</font>"
-					CASE 6
-						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　</font>"
-					CASE 7 TO 8
-						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　</font>"
-				ENDSELECT
-			ELSE
-				SELECTCASE LOCAL:2
-					CASE 1 TO 2
-						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　"
-					CASE 3 TO 5
-						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　"
-					CASE 6
-						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　"
-					CASE 7 TO 8
-						LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　"
-				ENDSELECT
-			ENDIF
-		NEXT
-		IF 表示用ステータス格納配列:LOCAL:9 > 0
-			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(LOCAL)
+		詳細文文字列受け渡し変数 = %SUBSTRING(HTML_TOPLAINTEXT(詳細文文字列受け渡し変数), 12, -1)%
+		LOCALS += @"%詳細文文字列受け渡し変数, 56, LEFT%"
+		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号")
+			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号"))%"
 		ENDIF
 		LOCALS += "</button>"
 		IF LOCAL:1 == LOCAL
@@ -200,18 +132,14 @@ ELSE
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
+		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
 		LOCALS += @"<button value='{LOCAL}'>"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:2, 8, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:3, 8, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:4, 8, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:5, 8, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:6, 10, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:7, 6, LEFT}"
-		LOCALS += @"{表示用ステータス格納配列:LOCAL:8, 8, LEFT}"
-		IF 表示用ステータス格納配列:LOCAL:9 > 0
-			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(LOCAL)
+		LOCALS += @"%詳細文文字列受け渡し変数, 56, LEFT%"
+		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号")
+			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号"))%"
 		ENDIF
 		LOCALS += "</button><br>"
 	NEXT
@@ -220,25 +148,3 @@ LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
 
-
-@装備再計算処理(キャラ番号)
-#DIM キャラ番号
-#DIM 装備耳飾り
-#DIM 装備耳飾り
-#DIM 装備衣装
-VARSET LOCALS
-
-装備耳飾り = 装備ステータス補正保存:キャラ番号:装備耳飾り番号
-装備耳飾り = 装備ステータス補正保存:キャラ番号:装備耳飾り番号
-装備衣装 = 装備ステータス補正保存:キャラ番号:装備衣装番号
-;装備アイテム番号だけ退避させて一端全部消す
-VARSET 装備ステータス補正保存:キャラ番号:0
-
-装備ステータス補正保存:キャラ番号:装備耳飾り番号 = 装備耳飾り
-SPLIT DT_CELL_GETS("所持耳飾りデータベース", 装備耳飾り, "基礎ステータス補正"), "_", LOCALS
-FOR LOCAL:1, 0, 15
-	IF LOCALS:(LOCAL:1 * 2) == ""
-		BREAK
-	ENDIF
-	装備ステータス補正保存:キャラ番号:(LOCALS:(LOCAL:1 * 2)) = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-NEXT

@@ -18,49 +18,52 @@ IF 耳飾り番号
 	IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 耳飾り番号, "奥義補正"), "自己回復")
 		LOCALS += "　自己回復 回復力x50%<br>"
 	ELSEIF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 耳飾り番号, "奥義補正"), "自己攻撃力強化")
-		LOCALS += "　自己攻撃力強化 Ａ枠+30%<br>"
+		LOCALS += "　自己攻撃力強化 Ａ枠+30% ３ターン<br>"
 	ELSEIF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 耳飾り番号, "奥義補正"), "自己奥義ゲージ増加")
 		LOCALS += "　自己奥義ゲージ増加 +20%<br>"
 	ENDIF
 ELSE
 	LOCALS += "<br>以下の効果から１つ。取得時にランダム決定<br>"
 	LOCALS += "・自己回復 回復力x50%<br>"
-	LOCALS += "・自己攻撃力強化 Ａ枠+30%<br>"
+	LOCALS += "・自己攻撃力強化 Ａ枠+30% ３ターン<br>"
 	LOCALS += "・自己奥義ゲージ増加 +20%<br>"
 ENDIF
 
 詳細文文字列受け渡し変数 = %LOCALS%
 
-@耳飾りステータス決定_火の耳飾り(オプション数, 情報取得フラグ = 0)
-#DIM オプション数
-#DIM 情報取得フラグ
+@耳飾りステータス決定_火の耳飾り
 
 LOCALS = 奥義威力_
 LOCAL = RAND:3
 SELECTCASE LOCAL
 	CASE 0
-		LOCAL += "自己回復"
+		LOCALS += "自己回復"
 	CASE 1
-		LOCAL += "自己攻撃力強化"
+		LOCALS += "自己攻撃力強化"
 	CASE 2
-		LOCAL += "自己奥義ゲージ増加"
+		LOCALS += "自己奥義ゲージ増加"
 ENDSELECT
 
-IF 情報取得フラグ
-	詳細文文字列受け渡し変数 = %LOCALS%
-	RETURN 0
-ENDIF
-LOCAL = DT_ROW_ADD("所持耳飾りデータベース", "耳飾り名", "火の耳飾り", "奥義補正", LOCALS)
-;オプション数に応じてオプション効果をランダムで付加
-;未実装
+LOCAL = DT_ROW_ADD("所持耳飾りデータベース", "耳飾り名", "火の耳飾り", "変更属性", "火", "奥義補正", LOCALS)
+
 
 @奥義威力_効果量_火の耳飾り
 RETURN 50
 
 @自己回復_効果量_火の耳飾り
+LOCAL = BATTLE_STATE:戦闘行動キャラ:回復力 * (バフ・デバフ測定(戦闘行動キャラ, "回復力") + 100) / 100
+;回復力x50%
+LOCAL = LOCAL / 2
+RETURN LOCAL
 
+@自己攻撃力強化_効果量_火の耳飾り(効果量, 枠, 持続ターン)
+#DIM REF 効果量
+#DIMS REF 枠
+#DIM REF 持続ターン
 
-@自己攻撃力強化_効果量_火の耳飾り
+効果量 = 30
+枠 = 攻撃力A
+持続ターン = 3
 
 
 @自己奥義ゲージ増加_効果量_火の耳飾り
