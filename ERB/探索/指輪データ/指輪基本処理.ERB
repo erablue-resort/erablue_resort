@@ -19,7 +19,7 @@ ENDCATCH
 ;装備中指輪表示
 DRAWLINE
 詳細文文字列受け渡し変数 = 
-TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "指輪名")%
+TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "指輪名")%(装備ステータス補正保存:キャラ番号:装備指輪番号)
 LOCALS = <div rect='32px,0px,906px,200px' border='5px' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='42px, 10px, 180px, 180px'>%顔グラ表示用文字列関数(キャラ番号)%</div>"
 LOCALS += @"<div rect='222px,10px,886px,180px'>■%CALLNAME:キャラ番号%が装備中の指輪<br>"
@@ -87,7 +87,7 @@ SELECTCASE LOCAL
 	CASE IS < 1000
 		TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
+		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%(LOCAL - 500)
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
@@ -200,6 +200,7 @@ ELSE
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
+		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
 		LOCALS += @"<button value='{LOCAL}'>"
 		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
@@ -220,25 +221,3 @@ LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
 
-
-@装備再計算処理(キャラ番号)
-#DIM キャラ番号
-#DIM 装備指輪
-#DIM 装備イヤリング
-#DIM 装備衣装
-VARSET LOCALS
-
-装備指輪 = 装備ステータス補正保存:キャラ番号:装備指輪番号
-装備イヤリング = 装備ステータス補正保存:キャラ番号:装備イヤリング番号
-装備衣装 = 装備ステータス補正保存:キャラ番号:装備衣装番号
-;装備アイテム番号だけ退避させて一端全部消す
-VARSET 装備ステータス補正保存:キャラ番号:0
-
-装備ステータス補正保存:キャラ番号:装備指輪番号 = 装備指輪
-SPLIT DT_CELL_GETS("所持指輪データベース", 装備指輪, "基礎ステータス補正"), "_", LOCALS
-FOR LOCAL:1, 0, 15
-	IF LOCALS:(LOCAL:1 * 2) == ""
-		BREAK
-	ENDIF
-	装備ステータス補正保存:キャラ番号:(LOCALS:(LOCAL:1 * 2)) = TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-NEXT

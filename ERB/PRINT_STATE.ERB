@@ -48,7 +48,8 @@ IF ARG != MASTER
 	PRINTL
 	IF 能力表示 == 2
 		IF CFLAG:ARG:滞在期間 >= 0
-			PRINTBUTTON "[120]指輪装備変更", 120
+			PRINTBUTTONLC "[120]指輪装備変更", 120
+			PRINTBUTTONLC "[121]耳飾り装備変更", 121
 			PRINTL
 		ENDIF
 	ELSE
@@ -91,6 +92,9 @@ IF ARG != MASTER
 			RESTART
 		CASE 120
 			CALL 指輪付け替え処理画面(ARG)
+			RESTART
+		CASE 121
+			CALL 耳飾り付け替え処理画面(ARG)
 			RESTART
 		CASE 999
 			能力表示 = 0
@@ -230,8 +234,13 @@ PRINTL
 PRINTL
 LOCALS = <div rect='0px,0px,180px,270px'>□ ステータス □------<br>
 LOCALS += @"Lv　　　　：{基礎BATTLE_STATE:ARG:Lv, 5}<br>"
-LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%属性")%
-LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性), 5%</font><br>"
+IF 装備ステータス補正保存:ARG:属性
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(装備ステータス補正保存:ARG:属性 - 10)%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(装備ステータス補正保存:ARG:属性 - 10), 5%</font><br>"
+ELSE
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性), 5%</font><br>"
+ENDIF
 LOCALS += @"得意武器　：%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器), 5%<br>"
 LOCALS += @"最大ＨＰ　：{基礎BATTLE_STATE:ARG:最大ＨＰ + 装備ステータス補正保存:ARG:最大ＨＰ, 5}<br>"
 LOCALS += @"最大ＭＰ　：{基礎BATTLE_STATE:ARG:最大ＭＰ + 装備ステータス補正保存:ARG:最大ＭＰ, 5}<br>"
@@ -244,6 +253,7 @@ LOCALS += @"TA率　　　：{基礎BATTLE_STATE:ARG:TA率 + 装備ステータ�
 LOCALS += @"命中率　　：{基礎BATTLE_STATE:ARG:命中率 + 装備ステータス補正保存:ARG:命中率, 5}\%<br>"
 LOCALS += @"回避率　　：{基礎BATTLE_STATE:ARG:回避率 + 装備ステータス補正保存:ARG:回避率, 5}\%<br></div>"
 
+詳細文文字列受け渡し変数 = 
 LOCALS += "<div rect='200px,0px,600px,126px'>□ 装備指輪 □--------------------------------------------------<br>"
 IF 装備ステータス補正保存:ARG:装備指輪番号 == 0
 	LOCALS += "なし<br>"
@@ -252,12 +262,26 @@ IF 装備ステータス補正保存:ARG:装備指輪番号 == 0
 	LOCALS += "<br>"
 	LOCALS += "<br>"
 ELSE
-	TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名")%
+	TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名")%(装備ステータス補正保存:ARG:装備指輪番号)
 	LOCALS += @"■%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名")%<br>%詳細文文字列受け渡し変数%<br>"
 ENDIF
 LOCALS += "<br></div>"
+詳細文文字列受け渡し変数 = 
+LOCALS += "<div rect='200px,126px,600px,126px'>□ 装備耳飾り □------------------------------------------------<br>"
+IF 装備ステータス補正保存:ARG:装備耳飾り番号 == 0
+	LOCALS += "なし<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+ELSE
+	TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%(装備ステータス補正保存:ARG:装備耳飾り番号)
+	LOCALS += @"■%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%<br>%詳細文文字列受け渡し変数%<br>"
+ENDIF
+LOCALS += "<br></div>"
 
-LOCALS += "<div rect='200px,126px,600px,126px'>□ 装備衣装 □--------------------------------------------------<br>"
+詳細文文字列受け渡し変数 = 
+LOCALS += "<div rect='200px,252px,600px,126px'>□ 装備衣装 □--------------------------------------------------<br>"
 IF CSTR:ARG:着せ替え服 != ""
 	LOCALS += @"■%CSTR:ARG:着せ替え服%"
 	SIF CSTR:ARG:着せ替え服追加名 != ""
@@ -272,7 +296,7 @@ LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "<br></div>"
 
-LOCALS += "<div rect='0px,270px,800px,126px'>□ アビリティ □-------------------------------------------------------------------------<br>"
+LOCALS += "<div rect='0px,380px,800px,126px'>□ アビリティ □-------------------------------------------------------------------------<br>"
 CALL 固有アビ名呼び出し(ARG)
 LOCALS:1 = %TSTR:コマンド名受渡%
 CALL 固有アビリティ説明文呼び出し(ARG)
@@ -288,7 +312,7 @@ LOCALS += "<br></div>"
 
 HTML_PRINT LOCALS, 1
 
-FOR LOCAL, 0, 20
+FOR LOCAL, 0, 25
 	PRINTL
 NEXT
 
@@ -834,6 +858,20 @@ NEXT
 FOR ループ用,1900,2000
 	IF ITEM:ループ用
 		PRINTFORMLC %ITEMNAME:ループ用%：{ITEM:ループ用}個
+		LOCAL:1 += 1
+		IF LOCAL:1 == 3
+			PRINTL
+			PRINT 　
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+NEXT
+PRINTL
+PRINTL □ 食材 □-----------------------------------------------------------------------
+LOCAL:1 = 0
+FOR ループ用,0,100
+	IF 累計魚所持数:ループ用
+		PRINTFORMLC %ITEMNAME:(ループ用 + 200)%：{ITEM:(ループ用 + 200)}個
 		LOCAL:1 += 1
 		IF LOCAL:1 == 3
 			PRINTL
