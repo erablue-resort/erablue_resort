@@ -610,6 +610,9 @@ ENDSELECT
 #DIM ループ用
 #DIM 要素最大値
 #DIM 計算後レベル
+#DIMS 関係名, 6
+
+VARSET 関係名
 
 ;テーブルと比較してレベル算出
 要素最大値 = MAX(CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
@@ -619,23 +622,42 @@ FOR ループ用, 0, 100
 	ENDIF
 NEXT
 計算後レベル = ループ用
+LOCAL = MAXFIND(5, CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
+TRYCCALLFORM キャラ固有好感度関係名_{NO:ARG}()
+	FOR ループ用, 0, 6
+		CALLFORM キャラ固有好感度関係名_{NO:ARG}(関係閾値:ループ用)
+		関係名:ループ用 '= "/" + RESULTS
+	NEXT
+CATCH
+	SIF LOCAL == 5
+		LOCAL = MAXFIND(4, CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度)
+ENDCATCH
 
 ;現在レベルより高ければレベルアップ処理
 IF CFLAG:ARG:好感度レベル < 計算後レベル
 	PRINTFORML 好感度LvUP!! {CFLAG:ARG:好感度レベル} > {計算後レベル}
-	IF CFLAG:ARG:好感度レベル <= 0 && 計算後レベル > 0
-		PRINTL 初対面 > 他人
+	IF CFLAG:ARG:好感度レベル <= 関係閾値:0 && 計算後レベル > 関係閾値:0
+		LOCALS = %AUTO_SPLIT(関係呼称:1 + 関係名:1, "/", LOCAL)%
+		PRINTFORML 初対面 > %LOCALS%
 		初体験日:ARG:初対面 = DAY
+		CSTR:ARG:現在の好感度表示 '= LOCALS
 	ENDIF
-	SIF CFLAG:ARG:好感度レベル <= 10 && 計算後レベル > 10
-		PRINTL 他人 > 顔見知り
-	SIF CFLAG:ARG:好感度レベル <= 20 && 計算後レベル > 20
-		PRINTL 顔見知り > 友人
-	SIF CFLAG:ARG:好感度レベル <= 50 && 計算後レベル > 50
-		PRINTL 友人 > 親友
-	SIF CFLAG:ARG:好感度レベル <= 80 && 計算後レベル > 80
-		PRINTL 親友 > 無二の友
+	FOR ループ用, 1, 5
+		IF CFLAG:ARG:好感度レベル <= 関係閾値:ループ用 && 計算後レベル > 関係閾値:ループ用
+			LOCALS = %AUTO_SPLIT(関係呼称:(ループ用+1) + 関係名:(ループ用+1), "/", LOCAL)%
+			PRINTFORML %CSTR:ARG:現在の好感度表示% > %LOCALS%
+			CSTR:ARG:現在の好感度表示 '= LOCALS
+		ENDIF
+	NEXT
 	CFLAG:ARG:好感度レベル = 計算後レベル
+ELSE
+	LOCAL:1 = RANGEFIND(計算後レベル, 関係閾値:0, 関係閾値:1, 関係閾値:2, 関係閾値:3, 関係閾値:4, 関係閾値:5) + 1
+	LOCALS '= AUTO_SPLIT(関係呼称:(LOCAL:1) + 関係名:(LOCAL:1), "/", LOCAL)
+	IF CSTR:ARG:現在の好感度表示 != LOCALS
+		PRINTFORML %CALLNAME:ARG%の%CALLNAME:MASTER%を見る目が変わった……
+		PRINTFORML %CSTR:ARG:現在の好感度表示% > %LOCALS% 
+		CSTR:ARG:現在の好感度表示 '= LOCALS
+	ENDIF
 ENDIF
 PRINTW 
 
