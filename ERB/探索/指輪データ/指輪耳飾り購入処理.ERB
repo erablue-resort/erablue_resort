@@ -3,12 +3,13 @@
 ;完全に独立しているのでリゾートだろうがダンジョンだろうが呼べる
 ;基本的に汎用アイテム購入と同じ処理だが、レイアウトが違うため別関数化
 ;
-;汎用アイテム購入用_品揃え登録:0 = 栄冠の指輪・力,2000,ルピ
+;指輪購入用_品揃え登録:0 = 栄冠の指輪・力,2000,ルピ
 ;のように記述する
 ;-------------------------------------------------
 @指輪耳飾り購入画面処理
 #DIMS 商売文字列保存, 3
 #DIMS 商品名保存, 100
+#DIMS 商品簡易文保存, 100
 #DIM ページ番号
 VARSET LOCALS
 VARSET 商売文字列保存
@@ -28,10 +29,10 @@ LOCALS += "<div rect='643px,5px,310px,150px' border='5px' bcolor='#C0C0C0'></div
 IF 表示用ステータス格納配列:0:0 == 0
 	FOR LOCAL, 0, 500
 		VARSET LOCALS
-		IF 汎用アイテム購入用_品揃え登録:LOCAL == ""
+		IF 指輪購入用_品揃え登録:LOCAL == ""
 			BREAK
 		ENDIF
-		SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
+		SPLIT 指輪購入用_品揃え登録:LOCAL, ",", 商売文字列保存
 		商品名保存:LOCAL = %商売文字列保存:0%
 		CALLFORM 指輪ステータス決定_%商売文字列保存:0%(0, 1)
 		SPLIT 詳細文文字列受け渡し変数, "_", LOCALS
@@ -64,7 +65,30 @@ IF 表示用ステータス格納配列:0:0 == 0
 			表示用ステータス格納配列:LOCAL:9 = 2
 		ENDIF
 	NEXT
+	;次に耳飾りを配列に突っ込む
+	LOCAL:1 = 0
+	FOR LOCAL, LOCAL - 1, 500
+		VARSET LOCALS
+		DEBUGPRINTFORML {LOCAL}:{LOCAL:1}:%耳飾り購入用_品揃え登録:(LOCAL:1)%
+		IF 耳飾り購入用_品揃え登録:(LOCAL:1) == ""
+			BREAK
+		ENDIF
+		SPLIT 耳飾り購入用_品揃え登録:(LOCAL:1), ",", 商売文字列保存
+		商品名保存:LOCAL = %商売文字列保存:0%
+		詳細文文字列受け渡し変数 = 
+		CALLFORM 耳飾りショップ簡易文章表示_%商売文字列保存:0%
+		商品簡易文保存:LOCAL = %詳細文文字列受け渡し変数%
+		表示用ステータス格納配列:LOCAL:0 = TOINT(商売文字列保存:1)
+		IF 商売文字列保存:2 == "ルピ"
+			表示用ステータス格納配列:LOCAL:9 = 1
+		ELSEIF 商売文字列保存:2 == "ZP"
+			表示用ステータス格納配列:LOCAL:9 = 2
+		ENDIF
+		LOCAL:1 += 1
+	NEXT
 ENDIF
+
+
 
 LOCALS = <div rect='32px,0px,306px,55px' border='5px' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='42px,10px,306px,45px'>所持ルピ：{MONEY}<br>所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}</div>"
@@ -85,18 +109,22 @@ FOR LOCAL, 0, 500
 	ELSEIF 表示用ステータス格納配列:LOCAL:9 == 2
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:0}ZP"
 	ENDIF
-	FOR LOCAL:2, 1, 9
-		SELECTCASE LOCAL:2
-			CASE 1 TO 2
-				LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　"
-			CASE 3 TO 5
-				LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　"
-			CASE 6
-				LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　"
-			CASE 7 TO 8
-				LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　"
-		ENDSELECT
-	NEXT
+	IF 商品簡易文保存:LOCAL == ""
+		FOR LOCAL:2, 1, 9
+			SELECTCASE LOCAL:2
+				CASE 1 TO 2
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　"
+				CASE 3 TO 5
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 6}　"
+				CASE 6
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 8}　"
+				CASE 7 TO 8
+					LOCALS += @"{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　"
+			ENDSELECT
+		NEXT
+	ELSE
+		LOCALS += @"%商品簡易文保存:LOCAL%"
+	ENDIF
 	LOCALS += "</button><br>"
 NEXT
 
@@ -127,7 +155,6 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 0 TO 99
-		SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
 		IF 表示用ステータス格納配列:LOCAL:9 == 1
 			IF MONEY < 表示用ステータス格納配列:LOCAL:0
 				PRINTW ルピが足りません
@@ -141,22 +168,35 @@ SELECTCASE LOCAL
 			ENDIF
 			FLAG:ZP所持量 -= 表示用ステータス格納配列:LOCAL:0
 		ENDIF
-		CALL 汎用指輪取得処理(商品名保存:LOCAL, 0)
+		IF 商品簡易文保存:LOCAL == ""
+			CALL 汎用指輪取得処理(商品名保存:LOCAL, 0)
+		ELSE
+			CALL 汎用耳飾り取得処理(商品名保存:LOCAL)
+		ENDIF
 		IF RESULT != -1
 			PRINTFORMW %商品名保存:LOCAL%を購入しました。
 		ENDIF
 		RESTART
 	CASE 100 TO 199
-		TRYCALLFORM 指輪個別文章表示_%商品名保存:(LOCAL - 100)%
-		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 指輪基礎効果文章表示_%商品名保存:(LOCAL - 100)%(0)
-		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		IF 商品簡易文保存:(LOCAL - 100) == ""
+			TRYCALLFORM 指輪個別文章表示_%商品名保存:(LOCAL - 100)%
+			LOCALS = %詳細文文字列受け渡し変数%
+			TRYCALLFORM 指輪基礎効果文章表示_%商品名保存:(LOCAL - 100)%(0)
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		ELSE
+			TRYCALLFORM 耳飾り個別文章表示_%商品名保存:(LOCAL - 100)%
+			LOCALS = %詳細文文字列受け渡し変数%
+			TRYCALLFORM 耳飾り基礎効果文章表示_%商品名保存:(LOCAL - 100)%(0)
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		ENDIF
 		HTML_PRINT LOCALS
 		WAIT
 		RESTART
 	CASE 999
 		汎用アイテム購入用_序文 = 
-		VARSET 汎用アイテム購入用_品揃え登録
+		VARSET 商品名保存
+		VARSET 指輪購入用_品揃え登録
+		VARSET 商品簡易文保存
 		VARSET 表示用ステータス格納配列:0:0
 		RETURN 0
 ENDSELECT
