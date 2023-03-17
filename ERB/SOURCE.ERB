@@ -135,6 +135,10 @@ FOR LOCAL,0,CHARANUM
 	SIF LOCAL > 0 && !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:快楽計算フラグ
 		CONTINUE
 	;-------------------------------------------------
+	;干渉力による補正処理
+	;-------------------------------------------------
+	CALL 干渉補正実処理関数(LOCAL, "快楽増加時")
+	;-------------------------------------------------
 	;絶頂処理
 	;-------------------------------------------------
 	CALL ORGASM_ADD(LOCAL)
@@ -279,11 +283,11 @@ NEXT
 ;-------------------------------------------------
 ;刻印取得のチェック
 ;-------------------------------------------------
-CALL MARK_GOT_CHECK(TARGET)
+;CALL MARK_GOT_CHECK(TARGET)
 ;-------------------------------------------------
 ;刻印取得による口上
 ;-------------------------------------------------
-CALL KOJO_MESSAGE_MARKCNG
+;CALL KOJO_MESSAGE_MARKCNG
 ;-------------------------------------------------
 ;屈服・快楽堕ちの上昇による[抵抗]の消滅チェック
 ;-------------------------------------------------
@@ -345,17 +349,30 @@ FOR LOCAL:1, 0, CHARANUM
 		ENDIF
 		LOCAL:3 ++
 		LOCAL:2 = CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL + TCVAR:(LOCAL:1):(600 + LOCAL)
-		PRINTFORML %PALAMNAME:LOCAL,8,LEFT% {PALAM:(LOCAL:1):LOCAL,10,LEFT} + {CUP:(LOCAL:1):LOCAL,10,LEFT} =   {PALAM:(LOCAL:1):LOCAL + CUP:(LOCAL:1):LOCAL,10,LEFT}
+		PRINTFORM %PALAMNAME:LOCAL,8,LEFT% {PALAM:(LOCAL:1):LOCAL,10,LEFT} + {CUP:(LOCAL:1):LOCAL,10,LEFT} =   {PALAM:(LOCAL:1):LOCAL + CUP:(LOCAL:1):LOCAL,10,LEFT}
+		DEBUGPRINTFORML LOCAL{LOCAL}:干渉種類{干渉強化変数:(LOCAL:1):干渉種類}
+		IF 干渉強化変数:(LOCAL:1):干渉種類 - 5 == LOCAL
+			SETCOLOR カラーパレット("黄")
+			PRINT 　干渉効果発動中！
+			RESETCOLOR
+		ENDIF
+		PRINTL
 		PALAM:(LOCAL:1):LOCAL += CUP:(LOCAL:1):LOCAL - CDOWN:(LOCAL:1):LOCAL
 		PALAM:(LOCAL:1):LOCAL = MAX(0, PALAM:(LOCAL:1):LOCAL)
 		CUP:(LOCAL:1):LOCAL = 0
 		CDOWN:(LOCAL:1):LOCAL = 0
 	NEXT
+	;干渉ランク上昇判定
+	IF 干渉経験値テーブル:(干渉強化変数:(LOCAL:1):干渉ランク) <= 干渉強化変数:(LOCAL:1):干渉経験値
+		干渉強化変数:(LOCAL:1):干渉ランク += 1
+		PRINTFORMW %CALLNAME:(LOCAL:1)%の干渉ランクが上昇した！
+	ENDIF
 	SKIPDISP 0
 NEXT
 FOR LOCAL, 0, 100
 	CVARSET TCVAR, 600 + LOCAL, 0
 NEXT
+
 
 
 ;-------------------------------------------------

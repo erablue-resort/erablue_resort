@@ -1,0 +1,227 @@
+﻿@干渉強化メニュー
+
+#DIM 表示候補, 200
+#DIM 現在ページ
+#DIM 選択キャラ番号
+#DIM 詳細表示変数
+#DIM 干渉変更費用
+
+VARSET 表示候補, -1
+現在ページ = 0
+詳細表示変数 = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰への干渉を強化しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;非滞在は出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL,3,RIGHT}]%NAME:(表示候補:LOCAL), 50, LEFT%", LOCAL
+	SIF LOCAL % 2 != 0
+		PRINTL 
+NEXT
+PRINTL
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+;対象のINPUT
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		選択キャラ番号 = 表示候補:RESULT
+ENDSELECT
+
+
+$干渉表示_LOOP
+;どの干渉力を強化するか
+DRAWLINE
+PRINTFORML ■%NAME:選択キャラ番号%
+PRINTL 強化する干渉を選んでください
+DRAWLINE
+LOCALS = <div rect='13px,0px,306px,55px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='25px,10px,306px,45px'>所持ルピ：{MONEY}<br>所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}</div>"
+LOCALS += "<div rect='13px,60px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,60px,620px,450px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='340px,80px,602px,450px'>"
+IF 詳細表示変数 == 0
+	;現在の干渉詳細を表示
+	IF 干渉強化変数:選択キャラ番号:干渉種類 == 0
+	ELSE
+		CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("名前")
+		LOCALS += @"現在の干渉：%TSTR:コマンド名受渡%<br><br>"
+		CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("詳細文章")
+		LOCALS += @"%TSTR:コマンド名受渡%<br><br>"
+		LOCALS += @"<button value='0'>[0] 現在の干渉を解除する</button><br>"
+	ENDIF
+ELSE
+	CALLFORM 干渉強化関数_{詳細表示変数}("名前")
+	LOCALS += @"現在の干渉：%TSTR:コマンド名受渡%<br><br>"
+	CALLFORM 干渉強化関数_{詳細表示変数}("詳細文章")
+	LOCALS += @"%TSTR:コマンド名受渡%<br><br>"
+	CALLFORM 干渉強化関数_{詳細表示変数}("値段")
+	干渉変更費用 = RESULT
+	LOCALS += @"必要ＺＰ：{干渉変更費用}<br>"
+	IF 干渉変更費用 > FLAG:ZP所持量
+		LOCALS += @"ZPが不足しています<br>"
+	ELSE
+		LOCALS += @"<button value='0'>[0] この干渉に変更する</button><br>"
+	ENDIF
+ENDIF
+LOCALS += "</div>"
+LOCALS += "<div rect='25px,80px,310px,450px'>"
+IF 干渉強化変数:選択キャラ番号:干渉種類 == 0
+	LOCALS += @"現在の干渉：なし"
+ELSE
+	CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("名前")
+	LOCALS += @"　現在の干渉：%TSTR:コマンド名受渡%"
+	LOCALS += @"<br>　干渉ランク：%TOFULL(TOSTR(干渉強化変数:選択キャラ番号:干渉ランク))%"
+ENDIF
+LOCALS += "<br>----------<br>"
+FOR LOCAL, 1, 10
+	IF 干渉強化変数:選択キャラ番号:干渉種類 == LOCAL
+		CONTINUE
+	ENDIF
+	IF ENUMFUNCBEGINSWITH(@"干渉強化関数_{LOCAL}")
+		CALLFORM 干渉強化関数_{LOCAL}("名前")
+		LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</button>"
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 29
+	PRINTL
+NEXT
+DRAWLINE
+
+DO
+BINPUT
+IF 詳細表示変数 == 0
+	SELECTCASE RESULT
+		CASE 0
+			PRINTL 干渉を解除すると、干渉ランクが０に戻ります。
+			PRINTL 再び同じ干渉を行っても干渉ランクは戻りません。
+			PRINTL
+			PRINTL 干渉を解除してよろしいですか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			BINPUT
+			SELECTCASE RESULT
+				CASE 0
+					PRINTW 干渉を解除しました。
+					干渉強化変数:選択キャラ番号:干渉種類 = 0
+					干渉強化変数:選択キャラ番号:干渉ランク = 0
+					干渉強化変数:選択キャラ番号:干渉経験値 = 0
+					GOTO 干渉表示_LOOP
+				CASE 1
+					GOTO 干渉表示_LOOP
+			ENDSELECT
+		CASE 101 TO 109
+			詳細表示変数 = RESULT - 100
+			GOTO 干渉表示_LOOP
+		CASE 999
+			GOTO 表示_LOOP
+	ENDSELECT
+ELSE
+	SELECTCASE RESULT
+		CASE 0
+			IF 干渉変更費用 > FLAG:ZP所持量
+				PRINTW ZPが不足しています。
+				詳細表示変数 = 0
+				GOTO 干渉表示_LOOP
+			ENDIF
+			CALLFORM 干渉強化関数_{詳細表示変数}("名前")
+			PRINTFORML %CALLNAME:選択キャラ番号%へ%TSTR:コマンド名受渡%を行います。
+			PRINTL 干渉を変更すると、干渉ランクが０に戻ります。
+			PRINTL 再び前と同じ干渉を行っても干渉ランクは戻りません。
+			PRINTL
+			PRINTL よろしいですか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			BINPUT
+			SELECTCASE RESULT
+				CASE 0
+					PRINTFORMW %TSTR:コマンド名受渡%を行いました。
+					FLAG:ZP所持量 -= 干渉変更費用
+					干渉強化変数:選択キャラ番号:干渉種類 = 詳細表示変数
+					干渉強化変数:選択キャラ番号:干渉ランク = 0
+					干渉強化変数:選択キャラ番号:干渉経験値 = 0
+					詳細表示変数 = 0
+					GOTO 干渉表示_LOOP
+				CASE 1
+					詳細表示変数 = 0
+					GOTO 干渉表示_LOOP
+			ENDSELECT
+		CASE 101 TO 109
+			詳細表示変数 = RESULT - 100
+			GOTO 干渉表示_LOOP
+		CASE 999
+			GOTO 表示_LOOP
+	ENDSELECT
+ENDIF
+LOOP 1
+
+
+@干渉補正実処理関数(キャラ番号, ARGS)
+#DIM キャラ番号
+
+SELECTCASE ARGS
+	CASE "好感度増加時"
+		IF GROUPMATCH(干渉強化変数:キャラ番号:干渉種類, 1, 2, 3, 4)
+			CALLFORM 干渉強化関数_{干渉強化変数:キャラ番号:干渉種類}("実補正処理", キャラ番号)
+		ENDIF
+	CASE "快楽増加時"
+		IF GROUPMATCH(干渉強化変数:キャラ番号:干渉種類, 5, 6, 7, 8, 9)
+			CALLFORM 干渉強化関数_{干渉強化変数:キャラ番号:干渉種類}("実補正処理", キャラ番号)
+		ENDIF
+ENDSELECT
