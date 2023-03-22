@@ -34,8 +34,10 @@ LOCALS += "</div>"
 ;仕事の種類と現在そこに従事している人数を表示
 LOCALS += "<div rect='340px,25px,588px,450px'>"
 LOCALS += "仕事内容と従事人数一覧<br><br>"
-LOCALS += @"■%現在仕事数字文字列変換(0), 16, LEFT%：従事人数{仕事人数表示用:0,3}人<br>"
-LOCALS += @"■%現在仕事数字文字列変換(1), 16, LEFT%：従事人数{仕事人数表示用:1,3}人<br>"
+LOCALS += @"■%現在仕事数字文字列変換(0), 16, LEFT%：従事人数{仕事人数表示用:仕事無し人数,3}人<br>"
+LOCALS += @"■%現在仕事数字文字列変換(1), 16, LEFT%：従事人数{仕事人数表示用:雑務担当人数,3}人<br>"
+LOCALS += @"■%現在仕事数字文字列変換(2), 16, LEFT%：従事人数{仕事人数表示用:販売担当人数,3}人<br>"
+LOCALS += @"■%現在仕事数字文字列変換(3), 16, LEFT%：従事人数{仕事人数表示用:秘書担当人数,3}人<br>"
 LOCALS += "</div>"
 
 
@@ -74,6 +76,10 @@ LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><d
 LOCALS += "<div rect='25px,25px,310px,450px'>"
 LOCALS += "<button value='0'>[0] なし　　　　　に変更</button><br>"
 LOCALS += "<button value='1'>[1] 雑務　　　　　に変更</button><br>"
+LOCALS += "<button value='2'>[2] 販売　　　　　に変更</button><br>"
+IF ARG != PLAYER
+	LOCALS += "<button value='3'>[3] 秘書　　　　　に変更</button><br>"
+ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
@@ -86,6 +92,8 @@ LOCALS:1 += @"■%現在仕事数字文字列変換(現在仕事:ARG:0), 16, LEF
 LOCALS:1 += "</div>"
 LOCALS:1 += "<div rect='370px,70px,588px,450px'>"
 LOCALS:1 += @"%現在仕事数字文字列変換(現在仕事:ARG:0, 1)%"
+LOCALS:1 += "<br><br>"
+LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
 LOCALS:1 += "</div>"
 
 
@@ -103,7 +111,12 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
 		RETURN 0
-	CASE 0 TO 1
+	CASE 0 TO 3
+		IF 仕事条件判定関数(ARG, LOCAL) == 0
+			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
 		現在仕事:ARG:0 = LOCAL
 		RESTART
 	CASEELSE
@@ -115,14 +128,38 @@ ENDSELECT
 #FUNCTIONS
 
 SELECTCASE ARG
-	CASE 1
-		IF ARG:1
-			RETURNF "リゾート内の細々とした雑務を処理する業務。<br>効果：一日の最後に、全ての場所の雑務ゲージが一人につき１００減少する。"
-		ENDIF
-		RETURNF "雑務"
-	CASEELSE
+	CASE 0
 		IF ARG:1
 			RETURNF "特に仕事を申し付けず、待機している状態。<br>効果：特になし"
 		ENDIF
 		RETURNF "なし"
+	CASE 1
+		IF ARG:1
+			RETURNF "リゾート内の細々とした雑務を処理する業務。<br>効果：一日の最後に、全ての場所の雑務ゲージが<br>　　　［（仕事レベル＋１）＾２×１００］減少する。"
+		ENDIF
+		RETURNF "雑務"
+	CASE 2
+		IF ARG:1
+			RETURNF "土産物や物品の販売を行う業務。<br>効果：一日の最後に、売上としてルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。"
+		ENDIF
+		RETURNF "販売"
+	CASE 3
+		IF ARG:1
+			RETURNF @"%CALLNAME:PLAYER%の補佐を行う業務。<br>効果：一日の最後に、好感度要素：信頼度が<br>　　　［（仕事レベル＋１）＾２×２００］増加する。"
+		ENDIF
+		RETURNF "秘書"
 ENDSELECT
+
+@仕事条件判定関数(キャラ番号, 仕事番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 仕事番号
+
+SELECTCASE 仕事番号
+	CASE 3
+		IF キャラ番号 == PLAYER
+			RETURNF 0
+		ENDIF
+ENDSELECT
+
+RETURNF 1
