@@ -56,8 +56,10 @@ ENDSELECT
 LOOP 1
 
 
-@従業員仕事割り振り_切り替え(ARG)
+@従業員制服設定_切り替え(ARG)
 #DIM ページ数
+#DIMS 制服一時配列, 100
+#DIMS 分割文字列配列, 2
 ページ数 = 0
 
 DRAWLINE
@@ -66,12 +68,13 @@ PRINTL ※開発中のため、正しく挙動しないことがあります。
 DRAWLINE
 LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='25px,25px,310px,450px'>"
-LOCALS += "<button value='0'>[0] なし　　　　　に変更</button><br>"
-FOR LOCAL, 1, 10
-	IF 所持服装:LOCAL != ""
-		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %所持服装:LOCAL, 14, LEFT%に変更</button><br>"
+	LOCALS += @"%CALLNAME:ARG, 16, LEFT%["
+	IF 現在制服:ARG:0 == ""
+		LOCALS += "設定なし]"
+	ELSE
+		LOCALS += @"%現在制服:ARG:0%]"
 	ENDIF
-NEXT
+LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
@@ -79,6 +82,15 @@ LOCALS += "</div>"
 
 ;仕事の説明を表示
 LOCALS:1 = <div rect='340px,25px,588px,450px'>
+LOCALS:1 += "<button value='100'>[100] なし　　　　　に変更</button><br>"
+SPLIT 所持制服文字列, "_", 制服一時配列
+FOR LOCAL, 0, 100
+	IF 制服一時配列:LOCAL == ""
+		BREAK
+	ENDIF
+	SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}] %分割文字列配列:1, 14, LEFT%に変更</button><br>"
+NEXT
 LOCALS:1 += "</div>"
 
 
@@ -89,3 +101,51 @@ FOR LOCAL, 0, 25
 NEXT
 DRAWLINE
 
+DO
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 100
+		現在制服:ARG:0 = 
+		CALL CLOTHES_RESET_TRAIN(ARG)
+		RETURN 0
+	CASE 0 TO 99
+		IF STRCOUNT(制服一時配列:LOCAL, "キャラ専用")
+			SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+			現在制服:ARG:0 = %分割文字列配列:0%
+		ELSE
+			SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+			現在制服:ARG:0 = %分割文字列配列:1%
+		ENDIF
+		CALL CLOTHES_RESET_TRAIN(ARG)
+		RETURN 0
+ENDSELECT
+LOOP 1
+
+@制服登録処理(ARGS)
+
+;汎用服にあるか？
+IF EXISTFUNCTION(@"CLOTHES_CHANGE_%ARGS%")
+	;被ってない？
+	IF STRCOUNT(所持制服文字列, @"汎用/%ARGS%_") == 0
+		所持制服文字列 += @"汎用/%ARGS%_"
+	ENDIF
+	RETURN 1
+ELSE
+	;キャラ服にあるか？
+	FOR LOCAL, 1, CHARANUM
+		IF CSTR:LOCAL:服名称 == ARGS
+			;被ってない？
+			IF STRCOUNT(所持制服文字列, @"キャラ専用{NO:LOCAL}/%ARGS%_") == 0
+				所持制服文字列 += @"キャラ専用{NO:LOCAL}/%ARGS%_"
+			ENDIF
+			RETURN 1
+		ENDIF
+	NEXT
+ENDIF
+
+;どっちにもないならエラー返しておしまい
+PRINTW 該当する服が見つかりません。
+RETURN 0
