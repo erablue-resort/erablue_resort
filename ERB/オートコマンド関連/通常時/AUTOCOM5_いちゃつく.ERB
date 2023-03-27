@@ -1,0 +1,38 @@
+﻿;------------------------------------------------------------------------------
+;通常時、いちゃつく
+;------------------------------------------------------------------------------
+@AUTOCOM5
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 250)
+;他の好感度要素依存オートコマンドとフラグを共有
+AUTOCOM用変数:TARGET:3:0 = TIME
+
+@AUTOCOM_ABLE5
+SIF !TARGET
+	RETURN 0
+;友人以上かつ４つの好感度要素で恋心度が最も高い、あるいは恋慕50以上
+IF CFLAG:TARGET:恋慕レベル < 関係閾値:5
+	SIF CFLAG:TARGET:好感度レベル < 関係閾値:2
+		RETURN 0
+	SIF CFLAG:TARGET:恋心度 != MAX(CFLAG:TARGET:友情度, CFLAG:TARGET:信頼度, CFLAG:TARGET:恋心度, CFLAG:TARGET:性愛度)
+		RETURN 0
+ENDIF
+;２時間に１回のみ発動
+SIF TIME - AUTOCOM用変数:TARGET:3:0 < 120
+	RETURN 0
+;うふふ中ではない
+SIF CFLAG:TARGET:うふふ
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM5
+IF CFLAG:TARGET:恋慕レベル < 関係閾値:5
+	;恋心パターン
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に話しかけ、なんでもない雑談をした。
+	PRINTFORML %CALLNAME:TARGET%はなんだか嬉しそうだ……
+ELSE
+	;恋慕パターン
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に話しかけ、いちゃいちゃと恋人のような会話をした。
+	PRINTFORML %CALLNAME:TARGET%はなんだか嬉しそうだ……
+ENDIF
+

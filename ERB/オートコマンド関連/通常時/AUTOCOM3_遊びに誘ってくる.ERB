@@ -1,0 +1,49 @@
+﻿;------------------------------------------------------------------------------
+;通常時、遊べる施設で遊びに誘ってくる
+;------------------------------------------------------------------------------
+@AUTOCOM3
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 250)
+AUTOCOM用変数:TARGET:3:0 = TIME
+
+@AUTOCOM_ABLE3
+SIF !TARGET
+	RETURN 0
+;友人以上
+SIF CFLAG:TARGET:好感度レベル < 関係閾値:2
+	RETURN 0
+;４つの好感度要素で友情度が最も高い
+SIF CFLAG:TARGET:友情度 != MAX(CFLAG:TARGET:友情度, CFLAG:TARGET:信頼度, CFLAG:TARGET:恋心度, CFLAG:TARGET:性愛度)
+	RETURN 0
+;遊ぶ系施設
+SIF !ENJOYROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+;２時間に１回のみ発動
+SIF TIME - AUTOCOM用変数:TARGET:3:0 < 120
+	RETURN 0
+;うふふ中ではない
+SIF CFLAG:TARGET:うふふ
+	RETURN 0
+RETURN 1
+
+@MESSAGE_AUTOCOM3
+PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%を誘い、一緒に%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)%で楽しく遊んだ
+
+;プール系、及び爆乳以上だとぽろりチャンス
+LOCAL = RAND:5
+IF SWIMROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) && TALENT:TARGET:バストサイズ > 1 && LOCAL == 0
+	PRINTW 
+	PRINTFORML ……なんと！　遊んでいるうちに、%CALLNAME:TARGET%の水着がズレておっぱいが露出してしまった！
+	PRINTFORM %CALLNAME:TARGET%は
+	SELECTCASE TALENT:TARGET:羞恥心
+		CASE -1
+			PRINT 笑いながら
+		CASE 0
+			PRINT 急いで
+		CASE 1
+			PRINT とても恥ずかしそうに
+	ENDSELECT
+	PRINTL 水着を直している…
+ENDIF
+
+

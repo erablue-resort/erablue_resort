@@ -555,12 +555,32 @@ SIF ARGS == "その他"
 	LOCAL:3 = 49
 
 FOR LOCAL,0,700
+	;助手モードはいったんPLAYERを助手にする
+	IF FLAG:モード管理 > 1
+		LOCAL:10 = PLAYER
+		PLAYER = 助手は誰だ()
+	ENDIF
 	TRYCCALLFORM COM_ABLE{LOCAL}
+		;助手モードのときに変えたPLAYERを元に戻す
+		SIF FLAG:モード管理 > 1
+			PLAYER = LOCAL:10
 		SIF RESULT == 0
 			CONTINUE
 	CATCH
+		;CATCHでも元に戻す
+		SIF FLAG:モード管理 > 1
+			PLAYER = LOCAL:10
 		CONTINUE
 	ENDCATCH
+	;同時モードはいったんTARGETを助手と入替えてもう一度チェック
+	IF GETBIT(FLAG:モード管理, 0)
+		LOCAL:10 = TARGET
+		TARGET = 助手は誰だ()
+		CALLFORM COM_ABLE{LOCAL}
+		TARGET = LOCAL:10
+		SIF RESULT == 0
+			CONTINUE
+	ENDIF
 		弱点コマンドカテゴリ = 
 	TRYCALLFORMF COMTYPE_{LOCAL}
 	;複合条件処理
@@ -860,6 +880,5 @@ SELECTCASE RESULT:0
 	CASEELSE
 		GOTO 選択肢ループラベル
 ENDSELECT
-
 
 
