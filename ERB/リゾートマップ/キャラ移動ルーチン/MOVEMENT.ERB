@@ -77,6 +77,9 @@ FOR LOCAL,0,CHARANUM
 	;移動インターバルの減少
 	TCVAR:LOCAL:移動インターバル時間 = MAX(TCVAR:LOCAL:移動インターバル時間 - TIME_PROGRESS(TFLAG:300), 0)
 
+	;ショッピングインターバルの減少
+	TCVAR:LOCAL:ショッピングインターバル時間 = MAX(TCVAR:LOCAL:ショッピングインターバル時間 - TIME_PROGRESS(TFLAG:300), 0)
+
 	;会話累積値　100を超えると会話不能フラグ
 	SIF TCVAR:LOCAL:301 > 100
 		TCVAR:LOCAL:302 = 1
@@ -364,9 +367,20 @@ ENDIF
 
 ;ルーチンごとの移動処理
 IF TCVAR:ARG:移動インターバル時間 == 0
-	CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "移動処理")
-	IF RESULT
-		;RETURNが０でない＝移動したという意味なので3分のインターバル
+	RESULT = 0
+	IF 移動ルーチン:ARG:イベントルーチン番号 > 0
+		;移動したら1、移動なしなら-1、ルーチンに設定されていない時間帯なら0を返す
+		CALLFORM MOVE_EVENT_ROUTINE_{移動ルーチン:ARG:イベントルーチン番号}(ARG, "移動処理")
+	ENDIF
+	IF 移動ルーチン:ARG:個別ルーチン番号 > 0 && RESULT == 0
+		;移動したら1、移動なしなら-1、ルーチンに設定されていない時間帯なら0を返す
+		CALLFORM MOVE_CHARA_ROUTINE_{移動ルーチン:ARG:個別ルーチン番号}(ARG, "移動処理")
+	ENDIF
+	IF  RESULT == 0
+		CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "移動処理")
+	ENDIF
+	IF RESULT > 0
+		;RETURNが１＝移動したという意味なので3分のインターバル
 		TCVAR:ARG:移動インターバル時間 = 3
 	ENDIF
 ENDIF
