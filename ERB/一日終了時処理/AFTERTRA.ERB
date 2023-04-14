@@ -4,8 +4,13 @@
 @EVENTEND0
 #DIM 長期雇用者保存配列, 200
 #DIM ループ用
+#DIM 長期雇用者人数
+#DIM 雑務ゲージ減少量
+#DIM 売上分ルピ
+#DIM 秘書担当キャラ保存, 50
 VARSET LOCAL
 VARSET 長期雇用者保存配列
+長期雇用者人数 = 0
 PRINTL 一日が終わりました
 探索フラグ = 0
 SIF STRLENS(TSTR:1)
@@ -34,32 +39,96 @@ FOR LOCAL,1,CHARANUM
 	ENDIF
 	;ついでに長期雇用者数カウント
 	IF CFLAG:LOCAL:長期雇用
-		長期雇用者保存配列:(LOCAL:10) = LOCAL
-		LOCAL:10 += 1
+		長期雇用者保存配列:(長期雇用者人数) = LOCAL
+		長期雇用者人数 += 1
 	ENDIF
 NEXT
 
-;従業員数に応じて雑務減少
+;--------------------------------------------------------------------------------
+;従業員の仕事処理
+VARSET LOCALS
+雑務ゲージ減少量 = 0
+売上分ルピ = 0
+FOR LOCAL, 0, CHARANUM
+	IF (TALENT:LOCAL:従業員 || LOCAL == PLAYER) && 現在仕事:LOCAL:0 == 1
+		雑務ゲージ減少量 += (仕事レベル:LOCAL:1 + 1) * (仕事レベル:LOCAL:1 + 1) * 100
+		;経験値取得とレベル上昇
+		仕事経験値:LOCAL:1 += 1
+		IF 仕事経験値:LOCAL:1 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:1 + 1)
+			仕事レベル:LOCAL:1 += 1
+			LOCALS:1 += @"%CALLNAME:LOCAL%の雑務レベルがLv{仕事レベル:LOCAL:1}に上昇した！<br>"
+		ENDIF
+	ENDIF
+	IF (TALENT:LOCAL:従業員 || LOCAL == PLAYER) && 現在仕事:LOCAL:0 == 2
+		売上分ルピ += (仕事レベル:LOCAL:2 + 1) * (仕事レベル:LOCAL:2 + 1) * (仕事レベル:LOCAL:2 + 1) * 滞在キャラ数算出関数()
+		;経験値取得とレベル上昇
+		仕事経験値:LOCAL:2 += 1
+		IF 仕事経験値:LOCAL:2 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:2 + 1)
+			仕事レベル:LOCAL:2 += 1
+			LOCALS:2 += @"%CALLNAME:LOCAL%の販売レベルがLv{仕事レベル:LOCAL:2}に上昇した！<br>"
+		ENDIF
+	ENDIF
+	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 3
+		秘書担当キャラ保存:(LOCAL:1) = LOCAL
+		NOWEX:LOCAL:信頼度上昇格納 += (仕事レベル:LOCAL:3 + 1) * (仕事レベル:LOCAL:3 + 1) * 200
+		;経験値取得とレベル上昇
+		仕事経験値:LOCAL:3 += 1
+		IF 仕事経験値:LOCAL:3 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:3 + 1)
+			仕事レベル:LOCAL:3 += 1
+			LOCALS:3 += @"%CALLNAME:LOCAL%の秘書レベルがLv{仕事レベル:LOCAL:3}に上昇した！<br>"
+		ENDIF
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+
 FOR LOCAL, 1, 2100
 	IF LOCAL < 100 || 施設改造度:(LOCAL / 100):0
-		雑務ゲージ:LOCAL -= MAX(仕事人数表示用:1 * 100, 0)
+		雑務ゲージ:LOCAL = MAX(雑務ゲージ:LOCAL - 雑務ゲージ減少量, 0)
 	ENDIF
 	SIF LOCAL > 20
 		LOCAL += 79
 NEXT
 
+MONEY += 売上分ルピ
+
 DRAWLINE
-IF 仕事人数表示用:1 > 0
-	PRINTFORMW {仕事人数表示用:1}名の従業員の働きにより、各場所の雑務ゲージが{仕事人数表示用:1 * 100}減少しました。
+IF 仕事人数表示用:雑務担当人数 > 0
+	PRINTFORMW {仕事人数表示用:雑務担当人数}名の従業員の働きにより、各場所の雑務ゲージが{雑務ゲージ減少量}減少しました。
+	IF LOCALS:1 != ""
+		HTML_PRINT LOCALS:1
+		WAIT
+	ENDIF
 	DRAWLINE
 ENDIF
+IF 仕事人数表示用:雑務担当人数 > 0
+	PRINTFORMW {仕事人数表示用:販売担当人数}名の従業員の働きにより、{売上分ルピ}ルピの利益が上がりました。
+	IF LOCALS:2 != ""
+		HTML_PRINT LOCALS:2
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:秘書担当人数 > 0
+	PRINTFORMW {仕事人数表示用:販売担当人数}名の従業員は、秘書業務を通じて%CALLNAME:PLAYER%への信頼を高めました。
+	FOR LOCAL, 0, 仕事人数表示用:販売担当人数
+		CALL FAVOR_CALC(秘書担当キャラ保存:LOCAL)
+		NOWEX:(秘書担当キャラ保存:LOCAL):信頼度上昇格納 = 0
+	NEXT
+	WAIT
+	IF LOCALS:2 != ""
+		HTML_PRINT LOCALS:2
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+;--------------------------------------------------------------------------------
 
-IF モブ観光客数 + 滞在キャラ数 > 0
-	PRINTFORML {モブ観光客数 + 滞在キャラ数}人の観光客により、以下の利益を得た。
-	LOCAL = (モブ観光客数 + 滞在キャラ数) * 300 * RAND(95,106) * RAND(95, 106) / 10000
+IF 滞在キャラ数算出関数() > 0
+	PRINTFORML {滞在キャラ数算出関数()}人の観光客により、以下の利益を得た。
+	LOCAL = 滞在キャラ数算出関数() * 300 * RAND(95,106) * RAND(95, 106) / 10000
 	MONEY += LOCAL
 	PRINTFORML ルピ利益：{LOCAL}
-	LOCAL = (モブ観光客数 + 滞在キャラ数) * 5 * RAND(95,106) * RAND(95, 106) / 10000
+	LOCAL = 滞在キャラ数算出関数() * 5 * RAND(95,106) * RAND(95, 106) / 10000
 	ZP小数点以下所持量 += LOCAL
 	PRINTFORML 発生ＺＰ：{LOCAL / 1000}.{(LOCAL % 1000) / 100}{(LOCAL % 100) / 10}{(LOCAL % 10)}
 	IF ZP小数点以下所持量 > 999
@@ -90,13 +159,13 @@ IF モブ観光客数 + 滞在キャラ数 > 0
 		DRAWLINE
 	ENDIF
 	DRAWLINE
-	IF LOCAL:10 > 0
-		PRINTFORML {LOCAL:10}人の長期雇用により、以下のルピを消費した。
-		FOR ループ用, 0, LOCAL:10
+	IF 長期雇用者人数 > 0
+		PRINTFORML {長期雇用者人数}人の長期雇用により、以下のルピを消費した。
+		FOR ループ用, 0, 長期雇用者人数
 			SIF 長期雇用者保存配列:ループ用 > 0
 				PRINTFORML %CALLNAME:(長期雇用者保存配列:ループ用)%雇用費：1000ルピ
 		NEXT
-		MONEY -= LOCAL:10 * 1000
+		MONEY -= 長期雇用者人数 * 1000
 		DRAWLINE
 	ENDIF
 ENDIF

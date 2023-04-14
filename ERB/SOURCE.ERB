@@ -54,7 +54,26 @@ IF TFLAG:オートコマンドフラグ > 1000
 ELSEIF TFLAG:オートコマンドフラグ > 0
 	TRYCALLFORM PRE_AUTOCOM{TFLAG:オートコマンドフラグ}
 ELSE
-	CALL CALL_COM(TARGET)
+	;複数モード時か否か
+	IF FLAG:モード管理 % 8
+		;同時モード時は通常処理に加えてTARGETを切り替えてもう一度。
+		;将来的にはCAN_COMが両方通らないならば処理を行わないようにしたい。
+		IF GETBIT(FLAG:モード管理, 0)
+			CALL CALL_COM(TARGET)
+			LOCAL = TARGET
+			TARGET = 助手は誰だ()
+			CALL CALL_COM(TARGET)
+			TARGET = LOCAL
+		;助手モード時はPLAYERを助手に切り替えて処理する
+		ELSEIF GETBIT(FLAG:モード管理, 1)
+			LOCAL = PLAYER
+			PLAYER = 助手は誰だ()
+			CALL CALL_COM(TARGET)
+			PLAYER = LOCAL
+		ENDIF
+	ELSE
+		CALL CALL_COM(TARGET)
+	ENDIF
 ENDIF
 SIF RESULT == -1
 	RETURN -1
