@@ -4,23 +4,20 @@
 #DIM ルーチン候補配列, 10
 #DIM ショッピング候補配列, 10
 
-移動ルーチン:ARG:ルーチン番号 = 0
-移動ルーチン:ARG:マップ内ルーチン番号 = 0
-移動ルーチン:ARG:イベントルーチン番号 = 0
-移動ルーチン:ARG:マップ内イベントルーチン番号 = 0
-移動ルーチン:ARG:個別ルーチン番号 = 0
-移動ルーチン:ARG:マップ内個別ルーチン番号 = 0
+移動ルーチン:ARG:ルーチンID = 
+移動ルーチン:ARG:マップ内ルーチンID = 
 
 ;日付限定のイベントなどがあるかどうかをチェック
 ;イベント番号順に関数が存在するかを見る
 VARSET RESULTS
 VARSET RESULT
-FOR ループ用, 0, ENUMFUNCBEGINSWITH("EVENT_FESTIVAL_")
-	TRYCALLFORM EVENT_FESTIVAL_%RESULTS:ループ用%
-	;イベントが開催中ならその場でループ中断（同時開催無し）
-	SIF RESULT
-		BREAK
-NEXT
+IF 開催予定日取り == DAY
+	TRYCALLFORM MOVE_ROUTINE_%開催予定祭り名%("参加判定")
+	;1が帰ってきたら参加なのでIDに入力
+	IF RESULT
+		移動ルーチン:ARG:ルーチンID = %開催予定祭り名%
+	ENDIF
+ENDIF
 
 ;キャラ個別移動関数があるかをチェック（未実装））
 ;TRYCCALLFORM ～～～
@@ -30,7 +27,7 @@ NEXT
 ;ENDCATCH
 ;
 ;キャラ個別でルーチンが入ったなら関数を抜ける
-;SIF TCVAR:ARG:ルーチン番号
+;SIF 移動ルーチン:ARG:ルーチンID != ""
 ;	RETURN 0
 
 
@@ -56,35 +53,35 @@ IF ダンジョン変数_沿岸部の森:1:1
 ENDIF
 
 
-移動ルーチン:ARG:ルーチン番号 = ルーチン候補配列:(RAND:LOCAL)
+移動ルーチン:ARG:ルーチンID = %TOSTR(ルーチン候補配列:(RAND:LOCAL))%
 
 
 ;選択箇所が改造済みならば更に分岐
-SELECTCASE 移動ルーチン:ARG:ルーチン番号
-	CASE 1
+SELECTCASE 移動ルーチン:ARG:ルーチンID
+	CASE "1"
 		IF 施設改造度:15:0
 			;プールサイド、メインプール、ボールプール、流れるプールの４択
-			移動ルーチン:ARG:マップ内ルーチン番号 = RAND:4 + 3
+			移動ルーチン:ARG:マップ内ルーチンID = TOSTR(RAND:4 + 3)
 			;ハーヴィンはメインプールに行かない
-			SIF TALENT:ARG:種族 == 4 && 移動ルーチン:ARG:マップ内ルーチン番号 == 4
-				移動ルーチン:ARG:マップ内ルーチン番号 += 1
+			SIF TALENT:ARG:種族 == 4 && 移動ルーチン:ARG:マップ内ルーチンID == "4"
+				移動ルーチン:ARG:マップ内ルーチンID = 5
 		ENDIF
-	CASE 2
+	CASE "2"
 		IF 施設改造度:3:0
 			;メインテント、バーベキューエリア、渓流エリア、サウナテントの４択
-			移動ルーチン:ARG:マップ内ルーチン番号 = RAND:4 + 3
+			移動ルーチン:ARG:マップ内ルーチンID = TOSTR(RAND:4 + 3)
 			;釣り好きはキャンプ場にいると絶対渓流に行く
 			SIF 知識素質:ARG:釣り好き
-				移動ルーチン:ARG:マップ内ルーチン番号 = 5
+				移動ルーチン:ARG:マップ内ルーチンID = 5
 		ENDIF
-	CASE 3
+	CASE "3"
 		IF 施設改造度:5:0
 			;バーエリア、ボードゲームエリア、卓球場の３択
 			LOCAL = 3
 			;図書館増築済みだと4択
 			SIF 施設改造度:5:1
 				LOCAL += 1
-			移動ルーチン:ARG:マップ内ルーチン番号 = RAND:LOCAL + 3
+			移動ルーチン:ARG:マップ内ルーチンID = TOSTR(RAND:LOCAL + 3)
 		ENDIF
 ENDSELECT
 

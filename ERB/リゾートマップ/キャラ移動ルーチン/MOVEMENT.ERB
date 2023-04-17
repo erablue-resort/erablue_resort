@@ -174,10 +174,10 @@ NEXT
 #DIM 起きる
 
 RESULT = 0
-TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "就寝時間")
+TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝時間")
 寝る = RESULT
 RESULT = 0
-TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "起床時間")
+TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "起床時間")
 起きる = RESULT
 
 ;時間設定ない場合は22時寝の8時起き
@@ -239,6 +239,7 @@ ENDSELECT
 RETURNF TIME + DAY * 1440 - ARG
 
 @CHARA_SLEEP, ARG
+#DIM 睡眠場所
 VARSET LOCAL
 
 ;現在、キャラごとの個室がないのでまるごとオミット、寝る時にどっか行くだけ
@@ -263,14 +264,15 @@ VARSET LOCAL
 ;	ENDIF
 ;ENDIF
 
-
+睡眠場所 = 0
 IF !CFLAG:ARG:睡眠
-	TRYCALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "就寝場所")
+	TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝場所")
+	睡眠場所 = RESULT
 	IF CFLAG:ARG:酔いすぎ == 1
 		;泥酔時は基本そのまま
-	ELSEIF RESULT
+	ELSEIF 睡眠場所
 		;寝る場所指定がある場合はそこへ
-		CFLAG:ARG:現在位置 = RESULT
+		CFLAG:ARG:現在位置 = 睡眠場所
 	ELSE
 		;指定なしの場合、場所を宿泊エリアの個室に設定する
 		FOR LOCAL, 0, 100
@@ -289,7 +291,7 @@ IF !CFLAG:ARG:睡眠
 			PRINTFORML %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
 		ENDIF
 	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-		IF 移動ルーチン:ARG:マップ内ルーチン番号 / 100 == 3
+		IF 睡眠場所 == 303
 			PRINTFORML %CALLNAME:ARG%はメインテントで眠るようだ。
 		ELSE
 			PRINTFORML %CALLNAME:ARG%は部屋に戻って眠るようだ。
@@ -339,7 +341,7 @@ IF CFLAG:ARG:睡眠
 		RETURN 0
 	ENDIF
 	PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
-	CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "初期位置")
+	CALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "初期位置")
 	;起きても酩酊が残ってるなら二日酔い
 	SIF BASE:ARG:酩酊
 		CFLAG:ARG:酔いすぎ = 2
@@ -368,17 +370,7 @@ ENDIF
 ;ルーチンごとの移動処理
 IF TCVAR:ARG:移動インターバル時間 == 0
 	RESULT = 0
-	IF 移動ルーチン:ARG:イベントルーチン番号 > 0
-		;移動したら1、移動なしなら-1、ルーチンに設定されていない時間帯なら0を返す
-		CALLFORM MOVE_EVENT_ROUTINE_{移動ルーチン:ARG:イベントルーチン番号}(ARG, "移動処理")
-	ENDIF
-	IF 移動ルーチン:ARG:個別ルーチン番号 > 0 && RESULT == 0
-		;移動したら1、移動なしなら-1、ルーチンに設定されていない時間帯なら0を返す
-		CALLFORM MOVE_CHARA_ROUTINE_{移動ルーチン:ARG:個別ルーチン番号}(ARG, "移動処理")
-	ENDIF
-	IF  RESULT == 0
-		CALLFORM MOVE_ROUTINE_{移動ルーチン:ARG:ルーチン番号}(ARG, "移動処理")
-	ENDIF
+	CALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "移動処理")
 	IF RESULT > 0
 		;RETURNが１＝移動したという意味なので3分のインターバル
 		TCVAR:ARG:移動インターバル時間 = 3
