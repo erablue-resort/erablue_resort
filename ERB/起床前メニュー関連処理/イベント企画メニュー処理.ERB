@@ -1,0 +1,74 @@
+﻿@イベント企画メニュー処理
+#DIM ループ用
+
+DRAWLINE
+PRINTL リゾートで開催するイベントの企画を行います。
+PRINTL ※開発中のため、正しく挙動しないことがあります。
+DRAWLINE
+LOCALS = <div rect='13px,0px,310px,55px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='25px,10px,306px,45px'>所持ルピ：{MONEY}<br>所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}</div>"
+LOCALS += "<div rect='328px,0px,620px,55px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='340px,10px,610px,45px'>"
+IF 開催予定祭り名 != ""
+	LOCALS += @"現在のイベント開催予定：「%SUBSTRING(開催予定祭り名, 9)%」　"
+	IF 開催予定日取り == DAY
+		LOCALS += "本日"
+	ELSE
+		LOCALS += "明日"
+	ENDIF
+ELSE
+	LOCALS += @"現在のイベント開催予定：なし"
+ENDIF
+LOCALS += "</div>"
+LOCALS += "<div rect='13px,60px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,60px,620px,450px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='25px,80px,310px,450px'>"
+;イベント個別の出現条件を全部見てヒットしたものを全部表示
+VARSET RESULTS
+VARSET RESULT
+
+FOR ループ用, 0, ENUMFUNCBEGINSWITH("MOVE_ROUTINE_FESTIVAL_")
+	TRYCALLFORM %RESULTS:ループ用%(0, "出現条件")
+	;イベントが開催できるならLOCALSにボタン挿入
+	IF RESULT
+		LOCALS += @"<button value='{100 + ループ用}'>[{100 + ループ用}] %SUBSTRING(RESULTS:ループ用, 22)%</button>"
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 29
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 100 TO 199
+		IF 開催予定日取り == DAY
+			PRINTL イベント開催当日に次の予定を入れることは出来ません。
+			RETURN 0
+		ELSEIF 開催予定祭り名 != ""
+			PRINTFORML 現在、%SUBSTRING(開催予定祭り名, 9)%が開催予定に入っています。
+			PRINTFORML %SUBSTRING(RESULTS:(LOCAL - 100), 22)%に変更しますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			BINPUT
+			SELECTCASE RESULT
+				CASE 1
+					RESTART
+			ENDSELECT
+		ENDIF
+		開催予定日取り = DAY + 1
+		開催予定祭り名 = %SUBSTRING(RESULTS:(LOCAL - 100), 13)%
+		PRINTFORMW 明日、イベント「%SUBSTRING(RESULTS:(LOCAL - 100), 22)%」を開催します。
+	CASE 999
+		RETURN 0
+	CASEELSE
+ENDSELECT
+
+
