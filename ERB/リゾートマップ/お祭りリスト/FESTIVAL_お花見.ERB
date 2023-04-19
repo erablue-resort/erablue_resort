@@ -3,6 +3,23 @@
 #DIM 時間計算
 
 SELECTCASE ARGS
+	CASE "イベント説明"
+		LOCALS = <div rect='340px,80px,602px,450px'>
+		LOCALS += "■お花見<br>"
+		LOCALS += "<br>"
+		LOCALS += "特設会場にて、満開の桜を眺めるお祭りです。<br>"
+		LOCALS += "祭りとしてはポピュラーで、あらゆるキャラが参加してくれるでしょう。<br>"
+		LOCALS += "<br>"
+		LOCALS += "賑やかな場所では好感度要素：友情の上昇率が1.3倍になります。<br>"
+		LOCALS += "静かな場所では好感度要素：恋心の上昇率が1.3倍になります。<br>"
+		LOCALS += "<br>"
+		IF 10000 > MONEY
+			LOCALS += @"ルピが不足しています。（必要ルピ：10000）<br>"
+		ELSE
+			LOCALS += @"<button value='0'>[0] このイベントを企画する（必要ルピ：10000）</button><br>"
+		ENDIF
+		LOCALS += "</div>"
+		HTML_PRINT LOCALS, 1
 	CASE "出現条件"
 		;既に予定に入ってたらアウト
 		SIF 開催予定祭り名 == "FESTIVAL_お花見"
@@ -28,7 +45,21 @@ SELECTCASE ARGS
 		CFLAG:キャラ番号:現在マップ種別 = 0
 	CASE "移動処理"
 		CALL MOVE_ROUTINE_移動処理(キャラ番号, "FESTIVAL_お花見")
-	CASE "イベント補正"
+	CASE "イベント補正条件"
+		;お花見マップに居る時
+		IF CFLAG:キャラ番号:現在マップ種別 == 100
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "イベント補正内容"
+		IF GROUPMATCH(CFLAG:キャラ番号:現在位置, 1, 2, 3)
+			;入り口、出店、宴会場だと好感度要素：友情に補正
+			NOWEX:キャラ番号:友情度上昇格納 = MAX(NOWEX:キャラ番号:友情度上昇格納 * 13 / 10, 0)
+		ELSEIF GROUPMATCH(CFLAG:キャラ番号:現在位置, 4, 5, 6)
+			;池のほとり、桜の森、静かな場所だと恋心に補正
+			NOWEX:キャラ番号:恋心度上昇格納 = MAX(NOWEX:キャラ番号:恋心度上昇格納 * 13 / 10, 0)
+		ENDIF
 ENDSELECT
 
 
