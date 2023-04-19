@@ -105,3 +105,17 @@
 
 
 
+		SELECTCASE RAND:2 + RAND(口上フラグ_25+1) * 10
+			CASE 0
+				KSTR:(K++) = 
+				KSTR:(K++) = 
+			CASE 1
+				KSTR:(K++) = 
+				KSTR:(K++) = 
+			CASE 10
+				KSTR:(K++) = 
+				KSTR:(K++) = 
+			CASEELSE
+				KSTR:(K++) = 
+				KSTR:(K++) = 
+		ENDSELECT
