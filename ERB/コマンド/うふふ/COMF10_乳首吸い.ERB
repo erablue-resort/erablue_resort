@@ -4,8 +4,17 @@
 ;-------------------------------------------------
 @COMNAME10
 #FUNCTIONS
+SELECTCASE COMMODE()
+CASE 1
+	TSTR:コマンド名受渡 = 乳首吸い
+CASE 2
+	TSTR:コマンド名受渡 = 同時に乳首吸い
+CASE 3
+	TSTR:コマンド名受渡 = 助手が乳首吸い
+ENDSELECT
 
-TSTR:コマンド名受渡 = 乳首吸い
+;複数モード_ダミーをリセット
+複数モード_ダミー = 0
 
 ;===================================================
 ;コマンドタイプ
@@ -14,12 +23,21 @@ TSTR:コマンド名受渡 = 乳首吸い
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中")
 弱点コマンドカテゴリ = B
+同時モード許可 = 1
+助手モード許可 = 1
 
 @COM10
 ;-------------------------------------------------
 ;モードの設定
 ;-------------------------------------------------
-CALL MODE_CHANGE("乳首吸い")
+
+;助手モードなら助手乳首吸いに
+IF FLAG:モード管理 % 8 == 2
+	CALL MODE_CHANGE("助手乳首吸い")
+ELSE
+	CALL MODE_CHANGE("乳首吸い")
+ENDIF
+
 弱点コマンドカテゴリ = B
 ;-------------------------------------------------
 ;ソース追加処理
@@ -86,12 +104,16 @@ SIF TEQUIP:17
 SIF TEQUIP:24
 	RETURN 0
 ;口を何かに使ってる・届かないなら無理
-SIF TEQUIP:PLAYER:口
-	RETURN 0
+IF GETBIT(TEQUIP:PLAYER:口, 0) || PLAYER == MASTER && GETBIT(TEQUIP:PLAYER:口, TARGET1OR2(TARGET)) || PLAYER != MASTER && GETBIT(TEQUIP:PLAYER:口, 2)
+;ただし、PLAYERの口が使用中かつ助手モードではなく、助手に乳首吸いモードがある（＝同時乳首吸いの処理）ならスルー
+	SIF !(GETBIT(TEQUIP:PLAYER:口, 0) && PLAYER == MASTER && MODE_確認("乳首吸い", 助手は誰だ()))
+		RETURN 0
+ENDIF
 ;胸に届かないなら無理
-SIF TEQUIP:TARGET:胸 == 2
+SIF PLAYER == MASTER && GETBIT(TEQUIP:TARGET:胸, 1)
 	RETURN 0
-
+SIF PLAYER != MASTER && GETBIT(TEQUIP:TARGET:胸, 2)
+	RETURN 0
 ;陥没乳首は乳首露出させてからでないと不可
 SIF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
 	RETURN 0
@@ -104,7 +126,7 @@ RETURN 1
 ;授乳手コキや乳首責めとの調整は保留
 
 @MESSAGE_COM10
-IF TEQUIP:50 == PLAYER || TEQUIP:51 == PLAYER
+IF 使ってるの誰や(TARGET, 5) == PLAYER || 使ってるの誰や(TARGET, 6) == PLAYER
 	PRINTFORM %CALLNAME:TARGET%とつながったまま%OPPAI_DESCRIPTION(TARGET)%
 ELSE
 	PRINTFORM %CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%
@@ -113,6 +135,8 @@ ENDIF
 ;欲情のPALAMLV3以上
 IF PALAM:欲情 >= PALAMLV:3
 	PRINT の先端の、すっかり硬くなった突起に
+ELSEIF PALAM:欲情 >= PALAMLV:2
+	PRINT の先端の、硬さを帯び始めた突起に
 ELSE
 	PRINT の先端の、まだ柔らかい突起に
 ENDIF

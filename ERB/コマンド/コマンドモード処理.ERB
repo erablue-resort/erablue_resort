@@ -94,7 +94,12 @@ FOR LOCAL, 0, 6
 			NEXT
 		ENDIF
 		SETCOLOR カラーパレット("えっちな色")
-		PRINTFORM [%体位モード格納:ARG:LOCAL%継続中
+		;助手乳首吸いは表記を修正する
+		IF 体位モード格納:ARG:LOCAL == "助手乳首吸い"
+			PRINTFORM [乳首吸い継続中
+		ELSE
+			PRINTFORM [%体位モード格納:ARG:LOCAL%継続中
+		ENDIF
 		;3Pならモード主犯も添える
 		SIF 助手は誰だ()
 			PRINTFORM (%NAME:(モード主犯:ARG:LOCAL)%)
@@ -356,12 +361,22 @@ NEXT
 @MODE_CHANGE(ARGS)
 ;ARGS=実行しようとしているモード名
 
+LOCALS =
+
+;助手乳首吸いなら一旦記録
+SIF ARGS == "助手乳首吸い"
+	LOCALS = %ARGS%
+
 ;初体験日を記録する
+SIF LOCALS != ""
+	ARGS = 乳首吸い
 IF ARGS != ""
 	IF !初体験日:TARGET:ARGS
 		初体験日:TARGET:ARGS = DAY
 	ENDIF
 ENDIF
+SIF LOCALS != ""
+	ARGS = %LOCALS%
 
 ;現在のモードとの比較・消去
 FOR LOCAL, 0, 6
@@ -369,7 +384,8 @@ FOR LOCAL, 0, 6
 		CONTINUE
 	CALL MODE_競合判定(ARGS, 体位モード格納:TARGET:LOCAL)
 	;競合するならRESULTに1が返ってくるのでモード消去
-	IF RESULT
+	;ただし同時モード時、同じコマンドモードによるものだけはスルーする
+	IF RESULT && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ()))
 		;メッセージ用に消去したモードを記録,TSTR:10~14
 		TSTR:(10+LOCAL) = %体位モード格納:TARGET:LOCAL%
 		体位モード格納:TARGET:LOCAL = 
@@ -387,7 +403,8 @@ IF TARGET:2 > 0
 			CONTINUE
 		CALL MODE_競合判定(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
 		;プレイヤー側が使用部位で競合するならRESULTに1が返ってくるのでモード消去
-		IF RESULT == 1
+		;ただし同時モード時、同じコマンドモードによるものだけはスルーする
+		IF GETBIT(RESULT, 0) && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ()))
 			;メッセージ用に消去したモードを記録,TSTR:10~14
 			TSTR:(20+LOCAL) = %体位モード格納:(LOCAL:1):LOCAL%
 			体位モード格納:(LOCAL:1):LOCAL = 
@@ -1674,3 +1691,13 @@ CASEELSE
 	DEBUGPRINTFORM ###不正な入力です###
 	RETURNF -1
 ENDSELECT
+
+@TARGET1OR2(ARG)
+#FUNCTION
+;キャラ番号ARGがTARGET:1かTARGET:2かを返す。
+;該当なしのときは0を返す
+SIF ARG == TARGET:1
+	RETURNF 1
+SIF ARG == TARGET:2
+	RETURNF 2
+RETURNF 0
