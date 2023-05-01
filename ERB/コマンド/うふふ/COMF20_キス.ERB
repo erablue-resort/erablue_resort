@@ -4,8 +4,17 @@
 ;-------------------------------------------------
 @COMNAME20
 #FUNCTIONS
-TSTR:コマンド名受渡 = キス
+SELECTCASE COMMODE()
+CASE 1
+	TSTR:コマンド名受渡 = キス
+CASE 2
+	TSTR:コマンド名受渡 = 交互にキス
+CASE 3
+	TSTR:コマンド名受渡 = 助手がキス
+ENDSELECT
 
+;複数モード_ダミーをリセット
+複数モード_ダミー = 0
 ;===================================================
 ;コマンドタイプ
 ;===================================================
@@ -13,6 +22,9 @@ TSTR:コマンド名受渡 = キス
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
 弱点コマンドカテゴリ = S
+同時モード許可 = 1
+助手モード許可 = 1
+
 
 @COM_TOOLTIP_20
 LOCALS = <br>■キス<br>
@@ -250,9 +262,12 @@ SIF GLOBAL_COMABLE(20)
 SIF TEQUIP:ボールギャグ
 	RETURN 0
 ;口を何かに使ってる・届かないなら無理
-SIF TEQUIP:PLAYER:口
-	RETURN 0
-SIF TEQUIP:TARGET:口
+IF GETBIT(TEQUIP:PLAYER:口, 0) || PLAYER == MASTER && GETBIT(TEQUIP:PLAYER:口, TARGET1OR2(TARGET)) || PLAYER != MASTER && GETBIT(TEQUIP:PLAYER:口, 2)
+;ただし、PLAYERの口が使用中かつ助手モードではなく、助手にキスモードがある（＝同時キスの処理）ならスルー
+	SIF !(GETBIT(TEQUIP:PLAYER:口, 0) && PLAYER == MASTER && MODE_確認("キス", 助手は誰だ()))
+		RETURN 0
+ENDIF
+SIF TEQUIP:TARGET:口 && !GETBIT(TEQUIP:TARGET:口, 2)
 	RETURN 0
 ;キス魔は猫舌無視
 SIF TALENT:TARGET:キス嗜好 == 2
