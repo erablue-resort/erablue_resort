@@ -95,7 +95,7 @@ FOR LOCAL, 0, 6
 		ENDIF
 		SETCOLOR カラーパレット("えっちな色")
 		;助手乳首吸いは表記を修正する
-		IF 体位モード格納:ARG:LOCAL == "助手乳首吸い"
+		IF 体位モード格納:ARG:LOCAL == "助手乳首吸い" || 体位モード格納:ARG:LOCAL == "乳首吸い"
 			PRINTFORM [乳首吸い継続中
 		ELSE
 			PRINTFORM [%体位モード格納:ARG:LOCAL%継続中
@@ -385,7 +385,7 @@ FOR LOCAL, 0, 6
 	CALL MODE_競合判定(ARGS, 体位モード格納:TARGET:LOCAL)
 	;競合するならRESULTに1が返ってくるのでモード消去
 	;ただし同時モード時、同じコマンドモードによるものだけはスルーする
-	IF RESULT && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ()))
+	IF RESULT && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ())) && !(SELECTCOM == 10 && ((MODE_確認("助手乳首吸い", TARGET) || MODE_確認("乳首吸い", TARGET))) && !(SELECTCOM == 10 && PLAYER != MASTER && MODE_確認("助手乳首吸い", PLAYER)))
 		;メッセージ用に消去したモードを記録,TSTR:10~14
 		TSTR:(10+LOCAL) = %体位モード格納:TARGET:LOCAL%
 		体位モード格納:TARGET:LOCAL = 
@@ -404,7 +404,7 @@ IF TARGET:2 > 0
 		CALL MODE_競合判定(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
 		;プレイヤー側が使用部位で競合するならRESULTに1が返ってくるのでモード消去
 		;ただし同時モード時、同じコマンドモードによるものだけはスルーする
-		IF GETBIT(RESULT, 0) && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ()))
+		IF GETBIT(RESULT, 0) && !(GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ())) && !(SELECTCOM == 10 && PLAYER != MASTER && MODE_確認("助手乳首吸い", PLAYER))
 			;メッセージ用に消去したモードを記録,TSTR:10~14
 			TSTR:(20+LOCAL) = %体位モード格納:(LOCAL:1):LOCAL%
 			体位モード格納:(LOCAL:1):LOCAL = 
@@ -430,8 +430,8 @@ NEXT
 ;助手も全員リセット
 FOR LOCAL, 0, 7
 	TEQUIP:MASTER:(101 + LOCAL) = 0
-	TEQUIP:TARGET:(101 + LOCAL) = 0
-	TEQUIP:(助手は誰だ()):(101 + LOCAL) = 0
+	TEQUIP:(TARGET:1):(101 + LOCAL) = 0
+	TEQUIP:(TARGET:2):(101 + LOCAL) = 0
 NEXT
 
 FOR LOCAL, 0, 6
@@ -445,9 +445,11 @@ FOR LOCAL, 0, 6
 		IF RESULT
 			;RESULTが「届かない」ならばモードの主犯を確認
 			;1:あなた 2:TARGET:2
-			IF RESULT != 1 && モード主犯:(TARGET:1):LOCAL == MASTER
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:1):LOCAL == MASTER
 				LOCAL:10 = 1
-			ELSE
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:1):LOCAL != MASTER
 				LOCAL:10 = 2
 			ENDIF
 			;TEQUIPに入力
@@ -457,13 +459,16 @@ FOR LOCAL, 0, 6
 
 		;LOCAL:10を初期化
 		LOCAL:10 = 0
+		RESULT = 0
 		;TARGET:1のモード格納からターゲット側の部位専有を探す
 		;主犯があなたならbit1,もう一人のARGならbit2に入力する
 		TRYCALLFORM MODETYPE_%体位モード格納:(TARGET:1):LOCAL%(LOCAL:1, "ターゲット")
 		IF RESULT
-			IF RESULT != 1 && モード主犯:(TARGET:1):LOCAL == MASTER
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:1):LOCAL == MASTER
 				LOCAL:10 = 1
-			ELSE
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:1):LOCAL != MASTER
 				LOCAL:10 = 2
 			ENDIF
 			;TEQUIPに入力
@@ -473,13 +478,18 @@ FOR LOCAL, 0, 6
 
 		;LOCAL:10を初期化
 		LOCAL:10 = 0
+		RESULT = 0
 		;TARGET:2のモード格納からプレイヤー側の部位専有を探す
 		TRYCALLFORM MODETYPE_%体位モード格納:(TARGET:2):LOCAL%(LOCAL:1, "プレイヤー")
 		;部位専有がある場合
 		IF RESULT
-			;RESULTが「届かない」か
-			SIF RESULT != 1
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:2):LOCAL == MASTER
+				LOCAL:10 = 1
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:2):LOCAL != MASTER
 				LOCAL:10 = 2
+			ENDIF
 			;TEQUIPに入力
 			;bit0:使用中 bit2:届かない
 			;プレイヤー側ならば必ずbit2を指定する
@@ -488,13 +498,16 @@ FOR LOCAL, 0, 6
 		
 		;LOCAL:10を初期化
 		LOCAL:10 = 0
+		RESULT = 0
 		;TARGET:2のモード格納からターゲット側の部位専有を探す
 		;主犯があなたならbit1,TARGET:1ならbit2に入力する
 		TRYCALLFORM MODETYPE_%体位モード格納:(TARGET:2):LOCAL%(LOCAL:1, "ターゲット")
 		IF RESULT
-			IF RESULT != 1 && モード主犯:TARGET:LOCAL == MASTER
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:2):LOCAL == MASTER
 				LOCAL:10 = 1
-			ELSE
+			ELSEIF RESULT != 1 && モード主犯:(TARGET:2):LOCAL != MASTER
 				LOCAL:10 = 2
 			ENDIF
 			;TEQUIPに入力
