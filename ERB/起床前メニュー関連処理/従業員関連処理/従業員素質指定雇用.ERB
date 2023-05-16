@@ -13,6 +13,7 @@
 #DIM 表示モード
 #DIM 表示数カウント
 #DIM ページ数
+#DIM 必要ルピ
 
 表示モード = 0
 ページ数 = 0
@@ -88,8 +89,33 @@ PRINTL 従業員の素質を完全指定して雇います。
 PRINTPLAIN 指定した素質の数に応じて必要ルピが上昇するので注意してください。
 PRINTL
 DRAWLINE
-LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
-LOCALS += "<div rect='25px,25px,310px,450px'>"
+LOCALS = <div rect='13px,0px,310px,55px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='25px,10px,306px,45px'>所持ルピ：{MONEY}<br>所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}</div>"
+
+LOCALS += "<div rect='328px,0px,620px,55px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='340px,10px,610px,45px'>"
+必要ルピ = 1000
+;名前・戦闘タイプではルピ増加無し
+;肉体情報
+;バストサイズ・容姿は普通から外れるほどルピが嵩む
+IF ランダムキャラ素質:0 == 3
+	必要ルピ += ABS(ランダムキャラ素質:3 - 3) * 500
+	必要ルピ += ABS(ランダムキャラ素質:31 + 1) * 500
+ELSEIF ランダムキャラ素質:0 == 4
+	必要ルピ += ABS(ランダムキャラ素質:3 + 2) * 500
+	必要ルピ += ABS(ランダムキャラ素質:31 + 2) * 500
+ELSE
+	必要ルピ += ABS(ランダムキャラ素質:3) * 200
+	必要ルピ += ABS(ランダムキャラ素質:31) * 200
+ENDIF
+必要ルピ += ランダムキャラ素質:30 * ランダムキャラ素質:30 * 100
+
+
+LOCALS += @"現在の必要ルピ：{必要ルピ, 10}ルピ"
+LOCALS += "</div>"
+
+LOCALS += "<div rect='13px,60px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,60px,620px,450px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='25px,80px,310px,450px'>"
 LOCALS += "<button value='100'>[100] 名前を設定する</button>"
 LOCALS += "<br>"
 LOCALS += "<button value='110'>[110] 戦闘タイプを設定する</button>"
@@ -108,7 +134,7 @@ LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
-LOCALS += "<div rect='340px,25px,588px,450px'>"
+LOCALS += "<div rect='340px,80px,588px,450px'>"
 
 
 SELECTCASE 表示モード
@@ -138,12 +164,10 @@ SELECTCASE 表示モード
 				ENDIF
 			CASE 3
 				LOCALS += "ドラフ"
-				ランダムキャラ素質:3 = 3
 				ランダムキャラ素質:4 = 206
 				LOCALS += "（角あり）"
 			CASE 4
 				LOCALS += "ハーヴィン"
-				ランダムキャラ素質:3 = -2
 				ランダムキャラ素質:4 = 209
 				LOCALS += "（ハーヴィン耳）"
 		ENDSELECT
@@ -436,7 +460,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='340px,421px,588px,450px'>"
+		LOCALS += "<div rect='340px,481px,588px,450px'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -462,7 +486,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='340px,421px,588px,450px'>"
+		LOCALS += "<div rect='340px,481px,588px,450px'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -480,7 +504,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='340px,421px,588px,450px'>"
+		LOCALS += "<div rect='340px,481px,588px,450px'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -494,7 +518,7 @@ ENDSELECT
 LOCALS += "</div>"
 
 HTML_PRINT LOCALS
-FOR LOCAL, 0, 25
+FOR LOCAL, 0, 28
 	PRINTL
 NEXT
 DRAWLINE
@@ -548,13 +572,25 @@ SELECTCASE LOCAL
 	CASE 12013
 		SETBIT ランダムキャラ素質:2, 1
 	CASE 12018 TO 12023
-		ランダムキャラ素質:3 = LOCAL - 12020
+		IF ランダムキャラ素質:0 == 3
+			ランダムキャラ素質:3 = MAX(LOCAL - 12020, 2)
+		ELSEIF ランダムキャラ素質:0 == 4
+			ランダムキャラ素質:3 = MIN(LOCAL - 12020, -1)
+		ELSE
+			ランダムキャラ素質:3 = LOCAL - 12020
+		ENDIF
 	CASE 12028 TO 12033
 		ランダムキャラ素質:6 = LOCAL - 12030
 	CASE 12039 TO 12042
 		ランダムキャラ素質:30 = LOCAL - 12040
 	CASE 12048 TO 12052
-		ランダムキャラ素質:31 = LOCAL - 12050
+		IF ランダムキャラ素質:0 == 3
+			ランダムキャラ素質:31 = MIN(LOCAL - 12050, 0)
+		ELSEIF ランダムキャラ素質:0 == 4
+			ランダムキャラ素質:31 = MIN(LOCAL - 12050, -1)
+		ELSE
+			ランダムキャラ素質:31 = LOCAL - 12050
+		ENDIF
 	CASE 12058 TO 12062
 		ランダムキャラ素質:32 = LOCAL - 12060
 ;タレント--------------------------------------------------------
