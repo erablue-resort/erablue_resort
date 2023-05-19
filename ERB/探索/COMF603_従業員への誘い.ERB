@@ -1,0 +1,106 @@
+﻿;-------------------------------------------------
+;従業員への誘い
+;-------------------------------------------------
+@COMNAME603
+#FUNCTIONS
+TSTR:コマンド名受渡 = 従業員への誘い
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_603
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("探索")
+
+@COM_TOOLTIP_603
+LOCALS = <br>■従業員への誘い<br>
+LOCALS += "相手を雇用し、本格的にリゾートで働いてもらう契約を結ぶ。<br>"
+LOCALS += "相手はリゾートの正式な従業員となる。<br>"
+LOCALS += "<br>COMタイプ：探索<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM603
+LOCAL:2 = 0
+FOR LOCAL, 0, 従業員キャラ上限
+	IF 従業員部屋割り配列:LOCAL < 1
+		LOCAL:2 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:2 == 0
+	PRINTW 従業員部屋がいっぱいです。
+	RETURN -1
+ENDIF
+
+DRAWLINE
+PRINTFORML %CALLNAME:TARGET%を正式に従業員として雇いますか？　（必要ルピ：１日 / 2000ルピ）
+
+
+
+PRINTBUTTON "[0]はい", 0
+PRINTL
+PRINTBUTTON "[1]いいえ", 1
+PRINTL
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		TALENT:TARGET:従業員 = 1
+		CFLAG:TARGET:滞在期間 = 999
+		CFLAG:LOCAL:長期雇用 = 0
+		FOR LOCAL, 0, 100
+			IF 滞在者部屋割り配列:LOCAL == TARGET
+				滞在者部屋割り配列:LOCAL = 0
+				BREAK
+			ENDIF
+		NEXT
+		FOR LOCAL, 0, 従業員キャラ上限
+			IF 従業員部屋割り配列:LOCAL < 1
+				従業員部屋割り配列:LOCAL = TARGET
+				BREAK
+			ENDIF
+		NEXT
+	CASE 1
+		RETURN -1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE603
+#DIM ループ用
+;移動実行判定
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(602)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;既に従業員だと無し
+SIF TALENT:TARGET:従業員
+	RETURN 0
+;好感度レベル50以上
+SIF CFLAG:TARGET:好感度レベル < 50
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM603
+
+PRINTFORML %CALLNAME:TARGET%を従業員として正式に雇いました。
+
