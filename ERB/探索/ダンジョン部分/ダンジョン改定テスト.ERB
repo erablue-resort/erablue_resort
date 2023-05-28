@@ -1,0 +1,362 @@
+﻿@DUNGEON_MAIN_LOOP(ARGS)
+
+;ダンジョン入場時処理
+ダンジョン表示モード = マップ画面
+ダンジョン終了フラグ = 0
+ダンジョン名 = %ARGS%
+キャラ画像ボタン化フラグ = 1
+選択用変数 = -1
+ダンジョンページ数 = 0
+
+CALLFORM ダンジョン初期処理_%ダンジョン名%
+CALL 探索用顔グラフィック生成
+
+;ステータス代入
+CALL 戦闘初期処理_味方(1)
+
+DO
+	CALL 口上変数初期化
+	CALL 画面再描画
+
+	IF ダンジョン表示モード == "マップ画面"
+		;マスイベント処理
+		CALLFORM ダンジョンマス情報_%ダンジョン名%_{ダンジョン現在位置:0}_{ダンジョン現在位置:1}("マスイベント")
+	ENDIF
+
+	$描画_LOOP
+	CALL 画面再描画
+	CALLFORM DUNGEON_操作処理_%ダンジョン表示モード%
+	IF RESULT == -1
+		GOTO 描画_LOOP
+	ENDIF
+	IF ダンジョン終了フラグ == 1
+		CALL ダンジョン終了時処理
+		RETURN
+	ENDIF
+LOOP 1
+
+
+@DUNGEON_操作処理_マップ画面
+#DIMS 移動先配列, 3
+
+CLEARLINE 1
+BINPUTS
+LOCALS = %RESULTS%
+$切り替え_LOOP
+SELECTCASE LOCALS
+	CASE "p"
+		ダンジョン終了フラグ = 1
+		RETURN 0
+	CASE "i"
+		CLEARLINE 1
+		ダンジョン表示モード = アイテム画面
+		キャラ画像ボタン化フラグ = 0
+		選択用変数 = -1
+	CASE "0"
+		CALL 戦闘能力表示画面(BATTLE_STATE:0:0)
+		CALL ダンジョン能力表示キャラ切り替え(0)
+		IF RESULT >= 0
+			LOCALS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "1"
+		CALL 戦闘能力表示画面(BATTLE_STATE:1:0)
+		CALL ダンジョン能力表示キャラ切り替え(1)
+		IF RESULT >= 0
+			LOCALS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "2"
+		CALL 戦闘能力表示画面(BATTLE_STATE:2:0)
+		CALL ダンジョン能力表示キャラ切り替え(2)
+		IF RESULT >= 0
+			LOCALS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASE "3"
+		CALL 戦闘能力表示画面(BATTLE_STATE:3:0)
+		CALL ダンジョン能力表示キャラ切り替え(3)
+		IF RESULT >= 0
+			LOCALS = %TOSTR(RESULT)%
+			GOTO 切り替え_LOOP
+		ENDIF
+		RETURN -1
+	CASEELSE
+		SPLIT LOCALS, "_", 移動先配列
+		ダンジョン現在位置:0 = TOINT(移動先配列:1)
+		ダンジョン現在位置:1 = TOINT(移動先配列:2)
+		RETURN 0
+ENDSELECT
+
+
+
+@DUNGEON_MAP描画
+#DIM 深度
+#DIM 分岐
+#DIM レイヤー番号
+レイヤー番号 = 1
+
+GDISPOSE レイヤー番号
+SPRITEDISPOSE ("ダンジョン_1")
+GCREATE レイヤー番号, 960, 500
+GSETFONT レイヤー番号, GETFONT(), 18
+GSETPEN レイヤー番号, 0xFFFFFFFF, -1
+
+;マスを並べる
+;横に8マス、縦に9マス
+
+LOCALS = 
+FOR 深度, ダンジョンページ数 * 8, ダンジョンページ数 * 8 + 8
+	FOR 分岐, 0, 9
+		ダンジョンマス画像URL_重ね表示 = 
+		IF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 1)
+			IF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 2) && GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 3) == 0
+				CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
+				CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
+				LOCALS += @"<div rect='{32 + (深度 * 64)}px, {18 + (分岐 * 50)}px, 32px, 32px'><button value='move_{深度}_{分岐}'><img src='%ダンジョンマス画像URL%' srcb='キャラ_{LOCAL}_ボタン' height='32px' width='32px'></button></div>"
+				IF ダンジョンマス画像URL_重ね表示 != ""
+					LOCALS += @"<div rect='{32 + (深度 * 64)}px, {18 + (分岐 * 50)}px, 32px, 32px'><img src='%ダンジョンマス画像URL_重ね表示%' height='32px' width='32px'></div>"
+				ENDIF
+			ELSE
+				ダンジョンマス画像URL = %ダンジョンマス画像URL_伏せ状態%
+				LOCALS += @"<div rect='{32 + (深度 * 64)}px, {18 + (分岐 * 50)}px, 32px, 32px'><button value='move_{深度}_{分岐}'><img src='%ダンジョンマス画像URL%' srcb='キャラ_{LOCAL}_ボタン' height='32px' width='32px'></button></div>"
+			ENDIF
+		ELSEIF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 3)
+			CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
+			CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
+			LOCALS += @"<div rect='{32 + (深度 * 64)}px, {18 + (分岐 * 50)}px, 32px, 32px'><img src='%ダンジョンマス画像URL%' height='32px' width='32px'></div>"
+			IF ダンジョンマス画像URL_重ね表示 != ""
+				LOCALS += @"<div rect='{32 + (深度 * 64)}px, {18 + (分岐 * 50)}px, 32px, 32px'><img src='%ダンジョンマス画像URL_重ね表示%' height='32px' width='32px'></div>"
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+;自機表示
+LOCALS += @"<div rect='{32 + (ダンジョン現在位置:0 * 64)}px, {8 + (ダンジョン現在位置:1 * 50)}px, 32px, 32px'><img src='自機アイコン' height='32px' width='32px'></div>"
+
+HTML文字列受け渡し = %LOCALS%
+
+
+;基礎情報
+GSETPEN レイヤー番号, 0x00FFFFFF, -1
+LOCALS = %月算出()%
+GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+
+CALL リソース登録(@"ダンジョン_1", レイヤー番号)
+
+
+@ダンジョン分岐線描画(接続元, 接続先)
+#DIMS 接続元
+#DIMS 接続先
+#DIMS 接続元配列, 2
+#DIMS 接続先配列, 2
+#DIM レイヤー番号
+
+レイヤー番号 = 1
+
+SPLIT 接続元, "_", 接続元配列
+SPLIT 接続先, "_", 接続先配列
+
+GDRAWLINE レイヤー番号, 64 + (TOINT(接続元配列:0) * 64), 66 + (TOINT(接続元配列:1) * 50), 32 + (TOINT(接続先配列:0) * 64), 66 + (TOINT(接続先配列:1) * 50)
+
+
+@探索パーティ内キャラ対象選定(選定対象変数名 = "", 選定条件数値)
+#DIMS 選定対象変数名
+#DIM 選定条件数値
+#DIM 対象配列, 4
+LOCAL:1 = 0
+
+IF 選定対象変数名 == ""
+	;条件なしなのでパーティー全員からランダム
+	FOR LOCAL, 0, 4
+		IF BATTLE_STATE:LOCAL:0 > 0
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	RETURN RAND:(LOCAL:1)
+ELSE
+ENDIF
+
+
+@ダンジョン内_SOURCE_CHECK(ARG)
+
+
+;-------------------------------------------------
+;経験加算
+;-------------------------------------------------
+CALL SOURCE_EXP(ARG)
+;-------------------------------------------------
+;干渉力による補正処理
+;-------------------------------------------------
+CALL 干渉補正実処理関数(ARG, "快楽増加時")
+;-------------------------------------------------
+;絶頂処理
+;-------------------------------------------------
+CALL ORGASM_ADD(ARG)
+;-------------------------------------------------
+;調教対象の噴乳チェック
+;-------------------------------------------------
+CALL TARGET_MILK_CHECK(ARG)
+;-------------------------------------------------
+;中毒充足チェック
+;-------------------------------------------------
+;MADA
+;-------------------------------------------------
+;体力・気力の減少
+;-------------------------------------------------
+CALL SOURCE_DOWNBASE(ARG)
+;-------------------------------------------------
+;苦痛快楽経験、奉仕快楽経験のチェック
+;-------------------------------------------------
+CALL EXP_GOT_CHECK(ARG)
+;-------------------------------------------------
+;絶頂時の性愛度上昇
+;-------------------------------------------------
+CALL SOURCE_CALC_好感度要素_性愛度UP(ARG, PLAYER, TCVAR:ARG:絶頂の強度 * 100)
+
+;-------------------------------------------------
+;EXP取得表示
+;-------------------------------------------------
+LOCAL:2 = 0
+LOCAL:3 = 0
+
+FOR LOCAL:1, 0, 200
+	SIF TCVAR:ARG:表示カット
+		CONTINUE
+	IF EXP_UP(LOCAL:1,ARG)
+		LOCAL:2 ++
+		LOCAL:3 ++
+		SIF LOCAL:2 == 1
+		PRINTL
+		LOCALS = %EXPNAME:(LOCAL:1)%
+		PRINTFORM %LOCALS,15,LEFT%
+		IF LOCAL:1 == 89
+			LOCALS = +{EXP_UP(LOCAL:1,ARG)}
+			PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:PLAYER% > %CALLNAME:ARG%)
+		ELSE
+			LOCALS = +{EXP_UP(LOCAL:1,ARG)}
+			PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:ARG%)
+		ENDIF
+	ENDIF
+NEXT
+
+SIF LOCAL:3
+	WAIT
+;-------------------------------------------------
+;ABLUP
+;-------------------------------------------------
+SIF TCVAR:ARG:表示カット == 0
+	CALL SOURCE_ABLUP(ARG)
+;-------------------------------------------------
+;奴隷の絶頂時の口上
+;-------------------------------------------------
+CALL MESSAGE_PALAMCNG_絶頂強度表示
+SIF NOWEX:ARG:多重絶頂
+	CALL KOJO_ORGASM_絶頂
+;-------------------------------------------------
+;奴隷射精時の口上
+;-------------------------------------------------
+IF NOWEX:ARG:射精
+	SIF NOWEX:ARG:射精 > 1
+		PRINT 大量
+	PRINTFORML 射精(%CALLNAME:ARG%)
+	CALL KOJO_ORGASM_射精
+ENDIF
+;-------------------------------------------------
+;調教者射精時
+;-------------------------------------------------
+IF NOWEX:PLAYER:射精
+	SIF NOWEX:PLAYER:射精 > 1
+		PRINT 大量
+	PRINTFORML 射精(%CALLNAME:PLAYER%)
+	TFLAG:フィニッシュフラグ = NOWEX:PLAYER:11
+	CALL EVENT_SHOOT_PLAYER
+ELSE
+	TFLAG:フィニッシュフラグ = 0
+ENDIF
+;-------------------------------------------------
+;屈服・快楽堕ちの上昇による[抵抗]の消滅チェック
+;-------------------------------------------------
+CALL JUJUN_UP_CHECK(ARG)
+;-------------------------------------------------
+;調教ソースの表示
+;-------------------------------------------------
+CALL SHOW_SOURCE(ARG)
+;-------------------------------------------------
+;関係性ゲージ上昇
+;-------------------------------------------------
+;反感不快との相殺の関係で先に恋慕度から判定
+CALL Love_CALC(ARG)
+CALL FAVOR_CALC(ARG)
+
+;-------------------------------------------------
+;パラメータの上昇＆表示（DOWNもここで）
+;-------------------------------------------------
+VARSET LOCAL
+
+LOCAL:3 = 0
+FOR LOCAL,0,100
+	;コマンド入力前のCUPを追加
+	CUP:ARG:LOCAL += TCVAR:ARG:(600 + LOCAL)
+	SIF PALAMNAME:LOCAL == ""
+		CONTINUE
+	SIF CUP:ARG:LOCAL - CDOWN:ARG:LOCAL == 0
+		CONTINUE
+	IF !LOCAL:3
+		PRINTL
+		PRINTFORML %CALLNAME:ARG%
+	ENDIF
+	LOCAL:3 ++
+	LOCAL:2 = CUP:ARG:LOCAL - CDOWN:ARG:LOCAL + TCVAR:ARG:(600 + LOCAL)
+	PRINTFORM %PALAMNAME:LOCAL,8,LEFT% {PALAM:ARG:LOCAL,10,LEFT} + {CUP:ARG:LOCAL,10,LEFT} =   {PALAM:ARG:LOCAL + CUP:ARG:LOCAL,10,LEFT}
+	IF 干渉強化変数:ARG:干渉種類 - 5 == LOCAL
+		SETCOLOR カラーパレット("黄")
+		PRINT 　干渉効果発動中！
+		RESETCOLOR
+	ENDIF
+	PRINTL
+	PALAM:ARG:LOCAL += CUP:ARG:LOCAL - CDOWN:ARG:LOCAL
+	PALAM:ARG:LOCAL = MAX(0, PALAM:ARG:LOCAL)
+	CUP:ARG:LOCAL = 0
+	CDOWN:ARG:LOCAL = 0
+NEXT
+;干渉ランク上昇判定
+IF 干渉経験値テーブル:(干渉強化変数:ARG:干渉ランク) <= 干渉強化変数:ARG:干渉経験値
+	干渉強化変数:ARG:干渉ランク += 1
+	PRINTFORMW %CALLNAME:ARG%の干渉ランクが上昇した！
+ENDIF
+
+FOR LOCAL, 0, 100
+	CVARSET TCVAR, 600 + LOCAL, 0
+NEXT
+
+;-------------------------------------------------
+;ZPの取得量表示
+;-------------------------------------------------
+IF TFLAG:ZP取得量
+	PRINTL
+	PRINTFORM ZP:{FLAG:ZP所持量 - TFLAG:ZP取得量}
+	IF TCVAR:ARG:ZP取得量
+		PRINTFORM  + {TCVAR:ARG:ZP取得量}(%CALLNAME:ARG%)
+	ENDIF
+	PRINTFORM = {FLAG:ZP所持量}
+ENDIF
+FLAG:ZP所持量 = TFLAG:ZP取得量 + FLAG:ZP所持量
+
+FOR LOCAL, 0, CHARANUM
+	VARSET CUP:LOCAL:0, 0
+	VARSET CDOWN:LOCAL:0, 0
+	VARSET DOWNBASE:LOCAL:0, 0
+	;NOWEXのリセット
+	VARSET NOWEX:LOCAL:0, 0
+	CFLAG:LOCAL:快楽計算フラグ = 0
+	FOR LOCAL:1,0,100
+		TCVAR:LOCAL:(LOCAL:1) = 0
+	NEXT
+NEXT
+TFLAG:ZP取得量 = 0
+
+WAIT
