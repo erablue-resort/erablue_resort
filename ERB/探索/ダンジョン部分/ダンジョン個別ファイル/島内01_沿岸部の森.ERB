@@ -1,0 +1,1000 @@
+﻿
+
+@ダンジョン初期処理_沿岸部の森
+;ダンジョン構造の読み込み
+;0でない時、そのマスは存在する
+#DIM 深度
+#DIM 分岐
+
+ダンジョンマス画像URL_伏せ状態 = 壁_森
+ダンジョン現在位置:0 = 0
+ダンジョン現在位置:1 = 0
+
+;スタート地点は必ず存在し、同深度に分岐無し
+;初期からオープン済みなので3を入れる
+;ビット0：存在するか　ビット1：移動できるか　ビット2：そこから通路を伸ばすか　ビット3：入れないが表示する場合に使用
+;ビット4以降：自由枠フラグ
+
+;この辺ダンジョン名をFORM構文で指定して省力化したいんだけど、FORM構文で指定した変数に数値を突っ込む方法がよくわからん……
+IF GETVAR(@"ダンジョン構造配列_%ダンジョン名%:0:0") == 0
+	SETVAR @"ダンジョン構造配列_%ダンジョン名%:0:0", 3
+ENDIF
+
+FOR 深度, 1, 100
+	LOCAL = 0
+	FOR 分岐, 0, 9
+		IF ダンジョン構造配列_沿岸部の森:深度:分岐
+			;既にマス情報が入ってるなら飛ばす
+			LOCAL = 1
+			CONTINUE
+		ELSEIF ENUMFUNCBEGINSWITH(@"ダンジョンマス情報_沿岸部の森_{深度}_{分岐}")
+			LOCAL = 1
+			ダンジョン構造配列_沿岸部の森:深度:分岐 = 1
+		ENDIF
+	NEXT
+	IF LOCAL
+		ダンジョン最大深度 = 深度
+	ENDIF
+NEXT
+
+@ダンジョンマス情報_沿岸部の森_0_0(ARGS)
+#DIMS マス番号
+マス番号 = 0_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "1_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:0:0, 2)
+		ELSE
+			;最初に訪れた時
+			WSTR:(K++) = %CALLNAME:PLAYER%は初めてダンジョンへと足を踏み入れた。
+			KSTR:(K++) = %CALLNAME:PLAYER%は、星晶獣eraが言っていた注意点を思い出す……
+			CALL メッセージ欄表示用関数()
+			SETBIT ダンジョン構造配列_沿岸部の森:0:0, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:1:0, 1
+			CALL 口上変数初期化
+			WSTR:(K++) = 「いいかね。左上に_IMAGE_自機アイコン_が見えるだろう？」
+			WSTR:(K++) = 「それがお前の現在位置だ」
+			KSTR:(K++) = 「違うマスをクリックすることで移動出来る。試しに隣のマスに移動してみたまえ」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era",,0)
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_1_0(ARGS)
+#DIMS マス番号
+マス番号 = 1_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "2_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:1:0, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+					敵BATTLE_STATE_STR:1:エネミー名 = ゴブリン
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			WSTR:(K++) = 「訪れたことのないマスは、そこに何があるのか最初はわからない」
+			WSTR:(K++) = 「敵がいるのか、宝箱があるのか……」
+			KSTR:(K++) = 「ほら、言ったそばから敵が現れたぞ」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			SETBIT ダンジョン構造配列_沿岸部の森:1:0, 2
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+			敵BATTLE_STATE_STR:1:エネミー名 = ゴブリン
+			CALL 雑魚敵遭遇汎用処理
+
+			CALL 口上変数初期化
+			WSTR:(K++) = 「雑魚敵がいるマスは、再び訪れることで敵を探すことが出来る」
+			WSTR:(K++) = 「仲間の練度を高め、ルピを集めるには最適だ」
+			KSTR:(K++) = 「倒すことが出来るのなら、だがね」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			SETBIT ダンジョン構造配列_沿岸部の森:2:0, 1
+			CALL 口上変数初期化
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+
+@ダンジョンマス情報_沿岸部の森_2_0(ARGS)
+#DIMS マス番号
+マス番号 = 2_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:3:0, 1)
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱_開
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱
+		ENDIF
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "3_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:2:0, 2)
+			KSTR:(K++) = 箱はからっぽだ。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:2:0, 2
+			WSTR:(K++) = 「今度は宝箱だね。中には何かアイテムが入っているはずだ」
+			WSTR:(K++) = 「もっと難しいダンジョンなら、罠が仕掛けられていることもあるかもしれない」
+			KSTR:(K++) = 「このダンジョンでは無縁の事柄だがね。遠慮なく開けてみたまえ」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			CALL 口上変数初期化
+			SETBIT ダンジョン構造配列_沿岸部の森:3:0, 1
+			WSTR:(K++) = %CALLNAME:PLAYER%は宝箱を開けた。
+			KSTR:(K++) = 中には薬草が１０個入っていた！！
+			CALL メッセージ欄表示用関数()
+
+			CALL 口上変数初期化
+			CALL アイテム増減汎用処理("薬草", 10)
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_3_0(ARGS)
+#DIMS マス番号
+マス番号 = 3_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF ダンジョン内一時変数:0 == 0
+			ダンジョンマス画像URL_重ね表示 = えっちハート
+		ENDIF
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "7_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:3:0, 2)
+			IF ダンジョン内一時変数:0 == 0
+				CALL ダンジョンハプニング_乳タッチ()
+				CALL 口上変数初期化
+			ENDIF
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:3:0, 2
+			WSTR:(K++) = 「ダンジョンを歩いていると、たまにハプニングに遭遇することがある」
+			WSTR:(K++) = 「もちろん君が大好きなえっちなハプニングのことさ」
+			KSTR:(K++) = 「ほら、始まるぞ」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			CALL ダンジョンハプニング_乳タッチ()
+
+			CALL 口上変数初期化
+			WSTR:(K++) = 「こういったハプニングは幾つか種類がある」
+			WSTR:(K++) = 「一度しか見られないもの、ダンジョンを出たら復活するものなどだ」
+			KSTR:(K++) = 「今回はダンジョンから出れば復活する。覚えていればまた次回楽しみたまえ」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			CALL 口上変数初期化
+			ダンジョン内一時変数:0 = 1
+			SETBIT ダンジョン構造配列_沿岸部の森:7:0, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_7_0(ARGS)
+#DIMS マス番号
+マス番号 = 7_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = 右アイコン
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:7:0, 2)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:7:0, 2
+			WSTR:(K++) = 「矢印のアイコンが浮かぶマスは、ダンジョン内の別エリアに移動することが出来る」
+			KSTR:(K++) = 「先に進めば、新たなアイテムや強敵と相まみえることが出来るだろう」_PAGE
+			WSTR:(K++) = 「ダンジョン内にある特筆すべきアイコンはおおよそ以上の４つだね」
+			KSTR:(K++) = 「もちろん、例外はあるが……それを見るのはもう少し先のことだろう」_PAGE
+			KSTR:(K++) = 「では探索の続きを頑張りたまえ。応援しているよ、我が契約者」
+			CALL メッセージ欄表示用関数("era_顔","星晶獣era")
+			CALL 口上変数初期化
+			SETBIT ダンジョン構造配列_沿岸部の森:8:0, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:8:0, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:9:0, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:9:3, 1
+		ENDIF
+		ダンジョン現在位置:0 = 8
+		ダンジョン現在位置:1 = 0
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_8_0(ARGS)
+#DIMS マス番号
+マス番号 = 8_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = 左アイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "9_0")
+		CALL ダンジョン分岐線描画(マス番号, "9_3")
+	CASE "マスイベント"
+		ダンジョン現在位置:0 = 7
+		ダンジョン現在位置:1 = 0
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_9_0(ARGS)
+#DIMS マス番号
+マス番号 = 9_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "10_0")
+		CALL ダンジョン分岐線描画(マス番号, "10_1")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:9:0, 2)
+			KSTR:(K++) = 森の獣道をまっすぐ進んでいくと、先の道が2つに別れていた。
+			KSTR:(K++) = ゆっくりと風が奥へと流れていくのを感じる。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:9:0, 2
+			WSTR:(K++) = 森の獣道をまっすぐ進んでいくと、先の道が2つに別れていた。
+			WSTR:(K++) = ゆっくりと風が奥へと流れていくのを感じる。
+			KSTR:(K++) = 奥に風属性のエネミーが多くいるのかもしれない。気をつけて進もう。
+			CALL メッセージ欄表示用関数()
+			CALL 口上変数初期化
+			SETBIT ダンジョン構造配列_沿岸部の森:10:0, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:10:1, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_10_0(ARGS)
+#DIMS マス番号
+マス番号 = 10_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "11_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:10:0, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = 風のエレメンタル
+					敵BATTLE_STATE_STR:1:エネミー名 = 風のエレメンタル
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:10:0, 2
+			WSTR:(K++) = 道を進むたび、風が強くなっているのを感じる……
+			KSTR:(K++) = ……いや、この強さは自然の風ではない！　精霊系のエネミーだ！
+			CALL メッセージ欄表示用関数()
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = 風のエレメンタル
+			敵BATTLE_STATE_STR:1:エネミー名 = 風のエレメンタル
+			CALL 雑魚敵遭遇汎用処理
+			SETBIT ダンジョン構造配列_沿岸部の森:11:0, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+
+@ダンジョンマス情報_沿岸部の森_11_0(ARGS)
+#DIMS マス番号
+マス番号 = 11_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:0, 4)
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱_開
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱
+		ENDIF
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:0, 4)
+			KSTR:(K++) = 箱はからっぽだ。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:11:0, 2
+			WSTR:(K++) = 道の突き当りに、精霊の魔力が固まった石を見つけた。
+			WSTR:(K++) = 殆どはクズ石だが、中には使えそうな魔石も混ざっている。
+			KSTR:(K++) = %CALLNAME:PLAYER%は魔石が２個手に入れた！
+			CALL メッセージ欄表示用関数()
+
+			CALL 口上変数初期化
+			CALL アイテム増減汎用処理("魔石", 2)
+			SETBIT ダンジョン構造配列_沿岸部の森:11:0, 4
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_10_1(ARGS)
+#DIMS マス番号
+マス番号 = 10_1
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:1, 1) || GETBIT(ダンジョン構造配列_沿岸部の森:11:2, 1)
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 会話アイコン
+		ENDIF
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "11_1")
+		CALL ダンジョン分岐線描画(マス番号, "11_2")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:1, 1) || GETBIT(ダンジョン構造配列_沿岸部の森:11:2, 1)
+			KSTR:(K++) = もう獣の姿はない。どこかへと去っていったようだ。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			IF GETBIT(ダンジョン構造配列_沿岸部の森:10:1, 2) == 0
+				SETBIT ダンジョン構造配列_沿岸部の森:10:1, 2
+				WSTR:(K++) = ダンジョンを進んでいると、猫のような獣が君たちの前に現れた。
+				WSTR:(K++) = 獣は怪我をしており、右の前足に痛々しい傷がある。
+				KSTR:(K++) = 奥の道に進ませないよう君たちを威嚇しているようだ。_PAGE
+			ELSE
+				WSTR:(K++) = 獣は相変わらず、君たちを威嚇して奥の道へと進ませないようにしている。
+			ENDIF
+			WSTR:(K++) = エネミーでもないただの獣。進もうと思えば簡単だろうが……
+			KSTR:(K++) = BUTTON_[無視して奥へと進む]
+			KSTR:(K++) = BUTTON_[獣に薬草を使う]
+			KSTR:(K++) = BUTTON_[元来た道を引き返す]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[無視して奥へと進む]"
+					CALL 口上変数初期化
+					WSTR:(K++) = 獣を押しのけ、無視して奥に進む。
+					WSTR:(K++) = 通りがかりに数匹の子猫を見かけた。獣はこの子たちを護っていたらしい。
+					KSTR:(K++) = しかし君たちには関係のないことだ。そのまま奥の道へと進む。
+					CALL メッセージ欄表示用関数()
+					SETBIT ダンジョン構造配列_沿岸部の森:11:1, 1
+				CASE "[獣に薬草を使う]"
+					CALL 口上変数初期化
+					CALL アイテム増減汎用処理("薬草", -1)
+					IF RESULT
+						WSTR:(K++) = 獣にゆっくりと近づき、手持ちの薬草を見せる。
+						WSTR:(K++) = 匂いを嗅いだ獣は威嚇をやめ、君たちをじっと見つめている。
+						KSTR:(K++) = %CALLNAME:(BATTLE_STATE:0:0)%は手早く獣の傷に薬草を使い、手当をした。_PAGE
+						WSTR:(K++) = 獣は穏やかな声で一鳴きし、草むらへと移動する。
+						WSTR:(K++) = 獣の後を付いていくと、そこには木々の影になって隠れた脇道があった。
+						KSTR:(K++) = 方向からして森の奥へと移動するための近道になるだろう。_PAGE
+						KSTR:(K++) = 君たちがお礼を言うと獣はまた一鳴きし、どこかへと去っていった。
+						CALL メッセージ欄表示用関数()
+						SETBIT ダンジョン構造配列_沿岸部の森:11:1, 1
+						SETBIT ダンジョン構造配列_沿岸部の森:11:2, 1
+					ENDIF
+				CASE "[元来た道を引き返す]"
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+			CALL 口上変数初期化
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_11_1(ARGS)
+#DIMS マス番号
+マス番号 = 11_1
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:1, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = 風のエレメンタル
+					敵BATTLE_STATE_STR:1:エネミー名 = 風のエレメンタル
+					敵BATTLE_STATE_STR:2:エネミー名 = 風のエレメンタル
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:11:1, 2
+			WSTR:(K++) = 道の突き当りには、竜巻のような風の流れが吹き荒れていた。
+			WSTR:(K++) = 精霊系のエネミーが集まり、周囲を風の刃で荒らし回っているようだ。
+			KSTR:(K++) = それらは見境なく暴れ、君たちにも襲いかかってくる！
+			CALL メッセージ欄表示用関数()
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = 風のエレメンタル
+			敵BATTLE_STATE_STR:1:エネミー名 = 風のエレメンタル
+			敵BATTLE_STATE_STR:2:エネミー名 = 風のエレメンタル
+			CALL 雑魚敵遭遇汎用処理
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_11_2(ARGS)
+#DIMS マス番号
+マス番号 = 11_2
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "14_2")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:2, 2)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:11:2, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:14:2, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_9_3(ARGS)
+#DIMS マス番号
+マス番号 = 9_3
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "11_3")
+		CALL ダンジョン分岐線描画(マス番号, "10_4")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:9:0, 2)
+			KSTR:(K++) = 砕かれた岩が幾つか転がっている。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:9:3, 2
+			KSTR:(K++) = 森の中を探索していると、砕かれた岩を幾つか発見した。
+			WSTR:(K++) = ストーンイーターの食事跡に違いない。
+			KSTR:(K++) = 目的への道はこれで合っているようだ。気をつけて進もう。
+			CALL メッセージ欄表示用関数()
+			CALL 口上変数初期化
+			SETBIT ダンジョン構造配列_沿岸部の森:11:3, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:10:4, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_11_3(ARGS)
+#DIMS マス番号
+マス番号 = 11_3
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:3, 4)
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱_開
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱
+		ENDIF
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:3, 4)
+			KSTR:(K++) = 箱はからっぽだ。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:11:3, 2
+			WSTR:(K++) = 砕かれた岩の中に、きらりと光るものを見つける。
+			WSTR:(K++) = 魔力の宿った金属だ。簡単に削って金具を付ければ耳飾りになるだろう。
+			KSTR:(K++) = 耳飾りは個人の属性を変えることが出来る。ストーンイーターを倒す助けになるかもしれない。_PAGE
+			KSTR:(K++) = %CALLNAME:PLAYER%は風の耳飾りを手に入れた！
+			CALL メッセージ欄表示用関数()
+			CALL 汎用耳飾り取得処理("風の耳飾り")
+			SETBIT ダンジョン構造配列_沿岸部の森:11:3, 4
+			CALL 口上変数初期化
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_10_4(ARGS)
+#DIMS マス番号
+マス番号 = 10_4
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "11_5")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:10:4, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+					敵BATTLE_STATE_STR:2:エネミー名 = 風のエレメンタル
+					敵BATTLE_STATE_STR:4:エネミー名 = ゴブリン
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:10:4, 2
+			WSTR:(K++) = 先に進む君たちの前に、魔物たちが立ちふさがる。
+			KSTR:(K++) = 未開発エリアとはいえリゾートがある島に魔物が多くては困る。出来る限り倒して進もう。
+			CALL メッセージ欄表示用関数()
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+			敵BATTLE_STATE_STR:2:エネミー名 = 風のエレメンタル
+			敵BATTLE_STATE_STR:4:エネミー名 = ゴブリン
+			CALL 雑魚敵遭遇汎用処理
+			SETBIT ダンジョン構造配列_沿岸部の森:11:5, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_11_5(ARGS)
+#DIMS マス番号
+マス番号 = 11_5
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "12_5")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		KSTR:(K++) = 風が葉を揺らし、そよそよと耳に心地よい音を奏でている。
+		CALL メッセージ欄表示用関数(,,,0)
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:11:5, 2) == 0
+			SETBIT ダンジョン構造配列_沿岸部の森:11:5, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:12:5, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_12_5(ARGS)
+#DIMS マス番号
+マス番号 = 12_5
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "13_4")
+		CALL ダンジョン分岐線描画(マス番号, "13_6")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:12:5, 2)
+		ELSE
+			SETBIT ダンジョン構造配列_沿岸部の森:12:5, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:13:4, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:13:6, 1
+			WSTR:(K++) = 道が2つに別れている。
+			WSTR:(K++) = 上の道には点々とクズ石が散らばっている。ストーンイーターはこちらにいるだろう。
+			KSTR:(K++) = 下の道からは水の音が聞こえてくる。川が流れているようだ。
+			CALL メッセージ欄表示用関数()
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_13_6(ARGS)
+#DIMS マス番号
+マス番号 = 13_6
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:13:6, 5)
+			ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 会話アイコン
+		ENDIF
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "14_6")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:13:6, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = スニッパー
+					敵BATTLE_STATE_STR:1:エネミー名 = スニッパー
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:13:6, 2
+			WSTR:(K++) = 少し進むと森の中を流れる川に出た。
+			WSTR:(K++) = 水は澄んでおり、時折魚が跳ねる姿が見える。
+			KSTR:(K++) = ストーンイーターはこちらの方には来ないのか、腰を落ち着けるのにちょうど良い岩が幾つか転がっていた。_PAGE
+			KSTR:(K++) = 少し休憩していきますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE_2
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					CALL 口上変数初期化
+					WSTR:(K++) = ちょうど歩き疲れていたところだった%CALLNAME:PLAYER%は休憩を提案する。
+					KSTR:(K++) = 皆で岩に座り、保存食を取り出して休憩した。
+					CALL メッセージ欄表示用関数()
+					CALL 口上変数初期化
+					KSTR:(K++) = 全員のＨＰが５０、ＭＰが３０回復。
+					FOR LOCAL, 0, 4
+						IF BATTLE_STATE:LOCAL:0 < 1
+							BREAK
+						ENDIF
+						BATTLE_STATE:LOCAL:ＨＰ = MIN(BATTLE_STATE:LOCAL:ＨＰ + 50, BATTLE_STATE:LOCAL:最大ＨＰ)
+						BATTLE_STATE:LOCAL:ＭＰ = MIN(BATTLE_STATE:LOCAL:ＭＰ + 30, BATTLE_STATE:LOCAL:最大ＭＰ)
+					NEXT
+					CALL メッセージ欄表示用関数()
+					CALL 口上変数初期化
+					WSTR:(K++) = ……しばらく休憩していると、周囲に気配を感じる。
+					WSTR:(K++) = この水場を縄張りにしている魔物が集まり、いつの間にか君たちを囲んでいる！
+					KSTR:(K++) = 多数の魔物たちは君たちに襲いかかって来た！
+					CALL メッセージ欄表示用関数()
+					敵BATTLE_STATE_STR:4:エネミー名 = スニッパー
+					敵BATTLE_STATE_STR:7:エネミー名 = スニッパー
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+					WSTR:(K++) = 水場は魔物が集まりやすい場所だ。無防備に休憩するのは危険かもしれない。
+					WSTR:(K++) = %CALLNAME:PLAYER%たちが周囲を調べてみると、やはり魔物が幾らか住み着いていた。
+					KSTR:(K++) = 休憩するのは魔物を排除してからにしよう。
+					CALL メッセージ欄表示用関数()
+					SETBIT ダンジョン構造配列_沿岸部の森:13:6, 4
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE_2
+			ENDSELECT
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = スニッパー
+			敵BATTLE_STATE_STR:1:エネミー名 = スニッパー
+			CALL 雑魚敵遭遇汎用処理
+			IF RESULT == 0 && GETBIT(ダンジョン構造配列_沿岸部の森:13:6, 4)
+				CALL 口上変数初期化
+				KSTR:(K++) = 魔物を蹴散らして安全を確保した後、君たちは保存食を取り出して休憩した。
+				CALL メッセージ欄表示用関数()
+				CALL 口上変数初期化
+				KSTR:(K++) = 全員のＨＰが５０、ＭＰが３０回復。
+				FOR LOCAL, 0, 4
+					IF BATTLE_STATE:LOCAL:0 < 1
+						BREAK
+					ENDIF
+					BATTLE_STATE:LOCAL:ＨＰ = MIN(BATTLE_STATE:LOCAL:ＨＰ + 50, BATTLE_STATE:LOCAL:最大ＨＰ)
+					BATTLE_STATE:LOCAL:ＭＰ = MIN(BATTLE_STATE:LOCAL:ＭＰ + 30, BATTLE_STATE:LOCAL:最大ＭＰ)
+				NEXT
+				CALL メッセージ欄表示用関数()
+			ENDIF
+			SETBIT ダンジョン構造配列_沿岸部の森:13:6, 5
+			SETBIT ダンジョン構造配列_沿岸部の森:14:6, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_14_6(ARGS)
+#DIMS マス番号
+マス番号 = 14_6
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:14:6, 4)
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱_開
+		ELSE
+			ダンジョンマス画像URL_重ね表示 = 宝箱アイコン_木箱
+		ENDIF
+	CASE "接続先"
+	CASE "マスイベント"
+		SETBIT ダンジョン構造配列_沿岸部の森:14:6, 2
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:14:6, 4)
+			KSTR:(K++) = めぼしいものはなにもない。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			WSTR:(K++) = 川のほとりを進むと、枝や土で作られた巣のようなものがあった。
+			WSTR:(K++) = 先程の蟹の魔物の巣だろうか。巣の主は出掛けているようで、ここにはいない。
+			KSTR:(K++) = ……巣の中に、きらりと光るものを見つけた_PAGE
+			WSTR:(K++) = 魔力の籠もった指輪のようだ。
+			WSTR:(K++) = 指輪を装備すれば、ステータスを大きく上昇させることが出来る。
+			KSTR:(K++) = ストーンイーター討伐の助けになるはずだ。蟹には必要ないだろうし、貰っていこう。
+			CALL メッセージ欄表示用関数()
+			CALL 汎用指輪取得処理("栄冠の指輪・力", 0)
+			SETBIT ダンジョン構造配列_沿岸部の森:14:6, 4
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_13_4(ARGS)
+#DIMS マス番号
+マス番号 = 13_4
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "14_2")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:13:4, 2)
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+					敵BATTLE_STATE_STR:3:エネミー名 = ゴブリン
+					敵BATTLE_STATE_STR:4:エネミー名 = ゴブリン
+					敵BATTLE_STATE_STR:7:エネミー名 = ゴブリン
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:13:4, 2
+			KSTR:(K++) = 魔物の群れが現れた！
+			CALL メッセージ欄表示用関数()
+			
+			敵BATTLE_STATE_STR:0:エネミー名 = ゴブリン
+			敵BATTLE_STATE_STR:3:エネミー名 = ゴブリン
+			敵BATTLE_STATE_STR:4:エネミー名 = ゴブリン
+			敵BATTLE_STATE_STR:7:エネミー名 = ゴブリン
+			CALL 雑魚敵遭遇汎用処理
+			SETBIT ダンジョン構造配列_沿岸部の森:14:2, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_14_2(ARGS)
+#DIMS マス番号
+マス番号 = 14_2
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "15_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:14:2, 2)
+			KSTR:(K++) = 前方に木々の切れ目が見えてきた。
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:14:2, 2
+			WSTR:(K++) = 前方に木々の切れ目が見えてきた、そろそろ森を抜ける頃合いだろう。
+			WSTR:(K++) = 落ちているクズ石が多くなってきている。ストーンイーターが近くにいるはずだ。
+			KSTR:(K++) = もし傷ついているのなら、回復してから進んだ方がいいかもしれない。
+			CALL メッセージ欄表示用関数()
+			
+			SETBIT ダンジョン構造配列_沿岸部の森:15:0, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:15:0, 2
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_15_0(ARGS)
+#DIMS マス番号
+マス番号 = 15_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = 右アイコン
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		ダンジョン現在位置:0 = 16
+		ダンジョン現在位置:1 = 0
+		IF GETBIT(ダンジョン構造配列_沿岸部の森:16:0, 2) == 0
+			SETBIT ダンジョン構造配列_沿岸部の森:16:0, 1
+			SETBIT ダンジョン構造配列_沿岸部の森:16:0, 2
+			SETBIT ダンジョン構造配列_沿岸部の森:17:0, 1
+		ENDIF
+		CALL 画面再描画
+ENDSELECT
+
+
+@ダンジョンマス情報_沿岸部の森_16_0(ARGS)
+#DIMS マス番号
+マス番号 = 16_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = 左アイコン
+	CASE "接続先"
+		CALL ダンジョン分岐線描画(マス番号, "17_0")
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		ダンジョン現在位置:0 = 15
+		ダンジョン現在位置:1 = 0
+		CALL 画面再描画
+ENDSELECT
+
+@ダンジョンマス情報_沿岸部の森_17_0(ARGS)
+#DIMS マス番号
+マス番号 = 17_0
+
+SELECTCASE ARGS
+	CASE "マス画像"
+		ダンジョンマス画像URL = 床_草原
+		ダンジョンマス画像URL_重ね表示 = エネミーアイコン_赤
+	CASE "接続先"
+	CASE "マスイベント"
+		CALL 口上変数初期化
+		IF ダンジョンクリアフラグ_沿岸部の森
+			KSTR:(K++) = 敵を探しますか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					敵BATTLE_STATE_STR:0:エネミー名 = ストーンイーター
+					CALL 雑魚敵遭遇汎用処理
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE
+			ENDSELECT
+		ELSE
+			;最初に訪れた時
+			SETBIT ダンジョン構造配列_沿岸部の森:17:0, 2
+			WSTR:(K++) = %CALLNAME:PLAYER%たちが森の奥地へと足を踏み入れると、そこには地面を掘り返して石を齧るトカゲの魔物がいた。
+			WSTR:(K++) = こいつが目的の「ストーンイーター」で間違いないだろう。
+			WSTR:(K++) = 戦いの準備はいいだろうか？
+			KSTR:(K++) = BUTTON_[はい]
+			KSTR:(K++) = BUTTON_[いいえ]
+			CALL メッセージ欄表示用関数(,,,0)
+			$LOOP_MESSAGE_BOSS
+			INPUTS
+			SELECTCASE RESULTS
+				CASE "[はい]"
+					CALL 口上変数初期化
+					KSTR:(K++) = 君たちは武器を構え、ストーンイーターに戦いを挑んだ！
+					CALL メッセージ欄表示用関数()
+					敵BATTLE_STATE_STR:0:エネミー名 = ストーンイーター
+					CALL BATTLE_MAIN_LOOP
+
+					IF RESULT == 0
+						;勝利時
+						ダンジョン表示モード = マップ画面
+						CALL 口上変数初期化
+						WSTR:(K++) = %CALLNAME:PLAYER%はストーンイーターの討伐に成功した！！
+						KSTR:(K++) = これで工事業者を呼べるようになった。早速帰って、よろず屋に手紙を出そう…_PAGE
+						WSTR:(K++) = ・［施設改造］機能が解放された！
+						WSTR:(K++) = ・［従業員設定］機能が解放された！
+						WSTR:(K++) = ・［空挺港］マップが解放された！
+						WSTR:(K++) = ・[400] 移動　コマンド内に「別のエリアに移動する」機能が解放された！
+						WSTR:(K++) = ・ストーンイーターから「栄冠の指輪・力」を手に入れた！
+						WSTR:(K++) = ・ストーンイーターから「火の耳飾り」を手に入れた！
+						CALL 汎用指輪取得処理("栄冠の指輪・力", 0)
+						CALL 汎用耳飾り取得処理("火の耳飾り")
+						KSTR:(K++) = ダンジョンから脱出します。
+						CALL メッセージ欄表示用関数()
+						ダンジョン終了フラグ = 1
+						ダンジョンクリアフラグ_沿岸部の森 = 1
+					ELSEIF RESULT == 1
+						;全滅時
+						ダンジョン表示モード = マップ画面
+						CALL 口上変数初期化
+						KSTR:(K++) = %CALLNAME:PLAYER%は力尽きた仲間たちを連れ、なんとか逃げ出した…
+						CALL メッセージ欄表示用関数()
+						ダンジョン終了フラグ = 1
+					ELSEIF RESULT == -1
+						;逃走時
+						ダンジョン表示モード = マップ画面
+					ENDIF
+					VARSET 敵BATTLE_STATE:0:0
+					VARSET 敵BATTLE_STATE_STR:0:0
+				CASE "[いいえ]"
+					CALL 口上変数初期化
+					KSTR:(K++) = 君たちは準備を整えるため、一旦その場を離れた……
+					CALL メッセージ欄表示用関数()
+				CASEELSE
+					CLEARLINE 1
+					GOTO LOOP_MESSAGE_BOSS
+			ENDSELECT
+			CALL 口上変数初期化
+		ENDIF
+		CALL 画面再描画
+ENDSELECT

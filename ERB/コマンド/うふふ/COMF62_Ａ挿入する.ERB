@@ -17,6 +17,8 @@ SIF MODE_確認("Ａ挿入系", TARGET)
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("Ａ系")
 弱点コマンドカテゴリ = A
+同時モード許可 = 1
+助手モード許可 = 1
 
 @COM_TOOLTIP_62
 LOCALS = <br>■Ａ挿入する<br>
@@ -26,74 +28,97 @@ LOCALS += "<br>固有の取得経験：Ａ経験(TARGET)・Ａ性交経験(TARGE
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM62
-$体位_LOOP
-DRAWLINE
-PRINTL ■体位を選んでください
-PRINTL
-FOR LOCAL, 0, 20
-	TRYCCALLFORM COM_ABLE62_{LOCAL}
-		IF RESULT
-			SELECTCASE LOCAL
-				CASE 0
-					PRINTBUTTONLC "[0]Ａ正常位", 0
-				CASE 1
-					PRINTBUTTONLC "[1]Ａ後背位", 1
-				CASE 2
-					PRINTBUTTONLC "[2]Ａ寝バック", 2
-				CASE 3
-					PRINTBUTTONLC "[3]Ａ対面座位", 3
-				CASE 4
-					PRINTBUTTONLC "[4]Ａ背面座位", 4
-				CASE 5
-					PRINTBUTTONLC "[5]Ａ騎乗位", 5
-				CASE 6
-					PRINTBUTTONLC "[6]Ａ側位", 6
-				CASE 7
-					PRINTBUTTONLC "[7]Ａ屈曲位", 7
-				CASE 8
-					PRINTBUTTONLC "[8]Ａ駅弁", 8
-				CASE 9
-					PRINTBUTTONLC "[9]Ａ逆駅弁", 9
-				CASE 10
-					PRINTBUTTONLC "[10]Ａ対面立位", 10
-				CASE 11
-					PRINTBUTTONLC "[11]Ａ立ちバック", 11
-			ENDSELECT
+IF COMMODE() == 2
+	TRYCALLFORM COM_ABLE62_12
+	IF RESULT
+		TRYCALLFORM CAN_Ａ体位12(1)
+		IF !RESULT
+			TRYCALLFORM CAN_Ａ体位12(0)
+			RETURN -1
 		ENDIF
-	CATCH
-		CONTINUE
-	ENDCATCH
-NEXT
-
-PRINTL
-PRINTL
-PRINTBUTTONLC "[999]戻る", 999
-
-$INPUT_LOOP
-INPUT
-
-LOCAL = RESULT
-SELECTCASE LOCAL
-	CASE 0 TO 11
-		TRYCALLFORM COM_ABLE62_{LOCAL}
-		IF RESULT
-			TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
-			IF !RESULT
-				TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
-				GOTO 体位_LOOP
+		LOCAL = TARGET
+		TARGET = 助手は誰だ()
+				TRYCALLFORM CAN_Ａ体位12(1)
+		IF !RESULT
+			TARGET = LOCAL
+			RETURN -1
+		ENDIF
+		TARGET = LOCAL
+		TRYCALLFORM COM62_12
+		;メッセージ用に体位の種類を保存
+		TFLAG:コマンド結果受渡し変数 = 12
+		RETURN 1
+	ENDIF
+	RETURN 0
+ELSE
+	$体位_LOOP
+	DRAWLINE
+	PRINTL ■体位を選んでください
+	PRINTL
+	FOR LOCAL, 0, 20
+		TRYCCALLFORM COM_ABLE62_{LOCAL}
+			IF RESULT
+				SELECTCASE LOCAL
+					CASE 0
+						PRINTBUTTONLC "[0]Ａ正常位", 0
+					CASE 1
+						PRINTBUTTONLC "[1]Ａ後背位", 1
+					CASE 2
+						PRINTBUTTONLC "[2]Ａ寝バック", 2
+					CASE 3
+						PRINTBUTTONLC "[3]Ａ対面座位", 3
+					CASE 4
+						PRINTBUTTONLC "[4]Ａ背面座位", 4
+					CASE 5
+						PRINTBUTTONLC "[5]Ａ騎乗位", 5
+					CASE 6
+						PRINTBUTTONLC "[6]Ａ側位", 6
+					CASE 7
+						PRINTBUTTONLC "[7]Ａ屈曲位", 7
+					CASE 8
+						PRINTBUTTONLC "[8]Ａ駅弁", 8
+					CASE 9
+						PRINTBUTTONLC "[9]Ａ逆駅弁", 9
+					CASE 10
+						PRINTBUTTONLC "[10]Ａ対面立位", 10
+					CASE 11
+						PRINTBUTTONLC "[11]Ａ立ちバック", 11
+				ENDSELECT
 			ENDIF
-			TRYCALLFORM COM62_{LOCAL}
-			;メッセージ用に体位の種類を保存
-			TFLAG:コマンド結果受渡し変数 = LOCAL
-			RETURN 1
-		ENDIF
-		GOTO INPUT_LOOP
-	CASE 999
-		RETURN -1
-	CASEELSE
-		GOTO INPUT_LOOP
-ENDSELECT
+		CATCH
+			CONTINUE
+		ENDCATCH
+	NEXT
 
+	PRINTL
+	PRINTL
+	PRINTBUTTONLC "[999]戻る", 999
+
+	$INPUT_LOOP
+	INPUT
+
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 0 TO 11
+			TRYCALLFORM COM_ABLE62_{LOCAL}
+			IF RESULT
+				TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+				IF !RESULT
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+					GOTO 体位_LOOP
+				ENDIF
+				TRYCALLFORM COM62_{LOCAL}
+				;メッセージ用に体位の種類を保存
+				TFLAG:コマンド結果受渡し変数 = LOCAL
+				RETURN 1
+			ENDIF
+			GOTO INPUT_LOOP
+		CASE 999
+			RETURN -1
+		CASEELSE
+			GOTO INPUT_LOOP
+	ENDSELECT
+ENDIF
 
 @COM62_0
 ;引数は前から快楽量、露出量、接触量
@@ -167,6 +192,13 @@ RETURN RESULT
 CALL Ａ体位COM(450, 90, 100)
 CALL MODE_CHANGE("Ａ立ちバック")
 RETURN RESULT
+
+@COM62_12
+;同時挿入
+CALL Ａ体位COM(350, 70, 90)
+CALL MODE_CHANGE("Ａ同時挿入")
+RETURN RESULT
+
 
 
 @Ａ体位COM(ARG, ARG:1, ARG:2)
@@ -303,6 +335,15 @@ CALL CAN_Ａ体位(32)
 LOCAL = RESULT
 SKIPDISP 0
 RETURN LOCAL
+
+@CAN_Ａ体位12(ARG)
+;同時挿入
+SKIPDISP ARG
+CALL CAN_Ａ体位(40)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
 
 @CAN_Ａ体位(ARG)
 #DIM 実行値
@@ -502,6 +543,10 @@ IF !MODE_確認("Ａ挿入系", TARGET)
 		RETURN 0
 ENDIF
 
+;同時挿入中ならダメ
+SIF MODE_確認("Ａ同時挿入", TARGET)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_0
@@ -641,6 +686,21 @@ SIF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
 
 RETURN 1
 
+@COM_ABLE62_12
+;同時挿入
+;男側がハーヴィンかつ相手がハーヴィン以外ならプレイマットかベッドが必要
+IF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+	IF TEQUIP:31
+		SIF ITEM:20 == 0 && NOITEM == 0
+			RETURN 0
+	ELSE
+		SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+			RETURN 0
+	ENDIF
+ENDIF
+
+RETURN 1
+
 
 
 ;-------------------------------------------------
@@ -687,4 +747,9 @@ SELECTCASE TFLAG:コマンド結果受渡し変数
 	CASE 11
 		;立ちバック
 		PRINTFORML %CALLNAME:PLAYER%は後ろ向きに尻を突き出した%CALLNAME:TARGET%のアナルへと陰茎を挿入した
+	CASE 12
+		;同時導入
+		;二人目のときはスキップ
+		SIF !TFLAG:メッセージ重複防止
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と%CALLNAME:助手は誰だ()%を左右に並べると、アナルへと交互に陰茎を挿入した
 ENDSELECT
