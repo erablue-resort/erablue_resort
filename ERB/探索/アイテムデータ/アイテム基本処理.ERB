@@ -89,6 +89,8 @@ RETURN -1
 @アイテム増減汎用処理(アイテム名, 個数)
 #DIMS アイテム名
 #DIM 個数
+;何らかの理由で失敗時はRETURN 0
+;ちゃんと増減した場合はRETURN 1
 
 ;まず増減するアイテム名が誤字ってないかチェック
 TRYCCALLFORM アイテム個別文章表示_%アイテム名%
@@ -104,13 +106,21 @@ IF DT_COLUMN_EXIST("所持アイテムデータベース", アイテム名)
 	LOCAL:1 = DT_CELL_GET("所持アイテムデータベース", 0, アイテム名) + 個数
 	IF LOCAL:1 > 0
 		DT_CELL_SET "所持アイテムデータベース", 0, アイテム名, LOCAL:1
-	ELSE
+	ELSEIF LOCAL:1 == 0
 		DT_COLUMN_REMOVE "所持アイテムデータベース", アイテム名
+	ELSE
+		PRINTFORML %アイテム名%が足りません。
+		RETURN 0
 	ENDIF
 ELSE
 	;未所持
 	IF 個数 > 0
 		DT_COLUMN_ADD "所持アイテムデータベース", アイテム名, 1
 		DT_CELL_SET "所持アイテムデータベース", 0, アイテム名, 個数
+	ELSE
+		PRINTFORML %アイテム名%を所持していません。
+		RETURN 0
 	ENDIF
 ENDIF
+
+RETURN 1
