@@ -1,0 +1,201 @@
+﻿
+;********************************************************************************************
+;2023/6/xx 作成 rsp暇人
+;関数が増えてきたので別ファイル化
+;********************************************************************************************
+
+@スプライト作成(ARGS, ARG, mode = 0)
+#FUNCTION
+#DIM mode;0:正方形 1:縦長
+#DIM 縦幅
+#DIM 横幅
+#DIM 横始点
+
+SIF ARGS == ""
+	THROW スプライト名が指定されていません
+SIF !GCREATED(ARG)
+	THROW グラフィックID{ARG}は作成されていません
+
+横幅 = GWIDTH(ARG)
+縦幅 = GHEIGHT(ARG)
+mode ++
+
+IF 画像サイズ切り替えOPTION記憶:1
+	;拡大縮小処理
+	横始点 = 0
+	GDISPOSE TEMP_gID
+	IF 横幅 * mode > 縦幅
+		;横長の場合、縦にサイズを広げて再描画
+		GCREATE TEMP_gID, 横幅, 横幅 * mode
+		GDRAWG TEMP_gID, ARG, 0, (横幅 * mode - 縦幅) / 2, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		横幅 = GWIDTH(TEMP_gID)
+		縦幅 = GHEIGHT(TEMP_gID)
+		GDISPOSE ARG
+		GCREATE ARG, 横幅, 縦幅
+		GDRAWG ARG,TEMP_gID, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		GDISPOSE TEMP_gID
+	ELSEIF 横幅 * mode < 縦幅
+		;縦長の場合、横にサイズを広げて再描画
+		GCREATE TEMP_gID, 縦幅 / mode, 縦幅
+		GDRAWG TEMP_gID, ARG, (縦幅 - 横幅 * mode) / (2 * mode), 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		横幅 = GWIDTH(TEMP_gID)
+		縦幅 = GHEIGHT(TEMP_gID)
+		GDISPOSE ARG
+		GCREATE ARG, 横幅, 縦幅
+		GDRAWG ARG,TEMP_gID, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
+		GDISPOSE TEMP_gID
+	ENDIF
+ELSE
+	;切り抜き処理
+	IF 横幅 * 100 * mode > 縦幅 * 105
+		;横長の場合、はみ出した左右を切る
+		横始点 = (横幅 - 縦幅 / mode) / 2
+		横幅 = 縦幅 / mode
+	ELSEIF 横幅 * 105 * mode < 縦幅 * 100
+		;縦長の場合、はみ出した下を切るだけ
+		横始点 = 0
+		縦幅 = 横幅 * mode
+	ELSE
+		横始点 = 0
+	ENDIF
+ENDIF
+
+SPRITECREATE ARGS, ARG, 横始点, 0, 横幅, 縦幅
+RETURNF 1
+
+@CLOTHES_TODAY(ARG)
+#DIM CNT
+#DIM C_CNT
+#DIMS C_CHOICE, 22
+
+;滞在していないキャラは着替えない
+SIF CFLAG:ARG:滞在期間 == -1
+	RETURN
+
+VARSET LOCALS
+LOCALS = デフォルト
+SIF MAX(CFLAG:ARG:好感度レベル, CFLAG:ARG:恋慕レベル) > 関係閾値:4
+	LOCALS:1 = おしゃれ着
+
+CSTR:ARG:今日の衣装 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
+
+@GRAP_RAND(ARG, TYPE, PATRN, PATRN:1)
+#FUNCTIONS
+#DIMS FOLDER
+#DIMS TYPE
+#DIMS PATRN, 2
+#DIM L_CNT
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURNF
+
+VARSET LOCAL
+VARSET LOCALS
+VARSET RESULTS
+
+SIF CSTR:ARG:画像フォルダ == ""
+	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
+
+FOLDER '= "resources\\" + CSTR:ARG:画像フォルダ
+LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.png")
+DEBUGPRINTFORML %FOLDER%内の%TYPE + PATRN%ファイル合計は{LOCAL}個
+FOR L_CNT, 0, LOCAL
+	LOCALS:L_CNT '= RESULTS:L_CNT
+	DEBUGPRINTFORML %LOCALS:L_CNT%　
+NEXT
+DEBUGPRINTL
+IF PATRN:1 != ""
+	LOCAL:1 = ENUMFILES(FOLDER, TYPE + PATRN:1 + "*.png")
+	DEBUGPRINTFORML %FOLDER%内の%TYPE + PATRN:1%ファイル合計は{LOCAL:1}個
+	FOR L_CNT, LOCAL, LOCAL + LOCAL:1
+		LOCALS:L_CNT '= RESULTS:(L_CNT - LOCAL)
+		DEBUGPRINTFORML %LOCALS:L_CNT%　
+	NEXT
+	DEBUGPRINTL
+ENDIF
+SIF LOCAL + LOCAL:1 < 1
+	RETURNF "デフォルト"
+RESULTS '= LOCALS:RAND(LOCAL + LOCAL:1)
+SUBSTRING RESULTS, 1 +STRLENS(FOLDER) + STRLENS(TYPE), -1
+REPLACE RESULTS, "\.png", ""
+DEBUGPRINTFORML 選ばれたのは%RESULTS%
+
+RETURNF RESULTS
+
+@画像フォルダ選択(ARG)
+#DIM L_CNT, 3
+#DIM LNCOUNT
+#DIM G_NUM
+#DIM F_NUM
+#DIMS G_NAME
+#DIMS FOLDER, 10
+
+LNCOUNT = LINECOUNT
+VARSET LOCAL
+VARSET FOLDER
+
+LOCALS '= "resources\\" + TOSTR(NO:ARG) + CALLNAME:ARG
+F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
+IF F_NUM < 2
+	PRINTW 有効な画像フォルダは1つ以下しかありません
+	RETURN
+ELSEIF F_NUM > 10
+	PRINTL 有効な画像フォルダが多すぎます。最初に見つかった10個のみが有効となります。
+	F_NUM = 10
+ENDIF
+
+FOR L_CNT, 0, F_NUM
+	FOLDER:L_CNT '= SUBSTRING(RESULTS:L_CNT, 10, STRLENS(RESULTS:L_CNT)-29)
+NEXT
+
+PRINTL 一覧より使用する画像フォルダを選択してください
+TEMP_HTML = 
+FOR L_CNT, 0, F_NUM
+	PRINTFORML [{L_CNT}] %FOLDER:L_CNT%
+	FOR L_CNT:2, 0, 2
+		短冊フラグ = L_CNT:2
+		LOCALS = \@ L_CNT:2? 短冊_# 顔_\@
+		G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, LOCALS + "*.png")
+		DEBUGPRINTFORML %FOLDER:L_CNT%の%LOCALS%画像数{G_NUM}
+		FOR L_CNT:1, 0, G_NUM
+			G_NAME '= SUBSTRING(RESULTS:(L_CNT:1), 10, -1)
+			LOCAL = TEMP_gID + L_CNT*2000 + L_CNT:2*1000+ L_CNT:1
+			GCREATEFROMFILE LOCAL, G_NAME
+			SIF スプライト作成(TOSTR(LOCAL), LOCAL, 短冊フラグ) == 0
+				CONTINUE
+;			SPRITECREATE TOSTR(LOCAL), LOCAL
+			TEMP_HTML_MAX_HEIGHT = L_CNT:2? 240# 120
+			LOCALS = {(L_CNT:1 % 8) * 120}px, 0px, 120px, {TEMP_HTML_MAX_HEIGHT}px
+			TEMP_HTML += @"<div rect='%LOCALS%'><button value='{L_CNT}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='120px' height='{TEMP_HTML_MAX_HEIGHT}px'></button></div>"
+;			CALL 画像セット(TOSTR(LOCAL), , 0, 67, 0, 1, TOSTR(L_CNT), ESCAPE(G_NAME))
+			IF (L_CNT:1 + 1) % 8 == 0
+				描画開始行数 = LINECOUNT
+				CALL 画像一斉表示("左", 0, 1)
+			ENDIF
+		NEXT
+		IF TEMP_HTML != ""
+			描画開始行数 = LINECOUNT
+			CALL 画像一斉表示("左", 0, 1)
+		ENDIF
+	NEXT
+NEXT
+
+PRINTL [100] 戻る
+
+INPUT
+$LOOP_INPUT
+IF INRANGE(RESULT, 0, F_NUM)
+	CSTR:ARG:画像フォルダ '= FOLDER:RESULT
+	PRINTFORMW 画像フォルダを%CSTR:ARG:画像フォルダ%に変更しました
+	SUBSTRING CSTR:ARG:画像フォルダ, STRLENS(TOSTR(NO:ARG) + CALLNAME:ARG), -1
+	DEBUGPRINTFORML CSTR:{ARG}:画像フォルダ = %CSTR:ARG:画像フォルダ% 
+ELSEIF RESULT != 100
+	GOTO LOOP_INPUT
+ENDIF
+
+FOR L_CNT, 0, F_NUM*2000 + 1000
+	GDISPOSE TEMP_gID + L_CNT
+NEXT
+CLEARLINE LINECOUNT - LNCOUNT
+PRINTFORML 現在の画像フォルダは%CSTR:ARG:画像フォルダ%です
+RETURN
