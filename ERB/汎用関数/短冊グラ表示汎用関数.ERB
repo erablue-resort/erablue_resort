@@ -5,19 +5,33 @@
 SPRITEDISPOSE @"短冊グラ{g_loop}"
 GDISPOSE 3000 + g_loop
 
+SIF CSTR:ARG:画像フォルダ == ""
+	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
+
 IF CSTR:ARG:短冊グラ表示切り替え用文字列 == ""
-	GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/短冊_デフォルト.png"
+	GCREATEFROMFILE 3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png"
 ELSE
-	GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/%CSTR:ARG:短冊グラ表示切り替え用文字列%.png"
+	GCREATEFROMFILE 3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%CSTR:ARG:短冊グラ表示切り替え用文字列%.png"
 ENDIF
 IF RESULT == 0
 	;該当画像が無い場合
 	IF CSTR:ARG:短冊グラ表示切り替え用文字列 == ""
 		;そもそもデフォルト画像が無い場合はNoimage画像で返す
 		RETURNF @"<img src='Noimage_短冊' width='180px' height='360px'>"
+	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%CSTR:ARG:顔グラ表示切り替え用文字列%.png")
+		;設定中の顔グラが存在すればそちらを拡縮で表示
+		LOCAL = 画像サイズ切り替えOPTION記憶:1
+		画像サイズ切り替えOPTION記憶:1 = 1
+		SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
+			LOCALS '= @"<img src='短冊グラ{g_loop}' width='180px' height='360px'>"
+		画像サイズ切り替えOPTION記憶:1 = LOCAL
+		RETURNF LOCALS
+	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png")
+		;変更後画像も設定中の顔グラも無い場合はデフォルト短冊を表示させる
 	ELSE
-		;変更後画像が無い場合はデフォルト短冊を表示させる
-		GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/短冊_デフォルト.png"
+		;どれもない場合はNoimage画像で返す
+;		GCREATEFROMFILE 3000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/短冊_デフォルト.png"
+		RETURNF @"<img src='Noimage_短冊' width='180px' height='360px'>"
 	ENDIF
 ENDIF
 
@@ -25,63 +39,3 @@ SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
 	LOCALS '= @"<img src='短冊グラ{g_loop}' width='180px' height='360px'>"
 
 RETURNF LOCALS
-
-@スプライト作成(ARGS, ARG, mode = 0)
-#FUNCTION
-#DIM mode;0:正方形 1:縦長
-#DIM 縦幅
-#DIM 横幅
-#DIM 横始点
-
-SIF ARGS == ""
-	THROW スプライト名が指定されていません
-SIF !GCREATED(ARG)
-	THROW グラフィックID{ARG}は作成されていません
-
-横幅 = GWIDTH(ARG)
-縦幅 = GHEIGHT(ARG)
-mode ++
-
-IF 画像サイズ切り替えOPTION記憶:1
-	;拡大縮小処理
-	横始点 = 0
-	GDISPOSE TEMP_gID
-	IF 横幅 * mode > 縦幅
-		;横長の場合、縦にサイズを広げて再描画
-		GCREATE TEMP_gID, 横幅, 横幅 * mode
-		GDRAWG TEMP_gID, ARG, 0, (横幅 * mode - 縦幅) / 2, 横幅, 縦幅, 0, 0, 横幅, 縦幅
-		横幅 = GWIDTH(TEMP_gID)
-		縦幅 = GHEIGHT(TEMP_gID)
-		GDISPOSE ARG
-		GCREATE ARG, 横幅, 縦幅
-		GDRAWG ARG,TEMP_gID, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
-		GDISPOSE TEMP_gID
-	ELSEIF 横幅 * mode < 縦幅
-		;縦長の場合、横にサイズを広げて再描画
-		GCREATE TEMP_gID, 縦幅 / mode, 縦幅
-		GDRAWG TEMP_gID, ARG, (縦幅 - 横幅 * mode) / (2 * mode), 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
-		横幅 = GWIDTH(TEMP_gID)
-		縦幅 = GHEIGHT(TEMP_gID)
-		GDISPOSE ARG
-		GCREATE ARG, 横幅, 縦幅
-		GDRAWG ARG,TEMP_gID, 0, 0, 横幅, 縦幅, 0, 0, 横幅, 縦幅
-		GDISPOSE TEMP_gID
-	ENDIF
-ELSE
-	;切り抜き処理
-	IF 横幅 * 100 * mode > 縦幅 * 105
-		;横長の場合、はみ出した左右を切る
-		横始点 = (横幅 - 縦幅 / mode) / 2
-		横幅 = 縦幅 / mode
-	ELSEIF 横幅 * 105 * mode < 縦幅 * 100
-		;縦長の場合、はみ出した下を切るだけ
-		横始点 = 0
-		縦幅 = 横幅 * mode
-	ELSE
-		横始点 = 0
-	ENDIF
-ENDIF
-
-SPRITECREATE ARGS, ARG, 横始点, 0, 横幅, 縦幅
-RETURNF 1
-
