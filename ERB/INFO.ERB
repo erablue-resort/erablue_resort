@@ -152,6 +152,10 @@ FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	IF !CFLAG:LOCAL:うふふ || CFLAG:LOCAL:現在位置 != CFLAG:LOCAL:前ターン位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:LOCAL:前マップ種別
+		IF CSTR:LOCAL:うふふ前の服 != ""
+			CSTR:LOCAL:着せ替え服 = %CSTR:LOCAL:うふふ前の服%
+			CSTR:LOCAL:うふふ前の服 = 
+		ENDIF
 		CALL CLOTHES_RESET_TRAIN(LOCAL)
 		FOR LOCAL:1, 10, 150
 			TEQUIP:LOCAL:(LOCAL:1) = 0
@@ -167,7 +171,30 @@ FOR LOCAL,0,CHARANUM
 		VARSET モード主犯:LOCAL:0
 	ENDIF
 	
-	IF SWIMROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && !CFLAG:LOCAL:うふふ && !CFLAG:LOCAL:飲み会
+	IF CFLAG:LOCAL:うふふ
+		;うふふ時は自動着替えは発動しない
+		;ついでにうふふ突入前の服を保存する
+		IF CSTR:LOCAL:うふふ前の服 == ""
+			CSTR:LOCAL:うふふ前の服 = %CSTR:LOCAL:着せ替え服%
+		ENDIF
+		;うふふ中、全ての服がなくなっているのなら全裸に切り替える
+		LOCAL:10 = 0
+		FOR LOCAL:11, 150, 172
+			SIF TEQUIP:(LOCAL:11)
+				LOCAL:10 = 1
+		NEXT
+		IF LOCAL:10 == 0
+			;全裸なら全裸に
+			CALL CLOTHES_CHANGE(LOCAL, "全裸")
+		ENDIF
+		CONTINUE
+	ENDIF
+	IF CFLAG:LOCAL:飲み会
+		;飲み会時は自動着替えは発動しない
+		CONTINUE
+	ENDIF
+
+	IF SWIMROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置)
 		CALL CLOTHES_CHANGE(LOCAL, "水着")
 	ENDIF
 	
@@ -180,7 +207,7 @@ FOR LOCAL,0,CHARANUM
 		CALL CLOTHES_CHANGE(LOCAL, "全裸")
 	
 	;風呂場から出てきたら浴衣になる
-	SIF !BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && CSTR:LOCAL:着せ替え服 == "全裸"
+	SIF !BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:前ターン位置)
 		CALL CLOTHES_CHANGE(LOCAL, "浴衣")
 
 	;自室では部屋着になる
@@ -188,8 +215,10 @@ FOR LOCAL,0,CHARANUM
 		CALL CLOTHES_CHANGE(LOCAL, "部屋着")
 
 	;自室から出たら普段着に戻る
-	SIF CFLAG:LOCAL:現在マップ種別 != 999 && CSTR:LOCAL:着せ替え服 == "部屋着"
-		CALL CLOTHES_RESET(LOCAL)
+	IF CFLAG:LOCAL:現在マップ種別 != 999 && CSTR:LOCAL:着せ替え服 == "部屋着"
+		CSTR:LOCAL:着せ替え服 = 
+		CALL CLOTHES_RESET_TRAIN(LOCAL)
+	ENDIF
 
 NEXT
 ;-------------------------------------------------
