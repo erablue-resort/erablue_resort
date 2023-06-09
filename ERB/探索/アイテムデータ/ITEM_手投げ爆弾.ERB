@@ -1,21 +1,25 @@
 ﻿
 @アイテム個別文章表示_手投げ爆弾
-LOCALS = 
+VARSET LOCALS
+CALL 口上変数初期化
+
 LOCALS += @"■手投げ爆弾　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "手投げ爆弾")}<br>"
 LOCALS += "調合した爆発物を詰め込んだ簡易的な爆弾。<br>"
 LOCALS += "村人などが護身用に持つタイプのもの。<br>"
 LOCALS += "爆発範囲は狭く、威力も低いが弱い魔物には十分。<br>"
 LOCALS += "<br>"
-LOCALS += "【効果】<br>"
-LOCALS += "敵単体へ[１００]の固定ダメージを与える。<br>"
+LOCALS:1 += "【効果】<br>"
+LOCALS:1 += "敵単体へ[１００]の固定ダメージを与える。<br>"
 
-詳細文文字列受け渡し変数 = %LOCALS%
+詳細文文字列受け渡し変数 = %LOCALS%%LOCALS:1%
+KSTR:(K++) = %LOCALS:1%
 
 @アイテム使用先表示_手投げ爆弾
 CALL 汎用使用先表示("敵単体")
 
 @アイテム効果処理_手投げ爆弾(ARG)
 ;ARG = エネミーが何番目か、10からカウント
+CALL 口上変数初期化
 
 IF 戦闘行動内容 != 10
 	PRINTW 戦闘中でない時は使用出来ません
@@ -27,6 +31,11 @@ IF DT_CELL_GET("所持アイテムデータベース", 0, "手投げ爆弾") < 1
 	RETURN 0
 ENDIF
 
+IF 敵BATTLE_STATE_STR:(ARG - 10):エネミー名 == ""
+	PRINTW 対象が不正です
+	RETURN 0
+ENDIF
+
 NSTR:(K++) = %敵BATTLE_STATE_STR:(ARG - 10):エネミー名%に
 KSTR:(K++) = 100のダメージ！
 敵BATTLE_STATE:(ARG - 10):ＨＰ = MAX(敵BATTLE_STATE:(ARG - 10):ＨＰ - 100, 0)
@@ -34,6 +43,7 @@ IF 敵BATTLE_STATE:(ARG - 10):ＨＰ < 1
 	CALL 戦闘不能時処理(ARG)
 	KSTR:(K++) = %敵BATTLE_STATE_STR:(ARG - 10):エネミー名%は倒れた！
 ENDIF
+CALL メッセージ欄表示用関数()
 
 CALL アイテム増減汎用処理("手投げ爆弾", -1)
 
