@@ -1,0 +1,91 @@
+﻿@ダンジョンハプニング_スカート捲れ(選定対象変数名 = "", 選定条件数値)
+#DIMS 選定対象変数名
+#DIM 選定条件数値
+#DIM 対象キャラ番号
+
+;めくれる服を履いているキャラ
+FOR LOCAL, 0, 4
+	IF BATTLE_STATE:LOCAL:0 > 0
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+対象キャラ番号 = RAND:(LOCAL:1)
+
+CALL 口上変数初期化
+WSTR:(K++) = 急に突風が吹いた！
+KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%の服がまくれ上がり、
+NSTR:(K++) = 目の前にいた%CALLNAME:PLAYER%は
+IF TEQUIP:(BATTLE_STATE:対象キャラ番号:0):下タイツあり
+	IF TEQUIP:(BATTLE_STATE:対象キャラ番号:0):下タイツ破れ
+		NSTR:(K++) = 破れた
+	ENDIF
+	NSTR:(K++) = タイツの奥の
+ENDIF
+SELECTCASE TEQUIP:(BATTLE_STATE:対象キャラ番号:0):下半身下着あり
+	CASE 1
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%の下着をばっちり見てしまった。_PAGE
+	CASE 2
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%の小さな布が貼られているだけの大事な部分を見てしまった。_PAGE
+	CASE 3
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%のふんどしをばっちり見てしまった。_PAGE
+	CASEELSE
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%の何も履いていない秘部をばっちり見てしまった。_PAGE
+ENDSELECT
+
+CALL セクハラ反応タイプ判定(BATTLE_STATE:対象キャラ番号:0)
+TRYCCALLFORM KOJO_ハプニング_スカート捲れ_{NO:(BATTLE_STATE:対象キャラ番号:0)}
+CATCH
+	KSTR:(K++) = %CALLNAME:MASTER%はすぐに謝罪したが、
+	SELECTCASE TFLAG:コマンド結果受渡し変数２
+		CASE 1
+			;無知
+			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は特に何も気にしていないようだ。
+		CASE 2
+			;無反応
+			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は何もなかったかのように探索に戻った。
+		CASE 6
+			;羞恥
+			SELECTCASE TFLAG:コマンド結果受渡し変数
+				CASE 1
+					;拒絶
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は顔を真っ赤にして飛びのいた。
+				CASE 2
+					;受入れ
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は真っ赤な顔で胸を抑えている。
+				CASE 3
+					;喜び
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は顔を赤く染めて、こちらを見つめている……
+			ENDSELECT
+		CASEELSE
+			;汎用
+			SELECTCASE TFLAG:コマンド結果受渡し変数
+				CASE 1
+					;拒絶
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は少し不快そうな顔をして探索に戻った。
+				CASE 2
+					;受入れ
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は苦笑しながら着衣を整えている。
+				CASE 3
+					;喜び
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は%CALLNAME:MASTER%に怪我はないか心配してくれている。
+			ENDSELECT
+	ENDSELECT
+	CALL メッセージ欄表示用関数()
+ENDCATCH
+
+;ソース増減部分
+SELECTCASE TFLAG:コマンド結果受渡し変数
+	CASE 1
+		;拒絶
+		CALL SOURCE_CALC_不快((BATTLE_STATE:対象キャラ番号:0), PLAYER, 50)
+		CALL SOURCE_CALC_反感((BATTLE_STATE:対象キャラ番号:0), PLAYER, 50)
+		CALL SOURCE_CALC_露出((BATTLE_STATE:対象キャラ番号:0), PLAYER, 200)
+	CASE 2
+		;受け入れ
+		CALL SOURCE_CALC_露出((BATTLE_STATE:対象キャラ番号:0), PLAYER, 100)
+	CASE 3
+		;喜び
+		CALL SOURCE_CALC_露出((BATTLE_STATE:対象キャラ番号:0), PLAYER, 70)
+ENDSELECT
+
+CALL ダンジョン内_SOURCE_CHECK(BATTLE_STATE:対象キャラ番号:0)
