@@ -2,17 +2,28 @@
 #DIMS 選定対象変数名
 #DIM 選定条件数値
 #DIM 対象キャラ番号
+#DIM 選定用配列
 
+VARSET LOCAL
 ;めくれる服を履いているキャラ
 FOR LOCAL, 0, 4
-	IF BATTLE_STATE:LOCAL:0 > 0
+	IF BATTLE_STATE:LOCAL:0 > 0 && TEQUIP:(BATTLE_STATE:LOCAL:0):スカートめくり可
+		選定用配列:(LOCAL:1) = LOCAL
 		LOCAL:1 += 1
 	ENDIF
 NEXT
-対象キャラ番号 = RAND:(LOCAL:1)
 
 CALL 口上変数初期化
 WSTR:(K++) = 急に突風が吹いた！
+
+IF LOCAL:1 < 1
+	KSTR:(K++) = しかし、特に何も起こらなかった。
+	CALL メッセージ欄表示用関数()
+	;失敗時は-1を返す
+	RETURN -1
+ENDIF
+
+対象キャラ番号 = RAND:(LOCAL:1)
 KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%の服がまくれ上がり、
 NSTR:(K++) = 目の前にいた%CALLNAME:PLAYER%は
 IF TEQUIP:(BATTLE_STATE:対象キャラ番号:0):下タイツあり
@@ -35,23 +46,22 @@ ENDSELECT
 CALL セクハラ反応タイプ判定(BATTLE_STATE:対象キャラ番号:0)
 TRYCCALLFORM KOJO_ハプニング_スカート捲れ_{NO:(BATTLE_STATE:対象キャラ番号:0)}
 CATCH
-	KSTR:(K++) = %CALLNAME:MASTER%はすぐに謝罪したが、
 	SELECTCASE TFLAG:コマンド結果受渡し変数２
 		CASE 1
 			;無知
-			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は特に何も気にしていないようだ。
+			KSTR:(K++) = しかし、%CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は特に何も気にしていないようだ。
 		CASE 2
 			;無反応
-			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は何もなかったかのように探索に戻った。
+			KSTR:(K++) = しかし、%CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は何もなかったかのように探索に戻った。
 		CASE 6
 			;羞恥
 			SELECTCASE TFLAG:コマンド結果受渡し変数
 				CASE 1
 					;拒絶
-					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は顔を真っ赤にして飛びのいた。
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は顔を真っ赤にして小さく悲鳴を上げてしまった。
 				CASE 2
 					;受入れ
-					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は真っ赤な顔で胸を抑えている。
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は真っ赤な顔で服を抑えている。
 				CASE 3
 					;喜び
 					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は顔を赤く染めて、こちらを見つめている……
@@ -64,10 +74,10 @@ CATCH
 					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は少し不快そうな顔をして探索に戻った。
 				CASE 2
 					;受入れ
-					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は苦笑しながら着衣を整えている。
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は風に文句を言いながら着衣を整えている。
 				CASE 3
 					;喜び
-					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は%CALLNAME:MASTER%に怪我はないか心配してくれている。
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:対象キャラ番号:0)%は笑って%CALLNAME:PLAYER%をからかってきている。
 			ENDSELECT
 	ENDSELECT
 	CALL メッセージ欄表示用関数()
@@ -86,6 +96,10 @@ SELECTCASE TFLAG:コマンド結果受渡し変数
 	CASE 3
 		;喜び
 		CALL SOURCE_CALC_露出((BATTLE_STATE:対象キャラ番号:0), PLAYER, 70)
+		CALL SOURCE_CALC_歓楽((BATTLE_STATE:対象キャラ番号:0), PLAYER, 70)
 ENDSELECT
 
 CALL ダンジョン内_SOURCE_CHECK(BATTLE_STATE:対象キャラ番号:0)
+
+;なにかに使えるかもしれないので関数の終わりに対象キャラ番号を返す
+RETURN 対象キャラ番号
