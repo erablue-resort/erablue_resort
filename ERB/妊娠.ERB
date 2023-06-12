@@ -1,0 +1,466 @@
+﻿@PREGNANCY_CHECK(ARG)
+#DIM 種親精液量
+#DIM 妊娠確率
+#DIM 種親
+#DIM 命中強度1
+#DIM 命中強度2
+#DIM 危険度
+種親 = -1
+命中強度1 = 0
+命中強度2 = 0
+
+SIF TCVAR:ARG:膣内精液量 <= 0
+	RETURN 0
+SIF TCVAR:ARG:避妊薬
+	RETURN 0
+SIF 妊娠切り替えOPTION記憶
+	RETURN 0
+
+;種親の確定
+FOR LOCAL,0,19
+	IF 性交相手:ARG:LOCAL == -1
+		CONTINUE
+	ELSE
+		SIF 種親 == -1
+			種親 = 性交相手:ARG:LOCAL
+		IF 命中強度2 == 0
+			命中強度2 = RAND:(相手ごとの射精量:ARG:LOCAL)
+			種親精液量 = 相手ごとの射精量:ARG:LOCAL
+			DEBUGPRINTFORML %CALLNAME:(性交相手:ARG:LOCAL)%→%CALLNAME:ARG% 命中強度:{命中強度2}
+		ELSE
+			命中強度1 = RAND:(相手ごとの射精量:ARG:LOCAL)
+			DEBUGPRINTFORML %CALLNAME:(性交相手:ARG:LOCAL)%→%CALLNAME:ARG% 命中強度:{命中強度1}
+			IF 命中強度1 > 命中強度2
+				命中強度2 = 命中強度1
+				種親 = 性交相手:ARG:LOCAL
+				種親精液量 = 相手ごとの射精量:ARG:LOCAL
+				DEBUGPRINTFORML %CALLNAME:ARG%に命中させた人を%CALLNAME:(性交相手:ARG:LOCAL)%に更新（強度:{命中強度2}）
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;超危険日,20回膣内射精で6割、+好条件で確定くらい
+妊娠確率 = MIN(20, 種親精液量 / 2 + 10)
+SIF CFLAG:ARG:発情期フラグ < 0
+	妊娠確率 += 5
+;異種妊娠
+IF TALENT:種親:種族 != TALENT:ARG:種族 && CALLNAME:ARG != "ガレヲン"
+	妊娠確率 -= 5
+ENDIF
+SIF TALENT:ARG:恋慕
+	妊娠確率 += 5
+
+危険度 = RISKY_DAY(ARG) + TCVAR:ARG:排卵誘発薬
+SIF TCVAR:ARG:排卵誘発薬 && 危険度 <= 0
+	危険度 = 1
+SELECTCASE 危険度
+	CASE 3
+		TIMES 妊娠確率, 7.0
+	CASE 2
+		TIMES 妊娠確率, 4.0
+	CASE 1
+		TIMES 妊娠確率, 2.0
+	CASE 0
+		TIMES 妊娠確率, 0.5
+	CASE -1
+		TIMES 妊娠確率, 0.1
+ENDSELECT
+LOCAL:0 = RAND:100
+DEBUGPRINTFORML  %CALLNAME:ARG%の妊娠確率 {妊娠確率}/{LOCAL:0} 危険度{RISKY_DAY(ARG)}+{TCVAR:ARG:排卵誘発薬}
+
+;妊娠した
+IF LOCAL:0 <= 妊娠確率
+	DEBUGPRINTFORM  %CALLNAME:ARG%:妊娠！ 
+	DRAWLINE
+	TALENT:ARG:妊娠 = 1
+	EXP:ARG:妊娠経験 += 1
+	IF 種親 == -1
+		DEBUGPRINTFORML %CALLNAME:ARG%の種親不明
+	ELSE
+		DEBUGPRINTFORML （種親:%CALLNAME:種親%）
+		CFLAG:ARG:子の父親 = 種親
+	ENDIF
+	SIF TALENT:ARG:母乳体質 != 1 && 発情期判定(ARG) && 発情期切り替えOPTION記憶 && !素質切り替えOPTION記憶:母乳体質_なし && !素質切り替えOPTION記憶:母乳体質_発情期_なし
+		TALENT:ARG:母乳体質 = 3
+	CFLAG:ARG:産後経過日 = 0
+	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力
+	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力
+
+	SIF TCVAR:ARG:膣内精液量 >= 15
+		PRINT 精液をたっぷりと注がれた
+	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン?小さな#\@子宮が、痺れるように甘く疼く…
+	;MASTERの子を妊娠した時だけ追加で表示
+	IF 種親 == MASTER
+		CFLAG:ARG:MASTERの子供妊娠回数 ++
+		IF TALENT:ARG:恋慕 || CFLAG:ARG:恋慕レベル >= 関係閾値:4
+			PRINTFORML %CALLNAME:ARG%の卵子は、愛する%CALLNAME:MASTER%の精子を嬉々として受け入れたようだ…
+		ELSEIF INRANGE(CFLAG:ARG:恋慕レベル,関係閾値:2,関係閾値:4)
+			PRINTFORML %CALLNAME:ARG%の卵子は淡い憧れを抱いている%CALLNAME:MASTER%の精子を拒み切れず、受精を受け入れてしまった…
+		ELSEIF CFLAG:ARG:発情期フラグ < 0
+			PRINTFORML 発情期の%CALLNAME:ARG%の卵子は勝手に受精の準備を整えており、簡単に%CALLNAME:MASTER%の精子を受け入れてしまった…
+		ELSEIF 知識素質:ARG:性知識 == -2
+			PRINTFORML %CALLNAME:ARG%の無垢な卵子は、何が起こってるかも分からないままに受精させられてしまった…
+		ELSE
+			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@異種妊娠(ARG)?異種間#\@受精を許してしまった…
+		ENDIF
+	ENDIF
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %CALLNAME:ARG%は
+	SIF 種親 != -1
+		PRINTFORM %CALLNAME:種親%の子供を
+	PRINTFORML 妊娠したようです
+	RESETCOLOR
+	PRINTW
+ENDIF
+TCVAR:ARG:膣内精液量 = 0
+
+
+;出産 とりあえずの実装
+@BIRTHING(ARG)
+DRAWLINE
+IF CFLAG:ARG:滞在期間 == -1
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %CALLNAME:ARG%が出産したという連絡がありました
+	RESETCOLOR
+	PRINTFORM %CALLNAME:ARG%と相談した結果、
+	IF RAND:2
+		PRINTL 子供はリゾート併設の保育園で育てられるようです
+	ELSE
+		PRINTFORML 子供は%CALLNAME:ARG%の元で育てられるようです
+	ENDIF
+	TRYCALLFORM KOJO_出産_リゾート外_{ARG}
+ELSE
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %CALLNAME:ARG%は産気づいた…
+	RESETCOLOR
+	SIF 知識素質:ARG:性知識 == -2
+		PRINTFORML %CALLNAME:ARG%は何が起こったか分からない様子で、破水の痛みに混乱している…
+	PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:ARG%を\@ TALENT:MASTER:種族 == 種族_ハーヴィン ? 支えながら # 抱き上げて \@、医務室へと急いだ…
+	PRINTL ……
+	PRINTL …
+	PRINTL
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %CALLNAME:ARG%は
+	IF TALENT:ARG:種族 == 種族_ハーヴィン && 異種妊娠(ARG)
+		PRINTL 大変な苦労の末、なんとか出産を終えました
+	ELSE
+		PRINTFORML \@知識素質:ARG:性知識 == -2?大変な混乱と痛みの中で、なんとか#苦労の末、\@出産を終えました
+	ENDIF
+	RESETCOLOR
+	PRINTFORML %CALLNAME:ARG%は疲れ切った様子ながら優しい微笑みを浮かべ、自らの子供を撫でている…
+	IF 知識素質:ARG:性知識 == -2
+		SETCOLOR 0xffd900
+		PRINTFORML %CALLNAME:ARG%は出産を経て最低限の性知識を身に着けた！
+		RESETCOLOR
+		知識素質:ARG:性知識 = 0
+	ENDIF
+	PRINTL 子供はリゾート併設の保育園で育てられるようです
+	TRYCALLFORM KOJO_出産_リゾート内_{ARG}
+ENDIF
+PRINTW
+TALENT:ARG:妊娠 = 0
+CFLAG:ARG:妊娠経過日 = 0
+CFLAG:ARG:子の父親 = 0
+CFLAG:ARG:妊娠発覚 = 0
+EXP:ARG:出産経験 += 1
+CFLAG:ARG:産後経過日 = 1
+
+
+;危険日とかの設定 一日の初めに呼ばれる
+@SET_PREGNANCY_PALAM(ARG)
+#DIM 妊娠後に変化した体力
+#DIM 妊娠後に変化した気力
+#DIM 消耗度_体力
+#DIM 消耗度_気力
+;危険日がない場合セット
+IF TALENT:ARG:性別 != 2 && !INRANGE(CFLAG:ARG:危険日,1,10)
+	DEBUGPRINTFORML 危険日セット:%CALLNAME:ARG%
+	CFLAG:ARG:危険日 = RAND:10 + 1
+ENDIF
+;性交相手のリセット
+VARSET 性交相手:ARG:0, -1
+VARSET 相手ごとの射精量:ARG:0
+SIF !TALENT:ARG:妊娠 && CFLAG:ARG:子の父親 != -1
+	CFLAG:ARG:子の父親 = -1
+
+;疲れる処理（臨月、産後）
+IF 妊娠時減少体力(ARG) && 妊娠時減少気力(ARG)
+	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
+	消耗度_気力 = 100 * BASE:ARG:気力 / MAXBASE:ARG:気力
+	妊娠後に変化した体力 =  MAXBASE:ARG:体力 - CFLAG:ARG:妊娠前体力
+	妊娠後に変化した気力 =  MAXBASE:ARG:気力 - CFLAG:ARG:妊娠前気力
+	;DEBUGPRINTFORML %CALLNAME:ARG%の妊娠後体力/気力変化:{妊娠後に変化した体力}/{妊娠後に変化した気力}
+
+	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力 + 妊娠後に変化した体力 - 妊娠時減少体力(ARG)
+	MAXBASE:ARG:気力 = CFLAG:ARG:妊娠前気力 + 妊娠後に変化した気力 - 妊娠時減少気力(ARG)
+	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
+	BASE:ARG:気力 = MAXBASE:ARG:気力 * 消耗度_気力 / 100
+	CFLAG:ARG:妊娠時体力減少フラグ = 1
+ENDIF
+
+
+;妊娠の進行による諸々 一日の終わりに呼ばれる
+@PREGNANCY_COUNTUP(ARG)
+#DIM 消耗度_体力
+#DIM 消耗度_気力
+
+;妊娠を知覚
+CALL DETECT_PREGNANCY(ARG)
+;妊娠関係の疲れを一旦初期化
+IF CFLAG:ARG:妊娠前体力 && CFLAG:ARG:妊娠前気力 && CFLAG:ARG:妊娠時体力減少フラグ
+	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
+	消耗度_気力 = 100 * BASE:ARG:気力 / MAXBASE:ARG:気力
+	MAXBASE:ARG:体力 += 妊娠時減少体力(ARG)
+	MAXBASE:ARG:気力 += 妊娠時減少気力(ARG)
+	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
+	BASE:ARG:気力 = MAXBASE:ARG:気力 * 消耗度_気力 / 100
+	;DEBUGPRINTFORML %CALLNAME:ARG%の妊娠疲労初期化（{MAXBASE:ARG:体力},{MAXBASE:ARG:気力}）
+ENDIF
+;色々な経過日時のカウント
+;妊娠経過日 妊娠後それなりに経つと母乳が出る
+IF TALENT:ARG:妊娠
+	CFLAG:ARG:妊娠経過日  ++
+	IF (CFLAG:ARG:妊娠経過日 == 40 + RAND:26 || CFLAG:ARG:妊娠経過日 >= 65) && TALENT:ARG:母乳体質 != 3 && !素質切り替えOPTION記憶:母乳体質_なし
+		TALENT:ARG:母乳体質 = 3
+		IF !CFLAG:ARG:妊娠時バストサイズ増加
+			CFLAG:ARG:妊娠時バストサイズ増加 = 1
+			IF TALENT:ARG:バストサイズ == 3
+				CFLAG:ARG:妊娠時バストサイズ増加 = 2
+			ELSE
+				TALENT:ARG:バストサイズ ++
+			ENDIF
+		ENDIF
+		DRAWLINE
+		PRINTFORML 妊娠して腹部が目立つようになってきた%CALLNAME:ARG%の乳房から、母乳が滲み出てきた…
+		PRINTFORML %CALLNAME:ARG%の乳房は母乳を蓄えるようになり、より大きくなりました
+		PRINTW
+	ENDIF
+	SIF CFLAG:ARG:妊娠経過日 >= 妊娠期間
+		CALL BIRTHING(ARG)
+;産後経過日 産後それなりに経つと母乳が止まる
+ELSEIF CFLAG:ARG:産後経過日
+	CFLAG:ARG:産後経過日 ++
+	IF (CFLAG:ARG:産後経過日 >= 25 + RAND:25 || CFLAG:ARG:産後経過日 >= 50) && TALENT:ARG:母乳体質 == 3
+		TALENT:ARG:母乳体質 = 0
+		IF CFLAG:ARG:妊娠時バストサイズ増加
+			SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
+				TALENT:ARG:バストサイズ --
+			CFLAG:ARG:妊娠時バストサイズ増加 = 0
+		ENDIF
+		DRAWLINE
+		PRINTFORML 授乳を終えた%CALLNAME:ARG%の乳房は元の大きさに戻り、母乳の分泌も止まりました
+		PRINTW
+		CFLAG:ARG:産後経過日 = 0
+	ENDIF
+ENDIF
+
+
+@妊娠時減少体力(ARG)
+#FUNCTION
+#DIM 妊娠時減少体力
+IF PREGNANCY_PROGRESS(ARG) >= 5
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 2 / 10
+ELSEIF PREGNANCY_PROGRESS(ARG) == 4 || INRANGE(CFLAG:ARG:産後経過日, 4, 7)
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 1 / 10
+ELSEIF INRANGE(CFLAG:ARG:産後経過日, 1, 3)
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 3 / 10
+ELSEIF CFLAG:ARG:産後経過日 >= 8
+	妊娠時減少体力 = 0
+	CFLAG:ARG:妊娠前体力 = 0
+	CFLAG:ARG:妊娠時体力減少フラグ = 0
+ELSE
+	妊娠時減少体力 = 0
+ENDIF
+SIF 妊娠時減少体力
+	RETURNF 妊娠時減少体力
+RETURNF 0
+
+
+@妊娠時減少気力(ARG)
+#FUNCTION
+#DIM 妊娠時減少気力
+IF PREGNANCY_PROGRESS(ARG) >= 5
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 2 / 10
+ELSEIF PREGNANCY_PROGRESS(ARG) == 4 || INRANGE(CFLAG:ARG:産後経過日, 4, 7)
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 1 / 10
+ELSEIF INRANGE(CFLAG:ARG:産後経過日, 1, 3)
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 3 / 10
+ELSEIF CFLAG:ARG:産後経過日 >= 8
+	妊娠時減少気力 = 0
+	CFLAG:ARG:妊娠前気力 = 0
+ELSE
+	妊娠時減少気力 = 0
+ENDIF
+SIF 妊娠時減少気力
+	RETURNF 妊娠時減少気力
+RETURNF 0
+
+
+;危険日と安全日の算出
+;戻り値: 超危険日2,危険日1,通常日0,安全日-1
+@RISKY_DAY(ARG)
+#FUNCTION
+#DIM C_危険日
+#DIM C_安全日
+#DIM 妊娠危険度
+C_危険日 = CFLAG:ARG:危険日 % 10
+C_安全日 = (CFLAG:ARG:危険日 + 4) % 10
+IF C_危険日 == DAY % 10
+	妊娠危険度 = 2
+ELSEIF (DAY-1) % 10 == C_危険日 || (DAY+1) % 10 == C_危険日
+	妊娠危険度 = 1
+ELSEIF DAY % 10 == C_安全日 || (DAY+1) % 10 == C_安全日 || (DAY+2) % 10 == C_安全日
+	妊娠危険度 = -1
+ELSE
+	妊娠危険度 = 0
+ENDIF
+RETURNF 妊娠危険度
+
+LOCAL = CFLAG:ARG:危険日 - DAY % 10
+		SIF LOCAL < 0
+			LOCAL = 10 - ABS(LOCAL)
+
+
+;妊娠の進み具合（お腹の大きくなり具合）の算出
+;ARG:1 = 臨月であるかのチェック（ハーヴィン関係でズレるので）
+@PREGNANCY_PROGRESS(ARG,ARG:1 = 0)
+#FUNCTION
+#DIM 進行度
+IF CFLAG:ARG:妊娠経過日 > 85
+	進行度 = 5
+ELSEIF CFLAG:ARG:妊娠経過日 > 70
+	進行度 = 4
+ELSEIF CFLAG:ARG:妊娠経過日 > 55
+	進行度 = 3
+ELSEIF CFLAG:ARG:妊娠経過日 > 40
+	進行度 = 2
+ELSEIF CFLAG:ARG:妊娠経過日 > 20
+	進行度 = 1
+ELSE
+	進行度 = 0
+ENDIF
+;臨月チェック
+IF ARG:1
+	IF 進行度 == 5
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+;異種妊娠したハーヴィンの場合、お腹が一段階大きくなる
+SIF 異種妊娠(ARG) && TALENT:ARG:種族 == 種族_ハーヴィン && CFLAG:ARG:妊娠経過日 > 10
+	進行度 ++
+RETURNF 進行度
+
+
+@異種妊娠(ARG)
+#FUNCTION
+SIF CFLAG:ARG:子の父親 == -1
+	RETURNF 0
+SIF TALENT:ARG:種族 != TALENT:(CFLAG:ARG:子の父親):種族
+	RETURNF 1
+RETURNF 0
+
+
+;妊娠発覚
+;無知シチュ以外に良い使い方が思い浮かばなかったので作りかけ
+@DETECT_PREGNANCY(ARG)
+IF CFLAG:ARG:滞在期間 < 0
+	RETURN 0
+ELSEIF ((PREGNANCY_PROGRESS(ARG) == 1 && RAND:20 == CFLAG:ARG:妊娠経過日 - 20) || PREGNANCY_PROGRESS(ARG) >= 2) && CFLAG:ARG:妊娠発覚 == 0
+	IF 知識素質:ARG:性知識 == -2
+		DRAWLINE
+		PRINTFORML %CALLNAME:ARG%が%CALLNAME:MASTER%に話しかけてきた…
+		PRINTFORML %CALLNAME:ARG%はふっくらと膨らみつつある自身のお腹を不思議に思っているようだ…
+		PRINTFORML 腹部はささやかながら明確に膨らんでおり、新たな生命がその奥で芽吹いているのは明らかだ…
+		TRYCALLFORM KOJO_無知_妊娠発覚1_{ARG}
+		PRINTBUTTONLC "[0]正しい性知識を教える", 0
+		PRINTBUTTONLC "[1]誤魔化す", 1
+		$INPUT_LOOP
+		INPUT
+		IF RESULT == 0
+			PRINTFORML %CALLNAME:MASTER%は%CALLNAME:ARG%に、そのお腹の中には%CALLNAME:ARG%の赤ちゃんが居ると教えた
+			PRINTFORML %CALLNAME:ARG%は自分が既に母となりつつある事にとても驚いているようだ…
+			TRYCALLFORM KOJO_無知_妊娠発覚2_{ARG}
+			SETCOLOR 0xffd900
+			PRINTFORML %CALLNAME:ARG%は最低限の性知識を身に着けた！
+			RESETCOLOR
+			知識素質:ARG:性知識 = 0
+		ELSEIF RESULT == 1
+			PRINTFORML %CALLNAME:MASTER%は%CALLNAME:ARG%の頭を撫で、何も問題はないと誤魔化した
+			PRINTFORML %CALLNAME:ARG%は安心したように頷き、自分の部屋へと帰った…
+			TRYCALLFORM KOJO_無知_妊娠発覚3_{ARG}
+		ELSE
+			GOTO INPUT_LOOP
+		ENDIF
+	ENDIF
+	PRINTW
+	CFLAG:ARG:妊娠発覚 = 1
+ENDIF
+
+
+;招待されたキャラが孕まされてからお腹が大きくなるまでリゾートに来てなかったら特殊メッセージが出る
+@招待時妊娠メッセージ(ARG,ARG:1 = 0)
+#DIM MEMBER,10
+#DIM NUM = 1
+IF ARG:1 == 1
+	SELECTCASE NUM - 1
+		CASE 1
+			SETCOLOR カラーパレット("ピンク")
+			PRINTFORML %CALLNAME:(MEMBER:1)%のお腹が大きく膨らんでいる…！
+			IF 知識素質:(MEMBER:1):性知識 < 0
+				PRINTFORML %CALLNAME:(MEMBER:1)%は何もないかのように挨拶をしてきたが、どうしてもお腹に目が行ってしまう…
+			ELSEIF TALENT:(MEMBER:1):恋慕 && RAND:2
+				PRINTFORML %CALLNAME:(MEMBER:1)%は満面の笑みを浮かべて%CALLNAME:MASTER%に抱き着いた…
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORML %CALLNAME:(MEMBER:1)%は恥ずかしそうに%CALLNAME:MASTER%に手を振った
+					CASE 1
+						PRINTFORML 妊婦らしい服装をした%CALLNAME:(MEMBER:1)%の姿が新鮮で、%CALLNAME:MASTER%はつい目を惹かれてしまった
+					CASE 2
+						PRINTFORML %CALLNAME:MASTER%が%CALLNAME:(MEMBER:1)%のお腹を撫でると、%CALLNAME:(MEMBER:1)%は仕方なさそうに微笑んで身体を寄せてきた…
+				ENDSELECT
+			ENDIF
+		CASE 2
+			SETCOLOR カラーパレット("ピンク")
+			PRINTFORML %CALLNAME:(MEMBER:1)%と%CALLNAME:(MEMBER:2)%のお腹は大きく膨らんでいる…！
+			PRINTFORML %CALLNAME:(MEMBER:1)%と%CALLNAME:(MEMBER:2)%はそれぞれのお腹を押し付けるように、%CALLNAME:MASTER%を左右で挟んでハグしてくれた
+		CASE IS >= 3
+			SETCOLOR カラーパレット("ピンク")
+			LOCALS:0 = 
+			FOR LOCAL,1,10
+				IF MEMBER:LOCAL
+					SIF LOCAL != 1
+						LOCALS:0 += "と"
+					LOCALS:0 += CALLNAME:(MEMBER:LOCAL)
+				ENDIF
+			NEXT
+			PRINTFORML %LOCALS:0%のお腹は大きく膨らんでいる…
+			PRINTFORML %CALLNAME:(MEMBER:1)%達は%CALLNAME:MASTER%にそれぞれのお腹を撫でさせてくれた
+	ENDSELECT
+	RESETCOLOR
+	VARSET MEMBER
+	NUM = 1
+ELSE
+	IF !MEMBER:NUM && CFLAG:ARG:妊娠発覚 == 0 && PREGNANCY_PROGRESS(ARG) >= 3
+		MEMBER:NUM = ARG
+		NUM ++
+		CFLAG:ARG:妊娠発覚 = 1
+	ENDIF
+ENDIF
+
+
+;膣内射精した相手の取得
+@TAKE_SPERM(ARG,射精した人)
+#DIM 射精した人
+TCVAR:ARG:膣内精液量 += TFLAG:フィニッシュフラグ
+FOR LOCAL,0,19
+	SIF 性交相手:ARG:LOCAL == -1
+		性交相手:ARG:LOCAL = 射精した人
+	IF 性交相手:ARG:LOCAL == 射精した人
+		相手ごとの射精量:ARG:LOCAL += TFLAG:フィニッシュフラグ
+		BREAK
+	ENDIF
+NEXT

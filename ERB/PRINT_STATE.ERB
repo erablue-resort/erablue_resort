@@ -358,22 +358,69 @@ PRINTL
 ; 	PRINT_MARK ARG
 ; ENDIF
 
-IF あなた特殊能力:発情鑑定術
-	PRINTL □ 発情期 □---------------------------------------------------------------------
-	IF 発情期判定(ARG)
-		IF CFLAG:ARG:発情期フラグ < 0
-			SETCOLOR カラーパレット("えっちな色")
-			PRINT 　発情中
-			PRINT_IMG "えっちハート"
-			RESETCOLOR
-			PRINTFORML 　　　残り：{4 + TALENT:ARG:性欲 + CFLAG:ARG:発情期フラグ, 2}日
-		ELSE
-			PRINTFORML 　発情まであと{CFLAG:ARG:発情期フラグ + 1, 2}日
-		ENDIF
+IF あなた特殊能力:発情鑑定術 || あなた特殊能力:危険日感知
+	IF あなた特殊能力:発情鑑定術 && あなた特殊能力:危険日感知
+		PRINTL □ 発情期/危険日 □------------------------------------------------------------
+	ELSEIF あなた特殊能力:発情鑑定術
+		PRINTL □ 発情期 □-------------------------------------------------------------------
 	ELSE
-		PRINTL 　なし
+		PRINTL □ 危険日 □-------------------------------------------------------------------
 	ENDIF
-	PRINTL 
+	IF あなた特殊能力:発情鑑定術
+		PRINTFORM 　\@あなた特殊能力:発情鑑定術 && あなた特殊能力:危険日感知?発情期：#\@
+		IF 発情期判定(ARG)
+			IF CFLAG:ARG:発情期フラグ < 0
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT 発情中
+				PRINT_IMG "えっちハート"
+				RESETCOLOR
+				PRINTFORML 　残り：{4 + TALENT:ARG:性欲 + CFLAG:ARG:発情期フラグ, 2}日
+			ELSE
+				PRINTFORML 発情期まであと{CFLAG:ARG:発情期フラグ + 1, 2}日
+			ENDIF
+		ELSE
+			PRINTL なし
+		ENDIF
+	ENDIF
+	IF あなた特殊能力:危険日感知
+		PRINTFORM 　\@あなた特殊能力:発情鑑定術 && あなた特殊能力:危険日感知?危険日：#\@
+		LOCAL = CFLAG:ARG:危険日 - DAY % 10
+		SIF LOCAL < 0
+			LOCAL = 10 - ABS(LOCAL)
+		IF TALENT:ARG:妊娠
+			SETCOLOR カラーパレット("ピンク")
+			PRINT 妊娠中
+			PRINT_IMG "えっちハート"
+		ELSEIF RISKY_DAY(ARG) == 2
+			SETCOLOR カラーパレット("赤ピンク")
+			PRINT_IMG "えっちハート"
+			PRINT 超危険日
+			PRINT_IMG "えっちハート"
+		ELSEIF RISKY_DAY(ARG) == 1
+			SETCOLOR カラーパレット("薄ピンク")
+			PRINT 危険日
+			PRINT_IMG "えっちハート"
+		ELSEIF RISKY_DAY(ARG) == -1
+			SETCOLOR 0xccffff
+			PRINT 安全日
+			RESETCOLOR
+			PRINTFORM 　危険日まであと{LOCAL,2}日
+		ELSE
+			PRINTFORM 危険日まであと{LOCAL, 2}日
+		ENDIF
+		RESETCOLOR
+		IF TCVAR:ARG:排卵誘発薬
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT （排卵誘発中！）
+			RESETCOLOR
+		ELSEIF TCVAR:ARG:避妊薬
+			SETCOLOR 0xccffff
+			PRINT （避妊中）
+			RESETCOLOR
+		ENDIF
+		PRINTL
+	ENDIF
+	PRINTL
 ENDIF
 IF ARG != MASTER
 	PRINTL □ 干渉 □---------------------------------------------------------------------
@@ -393,6 +440,8 @@ IF ARG != MASTER
 ENDIF
 CALL PRINT_STATE_EXP(ARG)
 CALL PRINT_STATE_EX(ARG)
+SIF TALENT:ARG:妊娠
+	CALL PRINT_STATE_妊娠状態(ARG)
 FOR LOCAL, 0, 10
 	PRINTL
 NEXT
@@ -703,21 +752,7 @@ NEXT
 #DIMS 名前格納
 
 PRINTL □ 情報 □---------------------------------------------------------------------
-
-PRINT 　種族：
-IF TALENT:ARG:種族 == 1
-	PRINT ヒューマン
-ELSEIF TALENT:ARG:種族 == 2
-	PRINT エルーン
-ELSEIF TALENT:ARG:種族 == 3
-	PRINT ドラフ
-ELSEIF TALENT:ARG:種族 == 4
-	PRINT ハーヴィン
-ELSEIF TALENT:ARG:種族 == 5
-	PRINT 星晶獣
-ELSEIF TALENT:ARG:種族 == 6
-	PRINT その他
-ENDIF
+PRINTFORM 　種族：%GET_TALENTNAME(200,TALENT:ARG:種族)%
 IF TALENT:ARG:種族追記 == 1
 	PRINT [六竜]
 ENDIF
@@ -733,9 +768,39 @@ SIF TALENT:ARG:発情期あり
 	PRINT （発情期あり）
 IF CFLAG:ARG:発情期フラグ < 0
 	SETCOLOR カラーパレット("えっちな色")
-	PRINT (発情期
+	PRINT （発情期
 	PRINT_IMG "えっちハート"
-	PRINT )
+	PRINT ）
+	RESETCOLOR
+ENDIF
+IF TALENT:ARG:妊娠
+	SETCOLOR カラーパレット("ピンク")
+	IF PREGNANCY_PROGRESS(ARG,1)
+		PRINT （臨月
+	ELSE
+		PRINT （妊娠中
+	ENDIF
+	PRINT_IMG "えっちハート"
+	PRINT ）
+	RESETCOLOR
+ELSEIF あなた特殊能力:危険日感知
+	SELECTCASE RISKY_DAY(ARG)
+		CASE 1
+			SETCOLOR カラーパレット("薄ピンク")
+			PRINT （危険日
+			PRINT_IMG "えっちハート"
+			PRINT ）
+		CASE 2
+			SETCOLOR カラーパレット("赤ピンク")
+			PRINT （
+			PRINT_IMG "えっちハート"
+			PRINT 超危険日
+			PRINT_IMG "えっちハート"
+			PRINT ）
+		CASE -1
+			SETCOLOR 0xccffff
+			PRINT （安全日）
+	ENDSELECT
 	RESETCOLOR
 ENDIF
 PRINTL 
@@ -756,7 +821,7 @@ ELSEIF TALENT:ARG:性別 == 3
 	SIF TALENT:ARG:童貞 == 0
 		名前格納 += "(童貞)"
 	SIF TALENT:ARG:処女
-		名前格納 += "(処女)"
+		名前格納 += "（処女）"
 ENDIF
 PRINTFORMLC %名前格納%
 
@@ -875,7 +940,7 @@ LOCALS =
 @PRINT_ITEMCOUNT
 #DIM ループ用
 PRINTL
-PRINTL □ 所持品 □---------------------------------------------------------------------
+PRINTL □ 所持品 □-------------------------------------------------------------------
 PRINTFORML 　所持金：{MONEY}%MONEYLABEL%
 PRINTFORML 　所持ZP：{FLAG:ZP所持量}
 PRINT 　
@@ -916,7 +981,7 @@ FOR ループ用,1900,2000
 	ENDIF
 NEXT
 PRINTL
-PRINTL □ 食材 □-----------------------------------------------------------------------
+PRINTL □ 食材 □---------------------------------------------------------------------
 LOCAL:1 = 0
 FOR ループ用,0,100
 	IF 累計魚所持数:ループ用
@@ -1141,3 +1206,33 @@ FOR LOCAL, 1, 10
 	PRINTFORMLC %現在仕事数字文字列変換(LOCAL)%レベル：{仕事レベル:ARG:LOCAL}
 NEXT
 PRINTL
+
+@PRINT_STATE_妊娠状態(ARG)
+PRINTL
+PRINTL □ 妊娠状態 □-----------------------------------------------------------------
+PRINTFORML 　妊娠経過期間:{CFLAG:ARG:妊娠経過日}
+PRINT 　
+SELECTCASE PREGNANCY_PROGRESS(ARG)
+	CASE 0
+		PRINTL 腹部の見た目は妊娠前と一切変化していない
+	CASE 1
+		PRINTL 僅かに膨らんでいるが、服越しだと殆ど分からないだろう
+	CASE 2
+		PRINTL 服越しだとまだ分かりづらいが、撫でるとはっきりとした膨らみを感じる
+	CASE 3
+		PRINTL 腹部は小高く盛り上がっており、妊娠したことは遠目からでも一目瞭然だ
+	CASE 4
+		PRINTL 大きな腹部の中で、子供は順調にすくすくと育っているようだ
+	CASE 5
+		IF 異種妊娠(ARG) && TALENT:ARG:種族 == 種族_ハーヴィン
+			PRINTFORML 大きくせり出したボテ腹は尋常ではないサイズで、異種族の雄に孕まされた事が一目瞭然だ
+		ELSE
+			PRINTL 重そうに張り詰めた臨月腹は、否が応でも見る者に出産間近なことを想起させる
+		ENDIF
+	CASE 6
+		PRINTFORML \@INRANGE(TALENT:(CFLAG:ARG:子の父親):種族, 1,5) && 異種妊娠(ARG)?%GET_TALENTNAME(200,TALENT:(CFLAG:ARG:子の父親):種族)%#異種族\@との子供を出産間近の臨月腹はあまりに巨大で、歩くのも大変そうだ
+ENDSELECT
+SIF GROUPMATCH(TALENT:ARG:種族,種族_ドラフ,種族_ハーヴィン) && TALENT:ARG:バストサイズ >= 2 && PREGNANCY_PROGRESS(ARG) >= 4
+	PRINTFORML 　%CALLNAME:ARG%の巨大な胸部は大きく突き出したボテ腹に押し上げられている
+SIF TALENT:ARG:母乳体質 == 3
+	PRINTFORML 　胸は妊娠の影響で少し大きくなり、子供のための母乳を蓄えている
