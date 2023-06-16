@@ -1,0 +1,44 @@
+﻿
+@アイテム個別文章表示_胆力の薬
+LOCALS = 
+LOCALS += @"■胆力の薬　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "胆力の薬")}<br>"
+LOCALS += "魔力を高める補助となる効果を持ったアイテムの総称<br>"
+LOCALS += "奥義を撃つ補助としては手軽に使うことができる。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方全体の奥義ゲージを[３０％]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_胆力の薬
+IF 戦闘行動内容 != 10
+	LOCALS = <br><br>戦闘中以外は使用できません。
+	詳細文文字列受け渡し変数 += @"%LOCALS%"
+	RETURN 0
+ENDIF
+CALL 汎用使用先表示("味方全体")
+
+@アイテム効果処理_胆力の薬(ARG)
+;ARG = 隊列の何番目か
+
+IF 戦闘行動内容 != 10
+	PRINTW 戦闘中でない時は使用出来ません
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "胆力の薬") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+FOR LOCAL, 0, 4
+	SIF !BATTLE_STATE:LOCAL:0
+		CONTINUE
+	LOCAL:1 = MIN(BATTLE_STATE:ARG:ゲージ最大値 - BATTLE_STATE:ARG:奥義ゲージ, 30)
+	BATTLE_STATE:ARG:奥義ゲージ = MIN(BATTLE_STATE:ARG:奥義ゲージ + 30, BATTLE_STATE:ARG:ゲージ最大値)
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%の奥義ゲージが{LOCAL:1}増加しました
+NEXT
+
+CALL アイテム増減汎用処理("胆力の薬", -1)
+
+RETURN 1
