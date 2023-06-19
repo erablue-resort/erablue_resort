@@ -23,18 +23,18 @@ FOR LOCAL,0,19
 	ELSE
 		SIF 種親 == -1
 			種親 = 性交相手:ARG:LOCAL
-		IF 命中強度1 == 0
-			命中強度1 = RAND:(相手ごとの射精量:ARG:LOCAL)
-			種親精液量 = 相手ごとの射精量:ARG:LOCAL
-			DEBUGPRINTFORML %CALLNAME:(性交相手:ARG:LOCAL)%→%CALLNAME:ARG% 命中強度:{命中強度1}
-		ELSE
+		IF 命中強度2 == 0
 			命中強度2 = RAND:(相手ごとの射精量:ARG:LOCAL)
+			種親精液量 = 相手ごとの射精量:ARG:LOCAL
 			DEBUGPRINTFORML %CALLNAME:(性交相手:ARG:LOCAL)%→%CALLNAME:ARG% 命中強度:{命中強度2}
-			IF 命中強度2 > 命中強度1
-				命中強度1 = 命中強度2
+		ELSE
+			命中強度1 = RAND:(相手ごとの射精量:ARG:LOCAL)
+			DEBUGPRINTFORML %CALLNAME:(性交相手:ARG:LOCAL)%→%CALLNAME:ARG% 命中強度:{命中強度1}
+			IF 命中強度1 > 命中強度2
+				命中強度2 = 命中強度1
 				種親 = 性交相手:ARG:LOCAL
 				種親精液量 = 相手ごとの射精量:ARG:LOCAL
-				DEBUGPRINTFORML %CALLNAME:ARG%に命中させた人を%CALLNAME:(性交相手:ARG:LOCAL)%に更新（強度:{命中強度1}）
+				DEBUGPRINTFORML %CALLNAME:ARG%に命中させた人を%CALLNAME:(性交相手:ARG:LOCAL)%に更新（強度:{命中強度2}）
 			ENDIF
 		ENDIF
 	ENDIF
@@ -50,15 +50,13 @@ IF TALENT:種親:種族 != TALENT:ARG:種族 && CALLNAME:ARG != "ガレヲン"
 ENDIF
 SIF TALENT:ARG:恋慕
 	妊娠確率 += 5
-SIF CSTR:ARG:着せ替え服 == "バニー服"
-	妊娠確率 += 3
 
 危険度 = RISKY_DAY(ARG) + TCVAR:ARG:排卵誘発薬
 SIF TCVAR:ARG:排卵誘発薬 && 危険度 <= 0
 	危険度 = 1
 SELECTCASE 危険度
 	CASE 3
-		TIMES 妊娠確率, 7.5
+		TIMES 妊娠確率, 7.0
 	CASE 2
 		TIMES 妊娠確率, 4.0
 	CASE 1
@@ -89,12 +87,20 @@ SIF FLAG_アニメーション
 IF LOCAL:0 <= 妊娠確率
 	DEBUGPRINTFORM  %CALLNAME:ARG%:妊娠！ 
 	DRAWLINE
+	TALENT:ARG:妊娠 = 1
+	EXP:ARG:妊娠経験 += 1
 	IF 種親 == -1
 		DEBUGPRINTFORML %CALLNAME:ARG%の種親不明
 	ELSE
 		DEBUGPRINTFORML （種親:%CALLNAME:種親%）
 		CFLAG:ARG:子の父親 = 種親
 	ENDIF
+	SIF TALENT:ARG:母乳体質 != 1 && 発情期判定(ARG) && 発情期切り替えOPTION記憶 && !素質切り替えOPTION記憶:母乳体質_なし && !素質切り替えOPTION記憶:母乳体質_発情期_なし
+		TALENT:ARG:母乳体質 = 3
+	CFLAG:ARG:産後経過日 = 0
+	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力
+	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力
+
 	SIF TCVAR:ARG:膣内精液量 >= 15
 		PRINT 精液をたっぷりと注がれた
 	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
@@ -125,10 +131,7 @@ IF LOCAL:0 <= 妊娠確率
 	
 	PRINTFORMW 子供を妊娠したようです
 	RESETCOLOR
-	TALENT:ARG:妊娠 = 1
-	EXP:ARG:妊娠経験 ++
-	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力
-	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力
+	PRINTW
 ENDIF
 TCVAR:ARG:膣内精液量 = 0
 
@@ -186,6 +189,8 @@ CFLAG:ARG:産後経過日 = 1
 
 ;危険日とかの設定 一日の初めに呼ばれる
 @SET_PREGNANCY_PALAM(ARG)
+#DIM 妊娠後に変化した体力
+#DIM 妊娠後に変化した気力
 #DIM 消耗度_体力
 #DIM 消耗度_気力
 ;危険日がない場合セット
@@ -198,102 +203,118 @@ VARSET 性交相手:ARG:0, -1
 VARSET 相手ごとの射精量:ARG:0
 SIF !TALENT:ARG:妊娠 && CFLAG:ARG:子の父親 != -1
 	CFLAG:ARG:子の父親 = -1
+
 ;疲れる処理（臨月、産後）
-IF 妊娠時疲労(ARG) || CFLAG:ARG:産後経過日 == 8
+IF 妊娠時減少体力(ARG) && 妊娠時減少気力(ARG)
 	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
 	消耗度_気力 = 100 * BASE:ARG:気力 / MAXBASE:ARG:気力
-	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力  - 妊娠時疲労(ARG,1)
-	MAXBASE:ARG:気力 = CFLAG:ARG:妊娠前気力  - 妊娠時疲労(ARG,2)
+	妊娠後に変化した体力 =  MAXBASE:ARG:体力 - CFLAG:ARG:妊娠前体力
+	妊娠後に変化した気力 =  MAXBASE:ARG:気力 - CFLAG:ARG:妊娠前気力
+	;DEBUGPRINTFORML %CALLNAME:ARG%の妊娠後体力/気力変化:{妊娠後に変化した体力}/{妊娠後に変化した気力}
+
+	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力 + 妊娠後に変化した体力 - 妊娠時減少体力(ARG)
+	MAXBASE:ARG:気力 = CFLAG:ARG:妊娠前気力 + 妊娠後に変化した気力 - 妊娠時減少気力(ARG)
 	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
 	BASE:ARG:気力 = MAXBASE:ARG:気力 * 消耗度_気力 / 100
-	IF CFLAG:ARG:産後経過日 == 8
-		CFLAG:ARG:妊娠前体力 = 0
-		CFLAG:ARG:妊娠前気力 = 0
-	ENDIF
+	CFLAG:ARG:妊娠時体力減少フラグ = 1
 ENDIF
 
 
 ;妊娠の進行による諸々 一日の終わりに呼ばれる
 @PREGNANCY_COUNTUP(ARG)
+#DIM 消耗度_体力
+#DIM 消耗度_気力
+
 ;妊娠を知覚
 CALL DETECT_PREGNANCY(ARG)
-;素の体力を更新
-IF 妊娠時疲労(ARG)
-	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力 + 妊娠時疲労(ARG,1)
-	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力 + 妊娠時疲労(ARG,2)
+;妊娠関係の疲れを一旦初期化
+IF CFLAG:ARG:妊娠前体力 && CFLAG:ARG:妊娠前気力 && CFLAG:ARG:妊娠時体力減少フラグ
+	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
+	消耗度_気力 = 100 * BASE:ARG:気力 / MAXBASE:ARG:気力
+	MAXBASE:ARG:体力 += 妊娠時減少体力(ARG)
+	MAXBASE:ARG:気力 += 妊娠時減少気力(ARG)
+	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
+	BASE:ARG:気力 = MAXBASE:ARG:気力 * 消耗度_気力 / 100
+	;DEBUGPRINTFORML %CALLNAME:ARG%の妊娠疲労初期化（{MAXBASE:ARG:体力},{MAXBASE:ARG:気力}）
 ENDIF
 ;色々な経過日時のカウント
 ;妊娠経過日 妊娠後それなりに経つと母乳が出る
 IF TALENT:ARG:妊娠
 	CFLAG:ARG:妊娠経過日  ++
-	IF !CFLAG:ARG:妊娠時バストサイズ増加 && !素質切り替えOPTION記憶:母乳体質_なし && CFLAG:ARG:妊娠経過日 >= (妊娠期間 * 4 / 10) + RAND:(妊娠期間/4 + 1)
-		CFLAG:ARG:妊娠時バストサイズ増加 = 1
-		IF TALENT:ARG:バストサイズ == 3
-			CFLAG:ARG:妊娠時バストサイズ増加 = 2
-		ELSE
-			TALENT:ARG:バストサイズ ++
-		ENDIF
-		SIF TALENT:ARG:母乳体質 != 1
-			TALENT:ARG:母乳体質 = 3
-		IF CFLAG:ARG:滞在期間 >= 0
-			DRAWLINE
+	IF (CFLAG:ARG:妊娠経過日 >= (妊娠期間 * 4 / 10) + RAND:(妊娠期間 / 4 + 1)) && TALENT:ARG:母乳体質 != 3 && !素質切り替えOPTION記憶:母乳体質_なし
+		TALENT:ARG:母乳体質 = 3
+		IF !CFLAG:ARG:妊娠時バストサイズ増加
+			CFLAG:ARG:妊娠時バストサイズ増加 = 1
 			IF TALENT:ARG:バストサイズ == 3
-				PRINTFORML 母乳をたっぷりと湛えた%CALLNAME:ARG%の乳房は、もはや妊娠前とは見違えたサイズになっている…
+				CFLAG:ARG:妊娠時バストサイズ増加 = 2
 			ELSE
-				PRINTFORML 妊娠して腹部が目立つようになってきた%CALLNAME:ARG%の乳房から、母乳が滲み出てきた…
+				TALENT:ARG:バストサイズ ++
 			ENDIF
-			SETCOLOR カラーパレット("ピンク")
-				PRINTFORML %CALLNAME:ARG%の乳房は母乳を蓄えるようになり、より大きくなりました
-			RESETCOLOR
-			PRINTW
 		ENDIF
+		DRAWLINE
+		PRINTFORML 妊娠して腹部が目立つようになってきた%CALLNAME:ARG%の乳房から、母乳が滲み出てきた…
+		PRINTFORML %CALLNAME:ARG%の乳房は母乳を蓄えるようになり、より大きくなりました
+		PRINTW
 	ENDIF
 	SIF CFLAG:ARG:妊娠経過日 >= 妊娠期間
 		CALL BIRTHING(ARG)
 ;産後経過日 産後それなりに経つと母乳が止まる
 ELSEIF CFLAG:ARG:産後経過日
 	CFLAG:ARG:産後経過日 ++
-	IF CFLAG:ARG:妊娠時バストサイズ増加 && CFLAG:ARG:産後経過日 >= (妊娠期間 / 4) + RAND:(妊娠期間 / 4 + 1)
-		SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
-			TALENT:ARG:バストサイズ --
-		CFLAG:ARG:妊娠時バストサイズ増加 = 0
-		SIF TALENT:ARG:母乳体質 != 1
-			TALENT:ARG:母乳体質 = 0
-		IF CFLAG:ARG:滞在期間 >= 0
-			DRAWLINE
-			PRINTFORML 授乳を終えた%CALLNAME:ARG%の乳房は元の大きさに戻り\@TALENT:ARG:母乳体質 != 1?、母乳の分泌も止まり#\@ました
-			PRINTW
+	IF CFLAG:ARG:産後経過日 >= (妊娠期間 / 4) + RAND:(妊娠期間 / 4 + 1) && TALENT:ARG:母乳体質 == 3
+		TALENT:ARG:母乳体質 = 0
+		IF CFLAG:ARG:妊娠時バストサイズ増加
+			SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
+				TALENT:ARG:バストサイズ --
+			CFLAG:ARG:妊娠時バストサイズ増加 = 0
 		ENDIF
+		DRAWLINE
+		PRINTFORML 授乳を終えた%CALLNAME:ARG%の乳房は元の大きさに戻り、母乳の分泌も止まりました
+		PRINTW
 		CFLAG:ARG:産後経過日 = 0
 	ENDIF
 ENDIF
 
 
-@妊娠時疲労(ARG,ARG:1 = 0)
+@妊娠時減少体力(ARG)
 #FUNCTION
-#DIM 倍率
-倍率 = 100
+#DIM 妊娠時減少体力
 IF PREGNANCY_PROGRESS(ARG) >= 5
-	倍率 = 20
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 2 / 10
 ELSEIF PREGNANCY_PROGRESS(ARG) == 4 || INRANGE(CFLAG:ARG:産後経過日, 4, 7)
-	倍率 = 10
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 1 / 10
 ELSEIF INRANGE(CFLAG:ARG:産後経過日, 1, 3)
-	倍率 = 30
+	妊娠時減少体力 = CFLAG:ARG:妊娠前体力 * 3 / 10
+ELSEIF CFLAG:ARG:産後経過日 >= 8
+	妊娠時減少体力 = 0
+	CFLAG:ARG:妊娠前体力 = 0
+	CFLAG:ARG:妊娠時体力減少フラグ = 0
 ELSE
-	倍率 = 0
+	妊娠時減少体力 = 0
 ENDIF
-SELECTCASE ARG:1
-	CASE 0
-		SIF 倍率
-			RETURNF 1
-		RETURNF 0
-	CASE 1
-		RETURNF CFLAG:ARG:妊娠前体力 * 倍率 / 100
-	CASE 2
-		RETURNF CFLAG:ARG:妊娠前気力 * 倍率 / 100
-	CASEELSE
-		RETURNF 0
-ENDSELECT
+SIF 妊娠時減少体力
+	RETURNF 妊娠時減少体力
+RETURNF 0
+
+
+@妊娠時減少気力(ARG)
+#FUNCTION
+#DIM 妊娠時減少気力
+IF PREGNANCY_PROGRESS(ARG) >= 5
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 2 / 10
+ELSEIF PREGNANCY_PROGRESS(ARG) == 4 || INRANGE(CFLAG:ARG:産後経過日, 4, 7)
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 1 / 10
+ELSEIF INRANGE(CFLAG:ARG:産後経過日, 1, 3)
+	妊娠時減少気力 = CFLAG:ARG:妊娠前気力 * 3 / 10
+ELSEIF CFLAG:ARG:産後経過日 >= 8
+	妊娠時減少気力 = 0
+	CFLAG:ARG:妊娠前気力 = 0
+ELSE
+	妊娠時減少気力 = 0
+ENDIF
+SIF 妊娠時減少気力
+	RETURNF 妊娠時減少気力
+RETURNF 0
 
 
 ;危険日と安全日の算出
@@ -316,9 +337,14 @@ ELSE
 ENDIF
 RETURNF 妊娠危険度
 
+LOCAL = CFLAG:ARG:危険日 - DAY % 10
+		SIF LOCAL < 0
+			LOCAL = 10 - ABS(LOCAL)
 
-;妊娠の進行度
-@PREGNANCY_PROGRESS(ARG)
+
+;妊娠の進み具合（お腹の大きくなり具合）の算出
+;ARG:1 = 臨月であるかのチェック（ハーヴィン関係でズレるので）
+@PREGNANCY_PROGRESS(ARG,ARG:1 = 0)
 #FUNCTION
 #DIM 進行度
 IF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 85 / 100
@@ -334,14 +360,14 @@ ELSEIF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 20 / 100
 ELSE
 	進行度 = 0
 ENDIF
-RETURNF 進行度
-
-
-;特殊な状況でお腹が大きくなる場合なども含めた最終的なお腹の大きさ
-@PREGNANCY_SIZE(ARG)
-#FUNCTION
-#DIM 進行度
-進行度 = PREGNANCY_PROGRESS(ARG)
+;臨月チェック
+IF ARG:1
+	IF 進行度 == 5
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
 ;異種妊娠したハーヴィンの場合、お腹が一段階大きくなる
 SIF 異種妊娠(ARG) && (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2) && CFLAG:ARG:妊娠経過日 > 10
 	進行度 ++
