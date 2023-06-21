@@ -69,6 +69,20 @@ ENDSELECT
 LOCAL:0 = RAND:100
 DEBUGPRINTFORML  %CALLNAME:ARG%の妊娠確率 {妊娠確率}/{LOCAL:0} 危険度{RISKY_DAY(ARG)}+{TCVAR:ARG:排卵誘発薬}
 
+SETCOLOR カラーパレット("クリーム色")
+LOCALS = \@ INRANGE(種親, 0, CHARANUM - 1)? %CALLNAME:種親%# 得体のしれぬ者\@
+PRINTFORM %CALLNAME:ARG%の子宮の中
+IF TCVAR:ARG:膣内精液量 >= 20
+	PRINTFORML は、注ぎこまれた%LOCALS%の精で満たされている……
+ELSEIF TCVAR:ARG:膣内精液量 >= 10
+	PRINTFORML を、%LOCALS%の精が我が物顔で蹂躙している……
+ELSE
+	PRINTFORML では、%LOCALS%の精が卵子めがけて必死に泳いでいる……
+ENDIF
+RESETCOLOR
+SIF FLAG_アニメーション
+	CALL 受精アニメ(0)
+
 ;妊娠した
 IF LOCAL:0 <= 妊娠確率
 	DEBUGPRINTFORM  %CALLNAME:ARG%:妊娠！ 
@@ -89,7 +103,7 @@ IF LOCAL:0 <= 妊娠確率
 
 	SIF TCVAR:ARG:膣内精液量 >= 15
 		PRINT 精液をたっぷりと注がれた
-	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン?小さな#\@子宮が、痺れるように甘く疼く…
+	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
 	;MASTERの子を妊娠した時だけ追加で表示
 	IF 種親 == MASTER
 		CFLAG:ARG:MASTERの子供妊娠回数 ++
@@ -105,11 +119,17 @@ IF LOCAL:0 <= 妊娠確率
 			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@異種妊娠(ARG)?異種間#\@受精を許してしまった…
 		ENDIF
 	ENDIF
+	SIF FLAG_アニメーション
+		CALL 受精アニメ(1)
 	SETCOLOR カラーパレット("ピンク")
 	PRINTFORM %CALLNAME:ARG%は
-	SIF 種親 != -1
-		PRINTFORM %CALLNAME:種親%の子供を
-	PRINTFORML 妊娠したようです
+	IF 種親 != -1
+		PRINTFORM %CALLNAME:種親%の
+	ELSE
+		PRINTFORM 得体のしれぬ相手の
+	ENDIF
+	
+	PRINTFORMW 子供を妊娠したようです
 	RESETCOLOR
 	PRINTW
 ENDIF
@@ -136,13 +156,13 @@ ELSE
 	RESETCOLOR
 	SIF 知識素質:ARG:性知識 == -2
 		PRINTFORML %CALLNAME:ARG%は何が起こったか分からない様子で、破水の痛みに混乱している…
-	PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:ARG%を\@ TALENT:MASTER:種族 == 種族_ハーヴィン ? 支えながら # 抱き上げて \@、医務室へと急いだ…
+	PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:ARG%を\@ TALENT:MASTER:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2 ? 支えながら # 抱き上げて \@、医務室へと急いだ…
 	PRINTL ……
 	PRINTL …
 	PRINTL
 	SETCOLOR カラーパレット("ピンク")
 	PRINTFORM %CALLNAME:ARG%は
-	IF TALENT:ARG:種族 == 種族_ハーヴィン && 異種妊娠(ARG)
+	IF (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2) && 異種妊娠(ARG)
 		PRINTL 大変な苦労の末、なんとか出産を終えました
 	ELSE
 		PRINTFORML \@知識素質:ARG:性知識 == -2?大変な混乱と痛みの中で、なんとか#苦労の末、\@出産を終えました
@@ -221,7 +241,7 @@ ENDIF
 ;妊娠経過日 妊娠後それなりに経つと母乳が出る
 IF TALENT:ARG:妊娠
 	CFLAG:ARG:妊娠経過日  ++
-	IF (CFLAG:ARG:妊娠経過日 == 40 + RAND:26 || CFLAG:ARG:妊娠経過日 >= 65) && TALENT:ARG:母乳体質 != 3 && !素質切り替えOPTION記憶:母乳体質_なし
+	IF (CFLAG:ARG:妊娠経過日 >= (妊娠期間 * 4 / 10) + RAND:(妊娠期間 / 4 + 1)) && TALENT:ARG:母乳体質 != 3 && !素質切り替えOPTION記憶:母乳体質_なし
 		TALENT:ARG:母乳体質 = 3
 		IF !CFLAG:ARG:妊娠時バストサイズ増加
 			CFLAG:ARG:妊娠時バストサイズ増加 = 1
@@ -241,7 +261,7 @@ IF TALENT:ARG:妊娠
 ;産後経過日 産後それなりに経つと母乳が止まる
 ELSEIF CFLAG:ARG:産後経過日
 	CFLAG:ARG:産後経過日 ++
-	IF (CFLAG:ARG:産後経過日 >= 25 + RAND:25 || CFLAG:ARG:産後経過日 >= 50) && TALENT:ARG:母乳体質 == 3
+	IF CFLAG:ARG:産後経過日 >= (妊娠期間 / 4) + RAND:(妊娠期間 / 4 + 1) && TALENT:ARG:母乳体質 == 3
 		TALENT:ARG:母乳体質 = 0
 		IF CFLAG:ARG:妊娠時バストサイズ増加
 			SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
@@ -327,15 +347,15 @@ LOCAL = CFLAG:ARG:危険日 - DAY % 10
 @PREGNANCY_PROGRESS(ARG,ARG:1 = 0)
 #FUNCTION
 #DIM 進行度
-IF CFLAG:ARG:妊娠経過日 > 85
+IF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 85 / 100
 	進行度 = 5
-ELSEIF CFLAG:ARG:妊娠経過日 > 70
+ELSEIF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 70 / 100
 	進行度 = 4
-ELSEIF CFLAG:ARG:妊娠経過日 > 55
+ELSEIF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 55 / 100
 	進行度 = 3
-ELSEIF CFLAG:ARG:妊娠経過日 > 40
+ELSEIF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 40 / 100
 	進行度 = 2
-ELSEIF CFLAG:ARG:妊娠経過日 > 20
+ELSEIF CFLAG:ARG:妊娠経過日 > 妊娠期間 * 20 / 100
 	進行度 = 1
 ELSE
 	進行度 = 0
@@ -349,7 +369,7 @@ IF ARG:1
 	ENDIF
 ENDIF
 ;異種妊娠したハーヴィンの場合、お腹が一段階大きくなる
-SIF 異種妊娠(ARG) && TALENT:ARG:種族 == 種族_ハーヴィン && CFLAG:ARG:妊娠経過日 > 10
+SIF 異種妊娠(ARG) && (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2) && CFLAG:ARG:妊娠経過日 > 10
 	進行度 ++
 RETURNF 進行度
 
@@ -368,7 +388,7 @@ RETURNF 0
 @DETECT_PREGNANCY(ARG)
 IF CFLAG:ARG:滞在期間 < 0
 	RETURN 0
-ELSEIF ((PREGNANCY_PROGRESS(ARG) == 1 && RAND:20 == CFLAG:ARG:妊娠経過日 - 20) || PREGNANCY_PROGRESS(ARG) >= 2) && CFLAG:ARG:妊娠発覚 == 0
+ELSEIF ((PREGNANCY_PROGRESS(ARG) == 1 && CFLAG:ARG:妊娠経過日 >= RAND(1 + 妊娠期間 / 5) + 20) || PREGNANCY_PROGRESS(ARG) >= 2) && CFLAG:ARG:妊娠発覚 == 0
 	IF 知識素質:ARG:性知識 == -2
 		DRAWLINE
 		PRINTFORML %CALLNAME:ARG%が%CALLNAME:MASTER%に話しかけてきた…
