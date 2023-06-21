@@ -28,6 +28,7 @@ $INPUT_LOOP
 ;射精先の一覧から可能な選択肢を引っ張ってくる
 LOCALS =
 LOCAL:1 = 0
+LOCAL:2 = 0
 FOR LOCAL, 0, 31
 	TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:0)
 		;ABLEが通れば選択肢を出す
@@ -41,7 +42,7 @@ FOR LOCAL, 0, 31
 		SIF 選択中 == LOCAL
 			LOCALS += @"</font>"
 		LOCAL:1 += 1
-		LOCAL:2 = LOCAL
+		SETBIT LOCAL:2, LOCAL
 	CATCH
 	ENDCATCH
 NEXT
@@ -49,7 +50,7 @@ IF LOCAL:1
 	LOCALS += "<br>"
 ENDIF
 IF 射精先キャラ:1 > 0
-	LOCAL:1 = 0
+	LOCAL:3 = 0
 	FOR LOCAL, 0, 31
 		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:1)
 			;ABLEが通れば選択肢を出す
@@ -62,31 +63,56 @@ IF 射精先キャラ:1 > 0
 			LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%</button><br>"
 			SIF 選択中 == LOCAL
 				LOCALS += @"</font>"
-			LOCAL:1 += 1
-			LOCAL:2 = LOCAL + 100
+			LOCAL:3 += 1
+			SETBIT LOCAL:2, LOCAL
 		CATCH
 		ENDCATCH
 	NEXT
-	IF LOCAL:1
+	IF LOCAL:3
 		LOCALS += "<br>"
 	ENDIF
 ENDIF
 PRINTL
 DRAWLINE
 
-IF LOCAL:1 == 1
+;有効な射精先をカウント
+LOCAL:4 = 0
+FOR LOCAL, 0, 31
+	IF GETBIT(LOCAL:2, LOCAL)
+		LOCAL:4 += 1
+		LOCAL:5 = LOCAL
+	ENDIF
+NEXT
+
+IF LOCAL:4 == 1
 	;射精先が一択の場合
-	TFLAG:フィニッシュ場所 = LOCAL:2 % 100
-	CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:(LOCAL:2 / 100))
-	CALL SHOOT絶頂計算(TARGET:(射精先キャラ:(LOCAL:2 / 100)))
-	SIF TFLAG:被射精絶頂の強度
-		CALL SHOOT絶頂口上(TARGET:(射精先キャラ:(LOCAL:2 / 100)))
-	TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:(LOCAL:2 / 100))
-	PRINTL 
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:(LOCAL:2 / 100)))}
+	TFLAG:フィニッシュ場所 = LOCAL:5
+
+	;射精先がターゲットその１にあるなら処理
+	IF LOCAL:1
+		CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:0)
+		CALL SHOOT絶頂計算(TARGET:(射精先キャラ:0))
+		SIF TFLAG:被射精絶頂の強度
+			CALL SHOOT絶頂口上(TARGET:(射精先キャラ:0))
+		TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:0)
+		PRINTL 
+		TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
+	ENDIF
+
+	;射精先がターゲットその２にあるなら処理
+	IF LOCAL:3
+		CALLFORM SHOOT_PALAM_{TFLAG:フィニッシュ場所}(射精先キャラ:1)
+		CALL SHOOT絶頂計算(TARGET:(射精先キャラ:1))
+		SIF TFLAG:被射精絶頂の強度
+			CALL SHOOT絶頂口上(TARGET:(射精先キャラ:1))
+		TRYCALLFORM MESSAGE_SHOOT_{TFLAG:フィニッシュ場所}(射精先キャラ:1)
+		PRINTL 
+		TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:1))}
+	ENDIF
+	
 	RETURN 0
-ELSEIF LOCAL:1 == 0
-	;汎用のみの場合
+ELSEIF !LOCAL:4
+	;有効な射精先がない（＝汎用のみ）の場合
 	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
 	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
 	RETURN 0
