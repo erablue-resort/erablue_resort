@@ -31,7 +31,7 @@ CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャ
 
 CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔", @"%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%",,0)
 
-INPUT
+BINPUT
 戦闘行動内容 = RESULT
 
 SELECTCASE 戦闘行動内容
@@ -145,7 +145,7 @@ SELECTCASE 戦闘行動内容
 				REUSELASTLINE 
 				GOTO INPUT_LOOP2
 		ENDSELECT
-	CASE 110
+	CASE 110 TO 120
 		上メニュー操作許可フラグ = 0
 	CASEELSE
 		REUSELASTLINE 
@@ -154,7 +154,9 @@ ENDSELECT
 
 
 @戦闘行動実処理関数
-;とりあえずテストで通常攻撃のみ
+#DIM 衣装番号
+#DIM 消費MP一時保存
+VARSET アビ汎用変数:0
 
 CALL 口上変数初期化
 SELECTCASE 戦闘行動内容
@@ -255,6 +257,55 @@ SELECTCASE 戦闘行動内容
 			ENDIF
 		ENDIF
 		CALL 固有アビリティ効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		IF RESULT == -1
+			RETURN -1
+		ENDIF
+	CASE 111 TO 120
+		CALL 口上変数初期化
+		CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号, 戦闘行動内容 - 110)
+		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
+		衣装番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号
+		;消費MP算出
+		RESULT = 0
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"消費MP_{戦闘行動内容 - 110}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		消費MP一時保存 = RESULT
+		IF アビ使用確認スキップフラグ == 0
+			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"追加アビ_{戦闘行動内容 - 110}")
+			KSTR:(K++) = %詳細文文字列受け渡し変数%
+			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+			FOR LOCAL, 0, 4 - RESULT
+				KSTR:(K++) = 　
+			NEXT
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+			ELSE
+				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			ENDIF
+			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0)
+			$INPUT_LOOP3
+			INPUT
+			SELECTCASE RESULT
+				CASE 0
+					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+						REUSELASTLINE 
+						GOTO INPUT_LOOP3
+					ENDIF
+				CASE 999
+					RETURN -1
+				CASEELSE
+					REUSELASTLINE 
+					GOTO INPUT_LOOP3
+			ENDSELECT
+		ELSE
+			KSTR:(K++) = ■%TSTR:コマンド名受渡%
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = ＭＰが足りません。
+				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
+				RETURN -1
+			ENDIF
+		ENDIF
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"効果処理_{戦闘行動内容 - 110}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT == -1
 			RETURN -1
 		ENDIF

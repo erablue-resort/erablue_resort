@@ -31,6 +31,10 @@ ENDIF
 #DIM キャラ番号
 #DIM ページ番号
 #DIMS 表示衣装種別
+IF 表示衣装種別 == ""
+	表示衣装種別 = 通常衣装
+ENDIF
+
 ;表示部分
 ;装備中衣装表示
 DRAWLINE
@@ -95,8 +99,13 @@ SELECTCASE LOCAL
 	CASE IS < 1000
 		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
 		LOCALS = %詳細文文字列受け渡し変数%<br>
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("追加アビ")
-		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+		LOCALS += @"・追加アビ<br>"
+		FOR LOCAL:10, 1, 10
+			詳細文文字列受け渡し変数 = 
+			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%(@"追加アビ_{LOCAL:10}")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		NEXT
+		LOCALS += "<br>"
 		HTML_PRINT LOCALS
 		WAIT
 		RESTART
@@ -151,13 +160,25 @@ LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
 
-@装備衣装アビ名呼び出し(キャラ番号)
+@装備衣装アビ名呼び出し(キャラ番号, アビ番号 = 0)
+#DIM アビ番号
 #DIM キャラ番号
+VARSET LOCAL
 
-FOR LOCAL, 1, 10
+IF アビ番号
 	TSTR:コマンド名受渡 = 
-	CALL 衣装関数_ファイターの服(@"アビ名_{LOCAL}")
-	IF TSTR:コマンド名受渡 != ""
-		KSTR:(K++) = <button value = '{110 + LOCAL}'>[{110 + LOCAL}] %TSTR:コマンド名受渡%</button>
-	ENDIF
-NEXT
+	CALL 衣装関数_ファイターの服(@"アビ名_{アビ番号}", キャラ番号)
+ELSE
+	FOR LOCAL, 1, 10
+		TSTR:コマンド名受渡 = 
+		CALL 衣装関数_ファイターの服(@"アビ名_{LOCAL}", キャラ番号)
+		IF TSTR:コマンド名受渡 != ""
+			NSTR:(K++) = <button value = '{110 + LOCAL}'>[{110 + LOCAL}] %TSTR:コマンド名受渡%</button>　　　
+			LOCAL:1 += 1
+		ENDIF
+		IF LOCAL:1 > 2
+			NSTR:(K++) = <br>
+		ENDIF
+	NEXT
+ENDIF
+
