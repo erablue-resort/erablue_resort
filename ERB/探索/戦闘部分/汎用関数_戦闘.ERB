@@ -148,22 +148,31 @@ RETURNF 0
 @バフ・デバフ測定(ARG, バフ・デバフ種類)
 #FUNCTION
 #DIMS バフ・デバフ種類
+#DIM データベース行数
+#DIM バフ・デバフ補正後数値
+#DIM ループ用
 VARSET LOCAL
 
 SELECTCASE バフ・デバフ種類
 	CASE "攻撃力"
-		
-		LOCAL += 戦闘中バフ:ARG:攻撃力A:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力B:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力C:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力D:効果量
-		;攻撃力低下は半分まで
-		LOCAL = MAX(LOCAL, -50)
-		RETURNF LOCAL
+		ループ用 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+		FOR LOCAL:10, 0, データベース行数
+			IF DT_CELL_GETS(@"バフデータベース_{ARG}", LOCAL:1, "バフ対象能力") == "攻撃力"
+				LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", LOCAL:1, "バフ効果量_割合")
+				LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", LOCAL:1, "バフ効果量_固定値")
+			ENDIF
+		NEXT
+		ループ用 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+		FOR LOCAL:10, 0, データベース行数
+			IF DT_CELL_GETS(@"デバフデータベース_{ARG}", LOCAL:1, "デバフ対象能力") == "攻撃力"
+				LOCAL += DT_CELL_GET(@"デバフデータベース_{ARG}", LOCAL:1, "デバフ効果量_割合")
+				LOCAL:1 += DT_CELL_GET(@"デバフデータベース_{ARG}", LOCAL:1, "デバフ効果量_固定値")
+			ENDIF
+		NEXT
+		バフ・デバフ補正後数値 = (BATTLE_STATE:ARG:攻撃力 * (100 + LOCAL) / 100) + LOCAL:1
+		;最低でも通常数値の半分まで
+		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:ARG:攻撃力 / 2, バフ・デバフ補正後数値)
+		RETURNF バフ・デバフ補正後数値
 	CASE "防御力"
 		LOCAL += 戦闘中バフ:ARG:防御力A:効果量
 		LOCAL += 戦闘中バフ:ARG:防御力B:効果量
