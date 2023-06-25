@@ -28,24 +28,42 @@ CALL 口上変数初期化
 
 KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%のストーンバレット！
 
-;味方の数判定
-FOR LOCAL, 0, 4
-	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
-		CONTINUE
-	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
-		CONTINUE
-	戦闘行動対象 = LOCAL
-	;ダメージ計算
-	NSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に
-	CALL ダメージ計算処理(80)
-	KSTR:(K++) = {RESULT}のダメージ！　
-	BATTLE_STATE:LOCAL:ＨＰ = MAX(BATTLE_STATE:LOCAL:ＨＰ - RESULT, 0)
-	IF BATTLE_STATE:LOCAL:ＨＰ < 1
-		WSTR:(K++) = 　
-		CALL 戦闘不能時処理(LOCAL)
-		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%は倒れた！
-	ENDIF
-NEXT
+CALL かばうチェック_味方("全体かばう")
+IF RESULT
+	WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%が攻撃をかばった！
+	NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%に
+	FOR LOCAL, 0, 4
+		;ダメージ計算
+		CALL ダメージ計算処理(80)
+		KSTR:(K++) = {RESULT}のダメージ！　
+		BATTLE_STATE:LOCAL:ＨＰ = MAX(BATTLE_STATE:戦闘行動対象:ＨＰ - RESULT, 0)
+		IF BATTLE_STATE:戦闘行動対象:ＨＰ < 1
+			WSTR:(K++) = 　
+			CALL 戦闘不能時処理(戦闘行動対象)
+			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%は倒れた！
+			BREAK
+		ENDIF
+	NEXT
+ELSE
+	;味方の数判定
+	FOR LOCAL, 0, 4
+		SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+			CONTINUE
+		SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+			CONTINUE
+		戦闘行動対象 = LOCAL
+		;ダメージ計算
+		NSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に
+		CALL ダメージ計算処理(80)
+		KSTR:(K++) = {RESULT}のダメージ！　
+		BATTLE_STATE:LOCAL:ＨＰ = MAX(BATTLE_STATE:LOCAL:ＨＰ - RESULT, 0)
+		IF BATTLE_STATE:LOCAL:ＨＰ < 1
+			WSTR:(K++) = 　
+			CALL 戦闘不能時処理(LOCAL)
+			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%は倒れた！
+		ENDIF
+	NEXT
+ENDIF
 
 CALL メッセージ欄表示用関数()
 敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1

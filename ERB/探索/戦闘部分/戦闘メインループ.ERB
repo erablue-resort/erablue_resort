@@ -153,6 +153,8 @@ TSTR:メッセージ欄文字列受け渡し_上側 = <div rect='45px,10px,906px
 
 
 @行動順決定
+#DIM ループ用
+#DIM データベース行数
 ;全員の比較
 LOCAL:1 = 0
 
@@ -184,6 +186,25 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
+;行動回数持続の効果の回数を減少
+データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
+FOR ループ用, 0, データベース行数
+	LOCAL:10 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
+	IF LOCAL:10 == 1
+		DT_ROW_REMOVE @"バフデータベース_{戦闘行動キャラ}", ループ用
+	ELSEIF LOCAL:10 > 0
+		DT_CELL_SET @"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
+	ENDIF
+NEXT
+データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
+FOR ループ用, 0, データベース行数
+	LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
+	IF LOCAL:10 == 1
+		DT_ROW_REMOVE @"デバフデータベース_{戦闘行動キャラ}", ループ用
+	ELSEIF LOCAL:10 > 0
+		DT_CELL_SET @"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
+	ENDIF
+NEXT
 
 
 @奥義ゲージリセット
@@ -260,6 +281,7 @@ FOR LOCAL, 0, 10
 NEXT
 
 @ターン開始時処理
+#DIM データベース行数
 
 現在ターン数 += 1
 アイテム使用済みフラグ = 0
@@ -287,14 +309,22 @@ FOR LOCAL, 0, 4
 		CONTINUE
 	SIF BATTLE_STATE:(LOCAL):ＨＰ < 1
 		CONTINUE
-	FOR LOCAL:1, 0, 50
-		戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中バフ:LOCAL:(LOCAL:1):効果量 = 0
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
-		戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中デバフ:LOCAL:(LOCAL:1):効果量 = 0
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
 	NEXT
 NEXT
@@ -304,14 +334,22 @@ FOR LOCAL, 10, 20
 		CONTINUE
 	SIF 敵BATTLE_STATE:(LOCAL - 10):ＨＰ < 1
 		CONTINUE
-	FOR LOCAL:1, 0, 50
-		戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中バフ:LOCAL:(LOCAL:1):効果量 = 0
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
-		戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中デバフ:LOCAL:(LOCAL:1):効果量 = 0
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
 	NEXT
 	;チャージターンの増加
