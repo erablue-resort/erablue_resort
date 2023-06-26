@@ -224,6 +224,8 @@ ELSE
 	CALL PRINT_STATE_仕事レベル表示(ARG)
 	CALL PRINT_ITEMCOUNT
 	CALL 恋慕対象者表示
+	CALL 妊娠カウント表示
+	DRAWLINE
 	PRINTL
 ENDIF
 L_C:1 = LINECOUNT - L_C:1
@@ -587,7 +589,6 @@ FOR LOCAL, 0, 恋慕枠数
 NEXT
 SIF LOCAL:2 == 0
 	PRINTL なし
-DRAWLINE
 
 RETURN LOCAL:2
 
@@ -779,7 +780,7 @@ IF CFLAG:ARG:発情期フラグ < 0
 ENDIF
 IF TALENT:ARG:妊娠
 	SETCOLOR カラーパレット("ピンク")
-	IF PREGNANCY_PROGRESS(ARG,1)
+	IF PREGNANCY_PROGRESS(ARG) == 5
 		PRINT （臨月
 	ELSE
 		PRINT （妊娠中
@@ -1198,7 +1199,6 @@ IF 	CFLAG:ARG:ゲージ起動分類 == 1
 ENDIF
 PRINTL
 
-
 @PRINT_STATE_仕事レベル表示(ARG)
 PRINTL
 PRINTL □ 仕事レベル □---------------------------------------------------------------
@@ -1211,12 +1211,25 @@ FOR LOCAL, 1, 10
 NEXT
 PRINTL
 
+@妊娠カウント表示
+SIF !EXP:MASTER:孕ませ経験 && !EXP:MASTER:妊娠経験
+	RETURN 0
+DRAWLINE
+IF EXP:MASTER:孕ませ経験
+	PRINTFORML %CALLNAME:MASTER%が孕ませた回数　　： {EXP:MASTER:孕ませ経験}回
+	PRINTFORML %CALLNAME:MASTER%が産ませた子供の数： {MASTERの子供の数:0}人
+ENDIF
+IF EXP:MASTER:妊娠経験
+	PRINTFORML %CALLNAME:MASTER%が孕まされた回数　： {EXP:MASTER:妊娠経験}回
+	PRINTFORML %CALLNAME:MASTER%が産んだ子供の数　： {MASTERの子供の数:1}人
+ENDIF
+
 @PRINT_STATE_妊娠状態(ARG)
 PRINTL
 PRINTL □ 妊娠状態 □-----------------------------------------------------------------
 PRINTFORML 　妊娠経過期間:{CFLAG:ARG:妊娠経過日}
 PRINT 　
-SELECTCASE PREGNANCY_PROGRESS(ARG)
+SELECTCASE PREGNANCY_SIZE(ARG)
 	CASE 0
 		PRINTL 腹部の見た目は妊娠前と一切変化していない
 	CASE 1
@@ -1236,7 +1249,7 @@ SELECTCASE PREGNANCY_PROGRESS(ARG)
 	CASE 6
 		PRINTFORML \@INRANGE(TALENT:(CFLAG:ARG:子の父親):種族, 1,5) && 異種妊娠(ARG)?%GET_TALENTNAME(200,TALENT:(CFLAG:ARG:子の父親):種族)%#異種族\@との子供を出産間近の臨月腹はあまりに巨大で、歩くのも大変そうだ
 ENDSELECT
-SIF (GROUPMATCH(TALENT:ARG:種族,種族_ドラフ,種族_ハーヴィン) || TALENT:ARG:体格 < 0) && TALENT:ARG:バストサイズ >= 2 && PREGNANCY_PROGRESS(ARG) >= 4
+SIF (GROUPMATCH(TALENT:ARG:種族,種族_ドラフ,種族_ハーヴィン) || TALENT:ARG:体格 < 0) && TALENT:ARG:バストサイズ >= 2 && PREGNANCY_SIZE(ARG) >= 4
 	PRINTFORML 　%CALLNAME:ARG%の巨大な胸部は大きく突き出したボテ腹に押し上げられている
 SIF TALENT:ARG:母乳体質 == 3
 	PRINTFORML 　胸は妊娠の影響で少し大きくなり、子供のための母乳を蓄えている

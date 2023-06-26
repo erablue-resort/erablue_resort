@@ -33,6 +33,8 @@ PRINTBUTTON "[2]特別なキャラを招待候補に加える", 2
 PRINTL 
 PRINTBUTTON "[3]キャラの素質を強化する", 3
 PRINTL 
+PRINTBUTTON "[4]リゾート全体の環境を変化させる", 4
+PRINTL 
 PRINTL
 IF !FLAG:エンディング後フラグ
 	PRINTBUTTON "[100]目標分のZPを献上する（エンディングへ）", 100
@@ -56,6 +58,9 @@ SELECTCASE RESULT
 		RESTART
 	CASE 3
 		CALL ZP_SHOP_素質強化
+		RESTART
+	CASE 4
+		CALL ZP_SHOP_環境変化
 		RESTART
 	CASE 100
 		IF FLAG:エンディング後フラグ
@@ -238,7 +243,7 @@ PRINTL 　　　　　　発情期が存在しないキャラに対しては使�
 PRINTL
 PRINTBUTTON "[2]危険日変動薬を購入する", 2
 PRINTL 　　　　　値段：5ZP
-PRINTL 　　　　　…陥落済みのキャラに対して使える、危険日が薬を服用した日に変化する薬。消耗品。
+PRINTL 　　　　　…陥落済みのキャラに対して使用可能な、危険日を薬を服用した日に変化させる薬。消耗品。
 PRINTL
 
 PRINTBUTTON "[999]戻る", 999
@@ -642,3 +647,101 @@ ELSEIF RESULT == 2
 			GOTO INPUT_LOOP3
 	ENDSELECT
 ENDIF
+
+
+@ZP_SHOP_環境変化
+#DIM 妊娠期間変化値
+#DIM 消費ZP
+妊娠期間変化値 = 妊娠期間
+DRAWLINE
+PRINTL ZPを消費し、リゾート内の滞在者全員に特殊な影響を与えることができます。
+PRINTL どの機能を導入しますか？
+PRINTFORML 所持ZP:{FLAG:ZP所持量}
+DRAWLINE
+IF !妊娠切り替えOPTION記憶
+	PRINTBUTTON "[0]妊娠期間を変動させる", 0
+ELSE
+	SETCOLOR 0x666666
+	PRINTPLAINFORM [0]妊娠期間を変動させる
+ENDIF
+PRINTL 　　　　　値段：（変動させる日数×1）ZP
+PRINTL 　　　　　…リゾート内において、子供を出産するまでにかかる時間を変動させます。
+PRINTL
+RESETCOLOR
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 0
+		$INPUT_BEFORE2
+		PRINTFORML 妊娠期間として適用したい数値を入力してください。（現在の妊娠期間：{妊娠期間}日）
+		PRINTBUTTON "[<< -10] ",-999
+		PRINTBUTTON "[< -1] ",-998
+		PRINTFORM  [{妊娠期間変化値}]決定  
+		PRINTBUTTON "[+1 >] ",-997
+		PRINTBUTTON "[+10 >>] " ,-996
+		PRINTBUTTON "      [0]戻る", 0
+		PRINTL
+		$INPUT_LOOP2
+		INPUT
+		消費ZP = ABS(RESULT - 妊娠期間)
+		IF RESULT == 0
+			RESTART
+		ELSEIF INRANGE(RESULT,-999,-996)
+			SELECTCASE RESULT
+				CASE -996
+					妊娠期間変化値 += 10
+				CASE -997
+					妊娠期間変化値 += 1
+				CASE -998
+					妊娠期間変化値 -= 1
+				CASE -999
+					妊娠期間変化値 -= 10
+			ENDSELECT
+			CLEARLINE 3
+			REUSELASTLINE 
+			GOTO INPUT_BEFORE2
+		ELSEIF RESULT < 0
+			CLEARLINE 1
+			REUSELASTLINE 0以下の値は指定できません
+			GOTO INPUT_LOOP2
+		ELSEIF 消費ZP > FLAG:ZP所持量
+			CLEARLINE 1
+			REUSELASTLINE ZPが足りません
+			GOTO INPUT_LOOP2
+		ELSEIF RESULT == 妊娠期間
+			CLEARLINE 1
+			REUSELASTLINE 今の妊娠期間と同じ値です
+			GOTO INPUT_LOOP2
+		ELSE
+			妊娠期間変化値 = RESULT
+			PRINTFORML {消費ZP}ZPを支払い、出産までにかかる期間を{妊娠期間}日から{妊娠期間変化値}日へと変動させますか？
+			PRINTL （現状のキャラごとの妊娠の進行度は再計算され引き継がれますが、多少ずれる可能性があります）
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			$INPUT_LOOP2_2
+			INPUT
+			SELECTCASE RESULT
+				CASE 0
+					FLAG:ZP所持量 -= 消費ZP
+					FOR LOCAL,0,CHARANUM
+						SIF CFLAG:LOCAL:妊娠経過日
+							CFLAG:LOCAL:妊娠経過日 = CFLAG:LOCAL:妊娠経過日 * 妊娠期間変化値 / 妊娠期間
+					NEXT
+					妊娠期間 = 妊娠期間変化値
+					PRINTFORMW 出産までにかかる期間を{妊娠期間}日へと変動させました。
+					RESTART
+				CASE 1
+					GOTO INPUT_BEFORE2
+				CASEELSE
+					REUSELASTLINE 
+					GOTO INPUT_LOOP2_2
+			ENDSELECT
+		ENDIF
+	CASE 999
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
