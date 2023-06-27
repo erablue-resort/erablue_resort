@@ -1,0 +1,125 @@
+﻿@CLOTHES_CHANGE_プリーストの服(キャラ番号)
+#DIM キャラ番号
+
+;一個前の服装を保持
+SIF CSTR:キャラ番号:着せ替え服 != "プリーストの服"
+	CSTR:キャラ番号:脱ぐ前の服 = %CSTR:キャラ番号:着せ替え服%
+
+CSTR:キャラ番号:着せ替え服 = プリーストの服
+CSTR:キャラ番号:着せ替え服追加名 = 
+TEQUIP:キャラ番号:上半身鎧あり = 0
+TEQUIP:キャラ番号:上半身服あり = 1
+TEQUIP:キャラ番号:脇出し = 0
+TEQUIP:キャラ番号:へそ出し = 0
+TEQUIP:キャラ番号:はだけ可 = 0
+TEQUIP:キャラ番号:手差し込み可 = 0
+TEQUIP:キャラ番号:パイズリ可 = 0
+TEQUIP:キャラ番号:上タイツあり = 0
+TEQUIP:キャラ番号:上半身下着あり = 1
+TEQUIP:キャラ番号:上半身下着抜き取り可 = 0
+TEQUIP:キャラ番号:下腹部後鎧あり = 0
+TEQUIP:キャラ番号:下腹部前鎧あり = 0
+TEQUIP:キャラ番号:下半身服あり = 1
+TEQUIP:キャラ番号:スカートめくり可 = 1
+TEQUIP:キャラ番号:ずらし可 = 0
+TEQUIP:キャラ番号:下タイツあり = 0
+TEQUIP:キャラ番号:下半身下着あり = 1
+TEQUIP:キャラ番号:下半身下着抜き取り可 = 1
+TEQUIP:キャラ番号:上下一体服 = 1
+TEQUIP:キャラ番号:上下一体タイツ = 0
+TEQUIP:キャラ番号:上タイツ破れ = 0
+TEQUIP:キャラ番号:下タイツ破れ = 0
+
+@衣装文章表示_プリーストの服(ARGS)
+LOCALS = 
+SELECTCASE ARGS
+	CASE "フレーバー"
+		LOCALS += "癒やしと破邪を扱う聖職者の服。<br>"
+		LOCALS += "効果は控えめだが全体回復を持ち、更にバフやデバフを消すことが可能。<br>"
+		LOCALS += "着るとなんとなく気が引き締まるような思いになる。<br>"
+	CASE "追加アビ_1"
+		LOCALS += "■ヒールオール<br>"
+		LOCALS += "　消費MP：35<br>"
+		LOCALS += "　効果：味方全体を回復力の50%回復する。"
+	CASE "追加アビ_2"
+		LOCALS += "■キュア（装備者が杖得意の時）<br>"
+		LOCALS += "　消費MP：5<br>"
+		LOCALS += "　効果：味方単体のデバフを１つ消去する。"
+	CASE "追加アビ_3"
+		LOCALS += "■ディスペル（装備者が槍得意の時）<br>"
+		LOCALS += "　消費MP：10<br>"
+		LOCALS += "　効果：敵単体のバフを１つ消去する。"
+ENDSELECT
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@衣装関数_プリーストの服(処理モード, 装備キャラ番号)
+#DIM 装備キャラ番号
+#DIMS 処理モード
+
+SELECTCASE 処理モード
+	CASE "衣装種別"
+		衣装関連文字列受け渡し = 通常衣装
+	CASE "アビ名_1"
+		TSTR:コマンド名受渡 = ヒールオール
+	CASE "消費MP_1"
+		RETURN 35
+	CASE "効果処理_1"
+		CALL 口上変数初期化
+		アビ汎用変数:回復倍率 = 50
+		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のヒールオール！
+		CALL アビ汎用_通常回復処理_味方全体
+		IF RESULT == -1
+			CALL 口上変数初期化
+			RETURN -1
+		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 35
+	CASE "アビ名_2"
+		IF 基礎BATTLE_STATE:装備キャラ番号:得意武器 == 得意武器文字列数値変換("杖")
+			TSTR:コマンド名受渡 = キュア
+		ENDIF
+	CASE "消費MP_2"
+		RETURN 5
+	CASE "効果処理_2"
+		CALL 口上変数初期化
+		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のキュア！
+
+		CALL 効果使用先設定_味方単体()
+		IF RESULT == -1
+			CALL 口上変数初期化
+			RETURN -1
+		ENDIF
+
+		CALL アビ汎用_デバフ消去_味方単体
+		IF RESULT == -1
+			CALL 口上変数初期化
+			RETURN -1
+		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 5
+
+
+	CASE "アビ名_3"
+		IF 基礎BATTLE_STATE:装備キャラ番号:得意武器 == 得意武器文字列数値変換("槍")
+			TSTR:コマンド名受渡 = ディスペル
+		ENDIF
+	CASE "消費MP_3"
+		RETURN 10
+	CASE "効果処理_3"
+		CALL 口上変数初期化
+		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のディスペル！
+		CALL 効果使用先設定_敵("かばう無視")
+		IF RESULT == -1
+			CALL 口上変数初期化
+			RETURN -1
+		ENDIF
+		
+		CALL アビ汎用_バフ消去_敵単体
+		IF RESULT == -1
+			CALL 口上変数初期化
+			RETURN -1
+		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
+
+		CALL アビ汎用_バフ消去
+ENDSELECT
+
+

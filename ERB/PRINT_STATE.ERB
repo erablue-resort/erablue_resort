@@ -236,6 +236,7 @@ IF  L_C:0 > L_C:1
 ENDIF
 
 @戦闘能力表示画面(ARG)
+#DIMS 装備衣装名
 ;立ち絵表示
 CALL 画像描画終了
 
@@ -259,6 +260,7 @@ ELSE
 	LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性), 5%</font><br>"
 ENDIF
 LOCALS += @"得意武器　：%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器), 5%<br>"
+LOCALS += @"タイプ　　：%タイプ数値文字列変換(基礎BATTLE_STATE:ARG:ステータスタイプ保存), 5%<br>"
 LOCALS += @"最大ＨＰ　：{基礎BATTLE_STATE:ARG:最大ＨＰ + 装備ステータス補正保存:ARG:最大ＨＰ, 5}<br>"
 LOCALS += @"最大ＭＰ　：{基礎BATTLE_STATE:ARG:最大ＭＰ + 装備ステータス補正保存:ARG:最大ＭＰ, 5}<br>"
 LOCALS += @"攻撃力　　：{基礎BATTLE_STATE:ARG:攻撃力 + 装備ステータス補正保存:ARG:攻撃力, 5}<br>"
@@ -298,33 +300,58 @@ ENDIF
 LOCALS += "<br></div>"
 
 詳細文文字列受け渡し変数 = 
-LOCALS += "<div rect='200px,252px,600px,126px'>□ 装備衣装 □--------------------------------------------------<br>"
-IF CSTR:ARG:着せ替え服 != ""
-	IF CSTR:ARG:着せ替え服 == "浴衣"
-		LOCALS += "■ユカタヴィラ"
-	ELSE
-		LOCALS += @"■%CSTR:ARG:着せ替え服%"
-	ENDIF
-	SIF CSTR:ARG:着せ替え服追加名 != ""
-		LOCALS += @"（%CSTR:ARG:着せ替え服追加名%）"
-	LOCALS += "<br>"
+装備衣装名 = %DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%
+LOCALS += "<div rect='200px,252px,600px,126px'>□ 装備探索時衣装 □--------------------------------------------<br>"
+IF 装備ステータス補正保存:ARG:装備衣装番号
+	LOCALS += @"%装備衣装名%<br>"
+	LOCALS += "説明："
+	TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%("フレーバー")
+	LOCALS += @"%詳細文文字列受け渡し変数%"
+	LOCALS += "</div>"
 ELSE
 	LOCALS += @"■%CSTR:ARG:服名称%<br>"
+	LOCALS += "説明：なし<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br></div>"
 ENDIF
-LOCALS += "能力：なし<br>"
-LOCALS += "<br>"
-LOCALS += "<br>"
-LOCALS += "<br>"
-LOCALS += "<br></div>"
 
 LOCALS += "<div rect='0px,380px,800px,126px'>□ アビリティ □-------------------------------------------------------------------------<br>"
 CALL 固有アビ名呼び出し(ARG)
-LOCALS:1 = %TSTR:コマンド名受渡%
+IF RESULT
+	LOCALS:1 = 固有アビリティ：[%TSTR:コマンド名受渡%]
+ELSE
+	LOCALS:1 = 汎用アビリティ：[%TSTR:コマンド名受渡%]
+ENDIF
 CALL 固有アビリティ説明文呼び出し(ARG)
 IF ツールチップ切り替えOPTION記憶 == 0
-	LOCALS += @"<nonbutton title='<br>%TSTR:コマンド名受渡%<br>'>アビリティ１：%LOCALS:1%</nonbutton><br>"
+	LOCALS += @"<nonbutton title='<br>%TSTR:コマンド名受渡%<br>'>%LOCALS:1%</nonbutton><br>"
 ELSE
-	LOCALS += @"<nonbutton>アビリティ１：%LOCALS:1%</nonbutton><br>"
+	LOCALS += @"<nonbutton>%LOCALS:1%</nonbutton><br>"
+ENDIF
+IF 装備衣装名 == ""
+	LOCALS += "衣装アビリティ：なし"
+ELSE
+	LOCAL:1 = 0
+	LOCALS += "衣装アビリティ："
+	FOR LOCAL, 1, 10
+		TSTR:コマンド名受渡 = 
+		CALLFORM 衣装関数_%装備衣装名%(@"アビ名_{LOCAL}", ARG)
+		IF TSTR:コマンド名受渡 != ""
+			IF ツールチップ切り替えOPTION記憶 == 0
+				CALLFORM 衣装文章表示_%装備衣装名%(@"追加アビ_{LOCAL}")
+				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>　　"
+			ELSE
+				LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>　　"
+			ENDIF
+			LOCAL:1 += 1
+		ENDIF
+		IF LOCAL:1 == 4
+			LOCALS:1 += "<br>　　　　　　　　"
+			LOCAL:1 = 0
+		ENDIF
+	NEXT
 ENDIF
 LOCALS += "<br>"
 LOCALS += "<br>"
