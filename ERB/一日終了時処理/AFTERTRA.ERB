@@ -8,6 +8,7 @@
 #DIM 雑務ゲージ減少量
 #DIM 売上分ルピ
 #DIM 秘書担当キャラ保存, 50
+#DIM 人気度変動一時保存
 VARSET LOCAL
 VARSET 長期雇用者保存配列
 長期雇用者人数 = 0
@@ -206,6 +207,73 @@ IF 滞在キャラ数算出関数() > 0
 	ENDIF
 ENDIF
 
+;--------------------------------------------------------------------------------
+;リゾート人気度変動
+;--------------------------------------------------------------------------------
+LOCALS:1 = 
+LOCALS:2 = <br>
+人気度変動一時保存 = 0
+IF モブ観光客数 > 0
+	LOCALS:1 +=  "■本日のリゾート人気度変動<br>"
+	IF 人気度別施設充足度() > 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が十分あって楽しい！」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 人気度別施設充足度() * 1000
+	ELSEIF 人気度別施設充足度() < 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が足りないよ……」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 人気度別施設充足度() * 500
+	ENDIF
+	VARSET LOCAL
+	;雑務ゲージ平均値算出
+	FOR LOCAL, 1, 2100
+		SIF LOCAL == 20
+			CONTINUE
+		IF 存在しない移動先(0, LOCAL) == 0
+			LOCAL:1 += 雑務ゲージ:LOCAL
+			LOCAL:2 += 1
+		ENDIF
+		SIF (LOCAL % 100) > 20
+			LOCAL += 79
+	NEXT
+	LOCAL:1 = LOCAL:1 / LOCAL:2
+	IF LOCAL:1 < 500
+		LOCALS:1 += "モブ観光客「雑務の対応が早くて快適だね」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 2000
+	ELSEIF LOCAL:1 < 2000
+	ELSEIF LOCAL:1 < 4000
+		LOCALS:1 += "モブ観光客「ちょっと雑務が溜まってるかな」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 500
+	ELSEIF LOCAL:1 < 6000
+		LOCALS:1 += "モブ観光客「雑務が遅いのが気になるかも」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 1500
+	ELSEIF LOCAL:1 < 8000
+		LOCALS:1 += "モブ観光客「雑務、溜まりすぎじゃない？」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 3000
+	ELSE
+		LOCALS:1 += "モブ観光客「雑務が何も対応されてない！」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 5000
+	ENDIF
+
+	LOCALS = <div width='720px' height='{STRCOUNT(LOCALS:1, "<br>") * 18 + 70}px' border='5px' bcolor='#C0C0C0'></div><div rect='15px, 15px, 620px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:1%</div><div rect='600px, 15px, 90px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:2%</div>
+	LOCALS += @"<div rect='15px, {STRCOUNT(LOCALS:1, "<br>") * 18 + 20}px, 720px, 40px'>--------------------------------------------------------------------------------------<br>"
+	SKIPDISP 1
+	CALL 人気上昇処理(人気度変動一時保存)
+	SKIPDISP 0
+	DEBUGPRINTFORML 雑務ゲージ平均：{LOCAL:1}
+	DEBUGPRINTFORML 人気度変動一時保存：{人気度変動一時保存}
+	LOCALS += @"リゾート人気度　　{リゾート人気度}.{(リゾート人気度小数点以下 % 1000) / 100}{(リゾート人気度小数点以下 % 100) / 10}{(リゾート人気度小数点以下 % 10)}</div>"
+	HTML_PRINT LOCALS, 1
+	FOR LOCAL, 0, STRCOUNT(LOCALS:1, "<br>") + 5
+		PRINTL
+	NEXT
+ENDIF
+
 
 ;変数初期化
 VARSET 野外オナニー変数
@@ -219,4 +287,18 @@ WAIT
 BEGIN ABLUP
 
 
+@人気度別施設充足度()
+#FUNCTION
 
+SELECTCASE リゾートランク
+	CASE 0
+		;無名リゾート
+		;一個でも施設改造していればOK、してないなら不満小
+		IF 施設改造度:3:0 || 施設改造度:5:0 || 施設改造度:15:0
+			RETURNF 施設改造度:3:0 + 施設改造度:5:0 + 施設改造度:15:0
+		ELSE
+			RETURNF -1
+		ENDIF
+ENDSELECT
+
+RETURNF 0
