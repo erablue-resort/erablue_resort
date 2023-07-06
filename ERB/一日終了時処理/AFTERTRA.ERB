@@ -107,6 +107,19 @@ FOR LOCAL, 0, CHARANUM
 		ENDIF
 		LOCAL:1 += 1
 	ENDIF
+	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 4
+		SKIPDISP 1
+		CALL 人気上昇処理((仕事レベル:LOCAL:4 + 1) * (仕事レベル:LOCAL:4 + 1) * 1000)
+		SKIPDISP 0
+		人気度変動一時保存 = RESULT
+		;経験値取得とレベル上昇
+		仕事経験値:LOCAL:4 += 1
+		IF 仕事経験値:LOCAL:4 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:4 + 1)
+			仕事レベル:LOCAL:4 += 1
+			LOCALS:4 += @"%CALLNAME:LOCAL%の宣伝レベルがLv{仕事レベル:LOCAL:4}に上昇した！<br>"
+		ENDIF
+		LOCAL:1 += 1
+	ENDIF
 NEXT
 
 FOR LOCAL, 1, 2100
@@ -143,8 +156,16 @@ IF 仕事人数表示用:秘書担当人数 > 0
 		NOWEX:(秘書担当キャラ保存:LOCAL):信頼度上昇格納 = 0
 	NEXT
 	WAIT
-	IF LOCALS:2 != ""
-		HTML_PRINT LOCALS:2
+	IF LOCALS:3 != ""
+		HTML_PRINT LOCALS:3
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:宣伝担当人数 > 0
+	PRINTFORMW {仕事人数表示用:宣伝担当人数}名の従業員は、宣伝業務を通じてリゾートの人気度を{人気度変動一時保存}高めました。
+	IF LOCALS:4 != ""
+		HTML_PRINT LOCALS:4
 		WAIT
 	ENDIF
 	DRAWLINE
@@ -240,24 +261,24 @@ IF モブ観光客数 > 0
 	IF LOCAL:1 < 500
 		LOCALS:1 += "モブ観光客「雑務の対応が早くて快適だね」<br>"
 		LOCALS:2 += "人気度UP！<br>"
-		人気度変動一時保存 += 2000
+		人気度変動一時保存 += 1000
 	ELSEIF LOCAL:1 < 2000
 	ELSEIF LOCAL:1 < 4000
 		LOCALS:1 += "モブ観光客「ちょっと雑務が溜まってるかな」<br>"
 		LOCALS:2 += @"人気度DOWN…<br>"
-		人気度変動一時保存 -= 500
+		人気度変動一時保存 -= 1000
 	ELSEIF LOCAL:1 < 6000
 		LOCALS:1 += "モブ観光客「雑務が遅いのが気になるかも」<br>"
 		LOCALS:2 += @"人気度DOWN…<br>"
-		人気度変動一時保存 -= 1500
+		人気度変動一時保存 -= 3000
 	ELSEIF LOCAL:1 < 8000
 		LOCALS:1 += "モブ観光客「雑務、溜まりすぎじゃない？」<br>"
 		LOCALS:2 += @"人気度DOWN…<br>"
-		人気度変動一時保存 -= 3000
+		人気度変動一時保存 -= 5000
 	ELSE
 		LOCALS:1 += "モブ観光客「雑務が何も対応されてない！」<br>"
 		LOCALS:2 += @"人気度DOWN…<br>"
-		人気度変動一時保存 -= 5000
+		人気度変動一時保存 -= 10000
 	ENDIF
 
 	LOCALS = <div width='720px' height='{STRCOUNT(LOCALS:1, "<br>") * 18 + 70}px' border='5px' bcolor='#C0C0C0'></div><div rect='15px, 15px, 620px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:1%</div><div rect='600px, 15px, 90px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:2%</div>
@@ -267,12 +288,44 @@ IF モブ観光客数 > 0
 	SKIPDISP 0
 	DEBUGPRINTFORML 雑務ゲージ平均：{LOCAL:1}
 	DEBUGPRINTFORML 人気度変動一時保存：{人気度変動一時保存}
-	LOCALS += @"リゾート人気度　　{リゾート人気度}.{(リゾート人気度小数点以下 % 1000) / 100}{(リゾート人気度小数点以下 % 100) / 10}{(リゾート人気度小数点以下 % 10)}</div>"
+	LOCALS += @"リゾート人気度　　{リゾート人気度}.{(リゾート人気度小数点以下 % 1000) / 100}{(リゾート人気度小数点以下 % 100) / 10}{(リゾート人気度小数点以下 % 10)}"
+	CALL 人気度上限算出()
+	DEBUGPRINTFORML 人気度上限算出{RESULT}
+	IF リゾート人気度 >= RESULT / 1000
+		LOCALS += "　　　<font color='#C0C070'>上限到達</font>"
+	ENDIF
+	LOCALS += "</div>"
 	HTML_PRINT LOCALS, 1
 	FOR LOCAL, 0, STRCOUNT(LOCALS:1, "<br>") + 5
 		PRINTL
 	NEXT
 ENDIF
+
+;--------------------------------------------------------------------------------
+;突発イベント再発生CT減少＆再発生判定
+;--------------------------------------------------------------------------------
+
+
+ループ用 = DT_ROW_LENGTH("各イベント用変数配列")
+
+FOR LOCAL, 0, ループ用
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率")
+	IF LOCAL:1 > 0
+		;CTが残ってる場合は１減らす
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+	ELSEIF LOCAL:2 > 0
+		;再発生確率がある、かつ発生条件を整えている場合はRANDで再発生させる
+		TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		IF RESULT
+			LOCAL:10 = RAND:100
+			IF LOCAL:2 > LOCAL:10
+				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
 
 
 ;変数初期化
