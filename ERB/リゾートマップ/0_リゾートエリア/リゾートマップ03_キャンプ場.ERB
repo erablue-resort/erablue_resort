@@ -43,6 +43,16 @@ AA:26 =
 AA:27 = 二：ロビーへ　　　　　三：メインテント　　　四：バーベキューエリア
 AA:28 = 五：渓流エリア　　　　六：サウナテント　　　七：キャンプファイアー
 
+IF 施設改造度:3:1 > 0
+	AA:10 = 　┌────┐　　川川川　　　　　　　　　　　　　　　　　　　　　　　　　木
+	AA:11 = 　│　　　　│　川川川　　　　　　　　　　　　　　　　　　　　　　　　　木木
+	AA:12 = 　│　08　　│　川川川　　　　　　　　　　　　　┌─┐　　　　　　　　　木木
+	AA:13 = 　│　　　　│　川川川　　　　　　　　　　　　　│07│　　　　　　　　　　木
+	AA:14 = 　└────┘川川川川川　　　　　　　　　　　　└─┘　　　　　　　　　　木
+
+	AA:29 = 八：訓練場
+ENDIF
+
 @GETPLACENAME_0_3(ARG)
 #FUNCTION
 SELECTCASE ARG
@@ -58,6 +68,10 @@ SELECTCASE ARG
 		TSTR:場所名受渡 = サウナテント
 	CASE 307
 		TSTR:場所名受渡 = キャンプファイアー
+	CASE 308
+		IF 施設改造度:3:1 > 0
+			TSTR:場所名受渡 = 訓練場
+		ENDIF
 ENDSELECT
 
 
@@ -95,6 +109,8 @@ CASE "六"
 	PRINTBUTTON "306", 306
 CASE "七"
 	PRINTBUTTON "307", 307
+CASE "八"
+	PRINTBUTTON "308", 308
 ;ふつうの
 CASEELSE
 	PRINTS SLICED
@@ -197,6 +213,11 @@ IF 施設改造度:3:0 < 1
 ELSE
 	LOCALS += @"■[キャンプ地改造] Lv上限<br>"
 ENDIF
+IF 施設改造度:3:0 > 0 && 施設改造度:3:1 < 1
+	LOCALS += @"└■<button value='201'>[訓練場を増築する]</button> （必要:80,000ルピ）<br>"
+ELSEIF 施設改造度:3:1 > 0
+	LOCALS += @"└■[訓練場を増築する] 増築済<br>"
+ENDIF
 
 RETURNF LOCALS
 
@@ -270,6 +291,33 @@ SELECTCASE ARG
 				PRINTL 18時より前は炎は付いていません。
 				PRINTL 夜になれば多くのキャラクターがここに集まるでしょう。
 				PRINTW 
+		ENDSELECT
+		RESTART
+	CASE 201
+		DRAWLINE
+		PRINTL キャンプ場の外れに訓練場が導入されます。
+		PRINTL 訓練場を導入することで、長期雇用をしているキャラクターが一日の終わりに経験値を得るようになります。
+		PRINTL また従業員の仕事割り振りに「訓練」が追加され、一日の終わりに経験値を得ることができるようになります。
+		PRINTL ただし、どちらも「全てのキャラクターのうち最も高いレベル」までしか上昇しません。
+		PRINTL 
+		PRINTL 訓練場を導入しますか？（必要:80,000ルピ）
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				IF MONEY < 80000
+					PRINTW ルピが足りません。
+					RETURN
+				ENDIF
+				施設改造度:3:1 = 1
+				MONEY -= 80000
+				PRINTL 訓練場を導入しました！
+				PRINTW (滞在キャラ上限＋５)
+				滞在キャラ上限 += 5
+				RETURN
+			CASE 1
+				RETURN
 		ENDSELECT
 		RESTART
 ENDSELECT
