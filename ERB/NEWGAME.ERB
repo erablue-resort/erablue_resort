@@ -32,6 +32,8 @@ FOR LOCAL,CHARANUM,キャラクタ数上限
 	ADDCHARA LOCAL
 NEXT
 
+CALL コマンド存在チェック
+
 CALL CUSTOM_CHARAMAKE(MASTER)
 SIF TALENT:MASTER:2 & 2
 	MAXBASE:MASTER:5 = 1500
@@ -223,8 +225,6 @@ TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
 #DIM 敏感うふふ候補数
 #DIM セクハラ候補数
 #DIM うふふ候補数
-#DIM 通常コマンド存在フラグ, 1000
-#DIM 場所固有コマンド存在フラグ, 5, 2, 20
 #DIM チェック完了
 
 ;弱点初期化
@@ -243,32 +243,6 @@ ENDCATCH
 敏感セクハラ候補数 = 0
 敏感うふふ候補数 = 0
 
-;コマンド存在チェック
-IF !チェック完了
-	;通常コマンド
-	FOR LOCAL, 0, 1000
-		IF EXISTFUNCTION(@"COMTYPE_{LOCAL}")
-			SETBIT 通常コマンド存在フラグ:LOCAL, 0
-			;派生コマンド
-			FOR LOCAL:1, 0, 20
-				SIF EXISTFUNCTION(@"COMTYPE_S_{LOCAL}_{LOCAL:1}")
-					SETBIT 通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1
-			NEXT
-		ENDIF
-	NEXT
-	;場所固有コマンド
-	FOR LOCAL, 0, 5
-		FOR LOCAL:3, 0, 1
-			FOR LOCAL:1, 0, 20
-				FOR LOCAL:2, 0, 20
-					SIF EXISTFUNCTION(@"COMTYPE_{LOCAL + 380}_{LOCAL:3}_{LOCAL:1 * 100 + LOCAL:2 + 1}")
-						SETBIT 場所固有コマンド存在フラグ:LOCAL:(LOCAL:3):(LOCAL:1), LOCAL:2
-				NEXT
-			NEXT
-		NEXT
-	NEXT
-	チェック完了 = 1
-ENDIF
 
 ;敏感素質に対応した弱点候補をリスト化
 FOR LOCAL, 0, 1000
@@ -528,6 +502,34 @@ SIF STRFIND(弱点コマンドカテゴリ, "S") >= 0 && TALENT:ARG:Ｓ感度 > 
 ;ここまで来た時点で該当するものがないのでオワリ
 RETURNF 0
 
+@コマンド存在チェック
+#DIM コマンド総数
+#DIM ループ用
+
+コマンド総数 = ENUMFUNCBEGINSWITH("COMTYPE_")
+
+;通常コマンド
+FOR LOCAL, 0, 1000
+	IF MATCH(RESULTS, @"COMTYPE_{LOCAL}")
+		SETBIT 通常コマンド存在フラグ:LOCAL, 0
+		;派生コマンド
+		FOR LOCAL:1, 0, 20
+			SIF MATCH(RESULTS, @"COMTYPE_S_{LOCAL}_{LOCAL:1}")
+				SETBIT 通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1
+		NEXT
+	ENDIF
+NEXT
+;場所固有コマンド
+FOR LOCAL, 0, 5
+	FOR LOCAL:3, 0, 1
+		FOR LOCAL:1, 0, 20
+			FOR LOCAL:2, 0, 20
+				SIF MATCH(RESULTS, @"COMTYPE_{LOCAL + 380}_{LOCAL:3}_{LOCAL:1 * 100 + LOCAL:2 + 1}")
+					SETBIT 場所固有コマンド存在フラグ:LOCAL:(LOCAL:3):(LOCAL:1), LOCAL:2
+			NEXT
+		NEXT
+	NEXT
+NEXT
 
 @初期ステータス設定_テンプレート適用(初期ステータスタイプ, ARG)
 #DIMS 初期ステータスタイプ
