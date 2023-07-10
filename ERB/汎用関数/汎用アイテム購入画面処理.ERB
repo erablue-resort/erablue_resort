@@ -5,9 +5,19 @@
 ;汎用アイテム購入用_品揃え登録:0 = 薬草,200,ルピ
 ;のように記述する
 ;-------------------------------------------------
-@汎用アイテム購入画面処理
+@汎用アイテム購入画面処理(売却許可フラグ = 1)
 #DIMS 商売文字列保存, 3
+#DIM 選択アイテム番号
+#DIM 購入個数
+#DIM 売却許可フラグ
+#DIM 売却モード
+
 VARSET LOCALS
+選択アイテム番号 = -1
+購入個数 = 1
+売却モード = 0
+
+$購入画面LOOP
 
 IF 汎用アイテム購入用_序文 != ""
 	DRAWLINE
@@ -16,67 +26,163 @@ IF 汎用アイテム購入用_序文 != ""
 ENDIF
 
 ;枠作成
-LOCALS = <div rect='13px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
-LOCALS += "<div rect='643px,5px,310px,150px' border='5px' bcolor='#C0C0C0'></div>"
-
-;中身描写
-FOR LOCAL, 0, 100
-	SIF 汎用アイテム購入用_品揃え登録:LOCAL == ""
-		BREAK
-	SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
-	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%商売文字列保存:0, 20, LEFT%{TOINT(商売文字列保存:1), 6}%商売文字列保存:2%</button>"
-	IF LOCAL % 2 == 1
-		LOCALS:1 += "<br>"
+LOCALS = <div rect='13px,5px,310px,61px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='13px,71px,310px,450px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='328px,71px,500px,450px' border='5px' bcolor='#C0C0C0'></div>"
+IF 売却許可フラグ
+	LOCALS += "<div rect='328px,5px,500px,61px' border='5px' bcolor='#C0C0C0'></div>"
+	LOCALS += "<div rect='340px,20px,500px,61px'>"
+	IF 売却モード == 0
+		;購入画面
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>■購入</font>"
+		LOCALS += "　　　<button value='1100'>■売却</button>"
 	ELSE
-		LOCALS:1 += "　　　"
+		;売却画面
+		LOCALS += @"<button value='1100'>■購入</button>"
+		LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>■売却</font>"
 	ENDIF
-NEXT
-LOCALS += @"<div rect='25px,25px,608px,430px'>%LOCALS:1%</div>"
-
-LOCALS += "<div rect='530px,420px,100px,20px'><button value='999'>[999]戻る</button></div>"
+	LOCALS += "</div>"
+ENDIF
 
 LOCALS:2 = 所持ルピ：{MONEY}<br>
 LOCALS:2 += @"所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}"
-LOCALS += @"<div rect='655px,25px,298px,130px'>%LOCALS:2%</div>"
+LOCALS += @"<div rect='25px,20px,298px,50px'>%LOCALS:2%</div>"
+
+IF 売却モード == 0
+	;購入画面
+
+	;品揃え描写
+	LOCALS:1 = 
+	FOR LOCAL, 0, 100
+		SIF 汎用アイテム購入用_品揃え登録:LOCAL == ""
+			BREAK
+		VARSET 商売文字列保存
+		SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
+		IF 商売文字列保存:1 == ""
+			;特殊値段を設定されてない場合
+			CALLFORM アイテム個別文章表示_%商売文字列保存:0%("値段")
+			商売文字列保存:1 = %TOSTR(RESULT)%
+			商売文字列保存:2 = %詳細文文字列受け渡し変数%
+		ENDIF
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 2}]%商売文字列保存:0, 20, LEFT%{TOINT(商売文字列保存:1), 6}%商売文字列保存:2%</button>"
+		LOCALS:1 += "<br>"
+	NEXT
+	LOCALS += @"<div rect='25px,86px,310px,430px'>%LOCALS:1%</div>"
+
+	LOCALS += "<div rect='240px,493px,100px,20px'><button value='999'>[999]戻る</button></div>"
+
+	IF 選択アイテム番号 > -1
+		;アイテム詳細文章
+		SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
+		TRYCALLFORM アイテム個別文章表示_%商売文字列保存:0%
+		LOCALS:3 = %詳細文文字列受け渡し変数%<br><br>
+		LOCALS:3 += @"<button value='1011'>[+10]</button> "
+		LOCALS:3 += @"<button value='1001'>[+1]</button>"
+		LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個購入する</button>　"
+		LOCALS:3 += @"<button value='1002'>[-1]</button> "
+		LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		LOCALS += @"<div rect='340px,86px,608px,430px'>%LOCALS:3%</div>"
+	ENDIF
+ELSE
+	;売却画面
+	
+	;品揃え描写
+	VARSET 表示アイテム名
+	LOCALS:1 = 
+	DT_COLUMN_NAMES "所持アイテムデータベース", 表示アイテム名
+	FOR LOCAL, 1, 25
+		LOCAL:1 = DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL)
+		IF LOCAL:1 > 0
+			CALLFORM アイテム個別文章表示_%表示アイテム名:LOCAL%("値段")
+			LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 2}]%表示アイテム名:LOCAL, 20, LEFT%{RESULT / 2, 6}%詳細文文字列受け渡し変数%</button><br>"
+		ENDIF
+	NEXT
+
+	LOCALS += @"<div rect='25px,86px,310px,430px'>%LOCALS:1%</div>"
+
+	LOCALS += "<div rect='240px,493px,100px,20px'><button value='999'>[999]戻る</button></div>"
+
+	IF 選択アイテム番号 > -1
+		;アイテム詳細文章
+		TRYCALLFORM アイテム個別文章表示_%表示アイテム名:選択アイテム番号%
+		LOCALS:3 = %詳細文文字列受け渡し変数%<br><br>
+		LOCALS:3 += @"<button value='1011'>[+10]</button> "
+		LOCALS:3 += @"<button value='1001'>[+1]</button>"
+		LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個売却する</button>　"
+		LOCALS:3 += @"<button value='1002'>[-1]</button> "
+		LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		LOCALS += @"<div rect='340px,86px,608px,430px'>%LOCALS:3%</div>"
+	ENDIF
+ENDIF
 
 HTML_PRINT LOCALS, 1
 
-FOR LOCAL, 0, 26
+FOR LOCAL, 0, 29
 	PRINTL
 NEXT
-$INPUT_LOOP
-INPUT
+BINPUT
 
 SELECTCASE RESULT
 	CASE 0 TO 99
-		IF 汎用アイテム購入用_品揃え登録:RESULT == ""
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		SPLIT 汎用アイテム購入用_品揃え登録:RESULT, ",", 商売文字列保存
-		IF 商売文字列保存:2 == "ルピ"
-			IF MONEY < TOINT(商売文字列保存:1)
-				PRINTW ルピが足りません
-				RESTART
-			ENDIF
-			MONEY -= TOINT(商売文字列保存:1)
-		ELSEIF 商売文字列保存:2 == "ZP"
-			IF FLAG:ZP所持量 < TOINT(商売文字列保存:1)
-				PRINTW ZPが足りません
-				RESTART
-			ENDIF
-			FLAG:ZP所持量 -= TOINT(商売文字列保存:1)
-		ENDIF
-		CALL アイテム増減汎用処理(商売文字列保存:0, 1)
-		PRINTFORMW %商売文字列保存:0%を購入しました。
-		RESTART
+		選択アイテム番号 = RESULT
+		購入個数 = 1
 	CASE 999
 		汎用アイテム購入用_序文 = 
+		購入個数 = 1
+		選択アイテム番号 = -1
 		VARSET 汎用アイテム購入用_品揃え登録
 		RETURN 0
-	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
+	CASE 1011
+		IF 売却モード == 0
+			購入個数 = MIN(購入個数 + 10, 99) 
+		ELSE
+			購入個数 = MIN(購入個数 + 10, DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:選択アイテム番号)) 
+		ENDIF
+	CASE 1001
+		IF 売却モード == 0
+			購入個数 = MIN(購入個数 + 1, 99) 
+		ELSE
+			購入個数 = MIN(購入個数 + 1, DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:選択アイテム番号)) 
+		ENDIF
+	CASE 1002
+		購入個数 = MAX(購入個数 - 1, 1)
+	CASE 1012
+		購入個数 = MAX(購入個数 - 10, 1)
+	CASE 1100
+		INVERTBIT 売却モード, 0
+		購入個数 = 1
+		選択アイテム番号 = -1
+		GOTO 購入画面LOOP
+	CASE 1000
+		IF 売却モード == 0
+			SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
+			IF 商売文字列保存:2 == "ルピ"
+				IF MONEY < TOINT(商売文字列保存:1) * 購入個数
+					PRINTW ルピが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				MONEY -= TOINT(商売文字列保存:1) * 購入個数
+			ELSEIF 商売文字列保存:2 == "ZP"
+				IF FLAG:ZP所持量 < TOINT(商売文字列保存:1) * 購入個数
+					PRINTW ZPが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				FLAG:ZP所持量 -= TOINT(商売文字列保存:1) * 購入個数
+			ENDIF
+			CALL アイテム増減汎用処理(商売文字列保存:0, 購入個数)
+			PRINTFORMW %商売文字列保存:0%を%TOFULL(TOSTR(購入個数)), 4%個購入しました。
+			購入個数 = 1
+		ELSE
+			CALL アイテム増減汎用処理(商売文字列保存:0, 購入個数 * -1)
+			PRINTFORMW %商売文字列保存:0%を%TOFULL(TOSTR(購入個数)), 4%個売却しました。
+			CALLFORM アイテム個別文章表示_%表示アイテム名:選択アイテム番号%("値段")
+			IF 詳細文文字列受け渡し変数 == "ルピ"
+				MONEY += RESULT * 購入個数 / 2
+			ELSEIF 詳細文文字列受け渡し変数 == "ZP"
+				FLAG:ZP所持量 += RESULT * 購入個数 / 2
+			ENDIF
+			購入個数 = 1
+		ENDIF
 ENDSELECT
 
-
+GOTO 購入画面LOOP
