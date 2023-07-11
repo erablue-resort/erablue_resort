@@ -1,0 +1,206 @@
+﻿@従業員解雇
+#DIM ループ用
+#DIM 従業員一覧, 50
+#DIM 選択従業員番号
+#DIM 降順ソート用配列, 200
+#DIM 降順ソート用番号配列, 200
+#DIMS Arrays = "降順ソート用配列", "降順ソート用番号配列"
+
+VARSET 従業員一覧
+
+DRAWLINE
+PRINTL 従業員を解雇します。
+PRINTL 解雇したキャラは好感度要素：信頼度が下がりますので注意してください。
+PRINTL
+DRAWLINE
+
+;現在いる従業員を一覧表示
+LOCAL:1 = 1
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	従業員一覧:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='25px,25px,310px,450px'>"
+FOR ループ用, 1, 50
+	SIF 従業員一覧:ループ用 < 1
+		BREAK
+	LOCALS += @"<button value='{ループ用}'>%CALLNAME:(従業員一覧:ループ用), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:ループ用):0)%]</button>"
+	LOCALS += "<br>"
+NEXT
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+LOCALS += "<div rect='340px,25px,588px,450px'>"
+IF 選択従業員番号 > 0
+	LOCALS += @"■%NAME:(従業員一覧:選択従業員番号), 26, LEFT%"
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(基礎BATTLE_STATE:(従業員一覧:選択従業員番号):属性)%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(基礎BATTLE_STATE:(従業員一覧:選択従業員番号):属性)%</font>"
+	LOCALS += @"　得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:(従業員一覧:選択従業員番号):得意武器)%　タイプ：%成長タイプ:(基礎BATTLE_STATE:(従業員一覧:選択従業員番号):ステータスタイプ保存)%"
+	LOCALS += "<br><br>"
+	LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
+	LOCALS += @"　種族：%GET_TALENTNAME(200, TALENT:(従業員一覧:選択従業員番号):種族)%"
+	IF TALENT:(従業員一覧:選択従業員番号):エルーン耳
+		LOCALS += "（エルーン耳）"
+	ENDIF
+	IF TALENT:(従業員一覧:選択従業員番号):尻尾あり
+		LOCALS += "（尻尾）"
+	ENDIF
+	IF TALENT:(従業員一覧:選択従業員番号):角あり
+		LOCALS += "（角あり）"
+	ENDIF
+	IF TALENT:(従業員一覧:選択従業員番号):ハーヴィン耳
+		LOCALS += "（ハーヴィン耳）"
+	ENDIF
+	LOCALS += "<br>"
+	LOCALS += "　性別："
+	SELECTCASE TALENT:(従業員一覧:選択従業員番号):性別
+		CASE 1
+			LOCALS += "女性"
+			IF TALENT:(従業員一覧:選択従業員番号):処女 == 0
+				LOCALS += "　　　　　　　　　"
+			ELSE
+				LOCALS += "（処女）　　　　　"
+			ENDIF
+		CASE 3
+			LOCALS += "ふたなり"
+			IF TALENT:(従業員一覧:選択従業員番号):処女 == 0
+				LOCALS += "　　　　"
+			ELSE
+				LOCALS += "（処女）"
+			ENDIF
+			IF TALENT:(従業員一覧:選択従業員番号):童貞 == 1
+				LOCALS += "　　　　　"
+			ELSE
+				LOCALS += "（童貞）　"
+			ENDIF
+	ENDSELECT
+	LOCALS += @"バストサイズ：%GET_TALENTNAME(205, TALENT:(従業員一覧:選択従業員番号):バストサイズ)%"
+	LOCALS += "<br>"
+	LOCALS += @"　性知識レベル：%性知識段階表示(知識素質:(従業員一覧:選択従業員番号):性知識, 従業員一覧:選択従業員番号)%"
+	LOCALS += @"<br>　容姿：%GET_TALENTNAME(205, TALENT:(従業員一覧:選択従業員番号):容姿)%"
+	LOCALS += @"体格：%GET_TALENTNAME(161,TALENT:(従業員一覧:選択従業員番号):体格)%"
+	IF TALENT:(従業員一覧:選択従業員番号):体格 == 0
+		LOCALS += "普通"
+	ENDIF
+	IF TALENT:(従業員一覧:選択従業員番号):性別 == 3
+		LOCALS += @"<br>　男性器サイズ：%GET_TALENTNAME(162, TALENT:(従業員一覧:選択従業員番号):男性器サイズ)%"
+		IF TALENT:(従業員一覧:選択従業員番号):男性器サイズ == 0
+			LOCALS += "平凡"
+		ENDIF
+	ENDIF
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
+	
+	FOR ループ用,8,160
+		IF STRLENS(GET_TALENTNAME(ループ用,TALENT:(従業員一覧:選択従業員番号):ループ用, 0))
+			LOCALS += @"[%GET_TALENTNAME(ループ用,TALENT:(従業員一覧:選択従業員番号):ループ用, 0)%]"
+		ENDIF
+	NEXT
+	FOR ループ用,220,300
+		IF STRLENS(GET_TALENTNAME(ループ用,TALENT:(従業員一覧:選択従業員番号):ループ用))
+			LOCALS += @"[%GET_TALENTNAME(ループ用,TALENT:(従業員一覧:選択従業員番号):ループ用)%]"
+		ENDIF
+	NEXT
+	FOR ループ用,1,100
+		IF 知識素質:(従業員一覧:選択従業員番号):ループ用
+			LOCALS += @"[%ERDNAME(知識素質,ループ用)%Lv{知識素質:(従業員一覧:選択従業員番号):ループ用}]"
+		ENDIF
+	NEXT
+
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
+	LOCAL:1 = 0
+	LOCAL:2 = 0
+	VARSET 降順ソート用配列
+	VARSET 降順ソート用番号配列
+	FOR LOCAL, 0, 40
+		SIF LOCAL >= 21 && LOCAL <= 27
+			CONTINUE
+		IF ABL:(従業員一覧:選択従業員番号):LOCAL > 0
+			降順ソート用配列:(LOCAL:1) = ABL:(従業員一覧:選択従業員番号):LOCAL
+			降順ソート用番号配列:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	ARRAYMSORTEX 降順ソート用配列, Arrays, 0
+	
+	FOR LOCAL, 0, 6
+		IF 降順ソート用配列:LOCAL < 1
+			SIF LOCAL:2
+				LOCALS += "<br>"
+			BREAK
+		ENDIF
+		LOCALS += @"%ABLNAME:(降順ソート用番号配列:LOCAL), 16%:{ABL:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL)}   "
+		LOCAL:2 += 1
+		IF LOCAL == 5
+			LOCALS += "他<br>"
+		ELSEIF LOCAL:2 == 3
+			LOCALS += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+	NEXT
+	LOCALS += "<br>"
+	LOCALS += "□ 経験 □---------------------------------------------------------------<br>"
+	LOCAL:1 = 0
+	LOCAL:2 = 0
+	VARSET 降順ソート用配列
+	VARSET 降順ソート用番号配列
+	FOR LOCAL, 0, 95
+		SIF LOCAL == 89
+			CONTINUE
+		IF EXP:(従業員一覧:選択従業員番号):LOCAL > 0
+			降順ソート用配列:(LOCAL:1) = EXP:(従業員一覧:選択従業員番号):LOCAL
+			降順ソート用番号配列:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	ARRAYMSORTEX 降順ソート用配列, Arrays, 0
+	
+	FOR LOCAL, 0, 6
+		IF 降順ソート用配列:LOCAL < 1
+			SIF LOCAL:2
+				LOCALS += "<br>"
+			BREAK
+		ENDIF
+		LOCALS += @"%EXPNAME:(降順ソート用番号配列:LOCAL), 16%:{EXP:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL)}   "
+		LOCAL:2 += 1
+		IF LOCAL == 5
+			LOCALS += "他<br>"
+		ELSEIF LOCAL:2 == 3
+			LOCALS += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+	NEXT
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "[1000]このキャラを解雇する"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 1 TO 49
+		選択従業員番号 = LOCAL
+		RESTART
+	CASE 999
+		選択従業員番号 = 0
+		RETURN 0
+	CASE 1000
+		選択従業員番号 = 0
+		RETURN 0
+ENDSELECT
+
