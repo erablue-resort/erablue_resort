@@ -137,7 +137,7 @@ IF 選択従業員番号 > 0
 				LOCALS += "<br>"
 			BREAK
 		ENDIF
-		LOCALS += @"%ABLNAME:(降順ソート用番号配列:LOCAL), 16%:{ABL:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL)}   "
+		LOCALS += @"%ABLNAME:(降順ソート用番号配列:LOCAL), 16%:{ABL:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL), 2}   "
 		LOCAL:2 += 1
 		IF LOCAL == 5
 			LOCALS += "他<br>"
@@ -169,7 +169,7 @@ IF 選択従業員番号 > 0
 				LOCALS += "<br>"
 			BREAK
 		ENDIF
-		LOCALS += @"%EXPNAME:(降順ソート用番号配列:LOCAL), 16%:{EXP:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL)}   "
+		LOCALS += @"%EXPNAME:(降順ソート用番号配列:LOCAL), 16%:{EXP:(従業員一覧:選択従業員番号):(降順ソート用番号配列:LOCAL), 3}   "
 		LOCAL:2 += 1
 		IF LOCAL == 5
 			LOCALS += "他<br>"
@@ -178,10 +178,10 @@ IF 選択従業員番号 > 0
 			LOCAL:2 = 0
 		ENDIF
 	NEXT
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='1000'>[1000]このキャラを解雇する</button>"
 ENDIF
-LOCALS += "<br>"
-LOCALS += "<br>"
-LOCALS += "[1000]このキャラを解雇する"
 LOCALS += "</div>"
 
 HTML_PRINT LOCALS
@@ -200,7 +200,75 @@ SELECTCASE LOCAL
 		選択従業員番号 = 0
 		RETURN 0
 	CASE 1000
-		選択従業員番号 = 0
-		RETURN 0
+		PRINTL
+		PRINTFORML 本当に%NAME:(従業員一覧:選択従業員番号)%を解雇しますか？
+		PRINTBUTTON "[0]はい", 0
+		PRINTL
+		PRINTBUTTON "[1]いいえ", 1
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				CALL 解雇実処理(従業員一覧:選択従業員番号)
+				選択従業員番号 = 0
+				RETURN 0
+			CASE 1
+				RESTART
+		ENDSELECT
 ENDSELECT
 
+
+@解雇実処理(キャラ番号)
+#DIM キャラ番号
+#DIM ループ用
+#DIM 要素最大値
+#DIM 計算後レベル
+
+IF TALENT:キャラ番号:従業員 == 0
+	PRINTFORMW %CALLNAME:キャラ番号%は従業員ではありません。
+	RETURN -1
+ENDIF
+
+; IF なんか解雇不可の条件があったら後からここに付け足す
+; 	PRINTFORMW %CALLNAME:キャラ番号%は解雇できません。
+; 	RETURN 0
+; ENDIF
+
+PRINTFORMW %NAME:キャラ番号%を解雇しました。
+
+TALENT:キャラ番号:従業員 = 0
+;残り１日にすることで、起床時に滞在を終えて帰っていく
+CFLAG:キャラ番号:滞在期間 = 1
+IF STRFIND(NAME:キャラ番号, "[従業員]") > -1
+	NAME:キャラ番号 = [一般人]%CALLNAME:キャラ番号%
+ENDIF
+FOR LOCAL, 0, 従業員キャラ上限
+	IF 従業員部屋割り配列:LOCAL == キャラ番号
+		従業員部屋割り配列:LOCAL = 0
+		BREAK
+	ENDIF
+NEXT
+現在仕事:キャラ番号:0 = 0
+現在制服:キャラ番号:0 = 0
+CFLAG:キャラ番号:招待不可フラグ = 0
+
+;信頼度低下10000
+CFLAG:キャラ番号:信頼度 = MAX(CFLAG:キャラ番号:信頼度 - 10000, 0)
+PRINTFORML %CALLNAME:キャラ番号%の信頼度がダウンしました…
+;好感度レベルの再計算
+
+要素最大値 = MAX(CFLAG:キャラ番号:友情度, CFLAG:キャラ番号:信頼度, CFLAG:キャラ番号:恋心度, CFLAG:キャラ番号:性愛度, CFLAG:キャラ番号:キャラ固有好感度)
+FOR ループ用, 0, 100
+	IF 経験値テーブル:ループ用 >= 要素最大値
+		BREAK
+	ENDIF
+NEXT
+計算後レベル = ループ用
+
+IF CFLAG:キャラ番号:好感度レベル > 計算後レベル
+	PRINTFORML %CALLNAME:キャラ番号%の好感度レベルが{CFLAG:キャラ番号:好感度レベル - 計算後レベル}ダウンしました…
+	CFLAG:キャラ番号:好感度レベル = 計算後レベル
+ENDIF
+
+WAIT
+RETURN 1

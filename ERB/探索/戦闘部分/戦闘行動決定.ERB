@@ -5,15 +5,12 @@ VARSET LOCALS
 CALL 画面再描画
 CALL 口上変数初期化
 
-;とりあえずテストで通常攻撃のみ
 エネミー画像ボタン化フラグ = 0
 キャラ画像ボタン化フラグ = 0
-; 表示顔グラ対象番号_下 = BATTLE_STATE:戦闘行動キャラ:キャラ番号
-; KSTR:(K++) = 行動手番：%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%
-; KSTR:(K++) = ------------------------------------------------------------------------------------------
+
 IF BATTLE_STATE:戦闘行動キャラ:奥義ゲージ >= 100
 	CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-	KSTR:(K++) = <button value = '100'>[100] 奥義：%TSTR:コマンド名受渡%</button>
+	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>　　　<button value = '101'>[101] 奥義：%TSTR:コマンド名受渡%</button>
 ELSE
 	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>
 ENDIF
@@ -114,8 +111,8 @@ SELECTCASE 戦闘行動内容
 		INVERTBIT アビ使用確認スキップフラグ, 0
 		CALL 画面再描画
 		RESTART
-	CASE 100
-		;通常攻撃
+	CASE 100 TO 101
+		;通常攻撃or奥義
 		;対象選択
 		上メニュー操作許可フラグ = 0
 		エネミー画像ボタン化フラグ = 1
@@ -161,65 +158,68 @@ CALL 口上変数初期化
 SELECTCASE 戦闘行動内容
 	CASE 100
 		;通常攻撃
-		;奥義ゲージが溜まっていたら奥義に派生
-		IF BATTLE_STATE:戦闘行動キャラ:奥義ゲージ >= 100
-			戦闘行動内容 = 101
-			TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
-			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
-			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義発動！
-			CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-			WSTR:(K++) = %TSTR:コマンド名受渡%！
-			;ダメージ計算
-			CALL かばうチェック_敵()
-			IF アビ汎用変数:かばうフラグ
-				WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
-			ENDIF
-			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
-			CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-			CALL ダメージ計算処理(RESULT)
-			WSTR:(K++) = {RESULT}のダメージ！
-			敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
-			CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		;攻撃回数決定
+		LOCAL = RAND:100
+		NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の攻撃！　
+		LOCAL:2 = バフ・デバフ測定(戦闘行動キャラ, "DA率")
+		LOCAL:3 = バフ・デバフ測定(戦闘行動キャラ, "TA率")
+		LOCAL:4 = バフ・デバフ測定(戦闘行動キャラ, "連続攻撃率")
+		LOCAL:5 = バフ・デバフ測定(戦闘行動キャラ, "ゲージ上昇効率")
+		IF LOCAL:3 + LOCAL:4 > LOCAL
+			LOCAL = 3
+			WSTR:(K++) = トリプルアタック！
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 10 * (LOCAL:5) / 100
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 12 * (LOCAL:5) / 100
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 15 * (LOCAL:5) / 100
 		ELSE
-			;攻撃回数決定
 			LOCAL = RAND:100
-			NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の攻撃！　
-			LOCAL:2 = バフ・デバフ測定(戦闘行動キャラ, "DA率")
-			LOCAL:3 = バフ・デバフ測定(戦闘行動キャラ, "TA率")
-			LOCAL:4 = バフ・デバフ測定(戦闘行動キャラ, "連続攻撃率")
-			LOCAL:5 = バフ・デバフ測定(戦闘行動キャラ, "ゲージ上昇効率")
-			IF LOCAL:3 + LOCAL:4 > LOCAL
-				LOCAL = 3
-				WSTR:(K++) = トリプルアタック！
+			IF LOCAL:2 + LOCAL:4 > LOCAL
+				LOCAL = 2
+				WSTR:(K++) = ダブルアタック！
 				BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 10 * (LOCAL:5) / 100
 				BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 12 * (LOCAL:5) / 100
-				BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 15 * (LOCAL:5) / 100
 			ELSE
-				LOCAL = RAND:100
-				IF LOCAL:2 + LOCAL:4 > LOCAL
-					LOCAL = 2
-					WSTR:(K++) = ダブルアタック！
-					BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 10 * (LOCAL:5) / 100
-					BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 12 * (LOCAL:5) / 100
-				ELSE
-					LOCAL = 1
-					WSTR:(K++) = 　
-					BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 10 * (LOCAL:5) / 100
-				ENDIF
+				LOCAL = 1
+				WSTR:(K++) = 　
+				BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 10 * (LOCAL:5) / 100
 			ENDIF
-			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = MIN(BATTLE_STATE:戦闘行動キャラ:奥義ゲージ, BATTLE_STATE:戦闘行動キャラ:ゲージ最大値)
-			;ダメージ計算
-			CALL かばうチェック_敵()
-			IF アビ汎用変数:かばうフラグ
-				WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
-			ENDIF
-			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
-			FOR LOCAL:1, 0, LOCAL
-				CALL ダメージ計算処理(100)
-				NSTR:(K++) = {RESULT}のダメージ！　
-				敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
-			NEXT
 		ENDIF
+		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = MIN(BATTLE_STATE:戦闘行動キャラ:奥義ゲージ, BATTLE_STATE:戦闘行動キャラ:ゲージ最大値)
+		;ダメージ計算
+		CALL かばうチェック_敵()
+		IF アビ汎用変数:かばうフラグ
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
+		ENDIF
+		NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
+		FOR LOCAL:1, 0, LOCAL
+			CALL ダメージ計算処理(100)
+			NSTR:(K++) = {RESULT}のダメージ！　
+			敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
+		NEXT
+		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
+			KSTR:(K++) = 　
+			CALL 戦闘不能時処理(戦闘行動対象)
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+		ENDIF
+	CASE 101
+		;奥義
+		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
+		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
+		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義発動！
+		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		WSTR:(K++) = %TSTR:コマンド名受渡%！
+		;ダメージ計算
+		CALL かばうチェック_敵()
+		IF アビ汎用変数:かばうフラグ
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
+		ENDIF
+		NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
+		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALL ダメージ計算処理(RESULT)
+		WSTR:(K++) = {RESULT}のダメージ！
+		敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
+		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+
 		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
 			KSTR:(K++) = 　
 			CALL 戦闘不能時処理(戦闘行動対象)
