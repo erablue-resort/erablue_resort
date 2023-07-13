@@ -240,6 +240,7 @@ RETURNF TIME + DAY * 1440 - ARG
 
 @CHARA_SLEEP, ARG
 #DIM 睡眠場所
+#DIM 部屋割
 VARSET LOCAL
 
 ;現在、キャラごとの個室がないのでまるごとオミット、寝る時にどっか行くだけ
@@ -268,8 +269,47 @@ VARSET LOCAL
 IF !CFLAG:ARG:睡眠
 	TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝場所")
 	睡眠場所 = RESULT
+
+
 	IF CFLAG:ARG:酔いすぎ == 1
-		;泥酔時は基本そのままｓ
+		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+			;あなたがいる場合は部屋へと運ぶ
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 999
+			PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+		ENDIF
+	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
+		IF 睡眠場所 == 303
+			PRINTFORMW %CALLNAME:ARG%はメインテントで眠るようだ。
+		ELSE
+			IF TALENT:ARG:従業員
+				;従業員は従業員エリアの個室に設定する
+				FOR LOCAL, 0, 20
+					IF 従業員部屋割り配列:LOCAL == ARG
+						部屋割 = LOCAL + 1000
+					ENDIF
+				NEXT
+			ELSE
+				;指定なしの場合、場所を宿泊エリアの個室に設定する
+				FOR LOCAL, 0, 100
+					IF 滞在者部屋割り配列:LOCAL == ARG
+						部屋割 = LOCAL
+					ENDIF
+				NEXT
+			ENDIF
+			IF CFLAG:MASTER:現在位置 == 部屋割 && CFLAG:MASTER:現在マップ種別 == 999
+				PRINTFORMW %CALLNAME:ARG%はこのまま部屋で眠るようだ。
+			ELSE
+				PRINTFORMW %CALLNAME:ARG%は部屋に戻って眠るようだ。
+			ENDIF
+		ENDIF
+		;おやすみ口上
+		SIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+			CALL KOJO_EVENT(7, ARG, LOCAL)
+	ENDIF
+	
+	IF CFLAG:ARG:酔いすぎ == 1
+		;泥酔時は基本そのまま
 	ELSEIF TALENT:ARG:従業員
 		;従業員は従業員エリアの個室に設定する
 		FOR LOCAL, 0, 20
@@ -291,23 +331,18 @@ IF !CFLAG:ARG:睡眠
 		NEXT
 	ENDIF
 
-	IF CFLAG:ARG:酔いすぎ == 1
-		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-			;あなたがいる場合は部屋へと運ぶ
-			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
-			CFLAG:ARG:現在マップ種別 = 999
-			PRINTFORML %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+	IF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
+		;もし同じ部屋にあなたがいるなら追い出される
+		IF 陥落チェック(ARG) == 0
+			PRINTFORMW %CALLNAME:MASTER%は追い出されてしまった……
+			IF CFLAG:MASTER:現在マップ種別 == 999
+				CALL 宿泊エリア処理
+			ELSEIF CFLAG:ARG:現在位置 == 303
+				CFLAG:ARG:現在位置 = 307
+			ENDIF
 		ENDIF
-	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-		IF 睡眠場所 == 303
-			PRINTFORML %CALLNAME:ARG%はメインテントで眠るようだ。
-		ELSE
-			PRINTFORML %CALLNAME:ARG%は部屋に戻って眠るようだ。
-		ENDIF
-		;おやすみ口上
-		SIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-			CALL KOJO_EVENT(7, ARG, LOCAL)
 	ENDIF
+
 	;服をリセット
 	CALL CLOTHES_RESET(ARG)
 	;宿泊エリアの場合は部屋着に着替える
