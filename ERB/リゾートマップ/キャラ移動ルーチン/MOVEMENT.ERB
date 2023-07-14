@@ -269,7 +269,9 @@ VARSET LOCAL
 IF !CFLAG:ARG:睡眠
 	TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝場所")
 	睡眠場所 = RESULT
-
+	CFLAG:ARG:同行 = 0
+	CFLAG:ARG:睡眠 = 1
+	CFLAG:ARG:うふふ = 0
 
 	IF CFLAG:ARG:酔いすぎ == 1
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
@@ -280,7 +282,13 @@ IF !CFLAG:ARG:睡眠
 		ENDIF
 	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
 		IF 睡眠場所 == 303
-			PRINTFORMW %CALLNAME:ARG%はメインテントで眠るようだ。
+			IF CFLAG:MASTER:現在位置 == 303 && CFLAG:MASTER:現在マップ種別 == 0
+				PRINTFORMW %CALLNAME:ARG%はこのままメインテントで眠るようだ。
+				TRYCALLFORM KOJO_EVENT_この場おやすみ_{NO:ARG}
+			ELSE
+				PRINTFORMW %CALLNAME:ARG%はメインテントで眠るようだ。
+				TRYCALLFORM KOJO_EVENT_移動おやすみ_{NO:ARG}
+			ENDIF
 		ELSE
 			IF TALENT:ARG:従業員
 				;従業員は従業員エリアの個室に設定する
@@ -299,13 +307,12 @@ IF !CFLAG:ARG:睡眠
 			ENDIF
 			IF CFLAG:MASTER:現在位置 == 部屋割 && CFLAG:MASTER:現在マップ種別 == 999
 				PRINTFORMW %CALLNAME:ARG%はこのまま部屋で眠るようだ。
+				TRYCALLFORM KOJO_EVENT_この場おやすみ_{NO:ARG}
 			ELSE
 				PRINTFORMW %CALLNAME:ARG%は部屋に戻って眠るようだ。
+				TRYCALLFORM KOJO_EVENT_移動おやすみ_{NO:ARG}
 			ENDIF
 		ENDIF
-		;おやすみ口上
-		SIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-			CALL KOJO_EVENT(7, ARG, LOCAL)
 	ENDIF
 	
 	IF CFLAG:ARG:酔いすぎ == 1
@@ -336,6 +343,8 @@ IF !CFLAG:ARG:睡眠
 		IF 陥落チェック(ARG) == 0
 			PRINTFORMW %CALLNAME:MASTER%は追い出されてしまった……
 			IF CFLAG:MASTER:現在マップ種別 == 999
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:MASTER:現在位置 = 20
 				CALL 宿泊エリア処理
 			ELSEIF CFLAG:ARG:現在位置 == 303
 				CFLAG:ARG:現在位置 = 307
@@ -361,6 +370,7 @@ CFLAG:ARG:睡眠 = 1
 CFLAG:ARG:うふふ = 0
 
 
+
 ;SIF LOCAL == 3
 ;	CFLAG:MASTER:現在位置 = CFLAG:ARG:311
 ;施錠
@@ -368,16 +378,13 @@ CFLAG:ARG:うふふ = 0
 
 @CHARA_AWAKE, ARG
 
-;現在、キャラごとの個室がないのでまるごとオミット。起きたらどっかに出現するだけ
 
-;IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置
-;	SIF ARG > 0
-;	PRINTFORMW %CALLNAME:ARG%が目を覚ました
-;	;おはよう口上
-;	CALL KOJO_EVENT(6, ARG)
-;ENDIF
-;施錠
-;FLAG:(300 + CFLAG:ARG:現在位置) = 0
+IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置
+	SIF ARG > 0
+	PRINTFORMW %CALLNAME:ARG%が目を覚ました
+	;おはよう口上
+	TRYCALLFORM KOJO_EVENT_おはよう_{NO:ARG}
+ENDIF
 
 IF CFLAG:ARG:睡眠
 	CALL CHARA_MOVEMENT_ACTIVETIME(ARG)
