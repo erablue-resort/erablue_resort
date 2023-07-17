@@ -17,24 +17,36 @@ VARSET ソート基準値
 VARSET LOCALS
 ;フィルタ処理・絞り込み処理
 FOR LOCAL, 1, CHARANUM
+	CALL 装備再計算処理(LOCAL)
 	SIF 滞在者のみフィルタ == 1 && CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:0, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
+	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:1, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%")
+	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%")
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:2, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
+	SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
+		CONTINUE
+	IF 装備ステータス補正保存:LOCAL:装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性") != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性")%")
+			CONTINUE
+	ELSE
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
+			CONTINUE
+	ENDIF
+	SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:LOCAL:得意武器)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
 		CONTINUE
 	;発情期はちょっと面倒だけどオール手打ち
-	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:4, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:4, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
 		CONTINUE
 	;条件を満たす場合はLOCAL:3に１以上が入る
 	LOCAL:3 = 1
@@ -88,6 +100,11 @@ IF キャラ一覧ソート:0 != ""
 			ソート基準値:LOCAL = ((ABL:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
 		NEXT
 		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
 	ENDIF
 ENDIF
 
@@ -111,6 +128,8 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 			LOCALS += "</font>"
 	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
 		LOCALS += @"%キャラ一覧ソート:0, 8%：{ABL:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
+	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+		LOCALS += @"%キャラ一覧ソート:0, 8%：{基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
 	ELSE
 		LOCALS += "　　　　　　　　"
 	ENDIF
@@ -184,7 +203,7 @@ ELSE
 	PRINT なし
 ENDIF
 PRINTL
-PRINTBUTTON "[1000]戻る", 1000
+PRINTBUTTONLC "[1000]戻る", 1000
 PRINTL
 
 $INPUT_LOOP
@@ -258,115 +277,183 @@ GOTO 最初から
 
 
 @SHOW_CHARADATA_FILTA
+#DIMS 表示フィルタ種類
+
 DRAWLINE
 PRINTL キャラクターの表示に以下の条件でフィルタを掛けます。
 PRINTL 暗い色で表示されている条件が非表示設定になっています。
 DRAWLINE
-PRINTL ■ 種族
-FOR LOCAL, 1, 7
-	SIF STRCOUNT(キャラ一覧フィルタ:0, GET_TALENTNAME(200, LOCAL))
-		SETCOLOR 0x666666
-	PRINTBUTTON @"[%GET_TALENTNAME(200, LOCAL)%]", @"種族：%GET_TALENTNAME(200, LOCAL)%"
-	RESETCOLOR
-	IF LOCAL == 6
-		PRINT 　　　　　
-		PRINTBUTTON "[全て表示]", "種族：全て表示"
-		PRINT /
-		PRINTBUTTON "[全て非表示]", "種族：全て非表示"
-		PRINTL
-	ELSE
-		PRINT  / 
-	ENDIF
-NEXT
-DRAWLINE
-PRINTL ■ バストサイズ
-FOR LOCAL, -2, 4
-	SIF STRCOUNT(キャラ一覧フィルタ:1, GET_TALENTNAME(205, LOCAL))
-		SETCOLOR 0x666666
-	PRINTBUTTON @"[%GET_TALENTNAME(205, LOCAL)%]", @"バストサイズ：%GET_TALENTNAME(205, LOCAL)%"
-	RESETCOLOR
-	IF LOCAL == 3
-		PRINT 　　　　　
-		PRINTBUTTON "[全て表示]", "バストサイズ：全て表示"
-		PRINT /
-		PRINTBUTTON "[全て非表示]", "バストサイズ：全て非表示"
-		PRINTL
-	ELSE
-		PRINT  / 
-	ENDIF
-NEXT
-DRAWLINE
-PRINTL ■ 性知識Lv
-FOR LOCAL, -2, 4
-	SIF STRCOUNT(キャラ一覧フィルタ:2, 性知識段階表示(LOCAL, 0))
-		SETCOLOR 0x666666
-	PRINTBUTTON @"[%性知識段階表示(LOCAL, 0)%]", @"性知識Lv：%性知識段階表示(LOCAL, 0)%"
-	RESETCOLOR
-	IF LOCAL == 0
-		PRINT  / 
-		SIF STRCOUNT(キャラ一覧フィルタ:2, 性知識段階表示(0, 3))
+
+IF 表示フィルタ種類 == ""
+	PRINTL ■ 種族
+	FOR LOCAL, 1, 7
+		SIF STRCOUNT(キャラ一覧フィルタ:種族, GET_TALENTNAME(200, LOCAL))
 			SETCOLOR 0x666666
-		PRINTBUTTON @"[%性知識段階表示(0, 3)%]", @"性知識Lv：%性知識段階表示(0, 3)%"
+		PRINTBUTTON @"[%GET_TALENTNAME(200, LOCAL)%]", @"種族：%GET_TALENTNAME(200, LOCAL)%"
 		RESETCOLOR
-	ENDIF
-	IF LOCAL == 3
-		PRINT 　　　　　
-		PRINTBUTTON "[全て表示]", "性知識Lv：全て表示"
-		PRINT /
-		PRINTBUTTON "[全て非表示]", "性知識Lv：全て非表示"
-		PRINTL
-	ELSE
-		PRINT  / 
-	ENDIF
-NEXT
-DRAWLINE
-PRINTL ■ 発情期
-SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期なし")
-	SETCOLOR 0x666666
-PRINTBUTTON @"[発情期なし]", @"発情期フラグ：発情期なし"
-RESETCOLOR
-PRINT  / 
-SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情中")
-	SETCOLOR 0x666666
-PRINTBUTTON @"[発情中]", @"発情期フラグ：発情中"
-RESETCOLOR
-PRINT  / 
-SIF STRCOUNT(キャラ一覧フィルタ:3, @"発情期フラグ：発情期ではない")
-	SETCOLOR 0x666666
-PRINTBUTTON @"[発情期ではない]", @"発情期フラグ：発情期ではない"
-RESETCOLOR
-PRINT 　　　　　
-PRINTBUTTON "[全て表示]", "発情期フラグ：全て表示"
-PRINT /
-PRINTBUTTON "[全て非表示]", "発情期フラグ：全て非表示"
-PRINTL
-DRAWLINE
-PRINTL ■ 妊娠
+		IF LOCAL == 6
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "種族：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "種族：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ バストサイズ
+	FOR LOCAL, -2, 4
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, GET_TALENTNAME(205, LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%GET_TALENTNAME(205, LOCAL)%]", @"バストサイズ：%GET_TALENTNAME(205, LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 3
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "バストサイズ：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "バストサイズ：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 性知識Lv
+	FOR LOCAL, -2, 4
+		SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, 性知識段階表示(LOCAL, 0))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%性知識段階表示(LOCAL, 0)%]", @"性知識Lv：%性知識段階表示(LOCAL, 0)%"
+		RESETCOLOR
+		IF LOCAL == 0
+			PRINT  / 
+			SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, 性知識段階表示(0, 3))
+				SETCOLOR 0x666666
+			PRINTBUTTON @"[%性知識段階表示(0, 3)%]", @"性知識Lv：%性知識段階表示(0, 3)%"
+			RESETCOLOR
+		ENDIF
+		IF LOCAL == 3
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "性知識Lv：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "性知識Lv：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 発情期
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情期なし]", @"発情期フラグ：発情期なし"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情中]", @"発情期フラグ：発情中"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情期ではない]", @"発情期フラグ：発情期ではない"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "発情期フラグ：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "発情期フラグ：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 妊娠
 
-SIF STRCOUNT(キャラ一覧フィルタ:4, @"妊娠フラグ：妊娠中")
-	SETCOLOR 0x666666
-PRINTBUTTON @"[妊娠中]", @"妊娠フラグ：妊娠中"
-RESETCOLOR
-PRINT  / 
-SIF STRCOUNT(キャラ一覧フィルタ:4, @"妊娠フラグ：妊娠していない")
-	SETCOLOR 0x666666
-PRINTBUTTON @"[妊娠していない]", @"妊娠フラグ：妊娠していない"
-RESETCOLOR
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[妊娠中]", @"妊娠フラグ：妊娠中"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[妊娠していない]", @"妊娠フラグ：妊娠していない"
+	RESETCOLOR
 
-PRINT 　　　　　
-PRINTBUTTON "[全て表示]", "妊娠フラグ：全て表示"
-PRINT /
-PRINTBUTTON "[全て非表示]", "妊娠フラグ：全て非表示"
-PRINTL
-DRAWLINE
-PRINTBUTTON "[999]戻る", 999
-PRINTL
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "妊娠フラグ：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "妊娠フラグ：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTBUTTONLC "[999]戻る", 999
+	PRINTBUTTONLC "[1000]戦闘系フィルタへ", 1000
+	PRINTL
+ELSEIF 表示フィルタ種類 == "戦闘系フィルタ"
+	PRINTL ■ 属性
+	FOR LOCAL, 0, 6
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, 属性数値文字列変換(LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%属性数値文字列変換(LOCAL)%]", @"属性：%属性数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 5
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "属性：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "属性：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 得意武器
+	FOR LOCAL, 0, 10
+		SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"：%得意武器数値文字列変換(LOCAL)%")
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%得意武器数値文字列変換(LOCAL)%]", @"得意武器：%得意武器数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 9
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "得意武器：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "得意武器：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ タイプ
+	FOR LOCAL, 0, 8
+		SIF STRCOUNT(キャラ一覧フィルタ:タイプ, タイプ数値文字列変換(LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%タイプ数値文字列変換(LOCAL)%]", @"タイプ：%タイプ数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 7
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "タイプ：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "タイプ：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTBUTTONLC "[999]戻る", 999
+	PRINTBUTTONLC "[1001]通常フィルタへ", 1001
+	PRINTL
+ENDIF
+
 $INPUT_LOOP_ANY
 RESULT = 0
 RESULTS = 
 INPUTANY
 IF RESULT == 999
 	RETURN 0
+ELSEIF RESULT == 1000
+	表示フィルタ種類 = 戦闘系フィルタ
+	RESTART
+ELSEIF RESULT == 1001
+	表示フィルタ種類 = 
+	RESTART
 ENDIF
 IF RESULTS != ""
 	LOCALS = %RESULTS%
@@ -380,6 +467,12 @@ IF RESULTS != ""
 		LOCAL = 3
 	ELSEIF STRCOUNT(LOCALS, "妊娠フラグ")
 		LOCAL = 4
+	ELSEIF STRCOUNT(LOCALS, "属性")
+		LOCAL = 10
+	ELSEIF STRCOUNT(LOCALS, "得意武器")
+		LOCAL = 11
+	ELSEIF STRCOUNT(LOCALS, "タイプ")
+		LOCAL = 12
 	ELSE
 		GOTO INPUT_LOOP_ANY
 	ENDIF
@@ -388,15 +481,21 @@ IF RESULTS != ""
 	ELSEIF STRCOUNT(LOCALS, "全て非表示")
 		SELECTCASE LOCAL
 			CASE 0
-				キャラ一覧フィルタ:0 = "種族：ヒューマン_種族：エルーン_種族：ドラフ_種族：ハーヴィン_種族：星晶獣_種族：その他_"
+				キャラ一覧フィルタ:種族 = "種族：ヒューマン_種族：エルーン_種族：ドラフ_種族：ハーヴィン_種族：星晶獣_種族：その他_"
 			CASE 1
-				キャラ一覧フィルタ:1 = "バストサイズ：絶壁（AAA～AA）_バストサイズ：貧乳（A～B）_バストサイズ：並乳（C～D）_バストサイズ：巨乳（E～F）_バストサイズ：爆乳（G～I）_バストサイズ：魔乳（J↑）_"
+				キャラ一覧フィルタ:バストサイズ = "バストサイズ：絶壁（AAA～AA）_バストサイズ：貧乳（A～B）_バストサイズ：並乳（C～D）_バストサイズ：巨乳（E～F）_バストサイズ：爆乳（G～I）_バストサイズ：魔乳（J↑）_"
 			CASE 2
-				キャラ一覧フィルタ:2 = "性知識Lv：無知_性知識Lv：獣並み_性知識Lv：疎い_性知識Lv：耳年増_性知識Lv：必要十分_性知識Lv：有識者_性知識Lv：百戦錬磨_"
+				キャラ一覧フィルタ:性知識Lv = "性知識Lv：無知_性知識Lv：獣並み_性知識Lv：疎い_性知識Lv：耳年増_性知識Lv：必要十分_性知識Lv：有識者_性知識Lv：百戦錬磨_"
 			CASE 3
-				キャラ一覧フィルタ:3 = "発情期フラグ：発情期なし_発情期フラグ：発情中_発情期フラグ：発情期ではない_"
+				キャラ一覧フィルタ:発情期 = "発情期フラグ：発情期なし_発情期フラグ：発情中_発情期フラグ：発情期ではない_"
 			CASE 4
-				キャラ一覧フィルタ:4 = "妊娠フラグ：妊娠中_妊娠フラグ：妊娠していない_"
+				キャラ一覧フィルタ:妊娠 = "妊娠フラグ：妊娠中_妊娠フラグ：妊娠していない_"
+			CASE 10
+				キャラ一覧フィルタ:属性 = "属性：火_属性：水_属性：風_属性：土_属性：光_属性：闇_"
+			CASE 11
+				キャラ一覧フィルタ:得意武器 = "得意武器：剣_得意武器：短剣_得意武器：斧_得意武器：槍_得意武器：弓_得意武器：銃_得意武器：楽器_得意武器：格闘_得意武器：刀_得意武器：杖_"
+			CASE 12
+				キャラ一覧フィルタ:タイプ = "タイプ：バランス_タイプ：攻撃_タイプ：防御_タイプ：回復_タイプ：サポート_タイプ：連撃_タイプ：回避_タイプ：奥義_"
 		ENDSELECT
 	ELSEIF STRCOUNT(キャラ一覧フィルタ:LOCAL, LOCALS)
 		REPLACE キャラ一覧フィルタ:LOCAL, @"%LOCALS%_", ""
@@ -446,6 +545,19 @@ PRINTBUTTONLC "[技巧]", "技巧"
 PRINTBUTTONLC "[道具扱い]", "道具扱い"
 PRINTL
 DRAWLINE
+PRINTBUTTONLC "[Lv]", "Lv"
+PRINTBUTTONLC "[最大ＨＰ]", "最大ＨＰ"
+PRINTBUTTONLC "[最大ＭＰ]", "最大ＭＰ"
+PRINTBUTTONLC "[攻撃力]", "攻撃力"
+PRINTBUTTONLC "[防御力]", "防御力"
+PRINTBUTTONLC "[回復力]", "回復力"
+PRINTBUTTONLC "[行動速度]", "行動速度"
+PRINTBUTTONLC "[DA率]", "DA率"
+PRINTBUTTONLC "[TA率]", "TA率"
+PRINTBUTTONLC "[命中率]", "命中率"
+PRINTBUTTONLC "[回避率]", "回避率"
+PRINTL
+DRAWLINE
 
 PRINTBUTTON "[999]戻る", 999
 PRINTL
@@ -460,7 +572,8 @@ LOCALS = %RESULTS%
 SELECTCASE LOCALS
 	CASE "なし"
 		キャラ一覧ソート:0 = 
-		キャラ一覧ソート:1 = 降順
+		キャラ一覧ソート:1 = 
+		RETURN 0
 	CASE "昇順"
 		IF STRCOUNT(キャラ一覧ソート:1, "降順")
 			キャラ一覧ソート:1 = 昇順
@@ -472,7 +585,7 @@ SELECTCASE LOCALS
 		ENDIF
 		RETURN 0
 	CASEELSE
-		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 
+		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 || GETNUM(装備ステータス補正保存, LOCALS) >= 0
 			キャラ一覧ソート:0 = %LOCALS%
 			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
 				キャラ一覧ソート:1 = 昇順

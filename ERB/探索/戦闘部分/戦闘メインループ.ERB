@@ -1,6 +1,7 @@
 ﻿
 @BATTLE_MAIN_LOOP
 #DIM 行動対象
+#DIM 探索口上キャラ番号
 
 ;戦闘メイン処理
 ダンジョン表示モード = 戦闘画面
@@ -13,6 +14,7 @@ SPRITEDISPOSEALL 0
 CALL 探索用顔グラフィック生成
 ;敵の登録
 CALL 戦闘初期処理_敵
+;敵味方のバフ・デバフデータベース作成
 
 CALL 口上変数初期化
 KSTR:(K++) = 　
@@ -36,7 +38,16 @@ IF 戦闘行動キャラ < 10
 	CALL 行動内容入力
 	IF RESULT == -2
 		;逃走時
-		VARSET 敵BATTLE_STATE:0:0
+		FOR LOCAL, 0, 4
+			IF BATTLE_STATE:LOCAL:キャラ番号 < 1
+				BREAK
+			ENDIF
+		NEXT
+		探索口上キャラ番号 = NO:(BATTLE_STATE:(RAND:LOCAL):キャラ番号)
+		TRYCALLFORM KOJO_DUNGEON_逃走時_{探索口上キャラ番号}()
+		KSTR:(K++) = 君たちは逃走した……
+		CALL メッセージ欄表示用関数()
+		CALL 戦闘終了時処理
 		RETURN -1
 	ENDIF
 	;行動対象に入ってる数値は10+した状態なので注意
@@ -73,20 +84,10 @@ FOR LOCAL, 0, 10
 NEXT
 
 IF !LOCAL:2
-	CALL 戦闘終了時処理
-	CALL 奥義ゲージリセット
-	VARSET 敵BATTLE_STATE:0:0
-	;画像リソースを全解放して顔グラ再生成
-	SPRITEDISPOSEALL 0
-	CALL 探索用顔グラフィック生成
+	CALL 戦闘勝利時処理
 	RETURN 0
 ELSEIF !LOCAL:1
 	CALL 全滅時処理
-	CALL 奥義ゲージリセット
-	VARSET 敵BATTLE_STATE:0:0
-	;画像リソースを全解放して顔グラ再生成
-	SPRITEDISPOSEALL 0
-	CALL 探索用顔グラフィック生成
 	RETURN 1
 ELSEIF LOCAL:3 == 0
 	;ターン数を増やして最初から行動
@@ -162,6 +163,8 @@ TSTR:メッセージ欄文字列受け渡し_上側 = <div rect='45px,10px,906px
 
 
 @行動順決定
+#DIM ループ用
+#DIM データベース行数
 ;全員の比較
 LOCAL:1 = 0
 
@@ -173,7 +176,7 @@ FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
 	LOCAL:2 = バフ・デバフ測定(LOCAL, "行動速度")
-	IF BATTLE_STATE:LOCAL:行動速度 + LOCAL:2 > LOCAL:1
+	IF LOCAL:2 > LOCAL:1
 		LOCAL:1 = BATTLE_STATE:LOCAL:行動速度
 		戦闘行動キャラ = LOCAL
 	ENDIF
@@ -187,12 +190,31 @@ FOR LOCAL, 0, 10
 	SIF 敵BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
 	LOCAL:2 = バフ・デバフ測定(LOCAL + 10, "行動速度")
-	IF 敵BATTLE_STATE:LOCAL:行動速度 + LOCAL:2 > LOCAL:1
+	IF LOCAL:2 > LOCAL:1
 		LOCAL:1 = 敵BATTLE_STATE:LOCAL:行動速度
 		戦闘行動キャラ = LOCAL + 10
 	ENDIF
 NEXT
 
+;行動回数持続の効果の回数を減少
+データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
+FOR ループ用, 0, データベース行数
+	LOCAL:10 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
+	IF LOCAL:10 == 1
+		DT_ROW_REMOVE @"バフデータベース_{戦闘行動キャラ}", ループ用
+	ELSEIF LOCAL:10 > 0
+		DT_CELL_SET @"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
+	ENDIF
+NEXT
+データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
+FOR ループ用, 0, データベース行数
+	LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
+	IF LOCAL:10 == 1
+		DT_ROW_REMOVE @"デバフデータベース_{戦闘行動キャラ}", ループ用
+	ELSEIF LOCAL:10 > 0
+		DT_CELL_SET @"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
+	ENDIF
+NEXT
 
 
 @奥義ゲージリセット
@@ -217,6 +239,7 @@ FOR LOCAL, 0, 4
 	IF 初期設定フラグ
 		BATTLE_STATE:LOCAL:ＨＰ = BATTLE_STATE:LOCAL:最大ＨＰ
 		BATTLE_STATE:LOCAL:ＭＰ = BATTLE_STATE:LOCAL:最大ＭＰ
+		BATTLE_STATE:LOCAL:奥義ゲージ = 0
 	ENDIF
 	BATTLE_STATE:LOCAL:攻撃力 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):攻撃力 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):攻撃力
 	BATTLE_STATE:LOCAL:防御力 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):防御力 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):防御力
@@ -235,7 +258,6 @@ FOR LOCAL, 0, 4
 	ENDIF
 	BATTLE_STATE:LOCAL:得意武器 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):得意武器
 	BATTLE_STATE:LOCAL:行動済みフラグ = 0
-	BATTLE_STATE:LOCAL:奥義ゲージ = 0
 
 	BATTLE_STATE:LOCAL:火耐性 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):火耐性 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):火耐性
 	BATTLE_STATE:LOCAL:水耐性 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):水耐性 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):水耐性
@@ -250,7 +272,11 @@ FOR LOCAL, 0, 4
 	BATTLE_STATE:LOCAL:光強化 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):光強化 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):光強化
 	BATTLE_STATE:LOCAL:闇強化 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):闇強化 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):闇強化
 
-
+	;衣装を探索時衣装に変更
+	CSTR:(BATTLE_STATE:LOCAL:キャラ番号):ダンジョン突入前の服 = %CSTR:(BATTLE_STATE:LOCAL:キャラ番号):着せ替え服%
+	IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):装備衣装番号
+		CALLFORM CLOTHES_CHANGE_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):装備衣装番号, "衣装名")%
+	ENDIF
 NEXT
 
 @戦闘初期処理_敵
@@ -269,6 +295,7 @@ FOR LOCAL, 0, 10
 NEXT
 
 @ターン開始時処理
+#DIM データベース行数
 
 現在ターン数 += 1
 アイテム使用済みフラグ = 0
@@ -296,14 +323,22 @@ FOR LOCAL, 0, 4
 		CONTINUE
 	SIF BATTLE_STATE:(LOCAL):ＨＰ < 1
 		CONTINUE
-	FOR LOCAL:1, 0, 50
-		戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中バフ:LOCAL:(LOCAL:1):効果量 = 0
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
-		戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中デバフ:LOCAL:(LOCAL:1):効果量 = 0
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
 	NEXT
 NEXT
@@ -313,14 +348,22 @@ FOR LOCAL, 10, 20
 		CONTINUE
 	SIF 敵BATTLE_STATE:(LOCAL - 10):ＨＰ < 1
 		CONTINUE
-	FOR LOCAL:1, 0, 50
-		戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中バフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中バフ:LOCAL:(LOCAL:1):効果量 = 0
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
-		戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 = MIN(戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 - 1, 0)
-		IF 戦闘中デバフ:LOCAL:(LOCAL:1):残りターン数 == 0
-			戦闘中デバフ:LOCAL:(LOCAL:1):効果量 = 0
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
+	FOR LOCAL:1, 0, データベース行数
+		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", LOCAL:1
+		ELSEIF LOCAL:10 > 1
+			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
 		ENDIF
 	NEXT
 	;チャージターンの増加

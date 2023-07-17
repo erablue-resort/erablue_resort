@@ -8,11 +8,14 @@
 #DIM 雑務ゲージ減少量
 #DIM 売上分ルピ
 #DIM 秘書担当キャラ保存, 50
+#DIM 人気度変動一時保存
+#DIM 最大レベル
 VARSET LOCAL
 VARSET 長期雇用者保存配列
 長期雇用者人数 = 0
 PRINTL 一日が終わりました
 探索フラグ = 0
+CALL 口上変数初期化
 SIF STRLENS(TSTR:1)
 	CALL SELL_VIDEO
 
@@ -76,6 +79,7 @@ NEXT
 VARSET LOCALS
 雑務ゲージ減少量 = 0
 売上分ルピ = 0
+最大レベル = 最大レベル算出()
 FOR LOCAL, 0, CHARANUM
 	IF (TALENT:LOCAL:従業員 || LOCAL == PLAYER) && 現在仕事:LOCAL:0 == 1
 		雑務ゲージ減少量 += (仕事レベル:LOCAL:1 + 1) * (仕事レベル:LOCAL:1 + 1) * 100
@@ -105,6 +109,30 @@ FOR LOCAL, 0, CHARANUM
 			LOCALS:3 += @"%CALLNAME:LOCAL%の秘書レベルがLv{仕事レベル:LOCAL:3}に上昇した！<br>"
 		ENDIF
 		LOCAL:1 += 1
+	ENDIF
+	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 4
+		SKIPDISP 1
+		CALL 人気上昇処理((仕事レベル:LOCAL:4 + 1) * (仕事レベル:LOCAL:4 + 1) * 1000)
+		SKIPDISP 0
+		人気度変動一時保存 = RESULT
+		;経験値取得とレベル上昇
+		仕事経験値:LOCAL:4 += 1
+		IF 仕事経験値:LOCAL:4 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:4 + 1)
+			仕事レベル:LOCAL:4 += 1
+			LOCALS:4 += @"%CALLNAME:LOCAL%の宣伝レベルがLv{仕事レベル:LOCAL:4}に上昇した！<br>"
+		ENDIF
+	ENDIF
+	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 5
+		IF 基礎BATTLE_STATE:LOCAL:Lv < 最大レベル
+			IF 基礎BATTLE_STATE:LOCAL:蓄積EXP >  戦闘経験値テーブル:(MAX(最大レベル - 2, 0))
+				;最大Lv到達EXPより現在のEXPが高いならスキップ
+				CONTINUE
+			ENDIF
+			LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(最大レベル - 2, 0)) / 10, 500)
+			;EXPは最大レベル到達EXPより上には行かない
+			基礎BATTLE_STATE:LOCAL:蓄積EXP = MIN(基礎BATTLE_STATE:LOCAL:蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(最大レベル - 2, 0)))
+			CALL レベルアップ処理(LOCAL)
+		ENDIF
 	ENDIF
 NEXT
 
@@ -142,10 +170,23 @@ IF 仕事人数表示用:秘書担当人数 > 0
 		NOWEX:(秘書担当キャラ保存:LOCAL):信頼度上昇格納 = 0
 	NEXT
 	WAIT
-	IF LOCALS:2 != ""
-		HTML_PRINT LOCALS:2
+	IF LOCALS:3 != ""
+		HTML_PRINT LOCALS:3
 		WAIT
 	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:宣伝担当人数 > 0
+	PRINTFORMW {仕事人数表示用:宣伝担当人数}名の従業員は、宣伝業務を通じてリゾートの人気度を{人気度変動一時保存}高めました。
+	IF LOCALS:4 != ""
+		HTML_PRINT LOCALS:4
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:訓練担当人数 > 0
+	PRINTFORMW {仕事人数表示用:訓練担当人数}名の従業員は、訓練業務を通じて経験値を得た。
+	CALL 口上変数表示(0, 0)
 	DRAWLINE
 ENDIF
 ;--------------------------------------------------------------------------------
@@ -194,6 +235,25 @@ IF 滞在キャラ数算出関数() > 0
 		NEXT
 		MONEY -= 長期雇用者人数 * 1000
 		DRAWLINE
+		IF 施設改造度:3:8 > 0
+			LOCAL = 最大レベル算出()
+			CALL 口上変数初期化
+			PRINTL 訓練室の効果により、長期雇用者の経験値が上昇した。
+			FOR ループ用, 0, 長期雇用者人数
+				IF 長期雇用者保存配列:ループ用 > 0 && 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):Lv < LOCAL
+					IF 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP >  戦闘経験値テーブル:(MAX(LOCAL - 2, 0))
+						;最大Lv到達EXPより現在のEXPが高いならスキップ
+						CONTINUE
+					ENDIF
+					LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(LOCAL - 2, 0)) / 10, 500)
+					;EXPは最大レベル到達EXPより上には行かない
+					基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP = MIN(基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(LOCAL - 2, 0)))
+					CALL レベルアップ処理(長期雇用者保存配列:ループ用)
+				ENDIF
+			NEXT
+			CALL 口上変数表示(長期雇用者保存配列:ループ用, 0)
+			DRAWLINE
+		ENDIF
 	ENDIF
 	IF 従業員人数 > 0
 		PRINTFORML {従業員人数}人の従業員により、以下のルピを消費した。
@@ -205,6 +265,128 @@ IF 滞在キャラ数算出関数() > 0
 		DRAWLINE
 	ENDIF
 ENDIF
+
+;--------------------------------------------------------------------------------
+;リゾート人気度変動
+;--------------------------------------------------------------------------------
+LOCALS:1 = 
+LOCALS:2 = <br>
+人気度変動一時保存 = 0
+IF モブ観光客数 > 0
+	LOCALS:1 +=  "■本日のリゾート人気度変動<br>"
+	IF 人気度別施設充足度() > 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が十分あって楽しい！」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 人気度別施設充足度() * 1000
+	ELSEIF 人気度別施設充足度() < 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が足りないよ……」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 人気度別施設充足度() * 500
+	ENDIF
+
+	VARSET LOCAL
+	;雑務ゲージ平均値算出
+	FOR LOCAL, 1, 2100
+		SIF LOCAL == 20
+			CONTINUE
+		IF 存在しない移動先(0, LOCAL) == 0
+			LOCAL:1 += 雑務ゲージ:LOCAL
+			LOCAL:2 += 1
+		ENDIF
+		SIF (LOCAL % 100) > 20
+			LOCAL += 79
+	NEXT
+	LOCAL:1 = LOCAL:1 / LOCAL:2
+	IF LOCAL:1 < 500
+		LOCALS:1 += "モブ観光客「雑務の対応が早くて快適だね」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 1000
+	ELSEIF LOCAL:1 < 2000
+	ELSEIF LOCAL:1 < 4000
+		LOCALS:1 += "モブ観光客「ちょっと雑務が溜まってるかな」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 1000
+	ELSEIF LOCAL:1 < 6000
+		LOCALS:1 += "モブ観光客「雑務が遅いのが気になるかも」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 3000
+	ELSEIF LOCAL:1 < 8000
+		LOCALS:1 += "モブ観光客「雑務、溜まりすぎじゃない？」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 5000
+	ELSE
+		LOCALS:1 += "モブ観光客「雑務が何も対応されてない！」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 10000
+	ENDIF
+	
+	VARSET LOCAL
+	;魔物襲撃が残ってるかどうか
+	LOCAL:1 = DT_ROW_LENGTH("各イベント用変数配列")
+	FOR LOCAL, 0, LOCAL:1
+		IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "魔物襲撃"
+			IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+				;出現しているかつクリアしてない
+				LOCALS:1 += "モブ観光客「魔物が出てきて危ないぞ！！」<br>"
+				LOCALS:2 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				;再発生中
+				LOCALS:1 += "モブ観光客「魔物が出てきて危ないぞ！！」<br>"
+				LOCALS:2 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ENDIF
+		ENDIF
+	NEXT
+
+	LOCALS = <div width='720px' height='{STRCOUNT(LOCALS:1, "<br>") * 18 + 70}px' border='5px' bcolor='#C0C0C0'></div><div rect='15px, 15px, 620px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:1%</div><div rect='600px, 15px, 90px, {STRCOUNT(LOCALS:1, "<br>") * 18}px'>%LOCALS:2%</div>
+	LOCALS += @"<div rect='15px, {STRCOUNT(LOCALS:1, "<br>") * 18 + 20}px, 720px, 40px'>--------------------------------------------------------------------------------------<br>"
+	SKIPDISP 1
+	CALL 人気上昇処理(人気度変動一時保存)
+	SKIPDISP 0
+	DEBUGPRINTFORML 雑務ゲージ平均：{LOCAL:1}
+	DEBUGPRINTFORML 人気度変動一時保存：{人気度変動一時保存}
+	LOCALS += @"リゾート人気度　　{リゾート人気度}.{(リゾート人気度小数点以下 % 1000) / 100}{(リゾート人気度小数点以下 % 100) / 10}{(リゾート人気度小数点以下 % 10)}"
+	CALL 人気度上限算出()
+	DEBUGPRINTFORML 人気度上限算出{RESULT}
+	IF リゾート人気度 >= RESULT / 1000
+		LOCALS += "　　　<font color='#C0C070'>上限到達</font>"
+	ENDIF
+	LOCALS += "</div>"
+	HTML_PRINT LOCALS, 1
+	FOR LOCAL, 0, STRCOUNT(LOCALS:1, "<br>") + 5
+		PRINTL
+	NEXT
+ENDIF
+
+;--------------------------------------------------------------------------------
+;突発イベント再発生CT減少＆再発生判定
+;--------------------------------------------------------------------------------
+
+
+ループ用 = DT_ROW_LENGTH("各イベント用変数配列")
+
+FOR LOCAL, 0, ループ用
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率")
+	IF LOCAL:1 > 0
+		;CTが残ってる場合は１減らす
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+	ELSEIF LOCAL:2 > 0
+		;クリア済みのものだけ再発生判定
+		IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") > 0
+			;再発生確率がある、かつ発生条件を整えている場合はRANDで再発生させる
+			TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			IF RESULT
+				LOCAL:10 = RAND:100
+				IF LOCAL:2 > LOCAL:10
+					DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
 
 
 ;変数初期化
@@ -219,4 +401,31 @@ WAIT
 BEGIN ABLUP
 
 
+@人気度別施設充足度()
+#FUNCTION
 
+SELECTCASE リゾートランク
+	CASE 0
+		;誰も知らないリゾート
+		;一個でも施設改造していればOK、してないなら不満小
+		IF 施設改造度:3:0 || 施設改造度:5:0 || 施設改造度:15:0
+			RETURNF 施設改造度:3:0 + 施設改造度:5:0 + 施設改造度:15:0 + 施設改造度:3:8 + 施設改造度:5:6
+		ELSE
+			RETURNF -1
+		ENDIF
+	CASE 1
+		;無名リゾート
+		;前段階の改造は全部必須
+		IF 施設改造度:3:0 && 施設改造度:5:0 && 施設改造度:15:0
+			IF 施設改造度:3:8 || 施設改造度:5:6
+				;追加施設の数に応じて＋補正
+				RETURNF 施設改造度:3:8 + 施設改造度:5:6
+			ELSE
+				RETURNF 0
+			ENDIF
+		ELSE
+			RETURNF -4 + 施設改造度:3:0 + 施設改造度:5:0 + 施設改造度:15:0
+		ENDIF
+ENDSELECT
+
+RETURNF 0

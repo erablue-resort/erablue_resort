@@ -34,10 +34,11 @@ LOCALS += "</div>"
 ;仕事の種類と現在そこに従事している人数を表示
 LOCALS += "<div rect='340px,25px,588px,450px'>"
 LOCALS += "仕事内容と従事人数一覧<br><br>"
-LOCALS += @"■%現在仕事数字文字列変換(0), 16, LEFT%：従事人数{仕事人数表示用:仕事無し人数,3}人<br>"
-LOCALS += @"■%現在仕事数字文字列変換(1), 16, LEFT%：従事人数{仕事人数表示用:雑務担当人数,3}人<br>"
-LOCALS += @"■%現在仕事数字文字列変換(2), 16, LEFT%：従事人数{仕事人数表示用:販売担当人数,3}人<br>"
-LOCALS += @"■%現在仕事数字文字列変換(3), 16, LEFT%：従事人数{仕事人数表示用:秘書担当人数,3}人<br>"
+FOR LOCAL, 0, 10
+	IF 現在仕事数字文字列変換(LOCAL) != ""
+		LOCALS += @"■%現在仕事数字文字列変換(LOCAL), 16, LEFT%：従事人数{仕事人数表示用:LOCAL,3}人<br>"
+	ENDIF
+NEXT
 LOCALS += "</div>"
 
 
@@ -74,12 +75,14 @@ PRINTL ※開発中のため、仕事が正しく挙動しないことがあり�
 DRAWLINE
 LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><div rect='328px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='25px,25px,310px,450px'>"
-LOCALS += "<button value='0'>[0] なし　　　　　に変更</button><br>"
-LOCALS += "<button value='1'>[1] 雑務　　　　　に変更</button><br>"
-LOCALS += "<button value='2'>[2] 販売　　　　　に変更</button><br>"
-IF ARG != PLAYER
-	LOCALS += "<button value='3'>[3] 秘書　　　　　に変更</button><br>"
-ENDIF
+FOR LOCAL, 0, 10
+	IF 現在仕事数字文字列変換(LOCAL) != ""
+		IF ARG == PLAYER && LOCAL == 3
+			CONTINUE
+		ENDIF
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%に変更</button><br>"
+	ENDIF
+NEXT
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
@@ -111,7 +114,7 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
 		RETURN 0
-	CASE 0 TO 3
+	CASE 0 TO 5
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
 			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
 			REUSELASTLINE 
@@ -148,6 +151,16 @@ SELECTCASE ARG
 			RETURNF @"%CALLNAME:PLAYER%の補佐を行う業務。<br>効果：一日の最後に、好感度要素：信頼度が<br>　　　［（仕事レベル＋１）＾２×２００］増加する。"
 		ENDIF
 		RETURNF "秘書"
+	CASE 4
+		IF ARG:1
+			RETURNF @"手紙や広告などでリゾートを宣伝する業務。<br>効果：一日の最後に、リゾートの人気度が<br>　　　［（仕事レベル＋１）＾２×１］増加する。"
+		ENDIF
+		RETURNF "宣伝"
+	CASE 5
+		IF ARG:1
+			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。"
+		ENDIF
+		RETURNF "訓練"
 ENDSELECT
 
 @仕事条件判定関数(キャラ番号, 仕事番号)

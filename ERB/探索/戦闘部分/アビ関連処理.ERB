@@ -4,7 +4,9 @@ TSTR:コマンド名受渡 =
 TRYCCALLFORM 固有アビ_{NO:ARG}("アビ名")
 CATCH
 	TRYCALLFORM 汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%("アビ名")
+	RETURN 0
 ENDCATCH
+RETURN 1
 
 @固有アビリティ効果呼び出し(ARG)
 TRYCCALLFORM 固有アビ_{NO:ARG}("アビ効果")
@@ -145,21 +147,29 @@ SELECTCASE ARGS
 		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
 		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のクイックアップ！
 		FOR LOCAL, 0, 4
-			SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
-				CONTINUE
-			IF 戦闘中バフ:LOCAL:行動速度A:効果量 <= 20
-				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の行動速度が２０％上昇！　
-				戦闘中バフ:LOCAL:行動速度A:効果量 = 20
-				戦闘中バフ:LOCAL:行動速度A:残りターン数 = 3
-			ELSE
-				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%には効果がなかった…
-			ENDIF
-			IF 戦闘中バフ:LOCAL:連続攻撃率A:効果量 <= 20
-				KSTR:(K++) = 連続攻撃率が１０％上昇！　
-				戦闘中バフ:LOCAL:連続攻撃率A:効果量 = 10
-				戦闘中バフ:LOCAL:連続攻撃率A:残りターン数 = 3
-			ELSE
-				KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%には効果がなかった…
+			IF BATTLE_STATE:LOCAL:0
+				CALL アビ汎用変数文字列リセット
+				アビ汎用変数:効果対象 = LOCAL
+				アビ汎用変数:効果割合 = 20
+				アビ汎用文字列:バフ・デバフ枠 = 行動速度A
+				アビ汎用文字列:バフ・デバフ対象能力 = 行動速度
+				アビ汎用変数:持続ターン = 3
+				CALL アビ汎用_バフセット("クイックアップ")
+				IF RESULT == 1
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の行動速度が20\%上がった！
+				ELSEIF RESULT == -1
+					KSTR:(K++) = しかし%CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に効果はなかった…
+				ENDIF
+				アビ汎用変数:効果量 = 10
+				アビ汎用変数:効果割合 = 0
+				アビ汎用文字列:バフ・デバフ枠 = 連続攻撃率A
+				アビ汎用文字列:バフ・デバフ対象能力 = 連続攻撃率
+				CALL アビ汎用_バフセット("クイックアップ")
+				IF RESULT == 1
+					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の連続攻撃率が10\%上がった！
+				ELSEIF RESULT == -1
+					KSTR:(K++) = しかし%CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に効果はなかった…
+				ENDIF
 			ENDIF
 		NEXT
 ENDSELECT
@@ -285,18 +295,23 @@ SELECTCASE ARGS
 		CALL 口上変数初期化
 		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 10
 		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のミゼラブルミスト！
-		IF 戦闘中デバフ:戦闘行動対象:攻撃力A:効果量 <= 10
-			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%の攻撃力が１０％減少！　
-			戦闘中デバフ:戦闘行動対象:攻撃力A:効果量 = 10
-			戦闘中デバフ:戦闘行動対象:攻撃力A:残りターン数 = 3
-		ELSE
-			NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%には効果がなかった…　
+		アビ汎用変数:効果対象 = 戦闘行動対象
+		アビ汎用変数:効果割合 = 10
+		アビ汎用文字列:バフ・デバフ枠 = 攻撃力A
+		アビ汎用文字列:バフ・デバフ対象能力 = 攻撃力
+		アビ汎用変数:持続ターン = 3
+		CALL アビ汎用_デバフセット("ミゼラブルミスト")
+		IF RESULT == 1
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%の攻撃力が１０％減少！　
+		ELSEIF RESULT == -1
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%には効果がなかった…　
 		ENDIF
-		IF 戦闘中デバフ:戦闘行動対象:防御力A:効果量 <= 10
-			KSTR:(K++) = 防御力が１０％減少！　
-			戦闘中デバフ:戦闘行動対象:防御力A:効果量 = 10
-			戦闘中デバフ:戦闘行動対象:防御力A:残りターン数 = 3
-		ELSE
+		アビ汎用文字列:バフ・デバフ枠 = 防御力A
+		アビ汎用文字列:バフ・デバフ対象能力 = 防御力
+		CALL アビ汎用_デバフセット("ミゼラブルミスト")
+		IF RESULT == 1
+			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%の防御力が１０％減少！
+		ELSEIF RESULT == -1
 			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%には効果がなかった…　
 		ENDIF
 ENDSELECT

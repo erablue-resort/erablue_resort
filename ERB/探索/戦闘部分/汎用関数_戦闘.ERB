@@ -1,4 +1,23 @@
-﻿@属性文字列数値変換(ARGS)
+﻿@キャラ隊列検索(ARG)
+#FUNCTION
+FOR LOCAL, 0, 4
+	IF BATTLE_STATE:LOCAL:キャラ番号 == ARG
+		RETURNF LOCAL
+	ENDIF
+NEXT
+RETURNF -1
+
+@最大レベル算出()
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	IF 基礎BATTLE_STATE:LOCAL:Lv > LOCAL:1
+		LOCAL:1 = 基礎BATTLE_STATE:LOCAL:Lv
+	ENDIF
+NEXT
+RETURNF LOCAL:1
+
+@属性文字列数値変換(ARGS)
 #FUNCTION
 
 SELECTCASE ARGS
@@ -86,6 +105,50 @@ SELECTCASE ARG
 		RETURNF "刀"
 ENDSELECT
 
+@タイプ数値文字列変換(ARG)
+#FUNCTIONS
+
+SELECTCASE ARG
+	CASE 0
+		RETURNF "バランス"
+	CASE 1
+		RETURNF "攻撃"
+	CASE 2
+		RETURNF "防御"
+	CASE 3
+		RETURNF "回復"
+	CASE 4
+		RETURNF "サポート"
+	CASE 5
+		RETURNF "連撃"
+	CASE 6
+		RETURNF "回避"
+	CASE 7
+		RETURNF "奥義"
+ENDSELECT
+
+@タイプ文字列数値変換(ARGS)
+#FUNCTION
+
+SELECTCASE ARGS
+	CASE "バランス"
+		RETURNF 0
+	CASE "攻撃"
+		RETURNF 1
+	CASE "防御"
+		RETURNF 2
+	CASE "回復"
+		RETURNF 3
+	CASE "サポート"
+		RETURNF 4
+	CASE "連撃"
+		RETURNF 5
+	CASE "回避"
+		RETURNF 6
+	CASE "奥義"
+		RETURNF 7
+ENDSELECT
+
 
 @属性有利不利(攻撃側, 防御側, ARGS)
 #FUNCTION
@@ -145,155 +208,132 @@ RETURNF 0
 
 
 
-@バフ・デバフ測定(ARG, バフ・デバフ種類)
+@バフ・デバフ測定(ARG, バフ・デバフ種類, 補正前数値)
+;--------------------------------------------------------------------
+;持続回数を減少する処理も入れ込んでいるので、実処理時以外は呼ばないこと
+;補正前数値を使うのは補正前の数値を取ることが出来ないダメージ増減時のみ
+;--------------------------------------------------------------------
 #FUNCTION
 #DIMS バフ・デバフ種類
+#DIM データベース行数
+#DIM バフ・デバフ補正後数値
+#DIM ループ用
+#DIM 補正前数値
 VARSET LOCAL
 
-SELECTCASE バフ・デバフ種類
-	CASE "攻撃力"
-		LOCAL += 戦闘中バフ:ARG:攻撃力A:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力B:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力C:効果量
-		LOCAL += 戦闘中バフ:ARG:攻撃力D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:攻撃力D:効果量
-		;攻撃力低下は半分まで
-		LOCAL = MAX(LOCAL, -50)
-		RETURNF LOCAL
-	CASE "防御力"
-		LOCAL += 戦闘中バフ:ARG:防御力A:効果量
-		LOCAL += 戦闘中バフ:ARG:防御力B:効果量
-		LOCAL += 戦闘中バフ:ARG:防御力C:効果量
-		LOCAL += 戦闘中バフ:ARG:防御力D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:防御力A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:防御力B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:防御力C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:防御力D:効果量
-		;防御力低下は半分まで
-		LOCAL = MAX(LOCAL, -50)
-		RETURNF LOCAL
-	CASE "回復力"
-		LOCAL += 戦闘中バフ:ARG:回復力A:効果量
-		LOCAL += 戦闘中バフ:ARG:回復力B:効果量
-		LOCAL += 戦闘中バフ:ARG:回復力C:効果量
-		LOCAL += 戦闘中バフ:ARG:回復力D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回復力A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回復力B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回復力C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回復力D:効果量
-		;回復力低下は半分まで
-		LOCAL = MAX(LOCAL, -50)
-		RETURNF LOCAL
-	CASE "行動速度"
-		LOCAL += 戦闘中バフ:ARG:行動速度A:効果量
-		LOCAL += 戦闘中バフ:ARG:行動速度B:効果量
-		LOCAL += 戦闘中バフ:ARG:行動速度C:効果量
-		LOCAL += 戦闘中バフ:ARG:行動速度D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:行動速度A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:行動速度B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:行動速度C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:行動速度D:効果量
-		RETURNF LOCAL
-	CASE "DA率"
-		LOCAL += 戦闘中バフ:ARG:DA率A:効果量
-		LOCAL += 戦闘中バフ:ARG:DA率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:DA率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:DA率B:効果量
-		RETURNF LOCAL
-	CASE "TA率"
-		LOCAL += 戦闘中バフ:ARG:TA率A:効果量
-		LOCAL += 戦闘中バフ:ARG:TA率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:TA率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:TA率B:効果量
-		RETURNF LOCAL
-	CASE "連続攻撃率"
-		LOCAL += 戦闘中バフ:ARG:連続攻撃率A:効果量
-		LOCAL += 戦闘中バフ:ARG:連続攻撃率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:連続攻撃率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:連続攻撃率B:効果量
-		RETURNF LOCAL
-	CASE "ゲージ上昇効率"
-		LOCAL += 戦闘中バフ:ARG:ゲージ上昇効率A:効果量
-		LOCAL += 戦闘中バフ:ARG:ゲージ上昇効率B:効果量
-		LOCAL += 戦闘中バフ:ARG:ゲージ上昇効率C:効果量
-		LOCAL += 戦闘中バフ:ARG:ゲージ上昇効率D:効果量
-		LOCAL -= 戦闘中デバフ:ARG:ゲージ上昇効率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:ゲージ上昇効率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:ゲージ上昇効率C:効果量
-		LOCAL -= 戦闘中デバフ:ARG:ゲージ上昇効率D:効果量
-		RETURNF LOCAL
-	CASE "命中率"
-		LOCAL += 戦闘中バフ:ARG:命中率A:効果量
-		LOCAL += 戦闘中バフ:ARG:命中率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:命中率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:命中率B:効果量
-		RETURNF LOCAL
-	CASE "回避率"
-		LOCAL += 戦闘中バフ:ARG:回避率A:効果量
-		LOCAL += 戦闘中バフ:ARG:回避率B:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回避率A:効果量
-		LOCAL -= 戦闘中デバフ:ARG:回避率B:効果量
-		RETURNF LOCAL
-	CASE "火耐性"
-		LOCAL += 戦闘中バフ:ARG:火耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:火耐性:効果量
-		RETURNF LOCAL
-	CASE "水耐性"
-		LOCAL += 戦闘中バフ:ARG:水耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:水耐性:効果量
-		RETURNF LOCAL
-	CASE "風耐性"
-		LOCAL += 戦闘中バフ:ARG:風耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:風耐性:効果量
-		RETURNF LOCAL
-	CASE "土耐性"
-		LOCAL += 戦闘中バフ:ARG:土耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:土耐性:効果量
-		RETURNF LOCAL
-	CASE "光耐性"
-		LOCAL += 戦闘中バフ:ARG:光耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:光耐性:効果量
-		RETURNF LOCAL
-	CASE "闇耐性"
-		LOCAL += 戦闘中バフ:ARG:闇耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:闇耐性:効果量
-		RETURNF LOCAL
-	CASE "全耐性"
-		LOCAL += 戦闘中バフ:ARG:全耐性:効果量
-		LOCAL -= 戦闘中デバフ:ARG:全耐性:効果量
-		RETURNF LOCAL
-	CASE "火強化"
-		LOCAL += 戦闘中バフ:ARG:火強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:火強化:効果量
-		RETURNF LOCAL
-	CASE "水強化"
-		LOCAL += 戦闘中バフ:ARG:水強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:水強化:効果量
-		RETURNF LOCAL
-	CASE "風強化"
-		LOCAL += 戦闘中バフ:ARG:風強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:風強化:効果量
-		RETURNF LOCAL
-	CASE "土強化"
-		LOCAL += 戦闘中バフ:ARG:土強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:土強化:効果量
-		RETURNF LOCAL
-	CASE "光強化"
-		LOCAL += 戦闘中バフ:ARG:光強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:光強化:効果量
-		RETURNF LOCAL
-	CASE "闇強化"
-		LOCAL += 戦闘中バフ:ARG:闇強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:闇強化:効果量
-		RETURNF LOCAL
-	CASE "全強化"
-		LOCAL += 戦闘中バフ:ARG:全強化:効果量
-		LOCAL -= 戦闘中デバフ:ARG:全強化:効果量
-		RETURNF LOCAL
-ENDSELECT
+IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == バフ・デバフ種類
+			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
+			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"バフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == バフ・デバフ種類
+			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
+			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"デバフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	IF ARG < 10
+		;味方側
+		バフ・デバフ補正後数値 = (BATTLE_STATE:ARG:バフ・デバフ種類 * (100 + LOCAL) / 100) + LOCAL:1
+		;最低でも通常数値の半分まで
+		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:ARG:バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
+	ELSE
+		;敵側
+		バフ・デバフ補正後数値 = (敵BATTLE_STATE:(ARG - 10):バフ・デバフ種類 * (100 + LOCAL) / 100) + LOCAL:1
+		;最低でも通常数値の半分まで
+		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:(ARG - 10):バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
+	ENDIF
+	RETURNF バフ・デバフ補正後数値
+ELSEIF バフ・デバフ種類 == "連続攻撃率"
+	;連撃率はステータスになく、かつDA率TA率と基本的に加算するので基本値を無視して補正値のみ
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "連続攻撃率"
+			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"バフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "連続攻撃率"
+			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"デバフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	;処理の関係上、割合を無視して固定値のみ
+	バフ・デバフ補正後数値 = LOCAL:1
+	RETURNF バフ・デバフ補正後数値
+ELSEIF バフ・デバフ種類 == "ダメージ増減"
+	;連撃率はステータスになく、かつDA率TA率と基本的に加算するので基本値を無視して補正値のみ
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "ダメージ増減"
+			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
+			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"バフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "ダメージ増減"
+			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
+			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"デバフデータベース_{ARG}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+		ENDIF
+	NEXT
+	;処理の関係上、割合を無視して固定値のみ
+	IF LOCAL > 99
+		;100%以上カットした時、固定値のダメージ増減も無効化される
+		LOCAL = 100
+		LOCAL:1 = 0
+	ENDIF
+	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) + LOCAL:1
+	RETURNF バフ・デバフ補正後数値
+ENDIF
+
+
 
 @雑魚敵遭遇汎用処理
 CALL BATTLE_MAIN_LOOP
@@ -319,3 +359,85 @@ ELSEIF RESULT == -1
 	RETURN -1
 ENDIF
 
+@かばうチェック_味方(ARGS)
+#DIM ループ用
+#DIM データベース行数
+アビ汎用変数:かばうフラグ = 0
+
+FOR LOCAL, 0, 4
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	;まず全体かばうチェック
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "全体かばう"
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"バフデータベース_{LOCAL}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+			戦闘行動対象 = LOCAL
+			アビ汎用変数:かばうフラグ = 1
+			RETURN 1
+		ENDIF
+	NEXT
+	IF ARGS != "全体かばう"
+		;単体かばうチェック
+		FOR ループ用, 0, データベース行数
+			IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "単体かばう"
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{LOCAL}", ループ用
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
+				戦闘行動対象 = LOCAL
+				アビ汎用変数:かばうフラグ = 1
+				RETURN 1
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+@かばうチェック_敵(ARGS)
+#DIM ループ用
+#DIM データベース行数
+アビ汎用変数:かばうフラグ = 0
+
+FOR LOCAL, 10, 20
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
+	;まず全体かばうチェック
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "全体かばう"
+			;回数持続の効果の回数を減少
+			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
+			IF LOCAL:10 == 1
+				DT_ROW_REMOVE @"バフデータベース_{LOCAL}", ループ用
+			ELSEIF LOCAL:10 > 0
+				DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
+			ENDIF
+			戦闘行動対象 = LOCAL
+			アビ汎用変数:効果対象 = 戦闘行動対象
+			アビ汎用変数:かばうフラグ = 1
+			RETURN 1
+		ENDIF
+	NEXT
+	IF ARGS != "全体かばう"
+		;単体かばうチェック
+		FOR ループ用, 0, データベース行数
+			IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "単体かばう"
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{LOCAL}", ループ用
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
+				戦闘行動対象 = LOCAL
+				アビ汎用変数:かばうフラグ = 1
+				RETURN 1
+			ENDIF
+		NEXT
+	ENDIF
+NEXT

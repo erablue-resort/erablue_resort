@@ -31,6 +31,10 @@ ENDIF
 #DIM キャラ番号
 #DIM ページ番号
 #DIMS 表示衣装種別
+IF 表示衣装種別 == ""
+	表示衣装種別 = 通常衣装
+ENDIF
+
 ;表示部分
 ;装備中衣装表示
 DRAWLINE
@@ -95,8 +99,13 @@ SELECTCASE LOCAL
 	CASE IS < 1000
 		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
 		LOCALS = %詳細文文字列受け渡し変数%<br>
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("追加アビ")
-		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+		LOCALS += @"・追加アビ<br>"
+		FOR LOCAL:10, 1, 10
+			詳細文文字列受け渡し変数 = 
+			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%(@"追加アビ_{LOCAL:10}")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		NEXT
+		LOCALS += "<br>"
 		HTML_PRINT LOCALS
 		WAIT
 		RESTART
@@ -151,13 +160,82 @@ LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
 
-@装備衣装アビ名呼び出し(キャラ番号)
+@装備衣装アビ名呼び出し(キャラ番号, アビ番号 = 0)
+#DIM アビ番号
 #DIM キャラ番号
+#DIMS 装備衣装名
+VARSET LOCAL
 
-FOR LOCAL, 1, 10
+IF 装備ステータス補正保存:キャラ番号:装備衣装番号 < 1
+	;衣装装備なし
+	RETURN 0
+ENDIF
+
+装備衣装名 = %DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:キャラ番号:装備衣装番号, "衣装名")%
+IF アビ番号
 	TSTR:コマンド名受渡 = 
-	CALL 衣装関数_ファイターの服(@"アビ名_{LOCAL}")
-	IF TSTR:コマンド名受渡 != ""
-		KSTR:(K++) = <button value = '{110 + LOCAL}'>[{110 + LOCAL}] %TSTR:コマンド名受渡%</button>
-	ENDIF
+	CALLFORM 衣装関数_%装備衣装名%(@"アビ名_{アビ番号}", キャラ番号)
+ELSE
+	FOR LOCAL, 1, 10
+		TSTR:コマンド名受渡 = 
+		CALLFORM 衣装関数_%装備衣装名%(@"アビ名_{LOCAL}", キャラ番号)
+		IF TSTR:コマンド名受渡 != ""
+			NSTR:(K++) = <button value = '{110 + LOCAL}'>[{110 + LOCAL}] %TSTR:コマンド名受渡%</button>　　　
+			LOCAL:1 += 1
+		ENDIF
+		IF LOCAL:1 > 2
+			NSTR:(K++) = <br>
+		ENDIF
+	NEXT
+ENDIF
+
+@所持衣装リスト表示_USERCOM
+#DIM ページ番号
+
+DO
+LOCALS = 
+LOCALS += "<div rect='32px,210px,906px,600px' border='5px' bcolor='#C0C0C0'></div>"
+HTML_PRINT LOCALS, 1
+CALL 所持衣装リスト表示(0, ページ番号)
+LOCALS = 
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='42px,780px,886px,580px'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 表示用ステータス格納配列:30:0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 45
+	PRINTL
 NEXT
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		RETURN 1
+	CASE IS < 500
+		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%("フレーバー")
+		LOCALS = %詳細文文字列受け渡し変数%<br>
+		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%("追加アビ")
+		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+		HTML_PRINT LOCALS
+		WAIT
+	CASE IS < 1000
+		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
+		LOCALS = %詳細文文字列受け渡し変数%<br>
+		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("追加アビ")
+		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+		HTML_PRINT LOCALS
+		WAIT
+ENDSELECT
+LOOP 1

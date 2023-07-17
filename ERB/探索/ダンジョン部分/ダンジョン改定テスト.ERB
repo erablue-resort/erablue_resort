@@ -19,7 +19,11 @@ DO
 
 	IF ダンジョン表示モード == "マップ画面"
 		;マスイベント処理
-		CALLFORM ダンジョンマス情報_%ダンジョン名%_{ダンジョン現在位置:0}_{ダンジョン現在位置:1}("マスイベント")
+		TRYCCALLFORM ダンジョンマス情報_%ダンジョン名%_{ダンジョン現在位置:0}_{ダンジョン現在位置:1}("マスイベント")
+		CATCH
+			PRINTW マスの指定先が間違っています。
+			PRINTW ダンジョンの開発者に連絡してください。
+		ENDCATCH
 	ENDIF
 
 	$描画_LOOP
@@ -37,6 +41,7 @@ LOOP 1
 
 @DUNGEON_操作処理_マップ画面
 #DIMS 移動先配列, 3
+#DIM 探索口上キャラ番号
 
 BINPUTS
 LOCALS = %RESULTS%
@@ -44,12 +49,25 @@ $切り替え_LOOP
 SELECTCASE LOCALS
 	CASE "p"
 		ダンジョン終了フラグ = 1
-		RETURN 0
+		RETURN -1
 	CASE "i"
 		CLEARLINE 1
 		ダンジョン表示モード = アイテム画面
 		キャラ画像ボタン化フラグ = 0
 		選択用変数 = -1
+		RETURN -1
+	CASE "t"
+		FOR LOCAL, 0, 4
+			IF BATTLE_STATE:LOCAL:キャラ番号 < 1
+				BREAK
+			ENDIF
+		NEXT
+		探索口上キャラ番号 = NO:(BATTLE_STATE:(RAND:LOCAL):キャラ番号)
+		TRYCCALLFORM KOJO_DUNGEON_仲間と会話_{探索口上キャラ番号}()
+		CATCH
+			CALL 汎用口上_仲間と会話(探索口上キャラ番号)
+		ENDCATCH
+		RETURN -1
 	CASE "0"
 		CALL 戦闘能力表示画面(BATTLE_STATE:0:0)
 		CALL ダンジョン能力表示キャラ切り替え(0)
@@ -165,7 +183,6 @@ IF GETBIT(LOCAL, 1) == 0
 ENDIF
 
 GDRAWLINE レイヤー番号, 64 + ((TOINT(接続元配列:0) % 8) * 64), 66 + (TOINT(接続元配列:1) * 50), 32 + ((TOINT(接続先配列:0) % 8) * 64), 66 + (TOINT(接続先配列:1) * 50)
-
 
 
 @ダンジョン内_SOURCE_CHECK(ARG)
@@ -378,3 +395,36 @@ ELSE
 	RETURN 選定用配列:LOCAL
 ENDIF
 
+@汎用口上_仲間と会話(ARG)
+CALL 口上変数初期化
+LOCAL:1 = キャラ隊列検索(ARG)
+
+SELECTCASE RAND:10
+	CASE 0
+		KSTR:(K++) = %CALLNAME:ARG%は周囲を警戒している。
+	CASE 1
+		WSTR:(K++) = %CALLNAME:ARG%は懐から小さなお菓子を幾つか取り出した。
+		KSTR:(K++) = パーティのみんなにそれを配っている。
+	CASE 2
+		WSTR:(K++) = %CALLNAME:ARG%は道端に有用な薬草を見つけた！
+		KSTR:(K++) = ……と思ったら、よく似た雑草だった。
+	CASE 3
+		KSTR:(K++) = %CALLNAME:ARG%は楽しげに談笑している。
+	CASE 4
+		KSTR:(K++) = %CALLNAME:PLAYER%が地図を見ながら進む先に悩んでいると、%CALLNAME:ARG%がアドバイスしてくれた。
+	CASE 5
+		KSTR:(K++) = 道すがら、%CALLNAME:ARG%が焚き木を拾ってくれている。
+	CASE 6
+		KSTR:(K++) = %CALLNAME:ARG%は水筒を取り出し、水を飲んでいる。
+	CASE 7
+		WSTR:(K++) = %CALLNAME:ARG%は道端で魔石を拾った！
+		KSTR:(K++) = ……しかし、中の魔力が空っぽのクズ魔石だった。
+	CASE 8
+		SIF BATTLE_STATE:1:キャラ番号 < 1
+			RESTART
+		KSTR:(K++) = 探索が終わったら何をしようか、と%CALLNAME:ARG%が仲間たちと談笑している。
+	CASE 9
+		KSTR:(K++) = %CALLNAME:ARG%は簡単に武器の手入れをしている。
+ENDSELECT
+
+CALL メッセージ欄表示用関数(@"探索用_{LOCAL:1}_顔", CALLNAME:ARG,,0)
