@@ -248,7 +248,7 @@ RETURN
 ;********************************************************************************************
 ;@グラ表示用文字列算出(ARG, TYPE="顔_")
 ;  キャラARGのパラメータなどの条件を元に、差分ファイルがあればそれを返す
-;  差分ファイルのサーチ自体は@差分抽出で行う
+;  こちらは条件式による振り分けのみ行い、差分ファイルのサーチ自体は@差分抽出で行う
 ;  条件設定は上にあるほど優先度が高い
 ;  TYPE "顔_" または "短冊_"
 ;********************************************************************************************
@@ -256,7 +256,10 @@ RETURN
 @グラ表示用文字列算出(ARG, TYPE="顔_")
 #FUNCTIONS
 #DIMS TYPE
+#DIMS CONST V_FRONT = "正常位","対面座位", "側位","屈曲位", "駅弁", "対面立位", "騎乗位", "同時挿入"
+#DIMS CONST V_BACK = "後背位","寝バック", "側位", "背面座位", "逆駅弁", "立ちバック", "同時挿入"
 
+VARSET LOCAL
 LOCALS '= CSTR:ARG:顔グラ表示切り替え用文字列
 SIF TYPE == "短冊_"
 	LOCALS '= CSTR:ARG:短冊グラ表示切り替え用文字列
@@ -268,6 +271,28 @@ IF LOCALS == ""
 ENDIF
 
 ;設定グラの差分を見る
+IF MODE_確認("Ｖ挿入系", ARG)
+	;各体位の挿入差分があればそれを表示する
+	FOR LOCAL, 0, VARSIZE("V_FRONT")
+		IF MODE_確認(V_FRONT:LOCAL, ARG)
+			LOCAL:1 ++
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL)
+				RETURNF RESULTS
+		ENDIF
+	NEXT
+	FOR LOCAL, 0, VARSIZE("V_BACK")
+		IF MODE_確認(V_BACK:LOCAL, ARG)
+			LOCAL:2 ++
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL)
+				RETURNF RESULTS
+		ENDIF
+	NEXT
+	;なければ正面体位は正常位を、背面体位は後背位を表示する
+	SIF LOCAL:1 && 差分抽出(ARG, TYPE, LOCALS, "正常位")
+		RETURNF RESULTS
+	SIF LOCAL:2 && 差分抽出(ARG, TYPE, LOCALS, "後背位")
+			RETURNF RESULTS
+ENDIF
 IF TCVAR:ARG:前ターン絶頂
 	;前ターン絶頂時
 	SIF 差分抽出(ARG, TYPE, LOCALS, "絶頂")
@@ -295,7 +320,7 @@ RETURNF LOCALS
 
 IF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE:1%_差分_%DIFF%.png")
 	;現在表示してるグラの差分があるか見る
-	RESULTS '= LOCALS + GRAP_RAND(ARG, TYPE:1, "_差分_" + DIFF)
+	RESULTS '= TYPE:1 + GRAP_RAND(ARG, TYPE:1, "_差分_" + DIFF)
 	RETURNF 1
 ELSEIF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE + CSTR:ARG:表示グラフィックカテゴリ%_差分_%DIFF%.png")
 	;現在表示してるグラの、基本画像の差分があるか見る
