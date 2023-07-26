@@ -128,3 +128,116 @@ ELSE
 ENDIF
 
 RETURN 1
+
+
+@素材アイテム一覧表示(表示カテゴリ = "")
+#DIMS 表示カテゴリ
+#DIM ページ番号
+
+DO
+VARSET LOCALS
+LOCALS = <div rect='32px,0px,886px,580px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='42px,12px,886px,580px'><nobr>"
+
+LOCAL = 0
+FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GET("所持素材データベース", COUNT, "所持数") == 0
+		CONTINUE
+	ENDIF
+	LOCALS += @"　%DT_CELL_GETS("所持素材データベース", COUNT, "素材カテゴリ"), 14%：%DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名"), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", COUNT, "所持数"))), 6%　　"
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+LOCALS += "</div>"
+
+LOCALS += "<div rect='42px,550px,886px,580px'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 25) + 25 < 200 && 表示アイテム名:((ページ番号 * 25) + 25) != ""
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+
+DRAWLINE
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 33
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN 0
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+ENDSELECT
+LOOP 1
+
+
+@ダンジョンアイテム画面表示_USERCOM
+#DIM ページ番号
+DO
+LOCALS = 
+LOCALS += "<div rect='32px,0px,906px,600px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='42px,0px,906px,600px'>"
+IF 選択用変数 > 0
+	詳細文文字列受け渡し変数 = 
+	TRYCALLFORM アイテム個別文章表示_%表示アイテム名:選択用変数%
+	LOCALS += @"%詳細文文字列受け渡し変数%"
+ELSE
+	VARSET 表示アイテム名
+	DT_COLUMN_NAMES "所持アイテムデータベース", 表示アイテム名
+	FOR LOCAL, (ページ番号 * 25) + 1, (ページ番号 * 25) + 25
+		IF 表示アイテム名:LOCAL != ""
+			LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 2}]%表示アイテム名:LOCAL, 40, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL))), 4%</button><br>"
+		ELSE
+			LOCALS += "<br>"
+		ENDIF
+	NEXT
+ENDIF
+LOCALS += "</div>"
+
+LOCALS += "<div rect='42px,570px,886px,580px'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 25) + 25 < 200 && 表示アイテム名:((ページ番号 * 25) + 25) != ""
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN 0
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+	CASEELSE
+		選択用変数 = RESULT
+ENDSELECT
+LOOP 1
