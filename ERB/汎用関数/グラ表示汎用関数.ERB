@@ -4,6 +4,12 @@
 ;関数が増えてきたので別ファイル化
 ;********************************************************************************************
 
+;********************************************************************************************
+;@スプライト作成(ARGS, ARG, mode = 0)
+;  グラフィックID(ARG)からARGSという名前のスプライトを、アスペクト比不適な画像処理の設定に応じた方法で作成する
+;  mode 0：正方形 1；縦長
+;********************************************************************************************
+
 @スプライト作成(ARGS, ARG, mode = 0)
 #FUNCTION
 #DIM mode;0:正方形 1:縦長
@@ -63,6 +69,11 @@ ENDIF
 SPRITECREATE ARGS, ARG, 横始点, 0, 横幅, 縦幅
 RETURNF 1
 
+;********************************************************************************************
+;@CLOTHES_TODAY(ARG)
+;  キャラARGがその日着る普段着をデフォルトの中から設定する。好感度レベルか恋慕レベルが高いとおしゃれ着を含む
+;********************************************************************************************
+
 @CLOTHES_TODAY(ARG)
 #DIM CNT
 #DIM C_CNT
@@ -78,6 +89,13 @@ SIF MAX(CFLAG:ARG:好感度レベル, CFLAG:ARG:恋慕レベル) > 関係閾値:
 	LOCALS:1 = おしゃれ着
 
 CSTR:ARG:今日の衣装 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
+
+;********************************************************************************************
+;@GRAP_RAND(ARG, TYPE, PATRN, PATRN:1)
+;  キャラARGのTYPE+PATRNで始まるファイル名を持つ画像を抽出し、その中からランダムで１つ選び
+;  TYPEと.pngを除いたファイル名を返す
+;  TYPE "顔_" または "短冊_"
+;********************************************************************************************
 
 @GRAP_RAND(ARG, TYPE, PATRN, PATRN:1)
 #FUNCTIONS
@@ -96,7 +114,6 @@ VARSET RESULTS
 SIF CSTR:ARG:画像フォルダ == ""
 	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
 
-CSTR:ARG:表示グラフィックカテゴリ '= PATRN
 
 FOLDER '= "resources\\" + CSTR:ARG:画像フォルダ
 LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.png")
@@ -130,12 +147,26 @@ LOCAL = LOCAL:10
 LOCAL:1 = LOCAL:11 - LOCAL:10
 SIF LOCAL + LOCAL:1 < 1
 	RETURNF "デフォルト"
-RESULTS '= LOCALS:RAND(LOCAL + LOCAL:1)
+L_CNT = RAND(LOCAL + LOCAL:1)
+RESULTS '= LOCALS:L_CNT
+
+IF !STRCOUNT(PATRN, "差分") && !STRCOUNT(PATRN:1, "差分") 
+	CSTR:ARG:表示グラフィックカテゴリ '= PATRN
+	SIF L_CNT >= LOCAL
+		CSTR:ARG:表示グラフィックカテゴリ '= PATRN:1
+ENDIF
+
 SUBSTRING RESULTS, 1 +STRLENS(FOLDER) + STRLENS(TYPE), -1
 REPLACE RESULTS, "\.png", ""
-DEBUGPRINTFORML 選ばれたのは%RESULTS%
+DEBUGPRINTFORML 選ばれたのは%CSTR:ARG:表示グラフィックカテゴリ%のうち%RESULTS%
 
 RETURNF RESULTS
+
+;********************************************************************************************
+;@画像フォルダ選択(ARG)
+;  キャラARGの画像フォルダ内で"顔_デフォルト.png"という名前の画像を含むフォルダ（親フォルダ、サブフォルダ含む）を
+;  探して、そのフォルダ内の画像ファイルを一覧で表示し、どのフォルダの画像を使用するかを選択させる
+;********************************************************************************************
 
 @画像フォルダ選択(ARG)
 #DIM L_CNT, 3
@@ -147,6 +178,7 @@ RETURNF RESULTS
 
 LNCOUNT = LINECOUNT
 VARSET LOCAL
+VARSET LOCALS
 VARSET FOLDER
 
 LOCALS '= "resources\\" + TOSTR(NO:ARG) + CALLNAME:ARG
@@ -174,15 +206,13 @@ FOR L_CNT, 0, F_NUM
 		DEBUGPRINTFORML %FOLDER:L_CNT%の%LOCALS%画像数{G_NUM}
 		FOR L_CNT:1, 0, G_NUM
 			G_NAME '= SUBSTRING(RESULTS:(L_CNT:1), 10, -1)
-			LOCAL = TEMP_gID + L_CNT*2000 + L_CNT:2*1000+ L_CNT:1
+			LOCAL = TEMP_gID + L_CNT*2000 + L_CNT:2*1000+ L_CNT:1 + 1
 			GCREATEFROMFILE LOCAL, G_NAME
 			SIF スプライト作成(TOSTR(LOCAL), LOCAL, 短冊フラグ) == 0
 				CONTINUE
-;			SPRITECREATE TOSTR(LOCAL), LOCAL
 			TEMP_HTML_MAX_HEIGHT = L_CNT:2? 240# 120
 			LOCALS = {(L_CNT:1 % 8) * 120}px, 0px, 120px, {TEMP_HTML_MAX_HEIGHT}px
 			TEMP_HTML += @"<div rect='%LOCALS%'><button value='{L_CNT}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='120px' height='{TEMP_HTML_MAX_HEIGHT}px'></button></div>"
-;			CALL 画像セット(TOSTR(LOCAL), , 0, 67, 0, 1, TOSTR(L_CNT), ESCAPE(G_NAME))
 			IF (L_CNT:1 + 1) % 8 == 0
 				描画開始行数 = LINECOUNT
 				CALL 画像一斉表示("左", 0, 1)
@@ -208,9 +238,95 @@ ELSEIF RESULT != 100
 	GOTO LOOP_INPUT
 ENDIF
 
-FOR L_CNT, 0, F_NUM*2000 + 1000
+FOR L_CNT, 0, (F_NUM+1)*2000
 	GDISPOSE TEMP_gID + L_CNT
 NEXT
 CLEARLINE LINECOUNT - LNCOUNT
 PRINTFORML 現在の画像フォルダは%CSTR:ARG:画像フォルダ%です
 RETURN
+
+;********************************************************************************************
+;@グラ表示用文字列算出(ARG, TYPE="顔_")
+;  キャラARGのパラメータなどの条件を元に、差分ファイルがあればそれを返す
+;  こちらは条件式による振り分けのみ行い、差分ファイルのサーチ自体は@差分抽出で行う
+;  条件設定は上にあるほど優先度が高い
+;  TYPE "顔_" または "短冊_"
+;********************************************************************************************
+
+@グラ表示用文字列算出(ARG, TYPE="顔_")
+#FUNCTIONS
+#DIMS TYPE
+#DIMS CONST V_FRONT = "正常位","対面座位", "側位","屈曲位", "駅弁", "対面立位", "騎乗位", "同時挿入"
+#DIMS CONST V_BACK = "後背位","寝バック", "側位", "背面座位", "逆駅弁", "立ちバック", "同時挿入"
+
+VARSET LOCAL
+LOCALS '= CSTR:ARG:顔グラ表示切り替え用文字列
+SIF TYPE == "短冊_"
+	LOCALS '= CSTR:ARG:短冊グラ表示切り替え用文字列
+
+IF LOCALS == ""
+	SIF CSTR:ARG:表示グラフィックカテゴリ == ""
+		CSTR:ARG:表示グラフィックカテゴリ = デフォルト
+	LOCALS = %TYPE + CSTR:ARG:表示グラフィックカテゴリ%
+ENDIF
+
+;設定グラの差分を見る
+IF MODE_確認("Ｖ挿入系", ARG)
+	;各体位の挿入差分があればそれを表示する
+	FOR LOCAL, 0, VARSIZE("V_FRONT")
+		IF MODE_確認(V_FRONT:LOCAL, ARG)
+			LOCAL:1 ++
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL)
+				RETURNF RESULTS
+		ENDIF
+	NEXT
+	FOR LOCAL, 0, VARSIZE("V_BACK")
+		IF MODE_確認(V_BACK:LOCAL, ARG)
+			LOCAL:2 ++
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL)
+				RETURNF RESULTS
+		ENDIF
+	NEXT
+	;なければ正面体位は正常位を、背面体位は後背位を表示する
+	SIF LOCAL:1 && 差分抽出(ARG, TYPE, LOCALS, "正常位")
+		RETURNF RESULTS
+	SIF LOCAL:2 && 差分抽出(ARG, TYPE, LOCALS, "後背位")
+			RETURNF RESULTS
+ENDIF
+IF TCVAR:ARG:前ターン絶頂
+	;前ターン絶頂時
+	SIF 差分抽出(ARG, TYPE, LOCALS, "絶頂")
+		RETURNF RESULTS
+ENDIF
+IF GETPALAMLV(PALAM:ARG:欲情,15) > 3
+	;欲情時
+	SIF 差分抽出(ARG, TYPE, LOCALS, "欲情")
+		RETURNF RESULTS
+ENDIF
+;差分無しを返す
+RETURNF LOCALS
+
+;********************************************************************************************
+;@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF)
+;  @グラ表示用文字列算出から呼び出されて条件に合うファイルからランダムに抽出する
+;  TYPE:0 "顔_" または "短冊_"
+;  TYPE:1 基本的にはその時のグラ表示切り替え用文字列。空欄なら表示グラフィックカテゴリまたはデフォルトが入っているはず
+;********************************************************************************************
+
+@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF)
+#FUNCTION
+#DIMS TYPE, 2
+#DIMS DIFF
+
+IF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE:1%_差分_%DIFF%.png")
+	;現在表示してるグラの差分があるか見る
+	RESULTS '= TYPE:1 + GRAP_RAND(ARG, TYPE:1, "_差分_" + DIFF)
+	RETURNF 1
+ELSEIF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE + CSTR:ARG:表示グラフィックカテゴリ%_差分_%DIFF%.png")
+	;現在表示してるグラの、基本画像の差分があるか見る
+	RESULTS '= TYPE + GRAP_RAND(ARG, TYPE, CSTR:ARG:表示グラフィックカテゴリ + "_差分_" + DIFF)
+	RETURNF 1
+ENDIF
+RESULTS '= TYPE:1
+RETURNF 0
+

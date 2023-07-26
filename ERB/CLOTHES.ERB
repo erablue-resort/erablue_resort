@@ -28,7 +28,9 @@ CSTR:ARG:着せ替え服追加名 =
 
 CSTR:ARG:顔グラ表示切り替え用文字列 '= "顔_" + CSTR:ARG:今日の衣装
 CSTR:ARG:短冊グラ表示切り替え用文字列 '= "短冊_" + CSTR:ARG:今日の衣装
-CSTR:ARG:表示グラフィックカテゴリ '= CSTR:ARG:今日の衣装
+CSTR:ARG:表示グラフィックカテゴリ = デフォルト
+SIF STRCOUNT(CSTR:ARG:今日の衣装, "おしゃれ着")
+	CSTR:ARG:表示グラフィックカテゴリ = おしゃれ着
 
 @CLOTHES_RESET_TRAIN(ARG)
 IF 現在制服:ARG:0 != ""
@@ -51,21 +53,18 @@ ELSE
 		;汎用服への着せ替え処理
 		LOCALS '= CSTR:ARG:着せ替え服
 		TRYCCALLFORM CLOTHES_CHANGE_%ARGS%(ARG)
+			;全裸または湯浴み着から着替えた場合、脱ぐ前の服をデフォルトに設定
+			;（風呂→プール→プール外へ一気に連れ出すと全裸で連れ回せるようになるため）
 			SIF GROUPMATCH(CSTR:ARG:脱ぐ前の服, "全裸", "湯浴み着")
 				CSTR:ARG:脱ぐ前の服 '= ""
 			IF LOCALS != CSTR:ARG:着せ替え服
 				LOCALS = %GRAP_RAND(ARG, "顔_", ARGS)%
+				;湯浴み着画像がない場合、風呂では全裸画像を表示（内部処理は湯浴み着のまま）
+				SIF CSTR:ARG:着せ替え服 == "湯浴み着" && LOCALS == "デフォルト"
+					LOCALS = %GRAP_RAND(ARG, "顔_", "全裸")%
 				CSTR:ARG:顔グラ表示切り替え用文字列 = 顔_%LOCALS%
 				CSTR:ARG:短冊グラ表示切り替え用文字列 = 短冊_%LOCALS%
 			ENDIF
-[SKIPSTART]
-			GDISPOSE TEMP_gID
-			SIF GCREATEFROMFILE(TEMP_gID, @"{NO:ARG}%CALLNAME:ARG%/顔_%ARGS%.png")
-				CSTR:ARG:顔グラ表示切り替え用文字列 '= @"顔_%ARGS%"
-			GDISPOSE TEMP_gID
-			SIF GCREATEFROMFILE(TEMP_gID, @"{NO:ARG}%CALLNAME:ARG%/短冊_%ARGS%.png")
-				CSTR:ARG:短冊グラ表示切り替え用文字列 '= @"短冊_%ARGS%"
-[SKIPEND]
 		CATCH
 		ENDCATCH
 	ENDIF
