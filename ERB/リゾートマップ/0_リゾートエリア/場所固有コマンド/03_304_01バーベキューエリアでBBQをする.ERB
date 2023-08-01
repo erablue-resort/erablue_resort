@@ -29,6 +29,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM380_0_304
 #DIM 料理腕前
 #DIM RESULT保存
+#DIM ソート後素材順, 1000
 ;#DIM 提供食材, 5＞ERHにて記述
 
 VARSET 提供食材, -1
@@ -39,15 +40,19 @@ VARSET LOCAL
 
 ;追加食材の表示
 $食材_LOOP
+VARSET ソート後素材順
+;データベースをランク順にソート
+DT_SELECT "所持素材データベース", "素材カテゴリ = '食物素材'", "素材ランク ASC, 素材属性 ASC", ソート後素材順
+
 DRAWLINE
 LOCAL:1 = 0
 PRINTL 食材を追加しますか？
-FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
-	SIF DT_CELL_GET("所持素材データベース", COUNT, "所持数") == 0
+FOR COUNT, 0, 1000
+	SIF ソート後素材順 == 0
+		BREAK
+	SIF DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1) < 1
 		CONTINUE
-	SIF DT_CELL_GETS("所持素材データベース", COUNT, "素材カテゴリ") != "食物素材"
-		CONTINUE
-	PRINTBUTTONLC @"%DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名"), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", COUNT, "所持数"))), 6%", COUNT
+	PRINTBUTTONLC @"%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1))), 6%", COUNT
 	LOCAL += 1
 	IF LOCAL == 3
 		PRINTL 
@@ -64,7 +69,7 @@ FOR LOCAL, 0, 3
 	IF 提供食材:LOCAL == -1
 		PRINT ────────
 	ELSE
-		PRINTBUTTON @"%ERDNAME(食物素材一覧, 提供食材:LOCAL)%", LOCAL + 1000
+		PRINTBUTTON @"%DT_CELL_GETS("所持素材データベース", 提供食材:LOCAL, "素材アイテム名", 1)%", LOCAL + 1000
 	ENDIF
 	PRINTL 
 NEXT
@@ -81,7 +86,7 @@ BINPUT
 RESULT保存 = RESULT
 SELECTCASE RESULT保存
 	CASE 1000 TO 1010
-		CALL 素材入手処理(ERDNAME(食物素材一覧, 提供食材:(RESULT保存 - 1000)))
+		CALL 素材入手処理(DT_CELL_GETS("所持素材データベース", 提供食材:(RESULT保存 - 1000), "素材アイテム名", 1), 1)
 		提供食材:(RESULT保存 - 1000) = -1
 		GOTO 食材_LOOP
 	CASE 998
@@ -96,22 +101,21 @@ SELECTCASE RESULT保存
 			FOR LOCAL, 0, 3
 				IF 提供食材:LOCAL == -1
 				ELSE
-					PRINTFORM %ERDNAME(食物素材一覧, 提供食材:LOCAL)%  
+					PRINTFORM %DT_CELL_GETS("所持素材データベース", 提供食材:LOCAL, "素材アイテム名", 1)%  
 				ENDIF
 			NEXT
 			PRINTW を追加しました。
 		ENDIF
 	CASEELSE
-		IF DT_CELL_GET("所持素材データベース", RESULT保存, "所持数") <= 0
-		ELSEIF 提供食材:0 == -1
-			提供食材:0 = GETNUM(食物素材一覧, DT_CELL_GETS("所持素材データベース", RESULT保存, "素材アイテム名"))
-			DT_CELL_SET "所持素材データベース", RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", RESULT保存, "所持数") - 1
+		IF 提供食材:0 == -1
+			提供食材:0 = ソート後素材順:RESULT保存
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
 		ELSEIF 提供食材:1 == -1
-			提供食材:1 = GETNUM(食物素材一覧, DT_CELL_GETS("所持素材データベース", RESULT保存, "素材アイテム名"))
-			DT_CELL_SET "所持素材データベース", RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", RESULT保存, "所持数") - 1
+			提供食材:1 = ソート後素材順:RESULT保存
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
 		ELSEIF 提供食材:2 == -1
-			提供食材:2 = GETNUM(食物素材一覧, DT_CELL_GETS("所持素材データベース", RESULT保存, "素材アイテム名"))
-			DT_CELL_SET "所持素材データベース", RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", RESULT保存, "所持数") - 1
+			提供食材:2 = ソート後素材順:RESULT保存
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
 		ELSE
 			;枠が全部埋まってる
 			PRINTW 食材枠が全て埋まっています。
@@ -190,7 +194,7 @@ LOCAL:1 = 300
 
 FOR LOCAL:2, 0, 5
 	IF 提供食材:(LOCAL:2) != -1
-		LOCAL:0 += 食材効力(提供食材:(LOCAL:2))
+		LOCAL:0 += 食材効力(DT_CELL_GETS("所持素材データベース", 提供食材:(LOCAL:2), "素材アイテム名", 1))
 	ENDIF
 NEXT
 
