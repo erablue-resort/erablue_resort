@@ -1,0 +1,195 @@
+﻿@よろず屋依頼発行処理
+#DIM レイヤー番号
+#DIM 表示依頼枠番号
+#DIMS 表示依頼名
+#DIMS 依頼名分割用, 2
+レイヤー番号 = 10
+依頼同時最大数 = 3
+;画像リソースを全解放
+SPRITEDISPOSEALL 0
+
+FOR LOCAL, 1, 依頼同時最大数 + 1
+	GDISPOSE LOCAL
+	GDISPOSE LOCAL + 20
+	SPRITEDISPOSE (@"依頼_{LOCAL}")
+	SPRITEDISPOSE (@"依頼_{LOCAL}_ボタン")
+
+	GCREATE レイヤー番号, 700, 67
+	GCREATE レイヤー番号 + 20, 700, 67
+	GSETFONT レイヤー番号, GETFONT(), 16
+	GSETPEN レイヤー番号, 0x00FFFFFF, 1
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+	GFILLRECTANGLE レイヤー番号, 0 , 0, 700, 67
+	GSETBRUSH レイヤー番号, 0xFF101010
+	GFILLRECTANGLE レイヤー番号, 5, 5, 690, 57
+	GSETBRUSH レイヤー番号, 0xFFC0C0C0
+
+	CALL リソース登録(@"依頼_{LOCAL}", レイヤー番号)
+	GDRAWG レイヤー番号 + 20, レイヤー番号, 0, 0, 700, 67, 0, 0, 700, 67, ボタン化用カラーマトリクス:0:0
+	CALL リソース登録(@"依頼_{LOCAL}_ボタン", レイヤー番号 + 20)
+	レイヤー番号 += 1
+NEXT
+
+LOCALS = 
+DRAWLINE
+PRINTL ・現在出している依頼
+FOR LOCAL, 0, 依頼同時最大数
+	LOCALS += @"<div rect='10px,{LOCAL * 72}px,700px,67px'>"
+	LOCALS += @"<button value='{LOCAL + 1}'><img width = '700px' height = '67px' src='依頼_{LOCAL + 1}' srcb='依頼_{LOCAL + 1}_ボタン'></button>"
+	LOCALS += "</div>"
+	
+	LOCALS += @"<div rect='20px,{LOCAL * 72 + 14}px,700px,67px'>"
+	IF 遂行中依頼:(LOCAL + 1) == ""
+		LOCALS += @"遂行中依頼：なし"
+	ELSE
+		CALL 依頼情報表示処理(LOCAL + 1)
+		LOCALS += @"%詳細文文字列受け渡し変数%"
+	ENDIF
+	LOCALS += "</div>"
+NEXT
+HTML_PRINT LOCALS, 1
+DEBUGPRINTFORML %LOCALS%
+FOR LOCAL, 0, 依頼同時最大数 * 4
+	PRINTL
+NEXT
+
+LOCALS = 
+DRAWLINE
+LOCALS += @"<div rect='10px,0px,700px,480px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += @"<div rect='715px,0px,250px,100px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += @"<div rect='725px,10px,250px,100px'>所持ルピ：{MONEY}ルピ<br>所持ZP　：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}</div>"
+LOCALS += @"<div rect='20px,10px,700px,450px'>"
+SELECTCASE 表示依頼枠番号
+	CASE 0
+		LOCALS += "依頼枠を選択してください。"
+	CASE 1 TO 10
+		;依頼枠確認
+		LOCALS += "------------------------------------------------------------------------------------<br>"
+		CALL 依頼情報表示処理(表示依頼枠番号)
+		LOCALS += @"%詳細文文字列受け渡し変数%"
+		LOCALS += "------------------------------------------------------------------------------------<br>"
+		IF 遂行中依頼:表示依頼枠番号 != ""
+			LOCALS += "この依頼枠には既に他の依頼が割り当てられています。<br>"
+			LOCALS += "依頼を破棄し、別の依頼を発注しますか？<br>"
+			LOCALS += "（報酬は返金されません）<br>"
+			LOCALS += "<br>"
+		ELSE
+			LOCALS += "この依頼枠には現在依頼が割り当てられていません。<br>"
+			LOCALS += "新たに依頼を発注しますか？<br><br>"
+		ENDIF
+		ENUMFUNCBEGINSWITH "発注依頼_"
+		FOR LOCAL, 0, RESULT
+			SPLIT RESULTS:LOCAL, "_", 依頼名分割用
+			LOCALS += @"<button value='{100 + LOCAL}'>[{100 + LOCAL}] %依頼名分割用:1% を発注する</button><br>"
+		NEXT
+	CASE 101 TO 110
+		;依頼内容表示・決定
+		CALLFORM 発注依頼_%表示依頼名%
+		LOCALS += @"%依頼文章保存%"
+ENDSELECT
+LOCALS += "</div>"
+
+LOCALS += "<div rect='580px,450px,200px,45px'>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+IF 表示依頼枠番号 >= 101 && 表示依頼枠番号 <= 110
+	CALLFORM 発注実処理_%表示依頼名%(表示依頼枠番号 - 100)
+	IF RESULT == -1
+		表示依頼枠番号 = 表示依頼枠番号 - 100
+		表示依頼名 = 
+	ELSEIF RESULT == 1
+		表示依頼枠番号 = 表示依頼枠番号 - 100
+		遂行中依頼:表示依頼枠番号 = %表示依頼名%
+	ENDIF
+	RESTART
+ENDIF
+
+BINPUT
+SELECTCASE RESULT
+	CASE 1 TO 10
+		表示依頼枠番号 = RESULT
+	CASE 100 TO 110
+		表示依頼枠番号 = 100 + 表示依頼枠番号
+		SPLIT RESULTS:(RESULT - 100), "_", 依頼名分割用:1
+		表示依頼名 = %依頼名分割用:1%
+	CASE 999
+		;画像リソースを全解放
+		SPRITEDISPOSEALL 0
+		表示依頼枠番号 = 0
+		RETURN -1
+ENDSELECT
+
+RESTART
+
+
+@依頼情報表示処理(依頼番号)
+#DIM 依頼番号
+
+LOCALS = 
+IF 遂行中依頼:依頼番号 != ""
+	LOCALS += @"遂行中依頼：%遂行中依頼:依頼番号%　　"
+	TRYCALLFORM 依頼追加表示情報_%遂行中依頼:依頼番号%(依頼番号)
+	LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+	IF 依頼受注者名 != ""
+		LOCALS += @"依頼受注者：%依頼受注者名:依頼番号%　　完了時期：残り%TOFULL(TOSTR(依頼残り期間:依頼番号))%日<br>"
+	ELSE
+		LOCALS += "依頼受注者：未受注<br>"
+	ENDIF
+ELSE
+	LOCALS += @"遂行中依頼：なし<br><br>"
+ENDIF
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+
+@依頼受注者決定(依頼番号)
+#DIM 依頼番号
+#DIM 対象キャラ配列, 500
+VARSET 対象キャラ配列
+VARSET LOCAL
+;７割はモブ騎空士、残りは現在島におらず、リゾートに来る可能性のあるキャラ
+
+LOCAL = RAND:100
+IF LOCAL < 30
+	;キャラ受注
+	FOR LOCAL, 0, 500
+		SIF LOCAL >= CHARANUM
+			CONTINUE
+		SIF LOCAL > CHARANUM
+			CONTINUE
+		SIF CFLAG:LOCAL:滞在期間 != -1
+			CONTINUE
+		SIF CFLAG:LOCAL:招待不可フラグ > 0
+			CONTINUE
+		対象キャラ配列:(LOCAL:1) = LOCAL
+		LOCAL:1 += 1
+	NEXT
+	LOCAL =	RAND:(LOCAL:1)
+	依頼受注者名:依頼番号 = %NAME:LOCAL%
+	RETURN 1
+ELSE
+	;モブ受注
+	SELECTCASE LOCAL / 10
+		CASE 3
+			依頼受注者名:依頼番号 = 駆け出しの傭兵
+		CASE 4
+			依頼受注者名:依頼番号 = 半人前の騎空士
+		CASE 5
+			依頼受注者名:依頼番号 = 騎士を夢見る少年
+		CASE 6
+			依頼受注者名:依頼番号 = 初心者魔法使い
+		CASE 7
+			依頼受注者名:依頼番号 = 修行中の格闘少女
+		CASE 8
+			依頼受注者名:依頼番号 = 狩人見習いの青年
+		CASE 9
+			依頼受注者名:依頼番号 = 没落貴族の元お嬢様
+	ENDSELECT
+	RETURN 0
+ENDIF

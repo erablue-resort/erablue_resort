@@ -130,15 +130,16 @@ ENDIF
 RETURN 1
 
 
-@素材アイテム一覧表示(表示カテゴリ = "")
-#DIMS 表示カテゴリ
+@素材アイテム一覧表示(表示条件 = "所持数 > 0", ボタン化フラグ = 0)
+#DIMS 表示条件
 #DIM ページ番号
+#DIM ボタン化フラグ
 #DIM ソート後素材順, 1000
 #DIM 現在表示ランク
 VARSET ソート後素材順, -1
 
 ;データベースをランク順にソート
-DT_SELECT "所持素材データベース", "所持数 > 0", "素材ランク ASC, 素材属性 ASC", ソート後素材順
+DT_SELECT "所持素材データベース", 表示条件, "素材ランク ASC, 素材属性 ASC", ソート後素材順
 
 DO
 VARSET LOCAL
@@ -162,28 +163,16 @@ FOR COUNT, ページ番号 * 25, ページ番号 * 25 + 41
 		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
 	ENDIF
 	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%属性")%
-	LOCALS += @"　<font color='#%LOCALS:1%'>%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1), 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1))), 6%</font>　　"
+	IF ボタン化フラグ
+		LOCALS += @"　<font color='#%LOCALS:1%'><button value='{COUNT}'>%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1), 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1))), 6%</button></font>　　"
+	ELSE
+		LOCALS += @"　<font color='#%LOCALS:1%'>%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1), 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1))), 6%</font>　　"
+	ENDIF
 	LOCAL += 1
 	IF LOCAL % 2 == 0
 		LOCALS += "<br>"
 	ENDIF
 NEXT
-
-
-; FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
-; 	IF DT_CELL_GET("所持素材データベース", COUNT, "所持数") == 0
-; 		CONTINUE
-; 	ENDIF
-; 	LOCALS += @"　%DT_CELL_GETS("所持素材データベース", COUNT, "素材カテゴリ"), 14%：%DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名"), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", COUNT, "所持数"))), 6%　　"
-; 	LOCAL += 1
-; 	IF LOCAL % 2 == 0
-; 		LOCALS += "<br>"
-; 	ENDIF
-; NEXT
-
-
-
-
 
 LOCALS += "</div>"
 
@@ -212,11 +201,13 @@ SELECTCASE RESULT
 	CASE 999
 		ページ番号 = 0
 		選択用変数 = 0
-		RETURN 0
+		RETURN -1
 	CASE 1000
 		ページ番号 -= 1
 	CASE 1001
 		ページ番号 += 1
+	CASEELSE
+		RETURN ソート後素材順:RESULT
 ENDSELECT
 LOOP 1
 
