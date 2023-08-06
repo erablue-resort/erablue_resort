@@ -1,39 +1,53 @@
 ﻿
 @起床前イベントリスト
 #DIMS 表示用リスト, 100
+#DIMS NEWフラグ用リスト, 100
 #DIM 表示候補数
 VARSET LOCAL
 VARSET LOCALS
 
 表示候補数 = DT_ROW_LENGTH("各イベント用変数配列")
+SPLIT TSTR:NEWイベントフラグ, "_", NEWフラグ用リスト
 
 DRAWLINE
 PRINTL 開始するイベントを選んでください。
 DRAWLINE
 FOR LOCAL, 0, 表示候補数
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+		LOCALS:10 = 
+		LOCALS:11 = 
+		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
+			LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
+			LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+		ENDIF
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
 			CASE "メインシナリオ"
-				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
 			CASE "サブイベント"
-				LOCALS:2 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
 			CASE "ＥＸイベント"
-				LOCALS:3 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
 			CASE "突発イベント"
-				LOCALS:4 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
 		ENDSELECT
 	ENDIF
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
 		;CT-2はイベントクリアしてからの再発生でないと起こり得ないはず
+		LOCALS:10 = 
+		LOCALS:11 = 
+		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
+			LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
+			LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+		ENDIF
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
 			CASE "メインシナリオ"
-				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button><br>"
+				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
 			CASE "サブイベント"
-				LOCALS:2 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button><br>"
+				LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
 			CASE "ＥＸイベント"
-				LOCALS:3 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button><br>"
+				LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
 			CASE "突発イベント"
-				LOCALS:4 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button><br>"
+				LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
 		ENDSELECT
 	ENDIF
 NEXT
@@ -72,6 +86,10 @@ SELECTCASE LOCAL
 			CASE "突発イベント"
 				CALLFORM イベント関数_突発イベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%(LOCAL)
 		ENDSELECT
+		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
+			REPLACE TSTR:NEWイベントフラグ, @"EVENT%TOSTR(LOCAL)%_", ""
+			TSTR:NEWイベントフラグ = %RESULTS%
+		ENDIF
 		RESTART
 	CASE 999
 		RETURN 0
@@ -112,6 +130,7 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 					PRINTFORMW 突発イベント［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が新たに発生した！
 			ENDSELECT
 			LOCAL:1 = 1
+			TSTR:NEWイベントフラグ += @"EVENT{LOCAL}_"
 		ENDIF
 	ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率") > 0
 		;既に発生済みかつクリア済みの突発イベントの再発生

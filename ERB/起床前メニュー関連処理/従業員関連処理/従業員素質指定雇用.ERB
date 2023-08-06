@@ -2,6 +2,7 @@
 #DIM ランダムキャラ素質, 70
 #DIM TALENT一時保存, 300
 #DIM TALENT数値保存, 300
+#DIM フレーバー素質数値保存, 10
 #DIM ABL一時保存, 50
 #DIM ABL数値保存, 50
 #DIM EXP一時保存, 100
@@ -22,6 +23,7 @@
 VARSET ランダムキャラ素質:0
 VARSET ランダムキャラ経験:0
 VARSET TALENT一時保存:0
+VARSET フレーバー素質数値保存
 VARSET TALENT数値保存:0, 5
 VARSET ABL一時保存:0, -1
 VARSET ABL数値保存:0
@@ -154,6 +156,10 @@ LOCALS += "<button value='120'>[120] 肉体情報を設定する</button>"
 LOCALS += "<br>"
 LOCALS += "<button value='130'>[130] 素質を設定する</button>"
 LOCALS += "<br>"
+IF フレーバー素質封印設定 == 0
+	LOCALS += "<button value='131'>[131] フレーバー素質を設定する</button>"
+	LOCALS += "<br>"
+ENDIF
 LOCALS += "<button value='140'>[140] 能力を設定する</button>"
 LOCALS += "<br>"
 LOCALS += "<button value='150'>[150] 経験を設定する</button>"
@@ -274,6 +280,34 @@ SELECTCASE 表示モード
 		NEXT
 		LOCALS += "<br>"
 		LOCALS += "<br>"
+		LOCALS += "□ フレーバー素質 □-----------------------------------------------------<br>"
+		LOCALS:1 = 
+		LOCAL = 0
+		FOR COUNT, 0, 10
+			IF COUNT == 6
+				PRINTL
+				LOCAL = 0
+			ENDIF
+			SIF フレーバー素質数値保存:COUNT == 0
+				CONTINUE
+			LOCALS += @"%ERDNAME(フレーバー素質, COUNT), 10, LEFT%：%GET_フレーバー素質NAME(COUNT, フレーバー素質数値保存:COUNT), 12, LEFT%"
+			LOCAL += 1
+			IF LOCAL == 3
+				LOCAL = 0
+				PRINTL
+			ENDIF
+		NEXT
+	CASE 1
+		;現状の設定表示（能力素質）
+		IF ランダムキャラネーム != ""
+			LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
+		ELSE
+			LOCALS += @"■[従業員]（名称未定）　　　"
+		ENDIF
+		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%属性")%
+		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+		LOCALS += "<br><br>"
 		LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
 		LOCAL:2 = 0
 		FOR LOCAL, 0, 50
@@ -500,6 +534,49 @@ SELECTCASE 表示モード
 		IF ページ数 < LOCAL:10 / 20
 			LOCALS += "<button value='29999'>[次のページ]</button>"
 		ENDIF
+	CASE 131
+		FOR COUNT, 1, 6
+			SIF ERDNAME(フレーバー素質, COUNT) == ""
+				CONTINUE
+			LOCALS += @"%ERDNAME(フレーバー素質, COUNT), 12, LEFT%："
+			FOR LOCAL:1, 0, 6
+				LOCALS:2 = %GET_フレーバー素質NAME(COUNT,LOCAL:1)%
+				IF LOCAL:1 == 0
+					LOCALS:2 = 非表示
+				ENDIF
+				IF COUNT == 5 && LOCAL:1 == 4
+					CONTINUE
+				ELSEIF LOCALS:2 == ""
+					CONTINUE
+				ENDIF
+				IF フレーバー素質数値保存:COUNT == LOCAL:1
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{50000 + COUNT * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+			NEXT
+			LOCALS += "<br>"
+		NEXT
+		LOCALS += @"%ERDNAME(フレーバー素質, 6), 12, LEFT%：　　　　"
+		FOR LOCAL:1, 0, 4
+			LOCALS:2 = %GET_フレーバー素質NAME(6, POWER(2, LOCAL:1))%
+			IF LOCALS:2 == ""
+				CONTINUE
+			ELSEIF LOCAL:1 == 3 && GETBIT(ランダムキャラ素質:1, 1) == 0
+				CONTINUE
+			ENDIF
+			IF GETBIT(フレーバー素質数値保存:6,LOCAL:1)
+				LOCALS:1 = C0C0C0
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{50000 + 6 * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+		NEXT
+		LOCALS += "</div>"
+		LOCALS += "<div rect='340px,481px,588px,450px'>"
+		LOCALS += "　　　　　　"
+		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 140
 		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
 			SIF ABL一時保存:LOCAL == -1
@@ -546,6 +623,11 @@ SELECTCASE 表示モード
 		ENDIF
 ENDSELECT
 LOCALS += "</div>"
+IF 表示モード == 0
+	LOCALS += "<div rect='770px,480px,200px,50px'><button value='1'>[1] 能力・経験表示へ</button></div>"
+ELSEIF 表示モード == 1
+	LOCALS += "<div rect='770px,480px,200px,50px'><button value='1'>[1] 情報・素質表示へ</button></div>"
+ENDIF
 
 HTML_PRINT LOCALS
 FOR LOCAL, 0, 28
@@ -640,6 +722,11 @@ SELECTCASE LOCAL
 		PRINTL 経験数を入力してください。（３桁まで）
 		INPUT
 		EXP数値保存:((LOCAL - 40000) / 10) = MIN(RESULT, 999)
+;フレーバー素質----------------------------------------------------
+	CASE 50000 TO 50059
+		フレーバー素質数値保存:((LOCAL - 50000) / 10) = LOCAL % 10
+	CASE 50060 TO 50069
+		INVERTBIT フレーバー素質数値保存:((LOCAL - 50000) / 10), LOCAL % 10
 ;メイン画面--------------------------------------------------------
 	CASE 100
 		PRINTL 名前を入力してください。（９文字まで）
@@ -652,6 +739,9 @@ SELECTCASE LOCAL
 	CASE 130
 		ページ数 = 0
 		表示モード = 130
+	CASE 131
+		ページ数 = 0
+		表示モード = 131
 	CASE 140
 		ページ数 = 0
 		表示モード = 140
@@ -708,6 +798,16 @@ SELECTCASE LOCAL
 				CONTINUE
 			TALENT:(LOCAL:1):(TALENT一時保存:LOCAL) = TALENT数値保存:LOCAL - 5
 		NEXT
+		LOCAL = 0
+		FOR COUNT, 1, 10
+			SIF フレーバー素質数値保存:COUNT == 0
+				CONTINUE
+			フレーバー素質:(LOCAL:1):COUNT = フレーバー素質数値保存:COUNT
+			LOCAL = 1
+		NEXT
+		IF LOCAL
+			フレーバー素質:(LOCAL:1):素質表示設定 = 1
+		ENDIF
 		FOR LOCAL, 0, 50
 			IF ABL数値保存:LOCAL > 0
 				ABL:(LOCAL:1):(ABL一時保存:LOCAL) = ABL数値保存:LOCAL
@@ -738,6 +838,8 @@ SELECTCASE LOCAL
 		NEXT
 		CALL 従業員人数チェック()
 		RETURN 0
+	CASE 1
+		INVERTBIT 表示モード, 0
 	CASE 999
 		RETURN 0
 ENDSELECT

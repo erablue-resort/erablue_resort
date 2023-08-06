@@ -92,3 +92,102 @@ FOR LOCAL,1,CHARANUM
 NEXT
 
 RETURN 従業員人数
+
+
+@ドロップ判定処理(ドロップ確率, 入手アイテム名)
+#DIM ドロップ確率
+#DIMS 入手アイテム名
+
+LOCAL = RAND:100
+
+IF 確定ドロップフラグ
+	LOCAL = 0
+ENDIF
+
+IF LOCAL < ドロップ確率
+	WSTR:(K++) = %入手アイテム名%を手に入れた！
+	CALL 素材入手処理(入手アイテム名, 1)
+ENDIF
+
+
+@素材入手処理(入手アイテム名, 入手数 = 1, 累計入手無効フラグ = 0)
+#DIMS 入手アイテム名
+#DIM 入手数
+#DIM 累計入手無効フラグ
+
+VARSET LOCAL
+FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名") == 入手アイテム名
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:1
+	LOCAL:1 = DT_CELL_GET("所持素材データベース", COUNT - 1, "所持数")
+	DT_CELL_SET "所持素材データベース", COUNT - 1, "所持数", LOCAL:1 + 入手数
+	IF 累計入手無効フラグ == 0
+		;無効でない限り、累計入手数を計上
+		LOCAL:1 = DT_CELL_GET("所持素材データベース", COUNT - 1, "累計入手数")
+		DT_CELL_SET "所持素材データベース", COUNT - 1, "累計入手数", LOCAL:1 + 入手数
+	ENDIF
+ELSE
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL アイテム名が不正です。制作者に連絡してください。
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+ENDIF
+
+@素材アイテム_数値データ取得(取得データ名, 判定アイテム名)
+#FUNCTION
+#DIMS 取得データ名
+#DIMS 判定アイテム名
+
+VARSET LOCAL
+FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名") == 判定アイテム名
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:1
+	RETURNF DT_CELL_GET("所持素材データベース", COUNT - 1, 取得データ名)
+ELSE
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL アイテム名が不正です。制作者に連絡してください。
+	PRINTL
+	PRINTL
+	PRINTL
+ENDIF
+
+@素材アイテム_文字列データ取得(取得データ名, 判定アイテム名)
+#FUNCTIONS
+#DIMS 取得データ名
+#DIMS 判定アイテム名
+
+VARSET LOCAL
+FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名") == 判定アイテム名
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:1
+	RETURNF DT_CELL_GETS("所持素材データベース", COUNT - 1, 取得データ名)
+ELSE
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL アイテム名が不正です。制作者に連絡してください。
+	PRINTL
+	PRINTL
+	PRINTL
+ENDIF

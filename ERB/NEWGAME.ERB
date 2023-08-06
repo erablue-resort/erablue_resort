@@ -22,6 +22,7 @@ CALL DEFAULT_OPTION
 ;ENDIF
 
 
+初期設定中 = 1
 LOCAL = 0
 FOR LOCAL,CHARANUM,キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
@@ -44,6 +45,9 @@ CALL アイテムデータベースセット
 CALL 指輪データベースセット
 CALL 耳飾りデータベースセット
 CALL 衣装データベースセット
+CALL 戦闘用データベースセット
+CALL 素材アイテムデータベースセット
+CALL 素材アイテム登録処理
 
 CALL 制服登録処理("バニー服")
 CALL 制服登録処理("メイド服")
@@ -74,6 +78,7 @@ CFLAG:MASTER:312 = 420
 CFLAG:MASTER:睡眠 = 1
 初体験日:MASTER:初対面 = 999
 FLAG:従業員数 = 1
+依頼同時最大数 = 1
 DAY = 1
 MONEY = 5000
 
@@ -107,8 +112,20 @@ CALL OPTION_素質切り替え
 PRINTL
 PRINTW このオプションはゲーム開始後もOPTIONから呼び出すことが出来ます。
 
+;フレーバー設定
+PRINTL
+PRINTW フレーバー素質の設定を呼び出します。
+PRINTL
+;先に口上側の設定を読み込んでおく
+FOR COUNT, 1, CHARANUM
+	TRYCALLFORM フレーバー素質初期設定変更_{COUNT}
+NEXT
+CALL フレーバー素質初期設定
+PRINTL
+
 CALL シナリオ_OP
 
+初期設定中 = 0
 BEGIN SHOP
 
 @EVENTLOAD
@@ -122,7 +139,6 @@ CALL VERSION_UP
 VARSET LOCALS
 VARSET CSTR切り分け文字列格納
 
-初期設定中 = 1
 
 ;全員睡眠状態
 CFLAG:ARG:睡眠 = 1
@@ -213,7 +229,6 @@ SPLIT RESULTS, " ", LOCALS
 
 CALL 弱点コマンド初期設定(ARG)
 TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
-初期設定中 = 0
 
 
 @弱点コマンド初期設定(ARG)
@@ -795,3 +810,449 @@ FOR LOCAL, 10, 20
 	DT_COLUMN_ADD @"デバフデータベース_{LOCAL}", "持続回数", 1
 	DT_COLUMN_ADD @"デバフデータベース_{LOCAL}", "持続行動回数", 1
 NEXT
+
+@素材アイテムデータベースセット
+DT_CREATE "所持素材データベース"
+DT_COLUMN_ADD "所持素材データベース", "素材アイテム名"
+DT_COLUMN_ADD "所持素材データベース", "所持数", 1
+DT_COLUMN_ADD "所持素材データベース", "累計入手数", 1
+DT_COLUMN_ADD "所持素材データベース", "素材カテゴリ"
+DT_COLUMN_ADD "所持素材データベース", "素材ランク", 1
+DT_COLUMN_ADD "所持素材データベース", "素材属性", 1
+DT_COLUMN_ADD "所持素材データベース", "素材相場", 1
+
+
+
+@フレーバー素質初期設定
+#DIM 全体設定
+#DIM 残りキャラ設定
+
+DRAWLINE
+PRINTL 陰毛の濃さや乳輪の大きさなど、快楽発生量に直接関わらない素質を設定します。
+PRINTL （口上の変動やコマンド発生条件には関わる可能性があります）
+PRINTL 
+PRINTL またこれらの設定にこだわりがない場合、［全て表示しない］を選ぶことでキャラのイメージを壊さないことが可能です。
+DRAWLINE
+PRINTL 
+PRINT 現在の設定：
+SELECTCASE 全体設定
+	CASE 0
+		PRINTBUTTON "[全て表示しない]", 100
+		PRINTL
+	CASE 1
+		PRINTBUTTON "[初対面時に設定]", 100
+		PRINTL
+		PRINT 口上側で設定があるキャラについて：
+		IF 残りキャラ設定 == 0
+			PRINTBUTTON "[口上側の設定を維持]", 101
+		ELSE
+			PRINTBUTTON "[初対面時に設定]", 101
+		ENDIF
+		PRINTL
+	CASE 2
+		PRINTBUTTON "[初うふふ時に設定]", 100
+		PRINTL
+		PRINT 口上側で設定があるキャラについて：
+		IF 残りキャラ設定 == 0
+			PRINTBUTTON "[口上側の設定を維持]", 101
+		ELSE
+			PRINTBUTTON "[初うふふ時に設定]", 101
+		ENDIF
+		PRINTL
+	CASE 3
+		PRINTBUTTON "[ランダムに設定]", 100
+		PRINTL
+		PRINT 口上側で設定があるキャラについて：
+		IF 残りキャラ設定 == 0
+			PRINTBUTTON "[口上側の設定を維持]", 101
+		ELSE
+			PRINTBUTTON "[ランダムに設定]", 101
+		ENDIF
+		PRINTL
+ENDSELECT
+
+PRINTL
+PRINTBUTTON "[998]口上側の設定があるキャラの一覧を見る", 998
+PRINTL
+PRINTBUTTON "[999]設定を終える", 999
+
+BINPUT
+SELECTCASE RESULT
+	CASE 100
+		DRAWLINE
+		PRINTBUTTON "[全て表示しない]", 0
+		PRINTL
+		PRINTBUTTON "[初対面時に設定]", 1
+		PRINTL
+		PRINTBUTTON "[初うふふ時に設定]", 2
+		PRINTL
+		PRINTBUTTON "[ランダムに設定]", 3
+		PRINTL
+		DRAWLINE
+		PRINTBUTTON "[戻る]", 999
+		BINPUT
+		IF RESULT == 999
+			RESTART
+		ENDIF
+		残りキャラ設定 = 0
+		全体設定 = RESULT
+		RESTART
+	CASE 101
+		DRAWLINE
+		SELECTCASE 全体設定
+			CASE 1
+				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTL
+				PRINTBUTTON "[初対面時に設定]", 1
+				PRINTL
+			CASE 2
+				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTL
+				PRINTBUTTON "[初うふふ時に設定]", 1
+				PRINTL
+			CASE 3
+				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTL
+				PRINTBUTTON "[ランダムに設定]", 1
+				PRINTL
+		ENDSELECT
+		DRAWLINE
+		PRINTBUTTON "[戻る]", 999
+		BINPUT
+		IF RESULT == 999
+			RESTART
+		ENDIF
+		残りキャラ設定 = RESULT
+		RESTART
+	CASE 998
+		CALL フレーバー素質口上設定者表示
+		RESTART
+ENDSELECT
+
+SELECTCASE 全体設定
+	CASE 0
+		PRINTL [全て表示しない]の設定でゲームを開始します。
+		FOR COUNT, 1, CHARANUM
+			フレーバー素質:COUNT:素質表示設定 = 0
+		NEXT
+		フレーバー素質封印設定 = 1
+	CASE 1
+		PRINT [初対面時に設定]、
+		IF 残りキャラ設定 == 0
+			PRINT 口上存在キャラは[口上側の設定を維持]
+		ELSE
+			PRINT 口上存在キャラも[初対面時に設定]
+		ENDIF
+		PRINTL の設定でゲームを開始します。
+		FOR COUNT, 1, CHARANUM
+			IF 残りキャラ設定 == 0 && フレーバー素質:COUNT:素質表示設定 == 1
+				CONTINUE
+			ENDIF
+			フレーバー素質:COUNT:素質表示設定 = 2
+		NEXT
+	CASE 2
+		PRINT [初うふふ時に設定]、
+		IF 残りキャラ設定 == 0
+			PRINT 口上存在キャラは[口上側の設定を維持]
+		ELSE
+			PRINT 口上存在キャラも[初うふふ時に設定]
+		ENDIF
+		PRINTL の設定でゲームを開始します。
+		FOR COUNT, 1, CHARANUM
+			IF 残りキャラ設定 == 0 && フレーバー素質:COUNT:素質表示設定 == 1
+				CONTINUE
+			ENDIF
+			フレーバー素質:COUNT:素質表示設定 = 3
+		NEXT
+	CASE 3
+		PRINT [ランダムに設定]、
+		IF 残りキャラ設定 == 0
+			PRINT 口上存在キャラは[口上側の設定を維持]
+		ELSE
+			PRINT 口上存在キャラも[ランダムに設定]
+		ENDIF
+		PRINTL の設定でゲームを開始します。
+		FOR COUNT, 1, CHARANUM
+			IF 残りキャラ設定 == 0 && フレーバー素質:COUNT:素質表示設定 == 1
+				CONTINUE
+			ENDIF
+			フレーバー素質:COUNT:素質表示設定 = 1
+			フレーバー素質:COUNT:陰毛濃さ = RAND:5 + 1
+			フレーバー素質:COUNT:乳首大きさ = RAND:5 + 1
+			フレーバー素質:COUNT:乳輪大きさ = RAND:5 + 1
+			フレーバー素質:COUNT:性器種類 = RAND:5 + 1
+			フレーバー素質:COUNT:クリ大きさ = RAND:3 + 1
+			LOCAL = RAND:5
+			SIF LOCAL == 0
+				SETBIT フレーバー素質:COUNT:ほくろ位置, 0
+			LOCAL = RAND:5
+			SIF LOCAL == 0
+				SETBIT フレーバー素質:COUNT:ほくろ位置, 1
+			LOCAL = RAND:5
+			SIF LOCAL == 0
+				SETBIT フレーバー素質:COUNT:ほくろ位置, 2
+			LOCAL = RAND:5
+			SIF LOCAL == 0 && GETBIT(TALENT:COUNT:性別, 1)
+				SETBIT フレーバー素質:COUNT:ほくろ位置, 3
+		NEXT
+ENDSELECT
+
+
+@フレーバー素質個別設定画面(キャラ番号)
+#DIM キャラ番号
+#DIM フレーバー素質数値保存, 10
+VARSET フレーバー素質数値保存
+
+$描画_LOOP
+DRAWLINE
+PRINTL キャラクターのフレーバー素質を手動で設定します。
+DRAWLINE
+LOCALS = 
+LOCALS += "<div rect='10px,0px,620px,600px' border='5px' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='22px,20px,588px,600px'>"
+
+LOCALS += @"■%NAME:キャラ番号%<br>"
+IF 装備ステータス補正保存:キャラ番号:属性
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(装備ステータス補正保存:キャラ番号:属性 - 10)%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(装備ステータス補正保存:キャラ番号:属性 - 10)%</font>"
+ELSE
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%</font>"
+ENDIF
+LOCALS += @"　得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:キャラ番号:得意武器)%　"
+LOCALS += @"　タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存)%"
+LOCALS += "<br><br>"
+LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
+LOCALS += @"　種族：%GET_TALENTNAME(200,TALENT:キャラ番号:種族)%"
+IF TALENT:キャラ番号:種族追記 == 1
+	LOCALS +=  "[六竜]"
+ENDIF
+SIF TALENT:キャラ番号:角あり
+	LOCALS += " （角あり）"
+SIF TALENT:キャラ番号:尻尾あり
+	LOCALS += " （尻尾）"
+SIF TALENT:キャラ番号:エルーン耳
+	LOCALS += " （エルーン耳）"
+SIF TALENT:キャラ番号:ハーヴィン耳
+	LOCALS += " （ハーヴィン耳）"
+SIF TALENT:キャラ番号:発情期あり
+	LOCALS += " （発情期あり）"
+LOCALS += "<br>"
+LOCALS += "　性別："
+IF TALENT:キャラ番号:性別 == 1
+	LOCALS += "女性"
+	SIF TALENT:キャラ番号:処女
+		LOCALS += "（処女）"
+ELSEIF TALENT:キャラ番号:性別 == 2
+	LOCALS += "男性"
+	SIF TALENT:キャラ番号:童貞 == 0
+		LOCALS += "（童貞）"
+ELSEIF TALENT:キャラ番号:性別 == 3
+	LOCALS += "ふたなり"
+	SIF TALENT:キャラ番号:童貞 == 0
+		LOCALS += "(童貞)"
+	SIF TALENT:キャラ番号:処女
+		LOCALS += "（処女）"
+ENDIF
+LOCALS += @"バストサイズ：%GET_TALENTNAME(205,TALENT:キャラ番号:バストサイズ)%"
+LOCALS += "<br>"
+
+LOCALS += @"　性知識レベル：%性知識段階表示(知識素質:キャラ番号:性知識, キャラ番号), 17, LEFT%"
+LOCALS += "<br>"
+
+IF TALENT:キャラ番号:性別 & 2
+	PRINTFORM 　男性器サイズ：%GET_TALENTNAME(162,TALENT:キャラ番号:男性器サイズ)%
+	SIF TALENT:キャラ番号:男性器サイズ == 0
+		PRINT 平凡
+	PRINTL
+ENDIF
+LOCALS += "<br>"
+LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
+LOCALS:1 = 
+FOR COUNT,8,160
+	IF STRLENS(GET_TALENTNAME(COUNT,TALENT:キャラ番号:COUNT, 0))
+		LOCALS += @"[%GET_TALENTNAME(COUNT,TALENT:キャラ番号:COUNT, 0)%]"
+	ENDIF
+NEXT
+FOR COUNT,220,300
+	IF STRLENS(GET_TALENTNAME(COUNT,TALENT:キャラ番号:COUNT, 0))
+		LOCALS += @"[%GET_TALENTNAME(COUNT,TALENT:キャラ番号:COUNT, 0)%]"
+	ENDIF
+NEXT
+FOR COUNT,1,100
+	IF 知識素質:キャラ番号:COUNT
+		LOCALS += @"[%ERDNAME(知識素質,COUNT)%Lv{知識素質:キャラ番号:COUNT}]"
+	ENDIF
+NEXT
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "□ フレーバー素質 □-----------------------------------------------------<br>"
+
+FOR COUNT, 1, 6
+	SIF ERDNAME(フレーバー素質, COUNT) == ""
+		CONTINUE
+	LOCALS += @"　%ERDNAME(フレーバー素質, COUNT), 12, LEFT%："
+	FOR LOCAL:1, 0, 6
+		LOCALS:2 = %GET_フレーバー素質NAME(COUNT,LOCAL:1)%
+		IF LOCAL:1 == 0
+			LOCALS:2 = 非表示
+		ENDIF
+		IF COUNT == 5 && LOCAL:1 == 4
+			CONTINUE
+		ELSEIF LOCALS:2 == ""
+			CONTINUE
+		ENDIF
+		IF フレーバー素質数値保存:COUNT == LOCAL:1
+			LOCALS:1 = C0C0C0
+		ELSE
+			LOCALS:1 = 333333
+		ENDIF
+		LOCALS += @"<font color='#%LOCALS:1%'><button value='{COUNT * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+	NEXT
+	LOCALS += "<br>"
+NEXT
+LOCALS += @"　%ERDNAME(フレーバー素質, 6), 12, LEFT%：　　　　"
+FOR LOCAL:1, 0, 4
+	LOCALS:2 = %GET_フレーバー素質NAME(6, POWER(2, LOCAL:1))%
+	IF LOCALS:2 == ""
+		CONTINUE
+	ELSEIF LOCAL:1 == 3 && GETBIT(TALENT:キャラ番号:性別, 1) == 0
+		CONTINUE
+	ENDIF
+	IF GETBIT(フレーバー素質数値保存:6,LOCAL:1)
+		LOCALS:1 = C0C0C0
+	ELSE
+		LOCALS:1 = 333333
+	ENDIF
+	LOCALS += @"<font color='#%LOCALS:1%'><button value='{60 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+NEXT
+LOCALS += "</div>"
+LOCALS += "<div rect='450px,570px,300px,50px'><button value='999'>[999] これで決定</button></div>"
+
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 35
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 59
+		フレーバー素質数値保存:(LOCAL / 10) = LOCAL % 10
+		GOTO 描画_LOOP
+	CASE 60 TO 69
+		INVERTBIT フレーバー素質数値保存:(LOCAL / 10), LOCAL % 10
+		GOTO 描画_LOOP
+	CASE 999
+		LOCAL:1 = 0
+		FOR COUNT, 1, 10
+			IF フレーバー素質数値保存:COUNT
+				フレーバー素質:キャラ番号:COUNT = フレーバー素質数値保存:COUNT
+				LOCAL:1 = 1
+			ENDIF
+		NEXT
+		IF LOCAL:1
+			フレーバー素質:キャラ番号:0 = 1
+		ELSE
+			フレーバー素質:キャラ番号:0 = 0
+		ENDIF
+ENDSELECT
+
+
+
+@フレーバー素質口上設定者表示
+#DIM 現在ページ
+#DIM 表示候補, 500
+#DIM 候補人数
+現在ページ = 0
+
+$最初から
+;表示候補選定＆ソート処理
+LOCAL:1 = 0
+VARSET 表示候補
+VARSET LOCALS
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	SIF フレーバー素質:LOCAL:素質表示設定 != 1
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+候補人数 = LOCAL:1
+LOCAL:1 = 1
+
+$表示処理_LOOP
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, 現在ページ * 30, 候補人数
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}]%NAME:(表示候補:LOCAL),40,LEFT%</button>"
+	LOCALS += "　　　　　　　　"
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 29
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+IF 現在ページ > 0
+	PRINTLC  [900]前のページへ
+ELSE
+	PRINTLC  
+ENDIF
+IF 現在ページ < 候補人数 / 30
+	PRINTLC  [901]次のページへ
+ENDIF
+PRINTL
+DRAWLINE
+PRINTBUTTONLC "[1000]戻る", 1000
+PRINTL
+
+$INPUT_LOOP
+BINPUT
+IF RESULT == 1000
+	RETURN 0
+ELSEIF RESULT == 900
+	現在ページ = MAX(現在ページ - 1, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 901
+	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
+	GOTO 表示処理_LOOP
+ENDIF
+LOCAL = RESULT
+$再表示
+IF 候補人数 == 1
+	CALL PRINT_STATE(LOCAL, 0)
+ELSEIF 表示候補:0 == LOCAL
+	CALL PRINT_STATE(LOCAL, 2)
+ELSEIF 表示候補:(候補人数 - 1) == LOCAL
+	CALL PRINT_STATE(LOCAL, 1)
+ELSE
+	CALL PRINT_STATE(LOCAL, 3)
+ENDIF
+IF RESULT == 100
+	FOR LOCAL:1, 0, 候補人数
+		IF 表示候補:(LOCAL:1) == LOCAL
+			LOCAL = 表示候補:(LOCAL:1 - 1)
+			BREAK
+		ENDIF 
+	NEXT
+	GOTO 再表示
+ELSEIF RESULT == 101
+	FOR LOCAL:1, 0, 候補人数
+		IF 表示候補:(LOCAL:1) == LOCAL
+			LOCAL = 表示候補:(LOCAL:1 + 1)
+			BREAK
+		ENDIF 
+	NEXT
+	GOTO 再表示
+ENDIF
+
+GOTO 最初から
