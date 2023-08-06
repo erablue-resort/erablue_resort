@@ -90,12 +90,7 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN 0
 	CASE IS < 1000
-		TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
-		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%(LOCAL - 500)
-		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
-		HTML_PRINT LOCALS
-		WAIT
+		CALL 指輪ステータス表示処理(LOCAL - 500)
 		RESTART
 ENDSELECT
 LOOP 1
@@ -288,18 +283,34 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN 1
 	CASE IS < 500
-		TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名")%
-		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名")%(LOCAL)
-		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
-		HTML_PRINT LOCALS
-		WAIT
+		CALL 指輪ステータス表示処理(LOCAL)
 	CASE IS < 1000
-		TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%
-		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL - 500, "指輪名")%(LOCAL - 500)
-		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
-		HTML_PRINT LOCALS
-		WAIT
+		CALL 指輪ステータス表示処理(LOCAL - 500)
 ENDSELECT
 LOOP 1
+
+
+@指輪ステータス表示処理(指輪番号)
+#DIM 指輪番号
+#DIMS オプション効果格納, 20
+
+TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", 指輪番号, "指輪名")%
+LOCALS = %詳細文文字列受け渡し変数%
+TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 指輪番号, "指輪名")%(指輪番号)
+LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+IF DT_CELL_GETS("所持指輪データベース", 指輪番号, "オプションステータス補正") != ""
+	LOCALS += "【オプション効果】<br>"
+	VARSET オプション効果格納
+	SPLIT DT_CELL_GETS("所持指輪データベース", 指輪番号, "オプションステータス補正"), "_", オプション効果格納
+	FOR LOCAL, 0, RESULT, 2
+		LOCALS += @"%オプション効果格納:LOCAL%"
+		IF TOINT(オプション効果格納:(LOCAL + 1)) > 0
+			LOCALS += @"+%オプション効果格納:(LOCAL + 1)% "
+		ELSEIF TOINT(オプション効果格納:(LOCAL + 1)) < 0
+			LOCALS += @"-%オプション効果格納:(LOCAL + 1)% "
+		ENDIF
+	NEXT
+ENDIF
+HTML_PRINT LOCALS
+WAIT
+
