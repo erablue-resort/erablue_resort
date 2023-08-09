@@ -180,6 +180,7 @@ LNCOUNT = LINECOUNT
 VARSET LOCAL
 VARSET LOCALS
 VARSET FOLDER
+SPRITEDISPOSEALL 0
 
 LOCALS '= "resources\\" + TOSTR(NO:ARG) + CALLNAME:ARG
 F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
@@ -259,8 +260,12 @@ RETURN
 #DIMS TYPE
 #DIMS CONST V_FRONT = "正常位","対面座位", "側位","屈曲位", "駅弁", "対面立位", "騎乗位", "同時挿入"
 #DIMS CONST V_BACK = "後背位","寝バック", "側位", "背面座位", "逆駅弁", "立ちバック", "同時挿入"
+#DIMS D_NAME
 
 VARSET LOCAL
+VARSET 差分エフェクト
+
+D_NAME '= ""
 LOCALS '= CSTR:ARG:顔グラ表示切り替え用文字列
 SIF TYPE == "短冊_"
 	LOCALS '= CSTR:ARG:短冊グラ表示切り替え用文字列
@@ -277,60 +282,68 @@ IF MODE_確認("Ｖ挿入系", ARG)
 	FOR LOCAL, 0, VARSIZE("V_FRONT")
 		IF MODE_確認(V_FRONT:LOCAL, ARG)
 			LOCAL:1 ++
-			SIF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL)
-				RETURNF RESULTS
+			SIF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精") && D_NAME == ""
+				D_NAME '= RESULTS
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL, "挿入") && D_NAME == ""
+				D_NAME '= RESULTS
 		ENDIF
 	NEXT
 	FOR LOCAL, 0, VARSIZE("V_BACK")
 		IF MODE_確認(V_BACK:LOCAL, ARG)
 			LOCAL:2 ++
-			SIF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL)
-				RETURNF RESULTS
+			SIF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精") && D_NAME == ""
+				D_NAME '= RESULTS
+			SIF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL, "挿入") && D_NAME == ""
+				D_NAME '= RESULTS
 		ENDIF
 	NEXT
 	;なければ正面体位は正常位を、背面体位は後背位を表示する
-	SIF LOCAL:1 && 差分抽出(ARG, TYPE, LOCALS, "正常位")
-		RETURNF RESULTS
-	SIF LOCAL:2 && 差分抽出(ARG, TYPE, LOCALS, "後背位")
-			RETURNF RESULTS
+	SIF LOCAL:1 && 差分抽出(ARG, TYPE, LOCALS, "正常位", "挿入") && D_NAME == ""
+		D_NAME '= RESULTS
+	SIF LOCAL:2 && 差分抽出(ARG, TYPE, LOCALS, "後背位", "挿入") && D_NAME == ""
+			D_NAME '= RESULTS
 ENDIF
 IF MODE_確認("フェラチオ系", ARG) || MODE_確認("シックスナイン", ARG) || MODE_確認("パイズリ系", ARG)
-	SIF TCVAR:ARG:前ターン被射精位置 == 3 && 差分抽出(ARG, TYPE, LOCALS, "口内射精")
-		RETURNF RESULTS
-	SIF TCVAR:ARG:前ターン被射精位置 == 4 && 差分抽出(ARG, TYPE, LOCALS, "乳内射精")
-		RETURNF RESULTS
-	SIF TCVAR:ARG:前ターン被射精位置 == 5 && 差分抽出(ARG, TYPE, LOCALS, "顔射")
-		RETURNF RESULTS
-	SIF MODE_確認("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ")
-		RETURNF RESULTS
-	SIF (MODE_確認("フェラチオ系", ARG) || MODE_確認("シックスナイン", ARG)) && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ")
-		RETURNF RESULTS
+	SIF TCVAR:ARG:前ターン被射精位置 == 3 && 差分抽出(ARG, TYPE, LOCALS, "口内射精", "口内射精") && D_NAME == ""
+		D_NAME '= RESULTS
+	SIF TCVAR:ARG:前ターン被射精位置 == 4 && 差分抽出(ARG, TYPE, LOCALS, "乳内射精", @"乳内射精{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}") && D_NAME == ""
+		D_NAME '= RESULTS
+	SIF TCVAR:ARG:前ターン被射精位置 == 5 && 差分抽出(ARG, TYPE, LOCALS, "顔射") && D_NAME == ""
+		D_NAME '= RESULTS
+	SIF MODE_確認("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}") && D_NAME == ""
+		D_NAME '= RESULTS
+	SIF (MODE_確認("フェラチオ系", ARG) || MODE_確認("シックスナイン", ARG)) && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ", "フェラチオ") && D_NAME == ""
+		D_NAME '= RESULTS
 ENDIF
 
 IF TCVAR:ARG:前ターン絶頂
 	;前ターン絶頂時
-	SIF 差分抽出(ARG, TYPE, LOCALS, "絶頂")
-		RETURNF RESULTS
+	SIF 差分抽出(ARG, TYPE, LOCALS, "絶頂", , "絶頂") && D_NAME == ""
+		D_NAME '= RESULTS
 ENDIF
 IF GETPALAMLV(PALAM:ARG:欲情,15) > 3
 	;欲情時
-	SIF 差分抽出(ARG, TYPE, LOCALS, "欲情")
-		RETURNF RESULTS
+	SIF 差分抽出(ARG, TYPE, LOCALS, "欲情", , "欲情") && D_NAME == ""
+		D_NAME '= RESULTS
 ENDIF
-;差分無しを返す
+;差分が見つかればそれを、なければ差分無しを返す
+SIF D_NAME != ""
+	RETURNF D_NAME
 RETURNF LOCALS
 
 ;********************************************************************************************
-;@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF)
+;@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF, DIFF:1="", DIFF:2="")
 ;  @グラ表示用文字列算出から呼び出されて条件に合うファイルからランダムに抽出する
 ;  TYPE:0 "顔_" または "短冊_"
 ;  TYPE:1 基本的にはその時のグラ表示切り替え用文字列。空欄なら表示グラフィックカテゴリまたはデフォルトが入っているはず
+;  DIFF:0 サーチする差分区分名。「顔_デフォルト_◯◯.png」の◯◯部分
+;  DIFF:1、2 見つからなかった場合に表示する差分エフェクト名。1と2でレイヤー別で重ねて表示可能
 ;********************************************************************************************
 
-@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF)
+@差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF, DIFF:1="", DIFF:2="")
 #FUNCTION
 #DIMS TYPE, 2
-#DIMS DIFF
+#DIMS DIFF, 3
 
 IF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE:1%_差分_%DIFF%.png")
 	;現在表示してるグラの差分があるか見る
@@ -342,5 +355,68 @@ ELSEIF EXISTFILE(@"resources/%CSTR:ARG:画像フォルダ%/%TYPE + CSTR:ARG:表�
 	RETURNF 1
 ENDIF
 RESULTS '= TYPE:1
+
+;差分画像がなく、エフェクトが既に自邸されていなければエフェクトを追加
+SIF 差分エフェクト:0 == "" && DIFF:1 != ""
+	差分エフェクト:0 '= "effect_" + TYPE + DIFF:1
+SIF 差分エフェクト:1 == "" && DIFF:2 != ""
+	差分エフェクト:1 '= "effect_" + TYPE + DIFF:2
+
 RETURNF 0
+
+;********************************************************************************************
+;スプライト合成
+;指定した元スプライトにリソース名のスプライトを重ねて合成する関数
+;横幅か縦幅に0が入っている場合には自動で元スプライトのサイズを取得してサイズを合わせる
+;********************************************************************************************
+@スプライト合成(元スプライト, グラフィックID, リソース名, POS_X = 0, POS_Y = 0, 横幅 = 0, 縦幅 = 0)
+#FUNCTION
+#DIM グラフィックID		;合成先のグラフィックID
+#DIMS 元スプライト		;合成先のスプライト名
+#DIMS リソース名			;合成元のリソースID
+#DIM POS_X					;リソースを配置するX座標
+#DIM POS_Y					;リソースを配置するY座標
+#DIM 元横幅					;合成する元スプライトの横幅
+#DIM 元縦幅					;合成する元スプライトの縦幅
+#DIM 横幅					;合成するリソースの横幅
+#DIM 縦幅					;合成するリソースの縦幅
+
+SIF !SPRITECREATED(リソース名)
+	;リソースが存在しない場合0を返す
+	RETURNF 0
+SIF !SPRITECREATED(元スプライト)
+	;元スプライトが存在しない場合0を返す
+	RETURNF 0
+
+元横幅 = SPRITEWIDTH(元スプライト)
+元縦幅 = SPRITEHEIGHT(元スプライト)
+
+IF 横幅 == 0 || 縦幅 == 0
+	横幅 = SPRITEWIDTH(元スプライト)
+	縦幅 = SPRITEHEIGHT(元スプライト)
+ENDIF
+
+GDISPOSE TEMP_gID
+
+CBGCLEAR
+
+;元スプライトをグラフィック化
+GCREATE TEMP_gID, 元横幅, 元縦幅
+GDRAWSPRITE TEMP_gID, 元スプライト, 0, 0, 元横幅, 元縦幅
+;CBGSETG TEMP_gID, 0, -1*元縦幅, 1
+
+;グラフィックIDに転写
+GDISPOSE グラフィックID
+GCREATE グラフィックID, 元横幅, 元縦幅
+GDRAWG グラフィックID, TEMP_gID, 0, 0, 元横幅, 元縦幅, 0, 0, 元横幅, 元縦幅
+;CBGSETG グラフィックID, 元横幅, -1*元縦幅, 1
+
+GDISPOSE TEMP_gID
+SPRITEDISPOSE 元スプライト
+GDRAWSPRITE グラフィックID, リソース名, POS_X, POS_Y,  横幅, 縦幅
+;CBGSETG グラフィックID, 0, 0, 1
+SPRITECREATE 元スプライト, グラフィックID, 0, 0, 元横幅, 元縦幅
+;CBGSETSPRITE  元スプライト, 元横幅, 0, 1
+
+RETURNF
 

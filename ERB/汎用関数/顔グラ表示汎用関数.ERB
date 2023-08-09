@@ -23,31 +23,40 @@ IF グラ表示用一時文字列_顔 == ""
 ELSE
 	GCREATEFROMFILE 1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png"
 ENDIF
+
 IF RESULT == 0
 	;該当画像が無い場合
 	IF グラ表示用一時文字列_顔 == ""
-		;そもそもデフォルト画像が無い場合はNoimage画像で返す
+		;そもそもデフォルト画像が無い場合はNoimage画像で返す。差分エフェクトも無し
 		RETURNF @"<img src='Noimage_顔' width='180px' height='180px'>"
 	ELSEIF GCREATEFROMFILE(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%.png")
-		;設定中の顔グラが存在すればそちらをトリミングで表示
+		;設定中の短冊グラが存在すればそちらをトリミングで表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
 		画像サイズ切り替えOPTION記憶:1 = 0
 		SIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 1)
 			LOCALS '= @"<img src='顔グラ{g_loop}' width='180px' height='180px'>"
 		画像サイズ切り替えOPTION記憶:1 = LOCAL
-		RETURNF LOCALS
+;		RETURNF LOCALS
 	ELSEIF GCREATEFROMFILE(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/顔_デフォルト.png")
 		;変更後画像も設定中の顔グラも無い場合はデフォルト顔を表示させる
 	ELSE
-		;どれもない場合はNoimage画像で返す
+		;どれもない場合はNoimage画像で返す。差分エフェクトも無し
 		RETURNF @"<img src='Noimage_顔' width='180px' height='180px'>"
-;		GCREATEFROMFILE 1000 + g_loop, @"{NO:ARG}%CALLNAME:ARG%/顔_デフォルト.png"
 	ENDIF
-ENDIF
-SIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)
+ELSEIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)
+	;該当画像がある場合、そのまま作成
 	LOCALS '= @"<img src='顔グラ{g_loop}' width='180px' height='180px'>"
+ENDIF
+
+SIF 差分エフェクト != ""
+	LOCAL = スプライト合成(@"顔グラ{g_loop}", 1000 + g_loop, 差分エフェクト)
+;	GDRAWSPRITE 1000 + g_loop, 差分エフェクト, 0, 0, SPRITEWIDTH(@"顔グラ{g_loop}"), SPRITEHEIGHT(@"顔グラ{g_loop}")
+SIF  差分エフェクト:1 != ""
+	LOCAL = スプライト合成(@"顔グラ{g_loop}", 1000 + g_loop, 差分エフェクト:1)
+;	GDRAWSPRITE 1000 + g_loop, 差分エフェクト:1, 0, 0, SPRITEWIDTH(@"顔グラ{g_loop}"), SPRITEHEIGHT(@"顔グラ{g_loop}")
 
 RETURNF LOCALS
+
 
 [SKIPSTART]
 ;顔用と短冊用を同一関数で処理するよう変更
