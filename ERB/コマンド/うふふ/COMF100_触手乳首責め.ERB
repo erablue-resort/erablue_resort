@@ -1,118 +1,110 @@
-﻿; ;-------------------------------------------------
-; ;触手乳首責め
-; ;触手系コマンド、レベル1
-; ;-------------------------------------------------
-; @COMNAME100
-; #FUNCTIONS
-; TSTR:コマンド名受渡 = 触手乳首責め
+﻿;-------------------------------------------------
+;触手乳首責め
+;触手系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME100
+#FUNCTIONS
+TSTR:コマンド名受渡 = 触手乳首責め
+IF MODE_確認("触手乳首責め", TARGET)
+	TSTR:コマンド名受渡 = 触手乳首責め解除
+ENDIF
+;複数モード_ダミーをリセット
+複数モード_ダミー = 0
 
-; ;複数モード_ダミーをリセット
-; 複数モード_ダミー = 0
-
-; ;===================================================
-; ;コマンドタイプ
-; ;===================================================
-; @COMTYPE_100
-; #FUNCTION
-; TFLAG:コマンドタイプ受渡 = COMTYPE("触手系")
-; 弱点コマンドカテゴリ = B
-; 同時モード許可 = 1
-; 助手モード許可 = 1
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_100
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("触手系")
+;特殊な条件が必要なコマンドなので、弱点コマンドのランダム対象からは外す
+;弱点コマンドカテゴリ = B
+同時モード許可 = 1
 
 
-; @COM_TOOLTIP_100
-; LOCALS = <br>■触手乳首責め<br>
-; LOCALS += "乳首に特化した触手を出し、強い快楽を与えるコマンド。"
-; LOCALS += "<br>COMタイプ：触手系<br>取得ソース：快Ｂ・露出・接触"
-; LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
-; TSTR:ツールチップ受渡 = %LOCALS%
+@COM_TOOLTIP_100
+LOCALS = <br>■触手乳首責め<br>
+LOCALS += "乳首に特化した触手を出し、強い快楽を与えるコマンド。"
+LOCALS += "<br>COMタイプ：触手系<br>取得ソース：快Ｂ・露出・接触"
+LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
 
-; @COM100
-; ;-------------------------------------------------
-; ;ソース追加処理
-; ;-------------------------------------------------
-; ;消費体力、気力
-; DOWNBASE:体力 += 10
-; DOWNBASE:気力 += 80
+@COM100
+#DIM 快楽基礎値
 
-; CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER,250)
-; CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
-; CALL SOURCE_CALC_接触(TARGET, PLAYER, 60)
-; ;-------------------------------------------------
-; ;経験の処理
-; ;-------------------------------------------------
-; ;同性愛　レズなら戻り値1ゲイなら戻り値2
-; IF HETEROSEX(TARGET,PLAYER)
-; 	EXP:同性愛経験 += 1
-; 	EXP:PLAYER:同性愛経験 += 1
-; ENDIF
+IF MODE_確認("触手乳首責め", TARGET)
+	CALL MODE_DELETE("触手乳首責め")
+ELSE
+	CALL MODE_CHANGE("触手乳首責め")
+ENDIF
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+;消費体力、気力
+DOWNBASE:体力 += 40
+DOWNBASE:気力 += 100
+TCVAR:乳首開発フラグ = 3
+TCVAR:触手コマンドフラグ = 1
 
-; EXP:PLAYER:道具使用経験 ++
-; RETURN 1
-; ;-------------------------------------------------
-; ;実行判定
-; ;-------------------------------------------------
-; @COM_ABLE100
-; SIF !TFLAG:100
-; 	RETURN 0
-; ;一括管理
-; SIF GLOBAL_COMABLE(100)
-; 	RETURN RESULT
+快楽基礎値 = あなた特殊能力:触手変化術 * 3
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 快楽基礎値 * 70)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 快楽基礎値 * 20)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:PLAYER:同性愛経験 += 1
+ENDIF
 
-; ;下半身着衣
-; ;前鎧、めくれない服があると無理
-; SIF TEQUIP:下腹部前鎧あり
-; 	RETURN 0
-; SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
-; 	RETURN 0
-	
-; RETURN 1
+EXP:PLAYER:触手操作経験 ++
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE100
+SIF !TFLAG:100
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(100)
+	RETURN RESULT
+;陥没乳首は乳首露出させてからでないと不可
+SIF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+	RETURN 0
 
-; ;-------------------------------------------------
-; ;実行時メッセージ
-; ;-------------------------------------------------
-; @MESSAGE_COM100
-; IF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
-; 	PRINTFORM %CALLNAME:TARGET%の
-; 	PRINTL 下半身にタイツの上から震えるローターを押し当てた…
-; 	RETURN 0
-; ENDIF
-; IF TEQUIP:下半身下着あり
-; 	IF TALENT:恋慕
-; 		PRINTFORM 自ら下着をずらして準備している
-; 	ELSE
-; 		PRINTFORM 下着をずらして露出させた
-; 	ENDIF
-; ELSEIF TEQUIP:下半身服あり && TEQUIP:スカートめくり可
-; 	IF TALENT:恋慕
-; 		PRINTFORM 自ら服を捲り上げて準備している
-; 	ELSE
-; 		PRINTFORM 服を捲り上げて露出させた
-; 	ENDIF
-; ELSEIF TEQUIP:下半身服あり && TEQUIP:ずらし可
-; 	IF TALENT:恋慕
-; 		PRINTFORM 自ら服をずらして準備している
-; 	ELSE
-; 		PRINTFORM 服をずらして露出させた
-; 	ENDIF
-; ENDIF
-; PRINTFORM %CALLNAME:TARGET%の
-; ;オトコ＋欲情のPALAMLV3以上
-; IF !(TALENT:性別 & 1) && (PALAM:欲情 >= PALAMLV:3)
-; 	PRINTL 硬くそそり勃ったペニスに震えるローターを押し当てた…
-; ;オトコ
-; ELSEIF !(TALENT:性別 & 1)
-; 	PRINTL ペニスに震えるローターを押し当てた…
-; ;ふたなり＋欲情のPALAMLV3以上
-; ELSEIF (TALENT:性別 & 3) == 3 && PALAM:欲情 >= PALAMLV:3
-; 	PRINTL ぬかるんだ秘唇に震えるローターを押し当てた…
-; ;ふたなり
-; ELSEIF (TALENT:性別 & 3) == 3
-; 	PRINTL 秘唇に震えるローターを押し当てた…
-; ;欲情のPALAMLV3以上
-; ELSEIF PALAM:欲情 >= PALAMLV:3
-; 	PRINTL 硬く尖ったクリトリスに震えるローターを押し当てた…
-; ELSE
-; 	PRINTL クリトリスに震えるローターを押し当てた…
-; ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM100
+
+IF MODE_確認("触手乳首責め", TARGET)
+	;メッセージ表示タイミングはモード付加後なのでモードがあれば＝吸い付いたタイミング
+	PRINTFORM %CALLNAME:PLAYER%は自らの触手を%CALLNAME:TARGET%の
+	IF TEQUIP:上半身鎧あり
+		PRINT 鎧の隙間から
+		IF TEQUIP:上タイツあり
+			PRINT タイツの下に
+		ENDIF
+		PRINT 潜り込ませ、
+	ELSEIF TEQUIP:上半身服あり
+		PRINT 服の隙間から
+		IF TEQUIP:上タイツあり
+			PRINT タイツの下に
+		ENDIF
+		PRINT 潜り込ませ、
+	ENDIF
+	IF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+		PRINT まだ乳輪に隠れている
+	ELSEIF PALAM:欲情 >= PALAMLV:3
+		PRINT 硬くそそり勃った
+	ENDIF
+	PRINTL 乳首に吸い付かせた
+ELSE
+	;メッセージ表示タイミングはモード付加後なのでモードが無いなら＝解除したタイミング
+	PRINTFORM %CALLNAME:PLAYER%は触手を%CALLNAME:TARGET%の乳首から離した…
+ENDIF
 
