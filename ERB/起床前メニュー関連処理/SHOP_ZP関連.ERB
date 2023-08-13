@@ -31,7 +31,7 @@ PRINTBUTTON "[1]特別なアイテムを得る", 1
 PRINTL 
 PRINTBUTTON "[2]特別なキャラを招待候補に加える", 2
 PRINTL 
-PRINTBUTTON "[3]キャラの素質を強化する", 3
+PRINTBUTTON "[3]キャラの素質を変化させる", 3
 PRINTL 
 PRINTBUTTON "[4]リゾート全体の環境を変化させる", 4
 PRINTL 
@@ -57,7 +57,7 @@ SELECTCASE RESULT
 		CALL ZP_SHOP_EXキャラ
 		RESTART
 	CASE 3
-		CALL ZP_SHOP_素質強化
+		CALL ZP_SHOP_素質変化
 		RESTART
 	CASE 4
 		CALL ZP_SHOP_環境変化
@@ -451,7 +451,7 @@ SELECTCASE LOCAL
 ENDSELECT
 
 
-@ZP_SHOP_素質強化
+@ZP_SHOP_素質変化
 ;現在滞在しているキャラ一覧
 #DIM 表示候補, 200
 #DIM 現在ページ
@@ -526,13 +526,13 @@ SELECTCASE RESULT
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 		ENDIF
-		CALL ZP_素質強化(表示候補:RESULT)
+		CALL ZP_素質変化(表示候補:RESULT)
 		SIF RESULT == -1
 			RESTART
 ENDSELECT
 
-@ZP_素質強化(ARG)
-LOCAL = ARG
+@ZP_素質変化(キャラ番号)
+#DIM キャラ番号
 
 DRAWLINE
 PRINTL ZPを消費してキャラの素質を変化させることが出来ます。
@@ -542,6 +542,8 @@ PRINTBUTTONLC "[1]感覚系素質を強化する", 1
 PRINTL
 PRINTBUTTONLC "[2]乳の大きさを変化させる", 2
 PRINTL
+PRINTBUTTONLC "[3]種族を変化させる", 3
+PRINTL
 PRINTBUTTONLC "[999]戻る", 999
 PRINTL
 
@@ -550,6 +552,7 @@ INPUT
 SELECTCASE RESULT
 	CASE 1
 	CASE 2
+	CASE 3
 	CASE 999
 		RETURN -1
 	CASEELSE
@@ -560,17 +563,16 @@ ENDSELECT
 
 
 IF RESULT == 1
-	;ここに来たらLOCALの中に現在リゾートにいるキャラの番号が入ってるはず
 	DRAWLINE
 	PRINTL ZPを消費してキャラに敏感系素質を付与することが出来ます。
 	PRINTL どの素質を敏感化しますか？
 	DRAWLINE
 	FOR LOCAL:1 , 101, 106,
-		IF TALENT:LOCAL:(LOCAL:1) > 0
+		IF TALENT:キャラ番号:(LOCAL:1) > 0
 			PRINTFORML %TALENTNAME:(LOCAL:1)%は既に敏感です
 			CONTINUE
 		ENDIF
-		IF TALENT:LOCAL:(LOCAL:1) == -1
+		IF TALENT:キャラ番号:(LOCAL:1) == -1
 			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:鈍感 > 通常", LOCAL:1
 			PRINTL 　　　必要ZP:100
 		ELSE
@@ -587,21 +589,21 @@ IF RESULT == 1
 			RESTART
 		CASE 101 TO 105
 			;敏感なのに入ってきてない？
-			IF TALENT:LOCAL:(LOCAL:1) > 0
+			IF TALENT:キャラ番号:(LOCAL:1) > 0
 				REUSELASTLINE 
 				GOTO INPUT_LOOP2
 			ENDIF
 			;ZP足りる？
-			IF TALENT:LOCAL:(LOCAL:1) == -1 & FLAG:ZP所持量 < 100
+			IF TALENT:キャラ番号:(LOCAL:1) == -1 & FLAG:ZP所持量 < 100
 				PRINTW ZPが足りません
 				RESTART
-			ELSEIF TALENT:LOCAL:(LOCAL:1) == 0 & FLAG:ZP所持量 < 300
+			ELSEIF TALENT:キャラ番号:(LOCAL:1) == 0 & FLAG:ZP所持量 < 300
 				PRINTW ZPが足りません
 				RESTART
 			ENDIF
-			IF TALENT:LOCAL:(LOCAL:1) == -1
+			IF TALENT:キャラ番号:(LOCAL:1) == -1
 				PRINT 100
-			ELSEIF TALENT:LOCAL:(LOCAL:1) == 0
+			ELSEIF TALENT:キャラ番号:(LOCAL:1) == 0
 				PRINT 300
 			ENDIF
 			PRINTFORML ZPを支払い、%TALENTNAME:(LOCAL:1)%素質を上昇させますか？
@@ -609,14 +611,14 @@ IF RESULT == 1
 			PRINTBUTTONLC "[1]いいえ", 1
 			INPUT
 			IF RESULT == 0
-				IF TALENT:LOCAL:(LOCAL:1) == -1
+				IF TALENT:キャラ番号:(LOCAL:1) == -1
 					FLAG:ZP所持量 -= 100
 					PRINTFORMW %TALENTNAME:(LOCAL:1)%が鈍感から通常に変化しました。
-				ELSEIF TALENT:LOCAL:(LOCAL:1) == 0
+				ELSEIF TALENT:キャラ番号:(LOCAL:1) == 0
 					FLAG:ZP所持量 -= 300
 					PRINTFORMW %TALENTNAME:(LOCAL:1)%が通常から敏感に変化しました。
 				ENDIF
-				TALENT:LOCAL:(LOCAL:1) += 1
+				TALENT:キャラ番号:(LOCAL:1) += 1
 			ENDIF
 			RESTART
 		CASEELSE
@@ -625,18 +627,17 @@ IF RESULT == 1
 
 	ENDSELECT
 ELSEIF RESULT == 2
-	;ここに来たらLOCALの中に現在リゾートにいるキャラの番号が入ってるはず
 	DRAWLINE
 	PRINTL ZPを消費してキャラの乳の大きさを変化させることができます。
 	PRINTL 任意の大きさを選択してください
 	DRAWLINE
 	FOR LOCAL:1 , -2, 4
-		IF TALENT:LOCAL:バストサイズ == LOCAL:1
+		IF TALENT:キャラ番号:バストサイズ == LOCAL:1
 			SETCOLOR 0x666666
 			PRINTFORML [{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（現在の大きさ）
 			RESETCOLOR
 		ELSE
-			PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（{ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20}）", LOCAL:1
+			PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（{ABS(TALENT:キャラ番号:バストサイズ - LOCAL:1) * 20}）", LOCAL:1
 			PRINTL
 		ENDIF
 	NEXT
@@ -647,32 +648,173 @@ ELSEIF RESULT == 2
 	SELECTCASE LOCAL:1
 		CASE 999
 			RESTART
-		CASE TALENT:LOCAL:バストサイズ
+		CASE TALENT:キャラ番号:バストサイズ
 			REUSELASTLINE 
 			GOTO INPUT_LOOP3
 		CASE -2 TO 3
 			;ZP足りる？
-			IF FLAG:ZP所持量 < ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20
+			IF FLAG:ZP所持量 < ABS(TALENT:キャラ番号:バストサイズ - LOCAL:1) * 20
 				PRINTW ZPが足りません
 			GOTO INPUT_LOOP3
 			ENDIF
-			PRINTFORM {ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20}
+			PRINTFORM {ABS(TALENT:キャラ番号:バストサイズ - LOCAL:1) * 20}
 			PRINTFORML ZPを支払い、バストサイズを変化させますか？
 			PRINTBUTTONLC "[0]はい", 0
 			PRINTBUTTONLC "[1]いいえ", 1
 			INPUT
 			IF RESULT == 0
-				FLAG:ZP所持量 -= ABS(TALENT:LOCAL:バストサイズ - LOCAL:1) * 20
-				PRINTFORMW %CALLNAME:LOCAL%のバストサイズが%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%から%GET_TALENTNAME(205, LOCAL:1)%に変化しました。
-				TALENT:LOCAL:バストサイズ = LOCAL:1
+				FLAG:ZP所持量 -= ABS(TALENT:キャラ番号:バストサイズ - LOCAL:1) * 20
+				PRINTFORMW %CALLNAME:キャラ番号%のバストサイズが%GET_TALENTNAME(205, TALENT:キャラ番号:バストサイズ)%から%GET_TALENTNAME(205, LOCAL:1)%に変化しました。
+				TALENT:キャラ番号:バストサイズ = LOCAL:1
 			ENDIF
 			RESTART
 		CASEELSE
 			REUSELASTLINE 
 			GOTO INPUT_LOOP3
 	ENDSELECT
+ELSEIF RESULT == 3
+	DRAWLINE
+	PRINTL ZPを消費してキャラの種族を変化させることができます。
+	PRINTL 任意の種族を選択してください
+	DRAWLINE
+	FOR LOCAL:1 , 1, 7
+		IF TALENT:キャラ番号:種族 == LOCAL:1
+			SETCOLOR 0x666666
+			PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(200, LOCAL:1)%（現在の種族）
+			PRINTL
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(200, LOCAL:1), 14, LEFT%必要ZP:200", LOCAL:1
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[999]戻る", 999
+	$INPUT_LOOP4
+	BINPUT
+	LOCAL:1 = RESULT
+	SELECTCASE LOCAL:1
+		CASE 999
+			RESTART
+		CASE 1 TO 6
+			;ZP足りる？
+			IF FLAG:ZP所持量 < 200
+				PRINTW ZPが足りません
+				GOTO INPUT_LOOP4
+			ENDIF
+			PRINTFORML 200ZPを支払い、種族を変化させますか？
+			PRINTBUTTONLC "[0]はい", 0
+			PRINTBUTTONLC "[1]いいえ", 1
+			BINPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= 200
+				PRINTFORMW %CALLNAME:キャラ番号%の種族が%GET_TALENTNAME(200, TALENT:キャラ番号:種族)%から%GET_TALENTNAME(200, LOCAL:1)%に変化しました。
+				CALL ZP_SHOP_種族特徴変換(キャラ番号, TALENT:キャラ番号:種族, LOCAL:1)
+				TALENT:キャラ番号:種族 = LOCAL:1
+			ENDIF
+			RESTART
+	ENDSELECT
 ENDIF
 
+@ZP_SHOP_種族特徴変換(キャラ番号, 変更元種族, 変更先種族)
+#DIM キャラ番号
+#DIM 変更元種族
+#DIM 変更先種族
+
+CFLAG:キャラ番号:発情期フラグ = 0
+BASE:キャラ番号:母乳 = 0
+IF TALENT:キャラ番号:母乳体質 == 2
+	TALENT:キャラ番号:母乳体質 = 0
+ENDIF
+
+IF 変更元種族 == 4
+	;元がハーヴィンの場合、ランダムでバスト変化
+	SELECTCASE RAND:100
+		CASE 0 TO 49
+			TALENT:キャラ番号:バストサイズ = -1
+		CASE 50 TO 74
+			TALENT:キャラ番号:バストサイズ = 0
+		CASE 75 TO 89
+			TALENT:キャラ番号:バストサイズ = 1
+		CASE 90 TO 99
+			TALENT:キャラ番号:バストサイズ = 2
+	ENDSELECT
+	IF TALENT:キャラ番号:ランダムキャラ
+		SELECTCASE RAND:100
+			CASE 0 TO 59
+				TALENT:キャラ番号:体格 = -1
+			CASE 60 TO 94
+				TALENT:キャラ番号:体格 = 0
+			CASE 95 TO 99
+				TALENT:キャラ番号:体格 = 1
+		ENDSELECT
+	ENDIF
+ELSEIF 変更元種族 == 3
+	;元がドラフの場合、ランダムでバスト変化
+	SELECTCASE RAND:100
+		CASE 0 TO 49
+			TALENT:キャラ番号:バストサイズ = 0
+		CASE 50 TO 74
+			TALENT:キャラ番号:バストサイズ = 1
+		CASE 75 TO 89
+			TALENT:キャラ番号:バストサイズ = 2
+		CASE 90 TO 99
+			TALENT:キャラ番号:バストサイズ = 3
+	ENDSELECT
+	IF TALENT:キャラ番号:ランダムキャラ
+		SELECTCASE RAND:100
+			CASE 0 TO 59
+				TALENT:キャラ番号:体格 = -1
+			CASE 60 TO 94
+				TALENT:キャラ番号:体格 = 0
+			CASE 95 TO 99
+				TALENT:キャラ番号:体格 = 1
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;種族に応じた変化
+SELECTCASE 変更先種族
+	CASE 1
+		;ヒューマン
+		TALENT:キャラ番号:角あり = 0
+		TALENT:キャラ番号:尻尾あり = 0
+		TALENT:キャラ番号:エルーン耳 = 0
+		TALENT:キャラ番号:ハーヴィン耳 = 0
+	CASE 2
+		;エルーン
+		TALENT:キャラ番号:角あり = 0
+		IF RAND:10 == 0
+			TALENT:キャラ番号:尻尾あり = 1
+		ELSE
+			TALENT:キャラ番号:尻尾あり = 0
+		ENDIF
+		TALENT:キャラ番号:エルーン耳 = 1
+		TALENT:キャラ番号:ハーヴィン耳 = 0
+	CASE 3
+		;ドラフ
+		IF TALENT:キャラ番号:ランダムキャラ
+			TALENT:キャラ番号:体格 = -1
+		ENDIF
+		TALENT:キャラ番号:角あり = 1
+		TALENT:キャラ番号:尻尾あり = 0
+		TALENT:キャラ番号:エルーン耳 = 0
+		TALENT:キャラ番号:ハーヴィン耳 = 0
+		TALENT:キャラ番号:バストサイズ = 3
+	CASE 4
+		;ハーヴィン
+		IF TALENT:キャラ番号:ランダムキャラ
+			TALENT:キャラ番号:体格 = -2
+		ENDIF
+		TALENT:キャラ番号:角あり = 0
+		TALENT:キャラ番号:尻尾あり = 0
+		TALENT:キャラ番号:エルーン耳 = 0
+		TALENT:キャラ番号:ハーヴィン耳 = 1
+		TALENT:キャラ番号:バストサイズ = -2
+	CASE 5
+		;星晶獣は変更なし
+	CASE 6
+		;その他は変更なし
+ENDSELECT
 
 @ZP_SHOP_環境変化
 #DIM 妊娠期間変化値
