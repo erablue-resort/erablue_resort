@@ -1,0 +1,497 @@
+﻿@MODE_確認(ARGS, ARG)
+#FUNCTION
+;ARGSのモードがあるかどうかを見る
+FOR LOCAL, 0, 6
+	IF 体位モード格納:ARG:LOCAL == ARGS
+		RETURNF 1
+	ENDIF
+	IF MODE系統確認(体位モード格納:ARG:LOCAL, ARGS)
+		RETURNF 1
+	ENDIF
+NEXT
+
+
+@MODE_主犯確認(ARGS, ARG)
+#FUNCTION
+;ARGSのモードの主犯を返す
+;モードが存在しない場合は-1を返す
+FOR LOCAL, 0, 6
+	IF 体位モード格納:ARG:LOCAL == ARGS
+		RETURNF モード主犯:ARG:LOCAL
+	ENDIF
+	IF MODE系統確認(体位モード格納:ARG:LOCAL, ARGS)
+		RETURNF モード主犯:ARG:LOCAL
+	ENDIF
+NEXT
+RETURNF -1
+
+
+@MODE系統確認(モード名, 系統名)
+#FUNCTION
+#DIMS モード名
+#DIMS 系統名
+モード確認結果 = 0
+TRYCALLFORMF 系統リスト_%系統名%(モード名)
+RETURNF モード確認結果
+
+
+@SHOW_MODE(ARG)
+LOCAL:1 = 0
+
+FOR LOCAL, 0, 6
+	IF 体位モード格納:ARG:LOCAL != ""
+		LOCAL:1 += 1
+		IF LOCAL:1 == 1
+			SIF ARG == TARGET:1
+				DRAWLINE
+			PRINTFORM %CALLNAME:ARG%：
+		ELSE
+			FOR LOCAL:2, 0, STRLENS(CALLNAME:ARG) + 2
+				PRINT  
+			NEXT
+		ENDIF
+		SETCOLOR カラーパレット("えっちな色")
+		;助手乳首吸いは表記を修正する
+		IF 体位モード格納:ARG:LOCAL == "助手乳首吸い" || 体位モード格納:ARG:LOCAL == "乳首吸い"
+			PRINTFORM [乳首吸い継続中
+		ELSE
+			PRINTFORM [%体位モード格納:ARG:LOCAL%継続中
+		ENDIF
+		;3Pならモード主犯も添える
+		SIF 助手は誰だ()
+			PRINTFORM (%CALLNAME:(モード主犯:ARG:LOCAL)%)
+		PRINT_IMG "えっちハート"
+		PRINT ]
+		RESETCOLOR
+		CALL MODE詳細設定処理(ARG, 体位モード格納:ARG:LOCAL)
+		PRINTL 
+	ENDIF
+NEXT
+
+@MODE詳細設定処理(キャラ番号, 体位モード)
+#DIM キャラ番号
+#DIMS 体位モード
+
+IF MODE系統確認(体位モード, "Ｖ挿入系") || 体位モード == "触手挿入"
+	PRINT 　　Ｖ挿入強さ：
+	PRINTBUTTON "[-]", 9200
+	FOR LOCAL, 0, 6
+		IF V挿入強さ:キャラ番号:0 >= LOCAL
+			PRINTBUTTON "■", 9201 + LOCAL
+		ELSE
+			PRINTBUTTON "□", 9201 + LOCAL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[+]", 9206
+	PRINT 　　
+	PRINT Ｖ挿入速さ：
+	PRINTBUTTON "[-]", 9207
+	FOR LOCAL, 0, 6
+		IF V挿入速さ:キャラ番号:0 >= LOCAL
+			PRINTBUTTON "■", 9208 + LOCAL
+		ELSE
+			PRINTBUTTON "□", 9208 + LOCAL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[+]", 9213
+ENDIF
+IF MODE系統確認(体位モード, "Ａ挿入系")
+	PRINT 　　Ａ挿入強さ：
+	PRINTBUTTON "[-]", 9220
+	FOR LOCAL, 0, 6
+		IF A挿入強さ:キャラ番号:0 >= LOCAL
+			PRINTBUTTON "■", 9221 + LOCAL
+		ELSE
+			PRINTBUTTON "□", 9221 + LOCAL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[+]", 9226
+	PRINT 　　
+	PRINT Ａ挿入速さ：
+	PRINTBUTTON "[-]", 9227
+	FOR LOCAL, 0, 6
+		IF A挿入速さ:キャラ番号:0 >= LOCAL
+			PRINTBUTTON "■", 9228 + LOCAL
+		ELSE
+			PRINTBUTTON "□", 9228 + LOCAL
+		ENDIF
+	NEXT
+	PRINTBUTTON "[+]", 9233
+ENDIF
+
+@MODE_CHECK(ARG)
+;モードが持続している間、特定の快楽が発生し続ける
+#DIM 主犯
+#DIM 快楽発生回数
+#DIM 関数順
+快楽発生回数 = 0
+
+ENUMFUNCBEGINSWITH "MODE_持続快楽_"
+FOR 関数順, 0, RESULT
+	CALLFORM %RESULTS:関数順%(ARG)
+	快楽発生回数 += RESULT
+NEXT
+
+IF 快楽発生回数
+	DOWNBASE:ARG:体力 += 5
+	DOWNBASE:ARG:気力 += 20
+ENDIF
+
+RETURN 1
+
+
+@MODE_DELETE(ARGS, キャラ番号 = 0)
+#DIM キャラ番号
+
+IF キャラ番号 == 0
+	キャラ番号 = TARGET
+ENDIF
+
+FOR LOCAL, 0, 6
+	IF 体位モード格納:キャラ番号:LOCAL == ARGS || MODE系統確認(体位モード格納:キャラ番号:LOCAL, ARGS)
+		体位モード格納:キャラ番号:LOCAL = 
+		モード主犯:キャラ番号:LOCAL = 0
+		CALL MODE_CHANGE()
+		RETURN 1
+	ENDIF
+NEXT
+
+@MODE_CHANGE(ARGS)
+;ARGS=実行しようとしているモード名
+
+LOCALS =
+
+;助手乳首吸いなら一旦記録
+SIF ARGS == "助手乳首吸い"
+	LOCALS = %ARGS%
+
+;初体験日を記録する
+SIF LOCALS != ""
+	ARGS = 乳首吸い
+IF ARGS != ""
+	IF !初体験日:TARGET:ARGS
+		初体験日:TARGET:ARGS = DAY
+	ENDIF
+ENDIF
+SIF LOCALS != ""
+	ARGS = %LOCALS%
+
+;現在のモードとの比較・消去
+FOR LOCAL, 0, 6
+	SIF 体位モード格納:TARGET:LOCAL == ""
+		CONTINUE
+	CALL MODE_競合判定(ARGS, 体位モード格納:TARGET:LOCAL)
+	;競合するならRESULTに1が返ってくるのでモード消去
+	;ただし同時モード時、同じコマンドモードによるものだけはスルーする
+	IF RESULT && !MODE_競合除外(ARGS)
+		;メッセージ用に消去したモードを記録,TSTR:10~14
+		TSTR:(10+LOCAL) = %体位モード格納:TARGET:LOCAL%
+		体位モード格納:TARGET:LOCAL = 
+		モード主犯:TARGET:LOCAL = 0
+	ENDIF
+NEXT
+IF TARGET:2 > 0
+	IF TARGET == TARGET:1
+		LOCAL:1 = TARGET:2
+	ELSEIF TARGET == TARGET:2
+		LOCAL:1 = TARGET:1
+	ENDIF
+	FOR LOCAL, 0, 6
+		SIF 体位モード格納:(LOCAL:1):LOCAL == ""
+			CONTINUE
+		CALL MODE_競合判定(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
+		;プレイヤー側が使用部位で競合するならRESULTに1が返ってくるのでモード消去
+		;ただし同時モード時、同じコマンドモードによるものだけはスルーする
+		IF RESULT && !MODE_競合除外(ARGS)
+			;メッセージ用に消去したモードを記録,TSTR:10~14
+			TSTR:(20+LOCAL) = %体位モード格納:(LOCAL:1):LOCAL%
+			体位モード格納:(LOCAL:1):LOCAL = 
+			モード主犯:(LOCAL:1):LOCAL = 0
+		ENDIF
+	NEXT
+ENDIF
+
+;空っぽの場所にモード格納
+FOR LOCAL, 0, 6
+	IF 体位モード格納:TARGET:LOCAL == ""
+		体位モード格納:TARGET:LOCAL = %ARGS%
+		IF COMMODE() == 3
+			モード主犯:TARGET:LOCAL = 助手は誰だ()
+		ELSE
+			モード主犯:TARGET:LOCAL = MASTER
+		ENDIF
+		BREAK
+	ENDIF
+NEXT
+
+;現在あるモードを参照して部位専有を入れ直す
+;助手も全員リセット
+FOR LOCAL, 0, 7
+	TEQUIP:MASTER:(101 + LOCAL) = 0
+	TEQUIP:(TARGET:1):(101 + LOCAL) = 0
+	TEQUIP:(TARGET:2):(101 + LOCAL) = 0
+NEXT
+
+FOR LOCAL, 0, 6
+	FOR LOCAL:1, 0, 7
+		;LOCAL:10を初期化
+		LOCAL:10 = 0
+		;TARGET:1のモード格納からプレイヤー側の部位専有を探す
+		;主犯があなたならbit1,TARGET:2ならbit2に入力する
+		TRYCALLFORM MODETYPE_%体位モード格納:(TARGET):LOCAL%(LOCAL:1, "プレイヤー")
+		;部位専有がある場合
+		IF RESULT
+			;RESULTが「届かない」ならばモードの主犯を確認
+			;1:あなた 2:TARGET:2
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET):LOCAL == MASTER
+				LOCAL:10 = 1
+			ELSEIF RESULT != 1 && モード主犯:(TARGET):LOCAL != MASTER
+				LOCAL:10 = 2
+			ENDIF
+			;TEQUIPに入力
+			;bit0:使用中 bit1:あなたは届かない bit2:TARGET:2は届かない
+			SETBIT TEQUIP:(モード主犯:(TARGET):LOCAL):(101 + LOCAL:1), LOCAL:10
+		ENDIF
+
+		;LOCAL:10を初期化
+		LOCAL:10 = 0
+		RESULT = 0
+		;TARGET:1のモード格納からターゲット側の部位専有を探す
+		;主犯があなたならbit1,もう一人のARGならbit2に入力する
+		TRYCALLFORM MODETYPE_%体位モード格納:(TARGET):LOCAL%(LOCAL:1, "ターゲット")
+		IF RESULT
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(TARGET):LOCAL == MASTER
+				LOCAL:10 = 1
+			ELSEIF RESULT != 1 && モード主犯:(TARGET):LOCAL != MASTER
+				LOCAL:10 = 2
+			ENDIF
+			;TEQUIPに入力
+			;bit0:使用中 bit1:あなたは届かない bit2:TARGET:2は届かない
+			SETBIT TEQUIP:(TARGET):(101 + LOCAL:1), LOCAL:10
+		ENDIF
+
+		;LOCAL:10を初期化
+		LOCAL:10 = 0
+		RESULT = 0
+		;TARGET:2のモード格納からプレイヤー側の部位専有を探す
+		TRYCALLFORM MODETYPE_%体位モード格納:(助手は誰だ()):LOCAL%(LOCAL:1, "プレイヤー")
+		;部位専有がある場合
+		IF RESULT
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(助手は誰だ()):LOCAL == MASTER
+				LOCAL:10 = 1
+			ELSEIF RESULT != 1 && モード主犯:(助手は誰だ()):LOCAL != MASTER
+				LOCAL:10 = 2
+			ENDIF
+			;TEQUIPに入力
+			;bit0:使用中 bit2:届かない
+			;プレイヤー側ならば必ずbit2を指定する
+			SETBIT TEQUIP:(モード主犯:(助手は誰だ()):LOCAL):(101 + LOCAL:1), LOCAL:10
+		ENDIF
+		
+		;LOCAL:10を初期化
+		LOCAL:10 = 0
+		RESULT = 0
+		;TARGET:2のモード格納からターゲット側の部位専有を探す
+		;主犯があなたならbit1,TARGET:1ならbit2に入力する
+		TRYCALLFORM MODETYPE_%体位モード格納:(助手は誰だ()):LOCAL%(LOCAL:1, "ターゲット")
+		IF RESULT
+			IF RESULT == 1
+				LOCAL:10 = 0
+			ELSEIF RESULT != 1 && モード主犯:(助手は誰だ()):LOCAL == MASTER
+				LOCAL:10 = 1
+			ELSEIF RESULT != 1 && モード主犯:(助手は誰だ()):LOCAL != MASTER
+				LOCAL:10 = 2
+			ENDIF
+			;TEQUIPに入力
+			;bit0:使用中 bit1:あなたは届かない bit2:TARGET:1は届かない
+			SETBIT TEQUIP:(助手は誰だ()):(101 + LOCAL:1), LOCAL:10
+		ENDIF
+	NEXT
+NEXT
+
+@MODE_競合判定(ARGS, ARGS:1)
+#DIM 部位専有配列PLAYER１
+#DIM 部位専有配列PLAYER２
+#DIM 部位専有配列TARGET１
+#DIM 部位専有配列TARGET２
+
+;各モードがどの部位を専有しているかを持ってくる
+FOR LOCAL, 0, 7
+	部位専有配列PLAYER１ = 0
+	部位専有配列PLAYER２ = 0
+	部位専有配列TARGET１ = 0
+	部位専有配列TARGET２ = 0
+
+	TRYCCALLFORM MODETYPE_%ARGS%(LOCAL, "プレイヤー")
+		部位専有配列PLAYER１ = RESULT
+	CATCH
+		部位専有配列PLAYER１ = 0
+	ENDCATCH
+	TRYCCALLFORM MODETYPE_%ARGS%(LOCAL, "ターゲット")
+		部位専有配列TARGET１ = RESULT
+	CATCH
+		部位専有配列TARGET１ = 0
+	ENDCATCH
+	TRYCCALLFORM MODETYPE_%ARGS:1%(LOCAL, "プレイヤー")
+		部位専有配列PLAYER２ = RESULT
+	CATCH
+		部位専有配列PLAYER２ = 0
+	ENDCATCH
+	TRYCCALLFORM MODETYPE_%ARGS:1%(LOCAL, "ターゲット")
+		部位専有配列TARGET２ = RESULT
+	CATCH
+		部位専有配列TARGET２ = 0
+	ENDCATCH
+
+	;競合比較
+	SIF 部位専有配列PLAYER１ == 1 && 部位専有配列PLAYER２ == 1
+		RETURN 1
+	SIF 部位専有配列PLAYER１ && 部位専有配列PLAYER２
+		RETURN 2
+	SIF 部位専有配列TARGET１ == 1 && 部位専有配列TARGET２ == 1
+		RETURN 11
+	SIF 部位専有配列TARGET１ && 部位専有配列TARGET２
+		RETURN 12
+NEXT
+
+RETURN 0
+
+
+@使ってるの誰や(ARG, ARG:1)
+#FUNCTION
+#DIM 三人目
+;ARGの部位ARG:1を体位モードによって使用しているキャラクターの番号を返す
+;0=ペニス 1=クリ 2=指（手） 3=口 4=胸 5=膣 6=アナル
+;該当モードがないならば-1を返す
+
+;***重要***
+;-1が返る場合があるので直接参照はしないこと
+
+;三人目がいるなら代入しておく
+IF 助手は誰だ()
+	IF ARG == 助手は誰だ()
+		三人目 = TARGET
+	ELSE
+		三人目 = 助手は誰だ()
+	ENDIF
+ENDIF
+
+SELECTCASE ARG:1
+;ペニス
+CASE 0
+	FOR LOCAL, 0, 6
+		;ARG自身の体位モードでARGのペニスが使用されるのは逆アナル系のみ（そんでその場合の該当者はあなたのみ）
+		;オナホ装着とかで何かしら追加されるときは追記すること
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "逆アナル系")
+			RETURNF 0
+		;三人目の体位モードでペニスを使っている可能性がある候補を検索
+		IF MODE系統確認(体位モード格納:三人目:LOCAL, "Ｖ挿入系") || MODE系統確認(体位モード格納:三人目:LOCAL, "Ａ挿入系") || MODE系統確認(体位モード格納:三人目:LOCAL, "フェラチオ系") || MODE系統確認(体位モード格納:三人目:LOCAL, "パイズリ系") || MODE系統確認(体位モード格納:三人目:LOCAL, "手コキ系") || GROUPMATCH(体位モード格納:三人目:LOCAL, "ボテ腹ズリ")
+			;ヒットしたら主犯を検索。ARGと一致したなら三人目を返す
+			SIF モード主犯:三人目:LOCAL == ARG
+				RETURNF 三人目
+		ENDIF
+	NEXT
+	;ここまで抜けてきた時点で該当しているモードが存在しないので-1を返す
+	RETURNF -1
+;クリトリス
+CASE 1
+	;現状クリを専有するモードはなし
+	RETURNF -1
+;指
+CASE 2
+	FOR LOCAL, 0, 6
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "パイズリ系") || MODE系統確認(体位モード格納:ARG:LOCAL, "手コキ系") || GROUPMATCH(体位モード格納:ARG:LOCAL, "逆Ａ駅弁", "逆Ａ逆駅弁")
+			RETURNF モード主犯:ARG:LOCAL
+		;三人目の体位モードで指を使っている可能性がある候補を検索
+		IF GROUPMATCH(体位モード格納:ARG:LOCAL, "駅弁", "逆駅弁", "Ａ駅弁", "Ａ逆駅弁")
+			;ヒットしたら主犯を検索。ARGと一致したなら三人目を返す
+			SIF モード主犯:三人目:LOCAL == ARG
+				RETURNF 三人目
+		ENDIF
+	NEXT
+	;ここまで抜けてきた時点で該当しているモードが存在しないので-1を返す
+	RETURNF -1
+;口
+CASE 3
+	FOR LOCAL, 0, 6
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "フェラチオ系") || MODE系統確認(体位モード格納:ARG:LOCAL, "キス系") || GROUPMATCH(体位モード格納:ARG:LOCAL, "シックスナイン")
+			RETURNF モード主犯:ARG:LOCAL
+		IF MODE系統確認(体位モード格納:三人目:LOCAL, "乳首吸い系") || GROUPMATCH(体位モード格納:三人目:LOCAL, "シックスナイン")
+			SIF モード主犯:三人目:LOCAL == ARG
+				RETURNF 三人目
+		ENDIF
+	NEXT
+	RETURNF -1
+;胸
+
+CASE 4
+	;***（特殊処理）***ARG以外の二人に乳首吸いされている場合は0を返す
+	LOCAL:1 = 0
+	FOR LOCAL, 0, 6
+		IF GROUPMATCH(体位モード格納:ARG:LOCAL, "乳首吸い", "助手乳首吸い")
+			LOCAL:1 ++
+		ENDIF
+		SIF LOCAL:1 == 2
+			RETURNF 0
+	NEXT
+	FOR LOCAL, 0, 6
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "パイズリ系") || MODE系統確認(体位モード格納:ARG:LOCAL, "乳首吸い系")
+			RETURNF モード主犯:ARG:LOCAL
+	NEXT
+	RETURNF -1
+;膣
+CASE 5
+	FOR LOCAL, 0, 6
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "Ｖ挿入系")
+			RETURNF モード主犯:ARG:LOCAL
+	NEXT
+	RETURNF -1
+;アナル
+CASE 6
+	FOR LOCAL, 0, 6
+		SIF MODE系統確認(体位モード格納:ARG:LOCAL, "Ａ挿入系")
+			RETURNF モード主犯:ARG:LOCAL
+	NEXT
+	RETURNF -1
+;ソレ以外（エラー）
+CASEELSE
+	DEBUGPRINTFORM ###不正な入力です###
+	RETURNF -1
+ENDSELECT
+
+@TARGET1OR2(ARG)
+#FUNCTION
+;キャラ番号ARGがTARGET:1かTARGET:2かを返す。
+;該当なしのときは0を返す
+SIF ARG == TARGET:1
+	RETURNF 1
+SIF ARG == TARGET:2
+	RETURNF 2
+RETURNF 0
+
+@MODE_競合除外(ARGS)
+#FUNCTION
+;ARGS：実行しようとしているモード名
+;競合から除外する体位の組み合わせなら1を返す
+
+;同時モードで同じ体位が助手にもあるなら除外
+SIF GETBIT(FLAG:モード管理, 0) && MODE_確認(ARGS, 助手は誰だ())
+	RETURNF 1
+;乳首吸い選択時、助手乳首吸いがあるなら除外
+SIF ARGS == "乳首吸い" && (MODE_確認("助手乳首吸い", TARGET))
+	RETURNF 1
+;逆の組み合わせでも除外
+SIF ARGS == "助手乳首吸い" && MODE_確認("乳首吸い", TARGET)
+	RETURNF 1
+;助手乳首吸い時、自分に助手乳首吸い体位がある（互いに乳首吸い）なら除外
+SIF ARGS == "助手乳首吸い" && MODE_確認("助手乳首吸い", PLAYER)
+	RETURNF 1
+;フェラorパイズリorパイズリフェラ同士なら除外
+SIF GROUPMATCH(ARGS, "フェラチオ", "パイズリ", "パイズリフェラ") && (MODE_確認("フェラチオ", 助手は誰だ()) || MODE_確認("パイズリ", 助手は誰だ()) || MODE_確認("パイズリフェラ", 助手は誰だ()))
+	RETURNF 1

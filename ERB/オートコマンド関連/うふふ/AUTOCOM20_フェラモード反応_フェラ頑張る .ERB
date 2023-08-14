@@ -5,90 +5,89 @@
 ;-------------------------------------------------
 ;COM別FLAGの設定
 ;-------------------------------------------------
-;奉仕快楽フラグ
-TCVAR:TARGET:奉仕快楽フラグ = 1
+;奉仕コマンドフラグ
+TCVAR:AUTOCOM_相手番号保存:奉仕コマンドフラグ = 1
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
 ;消費体力、気力
-DOWNBASE:体力 += 0
-DOWNBASE:気力 += 20
+DOWNBASE:AUTOCOM_相手番号保存:体力 += 0
+DOWNBASE:AUTOCOM_相手番号保存:気力 += 20
 
-CALL SOURCE_CALC_露出_反感無し(TARGET, PLAYER, 30)
-CALL SOURCE_CALC_接触_不快無し(TARGET, PLAYER, 150)
-CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 300)
-CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, ABL:TARGET:技巧 * 80)
+CALL SOURCE_CALC_露出_反感無し(AUTOCOM_相手番号保存, PLAYER, 30)
+CALL SOURCE_CALC_接触_不快無し(AUTOCOM_相手番号保存, PLAYER, 150)
+CALL SOURCE_CALC_奉仕(AUTOCOM_相手番号保存, PLAYER, 300)
+CALL SOURCE_CALC_快Ｃ(PLAYER, AUTOCOM_相手番号保存, ABL:AUTOCOM_相手番号保存:技巧 * 80)
 
-AUTOCOM用変数:TARGET:20:0 = TIME
+TIME_フェラ頑張る:AUTOCOM_相手番号保存:0 = TIME
 
 ;-------------------------------------------------
 ;特殊ソース処理
 ;-------------------------------------------------
 
 ;舌使いによって、快感のソース増加
-IF TALENT:TARGET:舌使い
-	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+IF TALENT:AUTOCOM_相手番号保存:舌使い
+	CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_相手番号保存, 150)
 ENDIF
 
 ;猫舌では苦痛ちょいある
-SIF TALENT:PLAYER:猫舌
-	CALL SOURCE_CALC_苦痛(PLAYER, TARGET, 20)
+SIF TALENT:AUTOCOM_相手番号保存:猫舌
+	CALL SOURCE_CALC_苦痛(PLAYER, AUTOCOM_相手番号保存, 20)
 
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
 ;フェラ経験
-EXP:口淫経験 += 1
+EXP:AUTOCOM_相手番号保存:口淫経験 += 1
 
 ;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 7
+IF HETEROSEX(AUTOCOM_相手番号保存,PLAYER)
+	EXP:AUTOCOM_相手番号保存:同性愛経験 += 7
 	EXP:PLAYER:同性愛経験 += 7
 ENDIF
 
 ;愛情経験
-SIF TALENT:恋慕
-	EXP:愛情経験 += 1
+SIF TALENT:AUTOCOM_相手番号保存:恋慕
+	EXP:AUTOCOM_相手番号保存:愛情経験 += 1
 
 ;奴隷が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
-SIF TALENT:TARGET:猫舌
-	EXP:嗜虐快楽経験 += 1
+SIF TALENT:AUTOCOM_相手番号保存:猫舌
+	EXP:AUTOCOM_相手番号保存:嗜虐快楽経験 += 1
 ;精液汚れ
 SIF TCVAR:PLAYER:112 == 1 || TCVAR:PLAYER:112 == 2
 	EXP:精飲経験 ++
 
 RETURN 1
 
-@AUTOCOM_ABLE20
-SIF !TARGET
-	RETURN 0
+@AUTOCOM_ABLE20(キャラ番号)
+#DIM キャラ番号
 ;フェラモードじゃない時はアウト
-SIF MODE_確認("フェラチオ系", TARGET) == 0
+SIF MODE_確認("フェラチオ系", キャラ番号) == 0
 	RETURN 0
 ;30分に１回のみ発動
-SIF TIME - AUTOCOM用変数:TARGET:20:0 < 31
+SIF TIME - TIME_フェラ頑張る:キャラ番号:0 < 31
 	RETURN 0
 ;無関心はアウト、恥じらいは性欲必要
-SIF TALENT:無関心
+SIF TALENT:キャラ番号:無関心
 	RETURN 0
-SIF TALENT:羞恥心 > 0 && BASE:性欲 < 8000
+SIF TALENT:キャラ番号:羞恥心 > 0 && BASE:キャラ番号:性欲 < 8000
 	RETURN 0
 ;性知識2必要
-SIF 知識素質:性知識 < 2
+SIF 知識素質:キャラ番号:性知識 < 2
 	RETURN 0
 ;技巧2必要
-SIF ABL:技巧 < 2
+SIF ABL:キャラ番号:技巧 < 2
 	RETURN 0
 ;基礎確率1/4、素質により変動
-LOCAL = MAX(4 - (ABL:奉仕精神 / 3) - TALENT:恋慕 - TALENT:性的興味, 1)
+LOCAL = MAX(4 - (ABL:キャラ番号:奉仕精神 / 3) - TALENT:キャラ番号:恋慕 - TALENT:キャラ番号:性的興味, 1)
 SIF RAND:LOCAL
 	RETURN 0
 RETURN 1
 
 @MESSAGE_AUTOCOM20
-PRINTFORM %CALLNAME:TARGET%は
+PRINTFORM %CALLNAME:AUTOCOM_相手番号保存%は
 
-SELECTCASE ABL:技巧
+SELECTCASE ABL:AUTOCOM_相手番号保存:技巧
 	CASE 2
 		PRINTFORML ぎこちないながらも、舌を%CALLNAME:PLAYER%の陰茎に絡めて
 		PRINTL 少しでも気持ちよくなってもらおうと頑張っている…

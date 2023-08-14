@@ -1,6 +1,15 @@
 ﻿@BEFORE_AUTOCOM
 #DIM 行動候補, 100
-VARSET 行動候補
+#DIM 同室者番号
+#DIMS AUTOCOM_候補情報, 100
+#DIMS 候補者_AUTO番号_文字列分割, 2
+#DIM ランダム格納
+#DIM PREAUTO候補者数
+#DIM AUTO候補者数
+
+VARSET AUTOCOM_候補情報
+PREAUTO候補者数 = 0
+AUTO候補者数 = 0
 
 ;次ターンがキャラの自動行動かどうかの判定処理
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
@@ -9,56 +18,90 @@ VARSET 行動候補
 SIF !TARGET
 	RETURN 0
 
-;相手が寝てる場合も即戻る
-SIF CFLAG:TARGET:睡眠
-	RETURN 0
 
-LOCAL:1 = 0
-;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
-;PRE_AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
-FOR LOCAL, 1, 100
-	TRYCCALLFORM PRE_AUTOCOM_ABLE{LOCAL}
-		IF RESULT
-			行動候補:(LOCAL:1) = LOCAL
-			LOCAL:1 += 1
+FOR 同室者番号, 1, GET_TARGETNUM()
+	;相手が寝てる場合は次へ
+	SIF CFLAG:(TARGET:同室者番号):睡眠
+		CONTINUE
+
+	VARSET 行動候補
+
+	LOCAL:1 = 0
+	;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
+	;PRE_AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
+	FOR LOCAL, 1, 100
+		TRYCCALLFORM PRE_AUTOCOM_ABLE{LOCAL}(TARGET:同室者番号)
+			IF RESULT
+				行動候補:(LOCAL:1) = LOCAL
+				LOCAL:1 += 1
+			ENDIF
+		CATCH
+		ENDCATCH
+	NEXT
+
+	;登録したCOM番号からランダムで選出
+	IF 行動候補:0
+		IF AUTO候補者数
+			;最優先コマンドが優先のため通常AUTOCOMは削除
+			VARSET AUTOCOM_候補情報
+			AUTO候補者数 = 0
 		ENDIF
-	CATCH
-	ENDCATCH
+		ランダム格納 = RAND:(LOCAL:1)
+		AUTOCOM_候補情報:PREAUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		PREAUTO候補者数 += 1
+	ENDIF
+
+	;最優先コマンドが一人でも候補に入っている場合、同じく最優先コマンドしか候補に上がらせないためCONTINUE
+	SIF PREAUTO候補者数 > 0
+		CONTINUE
+
+	;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
+	SIF TFLAG:オートコマンドフラグ
+		RETURN 0
+
+	LOCAL:1 = 0
+	;反応コマンドの有無（通常優先度の反応コマンド）
+	;PALAM_AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
+	FOR LOCAL, 1, 100
+		TRYCCALLFORM AUTOCOM_ABLE{LOCAL}(TARGET:同室者番号)
+			IF RESULT
+				行動候補:(LOCAL:1) = LOCAL + 1000
+				LOCAL:1 += 1
+			ENDIF
+		CATCH
+		ENDCATCH
+	NEXT
+
+	;登録したCOM番号からランダムで選出
+	IF 行動候補:0
+		ランダム格納 = RAND:(LOCAL:1)
+		AUTOCOM_候補情報:AUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		AUTO候補者数 += 1
+	ENDIF
 NEXT
 
-;登録したCOM番号からランダムで選出
-IF 行動候補:0
-	LOCAL = RAND:(LOCAL:1)
-	RETURN 行動候補:LOCAL
-ENDIF
-
-;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
-SIF TFLAG:オートコマンドフラグ
+;同室者全員分見終わったら同一優先度からRAND
+IF PREAUTO候補者数 > 0
+	ランダム格納 = RAND:PREAUTO候補者数
+	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
+	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
+ELSEIF AUTO候補者数 > 0
+	ランダム格納 = RAND:AUTO候補者数
+	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
+	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
+ELSE
 	RETURN 0
-
-LOCAL:1 = 0
-;反応コマンドの有無（通常優先度の反応コマンド）
-;PALAM_AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
-FOR LOCAL, 1, 100
-	TRYCCALLFORM AUTOCOM_ABLE{LOCAL}
-		IF RESULT
-			行動候補:(LOCAL:1) = LOCAL + 1000
-			LOCAL:1 += 1
-		ENDIF
-	CATCH
-	ENDCATCH
-NEXT
-
-;登録したCOM番号からランダムで選出
-IF 行動候補:0
-	LOCAL = RAND:(LOCAL:1)
-	RETURN 行動候補:LOCAL
 ENDIF
 
-;これまでの条件に一つも引っかからなかった場合戻る
-RETURN 0
 
 
-
-
-
+@AUTOCOM用変数リセット()
+VARSET TIME_胸部チラ見せ
+VARSET TIME_遊びに誘う
+VARSET TIME_管理人を労う
+VARSET TIME_いちゃつく
+VARSET TIME_ボディタッチ
+VARSET TIME_フェラ頑張る
+VARSET TIME_パイズリ頑張る
