@@ -13,7 +13,7 @@ SIF CSTR:ARG:画像フォルダ == ""
 
 グラ表示用一時文字列_顔 = %グラ表示用文字列算出(ARG, "顔_")%
 グラ表示用一時文字列_短冊 = %グラ表示用文字列算出(ARG, "短冊_")%
-DEBUGPRINTFORML グラ表示用一時文字列_短冊＝%グラ表示用一時文字列_短冊% 
+DEBUGPRINTFORM %CALLNAME:ARG%の一時文字列_短冊"%グラ表示用一時文字列_短冊%"が
 
 IF グラ表示用一時文字列_短冊 == ""
 	GCREATEFROMFILE 3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png"
@@ -22,11 +22,14 @@ ELSE
 ENDIF
 IF RESULT == 0
 	;該当画像が無い場合
+	DEBUGPRINTFORM 無いけど
 	IF グラ表示用一時文字列_短冊 == ""
 		;そもそもデフォルト画像が無い場合はNoimage画像で返す
+		DEBUGPRINTFORML そもそも空欄なのでNoImageを渡す
 		RETURNF @"<img src='Noimage_短冊' width='180px' height='360px'>"
 	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png")
 		;設定中の顔グラが存在すればそちらを拡縮で表示
+		DEBUGPRINTFORML %グラ表示用一時文字列_顔%ならあったのでそちらを表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
 		画像サイズ切り替えOPTION記憶:1 = 1
 		SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
@@ -35,13 +38,20 @@ IF RESULT == 0
 ;		RETURNF LOCALS
 	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png")
 		;変更後画像も設定中の顔グラも無い場合はデフォルト短冊を表示させる
+		DEBUGPRINTFORML 短冊_デフォルトならあったのでそちらを表示
+		SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
+			LOCALS '= @"<img src='短冊グラ{g_loop}' width='180px' height='180px'>"
 	ELSE
+		DEBUGPRINTFORML 代わりが無いのでNoImageを渡す
 		;どれもない場合はNoimage画像で返す
 		RETURNF @"<img src='Noimage_短冊' width='180px' height='360px'>"
 	ENDIF
 ELSEIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
 	;該当画像がある場合、そのまま作成
+	DEBUGPRINTFORML あったのでそのまま表示
 	LOCALS '= @"<img src='短冊グラ{g_loop}' width='180px' height='360px'>"
+ELSE
+	DEBUGPRINTFORML あるにも関わらずスプライト作れないのはなぜ？
 ENDIF
 
 SIF 差分エフェクト != ""
