@@ -199,7 +199,7 @@ IF TARGET:2 > 0
 	FOR LOCAL, 0, 6
 		SIF 体位モード格納:(LOCAL:1):LOCAL == ""
 			CONTINUE
-		CALL MODE_競合判定(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
+		CALL MODE_競合判定_3P用(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
 		;プレイヤー側が使用部位で競合するならRESULTに1が返ってくるのでモード消去
 		;ただし同時モード時、同じコマンドモードによるものだけはスルーする
 		IF RESULT && !MODE_競合除外(ARGS)
@@ -361,6 +361,37 @@ FOR LOCAL, 0, 7
 NEXT
 
 RETURN 0
+
+@MODE_競合判定_3P用(ARGS, ARGS:1)
+#DIM 部位専有配列PLAYER１
+#DIM 部位専有配列PLAYER２
+#DIM 部位専有配列TARGET１
+#DIM 部位専有配列TARGET２
+
+;各モードがどの部位を専有しているかを持ってくる
+;3P用のため、TARGET分は無し
+FOR LOCAL, 0, 7
+	部位専有配列PLAYER１ = 0
+	部位専有配列PLAYER２ = 0
+
+	TRYCCALLFORM MODETYPE_%ARGS%(LOCAL, "プレイヤー")
+		部位専有配列PLAYER１ = RESULT
+	CATCH
+		部位専有配列PLAYER１ = 0
+	ENDCATCH
+	TRYCCALLFORM MODETYPE_%ARGS:1%(LOCAL, "プレイヤー")
+		部位専有配列PLAYER２ = RESULT
+	CATCH
+		部位専有配列PLAYER２ = 0
+	ENDCATCH
+
+	;競合比較
+	SIF 部位専有配列PLAYER１ == 1 && 部位専有配列PLAYER２ == 1
+		RETURN 1
+NEXT
+
+RETURN 0
+
 
 
 @使ってるの誰や(ARG, ARG:1)
