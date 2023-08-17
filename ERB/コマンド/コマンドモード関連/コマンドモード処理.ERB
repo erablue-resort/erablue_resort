@@ -183,7 +183,7 @@ FOR LOCAL, 0, 6
 	CALL MODE_競合判定(ARGS, 体位モード格納:TARGET:LOCAL)
 	;競合するならRESULTに1が返ってくるのでモード消去
 	;ただし同時モード時、同じコマンドモードによるものだけはスルーする
-	IF RESULT && !MODE_競合除外(ARGS)
+	IF RESULT && !MODE_競合除外(ARGS, RESULT)
 		;メッセージ用に消去したモードを記録,TSTR:10~14
 		TSTR:(10+LOCAL) = %体位モード格納:TARGET:LOCAL%
 		体位モード格納:TARGET:LOCAL = 
@@ -202,7 +202,7 @@ IF TARGET:2 > 0
 		CALL MODE_競合判定_3P用(ARGS, 体位モード格納:(LOCAL:1):LOCAL)
 		;プレイヤー側が使用部位で競合するならRESULTに1が返ってくるのでモード消去
 		;ただし同時モード時、同じコマンドモードによるものだけはスルーする
-		IF RESULT && !MODE_競合除外(ARGS)
+		IF RESULT && !MODE_競合除外(ARGS, RESULT)
 			;メッセージ用に消去したモードを記録,TSTR:10~14
 			TSTR:(20+LOCAL) = %体位モード格納:(LOCAL:1):LOCAL%
 			体位モード格納:(LOCAL:1):LOCAL = 
@@ -506,8 +506,9 @@ SIF ARG == TARGET:2
 	RETURNF 2
 RETURNF 0
 
-@MODE_競合除外(ARGS)
+@MODE_競合除外(ARGS, 競合結果)
 #FUNCTION
+#DIM 競合結果
 ;ARGS：実行しようとしているモード名
 ;競合から除外する体位の組み合わせなら1を返す
 
@@ -525,4 +526,7 @@ SIF ARGS == "助手乳首吸い" && MODE_確認("助手乳首吸い", PLAYER)
 	RETURNF 1
 ;フェラorパイズリorパイズリフェラ同士なら除外
 SIF GROUPMATCH(ARGS, "フェラチオ", "パイズリ", "パイズリフェラ") && (MODE_確認("フェラチオ", 助手は誰だ()) || MODE_確認("パイズリ", 助手は誰だ()) || MODE_確認("パイズリフェラ", 助手は誰だ()))
+	RETURNF 1
+;触手系は「届かない」の場合を無視する
+SIF 競合結果 == 12 && 系統リスト_触手系(ARGS)
 	RETURNF 1
