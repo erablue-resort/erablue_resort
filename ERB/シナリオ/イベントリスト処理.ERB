@@ -5,6 +5,7 @@
 #DIM 表示候補数
 VARSET LOCAL
 VARSET LOCALS
+VARSET NEWフラグ用リスト
 
 表示候補数 = DT_ROW_LENGTH("各イベント用変数配列")
 SPLIT TSTR:NEWイベントフラグ, "_", NEWフラグ用リスト
@@ -13,7 +14,11 @@ DRAWLINE
 PRINTL 開始するイベントを選んでください。
 DRAWLINE
 FOR LOCAL, 0, 表示候補数
-	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -2
+		CONTINUE
+	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
+		CONTINUE
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
 		LOCALS:10 = 
 		LOCALS:11 = 
 		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
@@ -32,7 +37,7 @@ FOR LOCAL, 0, 表示候補数
 		ENDSELECT
 	ENDIF
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
-		;CT-2はイベントクリアしてからの再発生でないと起こり得ないはず
+		;CT-2は再発生でないと起こり得ないはず
 		LOCALS:10 = 
 		LOCALS:11 = 
 		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
@@ -67,14 +72,11 @@ FOR LOCAL, 0, 25
 NEXT
 PRINTBUTTON "[999]戻る", 999
 PRINTL
-$INPUT_LOOP
-INPUT
+
+BINPUT
 
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE IS < 0
-		REUSELASTLINE
-		GOTO INPUT_LOOP
 	CASE IS < 表示候補数
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
 			CASE "メインシナリオ"
@@ -93,13 +95,11 @@ SELECTCASE LOCAL
 		RESTART
 	CASE 999
 		RETURN 0
-	CASEELSE
-		REUSELASTLINE
-		GOTO INPUT_LOOP
 ENDSELECT
 
 @イベント発生条件チェック
 FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	;初回発生チェック
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
 		RESULT = 0
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
@@ -131,13 +131,55 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 			ENDSELECT
 			LOCAL:1 = 1
 			TSTR:NEWイベントフラグ += @"EVENT{LOCAL}_"
+			;消失確率があるなら入れ込む
+			イベント消滅日数渡し = 0
+			イベント消滅確率渡し = 0
+			TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			IF イベント消滅確率渡し
+				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", イベント消滅日数渡し
+				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", イベント消滅確率渡し
+			ENDIF
 		ENDIF
-	ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率") > 0
+	;再発生チェック
+	ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -1
 		;既に発生済みかつクリア済みの突発イベントの再発生
-		IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") > 0 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -1
-			PRINTFORMW %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が再発生した！
-			;再発生済みと再発生前を区別するためにCTに-2を入れる
-			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -2
+		IF LOCAL:1 == 0
+			PRINTL
+			PRINTL
+			DRAWLINE
+		ENDIF
+		PRINTFORMW %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が再発生した！
+		;再発生済みと再発生前を区別するためにCTに-2を入れる
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -2
+		LOCAL:1 = 1
+		;消失確率があるなら入れ込む
+		イベント消滅日数渡し = 0
+		イベント消滅確率渡し = 0
+		TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		IF イベント消滅確率渡し
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", イベント消滅日数渡し
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", イベント消滅確率渡し
+		ENDIF
+	ENDIF
+	;消滅チェック
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -1
+		;既に発生済みイベントの消失
+		IF LOCAL:1 == 0
+			PRINTL
+			PRINTL
+			DRAWLINE
+		ENDIF
+		PRINTFORMW %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%［%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%］が消失した…
+		;消失済みと消失前を区別するためにCTに-2を入れる
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -2
+		LOCAL:1 = 1
+		;再発生確率渡しを見て、存在するなら入れ込む
+		イベント再発生日数渡し = 0
+		イベント再発生確率渡し = 0
+		TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		IF イベント再発生確率渡し
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", イベント再発生日数渡し
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生確率", イベント再発生確率渡し
 		ENDIF
 	ENDIF
 NEXT
@@ -155,6 +197,17 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	ENDIF
 NEXT
 DT_CELL_SET "各イベント用変数配列", 行番号, "イベント完了フラグ", 1
+
+;再発生確率渡しを見て、存在するなら入れ込む
+イベント再発生日数渡し = 0
+イベント再発生確率渡し = 0
+TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", 行番号, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", 行番号, "イベント名")%
+IF イベント再発生確率渡し
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント再発生CT", イベント再発生日数渡し
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント再発生確率", イベント再発生確率渡し
+	;再発生処理を毎日呼ぶために消失CTを-2にセット
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント消滅CT", -2
+ENDIF
 
 
 @イベント完了フラグ確認(ARGS)
