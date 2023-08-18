@@ -235,6 +235,8 @@ CALL KOJO_遭遇時EVENT
 ;情報表示
 ;-------------------------------------------------
 DRAWLINE
+;時計画像表示
+CALL INFO_CLOCK_IMAGE(TIME)
 IF TIME > 1440
 	DAY ++
 	TIME -= 1440
@@ -276,7 +278,8 @@ IF 開催予定祭り名 != "" &&  開催予定日取り == DAY
 	RESETCOLOR
 ENDIF
 PRINTL 
-DRAWLINE
+;DRAWLINE
+PRINTL -------------------------------------------------------------------------------------------------------------
 ;-------------------------------------------------
 ;TARGET情報とモード切り替え
 ;-------------------------------------------------
@@ -404,12 +407,26 @@ IF TARGET
 	;ここで立ち絵表示
 	LOCAL = 助手は誰だ()
 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
-		HTML_PRINT @"<div rect='0px, 0px, 180px, 360px'><button value='889' title='表示方法変更:正方形(\@ LOCAL? 3P対応# 単独\@)'>%短冊グラ表示用文字列関数(TARGET)%</button></div>", 1
+		LOCALS '= @"<div rect='0px, 0px, 180px, 378px'><button value='889' title='表示方法変更:正方形(\@ LOCAL? 3P対応# 単独\@)'>%短冊グラ表示用文字列関数(TARGET)%"
+		LOCALS += @"%"<br>" * 20%[表示方法変更:(\@ LOCAL? 3P対応# 正方形\@)]"
+		LOCALS += @"</button></div>"
+		HTML_PRINT LOCALS, 1
+;		HTML_PRINT @"<div rect='0px, 0px, 180px, 378px'><button value='889' title='表示方法変更:正方形(\@ LOCAL? 3P対応# 単独\@)'>%短冊グラ表示用文字列関数(TARGET)%</button></div>", 1
 	ELSEIF GETBIT(画像サイズ切り替えOPTION記憶, 4) && LOCAL
-		HTML_PRINT @"<div rect='0px, 0px, 180px, 180px'><button value='889' title='表示方法変更:正方形(単独)'>%顔グラ表示用文字列関数(TARGET)%</button></div>", 1
-		HTML_PRINT @"<div rect='0px, 180px, 180px, 180px'><button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする'>%顔グラ表示用文字列関数(LOCAL, 1)%</button></div>", 1
+		LOCALS '= @"<div rect='0px, 0px, 180px, 396px'><button value='889' title='表示方法変更:正方形(単独)'>%顔グラ表示用文字列関数(TARGET)%</button>"
+		LOCALS += @"<br><button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする'>%顔グラ表示用文字列関数(LOCAL, 1, 162)%</button>"
+		LOCALS += @"%"<br>" * 19%<button value='889' title='表示方法変更:正方形(単独)'>[表示方法変更:正方形]</button>"
+		LOCALS += @"<button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする'>[%CALLNAME:LOCAL%]</button>"
+		LOCALS += @"</div>"
+		HTML_PRINT LOCALS, 1
+;		HTML_PRINT @"<div rect='0px, 0px, 180px, 180px'><button value='889' title='表示方法変更:正方形(単独)'>%顔グラ表示用文字列関数(TARGET)%</button></div>", 1
+;		HTML_PRINT @"<div rect='0px, 180px, 180px, 180px'><button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする'>%顔グラ表示用文字列関数(LOCAL, 1)%</button></div>", 1
 	ELSE
-		HTML_PRINT @"<div rect='0px, 0px, 180px, 180px'><button value='889' title='表示方法変更:短冊'>%顔グラ表示用文字列関数(TARGET)%</button></div>", 1
+		LOCALS '= @"<div rect='0px, 0px, 180px, 198px'><button value='889' title='表示方法変更:短冊'>%顔グラ表示用文字列関数(TARGET)%"
+		LOCALS += @"%"<br>" * 10%[表示方法変更:短冊]"
+		LOCALS += @"</button></div>"
+		HTML_PRINT LOCALS, 1
+;		HTML_PRINT @"<div rect='0px, 0px, 180px, 180px'><button value='889' title='表示方法変更:短冊'>%顔グラ表示用文字列関数(TARGET)%</button></div>", 1
 	ENDIF
 	PRINT 　　　　　　　　　　　 
 	IF CFLAG:TARGET:ゲージ起動分類 == 1 || CFLAG:TARGET:発情期フラグ < 0
@@ -1078,3 +1095,44 @@ IF GETBIT(LOCAL,2)
 	ENDIF
 ENDIF
 PRINTL 
+
+;-------------------------------------------------
+;	時計画像を表示
+;
+;	ARG		：時刻
+;	iSize	：フォントに対するサイズ％数値　縦基準　縦横比維持　省略で500(5倍)
+;	sAlign	：align属性　省略で左寄せ　left, center, rightの三種が指定できます
+;-------------------------------------------------
+@INFO_CLOCK_IMAGE(ARG, iSize=500,sAlign="right")
+#DIM iSize
+#DIMS sAlign
+#DIMS sPrint_Text
+#DIM iEnter_Con
+#DIM iFont_Hei_mag
+
+iEnter_Con = 0
+iFont_Hei_mag = GETCONFIG("一行の高さ") * iSize*10 / GETCONFIG("フォントサイズ")
+iFont_Hei_mag = (iFont_Hei_mag/10) + (iFont_Hei_mag%10 >= 5?1#0)
+
+sPrint_Text = <div size='{iFont_Hei_mag}, {iFont_Hei_mag}' xpos='{980 - (iFont_Hei_mag * GETCONFIG("フォントサイズ") / 100)}px'>
+sPrint_Text += @"<p align='%sAlign%'><nobr>"
+sPrint_Text += @"<img src='%GET_CLOCK_IMAGE_NAME(ARG)%' height='{iFont_Hei_mag}'"
+sPrint_Text += @"ypos='{iEnter_Con * iFont_Hei_mag / 10+1}'>"
+sPrint_Text += @"</p></div>"
+
+;PRINTFORM %sPrint_Text%
+HTML_PRINT sPrint_Text, 1
+;-------------------------------------------------
+;	時計画像名を取得
+;
+;	ARG	：時刻
+;-------------------------------------------------
+@GET_CLOCK_IMAGE_NAME(ARG)
+#FUNCTIONS
+#DIM HOUR
+#DIM MINUTE
+#DIMS IMAGE_NAME
+HOUR   = ARG / 60 % 12
+MINUTE = ARG % 60 / 5 * 5
+IMAGE_NAME = 時計_%TOSTR(HOUR,"00")%_%TOSTR(MINUTE,"00")%
+RETURNF IMAGE_NAME
