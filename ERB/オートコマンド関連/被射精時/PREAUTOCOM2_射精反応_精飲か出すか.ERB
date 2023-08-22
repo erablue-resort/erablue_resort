@@ -6,7 +6,14 @@
 CALL SOURCE_CALC_露出_反感無し(AUTOCOM_相手番号保存, PLAYER, 50)
 SIF 精飲フラグ(AUTOCOM_相手番号保存)
 	EXP:AUTOCOM_相手番号保存:精飲経験 += 5
-
+[SKIPSTART]
+IF TFLAG:フィニッシュ相手番号2
+	CALL SOURCE_CALC_露出_反感無し(TFLAG:フィニッシュ相手番号2, PLAYER, 50)
+	SIF 精飲フラグ(TFLAG:フィニッシュ相手番号2)
+		EXP:(TFLAG:フィニッシュ相手番号2):精飲経験 += 5
+	TFLAG:フィニッシュ相手番号2 = 0
+ENDIF
+[SKIPEND]
 
 @PRE_AUTOCOM_ABLE2(キャラ番号)
 #DIM キャラ番号
@@ -20,17 +27,63 @@ SIF キャラ番号 != TFLAG:フィニッシュ相手番号
 RETURN 1
 
 @MESSAGE_PRE_AUTOCOM2
+#DIM 相手番号
+#DIM 相手番号2
+
+相手番号 = 0
+相手番号2 = 0
+
+[SKIPSTART]
+IF TFLAG:フィニッシュ相手番号2
+	相手番号 = AUTOCOM_相手番号保存
+	相手番号2 = TFLAG:フィニッシュ相手番号2
+	IF !精飲フラグ(相手番号) && !精飲フラグ(相手番号2)
+		;どちらも吐き出す
+		;相手番号の方が技巧が高くなるように
+		SIF ABL:相手番号:技巧 < ABL:相手番号2:技巧
+			SWAP 相手番号, 相手番号2
+		PRINTFORM %CALLNAME:相手番号%
+		IF MIN(ABL:相手番号:技巧, ABL:相手番号2:技巧) > 2
+			PRINTFORML と%CALLNAME:相手番号2%は、口に出された精液を揃ってティッシュに吐き出し、片付けた
+		ELSEIF MAX(ABL:相手番号:技巧, ABL:相手番号2:技巧) < 3
+			PRINTFORML と%CALLNAME:相手番号2%は、二人とも口に出された精液に咳き込んでしまい、口から吐き出した…
+		ELSE
+			PRINTFORML は、%CALLNAME:相手番号2%が精液にむせて吐き出しているのを尻目に、上手に口内の精液を処分している
+		ENDIF
+		;引き渡し変数で変動を記録。0:吐き出す 1:飲まされる 2:飲み込む 10:キスされる 20:キスする
+		TFLAG:コマンド結果受渡し変数 = 0
+		TFLAG:コマンド結果受渡し変数1 = 0
+	ELSEIF 精飲フラグ(相手番号) + 精飲フラグ(相手番号2) == 1
+		;片方が吐き出し、もう片方は飲み込む
+	ELSEIF MAX(精飲フラグ(相手番号), 精飲フラグ(相手番号2)) == 2 && MIN(精飲フラグ(相手番号), 精飲フラグ(相手番号2)) == 0
+		;片方が吐き出し、もう片方は喜んで飲み込む
+		;飲み込めない相手にキスして啜り取る
+		;キスで無理やり飲ませる
+	ELSEIF MAX(精飲フラグ(相手番号), 精飲フラグ(相手番号2)) == 1
+		;どちらもなんとか飲み込む
+	ELSEIF MIN(精飲フラグ(相手番号), 精飲フラグ(相手番号2)) == 1
+		;片方はなんとか、もう片方は喜んで飲み込む
+		;キスでおすそ分け
+		;キスして奪い取る
+	ELSE 
+		;どちらも喜んで飲み込む
+		;さらにスペレズ
+	ENDIF
+	RETURN
+ENDIF
+[SKIPEND]
+
 PRINTFORM %CALLNAME:AUTOCOM_相手番号保存%は口に出された精液
 IF 精飲フラグ(AUTOCOM_相手番号保存)
 	PRINT をそのまま飲み下し
-	IF ABL:技巧 > 2 || 精飲フラグ(AUTOCOM_相手番号保存) > 1
+	IF ABL:AUTOCOM_相手番号保存:技巧 > 2 || 精飲フラグ(AUTOCOM_相手番号保存) > 1
 		PRINTL 、
 		PRINTL 口を開いて全部飲み干した咥内を見せてきた…
 	ELSE
 		PRINTL た…
 	ENDIF
 ELSE
-	IF ABL:技巧 > 2
+	IF ABL:AUTOCOM_相手番号保存:技巧 > 2
 		PRINTL を手早くティッシュに吐き出し、片付けた
 	ELSE
 		PRINTL に咳き込んでしまい、口から吐き出した…
