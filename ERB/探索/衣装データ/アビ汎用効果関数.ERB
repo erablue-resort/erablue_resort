@@ -96,6 +96,7 @@ ENDIF
 ;------------------------------------------------------------------------
 ;返り値-1:対象が不正
 ;------------------------------------------------------------------------
+#DIM ボス例外処理フラグ
 VARSET LOCAL
 
 ;全体かばうが死んだ時用に対象を保存
@@ -108,11 +109,19 @@ ELSE
 ENDIF
 
 FOR LOCAL, LOCAL:1, LOCAL:1 + 10, 2
+	ボス例外処理フラグ = 0
 	アビ汎用変数:かばうフラグ = 0
 	CALL かばうチェック_敵("全体かばう")
 
 	IF 敵BATTLE_STATE_STR:(LOCAL - 10):エネミー名 == ""
-		CONTINUE
+		;ボスチェック
+		IF LOCAL != 10 && 敵BATTLE_STATE_STR:(LOCAL - 11):エネミー名 != "" && 敵BATTLE_STATE:(LOCAL - 11):ボスフラグ
+			ボス例外処理フラグ = 1
+			LOCAL -= 1
+		ELSE
+			;ボスじゃないなら飛ばす
+			CONTINUE
+		ENDIF
 	ENDIF
 	IF 敵BATTLE_STATE:(LOCAL - 10):ＨＰ == 0
 		CONTINUE
@@ -141,9 +150,11 @@ FOR LOCAL, LOCAL:1, LOCAL:1 + 10, 2
 			ENDIF
 		ENDIF
 	ENDIF
-	LOCAL += アビ汎用変数:死亡フラグ
 
-	IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ボスフラグ
+	IF ボス例外処理フラグ
+		LOCAL += 1
+	ENDIF
+	IF 敵BATTLE_STATE:(LOCAL - 10):ボスフラグ
 		LOCAL += 2
 	ENDIF
 NEXT
