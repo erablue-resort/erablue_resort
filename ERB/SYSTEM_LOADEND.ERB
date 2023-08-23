@@ -43,70 +43,94 @@ NEXT
 ボタン化用カラーマトリクス:4:0 =   0,  0,  0,  0,256
 
 ;旧セーブとの互換のために入れる処理
-IF DT_EXIST("所持耳飾りデータベース") == 0
-	CALL 耳飾りデータベースセット
-ENDIF
-IF DT_EXIST("所持衣装データベース") == 0
-	CALL 衣装データベースセット
-ENDIF
-IF DT_EXIST("バフデータベース_0") == 0
-	CALL 戦闘用データベースセット
-ENDIF
-IF DT_EXIST("素材アイテムデータベース") == 0
-	CALL 素材アイテムデータベースセット
-ENDIF
-IF DT_COLUMN_EXIST("各イベント用変数配列", "イベントカテゴリ") == 1
-	LOCAL = DT_ROW_LENGTH("各イベント用変数配列")
-	VARSET 互換維持用変数
-	FOR LOCAL:1, 0, LOCAL
-		互換維持用変数:(LOCAL:1) = DT_CELL_GET("各イベント用変数配列", LOCAL:1, "イベントカテゴリ")
+	IF DT_EXIST("所持耳飾りデータベース") == 0
+		CALL 耳飾りデータベースセット
+	ENDIF
+	IF DT_EXIST("所持衣装データベース") == 0
+		CALL 衣装データベースセット
+	ENDIF
+	IF DT_EXIST("バフデータベース_0") == 0
+		CALL 戦闘用データベースセット
+	ENDIF
+	IF DT_EXIST("素材アイテムデータベース") == 0
+		CALL 素材アイテムデータベースセット
+	ENDIF
+	IF DT_COLUMN_EXIST("各イベント用変数配列", "イベントカテゴリ") == 1
+		LOCAL = DT_ROW_LENGTH("各イベント用変数配列")
+		VARSET 互換維持用変数
+		FOR LOCAL:1, 0, LOCAL
+			互換維持用変数:(LOCAL:1) = DT_CELL_GET("各イベント用変数配列", LOCAL:1, "イベントカテゴリ")
+		NEXT
+		DT_COLUMN_REMOVE "各イベント用変数配列", "イベントカテゴリ"
+		DT_COLUMN_ADD "各イベント用変数配列", "イベントカテゴリ"
+		FOR LOCAL:1, 0, LOCAL
+			SELECTCASE 互換維持用変数:(LOCAL:1)
+				CASE 1
+					DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "メインシナリオ"
+				CASE 2
+					DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "サブイベント"
+				CASE 3
+					DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "ＥＸイベント"
+			ENDSELECT
+		NEXT
+	ENDIF
+	IF DT_COLUMN_EXIST("各イベント用変数配列", "イベント再発生CT") == 0
+		DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生CT", 1
+		DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生確率", 1
+	ENDIF
+	IF DT_COLUMN_EXIST("各イベント用変数配列", "イベント消滅CT") == 0
+		DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅CT", 1
+		DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅確率", 1
+	ENDIF
+	CALL 制服登録処理("バニー服")
+	CALL 制服登録処理("メイド服")
+
+	IF ダンジョン変数_沿岸部の森:0:50
+		ダンジョン出現フラグ_沿岸部の森 = 1
+	ENDIF
+
+	IF 施設改造度:3:1 > 0
+		施設改造度:3:8 = 1
+	ENDIF
+	IF 施設改造度:5:1 > 0
+		施設改造度:5:6 = 1
+	ENDIF
+	SIF 依頼同時最大数 < 1
+		依頼同時最大数 = 1
+
+	LOCAL = FINDCHARA(NO, 1001)
+	SIF CFLAG:LOCAL:招待不可フラグ == 1
+		CFLAG:LOCAL:招待不可フラグ = 3
+	LOCAL = FINDCHARA(NO, 1002)
+	SIF CFLAG:LOCAL:招待不可フラグ == 1
+		CFLAG:LOCAL:招待不可フラグ = 3
+	LOCAL = FINDCHARA(NO, 1003)
+	SIF CFLAG:LOCAL:招待不可フラグ == 1
+		CFLAG:LOCAL:招待不可フラグ = 3
+;ここまで0.030で消す
+LOCAL:1 = 0
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "大拡張！空挺港"
+		互換維持用変数 = LOCAL
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:1
+	DT_ROW_ADD "各イベント用変数配列", "イベント名", "大拡張！空艇港", "イベントカテゴリ", "メインシナリオ", "イベント発生フラグ", DT_CELL_GET("各イベント用変数配列", 互換維持用変数, "イベント発生フラグ"), "イベント完了フラグ", DT_CELL_GET("各イベント用変数配列", 互換維持用変数, "イベント完了フラグ")
+	DT_ROW_REMOVE "各イベント用変数配列", 互換維持用変数
+	
+	IF 空挺港初来訪イベントフラグ
+		空艇港初来訪イベントフラグ = 1
+		空挺港初来訪イベントフラグ = 0
+	ENDIF
+	FOR LOCAL, 0, 10
+		FOR LOCAL:1, 0, 5
+			空艇港店舗状況:LOCAL:(LOCAL:1) = 空挺港店舗状況:LOCAL:(LOCAL:1)
+		NEXT
 	NEXT
-	DT_COLUMN_REMOVE "各イベント用変数配列", "イベントカテゴリ"
-	DT_COLUMN_ADD "各イベント用変数配列", "イベントカテゴリ"
-	FOR LOCAL:1, 0, LOCAL
-		SELECTCASE 互換維持用変数:(LOCAL:1)
-			CASE 1
-				DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "メインシナリオ"
-			CASE 2
-				DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "サブイベント"
-			CASE 3
-				DT_CELL_SET "各イベント用変数配列", LOCAL:1, "イベントカテゴリ", "ＥＸイベント"
-		ENDSELECT
-	NEXT
-ENDIF
-IF DT_COLUMN_EXIST("各イベント用変数配列", "イベント再発生CT") == 0
-	DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生CT", 1
-	DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生確率", 1
-ENDIF
-IF DT_COLUMN_EXIST("各イベント用変数配列", "イベント消滅CT") == 0
-	DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅CT", 1
-	DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅確率", 1
-ENDIF
-CALL 制服登録処理("バニー服")
-CALL 制服登録処理("メイド服")
-
-IF ダンジョン変数_沿岸部の森:0:50
-	ダンジョン出現フラグ_沿岸部の森 = 1
 ENDIF
 
-IF 施設改造度:3:1 > 0
-	施設改造度:3:8 = 1
-ENDIF
-IF 施設改造度:5:1 > 0
-	施設改造度:5:6 = 1
-ENDIF
-SIF 依頼同時最大数 < 1
-	依頼同時最大数 = 1
-
-LOCAL = FINDCHARA(NO, 1001)
-SIF CFLAG:LOCAL:招待不可フラグ == 1
-	CFLAG:LOCAL:招待不可フラグ = 3
-LOCAL = FINDCHARA(NO, 1002)
-SIF CFLAG:LOCAL:招待不可フラグ == 1
-	CFLAG:LOCAL:招待不可フラグ = 3
-LOCAL = FINDCHARA(NO, 1003)
-SIF CFLAG:LOCAL:招待不可フラグ == 1
-	CFLAG:LOCAL:招待不可フラグ = 3
 ;ここまで互換のための処理
 
 CALL イベント追加チェック
