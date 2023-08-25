@@ -22,14 +22,14 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;会話
 
 ;会話累積値が閾値を超えると失敗
-IF TCVAR:302 && !TALENT:恋慕 && TFLAG:調教モード != 3
+IF TCVAR:話題無しフラグ && !TALENT:恋慕 && TFLAG:調教モード != 3
 	PRINTFORML %CALLNAME:TARGET%に話しかけようとしたが言葉が見つからない
 	PRINTW あたりに気まずい空気が流れた…
 	TIME += 10
 	LOSEBASE:気力 += 100
 	DOWNBASE:MASTER:気力 += 100
 	;口上分岐としてはここは大失敗扱いがいいんじゃないかな
-	TFLAG:コマンド結果受渡し変数 = -2
+	RFLAG:コマンド結果受渡し変数 = -2
 	RETURN 0
 ENDIF
 
@@ -39,28 +39,28 @@ SIF LOCAL:1 > 99
 	LOCAL:1 = 99
 IF LOCAL <= 9
 	;10％で大成功
-	TFLAG:コマンド結果受渡し変数 = 1
+	RFLAG:コマンド結果受渡し変数 = 1
 	EXP:MASTER:会話経験 ++
 ELSEIF LOCAL >= LOCAL:1
 	;10～1％で失敗
-	TFLAG:コマンド結果受渡し変数 = -1
+	RFLAG:コマンド結果受渡し変数 = -1
 ELSE
 	;残りは成功
-	TFLAG:コマンド結果受渡し変数 = 0
+	RFLAG:コマンド結果受渡し変数 = 0
 ENDIF
 ;先制発生時は失敗しない
 SIF TCVAR:20
-	TFLAG:コマンド結果受渡し変数 = MAX(TFLAG:コマンド結果受渡し変数,0)
+	RFLAG:コマンド結果受渡し変数 = MAX(RFLAG:コマンド結果受渡し変数,0)
 
 ;歓楽強度
 LOCAL:0 = 300
 ;征服強度
 LOCAL:1 = 50
 
-IF TFLAG:コマンド結果受渡し変数 == -1
+IF RFLAG:コマンド結果受渡し変数 == -1
 	TIMES LOCAL:0 , 0.10
 	TIMES LOCAL:1 , 0.50
-ELSEIF TFLAG:コマンド結果受渡し変数 == 0
+ELSEIF RFLAG:コマンド結果受渡し変数 == 0
 	TIMES LOCAL:0 , 1.00
 	TIMES LOCAL:1 , 1.00
 ELSE
@@ -96,7 +96,7 @@ CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0 / 2)
 
 ;会話累積値
 LOCAL = 200 - (TALENT:TARGET:会話資質 * 50) - (TALENT:PLAYER:会話資質 * 50)
-TCVAR:301 += LOCAL / (3 + ABL:MASTER:話術技能 + TALENT:TARGET:陽気／陰気)
+TCVAR:会話累積値 += LOCAL / (3 + ABL:MASTER:話術技能 + TALENT:TARGET:陽気／陰気)
 
 TIME += 15
 EXP:MASTER:会話経験 ++
@@ -107,7 +107,7 @@ RETURN 1
 ;-------------------------------------------------
 @COM_ABLE300
 ;会話実行判定
-SIF !TFLAG:100
+SIF !TFLAG:ゲームフェイズ管理
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(300)
@@ -150,9 +150,9 @@ ELSE
 	ENDDATA
 ENDIF
 PRINTFORML 話をした
-IF TFLAG:コマンド結果受渡し変数 == 1
+IF RFLAG:コマンド結果受渡し変数 == 1
 	PRINTFORML 楽しい時間が流れた…
-ELSEIF TFLAG:コマンド結果受渡し変数 == -1
+ELSEIF RFLAG:コマンド結果受渡し変数 == -1
 	PRINTFORML 会話が途切れると気まずい空気が流れた…
 ENDIF
 
