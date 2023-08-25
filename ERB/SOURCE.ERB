@@ -5,24 +5,6 @@ SELECTCOM_S = %TSTR:SELECTCOM_S受け渡し%
 ;調教SELECTCOMの時間経過
 CALL TRACHECK_TIME
 
-;-------------------------------------------------
-;身体接触の継続、解除
-;-------------------------------------------------
-;実質無効化してるみたいだが一応同時モード対応もしておく
-CALL TOUCH_SUCCESSION(TARGET)
-IF FLAG:モード管理 % 8 == 1
-	LOCAL:1 = 助手は誰だ()
-	CALL TOUCH_SUCCESSION(LOCAL:1)
-ENDIF
-;カウンター
-;FOR LOCAL,1,CHARANUM
-;	SIF TARGET:LOCAL <= 0
-;		CONTINUE
-;	CALL EVENT_COUNTER(TARGET:LOCAL,LOCAL)
-;	CALL EVENT_COUNTER_SOURCE(TARGET:LOCAL,LOCAL)
-;NEXT
-;CALL EVENT_COUNTER_COMBINATION
-
 ;助手マニュアルモードならPLAYERを一時的に変更
 IF FLAG:モード管理 % 8 == 2
 	LOCAL:1 = PLAYER
@@ -32,28 +14,28 @@ ENDIF
 FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-	;性交フラグの設定
-	IF TEQUIP:LOCAL:106 == 1
-		TEQUIP:LOCAL:50 = PLAYER
-	ELSE
-		TEQUIP:LOCAL:50 = -1
-	ENDIF
-	IF TEQUIP:LOCAL:107 == 1
-		TEQUIP:LOCAL:51 = PLAYER
-	ELSE
-		TEQUIP:LOCAL:51 = -1
-	ENDIF
+	; ;性交フラグの設定
+	; IF TEQUIP:LOCAL:106 == 1
+	; 	TEQUIP:LOCAL:50 = PLAYER
+	; ELSE
+	; 	TEQUIP:LOCAL:50 = -1
+	; ENDIF
+	; IF TEQUIP:LOCAL:107 == 1
+	; 	TEQUIP:LOCAL:51 = PLAYER
+	; ELSE
+	; 	TEQUIP:LOCAL:51 = -1
+	; ENDIF
 	
-	;逆レイプ
-	SIF TEQUIP:LOCAL:101 == 6
-		TEQUIP:PLAYER:50 = LOCAL
-	;逆アナル
-	SIF TEQUIP:LOCAL:101 == 7
-		TEQUIP:PLAYER:51 = LOCAL
-	;体位リセット
-	SIF TEQUIP:LOCAL:50 < 0 && TEQUIP:LOCAL:51 < 0
-		TEQUIP:LOCAL:体位 = 0
-	;ついでに勃起度の保存
+	; ;逆レイプ
+	; SIF TEQUIP:LOCAL:101 == 6
+	; 	TEQUIP:PLAYER:50 = LOCAL
+	; ;逆アナル
+	; SIF TEQUIP:LOCAL:101 == 7
+	; 	TEQUIP:PLAYER:51 = LOCAL
+	; ;体位リセット
+	; SIF TEQUIP:LOCAL:50 < 0 && TEQUIP:LOCAL:51 < 0
+	; 	TEQUIP:LOCAL:体位 = 0
+	;勃起度の保存
 	CFLAG:LOCAL:勃起度 = BASE:LOCAL:勃起
 NEXT
 
@@ -102,27 +84,25 @@ FOR LOCAL,0,CHARANUM
 	IF 野外オナニー変数:LOCAL:6
 		CALL 野外オナニー実処理(LOCAL, (野外オナニー変数:LOCAL:6 - 10))
 		;相手を覗いている時以外（コマンドが覗きでない、対象がTARGETでない）は表示カット
-		SIF SELECTCOM != 404 || TFLAG:コマンド結果受渡し変数２ != LOCAL
-			TCVAR:LOCAL:表示カット = 1
+		SIF SELECTCOM != 404 || RFLAG:コマンド結果受渡し変数２ != LOCAL
+			RCVAR:LOCAL:表示カット = 1
 		CFLAG:LOCAL:隠密 = 0
 	ENDIF
 
 	;ローター挿入
 	IF CFLAG:LOCAL:ローター挿入
-		CALL SOURCE_CALC_快Ｖ(LOCAL, -1, TIME_PROGRESS(TFLAG:300) * 10)
-		CFLAG:LOCAL:ローター挿入 = MAX(CFLAG:LOCAL:ローター挿入 - TIME_PROGRESS(TFLAG:300),0)
+		CALL SOURCE_CALC_快Ｖ(LOCAL, -1, TIME_PROGRESS(TFLAG:行動前時刻) * 10)
+		CFLAG:LOCAL:ローター挿入 = MAX(CFLAG:LOCAL:ローター挿入 - TIME_PROGRESS(TFLAG:行動前時刻),0)
 		IF CFLAG:LOCAL:ローター挿入 == 0
 			PRINTFORMW %CALLNAME:LOCAL%が装着していたローターの電池が切れた
 			IF TALENT:LOCAL:処女 == 0
 				EXP:LOCAL:Ｖ経験 += 9
-			ELSE
-				TFLAG:2 = 1
 			ENDIF
 		ENDIF
 	ENDIF
 	IF CFLAG:LOCAL:ローターA挿入
-		CALL SOURCE_CALC_快Ａ(LOCAL, -1, TIME_PROGRESS(TFLAG:300) * 10)
-		CFLAG:LOCAL:ローターA挿入 = MAX(CFLAG:LOCAL:ローターA挿入 - TIME_PROGRESS(TFLAG:300),0)
+		CALL SOURCE_CALC_快Ａ(LOCAL, -1, TIME_PROGRESS(TFLAG:行動前時刻) * 10)
+		CFLAG:LOCAL:ローターA挿入 = MAX(CFLAG:LOCAL:ローターA挿入 - TIME_PROGRESS(TFLAG:行動前時刻),0)
 		IF CFLAG:LOCAL:ローターA挿入 == 0
 			PRINTFORMW %CALLNAME:LOCAL%が装着していたローターの電池が切れた
 			EXP:LOCAL:Ａ経験 += 9
@@ -186,7 +166,6 @@ ENDIF
 FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-	TCVAR:LOCAL:150 = 0
 	;装着系は後で考える
 	SIF LOCAL > 0 && !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:快楽計算フラグ
 		CONTINUE
@@ -227,7 +206,7 @@ FOR LOCAL,0,CHARANUM
 	;絶頂時の性愛度上昇
 	;-------------------------------------------------
 	SIF CFLAG:LOCAL:うふふ && LOCAL != MASTER
-		CALL SOURCE_CALC_好感度要素_性愛度UP(LOCAL, PLAYER, TCVAR:LOCAL:絶頂の強度 * 100)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(LOCAL, PLAYER, RCVAR:LOCAL:絶頂の強度 * 100)
 NEXT
 
 ;射精周りのフラグ設定
@@ -268,7 +247,7 @@ FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	FOR LOCAL:1, 0, 200
-		SIF TCVAR:LOCAL:表示カット
+		SIF RCVAR:LOCAL:表示カット
 			CONTINUE
 		IF EXP_UP(LOCAL:1,LOCAL)
 			LOCAL:2 ++
@@ -294,7 +273,7 @@ SIF LOCAL:3
 ;ABLUP
 ;-------------------------------------------------
 FOR LOCAL,0,CHARANUM
-	SIF TCVAR:LOCAL:表示カット
+	SIF RCVAR:LOCAL:表示カット
 		CONTINUE
 	CALL SOURCE_ABLUP(LOCAL)
 NEXT
@@ -325,10 +304,10 @@ IF NOWEX:PLAYER:射精
 	SIF NOWEX:PLAYER:射精 > 1
 		PRINT 大量
 	PRINTFORML 射精(%CALLNAME:PLAYER%)
-	TFLAG:フィニッシュフラグ = NOWEX:PLAYER:11
+	RFLAG:フィニッシュフラグ = NOWEX:PLAYER:11
 	CALL EVENT_SHOOT_PLAYER
 ELSE
-	TFLAG:フィニッシュフラグ = 0
+	RFLAG:フィニッシュフラグ = 0
 ENDIF
 ;-------------------------------------------------
 ;調教後の口上
@@ -401,7 +380,7 @@ VARSET LOCAL
 FOR LOCAL:1, 0, CHARANUM
 	SIF CFLAG:(LOCAL:1):滞在期間 < 0
 		CONTINUE
-	SIF TCVAR:(LOCAL:1):表示カット
+	SIF RCVAR:(LOCAL:1):表示カット
 		SKIPDISP 1
 	LOCAL:3 = 0
 	FOR LOCAL,0,100
@@ -449,12 +428,12 @@ NEXT
 ;-------------------------------------------------
 ;ZPの取得量表示
 ;-------------------------------------------------
-IF TFLAG:ZP取得量
+IF RFLAG:ZP取得量
 	PRINTL
-	PRINTFORM ZP:{FLAG:ZP所持量 - TFLAG:ZP取得量}
+	PRINTFORM ZP:{FLAG:ZP所持量 - RFLAG:ZP取得量}
 	FOR LOCAL, 0, CHARANUM
-		IF TCVAR:LOCAL:ZP取得量
-			PRINTFORM  + {TCVAR:LOCAL:ZP取得量}(%CALLNAME:LOCAL%)
+		IF RCVAR:LOCAL:ZP取得量
+			PRINTFORM  + {RCVAR:LOCAL:ZP取得量}(%CALLNAME:LOCAL%)
 		ENDIF
 	NEXT
 	PRINTFORM = {FLAG:ZP所持量}
@@ -464,7 +443,7 @@ ENDIF
 ;調教ソースの表示（DOWNもここで）
 ;-------------------------------------------------
 @SHOW_SOURCE(ARG)
-SIF TCVAR:ARG:表示カット
+SIF RCVAR:ARG:表示カット
 	RETURN 0
 ;PRINTL 　
 SIF SOURCE:ARG:快Ｃ > 0

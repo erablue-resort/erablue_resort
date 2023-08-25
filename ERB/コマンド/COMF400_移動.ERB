@@ -39,26 +39,26 @@ IF TFLAG:エリア切り替え時_目的地格納
 		CFLAG:PLAYER:現在位置 = RESULT
 		TFLAG:エリア切り替え時_目的地格納 = 0
 		TRYCALLFORM エリア来訪時イベント_{CFLAG:PLAYER:現在マップ種別}
-		TFLAG:195 = 0
+		TFLAG:長距離移動時_目的地格納 = 0
 		TIME += 15
 		RETURN 0
 	ELSE
-		TFLAG:195 = RESULT
+		TFLAG:長距離移動時_目的地格納 = RESULT
 	ENDIF
 ENDIF
 
 ;遠距離移動中の処理
-IF TFLAG:195
+IF TFLAG:長距離移動時_目的地格納
 	TIME += 1
-	IF TFLAG:195 == CFLAG:MASTER:現在位置
-		TFLAG:195 = 0
+	IF TFLAG:長距離移動時_目的地格納 == CFLAG:MASTER:現在位置
+		TFLAG:長距離移動時_目的地格納 = 0
 		RETURN 0
-	ELSEIF 同一場所判定(TFLAG:195, CFLAG:MASTER:現在位置)
-		TFLAG:195 = 0
+	ELSEIF 同一場所判定(TFLAG:長距離移動時_目的地格納, CFLAG:MASTER:現在位置)
+		TFLAG:長距離移動時_目的地格納 = 0
 		RETURN 0
 	ENDIF
 	CALL CHARA_MOVEMENT
-	TFLAG:300 = TIME + 1440 * DAY
+	TFLAG:行動前時刻 = TIME + 1440 * DAY
 	;キャラを好感度レベルの降順に並び替え
 	VARSET TARGET
 	CALL SORT_CFLAG(21)
@@ -93,7 +93,7 @@ IF TFLAG:195
 			CALL KOJO_EVENT(11, LOCAL:2, 0)
 			SETBIT CFLAG:(LOCAL:2):10 ,0
 			CSTR:MASTER:12 =
-			TFLAG:195 = 0
+			TFLAG:長距離移動時_目的地格納 = 0
 			RETURN 0
 		ELSE
 			PRINTL ……　どうしますか？
@@ -108,9 +108,9 @@ IF TFLAG:195
 			ELSE
 			;実際は0以外全部立ち止まる扱い
 				CALL KOJO_EVENT(10, LOCAL:2, 1)
-				TFLAG:195 = 0
+				TFLAG:長距離移動時_目的地格納 = 0
 				TFLAG:エリア切り替え時_目的地格納 = 0
-				TFLAG:104 = LOCAL:2
+				TFLAG:TARGET変更用 = LOCAL:2
 				RETURN 0
 			ENDIF
 		ENDIF
@@ -118,10 +118,10 @@ IF TFLAG:195
 	
 		LOCAL:1 = IN_ROOM("MIN", 18, "CFLAG", 6)
 	;遠距離移動
-	IF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:195) & 1
-		CFLAG:MASTER:現在位置 = (TFLAG:195)
+	IF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
+		CFLAG:MASTER:現在位置 = (TFLAG:長距離移動時_目的地格納)
 		;遠距離移動フラグ消去
-		TFLAG:195 = 0
+		TFLAG:長距離移動時_目的地格納 = 0
 		SIF !TFLAG:エリア切り替え時_目的地格納
 			RETURN 0
 		; FOR LOCAL,1,CHARANUM
@@ -129,7 +129,7 @@ IF TFLAG:195
 		; 		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
 		; NEXT
 	ELSE
-		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:195)
+		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:長距離移動時_目的地格納)
 		;現在位置を更新し、次も移動の扱いにする
 		CFLAG:MASTER:現在位置 = RESULT
 		;マップ間をまたいで移動時の処理
@@ -143,7 +143,16 @@ CALL DRAW_MAP
 
 PRINTL 
 DRAWLINE
-PRINTBUTTON "[99]別のエリアに移動する", 99
+PRINTL 
+PRINTFORML 現在{CFLAG:MASTER:現在位置}:%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%にいます
+
+FOR LOCAL,0,21
+	SIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, LOCAL) & 1
+		PRINTBUTTONLC @"[{LOCAL}] - %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL)%", LOCAL
+NEXT
+PRINTL
+PRINTL 
+PRINTBUTTON "[99] - 別のエリアに移動する", 99
 IF DAY == 開催予定日取り
 	CALLFORM MOVE_ROUTINE_%開催予定祭り名%(0, "特設マップ")
 	IF RESULT
@@ -154,15 +163,6 @@ IF DAY == 開催予定日取り
 	ENDIF
 ENDIF
 PRINTL 
-DRAWLINE
-PRINTL 
-PRINTFORML 現在{CFLAG:MASTER:現在位置}:%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%にいます
-
-FOR LOCAL,0,21
-	SIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, LOCAL) & 1
-		PRINTBUTTONLC @"[{LOCAL}] - %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL)%", LOCAL
-NEXT
-PRINTL
 PRINTBUTTON @"[999] - 戻る", 999
 $INPUT_LOOP
 INPUTS
@@ -199,7 +199,7 @@ ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, LOCAL:10)
 	GOTO INPUT_LOOP
 ELSE
 	;目的地が離れているので、最終目的地として設定
-	TFLAG:195 = LOCAL:10
+	TFLAG:長距離移動時_目的地格納 = LOCAL:10
 	CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(LOCAL:10)
 	;現在位置を更新し、次も移動の扱いにする
 	CFLAG:MASTER:現在位置 = RESULT
@@ -289,7 +289,7 @@ RESETCOLOR
 
 @COM_ABLE400
 ;移動実行判定
-SIF !TFLAG:100
+SIF !TFLAG:ゲームフェイズ管理
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(400)
