@@ -1,0 +1,222 @@
+﻿@周回引き継ぎ処理
+#DIM 引き継ぎ枠
+
+DRAWLINE
+PRINTL 一部のデータを引き継ぎ、新しいゲームを開始します。
+PRINTL
+PRINTL ・引き継ぐデータ
+PRINTL 　　あなた特殊能力・ランダムキャラの存在（ONにした場合）
+PRINTL 　　各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
+PRINTL 　　探索アイテム・探索衣装・従業員制服・選択したキャラクターの能力全般
+PRINTL 　　その他一部の特殊なフラグ
+DRAWLINE
+引き継ぎ枠 = 引き継ぎ枠判定()
+PRINTFORML ■引き継ぎ予定キャラ（最大{引き継ぎ枠}名）
+FOR LOCAL, 0, 引き継ぎ枠
+	IF 引き継ぎキャラ番号:LOCAL
+		PRINTBUTTON @"{LOCAL, 2}：%NAME:(引き継ぎキャラ番号:LOCAL)%", LOCAL
+		PRINTL
+	ELSE
+		PRINTBUTTON @"{LOCAL, 2}：--------------------", LOCAL
+		PRINTL
+	ENDIF
+NEXT
+PRINTL
+IF ランダムキャラ引き継ぎフラグ
+	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在ON", 100
+ELSE
+	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在OFF", 100
+ENDIF
+PRINT 　　
+PRINTBUTTON "[説明]", 101
+PRINTL
+PRINTL
+PRINTBUTTON "[998] これで新しいゲームを開始する", 998
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 100
+		INVERTBIT ランダムキャラ引き継ぎフラグ, 0
+	CASE 101
+		DRAWLINE
+		PRINTL この周回中に存在したランダムキャラを、次周でも登場させます。
+		PRINTL ランダムキャラは従業員ではなくなり、ネームドキャラと同様に扱われます。
+		PRINTL このオプションをOFFにした場合でも個別に引き継ぎキャラに選んだ場合、次周に引き継がれます。
+		WAIT
+		RESTART
+	CASE 999
+		RETURN 1
+	CASE 998
+		CALL 周回実処理()
+	CASEELSE
+		CALL 陥落キャラ選択()
+		引き継ぎキャラ番号:LOCAL = RESULT
+		RESTART
+ENDSELECT
+
+
+
+@引き継ぎ枠判定
+#FUNCTION
+#DIM 引き継ぎ枠
+引き継ぎ枠 = 0
+
+;ハーレム能力に応じて増加
+SELECTCASE あなた特殊能力:ハーレム
+	CASE 1
+		引き継ぎ枠 += 1
+	CASE 2
+		引き継ぎ枠 += 1
+	CASE 3
+		引き継ぎ枠 += 2
+	CASE 4
+		引き継ぎ枠 += 3
+ENDSELECT
+
+;セフレ数に応じて増加
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:セフレ
+		LOCAL:1 += 1
+NEXT
+IF LOCAL:1 >= 9
+	引き継ぎ枠 += 3
+ELSEIF LOCAL:1 >= 4
+	引き継ぎ枠 += 2
+ELSEIF LOCAL:1 >= 1
+	引き継ぎ枠 += 1
+ENDIF
+
+;最低１人
+引き継ぎ枠 = MAX(引き継ぎ枠, 1)
+RETURNF 引き継ぎ枠
+
+@陥落キャラ選択
+#DIM 現在ページ
+#DIM 表示候補, 500
+#DIM ソート基準値, 500
+#DIM 候補人数
+現在ページ = 0
+
+$最初から
+;表示候補選定
+LOCAL:1 = 0
+VARSET 表示候補
+VARSET LOCALS
+;陥落者のみ
+FOR LOCAL, 1, CHARANUM
+	IF TALENT:LOCAL:恋慕 || TALENT:LOCAL:セフレ
+		表示候補:(LOCAL:1) = LOCAL
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+候補人数 = LOCAL:1
+
+$表示処理_LOOP
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, 現在ページ * 30, 候補人数
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}]%NAME:(表示候補:LOCAL),40,LEFT%</button>"
+
+	IF TALENT:(表示候補:LOCAL):恋慕
+		LOCALS += @"　　　<font color='#FF3399'>恋慕陥落</font>　"
+	ELSE
+		LOCALS += @"　　セフレ陥落　"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 29
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+IF 現在ページ > 0
+	PRINTLC  [900]前のページへ
+ELSE
+	PRINTLC  
+ENDIF
+IF 現在ページ < 候補人数 / 30
+	PRINTLC  [901]次のページへ
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL
+PRINTBUTTONLC "[1000]戻る", 1000
+PRINTL
+
+BINPUT
+IF RESULT == 1000
+	RETURN -1
+ELSEIF RESULT == 900
+	現在ページ = MAX(現在ページ - 1, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 901
+	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
+	GOTO 表示処理_LOOP
+ELSE
+	RETURN RESULT
+ENDIF
+
+
+@周回実処理
+; ・引き継ぐデータ
+; あなた特殊能力・ランダムキャラの存在（従業員ではなくなります）
+; 各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
+; 探索アイテム・探索衣装・従業員制服・選択したキャラクターの能力全般
+; その他一部の特殊なフラグ
+
+;使用する変数を掃除
+
+
+
+;データベースを退避
+DT_TOXML "所持素材データベース"
+SAVETEXT RESULTS:0, "dat/素材DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/素材DT_schema.txt"
+DT_TOXML "所持衣装データベース"
+SAVETEXT RESULTS:0, "dat/衣装DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/衣装DT_schema.txt"
+DT_TOXML "所持指輪データベース"
+SAVETEXT RESULTS:0, "dat/指輪DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/指輪DT_schema.txt"
+DT_TOXML "所持耳飾りデータベース"
+SAVETEXT RESULTS:0, "dat/耳飾りDT_XML.txt"
+SAVETEXT RESULTS:0, "dat/耳飾りDT_schema.txt"
+DT_TOXML "所持アイテムデータベース"
+SAVETEXT RESULTS:0, "dat/アイテムDT_XML.txt"
+SAVETEXT RESULTS:0, "dat/アイテムDT_schema.txt"
+
+;変数を退避
+制服引き継ぎ = %所持制服文字列%
+所持ルピ引き継ぎ = MONEY
+FOR LOCAL, 0, 10
+	あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
+NEXT
+
+;選択したキャラの退避
+FOR LOCAL, 0, 10
+	IF 引き継ぎキャラ番号:LOCAL > 0
+		;SAVECHARAメモにキャラのNOを入れておく
+		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
+	ENDIF
+NEXT
+
+IF ランダムキャラ引き継ぎフラグ
+	FOR LOCAL, 0, 100
+		従業員初期値引き継ぎ:LOCAL = %従業員初期値記録:LOCAL%
+	NEXT
+ENDIF
+
+RESETDATA
+BEGIN FIRST
