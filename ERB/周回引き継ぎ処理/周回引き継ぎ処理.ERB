@@ -5,7 +5,7 @@ DRAWLINE
 PRINTL 一部のデータを引き継ぎ、新しいゲームを開始します。
 PRINTL
 PRINTL ・引き継ぐデータ
-PRINTL 　　あなた特殊能力・ランダムキャラの存在（従業員ではなくなります）
+PRINTL 　　あなた特殊能力・ランダムキャラの存在（ONにした場合）
 PRINTL 　　各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
 PRINTL 　　探索アイテム・探索衣装・従業員制服・選択したキャラクターの能力全般
 PRINTL 　　その他一部の特殊なフラグ
@@ -13,14 +13,23 @@ DRAWLINE
 引き継ぎ枠 = 引き継ぎ枠判定()
 PRINTFORML ■引き継ぎ予定キャラ（最大{引き継ぎ枠}名）
 FOR LOCAL, 0, 引き継ぎ枠
-	IF 引き継ぎキャラ基礎配列:LOCAL:0
-		PRINTBUTTON @"{LOCAL, 2}：%NAME:(引き継ぎキャラ基礎配列:LOCAL:0)%", LOCAL
+	IF 引き継ぎキャラ番号:LOCAL
+		PRINTBUTTON @"{LOCAL, 2}：%NAME:(引き継ぎキャラ番号:LOCAL)%", LOCAL
 		PRINTL
 	ELSE
 		PRINTBUTTON @"{LOCAL, 2}：--------------------", LOCAL
 		PRINTL
 	ENDIF
 NEXT
+PRINTL
+IF ランダムキャラ引き継ぎフラグ
+	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在ON", 100
+ELSE
+	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在OFF", 100
+ENDIF
+PRINT 　　
+PRINTBUTTON "[説明]", 101
+PRINTL
 PRINTL
 PRINTBUTTON "[998] これで新しいゲームを開始する", 998
 PRINTL
@@ -29,13 +38,22 @@ PRINTBUTTON "[999] 戻る", 999
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 100
+		INVERTBIT ランダムキャラ引き継ぎフラグ, 0
+	CASE 101
+		DRAWLINE
+		PRINTL この周回中に存在したランダムキャラを、次周でも登場させます。
+		PRINTL ランダムキャラは従業員ではなくなり、ネームドキャラと同様に扱われます。
+		PRINTL このオプションをOFFにした場合でも個別に引き継ぎキャラに選んだ場合、次周に引き継がれます。
+		WAIT
+		RESTART
 	CASE 999
 		RETURN 1
 	CASE 998
 		CALL 周回実処理()
 	CASEELSE
 		CALL 陥落キャラ選択()
-		引き継ぎキャラ基礎配列:LOCAL:0 = RESULT
+		引き継ぎキャラ番号:LOCAL = RESULT
 		RESTART
 ENDSELECT
 
@@ -152,6 +170,53 @@ ENDIF
 
 
 @周回実処理
+; ・引き継ぐデータ
+; あなた特殊能力・ランダムキャラの存在（従業員ではなくなります）
+; 各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
+; 探索アイテム・探索衣装・従業員制服・選択したキャラクターの能力全般
+; その他一部の特殊なフラグ
+
+;使用する変数を掃除
+
+
+
+;データベースを退避
+DT_TOXML "所持素材データベース"
+SAVETEXT RESULTS:0, "dat/素材DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/素材DT_schema.txt"
+DT_TOXML "所持衣装データベース"
+SAVETEXT RESULTS:0, "dat/衣装DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/衣装DT_schema.txt"
+DT_TOXML "所持指輪データベース"
+SAVETEXT RESULTS:0, "dat/指輪DT_XML.txt"
+SAVETEXT RESULTS:0, "dat/指輪DT_schema.txt"
+DT_TOXML "所持耳飾りデータベース"
+SAVETEXT RESULTS:0, "dat/耳飾りDT_XML.txt"
+SAVETEXT RESULTS:0, "dat/耳飾りDT_schema.txt"
+DT_TOXML "所持アイテムデータベース"
+SAVETEXT RESULTS:0, "dat/アイテムDT_XML.txt"
+SAVETEXT RESULTS:0, "dat/アイテムDT_schema.txt"
+
+;変数を退避
+制服引き継ぎ = %所持制服文字列%
+所持ルピ引き継ぎ = MONEY
+FOR LOCAL, 0, 10
+	あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
+NEXT
+
+;選択したキャラの退避
+FOR LOCAL, 0, 10
+	IF 引き継ぎキャラ番号:LOCAL > 0
+		;SAVECHARAメモにキャラのNOを入れておく
+		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
+	ENDIF
+NEXT
+
+IF ランダムキャラ引き継ぎフラグ
+	FOR LOCAL, 0, 100
+		従業員初期値引き継ぎ:LOCAL = %従業員初期値記録:LOCAL%
+	NEXT
+ENDIF
 
 RESETDATA
 BEGIN FIRST
