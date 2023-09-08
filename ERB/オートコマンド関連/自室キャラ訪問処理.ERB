@@ -4,11 +4,18 @@
 #DIM 候補番号
 ;休憩時、キャラが自室に遊びに来る処理
 
+;休憩時に誰か来るのは1/2の確率
+SIF RAND:2
+	RETURN 0
+
 ;候補者リスト作成
 候補番号 = 0
 FOR キャラ番号, 1, CHARANUM
 	;島にいる
 	SIF CFLAG:キャラ番号:滞在期間 < 1
+		CONTINUE
+	;寝てる
+	SIF CFLAG:キャラ番号:睡眠
 		CONTINUE
 	;好感度が一定以上か、従業員のどちらか
 	SIF CFLAG:キャラ番号:好感度レベル < 関係閾値:2 && !TALENT:キャラ番号:従業員
@@ -30,7 +37,7 @@ NEXT
 
 ;一人も候補がいないなら戻る
 SIF 候補番号 == 0
-	BREAK
+	RETURN 0
 
 ;訪問キャラ決定
 AUTOCOM_相手番号保存 = 訪問候補者:(RAND:候補番号)
@@ -58,6 +65,7 @@ IF 訪問目的 == 1
 ENDIF
 
 ;訪問処理
+$訪問ラベル
 DRAWLINE
 PRINTFORML %CALLNAME:PLAYER%が自室で休んでいると、%CALLNAME:AUTOCOM_相手番号保存%が訪ねて来た。
 SELECTCASE 訪問目的
@@ -87,25 +95,62 @@ SELECTCASE 訪問目的
 		PRINTBUTTON "[100] 選択肢について説明", 100
 	CASE 2
 		PRINTFORML 仕事で聞きたいことがあるらしい。
+		WAIT
 		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の質問に答え、的確な指示を出した。
-		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%は納得した様子で仕事に戻っていった。
+		PRINTFORMW %CALLNAME:AUTOCOM_相手番号保存%は納得した様子で仕事に戻っていった。
 
 		CALL SOURCE_CALC_好感度要素_信頼度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		TARGET = AUTOCOM_相手番号保存
 		RETURN 0
 ENDSELECT
 
 BINPUT
 SELECTCASE RESULT
 	CASE 0
+		IF 訪問目的 == 0
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で遊ぶことにした。
+			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+			IF 施設改造度:5:6 == 1
+				LOCAL = RAND(503, 505)
+				訪問先場所番号 = LOCAL
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			ELSE
+				訪問先場所番号 = 5
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			ENDIF
+		ELSE
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で遊ぶことにした。
+			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+		ENDIF
 	CASE 1
+		TIME += 60
+		TARGET = AUTOCOM_相手番号保存
+		IF 訪問目的 == 0
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で楽しく遊んだ。
+			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%と別れ、%CALLNAME:PLAYER%は自室に戻ってきた。
+
+			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		ELSE
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で楽しく遊んだ。
+			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%はリゾートへと戻っていった。
+
+			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		ENDIF
 	CASE 2
+		PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+		RETURN 1
 	CASE 100
 		DRAWLINE
 		IF 訪問目的 == 0
 			PRINTL 遊びに行く：誘いに来たキャラクターと一緒に場所を移動します。
 			PRINTL 　　　　　　その後の行動について制限はありません。
 			PRINTL
-			PRINTL 遊びに行く（簡易版）：
+			PRINT 遊びに行く（簡易版）：
 		ELSE
 			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れます。
 			PRINTL 　　　　　　この時、雰囲気に補正が掛かり一部のコマンドの発生条件が緩くなります。
@@ -119,4 +164,5 @@ SELECTCASE RESULT
 		PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
 		PRINTL 
 		WAIT
+		GOTO 訪問ラベル
 ENDSELECT
