@@ -1,40 +1,24 @@
-﻿
+﻿;-------------------------------------------------
+;ARG番のキャラが野外オナニーを実行するかを返す関数
+;実行する場合フラグ立てまで行う
+;開始時, 実行中には1を返す
+;絶頂時, 開始しない時, 途中終了時には0を返す
+;-------------------------------------------------
 @野外オナニー判定(ARG)
-#DIM オナニーしやすさ_部位, 4
-#DIM オナニー候補, 4
-
-;既に野外オナニー変数に値が入ってる時はオナニー中
-FOR LOCAL, 0, 5
-	IF 野外オナニー変数:ARG:LOCAL > 0
-		;オナニー中にあなたが物陰に入ってきたパターン
-		IF CFLAG:PLAYER:隠密 && IS_SAME_ROOM(ARG)
-			DRAWLINE
-			PRINTFORML %CALLNAME:PLAYER%が物陰に入ると、そこにいた%CALLNAME:ARG%はひどく慌てた様子で身なりを整え
-			PRINTFORMW %CALLNAME:PLAYER%と目を合わせずに物陰から去っていった…
-			野外オナニー変数:ARG:LOCAL = 0
-			野外オナニー変数:ARG:6 = 0
-			CFLAG:ARG:隠密 = 0
-			RETURN 0
-		ENDIF
-		野外オナニー変数:ARG:LOCAL -= TIME_PROGRESS(TFLAG:行動前時刻)
-		;残り時間がまだ残ってるなら隠密を入れ直して戻す
-		IF 野外オナニー変数:ARG:LOCAL > 0
-			CFLAG:ARG:隠密 = 1
-			RETURN 1
-		ELSE
-			;残ってないなら絶頂処理
-			;変数の６番で絶頂予約、部位+10で部位受け渡し
-			野外オナニー変数:ARG:6 = LOCAL + 10
-			CFLAG:ARG:隠密 = 1
-			RETURN 0
-		ENDIF
-	ENDIF
-NEXT
-
+;既に実行中の場合は継続するか判定する
+IF TCVAR:ARG:野外オナニー_残時間 > 0
+	CALL 野外オナニー継続判定(ARG)
+	RETURN RESULT
+ENDIF
+;睡眠中に無意識に……みたいなのも面白そうだけど現在はなし
+SIF CFLAG:ARG:睡眠
+	RETURN 0
 ;性知識が無い場合はオナニー出来ない
 SIF 知識素質:ARG:性知識 < 1 && EXP:ARG:自慰経験 <= 0
 	RETURN 0
-
+;前回の野外オナニーの正常終了から２時間経過してないとしない
+SIF TCVAR:ARG:野外オナニー_開始時刻 + 2 * 60 > NOW()
+	RETURN 0
 ;性欲や自慰しやすいなどの条件を見る
 IF BASE:ARG:性欲 >= (8000 - TALENT:ARG:自慰しやすい * 2000)
 	;通常オナニー条件
@@ -44,53 +28,68 @@ ELSE
 	;上記の条件に当てはまらないなら0で戻す
 	RETURN 0
 ENDIF
-
 ;既に誰かが同じ場所で隠密してるなら出来ない
 FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:ARG:現在位置 == CFLAG:LOCAL:現在位置 && CFLAG:ARG:現在マップ種別 == CFLAG:LOCAL:現在マップ種別 && CFLAG:LOCAL:隠密
+	SIF LOCAL == ARG
+		CONTINUE
+	SIF IS_SAME_ROOM(ARG, LOCAL) && CFLAG:LOCAL:隠密
 		RETURN 0
 NEXT
 
-;条件を抜けてきたとしても、前回の野外オナニーから２時間経過してないとしない
-SIF 野外オナニー変数:ARG:5 + 120 > TIME
-	RETURN 0
-
-;感覚開発度と敏感鈍感で候補数値を決定
-オナニーしやすさ_部位:部位_Ｃ = ABL:ARG:Ｃ感覚 + TALENT:ARG:Ｃ感度
-オナニーしやすさ_部位:部位_Ｖ = ABL:ARG:Ｖ感覚 + TALENT:ARG:Ｖ感度
-;処女・男はVを使わない
-SIF !EXP:ARG:Ｖ経験 || GETBIT(TALENT:ARG:性別, 0) == 0
-	オナニーしやすさ_部位:部位_Ｖ = -1
-オナニーしやすさ_部位:部位_Ａ = ABL:ARG:Ａ感覚 + TALENT:ARG:Ａ感度
-;アナル未経験はAを使わない
-SIF !EXP:ARG:Ａ経験
-	オナニーしやすさ_部位:部位_Ａ = -1
-オナニーしやすさ_部位:部位_Ｂ = ABL:ARG:Ｂ感覚 + TALENT:ARG:Ｂ感度
-;男はいまんとこ胸を使わない
-SIF GETBIT(TALENT:ARG:性別, 0) == 0
-	オナニーしやすさ_部位:部位_Ｂ = -1
-
-;どの部位でオナニーするか決定する
-LOCAL:1 = 0
-FOR LOCAL, 0, 4
-	IF オナニー候補:0 < オナニーしやすさ_部位:LOCAL
-		LOCAL:1 = 0
-		VARSET オナニー候補, -1
-		オナニー候補:0 = LOCAL
-	ELSEIF オナニー候補:0 == オナニーしやすさ_部位:LOCAL
-		LOCAL:1 += 1
-		オナニー候補:(LOCAL:1) = LOCAL
-	ENDIF
-NEXT
-;候補の中からランダムで決定
-LOCAL = RAND:(LOCAL:1 + 1)
-;オナニー時間は15分
-野外オナニー変数:ARG:(オナニー候補:LOCAL) = 15
-;変数の5番にオナニー開始時間を記録
-野外オナニー変数:ARG:5 = TIME
+;実行処理
+TCVAR:ARG:野外オナニー_開始時刻 = NOW()
+TCVAR:ARG:野外オナニー_残時間 = 15
+TCVAR:ARG:野外オナニー_部位 = RANDOM_PART(ARG)
 CFLAG:ARG:隠密 = 1
-
 RETURN 1
+
+;-------------------------------------------------
+;ARG番のキャラが野外オナニーを継続するか返す関数
+;継続する場合には1を返す
+;被発見や絶頂時などで終了する場合には0を返す
+;-------------------------------------------------
+@野外オナニー継続判定(ARG)
+;時間経過させる前に残時間が0になってる場合は異常事態なので途中終了させる
+IF TCVAR:ARG:野外オナニー_残時間 <= 0
+	CALL 野外オナニー途中終了(ARG)
+	CFLAG:ARG:隠密 = 0
+	RETURN 0
+ENDIF
+;オナニー中にあなたが物陰に入ってきたパターン
+IF CFLAG:PLAYER:隠密 && IS_SAME_ROOM(ARG)
+	DRAWLINE
+	PRINTFORML %CALLNAME:PLAYER%が物陰に入ると、そこにいた%CALLNAME:ARG%はひどく慌てた様子で身なりを整え
+	PRINTFORMW %CALLNAME:PLAYER%と目を合わせずに物陰から去っていった…
+	CALL 野外オナニー途中終了(ARG)
+	CFLAG:ARG:隠密 = 0
+	RETURN 0
+ENDIF
+
+;経過時間で継続か絶頂か判定
+;残時間が0になると絶頂して正常終了
+;終了処理自体は@野外オナニー実処理で行う
+;どちらでもこの時点では隠密を継続
+TCVAR:ARG:野外オナニー_残時間 = MAX(0, TCVAR:ARG:野外オナニー_残時間 - TIME_PROGRESS(TFLAG:行動前時刻))
+CFLAG:ARG:隠密 = 1
+IF TCVAR:ARG:野外オナニー_残時間 > 0
+	RETURN 1
+ELSE
+	TCVAR:ARG:野外オナニー_絶頂 = 1
+	TCVAR:ARG:野外オナニー_残時間 = -1
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;ARG番のキャラが野外オナニーを何らかの理由で途中終了した際に動かす関数
+;フラグ周りを初期化する
+;-------------------------------------------------
+@野外オナニー途中終了(ARG)
+TCVAR:ARG:野外オナニー_開始時刻 = 0
+TCVAR:ARG:野外オナニー_残時間 = 0
+TCVAR:ARG:野外オナニー_場所ID = 0
+TCVAR:ARG:野外オナニー_部位 = 0
+TCVAR:ARG:野外オナニー_絶頂 = 0
+RETURN 0
 
 @一日終了時オナニー判定(ARG)
 #DIM オナニー部位
@@ -176,8 +175,6 @@ IF BASE:ARG:性欲 >= (8000 - TALENT:ARG:自慰しやすい * 2000)
 	PRINTW
 	RETURN 1
 ENDIF
-
-
 
 
 @オナニー実処理(ARG, オナニー部位)
@@ -280,42 +277,60 @@ ENDIF
 
 
 
-@野外オナニー実処理(ARG, 決定部位)
-#DIM 決定部位
+@野外オナニー実処理(ARG, オナニー部位)
+#DIM オナニー部位
+#DIM オナニー回数
+#DIM 絶頂回数
+#DIM 射精回数
+#DIM 噴乳回数
 
-IF ABL:ARG:決定部位 >= 5
-	LOCAL:1 = 8
-ELSEIF ABL:ARG:決定部位 >= 3 || ABL:ARG:欲望 >= 4
-	LOCAL:1 = 3
+IF ABL:ARG:オナニー部位 >= 5
+	オナニー回数 = 8
+ELSEIF ABL:ARG:オナニー部位 >= 3 || ABL:ARG:欲望 >= 4
+	オナニー回数 = 3
 ELSE
-	LOCAL:1 = 0
+	オナニー回数 = 1
+ENDIF
+オナニー回数 += RAND(ABL:ARG:オナニー部位 + 1)
+
+EXP:ARG:自慰経験 += オナニー回数
+EXP:ARG:オナニー部位 += オナニー回数
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - オナニー回数 * 500, 0)
+EXP:ARG:露出快楽経験 += オナニー回数
+
+CUP:ARG:欲情 += オナニー回数 * 1000
+CUP:ARG:オナニー部位 += オナニー回数 * 1000
+SIF TALENT:ARG:(オナニー部位 + 部位感度) > 0
+	CUP:ARG:オナニー部位 += オナニー回数 * 1000
+CUP:ARG:恥情 += オナニー回数 * 1000
+
+;1回は必ず絶頂する
+絶頂回数 = MIN(オナニー回数, MAX(1, ABL:ARG:オナニー部位, RAND:(オナニー回数 + 1)))
+EXP:ARG:絶頂経験 += 絶頂回数
+EXP:ARG:(オナニー部位 + 部位絶頂経験) += 絶頂回数
+EXP:ARG:露出絶頂経験 += 絶頂回数
+BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - 絶頂回数 * 1000, 0)
+IF HAS_PENIS(ARG)
+	射精回数 = 絶頂回数
+	;Ｃ以外のときは絶頂回数からかなり軽減する
+	SIF オナニー部位 != 部位_Ｃ
+		射精回数 = RAND(絶頂回数/2+1)
+	IF 射精回数
+		EXP:ARG:射精経験 += 射精回数
+	ENDIF
+ENDIF
+IF TALENT:ARG:母乳体質
+	噴乳回数 = 絶頂回数
+	;Ｂ以外のときは絶頂回数からかなり軽減する
+	SIF オナニー部位 != 部位_Ｂ
+		噴乳回数 = RAND(絶頂回数/2+1)
+	IF 噴乳回数
+		EXP:ARG:噴乳経験 += 噴乳回数
+	ENDIF
 ENDIF
 
-LOCAL = RAND:MAX(ABL:ARG:決定部位 + 1, 1) + (LOCAL:1) + 1
-EXP:ARG:自慰経験 += LOCAL
-EXP:ARG:決定部位 += LOCAL
-BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 1000, 0)
-EXP:ARG:露出快楽経験 += LOCAL
+CUP:ARG:欲情 = MIN(CUP:ARG:欲情 + 絶頂回数 * 1000 + RAND:1000, 9999)
+CUP:ARG:オナニー部位 = MIN(CUP:ARG:オナニー部位 + 絶頂回数 * 1000 + RAND:1000, 9999)
+CUP:ARG:恥情 = MIN(CUP:ARG:恥情 + 絶頂回数 * 1000 + RAND:1000, 9999)
 
-CUP:ARG:欲情 += LOCAL * 1000
-CUP:ARG:決定部位 += LOCAL * 1000
-SIF TALENT:ARG:(決定部位 + 101) > 0
-	CUP:ARG:決定部位 += LOCAL * 1000
-CUP:ARG:恥情 += LOCAL * 1000
-
-LOCAL = MAX(LOCAL:1, RAND:(LOCAL + 1))
-EXP:ARG:絶頂経験 += LOCAL
-EXP:ARG:(決定部位 + 5) += LOCAL
-BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - LOCAL * 2000, 0)
-IF GETBIT(TALENT:ARG:性別, 1)
-	;ちんこついてる時は射精経験も
-	SIF 決定部位 > 0
-		LOCAL:1 = RAND:(LOCAL + 1)
-	EXP:ARG:射精経験 += LOCAL:1
-ENDIF
-
-CUP:ARG:欲情 = MIN(CUP:ARG:欲情 + LOCAL * 1000 + RAND:1000, 9999)
-CUP:ARG:決定部位 = MIN(CUP:ARG:決定部位 + LOCAL * 1000 + RAND:1000, 9999)
-CUP:ARG:恥情 = MIN(CUP:ARG:恥情 + LOCAL * 1000 + RAND:1000, 9999)
-
-CALL ZP_取得処理(ARG, LOCAL, 表示する)
+CALL ZP_取得処理(ARG, LOCAL)

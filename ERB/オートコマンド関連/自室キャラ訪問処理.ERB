@@ -1,0 +1,168 @@
+﻿@自室キャラ訪問処理
+#DIM 訪問候補者, 1000
+#DIM キャラ番号
+#DIM 候補番号
+;休憩時、キャラが自室に遊びに来る処理
+
+;休憩時に誰か来るのは1/2の確率
+SIF RAND:2
+	RETURN 0
+
+;候補者リスト作成
+候補番号 = 0
+FOR キャラ番号, 1, CHARANUM
+	;島にいる
+	SIF CFLAG:キャラ番号:滞在期間 < 1
+		CONTINUE
+	;寝てる
+	SIF CFLAG:キャラ番号:睡眠
+		CONTINUE
+	;好感度が一定以上か、従業員のどちらか
+	SIF CFLAG:キャラ番号:好感度レベル < 関係閾値:2 && !TALENT:キャラ番号:従業員
+		CONTINUE
+	訪問候補者:候補番号 = キャラ番号
+	候補番号 += 1
+	IF TALENT:キャラ番号:セフレ
+		;セフレは確率２倍
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+	ELSEIF TALENT:キャラ番号:恋慕
+		;恋慕は確率３倍
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+	ENDIF
+NEXT
+
+;一人も候補がいないなら戻る
+SIF 候補番号 == 0
+	RETURN 0
+
+;訪問キャラ決定
+AUTOCOM_相手番号保存 = 訪問候補者:(RAND:候補番号)
+
+;訪問目的決定
+;0:遊びに誘いに来る、1:自室で遊ぶ、2:仕事の用事で来る
+訪問目的 = RAND:3
+IF 訪問目的 == 2 && !TALENT:AUTOCOM_相手番号保存:従業員
+	;従業員でないなら仕事の用事はない
+	訪問目的 -= 1
+ENDIF
+IF 訪問目的 == 1
+	IF CFLAG:AUTOCOM_相手番号保存:好感度レベル < 関係閾値:3 && !HETEROSEX(AUTOCOM_相手番号保存, PLAYER)
+		;好感度レベルが50に達していない、かつ同性でないなら部屋には入らない
+		IF TALENT:AUTOCOM_相手番号保存:従業員
+			IF RAND:2
+				訪問目的 += 1
+			ELSE
+				訪問目的 -= 1
+			ENDIF
+		ELSE
+			訪問目的 -= 1
+		ENDIF
+	ENDIF
+ENDIF
+
+;訪問処理
+$訪問ラベル
+DRAWLINE
+PRINTFORML %CALLNAME:PLAYER%が自室で休んでいると、%CALLNAME:AUTOCOM_相手番号保存%が訪ねて来た。
+SELECTCASE 訪問目的
+	CASE 0
+		;本来ならどこで遊ぶかとかを決定する処理を入れたいが未実装
+		;とりあえずは遊戯室のみ
+		PRINTFORML 遊戯室で遊ばないかという誘いのようだが……どうしようか？
+		DRAWLINE
+		PRINTBUTTON "[0] 遊びに行く", 0
+		PRINTL
+		PRINTBUTTON "[1] 遊びに行く（簡易版）", 1
+		PRINTL
+		PRINTBUTTON "[2] 断る", 2
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[100] 選択肢について説明", 100
+	CASE 1
+		PRINTFORML 部屋に遊びに来たとのことだが……どうしようか？
+		DRAWLINE
+		PRINTBUTTON "[0] 部屋に招く", 0
+		PRINTL
+		PRINTBUTTON "[1] 部屋に招く（簡易版）", 1
+		PRINTL
+		PRINTBUTTON "[2] 断る", 2
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[100] 選択肢について説明", 100
+	CASE 2
+		PRINTFORML 仕事で聞きたいことがあるらしい。
+		WAIT
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の質問に答え、的確な指示を出した。
+		PRINTFORMW %CALLNAME:AUTOCOM_相手番号保存%は納得した様子で仕事に戻っていった。
+
+		CALL SOURCE_CALC_好感度要素_信頼度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		TARGET = AUTOCOM_相手番号保存
+		RETURN 0
+ENDSELECT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		IF 訪問目的 == 0
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で遊ぶことにした。
+			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+			IF 施設改造度:5:6 == 1
+				LOCAL = RAND(503, 505)
+				訪問先場所番号 = LOCAL
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			ELSE
+				訪問先場所番号 = 5
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			ENDIF
+		ELSE
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で遊ぶことにした。
+			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+		ENDIF
+	CASE 1
+		TIME += 60
+		TARGET = AUTOCOM_相手番号保存
+		IF 訪問目的 == 0
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で楽しく遊んだ。
+			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%と別れ、%CALLNAME:PLAYER%は自室に戻ってきた。
+
+			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		ELSE
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で楽しく遊んだ。
+			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%はリゾートへと戻っていった。
+
+			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+		ENDIF
+	CASE 2
+		PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+		RETURN 1
+	CASE 100
+		DRAWLINE
+		IF 訪問目的 == 0
+			PRINTL 遊びに行く：誘いに来たキャラクターと一緒に場所を移動します。
+			PRINTL 　　　　　　その後の行動について制限はありません。
+			PRINTL
+			PRINT 遊びに行く（簡易版）：
+		ELSE
+			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れます。
+			PRINTL 　　　　　　この時、雰囲気に補正が掛かり一部のコマンドの発生条件が緩くなります。
+			PRINTL 　　　　　　その後の行動について制限はありません。
+			PRINTL
+			PRINT 部屋に招く（簡易版）：
+		ENDIF
+		PRINTL 簡単な描写と一定の好感度変化が実行されます。
+		PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+		PRINTL 
+		PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
+		PRINTL 
+		WAIT
+		GOTO 訪問ラベル
+ENDSELECT

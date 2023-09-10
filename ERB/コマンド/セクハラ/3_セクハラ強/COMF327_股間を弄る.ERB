@@ -1,0 +1,140 @@
+﻿
+@COMNAME327
+#FUNCTIONS
+TSTR:コマンド名受渡 = 股間を弄る
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_327
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
+弱点コマンドカテゴリ = C
+
+@COM_TOOLTIP_327
+LOCALS = <br>■股間を弄る<br>
+LOCALS += "相手の股間を服の上から軽くまさぐるコマンド。<br>対象が下半身前面に鎧を着ている場合は実行不可。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：接触・露出・快Ｃ"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM327
+
+CALL セクハラ反応タイプ判定(TARGET)
+;RFLAG:コマンド結果受渡し変数２
+;1:無知  2:無反応  3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+
+SELECTCASE RFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+	CASE 2
+		;無反応
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 30)
+	CASE 6
+		;羞恥
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+	CASEELSE
+		;他
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDSELECT
+IF GETBIT(TALENT:TARGET:性別, 1)
+	;男性器付きの場合、好感度が更にUP
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDIF
+
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 150)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 50)
+
+
+TIME += 10
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE327
+;実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(327)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM327
+
+PRINTFORML %CALLNAME:MASTER%は
+IF TALENT:TARGET:種族 == 4 && TALENT:MASTER:種族 != 4
+	PRINT しゃがんで
+ENDIF
+PRINTFORM %CALLNAME:TARGET%の股間に手を伸ばし、服の上から
+IF GETBIT(TALENT:TARGET:性別, 1)
+	IF BASE:TARGET:勃起 < 5000
+		PRINT まだ柔らかい
+	ENDIF
+	PRINT 陰茎を
+ELSE
+	IF PALAM:欲情 >= PALAMLV:3
+		PRINT 固く勃起した
+	ENDIF
+	PRINT クリトリスを
+ENDIF
+PRINTFORML 手で甘く撫で擦った。
+
+IF CUP:TARGET:快Ｃ > 3000
+	PRINTFORML %CALLNAME:TARGET%は嬌声を漏らし、快楽に翻弄されている…
+	PRINTL
+ELSEIF CUP:TARGET:快Ｃ > 1000
+	;一定以上の快楽が発生した時にちょっと声が出る
+	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	PRINTL
+ENDIF
+
+@MESSAGE_COM327_非口上時
+;基本喜びだけのはずなので一旦分類せずに直接喜びパターンの文章を書く
+
+SELECTCASE RFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		PRINTFORML %CALLNAME:TARGET%はよくわかっていないが、%CALLNAME:PLAYER%が楽しいなら良いと嬉しそうにしている
+	CASE 2
+		;無反応
+		PRINTFORML %CALLNAME:TARGET%は平然としているが、少し顔を赤くして%CALLNAME:PLAYER%に体を擦り寄せてきた…
+	CASE 3
+		;嫌悪
+		PRINTFORML %CALLNAME:TARGET%はしょうがない人だな、という顔で%CALLNAME:PLAYER%の好きにさせている…
+	CASE 4
+		;拒否
+		PRINTFORML %CALLNAME:TARGET%は悪い気はしない様子で、%CALLNAME:PLAYER%の好きにさせている…
+	CASE 5
+		;余裕
+		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に、周囲にバレないようこっそりと触るように言ってきた…
+	CASE 6
+		;羞恥
+		PRINTFORML %CALLNAME:TARGET%は赤くなった顔で%CALLNAME:PLAYER%を見つめ、そっと体を寄せてきた…
+	CASE 7
+		;愉悦
+		PRINTFORML %CALLNAME:TARGET%は他の場所も触るかと、色っぽい表情で%CALLNAME:PLAYER%を挑発している…
+	CASE 8
+		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%に触れられることを少し嬉しく思っているようだ…
+ENDSELECT

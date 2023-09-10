@@ -15,9 +15,13 @@ AUTO候補者数 = 0
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
 ;ついでにフラグにAUTOCOM番号を入れといて行動内容も保存しとく
 ;タゲなしの場合は即戻る
-SIF !TARGET
+IF !TARGET
+	IF RFLAG:休憩選択フラグ
+		;休憩時のみTARGETが居ない場合に特殊処理に派生する
+		RETURN -1
+	ENDIF
 	RETURN 0
-
+ENDIF
 
 FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;相手が寝てる場合は次へ
@@ -108,3 +112,46 @@ VARSET TIME_いちゃつく
 VARSET TIME_ボディタッチ
 VARSET TIME_フェラ頑張る
 VARSET TIME_パイズリ頑張る
+
+
+@AUTOCOM_相手判別関数(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 同室者番号
+#DIM 相手判別変数
+相手判別変数 = 0
+
+;ビット演算で返す
+;ビット０：１であなたがいる、０でいない ビット１：１で貴方以外の他人がいる、０でいない
+
+;まずあなたがいるかどうか＝隠密状態のチェック
+IF CFLAG:PLAYER:隠密
+	IF CFLAG:キャラ番号:隠密
+		SETBIT 相手判別変数, 0
+	ELSE
+		CLEARBIT 相手判別変数, 0
+	ENDIF
+ELSE
+	IF CFLAG:キャラ番号:隠密
+		CLEARBIT 相手判別変数, 0
+	ELSE
+		SETBIT 相手判別変数, 0
+	ENDIF
+ENDIF
+
+;あなた以外がいるかどうか
+IF CFLAG:キャラ番号:隠密
+	;同時に複数キャラは隠密しないはずなので、隠密時はいない扱い
+	CLEARBIT 相手判別変数, 1
+ELSE
+	CLEARBIT 相手判別変数, 1
+	;同室者を見る
+	FOR 同室者番号, 1, GET_TARGETNUM() + 1
+		SIF キャラ番号 == TARGET:同室者番号
+			CONTINUE
+		SETBIT 相手判別変数, 1
+		BREAK
+	NEXT
+ENDIF
+
+RETURNF 相手判別変数

@@ -50,6 +50,8 @@ IF TFLAG:オートコマンドフラグ > 1000
 	TRYCALLFORM AUTOCOM{TFLAG:オートコマンドフラグ - 1000}
 ELSEIF TFLAG:オートコマンドフラグ > 0
 	TRYCALLFORM PRE_AUTOCOM{TFLAG:オートコマンドフラグ}
+ELSEIF TFLAG:オートコマンドフラグ == -1
+	CALL 自室キャラ訪問処理
 ELSE
 	;複数モード時か否か
 	IF FLAG:モード管理 % 8
@@ -80,9 +82,8 @@ FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	;野外オナニー絶頂判定
-	;野外オナニー変数の６番があると絶頂が予約されてるので処理呼び出し
-	IF 野外オナニー変数:LOCAL:6
-		CALL 野外オナニー実処理(LOCAL, (野外オナニー変数:LOCAL:6 - 10))
+	IF TCVAR:LOCAL:野外オナニー_絶頂
+		CALL 野外オナニー実処理(LOCAL, TCVAR:LOCAL:野外オナニー_部位)
 		;相手を覗いている時以外（コマンドが覗きでない、対象がTARGETでない）は表示カット
 		SIF SELECTCOM != 404 || RFLAG:コマンド結果受渡し変数２ != LOCAL
 			RCVAR:LOCAL:表示カット = 1
@@ -230,7 +231,7 @@ CALL KOJO_MESSAGE_COM
 CALL 挿入アニメ表示(TARGET, "_挿入", FLAG_挿入アニメフィルタ)
 TFLAG:メッセージ重複防止 = 1
 ;同時モードなら助手のぶんも表示
-IF GETBIT(FLAG:モード管理, 0)
+IF GETBIT(FLAG:モード管理, 0) && TFLAG:オートコマンドフラグ == 0
 	LOCAL = TARGET
 	TARGET = 助手は誰だ()
 	CALL KOJO_MESSAGE_COM
@@ -438,7 +439,7 @@ IF RFLAG:ZP取得量
 			PRINTFORM  + {RCVAR:LOCAL:ZP取得量}(%CALLNAME:LOCAL%)
 		ENDIF
 	NEXT
-	PRINTFORM = {FLAG:ZP所持量}
+	PRINTFORML = {FLAG:ZP所持量}
 ENDIF
 
 ;-------------------------------------------------

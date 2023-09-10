@@ -40,6 +40,7 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 100
 		INVERTBIT ランダムキャラ引き継ぎフラグ, 0
+		RESTART
 	CASE 101
 		DRAWLINE
 		PRINTL この周回中に存在したランダムキャラを、次周でも登場させます。
@@ -176,7 +177,9 @@ ENDIF
 ; 探索アイテム・探索衣装・従業員制服・選択したキャラクターの能力全般
 ; その他一部の特殊なフラグ
 
-;使用する変数を掃除
+引き継ぎ中フラグ = 1
+
+
 
 
 
@@ -200,9 +203,29 @@ SAVETEXT RESULTS:0, "dat/アイテムDT_schema.txt"
 ;変数を退避
 制服引き継ぎ = %所持制服文字列%
 所持ルピ引き継ぎ = MONEY
-FOR LOCAL, 0, 10
+FOR LOCAL, 0, 100
 	あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
 NEXT
+FOR LOCAL, 1, CHARANUM
+	キャラ変数引き継ぎ:LOCAL:キャラ番号 = NO:LOCAL
+	IF NO:LOCAL == 999
+		キャラ変数引き継ぎ:LOCAL:キャラ番号 = ランダムキャラ記録位置判別(LOCAL) * -1
+	ENDIF
+	キャラ変数引き継ぎ:LOCAL:肉体熟知 = EXP:LOCAL:肉体熟知
+	キャラ変数引き継ぎ:LOCAL:弱点看破0 = 弱点看破:LOCAL:0
+	キャラ変数引き継ぎ:LOCAL:弱点看破1 = 弱点看破:LOCAL:1
+	キャラ変数引き継ぎ:LOCAL:弱点看破2 = 弱点看破:LOCAL:2
+	キャラ変数引き継ぎ:LOCAL:弱点看破3 = 弱点看破:LOCAL:3
+	キャラ変数引き継ぎ:LOCAL:弱点看破4 = 弱点看破:LOCAL:4
+	キャラ文字列引き継ぎ:LOCAL:弱点枠0 = 弱点コマンド枠:LOCAL:0
+	キャラ文字列引き継ぎ:LOCAL:弱点枠1 = 弱点コマンド枠:LOCAL:1
+	キャラ文字列引き継ぎ:LOCAL:弱点枠2 = 弱点コマンド枠:LOCAL:2
+	キャラ文字列引き継ぎ:LOCAL:弱点枠3 = 弱点コマンド枠:LOCAL:3
+	キャラ文字列引き継ぎ:LOCAL:弱点枠4 = 弱点コマンド枠:LOCAL:4
+NEXT
+
+;あなたの退避
+SAVECHARA "あなた", "あなた", 0
 
 ;選択したキャラの退避
 FOR LOCAL, 0, 10
@@ -218,5 +241,20 @@ IF ランダムキャラ引き継ぎフラグ
 	NEXT
 ENDIF
 
+周回回数累計 += 1
 RESETDATA
 BEGIN FIRST
+
+
+@ランダムキャラ記録位置判別(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 記録位置
+#DIMS 分割文字列, 2
+
+FOR 記録位置, 0, 100
+	SPLIT 従業員初期値記録:記録位置, "_", 分割文字列
+	IF TOINT(分割文字列:1) == キャラ番号
+		RETURNF 記録位置
+	ENDIF
+NEXT

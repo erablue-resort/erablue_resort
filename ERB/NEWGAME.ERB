@@ -51,6 +51,16 @@ RESTART
 ;ニューゲーム
 ;-------------------------------------------------
 @EVENTFIRST
+#DIM 引き継いだキャラ人数
+#DIM 引き継いだランダムキャラ, 10
+#DIM 設定中キャラ番号
+#DIMS 大分割文字列, 10
+#DIMS 小分割文字列, 1000
+VARSET LOCAL
+VARSET LOCALS
+VARSET 引き継いだランダムキャラ, -1
+VARSET 大分割文字列
+VARSET 小分割文字列
 TARGET = 0
 ASSI = 0
 
@@ -72,15 +82,134 @@ CALL DEFAULT_OPTION
 
 
 初期設定中 = 1
-LOCAL = 0
-FOR LOCAL,CHARANUM,キャラクタ数上限
+LOCAL:1 = 0
+LOCAL:2 = 0
+IF 引き継ぎ中フラグ
+	;あなた登録
+	LOADCHARA "あなた"
+	FOR LOCAL, 0, 10
+		IF 引き継ぎキャラ番号:LOCAL > 0
+			;引き継ぎキャラは先に登録
+			LOADCHARA TOSTR(LOCAL)
+			LOCAL:1 += 1
+			IF NO:(LOCAL:1) == 999
+				引き継いだランダムキャラ:(LOCAL:2) = ランダムキャラ記録位置判別(LOCAL)
+				LOCAL:2 += 1
+			ENDIF
+		ENDIF
+	NEXT
+	引き継いだキャラ人数 = LOCAL:1
+ELSE
+	;あなた登録
+	ADDCHARA 0
+ENDIF
+FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
 		CONTINUE
 	;ランダムキャラ排除
 	SIF LOCAL == 999
 		CONTINUE
+	;登録済みのキャラ(=引き継ぎキャラ)はスキップ
+	GETCHARA LOCAL
+	SIF RESULT > -1
+		CONTINUE
 	ADDCHARA LOCAL
+	設定中キャラ番号 = CHARANUM - 1
+	IF 引き継ぎ中フラグ && LOCAL != 0
+		FOR LOCAL:1, 0, 500
+			IF キャラ変数引き継ぎ:(LOCAL:1):キャラ番号 == 設定中キャラ番号
+				EXP:設定中キャラ番号:肉体熟知 = キャラ変数引き継ぎ:(LOCAL:1):肉体熟知
+				弱点看破:設定中キャラ番号:0 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破0
+				弱点看破:設定中キャラ番号:1 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破1
+				弱点看破:設定中キャラ番号:2 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破2
+				弱点看破:設定中キャラ番号:3 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破3
+				弱点看破:設定中キャラ番号:4 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破4
+				弱点コマンド枠:設定中キャラ番号:0 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠0
+				弱点コマンド枠:設定中キャラ番号:1 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠1
+				弱点コマンド枠:設定中キャラ番号:2 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠2
+				弱点コマンド枠:設定中キャラ番号:3 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠3
+				弱点コマンド枠:設定中キャラ番号:4 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠4
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
 NEXT
+
+;引き継ぎランダムキャラの追加
+IF 引き継ぎ中フラグ
+	FOR LOCAL, 0, 100
+		SIF MATCH(引き継いだランダムキャラ, LOCAL) > 0
+			CONTINUE
+		IF 従業員初期値引き継ぎ:LOCAL != ""
+			VARSET 大分割文字列
+			VARSET 小分割文字列
+			ADDCHARA 999
+			設定中キャラ番号 = CHARANUM - 1
+			SPLIT 従業員初期値引き継ぎ:LOCAL, "^^^", 大分割文字列
+			;弱点
+			FOR LOCAL:1, 0, 500
+				IF キャラ変数引き継ぎ:(LOCAL:1):キャラ番号 == LOCAL * -1
+					EXP:設定中キャラ番号:肉体熟知 = キャラ変数引き継ぎ:(LOCAL:1):肉体熟知
+					弱点看破:設定中キャラ番号:0 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破0
+					弱点看破:設定中キャラ番号:1 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破1
+					弱点看破:設定中キャラ番号:2 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破2
+					弱点看破:設定中キャラ番号:3 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破3
+					弱点看破:設定中キャラ番号:4 = キャラ変数引き継ぎ:(LOCAL:1):弱点看破4
+					弱点コマンド枠:設定中キャラ番号:0 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠0
+					弱点コマンド枠:設定中キャラ番号:1 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠1
+					弱点コマンド枠:設定中キャラ番号:2 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠2
+					弱点コマンド枠:設定中キャラ番号:3 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠3
+					弱点コマンド枠:設定中キャラ番号:4 = キャラ文字列引き継ぎ:(LOCAL:1):弱点枠4
+					BREAK
+				ENDIF
+			NEXT
+			;名前
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:1, "_", 小分割文字列
+			NAME:設定中キャラ番号 = [一般人]%小分割文字列:1%
+			CALLNAME:設定中キャラ番号 = %小分割文字列:1%
+			;素質
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:2, "_", 小分割文字列
+			FOR LOCAL:1, 0, 900, 3
+				SIF 小分割文字列:(LOCAL:1) == ""
+					BREAK
+				TALENT:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
+			NEXT
+			;フレーバー素質
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:3, "_", 小分割文字列
+			FOR LOCAL:1, 0, 30, 3
+				SIF 小分割文字列:(LOCAL:1) == ""
+					BREAK
+				フレーバー素質:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
+			NEXT
+			;ABL
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:4, "_", 小分割文字列
+			FOR LOCAL:1, 0, 150, 3
+				SIF 小分割文字列:(LOCAL:1) == ""
+					BREAK
+				ABL:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
+			NEXT
+			;ABL
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:5, "_", 小分割文字列
+			FOR LOCAL:1, 0, 300, 3
+				SIF 小分割文字列:(LOCAL:1) == ""
+					BREAK
+				EXP:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
+			NEXT
+			;戦闘系
+			VARSET 小分割文字列
+			SPLIT 大分割文字列:6, "_", 小分割文字列
+			基礎BATTLE_STATE:設定中キャラ番号:属性 = TOINT(小分割文字列:1)
+			基礎BATTLE_STATE:設定中キャラ番号:得意武器 = TOINT(小分割文字列:3)
+			CALL 初期ステータス設定_テンプレート適用(タイプ数値文字列変換(TOINT(小分割文字列:5)), 設定中キャラ番号)
+			知識素質:設定中キャラ番号:性知識 = TOINT(小分割文字列:7)
+		ENDIF
+	NEXT
+ENDIF
 
 CALL コマンド存在チェック
 
@@ -90,16 +219,52 @@ SIF TALENT:MASTER:2 & 2
 ITEM:サプチケ = 1
 
 CALL イベントデータベースセット
-CALL アイテムデータベースセット
-CALL 指輪データベースセット
-CALL 耳飾りデータベースセット
-CALL 衣装データベースセット
 CALL 戦闘用データベースセット
-CALL 素材アイテムデータベースセット
-CALL 素材アイテム登録処理
+IF 引き継ぎ中フラグ
+	LOADTEXT "dat/素材DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/素材DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持素材データベース", LOCALS:1, LOCALS:0
+	LOADTEXT "dat/衣装DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/衣装DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持衣装データベース", LOCALS:1, LOCALS:0
+	LOADTEXT "dat/指輪DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/指輪DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持指輪データベース", LOCALS:1, LOCALS:0
+	LOADTEXT "dat/耳飾りDT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/耳飾りDT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持耳飾りデータベース", LOCALS:1, LOCALS:0
+	LOADTEXT "dat/アイテムDT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/アイテムDT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持アイテムデータベース", LOCALS:1, LOCALS:0
 
-CALL 制服登録処理("バニー服")
-CALL 制服登録処理("メイド服")
+	所持制服文字列 = %制服引き継ぎ%
+	MONEY = 所持ルピ引き継ぎ
+	FOR LOCAL, 0, 100
+		あなた特殊能力:LOCAL = あなた特殊能力引き継ぎ:LOCAL
+	NEXT
+ELSE
+	CALL アイテムデータベースセット
+	CALL 指輪データベースセット
+	CALL 耳飾りデータベースセット
+	CALL 衣装データベースセット
+	CALL 素材アイテムデータベースセット
+
+	CALL 制服登録処理("バニー服")
+	CALL 制服登録処理("メイド服")
+	
+	MONEY = 5000
+ENDIF
+CALL 素材アイテム登録処理
 
 従業員キャラ上限 = 2
 施設改造度:0:0 = 1
@@ -110,7 +275,13 @@ SAVESTR:10 = /
 LOCAL:1 = CHARANUM / 10
 REDRAW 0
 FOR LOCAL, 0, CHARANUM
-	CALL キャラクター初期化(LOCAL)
+	IF LOCAL > 0 && LOCAL <= 引き継いだキャラ人数
+		CALL キャラクター初期化(LOCAL, 1)
+	ELSEIF NO:LOCAL == 999
+		CALL キャラクター初期化(LOCAL, 1)
+	ELSE
+		CALL キャラクター初期化(LOCAL)
+	ENDIF
 	IF LOCAL % LOCAL:1 == 0
 		CLEARLINE 1
 		PRINTFORML 進行度……{LOCAL / LOCAL:1 * 10}\%
@@ -129,7 +300,6 @@ CFLAG:MASTER:睡眠 = 1
 FLAG:従業員数 = 1
 依頼同時最大数 = 1
 DAY = 1
-MONEY = 5000
 汎用喘ぎ使用OPTION = 1
 
 ボタン化用カラーマトリクス:0:0 = 768,256,256,  0,  0
@@ -176,6 +346,17 @@ PRINTL
 CALL シナリオ_OP
 
 初期設定中 = 0
+IF 引き継ぎ中フラグ
+	;使用する変数を掃除
+	VARSET キャラ変数引き継ぎ
+	VARSET キャラ文字列引き継ぎ
+	制服引き継ぎ = 
+	所持ルピ引き継ぎ = 0
+	VARSET 引き継ぎキャラ番号
+	VARSET あなた特殊能力引き継ぎ
+	VARSET 従業員初期値引き継ぎ
+	引き継ぎ中フラグ = 0
+ENDIF
 BEGIN SHOP
 
 @EVENTLOAD
@@ -184,7 +365,8 @@ CALL VERSION_UP
 
 
 
-@キャラクター初期化(ARG)
+@キャラクター初期化(ARG, 引き継ぎキャラフラグ = 0)
+#DIM 引き継ぎキャラフラグ
 #DIMS CSTR切り分け文字列格納, 2
 VARSET LOCALS
 VARSET CSTR切り分け文字列格納
@@ -220,58 +402,58 @@ CSTR:ARG:11 = /
 SIF 発情期判定(ARG)
 	CFLAG:ARG:発情期フラグ = RAND:9 + 1
 
-VARSET LOCALS
-;招待時同行キャラ
-REPLACE CSTR:ARG:同行キャラ, " ", ""
-SPLIT RESULTS, "%", LOCALS
-LOCAL:2 = RESULT - 1
-FOR LOCAL, 0, LOCAL:2
-	SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
-	;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
-	同行候補キャラ番号:ARG:LOCAL = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
-	同行候補キャラ確率:ARG:LOCAL = TOINT(CSTR切り分け文字列格納:1)
-NEXT
+IF 引き継ぎキャラフラグ == 0
+	VARSET LOCALS
+	;招待時同行キャラ
+	REPLACE CSTR:ARG:同行キャラ, " ", ""
+	SPLIT RESULTS, "%", LOCALS
+	LOCAL:2 = RESULT - 1
+	FOR LOCAL, 0, LOCAL:2
+		SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+		;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+		同行候補キャラ番号:ARG:LOCAL = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+		同行候補キャラ確率:ARG:LOCAL = TOINT(CSTR切り分け文字列格納:1)
+	NEXT
 
-VARSET LOCALS
-;知識素質
-SUBSTRING CSTR:ARG:知識素質設定, 1, -1
-SPLIT RESULTS, " ", LOCALS
-LOCAL:2 = RESULT - 1
-FOR LOCAL, 0, LOCAL:2
-	SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
-	;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
-	知識素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
-NEXT
+	VARSET LOCALS
+	;知識素質
+	SUBSTRING CSTR:ARG:知識素質設定, 1, -1
+	SPLIT RESULTS, " ", LOCALS
+	LOCAL:2 = RESULT - 1
+	FOR LOCAL, 0, LOCAL:2
+		SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+		;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+		知識素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
+	NEXT
 
-;素質切り替え
-IF TALENT:LOCAL:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
-	TALENT:LOCAL:陥没乳首 = 0
+	;素質切り替え
+	IF TALENT:LOCAL:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
+		TALENT:LOCAL:陥没乳首 = 0
+	ENDIF
+	IF TALENT:LOCAL:母乳体質 && 素質切り替えOPTION記憶:母乳体質_なし
+		TALENT:LOCAL:母乳体質 = 0
+	ENDIF
+	IF TALENT:LOCAL:性別 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
+		TALENT:LOCAL:性別 = 1
+	ENDIF
+
+	VARSET LOCALS
+	;戦闘ステータス
+	SUBSTRING CSTR:ARG:戦闘基礎ステータス設定, 1, -1
+	SPLIT RESULTS, " ", LOCALS
+		;属性
+		SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
+		基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
+		;得意武器
+		SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
+		基礎BATTLE_STATE:ARG:得意武器 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
+		;初期ステータス
+		SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
+		CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
+
+	CALL 弱点コマンド初期設定(ARG)
+	TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
 ENDIF
-IF TALENT:LOCAL:母乳体質 && 素質切り替えOPTION記憶:母乳体質_なし
-	TALENT:LOCAL:母乳体質 = 0
-ENDIF
-IF TALENT:LOCAL:性別 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
-	TALENT:LOCAL:性別 = 1
-ENDIF
-
-VARSET LOCALS
-;戦闘ステータス
-SUBSTRING CSTR:ARG:戦闘基礎ステータス設定, 1, -1
-SPLIT RESULTS, " ", LOCALS
-	;属性
-	SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
-	基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
-	;得意武器
-	SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
-	基礎BATTLE_STATE:ARG:得意武器 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
-	;初期ステータス
-	SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
-	CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
-
-
-CALL 弱点コマンド初期設定(ARG)
-TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
-
 
 @弱点コマンド初期設定(ARG)
 #DIMS 弱点候補_セクハラ, 200
@@ -283,6 +465,10 @@ TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
 #DIM セクハラ候補数
 #DIM うふふ候補数
 #DIM チェック完了
+
+;弱点が全て埋まっている場合（=周回中）はここで処理終了
+SIF MATCH(弱点コマンド枠:ARG:0, "", 0, 5)==0
+	RETURN
 
 ;弱点初期化
 VARSET 弱点コマンド枠:ARG:0
@@ -945,17 +1131,17 @@ SELECTCASE RESULT
 		DRAWLINE
 		SELECTCASE 全体設定
 			CASE 1
-				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTBUTTON "[口上側・引き継ぎキャラの設定を維持]", 0
 				PRINTL
 				PRINTBUTTON "[初対面時に設定]", 1
 				PRINTL
 			CASE 2
-				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTBUTTON "[口上側・引き継ぎキャラの設定を維持]", 0
 				PRINTL
 				PRINTBUTTON "[初うふふ時に設定]", 1
 				PRINTL
 			CASE 3
-				PRINTBUTTON "[口上側の設定を維持]", 0
+				PRINTBUTTON "[口上側・引き継ぎキャラの設定を維持]", 0
 				PRINTL
 				PRINTBUTTON "[ランダムに設定]", 1
 				PRINTL
@@ -979,13 +1165,13 @@ SELECTCASE 全体設定
 		FOR COUNT, 1, CHARANUM
 			フレーバー素質:COUNT:素質表示設定 = 0
 		NEXT
-		フレーバー素質封印設定 = 1
+		フレーバー素質設定 = 1
 	CASE 1
 		PRINT [初対面時に設定]、
 		IF 残りキャラ設定 == 0
-			PRINT 口上存在キャラは[口上側の設定を維持]
+			PRINT 口上存在キャラ・引き継ぎキャラは[設定を維持]
 		ELSE
-			PRINT 口上存在キャラも[初対面時に設定]
+			PRINT 口上存在キャラ・引き継ぎキャラも[初対面時に設定]
 		ENDIF
 		PRINTL の設定でゲームを開始します。
 		FOR COUNT, 1, CHARANUM
@@ -994,12 +1180,13 @@ SELECTCASE 全体設定
 			ENDIF
 			フレーバー素質:COUNT:素質表示設定 = 2
 		NEXT
+		フレーバー素質設定 = 2
 	CASE 2
 		PRINT [初うふふ時に設定]、
 		IF 残りキャラ設定 == 0
-			PRINT 口上存在キャラは[口上側の設定を維持]
+			PRINT 口上存在キャラ・引き継ぎキャラは[設定を維持]
 		ELSE
-			PRINT 口上存在キャラも[初うふふ時に設定]
+			PRINT 口上存在キャラ・引き継ぎキャラも[初うふふ時に設定]
 		ENDIF
 		PRINTL の設定でゲームを開始します。
 		FOR COUNT, 1, CHARANUM
@@ -1008,12 +1195,13 @@ SELECTCASE 全体設定
 			ENDIF
 			フレーバー素質:COUNT:素質表示設定 = 3
 		NEXT
+		フレーバー素質設定 = 3
 	CASE 3
 		PRINT [ランダムに設定]、
 		IF 残りキャラ設定 == 0
-			PRINT 口上存在キャラは[口上側の設定を維持]
+			PRINT 口上存在キャラ・引き継ぎキャラは[設定を維持]
 		ELSE
-			PRINT 口上存在キャラも[ランダムに設定]
+			PRINT 口上存在キャラ・引き継ぎキャラも[ランダムに設定]
 		ENDIF
 		PRINTL の設定でゲームを開始します。
 		FOR COUNT, 1, CHARANUM
