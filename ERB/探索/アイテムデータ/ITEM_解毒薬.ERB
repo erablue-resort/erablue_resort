@@ -1,0 +1,56 @@
+﻿
+@アイテム個別文章表示_解毒薬(ARGS)
+;解毒薬
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 400
+ENDIF
+
+LOCALS = 
+LOCALS += @"■解毒薬　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "解毒薬")}<br>"
+LOCALS += "空の世界で広く使われている、一般的な毒に効く解毒剤<br>"
+LOCALS += "薬草を簡単な手順で加工すれば出来上がるので、初心者の<br>"
+LOCALS += "錬金術師がよく小遣い稼ぎに精製している。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方単体の[毒]デバフを解除する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_解毒薬
+CALL 汎用使用先表示("味方単体")
+
+@アイテム効果処理_解毒薬(ARG)
+#DIMS 効果種類
+#DIM データベース行数
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:0
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "解毒薬") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+LOCAL:1 = 0
+データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+FOR LOCAL, 0, データベース行数
+	効果種類 = %DT_CELL_GETS(@"デバフデータベース_{ARG}", LOCAL, "デバフ対象能力")%
+	IF 効果種類 == "毒"
+		DT_ROW_REMOVE @"デバフデータベース_{ARG}", LOCAL
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+
+IF LOCAL:1 == 0
+	PRINTW 毒デバフがありません
+	RETURN 0
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%の毒デバフを解除しました
+ENDIF
+
+CALL アイテム増減汎用処理("解毒薬", -1)
+
+RETURN 1

@@ -63,6 +63,9 @@ ELSE
 	CALL 敵戦闘行動実処理関数
 ENDIF
 
+;行動後発動処理
+CALL 行動後発動効果処理()
+
 FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
 		CONTINUE
@@ -375,4 +378,50 @@ FOR LOCAL, 10, 20
 		ENDIF
 	NEXT
 NEXT
+
+@行動後発動効果処理
+#DIMS 効果種類
+#DIM 効果量
+#DIM データベース行数
+
+CALL 口上変数初期化
+;毒処理
+
+IF 戦闘行動キャラ < 10
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
+	FOR LOCAL:1, 0, データベース行数
+		効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ対象能力")%
+		IF 効果種類 == "毒"
+			;ダメージ量決定
+			効果量 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_固定値") + (BATTLE_STATE:戦闘行動キャラ:ＨＰ * DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_割合") / 100)
+			効果量 = 効果量 * RAND(95, 105) / 100
+			効果量 = MIN(効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ - BATTLE_STATE:戦闘行動キャラ:ＨＰ)
+			WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は%DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ名")%の効果で{効果量}のダメージ！
+			BATTLE_STATE:LOCAL:ＨＰ = MAX(BATTLE_STATE:LOCAL:ＨＰ - RESULT, 0)
+			IF BATTLE_STATE:LOCAL:ＨＰ < 1
+				CALL 戦闘不能時処理(LOCAL)
+				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%は倒れた！
+			ENDIF
+			CALL メッセージ欄表示用関数(,,,0)
+		ENDIF
+	NEXT
+ELSE
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
+	FOR LOCAL:1, 0, データベース行数
+		効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ対象能力")%
+		IF 効果種類 == "毒"
+			;ダメージ量決定
+			効果量 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_固定値") + (敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ * DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_割合") / 100)
+			効果量 = 効果量 * RAND(95, 105) / 100
+			効果量 = MIN(効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ - 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ)
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%は%DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ名")%の効果で{効果量}のダメージ！
+			敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ - RESULT, 0)
+			IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ < 1
+				CALL 戦闘不能時処理(戦闘行動キャラ)
+				WSTR:(K++) = %(敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名)%は倒れた！
+			ENDIF
+			CALL メッセージ欄表示用関数(,,,0)
+		ENDIF
+	NEXT
+ENDIF
 
