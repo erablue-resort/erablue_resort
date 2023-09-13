@@ -1,0 +1,107 @@
+﻿;-------------------------------------------------
+;自慰する
+;-------------------------------------------------
+@COMNAME413
+#FUNCTIONS
+TSTR:コマンド名受渡 = 自慰する
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_413
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_隠密")
+
+@COM413
+#DIM 自慰部位
+
+DOWNBASE:MASTER:体力 = 100
+DOWNBASE:MASTER:気力 = 50
+
+IF GETBIT(TALENT:PLAYER:性別, 0)
+	自慰部位 = RAND:4
+ELSE
+	自慰部位 = RAND:2 * 2
+ENDIF
+
+SELECTCASE 自慰部位
+	CASE 0
+		EXP:PLAYER:Ｃ経験 ++
+		EXP:PLAYER:Ｃ絶頂経験 ++
+	CASE 1
+		EXP:PLAYER:Ｖ経験 ++
+		EXP:PLAYER:Ｖ絶頂経験 ++
+	CASE 2
+		EXP:PLAYER:Ａ経験 ++
+		EXP:PLAYER:Ａ絶頂経験 ++
+	CASE 3
+		EXP:PLAYER:Ｂ経験 ++
+		EXP:PLAYER:Ｂ絶頂経験 ++
+ENDSELECT
+
+TIME += 30
+IF GETBIT(TALENT:PLAYER:性別, 1)
+	BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+	EXP:PLAYER:射精経験 ++
+ENDIF
+EXP:PLAYER:絶頂経験 ++
+EXP:PLAYER:自慰経験 ++
+RFLAG:自慰選択フラグ = 1
+
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE413
+#DIM キャラ番号
+#DIM 非隠密者あり
+#DIM 隠密者あり
+
+;自慰する実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(413)
+	RETURN RESULT
+;気力0
+SIF BASE:MASTER:気力 <= 0
+	RETURN 0
+;誰かいるとダメ、隠密かうふふ時はOK
+非隠密者あり = 0
+隠密者あり = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF !CFLAG:LOCAL:隠密
+		非隠密者あり = 1
+	ELSEIF CFLAG:LOCAL:隠密
+		隠密者あり = 1
+	ENDIF
+NEXT
+SIF 非隠密者あり && !CFLAG:PLAYER:隠密 && TFLAG:調教モード != 2
+	RETURN 0
+;一緒に隠密時禁止、うふふ中はOK
+SIF CFLAG:PLAYER:隠密 && 隠密者あり && TFLAG:調教モード != 2
+	RETURN 0
+;飲み会時禁止
+SIF TFLAG:調教モード == 3
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM413
+PRINTFORM %CALLNAME:PLAYER%は
+IF TFLAG:調教モード == 2
+	PRINTFORM %CALLNAME:TARGET%の眼の前で
+ELSEIF GET_TARGETNUM() > 0 && CFLAG:PLAYER:隠密
+	PRINT 見つからないように隠れながら
+ELSEIF MYROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	PRINT 自室でゆったりと
+ELSE
+	PRINT 誰も居ない場所でこっそりと
+ENDIF
+PRINTL 自らを慰めた……
+
+

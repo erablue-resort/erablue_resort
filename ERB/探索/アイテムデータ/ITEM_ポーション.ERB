@@ -1,0 +1,54 @@
+﻿
+@アイテム個別文章表示_ポーション(ARGS)
+;ポーション
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 800
+ENDIF
+
+LOCALS = 
+LOCALS += @"■ポーション　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "ポーション")}<br>"
+LOCALS += "空の世界で広く使われている、様々な傷に効く汎用的な薬<br>"
+LOCALS += "薬草を簡単な手順で加工すれば出来上がるので、初心者の<br>"
+LOCALS += "錬金術師がよく小遣い稼ぎに精製している。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方単体のＨＰを[５００]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_ポーション
+CALL 汎用使用先表示("味方単体")
+
+@アイテム効果処理_ポーション(ARG)
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:0
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "ポーション") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＨＰ == BATTLE_STATE:ARG:ＨＰ
+	PRINTW ＨＰが最大です
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:ＨＰ < 1
+	PRINTW 戦闘不能は治療出来ません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ < 500
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを{BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを500回復しました
+ENDIF
+
+BATTLE_STATE:ARG:ＨＰ = MIN(BATTLE_STATE:ARG:ＨＰ + 500, BATTLE_STATE:ARG:最大ＨＰ)
+CALL アイテム増減汎用処理("ポーション", -1)
+
+RETURN 1
