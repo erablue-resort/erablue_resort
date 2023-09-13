@@ -1,0 +1,142 @@
+﻿;------------------------------------------------------------------------------
+;通常時、自慰目撃
+;------------------------------------------------------------------------------
+@AUTOCOM11
+IF MYROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	;キャラが自室を訪ねて目撃しちゃう＝あなたに落ち度なし
+	CALL SOURCE_CALC_征服(AUTOCOM_相手番号保存, PLAYER, 400)
+	IF TALENT:AUTOCOM_相手番号保存:恋慕 || TALENT:AUTOCOM_相手番号保存:セフレ
+		IF BASE:AUTOCOM_相手番号保存:性欲 >= 6000 || CFLAG:AUTOCOM_相手番号保存:発情期フラグ < 0
+			;陥落済みかつ性欲が溜まってると姿を現してうふふ突入
+			CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			TARGET = AUTOCOM_相手番号保存
+			CFLAG:PLAYER:うふふ = 1
+			CFLAG:AUTOCOM_相手番号保存:うふふ = 1
+		ENDIF
+	ELSEIF 知識素質:AUTOCOM_相手番号保存:性知識 < 0
+		;無知や獣並の性知識だと何も気にせず姿を現す
+		CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+		CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+		CFLAG:AUTOCOM_相手番号保存:同行 = 60
+		TARGET = AUTOCOM_相手番号保存
+	ENDIF
+ELSEIF CFLAG:PLAYER:隠密
+	;キャラが隠密あなたを発見しちゃう＝あなたに落ち度ややあり
+	CALL SOURCE_CALC_征服(AUTOCOM_相手番号保存, PLAYER, 600)
+	IF TALENT:AUTOCOM_相手番号保存:恋慕 || TALENT:AUTOCOM_相手番号保存:セフレ
+		IF BASE:AUTOCOM_相手番号保存:性欲 >= 6000 || CFLAG:AUTOCOM_相手番号保存:発情期フラグ < 0
+			;陥落済みかつ性欲が溜まってると姿を現してうふふ突入
+			CFLAG:AUTOCOM_相手番号保存:隠密 = 1
+			CFLAG:AUTOCOM_相手番号保存:同行 = 1
+			TARGET = AUTOCOM_相手番号保存
+			CFLAG:PLAYER:うふふ = 1
+			CFLAG:AUTOCOM_相手番号保存:うふふ = 1
+		ENDIF
+	ELSEIF 知識素質:AUTOCOM_相手番号保存:性知識 < 0
+		;無知や獣並の性知識だと何も気にせず姿を現す
+		CFLAG:AUTOCOM_相手番号保存:隠密 = 1
+		CFLAG:AUTOCOM_相手番号保存:同行 = 1
+		TARGET = AUTOCOM_相手番号保存
+	ENDIF
+ELSE
+	;キャラが隠密中に隠れてないあなたを発見しちゃう＝あなたに落ち度あるが
+	;キャラが隠密中＝野外オナニー中なのでどっちもどっち
+	CALL SOURCE_CALC_征服(AUTOCOM_相手番号保存, PLAYER, 200)
+ENDIF
+
+
+@AUTOCOM_ABLE11(キャラ番号)
+#DIM キャラ番号
+;あなたが自慰コマンドした直後のみ
+SIF RFLAG:自慰選択フラグ == 0
+	RETURN 0
+;うふふ中ではない
+SIF CFLAG:キャラ番号:うふふ
+	RETURN 0
+;隠密自慰がバレるのは20%
+;低い気もするけど、同室者全員分回すのでたくさん居たらほぼ見つかる
+IF CFLAG:PLAYER:隠密
+	SIF RAND:5 > 1
+		RETURN 0
+ENDIF
+;キャラが隠密・あなたが非隠密時は100%バレるので処理分岐無し
+;自室を訪ねてきてバレるパターンは仕様上TARGETが存在しない時に判定するので別処理
+RETURN 1
+
+@MESSAGE_AUTOCOM11
+PRINTFORM %CALLNAME:AUTOCOM_相手番号保存%は
+IF MYROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	PRINTFORML %CALLNAME:PLAYER%の部屋を訪ねた際にたまたま自慰を目撃してしまった…！
+	IF (TALENT:AUTOCOM_相手番号保存:恋慕 || TALENT:AUTOCOM_相手番号保存:セフレ) && (BASE:AUTOCOM_相手番号保存:性欲 >= 6000 || CFLAG:AUTOCOM_相手番号保存:発情期フラグ < 0)
+		PRINTFORML 一人でするくらいなら、と%CALLNAME:AUTOCOM_相手番号保存%は%CALLNAME:PLAYER%の部屋へと入ってきた。
+		PRINTFORML %CALLNAME:PLAYER%のことを誘っている……
+		PRINTL
+		PRINTFORML %CALLNAME:PLAYER%は誘いに乗り、%CALLNAME:AUTOCOM_相手番号保存%を押し倒した
+	ELSEIF 知識素質:AUTOCOM_相手番号保存:性知識 < 0
+		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%は%CALLNAME:PLAYER%が気にせず部屋の中に入り、何をしてるのかと%CALLNAME:PLAYER%に訪ねて来た
+		PRINTFORML %CALLNAME:PLAYER%は話を煙に巻き、なんとか誤魔化した…
+	ELSE
+		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はそのまま、%CALLNAME:PLAYER%に気づかれないよう静かに部屋を離れた…
+	ENDIF
+ELSEIF CFLAG:PLAYER:隠密
+	PRINTFORML 隠れていた%CALLNAME:PLAYER%をたまたま見つけ、自慰を目撃してしまった…！
+	IF (TALENT:AUTOCOM_相手番号保存:恋慕 || TALENT:AUTOCOM_相手番号保存:セフレ) && (BASE:AUTOCOM_相手番号保存:性欲 >= 6000 || CFLAG:AUTOCOM_相手番号保存:発情期フラグ < 0)
+		PRINTFORML 一人でするくらいなら、と%CALLNAME:AUTOCOM_相手番号保存%は%CALLNAME:PLAYER%が隠れている場所に入ってきた。
+		PRINTFORML %CALLNAME:PLAYER%のことを誘っている……
+		PRINTL
+		PRINTFORML %CALLNAME:PLAYER%は誘いに乗り、%CALLNAME:AUTOCOM_相手番号保存%を押し倒した
+	ELSEIF 知識素質:AUTOCOM_相手番号保存:性知識 < 0
+		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%は%CALLNAME:PLAYER%が気にせず%CALLNAME:PLAYER%の近くに寄り、何をしてるのかと訪ねて来た
+		PRINTFORML %CALLNAME:PLAYER%は話を煙に巻き、なんとか誤魔化した…
+	ELSE
+		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はそのまま、%CALLNAME:PLAYER%に気づかれないよう静かにその場を離れた…
+	ENDIF
+ELSE
+	PRINTFORML 隠れていたら、同じ場所で自慰を始めた%CALLNAME:PLAYER%を目撃してしまった…！
+	PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はそのまま、%CALLNAME:PLAYER%に気づかれないよう隠れ続けている…
+ENDIF
+
+
+@自宅訪問からの目撃者決定
+#DIM 訪問候補者, 1000
+#DIM キャラ番号
+#DIM 候補番号
+;自慰時に誰か来るのは1/3の確率
+SIF RAND:3 > 0
+	RETURN 0
+
+;候補者リスト作成
+候補番号 = 0
+FOR キャラ番号, 1, CHARANUM
+	;島にいる
+	SIF CFLAG:キャラ番号:滞在期間 < 1
+		CONTINUE
+	;寝てる
+	SIF CFLAG:キャラ番号:睡眠
+		CONTINUE
+	;好感度が一定以上か、従業員のどちらか
+	SIF CFLAG:キャラ番号:好感度レベル < 関係閾値:2 && !TALENT:キャラ番号:従業員
+		CONTINUE
+	訪問候補者:候補番号 = キャラ番号
+	候補番号 += 1
+	IF TALENT:キャラ番号:セフレ
+		;セフレは確率２倍
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+	ELSEIF TALENT:キャラ番号:恋慕
+		;恋慕は確率３倍
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+		訪問候補者:候補番号 = キャラ番号
+		候補番号 += 1
+	ENDIF
+NEXT
+
+;一人も候補がいないなら戻る
+SIF 候補番号 == 0
+	RETURN 0
+
+;訪問キャラ決定
+AUTOCOM_相手番号保存 = 訪問候補者:(RAND:候補番号)
+RETURN 1011

@@ -31,8 +31,7 @@ LOCALS += "<br>固有の取得経験：自慰経験(TARGET)・調教自慰経験
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM9
-#DIM オナニー部位, 4
-#DIM オナニー候補, 4
+#DIM 快定数
 ;-------------------------------------------------
 ;COM別FLAGの設定
 ;-------------------------------------------------
@@ -45,75 +44,49 @@ DOWNBASE:体力 += 5
 DOWNBASE:気力 += 50
 
 ;快計算
-LOCAL:0 = 80
+快定数 = 80
 
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 400)
+;二穴バイブ
+IF TEQUIP:バイブ && TEQUIP:アナルバイブ
+	RFLAG:コマンド結果受渡し変数 = 13
+	CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
+	CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 80)
+	;苦痛過剰になりそうなので単体より苦痛軽減
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 60 * PAIN_CHECK_V(TARGET) / 1000)
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 80 * PAIN_CHECK_A(TARGET) / 1000)
 ;バイブ
-IF TEQUIP:バイブ
+ELSEIF TEQUIP:バイブ
 	RFLAG:コマンド結果受渡し変数 = 11
-	CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 80)
+	CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
-	;苦痛
-	LOCAL:2 = 80 * PAIN_CHECK_V(TARGET) / 1000
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 80 * PAIN_CHECK_V(TARGET) / 1000)
 ;アナルバイブ
 ELSEIF TEQUIP:アナルバイブ
 	RFLAG:コマンド結果受渡し変数 = 12
-	CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 80)
+	CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
-	;苦痛
-	LOCAL:2 = 100 * PAIN_CHECK_A(TARGET) / 1000
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 100 * PAIN_CHECK_A(TARGET) / 1000)
 ; ;シャワー
 ; ELSEIF TEQUIP:32
-; 	CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 80)
+; 	CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 快定数)
 ; 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
 ; ;ビデオ
 ; ELSEIF TEQUIP:28
 ; 	CALL SOURCE_CALC_液体(TARGET, PLAYER, 50)
 ; 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 300)
 ELSE
-	VARSET オナニー部位
-	VARSET オナニー候補
-	;感覚開発度と敏感鈍感で候補数値を決定
-	オナニー部位:0 = ABL:TARGET:Ｃ感覚 + TALENT:TARGET:Ｃ感度
-	オナニー部位:1 = ABL:TARGET:Ｖ感覚 + TALENT:TARGET:Ｖ感度
-	;処女・男はVを使わない
-	SIF !EXP:TARGET:Ｖ経験 || GETBIT(TALENT:TARGET:性別, 0) == 0
-		オナニー部位:1 = -1
-	オナニー部位:2 = ABL:TARGET:Ａ感覚 + TALENT:TARGET:Ａ感度
-	;アナル未経験はAを使わない
-	SIF !EXP:TARGET:Ａ経験
-		オナニー部位:2 = -1
-	オナニー部位:3 = ABL:TARGET:Ｂ感覚 + TALENT:TARGET:Ｂ感度
-	;男はいまんとこ胸を使わない
-	SIF GETBIT(TALENT:TARGET:性別, 0) == 0
-		オナニー部位:3 = -1
-
-	;どの部位でオナニーするか決定する
-	LOCAL:1 = 0
-	FOR LOCAL, 0, 4
-		IF オナニー候補:0 < オナニー部位:LOCAL
-			LOCAL:1 = 0
-			VARSET オナニー候補, -1
-			オナニー候補:0 = LOCAL
-		ELSEIF オナニー候補:0 == オナニー部位:LOCAL
-			LOCAL:1 += 1
-			オナニー候補:(LOCAL:1) = LOCAL
-		ENDIF
-	NEXT
-	;候補の中からランダムで決定
-	LOCAL = RAND:(LOCAL:1 + 1)
-	RFLAG:コマンド結果受渡し変数 = オナニー候補:LOCAL
+	RFLAG:コマンド結果受渡し変数 = RANDOM_PART(TARGET)
 	SELECTCASE RFLAG:コマンド結果受渡し変数
 		CASE 0
-			CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 80)
+			CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 快定数)
 		CASE 1
-			CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 80)
+			CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
 		CASE 2
-			CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 80)
+			CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
 		CASE 3
-			CALL SOURCE_CALC_快Ｂ(TARGET, TARGET, 80)
+			CALL SOURCE_CALC_快Ｂ(TARGET, TARGET, 快定数)
 	ENDSELECT
 ENDIF
 ;-------------------------------------------------
