@@ -2,6 +2,7 @@
 @CHARA_MOVEMENT
 #DIM キャラ登録番号
 #DIM 追い出し先
+#DIM モード実行中フラグ
 
 FOR LOCAL,0,CHARANUM
 	;滞在してないキャラはスルー
@@ -119,19 +120,29 @@ FOR LOCAL,0,CHARANUM
 	SIF !CFLAG:LOCAL:同行 && !CFLAG:LOCAL:うふふ && LOCAL > 0
 		CFLAG:LOCAL:隠密 = 0
 
+	;性欲
+	SIF !CFLAG:LOCAL:睡眠
+		CALL 性欲ゲージ増加(LOCAL)
+
+	;現在何らかのモードに入っているか
+	モード実行中フラグ = 0
+	FOR LOCAL, 0, 6
+		IF 体位モード格納:LOCAL:LOCAL != ""
+			モード実行中フラグ = 1
+			BREAK
+		ENDIF
+	NEXT
+
 	;遊びに誘ったフラグ（１時間持続）
 	IF CFLAG:LOCAL:一緒に遊ぶ
 		CFLAG:LOCAL:一緒に遊ぶ = MAX(CFLAG:LOCAL:一緒に遊ぶ - TIME_PROGRESS(TFLAG:行動前時刻),0)
-		SIF CFLAG:LOCAL:うふふ
+		SIF CFLAG:LOCAL:うふふ || モード実行中フラグ
+			;うふふ中、あるいは何らかのモード実行中は遊ぶが途切れない
 			CFLAG:LOCAL:一緒に遊ぶ = MAX(CFLAG:LOCAL:一緒に遊ぶ, 1)
 		IF !CFLAG:LOCAL:一緒に遊ぶ
 			PRINTFORML %CALLNAME:LOCAL%は遊びに満足したようだ。
 		ENDIF
 	ENDIF
-
-	;性欲
-	SIF !CFLAG:LOCAL:睡眠
-		CALL 性欲ゲージ増加(LOCAL)
 
 	;野外オナニー処理
 	IF 性癖素質:LOCAL:野外オナニー && !CFLAG:LOCAL:うふふ
@@ -148,6 +159,8 @@ FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:飲み会
 		CONTINUE
 	SIF CFLAG:LOCAL:一緒に遊ぶ
+		CONTINUE
+	SIF モード実行中フラグ
 		CONTINUE
 	;部屋移動
 	CALL CHARA_MOVEMENT_T(LOCAL)
