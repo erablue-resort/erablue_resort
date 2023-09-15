@@ -1,12 +1,15 @@
 ﻿
 @行動内容入力
+#DIM バフ・デバフ番号
+#DIM 改行フラグ
+
 VARSET LOCALS
 上メニュー操作許可フラグ = 1
 CALL 画面再描画
 CALL 口上変数初期化
 
-エネミー画像ボタン化フラグ = 0
-キャラ画像ボタン化フラグ = 0
+エネミー画像ボタン化フラグ = 1
+キャラ画像ボタン化フラグ = 1
 
 IF BATTLE_STATE:戦闘行動キャラ:奥義ゲージ >= 100
 	CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
@@ -32,12 +35,53 @@ BINPUT
 戦闘行動内容 = RESULT
 
 SELECTCASE 戦闘行動内容
-	CASE 10
+	CASE 0 TO 19
+		;キャラクター状態表示
+		DRAWLINE
+		IF 戦闘行動内容 < 10
+			PRINTFORML ■%CALLNAME:(BATTLE_STATE:戦闘行動内容:キャラ番号)%
+		ELSE
+			PRINTFORML ■%敵BATTLE_STATE_STR:(戦闘行動内容 - 10):エネミー名%
+		ENDIF
+		PRINTL ＜バフ＞
+		FOR バフ・デバフ番号, 0, DT_ROW_LENGTH(@"バフデータベース_{戦闘行動内容}")
+			PRINTFORM %DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ対象能力")%バフ
+			PRINTFORML ：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ名")%
+			PRINTFORM 効果枠：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ枠"), 20, LEFT%
+			PRINTFORM 効果量：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_固定値"), 4}　　
+			PRINTFORML 効果割合：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_割合"), 4}％
+			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
+				PRINTFORM 持続ターン：永続
+				改行フラグ = 1
+			ELSEIF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
+				PRINTFORM 持続ターン：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
+				改行フラグ = 1
+			ENDIF
+			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
+				PRINTFORM 持続回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
+				改行フラグ = 1
+			ENDIF
+			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
+				PRINTFORM 持続行動回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
+				改行フラグ = 1
+			ENDIF
+			SIF 改行フラグ
+				PRINTL
+		NEXT
+		PRINTL
+		PRINTL ＜デバフ＞
+		PRINTL
+		DRAWLINE
+		WAIT
+		RESTART
+	CASE 1000
 		;アイテム使用
 		IF アイテム使用済みフラグ
 			REUSELASTLINE 
 			RESTART
 		ENDIF
+		エネミー画像ボタン化フラグ = 0
+		キャラ画像ボタン化フラグ = 0
 		ダンジョン表示モード = アイテム画面
 		$INPUT_LOOP_ITEM
 		CALL 画面再描画
@@ -53,7 +97,7 @@ SELECTCASE 戦闘行動内容
 					LOCAL = RESULT
 					IF LOCAL == 999
 						ダンジョン表示モード = アイテム画面
-						キャラ画像ボタン化フラグ = 0
+						キャラ画像ボタン化フラグ = 1
 						CLEARLINE 1
 						選択用変数 = -1
 						GOTO INPUT_LOOP_ITEM
@@ -81,8 +125,10 @@ SELECTCASE 戦闘行動内容
 		選択用変数 = -1
 		CALL 画面再描画
 		RESTART
-	CASE 20
+	CASE 1001
 		;逃げる
+		エネミー画像ボタン化フラグ = 0
+		キャラ画像ボタン化フラグ = 0
 		CALL 口上変数初期化
 		KSTR:(K++) = 戦闘から逃げます。よろしいですか？
 		KSTR:(K++) = <button value='0'>[0]はい</button>
@@ -107,7 +153,7 @@ SELECTCASE 戦闘行動内容
 				REUSELASTLINE 
 				GOTO INPUT_LOOP_ESCAPE
 		ENDSELECT
-	CASE 30
+	CASE 1002
 		INVERTBIT アビ使用確認スキップフラグ, 0
 		CALL 画面再描画
 		RESTART
@@ -115,6 +161,7 @@ SELECTCASE 戦闘行動内容
 		;通常攻撃or奥義
 		;対象選択
 		上メニュー操作許可フラグ = 0
+		キャラ画像ボタン化フラグ = 0
 		エネミー画像ボタン化フラグ = 1
 		CALL 口上変数初期化
 		KSTR:(K++) = 誰を攻撃しますか？
@@ -142,6 +189,8 @@ SELECTCASE 戦闘行動内容
 				GOTO INPUT_LOOP2
 		ENDSELECT
 	CASE 110 TO 120
+		エネミー画像ボタン化フラグ = 0
+		キャラ画像ボタン化フラグ = 0
 		上メニュー操作許可フラグ = 0
 	CASEELSE
 		REUSELASTLINE 
