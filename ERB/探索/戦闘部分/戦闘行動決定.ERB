@@ -2,6 +2,8 @@
 @行動内容入力
 #DIM バフ・デバフ番号
 #DIM 改行フラグ
+#DIM 表示アビ数
+#DIM アビ番号
 
 VARSET LOCALS
 上メニュー操作許可フラグ = 1
@@ -17,8 +19,30 @@ IF BATTLE_STATE:戦闘行動キャラ:奥義ゲージ >= 100
 ELSE
 	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>
 ENDIF
-CALL 固有アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-KSTR:(K++) = <button value = '110'>[110] %TSTR:コマンド名受渡%</button>
+VARSET RESULTS
+VARSET アビ関数名保存
+表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}")
+IF 表示アビ数
+	FOR アビ番号, 0, 表示アビ数
+		CALLFORM %RESULTS:アビ番号%("アビ名")
+		IF TSTR:コマンド名受渡 != ""
+			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+			アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
+		ENDIF
+	NEXT
+	KSTR:(K++) =  
+ELSE
+	VARSET RESULTS
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):属性)%")
+	FOR アビ番号, 0, 表示アビ数
+		CALLFORM %RESULTS:アビ番号%("アビ名")
+		IF TSTR:コマンド名受渡 != ""
+			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+			アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
+		ENDIF
+	NEXT
+	KSTR:(K++) =  
+ENDIF
 CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 
 ; FOR LOCAL:1, 0, 6
@@ -188,7 +212,7 @@ SELECTCASE 戦闘行動内容
 				REUSELASTLINE 
 				GOTO INPUT_LOOP2
 		ENDSELECT
-	CASE 110 TO 120
+	CASE 110 TO 129
 		エネミー画像ボタン化フラグ = 0
 		キャラ画像ボタン化フラグ = 0
 		上メニュー操作許可フラグ = 0
@@ -274,19 +298,20 @@ SELECTCASE 戦闘行動内容
 			CALL 戦闘不能時処理(戦闘行動対象)
 			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
 		ENDIF
-	CASE 110
+	CASE 110 TO 119
 		CALL 口上変数初期化
-		CALL 固有アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名")
 		KSTR:(K++) = ■%TSTR:コマンド名受渡%
 		IF アビ使用確認スキップフラグ == 0
-			CALL 固有アビリティ説明文呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+			CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文")
+			消費MP一時保存 = RESULT
 			KSTR:(K++) = %TSTR:コマンド名受渡%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT TSTR:コマンド名受渡, "<br>"
 			FOR LOCAL, 0, 4 - RESULT
 				KSTR:(K++) = 　
 			NEXT
-			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 10
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
 			ELSE
 				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
@@ -296,7 +321,7 @@ SELECTCASE 戦闘行動内容
 			INPUT
 			SELECTCASE RESULT
 				CASE 0
-					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 10
+					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 						REUSELASTLINE 
 						GOTO INPUT_LOOP2
 					ENDIF
@@ -307,27 +332,27 @@ SELECTCASE 戦闘行動内容
 					GOTO INPUT_LOOP2
 			ENDSELECT
 		ELSE
-			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 10
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = ＭＰが足りません。
 				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
 				RETURN -1
 			ENDIF
 		ENDIF
-		CALL 固有アビリティ効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果")
 		IF RESULT == -1
 			RETURN -1
 		ENDIF
-	CASE 111 TO 120
+	CASE 120 TO 129
 		CALL 口上変数初期化
-		CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号, 戦闘行動内容 - 110)
+		CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号, 戦闘行動内容 - 119)
 		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
 		衣装番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号
 		;消費MP算出
 		RESULT = 0
-		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"消費MP_{戦闘行動内容 - 110}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"消費MP_{戦闘行動内容 - 119}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		消費MP一時保存 = RESULT
 		IF アビ使用確認スキップフラグ == 0
-			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"追加アビ_{戦闘行動内容 - 110}")
+			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"追加アビ_{戦闘行動内容 - 119}")
 			KSTR:(K++) = %詳細文文字列受け渡し変数%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
@@ -362,7 +387,7 @@ SELECTCASE 戦闘行動内容
 				RETURN -1
 			ENDIF
 		ENDIF
-		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"効果処理_{戦闘行動内容 - 110}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"効果処理_{戦闘行動内容 - 119}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT == -1
 			RETURN -1
 		ENDIF
