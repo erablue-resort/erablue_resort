@@ -1,0 +1,301 @@
+﻿@SET_BODYSIZE(対象, セット位置 = 0)
+#DIM 対象
+#DIM セット位置
+
+SIF GETBIT(セット位置, 0) || セット位置 == 0
+	CALL SET_BODYSIZE_HEIGHT(対象)
+
+SIF GETBIT(セット位置, 1) || セット位置 == 0
+	CALL SET_BODYSIZE_BUST(対象)
+
+
+;-------------------------
+;身長の設定
+;-------------------------
+@SET_BODYSIZE_HEIGHT(対象)
+#DIM 対象
+#DIM 身長基礎値
+
+MAXBASE:対象:身長 = CALC_BODYSIZE_HEIGHT(対象)
+BASE:対象:身長 = MAXBASE:対象:身長
+
+
+@CALC_BODYSIZE_HEIGHT(対象)
+#FUNCTION
+#DIM 対象
+#DIM 基礎値
+
+;今のところ子供は未実装なのでコメントアウト
+;IF CFLAG:対象:行動不能状態 == 行動不能_子供
+;	基礎値 = MIN(500 + CFLAG:対象:子の成長度 * 20, 1300)
+;ELSEIF TALENT:対象:幼児
+;	基礎値 = MIN(800 + (CFLAG:対象:子の成長度 - 6) * 50, 1300)
+;ELSE
+IF !TALENT:対象:体格
+	SELECTCASE TALENT:対象:種族
+		CASE 種族_ハーヴィン || 種族_小人
+			基礎値 = IS_MALE(対象) ? 800 # 700
+			基礎値 += RAND:200
+		CASE 種族_幼児体型
+			基礎値 = IS_MALE(対象) ? 1200 # 1100
+			基礎値 += RAND:200
+		CASE 種族_小柄体型
+			基礎値 = IS_MALE(対象) ? 1400 # 1300
+			基礎値 += RAND:200
+		CASE 種族_ドラフ
+			基礎値 = IS_MALE(対象) ? 1950 + RAND:300 # 1300 + RAND:200
+		CASEELSE
+			基礎値 = IS_MALE(対象) ? 1500 # 1400
+			基礎値 += RAND:200 + RAND:100
+	ENDSELECT
+ELSE
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			基礎値 = IS_MALE(対象) ? 800 # 700
+			基礎値 += RAND:200
+		CASE 体格_小柄
+			基礎値 = IS_MALE(対象) ? 1400 # 1300
+			基礎値 += RAND:200
+		CASE 体格_普通
+			基礎値 = IS_MALE(対象) ? 1600 # 1500
+			基礎値 += RAND:200
+		CASE 体格_大柄
+			基礎値 = IS_MALE(対象) ? 1950 + RAND:200 # 1800 + RAND:200
+		CASE 体格_男ドラフ並
+			基礎値 = IS_MALE(対象) ? 2150 + RAND:300 # 2000 + RAND:200
+	ENDSELECT
+ENDIF
+
+RETURNF 基礎値
+
+;-------------------------
+;バストサイズの設定
+;-------------------------
+@SET_BODYSIZE_BUST(対象)
+#DIM 対象
+
+BASE:対象:バスト = CALC_BODYSIZE_BUST(対象)
+MAXBASE:対象:バスト = BASE:対象:バスト
+
+@CALC_BODYSIZE_BUST(対象)
+#FUNCTION
+#DIM 対象
+#DIM 基礎値
+
+基礎値 = BASE:対象:身長 * (IS_MALE(対象) ? 52 # 53) / 100
+
+SELECTCASE TALENT:対象:バストサイズ
+	CASE -2
+		LOCAL = 85
+	CASE -1
+		LOCAL = 90
+	CASE 0
+		LOCAL = 100
+	CASE 1
+		LOCAL = 105
+	CASE 2
+		LOCAL = 110
+	CASE 3
+		LOCAL = 120
+	CASEELSE
+		LOCAL = 90 + TALENT:対象:バストサイズ * 10
+ENDSELECT
+
+SIF IS_MALE(対象)
+	LOCAL = 85
+
+基礎値 = 基礎値 * LOCAL / 100
+
+IF !TALENT:対象:体格
+	SELECTCASE TALENT:対象:種族
+		CASE 種族_ハーヴィン || 種族_小人
+			TIMES 基礎値, 0.90
+		CASE 種族_幼児体型
+			TIMES 基礎値, 0.90
+		CASE 種族_小柄体型
+			TIMES 基礎値, 0.95
+		CASE 種族_ドラフ
+			SIF IS_MALE(対象)
+				TIMES 基礎値, 1.03
+	ENDSELECT
+ELSE
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			TIMES 基礎値, 0.90
+		CASE 体格_小柄
+			SIF TALENT:対象:種族 != 種族_ドラフ || IS_MALE(対象)
+				TIMES 基礎値, 0.95
+		CASE 体格_男ドラフ並
+			TIMES 基礎値, 1.03
+	ENDSELECT
+ENDIF
+
+SELECTCASE TALENT:対象:体型
+	CASE 体型_痩せすぎ
+		SIF TALENT:対象:種族 != 種族_ドラフ || IS_MALE(対象)
+			TIMES 基礎値, 0.90
+	CASE 体型_細身
+		SIF TALENT:対象:種族 != 種族_ドラフ || IS_MALE(対象)
+			TIMES 基礎値, 0.92
+	CASE 体型_スレンダー
+		SIF TALENT:対象:種族 != 種族_ドラフ || IS_MALE(対象)
+			TIMES 基礎値, 0.93
+	CASE 体型_豊満
+		TIMES 基礎値, 1.07
+	CASE 体型_肥満
+		TIMES 基礎値, 1.08
+ENDSELECT
+
+;ドラフのおっぱいにはロマンが詰まってるので補正
+IF TALENT:対象:種族 == 種族_ドラフ && TALENT:対象:体格 >= 体格_小柄 && IS_FEMALE(対象)
+	基礎値 = 基礎値 * RAND(113, 120) / 100
+ELSE
+	基礎値 = 基礎値 * RAND(97, 104) / 100
+ENDIF
+
+基礎値 = MAX(基礎値, CALC_BODYSIZE_UNDERBUST(対象) + 10)
+
+RETURNF 基礎値
+
+;-------------------------
+;アンダーバストの算出
+;-------------------------
+@CALC_BODYSIZE_UNDERBUST(対象)
+#FUNCTION
+#DIM 対象
+#DIM 基礎値
+基礎値 = BASE:対象:身長 * (IS_MALE(対象) ? 50 # 43) / 100
+
+IF !TALENT:対象:体格
+	SELECTCASE TALENT:対象:種族
+		CASE 種族_ハーヴィン || 種族_小人
+			TIMES 基礎値, 0.90
+		CASE 種族_幼児体型
+			TIMES 基礎値, 0.90
+		CASE 種族_小柄体型
+			TIMES 基礎値, 0.95
+		CASE 種族_ドラフ
+			SIF IS_MALE(対象)
+				TIMES 基礎値, 1.07
+	ENDSELECT
+ELSE
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			TIMES 基礎値, 0.90
+		CASE 体格_小柄
+			SIF TALENT:対象:種族 != 種族_ドラフ || IS_MALE(対象)
+				TIMES 基礎値, 0.95
+		CASE 体格_男ドラフ並
+			TIMES 基礎値, 1.07
+	ENDSELECT
+ENDIF
+
+
+SELECTCASE TALENT:対象:体格
+	CASE 体格_ハーヴィン並
+		TIMES 基礎値, 0.90
+	CASE 体格_小柄
+		TIMES 基礎値, 0.95
+	CASE 体格_普通
+	CASE 体格_大柄
+		TIMES 基礎値, 1.07
+	CASE 体格_男ドラフ並
+		TIMES 基礎値, 1.15
+ENDSELECT
+
+SELECTCASE TALENT:対象:体型
+	CASE 体型_痩せすぎ
+		TIMES 基礎値, 0.90
+	CASE 体型_細身
+		TIMES 基礎値, 0.93
+	CASE 体型_スレンダー
+		TIMES 基礎値, 0.95
+	CASE 体型_豊満
+		TIMES 基礎値, 1.05
+	CASE 体型_肥満
+		TIMES 基礎値, 1.10
+ENDSELECT
+
+;夢詰め込んだらドラフカップが大きくなりすぎるので補正
+;SIF TALENT:対象:種族 == 種族_ドラフ && TALENT:対象:体格 >= 体格_子供 && IS_FEMALE(対象)
+;	基礎値 = 基礎値 * 115 / 100
+
+RETURNF 基礎値
+
+;-------------------------
+;スリーサイズその他の表示
+;-------------------------
+@SHOW_BODYSIZE(対象)
+#DIM 対象
+
+PRINTFORM 身長:%DECIMAL_STRING(BASE:対象:身長, 1), 6, RIGHT%cm/ 
+PRINTFORM /
+PRINTFORM  B:%DECIMAL_STRING(BASE:対象:バスト, 1), 6, RIGHT%cm 
+CALL PRINT_CUPSIZE(対象)
+
+;バストのカップサイズ生成及び表示処理
+@PRINT_CUPSIZE(対象)
+#DIM 対象
+PRINTFORM %GET_CUPSIZE(対象)%
+
+;バストのカップサイズ生成処理
+@GET_CUPSIZE(対象)
+#FUNCTIONS
+#DIM 対象
+VARSET LOCALS,""
+SPLIT "(-),(AAA),(AA),(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),(K),(L),(M),(N),(O),(P),(Q),(R),(S),(T),(U),(V),(W),(X),(Y),(Z),(Z+) ",",",LOCALS
+
+LOCAL = (BASE:対象:バスト - CALC_BODYSIZE_UNDERBUST(対象)) / 25
+
+;文字列変数が若干不自由なので無理やり作成
+LOCAL = MAX(LOCAL , 1)
+LOCALS:0 = %LOCALS:(LOCAL)%
+
+IF IS_MALE(対象)
+	RETURNF "(--)"
+ELSE
+	RETURNF LOCALS:0
+ENDIF
+
+;-------------------------------------------------
+;キャラ作成・初期化時にCSVの身長体重スリーサイズを反映するようにビットを建てる
+;-------------------------------------------------
+@SETBIT_PI(対象)
+#FUNCTION
+#DIM 対象
+LOCAL:1 = 0
+SETBIT LOCAL:1, 0, 1
+SIF !EXISTCSV(NO:対象)
+	RETURNF LOCAL:1
+
+SIF CSVBASE(NO:対象, 20)
+	CLEARBIT LOCAL:1, 0
+
+SIF CSVBASE(NO:対象, 21)
+	CLEARBIT LOCAL:1, 1
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;整数ARG:0の下からARG:1番目に小数点を打ち、その値を文字列として返す関数
+;-------------------------------------------------
+@DECIMAL_STRING(ARG:0, ARG:1)
+#FUNCTIONS
+IF ARG:1 <= 0
+	THROW "@DECIMAL_STRINGの二番目の引数に0以下の値が指定されました({ARG:1})"
+ENDIF
+
+LOCAL:4 = ARG:0
+
+LOCAL:2 = POWER(10, ARG:1)
+LOCAL:3 = LOCAL:4 / LOCAL:2
+LOCAL:4 = LOCAL:4 - LOCAL:3 * LOCAL:2
+LOCALS:0 = {LOCAL:3}.
+
+FOR LOCAL:0, ARG:1 - 1, 0, -1
+	LOCAL:2 = POWER(10, LOCAL:0)
+	LOCAL:3 = LOCAL:4 / LOCAL:2
+	LOCAL:4 = LOCAL:4 - LOCAL:3 * LOCAL:2
+	LOCALS:0 = %LOCALS:0%{LOCAL:3}
+NEXT
+LOCALS:0 = %LOCALS:0%{LOCAL:4}
+RETURNF LOCALS:0
