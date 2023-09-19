@@ -301,10 +301,11 @@ SELECTCASE 戦闘行動内容
 	CASE 110 TO 119
 		CALL 口上変数初期化
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名")
+		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		KSTR:(K++) = ■%TSTR:コマンド名受渡%
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文")
+		消費MP一時保存 = RESULT
 		IF アビ使用確認スキップフラグ == 0
-			CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文")
-			消費MP一時保存 = RESULT
 			KSTR:(K++) = %TSTR:コマンド名受渡%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT TSTR:コマンド名受渡, "<br>"
@@ -338,13 +339,18 @@ SELECTCASE 戦闘行動内容
 				RETURN -1
 			ENDIF
 		ENDIF
+		CALL アビテンプレ変数リセット
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果")
-		IF RESULT == -1
+		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
 			RETURN -1
+		ELSE
+			;MP消費
+			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
 		ENDIF
 	CASE 120 TO 129
 		CALL 口上変数初期化
 		CALL 装備衣装アビ名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号, 戦闘行動内容 - 119)
+		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
 		衣装番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号
 		;消費MP算出
@@ -387,9 +393,13 @@ SELECTCASE 戦闘行動内容
 				RETURN -1
 			ENDIF
 		ENDIF
+		CALL アビテンプレ変数リセット
 		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 衣装番号, "衣装名")%(@"効果処理_{戦闘行動内容 - 119}", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		IF RESULT == -1
+		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
 			RETURN -1
+		ELSE
+			;MP消費
+			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
 		ENDIF
 ENDSELECT
 
