@@ -252,11 +252,19 @@ IF TALENT:ARG:妊娠
 	CFLAG:ARG:妊娠経過日  ++
 	IF !CFLAG:ARG:妊娠時バストサイズ増加 && !素質切り替えOPTION記憶:母乳体質_なし && PREGNANCY_PROGRESS(ARG) >= 3
 		CFLAG:ARG:妊娠時バストサイズ増加 = 1
-		IF TALENT:ARG:バストサイズ == 3
+		;元から魔乳の場合のフラグ立て
+		SIF TALENT:ARG:バストサイズ == 3
 			CFLAG:ARG:妊娠時バストサイズ増加 = 2
-		ELSE
-			TALENT:ARG:バストサイズ ++
-		ENDIF
+		LOCAL = BASE:ARG:バスト
+		;一旦、どのケースでもTALENTを大きくする
+		TALENT:ARG:バストサイズ ++
+		;BASEが実際に大きくなるまでループ
+		DO
+			CALL SET_BODYSIZE(ARG,2)
+		LOOP LOCAL <= BASE:ARG:バスト
+		;元が魔乳の場合、素質を上限に戻す
+		SIF TALENT:ARG:バストサイズ == 3
+				TALENT:ARG:バストサイズ --
 		SIF TALENT:ARG:母乳体質 != 1
 			TALENT:ARG:母乳体質 = 3
 		IF CFLAG:ARG:滞在期間 >= 0
@@ -278,8 +286,16 @@ IF TALENT:ARG:妊娠
 ELSEIF CFLAG:ARG:産後経過日
 	CFLAG:ARG:産後経過日 ++
 	IF CFLAG:ARG:妊娠時バストサイズ増加 && CFLAG:ARG:妊娠前体力 == 0 && CFLAG:ARG:産後経過日 > PREG_DAY(25 + (MAX(5,TALENT:ARG:バストサイズ * 10)))
-		SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
-			TALENT:ARG:バストサイズ --
+		IF CFLAG:ARG:妊娠時バストサイズ増加
+			;元が魔乳未満の場合、TALENTも小さくする（魔乳の場合は下駄履かせて計算させてるのでそのままでOK）
+			SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
+				TALENT:ARG:バストサイズ --
+			;BASEが実際に小さくなるまでループ
+			LOCAL = BASE:ARG:バスト
+			DO
+				CALL SET_BODYSIZE(ARG,2)
+			LOOP LOCAL >= BASE:ARG:バスト
+		ENDIF
 		CFLAG:ARG:妊娠時バストサイズ増加 = 0
 		SIF TALENT:ARG:母乳体質 != 1
 			TALENT:ARG:母乳体質 = 0
