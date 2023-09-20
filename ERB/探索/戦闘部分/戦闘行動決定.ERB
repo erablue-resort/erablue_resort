@@ -94,6 +94,30 @@ SELECTCASE 戦闘行動内容
 		NEXT
 		PRINTL
 		PRINTL ＜デバフ＞
+		FOR バフ・デバフ番号, 0, DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動内容}")
+			PRINTFORM %DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ対象能力")%デバフ
+			PRINTFORML ：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ名")%
+			PRINTFORM 効果枠：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ枠"), 20, LEFT%
+			PRINTFORM 効果量：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_固定値"), 4}　　
+			PRINTFORML 効果割合：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_割合"), 4}％
+			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
+				PRINTFORM 持続ターン：永続
+				改行フラグ = 1
+			ELSEIF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
+				PRINTFORM 持続ターン：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
+				改行フラグ = 1
+			ENDIF
+			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
+				PRINTFORM 持続回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
+				改行フラグ = 1
+			ENDIF
+			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
+				PRINTFORM 持続行動回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
+				改行フラグ = 1
+			ENDIF
+			SIF 改行フラグ
+				PRINTL
+		NEXT
 		PRINTL
 		DRAWLINE
 		WAIT
@@ -269,10 +293,10 @@ SELECTCASE 戦闘行動内容
 			NSTR:(K++) = {RESULT}のダメージ！　
 			敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
 		NEXT
+		WSTR:(K++) = 　
 		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
-			KSTR:(K++) = 　
 			CALL 戦闘不能時処理(戦闘行動対象)
-			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
 		ENDIF
 	CASE 101
 		;奥義
@@ -296,7 +320,7 @@ SELECTCASE 戦闘行動内容
 		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
 			KSTR:(K++) = 　
 			CALL 戦闘不能時処理(戦闘行動対象)
-			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
 		ENDIF
 	CASE 110 TO 119
 		CALL 口上変数初期化
@@ -346,6 +370,7 @@ SELECTCASE 戦闘行動内容
 		ELSE
 			;MP消費
 			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
+			CALL アビテンプレート用_表示メッセージ変換処理
 		ENDIF
 	CASE 120 TO 129
 		CALL 口上変数初期化
@@ -400,10 +425,11 @@ SELECTCASE 戦闘行動内容
 		ELSE
 			;MP消費
 			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
+			CALL アビテンプレート用_表示メッセージ変換処理
 		ENDIF
 ENDSELECT
 
-CALL メッセージ欄表示用関数()
+CALL メッセージ欄表示用関数(,,,0)
 BATTLE_STATE:戦闘行動キャラ:行動済みフラグ = 1
 
 @敵戦闘行動実処理関数
@@ -526,7 +552,10 @@ ENDIF
 ;基本は５％を想定。ムラが大きい攻撃は大きく、ムラが小さい攻撃は小さくすること
 
 ;基礎ダメージ計算
-IF 防御無視率
+IF アビ汎用変数:防御無視オプション_割合 || アビ汎用変数:防御無視オプション_固定値
+	防御数値 = 防御数値 * (100 - アビ汎用変数:防御無視オプション_割合) / 100
+	防御数値 = MAX(0, 防御数値 - アビ汎用変数:防御無視オプション_固定値)
+ELSEIF 防御無視率
 	防御数値 = 防御数値 * (100 - 防御無視率) / 100
 ENDIF
 LOCAL = (攻撃数値 / 2) - (防御数値 / 4)
