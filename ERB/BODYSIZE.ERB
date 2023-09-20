@@ -95,12 +95,12 @@ SIF !HAS_VAGINA(対象)
 
 SELECTCASE TALENT:対象:体格
 	CASE 体格_ハーヴィン並
-		TIMES 基礎値, 0.92
+		TIMES 基礎値, 1.18
 	CASE 体格_子供
 		IF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
-			TIMES 基礎値, 0.95
+			TIMES 基礎値, 1.05
 		ELSE
-			TIMES 基礎値, 1.07
+			TIMES 基礎値, 1.06
 		ENDIF
 	CASE 体格_小柄
 		SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
@@ -123,19 +123,16 @@ SELECTCASE TALENT:対象:体型
 		SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
 			TIMES 基礎値, 0.97
 	CASE 体型_グラマー
-		TIMES 基礎値, 1.02
+		TIMES 基礎値, 1.03
 	CASE 体型_豊満
-		TIMES 基礎値, 1.04
-	CASE 体型_肥満
 		TIMES 基礎値, 1.06
+	CASE 体型_肥満
+		TIMES 基礎値, 1.07
 ENDSELECT
 
 ;ドラフのおっぱいにはロマンが詰まってるので補正
-IF TALENT:対象:種族 == 種族_ドラフ && TALENT:対象:体格 >= 体格_小柄 && IS_FEMALE(対象)
-	基礎値 = 基礎値 * RAND(113, 120) / 100
-;ハーヴィンサイズは小さすぎるのでランダム幅を補正
-ELSEIF TALENT:対象:体格 == 体格_ハーヴィン並
-	基礎値 = 基礎値 * RAND(100, 107) / 100
+IF TALENT:対象:種族 == 種族_ドラフ && IS_FEMALE(対象)
+	基礎値 = 基礎値 * RAND(113, 118) / 100
 ELSE
 	基礎値 = 基礎値 * RAND(97, 104) / 100
 ENDIF
@@ -155,9 +152,9 @@ RETURNF 基礎値
 
 SELECTCASE TALENT:対象:体格
 	CASE 体格_ハーヴィン並
-		TIMES 基礎値, 0.90
+		TIMES 基礎値, 1.15
 	CASE 体格_子供
-		TIMES 基礎値, 0.90
+		TIMES 基礎値, 1.05
 	CASE 体格_小柄
 		SIF TALENT:対象:種族 != 種族_ドラフ
 			TIMES 基礎値, 0.95
@@ -175,6 +172,8 @@ SELECTCASE TALENT:対象:体型
 		TIMES 基礎値, 0.94
 	CASE 体型_スレンダー
 		TIMES 基礎値, 0.97
+	CASE 体型_グラマー
+		TIMES 基礎値, 1.01
 	CASE 体型_豊満
 		TIMES 基礎値, 1.05
 	CASE 体型_肥満
@@ -182,7 +181,7 @@ SELECTCASE TALENT:対象:体型
 ENDSELECT
 
 ;夢詰め込んだらドラフカップが大きくなりすぎるので補正
-SIF TALENT:対象:種族 == 種族_ドラフ && TALENT:対象:体格 >= 体格_子供 && HAS_VAGINA(対象)
+SIF TALENT:対象:種族 == 種族_ドラフ && TALENT:対象:体格 >= 体格_小柄 && HAS_VAGINA(対象)
 	基礎値 = 基礎値 * 110 / 100
 
 RETURNF 基礎値
@@ -190,11 +189,10 @@ RETURNF 基礎値
 ;-------------------------
 ;スリーサイズその他の表示
 ;-------------------------
-@SHOW_BODYSIZE(対象, ARG)
+@SHOW_BODYSIZE(対象)
 #FUNCTIONS
 #DIM 対象
-LOCAL = ARG ? 5# 1
-LOCALS = 身長:%DECIMAL_STRING(BASE:対象:身長, 1), 6, RIGHT%cm/   B:%DECIMAL_STRING(BASE:対象:バスト, 1), 6, RIGHT%cm %GET_CUPSIZE(対象), LOCAL, LEFT%
+LOCALS = 身長:%DECIMAL_STRING(BASE:対象:身長, 1), 6, RIGHT%cm/   B:%DECIMAL_STRING(BASE:対象:バスト, 1), 6, RIGHT%cm %GET_CUPSIZE(対象)%
 
 RETURNF LOCALS
 
@@ -204,8 +202,9 @@ RETURNF LOCALS
 PRINTFORM %GET_CUPSIZE(対象)%
 
 ;バストのカップサイズ生成処理
+;ARGに0を指定しない限り、TALENT:バストサイズの範囲に収まるように返す
 ;-2=絶壁(AAA～AA) -1=貧乳(A～B) 0=並乳(C～D) 1=巨乳(E～F) 2=爆乳(G～I) 3=魔乳(J↑)
-@GET_CUPSIZE(対象)
+@GET_CUPSIZE(対象, ARG=1)
 #FUNCTIONS
 #DIM 対象
 #DIMS CONST 表記 = "(-)","(AAA)","(AA)","(A)","(B)","(C)","(D)","(E)","(F)","(G)","(H)","(I)","(J)","(K)","(L)","(M)","(N)","(O)","(P)","(Q)","(R)","(S)","(T)","(U)","(V)","(W)","(X)","(Y)","(Z)","(Z+) "
@@ -216,9 +215,9 @@ LOCAL = (BASE:対象:バスト - CALC_BODYSIZE_UNDERBUST(対象)) / 25
 ;文字列変数が若干不自由なので無理やり作成
 LOCAL = MAX(LOCAL , 1)
 ;TALENTの表記に無理やり追従させる
-SIF 補正:(TALENT:対象:バストサイズ + 3) < LOCAL
+SIF !ARG && 補正:(TALENT:対象:バストサイズ + 3) < LOCAL
 	LOCAL = 補正:(TALENT:対象:バストサイズ + 3)
-SIF 補正:(TALENT:対象:バストサイズ + 2) + 1 > LOCAL
+SIF !ARG && 補正:(TALENT:対象:バストサイズ + 2) + 1 > LOCAL
 	LOCAL = 補正:(TALENT:対象:バストサイズ + 2) + 1
 
 LOCALS:0 = %表記:(LOCAL)%
@@ -279,7 +278,9 @@ RETURNF LOCALS:0
 ;-------------------------------------------------
 @INIT_BODYSIZE(ARG)
 
-DEBUGPRINTFORM 
+SIF ARG == 1
+	DEBUGPRINTFORML 番号:%"名前", 16, LEFT%/%"身長", 8, LEFT%/%"バスト", 8, LEFT%/%"Uバスト", 8, LEFT%/%"ｶｯﾌﾟ", 5, LEFT%/%"素質：体格", 12, LEFT%/%"体型", 10, LEFT%/設定バストサイズ
+
 IF CSVBASE(NO:ARG, GETNUM(BASE, "身長")) && !BASE:ARG:身長
 	BASE:ARG:身長 = CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
 	MAXBASE:ARG:身長 = BASE:ARG:身長
@@ -303,7 +304,7 @@ IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
 	;身長が存在する場合、そこから算出
 	IF CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
 		SELECTCASE CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
-			CASE IS <  950 + IS_MALE(ARG)*100
+			CASE IS < 1000 + IS_MALE(ARG)*100
 				TALENT:ARG:体格 = 体格_ハーヴィン並
 			CASE IS < 1300 + IS_MALE(ARG)*100
 				TALENT:ARG:体格 = 体格_子供
@@ -340,4 +341,6 @@ ENDIF
 LOCAL = SETBIT_PI(ARG)
 CALL SET_BODYSIZE(ARG, SETBIT_PI(ARG))
 
-DEBUGPRINTFORML {NO:ARG, 4}:%CALLNAME:ARG, 16, RIGHT%の%SHOW_BODYSIZE(ARG, 5)%/素質　体格:%GET_TALENTNAME(GETNUM(TALENT,"体格"), TALENT:ARG:体格), 12%/体型:%GET_TALENTNAME(GETNUM(TALENT,"体型"), TALENT:ARG:体型), 10%/バスト:%GET_TALENTNAME(GETNUM(TALENT,"バストサイズ"), TALENT:ARG:バストサイズ)%
+{
+DEBUGPRINTFORML {NO:ARG, 4}:%CALLNAME:ARG, 16, RIGHT%/%DECIMAL_STRING(BASE:ARG:身長, 1), 6, RIGHT%cm/%DECIMAL_STRING(BASE:ARG:バスト, 1), 6, RIGHT%cm/%DECIMAL_STRING(CALC_BODYSIZE_UNDERBUST(ARG), 1), 6, RIGHT%cm/%GET_CUPSIZE(ARG, 0), 5, LEFT%/%GET_TALENTNAME(GETNUM(TALENT,"体格"), TALENT:ARG:体格), 12%/%GET_TALENTNAME(GETNUM(TALENT,"体型"), TALENT:ARG:体型), 10%/バスト:%GET_TALENTNAME(GETNUM(TALENT,"バストサイズ"), TALENT:ARG:バストサイズ)%
+}
