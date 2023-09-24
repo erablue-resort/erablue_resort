@@ -328,7 +328,7 @@ LOCALS += "<div rect='200px,252px,600px,126px'>□ 装備探索時衣装 □----
 IF 装備ステータス補正保存:ARG:装備衣装番号
 	LOCALS += @"%装備衣装名%<br>"
 	LOCALS += "説明："
-	TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%("フレーバー")
+	TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%("フレーバー")
 	LOCALS += @"%詳細文文字列受け渡し変数%"
 	LOCALS += "</div>"
 ELSE
@@ -347,12 +347,11 @@ IF 表示アビ数
 	LOCALS += "固有アビリティ："
 	FOR アビ番号, 0, 表示アビ数
 		CALLFORM %RESULTS:アビ番号%("アビ名")
-		LOCALS:1 = [%TSTR:コマンド名受渡%]
 		IF ツールチップ切り替えOPTION記憶 == 0
 			CALLFORM %RESULTS:アビ番号%("アビ説明文")
-			LOCALS += @"<nonbutton title='<br>%TSTR:コマンド名受渡%<br>'>%LOCALS:1%</nonbutton><br>"
+			LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton><br>"
 		ELSE
-			LOCALS += @"<nonbutton>%LOCALS:1%</nonbutton><br>"
+			LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton><br>"
 		ENDIF
 	NEXT
 	KSTR:(K++) =  
@@ -361,14 +360,14 @@ ELSE
 	LOCALS += "汎用アビリティ："
 	表示アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性)%")
 	FOR アビ番号, 0, 表示アビ数
-		CALLFORM %RESULTS:アビ番号%("アビ名")
+		TSTR:コマンド名受渡 = 
+		CALLFORM %RESULTS:アビ番号%("アビ名", ARG)
 		IF TSTR:コマンド名受渡 != ""
-			LOCALS:1 = [%TSTR:コマンド名受渡%]
 			IF ツールチップ切り替えOPTION記憶 == 0
-				CALLFORM %RESULTS:アビ番号%("アビ説明文")
-				LOCALS += @"<nonbutton title='<br>%TSTR:コマンド名受渡%<br>'>%LOCALS:1%</nonbutton><br>"
+				CALLFORM %RESULTS:アビ番号%("アビ説明文", ARG)
+				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton><br>"
 			ELSE
-				LOCALS += @"<nonbutton>%LOCALS:1%</nonbutton><br>"
+				LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton><br>"
 			ENDIF
 		ENDIF
 	NEXT
@@ -379,12 +378,15 @@ IF 装備衣装名 == ""
 ELSE
 	LOCAL:1 = 0
 	LOCALS += "衣装アビリティ："
-	FOR LOCAL, 1, 10
+	VARSET RESULTS
+	LOCAL:1 = 0
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%_")
+	FOR LOCAL, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
-		CALLFORM 衣装関数_%装備衣装名%(@"アビ名_{LOCAL}", ARG)
+		CALLFORM %RESULTS:LOCAL%(@"アビ名", ARG)
 		IF TSTR:コマンド名受渡 != ""
 			IF ツールチップ切り替えOPTION記憶 == 0
-				CALLFORM 衣装文章表示_%装備衣装名%(@"追加アビ_{LOCAL}")
+				CALLFORM %RESULTS:LOCAL%(@"アビ説明文", ARG)
 				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>　　"
 			ELSE
 				LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>　　"

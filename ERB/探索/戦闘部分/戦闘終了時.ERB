@@ -116,6 +116,8 @@ NEXT
 @レベルアップ処理(キャラ番号)
 #DIM キャラ番号
 #DIM 計算後レベル
+#DIM 判定アビ数
+#DIM アビ番号
 
 ;最大レベル時はスキップ
 SIF 基礎BATTLE_STATE:キャラ番号:Lv >= 80
@@ -132,6 +134,33 @@ NEXT
 ;現在レベルより高ければレベルアップ処理
 IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 	WNSTR:(K++) = %CALLNAME:キャラ番号%はLvが上がった!!
+
+	;まず現在あるアビを保存してからレベルアップ処理へ
+	LOCAL:1 = 0
+	VARSET RESULTS
+	判定アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:キャラ番号}")
+	IF 判定アビ数
+		FOR アビ番号, 0, 判定アビ数
+			TSTR:コマンド名受渡 = 
+			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+			IF TSTR:コマンド名受渡 != ""
+				アビ関数名保存:(LOCAL:1) = %RESULTS:アビ番号%
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+	ELSE
+		VARSET RESULTS
+		判定アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%")
+		FOR アビ番号, 0, 判定アビ数
+			TSTR:コマンド名受渡 = 
+			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+			IF TSTR:コマンド名受渡 != ""
+				アビ関数名保存:(LOCAL:1) = %RESULTS:アビ番号%
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+	ENDIF
+
 	KSTR:(K++) = Lv{基礎BATTLE_STATE:キャラ番号:Lv} > Lv{計算後レベル}
 	LOCAL = 計算後レベル - 基礎BATTLE_STATE:キャラ番号:Lv
 	SELECTCASE 基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存
@@ -394,6 +423,35 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 	ENDSELECT
 	LOCAL = 計算後レベル - 基礎BATTLE_STATE:キャラ番号:Lv
 	基礎BATTLE_STATE:キャラ番号:Lv = 計算後レベル
+	
+	;レベルアップ後に使えるアビと、保存したアビ配列を比較する
+	LOCAL:1 = 0
+	VARSET RESULTS
+	判定アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:キャラ番号}")
+	IF 判定アビ数
+		FOR アビ番号, 0, 判定アビ数
+			TSTR:コマンド名受渡 = 
+			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+			IF TSTR:コマンド名受渡 != "" && MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
+				;使えるけど保存したアビ配列にないアビ＝習得したアビ
+				CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+				WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+			ENDIF
+		NEXT
+	ELSE
+		VARSET RESULTS
+		判定アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%")
+		FOR アビ番号, 0, 判定アビ数
+			TSTR:コマンド名受渡 = 
+			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+			IF TSTR:コマンド名受渡 != "" && MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
+				;使えるけど保存したアビ配列にないアビ＝習得したアビ
+				CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
+				WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+			ENDIF
+		NEXT
+	ENDIF
+
 	RETURN LOCAL
 ENDIF
 
