@@ -1,4 +1,18 @@
-﻿@CLOTHES_CHANGE_ファイターの服(キャラ番号)
+﻿@衣装関数_ファイターの服(処理モード)
+#DIMS 処理モード
+LOCALS = 
+
+SELECTCASE 処理モード
+	CASE "衣装種別"
+		衣装関連文字列受け渡し = 通常衣装
+	CASE "フレーバー"
+		LOCALS += "駆け出しの戦士がよく来ている桃色の服。<br>"
+		LOCALS += "最低限の装甲と動きやすいデザインで多くの戦士に愛用されている。<br>"
+		LOCALS += "ベテランになっても着続けている戦士も多いとか。<br>"
+		詳細文文字列受け渡し変数 = %LOCALS%
+ENDSELECT
+
+@CLOTHES_CHANGE_ファイターの服(キャラ番号)
 #DIM キャラ番号
 
 ;一個前の服装を保持
@@ -30,109 +44,75 @@ TEQUIP:キャラ番号:上下一体タイツ = 0
 TEQUIP:キャラ番号:上タイツ破れ = 0
 TEQUIP:キャラ番号:下タイツ破れ = 0
 
-@衣装文章表示_ファイターの服(ARGS)
-LOCALS = 
-SELECTCASE ARGS
-	CASE "フレーバー"
-		LOCALS += "駆け出しの戦士がよく来ている桃色の服。<br>"
-		LOCALS += "最低限の装甲と動きやすいデザインで多くの戦士に愛用されている。<br>"
-		LOCALS += "ベテランになっても着続けている戦士も多いとか。<br>"
-	CASE "追加アビ_1"
-		LOCALS += "■ウェポンバースト<br>"
-		LOCALS += "　消費MP：100<br>"
-		LOCALS += "　効果：自身の奥義ゲージを100%にする"
-	CASE "追加アビ_2"
-		LOCALS += "■レイジ（装備者が剣得意の時）<br>"
-		LOCALS += "　消費MP：20<br>"
-		LOCALS += "　効果：味方全体の攻撃力(A枠)を20%/3T上昇させる。"
-	CASE "追加アビ_3"
-		LOCALS += "■アーマーブレイク（装備者が斧得意の時）<br>"
-		LOCALS += "　消費MP：10<br>"
-		LOCALS += "　効果：敵単体に攻撃力の150%自属性ダメージを与える。<br>"
-		LOCALS += "　　　　攻撃後、敵の防御力(B枠)を15%/3T減少させる。"
-ENDSELECT
-詳細文文字列受け渡し変数 = %LOCALS%
-
-@衣装関数_ファイターの服(処理モード, 装備キャラ番号)
-#DIM 装備キャラ番号
+@衣装アビ関数_ファイターの服_1(処理モード, キャラ番号)
+#DIM キャラ番号
 #DIMS 処理モード
+#DIM 消費ＭＰ = 100
+LOCALS = 
 
 SELECTCASE 処理モード
-	CASE "衣装種別"
-		衣装関連文字列受け渡し = 通常衣装
-	CASE "アビ名_1"
+	CASE "アビ名"
 		TSTR:コマンド名受渡 = ウェポンバースト
-	CASE "消費MP_1"
-		RETURN 100
-	CASE "効果処理_1"
-		CALL 口上変数初期化
-		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のウェポンバースト！
+	CASE "アビ説明文"
+		LOCALS += "■ウェポンバースト<br>"
+		LOCALS += @"　消費MP：{消費ＭＰ}<br>"
+		LOCALS += "　効果：自身の奥義ゲージを100%にまで上昇させる"
+		詳細文文字列受け渡し変数 = %LOCALS%
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL アビ対象選択テンプレート_自己のみ
+		CALL アビテンプレート_有利効果_ウェポンバースト
+ENDSELECT
 
-		アビ汎用変数:効果対象 = 戦闘行動キャラ
-		CALL アビ汎用_ポンバ
-		IF RESULT == 1
-			KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の奥義ゲージが100\%になった！
-		ELSEIF RESULT == -1
-			KSTR:(K++) = しかし%CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に効果はなかった…
-		ENDIF
-	CASE "アビ名_2"
-		IF 基礎BATTLE_STATE:装備キャラ番号:得意武器 == 得意武器文字列数値変換("剣")
+@衣装アビ関数_ファイターの服_2(処理モード, キャラ番号)
+#DIM キャラ番号
+#DIMS 処理モード
+#DIM 消費ＭＰ = 20
+LOCALS = 
+
+SELECTCASE 処理モード
+	CASE "アビ名"
+		SIF 基礎BATTLE_STATE:キャラ番号:得意武器 == 得意武器文字列数値変換("剣")
 			TSTR:コマンド名受渡 = レイジ
-		ENDIF
-	CASE "消費MP_2"
-		RETURN 20
-	CASE "効果処理_2"
-		CALL 口上変数初期化
-		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のレイジ！
-		FOR LOCAL, 0, 4
-			IF BATTLE_STATE:LOCAL:0
-				アビ汎用変数:効果対象 = LOCAL
-				アビ汎用変数:効果割合 = 20
-				アビ汎用文字列:バフ・デバフ枠 = 攻撃力A
-				アビ汎用文字列:バフ・デバフ対象能力 = 攻撃力
-				アビ汎用変数:持続ターン = 3
-				CALL アビ汎用_バフセット("レイジ")
-				IF RESULT == 1
-					KSTR:(K++) = %CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%の攻撃力が20\%上がった！
-				ELSEIF RESULT == -1
-					KSTR:(K++) = しかし%CALLNAME:(BATTLE_STATE:LOCAL:キャラ番号)%に効果はなかった…
-				ENDIF
-			ENDIF
-		NEXT
-	CASE "アビ名_3"
-		IF 基礎BATTLE_STATE:装備キャラ番号:得意武器 == 得意武器文字列数値変換("斧")
-			TSTR:コマンド名受渡 = アーマーブレイク
-		ENDIF
-	CASE "消費MP_3"
-		RETURN 10
-	CASE "効果処理_3"
-		CALL 口上変数初期化
-		アビ汎用変数:攻撃倍率 = 150
-		WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のアーマーブレイク！
-		CALL 効果使用先設定_敵
-		IF RESULT == -1
-			CALL 口上変数初期化
-			RETURN -1
-		ENDIF
-		CALL アビ汎用_通常ダメージ処理_単体()
-		IF RESULT == -1
-			CALL 口上変数初期化
-			RETURN -1
-		ELSEIF RESULT == 1
-			;相手が死んだら中断
-			RETURN 1
-		ENDIF
+	CASE "アビ説明文"
+		LOCALS += "■レイジ（装備者が剣得意の時）<br>"
+		LOCALS += @"　消費MP：{消費ＭＰ}<br>"
+		LOCALS += "　効果：味方全体の攻撃力(A枠)を20%/3T上昇させる。"
+		詳細文文字列受け渡し変数 = %LOCALS%
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL アビ対象選択テンプレート_味方全体_生者のみ
+		アビ汎用変数:効果割合 = 20
+		アビ汎用文字列:バフ・デバフ枠 = 攻撃力A
+		アビ汎用文字列:バフ・デバフ対象能力 = 攻撃力
+		アビ汎用変数:持続ターン = 3
+		CALL アビテンプレート_有利効果_バフ効果セット
+ENDSELECT
 
+@衣装アビ関数_ファイターの服_3(処理モード, キャラ番号)
+#DIM キャラ番号
+#DIMS 処理モード
+#DIM 消費ＭＰ = 10
+LOCALS = 
+
+SELECTCASE 処理モード
+	CASE "アビ名"
+		SIF 基礎BATTLE_STATE:キャラ番号:得意武器 == 得意武器文字列数値変換("斧")
+			TSTR:コマンド名受渡 = アーマーブレイク
+	CASE "アビ説明文"
+		LOCALS += "■アーマーブレイク（装備者が斧得意の時）<br>"
+		LOCALS += @"　消費MP：{消費ＭＰ}<br>"
+		LOCALS += "　効果：敵単体に攻撃力の150%自属性ダメージを与える。<br>"
+		LOCALS += "　　　　攻撃後、敵の防御力(B枠)を15%/3T減少させる。"
+		詳細文文字列受け渡し変数 = %LOCALS%
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		CALL アビ対象選択テンプレート_敵単体
+		アビ汎用変数:効果割合 = 150
+		CALL アビテンプレート_ダメージ処理_自属性
 		アビ汎用変数:効果割合 = 15
 		アビ汎用文字列:バフ・デバフ枠 = 防御力B
 		アビ汎用文字列:バフ・デバフ対象能力 = 防御力
 		アビ汎用変数:持続ターン = 3
-		CALL アビ汎用_デバフセット("アーマーブレイク")
-		IF RESULT == 1
-			KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%の防御力が15\%下がった！
-		ELSEIF RESULT == -1
-			KSTR:(K++) = しかし%敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に効果はなかった…
-		ENDIF
+		CALL アビテンプレート_不利効果_デバフ効果セット
 ENDSELECT
-
-
