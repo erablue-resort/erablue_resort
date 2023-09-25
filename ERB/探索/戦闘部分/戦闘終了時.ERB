@@ -118,6 +118,7 @@ NEXT
 #DIM 計算後レベル
 #DIM 判定アビ数
 #DIM アビ番号
+#DIMS アビ名一時保存, 10
 
 ;最大レベル時はスキップ
 SIF 基礎BATTLE_STATE:キャラ番号:Lv >= 80
@@ -145,6 +146,7 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
 			IF TSTR:コマンド名受渡 != ""
 				アビ関数名保存:(LOCAL:1) = %RESULTS:アビ番号%
+				アビ名一時保存:(LOCAL:1) = %TSTR:コマンド名受渡%
 				LOCAL:1 += 1
 			ENDIF
 		NEXT
@@ -156,6 +158,7 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
 			IF TSTR:コマンド名受渡 != ""
 				アビ関数名保存:(LOCAL:1) = %RESULTS:アビ番号%
+				アビ名一時保存:(LOCAL:1) = %TSTR:コマンド名受渡%
 				LOCAL:1 += 1
 			ENDIF
 		NEXT
@@ -432,10 +435,16 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 		FOR アビ番号, 0, 判定アビ数
 			TSTR:コマンド名受渡 = 
 			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
-			IF TSTR:コマンド名受渡 != "" && MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
-				;使えるけど保存したアビ配列にないアビ＝習得したアビ
-				CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
-				WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+			IF TSTR:コマンド名受渡 != ""
+				IF MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
+					;使えるけど保存したアビ配列にないアビ＝習得したアビ
+					WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+				ELSEIF MATCH(アビ名一時保存, TSTR:コマンド名受渡) == 0
+					;以前から使えたけど名前が一致しないアビ＝強化されたアビ
+					LOCAL = FINDELEMENT(アビ関数名保存, RESULTS:アビ番号)
+					LOCALS = %アビ名一時保存:LOCAL%
+					WSTR:(K++) = %CALLNAME:キャラ番号%のアビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された！
+				ENDIF
 			ENDIF
 		NEXT
 	ELSE
@@ -444,10 +453,16 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 		FOR アビ番号, 0, 判定アビ数
 			TSTR:コマンド名受渡 = 
 			CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
-			IF TSTR:コマンド名受渡 != "" && MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
-				;使えるけど保存したアビ配列にないアビ＝習得したアビ
-				CALLFORM %RESULTS:アビ番号%("アビ名", キャラ番号)
-				WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+			IF TSTR:コマンド名受渡 != ""
+				IF MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
+					;使えるけど保存したアビ配列にないアビ＝習得したアビ
+					WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+				ELSEIF MATCH(アビ名一時保存, TSTR:コマンド名受渡) == 0
+					;以前から使えたけど名前が一致しないアビ＝強化されたアビ
+					LOCAL = FINDELEMENT(アビ関数名保存, RESULTS:アビ番号)
+					LOCALS = %アビ名一時保存:LOCAL%
+					WSTR:(K++) = %CALLNAME:キャラ番号%のアビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された！
+				ENDIF
 			ENDIF
 		NEXT
 	ENDIF
