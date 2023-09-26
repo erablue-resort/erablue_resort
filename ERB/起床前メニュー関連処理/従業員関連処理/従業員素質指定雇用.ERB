@@ -4,7 +4,10 @@
 #DIM TALENT数値保存, 300
 #DIM 肉体特徴数値保存, 10
 #DIM 身長保存
+#DIM 体型保存
 #DIM バスト保存
+#DIM 身長数値設定フラグ
+#DIM バスト数値設定フラグ
 #DIM フレーバー素質数値保存, 10
 #DIM 知識素質数値保存, 20
 #DIM 服装数値保存, 30
@@ -122,6 +125,9 @@ FOR LOCAL, 0, 100
 		LOCAL:12 += 1
 	ENDIF
 NEXT
+
+身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
 
 $従業員_LOOP
 DRAWLINE
@@ -284,6 +290,8 @@ SELECTCASE 表示モード
 			LOCALS += "（ハーヴィン耳）"
 		ENDIF
 		LOCALS += "<br>"
+		LOCALS += @"　身長：%DECIMAL_STRING(身長保存, 1)%cm"
+		LOCALS += "<br>"
 		LOCALS += "　性別："
 		SELECTCASE ランダムキャラ素質:1
 			CASE 1
@@ -306,7 +314,13 @@ SELECTCASE 表示モード
 					LOCALS += "　　　　　"
 				ENDIF
 		ENDSELECT
-		LOCALS += @"バストサイズ：%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
+		LOCALS += @"バストサイズ："
+		IF バスト数値設定フラグ
+			LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
+			LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
+		ELSE
+			LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
+		ENDIF
 		LOCALS += "<br>"
 		LOCALS += @"　性知識レベル："
 		SELECTCASE ランダムキャラ素質:6
@@ -323,18 +337,25 @@ SELECTCASE 表示モード
 			CASE 3
 				LOCALS += "百戦錬磨"
 		ENDSELECT
+		LOCALS += "<br>"
+		LOCALS += "　体格："
+		IF ランダムキャラ素質:31 == 0
+			LOCALS += "普通"
+		ELSE
+			LOCALS += @"%GET_TALENTNAME(161,ランダムキャラ素質:31)%"
+		ENDIF
+		LOCALS += "　　　体型："
+		IF 体型保存 == 0
+			LOCALS += "普通"
+		ELSE
+			LOCALS += @"%GET_TALENTNAME(163,体型保存)%"
+		ENDIF
 		IF CSVエディタフラグ == 0
-			LOCALS += "<br>　容姿："
+			LOCALS += "　　　容姿："
 			IF ランダムキャラ素質:30 == 0
 				LOCALS += "モブ顔　　　"
 			ELSE
 				LOCALS += @"%GET_TALENTNAME(160,ランダムキャラ素質:30), 12, LEFT%"
-			ENDIF
-			LOCALS += "体格："
-			IF ランダムキャラ素質:31 == 0
-				LOCALS += "普通"
-			ELSE
-				LOCALS += @"%GET_TALENTNAME(161,ランダムキャラ素質:31)%"
 			ENDIF
 		ENDIF
 		IF ランダムキャラ素質:1 == 3
@@ -661,16 +682,6 @@ SELECTCASE 表示モード
 			ENDIF
 		ENDIF
 		LOCALS += "<br>"
-		LOCALS += "バストサイズ："
-		FOR LOCAL, -2, 4
-			IF ランダムキャラ素質:3 == LOCAL
-				LOCALS:1 = C0C0C0
-			ELSE
-				LOCALS:1 = 333333
-			ENDIF
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
-		NEXT
-		LOCALS += "<br>"
 		LOCALS += "性知識レベル："
 		FOR LOCAL, -2, 4
 			IF ランダムキャラ素質:6 == LOCAL
@@ -680,6 +691,43 @@ SELECTCASE 表示モード
 			ENDIF
 			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12030 + LOCAL}'>[%性知識段階表示(LOCAL, -1)%]</button></font>"
 		NEXT
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "身長："
+		IF 身長数値設定フラグ
+			IF 身長保存
+				LOCALS:1 = %DECIMAL_STRING(身長保存, 1)%cm
+			ELSE
+				LOCALS:1 = 未設定
+			ENDIF
+			LOCALS += @"<button value='{12025}'>[%LOCALS:1%]</button>"
+			LOCALS += @"　　　<button value='{12998}'>[自動で設定する]</button>"
+		ELSE
+			LOCALS += @"%DECIMAL_STRING(身長保存, 1)%cm"
+			LOCALS += @"　　　<button value='{12998}'>[手動で設定する]</button>"
+		ENDIF
+		LOCALS += "<br>"
+		LOCALS += "バストサイズ："
+		IF バスト数値設定フラグ
+			IF バスト保存
+				LOCALS:1 = %DECIMAL_STRING(バスト保存, 1)%cm
+				LOCALS:1 += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
+			ELSE
+				LOCALS:1 = 未設定
+			ENDIF
+			LOCALS += @"<button value='{12026}'>[%LOCALS:1%]</button>"
+			LOCALS += @"　　　<button value='{12999}'>[カップ数で指定する]</button>"
+		ELSE
+			FOR LOCAL, -2, 4
+				IF ランダムキャラ素質:3 == LOCAL
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
+			NEXT
+			LOCALS += @"　　　<button value='{12999}'>[数値で指定する]</button>"
+		ENDIF
 		LOCALS += "<br>"
 		IF CSVエディタフラグ == 0
 			LOCALS += "容姿："
@@ -695,7 +743,9 @@ SELECTCASE 表示モード
 					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12040 + LOCAL}'>[%GET_TALENTNAME(160, LOCAL)%]</button></font>"
 				ENDIF
 			NEXT
-			LOCALS += "<br>"
+		ENDIF
+		LOCALS += "<br>"
+		IF !身長数値設定フラグ
 			LOCALS += "体格："
 			FOR LOCAL, -2, 3
 				IF ランダムキャラ素質:31 == LOCAL
@@ -711,6 +761,20 @@ SELECTCASE 表示モード
 			NEXT
 			LOCALS += "<br>"
 		ENDIF
+		LOCALS += "体型："
+		FOR LOCAL, -3, 4
+			IF 体型保存 == LOCAL
+				LOCALS:1 = C0C0C0
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			IF LOCAL == 0
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[普通]</button></font>"
+			ELSE
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[%GET_TALENTNAME(163, LOCAL)%]</button></font>"
+			ENDIF
+		NEXT
+		LOCALS += "<br>"
 		IF ランダムキャラ素質:1 == 3
 			LOCALS += "男性器サイズ："
 			FOR LOCAL, -2, 3
@@ -947,12 +1011,22 @@ SELECTCASE LOCAL
 		肉体特徴数値保存:1 = 0
 		肉体特徴数値保存:2 = 0
 		肉体特徴数値保存:3 = 0
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12002
 		ランダムキャラ素質:0 = 2
 		肉体特徴数値保存:0 = 0
 		肉体特徴数値保存:1 = 0
 		肉体特徴数値保存:2 = 1
 		肉体特徴数値保存:3 = 0
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12003
 		ランダムキャラ素質:0 = 3
 		ランダムキャラ素質:3 = 3
@@ -961,6 +1035,11 @@ SELECTCASE LOCAL
 		肉体特徴数値保存:2 = 0
 		肉体特徴数値保存:3 = 0
 		ランダムキャラ素質:31 = -1
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12004
 		ランダムキャラ素質:0 = 4
 		ランダムキャラ素質:3 = -2
@@ -969,10 +1048,25 @@ SELECTCASE LOCAL
 		肉体特徴数値保存:2 = 0
 		肉体特徴数値保存:3 = 1
 		ランダムキャラ素質:31 = -2
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12005
 		ランダムキャラ素質:0 = 5
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12006
 		ランダムキャラ素質:0 = 6
+		IF !身長数値設定フラグ
+			身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+			SIF !バスト数値設定フラグ
+				バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ENDIF
 	CASE 12007
 		ランダムキャラ素質:1 = 1
 		ランダムキャラ素質:32 = 0
@@ -994,6 +1088,21 @@ SELECTCASE LOCAL
 		ELSE
 			ランダムキャラ素質:3 = LOCAL - 12020
 		ENDIF
+		バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+	CASE 12025
+		DRAWLINE
+		PRINTL 身長をmm単位で入力してください。
+		INPUT
+		身長保存 = RESULT
+		ランダムキャラ素質:31 = EDIT用体格算出(ランダムキャラ素質:1, 身長保存)
+		SIF !バスト数値設定フラグ
+			バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+	CASE 12026
+		DRAWLINE
+		PRINTL バストサイズをmm単位で入力してください。
+		INPUT
+		バスト保存 = RESULT
+		ランダムキャラ素質:3 = EDIT用バストTALENT算出(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
 	CASE 12028 TO 12033
 		ランダムキャラ素質:6 = LOCAL - 12030
 	CASE 12039 TO 12042
@@ -1006,10 +1115,19 @@ SELECTCASE LOCAL
 		ELSE
 			ランダムキャラ素質:31 = LOCAL - 12050
 		ENDIF
+		身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+		SIF !バスト数値設定フラグ
+			バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
 	CASE 12058 TO 12062
 		ランダムキャラ素質:32 = LOCAL - 12060
 	CASE 12070 TO 12073
 		INVERTBIT 肉体特徴数値保存:(LOCAL - 12070), 0
+	CASE 12077 TO 12083
+		体型保存 = LOCAL - 12080
+	CASE 12998
+		INVERTBIT 身長数値設定フラグ, 0
+	CASE 12999
+		INVERTBIT バスト数値設定フラグ, 0
 ;タレント--------------------------------------------------------
 	CASE 20000 TO 29997
 		TALENT数値保存:((LOCAL - 20000) / 10) = LOCAL % 10
@@ -1101,6 +1219,9 @@ SELECTCASE LOCAL
 			PRINTL 基礎,怒り,1000
 			PRINTL 基礎,満足,1000
 			PRINTL 
+			PRINTFORML 基礎,身長,{身長保存}
+			PRINTFORML 基礎,バスト,{バスト保存}
+			PRINTL 
 			PRINTL {
 			PRINTL CSTR,知識素質設定,
 			PRINTFORML 性知識Lv{ランダムキャラ素質:6}
@@ -1145,6 +1266,8 @@ SELECTCASE LOCAL
 					CONTINUE
 				PRINTFORML 素質,%TALENTNAME:(TALENT一時保存:LOCAL)%,{TALENT数値保存:LOCAL - 5}
 			NEXT
+			PRINTFORML 素質,体格,{ランダムキャラ素質:31}
+			PRINTFORML 素質,体型,{体型保存}
 			PRINTFORML 素質,男性器サイズ,{ランダムキャラ素質:32}
 
 			FOR LOCAL, 0, 50
@@ -1205,6 +1328,12 @@ SELECTCASE LOCAL
 		ENDIF
 		TALENT:(LOCAL:1):205 = ランダムキャラ素質:3
 		
+		
+		BASE:(LOCAL:1):身長 = 身長保存
+		MAXBASE:(LOCAL:1):身長 = 身長保存
+		BASE:(LOCAL:1):バスト = バスト保存
+		MAXBASE:(LOCAL:1):バスト = バスト保存
+
 		SIF 肉体特徴数値保存:0
 			TALENT:(LOCAL:1):206 = 1
 		SIF 肉体特徴数値保存:1
@@ -1221,6 +1350,7 @@ SELECTCASE LOCAL
 		NEXT
 		TALENT:(LOCAL:1):容姿 = ランダムキャラ素質:30
 		TALENT:(LOCAL:1):体格 = ランダムキャラ素質:31
+		TALENT:(LOCAL:1):体型 = 体型保存
 		TALENT:(LOCAL:1):男性器サイズ = ランダムキャラ素質:32
 		FOR LOCAL, 0, 300
 			SIF TALENT数値保存:LOCAL == 0
@@ -1254,6 +1384,7 @@ SELECTCASE LOCAL
 		CSTR:(LOCAL:1):戦闘基礎ステータス設定 =  属性_%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)% 得意武器_%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)% 初期ステータスタイプ_%成長タイプ:(ランダムキャラ戦闘タイプ:2)%
 
 		CALL コマンド存在チェック
+		従業員追加中フラグ = 1
 		CALL キャラクター初期化(LOCAL:1)
 		
 		;性知識は初期化の後
@@ -1336,3 +1467,180 @@ NEXT
 従業員初期値記録:記録位置 += @"タイプ_{基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存}_"
 
 従業員初期値記録:記録位置 += @"性知識_{知識素質:キャラ番号:性知識}_"
+
+
+
+@EDIT用バストサイズ表示(バスト保存, アンダーバスト)
+#FUNCTIONS
+#DIM バスト保存
+#DIM アンダーバスト
+#DIMS CONST 表記 = "(-)","(AAA)","(AA)","(A)","(B)","(C)","(D)","(E)","(F)","(G)","(H)","(I)","(J)","(K)","(L)","(M)","(N)","(O)","(P)","(Q)","(R)","(S)","(T)","(U)","(V)","(W)","(X)","(Y)","(Z)","(Z+) "
+
+LOCAL = (バスト保存 - アンダーバスト) / 25
+
+;文字列変数が若干不自由なので無理やり作成
+LOCAL = MAX(LOCAL, 1)
+LOCAL = MIN(LOCAL, 29)
+
+LOCALS:0 = %表記:(LOCAL)%
+
+; IF !HAS_VAGINA(対象)
+; 	RETURNF "(--)"
+; ELSE
+	RETURNF LOCALS:0
+; ENDIF
+
+@EDIT用バストTALENT算出(バスト保存, アンダーバスト)
+#FUNCTION
+#DIM バスト保存
+#DIM アンダーバスト
+
+LOCAL = バスト保存 - アンダーバスト
+
+SELECTCASE LOCAL
+	CASE IS < 89
+		RETURNF -2
+	CASE IS < 139
+		RETURNF -1
+	CASE IS < 184
+		RETURNF 0
+	CASE IS < 239
+		RETURNF 1
+	CASE IS < 314
+		RETURNF 2
+	CASEELSE
+		RETURNF 3
+ENDSELECT
+
+
+@EDIT用バストcm算出(バストサイズ, アンダーバスト)
+#FUNCTION
+#DIM バストサイズ
+#DIM アンダーバスト
+
+;最低サイズ算出
+LOCAL = アンダーバスト + 4 + ((バストサイズ + 2) * 50)
+SIF バストサイズ == 3
+	LOCAL += 25
+
+
+IF バストサイズ < 2
+	;-2~1の時、+4.9cmまで許容
+	LOCAL = LOCAL + RAND:50
+ELSE
+	;それ以上の時、+7.4cmまで許容
+	LOCAL = LOCAL + RAND:75
+ENDIF
+
+; IF !HAS_VAGINA(対象)
+; 	RETURNF "(--)"
+; ELSE
+	RETURNF LOCAL
+; ENDIF
+
+@EDIT用アンダーバスト算出(性別, 種族, 身長, 体格, 体型)
+#FUNCTION
+#DIM 性別
+#DIM 体格
+#DIM 体型
+#DIM 身長
+#DIM 種族
+#DIM 基礎値
+基礎値 = 身長 * (!GETBIT(性別, 0) ? 50 # 43) / 100
+
+SELECTCASE 体格
+	CASE 体格_ハーヴィン並
+		TIMES 基礎値, 1.15
+	CASE 体格_子供
+		TIMES 基礎値, 1.05
+	CASE 体格_小柄
+		SIF 種族 != 種族_ドラフ
+			TIMES 基礎値, 0.95
+	CASE 体格_普通
+	CASE 体格_大柄
+		TIMES 基礎値, 1.05
+	CASE 体格_男ドラフ並
+		TIMES 基礎値, 1.10
+ENDSELECT
+
+SELECTCASE 体型
+	CASE 体型_痩せすぎ
+		TIMES 基礎値, 0.90
+	CASE 体型_細身
+		TIMES 基礎値, 0.94
+	CASE 体型_スレンダー
+		TIMES 基礎値, 0.97
+	CASE 体型_グラマー
+		TIMES 基礎値, 1.01
+	CASE 体型_豊満
+		TIMES 基礎値, 1.05
+	CASE 体型_肥満
+		TIMES 基礎値, 1.10
+ENDSELECT
+
+;夢詰め込んだらドラフカップが大きくなりすぎるので補正
+SIF 種族 == 種族_ドラフ && 体格 >= 体格_小柄 && GETBIT(性別, 0)
+	基礎値 = 基礎値 * 110 / 100
+
+RETURNF 基礎値
+
+@EDIT用身長算出(性別, 種族, 体格)
+#FUNCTION
+#DIM 性別
+#DIM 体格
+#DIM 種族
+#DIM 基礎値
+
+;今のところ子供は未実装なのでコメントアウト
+;IF CFLAG:対象:行動不能状態 == 行動不能_子供
+;	基礎値 = MIN(500 + CFLAG:対象:子の成長度 * 20, 1300)
+;ELSEIF TALENT:対象:幼児
+;	基礎値 = MIN(800 + (CFLAG:対象:子の成長度 - 6) * 50, 1300)
+;ELSE
+	SELECTCASE 体格
+		CASE 体格_ハーヴィン並
+			基礎値 = !GETBIT(性別, 0) ? 800 # 700
+			基礎値 += RAND:200
+		CASE 体格_子供
+			基礎値 = !GETBIT(性別, 0) ? 1200 # 1100
+			基礎値 += RAND:200
+			SIF 種族 == 種族_ドラフ && GETBIT(性別, 0)
+				TIMES 基礎値, 0.90
+		CASE 体格_小柄
+			基礎値 = !GETBIT(性別, 0) ? 1400 # 1300
+			基礎値 += RAND:200
+		CASE 体格_普通
+			基礎値 = !GETBIT(性別, 0) ? 1600 # 1500
+			基礎値 += RAND:200
+		CASE 体格_大柄
+			基礎値 = !GETBIT(性別, 0) ? 1950 + RAND:200 # 1800 + RAND:200
+		CASE 体格_男ドラフ並
+			基礎値 = !GETBIT(性別, 0) ? 2150 + RAND:300 # 2000 + RAND:200
+	ENDSELECT
+;ENDIF
+
+RETURNF 基礎値
+
+@EDIT用体格算出(性別, 身長)
+#FUNCTION
+#DIM 性別
+#DIM 身長
+#DIM 基礎値
+
+;身長と性別をもとに算出する
+SELECTCASE 身長
+	CASE IS < 1000 + !GETBIT(性別, 0)*100
+		RETURNF 体格_ハーヴィン並
+	CASE IS < 1300 + !GETBIT(性別, 0)*100
+		RETURNF 体格_子供
+	CASE IS < 1500 + !GETBIT(性別, 0)*100
+		RETURNF 体格_小柄
+	CASE IS < 1700 + !GETBIT(性別, 0)*100
+		RETURNF 体格_普通
+	CASE IS < 1900 + !GETBIT(性別, 0)*100
+		RETURNF 体格_大柄
+	CASEELSE
+		RETURNF 体格_男ドラフ並
+ENDSELECT 
+
+
