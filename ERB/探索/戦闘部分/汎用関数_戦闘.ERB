@@ -210,9 +210,9 @@ RETURNF 0
 
 
 
-@バフ・デバフ測定(ARG, バフ・デバフ種類, 補正前数値)
+@バフ・デバフ測定(ARG, バフ・デバフ種類, 補正前数値, 観測のみフラグ = 0)
 ;--------------------------------------------------------------------
-;持続回数を減少する処理も入れ込んでいるので、実処理時以外は呼ばないこと
+;持続回数を減少する処理も入れ込んでいるので、実処理時以外はちゃんと観測のみフラグを立てること
 ;補正前数値を使うのは補正前の数値を取ることが出来ないダメージ増減時のみ
 ;--------------------------------------------------------------------
 #FUNCTION
@@ -221,7 +221,9 @@ RETURNF 0
 #DIM バフ・デバフ補正後数値
 #DIM ループ用
 #DIM 補正前数値
+#DIM 観測のみフラグ
 VARSET LOCAL
+バフ・デバフ補正後数値 = 0
 
 IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
@@ -229,12 +231,14 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == バフ・デバフ種類
 			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -243,12 +247,14 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == バフ・デバフ種類
 			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -270,12 +276,14 @@ ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	FOR ループ用, 0, データベース行数
 		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "連続攻撃率"
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -283,12 +291,14 @@ ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	FOR ループ用, 0, データベース行数
 		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "連続攻撃率"
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -302,12 +312,14 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "ダメージ増減"
 			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -316,12 +328,14 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "ダメージ増減"
 			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -332,6 +346,25 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		LOCAL:1 = 0
 	ENDIF
 	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) + LOCAL:1
+	RETURNF バフ・デバフ補正後数値
+ELSEIF バフ・デバフ種類 == "暗闇"
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "暗闇"
+			;処理の関係上、固定値を無視して割合のみ
+			バフ・デバフ補正後数値 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
+			ENDIF
+			BREAK
+		ENDIF
+	NEXT
 	RETURNF バフ・デバフ補正後数値
 ENDIF
 
@@ -446,3 +479,14 @@ FOR LOCAL, 10, 20
 NEXT
 
 RETURN -1
+
+
+@戦闘キャラ名前取得(戦闘キャラ番号)
+#FUNCTIONS
+#DIM 戦闘キャラ番号
+
+IF 戦闘キャラ番号 < 10
+	RETURNF CALLNAME:(BATTLE_STATE:戦闘キャラ番号:0)
+ELSE
+	RETURNF 敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名
+ENDIF
