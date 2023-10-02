@@ -238,36 +238,39 @@ SELECTCASE 戦闘行動内容
 		RESTART
 	CASE 100 TO 101
 		;通常攻撃or奥義
-		;対象選択
-		上メニュー操作許可フラグ = 0
+		エネミー画像ボタン化フラグ = 0
 		キャラ画像ボタン化フラグ = 0
-		エネミー画像ボタン化フラグ = 1
-		CALL 口上変数初期化
-		KSTR:(K++) = 誰を攻撃しますか？
-		KSTR:(K++) = 　
-		KSTR:(K++) = 　
-		KSTR:(K++) = 　
-		KSTR:(K++) = <button value='999'>[999]戻る</button>
-		CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔", @"%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%",,0)
-		$INPUT_LOOP2
-		INPUT
-		SELECTCASE RESULT
-			CASE 10 TO 19
-				IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
-					REUSELASTLINE 
-					GOTO INPUT_LOOP2
-				ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
-					REUSELASTLINE 
-					GOTO INPUT_LOOP2
-				ENDIF
-				戦闘行動対象 = RESULT
-				アビテンプレート用_対象保存:0 = 戦闘行動対象
-			CASE 999
-				RESTART
-			CASEELSE
-				REUSELASTLINE 
-				GOTO INPUT_LOOP2
-		ENDSELECT
+		上メニュー操作許可フラグ = 0
+		;対象選択
+		; 上メニュー操作許可フラグ = 0
+		; キャラ画像ボタン化フラグ = 0
+		; エネミー画像ボタン化フラグ = 1
+		; CALL 口上変数初期化
+		; KSTR:(K++) = 誰を攻撃しますか？
+		; KSTR:(K++) = 　
+		; KSTR:(K++) = 　
+		; KSTR:(K++) = 　
+		; KSTR:(K++) = <button value='999'>[999]戻る</button>
+		; CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔", @"%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%",,0)
+		; $INPUT_LOOP2
+		; INPUT
+		; SELECTCASE RESULT
+		; 	CASE 10 TO 19
+		; 		IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
+		; 			REUSELASTLINE 
+		; 			GOTO INPUT_LOOP2
+		; 		ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
+		; 			REUSELASTLINE 
+		; 			GOTO INPUT_LOOP2
+		; 		ENDIF
+		; 		戦闘行動対象 = RESULT
+		; 		アビテンプレート用_対象保存:0 = 戦闘行動対象
+		; 	CASE 999
+		; 		RESTART
+		; 	CASEELSE
+		; 		REUSELASTLINE 
+		; 		GOTO INPUT_LOOP2
+		; ENDSELECT
 	CASE 110 TO 129
 		エネミー画像ボタン化フラグ = 0
 		キャラ画像ボタン化フラグ = 0
@@ -295,34 +298,53 @@ CALL 口上変数初期化
 SELECTCASE 戦闘行動内容
 	CASE 100
 		;通常攻撃
-		アビテンプレート用_アビ名 = 攻撃
-		アビ汎用変数:効果割合 = 100
-		CALL アビテンプレート_通常攻撃処理
+		TRYCCALLFORM 固有通常攻撃_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}
+		CATCH
+			アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+			CALL アビ対象選択テンプレート_敵単体
+			アビテンプレート用_アビ名 = 攻撃
+			アビ汎用変数:効果割合 = 100
+			CALL アビテンプレート_通常攻撃処理
+		ENDCATCH
 		CALL アビテンプレート用_表示メッセージ変換処理
 	CASE 101
 		;奥義
+		アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+		CALL アビ対象選択テンプレート_敵単体
 		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
 		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
-		KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義発動！
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		WSTR:(K++) = %TSTR:コマンド名受渡%！
-		;ダメージ計算
-		CALL かばうチェック_敵()
-		IF アビ汎用変数:かばうフラグ
-			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
-		ENDIF
-		NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
-		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		CALL ダメージ計算処理(RESULT)
-		WSTR:(K++) = {RESULT}のダメージ！
-		敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
-		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		アビテンプレート用_アビ名 = 奥義発動！　%TSTR:コマンド名受渡%
 
-		IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
-			KSTR:(K++) = 　
-			CALL 戦闘不能時処理(戦闘行動対象)
-			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		IF RESULT
+			;奥義威力０の時はダメージ無し奥義としてスキップ
+			アビ汎用変数:効果割合 = RESULT
+			CALL アビテンプレート_ダメージ処理_自属性
 		ENDIF
+		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALL アビテンプレート用_表示メッセージ変換処理
+
+		; KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義発動！
+		; CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		; WSTR:(K++) = %TSTR:コマンド名受渡%！
+		; ;ダメージ計算
+		; CALL かばうチェック_敵()
+		; IF アビ汎用変数:かばうフラグ
+		; 	WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
+		; ENDIF
+		; NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
+		; CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		; CALL ダメージ計算処理(RESULT)
+		; WSTR:(K++) = {RESULT}のダメージ！
+		; 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
+		; CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+
+		; IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
+		; 	KSTR:(K++) = 　
+		; 	CALL 戦闘不能時処理(戦闘行動対象)
+		; 	WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
+		; ENDIF
 	CASE 110 TO 119
 		CALL 口上変数初期化
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
@@ -441,77 +463,88 @@ VARSET 攻撃対象
 IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン >= 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン
 		TRYCCALLFORM 敵チャージ行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
-			敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
 			敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
-			RETURN
+			CALL アビテンプレート用_表示メッセージ変換処理
+			CALL メッセージ欄表示用関数(,,,0)
+			敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
+			RETURN 0
 		CATCH
 		ENDCATCH
 	ELSE
 		敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン += 1
 	ENDIF
 ENDIF
-;味方の数判定
-FOR LOCAL, 0, 4
-	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
-		CONTINUE
-	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
-		CONTINUE
-	攻撃対象:(LOCAL:10) = LOCAL
-	LOCAL:10 += 1
-NEXT
-
-LOCAL = RAND:(LOCAL:10)
-戦闘行動対象 = 攻撃対象:LOCAL
-
-CALL かばうチェック_味方()
 
 ;通常攻撃
-;攻撃回数決定
-戦闘行動内容 = 200
-CALL 口上変数初期化
+CALL アビ対象選択テンプレート_味方ランダムＸ体(1)
+アビテンプレート用_アビ名 = 攻撃
+アビ汎用変数:効果割合 = 100
+CALL アビテンプレート_通常攻撃処理
 
-LOCAL = RAND:100
-LOCAL:2 = バフ・デバフ測定(戦闘行動キャラ, "DA率")
-LOCAL:3 = バフ・デバフ測定(戦闘行動キャラ, "TA率")
-LOCAL:4 = バフ・デバフ測定(戦闘行動キャラ, "連続攻撃率")
-
-NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%の攻撃！　
-IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):TA率 + LOCAL:3 + LOCAL:4 > LOCAL
-	LOCAL = 3
-	WSTR:(K++) = トリプルアタック！
-ELSE
-	LOCAL = RAND:100
-	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):DA率 + LOCAL:2 + LOCAL:4 > LOCAL
-		LOCAL = 2
-		WSTR:(K++) = ダブルアタック！
-	ELSE
-		LOCAL = 1
-		WSTR:(K++) = 　
-	ENDIF
-ENDIF
-;ダメージ計算
-IF アビ汎用変数:かばうフラグ
-	WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%が攻撃をかばった！
-ENDIF
-NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%に
-FOR LOCAL:1, 0, LOCAL
-	CALL ダメージ計算処理(100)
-	NSTR:(K++) = {RESULT}のダメージ！　
-	BATTLE_STATE:戦闘行動対象:ＨＰ = MAX(BATTLE_STATE:戦闘行動対象:ＨＰ - RESULT, 0)
-NEXT
-IF BATTLE_STATE:戦闘行動対象:ＨＰ < 1
-	WSTR:(K++) = 　
-	CALL 戦闘不能時処理(戦闘行動対象)
-	KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%は倒れた！
-ENDIF
-
-CALL メッセージ欄表示用関数()
+CALL アビテンプレート用_表示メッセージ変換処理
+CALL メッセージ欄表示用関数(,,,0)
 敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
 
+; ;味方の数判定
+; FOR LOCAL, 0, 4
+; 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+; 		CONTINUE
+; 	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+; 		CONTINUE
+; 	攻撃対象:(LOCAL:10) = LOCAL
+; 	LOCAL:10 += 1
+; NEXT
+
+; LOCAL = RAND:(LOCAL:10)
+; 戦闘行動対象 = 攻撃対象:LOCAL
+
+; CALL かばうチェック_味方()
+
+; ;通常攻撃
+; ;攻撃回数決定
+; 戦闘行動内容 = 200
+; CALL 口上変数初期化
+
+; LOCAL = RAND:100
+; LOCAL:2 = バフ・デバフ測定(戦闘行動キャラ, "DA率")
+; LOCAL:3 = バフ・デバフ測定(戦闘行動キャラ, "TA率")
+; LOCAL:4 = バフ・デバフ測定(戦闘行動キャラ, "連続攻撃率")
+
+; NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%の攻撃！　
+; IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):TA率 + LOCAL:3 + LOCAL:4 > LOCAL
+; 	LOCAL = 3
+; 	WSTR:(K++) = トリプルアタック！
+; ELSE
+; 	LOCAL = RAND:100
+; 	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):DA率 + LOCAL:2 + LOCAL:4 > LOCAL
+; 		LOCAL = 2
+; 		WSTR:(K++) = ダブルアタック！
+; 	ELSE
+; 		LOCAL = 1
+; 		WSTR:(K++) = 　
+; 	ENDIF
+; ENDIF
+; ;ダメージ計算
+; IF アビ汎用変数:かばうフラグ
+; 	WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%が攻撃をかばった！
+; ENDIF
+; NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%に
+; FOR LOCAL:1, 0, LOCAL
+; 	CALL ダメージ計算処理(100)
+; 	NSTR:(K++) = {RESULT}のダメージ！　
+; 	BATTLE_STATE:戦闘行動対象:ＨＰ = MAX(BATTLE_STATE:戦闘行動対象:ＨＰ - RESULT, 0)
+; NEXT
+; IF BATTLE_STATE:戦闘行動対象:ＨＰ < 1
+; 	WSTR:(K++) = 　
+; 	CALL 戦闘不能時処理(戦闘行動対象)
+; 	KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%は倒れた！
+; ENDIF
 
 
 
-@ダメージ計算処理(攻撃威力変数, 攻撃側使用能力値 = "攻撃力", 防御側使用能力値 = "防御力")
+
+
+@ダメージ計算処理(攻撃威力変数, 攻撃側使用能力値 = "攻撃力", 防御側使用能力値 = "防御力", 乱数幅 = 5)
 #DIM 攻撃威力変数
 #DIM 防御数値
 #DIM 攻撃数値
@@ -535,7 +568,9 @@ ENDIF
 
 攻撃数値 = バフ・デバフ測定(戦闘行動キャラ, 攻撃側使用能力値) * 攻撃威力変数 / 100
 防御数値 = バフ・デバフ測定(戦闘行動対象, 防御側使用能力値)
-乱数幅 = 5
+IF 乱数幅 < 0
+	乱数幅 = 5
+ENDIF
 
 IF 戦闘行動対象 < 10
 	対象属性 = BATTLE_STATE:戦闘行動対象:属性
@@ -574,6 +609,12 @@ ELSEIF 属性補正フラグ == -1
 ENDIF
 LOCAL = LOCAL * (100 + 属性強化変数 - 属性耐性変数) / 100
 
+;与ダメ増加
+LOCAL = バフ・デバフ測定(戦闘行動対象, "与ダメ増加", LOCAL)
+
+;与ダメ減少
+LOCAL = バフ・デバフ測定(戦闘行動対象, "与ダメ減少", LOCAL)
+
 ;ダメージカット
 LOCAL = バフ・デバフ測定(戦闘行動対象, "ダメージ増減", LOCAL)
 
@@ -596,6 +637,13 @@ RETURN LOCAL
 ;乱数幅は、「算出数値から上下に{乱数幅}％の範囲でランダムに変化させる」数値
 ;基本は５％を想定。ムラが大きい攻撃は大きく、ムラが小さい攻撃は小さくすること
 VARSET LOCAL
+
+IF 回復側使用能力値 == ""
+	回復側使用能力値 = 回復力
+ENDIF
+IF 乱数幅 < 0
+	乱数幅 = 5
+ENDIF
 
 回復数値 = バフ・デバフ測定(戦闘行動キャラ, 回復側使用能力値) * 回復威力変数 / 100
 

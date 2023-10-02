@@ -19,45 +19,20 @@
 敵BATTLE_STATE:ARG:ボスフラグ = 1
 
 @敵チャージ行動_Lv10_ボス人食い鳥
-#DIM 攻撃対象, 10
-VARSET LOCAL
-VARSET 攻撃対象
+#DIM 自己回復量
 
-;味方の数判定
-FOR LOCAL, 0, 4
-	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
-		CONTINUE
-	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
-		CONTINUE
-	攻撃対象:(LOCAL:10) = LOCAL
-	LOCAL:10 += 1
-NEXT
+アビテンプレート用_アビ名 = 食いちぎり
 
-LOCAL = RAND:(LOCAL:10)
-戦闘行動対象 = 攻撃対象:LOCAL
-
-
-戦闘行動内容 = 200
-CALL 口上変数初期化
-
-
-KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%の食いちぎり！
-;ダメージ計算
+CALL アビ対象選択テンプレート_味方ランダムＸ体(1)
+アビ汎用変数:効果割合 = 120
 アビ汎用変数:防御無視オプション_割合 = 50
-CALL ダメージ計算処理(120)
-LOCAL = RESULT
-NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%に
-KSTR:(K++) = {LOCAL}のダメージ！　
-BATTLE_STATE:戦闘行動対象:ＨＰ = MAX(BATTLE_STATE:戦闘行動対象:ＨＰ - LOCAL, 0)
-IF BATTLE_STATE:戦闘行動対象:ＨＰ < 1
-	WSTR:(K++) = 　
-	CALL 戦闘不能時処理(戦闘行動対象)
-	KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%は倒れた！
+CALL アビテンプレート_ダメージ処理_自属性
+IF RESULT > 0
+	;ダメージが発生した場合のみ処理
+	自己回復量 = RESULT
+	CALL アビ対象選択テンプレート_自己のみ
+	アビ汎用変数:効果割合 = 0
+	アビ汎用変数:効果量 = 自己回復量
+	CALL アビテンプレート_回復処理
 ENDIF
-LOCAL = MIN(LOCAL, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ - 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ)
-KSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%のＨＰが{LOCAL}回復した！
-敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ += LOCAL
 
-
-
-CALL メッセージ欄表示用関数()
