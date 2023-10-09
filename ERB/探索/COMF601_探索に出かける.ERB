@@ -105,8 +105,8 @@ RETURN 1
 
 
 @ダンジョンリスト描画
-#DIMS 表示用リスト_島内, 50
-#DIMS 表示用リスト_島外, 100
+#DIMS 表示用リスト_未クリア, 50
+#DIMS 表示用リスト_クリア済み, 100
 #DIMS ダンジョン名保存
 #DIM 表示候補数
 VARSET LOCAL
@@ -122,37 +122,31 @@ DRAWLINE
 VARSET LOCAL
 FOR LOCAL, 0, 表示候補数
 	ダンジョン名保存 = %SUBSTRING(RESULTS:LOCAL, 19)%
-	IF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%") == 1
-		表示用リスト_島内:(LOCAL:1) = %ダンジョン名保存%
-		LOCAL:1 += 1
-	ELSEIF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%") == 2
-		表示用リスト_島外:(LOCAL:2) = %ダンジョン名保存%
-		LOCAL:2 += 1
+	IF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%")
+		IF GETVAR(@"ダンジョンクリアフラグ_%ダンジョン名保存%")
+			表示用リスト_クリア済み:(LOCAL:2) = %ダンジョン名保存%
+			LOCAL:2 += 1
+		ELSE
+			表示用リスト_未クリア:(LOCAL:1) = %ダンジョン名保存%
+			LOCAL:1 += 1
+		ENDIF
 	ENDIF
 NEXT
 
 VARSET LOCAL
 VARSET LOCALS
 FOR LOCAL, 0, 表示候補数
-	IF 表示用リスト_島内:LOCAL == ""
+	IF 表示用リスト_未クリア:LOCAL == ""
 		BREAK
 	ENDIF
-	IF GETVAR(@"ダンジョンクリアフラグ_%表示用リスト_島内:LOCAL%")
-		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_島内:LOCAL%(クリア済)</button><br>"
-	ELSE
-		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_島内:LOCAL%</button><br>"
-	ENDIF
+	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_未クリア:LOCAL%</button><br>"
 NEXT
 
 FOR LOCAL, 0, 表示候補数
-	IF 表示用リスト_島外:LOCAL == ""
+	IF 表示用リスト_クリア済み:LOCAL == ""
 		BREAK
 	ENDIF
-	IF GETVAR(@"ダンジョンクリアフラグ_%表示用リスト_島外:LOCAL%")
-		LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_島外:LOCAL%(クリア済)</button>"
-	ELSE
-		LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_島外:LOCAL%</button>"
-	ENDIF
+	LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_クリア済み:LOCAL%</button>"
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2
 		LOCALS:2 += "<br>"
@@ -163,8 +157,8 @@ NEXT
 
 LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='333px,5px,620px,450px' border='5px' bcolor='#C0C0C0'></div>"
-LOCALS += "<div width='120px' height='20px' xpos='54px' ypos='0' color='#101010'>島内ダンジョン</div>"
-LOCALS += "<div width='120px' height='20px' xpos='374px' ypos='0' color='#101010'>島外ダンジョン</div>"
+LOCALS += "<div width='152px' height='20px' xpos='54px' ypos='0' color='#101010'>未クリアダンジョン</div>"
+LOCALS += "<div width='152px' height='20px' xpos='374px' ypos='0' color='#101010'>クリア済ダンジョン</div>"
 LOCALS += @"<div rect='25px,25px,310px,450px'>%LOCALS:1%</div>"
 LOCALS += @"<div rect='345px,25px,620px,450px'>%LOCALS:2%</div>"
 HTML_PRINT LOCALS
@@ -183,17 +177,17 @@ SELECTCASE LOCAL
 		REUSELASTLINE
 		GOTO INPUT_LOOP
 	CASE IS < 50
-		IF 表示用リスト_島内:LOCAL == ""
+		IF 表示用リスト_未クリア:LOCAL == ""
 			REUSELASTLINE
 			GOTO INPUT_LOOP
 		ENDIF
-		CALL DUNGEON_MAIN_LOOP(表示用リスト_島内:LOCAL)
+		CALL DUNGEON_MAIN_LOOP(表示用リスト_未クリア:LOCAL)
 	CASE IS < 150
-		IF 表示用リスト_島外:LOCAL == ""
+		IF 表示用リスト_クリア済み:(LOCAL - 50) == ""
 			REUSELASTLINE
 			GOTO INPUT_LOOP
 		ENDIF
-		CALL DUNGEON_MAIN_LOOP(表示用リスト_島内:LOCAL)
+		CALL DUNGEON_MAIN_LOOP(表示用リスト_クリア済み:(LOCAL - 50))
 	CASE 999
 		RETURN -1
 	CASEELSE

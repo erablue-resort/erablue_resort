@@ -36,7 +36,9 @@ IF 表示アビ数
 			ENDIF
 		ENDIF
 	NEXT
-	KSTR:(K++) =  
+	IF LOCAL:1 % 3 != 0
+		NSTR:(K++) = <br>
+	ENDIF
 ELSE
 	VARSET RESULTS
 	表示アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):属性)%")
@@ -52,7 +54,9 @@ ELSE
 			ENDIF
 		ENDIF
 	NEXT
-	KSTR:(K++) =  
+	IF LOCAL:1 % 3 != 0
+		NSTR:(K++) = <br>
+	ENDIF
 ENDIF
 
 IF 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号 < 1
@@ -306,13 +310,17 @@ SELECTCASE 戦闘行動内容
 			アビ汎用変数:効果割合 = 100
 			CALL アビテンプレート_通常攻撃処理
 		ENDCATCH
-		CALL アビテンプレート用_表示メッセージ変換処理
+		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			CALL アビテンプレート用_表示メッセージ変換処理
+		ENDIF
 	CASE 101
 		;奥義
 		アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
 		CALL アビ対象選択テンプレート_敵単体
 		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
-		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		アビテンプレート用_アビ名 = 奥義発動！　%TSTR:コマンド名受渡%
 
@@ -323,28 +331,13 @@ SELECTCASE 戦闘行動内容
 			CALL アビテンプレート_ダメージ処理_自属性
 		ENDIF
 		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		CALL アビテンプレート用_表示メッセージ変換処理
-
-		; KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義発動！
-		; CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		; WSTR:(K++) = %TSTR:コマンド名受渡%！
-		; ;ダメージ計算
-		; CALL かばうチェック_敵()
-		; IF アビ汎用変数:かばうフラグ
-		; 	WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%が攻撃をかばった！
-		; ENDIF
-		; NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%に
-		; CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		; CALL ダメージ計算処理(RESULT)
-		; WSTR:(K++) = {RESULT}のダメージ！
-		; 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ - RESULT, 0)
-		; CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-
-		; IF 敵BATTLE_STATE:(戦闘行動対象 - 10):ＨＰ < 1
-		; 	KSTR:(K++) = 　
-		; 	CALL 戦闘不能時処理(戦闘行動対象)
-		; 	WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名%は倒れた！
-		; ENDIF
+		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
+			CALL アビテンプレート用_表示メッセージ変換処理
+		ENDIF
 	CASE 110 TO 119
 		CALL 口上変数初期化
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
@@ -454,7 +447,9 @@ SELECTCASE 戦闘行動内容
 ENDSELECT
 
 CALL メッセージ欄表示用関数(,,,0)
-BATTLE_STATE:戦闘行動キャラ:行動済みフラグ = 1
+IF アビテンプレート用_行動消費無しフラグ == 0
+	BATTLE_STATE:戦闘行動キャラ:行動済みフラグ = 1
+ENDIF
 
 @敵戦闘行動実処理関数
 #DIM 攻撃対象, 10
@@ -466,7 +461,9 @@ IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 			敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
 			CALL アビテンプレート用_表示メッセージ変換処理
 			CALL メッセージ欄表示用関数(,,,0)
-			敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
+			IF アビテンプレート用_行動消費無しフラグ == 0
+				敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
+			ENDIF
 			RETURN 0
 		CATCH
 		ENDCATCH
@@ -483,7 +480,9 @@ CALL アビテンプレート_通常攻撃処理
 
 CALL アビテンプレート用_表示メッセージ変換処理
 CALL メッセージ欄表示用関数(,,,0)
-敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
+IF アビテンプレート用_行動消費無しフラグ == 0
+	敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
+ENDIF
 
 ; ;味方の数判定
 ; FOR LOCAL, 0, 4
