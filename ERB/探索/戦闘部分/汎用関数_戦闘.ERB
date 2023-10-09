@@ -346,7 +346,7 @@ ELSEIF バフ・デバフ種類 == "与ダメ減少"
 		LOCAL = 100
 		LOCAL:1 = 0
 	ENDIF
-	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) + LOCAL:1
+	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
 	RETURNF バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "ダメージ増減"
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
@@ -386,7 +386,7 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		LOCAL = 100
 		LOCAL:1 = 0
 	ENDIF
-	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) + LOCAL:1
+	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
 	RETURNF バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "暗闇"
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
@@ -406,6 +406,46 @@ ELSEIF バフ・デバフ種類 == "暗闇"
 			BREAK
 		ENDIF
 	NEXT
+	RETURNF バフ・デバフ補正後数値
+ELSEIF バフ・デバフ種類 == "奥義威力"
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "奥義威力"
+			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
+			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "奥義威力"
+			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
+			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
+				IF LOCAL:10 == 1
+					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
+				ELSEIF LOCAL:10 > 0
+					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+	IF LOCAL < -99
+		;100%以上減少した時、固定値のダメージ増減も無効化される
+		LOCAL = -100
+		LOCAL:1 = 0
+	ENDIF
+	バフ・デバフ補正後数値 = (補正前数値 * (100 + LOCAL) / 100) + LOCAL:1
 	RETURNF バフ・デバフ補正後数値
 ENDIF
 

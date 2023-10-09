@@ -44,9 +44,14 @@ ELSE
 	表示アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):属性)%")
 	FOR アビ番号, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
+		アビテンプレート用_アビ封印用フラグ = 0
 		CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF TSTR:コマンド名受渡 != ""
-			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+			IF アビテンプレート用_アビ封印用フラグ
+				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</font>
+			ELSE
+				NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+			ENDIF
 			アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
 			LOCAL:1 += 1
 			IF LOCAL:1 % 3 == 0
@@ -68,10 +73,15 @@ ELSE
 	表示アビ数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号, "衣装名")%_")
 	FOR LOCAL, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
+		アビテンプレート用_アビ封印用フラグ = 0
 		CALLFORM %RESULTS:LOCAL%(@"アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF TSTR:コマンド名受渡 != ""
+			IF アビテンプレート用_アビ封印用フラグ
+				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</font>
+			ELSE
+				NSTR:(K++) = <button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+			ENDIF
 			衣装アビ関数名保存:LOCAL = %RESULTS:LOCAL%
-			NSTR:(K++) = <button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</button>
 			LOCAL:1 += 1
 			IF LOCAL:1 % 3 == 0
 				NSTR:(K++) = <br>
@@ -670,10 +680,44 @@ LOCAL = MAX(LOCAL, 1)
 RETURN LOCAL
 
 
-@戦闘不能時処理(ARG)
+@戦闘不能時処理(隊列番号, 対象番号)
+#DIM 隊列番号
+#DIM バフ番号
+#DIMS 文字列一時保存
+#DIM 対象番号
+
+バフ番号 = バフ存在チェック("自動復活", 隊列番号)
+IF バフ番号 > -1
+	;復活
+	IF 隊列番号 < 10
+		LOCAL = (BATTLE_STATE:隊列番号:最大ＨＰ * DT_CELL_GET(@"バフデータベース_{隊列番号}", バフ番号, "バフ効果量_割合") / 100) + DT_CELL_GET(@"バフデータベース_{隊列番号}", バフ番号, "バフ効果量_固定値")
+		BATTLE_STATE:隊列番号:ＨＰ = MIN(BATTLE_STATE:隊列番号:最大ＨＰ, LOCAL)
+		文字列一時保存 = %戦闘キャラ名前取得(隊列番号)%のＨＰが{BATTLE_STATE:隊列番号:ＨＰ}回復した！
+	ELSE
+		LOCAL = (敵BATTLE_STATE:(隊列番号 - 10):最大ＨＰ * DT_CELL_GET(@"バフデータベース_{隊列番号}", バフ番号, "バフ効果量_割合") / 100) + DT_CELL_GET(@"バフデータベース_{隊列番号}", バフ番号, "バフ効果量_固定値")
+		敵BATTLE_STATE:(隊列番号 - 10):ＨＰ = MIN(敵BATTLE_STATE:(隊列番号 - 10):最大ＨＰ, LOCAL)
+		文字列一時保存 = %戦闘キャラ名前取得(隊列番号)%のＨＰが{敵BATTLE_STATE:(隊列番号 - 10):ＨＰ}回復した！
+	ENDIF
+	;対象番号によって文字列を入れる場所を変える
+	IF 対象番号 > -1
+		アビテンプレート用_表示メッセージ格納:対象番号:(A_M_NUM:対象番号++) = %戦闘キャラ名前取得(隊列番号)%は%DT_CELL_GETS(@"バフデータベース_{隊列番号}", バフ番号, "バフ名")%の効果で復活した！
+		アビテンプレート用_表示メッセージ格納:対象番号:(A_M_NUM:対象番号++) = %文字列一時保存%
+	ELSE
+		WSTR:(K++) = %戦闘キャラ名前取得(隊列番号)%は%DT_CELL_GETS(@"バフデータベース_{隊列番号}", バフ番号, "バフ名")%の効果で復活した！
+		WSTR:(K++) = %文字列一時保存%
+	ENDIF
+	;回数消費
+	LOCAL:10 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", バフ番号, "持続回数")
+	IF LOCAL:10 == 1
+		DT_ROW_REMOVE @"バフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", バフ番号, "id")
+	ELSEIF LOCAL:10 > 0
+		DT_CELL_SET @"バフデータベース_{戦闘行動キャラ}", バフ番号, "持続回数", LOCAL:10 - 1
+	ENDIF
+ENDIF
+
 ;バフ・デバフをリセット
-DT_CLEAR @"バフデータベース_{ARG}"
-DT_CLEAR @"デバフデータベース_{ARG}"
+DT_CLEAR @"バフデータベース_{隊列番号}"
+DT_CLEAR @"デバフデータベース_{隊列番号}"
 
 
 
@@ -753,8 +797,8 @@ ELSE
 		死亡フラグ = 1
 ENDIF
 IF 死亡フラグ
-	CALL 戦闘不能時処理(戦闘行動対象)
 	アビテンプレート用_表示メッセージ格納:文章表示番号:(A_M_NUM:文章表示番号++) = %戦闘キャラ名前取得(戦闘行動対象)%は倒れた！
+	CALL 戦闘不能時処理(戦闘行動対象, 文章表示番号)
 ENDIF
 
 戦闘行動キャラ = 行動キャラ一時保存
@@ -801,8 +845,8 @@ ELSE
 		死亡フラグ = 1
 ENDIF
 IF 死亡フラグ
-	CALL 戦闘不能時処理(戦闘行動対象)
 	アビテンプレート用_表示メッセージ格納:文章表示番号:(A_M_NUM:文章表示番号++) = %戦闘キャラ名前取得(戦闘行動対象)%は倒れた！
+	CALL 戦闘不能時処理(戦闘行動対象, 文章表示番号)
 ENDIF
 
 戦闘行動キャラ = 行動キャラ一時保存

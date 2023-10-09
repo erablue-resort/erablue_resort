@@ -394,8 +394,8 @@ IF 戦闘行動キャラ < 10
 			WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は%DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ名")%の効果で{効果量}のダメージ！
 			BATTLE_STATE:戦闘行動キャラ:ＨＰ = MAX(BATTLE_STATE:戦闘行動キャラ:ＨＰ - 効果量, 0)
 			IF BATTLE_STATE:戦闘行動キャラ:ＨＰ < 1
-				CALL 戦闘不能時処理(戦闘行動キャラ)
 				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は倒れた！
+				CALL 戦闘不能時処理(戦闘行動キャラ, -1)
 			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
@@ -412,8 +412,8 @@ ELSE
 			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%は%DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ名")%の効果で{効果量}のダメージ！
 			敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ - 効果量, 0)
 			IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ < 1
-				CALL 戦闘不能時処理(戦闘行動キャラ)
 				WSTR:(K++) = %(敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名)%は倒れた！
+				CALL 戦闘不能時処理(戦闘行動キャラ, -1)
 			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
@@ -481,17 +481,24 @@ NEXT
 
 CALL 口上変数初期化
 
-;魅了処理
+;行動不能処理
 データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
 FOR LOCAL:1, 0, データベース行数
 	効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ対象能力")%
-	IF 効果種類 == "魅了"
+	IF 効果種類 == "魅了" || 効果種類 == "封印"
 		;ダメージ量決定
 		効果量 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_割合")
 		IF RAND:100 < 効果量
-			;魅了で行動不能
+			;行動不能
 			WSTR:(K++) = %戦闘キャラ名前取得(戦闘行動キャラ)%は%DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ名")%の効果で行動出来ない！
 			CALL メッセージ欄表示用関数(,,,0)
+		ENDIF
+		;回数消費
+		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "持続回数")
+		IF LOCAL:10 == 1
+			DT_ROW_REMOVE @"デバフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "id")
+		ELSEIF LOCAL:10 > 0
+			DT_CELL_SET @"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "持続回数", LOCAL:10 - 1
 		ENDIF
 	ENDIF
 NEXT
