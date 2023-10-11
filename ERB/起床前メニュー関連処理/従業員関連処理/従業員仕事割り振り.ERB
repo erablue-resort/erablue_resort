@@ -77,9 +77,10 @@ LOCALS = <div rect='13px,5px,310px,450px' border='5px' bcolor='#C0C0C0'></div><d
 LOCALS += "<div rect='25px,25px,310px,450px'>"
 FOR LOCAL, 0, 10
 	IF 現在仕事数字文字列変換(LOCAL) != ""
-		IF ARG == PLAYER && LOCAL == 3
+		SIF ARG == PLAYER && LOCAL == 3
 			CONTINUE
-		ENDIF
+		SIF ARG == PLAYER && LOCAL == 2
+			CONTINUE
 		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%に変更</button><br>"
 	ENDIF
 NEXT
@@ -94,7 +95,7 @@ LOCALS:1 += "現在従事している業務<br>"
 LOCALS:1 += @"■%現在仕事数字文字列変換(現在仕事:ARG:0), 16, LEFT%"
 LOCALS:1 += "</div>"
 LOCALS:1 += "<div rect='370px,70px,588px,450px'>"
-LOCALS:1 += @"%現在仕事数字文字列変換(現在仕事:ARG:0, 1)%"
+LOCALS:1 += @"%現在仕事数字文字列変換(現在仕事:ARG:0, 1, ARG)%"
 LOCALS:1 += "<br><br>"
 LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
 LOCALS:1 += "</div>"
@@ -108,7 +109,7 @@ NEXT
 DRAWLINE
 
 $INPUT_LOOP
-INPUT
+BINPUT
 
 LOCAL = RESULT
 SELECTCASE LOCAL
@@ -121,14 +122,16 @@ SELECTCASE LOCAL
 			GOTO INPUT_LOOP
 		ENDIF
 		現在仕事:ARG:0 = LOCAL
+		現在仕事:ARG:1 = 0
 		RESTART
-	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
+	CASE 100 TO 110
+		CALL 仕事追加処理関数(ARG, LOCAL)
+		RESTART
 ENDSELECT
 
-@現在仕事数字文字列変換(ARG, ARG:1 = 0)
+@現在仕事数字文字列変換(ARG, ARG:1 = 0, キャラ番号 = 0)
 #FUNCTIONS
+#DIM キャラ番号
 
 SELECTCASE ARG
 	CASE 0
@@ -143,7 +146,22 @@ SELECTCASE ARG
 		RETURNF "雑務"
 	CASE 2
 		IF ARG:1
-			RETURNF "土産物や物品の販売を行う業務。<br>効果：一日の最後に、売上としてルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。"
+			LOCALS = 土産物や物品の販売を行う業務。<br>効果：一日の最後に、売上としてルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。
+			IF 空艇港初来訪イベントフラグ
+				LOCALS += "<br>　　　店舗を指定した場合、従業員がその店舗に常駐するようになる。"
+				LOCALS += "<br><br>"
+				FOR LOCAL, 3, 9
+					IF 空艇港店舗状況:LOCAL:0 > 0
+						CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:LOCAL:0}
+						IF 現在仕事:キャラ番号:1 == LOCAL
+							LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{97 + LOCAL}] %TSTR:場所名受渡% ：現在常駐場所</font><br>"
+						ELSE
+							LOCALS += @"<button value='{97 + LOCAL}'>[{97 + LOCAL}] %TSTR:場所名受渡% で働く</button><br>"
+						ENDIF
+					ENDIF
+				NEXT
+			ENDIF
+			RETURNF LOCALS
 		ENDIF
 		RETURNF "販売"
 	CASE 3
@@ -176,3 +194,16 @@ SELECTCASE 仕事番号
 ENDSELECT
 
 RETURNF 1
+
+
+@仕事追加処理関数(キャラ番号, 選択番号)
+#DIM キャラ番号
+#DIM 選択番号
+
+;今のところ販売業務のみ
+;常駐する店舗を選べる
+
+SELECTCASE 現在仕事:キャラ番号:0
+	CASE 2
+		現在仕事:キャラ番号:1 = 選択番号 - 97
+ENDSELECT
