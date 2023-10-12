@@ -1,0 +1,48 @@
+﻿
+@アイテム個別文章表示_マナポーション(ARGS)
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 1500
+ENDIF
+
+LOCALS = 
+LOCALS += @"■マナポーション　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "マナポーション")}<br>"
+LOCALS += "魔力を回復するためのありふれたポーション。<br>"
+LOCALS += "飲むとそこそこのＭＰを回復することが出来る。<br>"
+LOCALS += "汎用品だが需要が大きいためちょっとお高め値段。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方単体のＭＰを[３００]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_マナポーション
+CALL 汎用使用先表示("味方単体")
+
+@アイテム効果処理_マナポーション(ARG)
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:0
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "マナポーション") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＭＰ == BATTLE_STATE:ARG:ＭＰ
+	PRINTW ＭＰが最大です
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ < 300
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＭＰを{BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＭＰを300回復しました
+ENDIF
+
+BATTLE_STATE:ARG:ＭＰ = MIN(BATTLE_STATE:ARG:ＭＰ + 300, BATTLE_STATE:ARG:最大ＭＰ)
+CALL アイテム増減汎用処理("マナポーション", -1)
+
+RETURN 1
