@@ -239,21 +239,50 @@ CALL アビ対象選択テンプレート_敵全体(2)
 #DIM ランダム回数
 #DIM 対象数
 #DIM 敵番号
-#DIM ランダム候補, 10
+#DIM 敵対心合計
+#DIM 敵対心, 10
+#DIM ランダム候補, 100
 
 SIF アビテンプレート用_キャンセルフラグ
 	RETURN -1
 
+VARSET ランダム候補, -1
 VARSET アビテンプレート用_対象保存, -1
 対象数 = 0
-FOR 敵番号, 10, 20
-	SIF 敵BATTLE_STATE_STR:(敵番号 - 10):エネミー名 == ""
-		CONTINUE
-	SIF 敵BATTLE_STATE:(敵番号 - 10):ＨＰ < 1
-		CONTINUE
-	ランダム候補:対象数 = 敵番号
-	対象数 += 1
-NEXT
+
+IF 戦闘行動キャラ >= 10 || アビ汎用変数:敵対心無視オプション
+	;敵が敵を選ぶ場合は敵対心処理は挟まない
+	FOR 敵番号, 10, 20
+		SIF 敵BATTLE_STATE_STR:(敵番号 - 10):エネミー名 == ""
+			CONTINUE
+		SIF 敵BATTLE_STATE:(敵番号 - 10):ＨＰ < 1
+			CONTINUE
+		ランダム候補:対象数 = 敵番号
+		対象数 += 1
+	NEXT
+ELSE
+	VARSET 敵対心, -1
+	敵対心合計 = 0
+	FOR 敵番号, 10, 20
+		SIF 敵BATTLE_STATE_STR:(敵番号 - 10):エネミー名 == ""
+			CONTINUE
+		SIF 敵BATTLE_STATE:(敵番号 - 10):ＨＰ < 1
+			CONTINUE
+		CALL バフ・デバフ測定(敵番号, "敵対心")
+		敵対心:敵番号 = MAX(RESULT, 0)
+		敵対心合計 += 敵対心:敵番号
+	NEXT
+	VARSET LOCAL
+	FOR 敵番号, 10, 20
+		SIF 敵対心:敵番号 < 0
+			CONTINUE
+		LOCAL += 敵対心:敵番号 * 100 / 敵対心合計
+		LOCAL = MIN(LOCAL, 100)
+		VARSET ランダム候補, 敵番号, LOCAL:1, LOCAL - 1
+		LOCAL:1 = LOCAL
+	NEXT
+	対象数 = 100
+ENDIF
 
 FOR 敵番号, 0, ランダム回数
 	アビテンプレート用_対象保存:敵番号 = ランダム候補:(RAND:対象数)
@@ -355,21 +384,51 @@ CALL アビ対象選択テンプレート_味方全体(2)
 #DIM ランダム回数
 #DIM 対象数
 #DIM 味方番号
-#DIM ランダム候補, 10
+#DIM 敵対心合計
+#DIM 敵対心, 10
+#DIM ランダム候補, 100
 
 SIF アビテンプレート用_キャンセルフラグ
 	RETURN -1
 
+VARSET ランダム候補, -1
 VARSET アビテンプレート用_対象保存, -1
 対象数 = 0
-FOR 味方番号, 0, 4
-	SIF BATTLE_STATE:味方番号:キャラ番号 < 1
-		CONTINUE
-	SIF BATTLE_STATE:味方番号:ＨＰ < 1
+
+IF 戦闘行動キャラ < 10 || アビ汎用変数:敵対心無視オプション
+	;味方が味方を選ぶ場合は敵対心処理は挟まない
+	FOR 味方番号, 0, 4
+		SIF BATTLE_STATE:味方番号:キャラ番号 < 1
 			CONTINUE
-	ランダム候補:対象数 = 味方番号
-	対象数 += 1
-NEXT
+		SIF BATTLE_STATE:味方番号:ＨＰ < 1
+			CONTINUE
+		ランダム候補:対象数 = 味方番号
+		対象数 += 1
+	NEXT
+ELSE
+	VARSET 敵対心, -1
+	敵対心合計 = 0
+	FOR 味方番号, 0, 4
+		SIF BATTLE_STATE:味方番号:キャラ番号 < 1
+			CONTINUE
+		SIF BATTLE_STATE:味方番号:ＨＰ < 1
+			CONTINUE
+		CALL バフ・デバフ測定(味方番号, "敵対心")
+		敵対心:味方番号 = MAX(RESULT, 0)
+		敵対心合計 += 敵対心:味方番号
+	NEXT
+	VARSET LOCAL
+	FOR 味方番号, 0, 4
+		SIF 敵対心:味方番号 < 0
+			CONTINUE
+		LOCAL += 敵対心:味方番号 * 100 / 敵対心合計
+		LOCAL = MIN(LOCAL, 100)
+		VARSET ランダム候補, 味方番号, LOCAL:1, LOCAL
+		LOCAL:1 = MIN(LOCAL, 99)
+	NEXT
+	
+	対象数 = LOCAL
+ENDIF
 
 FOR 味方番号, 0, ランダム回数
 	アビテンプレート用_対象保存:味方番号 = ランダム候補:(RAND:対象数)
