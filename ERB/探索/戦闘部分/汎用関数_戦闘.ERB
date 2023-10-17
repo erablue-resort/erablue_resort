@@ -361,36 +361,6 @@ ELSEIF バフ・デバフ種類 == "暗闇"
 		ENDIF
 	NEXT
 	RETURN バフ・デバフ補正後数値
-ELSEIF バフ・デバフ種類 == "奥義威力"
-	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "奥義威力"
-			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
-			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
-			IF 観測のみフラグ == 0
-				;回数持続の効果の回数を減少
-				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
-			ENDIF
-		ENDIF
-	NEXT
-	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "奥義威力"
-			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
-			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
-			IF 観測のみフラグ == 0
-				;回数持続の効果の回数を減少
-				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
-			ENDIF
-		ENDIF
-	NEXT
-	IF LOCAL < -99
-		;100%以上減少した時、固定値のダメージ増減も無効化される
-		LOCAL = -100
-		LOCAL:1 = 0
-	ENDIF
-	バフ・デバフ補正後数値 = (補正前数値 * (100 + LOCAL) / 100) + LOCAL:1
-	RETURN バフ・デバフ補正後数値
 ENDIF
 
 RETURN 0
@@ -423,7 +393,6 @@ ENDIF
 @かばうチェック_味方(ARGS = "")
 #DIM ループ用
 #DIM データベース行数
-アビ汎用変数:かばうフラグ = 0
 
 FOR LOCAL, 0, 4
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
@@ -432,7 +401,6 @@ FOR LOCAL, 0, 4
 		;回数持続の効果の回数を減少
 		CALL バフ回数経過処理(LOCAL, "全体かばう")
 		戦闘行動対象 = LOCAL
-		アビ汎用変数:かばうフラグ = 1
 		RETURN LOCAL
 	ENDIF
 	IF ARGS != "全体かばう"
@@ -441,7 +409,6 @@ FOR LOCAL, 0, 4
 			;回数持続の効果の回数を減少
 			CALL バフ回数経過処理(LOCAL, "単体かばう")
 			戦闘行動対象 = LOCAL
-			アビ汎用変数:かばうフラグ = 1
 			RETURN LOCAL
 		ENDIF
 	ENDIF
@@ -451,7 +418,6 @@ RETURN -1
 @かばうチェック_敵(ARGS)
 #DIM ループ用
 #DIM データベース行数
-アビ汎用変数:かばうフラグ = 0
 
 FOR LOCAL, 10, 20
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
@@ -460,7 +426,6 @@ FOR LOCAL, 10, 20
 		;回数持続の効果の回数を減少
 		CALL バフ回数経過処理(LOCAL, "全体かばう")
 		戦闘行動対象 = LOCAL
-		アビ汎用変数:かばうフラグ = 1
 		RETURN LOCAL
 	ENDIF
 	IF ARGS != "全体かばう"
@@ -469,7 +434,6 @@ FOR LOCAL, 10, 20
 			;回数持続の効果の回数を減少
 			CALL バフ回数経過処理(LOCAL, "単体かばう")
 			戦闘行動対象 = LOCAL
-			アビ汎用変数:かばうフラグ = 1
 			RETURN LOCAL
 		ENDIF
 	ENDIF
