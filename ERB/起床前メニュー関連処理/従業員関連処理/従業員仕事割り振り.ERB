@@ -81,7 +81,11 @@ FOR LOCAL, 0, 10
 			CONTINUE
 		SIF ARG == PLAYER && LOCAL == 2
 			CONTINUE
-		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%に変更</button><br>"
+		IF 現在仕事:ARG:0 == LOCAL
+			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%</font><br>"
+		ELSE
+			LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%に変更</button><br>"
+		ENDIF
 	ENDIF
 NEXT
 LOCALS += "<br>"
@@ -114,6 +118,9 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
+		IF 現在仕事:ARG:0 == 2 && 現在仕事:ARG:1 == 0
+			現在仕事:ARG:0 = 0
+		ENDIF
 		RETURN 0
 	CASE 0 TO 5
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
@@ -124,7 +131,7 @@ SELECTCASE LOCAL
 		現在仕事:ARG:0 = LOCAL
 		現在仕事:ARG:1 = 0
 		RESTART
-	CASE 100 TO 110
+	CASEELSE
 		CALL 仕事追加処理関数(ARG, LOCAL)
 		RESTART
 ENDSELECT
@@ -146,24 +153,44 @@ SELECTCASE ARG
 		RETURNF "雑務"
 	CASE 2
 		IF ARG:1
-			LOCALS = 土産物や物品の販売を行う業務。<br>効果：一日の最後に、売上としてルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。
+			LOCALS = 特定の場所で専門的な仕事を行う業務。<br>効果：一日の最後に、ルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。
+			LOCALS += "<br><br>"
+			IF 施設改造度:5:0
+				IF 現在仕事:キャラ番号:1 == 503
+					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[503] バーエリア ：現在常駐場所</font><br>"
+				ELSE
+					LOCALS += @"<button value='503'>[503] バーエリア でバーテンダーとして働く</button><br>"
+				ENDIF
+			ENDIF
+			IF 施設改造度:5:6
+				IF 現在仕事:キャラ番号:1 == 506
+					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[506] 図書室 ：現在常駐場所</font><br>"
+				ELSE
+					LOCALS += @"<button value='506'>[506] 図書室 で司書として働く</button><br>"
+				ENDIF
+			ENDIF
+			IF 施設改造度:15:0
+				IF 現在仕事:キャラ番号:1 == 1503
+					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[1503] プールサイド ：現在常駐場所</font><br>"
+				ELSE
+					LOCALS += @"<button value='1503'>[1503] プールサイド で監視員として働く</button><br>"
+				ENDIF
+			ENDIF
 			IF 空艇港初来訪イベントフラグ
-				LOCALS += "<br>　　　店舗を指定した場合、従業員がその店舗に常駐するようになる。"
-				LOCALS += "<br><br>"
 				FOR LOCAL, 3, 9
 					IF 空艇港店舗状況:LOCAL:0 > 0
 						CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:LOCAL:0}
 						IF 現在仕事:キャラ番号:1 == LOCAL
-							LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{97 + LOCAL}] %TSTR:場所名受渡% ：現在常駐場所</font><br>"
+							LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{10000 + LOCAL}] 店舗{LOCAL}:%TSTR:場所名受渡% ：現在常駐場所</font><br>"
 						ELSE
-							LOCALS += @"<button value='{97 + LOCAL}'>[{97 + LOCAL}] %TSTR:場所名受渡% で働く</button><br>"
+							LOCALS += @"<button value='{10000 + LOCAL}'>[{10000 + LOCAL}] 店舗{LOCAL}:%TSTR:場所名受渡% で店員として働く</button><br>"
 						ENDIF
 					ENDIF
 				NEXT
 			ENDIF
 			RETURNF LOCALS
 		ENDIF
-		RETURNF "販売"
+		RETURNF "常駐業務"
 	CASE 3
 		IF ARG:1
 			RETURNF @"%CALLNAME:PLAYER%の補佐を行う業務。<br>効果：一日の最後に、好感度要素：信頼度が<br>　　　［（仕事レベル＋１）＾２×２００］増加する。<br>　　　リゾート内をランダムに移動する。"
@@ -203,10 +230,10 @@ RETURNF 1
 #DIM キャラ番号
 #DIM 選択番号
 
-;今のところ販売業務のみ
+;今のところ常駐業務のみ
 ;常駐する店舗を選べる
 
 SELECTCASE 現在仕事:キャラ番号:0
 	CASE 2
-		現在仕事:キャラ番号:1 = 選択番号 - 97
+		現在仕事:キャラ番号:1 = 選択番号
 ENDSELECT
