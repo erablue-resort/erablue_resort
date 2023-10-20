@@ -131,7 +131,6 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 	SIF 種親 >= 0
 		EXP:種親:孕ませ経験 ++
 	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力
-	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力
 	CFLAG:ARG:産後経過日 = 0
 ELSE
 	PRINTL
@@ -211,7 +210,6 @@ CFLAG:ARG:産後経過日 = 1
 ;危険日とかの設定 一日の初めに呼ばれる
 @SET_PREGNANCY_PALAM(ARG)
 #DIM 消耗度_体力
-#DIM 消耗度_気力
 ;危険日がない場合セット
 IF TALENT:ARG:性別 != 2 && !INRANGE(CFLAG:ARG:危険日,1,10)
 	DEBUGPRINTFORML 危険日セット:%CALLNAME:ARG%
@@ -225,14 +223,10 @@ SIF !TALENT:ARG:妊娠 && CFLAG:ARG:子の父親 != -1
 ;疲れる処理（臨月、産後）
 IF 妊娠時疲労(ARG) || (CFLAG:ARG:産後経過日 >= PREG_DAY(8) && CFLAG:ARG:妊娠前体力)
 	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
-	消耗度_気力 = 100 * BASE:ARG:気力 / MAXBASE:ARG:気力
 	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力  - 妊娠時疲労(ARG,1)
-	MAXBASE:ARG:気力 = CFLAG:ARG:妊娠前気力  - 妊娠時疲労(ARG,2)
 	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
-	BASE:ARG:気力 = MAXBASE:ARG:気力 * 消耗度_気力 / 100
 	IF !妊娠時疲労(ARG)
 		CFLAG:ARG:妊娠前体力 = 0
-		CFLAG:ARG:妊娠前気力 = 0
 	ENDIF
 ENDIF
 
@@ -245,7 +239,6 @@ CALL DETECT_PREGNANCY(ARG)
 ;素の体力を更新
 IF 妊娠時疲労(ARG)
 	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力 + 妊娠時疲労(ARG,1)
-	CFLAG:ARG:妊娠前気力 = MAXBASE:ARG:気力 + 妊娠時疲労(ARG,2)
 ENDIF
 ;色々な経過日時のカウント
 ;妊娠経過日 妊娠後それなりに経つと母乳が出る
@@ -313,7 +306,7 @@ ENDIF
 
 ;妊娠時疲労計算処理
 ;ARG:0 キャラ
-;ARG:1 0(default)=妊娠時疲労の存在判定 1=計算した体力を返す 2=計算した気力を返す
+;ARG:1 0(default)=妊娠時疲労の存在判定 1=計算した体力を返す
 @妊娠時疲労(ARG:0,ARG:1 = 0)
 #FUNCTION
 #DIM 倍率
@@ -334,8 +327,6 @@ SELECTCASE ARG:1
 		RETURNF 0
 	CASE 1
 		RETURNF CFLAG:(ARG:0):妊娠前体力 * 倍率 / 100
-	CASE 2
-		RETURNF CFLAG:(ARG:0):妊娠前気力 * 倍率 / 100
 	CASEELSE
 		RETURNF 0
 ENDSELECT
