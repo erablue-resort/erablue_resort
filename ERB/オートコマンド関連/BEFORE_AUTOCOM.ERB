@@ -1,11 +1,13 @@
 ﻿@BEFORE_AUTOCOM
 #DIM 行動候補, 100
 #DIM 同室者番号
+#DIM キャラ番号
 #DIMS AUTOCOM_候補情報, 100
 #DIMS 候補者_AUTO番号_文字列分割, 2
 #DIM ランダム格納
 #DIM PREAUTO候補者数
 #DIM AUTO候補者数
+#DIM ALLAUTOCOM番号
 
 VARSET AUTOCOM_候補情報
 PREAUTO候補者数 = 0
@@ -24,7 +26,7 @@ IF !TARGET
 		CALL 自宅訪問からの目撃者決定
 		RETURN RESULT
 	ENDIF
-	RETURN 0
+	GOTO 非同室AUTOCOM
 ENDIF
 
 ;二人同時にオートコマンドの対象になる場合、もう一人を予約する
@@ -112,11 +114,49 @@ ELSEIF AUTO候補者数 > 0
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
 	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
-ELSE
-	RETURN 0
 ENDIF
 
+;同室者にオートコマンドが無い時、非同室オートコマンドの判定へ
 
+$非同室AUTOCOM
+
+VARSET AUTOCOM_候補情報
+VARSET 行動候補
+PREAUTO候補者数 = 0
+AUTO候補者数 = 0
+
+;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
+SIF TFLAG:オートコマンドフラグ
+	RETURN 0
+
+;うふふ時、飲み会時は非同室オートコマンドは発生しない
+SIF TFLAG:調教モード == 2 || TFLAG:調教モード == 3
+	RETURN 0
+
+;隠密時は発動しない
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+
+;処理の単純化・高速化のためリストは作らず、先頭から順番に判定して引っかかったらそこで止める
+;ALLAUTOCOMを作る時は条件設定に注意すること
+
+LOCAL = ENUMFUNCBEGINSWITH("ALLAUTOCOM_ABLE")
+
+FOR キャラ番号, 1, CHARANUM
+	SIF CFLAG:キャラ番号:滞在期間 < 0
+		CONTINUE
+	FOR ALLAUTOCOM番号, 0, LOCAL
+		CALLFORM %RESULTS:ALLAUTOCOM番号%(キャラ番号)
+		IF RESULT
+			AUTOCOM_相手番号保存 = キャラ番号
+			LOCALS = %SUBSTRING(RESULTS:ALLAUTOCOM番号, 15, -1)%
+			DEBUGPRINTFORML %RESULTS:ALLAUTOCOM番号%：{キャラ番号}：%LOCALS%
+			RETURN TOINT(LOCALS) + 2000
+		ENDIF
+	NEXT
+NEXT
+
+RETURN 0
 
 @AUTOCOM用変数リセット()
 VARSET TIME_胸部チラ見せ

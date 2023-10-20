@@ -188,7 +188,8 @@ FOR LOCAL, 0, 4
 		CONTINUE
 	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
-	LOCAL:2 = バフ・デバフ測定(LOCAL, "行動速度")
+	CALL バフ・デバフ測定(LOCAL, "行動速度")
+	LOCAL:2 = RESULT
 	IF LOCAL:2 > LOCAL:1
 		LOCAL:1 = LOCAL:2
 		戦闘行動キャラ = LOCAL
@@ -202,7 +203,8 @@ FOR LOCAL, 0, 10
 		CONTINUE
 	SIF 敵BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
-	LOCAL:2 = バフ・デバフ測定(LOCAL + 10, "行動速度")
+	CALL バフ・デバフ測定(LOCAL + 10, "行動速度")
+	LOCAL:2 = RESULT
 	IF LOCAL:2 > LOCAL:1
 		LOCAL:1 = 敵BATTLE_STATE:LOCAL:行動速度
 		戦闘行動キャラ = LOCAL + 10
@@ -253,6 +255,7 @@ FOR LOCAL, 0, 4
 	BATTLE_STATE:LOCAL:得意武器 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):得意武器
 	BATTLE_STATE:LOCAL:クリティカル率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):クリティカル率
 	BATTLE_STATE:LOCAL:クリティカルダメージ率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):クリティカルダメージ率
+	BATTLE_STATE:LOCAL:敵対心 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):敵対心
 	BATTLE_STATE:LOCAL:行動済みフラグ = 0
 
 	BATTLE_STATE:LOCAL:火耐性 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):火耐性 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):火耐性
@@ -289,6 +292,8 @@ FOR LOCAL, 0, 10
 	TRYCALLFORM 敵BATTLE_STATE_%敵BATTLE_STATE_STR:LOCAL:エネミー名%(LOCAL)
 	SIF 敵BATTLE_STATE:LOCAL:クリティカルダメージ率 == 0
 		敵BATTLE_STATE:LOCAL:クリティカルダメージ率 = 150
+	SIF 敵BATTLE_STATE:LOCAL:敵対心 == 0
+		敵BATTLE_STATE:LOCAL:敵対心 = 100
 	敵BATTLE_STATE:LOCAL:行動済みフラグ = 0
 	敵BATTLE_STATE:LOCAL:チャージターン = 0
 	IF 敵BATTLE_STATE:LOCAL:ボスフラグ && LOCAL % 2 == 0 && LOCAL < 8
@@ -328,24 +333,8 @@ FOR LOCAL, 0, 4
 		CONTINUE
 	SIF BATTLE_STATE:(LOCAL):ＨＰ < 1
 		CONTINUE
-	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
-	FOR LOCAL:1, 0, データベース行数
-		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
-		IF LOCAL:10 == 1
-			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "id")
-		ELSEIF LOCAL:10 > 1
-			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
-		ENDIF
-	NEXT
-	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
-	FOR LOCAL:1, 0, データベース行数
-		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
-		IF LOCAL:10 == 1
-			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "id")
-		ELSEIF LOCAL:10 > 1
-			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
-		ENDIF
-	NEXT
+	CALL バフターン経過処理(LOCAL)
+	CALL デバフターン経過処理(LOCAL)
 NEXT
 
 FOR LOCAL, 10, 20
@@ -353,24 +342,8 @@ FOR LOCAL, 10, 20
 		CONTINUE
 	SIF 敵BATTLE_STATE:(LOCAL - 10):ＨＰ < 1
 		CONTINUE
-	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
-	FOR LOCAL:1, 0, データベース行数
-		LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
-		IF LOCAL:10 == 1
-			DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", LOCAL:1, "id")
-		ELSEIF LOCAL:10 > 1
-			DT_CELL_SET @"バフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
-		ENDIF
-	NEXT
-	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{LOCAL}")
-	FOR LOCAL:1, 0, データベース行数
-		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン")
-		IF LOCAL:10 == 1
-			DT_ROW_REMOVE @"デバフデータベース_{LOCAL}", DT_CELL_GET(@"デバフデータベース_{LOCAL}", LOCAL:1, "id")
-		ELSEIF LOCAL:10 > 1
-			DT_CELL_SET @"デバフデータベース_{LOCAL}", LOCAL:1, "持続ターン", LOCAL:10 - 1
-		ENDIF
-	NEXT
+	CALL バフターン経過処理(LOCAL)
+	CALL デバフターン経過処理(LOCAL)
 NEXT
 
 @行動後発動効果処理
@@ -451,27 +424,9 @@ ELSE
 	NEXT
 ENDIF
 
-
-
 ;行動回数持続の効果の回数を減少
-データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
-FOR ループ用, 0, データベース行数
-	LOCAL:10 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
-	IF LOCAL:10 == 1
-		DT_ROW_REMOVE @"バフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", ループ用, "id")
-	ELSEIF LOCAL:10 > 0
-		DT_CELL_SET @"バフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
-	ENDIF
-NEXT
-データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
-FOR ループ用, 0, データベース行数
-	LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数")
-	IF LOCAL:10 == 1
-		DT_ROW_REMOVE @"デバフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", ループ用, "id")
-	ELSEIF LOCAL:10 > 0
-		DT_CELL_SET @"デバフデータベース_{戦闘行動キャラ}", ループ用, "持続行動回数", LOCAL:10 - 1
-	ENDIF
-NEXT
+CALL バフ行動回数経過処理(戦闘行動キャラ)
+CALL デバフ行動回数経過処理(戦闘行動キャラ)
 
 
 @行動前発動効果処理
@@ -494,12 +449,7 @@ FOR LOCAL:1, 0, データベース行数
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 		;回数消費
-		LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "持続回数")
-		IF LOCAL:10 == 1
-			DT_ROW_REMOVE @"デバフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "id")
-		ELSEIF LOCAL:10 > 0
-			DT_CELL_SET @"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "持続回数", LOCAL:10 - 1
-		ENDIF
+		CALL デバフ回数経過処理(戦闘行動キャラ, 効果種類)
 	ENDIF
 NEXT
 

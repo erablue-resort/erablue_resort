@@ -50,9 +50,9 @@ PRINTL 食材を追加しますか？
 FOR COUNT, 0, 1000
 	SIF ソート後素材順 == 0
 		BREAK
-	SIF DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1) < 1
+	SIF DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1) < 1
 		CONTINUE
-	PRINTBUTTONLC @"%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持数", 1))), 6%", COUNT
+	PRINTBUTTONLC @"%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%", COUNT
 	LOCAL += 1
 	IF LOCAL == 3
 		PRINTL 
@@ -109,13 +109,13 @@ SELECTCASE RESULT保存
 	CASEELSE
 		IF 提供食材:0 == -1
 			提供食材:0 = ソート後素材順:RESULT保存
-			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", 1) - 1, 1
 		ELSEIF 提供食材:1 == -1
 			提供食材:1 = ソート後素材順:RESULT保存
-			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", 1) - 1, 1
 		ELSEIF 提供食材:2 == -1
 			提供食材:2 = ソート後素材順:RESULT保存
-			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持数", 1) - 1, 1
+			DT_CELL_SET "所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", DT_CELL_GET("所持素材データベース", ソート後素材順:RESULT保存, "所持素材数", 1) - 1, 1
 		ELSE
 			;枠が全部埋まってる
 			PRINTW 食材枠が全て埋まっています。
@@ -153,7 +153,6 @@ SELECTCASE 料理腕前
 		RFLAG:コマンド結果受渡し変数 = 2
 ENDSELECT
 
-DOWNBASE:MASTER:気力 += 100
 DOWNBASE:MASTER:体力 += 50
 
 ;その場に居るTARGET全員で回す
@@ -186,7 +185,7 @@ RETURN 1
 SIF TCVAR:満腹
 	RETURN 0
 
-DOWNBASE:気力 += 10
+
 
 ;歓楽と征服の基礎値
 LOCAL:0 = 500
@@ -205,22 +204,19 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 	CASE -2
 		TIMES LOCAL:0 , 0
 		TIMES LOCAL:1 , 0
-		DOWNBASE:気力 += 200
+		
 		;大失敗時は何も食べられない
 		TCVAR:満腹 = 0
 	CASE -1
 		TIMES LOCAL:0 , 0.50
 		TIMES LOCAL:1 , 0.50
 		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 20 , MAXBASE:体力)
-		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 5 , MAXBASE:気力)
 	CASE 1
 		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 10 , MAXBASE:体力)
-		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 3 , MAXBASE:気力)
 	CASE 2
 		TIMES LOCAL:0 , 2.00
 		TIMES LOCAL:1 , 2.00
 		BASE:体力 = MIN(BASE:体力 + MAXBASE:体力 / 5 , MAXBASE:体力)
-		BASE:気力 = MIN(BASE:気力 + MAXBASE:気力 / 2 , MAXBASE:気力)
 ENDSELECT
 
 CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
@@ -246,9 +242,6 @@ SIF CFLAG:睡眠
 	RETURN 0
 ;隠密中はダメ
 SIF CFLAG:PLAYER:隠密
-	RETURN 0
-;気力0
-SIF BASE:MASTER:気力 <= 0
 	RETURN 0
 ;満腹
 SIF TCVAR:MASTER:満腹

@@ -10,27 +10,30 @@ CATCH
 ENDCATCH
 
 @奥義威力呼び出し(ARG)
+#DIM 奥義威力計算値
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義説明文", ARG)
-	LOCAL = RESULT
-	IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "奥義威力")
-		CALLFORM 奥義威力_効果量_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%
-		LOCAL += RESULT
-	ENDIF
-	LOCAL = バフ・デバフ測定(隊列算出_味方(ARG), "奥義威力", LOCAL)
-	RETURN LOCAL
+	奥義威力計算値 = RESULT
 CATCH
-	LOCAL = 300
-	IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "奥義威力")
-		CALLFORM 奥義威力_効果量_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%
-		LOCAL += RESULT
-	ENDIF
-	LOCAL = バフ・デバフ測定(隊列算出_味方(ARG), "奥義威力", LOCAL)
-	RETURN LOCAL
+	奥義威力計算値 = 300
 ENDCATCH
+
+IF STRCOUNT(DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "奥義威力")
+	CALLFORM 奥義威力_効果量_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%
+	奥義威力計算値 += RESULT
+ENDIF
+
+CALL バフ・デバフ測定(隊列算出_味方(ARG), "奥義ダメージ補正_割合")
+奥義威力計算値 = 奥義威力計算値 * (RESULT + 100) / 100
+IF 奥義威力計算値 > 0
+	CALL バフ・デバフ測定(隊列算出_味方(ARG), "奥義ダメージ補正_固定値")
+	奥義威力計算値 = 奥義威力計算値 + RESULT
+ENDIF
+RETURN 奥義威力計算値
 
 @奥義追加効果呼び出し(ARG)
 VARSET LOCALS
 
+CALL アビ汎用変数文字列リセット
 TRYCALLFORM 固有奥義_{NO:ARG}("奥義追加効果", ARG)
 SPLIT DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義補正"), "_", LOCALS
 FOR LOCAL, 0, 10
@@ -39,6 +42,7 @@ FOR LOCAL, 0, 10
 		BREAK
 	SIF LOCALS:LOCAL == "奥義威力"
 		CONTINUE
+	CALL アビ汎用変数文字列リセット
 	TRYCALLFORM 奥義補正処理関数_%LOCALS:LOCAL%
 NEXT
 
@@ -112,4 +116,8 @@ SELECTCASE ARGS
 	CASE "奥義名"
 		TSTR:コマンド名受渡 = 一文字斬り
 ENDSELECT
+
+@奥義後処理関数
+;奥義が全て終わった後に読みに来る関数
+;主に奥義で効果が発動するバフなどの処理を想定
 

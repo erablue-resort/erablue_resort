@@ -4,6 +4,7 @@
 #DIM 改行フラグ
 #DIM 表示アビ数
 #DIM アビ番号
+#DIM 消費ＭＰ
 
 VARSET LOCALS
 上メニュー操作許可フラグ = 1
@@ -21,47 +22,38 @@ ELSE
 ENDIF
 VARSET RESULTS
 VARSET アビ関数名保存
-	LOCAL:1 = 0
-表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}")
-IF 表示アビ数
-	FOR アビ番号, 0, 表示アビ数
-		TSTR:コマンド名受渡 = 
-		CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		IF TSTR:コマンド名受渡 != ""
-			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
-			アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
-			LOCAL:1 += 1
-			IF LOCAL:1 % 3 == 0
-				NSTR:(K++) = <br>
-			ENDIF
-		ENDIF
-	NEXT
-	IF LOCAL:1 % 3 != 0
-		NSTR:(K++) = <br>
-	ENDIF
-ELSE
+LOCAL:1 = 0
+表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}_")
+IF 表示アビ数 == 0
 	VARSET RESULTS
 	表示アビ数 = ENUMFUNCBEGINSWITH(@"汎用固有アビ_%属性数値文字列変換(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):属性)%")
-	FOR アビ番号, 0, 表示アビ数
-		TSTR:コマンド名受渡 = 
-		アビテンプレート用_アビ封印用フラグ = 0
-		CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		IF TSTR:コマンド名受渡 != ""
-			IF アビテンプレート用_アビ封印用フラグ
-				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</font>
+ENDIF
+
+FOR アビ番号, 0, 表示アビ数
+	TSTR:コマンド名受渡 = 
+	アビテンプレート用_アビ封印用フラグ = 0
+	CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+	CALLFORM %RESULTS:アビ番号%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+	消費ＭＰ = RESULT
+	IF TSTR:コマンド名受渡 != ""
+		IF アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:戦闘行動キャラ:ＭＰ
+			IF アビ使用確認スキップフラグ == 0
+				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'><button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button></font>
 			ELSE
-				NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
+				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</font>
 			ENDIF
-			アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
-			LOCAL:1 += 1
-			IF LOCAL:1 % 3 == 0
-				NSTR:(K++) = <br>
-			ENDIF
+		ELSE
+			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 26, LEFT%</button>
 		ENDIF
-	NEXT
-	IF LOCAL:1 % 3 != 0
-		NSTR:(K++) = <br>
+		アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
+		LOCAL:1 += 1
+		IF LOCAL:1 % 3 == 0
+			NSTR:(K++) = <br>
+		ENDIF
 	ENDIF
+NEXT
+IF LOCAL:1 % 3 != 0
+	NSTR:(K++) = <br>
 ENDIF
 
 IF 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号 < 1
@@ -75,9 +67,15 @@ ELSE
 		TSTR:コマンド名受渡 = 
 		アビテンプレート用_アビ封印用フラグ = 0
 		CALLFORM %RESULTS:LOCAL%(@"アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %RESULTS:LOCAL%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		消費ＭＰ = RESULT
 		IF TSTR:コマンド名受渡 != ""
-			IF アビテンプレート用_アビ封印用フラグ
-				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</font>
+			IF アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:戦闘行動キャラ:ＭＰ
+				IF アビ使用確認スキップフラグ == 0
+					NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'><button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</button></font>
+				ELSE
+					NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</font>
+				ENDIF
 			ELSE
 				NSTR:(K++) = <button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</button>
 			ENDIF
@@ -114,54 +112,68 @@ SELECTCASE 戦闘行動内容
 		ENDIF
 		PRINTL ＜バフ＞
 		FOR バフ・デバフ番号, 0, DT_ROW_LENGTH(@"バフデータベース_{戦闘行動内容}")
-			PRINTFORM %DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ対象能力")%バフ
-			PRINTFORML ：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ名")%
-			PRINTFORM 効果枠：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ枠"), 20, LEFT%
-			PRINTFORM 効果量：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_固定値"), 4}　　
-			PRINTFORML 効果割合：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_割合"), 4}％
-			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
-				PRINTFORM 持続ターン：永続
-				改行フラグ = 1
-			ELSEIF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
-				PRINTFORM 持続ターン：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
-				改行フラグ = 1
+			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "特殊表示オプション")
+				CALLFORM バフ・デバフ特殊表示_%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ枠")%(戦闘行動内容, バフ・デバフ番号)
+				PRINTL ----
+			ELSE
+				PRINTFORM %DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ対象能力")%バフ
+				PRINTFORML ：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ名")%
+				PRINTFORM 効果枠：%DT_CELL_GETS(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ枠"), 20, LEFT%
+				PRINTFORM 効果量：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_固定値"), 4}　　
+				PRINTFORML 効果割合：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "バフ効果量_割合"), 4}％
+				IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
+					PRINTFORM 持続ターン：永続　　
+					改行フラグ = 1
+				ELSEIF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
+					PRINTFORM 持続ターン：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
+					改行フラグ = 1
+				ENDIF
+				IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
+					PRINTFORM 持続回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
+					改行フラグ = 1
+				ENDIF
+				IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
+					PRINTFORM 持続行動回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
+					改行フラグ = 1
+				ENDIF
+				IF 改行フラグ
+					PRINTL 
+					PRINTL ----
+				ENDIF
 			ENDIF
-			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
-				PRINTFORM 持続回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
-				改行フラグ = 1
-			ENDIF
-			IF DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
-				PRINTFORM 持続行動回数：{DT_CELL_GET(@"バフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
-				改行フラグ = 1
-			ENDIF
-			SIF 改行フラグ
-				PRINTL
 		NEXT
 		PRINTL
 		PRINTL ＜デバフ＞
 		FOR バフ・デバフ番号, 0, DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動内容}")
-			PRINTFORM %DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ対象能力")%デバフ
-			PRINTFORML ：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ名")%
-			PRINTFORM 効果枠：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ枠"), 20, LEFT%
-			PRINTFORM 効果量：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_固定値"), 4}　　
-			PRINTFORML 効果割合：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_割合"), 4}％
-			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
-				PRINTFORM 持続ターン：永続
-				改行フラグ = 1
-			ELSEIF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
-				PRINTFORM 持続ターン：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
-				改行フラグ = 1
+			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "特殊表示オプション")
+				CALLFORM バフ・デバフ特殊表示_%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ枠")%(戦闘行動内容, バフ・デバフ番号)
+				PRINTL ----
+			ELSE
+				PRINTFORM %DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ対象能力")%デバフ
+				PRINTFORML ：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ名")%
+				PRINTFORM 効果枠：%DT_CELL_GETS(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ枠"), 20, LEFT%
+				PRINTFORM 効果量：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_固定値"), 4}　　
+				PRINTFORML 効果割合：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "デバフ効果量_割合"), 4}％
+				IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") < 0
+					PRINTFORM 持続ターン：永続
+					改行フラグ = 1
+				ELSEIF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン") > 0
+					PRINTFORM 持続ターン：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続ターン")}　　
+					改行フラグ = 1
+				ENDIF
+				IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
+					PRINTFORM 持続回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
+					改行フラグ = 1
+				ENDIF
+				IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
+					PRINTFORM 持続行動回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
+					改行フラグ = 1
+				ENDIF
+				IF 改行フラグ
+					PRINTL 
+					PRINTL ----
+				ENDIF
 			ENDIF
-			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数") > 0
-				PRINTFORM 持続回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続回数")}　　
-				改行フラグ = 1
-			ENDIF
-			IF DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数") > 0
-				PRINTFORM 持続行動回数：{DT_CELL_GET(@"デバフデータベース_{戦闘行動内容}", バフ・デバフ番号, "持続行動回数")}　　
-				改行フラグ = 1
-			ENDIF
-			SIF 改行フラグ
-				PRINTL
 		NEXT
 		PRINTL
 		DRAWLINE
@@ -338,6 +350,7 @@ SELECTCASE 戦闘行動内容
 		IF RESULT
 			;奥義威力０の時はダメージ無し奥義としてスキップ
 			アビ汎用変数:効果割合 = RESULT
+			アビ汎用文字列:ダメージ種類 = 奥義ダメージ
 			CALL アビテンプレート_ダメージ処理_自属性
 		ENDIF
 		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
@@ -346,10 +359,12 @@ SELECTCASE 戦闘行動内容
 			RETURN -1
 		ELSE
 			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
+			CALL 奥義後処理関数
 			CALL アビテンプレート用_表示メッセージ変換処理
 		ENDIF
 	CASE 110 TO 119
 		CALL 口上変数初期化
+		アビテンプレート用_アビ封印用フラグ = 0
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		KSTR:(K++) = ■%TSTR:コマンド名受渡%
@@ -362,14 +377,16 @@ SELECTCASE 戦闘行動内容
 			FOR LOCAL, 0, 4 - RESULT
 				KSTR:(K++) = 　
 			NEXT
-			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+			IF アビテンプレート用_アビ封印用フラグ
+				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
 			ELSE
 				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
 			ENDIF
 			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0)
 			$INPUT_LOOP2
-			INPUT
+			BINPUT
 			SELECTCASE RESULT
 				CASE 0
 					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
@@ -417,7 +434,9 @@ SELECTCASE 戦闘行動内容
 			FOR LOCAL, 0, 4 - RESULT
 				KSTR:(K++) = 　
 			NEXT
-			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+			IF アビテンプレート用_アビ封印用フラグ
+				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
 			ELSE
 				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
@@ -477,80 +496,26 @@ IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 			RETURN 0
 		CATCH
 		ENDCATCH
-	ELSE
-		敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン += 1
 	ENDIF
 ENDIF
 
 ;通常攻撃
-CALL アビ対象選択テンプレート_味方ランダムＸ体(1)
-アビテンプレート用_アビ名 = 攻撃
-アビ汎用変数:効果割合 = 100
-CALL アビテンプレート_通常攻撃処理
+RESULT = 0
+TRYCALLFORM 敵トリガー行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
+;何か動いたなら１が返る、何も動いてないなら通常攻撃をさせる
+IF RESULT == 0
+	CALL アビ対象選択テンプレート_味方ランダムＸ体(1)
+	アビテンプレート用_アビ名 = 攻撃
+	アビ汎用変数:効果割合 = 100
+	CALL アビテンプレート_通常攻撃処理
+	敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン += 1
+ENDIF
 
 CALL アビテンプレート用_表示メッセージ変換処理
 CALL メッセージ欄表示用関数(,,,0)
 IF アビテンプレート用_行動消費無しフラグ == 0
 	敵BATTLE_STATE:(戦闘行動キャラ - 10):行動済みフラグ = 1
 ENDIF
-
-; ;味方の数判定
-; FOR LOCAL, 0, 4
-; 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
-; 		CONTINUE
-; 	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
-; 		CONTINUE
-; 	攻撃対象:(LOCAL:10) = LOCAL
-; 	LOCAL:10 += 1
-; NEXT
-
-; LOCAL = RAND:(LOCAL:10)
-; 戦闘行動対象 = 攻撃対象:LOCAL
-
-; CALL かばうチェック_味方()
-
-; ;通常攻撃
-; ;攻撃回数決定
-; 戦闘行動内容 = 200
-; CALL 口上変数初期化
-
-; LOCAL = RAND:100
-; LOCAL:2 = バフ・デバフ測定(戦闘行動キャラ, "DA率")
-; LOCAL:3 = バフ・デバフ測定(戦闘行動キャラ, "TA率")
-; LOCAL:4 = バフ・デバフ測定(戦闘行動キャラ, "連続攻撃率")
-
-; NSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%の攻撃！　
-; IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):TA率 + LOCAL:3 + LOCAL:4 > LOCAL
-; 	LOCAL = 3
-; 	WSTR:(K++) = トリプルアタック！
-; ELSE
-; 	LOCAL = RAND:100
-; 	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):DA率 + LOCAL:2 + LOCAL:4 > LOCAL
-; 		LOCAL = 2
-; 		WSTR:(K++) = ダブルアタック！
-; 	ELSE
-; 		LOCAL = 1
-; 		WSTR:(K++) = 　
-; 	ENDIF
-; ENDIF
-; ;ダメージ計算
-; IF アビ汎用変数:かばうフラグ
-; 	WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%が攻撃をかばった！
-; ENDIF
-; NSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%に
-; FOR LOCAL:1, 0, LOCAL
-; 	CALL ダメージ計算処理(100)
-; 	NSTR:(K++) = {RESULT}のダメージ！　
-; 	BATTLE_STATE:戦闘行動対象:ＨＰ = MAX(BATTLE_STATE:戦闘行動対象:ＨＰ - RESULT, 0)
-; NEXT
-; IF BATTLE_STATE:戦闘行動対象:ＨＰ < 1
-; 	WSTR:(K++) = 　
-; 	CALL 戦闘不能時処理(戦闘行動対象)
-; 	KSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動対象:キャラ番号)%は倒れた！
-; ENDIF
-
-
-
 
 
 @ダメージ計算処理(攻撃威力変数, 攻撃側使用能力値 = "攻撃力", 防御側使用能力値 = "防御力", 乱数幅 = 5)
@@ -577,8 +542,10 @@ IF 防御側使用能力値 == ""
 	防御側使用能力値 = 防御力
 ENDIF
 
-攻撃数値 = バフ・デバフ測定(戦闘行動キャラ, 攻撃側使用能力値) * 攻撃威力変数 / 100
-防御数値 = バフ・デバフ測定(戦闘行動対象, 防御側使用能力値)
+CALL バフ・デバフ測定(戦闘行動キャラ, 攻撃側使用能力値)
+攻撃数値 = RESULT * 攻撃威力変数 / 100
+CALL バフ・デバフ測定(戦闘行動キャラ, 攻撃側使用能力値)
+防御数値 = RESULT
 IF 乱数幅 < 0
 	乱数幅 = 5
 ENDIF
@@ -597,10 +564,14 @@ ELSEIF 戦闘行動キャラ >= 10
 	行動者属性 = 敵BATTLE_STATE:(戦闘行動キャラ - 10):属性
 	属性補正フラグ = 属性有利不利(行動者属性, 対象属性,  "敵側")
 ENDIF
-属性強化変数 = バフ・デバフ測定(戦闘行動キャラ, @"%属性数値文字列変換(行動者属性)%強化")
-属性強化変数 += バフ・デバフ測定(戦闘行動キャラ, "全強化")
-属性耐性変数 = バフ・デバフ測定(戦闘行動対象, @"%属性数値文字列変換(対象属性)%耐性")
-属性耐性変数 += バフ・デバフ測定(戦闘行動対象, "全耐性")
+CALL バフ・デバフ測定(戦闘行動キャラ, @"%属性数値文字列変換(行動者属性)%強化")
+属性強化変数 = RESULT
+CALL バフ・デバフ測定(戦闘行動キャラ, "全強化")
+属性強化変数 += RESULT
+CALL バフ・デバフ測定(戦闘行動対象, @"%属性数値文字列変換(対象属性)%耐性")
+属性耐性変数 = RESULT
+CALL バフ・デバフ測定(戦闘行動対象, "全耐性")
+属性耐性変数 += RESULT
 
 ;乱数幅は、「算出数値から上下に{乱数幅}％の範囲でランダムに変化させる」数値
 ;基本は５％を想定。ムラが大きい攻撃は大きく、ムラが小さい攻撃は小さくすること
@@ -617,9 +588,16 @@ LOCAL = (攻撃数値 / 2) - (防御数値 / 4)
 SIF アビ汎用変数:クリティカルフラグ != 999
 	アビ汎用変数:クリティカルフラグ = 0
 IF 属性補正フラグ == 1
-	クリ率数値 = バフ・デバフ測定(戦闘行動キャラ, "クリティカル率") + アビ汎用変数:クリティカル率補正値
+	IF アビ汎用変数:クリティカル率計算値保存 == -1
+		CALL バフ・デバフ測定(戦闘行動キャラ, "クリティカル率")
+		アビ汎用変数:クリティカル率計算値保存 = RESULT
+	ENDIF
+	クリ率数値 = アビ汎用変数:クリティカル率計算値保存 + アビ汎用変数:クリティカル率補正値
 	IF アビ汎用変数:クリティカルフラグ == 999 || RAND:100 < クリ率数値
-		クリダメ数値 = バフ・デバフ測定(戦闘行動キャラ, "クリティカルダメージ率") + アビ汎用変数:クリティカルダメージ補正値
+		IF アビ汎用変数:クリティカルダメージ計算値保存 == -1
+			CALL バフ・デバフ測定(戦闘行動キャラ, "クリティカルダメージ率")
+		ENDIF
+		クリダメ数値 = アビ汎用変数:クリティカルダメージ計算値保存 + アビ汎用変数:クリティカルダメージ補正値
 		LOCAL = MAX(LOCAL * クリダメ数値 / 100, 攻撃数値 / 3)
 		SIF アビ汎用変数:クリティカルフラグ == 0
 			アビ汎用変数:クリティカルフラグ = 1
@@ -632,13 +610,16 @@ ENDIF
 LOCAL = LOCAL * (100 + 属性強化変数 - 属性耐性変数) / 100
 
 ;与ダメ増加
-LOCAL = バフ・デバフ測定(戦闘行動対象, "与ダメ増加", LOCAL)
+CALL バフ・デバフ測定(戦闘行動対象, "与ダメ増加", LOCAL)
+LOCAL = RESULT
 
 ;与ダメ減少
-LOCAL = バフ・デバフ測定(戦闘行動対象, "与ダメ減少", LOCAL)
+CALL バフ・デバフ測定(戦闘行動対象, "与ダメ減少", LOCAL)
+LOCAL = RESULT
 
 ;ダメージカット
-LOCAL = バフ・デバフ測定(戦闘行動対象, "ダメージ増減", LOCAL)
+CALL バフ・デバフ測定(戦闘行動対象, "ダメージ増減", LOCAL)
+LOCAL = RESULT
 
 ;乱数処理
 LOCAL:1 = RAND:(乱数幅 * 2 + 1) - 乱数幅
@@ -667,7 +648,8 @@ IF 乱数幅 < 0
 	乱数幅 = 5
 ENDIF
 
-回復数値 = バフ・デバフ測定(戦闘行動キャラ, 回復側使用能力値) * 回復威力変数 / 100
+CALL バフ・デバフ測定(戦闘行動キャラ, 回復側使用能力値)
+回復数値 = RESULT * 回復威力変数 / 100
 
 ;基礎ダメージ計算
 LOCAL = 回復数値
@@ -707,12 +689,7 @@ IF バフ番号 > -1
 		WSTR:(K++) = %文字列一時保存%
 	ENDIF
 	;回数消費
-	LOCAL:10 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", バフ番号, "持続回数")
-	IF LOCAL:10 == 1
-		DT_ROW_REMOVE @"バフデータベース_{戦闘行動キャラ}", DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", バフ番号, "id")
-	ELSEIF LOCAL:10 > 0
-		DT_CELL_SET @"バフデータベース_{戦闘行動キャラ}", バフ番号, "持続回数", LOCAL:10 - 1
-	ENDIF
+	CALL バフ回数経過処理(戦闘行動キャラ, "自動復活")
 ELSE
 	;バフ・デバフをリセット
 	DT_CLEAR @"バフデータベース_{隊列番号}"

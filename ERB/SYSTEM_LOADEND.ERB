@@ -58,6 +58,7 @@ FOR LOCAL, 0, CHARANUM
 		CALL INIT_BODYSIZE(LOCAL)
 NEXT
 CALL 戦闘用データベースセット
+CALL 従業員業務用マップセット
 
 ボタン化用カラーマトリクス:0:0 = 768,256,256,  0,  0
 ボタン化用カラーマトリクス:1:0 = 256,768,256,  0,  0
@@ -97,6 +98,9 @@ FOR LOCAL, 1, CHARANUM
 	IF 基礎BATTLE_STATE:LOCAL:クリティカルダメージ率 == 0
 		基礎BATTLE_STATE:LOCAL:クリティカルダメージ率 = 150
 	ENDIF
+	IF 基礎BATTLE_STATE:LOCAL:敵対心 == 0
+		基礎BATTLE_STATE:LOCAL:敵対心 = 100
+	ENDIF
 	IF CSVCSTR(NO:LOCAL, 50) != ""
 		CSTR:LOCAL:特殊種族 = %CSVCSTR(NO:LOCAL, 50)%
 	ENDIF
@@ -106,6 +110,8 @@ FOR LOCAL, 1, CHARANUM
 	FOR LOCAL:1, 227, 240
 		TALENT:LOCAL:(LOCAL:1) = CSVTALENT(NO:LOCAL, LOCAL:1)
 	NEXT
+	SIF CFLAG:LOCAL:オナニー覚えたて > 0 && CFLAG:LOCAL:オナニー覚えたて < 100
+		CFLAG:LOCAL:オナニー覚えたて += 99 
 NEXT
 
 ;素材アイテムデータベースが多重登録されていた問題
@@ -125,6 +131,34 @@ NEXT
 CALL エロ衣装登録処理("逆バニー")
 CALL エロ衣装登録処理("マイクロビキニ")
 
+IF DT_COLUMN_EXIST("所持指輪データベース", "装備者キャラ番号")
+	DT_COLUMN_ADD "所持指輪データベース", "装備キャラ番号", 3
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持指輪データベース")
+		DT_CELL_SET "所持指輪データベース", LOCAL, "装備キャラ番号", DT_CELL_GET("所持指輪データベース", LOCAL, "装備者キャラ番号")
+	NEXT
+	DT_COLUMN_REMOVE "所持指輪データベース", "装備者キャラ番号"
+ENDIF
+IF DT_COLUMN_EXIST("所持耳飾りデータベース", "装備者キャラ番号")
+	DT_COLUMN_ADD "所持耳飾りデータベース", "装備キャラ番号", 3
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
+		DT_CELL_SET "所持耳飾りデータベース", LOCAL, "装備キャラ番号", DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号")
+	NEXT
+	DT_COLUMN_REMOVE "所持耳飾りデータベース", "装備者キャラ番号"
+ENDIF
+IF DT_COLUMN_EXIST("所持素材データベース", "所持数")
+	DT_COLUMN_ADD "所持素材データベース", "所持素材数", 3
+	DT_COLUMN_ADD "所持素材データベース", "累計入手素材数", 3
+	DT_COLUMN_ADD "所持素材データベース", "素材値相場", 3
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+		DT_CELL_SET "所持素材データベース", LOCAL, "所持素材数", DT_CELL_GET("所持素材データベース", LOCAL, "所持数")
+		DT_CELL_SET "所持素材データベース", LOCAL, "累計入手素材数", DT_CELL_GET("所持素材データベース", LOCAL, "累計入手数")
+		DT_CELL_SET "所持素材データベース", LOCAL, "素材値相場", DT_CELL_GET("所持素材データベース", LOCAL, "素材相場")
+	NEXT
+	DT_COLUMN_REMOVE "所持素材データベース", "所持数"
+	DT_COLUMN_REMOVE "所持素材データベース", "累計入手数"
+	DT_COLUMN_REMOVE "所持素材データベース", "素材相場"
+ENDIF
+
 ;ここまで0.032で消す
 
 ;------------------------------------------------------------------------------------------
@@ -132,6 +166,7 @@ CALL エロ衣装登録処理("マイクロビキニ")
 ;------------------------------------------------------------------------------------------
 
 CALL イベント追加チェック
+CALL イベント削除チェック
 IF TFLAG:ゲームフェイズ管理 == 0
 	CALL イベント発生条件チェック
 ENDIF

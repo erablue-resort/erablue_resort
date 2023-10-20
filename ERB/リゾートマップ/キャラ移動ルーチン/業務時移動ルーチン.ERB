@@ -1,0 +1,372 @@
+﻿;------------------------------------------------------------------------------
+;業務ルーチン 業務：雑務
+;一時間ごとにランダムに移動する
+;------------------------------------------------------------------------------
+@MOVE_ROUTINE_業務_雑務(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+
+SELECTCASE ARGS
+	CASE "参加判定"
+		RETURN 1
+
+	CASE "起床時刻"
+		時間計算 = 450 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 999
+	
+	CASE "移動処理"
+		CALL MOVE_ROUTINE_移動処理(キャラ番号, "業務_雑務")
+		RETURN RESULT
+ENDSELECT
+
+@ROUTINE_PLAN_業務_雑務(キャラ番号, マップ種別取得フラグ = 0)
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+;時間ごとにどの場所にいるべきかを決定
+SELECTCASE TIME
+	;8時30分より前は自室にいる
+	CASE IS < 510
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+	;19時半までは雑務場所にいる
+	;１～２時間ごとに場所を変える
+	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURN 0
+		RETURN ROUTINE_PLAN_雑務先決定関数(キャラ番号)
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;21時までは風呂にいる
+	CASE IS < 1260
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 9
+		ELSE
+			RETURN 11
+		ENDIF
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1275
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;寝るまでは自室にいる
+	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+ENDSELECT
+
+@ROUTINE_PLAN_雑務先決定関数(ARG)
+#FUNCTION
+#DIM 雑務先候補配列, 200
+VARSET 雑務先候補配列
+
+IF TCVAR:ARG:移動ルーチンインターバル時間 > 0
+	RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
+ENDIF
+
+LOCAL:1 = 0
+FOR LOCAL, 1, 2100
+	IF 存在しない移動先(0, LOCAL) == 0
+		雑務先候補配列:(LOCAL:1) = LOCAL
+		LOCAL:1 += 1
+	ENDIF
+	SIF LOCAL > 20
+		LOCAL += 79
+NEXT
+
+移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(雑務先候補配列:(RAND:(LOCAL:1)))%
+TCVAR:ARG:移動ルーチンインターバル時間 = RAND(60, 120)
+
+RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
+
+
+;------------------------------------------------------------------------------
+;業務ルーチン 業務：常駐業務
+;指定店舗に常駐する
+;------------------------------------------------------------------------------
+@MOVE_ROUTINE_業務_常駐業務(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+
+SELECTCASE ARGS
+	CASE "参加判定"
+		;現在仕事:キャラ番号:1に数字が入っている＝店舗常駐である
+		SIF 現在仕事:キャラ番号:1 > 0
+			RETURN 1
+
+	CASE "起床時刻"
+		時間計算 = 450 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 999
+	
+	CASE "移動処理"
+		CALL MOVE_ROUTINE_移動処理(キャラ番号, "業務_常駐業務")
+		RETURN RESULT
+ENDSELECT
+
+@ROUTINE_PLAN_業務_常駐業務(キャラ番号, マップ種別取得フラグ = 0)
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+#DIM 勤務マップ
+#DIM 勤務場所
+
+
+勤務マップ = 現在仕事:キャラ番号:1 / 10000
+勤務場所 = 現在仕事:キャラ番号:1 % 10000
+
+;時間ごとにどの場所にいるべきかを決定
+SELECTCASE TIME
+	;19時半より前は店舗にいる
+	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURN 勤務マップ
+		RETURN 勤務場所
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;20時半までは風呂にいる
+	CASE IS < 1230
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 9
+		ELSE
+			RETURN 11
+		ENDIF
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1245
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;寝るまでは自室にいる
+	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+ENDSELECT
+
+;------------------------------------------------------------------------------
+;業務ルーチン 業務：秘書
+;雑務と同様、たまに書類確認イベントが起こる
+;------------------------------------------------------------------------------
+@MOVE_ROUTINE_業務_秘書(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+
+SELECTCASE ARGS
+	CASE "参加判定"
+		RETURN 1
+
+	CASE "起床時刻"
+		時間計算 = CFLAG:MASTER:起床予定時刻 - 30
+		RETURN 時間計算
+	
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 999
+	
+	CASE "移動処理"
+		CALL MOVE_ROUTINE_移動処理(キャラ番号, "業務_秘書")
+		RETURN RESULT
+ENDSELECT
+
+@ROUTINE_PLAN_業務_秘書(キャラ番号, マップ種別取得フラグ = 0)
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+;雑務と同じなので呼び出す
+CALL ROUTINE_PLAN_業務_雑務(キャラ番号, マップ種別取得フラグ)
+RETURN RESULT
+
+;------------------------------------------------------------------------------
+;業務ルーチン 業務：宣伝
+;自室で内職している
+;------------------------------------------------------------------------------
+@MOVE_ROUTINE_業務_宣伝(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+
+SELECTCASE ARGS
+	CASE "参加判定"
+		RETURN 1
+
+	CASE "起床時刻"
+		時間計算 = 450 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 999
+	
+	CASE "移動処理"
+		CALL MOVE_ROUTINE_移動処理(キャラ番号, "業務_宣伝")
+		RETURN RESULT
+ENDSELECT
+
+@ROUTINE_PLAN_業務_宣伝(キャラ番号, マップ種別取得フラグ = 0)
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+;時間ごとにどの場所にいるべきかを決定
+SELECTCASE TIME
+	;19時半より前は自室にいる
+	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;20時半までは風呂にいる
+	CASE IS < 1230
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 9
+		ELSE
+			RETURN 11
+		ENDIF
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1245
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;寝るまでは自室にいる
+	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+ENDSELECT
+
+;------------------------------------------------------------------------------
+;業務ルーチン 業務：訓練
+;訓練所に常駐する
+;------------------------------------------------------------------------------
+
+@MOVE_ROUTINE_業務_訓練(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+
+SELECTCASE ARGS
+	CASE "参加判定"
+		RETURN 1
+
+	CASE "起床時刻"
+		時間計算 = 450 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 999
+	
+	CASE "移動処理"
+		CALL MOVE_ROUTINE_移動処理(キャラ番号, "業務_訓練")
+		RETURN RESULT
+ENDSELECT
+
+@ROUTINE_PLAN_業務_訓練(キャラ番号, マップ種別取得フラグ = 0)
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+;時間ごとにどの場所にいるべきかを決定
+SELECTCASE TIME
+	;19時半より前は自室にいる
+	CASE IS < 1170
+		SIF マップ種別取得フラグ
+			RETURN 0
+		RETURN 308
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1185
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;20時半までは風呂にいる
+	CASE IS < 1230
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 9
+		ELSE
+			RETURN 11
+		ENDIF
+	;風呂の前後１５分は脱衣所
+	CASE IS < 1245
+		SIF マップ種別取得フラグ
+			RETURN 0
+		IF TALENT:キャラ番号:性別 == 2
+			RETURN 7
+		ELSE
+			RETURN 8
+		ENDIF
+	;寝るまでは自室にいる
+	CASEELSE
+		SIF マップ種別取得フラグ
+			RETURN 999
+		RETURN 999
+ENDSELECT

@@ -81,22 +81,35 @@ CALL GOODMORNING
 ;起床時刻の記録
 CFLAG:MASTER:起床時刻 = 1440 * DAY + TIME
 
-;体力気力の回復
+;体力の回復
 BASE:MASTER:体力 += MAXBASE:MASTER:体力 * (CFLAG:MASTER:起床時刻 - CFLAG:MASTER:就寝時刻 ) / (2 * (480 -120 * TALENT:MASTER:回復速度))
-BASE:MASTER:気力 += MAXBASE:MASTER:気力 * (CFLAG:MASTER:起床時刻 - CFLAG:MASTER:就寝時刻 ) / (480 -120 * TALENT:MASTER:回復速度)
 BASE:MASTER:体力 = MIN(MAXBASE:MASTER:体力,BASE:MASTER:体力)
-BASE:MASTER:気力 = MIN(MAXBASE:MASTER:気力,BASE:MASTER:気力)
 BASE:MASTER:勃起 = MIN(1000 * BASE:MASTER:体力 / MAXBASE:MASTER:体力,1500)
 
 ;調教者は誰か
 PLAYER = MASTER
 
 @GOODMORNING
+#DIM 秘書一覧, 100
+#DIM 秘書人数
+#DIM 起こしに来る秘書
+
 VARSET LOCAL
+VARSET 秘書一覧
 TARGET = 0
 FOR LOCAL,1,CHARANUM
 	SIF CFLAG:MASTER:現在位置 == CFLAG:LOCAL:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:LOCAL:現在マップ種別
 		TARGET = LOCAL
+NEXT
+秘書人数 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	IF 現在仕事:LOCAL:0 == 3
+		;秘書に従事してるキャラを一覧化
+		秘書一覧:(秘書人数) = LOCAL
+		秘書人数 += 1
+	ENDIF
 NEXT
 IF TARGET
 	IF CFLAG:TARGET:睡眠
@@ -112,6 +125,16 @@ IF TARGET
 		ENDIF
 		TRYCALLFORM KOJO_EVENT_逆おはよう_{NO:TARGET}
 	ENDIF
+ELSEIF 秘書人数 > 0
+	起こしに来る秘書 = 秘書一覧:(RAND:秘書人数)
+	;秘書がいるなら起こしに来る、秘書業務なら先に起きてるはずなのでキャラの起床処理は入れない
+	TRYCCALLFORM KOJO_EVENT_秘書業務_朝起こし_{NO:起こしに来る秘書}
+	CATCH
+		;朝起こしの口上が無い場合に汎用文章を出す
+		PRINTFORMW %CALLNAME:MASTER%が眠っていると、名前を呼ぶ声がする。
+		PRINTFORMW %CALLNAME:起こしに来る秘書%が時間通りに起こしに来てくれたようだ。
+		PRINTFORMW %CALLNAME:MASTER%が体を起こして礼を言うと、%CALLNAME:起こしに来る秘書%は仕事へと戻っていった。
+	ENDCATCH
 ENDIF
 
 @滞在終了時初期化(ARG)

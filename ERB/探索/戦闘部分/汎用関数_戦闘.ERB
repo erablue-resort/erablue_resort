@@ -215,7 +215,6 @@ RETURNF 0
 ;持続回数を減少する処理も入れ込んでいるので、実処理時以外はちゃんと観測のみフラグを立てること
 ;補正前数値を使うのは補正前の数値を取ることが出来ないダメージ関係の処理のみ
 ;--------------------------------------------------------------------
-#FUNCTION
 #DIMS バフ・デバフ種類
 #DIM データベース行数
 #DIM バフ・デバフ補正後数値
@@ -233,12 +232,7 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -249,12 +243,7 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -269,7 +258,7 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 		;最低でも通常数値の半分まで
 		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:(ARG - 10):バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
 	ENDIF
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	;連撃率はステータスになく、かつDA率TA率と基本的に加算するので基本値を無視して補正値のみ
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
@@ -278,12 +267,7 @@ ELSEIF バフ・デバフ種類 == "連続攻撃率"
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -293,18 +277,13 @@ ELSEIF バフ・デバフ種類 == "連続攻撃率"
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
 	;処理の関係上、割合を無視して固定値のみ
 	バフ・デバフ補正後数値 = LOCAL:1
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "与ダメ増加"
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -313,17 +292,12 @@ ELSEIF バフ・デバフ種類 == "与ダメ増加"
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
 	バフ・デバフ補正後数値 = (補正前数値 * (100 + LOCAL) / 100) + LOCAL:1
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "与ダメ減少"
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -332,12 +306,7 @@ ELSEIF バフ・デバフ種類 == "与ダメ減少"
 			LOCAL:1 += DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -347,7 +316,7 @@ ELSEIF バフ・デバフ種類 == "与ダメ減少"
 		LOCAL:1 = 0
 	ENDIF
 	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "ダメージ増減"
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -356,12 +325,7 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -372,12 +336,7 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 		ENDIF
 	NEXT
@@ -387,7 +346,7 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		LOCAL:1 = 0
 	ENDIF
 	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "暗闇"
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -396,59 +355,15 @@ ELSEIF バフ・デバフ種類 == "暗闇"
 			バフ・デバフ補正後数値 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
 			IF 観測のみフラグ == 0
 				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
 			ENDIF
 			BREAK
 		ENDIF
 	NEXT
-	RETURNF バフ・デバフ補正後数値
-ELSEIF バフ・デバフ種類 == "奥義威力"
-	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == "奥義威力"
-			LOCAL += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_割合")
-			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
-			IF 観測のみフラグ == 0
-				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{ARG}", DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == "奥義威力"
-			LOCAL -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_割合")
-			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
-			IF 観測のみフラグ == 0
-				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"デバフデータベース_{ARG}", DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"デバフデータベース_{ARG}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	IF LOCAL < -99
-		;100%以上減少した時、固定値のダメージ増減も無効化される
-		LOCAL = -100
-		LOCAL:1 = 0
-	ENDIF
-	バフ・デバフ補正後数値 = (補正前数値 * (100 + LOCAL) / 100) + LOCAL:1
-	RETURNF バフ・デバフ補正後数値
+	RETURN バフ・デバフ補正後数値
 ENDIF
 
+RETURN 0
 
 
 @雑魚敵遭遇汎用処理
@@ -478,41 +393,24 @@ ENDIF
 @かばうチェック_味方(ARGS = "")
 #DIM ループ用
 #DIM データベース行数
-アビ汎用変数:かばうフラグ = 0
 
 FOR LOCAL, 0, 4
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
 	;まず全体かばうチェック
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "全体かばう"
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
-			ENDIF
-			戦闘行動対象 = LOCAL
-			アビ汎用変数:かばうフラグ = 1
-			RETURN LOCAL
-		ENDIF
-	NEXT
+	IF バフ存在チェック("全体かばう", LOCAL) > -1
+		;回数持続の効果の回数を減少
+		CALL バフ回数経過処理(LOCAL, "全体かばう")
+		戦闘行動対象 = LOCAL
+		RETURN LOCAL
+	ENDIF
 	IF ARGS != "全体かばう"
 		;単体かばうチェック
-		FOR ループ用, 0, データベース行数
-			IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "単体かばう"
-				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
-				戦闘行動対象 = LOCAL
-				アビ汎用変数:かばうフラグ = 1
-				RETURN LOCAL
-			ENDIF
-		NEXT
+		IF バフ存在チェック("単体かばう", LOCAL) > -1
+			;回数持続の効果の回数を減少
+			CALL バフ回数経過処理(LOCAL, "単体かばう")
+			戦闘行動対象 = LOCAL
+			RETURN LOCAL
+		ENDIF
 	ENDIF
 NEXT
 RETURN -1
@@ -520,42 +418,24 @@ RETURN -1
 @かばうチェック_敵(ARGS)
 #DIM ループ用
 #DIM データベース行数
-アビ汎用変数:かばうフラグ = 0
 
 FOR LOCAL, 10, 20
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{LOCAL}")
 	;まず全体かばうチェック
-	FOR ループ用, 0, データベース行数
-		IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "全体かばう"
-			;回数持続の効果の回数を減少
-			LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
-			IF LOCAL:10 == 1
-				DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "id")
-			ELSEIF LOCAL:10 > 0
-				DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
-			ENDIF
-			戦闘行動対象 = LOCAL
-			アビ汎用変数:効果対象 = 戦闘行動対象
-			アビ汎用変数:かばうフラグ = 1
-			RETURN LOCAL
-		ENDIF
-	NEXT
+	IF バフ存在チェック("全体かばう", LOCAL) > -1
+		;回数持続の効果の回数を減少
+		CALL バフ回数経過処理(LOCAL, "全体かばう")
+		戦闘行動対象 = LOCAL
+		RETURN LOCAL
+	ENDIF
 	IF ARGS != "全体かばう"
 		;単体かばうチェック
-		FOR ループ用, 0, データベース行数
-			IF DT_CELL_GETS(@"バフデータベース_{LOCAL}", ループ用, "バフ対象能力") == "単体かばう"
-				;回数持続の効果の回数を減少
-				LOCAL:10 = DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "持続回数")
-				IF LOCAL:10 == 1
-					DT_ROW_REMOVE @"バフデータベース_{LOCAL}", DT_CELL_GET(@"バフデータベース_{LOCAL}", ループ用, "id")
-				ELSEIF LOCAL:10 > 0
-					DT_CELL_SET @"バフデータベース_{LOCAL}", ループ用, "持続回数", LOCAL:10 - 1
-				ENDIF
-				戦闘行動対象 = LOCAL
-				アビ汎用変数:かばうフラグ = 1
-				RETURN LOCAL
-			ENDIF
-		NEXT
+		IF バフ存在チェック("単体かばう", LOCAL) > -1
+			;回数持続の効果の回数を減少
+			CALL バフ回数経過処理(LOCAL, "単体かばう")
+			戦闘行動対象 = LOCAL
+			RETURN LOCAL
+		ENDIF
 	ENDIF
 NEXT
 
@@ -569,7 +449,7 @@ RETURN -1
 IF 戦闘キャラ番号 < 10
 	RETURNF CALLNAME:(BATTLE_STATE:戦闘キャラ番号:0)
 ELSE
-	RETURNF 敵BATTLE_STATE_STR:(戦闘行動対象 - 10):エネミー名
+	RETURNF 敵BATTLE_STATE_STR:(戦闘キャラ番号 - 10):エネミー名
 ENDIF
 
 
@@ -595,6 +475,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 5
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "攻撃"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 1
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -612,6 +493,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 5
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "防御"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 2
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -629,6 +511,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 0
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "回復"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 3
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -646,6 +529,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 5
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "サポート"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 4
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -663,6 +547,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 5
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "連撃"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 5
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -680,6 +565,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 5
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "回避"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 6
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -697,6 +583,7 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:回避率 = 15
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 	CASE "奥義"
 		基礎BATTLE_STATE:ARG:ステータスタイプ保存 = 7
 		基礎BATTLE_STATE:ARG:Lv = 1
@@ -713,4 +600,5 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:命中率 = 95
 		基礎BATTLE_STATE:ARG:クリティカル率 = 0
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
+		基礎BATTLE_STATE:ARG:敵対心 = 100
 ENDSELECT
