@@ -59,11 +59,6 @@ FOR LOCAL,0,CHARANUM
 	;陥没乳首勃起の自然減少
 	SIF TCVAR:LOCAL:陥没乳首露出フラグ && !CFLAG:LOCAL:うふふ
 		TCVAR:LOCAL:陥没乳首露出フラグ = MAX(0, TCVAR:LOCAL:陥没乳首露出フラグ - TIME_PROGRESS(TFLAG:行動前時刻))
-	;衰弱の処理
-	IF CFLAG:LOCAL:衰弱
-		BASE:LOCAL:体力 = MIN(BASE:LOCAL:体力 + 2 * TIME_PROGRESS(TFLAG:行動前時刻),MAXBASE:LOCAL:体力)
-		CFLAG:LOCAL:衰弱 = MAX(CFLAG:LOCAL:衰弱 - TIME_PROGRESS(TFLAG:行動前時刻),0)
-	ENDIF
 	;酩酊の処理
 	IF BASE:LOCAL:酩酊 > 0
 		BASE:LOCAL:酩酊 = BASE:LOCAL:酩酊 - TIME_PROGRESS(TFLAG:行動前時刻) * 5
@@ -214,8 +209,12 @@ SIF !起きる
 ;泥酔時は常時寝る
 SIF CFLAG:ARG:酔いすぎ == 1
 	寝る = 0
+;体力限界時は眠る
+SIF CFLAG:ARG:体力限界 == 1
+	寝る = 0
 
-RETURN TIME < 起きる || TIME > 寝る || CFLAG:ARG:衰弱
+
+RETURN TIME < 起きる || TIME > 寝る
 
 
 ;@CHARA_MOVEMENT_MOVERATE(ARG)
@@ -309,6 +308,13 @@ IF !CFLAG:ARG:睡眠
 			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
 			CFLAG:ARG:現在マップ種別 = 999
 			PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+		ENDIF
+	ELSEIF CFLAG:ARG:体力限界
+		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
+			;あなたがいる場合は部屋へと運ぶ
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 999
+			PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
 		ENDIF
 	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
 		IF 睡眠場所 == 303
