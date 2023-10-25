@@ -3,14 +3,23 @@
 #DIM 表示候補, 200
 #DIM 現在ページ
 #DIM 開拓対象
+#DIM 複数名フラグ
+#DIM キャラ番号
+#DIM 性癖番号
+#DIMS 複数登録キャラ
+#DIMS 複数登録配列, 100
 
 VARSET 表示候補, -1
 現在ページ = 0
+複数名フラグ = 0
+複数登録キャラ = _
 
 DRAWLINE
 PRINTL 図書室の蔵書から該当するエロ本が任意のキャラに渡るよう細工し、キャラの性癖を開拓します
 PRINTL 誰の性癖を開拓しますか？
 DRAWLINE
+PRINTBUTTON "[1000] 複数名一括開拓", 1000
+PRINTL
 
 ;表示キャラを登録
 LOCAL:1 = 0
@@ -65,6 +74,8 @@ SELECTCASE RESULT
 		GOTO 表示_LOOP
 	CASE 999
 		RETURN -1
+	CASE 1000
+		複数名フラグ = 1
 	CASE IS >= CHARANUM, IS < 0
 		REUSELASTLINE 
 		GOTO INPUT_LOOP
@@ -76,35 +87,145 @@ SELECTCASE RESULT
 		開拓対象 = 表示候補:RESULT
 ENDSELECT
 
-DRAWLINE
-PRINTFORML %CALLNAME:開拓対象%の性癖開拓を行います
-PRINTL どの性癖を開拓しますか？
-DRAWLINE
+IF 複数名フラグ
+	$性癖表示LOOP
+	現在ページ = 0
+	DRAWLINE
+	PRINTFORML 複数名の一括性癖開拓を行います
+	PRINTL どの性癖を開拓しますか？
+	DRAWLINE
 
-FOR LOCAL, 1, 100
-	IF ERDNAME(性癖素質, LOCAL) != ""
-		;すでに性癖持ってるならスキップ
-		SIF 性癖素質:開拓対象:LOCAL
-			CONTINUE
-		PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
-		PRINTL
-	ENDIF
-NEXT
+	FOR LOCAL, 1, 100
+		IF ERDNAME(性癖素質, LOCAL) != ""
+			PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTL
+	PRINTBUTTON "[999]戻る", 999
+	PRINTL
+	BINPUT
+	性癖番号 = RESULT
+	SELECTCASE 性癖番号
+		CASE 1 TO 100
+			;表示キャラを登録
+			LOCAL:1 = 0
+			FOR キャラ番号, 1, CHARANUM
+				;非滞在は出さない
+				SIF CFLAG:キャラ番号:滞在期間 < 0
+					CONTINUE
+				;すでに性癖持ってるならスキップ
+				SIF 性癖素質:キャラ番号:性癖番号
+					CONTINUE
+				表示候補:(LOCAL:1) = キャラ番号
+				LOCAL:1 += 1
+			NEXT
 
-PRINTL
-PRINTBUTTON "[999]戻る", 999
-PRINTL
-$INPUT_LOOP_2
-BINPUT
-LOCAL = RESULT
-SELECTCASE LOCAL
-	CASE 1 TO 100
-		PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, LOCAL)%のエロ本が渡るように細工を行います
-		PRINTW ※結果は一日の終了時に表示されます
-		性癖素質:開拓対象:性癖開発用フラグ変数 = LOCAL
-	CASE 999
-		GOTO 表示_LOOP
-ENDSELECT
+			$表示_LOOP2
+			DRAWLINE
+			PRINTFORML 複数名の一括性癖開拓を行います
+			PRINTL どのキャラの性癖を開拓しますか？（100名まで）
+			DRAWLINE
+			PRINTBUTTON "[1000] これで確定する", 1000
+			PRINTL
+			DRAWLINE
+			LOCAL:1 = 0
+			;キャラの表示（15人まで）
+			FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+				;登録が終わったら表示終了
+				IF 表示候補:LOCAL == -1
+					LOCAL:1 = 1
+					BREAK
+				ENDIF
+				SIF STRFIND(複数登録キャラ, @"_{表示候補:LOCAL}_") > -1
+					SETCOLOR カラーパレット("黄")
+				PRINTBUTTON @"[{LOCAL}]%NAME:(表示候補:LOCAL)%", LOCAL
+				RESETCOLOR
+				PRINTL 
+			NEXT
+
+			DRAWLINE
+
+			;ページめくり表示
+			IF 現在ページ > 0
+				PRINTBUTTONLC "[900]前ページへ", 900
+			ELSE
+				PRINTLC 　
+			ENDIF
+			PRINTFORM - {現在ページ + 1} -
+			IF LOCAL:1 == 0
+				PRINTBUTTONC "[901]次ページへ", 901
+			ENDIF
+			PRINTL 
+			PRINTBUTTON "[999]戻る", 999
+			BINPUT
+
+			;広告対象のINPUT
+			SELECTCASE RESULT
+				CASE 900
+					現在ページ = MAX(現在ページ - 1, 0)
+					GOTO 表示_LOOP2
+				CASE 901
+					SIF LOCAL:1 == 0
+						現在ページ += 1
+					GOTO 表示_LOOP2
+				CASE 999
+					GOTO 性癖表示LOOP
+				CASE 1000
+					VARSET 複数登録配列
+					SPLIT 複数登録キャラ, "__", 複数登録配列
+					FOR LOCAL, 1, 100
+						SIF 複数登録配列:LOCAL == ""
+							BREAK
+						REPLACE 複数登録配列:LOCAL, "_", ""
+						開拓対象 = TOINT(RESULTS)
+						性癖素質:開拓対象:性癖開発用フラグ変数 = 性癖番号
+						PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 性癖番号)%のエロ本が渡るように細工を行います
+					NEXT
+					PRINTW ※結果は一日の終了時に表示されます
+				CASEELSE
+					LOCALS = _{表示候補:RESULT}_
+					IF STRFIND(複数登録キャラ, LOCALS) > -1
+						REPLACE 複数登録キャラ, LOCALS, ""
+						複数登録キャラ = %RESULTS%
+					ELSE
+						複数登録キャラ += @"%LOCALS%"
+					ENDIF
+					GOTO 表示_LOOP2
+			ENDSELECT
+		CASE 999
+			GOTO 表示_LOOP
+	ENDSELECT
+ELSE
+	DRAWLINE
+	PRINTFORML %CALLNAME:開拓対象%の性癖開拓を行います
+	PRINTL どの性癖を開拓しますか？
+	DRAWLINE
+
+	FOR LOCAL, 1, 100
+		IF ERDNAME(性癖素質, LOCAL) != ""
+			;すでに性癖持ってるならスキップ
+			SIF 性癖素質:開拓対象:LOCAL
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+			PRINTL
+		ENDIF
+	NEXT
+
+	PRINTL
+	PRINTBUTTON "[999]戻る", 999
+	PRINTL
+	BINPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 1 TO 100
+			PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, LOCAL)%のエロ本が渡るように細工を行います
+			PRINTW ※結果は一日の終了時に表示されます
+			性癖素質:開拓対象:性癖開発用フラグ変数 = LOCAL
+		CASE 999
+			GOTO 表示_LOOP
+	ENDSELECT
+ENDIF
 
 @性癖開拓チャレンジ処理_1(ARG)
 ;野外オナニー
@@ -135,7 +256,7 @@ LOCAL = 2
 LOCAL -= TALENT:ARG:自制心
 LOCAL += TALENT:ARG:性的興味 * 2
 LOCAL += TALENT:ARG:性欲
-SIF BASE:ARG:性欲 > 6000
+SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 ;露出癖が影響
 LOCAL += ABL:ARG:露出癖
@@ -183,7 +304,7 @@ LOCAL = 2
 LOCAL -= TALENT:ARG:自制心
 LOCAL += TALENT:ARG:性的興味 * 2
 LOCAL += TALENT:ARG:性欲
-SIF BASE:ARG:性欲 > 6000
+SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 ;サド性感が影響
 LOCAL += ABL:ARG:サド性感
@@ -228,7 +349,7 @@ LOCAL = 2
 LOCAL -= TALENT:ARG:自制心
 LOCAL += TALENT:ARG:性的興味 * 2
 LOCAL += TALENT:ARG:性欲
-SIF BASE:ARG:性欲 > 6000
+SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 
 ;バストサイズが影響
@@ -275,7 +396,7 @@ LOCAL = 2
 LOCAL -= TALENT:ARG:自制心
 LOCAL += TALENT:ARG:性的興味 * 2
 LOCAL += TALENT:ARG:性欲
-SIF BASE:ARG:性欲 > 6000
+SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 
 ;性知識が低いとマイナス

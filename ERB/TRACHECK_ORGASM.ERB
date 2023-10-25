@@ -261,7 +261,6 @@ IF C
 	SOURCE:ARG:露出 += 500 * C
 	SOURCE:ARG:屈従 += 200 * C
 	CUP:ARG:潤滑 += 1000 * C
-	DOWNBASE:ARG:0 += 20
 ENDIF
 IF V
 	SOURCE:ARG:欲情 += 800 * V
@@ -269,7 +268,6 @@ IF V
 	SOURCE:ARG:露出 += 700 * V
 	SOURCE:ARG:屈従 += 400 * V
 	CUP:ARG:潤滑 += 1500 * V
-	DOWNBASE:ARG:0 += 40
 ENDIF
 IF A
 	SOURCE:ARG:欲情 += 500 * A
@@ -278,8 +276,6 @@ IF A
 	SOURCE:ARG:屈従 += 500 * A
 	SOURCE:ARG:逸脱 += 200 * A
 	CUP:ARG:潤滑 += 1500 * A
-	
-	DOWNBASE:ARG:0 += 60
 ENDIF
 IF B
 	SOURCE:ARG:露出 += 500 * B
@@ -287,14 +283,12 @@ IF B
 	CUP:ARG:潤滑 += 800 * B
 	SIF TALENT:ARG:性別  == 10
 		SOURCE:ARG:逸脱 += 100 * B
-	DOWNBASE:ARG:0 += 20
 ENDIF
 IF S
 	SOURCE:ARG:露出 += 500 * S
 	SOURCE:ARG:屈従 += 200 * S
 	SOURCE:ARG:逸脱 += 100 * S
 	CUP:ARG:潤滑 += 500 * S
-	DOWNBASE:ARG:0 += 20
 ENDIF
 
 NOWEX:ARG:多重絶頂 = L
@@ -357,7 +351,11 @@ ELSEIF TALENT:ARG:性別 & 2
 ENDIF
 
 ;ZPの取得
-CALL ZP_取得処理(ARG, RCVAR:ARG:絶頂の強度)
+IF RCVAR:ARG:絶頂の強度 > 0
+	CALL 絶頂体力減少処理(ARG, NOWEX:ARG:Ｃ絶頂, NOWEX:ARG:Ｖ絶頂, NOWEX:ARG:Ａ絶頂, NOWEX:ARG:Ｂ絶頂, NOWEX:ARG:Ｓ絶頂)
+	CALL ZP_取得処理(ARG, RCVAR:ARG:絶頂の強度)
+	CFLAG:ARG:体力成長値 += RCVAR:ARG:絶頂の強度
+ENDIF
 
 RETURN 1
 
@@ -453,7 +451,6 @@ ELSE
 	RETURN 0
 ENDIF
 LOCAL ++
-DOWNBASE:ARG:体力 += 20 * LOCAL
 IF EXP:ARG:噴乳経験 < EXPLV:1
 	SOURCE:ARG:露出 += 5000 * LOCAL
 	SOURCE:ARG:屈従 += 2500 * LOCAL
@@ -499,3 +496,66 @@ IF TEQUIP:ARG:ビデオ撮影
 	TSTR:1 += LOCALS
 ENDIF
 
+
+@絶頂体力減少処理(キャラ番号, Ｃ絶頂強度, Ｖ絶頂強度, Ａ絶頂強度, Ｂ絶頂強度, Ｓ絶頂強度)
+#DIM キャラ番号
+#DIM Ｃ絶頂強度
+#DIM Ｖ絶頂強度
+#DIM Ａ絶頂強度
+#DIM Ｂ絶頂強度
+#DIM Ｓ絶頂強度
+#DIM 絶頂保存配列, 5
+#DIM 部位番号
+#DIM 体力減少量計算値
+
+絶頂保存配列:0 = Ｃ絶頂強度
+絶頂保存配列:1 = Ｖ絶頂強度
+絶頂保存配列:2 = Ａ絶頂強度
+絶頂保存配列:3 = Ｂ絶頂強度
+絶頂保存配列:4 = Ｓ絶頂強度
+
+FOR 部位番号, 0, 5
+	IF 絶頂保存配列:部位番号 > 0
+		;基礎200を素質や経験などで増減させる
+		体力減少量計算値 = 200
+
+		;各絶頂経験の分減らす（最大50）
+		体力減少量計算値 -= MIN(50, EXP:キャラ番号:(部位番号 + 5))
+
+		;素質による上下
+		体力減少量計算値 -= TALENT:キャラ番号:性欲 * 5
+		体力減少量計算値 -= TALENT:キャラ番号:快感応答 * 5
+
+		;発情期
+		SIF CFLAG:キャラ番号:発情期フラグ < 0
+			体力減少量計算値 -= 20
+
+		IF 絶頂保存配列:部位番号 > 1
+			;強い絶頂の分は1/4して計算
+			体力減少量計算値 = 体力減少量計算値 + (体力減少量計算値 * (絶頂保存配列:部位番号 - 1) / 4)
+		ENDIF
+
+		;最後に配列に計算値を保存
+		絶頂保存配列:部位番号 = 体力減少量計算値
+	ENDIF
+NEXT
+
+IF MATCH(絶頂保存配列, 0) < 4
+	;他部位絶頂パターン
+	;最も大きい絶頂をそのままにし、他の絶頂計算値を1/2にして合算する
+	VARSET LOCAL
+	FOR 部位番号, 0, 5
+		IF 絶頂保存配列:部位番号 > LOCAL
+			LOCAL = 絶頂保存配列:部位番号
+			LOCAL:1 = 部位番号
+		ENDIF
+	NEXT
+	FOR 部位番号, 0, 5
+		SIF LOCAL:1 != 部位番号
+			絶頂保存配列:部位番号 = 絶頂保存配列:部位番号 / 2
+	NEXT
+ENDIF
+体力減少量計算値 = SUMARRAY(絶頂保存配列)
+
+DOWNBASE:キャラ番号:体力 += 体力減少量計算値
+TCVAR:キャラ番号:うふふ中消費体力累積 += 体力減少量計算値

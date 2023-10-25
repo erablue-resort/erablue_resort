@@ -1,9 +1,11 @@
 ﻿@EVENTTURNEND
 
 FOR LOCAL,1,CHARANUM
-	;滞在してないキャラはスルー
-	SIF CFLAG:LOCAL:滞在期間 == -1
+	;滞在してないキャラは専用処理へ
+	IF CFLAG:LOCAL:滞在期間 == -1
+		CALL 一日終了時_非滞在キャラ処理(LOCAL)
 		CONTINUE
+	ENDIF
 	IF CFLAG:LOCAL:不機嫌
 		CFLAG:LOCAL:不機嫌 --
 		IF !CFLAG:LOCAL:不機嫌
@@ -12,13 +14,16 @@ FOR LOCAL,1,CHARANUM
 		ENDIF
 	ENDIF
 
-	LOCAL:1 = MAXBASE:LOCAL:体力 / 3
+	;素質変化による体力の向上
+	CALL 体力変動素質適用処理(LOCAL)
 
+	LOCAL:1 = 1000
 	;回復早い、回復遅い
 	LOCAL:1 = LOCAL:1 * 3 / (3 - TALENT:LOCAL:回復速度)
-
 	BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + LOCAL:1)
-	CFLAG:LOCAL:衰弱 = 0
+
+	;体力限界を消去
+	CFLAG:LOCAL:体力限界 = 0
 	
 	;モードもリセット
 	VARSET 体位モード格納:LOCAL:0
@@ -60,3 +65,27 @@ BEGIN SHOP
 
 
 
+@一日終了時_非滞在キャラ処理(キャラ番号)
+#DIM キャラ番号
+
+;発情期による性欲最低値保証・最大値上昇処理
+IF CFLAG:キャラ番号:発情期フラグ < 0
+	MAXBASE:キャラ番号:性欲 = MIN(MAXBASE:キャラ番号:体力 * 3 / 2, 9999)
+	IF TALENT:キャラ番号:種族 == 2 || TALENT:キャラ番号:発情期あり
+		BASE:キャラ番号:性欲 = MAX(BASE:キャラ番号:性欲, MAXBASE:キャラ番号:性欲 * 8 / 10)
+	ELSEIF TALENT:キャラ番号:種族 == 3 || キャラ番号 == 11
+		BASE:キャラ番号:性欲 = MAX(BASE:キャラ番号:性欲, MAXBASE:キャラ番号:性欲 * 6 / 10)
+	ENDIF
+ENDIF
+
+;一度でもリゾートに訪れたことがあるキャラを対象
+IF 初体験日:キャラ番号:リゾート初来訪 > 0
+	;性欲の微上昇
+	BASE:キャラ番号:性欲 = MIN(BASE:キャラ番号:性欲 + 50, MAXBASE:キャラ番号:性欲)
+	;もし性欲が一定値以上だったら自慰行為を行う（性知識必要）
+	IF BASE:キャラ番号:性欲 > 1000 && (知識素質:キャラ番号:性知識 > 0 || EXP:キャラ番号:自慰経験 > 0)
+		BASE:キャラ番号:性欲 -= BASE:キャラ番号:性欲 / 1000 * 500
+		EXP:キャラ番号:自慰経験 += BASE:キャラ番号:性欲 / 1000
+		EXP:キャラ番号:絶頂経験 += BASE:キャラ番号:性欲 / 1000
+	ENDIF
+ENDIF

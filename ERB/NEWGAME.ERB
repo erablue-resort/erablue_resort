@@ -385,7 +385,7 @@ MAXBASE:ARG:酩酊 = 1000
 BASE:ARG:母乳 = 0
 MAXBASE:ARG:母乳 = 10000
 BASE:ARG:性欲 = 0
-MAXBASE:ARG:性欲 = 10000
+MAXBASE:ARG:性欲 = 1200
 CALL CLOTHES_RESET(ARG)
 CSTR:ARG:二人称 = %CALLNAME:PLAYER%
 
@@ -393,10 +393,9 @@ CSTR:ARG:二人称 = %CALLNAME:PLAYER%
 BASE:ARG:射精 = 0
 BASE:ARG:勃起 = 0
 BASE:ARG:ムード = 0
-BASE:ARG:理性 = MAXBASE:ARG:11
+BASE:ARG:理性 = MAXBASE:ARG:理性
 BASE:ARG:怒り = 0
 BASE:ARG:勃起 = 0
-BASE:ARG:満足 = 0
 CFLAG:ARG:勃起度 = 0
 CFLAG:ARG:同行 = 0
 CFLAG:ARG:酔いすぎ = 0
@@ -432,14 +431,14 @@ IF 引き継ぎキャラフラグ == 0
 	NEXT
 
 	;素質切り替え
-	IF TALENT:LOCAL:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
-		TALENT:LOCAL:陥没乳首 = 0
+	IF TALENT:ARG:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
+		TALENT:ARG:陥没乳首 = 0
 	ENDIF
-	IF TALENT:LOCAL:母乳体質 && 素質切り替えOPTION記憶:母乳体質_なし
-		TALENT:LOCAL:母乳体質 = 0
+	IF TALENT:ARG:母乳体質 && 素質切り替えOPTION記憶:母乳体質_なし
+		TALENT:ARG:母乳体質 = 0
 	ENDIF
-	IF TALENT:LOCAL:性別 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
-		TALENT:LOCAL:性別 = 1
+	IF TALENT:ARG:性別 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
+		TALENT:ARG:性別 = 1
 	ENDIF
 
 	VARSET LOCALS
@@ -458,6 +457,10 @@ IF 引き継ぎキャラフラグ == 0
 
 	CALL 弱点コマンド初期設定(ARG)
 	TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
+	CALL 体力変動素質適用処理(ARG)
+	
+	BASE:ARG:体力 = MAXBASE:ARG:体力
+	
 	
 	IF 従業員追加中フラグ
 		従業員追加中フラグ = 0
@@ -788,6 +791,51 @@ FOR LOCAL, 0, 5
 	NEXT
 NEXT
 
+@体力変動素質適用処理(キャラ番号)
+#DIM キャラ番号
+#DIM 体力計算値
+
+体力計算値 = CSVBASE(NO:キャラ番号, 0)
+
+;素質によって体力を加算減算する
+SIF GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:処女 == 0
+	体力計算値 += 200
+SIF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:童貞 > 0
+	体力計算値 += 200
+体力計算値 += TALENT:キャラ番号:度胸 * 50
+SIF TALENT:キャラ番号:精神的余裕 > 0
+	体力計算値 += 100
+体力計算値 += TALENT:キャラ番号:性的興味 * 100
+体力計算値 += TALENT:キャラ番号:性欲 * 100
+体力計算値 += TALENT:キャラ番号:経験豊富 * 200
+体力計算値 += TALENT:キャラ番号:自慰しやすい * 50
+体力計算値 += TALENT:キャラ番号:快感応答 * 50
+体力計算値 += TALENT:キャラ番号:絶倫 * 400
+体力計算値 += TALENT:キャラ番号:子持ち * 400
+IF TALENT:キャラ番号:恋人持ち > 0
+	体力計算値 += 300
+ELSEIF TALENT:キャラ番号:恋人持ち == -2
+	体力計算値 += 700
+ENDIF
+SIF 知識素質:キャラ番号:性知識 > 0
+	体力計算値 += 知識素質:キャラ番号:性知識 * 200
+
+;初期EXPによる変動は行わない（数値の設定バランスが記述者によってまちまちなため）
+
+;体力成長分適用
+体力計算値 += CFLAG:キャラ番号:体力成長値
+
+MAXBASE:キャラ番号:体力 = MIN(体力計算値, 9999)
+BASE:キャラ番号:体力 = MIN(MAXBASE:キャラ番号:体力, BASE:キャラ番号:体力)
+;性欲は体力と同値
+;発情期は性欲ゲージにのみ掛かる
+IF CFLAG:キャラ番号:発情期フラグ < 0
+	体力計算値 = MIN(体力計算値 * 3 / 2, 9999)
+ENDIF
+MAXBASE:キャラ番号:性欲 = MIN(体力計算値, 9999)
+BASE:キャラ番号:性欲 = MIN(MAXBASE:キャラ番号:性欲, BASE:キャラ番号:性欲)
+
+
 @イベントデータベースセット
 
 DT_CREATE "各イベント用変数配列"
@@ -972,6 +1020,7 @@ MAP_CREATE "常駐業務名"
 MAP_SET "常駐業務名", "バーエリア", "バーテンダー"
 MAP_SET "常駐業務名", "図書室", "司書"
 MAP_SET "常駐業務名", "プールサイド", "プール監視員"
+MAP_SET "常駐業務名", "プール", "プール監視員"
 MAP_SET "常駐業務名", "道具屋", "道具屋店員"
 MAP_SET "常駐業務名", "土産物屋", "土産物屋店員"
 MAP_SET "常駐業務名", "食事処", "食事処店員"

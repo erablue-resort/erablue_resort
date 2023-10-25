@@ -546,18 +546,18 @@ IF TARGET > 0
 	PRINTFORM %"★" * LOCAL,10,LEFT% 
 	RESETCOLOR
 	PRINTL 
+	; PRINT 　　　　　　　　　　　 
+	; PRINTFORM 満足:
+	; CALL PRINT_COLORBAR, BASE:満足, MAXBASE:満足, 600, 60, BARCOLORSET("白"), RESULT:1
+	; 	PRINTFORM ({BASE:満足,4}/{MAXBASE:満足,4})
+	; PRINTL 
 	PRINT 　　　　　　　　　　　 
-	PRINTFORM 満足:
-	CALL PRINT_COLORBAR, BASE:満足, MAXBASE:満足, 600, 60, BARCOLORSET("白"), RESULT:1
-		PRINTFORM ({BASE:満足,4}/{MAXBASE:満足,4})
+	CALL 通常時体力ゲージ表示(TARGET)
 	PRINTL 
 	PRINT 　　　　　　　　　　　 
-	LOCALS = 体力:
-	PRINTFORM %LOCALS%
-	CALL PRINT_COLORBAR, BASE:体力, MAXBASE:体力, 600, 100, BARCOLORSET("緑"), RESULT:1
-	LOCALS = ({BASE:体力,4}/{MAXBASE:体力,4})
-	PRINTFORM %LOCALS,14,LEFT%
+	CALL 通常時性欲ゲージ表示(TARGET)
 	PRINTL 
+
 	IF BASE:酩酊 > 0
 		LOCALS = 酩酊:
 		PRINTFORM %LOCALS%
@@ -605,14 +605,6 @@ IF TARGET > 0
 ENDIF
 
 
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
-	PRINT 　　　　　　　　　　　 
-LOCALS = 体力(%CALLNAME:PLAYER%)
-PRINTFORM %LOCALS,20,LEFT%
-CALL PRINT_COLORBAR, BASE:PLAYER:体力, MAXBASE:PLAYER:体力, 600, 100, BARCOLORSET("緑"), RESULT:1
-LOCALS = ({BASE:PLAYER:体力,4}/{MAXBASE:PLAYER:体力,4})
-PRINTFORM %LOCALS,14,LEFT%
-PRINTL 
 
 IF BASE:PLAYER:酩酊 > 0
 	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
@@ -662,6 +654,13 @@ PRINTL
 CALL SHOW_INFO_PALAM_PLAYER
 
 PRINTL
+PRINTL
+行数保存 = LINECOUNT - 行数保存
+IF 行数保存 < 21
+	FOR LOCAL, 行数保存, 21
+		PRINTL
+	NEXT
+ENDIF
 
 B = 10000
 SIF TALENT:MASTER:絶倫
@@ -766,36 +765,94 @@ SIF CFLAG:PLAYER:ローターA挿入
 	
 	
 @SHOW_INFO_PALAM
+#DIMS HTML表示文字列
+#DIMS ゲージ表示文
+#DIMS 数値表示文
+
 PRINTL
 VARSET LOCAL
+HTML表示文字列 = 
 IF INFO格納フィルタ:0
-	LOCALS = <div rect='450px,0px,600px,500px'><font color='#666666'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------</font><br>
+	LOCALS = <div rect='540px,0px,600px,500px'><font color='#666666'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------</font><br>
 ELSE
-	LOCALS = <div rect='450px,0px,600px,500px'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------<br>
+	LOCALS = <div rect='540px,0px,600px,500px'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------<br>
+	ゲージ表示文 = <div rect='540px,0px,600px,500px'><br>
 	FOR LOCAL,0,10
 		SIF !STRLENS(PALAMNAME:LOCAL)
 			CONTINUE
 		LOCALS += @" %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:LOCAL,15),2} "
 		;ゲージ描画
+		ゲージ表示文 += "　　　　　"
 		IF PALAM:LOCAL && PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) > 0
-			LOCALS += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#70C0C0'>"
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#%カラーパレット_HTML("PALAMゲージ有")%'>"
 		ENDIF
 		IF PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAM:LOCAL && (400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))) > 0
-			LOCALS += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#205050'>"
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#%カラーパレット_HTML("PALAMゲージ無")%'>"
 		ENDIF
+		ゲージ表示文 += "<br>"
+		LOCAL:1 = PALAM:LOCAL
+		LOCAL:2 = 0
+		;これだけ特殊
+		IF LOCAL == 9 && LOCAL:1 >= 20000
+			LOCALS += @"%"摩擦 0",8%<br>"
+		ELSE
+			;桁合わせ
+			FOR LOCAL:10,0,10
+				IF LOCAL:1 > 999999
+					LOCAL:1 /= 1000
+					LOCAL:2 ++
+				ENDIF
+			NEXT
+			数値表示文 = {LOCAL:1}
+			SELECTCASE LOCAL:2
+				CASE 1
+					数値表示文 += "k"
+				CASE 2
+					数値表示文 += "M"
+				CASE 3
+					数値表示文 += "G"
+				CASE 4
+					数値表示文 += "T"
+				CASE 5
+					数値表示文 += "P"
+			ENDSELECT
+			LOCALS += @"%数値表示文, 8%<br>"
+			IF LOCAL == 4
+				LOCALS += "<br>"
+				ゲージ表示文 += "<br>"
+			ENDIF
+		ENDIF
+	NEXT
+	HTML表示文字列 += @"%ゲージ表示文%</div>%LOCALS%</div>"
+	LOCALS = <div rect='700px,18px,600px,500px'>
+	ゲージ表示文 = <div rect='700px,18px,600px,500px'>
+	FOR LOCAL,10,100
+		SIF !STRLENS(PALAMNAME:LOCAL)
+			CONTINUE
+		LOCALS += @" %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:LOCAL,15),2} "
+
+		;ゲージ描画
+		ゲージ表示文 += "　　　　　"
+		IF PALAM:LOCAL && PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) > 0
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#%カラーパレット_HTML("PALAMゲージ有")%'>"
+		ENDIF
+		IF PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAM:LOCAL && (400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))) > 0
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#%カラーパレット_HTML("PALAMゲージ無")%'>"
+		ENDIF
+		ゲージ表示文 += "<br>"
+
 		LOCAL:1 = PALAM:LOCAL
 		LOCAL:2 = 0
 		;桁合わせ
 		FOR LOCAL:10,0,10
+
 			IF LOCAL:1 > 999999
 				LOCAL:1 /= 1000
 				LOCAL:2 ++
 			ENDIF
 		NEXT
-		LOCALS += @"{LOCAL:1,6}"
+		数値表示文 = {LOCAL:1}
 		SELECTCASE LOCAL:2
-			CASE 0
-				LOCALS += " "
 			CASE 1
 				LOCALS += "k"
 			CASE 2
@@ -807,82 +864,48 @@ ELSE
 			CASE 5
 				LOCALS += "P"
 		ENDSELECT
-		LOCALS += "<br>"
-		IF LOCAL == 4
-			LOCALS += "<br>"
-		ENDIF
-	NEXT
-	LOCALS += "</div><div rect='700px,18px,600px,500px'>"
-	FOR LOCAL,10,100
-		SIF !STRLENS(PALAMNAME:LOCAL)
-			CONTINUE
-		LOCALS += @" %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:LOCAL,15),2} "
-
-		;ゲージ描画
-		IF PALAM:LOCAL && PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) > 0
-			LOCALS += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#70C0C0'>"
-		ENDIF
-		IF PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAM:LOCAL && (400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))) > 0
-			LOCALS += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#205050'>"
-		ENDIF
-
-		LOCAL:1 = PALAM:LOCAL
-		LOCAL:2 = 0
-		;これだけ特殊
-		IF LOCAL == 9 && LOCAL:1 >= 20000
-			LOCALS += @"%"摩擦 0",6% "
-		ELSE
-			;桁合わせ
-			FOR LOCAL:10,0,10
-				IF LOCAL:1 > 999999
-					LOCAL:1 /= 1000
-					LOCAL:2 ++
-				ENDIF
-			NEXT
-			LOCALS += @"{LOCAL:1,6}"
-			SELECTCASE LOCAL:2
-				CASE 0
-					LOCALS += " "
-				CASE 1
-					LOCALS += "k"
-				CASE 2
-					LOCALS += "M"
-				CASE 3
-					LOCALS += "G"
-				CASE 4
-					LOCALS += "T"
-				CASE 5
-					LOCALS += "P"
-			ENDSELECT
-		ENDIF
-		LOCALS += "<br>"
+		LOCALS += @"%数値表示文, 8%<br>"
 		IF LOCAL == 20
 			LOCALS += "<br>"
+			ゲージ表示文 += "<br>"
 		ENDIF
 	NEXT
 ENDIF
 LOCALS += "</div>"
-HTML_PRINT LOCALS, 1
+HTML表示文字列 += @"%ゲージ表示文%</div>%LOCALS%"
+HTML_PRINT HTML表示文字列, 1
 
 @SHOW_INFO_PALAM_PLAYER
+#DIMS HTML文字列
+#DIMS ゲージ表示文
+#DIMS ゲージ数値
+
 VARSET LOCAL
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
 	PRINT 　　　　　　　　　　　 
+LOCALS = <div rect='0px,0px,900px,50px'>
+ゲージ表示文 = <div rect='8px,0px,900px,50px'>
 FOR LOCAL, 0, 5
 	SIF !STRLENS(PALAMNAME:LOCAL)
 		CONTINUE
 	SIF TALENT:PLAYER:性別 == 2 && LOCAL == 1
 		CONTINUE
-	PRINTFORM  %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:PLAYER:LOCAL,15),2} 
+	LOCALS += @"  %PALAMNAME:LOCAL%Lv{GETPALAMLV(PALAM:PLAYER:LOCAL,15),2} "
 	;現在のPALAMLV
-	LOCAL:1 = PALAMLV:(GETPALAMLV(PALAM:PLAYER:LOCAL,15) + 1) - PALAMLV:(GETPALAMLV(PALAM:PLAYER:LOCAL,15))
-	CALL PRINT_COLORBAR, PALAM:PLAYER:LOCAL, PALAMLV:(GETPALAMLV(PALAM:PLAYER:LOCAL,15) + 1), 400, 30, BARCOLORSET("青緑"), RESULT:1
+	ゲージ表示文 += "　　　　　"
+	IF PALAM:LOCAL && PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) > 0
+		ゲージ表示文 += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#%カラーパレット_HTML("PALAMゲージ有")%'>"
+	ENDIF
+	IF PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAM:LOCAL && (400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))) > 0
+		ゲージ表示文 += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#%カラーパレット_HTML("PALAMゲージ無")%'>"
+	ENDIF
+	ゲージ表示文 += " "
 
 	LOCAL:1 = PALAM:PLAYER:LOCAL
 	LOCAL:2 = 0
 	;これだけ特殊
 	IF LOCAL == 9 && LOCAL:1 >= 20000
-		PRINTFORM %"摩擦 0",6% 
+		ゲージ数値 = %"摩擦 0",8% 
 	ELSE
 		;桁合わせ
 		FOR LOCAL:10,0,10
@@ -891,29 +914,30 @@ FOR LOCAL, 0, 5
 				LOCAL:2 ++
 			ENDIF
 		NEXT
-		PRINTFORM {LOCAL:1,6}
+		ゲージ数値 = {LOCAL:1}
 		SELECTCASE LOCAL:2
-			CASE 0
-				PRINT  
 			CASE 1
-				PRINT k
+				ゲージ数値 += "k"
 			CASE 2
-				PRINT M
+				ゲージ数値 += "M"
 			CASE 3
-				PRINT G
+				ゲージ数値 += "G"
 			CASE 4
-				PRINT T
+				ゲージ数値 += "T"
 			CASE 5
-				PRINT P
+				ゲージ数値 += "P"
 		ENDSELECT
 	ENDIF
+	LOCALS += @"%ゲージ数値, 8%"
 	LOCAL:3 ++
 	IF LOCAL:3 % PRINTCPERLINE() == 0
-		PRINTL 
+		LOCALS += "<br>"
 		SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
-			PRINT 　　　　　　　　　　　 
+			LOCALS += "　　　　　　　　　　　 "
 	ENDIF
 NEXT
+HTML文字列 = %ゲージ表示文%</div>%LOCALS%</div>
+HTML_PRINT HTML文字列, 1
 
 ;-------------------------------------------------
 ;関数名:SORT_CFLAG
@@ -1006,6 +1030,7 @@ ENDIF
 IF LOCAL:2
 	FOR LOCAL,0,CHARANUM
 		CFLAG:LOCAL:うふふ = 0
+		CALL 性欲ゲージ減少処理(LOCAL)
 		TCVAR:LOCAL:初うふふフラグ = 0
 	NEXT
 	RETURN 1
@@ -1129,3 +1154,46 @@ HOUR   = ARG / 60 % 12
 MINUTE = ARG % 60 / 5 * 5
 IMAGE_NAME = 時計_%TOSTR(HOUR,"00")%_%TOSTR(MINUTE,"00")%
 RETURNF IMAGE_NAME
+
+
+@通常時体力ゲージ表示(キャラ番号)
+#DIM キャラ番号
+#DIMS ゲージ表示文
+#DIM ゲージ幅
+
+LOCALS = 体力: 
+ゲージ表示文 = <div rect='10px,0px,500px,40px'>
+;ゲージ幅決定（1000の時450、最大1800）
+ゲージ幅 = MIN(350 + MAX(MAXBASE:キャラ番号:体力 - 700, 0) / 3, 1800)
+IF BASE:キャラ番号:体力 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力},30' color='#50B050'>"
+ENDIF
+IF MAXBASE:キャラ番号:体力 - BASE:キャラ番号:体力 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - (BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力)},30' color='#205020'>"
+ENDIF
+ゲージ表示文 += "</div>"
+
+LOCALS:1 = {BASE:キャラ番号:体力,4}/{MAXBASE:キャラ番号:体力,4}
+LOCALS += @"%ゲージ表示文%<div rect='10px,0px,500px,40px'>%LOCALS:1, ゲージ幅 / 50%</div>"
+HTML_PRINT LOCALS, 1
+
+@通常時性欲ゲージ表示(キャラ番号)
+#DIM キャラ番号
+#DIMS ゲージ表示文
+#DIM ゲージ幅
+
+LOCALS = 性欲: 
+ゲージ表示文 = <div rect='10px,0px,500px,40px'>
+;ゲージ幅決定（1000の時450、最大1800）
+ゲージ幅 = MIN(350 + MAX(MAXBASE:キャラ番号:性欲 - 700, 0) / 3, 1800)
+IF BASE:キャラ番号:性欲 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲},30' color='#%カラーパレット_HTML("えっちなゲージ有")%'>"
+ENDIF
+IF MAXBASE:キャラ番号:性欲 - BASE:キャラ番号:性欲 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - (BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲)},30' color='#%カラーパレット_HTML("えっちなゲージ無")%'>"
+ENDIF
+ゲージ表示文 += "</div>"
+
+LOCALS:1 = {BASE:キャラ番号:性欲,4}/{MAXBASE:キャラ番号:性欲,4}
+LOCALS += @"%ゲージ表示文%<div rect='10px,0px,500px,40px'>%LOCALS:1, ゲージ幅 / 50%</div>"
+HTML_PRINT LOCALS, 1
