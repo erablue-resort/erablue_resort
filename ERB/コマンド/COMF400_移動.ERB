@@ -23,6 +23,8 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;-------------------------------------------------
 @COM400
 #DIMS AA, 40
+#DIMS 出会ったキャラ記録
+
 ;移動した瞬間隠密解除
 CFLAG:MASTER:隠密 = 0
 CFLAG:TARGET:隠密 = 0
@@ -74,34 +76,39 @@ IF TFLAG:長距離移動時_目的地格納
 		TARGET:(LOCAL:1) = RESULT:LOCAL
 	NEXT
 	
-	LOCAL:2 = 0
+	出会ったキャラ記録 = 
 	;誰かいないかチェック
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
 			CONTINUE
 		SIF CFLAG:(TARGET:LOCAL):同行
 			CONTINUE
-		LOCAL:2 = TARGET:LOCAL
-		PRINTFORM %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%で%CALLNAME:(LOCAL:2)%と出会った
-		IF STRLENS(CSTR:MASTER:12) && RAND:2 && !CFLAG:(LOCAL:2):睡眠
-			PRINTL 
-			PRINTFORMW %CALLNAME:(LOCAL:2)%に見とがめられ身体検査をされた…
-			PRINTFORMW 
-			PRINTFORMW 
-			PRINTFORMW 
-			PRINTFORMW くすねたパンティを没収された
-			SIF GETBIT (CFLAG:(LOCAL:2):10,0)
-				PRINTFORMW %CALLNAME:(LOCAL:2)%に弱みを握られた
-			CALL KOJO_EVENT(11, LOCAL:2, 0)
-			SETBIT CFLAG:(LOCAL:2):10 ,0
-			CSTR:MASTER:12 =
-			TFLAG:長距離移動時_目的地格納 = 0
-			RETURN 0
-		ELSE
+		SIF 出会ったキャラ記録 != ""
+			出会ったキャラ記録 += "、"
+		出会ったキャラ記録 += @"%CALLNAME:(TARGET:LOCAL)%"
+	NEXT
+	IF 出会ったキャラ記録 != ""
+		PRINTFORML %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%で%出会ったキャラ記録%と出会った
+		;パンツは一旦封印
+		; IF STRLENS(CSTR:MASTER:12) && RAND:2 && !CFLAG:(LOCAL:2):睡眠
+		; 	PRINTL 
+		; 	PRINTFORMW %CALLNAME:(LOCAL:2)%に見とがめられ身体検査をされた…
+		; 	PRINTFORMW 
+		; 	PRINTFORMW 
+		; 	PRINTFORMW 
+		; 	PRINTFORMW くすねたパンティを没収された
+		; 	SIF GETBIT (CFLAG:(LOCAL:2):10,0)
+		; 		PRINTFORMW %CALLNAME:(LOCAL:2)%に弱みを握られた
+		; 	CALL KOJO_EVENT(11, LOCAL:2, 0)
+		; 	SETBIT CFLAG:(LOCAL:2):10 ,0
+		; 	CSTR:MASTER:12 =
+		; 	TFLAG:長距離移動時_目的地格納 = 0
+		; 	RETURN 0
+		; ELSE
 			IF RFLAG:立ち止まらないフラグ
 				PRINTL
 			ELSE
-				PRINTL ……　どうしますか？
+				PRINTL ……どうしますか？
 				PRINTL [0] そのまま移動する
 				PRINTL [1] 立ち止まる
 				PRINTL 
@@ -114,15 +121,13 @@ IF TFLAG:長距離移動時_目的地格納
 					;もう立ち止まらないフラグを立てとく
 					RFLAG:立ち止まらないフラグ = 1
 				ELSE
-					CALL KOJO_EVENT(10, LOCAL:2, 1)
 					TFLAG:長距離移動時_目的地格納 = 0
 					TFLAG:エリア切り替え時_目的地格納 = 0
-					TFLAG:TARGET変更用 = LOCAL:2
 					RETURN 0
 				ENDIF
 			ENDIF
-		ENDIF
-	NEXT
+		; ENDIF
+	ENDIF
 	
 		LOCAL:1 = IN_ROOM("MIN", 18, "CFLAG", 6)
 	;遠距離移動
