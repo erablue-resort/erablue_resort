@@ -258,7 +258,6 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 		;最低でも通常数値の半分まで
 		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:(ARG - 10):バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
 	ENDIF
-	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	;連撃率はステータスになく、かつDA率TA率と基本的に加算するので基本値を無視して補正値のみ
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
@@ -283,7 +282,6 @@ ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	NEXT
 	;処理の関係上、割合を無視して固定値のみ
 	バフ・デバフ補正後数値 = LOCAL:1
-	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "与ダメ増加"
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -297,7 +295,6 @@ ELSEIF バフ・デバフ種類 == "与ダメ増加"
 		ENDIF
 	NEXT
 	バフ・デバフ補正後数値 = (補正前数値 * (100 + LOCAL) / 100) + LOCAL:1
-	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "与ダメ減少"
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -316,7 +313,6 @@ ELSEIF バフ・デバフ種類 == "与ダメ減少"
 		LOCAL:1 = 0
 	ENDIF
 	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
-	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "ダメージ増減"
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -346,7 +342,6 @@ ELSEIF バフ・デバフ種類 == "ダメージ増減"
 		LOCAL:1 = 0
 	ENDIF
 	バフ・デバフ補正後数値 = (補正前数値 * (100 - LOCAL) / 100) - LOCAL:1
-	RETURN バフ・デバフ補正後数値
 ELSEIF バフ・デバフ種類 == "暗闇"
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
 	FOR ループ用, 0, データベース行数
@@ -360,17 +355,20 @@ ELSEIF バフ・デバフ種類 == "暗闇"
 			BREAK
 		ENDIF
 	NEXT
-	RETURN バフ・デバフ補正後数値
 ENDIF
 
-RETURN 0
+CALL バフ・デバフ測定_特殊補正処理(ARG, バフ・デバフ種類, バフ・デバフ補正後数値)
+IF RESULT
+	バフ・デバフ補正後数値 = RESULT
+ENDIF
+
+
+RETURN バフ・デバフ補正後数値
+
 
 
 @雑魚敵遭遇汎用処理
 CALL BATTLE_MAIN_LOOP
-
-VARSET 敵BATTLE_STATE:0:0
-VARSET 敵BATTLE_STATE_STR:0:0
 
 IF RESULT == 0
 	;勝利時
