@@ -105,3 +105,56 @@ SELECTCASE 移動ルーチン:ARG:ルーチンID
 ENDSELECT
 
 
+@脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
+#FUNCTION
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+SIF マップ種別取得フラグ
+	RETURNF 0
+
+IF 施設改造度:7:0
+	;温泉改造済時
+	;他のルーチンと風呂場ルーチンが干渉しないよう、脱衣所に入る時点でインターバル時間をリセット
+	TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+	IF TALENT:キャラ番号:性別 == 2
+		RETURNF 702
+	ELSE
+		RETURNF 802
+	ENDIF
+ELSE
+	IF TALENT:キャラ番号:性別 == 2
+		RETURNF 7
+	ELSE
+		RETURNF 8
+	ENDIF
+ENDIF
+
+@風呂場算出(キャラ番号, マップ種別取得フラグ)
+#FUNCTION
+#DIM マップ種別取得フラグ
+#DIM キャラ番号
+
+SIF マップ種別取得フラグ
+	RETURNF 0
+
+IF 施設改造度:7:0
+	;温泉改造済時
+	IF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+		RETURNF TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
+	ENDIF
+
+	TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(30, 60)
+	IF TALENT:キャラ番号:性別 == 2
+		移動ルーチン:キャラ番号:マップ内ルーチンID = %TOSTR(703 + RAND:6)%
+	ELSE
+		移動ルーチン:キャラ番号:マップ内ルーチンID = %TOSTR(803 + RAND:6)%
+	ENDIF
+	RETURNF TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
+ELSE
+	IF TALENT:キャラ番号:性別 == 2
+		RETURNF 9 + RAND:2
+	ELSE
+		RETURNF 11 + RAND:2
+	ENDIF
+ENDIF

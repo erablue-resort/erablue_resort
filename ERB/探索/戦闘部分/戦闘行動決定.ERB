@@ -267,36 +267,6 @@ SELECTCASE 戦闘行動内容
 		エネミー画像ボタン化フラグ = 0
 		キャラ画像ボタン化フラグ = 0
 		上メニュー操作許可フラグ = 0
-		;対象選択
-		; 上メニュー操作許可フラグ = 0
-		; キャラ画像ボタン化フラグ = 0
-		; エネミー画像ボタン化フラグ = 1
-		; CALL 口上変数初期化
-		; KSTR:(K++) = 誰を攻撃しますか？
-		; KSTR:(K++) = 　
-		; KSTR:(K++) = 　
-		; KSTR:(K++) = 　
-		; KSTR:(K++) = <button value='999'>[999]戻る</button>
-		; CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔", @"%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%",,0)
-		; $INPUT_LOOP2
-		; INPUT
-		; SELECTCASE RESULT
-		; 	CASE 10 TO 19
-		; 		IF 敵BATTLE_STATE_STR:(RESULT - 10):エネミー名 == ""
-		; 			REUSELASTLINE 
-		; 			GOTO INPUT_LOOP2
-		; 		ELSEIF 敵BATTLE_STATE:(RESULT - 10):ＨＰ < 1
-		; 			REUSELASTLINE 
-		; 			GOTO INPUT_LOOP2
-		; 		ENDIF
-		; 		戦闘行動対象 = RESULT
-		; 		アビテンプレート用_対象保存:0 = 戦闘行動対象
-		; 	CASE 999
-		; 		RESTART
-		; 	CASEELSE
-		; 		REUSELASTLINE 
-		; 		GOTO INPUT_LOOP2
-		; ENDSELECT
 	CASE 110 TO 129
 		エネミー画像ボタン化フラグ = 0
 		キャラ画像ボタン化フラグ = 0
@@ -345,6 +315,13 @@ SELECTCASE 戦闘行動内容
 		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		アビテンプレート用_アビ名 = 奥義発動！　%TSTR:コマンド名受渡%
+		IF アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			;奥義ゲージ増加の追加効果に備えてここでゲージを減らす
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
+		ENDIF
 
 		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT
@@ -356,11 +333,17 @@ SELECTCASE 戦闘行動内容
 		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
 			アビテンプレート用_キャンセルフラグ = 0
+			;ここのキャンセル処理には飛んでこないはずだが、飛んできた場合に備えて奥義ゲージを戻す
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ += 100
 			RETURN -1
 		ELSE
-			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
 			CALL 奥義後処理関数
 			CALL アビテンプレート用_表示メッセージ変換処理
+			ターン中奥義回数保存 += 1
+
+			IF ターン中奥義回数保存 == 1
+				チェンバ基準キャラ保存 = 戦闘行動キャラ
+			ENDIF
 		ENDIF
 	CASE 110 TO 119
 		CALL 口上変数初期化
@@ -568,7 +551,7 @@ CALL バフ・デバフ測定(戦闘行動キャラ, @"%属性数値文字列変
 属性強化変数 = RESULT
 CALL バフ・デバフ測定(戦闘行動キャラ, "全強化")
 属性強化変数 += RESULT
-CALL バフ・デバフ測定(戦闘行動対象, @"%属性数値文字列変換(対象属性)%耐性")
+CALL バフ・デバフ測定(戦闘行動対象, @"%属性数値文字列変換(行動者属性)%耐性")
 属性耐性変数 = RESULT
 CALL バフ・デバフ測定(戦闘行動対象, "全耐性")
 属性耐性変数 += RESULT
@@ -610,11 +593,11 @@ ENDIF
 LOCAL = LOCAL * (100 + 属性強化変数 - 属性耐性変数) / 100
 
 ;与ダメ増加
-CALL バフ・デバフ測定(戦闘行動対象, "与ダメ増加", LOCAL)
+CALL バフ・デバフ測定(戦闘行動キャラ, "与ダメ増加", LOCAL)
 LOCAL = RESULT
 
 ;与ダメ減少
-CALL バフ・デバフ測定(戦闘行動対象, "与ダメ減少", LOCAL)
+CALL バフ・デバフ測定(戦闘行動キャラ, "与ダメ減少", LOCAL)
 LOCAL = RESULT
 
 ;ダメージカット
@@ -698,7 +681,6 @@ ENDIF
 
 
 
-
 @回避判定チェック(行動キャラ = -1, 対象キャラ = -1, 命中率補正 = 0, 回避率補正 = 0)
 #DIM 行動キャラ
 #DIM 対象キャラ
@@ -714,17 +696,11 @@ IF 対象キャラ == -1
 	対象キャラ = 戦闘行動対象
 ENDIF
 
-IF 行動キャラ < 10
-	命中率計算値 = BATTLE_STATE:行動キャラ:命中率 + 命中率補正
-ELSE
-	命中率計算値 = 敵BATTLE_STATE:(行動キャラ - 10):命中率 + 命中率補正
-ENDIF
+CALL バフ・デバフ測定(行動キャラ, "命中率")
+命中率計算値 = RESULT + 命中率補正
 
-IF 対象キャラ < 10
-	回避率計算値 = BATTLE_STATE:対象キャラ:回避率 + 回避率補正
-ELSE
-	回避率計算値 = 敵BATTLE_STATE:(対象キャラ - 10):回避率 + 回避率補正
-ENDIF
+CALL バフ・デバフ測定(対象キャラ, "回避率")
+回避率計算値 = RESULT + 回避率補正
 
 IF RAND:100 < 命中率計算値 - 回避率計算値
 	;命中時

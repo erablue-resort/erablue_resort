@@ -19,55 +19,106 @@ ENDSELECT
 ;---------------------------------------------------------------
 ;現在地によるマップ種別変更処理
 ;---------------------------------------------------------------
-@マップ種別変更(ARG)
+; @マップ種別変更(ARG)
 
-IF CFLAG:MASTER:現在位置 >= 303 && CFLAG:MASTER:現在位置 <= 307
-	;キャンプ
-	TFLAG:マップ種別 = 3
-ELSEIF CFLAG:MASTER:現在位置 >= 503 && CFLAG:MASTER:現在位置 <= 506
-	;遊戯室
-	TFLAG:マップ種別 = 5
-ELSEIF CFLAG:MASTER:現在位置 >= 1503 && CFLAG:MASTER:現在位置 <= 1506
-	;プール
-	TFLAG:マップ種別 = 15
-ELSEIF CFLAG:MASTER:現在位置 <= 20
-	TFLAG:マップ種別 = 0
-ENDIF
+; IF CFLAG:MASTER:現在位置 >= 303 && CFLAG:MASTER:現在位置 <= 307
+; 	;キャンプ
+; 	TFLAG:マップ種別 = 3
+; ELSEIF CFLAG:MASTER:現在位置 >= 503 && CFLAG:MASTER:現在位置 <= 506
+; 	;遊戯室
+; 	TFLAG:マップ種別 = 5
+; ELSEIF CFLAG:MASTER:現在位置 >= 702 && CFLAG:MASTER:現在位置 <= 711
+; 	;男湯
+; 	TFLAG:マップ種別 = 7
+; ELSEIF CFLAG:MASTER:現在位置 >= 802 && CFLAG:MASTER:現在位置 <= 811
+; 	;女湯
+; 	TFLAG:マップ種別 = 8
+; ELSEIF CFLAG:MASTER:現在位置 >= 1503 && CFLAG:MASTER:現在位置 <= 1506
+; 	;プール
+; 	TFLAG:マップ種別 = 15
+; ELSEIF CFLAG:MASTER:現在位置 <= 20
+; 	TFLAG:マップ種別 = 0
+; ENDIF
 
 ;---------------------------------------------------------------
 ;キャラの居場所再設定
 ;---------------------------------------------------------------
-@キャラ居場所再設定(ARG:1, ARG)
-SELECTCASE ARG:1
+@派生マップ番号取得(マップ番号, 現在地番号)
+#FUNCTION
+#DIM マップ番号
+#DIM 現在地番号
+
+SELECTCASE マップ番号
+	CASE 0
+		;リゾートマップ
+		SELECTCASE 現在地番号
+			CASE 1 TO 20
+				RETURNF 0
+			CASE 302 TO 307
+				RETURNF 3
+			CASE 502 TO 506
+				RETURNF 5
+			CASE 701 TO 711
+				RETURNF 7
+			CASE 801 TO 811
+				RETURNF 8
+			CASE 1503 TO 1515
+				RETURNF 15
+		ENDSELECT
+ENDSELECT
+
+@マップ遷移判定処理(マップ番号, 現在地番号)
+#DIM マップ番号
+#DIM 現在地番号
+
+SELECTCASE マップ番号
 	CASE 0
 		;基本→キャンプ
-		IF CFLAG:ARG:現在位置 == 3 && 施設改造度:3:0
-			CFLAG:ARG:現在位置 = 303
+		IF 現在地番号 == 3 && 施設改造度:3:0
+			RETURN 303
 		ENDIF
 		;基本→遊戯
-		IF CFLAG:ARG:現在位置 == 5 && 施設改造度:5:0
-			CFLAG:ARG:現在位置 = 503
+		IF 現在地番号 == 5 && 施設改造度:5:0
+			RETURN 503
+		ENDIF
+		;基本→男湯
+		IF 現在地番号 == 7 && 施設改造度:7:0
+			RETURN 702
+		ENDIF
+		;基本→女湯
+		IF 現在地番号 == 8 && 施設改造度:8:0
+			RETURN 802
 		ENDIF
 		;基本→プール
-		IF CFLAG:ARG:現在位置 == 15 && 施設改造度:15:0
-			CFLAG:ARG:現在位置 = 1503
+		IF 現在地番号 == 15 && 施設改造度:15:0
+			RETURN 1503
 		ENDIF
 		;キャンプ→基本
-		IF CFLAG:ARG:現在位置 == 302
-			CFLAG:ARG:現在位置 = 2
+		IF 現在地番号 == 302
+			RETURN 2
 		ENDIF
 		;遊戯→基本
-		IF CFLAG:ARG:現在位置 == 502
-			CFLAG:ARG:現在位置 = 2
+		IF 現在地番号 == 502
+			RETURN 2
+		ENDIF
+		;男湯→基本
+		IF 現在地番号 == 701
+			RETURN 6
+		ENDIF
+		;女湯→基本
+		IF 現在地番号 == 801
+			RETURN 6
 		ENDIF
 		;プール→基本
-		IF CFLAG:ARG:現在位置 == 1513
-			CFLAG:ARG:現在位置 = 13
+		IF 現在地番号 == 1513
+			RETURN 13
 		ENDIF
-		IF CFLAG:ARG:現在位置 == 1514
-			CFLAG:ARG:現在位置 = 14
+		IF 現在地番号 == 1514
+			RETURN 14
 		ENDIF
 ENDSELECT
+
+RETURN 0
 
 ;---------------------------------------------------------------
 ;マップ種別による移動先可否判定
@@ -80,6 +131,10 @@ SELECTCASE ARG:1
 		IF ARG < 50
 			IF 施設改造度:ARG:0 > 0
 				;改装済みの場合、改装前の部屋は存在しない
+				RETURNF 1
+			ENDIF
+			IF GROUPMATCH(ARG, 9, 10, 11, 12) && 施設改造度:7:0
+				;温泉改装済みの場合、改装前の風呂場は存在しない
 				RETURNF 1
 			ENDIF
 		ENDIF
@@ -98,12 +153,12 @@ SELECTCASE ARG:1
 		ELSEIF ARG == 506 && 施設改造度:5:6
 			;遊戯室
 			RETURNF 0
-		; ELSEIF ARG >= 702 && ARG <= 711 && 施設改造度:7:0
-		; 	;温泉男湯
-		; 	RETURNF 0
-		; ELSEIF ARG >= 802 && ARG <= 811 && 施設改造度:8:0
-		; 	;温泉女湯
-		; 	RETURNF 0
+		ELSEIF ARG >= 702 && ARG <= 711 && 施設改造度:7:0
+			;温泉男湯
+			RETURNF 0
+		ELSEIF ARG >= 802 && ARG <= 811 && 施設改造度:8:0
+			;温泉女湯
+			RETURNF 0
 		ELSEIF ARG >= 1503 && ARG <= 1514 && 施設改造度:15:0
 			;プール
 			RETURNF 0
@@ -126,21 +181,14 @@ RETURNF 1
 ;エリア移動を伴わないマップ切り替え構文
 ;---------------------------------------------------------------
 @表示マップ切り替え判定(ARG)
-#FUNCTION
 
-SELECTCASE CFLAG:PLAYER:現在マップ種別
-	CASE 0
-		IF ARG > 49
-			RETURNF 0
-		ENDIF
-		IF 施設改造度:ARG:0
-			;派生マップがあると判定
-			TFLAG:マップ種別 = ARG
-			RETURNF 1
-		ENDIF
-ENDSELECT
+CALL マップ遷移判定処理(CFLAG:PLAYER:現在マップ種別, ARG)
+IF RESULT
+	TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, RESULT)
+	RETURN 1
+ENDIF
 
-RETURNF 0
+RETURN 0
 
 ;---------------------------------------------------------------
 ;部屋名出力（各マップERBファイルに受渡し
