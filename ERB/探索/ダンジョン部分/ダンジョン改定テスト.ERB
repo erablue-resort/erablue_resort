@@ -200,10 +200,10 @@ IF GETBIT(LOCAL, 1) == 0
 ENDIF
 
 ;接続先に従って線が出る場所が変わる
-IF 接続元配列:0 > 接続先配列:0
+IF TOINT(接続元配列:0) > TOINT(接続先配列:0)
 	GDRAWLINE レイヤー番号, 32 + ((TOINT(接続元配列:0) % 8) * 64), 66 + (TOINT(接続元配列:1) * 50), 64 + ((TOINT(接続先配列:0) % 8) * 64), 66 + (TOINT(接続先配列:1) * 50)
-ELSEIF 接続元配列:0 == 接続先配列:0
-	IF 接続元配列:1 > 接続先配列:1
+ELSEIF TOINT(接続元配列:0) == TOINT(接続先配列:0)
+	IF TOINT(接続元配列:1) > TOINT(接続先配列:1)
 		GDRAWLINE レイヤー番号, 48 + ((TOINT(接続元配列:0) % 8) * 64), 50 + (TOINT(接続元配列:1) * 50), 48 + ((TOINT(接続先配列:0) % 8) * 64), 82 + (TOINT(接続先配列:1) * 50)
 	ELSE
 		GDRAWLINE レイヤー番号, 48 + ((TOINT(接続元配列:0) % 8) * 64), 82 + (TOINT(接続元配列:1) * 50), 48 + ((TOINT(接続先配列:0) % 8) * 64), 50 + (TOINT(接続先配列:1) * 50)
@@ -457,3 +457,68 @@ SELECTCASE RAND:10
 ENDSELECT
 
 CALL メッセージ欄表示用関数(@"探索用_{LOCAL:1}_顔", CALLNAME:ARG,,0)
+
+
+@探索用顔グラフィック生成
+;画像リソースを全解放
+SPRITEDISPOSEALL 0
+;ダンジョン中の顔グラフィックを生成
+FOR LOCAL, 0, 4
+	GDISPOSE 2000 + LOCAL
+	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+		BREAK
+	CALLF 顔グラ表示用文字列関数(BATTLE_STATE:LOCAL:キャラ番号, 1000 + LOCAL)
+	CALLF スプライト作成(@"探索用_{LOCAL}_顔", 2000 + LOCAL, 0)
+
+	;SPRITECREATE @"探索用_{LOCAL}_顔", 2000 + LOCAL
+NEXT
+
+
+@ダンジョン終了時処理
+#DIM ループ用
+;画像リソースを全解放
+SPRITEDISPOSEALL 0
+
+EXP:MASTER:探索経験 ++
+FOR ループ用, 0, 4
+	LOCAL = BATTLE_STATE:ループ用:キャラ番号
+	IF INRANGE(LOCAL, 1, CHARANUM-1)
+		EXP:LOCAL:探索経験 ++
+		CALL SOURCE_CALC_好感度要素_信頼度UP(LOCAL, PLAYER, 100)
+		
+		;衣装を戻す
+		;TRYCALLFORM CLOTHES_CHANGE_%CSTR:LOCAL:ダンジョン突入前の服%(LOCAL)
+		DEBUGPRINTFORML %CALLNAME:LOCAL%の衣装を%CSTR:LOCAL:ダンジョン突入前の服%にしたよ
+		CALL CLOTHES_CHANGE(LOCAL, CSTR:LOCAL:ダンジョン突入前の服)
+		CSTR:LOCAL:ダンジョン突入前の服 '= ""
+	ENDIF
+NEXT
+PRINTW あなたとパーティメンバーの探索経験が増加しました
+
+;一時変数のリセット
+VARSET ダンジョン内一時変数:0
+ダンジョン名 = 
+
+VARSET 探索中カウント:0:0
+VARSET 探索中全体カウント
+
+@踏破マス開放処理
+#DIM マス数値仮受
+
+初来訪マス判定用フラグ = 0
+マス数値仮受 = GETVAR(@"ダンジョン構造配列_%ダンジョン名%:{ダンジョン現在位置:0}:{ダンジョン現在位置:1}")
+IF GETBIT(マス数値仮受, 2) == 0
+	初来訪マス判定用フラグ = 1
+ENDIF
+SETBIT マス数値仮受, 2
+CLEARBIT マス数値仮受, 3
+SETVAR @"ダンジョン構造配列_%ダンジョン名%:{ダンジョン現在位置:0}:{ダンジョン現在位置:1}", マス数値仮受
+
+@接続ルート全開放処理(マス深度, マス分岐)
+#DIM マス深度
+#DIM マス分岐
+ルート開放時フラグ = 1
+CALLFORM ダンジョンマス情報_%ダンジョン名%_{マス深度}_{マス分岐}("接続先")
+ルート開放時フラグ = 0
+
+
