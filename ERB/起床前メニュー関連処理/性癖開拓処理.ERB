@@ -97,8 +97,10 @@ IF 複数名フラグ
 
 	FOR LOCAL, 1, 100
 		IF ERDNAME(性癖素質, LOCAL) != ""
-			PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
-			PRINTL
+			IF ENUMFUNCBEGINSWITH(@"性癖開拓チャレンジ処理_%ERDNAME(性癖素質, LOCAL)%")
+				PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				PRINTL
+			ENDIF
 		ENDIF
 	NEXT
 	PRINTL
@@ -116,6 +118,9 @@ IF 複数名フラグ
 					CONTINUE
 				;すでに性癖持ってるならスキップ
 				SIF 性癖素質:キャラ番号:性癖番号
+					CONTINUE
+				;ふたなりは同性愛取れない
+				SIF ERDNAME(性癖素質, LOCAL) == "同性愛" && TALENT:キャラ番号:性別 == 3
 					CONTINUE
 				表示候補:(LOCAL:1) = キャラ番号
 				LOCAL:1 += 1
@@ -207,8 +212,13 @@ ELSE
 			;すでに性癖持ってるならスキップ
 			SIF 性癖素質:開拓対象:LOCAL
 				CONTINUE
-			PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
-			PRINTL
+			;ふたなりは同性愛取れない
+			SIF ERDNAME(性癖素質, LOCAL) == "同性愛" && TALENT:開拓対象:性別 == 3
+				CONTINUE
+			IF ENUMFUNCBEGINSWITH(@"性癖開拓チャレンジ処理_%ERDNAME(性癖素質, LOCAL)%")
+				PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				PRINTL
+			ENDIF
 		ENDIF
 	NEXT
 
@@ -227,7 +237,7 @@ ELSE
 	ENDSELECT
 ENDIF
 
-@性癖開拓チャレンジ処理_1(ARG)
+@性癖開拓チャレンジ処理_野外オナニー(ARG)
 ;野外オナニー
 PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「外で自慰をするシチュ」のエロ本が渡るように小細工した…
 PRINTL
@@ -244,7 +254,7 @@ IF 知識素質:ARG:性知識 < 0
 		PRINTFORML ぱらぱらと本をめくってみると、最近覚えたばかりのオナニーのことが書かれていることに気づいた。
 		PRINTFORMW 外で隠れてやると、オナニーはもっと気持ちいいらしい……
 		PRINTL
-		PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー]を取得した
+		PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー(興味)]を取得した
 		性癖素質:ARG:野外オナニー = 1
 		RETURN 1
 	ENDIF
@@ -276,7 +286,7 @@ IF RAND:10 < LOCAL
 		PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
 	ENDIF
 	PRINTL
-	PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー]を取得した
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[野外オナニー(興味)]を取得した
 	性癖素質:ARG:野外オナニー = 1
 	RETURN 1
 ELSE
@@ -286,7 +296,46 @@ ENDIF
 
 RETURN 0
 
-@性癖開拓チャレンジ処理_2(ARG)
+@性癖段階非同室成長_野外オナニー(キャラ番号)
+#DIM キャラ番号
+
+;既に中毒ならスキップ
+RETURN 0
+
+SELECTCASE 性癖素質:キャラ番号:野外オナニー
+	CASE 1
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:野外オナニー経験 < 30
+			RETURN 0
+		性癖素質:キャラ番号:野外オナニー = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は野外オナニーを繰り返したことでより強くなったようだ…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[野外オナニー(興味)]は[野外オナニー(愛好)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:野外オナニー経験 < 100
+			RETURN 0
+		性癖素質:キャラ番号:野外オナニー = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや野外オナニーが日常になってしまっている…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[野外オナニー(愛好)]は[野外オナニー(中毒)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+
+
+@性癖開拓チャレンジ処理_逆アナル(ARG)
 ;逆アナル
 PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「男性の尻穴になにかを挿入するシチュ」のエロ本が渡るように小細工した…
 PRINTL
@@ -320,7 +369,7 @@ IF RAND:10 < LOCAL
 	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
 	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
 	PRINTL
-	PRINTFORMW %CALLNAME:ARG%は性癖素質[逆アナル]を取得した
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[逆アナル(興味)]を取得した
 	性癖素質:ARG:逆アナル = 1
 	RETURN 1
 ELSE
@@ -330,8 +379,46 @@ ENDIF
 
 RETURN 0
 
+@性癖段階成長_逆アナル(キャラ番号)
+#DIM キャラ番号
 
-@性癖開拓チャレンジ処理_3(ARG)
+;既に中毒ならスキップ
+RETURN 0
+
+SELECTCASE 性癖素質:キャラ番号:逆アナル
+	CASE 1
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:Ｃ性交経験_Ａ挿入 < 100
+			RETURN 0
+		性癖素質:キャラ番号:逆アナル = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は逆アナル行為を繰り返したことでより強くなったようだ…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[逆アナル(興味)]は[逆アナル(愛好)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:Ｃ性交経験_Ａ挿入 < 300
+			RETURN 0
+		性癖素質:キャラ番号:逆アナル = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや逆アナル行為の虜になってしまっている…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[逆アナル(愛好)]は[逆アナル(中毒)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+
+
+@性癖開拓チャレンジ処理_搾乳プレイ(ARG)
 ;搾乳プレイ
 PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「母乳を絞られて絶頂するシチュ」のエロ本が渡るように小細工した…
 PRINTL
@@ -368,7 +455,7 @@ IF RAND:10 < LOCAL
 	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
 	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
 	PRINTL
-	PRINTFORMW %CALLNAME:ARG%は性癖素質[搾乳プレイ]を取得した
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[搾乳プレイ(興味)]を取得した
 	性癖素質:ARG:搾乳プレイ = 1
 	RETURN 1
 ELSE
@@ -378,7 +465,45 @@ ENDIF
 
 RETURN 0
 
-@性癖開拓チャレンジ処理_4(ARG)
+@性癖段階成長_搾乳プレイ(キャラ番号)
+#DIM キャラ番号
+
+;既に中毒ならスキップ
+RETURN 0
+
+SELECTCASE 性癖素質:キャラ番号:搾乳プレイ
+	CASE 1
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:搾乳快楽経験 < 100
+			RETURN 0
+		性癖素質:キャラ番号:搾乳プレイ = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は搾乳行為を繰り返したことでより強くなったようだ…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[搾乳プレイ(興味)]は[搾乳プレイ(愛好)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:搾乳快楽経験 < 300
+			RETURN 0
+		性癖素質:キャラ番号:搾乳プレイ = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや搾乳行為の虜になってしまっている…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[搾乳プレイ(愛好)]は[搾乳プレイ(中毒)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+
+@性癖開拓チャレンジ処理_触手プレイ(ARG)
 ;触手プレイ
 PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく「触手に蹂躙されてイキまくるシチュ」のエロ本が渡るように小細工した…
 PRINTL
@@ -410,7 +535,7 @@ IF RAND:10 < LOCAL
 	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
 	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
 	PRINTL
-	PRINTFORMW %CALLNAME:ARG%は性癖素質[触手プレイ]を取得した
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[触手プレイ(興味)]を取得した
 	性癖素質:ARG:触手プレイ = 1
 	RETURN 1
 ELSE
@@ -419,3 +544,143 @@ ELSE
 ENDIF
 
 RETURN 0
+
+@性癖段階成長_触手プレイ(キャラ番号)
+#DIM キャラ番号
+
+;既に中毒ならスキップ
+RETURN 0
+
+SELECTCASE 性癖素質:キャラ番号:触手プレイ
+	CASE 1
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:触手快楽経験 < 100
+			RETURN 0
+		性癖素質:キャラ番号:触手プレイ = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は触手に嬲られる行為を繰り返したことでより強くなったようだ…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[触手プレイ(興味)]は[触手プレイ(愛好)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:触手快楽経験 < 500
+			RETURN 0
+		性癖素質:キャラ番号:触手プレイ = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや触手快楽の虜になってしまっている…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[触手プレイ(愛好)]は[触手プレイ(中毒)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+
+@性癖開拓チャレンジ処理_同性愛(ARG)
+;同性愛
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく
+IF TALENT:ARG:性別 == 1
+	PRINTL 「女性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
+ELSEIF TALENT:ARG:性別 == 2
+	PRINTL 「男性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
+ENDIF
+PRINTL
+
+;エロ本を読むかどうか
+IF 知識素質:ARG:性知識 < 0
+	;性知識が-1か-2だと本の内容を理解できない
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本をぱらぱらと開いてみたが、よく意味がわからなかったようだ…
+	RETURN -1
+ENDIF
+
+;基礎確率は2/10
+LOCAL = 2
+;自制心、性的興味、性欲が影響
+LOCAL -= TALENT:ARG:自制心
+LOCAL += TALENT:ARG:性的興味 * 2
+LOCAL += TALENT:ARG:性欲
+SIF BASE:ARG:性欲 > 1500
+	LOCAL += 1
+
+;性知識が低いとマイナス
+LOCAL = LOCAL - (3 - 知識素質:ARG:性知識)
+
+SELECTCASE TALENT:ARG:性別嗜好
+	CASE -1
+		;両刀はもとから持ってるはずだが、一応確定補正つけておく
+		LOCAL = 10
+	CASE 1
+		;男の男嫌いパターン
+		SIF TALENT:ARG:性別 == 2
+			LOCAL -= 5
+	CASE 2
+		;女の女嫌いパターン
+		SIF TALENT:ARG:性別 == 1
+			LOCAL -= 5
+	CASE 3
+		;そもそも人間が嫌い
+		LOCAL -= 5
+ENDSELECT
+
+;最低確率1割は確保
+LOCAL = MAX(LOCAL, 1)
+;補正確率より低ければ読む
+IF RAND:10 < LOCAL
+	;読むパターン
+	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
+	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
+	PRINTL
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[同性愛(興味)]を取得した
+	性癖素質:ARG:同性愛 = 1
+	RETURN 1
+ELSE
+	;読まないパターン
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
+ENDIF
+
+RETURN 0
+
+@性癖段階成長_同性愛(キャラ番号)
+#DIM キャラ番号
+
+;既に中毒ならスキップ
+RETURN 0
+
+SELECTCASE 性癖素質:キャラ番号:同性愛
+	CASE 1
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:同性愛経験 < 500
+			RETURN 0
+		性癖素質:キャラ番号:同性愛 = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は同性と肌を重ねる行為を繰り返したことでより強くなったようだ…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[同性愛(興味)]は[同性愛(愛好)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		SIF EXP:キャラ番号:同性愛経験 < 2000
+			RETURN 0
+		性癖素質:キャラ番号:同性愛 = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや同性との情事に魅了されてしまっている…
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[同性愛(愛好)]は[同性愛(中毒)]に成長した
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT

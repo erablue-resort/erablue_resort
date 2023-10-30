@@ -16,14 +16,26 @@ SIF CFLAG:ARG:睡眠
 ;性知識が無い場合はオナニー出来ない
 SIF 知識素質:ARG:性知識 < 0 && EXP:ARG:自慰経験 <= 0
 	RETURN 0
-;前回の野外オナニーの正常終了から２時間経過してないとしない
-SIF TCVAR:ARG:野外オナニー_開始時刻 + 2 * 60 > NOW()
-	RETURN 0
+;前回の野外オナニーの正常終了から時間経過してないとしない
+;興味の場合は一日一回、愛好の場合は４時間置き、中毒の場合は２時間置き
+SELECTCASE 性癖素質:ARG:野外オナニー
+	CASE 1
+		SIF TCVAR:ARG:野外オナニー_開始時刻
+			RETURN 0
+	CASE 2
+		SIF TCVAR:ARG:野外オナニー_開始時刻 + 4 * 60 > NOW()
+			RETURN 0
+	CASE 3
+		SIF TCVAR:ARG:野外オナニー_開始時刻 + 2 * 60 > NOW()
+			RETURN 0
+ENDSELECT
 ;性欲や自慰しやすいなどの条件を見る
 IF BASE:ARG:性欲 >= (1000 - TALENT:ARG:自慰しやすい * 200)
 	;通常オナニー条件
 ELSEIF CFLAG:ARG:オナニー覚えたて
 	;覚えたて補正
+ELSEIF 性癖素質:ARG:野外オナニー == 3
+	;中毒時は性欲関係なし
 ELSE
 	;上記の条件に当てはまらないなら0で戻す
 	RETURN 0
@@ -323,6 +335,7 @@ ENDIF
 オナニー回数 += RAND(ABL:ARG:オナニー部位 + 1)
 
 EXP:ARG:自慰経験 += オナニー回数
+EXP:ARG:野外オナニー経験 += オナニー回数
 EXP:ARG:オナニー部位 += オナニー回数
 性欲減少量 = MAX(200, オナニー回数 * (MAXBASE:ARG:性欲 / 20))
 BASE:ARG:性欲 = MAX(BASE:ARG:性欲 - 性欲減少量, 0)

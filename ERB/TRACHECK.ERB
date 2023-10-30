@@ -500,6 +500,13 @@ NOWEX:ARG:恋心度上昇格納 = MIN(NOWEX:ARG:恋心度上昇格納, NOWEX:ARG
 NOWEX:ARG:性愛度上昇格納 = MIN(NOWEX:ARG:性愛度上昇格納, NOWEX:ARG:好感度上昇格納)
 NOWEX:ARG:キャラ固有好感度要素上昇格納 = MIN(NOWEX:ARG:キャラ固有好感度要素上昇格納, NOWEX:ARG:好感度上昇格納)
 
+;恋愛対象外だと恋心を友情に、性愛を０に
+IF 恋愛対象外チェック(ARG)
+	NOWEX:ARG:友情度上昇格納 += NOWEX:ARG:恋心度上昇格納
+	NOWEX:ARG:恋心度上昇格納 = 0
+	NOWEX:ARG:性愛度上昇格納 = 0
+ENDIF
+
 ;好感度表示
 TFLAG:好感度計算用 += NOWEX:ARG:好感度上昇格納
 CALL 関係性ゲージUP用関数(ARG, TFLAG:好感度計算用, "好感度")
@@ -545,6 +552,11 @@ ELSE
 ENDIF
 
 
+;恋愛対象外だと０に
+IF 恋愛対象外チェック(ARG)
+	NOWEX:ARG:恋慕度上昇格納 = 0
+ENDIF
+
 ;恋慕度
 SIF CFLAG:ARG:ゲージ起動分類 == 1 && NOWEX:ARG:恋慕度上昇格納
 	CALL 関係性ゲージUP用関数(ARG, NOWEX:ARG:恋慕度上昇格納, "恋慕度")
@@ -556,6 +568,33 @@ FOR ループ用, 0, CHARANUM
 	ENDIF
 NEXT
 
+@恋愛対象外チェック(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 対象外フラグ
+対象外フラグ = 0
+
+;性知識が-2（完全に無知）なら恋愛という概念がないので対象外
+IF 知識素質:キャラ番号:性知識 == -2
+	;ただし、あなたの手で絶頂したことがあるなら対象になる
+	IF 初体験日:キャラ番号:あなたの手で初絶頂
+		対象外フラグ = 0
+	ELSE
+		対象外フラグ = 1
+	ENDIF
+ENDIF
+
+;性別が同じ、かつふたなりでないなら恋愛対象外
+IF TALENT:PLAYER:性別 == TALENT:キャラ番号:性別 && TALENT:PLAYER:性別 != 3
+	;ただし同性愛系の性癖があれば対象になる
+	IF 性癖素質:キャラ番号:同性愛
+		対象外フラグ = 0
+	ELSE
+		対象外フラグ = 1
+	ENDIF
+ENDIF
+
+RETURNF 対象外フラグ
 
 
 
