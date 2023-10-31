@@ -10,6 +10,7 @@
 #DIM バスト数値設定フラグ
 #DIM フレーバー素質数値保存, 10
 #DIM 知識素質数値保存, 20
+#DIM 性癖素質数値保存, 20
 #DIM 服装数値保存, 30
 #DIM ABL一時保存, 50
 #DIM ABL数値保存, 50
@@ -219,6 +220,8 @@ ENDIF
 IF CSVエディタフラグ
 	LOCALS += "<button value='132'>[132] 知識素質を設定する</button>"
 	LOCALS += "<br>"
+	LOCALS += "<button value='133'>[133] 性癖素質を設定する</button>"
+	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='140'>[140] 能力を設定する</button>"
 LOCALS += "<br>"
@@ -381,6 +384,23 @@ SELECTCASE 表示モード
 			SIF 知識素質数値保存:LOCAL == 0
 				CONTINUE
 			LOCALS += @"[%ERDNAME(知識素質, LOCAL)%Lv{知識素質数値保存:LOCAL}]"
+		NEXT
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "□ 性癖 □---------------------------------------------------------------<br>"
+		LOCALS:1 = 
+		FOR LOCAL, 1, 20
+			SIF 性癖素質数値保存:LOCAL == 0
+				CONTINUE
+			LOCALS += @"[%ERDNAME(性癖素質, LOCAL)%"
+			SELECTCASE 性癖素質数値保存:LOCAL
+				CASE 1
+					LOCALS += "(興味)]"
+				CASE 2
+					LOCALS += "(愛好)]"
+				CASE 3
+					LOCALS += "(中毒)]"
+			ENDSELECT
 		NEXT
 		LOCALS += "<br>"
 		LOCALS += "<br>"
@@ -896,6 +916,35 @@ SELECTCASE 表示モード
 		LOCALS += "<div rect='340px,481px,588px,450px'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
+	CASE 133
+		FOR COUNT, 1, 20
+			SIF ERDNAME(性癖素質, COUNT) == ""
+				CONTINUE
+			LOCALS += @"%ERDNAME(性癖素質, COUNT), 12, LEFT%："
+			FOR LOCAL:1, 0, 4
+				SELECTCASE LOCAL:1
+					CASE 0
+						LOCALS:2 = なし
+					CASE 1
+						LOCALS:2 = 興味
+					CASE 2
+						LOCALS:2 = 愛好
+					CASE 3
+						LOCALS:2 = 中毒
+				ENDSELECT
+				IF 性癖素質数値保存:COUNT == LOCAL:1
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{80000 + COUNT * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+			NEXT
+			LOCALS += "<br>"
+		NEXT
+		LOCALS += "</div>"
+		LOCALS += "<div rect='340px,481px,588px,450px'>"
+		LOCALS += "　　　　　　"
+		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 140
 		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
 			SIF ABL一時保存:LOCAL == -1
@@ -1159,6 +1208,9 @@ SELECTCASE LOCAL
 		PRINTL 服装名を入力してください。（１５文字まで）
 		INPUTS
 		ランダムキャラ服装名 = %SUBSTRING(RESULTS, 0, 30)%
+;性癖素質----------------------------------------------------
+	CASE 80000 TO 80209
+		性癖素質数値保存:((LOCAL - 80000) / 10) = LOCAL % 10
 ;メイン画面--------------------------------------------------------
 	CASE 100
 		PRINTL 名前を入力してください。（９文字まで）
@@ -1185,6 +1237,9 @@ SELECTCASE LOCAL
 	CASE 132
 		ページ数 = 0
 		表示モード = 132
+	CASE 133
+		ページ数 = 0
+		表示モード = 133
 	CASE 140
 		ページ数 = 0
 		表示モード = 140
@@ -1224,19 +1279,22 @@ SELECTCASE LOCAL
 			PRINTL {
 			PRINTL CSTR,知識素質設定,
 			PRINTFORML 性知識Lv{ランダムキャラ素質:6}
-			PRINTFORML 調合知識Lv{知識素質数値保存:1}
-			PRINTFORML 魔法知識Lv{知識素質数値保存:2}
-			PRINTFORML 機械知識Lv{知識素質数値保存:3}
-			PRINTFORML 錬金知識Lv{知識素質数値保存:4}
-			PRINTFORML 魔物知識Lv{知識素質数値保存:5}
-			PRINTFORML 絵師Lv{知識素質数値保存:6}
-			PRINTFORML 高貴Lv{知識素質数値保存:7}
-			PRINTFORML 釣り好きLv{知識素質数値保存:8}
-			PRINTFORML 踊り子Lv{知識素質数値保存:9}
-			PRINTFORML 歌唱技能Lv{知識素質数値保存:10}
-			PRINTFORML 料理人Lv{知識素質数値保存:11}
+			FOR LOCAL, 1, 20
+				IF ERDNAME(知識素質, LOCAL) != ""
+					PRINTFORML %ERDNAME(知識素質, LOCAL)%Lv{知識素質数値保存:LOCAL}
+				ENDIF
+			NEXT
 			PRINTL }
 			PRINTL 
+			PRINTL {
+			PRINTL CSTR,性癖素質設定,
+			FOR LOCAL, 1, 20
+				IF ERDNAME(性癖素質, LOCAL) != ""
+					PRINTFORML %ERDNAME(性癖素質, LOCAL)%Lv{性癖素質数値保存:LOCAL}
+				ENDIF
+			NEXT
+			PRINTL }
+			PRINTL
 			PRINTFORML 素質,種族,{ランダムキャラ素質:0}
 			PRINTFORML 素質,性別,{ランダムキャラ素質:1}
 			IF GETBIT(ランダムキャラ素質:2, 0)
