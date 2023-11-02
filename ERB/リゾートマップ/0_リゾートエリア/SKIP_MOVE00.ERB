@@ -10,7 +10,7 @@
 #DIM スタート地点
 #DIM スタートマップ
 #DIM 目的マップ
-#DIM 移動キャラ = 0
+#DIM 移動キャラ
 
 ;現在位置取得
 移動キャラ = 0
@@ -21,6 +21,45 @@ IF ARG:1
 ENDIF
 
 $LOOP
+
+;マップ間を移動する際の処理
+;（下のパターン分けでやると爆発的に量が増えていくため追加）
+;マップ種別取得
+スタートマップ = 派生マップ番号取得(0, スタート地点)
+目的マップ = 派生マップ番号取得(0, ARG)
+IF スタートマップ != 目的マップ
+	;スタート種別ごとに場合分け
+	SELECTCASE スタートマップ
+		CASE 0
+			SELECTCASE 目的マップ
+				CASE 3
+					ARG = 3
+				CASE 5
+					ARG = 5
+				CASE 7
+					ARG = 7
+				CASE 8
+					ARG = 8
+				CASE 15
+					ARG = 15
+			ENDSELECT
+		CASE 3
+			ARG = 2
+		CASE 5
+			ARG = 2
+		CASE 7
+			ARG = 6
+		CASE 8
+			ARG = 6
+		CASE 15
+			IF (TALENT:移動キャラ:性別 & 1 == 1)
+				;女部分があれば女子
+				ARG = 14
+			ELSE
+				ARG = 13
+			ENDIF
+	ENDSELECT
+ENDIF
 
 ;暫定目的地に直接移動できる場合
 IF CAN_MOVE_1(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
@@ -53,46 +92,13 @@ SELECTCASE スタート地点
 	CASE 803 TO 811
 		RETURN 802
 	CASE 1503 TO 1507
-		IF TALENT:移動キャラ:性別 == 10
+		IF TALENT:移動キャラ:性別 == 2
 			RETURN 1513
 		ELSE
 			RETURN 1514
 		ENDIF
 ENDSELECT
 
-;マップ間を移動する際の処理
-;（下のパターン分けでやると爆発的に量が増えていくため追加）
-;マップ種別取得
-スタートマップ = 派生マップ番号取得(0, スタート地点)
-目的マップ = 派生マップ番号取得(0, ARG)
-IF スタートマップ != 目的マップ
-	;スタート種別ごとに場合分け
-	SELECTCASE スタートマップ
-		CASE 0
-			SELECTCASE 目的マップ
-				CASE 3
-					RETURN 3
-				CASE 5
-					RETURN 5
-				CASE 7
-					RETURN 7
-				CASE 8
-					RETURN 8
-				CASE 15
-					RETURN 15
-			ENDSELECT
-		CASE 3
-			RETURN 2
-		CASE 5
-			RETURN 6
-		CASE 7
-			RETURN 6
-		CASE 8
-			RETURN 2
-		CASE 15
-			RETURN 2
-	ENDSELECT
-ENDIF
 
 ;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
 ;地点追加時要フォロー（全ケース修正すること）
@@ -213,5 +219,4 @@ CASE 803 TO 811
 
 ENDSELECT
 GOTO LOOP
-
 

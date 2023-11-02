@@ -1,0 +1,89 @@
+﻿@COMNAME314
+#FUNCTIONS
+TSTR:コマンド名受渡 = プレゼントを渡す
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_314
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_314
+LOCALS = <br>■プレゼントを渡す<br>
+LOCALS += "相手にプレゼントを渡すコマンド。渡す種類によって大成功、成功、微妙に分岐。<br>一度実行した後は１時間のインターバルが必要。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服・接触"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM314
+IF LOCAL <= 9
+	;10％で大成功
+	RFLAG:コマンド結果受渡し変数 = 1
+ELSEIF LOCAL >= LOCAL:1
+	;10～1％で失敗
+	RFLAG:コマンド結果受渡し変数 = -1
+ELSE
+	;残りは成功
+	RFLAG:コマンド結果受渡し変数 = 0
+ENDIF
+
+
+
+;歓楽強度
+LOCAL:0 = 200
+;征服
+LOCAL:1 = 100
+IF RFLAG:コマンド結果受渡し変数 == -1
+	TIMES LOCAL:0 , 0.10
+	TIMES LOCAL:1 , 0.50
+ELSEIF RFLAG:コマンド結果受渡し変数 == 0
+	TIMES LOCAL:0 , 1.00
+	TIMES LOCAL:1 , 1.00
+ELSE
+	TIMES LOCAL:0 , 2.00
+	TIMES LOCAL:1 , 2.00
+ENDIF
+
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
+IF RFLAG:コマンド結果受渡し変数 == -1
+	CALL SOURCE_CALC_不快(TARGET, PLAYER, 100)
+ELSE
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0 / 3)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, LOCAL:0 / 4)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, LOCAL:0 / 3)
+ENDIF
+TIME += 15
+
+;ハグしたフラグ
+TCVAR:ハグ時刻 = 1440 * DAY + TIME
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE314
+;作成中なので封印
+RETURN 0
+
+;実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(314)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM314
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に　　をプレゼントした

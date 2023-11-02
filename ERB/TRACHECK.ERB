@@ -450,16 +450,25 @@ SIF SELECTCOM == 404
 	RETURN 0
 ;主人(あなた)と対象の能力を計算
 
-;ついでにムードと理性
-	BASE:ARG:ムード += MIN(CFLAG:ARG:好感度レベル * NOWEX:ARG:好感度上昇格納 / 200, 200)
-	BASE:ARG:ムード += MIN(CFLAG:ARG:恋慕レベル * NOWEX:ARG:好感度上昇格納 / 100, 300)
-	BASE:ARG:ムード = MIN(BASE:ARG:ムード , MAXBASE:ARG:ムード )
-	BASE:ARG:ムード = MAX(BASE:ARG:ムード , 0 )
-	
-	BASE:ARG:理性 -= MIN(NOWEX:ARG:好感度上昇格納 / 100 * (GETPALAMLV(PALAM:ARG:欲情,5) + 1), 200)
-	BASE:ARG:理性 -= (CUP:ARG:快Ｂ + CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｓ) / 100
-	BASE:ARG:理性 = MIN(BASE:ARG:理性 , MAXBASE:ARG:理性 )
-	BASE:ARG:理性 = MAX(BASE:ARG:理性 , 0 )
+;ムードは恋愛対象外、あるいはその場に陥落してない他キャラがいると上がらない、MAX1500
+IF ムード上昇状況チェック(ARG)
+	;固定値上昇分
+	BASE:ARG:ムード += CFLAG:ARG:好感度レベル + CFLAG:ARG:恋慕レベル
+	;コマンドなどでの上昇分
+	BASE:ARG:ムード += NOWEX:ARG:ムード上昇格納
+	BASE:ARG:ムード = LIMIT(BASE:ARG:ムード, 0, MAXBASE:ARG:ムード)
+ELSE
+	BASE:ARG:ムード = 0
+ENDIF
+
+;理性は発情期・性欲に応じて上限にキャップがつく、MAX1000
+BASE:ARG:理性 -= NOWEX:ARG:理性減少格納
+SIF TCVAR:ARG:弱点コマンドフラグ
+	BASE:ARG:理性 -= 50
+BASE:ARG:理性 -= (CUP:ARG:快Ｂ + CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｓ) / 100
+
+BASE:ARG:理性 = LIMIT(BASE:ARG:理性, 0, 理性キャップ算出(ARG))
+
 IF TFLAG:調教モード != 2
 	SIF SOURCE:ARG:反感 > 0 && TFLAG:調教モード == 1
 		BASE:ARG:怒り += SOURCE:ARG:反感 * 3 * (2000 - BASE:ARG:ムード) * (500 + BASE:ARG:理性) / ((2000 + BASE:ARG:ムード) * (500 + MAXBASE:ARG:理性))
@@ -520,8 +529,41 @@ FOR ループ用, 0, CHARANUM
 	ENDIF
 NEXT
 
+@ムード上昇状況チェック(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
 
+;恋愛対象外は対象外
+SIF 恋愛対象外チェック(キャラ番号)
+	RETURNF 0
+;片方隠密時は対象外
+SIF CFLAG:PLAYER:隠密 != CFLAG:キャラ番号:隠密
+	RETURNF 0
 
+;陥落していない第三者がいると対象外
+VARSET LOCAL
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		BREAK
+	;ただしこっちが隠密or相手が隠密ならカウントしない
+	SIF CFLAG:PLAYER:隠密 != CFLAG:LOCAL:隠密
+		CONTINUE
+	SIF TALENT:(TARGET:LOCAL):恋慕 == 0 && TALENT:(TARGET:LOCAL):セフレ == 0
+		RETURNF 0
+NEXT
+
+RETURNF 1
+
+@理性キャップ算出(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+
+LOCAL = MAXBASE:キャラ番号:理性 - BASE:キャラ番号:性欲 / 10
+SIF CFLAG:キャラ番号:発情期フラグ < 0
+	LOCAL = LOCAL - 200
+LOCAL = MAX(LOCAL, 1)
+
+RETURNF LOCAL
 
 ;-------------------------------------------------
 ;恋慕度処理
@@ -574,8 +616,8 @@ NEXT
 #DIM 対象外フラグ
 対象外フラグ = 0
 
-;性知識が-2（完全に無知）なら恋愛という概念がないので対象外
-IF 知識素質:キャラ番号:性知識 == -2
+;性知識がマイナスなら恋愛という概念がないので対象外
+IF 知識素質:キャラ番号:性知識 == -1
 	;ただし、あなたの手で絶頂したことがあるなら対象になる
 	IF 初体験日:キャラ番号:あなたの手で初絶頂
 		対象外フラグ = 0
