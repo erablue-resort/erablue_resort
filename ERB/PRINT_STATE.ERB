@@ -138,6 +138,9 @@ ENDIF
 @通常能力表示画面(ARG)
 #DIMS 弱点コマンドSPLIT用配列, 10
 #DIM L_C, 2
+#DIM 同行キャラ番, 100
+#DIM 同行キャラ値, 100
+#DIMS Arrays = "同行キャラ番", "同行キャラ値"
 ;ここで立ち絵表示
 CALL 画像描画終了
 IF GETBIT(画像サイズ切り替えOPTION記憶, 1)
@@ -146,16 +149,37 @@ ELSE
 	HTML_PRINT @"<div rect='650px, 38px, 180px, 180px'>%顔グラ表示用文字列関数(ARG)%</div>", 1
 ENDIF
 
+VARSET 同行キャラ番
+VARSET 同行キャラ値
+
 LOCALS = □ 招待時同行キャラ □-----------------<br>
+FOR LOCAL, 0, 100
+	同行キャラ番:LOCAL = 同行候補キャラ番号:ARG:LOCAL
+	同行キャラ値:LOCAL = 同行候補キャラ確率:ARG:LOCAL
+NEXT
+IF 同行キャラ番:15 > 0
+	;同行候補キャラが15人以上いる場合、確率の高い順でソートする
+	ARRAYMSORTEX 同行キャラ値, Arrays, 0
+ENDIF
 FOR LOCAL, 0, 15
-	IF 同行候補キャラ番号:ARG:LOCAL < 1
+;	IF 同行候補キャラ番号:ARG:LOCAL < 1
+	IF 同行キャラ番:LOCAL < 1
 		;LOCALS += "<br>"
 		;CONTINUE
 		BREAK
 	ENDIF
-	LOCALS += @"　%CALLNAME:(同行候補キャラ番号:ARG:LOCAL), 20, LEFT%"
-	LOCALS += @"：{同行候補キャラ確率:ARG:LOCAL}％<br>"
+;	LOCALS += @"　%CALLNAME:(同行候補キャラ番号:ARG:LOCAL), 20, LEFT%"
+;	LOCALS += @"：{同行候補キャラ確率:ARG:LOCAL}"
+	LOCALS += @"　%CALLNAME:(同行キャラ番:LOCAL), 20, LEFT%"
+	LOCALS += @"：{MIN(同行キャラ値:LOCAL, 100)}"
+	[IF_DEBUG]
+		LOCALS += @"<font color='#666666'>.%TOSTR(GET_RELATION(ARG, 同行キャラ番:LOCAL)%100, "00")%</font>"
+	[ENDIF]
+	LOCALS += "％<br>"
 NEXT
+SIF 同行キャラ番:15 > 0
+	LOCALS += @"　他、{(FINDELEMENT(同行キャラ番, 0) >  0 ? FINDELEMENT(同行キャラ番, 0)# 100) - 15}名<br>"
+
 LOCALS += "<br>□ 弱点コマンド □---------------------<br>"
 
 FOR LOCAL, 0, 5

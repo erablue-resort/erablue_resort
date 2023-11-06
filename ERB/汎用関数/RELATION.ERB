@@ -1,0 +1,216 @@
+
+;-------------------------------------------------
+;キャラ同士の関係性の変動を保持・参照する関数郡
+;-------------------------------------------------
+;SET_RELATION(キャラ登録番号)　同行候補キャラ設定より、関係性の初期値を設定する
+;-------------------------------------------------
+@SET_RELATION(ARG)
+#DIM L_CNT
+#DIM L_C
+#DIM REL_NO
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURN
+
+VARSET LOCAL
+FOR L_CNT, 0, 100
+	SIF L_CNT >= CHARANUM
+		BREAK
+	LOCAL:L_CNT = 同行候補キャラ番号:ARG:L_CNT
+NEXT
+
+L_C = 0
+FOR L_CNT, 1, CHARANUM
+	REL_NO = FINDELEMENT(同行候補キャラ番号:ARG:0, L_CNT)
+	SIF REL_NO < 0
+		CONTINUE
+	RELATION_NO:ARG:L_C = 同行候補キャラ番号:ARG:REL_NO
+	RELATION_VAL:ARG:L_C += 同行候補キャラ確率:ARG:REL_NO * 100
+	L_C ++
+	SIF L_C >= 100
+		BREAK
+NEXT
+;-------------------------------------------------
+;ADD_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2を加算する
+;加算結果が100を上回るたび、同行候補キャラ確率を上昇させる
+;-------------------------------------------------
+@ADD_RELATION(ARG, ARG:1, ARG:2)
+#DIM L_CNT
+#DIM REL_NO
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURN
+SIF !INRANGE(ARG:1, 0, CHARANUM-1)
+	RETURN
+
+;同キャラの場合戻る
+SIF ARG == ARG:1
+	RETURN
+
+REL_NO = FINDELEMENT(RELATION_NO:ARG:0, ARG:1)
+
+IF REL_NO < 0 && ARG:2 < 1
+	;まだ関係性が存在しない場合かつ加算ではない場合、変動させず0を返す
+	RETURN
+ELSEIF REL_NO < 0
+	;まだ関係性が存在しない場合、新規に作成する
+	L_CNT = FINDELEMENT(RELATION_NO:ARG:0, 0)
+	IF L_CNT >= 0
+;	FOR L_CNT, 0, 100
+;		SIF RELATION_NO:ARG:L_CNT
+;			CONTINUE
+		RELATION_NO:ARG:L_CNT = ARG:1
+		RELATION_VAL:ARG:L_CNT = ARG:2
+		DEBUGPRINTFORML %CALLNAME:ARG%のRELATION:{L_CNT}={ARG:1}/{RELATION_VAL:ARG:L_CNT}
+;		BREAK
+;	NEXT
+;	IF L_CNT == 99 && RELATION_NO:L_CNT != ARG:1
+	ELSE
+		;空きがない場合、削除して追加する
+		CALL DEL_RELATION(ARG, -1)
+		RELATION_NO:ARG:99 = ARG:1
+		RELATION_VAL:ARG:99 = ARG:2
+		DEBUGPRINTFORML %CALLNAME:ARG%のRELATION:99={ARG:1}/{RELATION_VAL:ARG:REL_NO}
+	ENDIF
+	;関係性の値が500を超えた場合、同行候補になる
+	IF ARG:2 >= 500
+		CALL SET_同行候補(ARG, ARG:1, ARG:2)
+	ENDIF
+ELSE
+	;すでに関係性が存在する場合、増加させる
+	;増加後、100の位が繰り上がる場合は同行確率を上昇させる
+	LOCAL:100 =  RELATION_VAL:ARG:REL_NO % 100 + ARG:2
+	RELATION_VAL:ARG:REL_NO += ARG:2
+	DEBUGPRINTFORML %CALLNAME:ARG%のRELATION:{REL_NO}={ARG:1}/{RELATION_VAL:ARG:REL_NO-ARG:2}→{RELATION_VAL:ARG:REL_NO}
+	IF LOCAL:100 >= 100
+		LOCAL = FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1)
+		IF LOCAL >= 0
+			同行候補キャラ確率:ARG:LOCAL += LOCAL:100 / 100
+		ELSEIF RELATION_VAL:ARG:REL_NO >= 500
+			;新規に同行関係になるのは5％から
+			CALL SET_同行候補(ARG, ARG:1, RELATION_VAL:ARG:REL_NO)
+		ENDIF
+	ENDIF
+	;負の値は保持しない
+	IF RELATION_VAL:ARG:REL_NO < 0
+		CALL DEL_RELATION(ARG, ARG:1)
+		RETURN
+	ENDIF
+ENDIF
+RETURN
+
+;-------------------------------------------------
+;GET_RELATION(ARG, ARG:1)　キャラ登録番号ARGのARG:1に対する関係性を獲得する
+;-------------------------------------------------
+@GET_RELATION(ARG, ARG:1)
+#FUNCTION
+#DIM L_CNT
+#DIM REL_NO
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURNF 0
+SIF !INRANGE(ARG:1, 0, CHARANUM-1)
+	RETURNF 0
+
+;VARSET LOCAL
+;FOR L_CNT, 0, 100
+;	LOCAL:L_CNT = RELATION_NO:ARG:L_CNT
+;NEXT
+
+;REL_NO = FINDELEMENT(LOCAL, ARG:1)
+REL_NO = FINDELEMENT(RELATION_NO:ARG:0, ARG:1)
+RESULT:1 = REL_NO
+SIF REL_NO < 0
+	RETURNF 0
+
+RETURNF RELATION_VAL:ARG:REL_NO
+
+;-------------------------------------------------
+;DEL_RELATION(ARG, ARG:1)　キャラ登録番号ARGのARG:1に対する関係性を破棄する
+;ARG:1が負の値の場合、{絶対値}個分が空になるようにRELATION_VALが低い順に破棄する
+;-------------------------------------------------
+@DEL_RELATION(ARG, ARG:1)
+#DIM L_CNT
+#DIM REL_NO, 3
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURN
+
+IF ARG:1 >= 0
+	;キャラ番号ARG:1を探して削除する
+	REL_NO = FINDELEMENT(RELATION_NO:ARG:0, ARG:1)
+	IF REL_NO >= 0
+		DEBUGPRINTFORM %CALLNAME:ARG%のRELATION:{REL_NO}＝{RELATION_NO:ARG:REL_NO}/{RELATION_VAL:ARG:REL_NO}→
+		ARRAYREMOVE RELATION_NO:ARG:0, REL_NO, 1
+		ARRAYREMOVE RELATION_VAL:ARG:0, REL_NO, 1
+		DEBUGPRINTFORML {RELATION_NO:ARG:REL_NO}/{RELATION_VAL:ARG:REL_NO}
+		;同行候補も削除する
+		REL_NO:1 = FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1)
+		IF REL_NO >= 0
+			ARRAYREMOVE 同行候補キャラ番号:ARG:0, REL_NO:1, 1
+			ARRAYREMOVE 同行候補キャラ確率:ARG:0, REL_NO:1, 1
+		ENDIF
+	ENDIF
+ELSE
+	FOR LOCAL, 0, ABS(ARG:1)
+		;一番低い値を探して破棄する
+		REL_NO = FINDELEMENT(RELATION_VAL:ARG:0, MINARRAY(RELATION_VAL:ARG:0, 0, 100 - ABS(ARG:1)))
+		;登録されているキャラ番号を記録しておく
+		REL_NO:2 = RELATION_NO:ARG:REL_NO
+		ARRAYREMOVE RELATION_NO:ARG:0, REL_NO, 1
+		ARRAYREMOVE RELATION_VAL:ARG:0, REL_NO, 1
+		;同行候補も削除する
+		REL_NO:1 = FINDELEMENT(同行候補キャラ番号:ARG:0, REL_NO:2)
+		IF REL_NO >= 0
+			ARRAYREMOVE 同行候補キャラ番号:ARG:0, REL_NO:1, 1
+			ARRAYREMOVE 同行候補キャラ確率:ARG:0, REL_NO:1, 1
+		ENDIF
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;SET_同行候補(ARG, ARG:1, ARG:2)　
+;キャラ登録番号ARGにARG:1を同行候補として設定する。同行確率は(ARG:2)/100
+;-------------------------------------------------
+@SET_同行候補(ARG, ARG:1, ARG:2)
+#DIM L_CNT
+#DIM REL_NO
+
+REL_NO = FINDELEMENT(同行候補キャラ番号:ARG:0, 0)
+IF REL_NO < 0
+	;空きがない場合、空きを作る
+	CALL DEL_RELATION(ARG, -1)
+	REL_NO = 99
+ENDIF
+
+DEBUGPRINTFORM %CALLNAME:ARG%の同行候補キャラ:{REL_NO}＝{同行候補キャラ番号:ARG:REL_NO}/{同行候補キャラ確率:ARG:REL_NO}→
+同行候補キャラ番号:ARG:REL_NO = ARG:1
+同行候補キャラ確率:ARG:REL_NO = ARG:2 / 100
+DEBUGPRINTFORML {同行候補キャラ番号:ARG:REL_NO}/{同行候補キャラ確率:ARG:REL_NO}
+
+;-------------------------------------------------
+;関係性一括上昇(ARG, ARG:1, ARG:2)　
+;キャラ登録番号ARGのその場にいるTARGET全員に対するRELATIONを(ARG:1)上昇させる
+;ARG:2は成功度合いによる補正。-1で半分、0で等倍、1で1.5倍、2で2倍…となる
+;-------------------------------------------------
+@関係性一括上昇(ARG, ARG:1, ARG:2=0)
+#DIM L_CNT
+
+FOR L_CNT, 1, CHARANUM
+	SIF FINDELEMENT(TARGET, L_CNT) < 0 || CFLAG:L_CNT:睡眠 || CFLAG:L_CNT:隠密 || ARG == L_CNT
+		CONTINUE
+	CALL ADD_RELATION(ARG, L_CNT, ARG:1 * (ARG:2 + 2) / 2)
+NEXT
+
+;-------------------------------------------------
+;関係性一括上昇_探索(ARG, ARG:1)　
+;キャラ登録番号ARGの探索パーティ全員に対するRELATIONを(ARG:1)上昇させる
+;ARG:2は成功度合いによる補正。-1で半分、0で等倍、1で1.5倍、2で2倍…となる
+;-------------------------------------------------
+@関係性一括上昇_探索(ARG, ARG:1, ARG:2=0)
+#DIM L_CNT
+
+FOR L_CNT, 0, 4
+	SIF BATTLE_STATE:L_CNT:キャラ番号 < 1 || BATTLE_STATE:L_CNT:キャラ番号 == ARG
+		CONTINUE
+	CALL ADD_RELATION(ARG, BATTLE_STATE:L_CNT:キャラ番号, ARG:1 * (ARG:2 + 2) / 2)
+NEXT
