@@ -11,64 +11,76 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
 
 @COM_TOOLTIP_314
 LOCALS = <br>■プレゼントを渡す<br>
-LOCALS += "相手にプレゼントを渡すコマンド。渡す種類によって大成功、成功、微妙に分岐。<br>一度実行した後は１時間のインターバルが必要。"
+LOCALS += "相手にプレゼントを渡すコマンド。渡す種類によって特殊反応、大成功、成功に分岐。"
 LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服・接触"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM314
-IF LOCAL <= 9
-	;10％で大成功
-	RFLAG:コマンド結果受渡し変数 = 1
-ELSEIF LOCAL >= LOCAL:1
-	;10～1％で失敗
-	RFLAG:コマンド結果受渡し変数 = -1
+#DIMS カテゴリ配列, 10
+#DIM 選択プレゼント番号
+;まずプレゼントアイテム一覧を出す
+CALL 素材アイテム一覧表示("プレゼントカテゴリ IS NOT NULL and 所持素材数 > 0", 1)
+SIF RESULT == -1
+	RETURN -1
+;選択プレゼント番号には行ではなくIDが入っているので注意
+選択プレゼント番号 = RESULT
+DT_CELL_SET "所持素材データベース", 選択プレゼント番号, "所持素材数", DT_CELL_GET("所持素材データベース", 選択プレゼント番号, "所持素材数", 1) - 1, 1
+
+;RSTR:コマンド結果受渡し文字列：渡したアイテムの名前
+;RFLAG:コマンド結果受渡し変数２：渡したアイテムのランク
+RSTR:コマンド結果受渡し文字列 = %DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "素材アイテム名", 1)%
+RFLAG:コマンド結果受渡し変数２ = DT_CELL_GET("所持素材データベース", 選択プレゼント番号, "素材ランク", 1)
+
+;TARGETの好みカテゴリを取得
+VARSET カテゴリ配列
+SPLIT CSTR:TARGET:プレゼント好み, "_", カテゴリ配列
+
+;好みに含まれているか判定
+RESULT = 0
+TRYCALLFORM プレゼント特殊反応_CHARAEVENT_{NO:TARGET}(RSTR:コマンド結果受渡し文字列)
+IF RESULT
+	;特殊反応あり
+	RFLAG:コマンド結果受渡し変数 = 2
 ELSE
-	;残りは成功
-	RFLAG:コマンド結果受渡し変数 = 0
-ENDIF
+	IF MATCH(カテゴリ配列, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1))
+		;好みに含まれる
+		RFLAG:コマンド結果受渡し変数 = 1
+	ELSE
+		;好みに含まれない
+		RFLAG:コマンド結果受渡し変数 = 0
+	ENDIF
 
+	;歓楽強度
+	LOCAL:0 = 200 * RFLAG:コマンド結果受渡し変数２ + 400
+	;征服
+	LOCAL:1 = 50 * RFLAG:コマンド結果受渡し変数２ + 100
+	IF RFLAG:コマンド結果受渡し変数 == 0
+		;通常反応
+		TIMES LOCAL:0 , 1.00
+		TIMES LOCAL:1 , 1.00
+	ELSEIF RFLAG:コマンド結果受渡し変数 == 1
+		;大成功時
+		TIMES LOCAL:0 , 2.00
+		TIMES LOCAL:1 , 2.00
+	ENDIF
 
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+	CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
 
-;歓楽強度
-LOCAL:0 = 200
-;征服
-LOCAL:1 = 100
-IF RFLAG:コマンド結果受渡し変数 == -1
-	TIMES LOCAL:0 , 0.10
-	TIMES LOCAL:1 , 0.50
-ELSEIF RFLAG:コマンド結果受渡し変数 == 0
-	TIMES LOCAL:0 , 1.00
-	TIMES LOCAL:1 , 1.00
-ELSE
-	TIMES LOCAL:0 , 2.00
-	TIMES LOCAL:1 , 2.00
-ENDIF
-
-
-CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
-CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
-CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
-CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
-IF RFLAG:コマンド結果受渡し変数 == -1
-	CALL SOURCE_CALC_不快(TARGET, PLAYER, 100)
-ELSE
-	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0 / 3)
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0)
 	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, LOCAL:0 / 4)
-	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, LOCAL:0 / 3)
 ENDIF
-TIME += 15
 
-;ハグしたフラグ
-TCVAR:ハグ時刻 = 1440 * DAY + TIME
+TIME += 5
+
 RETURN 1
 
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
 @COM_ABLE314
-;作成中なので封印
-RETURN 0
 
 ;実行判定
 SIF !TFLAG:ゲームフェイズ管理
@@ -85,5 +97,12 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM314
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に%RSTR:コマンド結果受渡し文字列%をプレゼントした
 
-PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に　　をプレゼントした
+@MESSAGE_COM314_非口上時
+IF RFLAG:コマンド結果受渡し変数 == 0
+	PRINTFORML %CALLNAME:TARGET%は喜んでくれているようだ
+ELSEIF RFLAG:コマンド結果受渡し変数 == 1
+	PRINTFORML %CALLNAME:TARGET%はとても喜んでくれているようだ！
+	PRINTFORML %CALLNAME:PLAYER%にお礼を言い、顔をほころばせている。
+ENDIF

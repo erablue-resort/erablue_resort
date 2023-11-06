@@ -5,6 +5,7 @@
 #DIM 表示候補, 500
 #DIM ソート基準値, 500
 #DIM 候補人数
+#DIM 口上ファイル数
 現在ページ = 0
 
 $最初から
@@ -47,6 +48,11 @@ FOR LOCAL, 1, CHARANUM
 	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
+		CONTINUE
+	口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:LOCAL}_%CALLNAME:LOCAL%", "口上_*.ERB", 1)
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
 		CONTINUE
 	;条件を満たす場合はLOCAL:3に１以上が入る
 	LOCAL:3 = 1
@@ -105,6 +111,11 @@ IF キャラ一覧ソート:0 != ""
 			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
 		NEXT
 		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
 	ENDIF
 ENDIF
 
@@ -130,6 +141,8 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 		LOCALS += @"%キャラ一覧ソート:0, 8%：{ABL:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
 	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
 		LOCALS += @"%キャラ一覧ソート:0, 8%：{基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+		LOCALS += @"Lv：{基礎BATTLE_STATE:(表示候補:LOCAL):Lv, 3}　 "
 	ELSE
 		IF CFLAG:(表示候補:LOCAL):滞在期間 == 1
 			LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
@@ -169,7 +182,7 @@ PRINTBUTTON "[2000]フィルタ機能", 2000
 PRINTL
 PRINT 　└
 IF 滞在者のみフィルタ
-	PRINTBUTTON "[2001]すべてのキャラを表示する", 2001
+	PRINTBUTTON "[2001]滞在者と非滞在者を表示する", 2001
 ELSE
 	PRINTBUTTON "[2001]滞在者のみ表示する", 2001
 ENDIF
@@ -390,6 +403,24 @@ IF 表示フィルタ種類 == ""
 	PRINTBUTTON "[全て非表示]", "妊娠フラグ：全て非表示"
 	PRINTL
 	DRAWLINE
+	PRINTL ■ 口上有無
+
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[口上あり]", "口上：口上あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[口上なし]", "口上：口上なし"
+	RESETCOLOR
+
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "口上：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "口上：全て非表示"
+	PRINTL
+	DRAWLINE
 	PRINTBUTTONLC "[999]戻る", 999
 	PRINTBUTTONLC "[1000]戦闘系フィルタへ", 1000
 	PRINTL
@@ -481,6 +512,8 @@ IF RESULTS != ""
 		LOCAL = 11
 	ELSEIF STRCOUNT(LOCALS, "タイプ")
 		LOCAL = 12
+	ELSEIF STRCOUNT(LOCALS, "口上")
+		LOCAL = 19
 	ELSE
 		GOTO INPUT_LOOP_ANY
 	ENDIF
@@ -504,6 +537,8 @@ IF RESULTS != ""
 				キャラ一覧フィルタ:得意武器 = "得意武器：剣_得意武器：短剣_得意武器：斧_得意武器：槍_得意武器：弓_得意武器：銃_得意武器：楽器_得意武器：格闘_得意武器：刀_得意武器：杖_"
 			CASE 12
 				キャラ一覧フィルタ:タイプ = "タイプ：バランス_タイプ：攻撃_タイプ：防御_タイプ：回復_タイプ：サポート_タイプ：連撃_タイプ：回避_タイプ：奥義_"
+			CASE 19
+				キャラ一覧フィルタ:タイプ = "口上：口上あり_口上：口上なし"
 		ENDSELECT
 	ELSEIF STRCOUNT(キャラ一覧フィルタ:LOCAL, LOCALS)
 		REPLACE キャラ一覧フィルタ:LOCAL, @"%LOCALS%_", ""
@@ -593,7 +628,7 @@ SELECTCASE LOCALS
 		ENDIF
 		RETURN 0
 	CASEELSE
-		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 || GETNUM(装備ステータス補正保存, LOCALS) >= 0
+		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 || GETNUM(装備ステータス補正保存, LOCALS) >= 0 || LOCALS == "Lv"
 			キャラ一覧ソート:0 = %LOCALS%
 			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
 				キャラ一覧ソート:1 = 昇順

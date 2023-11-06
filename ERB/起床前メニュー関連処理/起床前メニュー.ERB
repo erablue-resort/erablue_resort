@@ -30,12 +30,27 @@ FOR LOCAL, 0, 従業員キャラ上限
 NEXT
 PRINTFORML 雇用中従業員キャラ人数：%NUM_FORMAT(LOCAL:1), 3%人
 DRAWLINE
+LOCALS = <div rect='15px, 0px, 950px, 170px' border='5px' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='25px, 15px, 930px, 150px'>"
+起床前メニュー上部分表示文字列 = 
+CALL 起床前メニュー上部分表示文章
+LOCALS += @"%起床前メニュー上部分表示文字列%"
+LOCALS += "</div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 10
+	PRINTL 
+NEXT
 LOCALS = <font color='#f39800'>-----[ゲーム進行]-------------------------------------------------------------------------------------------</font><br>
 LOCALS += "<button value='100'>[100] - 起床</button>　　　　　　　　　　　　　　"
 IF TSTR:NEWイベントフラグ != ""
 	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='120'>[120] - イベントリスト</button></font><font color='#FF5555'> New!</font> 　　　　　　"
 ELSE
 	LOCALS += "<button value='120'>[120] - イベントリスト</button>　　　　　　　　　"
+ENDIF
+IF 探索フラグ == 0
+	LOCALS += "<button value='101'>[101] - 探索へ出かける</button>　　　　　　　　　"
+ELSE
+	LOCALS += "<font color='#666666'><nonbutton>[101] - 探索へ出かける</nonbutton></font>　　　　　　　　　"
 ENDIF
 LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[リゾート]---------------------------------------------------------------------------------------------</font><br>"
@@ -111,61 +126,77 @@ HTML_PRINT LOCALS
 
 
 @USERSHOP
-IF RESULT == 100
-	DEBUGCLEAR
-	CALL TRAIN_MAIN
-	RETURN 1
-ELSEIF RESULT == 110
-	SIF 滞在キャラ数 < 滞在キャラ上限
-		CALL キャラクター招待
-ELSEIF RESULT == 111
-	CALL 経営計画メニュー
-ELSEIF RESULT == 113 && ダンジョンクリアフラグ_沿岸部の森
-	CALL 従業員メインメニュー
-ELSEIF RESULT == 114
-	CALL ITEM_BUY
-ELSEIF RESULT == 115
-	CALL ZP_SHOP
-ELSEIF RESULT == 120
-	CALL 起床前イベントリスト
-ELSEIF RESULT == 121
-	TFLAG:調教モード = -1
-	CALL SHOW_CHARADATA
-	TFLAG:調教モード = 0
-ELSEIF RESULT == 122
-	CALL SHOW_PARTYMEMBER
-ELSEIF RESULT == 123 && 施設改造度:5:6
-	CALL 性癖開拓処理
-ELSEIF RESULT == 124
-	CALL 干渉強化メニュー
-ELSEIF RESULT == 130
-	CALL 所持指輪リスト表示_USERCOM
-ELSEIF RESULT == 131
-	CALL 所持耳飾りリスト表示_USERCOM
-ELSEIF RESULT == 132
-	CALL 所持衣装リスト表示_USERCOM
-ELSEIF RESULT == 133
-	CALL ダンジョンアイテム画面表示_USERCOM
-ELSEIF RESULT == 134
-	CALL 素材アイテム一覧表示
-ELSEIF RESULT >= 143 && RESULT <= 148
-	IF 空艇港店舗状況:(RESULT - 140):0 == 1
-		CALL 空艇港店舗用コマンド_COM_1
-	ELSEIF 空艇港店舗状況:(RESULT - 140):0 == 4
-		CALL 空艇港店舗用コマンド_COM_4
-	ENDIF
-ELSEIF RESULT == 200
-	CALL OPTION
-ELSEIF RESULT == 201
-	SAVEGAME
-ELSEIF RESULT == 202
-	LOADGAME
-ELSEIF RESULT == 203
-	CALL チュートリアル_MAIN
-ELSEIF RESULT == 900
-	SIF FLAG:エンディング後フラグ
-		CALL 周回引き継ぎ処理
-ENDIF
+SELECTCASE RESULT
+	CASE 800 TO 899
+		CALL 起床前メニュー上部分文章切り替え(RESULT)
+	CASE 100
+		DEBUGCLEAR
+		CALL TRAIN_MAIN
+		RETURN 1
+	CASE 101
+		IF 探索フラグ
+			PRINTW 探索は一日一回までです。
+		ELSE
+			CALL COM601
+			IF RESULT == 1
+				CALL ダンジョン内_SOURCE_CHECK(0)
+				CALL TURN_RESET
+				SAVEDATA 99
+			ENDIF
+		ENDIF
+	CASE 110
+		SIF 滞在キャラ数 < 滞在キャラ上限
+			CALL キャラクター招待
+	CASE 111
+		CALL 経営計画メニュー
+	CASE 113
+		SIF ダンジョンクリアフラグ_沿岸部の森
+			CALL 従業員メインメニュー
+	CASE 114
+		CALL ITEM_BUY
+	CASE 115
+		CALL ZP_SHOP
+	CASE 120
+		CALL 起床前イベントリスト
+	CASE 121
+		TFLAG:調教モード = -1
+		CALL SHOW_CHARADATA
+		TFLAG:調教モード = 0
+	CASE 122
+		CALL SHOW_PARTYMEMBER
+	CASE 123
+		SIF 施設改造度:5:6
+			CALL 性癖開拓処理
+	CASE 124
+		CALL 干渉強化メニュー
+	CASE 130
+		CALL 所持指輪リスト表示_USERCOM
+	CASE 131
+		CALL 所持耳飾りリスト表示_USERCOM
+	CASE 132
+		CALL 所持衣装リスト表示_USERCOM
+	CASE 133
+		CALL ダンジョンアイテム画面表示_USERCOM
+	CASE 134
+		CALL 素材アイテム一覧表示
+	CASE 143 TO 148
+		IF 空艇港店舗状況:(RESULT - 140):0 == 1
+			CALL 空艇港店舗用コマンド_COM_1
+		ELSEIF 空艇港店舗状況:(RESULT - 140):0 == 4
+			CALL 空艇港店舗用コマンド_COM_4
+		ENDIF
+	CASE 200
+		CALL OPTION
+	CASE 201
+		SAVEGAME
+	CASE 202
+		LOADGAME
+	CASE 203
+		CALL チュートリアル_MAIN
+	CASE 900
+		SIF FLAG:エンディング後フラグ
+			CALL 周回引き継ぎ処理
+ENDSELECT
 
 
 
@@ -180,3 +211,120 @@ NEXT
 IF モブ観光客数 == 0
 	CALL モブ観光客算出
 ENDIF
+
+
+@起床前メニュー上部分表示文章
+
+IF 起床前メニュー上部分表示フラグ
+	CALL TIPSランダム表示
+ELSE
+	CALL かんたんチュートリアル
+ENDIF
+
+
+@起床前メニュー上部分文章切り替え(入力番号)
+#DIM 入力番号
+
+IF 起床前メニュー上部分表示フラグ
+	SELECTCASE 入力番号
+		CASE 810 
+			起床前メニュー上部分表示フラグ = 0
+	ENDSELECT
+ELSE
+	SELECTCASE 入力番号
+		CASE 800 TO 802
+			チュートリアル番号 = 入力番号
+		CASE 809
+			チュートリアル番号 = 0
+			起床前メニュー上部分表示フラグ = 1
+		CASE 810 
+			チュートリアル番号 = 0
+	ENDSELECT
+ENDIF
+
+@かんたんチュートリアル
+
+SELECTCASE チュートリアル番号
+	CASE 0
+		LOCALS = ■かんたんチュートリアル<br>
+		LOCALS += "　簡易的なチュートリアルが表示されます。項目を選んでください。<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='800'>[800] まず何すりゃいいの？</button><br>"
+		LOCALS += "　<button value='801'>[801] さっさとスケベしたいんだけど</button><br>"
+		LOCALS += "　<button value='802'>[802] このキャラに口上付いてる？</button><br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='809'>[809] かんたんチュートリアルを表示しない</button><br>"
+	CASE 800
+		LOCALS = ■まず何すりゃいいの？<br>
+		LOCALS += "　最初に[110] - リゾートの広告を出す を選び、[1]通常の広告を打つ を選んでください。<br>"
+		LOCALS += "　広告を打つことで初めてキャラがリゾートに訪れるようになります。<br>"
+		LOCALS += "　その後は[100] - 起床 を選択することでリゾート内に移行し、キャラたちと触れ合うことが出来ます。<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
+	CASE 801
+		LOCALS = ■さっさとスケベしたいんだけど<br>
+		LOCALS += "　このバリアントは、セックスまでが少々遠いバリアントになっています。<br>"
+		LOCALS += "　最も簡単な方法は[121] - 能力表示 から、あるいはキャラと同室した状態で能力表示を選び、<br>"
+		LOCALS += "　[110]恋慕対象に選ぶ を選択。それから行動を共にすることで恋慕レベルを上げ、告白する[352] を成功させることです。<br>"
+		LOCALS += "　告白成功後に二人きりになれば、押し倒す[350] でセックスに持ち込むことが出来ます。<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
+	CASE 802
+		LOCALS = ■このキャラに口上付いてる？<br>
+		LOCALS += "　[121] - 能力表示 から[2000]フィルタ機能 を選び、[口上なし] を非表示にすると口上ファイルがあるキャラのみ一覧で表示されます。<br>"
+		LOCALS += "　ただしこれはファイルがあるかどうかしか見ていないので、中身を保証するものではありません。<br>"
+		LOCALS += "　口上の充実度に関してはERBファイルを直接閲覧してください。<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
+ENDSELECT
+
+起床前メニュー上部分表示文字列 = %LOCALS%
+
+
+@TIPSランダム表示
+
+LOCALS = ■TIPS!<br>
+SELECTCASE RAND:5
+	CASE 0
+		LOCALS += "　探索は現在表示されている起床前メニューからと、起床後に玄関まで移動してから行う方法があります。<br>"
+		LOCALS += "　内容に違いはありませんが、玄関から出発すると時間を消費します。<br>"
+		LOCALS += "　起床前メニューから行う方がお得です。<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button><br>"
+	CASE 1
+		LOCALS += "　バリアントの開発は主にDiscordで行われています。<br>"
+		LOCALS += "　雑談だけ参加やROM専などでも歓迎です。お気軽に参加ください。<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button><br>"
+	CASE 2
+		LOCALS += "　沿岸部の森の奥にいるストーンイーターは、一度討伐した後も繰り返し戦うことが出来ます。<br>"
+		LOCALS += "　ランダムな下級の指輪や火の耳飾りを入手出来るので、装備が整うまで毎日殴っておくといいでしょう。<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button><br>"
+	CASE 3
+		LOCALS += "　開発中は[101] - 探索へ出かける から簡易探索を選ぶと、好感度上昇用アイテムと恋慕度上昇用アイテムを入手出来ます。<br>"
+		LOCALS += "　お手軽に好感度と恋慕度を上昇させることが出来るため、手早くスケベがしたい場合は利用してみてください。<br>"
+		LOCALS += "　開発が進んだら削除予定です。<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button><br>"
+	CASE 4
+		LOCALS += "　人気度はリゾートの充実度によって上限が定められています。<br>"
+		LOCALS += "　広告出しても人気度上がらないな？　と思ったら施設の開発を進めてみてください。<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button><br>"
+ENDSELECT
+
+起床前メニュー上部分表示文字列 = %LOCALS%
