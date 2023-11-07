@@ -120,6 +120,11 @@ FOR LOCAL, 1, CHARANUM
 	IF 現在仕事:LOCAL:0 == 2 && 現在仕事:LOCAL:1 == 0
 		現在仕事:LOCAL:0 = 1
 	ENDIF
+	;ここまで0.032で消す
+
+	SIF CFLAG:LOCAL:長期雇用 && TALENT:LOCAL:従業員
+		CFLAG:LOCAL:長期雇用 = 0
+	;ここまで0.033で消す
 NEXT
 
 ;素材アイテムデータベースが多重登録されていた問題
@@ -191,7 +196,26 @@ DT_COLUMN_ADD "所持素材データベース", "プレゼントカテゴリ"
 
 
 FOR LOCAL, 1, CHARANUM
+	;キャラ体力再計算
 	CALL 体力変動素質適用処理(LOCAL)
+
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;部屋の無いキャラがいないかチェック
+	IF キャラクター部屋検索(LOCAL) == 0
+		IF TALENT:LOCAL:従業員
+			FOR LOCAL:1, 0, 従業員キャラ上限
+				IF 従業員部屋割り配列:(LOCAL:1) < 1
+					従業員部屋割り配列:(LOCAL:1) = LOCAL
+					CFLAG:LOCAL:現在マップ種別 = 999
+					CFLAG:LOCAL:現在位置 = LOCAL:1 + 1000
+					RETURN 1
+				ENDIF
+			NEXT
+		ELSE
+			CALL 滞在者部屋割り配列挿入処理(LOCAL)
+		ENDIF
+	ENDIF
 NEXT
 
 CALL イベント追加チェック
@@ -202,6 +226,8 @@ ENDIF
 
 ;新しく素材アイテムが増えてないかチェック
 CALL 素材アイテム登録処理
+
+
 
 ;念のため変数リセット
 CALL TURN_RESET

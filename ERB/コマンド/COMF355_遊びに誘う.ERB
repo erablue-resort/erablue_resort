@@ -1,44 +1,37 @@
 ﻿
-@COMNAME351
+@COMNAME355
 #FUNCTIONS
-TSTR:コマンド名受渡 = 連れ出す
-IF CFLAG:TARGET:同行
-	IF TALENT:TARGET:恋慕
-		TSTR:コマンド名受渡 = 恋人繋ぎ
-	ELSE
-		TSTR:コマンド名受渡 = 手を繋ぐ
-	ENDIF
+TSTR:コマンド名受渡 = 遊びに誘う
+IF CFLAG:TARGET:ゲージ起動分類 == 1
+	TSTR:コマンド名受渡 = デートに誘う
 ENDIF
 
 ;===================================================
 ;コマンドタイプ
 ;===================================================
-@COMTYPE_351
+@COMTYPE_355
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
 
-@COM_TOOLTIP_351
-LOCALS = <br>■連れ出す<br>
-LOCALS += "一定値以上の好感度レベルを持つ相手を、自身に同行させるコマンド。<br>同時に連れ歩けるのは二人まで。<br>同行してくれる時間は６０分。ただし、一緒に隠密中・うふふ中は同行が解除されない。<br>同行中は[手を繋ぐ]、更に[恋慕]を持つ場合[恋人繋ぎ]に変化。"
+@COM_TOOLTIP_355
+LOCALS = <br>■遊びに誘う<br>
+LOCALS += "一定値以上の好感度レベルを持つ相手を、長時間自身に同行させるコマンド。<br>同時に連れ歩けるのは二人まで。<br>同行してくれる時間は３６０分。ただし、一緒に隠密中・うふふ中は同行が解除されない。<br>恋慕対象の相手である場合[デートに誘う]に変化。"
 LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-@COM351
+@COM355
 #DIM 同行者保存
 #DIM 同行数値記録
 同行者保存 = 0
 同行数値記録 = 0
 
-IF CFLAG:TARGET:同行
+IF CFLAG:TARGET:ゲージ起動分類 == 1
 	RFLAG:コマンド結果受渡し変数 = 1
-	IF TALENT:TARGET:恋慕
-		PRINTFORMW %CALLNAME:TARGET%と恋人繋ぎで手を繋ぎます。
-	ELSE
-		PRINTFORMW %CALLNAME:TARGET%と手を繋ぎます。
-	ENDIF
+	PRINTFORMW %CALLNAME:TARGET%とデートに行きます。
+	CFLAG:TARGET:デート = 1
 ELSE
-	PRINTFORMW %CALLNAME:TARGET%を連れ出します。
+	PRINTFORMW %CALLNAME:TARGET%と一緒に遊びに行きます。
 ENDIF
 ;一度に連れ歩けるのは二人まで
 FOR LOCAL,1,CHARANUM
@@ -64,8 +57,8 @@ FOR LOCAL,1,CHARANUM
 		ENDIF
 	ENDIF
 NEXT
-SIF CFLAG:TARGET:同行 < 60
-	CFLAG:TARGET:同行 = 60
+SIF CFLAG:TARGET:同行 < 360
+	CFLAG:TARGET:同行 = 360
 TFLAG:TARGET変更用 = TARGET
 TIME += 1
 
@@ -82,22 +75,22 @@ ELSE
 		RETURN 1
 	ENDIF
 	RESULT = 0
-	TRYCALLFORM KOJO_COM_{NO:TARGET}_351
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_355
 ENDIF
 RETURN 1
 
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-@COM_ABLE351
+@COM_ABLE355
 ;連れ出す実行判定
 SIF !TFLAG:ゲームフェイズ管理
 	RETURN 0
 ;一括管理
-SIF GLOBAL_COMABLE(351)
+SIF GLOBAL_COMABLE(355)
 	RETURN RESULT
 ;TARGETの好感度レベル
-SIF CFLAG:好感度レベル < 1 + 関係閾値:2
+SIF CFLAG:好感度レベル < 1 + 関係閾値:3
 	RETURN 0
 RETURN 1
 
