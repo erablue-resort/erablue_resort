@@ -92,7 +92,7 @@ ENDIF
 ; 	LOCALS:10 += LOCALS:(LOCAL:1)
 ; 	LOCALS:10 += "<br>"
 ; NEXT
-; TSTR:メッセージ欄文字列受け渡し_下側 = <div rect='{左顔グラあり}px,690px,906px,270px'>%LOCALS:10%</div>
+; TSTR:メッセージ欄文字列受け渡し_下側 = <div rect='{左顔グラあり},4312,5662,1687'>%LOCALS:10%</div>
 
 ; CALL 画面再描画
 
@@ -285,11 +285,13 @@ ENDSELECT
 #DIM 総ダメージ
 #DIM 追撃ダメージ
 #DIMS 口上用アビ関数キー保存
+#DIMS 口上用技名保存
 #DIMS 効果種類
 #DIM 追撃効果量, 10
 #DIM 追撃効果割合, 10
 CALL アビ汎用変数文字列リセット
 CALL 口上変数初期化
+口上用技名保存 = 
 
 SELECTCASE 戦闘行動内容
 	CASE 100
@@ -312,8 +314,9 @@ SELECTCASE 戦闘行動内容
 		;奥義
 		アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
 		CALL アビ対象選択テンプレート_敵単体
-		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}()
+		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}(口上用技名保存)
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		口上用技名保存 = %TSTR:コマンド名受渡%
 		アビテンプレート用_アビ名 = 奥義発動！　%TSTR:コマンド名受渡%
 		IF アビテンプレート用_キャンセルフラグ
 			アビテンプレート用_キャンセルフラグ = 0
@@ -351,6 +354,7 @@ SELECTCASE 戦闘行動内容
 		アビテンプレート用_アビ封印用フラグ = 0
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
+		口上用技名保存 = %TSTR:コマンド名受渡%
 		KSTR:(K++) = ■%TSTR:コマンド名受渡%
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		消費MP一時保存 = RESULT
@@ -391,7 +395,7 @@ SELECTCASE 戦闘行動内容
 			ENDIF
 		ENDIF
 		口上用アビ関数キー保存 = %REPLACE(アビ関数名保存:(戦闘行動内容 - 110), "固有アビ_", "")%
-		TRYCALLFORM KOJO_DUNGEON_固有アビ発動時_%口上用アビ関数キー保存%()
+		TRYCALLFORM KOJO_DUNGEON_固有アビ発動時_%口上用アビ関数キー保存%(口上用技名保存)
 		CALL 口上変数初期化
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
@@ -653,6 +657,11 @@ RETURN LOCAL
 #DIM バフ番号
 #DIMS 文字列一時保存
 #DIM 対象番号
+
+IF 戦闘行動キャラ >= 10
+	;敵＞味方の戦闘不能の場合、口上用変数を記録
+	CALL 反応口上記録処理("戦闘不能時")
+ENDIF
 
 バフ番号 = バフ存在チェック("自動復活", 隊列番号)
 IF バフ番号 > -1

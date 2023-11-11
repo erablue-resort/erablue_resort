@@ -1,0 +1,105 @@
+﻿@サイド領域描画
+#DIMS 表示文字列
+
+サイド描画行数保存 = LINECOUNT
+
+;基礎部分
+表示文字列 = <div rect='5525, 0, 4375, 4275' padding='50,25,0' color='#101010' border='31' bcolor='#C0C0C0'><nobr>
+SELECTCASE サイド描画表示種類
+	CASE "クイック移動"
+		CALL DRAW_MAP
+		REPLACE RESULTS, "value='", "value='サイド領域_"
+		表示文字列 += @" %RESULTS%"
+	CASE "能力表示"
+		IF TARGET > 1
+			表示文字列 += @" ■%NAME:TARGET%<br>"
+			CALL PRINT_STATE_BASE(TARGET)
+			表示文字列 += @" %RESULTS%<br>"
+			CALL PRINT_STATE_TALENT(TARGET)
+			表示文字列 += @" %RESULTS%<br>"
+			CALL PRINT_STATE_CLOTH(TARGET)
+			表示文字列 += @" %RESULTS%<br>"
+			CALL PRINT_STATE_弱点コマンド(TARGET)
+			表示文字列 += @" %RESULTS%<br>"
+			REPLACE RESULTS, "value='", "value='サイド領域_"
+		ENDIF
+ENDSELECT
+表示文字列 += "</nobr></div>"
+;下部分表示
+表示文字列 += "<div rect='5525, 4260, 700, 200' padding='25,0,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック移動'>クイック移動</button></div>"
+SIF サイド描画表示種類 == "クイック移動"
+	表示文字列 += "<div rect='5550, 4240, 660, 60' color='#101010'></div>"
+表示文字列 += "<div rect='6275, 4260, 500, 200' padding='25,0,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_能力表示'>能力表示</button></div>"
+SIF サイド描画表示種類 == "能力表示"
+	表示文字列 += "<div rect='6300, 4240, 460, 60' color='#101010'></div>"
+HTML_PRINT 表示文字列, 1
+
+
+
+@サイド領域_改行処理
+
+FOR LOCAL, 0, 40 - (LINECOUNT - サイド描画行数保存)
+	PRINTL
+NEXT
+
+
+@サイド領域_実行処理
+#DIM 入力数値
+
+IF STRCOUNT(RESULTS, "サイド領域_サイド切り替え_")
+	サイド描画表示種類 = %REPLACE(RESULTS, "サイド領域_サイド切り替え_", "")%
+	RETURN 1
+ENDIF
+
+SELECTCASE サイド描画表示種類
+	CASE "クイック移動"
+		入力数値 = 0
+		入力数値 = TOINT(REPLACE(RESULTS, "サイド領域_", ""))
+		SIF 入力数値 == 0
+			RETURN 1
+
+		CALL 表示マップ切り替え判定(入力数値)
+		LOCAL = RESULT
+		IF 入力数値 == 99
+			;エリア移動選択
+			CALL エリア移動選択画面表示
+			IF RESULT == -1
+				;移動しない場合
+				RETURN 1
+			ELSEIF RESULT == 1
+				;移動処理へ進む
+				CALL COM400
+				SELECTCOM = 400
+				TFLAG:SELECTCOM受け渡し = 400
+				RETURN 0
+			ENDIF
+		ELSEIF CFLAG:MASTER:現在位置 == 入力数値
+			RETURN 1
+		ELSEIF LOCAL
+			RETURN 1
+		ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, 入力数値)
+			RETURN 1
+		ELSE
+			;目的地が離れているので、最終目的地として設定
+			TFLAG:長距離移動時_目的地格納 = 入力数値
+			CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(入力数値)
+			;現在位置を更新し、次も移動の扱いにする
+			CFLAG:MASTER:現在位置 = RESULT
+			;マップ間をまたいで移動時の処理
+			CALL マップ遷移判定処理(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+			IF RESULT
+				CFLAG:PLAYER:現在位置 = RESULT
+			ENDIF
+			TIME += 1
+			TFLAG:SELECTCOM受け渡し = 400
+			SELECTCOM = 400
+			CALL COM400
+			RETURN 0
+		ENDIF
+		;移動処理
+		TIME += 1
+		TFLAG:SELECTCOM受け渡し = 400
+		SELECTCOM = 400
+ENDSELECT
+
+RETURN 0

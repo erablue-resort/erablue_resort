@@ -156,6 +156,7 @@ ENDIF
 
 $DRAW_LOOP
 CALL DRAW_MAP
+HTML_PRINT RESULTS
 
 PRINTL 
 DRAWLINE
@@ -251,6 +252,8 @@ RETURN 0
 ;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
 ;-----------------------------------------------------------
 @DRAW_MAP(ARGS)
+#DIMS 表示文字列
+#DIM 改行数
 #DIMS AA, 40
 #DIM SPOT
 #DIM MODE
@@ -262,6 +265,8 @@ RETURN 0
 
 ;AAを取得、なければそのまま帰る
 VARSET AA
+表示文字列 = 
+改行数 = 0
 
 TRYCCALLFORM MAP_VIEWING_{CFLAG:PLAYER:現在マップ種別}(AA)
 CATCH
@@ -288,20 +293,24 @@ FOR LINENUM, 0, VARSIZE("AA")
 			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
 			SIF TOINT(RESULTS) == 0
 				FOUND_INT = 0
-			SETCOLOR カラーパレット("黄")
-			PRINTBUTTON RESULTS, FOUND_INT
-			RESETCOLOR
+			;PRINTBUTTON RESULTS, FOUND_INT
+			IF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+				表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+			ELSE
+				表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+			ENDIF
 			X_POINT += 2
 		;ふつうの文字
 		ELSE
-			TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS)
+			TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 表示文字列)
 			X_POINT ++
 		ENDIF
 	WEND
-	PRINTL
+	表示文字列 += "<br>"
+	改行数 += 1
 NEXT
 
-RESETCOLOR
+RESULTS = %表示文字列%
 
 
 ;-------------------------------------------------
