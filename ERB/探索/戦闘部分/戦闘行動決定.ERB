@@ -315,7 +315,6 @@ SELECTCASE 戦闘行動内容
 		アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		口上用技名保存 = %TSTR:コマンド名受渡%
-		TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}(口上用技名保存)
 		CALL アビ対象選択テンプレート_敵単体
 		アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
 		IF アビテンプレート用_キャンセルフラグ
@@ -324,10 +323,11 @@ SELECTCASE 戦闘行動内容
 		ELSE
 			;奥義ゲージ増加の追加効果に備えてここでゲージを減らす
 			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 100
+			TRYCALLFORM KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}(口上用技名保存)
 		ENDIF
 
 		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-		IF RESULT < 1
+		IF RESULT > 0
 			;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
 			アビ汎用変数:効果割合 = RESULT
 			アビ汎用文字列:ダメージ種類 = 奥義ダメージ
@@ -615,7 +615,11 @@ LOCAL = RESULT
 LOCAL:1 = RAND:(乱数幅 * 2 + 1) - 乱数幅
 LOCAL = LOCAL * (100 + LOCAL:1) / 100
 ;最低保障１
-LOCAL = MAX(LOCAL, 1)
+IF 攻撃威力変数 > 0
+	LOCAL = MAX(LOCAL, 1)
+ELSE
+	LOCAL = 0
+ENDIF
 
 RETURN LOCAL
 
@@ -648,7 +652,12 @@ LOCAL = 回復数値
 LOCAL:1 = RAND:(乱数幅 * 2 + 1) - 乱数幅
 LOCAL = LOCAL * (100 + LOCAL:1) / 100
 ;最低保障１
-LOCAL = MAX(LOCAL, 1)
+IF 回復威力変数 > 0
+	LOCAL = MAX(LOCAL, 1)
+ELSE
+	LOCAL = 0
+ENDIF
+
 RETURN LOCAL
 
 
