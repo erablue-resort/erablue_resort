@@ -262,6 +262,10 @@ SELECTCASE 戦闘行動内容
 		INVERTBIT アビ使用確認スキップフラグ, 0
 		CALL 画面再描画
 		RESTART
+	CASE 1003
+		INVERTBIT 奥義使用確認スキップフラグ, 0
+		CALL 画面再描画
+		RESTART
 	CASE 100 TO 101
 		;通常攻撃or奥義
 		エネミー画像ボタン化フラグ = 0
@@ -293,6 +297,7 @@ ENDSELECT
 CALL アビ汎用変数文字列リセット
 CALL 口上変数初期化
 口上用技名保存 = 
+詳細文文字列受け渡し変数 = 
 
 SELECTCASE 戦闘行動内容
 	CASE 100
@@ -313,13 +318,37 @@ SELECTCASE 戦闘行動内容
 		ENDIF
 	CASE 101
 		;奥義
-		アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
 		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		口上用技名保存 = %TSTR:コマンド名受渡%
-
 		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		奥義威力保存 = RESULT
+		IF 奥義使用確認スキップフラグ == 0
+			KSTR:(K++) = ■%口上用技名保存%
+			KSTR:(K++) = %詳細文文字列受け渡し変数%
+			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+			IF RESULT < 4
+				FOR LOCAL, 0, 4 - RESULT
+					KSTR:(K++) = 　
+				NEXT
+			ENDIF
+			KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0)
+			$INPUT_LOOP_奥義
+			BINPUT
+			SELECTCASE RESULT
+				CASE 0
+					;使用する場合は下の処理へ移行
+					CALL 口上変数初期化
+				CASE 999
+					RETURN -1
+				CASEELSE
+					REUSELASTLINE 
+					GOTO INPUT_LOOP_奥義
+			ENDSELECT
+		ENDIF
 		IF 奥義威力保存 > 0
+			アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
 			;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
 			CALL アビ対象選択テンプレート_敵単体
 			アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
@@ -365,9 +394,11 @@ SELECTCASE 戦闘行動内容
 			KSTR:(K++) = %詳細文文字列受け渡し変数%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
-			FOR LOCAL, 0, 4 - RESULT
-				KSTR:(K++) = 　
-			NEXT
+			IF RESULT < 4
+				FOR LOCAL, 0, 4 - RESULT
+					KSTR:(K++) = 　
+				NEXT
+			ENDIF
 			IF アビテンプレート用_アビ封印用フラグ
 				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
 			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
@@ -384,6 +415,7 @@ SELECTCASE 戦闘行動内容
 						REUSELASTLINE 
 						GOTO INPUT_LOOP2
 					ENDIF
+					CALL 口上変数初期化
 				CASE 999
 					RETURN -1
 				CASEELSE
@@ -398,14 +430,14 @@ SELECTCASE 戦闘行動内容
 			ENDIF
 		ENDIF
 		口上用アビ関数キー保存 = %REPLACE(アビ関数名保存:(戦闘行動内容 - 110), "固有アビ_", "")%
-		TRYCALLFORM KOJO_DUNGEON_固有アビ発動時_%口上用アビ関数キー保存%(口上用技名保存)
-		CALL 口上変数初期化
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF RESULT == -1 || アビテンプレート用_キャンセルフラグ
 			アビテンプレート用_キャンセルフラグ = 0
 			RETURN -1
 		ELSE
 			;MP消費
+			TRYCALLFORM KOJO_DUNGEON_固有アビ発動時_%口上用アビ関数キー保存%(口上用技名保存)
+			CALL 口上変数初期化
 			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
 			CALL アビテンプレート用_表示メッセージ変換処理
 		ENDIF
@@ -424,9 +456,11 @@ SELECTCASE 戦闘行動内容
 			KSTR:(K++) = %詳細文文字列受け渡し変数%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
-			FOR LOCAL, 0, 4 - RESULT
-				KSTR:(K++) = 　
-			NEXT
+			IF RESULT < 4
+				FOR LOCAL, 0, 4 - RESULT
+					KSTR:(K++) = 　
+				NEXT
+			ENDIF
 			IF アビテンプレート用_アビ封印用フラグ
 				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
 			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
