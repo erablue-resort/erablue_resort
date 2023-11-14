@@ -214,3 +214,70 @@ FOR L_CNT, 0, 4
 		CONTINUE
 	CALL ADD_RELATION(ARG, BATTLE_STATE:L_CNT:キャラ番号, ARG:1 * (ARG:2 + 2) / 2)
 NEXT
+
+;-------------------------------------------------
+;関係性同行決定　
+;関係性に応じて一緒に行動するか否かをランダムで決定します
+;-------------------------------------------------
+@関係性同行決定
+#DIM L_CNT, 2
+#DIM REL_NO, 100
+#DIM REL_VAL, 100
+#DIM TREL_NO
+#DIM SUM_REL
+
+;関係性に応じて一緒に行動する
+FOR LOCAL, 1, CHARANUM
+	VARSET REL_NO
+	VARSET REL_VAL
+
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;お祭りや業務への参加は変化しない
+	SIF STRFIND(移動ルーチン:LOCAL:ルーチンID, "FESTIVAL") > -1 || STRFIND(移動ルーチン:LOCAL:ルーチンID, "業務") > -1
+		CONTINUE
+	;既に一緒に行動するキャラがいる場合は変化しない
+	SIF TCVAR:LOCAL:行動ロック
+		CONTINUE
+
+	L_CNT:1 = 0
+	LOCALS = %CALLNAME:LOCAL%の関係度 
+	FOR L_CNT, 0, 100
+		TREL_NO = RELATION_NO:LOCAL:L_CNT
+		SIF TREL_NO < 1
+			BREAK
+		SIF CFLAG:TREL_NO:滞在期間 < 0
+			CONTINUE
+		REL_NO:(L_CNT:1) = RELATION_NO:LOCAL:L_CNT
+		;業務に引っ付いて回る確率は低め
+		IF STRFIND(移動ルーチン:REL_NO:ルーチンID, "業務") > -1
+			REL_VAL:(L_CNT:1) = RELATION_VAL:LOCAL:L_CNT / 10
+		ELSE
+			REL_VAL:(L_CNT:1) = RELATION_VAL:LOCAL:L_CNT
+		ENDIF
+		LOCALS += @"/%CALLNAME:TREL_NO%({REL_VAL:(L_CNT:1)})"
+		L_CNT:1 ++
+	NEXT
+	SUM_REL = SUMARRAY(REL_VAL)
+	LOCAL:2 = RAND:(SUM_REL + MAX(SUM_REL / 3, 5000))
+	DEBUGPRINTL
+;	DEBUGPRINTFORM %LOCALS% 判定値{LOCAL:2}/{(SUM_REL + MAX(SUM_REL / 3, 5000))}
+	DEBUGPRINTFORM %CALLNAME:LOCAL%の行動 = %移動ルーチン:LOCAL:ルーチンID%/%移動ルーチン:LOCAL:PMルーチンID% 判定値 = {LOCAL:2}/{(SUM_REL + MAX(SUM_REL / 3, 5000))} \@ TCVAR:LOCAL:行動ロック? 固定済み# \@
+	FOR L_CNT, 0, FINDELEMENT(REL_NO, 0)
+		TREL_NO = REL_NO:L_CNT
+		IF LOCAL:2 < REL_VAL:L_CNT
+			移動ルーチン:LOCAL:ルーチンID '= 移動ルーチン:TREL_NO:ルーチンID
+			移動ルーチン:LOCAL:マップ内ルーチンID '= 移動ルーチン:TREL_NO:マップ内ルーチンID
+			移動ルーチン:LOCAL:PMルーチンID '= 移動ルーチン:TREL_NO:PMルーチンID
+			移動ルーチン:LOCAL:PMマップ内ルーチンID '= 移動ルーチン:TREL_NO:PMマップ内ルーチンID
+			TCVAR:LOCAL:行動時間ゆらぎ = TCVAR:TREL_NO:行動時間ゆらぎ
+			TCVAR:TREL_NO:行動ロック = 1
+			DEBUGPRINTFORM ({LOCAL:2} < {REL_VAL:L_CNT})→%CALLNAME:TREL_NO%と行動を共にします。
+			BREAK
+		ENDIF
+		DEBUGPRINTFORM ({LOCAL:2} > {REL_VAL:L_CNT}(%CALLNAME:TREL_NO%))→
+		LOCAL:2 -= REL_VAL:L_CNT
+	NEXT
+NEXT
+DEBUGPRINTL
+
