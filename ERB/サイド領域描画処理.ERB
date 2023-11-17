@@ -50,48 +50,56 @@ SELECTCASE サイド描画表示種類
 		ENDIF
 	CASE "同室者"
 		VARSET LOCAL
-		表示文字列 += "<br>"
 		ボタン文字列 '= ""
 		LOCAL:3 = ((1600 / GETCONFIG("フォントサイズ")) - 55 ) / 8
-		FOR LOCAL, 1, CHARANUM
-			;表示可能人数が0なら表示終了
-			SIF LOCAL:3 < 1
-				BREAK
-			IF TARGET:LOCAL == TARGET
-			ELSEIF TARGET:LOCAL > 0 && LOCAL:2 < 4
-				VARSET LOCALS
-				IF CFLAG:(TARGET:LOCAL):ゲージ起動分類 == 1
-					LOCALS = (恋慕対象)
-					LOCALS:1 = color='#FF3399'
-				ELSEIF CFLAG:(TARGET:LOCAL):発情期フラグ < 0
-					LOCALS = (発情期)
-					LOCALS:1 = color='#FF3399'
-				ELSEIF PREGNANCY_PROGRESS(TARGET:LOCAL) == 5
-					LOCALS = (臨月)
-					LOCALS:1 = color='#FF3399'
-				ELSEIF TALENT:(TARGET:LOCAL):妊娠
-					LOCALS = (妊娠中)
-					LOCALS:1 = color='#FF99CF'
-				ELSEIF RISKY_DAY(TARGET:LOCAL) && あなた特殊能力:危険日感知
-					LOCALS = (危険日)
-					LOCALS:1 = color='#FFCCE7'
-				ENDIF
-				表示文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%'>%顔グラ表示用文字列関数(TARGET:LOCAL, 1+LOCAL:1, LOCAL:1 / LOCAL:3, 800)%</button>"
-				ボタン文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:(TARGET:LOCAL) + "]", 16, LEFT%</font></button>"
-				LOCAL:1 ++
-				IF LOCAL:1 / LOCAL:3 > LOCAL:2
-					表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
-					ボタン文字列 '= ""
-					LOCAL:2 ++
-				ENDIF
-			ELSE
-				IF ボタン文字列 != ""
-					表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
-					ボタン文字列 '= ""
-				ENDIF
-				BREAK
+		IF LOCAL:3 && (GET_TARGETNUM() == 1 || 助手は誰だ())
+			;対象が一人、または３P時はなるべく大きく短冊を表示
+			VARSET LOCALS
+			;ターゲット
+			CALL サイド領域_エロステータス把握(TARGET:LOCAL)
+			LOCALS '= RESULTS
+			LOCALS:1 '= RESULTS:1
+			表示文字列 += @"<button value='{TARGET + 2000}' title='%CALLNAME:TARGET + LOCALS%'>%短冊グラ表示用文字列関数(TARGET, 1, MIN(800 * LOCAL:3 / 2, 2000))%</button>　"
+			ボタン文字列 += @"<button value='{TARGET + 2000}' title='%CALLNAME:TARGET + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:TARGET + "]" + LOCALS, MIN(16 * LOCAL:3 / 2, 40), LEFT%</font></button>"
+			IF 助手は誰だ() && LOCAL:3 > 1
+				;助手
+				LOCAL = 助手は誰だ()
+				CALL サイド領域_エロステータス把握(LOCAL)
+				LOCALS '= RESULTS
+				LOCALS:1 '= RESULTS:1
+				表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%'>%短冊グラ表示用文字列関数(LOCAL, 2, MIN(800 * LOCAL:3 / 2, 2000))%</button>"
+				ボタン文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:LOCAL + "]" + LOCALS, 16, LEFT%</font></button>"
 			ENDIF
-		NEXT
+			表示文字列 += @"%"<br>" * (1 + MIN(8 * LOCAL:3, 40) * GETCONFIG("フォントサイズ") / GETCONFIG("一行の高さ"))%%ボタン文字列%<br>"
+		ELSE
+			表示文字列 += "<br>"
+			FOR LOCAL, 1, CHARANUM
+				;表示可能人数が0なら表示終了
+				SIF LOCAL:3 < 1
+					BREAK
+				IF TARGET:LOCAL == TARGET
+				ELSEIF TARGET:LOCAL > 0 && LOCAL:2 < 4
+					VARSET LOCALS
+					CALL サイド領域_エロステータス把握(TARGET:LOCAL)
+					LOCALS '= RESULTS
+					LOCALS:1 '= RESULTS:1
+					表示文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%'>%顔グラ表示用文字列関数(TARGET:LOCAL, 1+LOCAL:1, LOCAL:1 / LOCAL:3, 800)%</button>"
+					ボタン文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:(TARGET:LOCAL) + "]", 16, LEFT%</font></button>"
+					LOCAL:1 ++
+					IF LOCAL:1 / LOCAL:3 > LOCAL:2
+						表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
+						ボタン文字列 '= ""
+						LOCAL:2 ++
+					ENDIF
+				ELSE
+					IF ボタン文字列 != ""
+						表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
+						ボタン文字列 '= ""
+					ENDIF
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
 ENDSELECT
 表示文字列 += "</nobr></div>"
 ;下部分表示
@@ -120,6 +128,30 @@ SIF 追加表示文字列 != ""
 	表示文字列 += @"%追加表示文字列%"
 HTML_PRINT 表示文字列, 1
 
+@サイド領域_エロステータス把握(ARG)
+#DIMS L_STR, 2
+VARSET L_STR
+IF CFLAG:ARG:ゲージ起動分類 == 1
+	L_STR = (恋慕対象)
+	L_STR:1 = color='#FF3399'
+ELSEIF CFLAG:ARG:発情期フラグ < 0
+	L_STR = (発情期)
+	L_STR:1 = color='#FF3399'
+ELSEIF PREGNANCY_PROGRESS(ARG) == 5
+	L_STR = (臨月)
+	L_STR:1 = color='#FF3399'
+ELSEIF TALENT:ARG:妊娠
+	L_STR = (妊娠中)
+	L_STR:1 = color='#FF99CF'
+ELSEIF RISKY_DAY(ARG) && あなた特殊能力:危険日感知
+	L_STR = (危険日)
+	L_STR:1 = color='#FFCCE7'
+ELSEIF RISKY_DAY(ARG) == -1 && あなた特殊能力:危険日感知
+	L_STR = （安全日）
+	L_STR:1 = color='#ccffff'
+ENDIF
+RESULTS '= L_STR
+RESULTS:1 '= L_STR:1
 
 
 @サイド領域_改行処理
