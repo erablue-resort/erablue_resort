@@ -206,11 +206,13 @@ ELSEIF LOCAL:10 == 99
 		GOTO DRAW_LOOP
 	ELSEIF RESULT == 1
 		;移動処理
+		サイド描画横スクロール保存 = 0
 		RESTART
 	ENDIF
 ELSEIF CFLAG:MASTER:現在位置 == LOCAL:10
 	RETURN 0
 ELSEIF LOCAL
+	サイド描画横スクロール保存 = 0
 	GOTO DRAW_LOOP
 ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, LOCAL:10)
 	CLEARLINE 1
@@ -251,9 +253,13 @@ RETURN 0
 ;マップ描画処理
 ;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
 ;-----------------------------------------------------------
-@DRAW_MAP(ARGS)
+@DRAW_MAP(表示幅 = -1, 表示開始数 = 0)
 #DIMS 表示文字列
 #DIM 改行数
+#DIM 最大横サイズ
+#DIM 表示開始数
+#DIM 描画横幅カウント
+#DIM 表示幅
 #DIMS AA, 40
 #DIM SPOT
 #DIM MODE
@@ -282,8 +288,12 @@ FOR LINENUM, 0, VARSIZE("AA")
 	;行ごとに初期化
 	X_POINT = 0
 	RESULTS = I
+	描画横幅カウント = 0
 	;行の終端までループ
 	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
+		;指定幅まで描画
+		SIF 表示幅 > 0 && 描画横幅カウント > 表示幅 + 表示開始数
+			BREAK
 		;1文字取り出す
 		SUBSTRINGU AA:LINENUM, X_POINT, 1
 		;数字ならボタンにする
@@ -293,8 +303,9 @@ FOR LINENUM, 0, VARSIZE("AA")
 			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
 			SIF TOINT(RESULTS) == 0
 				FOUND_INT = 0
-			;PRINTBUTTON RESULTS, FOUND_INT
-			IF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+			IF 表示開始数 > 描画横幅カウント
+				;表示開始未満なら描画しない
+			ELSEIF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
 				表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
 			ELSE
 				表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
@@ -302,16 +313,22 @@ FOR LINENUM, 0, VARSIZE("AA")
 			X_POINT += 2
 		;ふつうの文字
 		ELSE
-			TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 表示文字列)
+			IF 表示開始数 <= 描画横幅カウント
+				TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 表示文字列)
+			ENDIF
 			X_POINT ++
 		ENDIF
+		;全角一個分を１とカウント
+		描画横幅カウント += 1
 	WEND
+	SIF 最大横サイズ < STRLENS(AA:LINENUM)
+		最大横サイズ = STRLENS(AA:LINENUM)
 	表示文字列 += "<br>"
 	改行数 += 1
 NEXT
 
 RESULTS = %表示文字列%
-
+RETURN 最大横サイズ
 
 ;-------------------------------------------------
 ;実行判定
