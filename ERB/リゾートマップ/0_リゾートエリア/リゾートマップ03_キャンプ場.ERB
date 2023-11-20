@@ -110,17 +110,21 @@ ENDSELECT
 ;サウナテントにいる場合の特殊イベント
 @COM_END_PLACEEVENT_0_306
 
+;別の場所からサウナに来たならまず熱気ゲージリセット
+IF CFLAG:MASTER:前ターン位置 != CFLAG:MASTER:現在位置
+	PRINTL サウナの中からはむわっとした熱気が漂ってくる
+	PRINTW あまり長い間、留まることは出来ないだろう
+	熱気ゲージ = 0
+	RETURN 0
+ENDIF
+
 ;特定のコマンドの場合実行しない（移動、覗く、川で冷やした場合）
 SIF SELECTCOM == 400 || SELECTCOM == 404 || SELECTCOM == 380
 	RETURN 0
 
-;別の場所からサウナに来たならまず熱気ゲージリセット
-IF CFLAG:MASTER:前ターン位置 != 306
-	PRINTL サウナテントの中からはむわっとした熱気が漂ってくる
-	PRINTL あまり長い間、留まることは出来ないだろう
-	熱気ゲージ = 0
+;オートコマンド時は発動しない
+SIF TFLAG:オートコマンドフラグ
 	RETURN 0
-ENDIF
 
 ;サウナにいるキャラ全員の歓楽と露出と苦痛を少量増加させる。水で冷やしたターンは増加しない。
 ;その場に居るTARGET全員で回す
@@ -146,6 +150,7 @@ ENDIF
 ;具体的な数値は表示しない隠しパラメータとする
 
 熱気ゲージ += RAND:15 + 20
+DRAWLINE
 SELECTCASE 熱気ゲージ
 	CASE IS < 20
 		;0～19
@@ -193,6 +198,7 @@ CFLAG:MASTER:現在位置 = 303
 ;隠密時解除
 CFLAG:MASTER:隠密 = 0
 CFLAG:TARGET:隠密 = 0
+RETURN 1
 
 
 @庭系列改造メニュー()
