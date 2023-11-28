@@ -11,11 +11,14 @@
 #DIM フレーバー素質数値保存, 10
 #DIM 知識素質数値保存, 20
 #DIM 性癖素質数値保存, 20
-#DIM 服装数値保存, 30
+#DIM 服装数値保存, 31
+#DIMS CONST 水着一覧 = "ビキニ型","ワンピース型","ボーイレッグ・ビキニ（ボトムが短パン型）","プランジングネック（首元から胸下まで切り込みの入ったワンピース型）"
 #DIM ABL一時保存, 50
 #DIM ABL数値保存, 50
 #DIM EXP一時保存, 100
 #DIM EXP数値保存, 100
+#DIMS CONST 好物一覧 = "食べ物","酒","宝石","アクセサリ","実用品","本","花","その他"
+#DIM 好物一時保存
 #DIM ランダムキャラ経験, 80
 #DIM ランダムキャラ戦闘タイプ, 10
 #DIMS ランダムキャラネーム
@@ -52,6 +55,10 @@ VARSET ランダムキャラ戦闘タイプ:0
 VARSET LOCAL
 ランダムキャラ素質:0 = 1
 ランダムキャラ素質:1 = 1
+好物一時保存 = RAND(VARSIZE("好物一覧"))
+服装数値保存:30 = !RAND:3 + !RAND:3 + !RAND:3
+;ビキニ　8/27 ワンピース 12/27 ボーイレッグ 6/27 プランジングネック 1/27
+
 
 CALL 従業員人数チェック()
 
@@ -206,6 +213,8 @@ IF CSVエディタフラグ
 	LOCALS += "<br>"
 	LOCALS += "<button value='102'>[102] 出演作品を設定する</button>"
 	LOCALS += "<br>"
+	LOCALS += "<button value='103'>[103] プレゼントの好みを設定する</button>"
+	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='110'>[110] 戦闘タイプを設定する</button>"
 LOCALS += "<br>"
@@ -229,6 +238,8 @@ LOCALS += "<button value='150'>[150] 経験を設定する</button>"
 LOCALS += "<br>"
 IF CSVエディタフラグ
 	LOCALS += "<button value='160'>[160] 服装を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='161'>[161] 水着を設定する</button>"
 	LOCALS += "<br>"
 ENDIF
 LOCALS += "<br>"
@@ -370,6 +381,7 @@ SELECTCASE 表示モード
 			ENDIF
 		ENDIF
 		LOCALS += "<br>"
+		LOCALS += @"　プレゼントの好み：%好物一覧:好物一時保存%"
 		LOCALS += "<br>"
 		LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
 		LOCALS:1 = 
@@ -578,7 +590,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		ENDIF
 
-
+		LOCALS += "　　"
 		SIF 服装数値保存:9 == 0
 			LOCALS += "[ノーブラ]"
 		SIF 服装数値保存:9 == 1
@@ -594,6 +606,9 @@ SELECTCASE 表示モード
 		SIF 服装数値保存:17 == 3
 			LOCALS += "[ふんどし]"
 
+		LOCALS += "<br>"
+
+		LOCALS += @"　　水着：%水着一覧:(服装数値保存:30)%"
 		LOCALS += "<br>"
 	CASE 110
 		LOCALS += "属性："
@@ -991,7 +1006,11 @@ SELECTCASE 表示モード
 		ENDIF
 	CASE 160
 		FOR LOCAL, 1, 23
-			LOCALS += @"%EQUIPNAME:LOCAL, 22, LEFT%："
+			IF EQUIPNAME_TIPS(LOCAL) != ""
+				LOCALS += @"<nonbutton title='%EQUIPNAME_TIPS(LOCAL)%'>%EQUIPNAME:LOCAL, 22, LEFT%：</nonbutton>"
+			ELSE
+				LOCALS += @"%EQUIPNAME:LOCAL, 22, LEFT%："
+			ENDIF
 			LOCALS:1 = 333333
 			LOCALS:2 = 333333
 			LOCALS:3 = 333333
@@ -1224,6 +1243,17 @@ SELECTCASE LOCAL
 		PRINTL 出演作品を入力してください。（１２文字まで）
 		INPUTS
 		ランダムキャラ出演作品 = %SUBSTRING(RESULTS, 0, 24)%
+	CASE 103
+		PRINTL プレゼントの好みを設定してください。
+		FOR LOCAL:1, 0, VARSIZE("好物一覧")
+			PRINTFORM [{LOCAL:1}] %好物一覧:(LOCAL:1), 10, LEFT%　
+			SIF (LOCAL:1 + 1) % 5 == 0
+				PRINTL 
+		NEXT
+		SIF LOCAL:1 + 1 % 5
+			PRINTL
+		BINPUT
+		好物一時保存 = RESULT
 	CASE 110
 		表示モード = 110
 	CASE 120
@@ -1249,6 +1279,10 @@ SELECTCASE LOCAL
 	CASE 160
 		ページ数 = 0
 		表示モード = 160
+	CASE 161
+		PRINTFORML [0] %水着一覧:0%  [1] %水着一覧:1%  [2] %水着一覧:2%  [3] %水着一覧:3%  
+		BINPUT
+		服装数値保存:30 = RESULT
 	CASE 200
 		IF CSVエディタフラグ
 			CLEARLINE LINECOUNT
@@ -1262,16 +1296,31 @@ SELECTCASE LOCAL
 			PRINTFORML 番号,{登録番号}
 			PRINTFORML 名前,[%ランダムキャラ二つ名%]%ランダムキャラネーム%
 			PRINTFORML 呼び名,%ランダムキャラネーム%
-			IF ランダムキャラ出演作品 != ""
-				PRINTFORML CSTR,出演作品,%ランダムキャラ出演作品%
-				PRINTL フラグ,招待不可フラグ,3
-			ENDIF
 			PRINTL 基礎,体力,1200
 			PRINTL 基礎,勃起,1500
 			PRINTL 基礎,ムード,1500
 			PRINTL 基礎,理性,1000
 			PRINTL 基礎,怒り,1000
 			PRINTL 
+			IF ランダムキャラ出演作品 != ""
+				PRINTL ;-------------------------------------------------------------------------------------------
+				PRINTL ;初期招待不可キャラ設定
+				PRINTL ;ゲームを始めた直後の状態で、招待対象にならないキャラを設定する
+				PRINTL ;招待不可フラグ=1  ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される。
+				PRINTL 		;その際、「ZPショップ値段」の数値が値段になる。０(設定していない)場合、50ZPになる
+				PRINTL 		;フラグ３とはフレーバーによって使い分けること
+				PRINTL 
+				PRINTL ;招待不可フラグ=2  ZPショップに搭載されず、また招待対象にもならない
+				PRINTL 		;特別なイベントで招待可能になるキャラ用
+				PRINTL 
+				PRINTL ;招待不可フラグ=3  ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される。
+				PRINTL 		;ただしイベント「「平行世界」という場所」をクリアしていなければ一覧に表示されない。
+				PRINTL 		;その際、「ZPショップ値段」の数値が値段になる。０(設定していない)場合、50ZPになる
+				PRINTL 		;フラグ１とはフレーバーによって使い分けること
+				PRINTL ;-------------------------------------------------------------------------------------------
+				PRINTFORML CSTR,出演作品,%ランダムキャラ出演作品%
+				PRINTL フラグ,招待不可フラグ,3
+			ENDIF
 			PRINTL 
 			PRINTFORML 基礎,身長,{身長保存}
 			PRINTFORML 基礎,バスト,{バスト保存}
@@ -1334,9 +1383,26 @@ SELECTCASE LOCAL
 			NEXT
 			FOR LOCAL, 0, 100
 				IF EXP数値保存:LOCAL > 0
-					PRINTFORML 経験,%ABLNAME:(EXP一時保存:LOCAL)%,{EXP数値保存:LOCAL}
+					PRINTFORML 経験,%EXPNAME:(EXP一時保存:LOCAL)%,{EXP数値保存:LOCAL}
 				ENDIF
 			NEXT
+
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL ;プレゼント好み
+			PRINTL ;・カテゴリ一覧
+			PRINTL ;食べ物,酒,宝石,アクセサリ,実用品,本,花,その他
+			PRINTL ;複数好みにする場合は「食べ物_酒」のように記述すること
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTFORML CSTR,プレゼント好み,%好物一覧:好物一時保存%
+			PRINTL 
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL ;同行キャラ設定
+			PRINTL ;「キャラのフルネーム_同行確率%」で記述すること。フルネームは二つ名込みで記述。（被り防止のため）
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL ;{
+			PRINTL ;CSTR,同行キャラ,
+			PRINTL ;[南南西の守護神]アニラ_30%
+			PRINTL ;}
 			PRINTL 
 			PRINTL {
 			PRINTFORML CSTR,戦闘基礎ステータス設定,
@@ -1349,8 +1415,15 @@ SELECTCASE LOCAL
 			PRINTFORML CSTR,服名称,%ランダムキャラ服装名%
 			FOR LOCAL, 1, 23
 				PRINTFORML 装着物,%EQUIPNAME:LOCAL%,{服装数値保存:LOCAL}
+				SIF EQUIPNAME_TIPS(LOCAL) != ""
+					PRINTFORML ;%EQUIPNAME_TIPS(LOCAL)%
 			NEXT
 			
+			IF 服装数値保存:30
+				PRINTFORML ;水着は%水着一覧:(服装数値保存:30)%
+				PRINTFORML フラグ,水着,{服装数値保存:30}
+			ENDIF
+
 			OUTPUTLOG @"CSV_EDITFILE/Chara{登録番号} %ランダムキャラネーム%.csv"
 			PRINTW CSV_EDITFILEフォルダに出力しました。CSV/キャラデータフォルダに移動して再起動してください
 			RETURN 0
@@ -1436,6 +1509,9 @@ SELECTCASE LOCAL
 				EXP:(LOCAL:1):(EXP一時保存:LOCAL) = EXP数値保存:LOCAL
 			ENDIF
 		NEXT
+
+		CSTR:(LOCAL:1):プレゼント好み = %好物一覧:好物一時保存%
+		CFLAG:(LOCAL:1):水着 = 服装数値保存:30
 
 		;戦闘関連設定
 		CSTR:(LOCAL:1):戦闘基礎ステータス設定 =  属性_%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)% 得意武器_%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)% 初期ステータスタイプ_%成長タイプ:(ランダムキャラ戦闘タイプ:2)%
@@ -1701,3 +1777,27 @@ SELECTCASE 身長
 ENDSELECT 
 
 
+
+@EQUIPNAME_TIPS(ARG)
+#FUNCTIONS
+
+SELECTCASE ARG
+	CASE 4
+		LOCALS = ボタンなどを外さなくても乳が露出出来るか？
+	CASE 5
+		LOCALS = 脱がさなくてもノーブラ時乳首がいじれるか？
+	CASE 6
+		LOCALS = 脱がさなくてもパイズリ出来るか？
+	CASE 9
+		LOCALS = 脱がさなくてもブラを取れるか？
+	CASE 13
+		LOCALS = スカートと書いてはあるけど前垂れとかも含む
+	CASE 14
+		LOCALS = レオタードやバニーガールなどのハイレグ形状を想定
+	CASE 17
+		LOCALS = 脱がさなくてもパンツを取れるか？
+	CASEELSE
+		LOCALS '= ""
+ENDSELECT
+
+RETURNF LOCALS
