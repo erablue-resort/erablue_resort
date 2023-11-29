@@ -1,0 +1,113 @@
+﻿@常連キャラ来訪処理
+#DIM 常連来訪可能枠
+#DIM 常連来訪人数
+#DIM 候補人数
+#DIM 常連リスト, 500
+#DIM 来訪候補, 10
+VARSET 常連リスト
+VARSET 来訪候補
+
+;広告を打ってなくても、滞在枠に空きがあるなら常連が入れる
+;まず常連キャラが入れる枠を計算
+常連来訪可能枠 = 滞在キャラ上限 - 滞在キャラ数
+
+;入れないなら帰る
+SIF 常連来訪可能枠 < 1
+	RETURN 0
+
+;常連来訪数を算出
+SELECTCASE 常連来訪可能枠
+	CASE IS > 10
+		;8~10人
+		常連来訪人数 = RAND:2 + 8
+	CASE IS > 5
+		;空きの半分プラマイ1
+		常連来訪人数 = (常連来訪可能枠 / 2) - 1 + RAND:2
+	CASEELSE
+		;1人だけ
+		常連来訪人数 = 1
+ENDSELECT
+
+;来訪候補を登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;滞在状態ではない、かつ常連キャラをカウント
+	SIF TALENT:LOCAL:常連 == 0
+		CONTINUE
+	IF CFLAG:LOCAL:滞在期間 == -1
+		常連リスト:(LOCAL:1) = LOCAL
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+候補人数 = LOCAL:1
+
+;候補人数が０の場合はそのまま終わる
+SIF 候補人数 == 0
+	RETURN 0
+
+;候補人数が常連来訪人数より少ない場合は全員登録
+IF 候補人数 <= 常連来訪人数
+	FOR LOCAL, 0, 候補人数
+		来訪候補:LOCAL = 常連リスト:LOCAL
+	NEXT
+ELSE
+	LOCAL:2 = 0
+	LOCAL = 候補人数 - 1
+	;常連リスト配列をシャッフル
+	WHILE LOCAL > 0
+		LOCAL:1 = RAND:(LOCAL - 1)
+		SWAP 常連リスト:LOCAL, 常連リスト:(LOCAL:1)
+		LOCAL -= 1
+		LOCAL:2 += 1
+		;必要分集まったらおしまい
+		SIF LOCAL:2 >= 常連来訪人数
+			BREAK
+	WEND
+	;配列の後ろの方にランダムシャッフルされた候補が集まってるはずなので常連来訪人数分取得
+	FOR LOCAL, 0, 常連来訪人数
+		来訪候補:LOCAL = 常連リスト:(候補人数 - 1 - LOCAL)
+	NEXT
+ENDIF
+
+
+FOR LOCAL, 0, 10
+	SIF 来訪候補:LOCAL == 0
+		BREAK
+	;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+	SIF CFLAG:(来訪候補:LOCAL):滞在期間 > 0
+		CONTINUE
+	CFLAG:(来訪候補:LOCAL):滞在期間 = RAND:2 + 6
+	CFLAG:(来訪候補:LOCAL):リゾート来訪回数 += 1
+	PRINTFORML 常連の%CALLNAME:(来訪候補:LOCAL)%がリゾート地を訪れたようだ。
+	滞在キャラ数 += 1
+	常連来訪可能枠 -= 1
+	CALL 滞在者部屋割り配列挿入処理(来訪候補:LOCAL)
+	CALL 招待時妊娠メッセージ(来訪候補:LOCAL)
+	SIF 初体験日:(来訪候補:LOCAL):リゾート初来訪 == 0
+		初体験日:(来訪候補:LOCAL):リゾート初来訪 = DAY
+	;こっから同行キャラ判定
+	IF 常連来訪可能枠 > 0
+		FOR LOCAL:1, 0, 100
+			SIF 常連来訪可能枠 <= 0
+				BREAK
+			SIF 同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1) < 1
+				BREAK
+			SIF CFLAG:(同行候補キャラ番号:(解放キャラ招待:LOCAL):(LOCAL:1)):招待不可フラグ > 0
+				CONTINUE
+			LOCAL:2 = RAND:100
+			IF 同行候補キャラ確率:(来訪候補:LOCAL):(LOCAL:1) > LOCAL:2
+				;同行キャラ処理の都合で招待キャラが被る可能性があるため、既に滞在期間があるキャラはスルー
+				SIF CFLAG:(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1)):滞在期間 > 0
+					CONTINUE
+				CFLAG:(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1)):滞在期間 = CFLAG:(来訪候補:LOCAL):滞在期間
+				CFLAG:(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1)):リゾート来訪回数 += 1
+				PRINTFORML %CALLNAME:(来訪候補:LOCAL)%と一緒に%CALLNAME:(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1))%がリゾート地を訪れたようだ。
+				CALL 滞在者部屋割り配列挿入処理(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1))
+				CALL 招待時妊娠メッセージ(同行候補キャラ番号:(来訪候補:LOCAL):(LOCAL:1))
+				滞在キャラ数 += 1
+				常連来訪可能枠 -= 1
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+CALL 招待時妊娠メッセージ(0,1)
