@@ -1,6 +1,7 @@
 ﻿@宿泊エリア処理
 #DIM 表示エリア種類 = 200
 #DIM ページ数
+#DIM ループ用
 
 $RESTART_LABEL
 VARSET LOCAL
@@ -17,10 +18,21 @@ SELECTCASE 表示エリア種類
 		LOCALS += "<br>"
 		LOCALS += "<button value='300'>[300] 従業員個室</button>"
 		LOCALS += "<br>"
+		LOCALS += "<button value='400'>[400] スイートルーム</button>"
+		LOCALS += "<br>"
 	CASE 300
 		LOCALS += "<button value='200'>[200] 宿泊者エリア</button>"
 		LOCALS += "<br>"
 		LOCALS += "<nonbutton><font color='#FFFF00'>[300] 従業員個室</font></nonbutton>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='400'>[400] スイートルーム</button>"
+		LOCALS += "<br>"
+	CASE 400
+		LOCALS += "<button value='200'>[200] 宿泊者エリア</button>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='300'>[300] 従業員個室</button>"
+		LOCALS += "<br>"
+		LOCALS += "<nonbutton><font color='#FFFF00'>[400] スイートルーム</font></nonbutton>"
 		LOCALS += "<br>"
 ENDSELECT
 LOCALS += "<br>"
@@ -32,7 +44,9 @@ SELECTCASE 表示エリア種類
 	CASE 200
 		CALL 宿泊エリア_客室_表示(ページ数)
 	CASE 300
-		CALL 宿泊エリア_従業員室_表示
+		CALL 宿泊エリア_従業員室_表示(ページ数)
+	CASE 400
+		CALL 宿泊エリア_スイートルーム_表示(ページ数)
 ENDSELECT
 ;RESULTにページ数上限が入っている
 LOCAL:10 = RESULT
@@ -43,7 +57,7 @@ FOR LOCAL, 0, 27
 	PRINTL
 NEXT
 $INPUT_LOOP
-INPUT
+BINPUT
 
 SELECTCASE RESULT
 	CASE IS < 滞在キャラ上限
@@ -75,6 +89,29 @@ SELECTCASE RESULT
 					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
 				ENDIF
 			NEXT
+		ELSEIF 表示エリア種類 == 400
+			LOCAL:2 = 0
+			FOR ループ用,0,CHARANUM
+				SIF CFLAG:ループ用:滞在期間 < 1
+					CONTINUE
+				IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL + 2000
+					SIF CFLAG:ループ用:睡眠 && CFLAG:ループ用:現在位置 == RESULT + 2000 && 陥落チェック(ループ用) == 0
+						LOCAL:2 = 1
+				ENDIF
+			NEXT
+			IF LOCAL:2
+				PRINTL 部屋には鍵が掛かっている。
+				PRINTW どうやら眠っているようだ…
+				GOTO RESTART_LABEL
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 999
+			CFLAG:MASTER:現在位置 = RESULT + 2000
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
 		ENDIF
 	CASE 200
 		IF 表示エリア種類 == 200
@@ -90,6 +127,14 @@ SELECTCASE RESULT
 			GOTO INPUT_LOOP
 		ENDIF
 		表示エリア種類 = 300
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 400
+		IF 表示エリア種類 == 400
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 400
 		ページ数 = 0
 		GOTO RESTART_LABEL
 	CASE 1000
@@ -215,7 +260,7 @@ HTML_PRINT LOCALS, 1
 
 RETURN (滞在キャラ上限 - 1) / 16
 
-@宿泊エリア_従業員室_表示
+@宿泊エリア_従業員室_表示(ページ数)
 #DIM ページ数
 VARSET LOCAL
 
@@ -319,6 +364,67 @@ HTML_PRINT LOCALS, 1
 
 RETURN (従業員キャラ上限 - 1) / 16
 
+
+
+@宿泊エリア_スイートルーム_表示(ページ数)
+#DIM ページ数
+#DIM ループ用
+#DIMS 配列分解文字列, 110
+VARSET LOCALS
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前のスイートエリアへ</button>　　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (スイートルーム部屋数 - 1) / 4
+	LOCALS += "<button value='1001'>[1001]次のスイートエリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 4), (ページ数 * 4) + 4
+	SIF LOCAL > スイートルーム部屋数 - 1
+		BREAK
+	IF スイートルーム部屋割り配列:LOCAL != ""
+		VARSET 配列分解文字列
+		SPLIT スイートルーム部屋割り配列:LOCAL, "_", 配列分解文字列
+		IF STRCOUNT(スイートルーム部屋割り配列:LOCAL, "_") > 2
+			LOCALS:10 = %CALLNAME:(TOINT(配列分解文字列:1))%他
+		ELSE
+			LOCALS:10 = %CALLNAME:(TOINT(配列分解文字列:1))%
+		ENDIF
+		LOCAL:10 = 0
+		FOR ループ用,0,CHARANUM
+			SIF CFLAG:ループ用:滞在期間 < 1
+				CONTINUE
+			SIF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL + 2000
+			LOCAL:10 += 1
+		NEXT
+		IF LOCAL:10 > 0
+			LOCALS:1 = {LOCAL:10}名在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{31 + (LOCAL - (ページ数 * 4)) / 2 * 1456},2250,1174' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='1174' width='2250'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{2200 + (LOCAL - (ページ数 * 4)) % 2 * 2374}' ypos='{1124 + (LOCAL - (ページ数 * 4)) / 2 * 300}' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{156 + (LOCAL - (ページ数 * 4)) / 2 * 1456},1000,362'>■滞在者<br>%LOCALS:10%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{31 + (LOCAL - (ページ数 * 4)) / 2 * 1456},2250,1174' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='1174' width='2250'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{2200 + (LOCAL - (ページ数 * 4)) % 2 * 2374}' ypos='{1124 + (LOCAL - (ページ数 * 4)) / 2 * 300}' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{156 + (LOCAL - (ページ数 * 4)) / 2 * 1456},1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (スイートルーム部屋数 - 1) / 4
+
 @キャラクター部屋検索(ARG)
 #FUNCTION
 IF TALENT:ARG:従業員
@@ -333,7 +439,14 @@ ELSE
 			RETURNF LOCAL
 		ENDIF
 	NEXT
+	FOR LOCAL, 0, 100
+		IF 滞在者部屋割り配列:LOCAL == ARG
+			RETURNF LOCAL
+		ENDIF
+	NEXT
 ENDIF
+
+RETURNF -1
 
 @滞在者部屋割り配列挿入処理(ARG)
 FOR LOCAL, 0, 滞在キャラ上限

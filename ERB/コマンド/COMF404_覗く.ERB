@@ -47,7 +47,7 @@ IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位
 		GOTO INPUT_LOOP
 	ENDIF
 ELSE
-	FOR LOCAL, 1, 4
+	FOR LOCAL, 1, 5
 		IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), LOCAL)
 			RFLAG:コマンド結果受渡し変数 = LOCAL
 			BREAK
@@ -115,6 +115,40 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 		SIF EXP:TARGET:肉体熟知 < 100
 			EXP:TARGET:肉体熟知 += 1
 		TCVAR:TARGET:覗き熟知フラグ = 1
+	CASE 4
+		;候補者を持ってくる
+		LOCAL:1 = 0
+		;全員の居場所をチェック
+		FOR LOCAL, 1, CHARANUM
+			SIF CFLAG:LOCAL:滞在期間 < 0
+				CONTINUE
+			SIF CFLAG:LOCAL:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+				CONTINUE
+			SIF CFLAG:LOCAL:隠密
+				CONTINUE
+			IF CFLAG:PLAYER:現在位置 == 710
+				IF GROUPMATCH(CFLAG:LOCAL:現在位置, 702, 703, 704, 705, 706, 707, 708)
+					候補者:(LOCAL:1) = LOCAL
+					LOCAL:1 += 1
+				ENDIF
+			ELSE
+				IF GROUPMATCH(CFLAG:LOCAL:現在位置, 802, 803, 804, 805, 806, 807, 808)
+					候補者:(LOCAL:1) = LOCAL
+					LOCAL:1 += 1
+				ENDIF
+			ENDIF
+		NEXT
+		;該当者からランダムで選択
+		IF LOCAL:1 == 0
+			;該当者なし
+			RFLAG:コマンド結果受渡し変数２ = 0
+		ELSE
+			LOCAL = RAND:(LOCAL:1)
+			RFLAG:コマンド結果受渡し変数２ = 候補者:LOCAL
+			SIF EXP:(候補者:LOCAL):肉体熟知 < 100
+				EXP:(候補者:LOCAL):肉体熟知 += 1
+			TCVAR:(候補者:LOCAL):覗き熟知フラグ = 1
+		ENDIF
 ENDSELECT
 
 TIME += 3
@@ -157,6 +191,9 @@ SELECTCASE ARG:1
 		;自分は隠密してないのにTARGETが隠密している時
 		SIF !CFLAG:PLAYER:隠密 && CFLAG:TARGET:隠密
 			SETBIT LOCAL, 3
+		;覗き専用の場所
+		SIF GROUPMATCH(ARG, 710, 810)
+			SETBIT LOCAL, 4
 ENDSELECT
 
 RETURNF LOCAL
@@ -227,6 +264,30 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					ELSE
 						PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%はきょろきょろと周囲を確認しながら、しかし自慰を行う手は動き続けている…
 					ENDIF
+				ENDIF
+			CASE 4
+				;覗き専用場所から覗く
+				PRINTFORML %CALLNAME:PLAYER%は壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を覗き込んだ
+				IF RFLAG:コマンド結果受渡し変数２
+					PRINTFORM 向こう側では%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置
+						CASE 702, 802
+							PRINTL 服を脱いでいる様子が見える…
+						CASE 703, 803
+							PRINTL 石鹸で体を洗っている様子が見える…
+						CASE 704, 804
+							PRINTL 裸で湯船に浸かっている様子が見える…
+						CASE 705, 805
+							PRINTL 裸で変わり湯に浸かっている様子が見える…
+						CASE 706, 806
+							PRINTL サウナで汗を流している様子が見える…
+						CASE 707, 807
+							PRINTL 裸で露天風呂に浸かっている様子が見える…
+						CASE 708, 808
+							PRINTL 裸で壺湯に浸かっている様子が見える…
+					ENDSELECT
+				ELSE
+					PRINTL しかし、向こう側には誰もいないようだ…
 				ENDIF
 		ENDSELECT
 ENDSELECT

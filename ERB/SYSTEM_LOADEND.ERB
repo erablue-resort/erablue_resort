@@ -125,6 +125,9 @@ FOR LOCAL, 1, CHARANUM
 
 	SIF CFLAG:LOCAL:長期雇用 && TALENT:LOCAL:従業員
 		CFLAG:LOCAL:長期雇用 = 0
+
+	SIF 現在仕事:LOCAL:1 == 102
+		現在仕事:LOCAL:1 = 2
 	;ここまで0.033で消す
 NEXT
 
@@ -200,6 +203,9 @@ IF クライアントサイズ変更通知 == 0
 	クライアントサイズ変更通知 = 1
 ENDIF
 
+SIF スイートルーム部屋数 == 0
+	スイートルーム部屋数 = 1
+
 ;ここまで0.033で消す
 
 ;------------------------------------------------------------------------------------------
@@ -214,7 +220,7 @@ FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	;部屋の無いキャラがいないかチェック
-	IF キャラクター部屋検索(LOCAL) == 0
+	IF キャラクター部屋検索(LOCAL) == -1
 		IF TALENT:LOCAL:従業員
 			FOR LOCAL:1, 0, 従業員キャラ上限
 				IF 従業員部屋割り配列:(LOCAL:1) < 1
@@ -227,6 +233,30 @@ FOR LOCAL, 1, CHARANUM
 		ELSE
 			CALL 滞在者部屋割り配列挿入処理(LOCAL)
 		ENDIF
+	ENDIF
+
+	;複数の部屋に入っちゃってないかチェック
+	LOCAL:2 = 0
+	IF TALENT:LOCAL:従業員
+		FOR LOCAL:1, 0, 従業員キャラ上限
+			IF 従業員部屋割り配列:(LOCAL:1) == LOCAL
+				IF LOCAL:2
+					従業員部屋割り配列:(LOCAL:1) = 0
+				ELSE
+					LOCAL:2 = 1
+				ENDIF
+			ENDIF
+		NEXT
+	ELSE
+		FOR LOCAL:1, 0, 100
+			IF 滞在者部屋割り配列:(LOCAL:1) == LOCAL
+				IF LOCAL:2
+					滞在者部屋割り配列:(LOCAL:1) = 0
+				ELSE
+					LOCAL:2 = 1
+				ENDIF
+			ENDIF
+		NEXT
 	ENDIF
 NEXT
 
