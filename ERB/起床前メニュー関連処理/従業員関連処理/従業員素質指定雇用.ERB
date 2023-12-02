@@ -19,6 +19,8 @@
 #DIM EXP数値保存, 100
 #DIMS CONST 好物一覧 = "食べ物","酒","宝石","アクセサリ","実用品","本","花","その他"
 #DIM 好物一時保存
+#DIM 同行者一時保存, 100
+#DIM 同行確率一時保存, 100
 #DIMS CONST 同行確率一覧 = "-25","-5","+5","+25"
 #DIM ランダムキャラ経験, 80
 #DIM ランダムキャラ戦闘タイプ, 10
@@ -32,6 +34,7 @@
 #DIM ページ数
 #DIM 必要ルピ
 #DIM 登録番号
+#DIMS CONST 表示切替 = "情報・素質","能力・経験","服装","同行者"
 
 表示モード = 0
 ページ数 = 0
@@ -611,8 +614,67 @@ SELECTCASE 表示モード
 
 		LOCALS += "<br>"
 
-		LOCALS += @"　　水着：%水着一覧:(服装数値保存:30)%"
 		LOCALS += "<br>"
+		LOCALS += @"　水着：%水着一覧:(服装数値保存:30)%"
+		LOCALS += "<br>"
+	CASE 3
+		LOCALS += "■同行候補キャラの上限は100人です"
+		IF DT_EXIST("DT_CHARA")
+			VARSET 同行者一時保存
+			VARSET 同行確率一時保存
+			LOCAL:1 = 0
+			FOR LOCAL, 0, DT_ROW_LENGTH("DT_CHARA")
+				SIF !DT_CELL_GET("DT_CHARA", LOCAL, "VALUE")
+					CONTINUE
+				同行者一時保存:(LOCAL:1) = LOCAL
+				同行確率一時保存:(LOCAL:1) = DT_CELL_GET("DT_CHARA", LOCAL, "VALUE")
+				LOCAL:1 ++
+				SIF LOCAL:1 >= 100
+					BREAK
+			NEXT
+			LOCALS += @"(現在{LOCAL:1, 3, RIGHT}人)■<br>"
+			FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
+				SIF LOCAL >= LOCAL:1
+					BREAK
+				LOCAL:2 = 同行者一時保存:LOCAL
+				LOCALS += @"<nonbutton>[{DT_CELL_GET("DT_CHARA", LOCAL:2, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(DT_CELL_GETS("DT_CHARA", LOCAL:2, "NAME"), "]"), 41, LEFT%：{DT_CELL_GET("DT_CHARA", LOCAL:2, "VALUE"), 3}％</nonbutton>"
+				LOCALS += "<br>"
+			NEXT
+		ELSE
+			LOCALS += "(現在  0人)■<br>"
+		ENDIF
+		LOCALS += "</div>"
+		LOCALS += "<div rect='2125,2906,3675,2962'>"
+		IF ページ数 > 0
+			LOCALS += "<button value='29994'>[|≪]</button>"
+		ELSE
+			LOCALS += "     "
+		ENDIF
+		IF ページ数 > 5
+			LOCALS += "<button value='29996'> [－５]</button>"
+		ELSE
+			LOCALS += " 　　　"
+		ENDIF
+		LOCALS += @"　　　　　　　{ページ数, 4, RIGHT}/{LOCAL:1 / 20, 4, RIGHT}　　　　　 　　"
+		IF ページ数 < LOCAL:1 / 20 - 5
+			LOCALS += "<button value='29997'>[＋５] </button>"
+		ELSE
+			LOCALS += " 　　　"
+		ENDIF
+		IF ページ数 < LOCAL:1 / 20
+			LOCALS += "<button value='29995'>[≫|]</button>"
+		ENDIF
+		LOCALS += "<br>"
+		IF ページ数 > 0
+			LOCALS += "<button value='29998'>[前のページ]</button>"
+		ELSE
+			LOCALS += "　　　　　　"
+		ENDIF
+		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>　　　　"
+		IF ページ数 < LOCAL:1 / 20
+			LOCALS += "<button value='29999'>[次のページ]</button>"
+		ENDIF
+
 	CASE 110
 		LOCALS += "属性："
 		FOR LOCAL, 0, 6
@@ -1055,6 +1117,7 @@ SELECTCASE 表示モード
 				DT_ROW_ADD "DT_CHARA", "NO", LOCAL, "NAME", CSVNAME(LOCAL), "VALUE", 0
 			NEXT
 		ENDIF
+		LOCALS += "■同行候補キャラは最大100人まで設定できます■<br>"
 		LOCAL:1 = DT_ROW_LENGTH("DT_CHARA")
 		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
 			SIF LOCAL >= LOCAL:1
@@ -1067,7 +1130,7 @@ SELECTCASE 表示モード
 			LOCALS += "</font><br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,2856,3675,2962'>"
+		LOCALS += "<div rect='2125,2906,3675,2962'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29994'>[|≪]</button>"
 		ELSE
@@ -1099,14 +1162,25 @@ SELECTCASE 表示モード
 		ENDIF
 ENDSELECT
 LOCALS += "</div>"
-IF CSVエディタフラグ
-	IF 表示モード == 0
-		LOCALS += "<div rect='3750,3000,2500,312'><button value='1'>[1] 能力・経験表示へ</button>　<button value='2'>[2] 服装表示へ</button></div>"
-	ELSEIF 表示モード == 1
-		LOCALS += "<div rect='3750,3000,2500,312'><button value='0'>[0] 情報・素質表示へ</button>　<button value='2'>[2] 服装表示へ</button></div>"
-	ELSEIF 表示モード == 2
-		LOCALS += "<div rect='3750,3000,2500,312'><button value='0'>[0] 情報・素質表示へ</button>　<button value='1'>[1] 能力・経験表示へ</button></div>"
-	ENDIF
+IF CSVエディタフラグ && 表示モード < VARSIZE("表示切替") && 表示モード != 3
+	LOCALS += "<div rect='2125,2850,3675,312'>"
+	FOR LOCAL, 0, VARSIZE("表示切替")
+		IF 表示モード == LOCAL
+			LOCALS += @"<font color='#606060'>[{LOCAL}] %表示切替:LOCAL%表示へ</font>　"
+		ELSE
+			LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %表示切替:LOCAL%表示へ</button>　"
+		ENDIF
+		SIF LOCAL % 3 == 2
+			LOCALS += "<br>"
+	NEXT
+	LOCALS += "</div>"
+;	IF 表示モード == 0
+;		LOCALS += "<div rect='3750,3000,2500,312'><button value='1'>[1] 能力・経験表示へ</button>　<button value='2'>[2] 服装表示へ</button></div>"
+;	ELSEIF 表示モード == 1
+;		LOCALS += "<div rect='3750,3000,2500,312'><button value='0'>[0] 情報・素質表示へ</button>　<button value='2'>[2] 服装表示へ</button></div>"
+;	ELSEIF 表示モード == 2
+;		LOCALS += "<div rect='3750,3000,2500,312'><button value='0'>[0] 情報・素質表示へ</button>　<button value='1'>[1] 能力・経験表示へ</button></div>"
+;	ENDIF
 ELSE
 	IF 表示モード == 0
 		LOCALS += "<div rect='4812,3000,2500,312'><button value='1'>[1] 能力・経験表示へ</button></div>"
@@ -1641,6 +1715,9 @@ SELECTCASE LOCAL
 		表示モード = 1
 	CASE 2
 		表示モード = 2
+	CASE 3
+		ページ数 = 0
+		表示モード = 3
 	CASE 999
 		RETURN 0
 ENDSELECT
