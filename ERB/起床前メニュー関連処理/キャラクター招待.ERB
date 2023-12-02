@@ -20,11 +20,28 @@ ELSEIF 滞在キャラ数 >= 滞在キャラ上限
 	PRINTL
 	PRINTPLAIN [2]ＤＭを出す（滞在人数が上限に達しています）
 	PRINTL
-	PRINTL 
 ELSE
 	PRINTBUTTON "[1]通常の広告を打つ", 1
 	PRINTL
 	PRINTBUTTON "[2]ＤＭを出す", 2
+	PRINTL
+ENDIF
+RESETCOLOR
+;スイートに空きがあるかチェック
+LOCAL:1 = 0
+FOR LOCAL, 0, スイートルーム部屋数
+	SIF スイートルーム招待:LOCAL > 0
+		CONTINUE
+	SIF スイートルーム部屋割り配列:LOCAL != ""
+		CONTINUE
+	LOCAL:1 = 1
+NEXT
+IF LOCAL:1
+	PRINTBUTTON "[10]スイートルームに無料招待する", 10
+	PRINTL
+ELSE
+	SETCOLOR 0x666666
+	PRINTPLAIN [10]スイートルームに無料招待する（部屋に空きがありません）
 	PRINTL
 ENDIF
 RESETCOLOR
@@ -88,6 +105,14 @@ SELECTCASE RESULT
 		CALL サプチケ使用
 		SIF RESULT == -1
 			GOTO 広告_LOOP
+	CASE 10
+		IF MONEY < 20000
+			PRINTW お金が足りません。
+			GOTO 広告_LOOP
+		ENDIF
+		CALL スイートルーム招待処理
+		SIF RESULT == -1
+			GOTO 広告_LOOP
 	CASE 998
 		DRAWLINE
 		PRINTL 島外に広告を出し、キャラクターがリゾートを訪れてくれる機能です。
@@ -104,6 +129,13 @@ SELECTCASE RESULT
 		PRINTL 一定以上の好感度があるキャラに対して、手紙形式の広告を送ります。5000ルピの費用が掛かります。
 		PRINTL 指定したキャラを狙うことが出来ますが、消費するルピは割高な上に必ず訪れてくれるとは限りません。
 		PRINTW また、訪問確率は好感度を上げることで上昇します。
+		PRINTL
+		PRINTL ■「スイートルームに無料招待する」について
+		PRINTL 任意のキャラに対して、無料招待券を送ります。20000ルピの費用が掛かります。
+		PRINTL 指定したキャラを狙うことが可能で、必ず訪問してくれます。
+		PRINTL 通常の滞在者とは別枠なので普通の部屋がいっぱいでも呼ぶことが出来ます。
+		PRINTL しかし無料招待のため、一日終了時の売上には貢献しません。
+		PRINTW また、スイートルームに空きがない場合は使用することが出来ません。
 		PRINTL
 		PRINTL ■「サプチケ（開発版）を使う」について
 		PRINTL 全てのキャラから選択して一人を選び、選択したキャラが必ずリゾートを訪れてくれます。
@@ -220,6 +252,20 @@ FOR LOCAL, 1, CHARANUM
 	;サプチケで呼ぶ予定のキャラは排除
 	SIF LOCAL == サプチケキャラ招待
 		CONTINUE
+	LOCAL:3 = 0
+	FOR LOCAL:2, 0, 100
+		SIF 解放キャラ招待:(LOCAL:2) == 0
+			BREAK
+		IF 解放キャラ招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ELSEIF LOCAL:2 < 20 && スイートルーム招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF LOCAL:3
+		CONTINUE
 	;滞在状態ではないキャラをカウント
 	IF CFLAG:LOCAL:滞在期間 == -1
 		集客候補:(LOCAL:1) = LOCAL
@@ -280,6 +326,20 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	LOCAL:3 = 0
+	FOR LOCAL:2, 0, 100
+		SIF 解放キャラ招待:(LOCAL:2) == 0
+			BREAK
+		IF 解放キャラ招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ELSEIF LOCAL:2 < 20 && スイートルーム招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF LOCAL:3
 		CONTINUE
 	表示候補:(LOCAL:1) = LOCAL
 	LOCAL:1 += 1
@@ -392,6 +452,9 @@ FOR LOCAL, 1, CHARANUM
 		IF 解放キャラ招待:(LOCAL:2) == LOCAL
 			LOCAL:3 = 1
 			BREAK
+		ELSEIF LOCAL:2 < 20 && スイートルーム招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
 		ENDIF
 	NEXT
 	SIF LOCAL:3
@@ -474,6 +537,116 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
+@スイートルーム招待処理
+#DIM 表示候補, 500
+#DIM 現在ページ
+#DIM 広告対象
+
+VARSET 表示候補, -1
+現在ページ = 0
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰を無料招待しますか？
+DRAWLINE
+
+;表示キャラを登録
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;招待不可キャラは排除
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	;DM配達済みは排除
+	SIF ABS(ＤＭキャラ招待) == LOCAL
+		CONTINUE
+	;サプチケ対象は排除
+	SIF サプチケキャラ招待 == LOCAL
+		CONTINUE
+	;滞在済みは出さない
+	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	LOCAL:3 = 0
+	FOR LOCAL:2, 0, 100
+		SIF 解放キャラ招待:(LOCAL:2) == 0
+			BREAK
+		IF 解放キャラ招待:(LOCAL:2) == LOCAL
+			LOCAL:3 = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF LOCAL:3
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL,3,RIGHT}]%NAME:(表示候補:LOCAL), 50, LEFT%", LOCAL
+	SIF LOCAL % 2 != 0 && LOCAL
+		PRINTL 
+NEXT
+
+PRINTL 
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF LOCAL:1 == 0
+	PRINTBUTTONC "[901]次ページへ", 901
+ENDIF
+PRINTL 
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP
+INPUT
+
+;広告対象のINPUT
+SELECTCASE RESULT
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN -1
+	CASE IS >= CHARANUM, IS < 0
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASEELSE
+		IF 表示候補:RESULT < 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		広告対象 = 表示候補:RESULT
+ENDSELECT
+
+DRAWLINE
+PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:広告対象%をスイートルームに無料招待した。
+MONEY -= 20000
+
+FOR LOCAL, 0, スイートルーム部屋数
+	SIF スイートルーム部屋割り配列:LOCAL != ""
+		CONTINUE
+	SIF スイートルーム招待:LOCAL > 0
+		CONTINUE
+	スイートルーム招待:LOCAL = 広告対象
+NEXT
 
 @人気上昇処理(使用ルピ量)
 #DIM 使用ルピ量

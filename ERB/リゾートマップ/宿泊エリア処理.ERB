@@ -94,8 +94,8 @@ SELECTCASE RESULT
 			FOR ループ用,0,CHARANUM
 				SIF CFLAG:ループ用:滞在期間 < 1
 					CONTINUE
-				IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL + 2000
-					SIF CFLAG:ループ用:睡眠 && CFLAG:ループ用:現在位置 == RESULT + 2000 && 陥落チェック(ループ用) == 0
+				IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == RESULT + 2000
+					SIF CFLAG:ループ用:睡眠 && 陥落チェック(ループ用) == 0
 						LOCAL:2 = 1
 				ENDIF
 			NEXT
@@ -398,7 +398,7 @@ FOR LOCAL, (ページ数 * 4), (ページ数 * 4) + 4
 			LOCALS:10 = %CALLNAME:(TOINT(配列分解文字列:1))%
 		ENDIF
 		LOCAL:10 = 0
-		FOR ループ用,0,CHARANUM
+		FOR ループ用, 1, CHARANUM
 			SIF CFLAG:ループ用:滞在期間 < 1
 				CONTINUE
 			SIF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL + 2000
@@ -433,12 +433,9 @@ IF TALENT:ARG:従業員
 			RETURNF LOCAL + 1000
 		ENDIF
 	NEXT
+ELSEIF CFLAG:ARG:スイートルーム滞在フラグ
+	RETURNF CFLAG:ARG:スイートルーム滞在フラグ - 100 + 2000
 ELSE
-	FOR LOCAL, 0, 100
-		IF 滞在者部屋割り配列:LOCAL == ARG
-			RETURNF LOCAL
-		ENDIF
-	NEXT
 	FOR LOCAL, 0, 100
 		IF 滞在者部屋割り配列:LOCAL == ARG
 			RETURNF LOCAL
@@ -449,6 +446,7 @@ ENDIF
 RETURNF -1
 
 @滞在者部屋割り配列挿入処理(ARG)
+
 FOR LOCAL, 0, 滞在キャラ上限
 	IF 滞在者部屋割り配列:LOCAL < 1
 		滞在者部屋割り配列:LOCAL = ARG
@@ -460,12 +458,19 @@ NEXT
 RETURN 0
 
 @滞在者部屋割り配列削除処理(ARG)
-FOR LOCAL, 0, 100
-	IF 滞在者部屋割り配列:LOCAL == ARG
-		滞在者部屋割り配列:LOCAL = 0
-		CFLAG:ARG:現在マップ種別 = 0
-		CFLAG:ARG:現在位置 = 999
-		RETURN 1
-	ENDIF
-NEXT
+
+IF CFLAG:ARG:スイートルーム滞在フラグ
+	REPLACE スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100), @"_{ARG}", ""
+	SIF スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) == "_"
+		スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) = 
+	CFLAG:ARG:スイートルーム滞在フラグ = 0
+	RETURN 1
+ELSE
+	FOR LOCAL, 0, 100
+		IF 滞在者部屋割り配列:LOCAL == ARG
+			滞在者部屋割り配列:LOCAL = 0
+			RETURN 1
+		ENDIF
+	NEXT
+ENDIF
 RETURN 0
