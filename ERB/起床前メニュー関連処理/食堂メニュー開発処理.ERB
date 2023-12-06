@@ -1,0 +1,374 @@
+﻿@食堂メニュー開発処理
+#DIM 画面表示用変数
+#DIM 開発料理ランク保存
+#DIM サブ食材ランク補正
+#DIM ルピ収入
+#DIM ZP収入
+
+DRAWLINE
+PRINTL 食材を組み合わせ、リゾートで提供する料理メニューを開発します。
+DRAWLINE
+
+開発料理ランク保存 = 0
+
+LOCALS = <div rect='81,31,5925,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='281,1670,3000,200' border='20' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='156,156,5850,2812'>"
+;どの食べ物を使うか登録
+LOCALS += "<br>■メインに使用する食材<br>　　"
+IF 使用食材:0
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'><button value='0'>[ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", 使用食材:0, "素材アイテム名", 1)%]</button></font><br><br>"
+ELSE
+	LOCALS += "<button value='0'>[--------------------]</button><br><br>"
+ENDIF
+LOCALS += "■追加食材<br>　　"
+IF 使用食材:1
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:1, "素材属性", 1))%属性")%
+	LOCALS += @"<font color='#%LOCALS:1%'><button value='1'>[ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", 使用食材:1, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", 使用食材:1, "素材アイテム名", 1)%]</button></font><br>"
+ELSE
+	LOCALS += "<button value='1'>[--------------------]</button><br>"
+ENDIF
+IF 使用食材:2
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:2, "素材属性", 1))%属性")%
+	LOCALS += @"　　<font color='#%LOCALS:1%'><button value='2'>[ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", 使用食材:2, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", 使用食材:2, "素材アイテム名", 1)%]</button></font><br>"
+ELSE
+	LOCALS += "　　<button value='2'>[--------------------]</button><br>"
+ENDIF
+IF 使用食材:3
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:3, "素材属性", 1))%属性")%
+	LOCALS += @"　　<font color='#%LOCALS:1%'><button value='3'>[ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", 使用食材:3, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", 使用食材:3, "素材アイテム名", 1)%]</button></font><br><br>"
+ELSE
+	LOCALS += "　　<button value='3'>[--------------------]</button><br><br>"
+ENDIF
+LOCALS += "■主に使用する調理器具<br>　　"
+IF 使用食材:9
+	LOCALS += @"<button value='9'>[%調理器具名:(使用食材:9)%]</button><br><br>"
+ELSE
+	LOCALS += "<button value='9'>[--------------------]</button><br><br>"
+ENDIF
+LOCALS += "■完成予定メニュー<br><br>　　"
+IF 使用食材:9 == 0 || 使用食材:0 == 0
+	LOCALS += "--------------------<br><br><br>"
+ELSE
+	開発料理ランク保存 = DT_CELL_GET("所持素材データベース", 使用食材:0, "素材ランク", 1)
+	LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:1, "素材ランク", 1)
+	LOCAL:2 = DT_CELL_GET("所持素材データベース", 使用食材:2, "素材ランク", 1)
+	LOCAL:3 = DT_CELL_GET("所持素材データベース", 使用食材:3, "素材ランク", 1)
+	IF MAX(LOCAL:1, LOCAL:2, LOCAL:3) == 0
+		;なんも食材登録されてないorランク０は寄与しない
+	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存
+		開発料理ランク保存 += 2
+	ELSEIF MAX(LOCAL:1, LOCAL:2, LOCAL:3) / 開発料理ランク保存
+		開発料理ランク保存 += 1
+	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存 - 1
+		開発料理ランク保存 += 1
+	ENDIF
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%属性")%
+	LOCALS:3 = %生成予定メニュー名算出()%
+	IF EXISTFUNCTION(@"特殊料理関数_%LOCALS:3%")
+		LOCALS:2 = 
+	ELSE
+		LOCALS:2 = 汎用料理
+	ENDIF
+	LOCALS += @"%LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%LOCALS:3%</font><br><br><br>"
+ENDIF
+LOCALS += "<button value='100'>[100] これでメニューを開発する</button>"
+LOCALS += "</div>"
+
+LOCALS += "<div rect='156,2600,5850,150'>"
+LOCALS += "　　　　　　　　　　　　　　　<button value='998'>[998] 既存メニューを見る</button>"
+LOCALS += "　　　　　　　　　　<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 26
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 998
+		CALL 既存メニュー閲覧(0)
+		RESTART
+	CASE 999
+		VARSET 使用食材
+		RETURN 0
+	CASE 0 TO 3
+		CALL 素材アイテム一覧表示("食材分類 IS NOT NULL and 所持素材数 > 0", 1, 1)
+		IF RESULT == -2
+			使用食材:LOCAL = 0
+		ELSEIF RESULT != -1
+			使用食材:LOCAL = RESULT
+		ENDIF
+		RESTART
+	CASE 9
+		CALL 調理道具選択処理
+		SIF RESULT != -1
+			使用食材:9 = RESULT
+		RESTART
+	CASE 100
+		;ルピ収入補正とZP収入補正をセットする
+		IF 特殊料理フラグ
+		ELSE
+			ルピ収入 = 開発料理ランク保存 * 開発料理ランク保存 * 2
+			;ルピはここから仕入れ額で減額される
+			;仕入額は食材ランク*相場が基本
+			ZP収入 = MAX(開発料理ランク保存 * 開発料理ランク保存 / 10, 1)
+		ENDIF
+		;データベースに料理を登録する
+		DT_ROW_ADD "料理メニューデータベース", "メニュー名", 生成予定メニュー名算出(), "料理ランク", 開発料理ランク保存, "料理属性", DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1), "ルピ収入補正", ルピ収入, "ZP収入補正", ZP収入, "メイン食材ID", 使用食材:0, "追加食材１ID", 使用食材:1, "追加食材２ID", 使用食材:2, "追加食材３ID", 使用食材:3, "調理器具ID",  使用食材:9
+		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%属性")%
+		LOCALS:3 = %生成予定メニュー名算出()%
+		IF EXISTFUNCTION(@"特殊料理関数_%LOCALS:3%")
+			LOCALS:2 = 
+		ELSE
+			LOCALS:2 = 汎用料理
+		ENDIF
+		LOCALS = %LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%LOCALS:3%</font>のレシピを開発しました。
+		HTML_PRINT LOCALS
+		PRINTL
+		WAIT
+		VARSET 使用食材
+ENDSELECT
+
+
+@既存メニュー閲覧(ボタン化フラグ = 0, 選択解除フラグ = 0, 被り禁止フラグ = 0)
+#DIMS 表示条件
+#DIM ページ番号
+#DIM ボタン化フラグ
+#DIM 被り禁止フラグ
+#DIM ソート後料理順, 1000
+#DIM 現在表示ランク
+#DIM 選択解除フラグ
+VARSET ソート後料理順, -1
+
+;データベースをランク順にソート
+DT_SELECT "料理メニューデータベース", "", "料理ランク ASC, 料理属性 ASC", ソート後料理順
+
+DO
+VARSET LOCAL
+VARSET LOCALS
+LOCALS = <div rect='200,0,5537,3625' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='262,75,5537,3625'><nobr>"
+
+現在表示ランク = -1
+FOR COUNT, ページ番号 * 25, ページ番号 * 25 + 41
+	IF ソート後料理順:COUNT < 0
+		BREAK
+	ENDIF
+	IF 被り禁止フラグ == 1
+		SIF MATCH(現在設定メニュー, ソート後料理順:COUNT)
+			CONTINUE
+	ENDIF
+	IF 現在表示ランク < DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理ランク", 1)
+		SIF LOCAL
+			LOCALS += "<br>"
+		IF LOCAL % 2 == 1
+			LOCALS += "<br>"
+			LOCAL += 1
+		ENDIF
+		現在表示ランク = DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理ランク", 1)
+		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
+	ENDIF
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理属性", 1))%属性")%
+	IF EXISTFUNCTION(@"特殊料理関数_%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:COUNT, "メニュー名", 1)%")
+		LOCALS:2 = 
+	ELSE
+		LOCALS:2 = 汎用料理：
+	ENDIF
+	IF ボタン化フラグ
+		LOCALS += @"　<button value='{COUNT}'>%LOCALS:2%<font color='#%LOCALS:1%'>%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:COUNT, "メニュー名", 1), 26, LEFT%</font></button><button value='{COUNT + 10000}'>[詳細]</button>　　　　　　　　　"
+	ELSE
+		LOCALS += @"　%LOCALS:2%<font color='#%LOCALS:1%'>%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:COUNT, "メニュー名", 1), 26, LEFT%</font><button value='{COUNT + 10000}'>[詳細]</button>　　　　　　　　　"
+	ENDIF
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+
+LOCALS += "</div>"
+
+LOCALS += "<div rect='262,3437,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 25) + 25 < 200 && 表示アイテム名:((ページ番号 * 25) + 25) != ""
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 選択解除フラグ
+	LOCALS += "　　　　　　　　　　　　　　　　　　　<button value='998'>[998] 選択を外す</button>"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+LOCALS += "　　<button value='999'>[999] 戻る</button></div>"
+
+DRAWLINE
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 33
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE RESULT
+	CASE 999
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN -1
+	CASE 998
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN -2
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+	CASE IS >= 10000
+		DRAWLINE
+		IF EXISTFUNCTION(@"特殊料理関数_%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "メニュー名", 1)%")
+			LOCALS:2 = 
+		ELSE
+			LOCALS:2 = 汎用料理：
+		ENDIF
+		PRINTFORML ■%LOCALS:2%%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "メニュー名", 1)%
+		PRINTFORM 　料理ランク：%TOFULL(TOSTR(DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "料理ランク", 1)))%　　料理属性：
+		SETCOLOR カラーパレット(@"%属性数値文字列変換(DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "料理属性", 1))%属性")
+		PRINTFORML %属性数値文字列変換(DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "料理属性", 1))%属性
+		RESETCOLOR
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "ZP収入補正", 1)
+		PRINTFORML 　ルピ収入補正：{DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "ルピ収入補正", 1), 6}　　ＺＰ収入補正：{LOCAL:1 / 1000}.{(LOCAL:1 % 1000) / 100}{(LOCAL:1 % 100) / 10}{(LOCAL:1 % 10)}
+		PRINT 　メイン食材：
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "メイン食材ID", 1)
+		SETCOLOR カラーパレット(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材属性", 1))%属性")
+		PRINTFORML ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", LOCAL:1, "素材アイテム名", 1)%
+		RESETCOLOR
+		PRINT 　追加食材１：
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "追加食材１ID", 1)
+		IF LOCAL:1
+			SETCOLOR カラーパレット(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材属性", 1))%属性")
+			PRINTFORML ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", LOCAL:1, "素材アイテム名", 1)%
+			RESETCOLOR
+		ELSE
+			PRINTL
+		ENDIF
+		PRINT 　追加食材２：
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "追加食材２ID", 1)
+		IF LOCAL:1
+			SETCOLOR カラーパレット(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材属性", 1))%属性")
+			PRINTFORML ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", LOCAL:1, "素材アイテム名", 1)%
+			RESETCOLOR
+		ELSE
+			PRINTL
+		ENDIF
+		PRINT 　追加食材３：
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "追加食材３ID", 1)
+		IF LOCAL:1
+			SETCOLOR カラーパレット(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材属性", 1))%属性")
+			PRINTFORML ランク%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", LOCAL:1, "素材ランク", 1)))%：%DT_CELL_GETS("所持素材データベース", LOCAL:1, "素材アイテム名", 1)%
+			RESETCOLOR
+		ELSE
+			PRINTL
+		ENDIF
+		PRINT 　調理器具　：
+		LOCAL:1 = DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "調理器具ID", 1)
+		PRINTFORML %調理器具名:(LOCAL:1)%
+		WAIT
+	CASEELSE
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN ソート後料理順:RESULT
+ENDSELECT
+LOOP 1
+
+
+
+@調理道具選択処理
+DRAWLINE
+PRINTL メインで使用する調理道具を選択してください
+DRAWLINE
+PRINTBUTTON "[1] 包丁", 1
+PRINTL 
+PRINTBUTTON "[2] オーブン", 2
+PRINTL 
+PRINTBUTTON "[3] 鍋", 3
+PRINTL 
+PRINTBUTTON "[4] フライパン", 4
+PRINTL 
+PRINTL 
+PRINTBUTTON "[999] 戻る", 999
+PRINTL 
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		RETURN -1
+	CASEELSE
+		RETURN RESULT
+ENDSELECT
+
+@生成予定メニュー名算出()
+#FUNCTIONS
+
+;特殊料理条件との照らし合わせ
+
+;ないなら汎用料理を見る
+特殊料理フラグ = 0
+SELECTCASE 使用食材:9
+	CASE 1
+		;包丁
+		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
+			CASE "肉"
+				RETURNF "ローストビーフ"
+			CASE "魚"
+				RETURNF "刺し身"
+			CASE "野菜"
+				RETURNF "サラダ"
+			CASE "穀物"
+				RETURNF "サンドイッチ"
+		ENDSELECT
+	CASE 2
+		;オーブン
+		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
+			CASE "肉"
+				RETURNF "ミートパイ"
+			CASE "魚"
+				RETURNF "焼き魚"
+			CASE "野菜"
+				RETURNF "野菜のオーブン焼き"
+			CASE "穀物"
+				RETURNF "グラタン"
+		ENDSELECT
+	CASE 3
+		;鍋
+		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
+			CASE "肉"
+				RETURNF "煮込みハンバーグ"
+			CASE "魚"
+				RETURNF "魚の煮付け"
+			CASE "野菜"
+				RETURNF "野菜スープ"
+			CASE "穀物"
+				RETURNF "ラーメン"
+		ENDSELECT
+	CASE 4
+		;フライパン
+		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
+			CASE "肉"
+				RETURNF "ステーキ"
+			CASE "魚"
+				RETURNF "アクアパッツァ"
+			CASE "野菜"
+				RETURNF "野菜炒め"
+			CASE "穀物"
+				RETURNF "焼きそば"
+		ENDSELECT
+ENDSELECT
+
