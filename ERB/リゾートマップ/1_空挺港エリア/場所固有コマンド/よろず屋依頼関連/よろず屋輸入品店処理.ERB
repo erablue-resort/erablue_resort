@@ -1,0 +1,157 @@
+﻿@よろず屋輸入品店処理
+
+LOCALS = 
+DRAWLINE
+PRINTL 島外から運んできた珍しい品物を販売しています
+DRAWLINE
+LOCALS += "<div rect='62,0,4375,3000' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='4469,0,1562,625' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += @"<div rect='4531,62,1562,625'>所持ルピ：%NUM_FORMAT(MONEY)%ルピ<br>所持ZP　：%ZP所持量全文字列()%</div>"
+;LOCALS += "<div rect='125,62,4375,2812'>"
+
+;ランダムで５つの商品を並べる
+FOR LOCAL, 0, 5
+	LOCALS += @"<div rect='{200 + LOCAL % 2 * 2100},{100 + LOCAL / 2 * 600},2000,550' border='20' bcolor='#C0C0C0' padding='31'>"
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 4
+		CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:LOCAL%
+		LOCALS += @"■ランク%TOFULL(TOSTR(素材性能_素材ランク))%：<font color='#%カラーパレット_HTML(@"%素材性能_属性%属性")%'>"
+	ELSE
+		LOCALS += "■"
+	ENDIF
+	LOCALS += @"%輸入品店_品揃え登録文字列:LOCAL%"
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 4
+		LOCALS += "</font>"
+	ENDIF
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 2
+		LOCALS += @"<br>　オプション数：{輸入品店_品揃え登録:LOCAL:品目性能, 2}<br>　値段：◯◯ルピ<br>"
+	ELSE
+		LOCALS += @"<br>　値段：◯◯ルピ<br><br>"
+	ENDIF
+	LOCALS += @"　　　　　　　　<button value='{LOCAL + 100}'>[詳細]</button>　　<button value='{LOCAL}'>[購入する]</button>"
+	LOCALS += "</div>"
+NEXT
+;LOCALS += "</div>"
+
+
+LOCALS += "<div rect='2250,2812,3125,281'>"
+LOCALS += "<button value='998'>[998] システムの説明</button>　　"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN -1
+	CASE 998
+	CASE IS >= 100
+		DRAWLINE
+		PRINTFORML ■%輸入品店_品揃え登録文字列:(LOCAL - 100)%
+		SELECTCASE 輸入品店_品揃え登録:(LOCAL - 100):品目種別
+			CASE 1
+				;衣装
+			CASE 2
+				;指輪
+					CALLFORM 指輪基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
+					LOCALS = %詳細文文字列受け渡し変数%
+					HTML_PRINT LOCALS
+			CASE 3
+				;耳飾り
+					CALLFORM 耳飾り基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
+					LOCALS = %詳細文文字列受け渡し変数%
+					HTML_PRINT LOCALS
+			CASE 4
+				;食材
+				CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:(LOCAL - 100)%
+				PRINTFORM ランク：%TOFULL(TOSTR(素材性能_素材ランク))%　　属性：
+				SETCOLOR カラーパレット(@"%素材性能_属性%属性")
+				PRINTFORML %素材性能_属性%属性
+				RESETCOLOR
+		ENDSELECT
+		PRINTFORML
+		WAIT
+		RESTART
+	CASEELSE
+ENDSELECT
+
+
+
+
+
+@輸入品店品揃え変動処理
+#DIM 登録品目上限
+#DIM 登録品目番号
+#DIM 衣装品目数
+#DIM 装飾品品目数
+#DIM 食材品目数
+#DIMS 候補食材保存配列, 200
+#DIM 候補食材数
+
+;輸入品店_品揃え登録:LOCAL:品目種別
+;	0:登録無し 1:衣装 2:指輪 3:耳飾り 4:食材
+VARSET 輸入品店_品揃え登録
+VARSET 輸入品店_品揃え登録文字列
+VARSET 候補食材保存配列
+候補食材数 = 0
+
+;現状５品目
+登録品目上限 = 5
+登録品目番号 = 0
+
+;まず衣装が出現するかどうかを見る
+;５％で持ってない衣装からランダムで出現（未実装）
+
+;残りの枠のうち、１～３枠を指輪・耳飾りで埋める
+;衣装なしの場合は２～３枠
+IF 衣装品目数
+	装飾品品目数 = RAND:3 + 1
+ELSE
+	装飾品品目数 = RAND:2 + 2
+ENDIF
+
+FOR LOCAL, 0, 装飾品品目数
+	輸入品店_品揃え登録:登録品目番号:品目種別 = RAND:2 + 2
+	IF 輸入品店_品揃え登録:登録品目番号:品目種別 == 2
+		;指輪
+		輸入品店_品揃え登録文字列:登録品目番号 = %指輪輸入品ランク１:(RAND:(VARSIZE("指輪輸入品ランク１")))%
+		;オプションを２個～４個つける
+		輸入品店_品揃え登録:登録品目番号:品目性能 = RAND:3 + 2
+		;ランダム効果を決定
+		CALLFORM 指輪基礎効果文章表示_%輸入品店_品揃え登録文字列:登録品目番号%
+		SIF RESULT > 1
+			輸入品店_品揃え登録:登録品目番号:品目性能２ = RAND:RESULT + 1
+	ELSEIF 輸入品店_品揃え登録:登録品目番号:品目種別 == 3
+		;耳飾り
+		輸入品店_品揃え登録文字列:登録品目番号 = %耳飾り輸入品ランク１:(RAND:(VARSIZE("耳飾り輸入品ランク１")))%
+		;ランダム効果を決定
+		CALLFORM 耳飾り基礎効果文章表示_%輸入品店_品揃え登録文字列:登録品目番号%
+		SIF RESULT > 1
+			輸入品店_品揃え登録:登録品目番号:品目性能２ = RAND:RESULT + 1
+	ENDIF
+	登録品目番号 += 1
+NEXT
+
+;残りは食材を登録
+;まずは候補食材を羅列
+FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+	;登録されてないアイテム判定のため比較用配列に保存
+	;食べ物のみ
+	SIF DT_CELL_GETS("所持素材データベース", LOCAL, "素材カテゴリ") != "食物素材"
+		CONTINUE
+	;ランク２以上
+	SIF DT_CELL_GET("所持素材データベース", LOCAL, "素材ランク") < 2
+		CONTINUE
+	候補食材保存配列:候補食材数 = %DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名")%
+	候補食材数 += 1
+NEXT
+
+FOR LOCAL, 登録品目番号, 登録品目上限
+	輸入品店_品揃え登録:登録品目番号:品目種別 = 4
+	輸入品店_品揃え登録文字列:登録品目番号 = %候補食材保存配列:(RAND:候補食材数)%
+	登録品目番号 += 1
+NEXT
