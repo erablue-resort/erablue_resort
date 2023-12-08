@@ -1,6 +1,5 @@
 ﻿@食堂メニュー開発処理
 #DIM 画面表示用変数
-#DIM 開発料理ランク保存
 #DIM サブ食材ランク補正
 #DIM ルピ収入
 #DIM ZP収入
@@ -58,20 +57,30 @@ ELSE
 	IF MAX(LOCAL:1, LOCAL:2, LOCAL:3) == 0
 		;なんも食材登録されてないorランク０は寄与しない
 	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存
-		開発料理ランク保存 += 2
+		;全部違うメインと同ランク食材ならランク＋２
+		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
+			開発料理ランク保存 += 2
+		ELSE
+			開発料理ランク保存 += 1
+		ENDIF
 	ELSEIF MAX(LOCAL:1, LOCAL:2, LOCAL:3) / 開発料理ランク保存
 		開発料理ランク保存 += 1
 	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存 - 1
-		開発料理ランク保存 += 1
+		;全部違うメインと同ランク食材ならランク＋１
+		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
+			開発料理ランク保存 += 1
+		ENDIF
 	ENDIF
 	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%属性")%
-	LOCALS:3 = %生成予定メニュー名算出()%
-	IF EXISTFUNCTION(@"特殊料理関数_%LOCALS:3%")
+	CALL 生成予定メニュー名算出()
+	IF 特殊料理フラグ
 		LOCALS:2 = 
 	ELSE
 		LOCALS:2 = 汎用料理
 	ENDIF
-	LOCALS += @"%LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%LOCALS:3%</font><br><br><br>"
+	SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
+		料理名受け渡し = ？？？？？？？？？？
+	LOCALS += @"%LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%料理名受け渡し%</font><br><br><br>"
 ENDIF
 LOCALS += "<button value='100'>[100] これでメニューを開発する</button>"
 LOCALS += "</div>"
@@ -94,14 +103,31 @@ SELECTCASE LOCAL
 		CALL 既存メニュー閲覧(0)
 		RESTART
 	CASE 999
+		FOR LOCAL, 0, 4
+			IF 使用食材:LOCAL
+				LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:LOCAL, "所持素材数", 1) + 1
+				DT_CELL_SET "所持素材データベース", 使用食材:LOCAL, "所持素材数", LOCAL:1, 1
+			ENDIF
+		NEXT
 		VARSET 使用食材
 		RETURN -1
 	CASE 0 TO 3
 		CALL 素材アイテム一覧表示("食材分類 IS NOT NULL and 所持素材数 > 0", 1, 1)
-		IF RESULT == -2
+		LOCAL:10 = RESULT
+		IF LOCAL:10 == -2
+			IF 使用食材:LOCAL
+				LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:LOCAL, "所持素材数", 1) + 1
+				DT_CELL_SET "所持素材データベース", 使用食材:LOCAL, "所持素材数", LOCAL:1, 1
+			ENDIF
 			使用食材:LOCAL = 0
-		ELSEIF RESULT != -1
-			使用食材:LOCAL = RESULT
+		ELSEIF LOCAL:10 != -1
+			IF 使用食材:LOCAL
+				LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:LOCAL, "所持素材数", 1) + 1
+				DT_CELL_SET "所持素材データベース", 使用食材:LOCAL, "所持素材数", LOCAL:1, 1
+			ENDIF
+			使用食材:LOCAL = LOCAL:10
+			LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:LOCAL, "所持素材数", 1) - 1
+			DT_CELL_SET "所持素材データベース", 使用食材:LOCAL, "所持素材数", LOCAL:1, 1
 		ENDIF
 		RESTART
 	CASE 9
@@ -111,23 +137,40 @@ SELECTCASE LOCAL
 		RESTART
 	CASE 100
 		;ルピ収入補正とZP収入補正をセットする
+		VARSET RESULT
+		CALL 生成予定メニュー名算出()
 		IF 特殊料理フラグ
+			CALLFORM 特殊料理_{9 - MATCH(使用食材, 0)}種レシピ_%料理名受け渡し%("料理基礎ステータス")
+			;RESULT:1にルピ、REUSLTにZP収入が入る
+			ルピ収入 = RESULT:1
+			ZP収入 = RESULT
 		ELSE
 			ルピ収入 = 開発料理ランク保存 * 開発料理ランク保存 * 2
+			;追加食材あるほど＋補正
+			SIF 使用食材:1
+				ルピ収入 += MAX(DT_CELL_GET("所持素材データベース", 使用食材:1, "素材ランク", 1) / 3, 1)
+			SIF 使用食材:2
+				ルピ収入 += MAX(DT_CELL_GET("所持素材データベース", 使用食材:2, "素材ランク", 1) / 3, 1)
+			SIF 使用食材:3
+				ルピ収入 += MAX(DT_CELL_GET("所持素材データベース", 使用食材:3, "素材ランク", 1) / 3, 1)
 			;ルピはここから仕入れ額で減額される
 			;仕入額は食材ランク*相場が基本
 			ZP収入 = MAX(開発料理ランク保存 * 開発料理ランク保存 / 10, 1)
+			;全部追加埋めたら＋補正
+			SIF GROUPMATCH(0, 使用食材:1, 使用食材:2, 使用食材:3) == 0
+				ZP収入 += 1
 		ENDIF
 		;データベースに料理を登録する
-		DT_ROW_ADD "料理メニューデータベース", "メニュー名", 生成予定メニュー名算出(), "料理ランク", 開発料理ランク保存, "料理属性", DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1), "ルピ収入補正", ルピ収入, "ZP収入補正", ZP収入, "メイン食材ID", 使用食材:0, "追加食材１ID", 使用食材:1, "追加食材２ID", 使用食材:2, "追加食材３ID", 使用食材:3, "調理器具ID",  使用食材:9
+		DT_ROW_ADD "料理メニューデータベース", "メニュー名", 料理名受け渡し, "料理ランク", 開発料理ランク保存, "料理属性", DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1), "ルピ収入補正", ルピ収入, "ZP収入補正", ZP収入, "メイン食材ID", 使用食材:0, "追加食材１ID", 使用食材:1, "追加食材２ID", 使用食材:2, "追加食材３ID", 使用食材:3, "調理器具ID",  使用食材:9, "特殊料理フラグ", 特殊料理フラグ
 		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%属性")%
-		LOCALS:3 = %生成予定メニュー名算出()%
-		IF EXISTFUNCTION(@"特殊料理関数_%LOCALS:3%")
+		IF 特殊料理フラグ
 			LOCALS:2 = 
 		ELSE
 			LOCALS:2 = 汎用料理
 		ENDIF
-		LOCALS = %LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%LOCALS:3%</font>のレシピを開発しました。
+		LOCALS = %LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%料理名受け渡し%</font>のレシピを開発しました。
+		SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
+			開発済み料理名フラグ文字列 += @"%料理名受け渡し%_"
 		HTML_PRINT LOCALS
 		PRINTL
 		WAIT
@@ -175,7 +218,7 @@ FOR COUNT, ページ番号 * 25, ページ番号 * 25 + 41
 		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
 	ENDIF
 	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理属性", 1))%属性")%
-	IF EXISTFUNCTION(@"特殊料理関数_%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:COUNT, "メニュー名", 1)%")
+	IF DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "特殊料理フラグ", 1)
 		LOCALS:2 = 
 	ELSE
 		LOCALS:2 = 汎用料理：
@@ -234,7 +277,7 @@ SELECTCASE RESULT
 		ページ番号 += 1
 	CASE IS >= 10000
 		DRAWLINE
-		IF EXISTFUNCTION(@"特殊料理関数_%DT_CELL_GETS("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "メニュー名", 1)%")
+		IF DT_CELL_GET("料理メニューデータベース", ソート後料理順:(LOCAL - 10000), "特殊料理フラグ", 1)
 			LOCALS:2 = 
 		ELSE
 			LOCALS:2 = 汎用料理：
@@ -316,9 +359,21 @@ SELECTCASE RESULT
 ENDSELECT
 
 @生成予定メニュー名算出()
-#FUNCTIONS
+#DIM 関数総数
+VARSET RESULTS
 
 ;特殊料理条件との照らし合わせ
+;使用している食材の数に応じて呼ぶ関数を絞る
+関数総数 = ENUMFUNCBEGINSWITH(@"特殊料理_{9 - MATCH(使用食材, 0)}種レシピ_")
+料理名受け渡し = 
+FOR LOCAL, 0, 関数総数
+	CALLFORM %RESULTS:LOCAL%("レシピ参照")
+	IF RESULT > 0
+		;フラグに使用食材数を入れる
+		特殊料理フラグ = 9 - MATCH(使用食材, 0)
+		RETURN 1
+	ENDIF
+NEXT
 
 ;ないなら汎用料理を見る
 特殊料理フラグ = 0
@@ -327,49 +382,49 @@ SELECTCASE 使用食材:9
 		;包丁
 		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
 			CASE "肉"
-				RETURNF "ローストビーフ"
+				料理名受け渡し = ローストビーフ
 			CASE "魚"
-				RETURNF "刺し身"
+				料理名受け渡し = 刺し身
 			CASE "野菜"
-				RETURNF "サラダ"
+				料理名受け渡し = サラダ
 			CASE "穀物"
-				RETURNF "サンドイッチ"
+				料理名受け渡し = サンドイッチ
 		ENDSELECT
 	CASE 2
 		;オーブン
 		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
 			CASE "肉"
-				RETURNF "ミートパイ"
+				料理名受け渡し = ミートパイ
 			CASE "魚"
-				RETURNF "焼き魚"
+				料理名受け渡し = 焼き魚
 			CASE "野菜"
-				RETURNF "野菜のオーブン焼き"
+				料理名受け渡し = 野菜のオーブン焼き
 			CASE "穀物"
-				RETURNF "グラタン"
+				料理名受け渡し = グラタン
 		ENDSELECT
 	CASE 3
 		;鍋
 		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
 			CASE "肉"
-				RETURNF "煮込みハンバーグ"
+				料理名受け渡し = 煮込みハンバーグ
 			CASE "魚"
-				RETURNF "魚の煮付け"
+				料理名受け渡し = 魚の煮付け
 			CASE "野菜"
-				RETURNF "野菜スープ"
+				料理名受け渡し = 野菜スープ
 			CASE "穀物"
-				RETURNF "ラーメン"
+				料理名受け渡し = ラーメン
 		ENDSELECT
 	CASE 4
 		;フライパン
 		SELECTCASE DT_CELL_GETS("所持素材データベース", 使用食材:0, "食材分類", 1)
 			CASE "肉"
-				RETURNF "ステーキ"
+				料理名受け渡し = ステーキ
 			CASE "魚"
-				RETURNF "アクアパッツァ"
+				料理名受け渡し = アクアパッツァ
 			CASE "野菜"
-				RETURNF "野菜炒め"
+				料理名受け渡し = 野菜炒め
 			CASE "穀物"
-				RETURNF "焼きそば"
+				料理名受け渡し = 焼きそば
 		ENDSELECT
 ENDSELECT
 

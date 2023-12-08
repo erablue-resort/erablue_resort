@@ -12,7 +12,7 @@ LOCALS += "<br>■現在のメニュー一覧<br><br>"
 FOR LOCAL, 1, 6
 	IF 現在設定メニュー:LOCAL
 		LOCALS:2 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "料理属性", 1))%属性")%
-		IF EXISTFUNCTION(@"特殊料理関数_%DT_CELL_GETS("料理メニューデータベース",  現在設定メニュー:LOCAL, "メニュー名", 1)%")
+		IF DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "特殊料理フラグ", 1)
 			LOCALS:1 = ランク
 		ELSE
 			LOCALS:1 = 汎用料理ランク
@@ -27,22 +27,33 @@ LOCALS += @"<br><button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 LOCALS += "<div rect='3156,100,2770,2670' border='20' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='3231,225,2670,2550'>"
-LOCALS += "■メニュー１の特殊効果<br>"
-LOCALS += "　なし<br><br>"
-LOCALS += "■メニュー２の特殊効果<br>"
-LOCALS += "　なし<br><br>"
-LOCALS += "■メニュー３の特殊効果<br>"
-LOCALS += "　なし<br><br>"
-LOCALS += "■メニュー４の特殊効果<br>"
-LOCALS += "　なし<br><br>"
-LOCALS += "■メニュー５の特殊効果<br>"
-LOCALS += "　なし<br><br>"
+FOR LOCAL, 1, 6
+	SIF 現在設定メニュー:LOCAL == 0
+		CONTINUE
+	LOCALS += @"■メニュー%TOFULL(TOSTR(LOCAL))%の特殊効果<br>"
+	詳細文文字列受け渡し変数 = 
+	;フラグに使用食材数が入っている
+	IF DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "特殊料理フラグ", 1)
+		CALLFORM 特殊料理_{DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "特殊料理フラグ", 1)}種レシピ_%DT_CELL_GETS("料理メニューデータベース",  現在設定メニュー:LOCAL, "メニュー名", 1)%("料理特殊ステータス")
+		LOCALS += @"%詳細文文字列受け渡し変数%<br><br>"
+	ELSE
+		LOCALS += "　なし<br><br>"
+	ENDIF
+NEXT
 LOCALS += "</div>"
 LOCALS += "<div rect='156,2000,2950,770' border='20' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='231,2075,2800,700'>"
 LOCALS += "■メニューのコンボ効果<br>"
-LOCALS += "　コンボ名：--------------------<br>"
-LOCALS += "　効果：なし<br>"
+発動中コンボ名 = 
+詳細文文字列受け渡し変数 = 
+CALL 料理メニューコンボ判定処理
+IF RESULT
+	LOCALS += @"　コンボ名：【%発動中コンボ名%】<br>"
+	LOCALS += @"　効果：%詳細文文字列受け渡し変数%<br>"
+ELSE
+	LOCALS += "　コンボ名：--------------------<br>"
+	LOCALS += "　効果：なし<br>"
+ENDIF
 LOCALS += "</div>"
 
 
@@ -66,3 +77,16 @@ SELECTCASE LOCAL
 	CASE 999
 		RETURN -1
 ENDSELECT
+
+
+@料理メニューコンボ判定処理
+
+ENUMFUNCBEGINSWITH "料理メニューコンボ_"
+FOR LOCAL, 0, RESULT
+	CALLFORM %RESULTS:LOCAL%("コンボ判定")
+	SIF RESULT
+		RETURN RESULT
+NEXT
+RETURN 0
+
+
