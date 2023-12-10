@@ -84,6 +84,7 @@ SELECTCASE LOCAL
 		PRINTFORMW %CALLNAME:キャラ番号%は指輪を外した。
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
+		ソート番号 = 0
 		RETURN 0
 	CASE 2001 TO 2008
 		ページ番号 = 0
@@ -99,19 +100,13 @@ SELECTCASE LOCAL
 			装備ステータス補正保存:(LOCAL:1):装備指輪番号 = 0
 			CALL 装備再計算処理(LOCAL:1)
 		ENDIF
-		FOR DB行数, 1, DT_ROW_LENGTH("所持指輪データベース")
-			;idの値を行番号に直す
-			IF DT_CELL_GET("所持指輪データベース", DB行数, "id") == 表示用ステータス格納配列:LOCAL:0
-				LOCAL = DB行数
-				BREAK
-			ENDIF
-		NEXT
-		装備ステータス補正保存:キャラ番号:装備指輪番号 = LOCAL
-		DT_CELL_SET "所持指輪データベース", LOCAL, "装備キャラ番号", キャラ番号
+		装備ステータス補正保存:キャラ番号:装備指輪番号 = DB_idから行数取得("所持指輪データベース", 表示用ステータス格納配列:LOCAL:0)
+		DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "装備キャラ番号", キャラ番号
 		CALL 装備再計算処理(キャラ番号)
-		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名")%を装備した。
+		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "指輪名")%を装備した。
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
+		ソート番号 = 0
 		RETURN 0
 	CASE IS < 1000
 		CALL 指輪ステータス表示処理(LOCAL - 500)
@@ -359,7 +354,7 @@ LOOP 1
 LOCAL = 表示用ステータス格納配列:指輪番号:0
 TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名", 1)%
 LOCALS = %詳細文文字列受け渡し変数%
-TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名", 1)%(指輪番号)
+TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名", 1)%(DB_idから行数取得("所持指輪データベース", LOCAL))
 LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 HTML_PRINT LOCALS
 WAIT
