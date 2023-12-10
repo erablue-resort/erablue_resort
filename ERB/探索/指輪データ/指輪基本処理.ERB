@@ -16,6 +16,9 @@ ENDCATCH
 @指輪付け替え処理画面(キャラ番号)
 #DIM キャラ番号
 #DIM ページ番号
+#DIM ソート番号
+#DIM DB行数
+
 ;表示部分
 ;装備中指輪表示
 DRAWLINE
@@ -31,7 +34,7 @@ ELSE
 ENDIF
 ;所持指輪リスト表示
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
-CALL 所持指輪リスト表示(キャラ番号, ページ番号)
+CALL 所持指輪リスト表示(キャラ番号, ページ番号, ソート番号)
 
 ;戻るボタンと前次ページボタン
 LOCALS += "<div rect='262,4875,5537,3625'>"
@@ -40,15 +43,16 @@ IF ページ番号 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-IF 表示用ステータス格納配列:30:0 > 0
+LOCALS += @"- PAGE {ページ番号 + 1, 2, LEFT} -　　"
+IF 表示用ステータス格納配列:(30 + (ページ番号 * 29)):0 > 0
 	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
 IF 装備ステータス補正保存:キャラ番号:装備指輪番号 > 0
-	LOCALS += "　　　　　　　　　　　　　<button value='1002'>[1002]装備を外す</button>　　"
+	LOCALS += "　　　　　　<button value='1002'>[1002]装備を外す</button>　　"
 ELSE
-	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+	LOCALS += "　　　　　　　　　　　　　　　　"
 ENDIF
 LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
 
@@ -62,8 +66,15 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 1000
+		ページ番号 -= 1
+		RESTART
+	CASE 1001
+		ページ番号 += 1
+		RESTART
 	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
+		ソート番号 = 0
 		ページ番号 = 0
 		RETURN 0
 	CASE 1002
@@ -74,15 +85,27 @@ SELECTCASE LOCAL
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
 		RETURN 0
+	CASE 2001 TO 2008
+		ページ番号 = 0
+		ソート番号 = LOCAL - 2000
+		VARSET 表示用ステータス格納配列:0:0
+		RESTART
 	CASE IS < 500
 		IF 装備ステータス補正保存:キャラ番号:装備指輪番号 > 0
 			DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "装備キャラ番号", 0
 		ENDIF
-		LOCAL:1 = DT_CELL_GET("所持指輪データベース", LOCAL, "装備キャラ番号")
+		LOCAL:1 = DT_CELL_GET("所持指輪データベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1)
 		IF LOCAL:1 > 0
 			装備ステータス補正保存:(LOCAL:1):装備指輪番号 = 0
 			CALL 装備再計算処理(LOCAL:1)
 		ENDIF
+		FOR DB行数, 1, DT_ROW_LENGTH("所持指輪データベース")
+			;idの値を行番号に直す
+			IF DT_CELL_GET("所持指輪データベース", DB行数, "id") == 表示用ステータス格納配列:LOCAL:0
+				LOCAL = DB行数
+				BREAK
+			ENDIF
+		NEXT
 		装備ステータス補正保存:キャラ番号:装備指輪番号 = LOCAL
 		DT_CELL_SET "所持指輪データベース", LOCAL, "装備キャラ番号", キャラ番号
 		CALL 装備再計算処理(キャラ番号)
@@ -96,9 +119,17 @@ SELECTCASE LOCAL
 ENDSELECT
 LOOP 1
 
-@所持指輪リスト表示(キャラ番号, ページ番号)
+@所持指輪リスト表示(キャラ番号, ページ番号, ソート番号)
 #DIM キャラ番号
 #DIM ページ番号
+#DIM ソート番号
+#DIM ソート基準配列, 500
+
+IF ソート番号
+	VARSET ソート基準配列
+	;基本降順で表示するので使用しない０番目配列が動かないようにする
+	ソート基準配列:0 = -999999999
+ENDIF
 
 ;まず指輪のステータス補正を全部変数になおして放り込む
 IF 表示用ステータス格納配列:1:0 == 0
@@ -107,7 +138,7 @@ IF 表示用ステータス格納配列:1:0 == 0
 		IF DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名") == ""
 			BREAK
 		ENDIF
-		表示用ステータス格納配列:LOCAL:0 = LOCAL
+		表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持指輪データベース", LOCAL, "id")
 		SPLIT DT_CELL_GETS("所持指輪データベース", LOCAL, "基礎ステータス補正"), "_", LOCALS
 		FOR LOCAL:1, 0, 8
 			IF LOCALS:(LOCAL:1 * 2) != ""
@@ -156,27 +187,46 @@ IF 表示用ステータス格納配列:1:0 == 0
 			ENDIF
 		NEXT
 		表示用ステータス格納配列:LOCAL:9 = DT_CELL_GET("所持指輪データベース", LOCAL, "装備キャラ番号")
+		;０で処理を止めないために＋１を入れて、降順にするためマイナスを掛ける
+		;補正が-1の場合は逆に0になっちゃうけどそんな指輪は作らない
+		SIF ソート番号
+			ソート基準配列:LOCAL = (表示用ステータス格納配列:LOCAL:ソート番号 + 1) * -1
 	NEXT
 ENDIF
 
+SIF ソート番号
+	ARRAYMSORT ソート基準配列, 表示用ステータス格納配列
+
 VARSET LOCALS
 LOCALS = <div rect='262,1375,5537,3625'><nobr>
-LOCALS += "　　　 指輪名　　　　　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率　装備者<br>"
+LOCALS += "　　　 指輪名　　　　　　　　　　<button value='2001'>ＨＰ</button>　　<button value='2002'>ＭＰ</button>　　<button value='2003'>攻撃力</button>　<button value='2004'>防御力</button>　<button value='2005'>回復力</button>　<button value='2006'>行動速度</button>　<button value='2007'>DA率</button>　<button value='2008'>TA率</button>　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 IF キャラ番号 > 0
-	LOCAL:1 = 装備ステータス補正保存:キャラ番号:装備指輪番号
-	FOR LOCAL, 1, 500
+	;まずキャラが装備している指輪の本来の行数を取る
+	IF 装備ステータス補正保存:キャラ番号:装備指輪番号
+		LOCAL:1 = DT_CELL_GET("所持指輪データベース", 装備ステータス補正保存:キャラ番号:装備指輪番号, "id")
+		FOR LOCAL, 1, 500
+			IF LOCAL:1 == 表示用ステータス格納配列:LOCAL:0
+				LOCAL:10 = LOCAL
+				BREAK
+			ENDIF
+		NEXT
+	ELSE
+		LOCAL:10 = 0
+	ENDIF
+	;文字色付きで表示
+	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
-		IF LOCAL:1 == LOCAL
+		IF LOCAL:1 == 表示用ステータス格納配列:LOCAL:0
 			LOCALS += "<font color='#CCCC00'>"
 		ENDIF
 		LOCALS += @"<button value='{LOCAL}'>"
-		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
+		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", 表示用ステータス格納配列:LOCAL:0, "指輪名", 1), 26, LEFT%"
 		FOR LOCAL:2, 1, 9
-			IF 表示用ステータス格納配列:LOCAL:(LOCAL:2) > 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
+			IF 表示用ステータス格納配列:LOCAL:(LOCAL:2) > 表示用ステータス格納配列:(LOCAL:10):(LOCAL:2)
 				SELECTCASE LOCAL:2
 					CASE 1 TO 2
 						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
@@ -187,7 +237,7 @@ IF キャラ番号 > 0
 					CASE 7 TO 8
 						LOCALS += @"<font color='#55CC55'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　</font>"
 				ENDSELECT
-			ELSEIF 表示用ステータス格納配列:LOCAL:(LOCAL:2) < 表示用ステータス格納配列:(LOCAL:1):(LOCAL:2)
+			ELSEIF 表示用ステータス格納配列:LOCAL:(LOCAL:2) < 表示用ステータス格納配列:(LOCAL:10):(LOCAL:2)
 				SELECTCASE LOCAL:2
 					CASE 1 TO 2
 						LOCALS += @"<font color='#CC5555'>{表示用ステータス格納配列:LOCAL:(LOCAL:2), 4}　　</font>"
@@ -215,20 +265,20 @@ IF キャラ番号 > 0
 			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
 		ENDIF
 		LOCALS += "</button>"
-		IF LOCAL:1 == LOCAL
+		IF LOCAL:10 == LOCAL
 			LOCALS += "</font>"
 		ENDIF
 		LOCALS += "<br>"
 	NEXT
 ELSE
 	LOCAL:1 = 0
-	FOR LOCAL, 1, 500
+	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
 		LOCALS += @"<button value='{LOCAL}'>"
-		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名"), 26, LEFT%"
+		LOCALS += @"%DT_CELL_GETS("所持指輪データベース", 表示用ステータス格納配列:LOCAL:0, "指輪名", 1), 26, LEFT%"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 8, LEFT}"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:2, 8, LEFT}"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:3, 8, LEFT}"
@@ -250,12 +300,13 @@ HTML_PRINT LOCALS, 1
 
 @所持指輪リスト表示_USERCOM
 #DIM ページ番号
+#DIM ソート番号
 VARSET 表示用ステータス格納配列:0:0
 
 DO
 LOCALS = 
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
-CALL 所持指輪リスト表示(0, ページ番号)
+CALL 所持指輪リスト表示(0, ページ番号, ソート番号)
 HTML_PRINT LOCALS, 1
 LOCALS = 
 ;戻るボタンと前次ページボタン
@@ -265,12 +316,13 @@ IF ページ番号 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-IF 表示用ステータス格納配列:30:0 > 0
+LOCALS += @"- PAGE {ページ番号 + 1, 2, LEFT} -　　"
+IF 表示用ステータス格納配列:(30 + (ページ番号 * 29)):0 > 0
 	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　　　　　　　　　　　　　　　"
 LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
 HTML_PRINT LOCALS, 1
 FOR LOCAL, 0, 45
@@ -279,10 +331,19 @@ NEXT
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
 	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
+		ソート番号 = 0
 		RETURN 1
+	CASE 2001 TO 2008
+		ページ番号 = 0
+		ソート番号 = LOCAL - 2000
+		RESTART
 	CASE IS < 500
 		CALL 指輪ステータス表示処理(LOCAL)
 	CASE IS < 1000
@@ -295,9 +356,10 @@ LOOP 1
 #DIM 指輪番号
 #DIMS オプション効果格納, 20
 
-TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", 指輪番号, "指輪名")%
+LOCAL = 表示用ステータス格納配列:指輪番号:0
+TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名", 1)%
 LOCALS = %詳細文文字列受け渡し変数%
-TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 指輪番号, "指輪名")%(指輪番号)
+TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名", 1)%(指輪番号)
 LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 HTML_PRINT LOCALS
 WAIT
@@ -311,8 +373,5 @@ IF 指輪名 == DT_CELL_GETS("所持指輪データベース", 装備ステー�
 ENDIF
 
 RETURN 0
-
-
-
 
 
