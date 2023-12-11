@@ -556,6 +556,7 @@ ENDSELECT
 #DIM CONST COST_TO_通常 = 100
 #DIM CONST COST_胸定数 = 20
 #DIM CONST COST_種族変化 = 200
+#DIMS 特殊種族一時保存
 
 DRAWLINE
 PRINTL ZPを消費してキャラの素質を変化させることが出来ます。
@@ -718,17 +719,34 @@ ELSEIF RESULT == 3
 				PRINTW ZPが足りません
 				GOTO INPUT_LOOP4
 			ENDIF
+			特殊種族一時保存 = 
+			IF LOCAL:1 == 6
+				DRAWLINE
+				PRINTL 追加種族名を指定出来ます。
+				PRINTL 任意の種族名を入力してください。
+				INPUTS
+				特殊種族一時保存 = %RESULTS%
+			ENDIF
 			PRINTFORML 200ZPを支払い、種族を変化させますか？
+			LOCALS = %GET_TALENTNAME(200, TALENT:キャラ番号:種族)%
+			SIF TALENT:キャラ番号:種族 == 6
+				LOCALS += @"（%CSTR:キャラ番号:特殊種族%）"
+			LOCALS:1 = %GET_TALENTNAME(200, LOCAL:1)%
+			SIF LOCAL:1 == 6
+				LOCALS:1 += @"（%特殊種族一時保存%）"
+			PRINTFORML 現在種族：%LOCALS% -> %LOCALS:1%
 			PRINTFORML （所持ZP：{FLAG:ZP所持量}）
 			PRINTBUTTONLC "[0]はい", 0
 			PRINTBUTTONLC "[1]いいえ", 1
 			BINPUT
 			IF RESULT == 0
 				FLAG:ZP所持量 -= COST_種族変化
-				PRINTFORMW %CALLNAME:キャラ番号%の種族が%GET_TALENTNAME(200, TALENT:キャラ番号:種族)%から%GET_TALENTNAME(200, LOCAL:1)%に変化しました。
-				CALL ZP_SHOP_種族特徴変換(キャラ番号, TALENT:キャラ番号:種族, LOCAL:1)
+				PRINTFORMW %CALLNAME:キャラ番号%の種族が%LOCALS%から%LOCALS:1%に変化しました。
+				CSTR:キャラ番号:特殊種族 = %特殊種族一時保存%
 				TALENT:キャラ番号:種族 = LOCAL:1
-				CALL SET_BODYSIZE(キャラ番号,0)
+				CALL ZP_SHOP_種族特徴変換(キャラ番号, TALENT:キャラ番号:種族, LOCAL:1)
+				SIF RESULT == 0
+					CALL SET_BODYSIZE(キャラ番号,0)
 			ENDIF
 			RESTART
 	ENDSELECT
@@ -761,16 +779,14 @@ IF 変更元種族 == 4 && 変更先種族 != 5
 		CASE 85 TO 99
 			TALENT:キャラ番号:バストサイズ = 3
 	ENDSELECT
-	IF TALENT:キャラ番号:ランダムキャラ
-		SELECTCASE RAND:100
-			CASE 0 TO 59
-				TALENT:キャラ番号:体格 = -1
-			CASE 60 TO 94
-				TALENT:キャラ番号:体格 = 0
-			CASE 95 TO 99
-				TALENT:キャラ番号:体格 = 1
-		ENDSELECT
-	ENDIF
+	SELECTCASE RAND:100
+		CASE 0 TO 59
+			TALENT:キャラ番号:体格 = -1
+		CASE 60 TO 94
+			TALENT:キャラ番号:体格 = 0
+		CASE 95 TO 99
+			TALENT:キャラ番号:体格 = 1
+	ENDSELECT
 ELSEIF 変更元種族 == 3 && 変更先種族 != 5
 	;元がドラフの場合、ランダムでバスト変化
 	SELECTCASE RAND:100
@@ -787,16 +803,25 @@ ELSEIF 変更元種族 == 3 && 変更先種族 != 5
 		CASE 85 TO 99
 			TALENT:キャラ番号:バストサイズ = 3
 	ENDSELECT
-	IF TALENT:キャラ番号:ランダムキャラ
-		SELECTCASE RAND:100
-			CASE 0 TO 59
-				TALENT:キャラ番号:体格 = -1
-			CASE 60 TO 94
-				TALENT:キャラ番号:体格 = 0
-			CASE 95 TO 99
-				TALENT:キャラ番号:体格 = 1
-		ENDSELECT
-	ENDIF
+	SELECTCASE RAND:100
+		CASE 0 TO 59
+			TALENT:キャラ番号:体格 = -1
+		CASE 60 TO 94
+			TALENT:キャラ番号:体格 = 0
+		CASE 95 TO 99
+			TALENT:キャラ番号:体格 = 1
+	ENDSELECT
+ENDIF
+
+;CSVと同じ種族、あるいは星晶獣やその他の場合、CSVと同じ体格体型に戻す
+IF 変更先種族 == 5 || 変更先種族 == 6 || 変更先種族 == CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "種族"))
+	TALENT:キャラ番号:角あり = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "角あり"))
+	TALENT:キャラ番号:尻尾あり = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "尻尾あり"))
+	TALENT:キャラ番号:エルーン耳 = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "エルーン耳"))
+	TALENT:キャラ番号:ハーヴィン耳 = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "ハーヴィン耳"))
+	TALENT:キャラ番号:バストサイズ = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "バストサイズ"))
+	CALL INIT_BODYSIZE(キャラ番号)
+	RETURN 1
 ENDIF
 
 ;種族に応じた変化
@@ -819,28 +844,25 @@ SELECTCASE 変更先種族
 		TALENT:キャラ番号:ハーヴィン耳 = 0
 	CASE 3
 		;ドラフ
-		IF TALENT:キャラ番号:ランダムキャラ
+		IF TALENT:キャラ番号:性別 == 2
+			TALENT:キャラ番号:体格 = 2
+		ELSE
 			TALENT:キャラ番号:体格 = -1
+			TALENT:キャラ番号:バストサイズ = 3 - !RAND:5
 		ENDIF
 		TALENT:キャラ番号:角あり = 1
 		TALENT:キャラ番号:尻尾あり = 0
 		TALENT:キャラ番号:エルーン耳 = 0
 		TALENT:キャラ番号:ハーヴィン耳 = 0
-		TALENT:キャラ番号:バストサイズ = 3 - !RAND:5
 	CASE 4
 		;ハーヴィン
-		IF TALENT:キャラ番号:ランダムキャラ
-			TALENT:キャラ番号:体格 = -2
-		ENDIF
+		TALENT:キャラ番号:体格 = -3
 		TALENT:キャラ番号:角あり = 0
 		TALENT:キャラ番号:尻尾あり = 0
 		TALENT:キャラ番号:エルーン耳 = 0
 		TALENT:キャラ番号:ハーヴィン耳 = 1
-		TALENT:キャラ番号:バストサイズ = -2 + !RAND:5
-	CASE 5
-		;星晶獣は変更なし
-	CASE 6
-		;その他は変更なし
+		SIF TALENT:キャラ番号:性別 != 2
+			TALENT:キャラ番号:バストサイズ = -2 + !RAND:5
 ENDSELECT
 
 @ZP_SHOP_環境変化

@@ -279,18 +279,21 @@ RETURNF LOCALS:0
 ;-------------------------------------------------
 ;キャラの身長・バスト・体型・体格をCSVと種族・性別を元に算出する関数
 ;ゲーム中に変動した場合を想定していないので、初期設定以外では呼び出さないこと
+;23/12/11 初期化に便利そうだったので種族変更時に呼び出しました
 ;-------------------------------------------------
 @INIT_BODYSIZE(ARG)
 
+;性別が変動してない場合、CSVの身長を読みに行く
+IF GETBIT(CSVTALENT(NO:ARG, GETNUM(TALENT, "種族")), 0) == GETBIT(TALENT:ARG:種族, 0)
+	IF CSVBASE(NO:ARG, GETNUM(BASE, "身長")) && !BASE:ARG:身長
+		BASE:ARG:身長 = CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
+		MAXBASE:ARG:身長 = BASE:ARG:身長
+	ENDIF
 
-IF CSVBASE(NO:ARG, GETNUM(BASE, "身長")) && !BASE:ARG:身長
-	BASE:ARG:身長 = CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
-	MAXBASE:ARG:身長 = BASE:ARG:身長
-ENDIF
-
-IF CSVBASE(NO:ARG, GETNUM(BASE, "バスト")) && !BASE:ARG:バスト
-	BASE:ARG:バスト = CSVBASE(NO:ARG, GETNUM(BASE, "バスト"))
-	MAXBASE:ARG:バスト = BASE:ARG:バスト
+	IF CSVBASE(NO:ARG, GETNUM(BASE, "バスト")) && !BASE:ARG:バスト
+		BASE:ARG:バスト = CSVBASE(NO:ARG, GETNUM(BASE, "バスト"))
+		MAXBASE:ARG:バスト = BASE:ARG:バスト
+	ENDIF
 ENDIF
 
 
@@ -329,6 +332,13 @@ IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
 		;女性ドラフは小柄
 		ELSE
 			TALENT:ARG:体格 = 体格_小柄
+		ENDIF
+	ELSE
+		;どこにも引っかからない場合、男は長身、女は普通に
+		IF IS_MALE(ARG)
+			TALENT:ARG:体格 = 体格_長身
+		ELSE
+			TALENT:ARG:体格 = 体格_普通
 		ENDIF
 	ENDIF
 ENDIF
