@@ -100,6 +100,27 @@ SELECTCASE サイド描画表示種類
 				ENDIF
 			NEXT
 		ENDIF
+	CASE "クイック触れ合い"
+		IF TARGET
+			CALL COM_ABLE306
+			IF RESULT
+				表示文字列 += "配置先整理中のため、単純に並べて表示<br>"
+
+				VARSET RESULTS
+				ENUMFUNCBEGINSWITH "身体に触れる_ABLE_"
+				FOR LOCAL, 0, RESULT
+					CALLFORM %RESULTS:LOCAL%
+					IF RESULT
+						LOCALS = %REPLACE(RESULTS:LOCAL, "身体に触れる_ABLE_", "")%
+						表示文字列 += @"<button value='サイド領域_%LOCALS%'>[%LOCALS, 16, LEFT%]</button><br>"
+					ENDIF
+				NEXT
+				; 表示文字列 += "</nobr></div>"
+				; 表示文字列 += "<div rect='5600, 1000, 1000, 3000'><nobr><img src='汎用人型' height='2000' width='500'>"
+			ELSE
+				表示文字列 += "セクハラ不能状態のためコマンド非表示<br>"
+			ENDIF
+		ENDIF
 ENDSELECT
 表示文字列 += "</nobr></div>"
 ;下部分表示
@@ -122,6 +143,11 @@ LOCAL += LOCAL:1 + 50
 LOCAL:1 = 400
 表示文字列 += @"<div rect='{LOCAL}, 4260, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_同室者'>同室者</button></div>"
 SIF サイド描画表示種類 == "同室者"
+	表示文字列 += @"<div rect='{LOCAL + 25}, 4240, {LOCAL:1 - 40}, 60' color='#101010'></div>"
+LOCAL += LOCAL:1 + 50
+LOCAL:1 = 900
+表示文字列 += @"<div rect='{LOCAL}, 4260, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック触れ合い'>クイック触れ合い</button></div>"
+SIF サイド描画表示種類 == "クイック触れ合い"
 	表示文字列 += @"<div rect='{LOCAL + 25}, 4240, {LOCAL:1 - 40}, 60' color='#101010'></div>"
 
 SIF 追加表示文字列 != ""
@@ -234,6 +260,13 @@ SELECTCASE サイド描画表示種類
 		TIME += 1
 		TFLAG:SELECTCOM受け渡し = 400
 		SELECTCOM = 400
+	CASE "クイック触れ合い"
+		CALLFORM 身体に触れる_ABLE_%REPLACE(RESULTS, "サイド領域_", "")%
+		RFLAG:サイドボタン受渡し変数 = RESULT
+		RFLAG:サイドボタン操作 = 0
+		RESULT = 306
+		CALL USERCOM
+		RETURN RESULT
 ENDSELECT
 
 RETURN 0

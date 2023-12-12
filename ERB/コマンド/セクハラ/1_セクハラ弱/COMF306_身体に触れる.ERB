@@ -1,0 +1,95 @@
+﻿
+@COMNAME306
+#FUNCTIONS
+TSTR:コマンド名受渡 = 身体に触れる
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_306
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ弱")
+
+@COM_TOOLTIP_306
+LOCALS = <br>■身体に触れる<br>
+LOCALS += "相手の身体に優しく触れるコマンド。<br>コマンド実行時にどこに触れるかを選択する。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：接触・露出・歓楽(一定条件時)・不快(一定条件時)・反感(一定条件時)など"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM306
+#DIMS CONST 選択先順番制御 = "背中に触れる", "耳を触る"
+#DIM 選択先保存
+;身体に触れる
+
+IF RFLAG:サイドボタン受渡し変数
+	;サイドボタンから来た時は選択処理挟まず直接コマンド実行に飛ぶ
+	選択先保存 = RFLAG:サイドボタン受渡し変数
+ELSE
+	DRAWLINE
+	PRINTL どこに触れますか？
+	DRAWLINE
+	FOR LOCAL, 0, VARSIZE("選択先順番制御")
+		CALLFORM 身体に触れる_ABLE_%選択先順番制御:LOCAL%
+		IF RESULT
+			PRINTBUTTON @"[{LOCAL}] %選択先順番制御:LOCAL%", LOCAL
+			PRINTL 
+		ENDIF
+	NEXT
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH "身体に触れる_ABLE_"
+	FOR LOCAL, 0, RESULT
+		CALLFORM %RESULTS:LOCAL%
+		IF RESULT
+			LOCALS = %REPLACE(RESULTS:LOCAL, "身体に触れる_ABLE_", "")%
+			SIF MATCH(選択先順番制御, LOCALS)
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL + 100}] %LOCALS%", LOCAL + 100
+			PRINTL 
+		ENDIF
+	NEXT
+	PRINTL 
+	PRINTBUTTON "[999] 戻る", 999
+	PRINTL 
+	DRAWLINE
+	BINPUT
+	LOCAL = RESULT
+	IF LOCAL == 999
+		RETURN -1
+	ELSEIF LOCAL < 100
+		CALLFORM 身体に触れる_ABLE_%選択先順番制御:LOCAL%
+		選択先保存 = RESULT
+	ELSE
+		CALLFORM %RESULTS:(LOCAL - 100)%
+		選択先保存 = RESULT
+	ENDIF
+ENDIF
+
+;COM実行処理
+;弱点コマンド処理の都合上、CALL_COMを経由させる
+RSTR:SELECTCOM_S受け渡し = 306_{選択先保存}
+SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
+CALL CALL_COM(TARGET)
+RETURN RESULT
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE306
+;実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(306)
+	RETURN RESULT
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM306
+CALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%
+
+@MESSAGE_COM306_非口上時
+CALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%_非口上時

@@ -2,6 +2,86 @@
 ;-------------------------------------------------------------------------------------------
 ;射精先の選択肢
 ;-------------------------------------------------------------------------------------------
+@オート射精先設定
+;射精先をいちいち選ばなくてもいいように設定する
+DRAWLINE
+PRINTL 射精時、選択なしで射精する設定を行います。
+PRINTL 設定されている射精先が選択可能な場合、自動的にその射精先を選択します。
+PRINTL 複数の選択可能な射精先が設定されている場合、優先度の数字が小さい方が優先して選択されます。
+DRAWLINE
+
+FOR LOCAL, 0, 31
+	IF オート射精先オプション:LOCAL == -1
+		PRINTBUTTON @"[{LOCAL}] オート射精先を設定する", LOCAL
+		PRINTL
+		BREAK
+	ELSE
+		TSTR:コマンド名受渡 = 
+		TRYCALLFORM SHOOT_NAME_{オート射精先オプション:LOCAL}
+		SIF TSTR:コマンド名受渡 == ""
+			CONTINUE
+
+		PRINTFORM 優先度{LOCAL}：%TSTR:コマンド名受渡, 20, LEFT%　　
+		IF LOCAL > 0
+			PRINTBUTTON "[↑]", LOCAL + 100
+		ELSE
+			PRINT     
+		ENDIF
+		IF LOCAL < 30 && オート射精先オプション:(LOCAL + 1) > -1
+			PRINTBUTTON "[↓]", LOCAL + 200
+		ELSE
+			PRINT     
+		ENDIF
+		PRINT 　　
+		PRINTBUTTON "[変更]", LOCAL
+		PRINT   
+		PRINTBUTTON "[解除]", LOCAL + 300
+		PRINTL
+	ENDIF
+NEXT
+PRINTL
+PRINTBUTTON @"[999] 戻る", 999
+PRINTL
+DRAWLINE
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE IS < 100
+		DRAWLINE
+		FOR LOCAL:1, 0, 31
+			TSTR:コマンド名受渡 = 
+			TRYCALLFORM SHOOT_NAME_{LOCAL:1}
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL:1}] %TSTR:コマンド名受渡%", LOCAL:1
+			PRINTL
+		NEXT
+		PRINTL
+		PRINTBUTTON @"[999] 戻る", 999
+		PRINTL
+		DRAWLINE
+		BINPUT
+		IF RESULT != 999
+			オート射精先オプション:LOCAL = RESULT
+		ENDIF
+	CASE IS < 200
+		;上に移動
+		SWAP オート射精先オプション:(LOCAL - 100), オート射精先オプション:(LOCAL - 101)
+	CASE IS < 300
+		;下に移動
+		SWAP オート射精先オプション:(LOCAL - 200), オート射精先オプション:(LOCAL - 199)
+	CASEELSE
+		オート射精先オプション:(LOCAL - 300) = -1
+		FOR LOCAL:1, LOCAL, 30
+			SWAP オート射精先オプション:(LOCAL - 300), オート射精先オプション:(LOCAL - 299)
+		NEXT
+ENDSELECT
+
+RESTART
+
+
 ;-------------------------------------------------------------------------------------------
 ;SHOOT_0:膣内
 ;-------------------------------------------------------------------------------------------
