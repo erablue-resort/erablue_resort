@@ -12,16 +12,49 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
 
 @COM_TOOLTIP_305
 LOCALS = <br>■雑務をこなす<br>
-LOCALS += "リゾートの雑務をこなし、その場所の雑務ゲージを減少させるコマンド。<br>雑務ゲージが溜まるとモブ観光客の数が減少する。"
+LOCALS += "リゾートの雑務をこなし、その場所の雑務ゲージを減少させるコマンド。<br>雑務ゲージが溜まるとモブ観光客の数が減少する。<br>欲情フィールド展開中、モブ観光客からセクハラを受けることがある。"
 LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM305
+#DIM セクハラ部位
+#DIM セクハラ快楽量
+セクハラ快楽量 = 0
 
 雑務ゲージ:(CFLAG:PLAYER:現在位置) = MAX(雑務ゲージ:(CFLAG:PLAYER:現在位置) - 1500, 0)
 TIME += 5
+
+;セクハラ発生率は1/3
+IF 欲情フィールド展開フラグ && RAND:3 == 0
+	;快楽計算
+	;部位決定
+	セクハラ部位 = RAND:4
+	IF TALENT:PLAYER:性別 == 2
+		;男性の場合はCかAの二択とする
+		セクハラ部位 = セクハラ部位 / 2
+		セクハラ部位 = セクハラ部位 * 2
+	ENDIF
+
+	;快楽量決定、基本値から諸々補正
+	セクハラ快楽量 = RAND:500 + 30
+
+	SELECTCASE セクハラ部位
+		CASE 0
+			CALL SOURCE_CALC_快Ｃ(PLAYER, -1, セクハラ快楽量)
+		CASE 1
+			CALL SOURCE_CALC_快Ｖ(PLAYER, -1, セクハラ快楽量)
+		CASE 2
+			CALL SOURCE_CALC_快Ａ(PLAYER, -1, セクハラ快楽量)
+		CASE 3
+			CALL SOURCE_CALC_快Ｂ(PLAYER, -1, セクハラ快楽量)
+	ENDSELECT
+
+	;口上用に数値受け渡し
+	RFLAG:コマンド結果受渡し変数 = セクハラ部位
+	RFLAG:コマンド結果受渡し変数２ = セクハラ快楽量
+ENDIF
 
 ;-------------------------------------------------
 ;実行判定
@@ -46,5 +79,127 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM305
 PRINTFORML %CALLNAME:PLAYER%はリゾート管理の雑務をこなした
+
+IF RFLAG:コマンド結果受渡し変数２ > 0
+	WAIT
+	PRINTFORML 雑務をしていると、名も無き観光客が%CALLNAME:PLAYER%に近づいてくる。
+	IF RAND:2 == 0
+		PRINT 彼は
+	ELSE
+		PRINT 彼女は
+	ENDIF
+	PRINTFORM 興奮した様子で%CALLNAME:PLAYER%の
+	SELECTCASE RFLAG:コマンド結果受渡し変数
+		CASE 0
+			IF TEQUIP:PLAYER:下腹部前鎧あり
+				PRINT 鎧の下に手を伸ばし、
+			ELSEIF TEQUIP:PLAYER:スカートめくり可
+				PRINT 服の裾から手を差し入れ、
+				IF TEQUIP:PLAYER:下タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:下半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSEIF TEQUIP:PLAYER:ずらし可
+				PRINT 服の裾をズラし、
+				IF TEQUIP:PLAYER:下タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:下半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSE
+				PRINT 服の上から、
+			ENDIF
+			IF GETBIT(TALENT:PLAYER:性別, 1)
+				IF BASE:PLAYER:勃起 < 500
+					PRINT まだ柔らかな
+				ELSEIF BASE:PLAYER:勃起 < 1000
+					PRINT 半勃ちの
+				ELSE
+					PRINT すっかり硬くなった
+				ENDIF
+				PRINTL 陰茎に手を這わせてきた…
+			ELSE
+				PRINTL 股間に手を這わせてきた…
+			ENDIF
+		CASE 1
+			IF TEQUIP:PLAYER:下腹部前鎧あり
+				PRINT 鎧の下に手を伸ばし、
+			ELSEIF TEQUIP:PLAYER:スカートめくり可
+				PRINT 服の裾から手を差し入れ、
+				IF TEQUIP:PLAYER:下タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:下半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSEIF TEQUIP:PLAYER:ずらし可
+				PRINT 服の裾をズラし、
+				IF TEQUIP:PLAYER:下タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:下半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSE
+				PRINT 服の上から、
+			ENDIF
+			PRINTFORML 膣口に指を這わせてきた…
+		CASE 2
+			IF TEQUIP:PLAYER:下腹部後鎧あり
+				PRINT 鎧の下に手を伸ばし、
+			ELSEIF TEQUIP:PLAYER:スカートめくり可
+				PRINT 服の裾から手を差し入れ、
+				IF TEQUIP:PLAYER:下タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:下半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSE
+				PRINT 服の上から、
+			ENDIF
+			PRINTFORML 尻をゆっくりと揉んできた…
+		CASE 3
+			IF TEQUIP:PLAYER:上半身鎧あり
+				PRINT 鎧の下に手を伸ばし、
+			ELSEIF TEQUIP:PLAYER:手差し込み可
+				PRINT 服の裾から手を差し入れ、
+				IF TEQUIP:PLAYER:上タイツあり
+					PRINT タイツの上から
+				ELSEIF TEQUIP:PLAYER:上半身下着あり == 0
+					PRINT 直接
+				ELSE
+					PRINT 下着の上から
+				ENDIF
+			ELSE
+				PRINT 服の上から、
+			ENDIF
+			PRINTFORML 胸をゆっくりと揉んできた…
+	ENDSELECT
+
+	PRINTFORM %CALLNAME:PLAYER%は相手の
+	IF RFLAG:コマンド結果受渡し変数２ > 300
+		PRINT 手慣れた様子の
+	ENDIF
+	PRINT セクハラで、
+	SELECTCASE PALAM:PLAYER:(RFLAG:コマンド結果受渡し変数)
+		CASE IS < 1000
+			PRINTFORML 少しムラムラしてきている…
+		CASE IS < 3000
+			PRINTFORML 快楽に少し声を出してしまった…
+		CASE IS < 6000
+			PRINTFORML 強い快感を感じている…
+		CASEELSE
+			PRINTFORML 今にも絶頂してしまいそうだ。
+	ENDSELECT
+ENDIF
 
 

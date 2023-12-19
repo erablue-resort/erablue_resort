@@ -47,7 +47,7 @@ AUTOCOM_相手番号保存 = 訪問候補者:(RAND:候補番号)
 TCVAR:AUTOCOM_相手番号保存:自室訪問フラグ = 1
 
 ;訪問目的決定
-;0:遊びに誘いに来る、1:自室で遊ぶ、2:仕事の用事で来る
+;0:遊びに誘いに来る、1:自室で遊ぶ、2:仕事の用事で来る 3:うふふお誘い
 訪問目的 = RAND:3
 IF 訪問目的 == 2 && !TALENT:AUTOCOM_相手番号保存:従業員
 	;従業員でないなら仕事の用事はない
@@ -66,6 +66,10 @@ IF 訪問目的 == 1
 			訪問目的 -= 1
 		ENDIF
 	ENDIF
+ENDIF
+;陥落済み、かつ性欲が溜まっているとうふふお誘い。他すべてに優先する
+IF 陥落チェック(AUTOCOM_相手番号保存) && BASE:AUTOCOM_相手番号保存:性欲 > 1500 && 初体験日:AUTOCOM_相手番号保存:初うふふ
+	訪問目的 = 3
 ENDIF
 
 ;訪問処理
@@ -106,6 +110,16 @@ SELECTCASE 訪問目的
 		CALL SOURCE_CALC_好感度要素_信頼度UP(AUTOCOM_相手番号保存, PLAYER, 250)
 		TARGET = AUTOCOM_相手番号保存
 		RETURN 0
+	CASE 3
+		PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%は艶っぽい目で%CALLNAME:PLAYER%を見つめている……
+		PRINTL どうやら肌を重ねるお誘いのようだが、どうしようか？
+		DRAWLINE
+		PRINTBUTTON "[0] 部屋に招く", 0
+		PRINTL
+		PRINTBUTTON "[2] 断る", 2
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[100] 選択肢について説明", 100
 ENDSELECT
 
 BINPUT
@@ -113,6 +127,7 @@ SELECTCASE RESULT
 	CASE 0
 		CFLAG:PLAYER:現在マップ種別 = 0
 		CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+		CFLAG:AUTOCOM_相手番号保存:同室 = 1
 		IF 訪問目的 == 0
 			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で遊ぶことにした。
 			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
@@ -125,11 +140,27 @@ SELECTCASE RESULT
 				訪問先場所番号 = 5
 				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
 			ENDIF
-		ELSE
+		ELSEIF 訪問目的 == 1
 			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で遊ぶことにした。
 			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
 			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
 			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+		ELSEIF 訪問目的 == 3
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%を部屋に招き入れ、優しく抱きしめた。
+			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			IF 知識素質:AUTOCOM_相手番号保存:性知識 > 1
+				PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はあなたを喜ばせようと、情欲を煽る下着を着けて来ている…
+				SIF CSTR:AUTOCOM_相手番号保存:コスプレ前の服 == "" && CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ != ""
+					CSTR:AUTOCOM_相手番号保存:コスプレ前の服 '= CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ
+				LOCALS '= CSTR:AUTOCOM_相手番号保存:脱ぐ前の服
+				CALL CLOTHES_CHANGE(AUTOCOM_相手番号保存, "セクシーランジェリー")
+				CSTR:AUTOCOM_相手番号保存:脱ぐ前の服 '= LOCALS
+			ENDIF
+			;3Pモード管理フラグを初期化
+			FLAG:モード管理 = 0
+			CFLAG:AUTOCOM_相手番号保存:うふふ = 1
+			CFLAG:MASTER:うふふ = 1
 		ENDIF
 	CASE 1
 		TIME += 60
@@ -157,16 +188,22 @@ SELECTCASE RESULT
 			PRINTL 　　　　　　その後の行動について制限はありません。
 			PRINTL
 			PRINT 遊びに行く（簡易版）：
-		ELSE
+			PRINTL 簡単な描写と一定の好感度変化が実行されます。
+			PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+			PRINTL 
+		ELSEIF 訪問目的 == 1
 			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れます。
 			PRINTL 　　　　　　この時、雰囲気に補正が掛かり一部のコマンドの発生条件が緩くなります。
 			PRINTL 　　　　　　その後の行動について制限はありません。
 			PRINTL
 			PRINT 部屋に招く（簡易版）：
+			PRINTL 簡単な描写と一定の好感度変化が実行されます。
+			PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+			PRINTL 
+		ELSEIF 訪問目的 == 3
+			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れ、押し倒します。
+			PRINTL
 		ENDIF
-		PRINTL 簡単な描写と一定の好感度変化が実行されます。
-		PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
-		PRINTL 
 		PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
 		PRINTL 
 		WAIT

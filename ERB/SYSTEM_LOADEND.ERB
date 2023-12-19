@@ -74,54 +74,9 @@ CALL 従業員業務用マップセット
 ;------------------------------------------------------------------------------------------
 ;旧セーブとの互換のために入れる処理
 ;------------------------------------------------------------------------------------------
-;空艇港の誤字統一
-LOCAL:1 = 0
-FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
-	IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "大拡張！空挺港"
-		互換維持用変数 = LOCAL
-		LOCAL:1 = 1
-		BREAK
-	ENDIF
-NEXT
-IF LOCAL:1
-	DT_ROW_ADD "各イベント用変数配列", "イベント名", "大拡張！空艇港", "イベントカテゴリ", "メインシナリオ", "イベント発生フラグ", DT_CELL_GET("各イベント用変数配列", 互換維持用変数, "イベント発生フラグ"), "イベント完了フラグ", DT_CELL_GET("各イベント用変数配列", 互換維持用変数, "イベント完了フラグ")
-	DT_ROW_REMOVE "各イベント用変数配列", DT_CELL_GET("各イベント用変数配列", 互換維持用変数, "id")
-	
-	IF 空挺港初来訪イベントフラグ
-		空艇港初来訪イベントフラグ = 1
-		空挺港初来訪イベントフラグ = 0
-	ENDIF
-	FOR LOCAL, 0, 10
-		FOR LOCAL:1, 0, 5
-			空艇港店舗状況:LOCAL:(LOCAL:1) = 空挺港店舗状況:LOCAL:(LOCAL:1)
-		NEXT
-	NEXT
-ENDIF
 
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
-	IF 基礎BATTLE_STATE:LOCAL:クリティカルダメージ率 == 0
-		基礎BATTLE_STATE:LOCAL:クリティカルダメージ率 = 150
-	ENDIF
-	IF 基礎BATTLE_STATE:LOCAL:敵対心 == 0
-		基礎BATTLE_STATE:LOCAL:敵対心 = 100
-	ENDIF
-
-	IF CSVCSTR(NO:LOCAL, 50) != ""
-		CSTR:LOCAL:特殊種族 = %CSVCSTR(NO:LOCAL, 50)%
-	ENDIF
-	IF CSVCSTR(NO:LOCAL, 51) != ""
-		CSTR:LOCAL:出演作品 = %CSVCSTR(NO:LOCAL, 51)%
-	ENDIF
-	FOR LOCAL:1, 227, 240
-		TALENT:LOCAL:(LOCAL:1) = CSVTALENT(NO:LOCAL, LOCAL:1)
-	NEXT
-	SIF CFLAG:LOCAL:オナニー覚えたて > 0 && CFLAG:LOCAL:オナニー覚えたて < 100
-		CFLAG:LOCAL:オナニー覚えたて += 99
-	IF 現在仕事:LOCAL:0 == 2 && 現在仕事:LOCAL:1 == 0
-		現在仕事:LOCAL:0 = 1
-	ENDIF
-	;ここまで0.032で消す
 
 	SIF CFLAG:LOCAL:長期雇用 && TALENT:LOCAL:従業員
 		CFLAG:LOCAL:長期雇用 = 0
@@ -143,55 +98,12 @@ FOR LOCAL, 1, CHARANUM
 		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "312"
 			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_6
 	NEXT
-	;ここまで0.033で消す
+	;ここまで0.034で消す
+
+
+	;ここまで0.035で消す
 NEXT
 
-;素材アイテムデータベースが多重登録されていた問題
-LOCAL:1 = 0
-FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
-	SIF DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名") == ""
-		BREAK
-	IF !MATCH(比較用一時保存配列, DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名"))
-		比較用一時保存配列:(LOCAL:1) = %DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名")%
-		LOCAL:1 += 1
-	ELSE
-		DT_ROW_REMOVE "所持素材データベース", DT_CELL_GET("所持素材データベース", LOCAL, "id")
-		LOCAL -= 1
-	ENDIF
-NEXT
-
-CALL エロ衣装登録処理("逆バニー")
-CALL エロ衣装登録処理("マイクロビキニ")
-
-IF DT_COLUMN_EXIST("所持指輪データベース", "装備者キャラ番号")
-	DT_COLUMN_ADD "所持指輪データベース", "装備キャラ番号", 3
-	FOR LOCAL, 0, DT_ROW_LENGTH("所持指輪データベース")
-		DT_CELL_SET "所持指輪データベース", LOCAL, "装備キャラ番号", DT_CELL_GET("所持指輪データベース", LOCAL, "装備者キャラ番号")
-	NEXT
-	DT_COLUMN_REMOVE "所持指輪データベース", "装備者キャラ番号"
-ENDIF
-IF DT_COLUMN_EXIST("所持耳飾りデータベース", "装備者キャラ番号")
-	DT_COLUMN_ADD "所持耳飾りデータベース", "装備キャラ番号", 3
-	FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
-		DT_CELL_SET "所持耳飾りデータベース", LOCAL, "装備キャラ番号", DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備者キャラ番号")
-	NEXT
-	DT_COLUMN_REMOVE "所持耳飾りデータベース", "装備者キャラ番号"
-ENDIF
-IF DT_COLUMN_EXIST("所持素材データベース", "所持数")
-	DT_COLUMN_ADD "所持素材データベース", "所持素材数", 3
-	DT_COLUMN_ADD "所持素材データベース", "累計入手素材数", 3
-	DT_COLUMN_ADD "所持素材データベース", "素材値相場", 3
-	FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
-		DT_CELL_SET "所持素材データベース", LOCAL, "所持素材数", DT_CELL_GET("所持素材データベース", LOCAL, "所持数")
-		DT_CELL_SET "所持素材データベース", LOCAL, "累計入手素材数", DT_CELL_GET("所持素材データベース", LOCAL, "累計入手数")
-		DT_CELL_SET "所持素材データベース", LOCAL, "素材値相場", DT_CELL_GET("所持素材データベース", LOCAL, "素材相場")
-	NEXT
-	DT_COLUMN_REMOVE "所持素材データベース", "所持数"
-	DT_COLUMN_REMOVE "所持素材データベース", "累計入手数"
-	DT_COLUMN_REMOVE "所持素材データベース", "素材相場"
-ENDIF
-
-;ここまで0.032で消す
 
 ;調教システム改定による体力数値の変動
 IF 体力数値変更済みフラグ == 0
@@ -239,7 +151,12 @@ IF オート射精先初期設定 == 0
 	オート射精先初期設定 = 1
 	VARSET オート射精先オプション, -1
 ENDIF
-;ここまで0.033で消す
+
+CALL エロ衣装登録処理("セクシーランジェリー")
+;ここまで0.034で消す
+
+
+;ここまで0.035で消す
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理

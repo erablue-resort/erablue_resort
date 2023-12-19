@@ -7,14 +7,11 @@
 ;ERDいじったりしなくていいようにデータベース管理
 ENUMFUNCBEGINSWITH @"衣装関数_%衣装名一時保存%"
 IF RESULT
-	FOR LOCAL, 1, 200
+	FOR LOCAL, 1, DT_ROW_LENGTH("所持衣装データベース")
 		SELECTCASE DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名") 
 			CASE 衣装名一時保存
 				;すでに追加済みの場合は-2を返す
 				RETURN -2
-			CASE ""
-				;途中で空っぽになるパターンはないはずなのでbreak
-				BREAK
 		ENDSELECT
 	NEXT
 	;抜けてきたら登録
@@ -31,6 +28,9 @@ ENDIF
 #DIM キャラ番号
 #DIM ページ番号
 #DIMS 表示衣装種別
+#DIM 表示アビ番号
+#DIM 関数総数
+
 IF 表示衣装種別 == ""
 	表示衣装種別 = 通常衣装
 ENDIF
@@ -39,7 +39,7 @@ ENDIF
 ;装備中衣装表示
 DRAWLINE
 詳細文文字列受け渡し変数 = 
-TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:キャラ番号:装備衣装番号, "衣装名")%("フレーバー")
+TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:キャラ番号:装備衣装番号, "衣装名")%("フレーバー")
 LOCALS = <div rect='200,0,5662,1250' border='31' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='262, 62, 1125, 1125'>%顔グラ表示用文字列関数(キャラ番号)%</div>"
 LOCALS += @"<div rect='1387,62,5537,1125'>■%CALLNAME:キャラ番号%が装備中の探索衣装<br>"
@@ -97,12 +97,14 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN 0
 	CASE IS < 1000
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
 		LOCALS = %詳細文文字列受け渡し変数%<br>
 		LOCALS += @"・追加アビ<br>"
-		FOR LOCAL:10, 1, 10
+		VARSET RESULTS
+		関数総数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%_")
+		FOR 表示アビ番号, 0, 関数総数
 			詳細文文字列受け渡し変数 = 
-			TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%(@"追加アビ_{LOCAL:10}")
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
 			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		NEXT
 		LOCALS += "<br>"
@@ -162,6 +164,8 @@ HTML_PRINT LOCALS, 1
 
 @所持衣装リスト表示_USERCOM
 #DIM ページ番号
+#DIM 表示アビ番号
+#DIM 関数総数
 
 DO
 LOCALS = 
@@ -195,17 +199,31 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN 1
 	CASE IS < 500
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%("フレーバー")
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%("フレーバー")
 		LOCALS = %詳細文文字列受け渡し変数%<br>
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%("追加アビ")
-		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+
+		LOCALS += @"・追加アビ<br>"
+		VARSET RESULTS
+		関数総数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名")%_")
+		FOR 表示アビ番号, 0, 関数総数
+			詳細文文字列受け渡し変数 = 
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		NEXT
 		HTML_PRINT LOCALS
 		WAIT
 	CASE IS < 1000
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
+		TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("フレーバー")
 		LOCALS = %詳細文文字列受け渡し変数%<br>
-		TRYCALLFORM 衣装文章表示_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%("追加アビ")
-		LOCALS += @"・追加アビ<br>%詳細文文字列受け渡し変数%<br>"
+
+		LOCALS += @"・追加アビ<br>"
+		VARSET RESULTS
+		関数総数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", LOCAL - 500, "衣装名")%_")
+		FOR 表示アビ番号, 0, 関数総数
+			詳細文文字列受け渡し変数 = 
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		NEXT
 		HTML_PRINT LOCALS
 		WAIT
 ENDSELECT
