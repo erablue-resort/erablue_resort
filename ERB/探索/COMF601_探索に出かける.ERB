@@ -104,10 +104,19 @@ RETURN 1
 @ダンジョンリスト描画
 #DIMS 表示用リスト_未クリア, 50
 #DIMS 表示用リスト_クリア済み, 100
+#DIM レベルソート_未クリア, 50
+#DIM レベルソート_クリア済み, 100
 #DIMS ダンジョン名保存
+#DIMS 未クリアリスト表示文
+#DIMS クリア済みリスト表示文
 #DIM 表示候補数
+
 VARSET LOCAL
 VARSET LOCALS
+VARSET 表示用リスト_未クリア
+VARSET 表示用リスト_クリア済み
+VARSET レベルソート_未クリア
+VARSET レベルソート_クリア済み
 
 表示候補数 = ENUMFUNCBEGINSWITH("ダンジョン初期処理_")
 
@@ -122,42 +131,54 @@ FOR LOCAL, 0, 表示候補数
 	IF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%")
 		IF GETVAR(@"ダンジョンクリアフラグ_%ダンジョン名保存%") == 1
 			表示用リスト_クリア済み:(LOCAL:2) = %ダンジョン名保存%
+			CALLFORM ダンジョン解説文_%ダンジョン名保存%
+			;降順ソートするためマイナス数値
+			レベルソート_クリア済み:(LOCAL:2) = RESULT * -1
 			LOCAL:2 += 1
 		ELSE
 			表示用リスト_未クリア:(LOCAL:1) = %ダンジョン名保存%
+			CALLFORM ダンジョン解説文_%ダンジョン名保存%
+			;降順ソートするためマイナス数値
+			レベルソート_未クリア:(LOCAL:1) = RESULT * -1
 			LOCAL:1 += 1
 		ENDIF
 	ENDIF
 NEXT
 
+;推奨レベルでソート
+ARRAYMSORT レベルソート_クリア済み, 表示用リスト_クリア済み
+ARRAYMSORT レベルソート_未クリア, 表示用リスト_未クリア
+
 VARSET LOCAL
 VARSET LOCALS
+未クリアリスト表示文 = 
+クリア済みリスト表示文 = 
 FOR LOCAL, 0, 表示候補数
 	IF 表示用リスト_未クリア:LOCAL == ""
 		BREAK
 	ENDIF
-	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_未クリア:LOCAL%</button><br>"
+	未クリアリスト表示文 += @"<button value='{LOCAL}'>[{LOCAL}]%表示用リスト_未クリア:LOCAL%</button><br>"
 NEXT
 
 FOR LOCAL, 0, 表示候補数
 	IF 表示用リスト_クリア済み:LOCAL == ""
 		BREAK
 	ENDIF
-	LOCALS:2 += @"<button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_クリア済み:LOCAL%</button>"
+	CALLFORM ダンジョン解説文_%表示用リスト_クリア済み:LOCAL%
+	LOCALS:2 = <button value='{LOCAL + 50}'>[{LOCAL + 50}]%表示用リスト_クリア済み:LOCAL, 34, LEFT%</button>推奨Lv：{RESULT, 3}
 	LOCAL:1 += 1
-	IF LOCAL:1 % 2
+	IF LOCAL:1 / 2 == 0 && LOCAL:1
 		LOCALS:2 += "<br>"
-	ELSE
-		LOCALS:2 += "　　　　　　"
 	ENDIF
+	クリア済みリスト表示文 += @"%LOCALS:2%"
 NEXT
 
-LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div>
-LOCALS += "<div rect='2081,31,3875,2812' border='31' bcolor='#C0C0C0'></div>"
+LOCALS = <div rect='81,31,2875,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='3000,31,2875,2812' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += "<div width='950' height='125' xpos='337' ypos='0' color='#101010'>未クリアダンジョン</div>"
-LOCALS += "<div width='950' height='125' xpos='2337' ypos='0' color='#101010'>クリア済ダンジョン</div>"
-LOCALS += @"<div rect='156,156,1937,2812'>%LOCALS:1%</div>"
-LOCALS += @"<div rect='2156,156,3875,2812'>%LOCALS:2%</div>"
+LOCALS += "<div width='950' height='125' xpos='3256' ypos='0' color='#101010'>クリア済ダンジョン</div>"
+LOCALS += @"<div rect='156,156,2875,2812'>%未クリアリスト表示文%</div>"
+LOCALS += @"<div rect='3075,156,2875,2812'>%クリア済みリスト表示文%</div>"
 HTML_PRINT LOCALS
 
 FOR LOCAL, 0, 25
@@ -178,13 +199,41 @@ SELECTCASE LOCAL
 			REUSELASTLINE
 			GOTO INPUT_LOOP
 		ENDIF
-		CALL DUNGEON_MAIN_LOOP(表示用リスト_未クリア:LOCAL)
+		CALLFORM ダンジョン解説文_%表示用リスト_未クリア:LOCAL%
+		PRINTFORML ■%表示用リスト_未クリア:LOCAL%　　推奨Lv：{RESULT,3}
+		PRINTL
+		HTML_PRINT 詳細文文字列受け渡し変数
+		PRINTL
+		PRINTL このダンジョンに入りますか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			CALL DUNGEON_MAIN_LOOP(表示用リスト_未クリア:LOCAL)
+		ELSE
+			RESTART
+		ENDIF
 	CASE IS < 150
 		IF 表示用リスト_クリア済み:(LOCAL - 50) == ""
 			REUSELASTLINE
 			GOTO INPUT_LOOP
 		ENDIF
-		CALL DUNGEON_MAIN_LOOP(表示用リスト_クリア済み:(LOCAL - 50))
+		CALLFORM ダンジョン解説文_%表示用リスト_クリア済み:(LOCAL - 50)%
+		PRINTFORML ■%表示用リスト_クリア済み:(LOCAL - 50)%　　推奨Lv：{RESULT,3}
+		PRINTL
+		HTML_PRINT 詳細文文字列受け渡し変数
+		PRINTL
+		PRINTL このダンジョンに入りますか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			CALL DUNGEON_MAIN_LOOP(表示用リスト_クリア済み:(LOCAL - 50))
+		ELSE
+			RESTART
+		ENDIF
 	CASE 999
 		RETURN -1
 	CASEELSE
