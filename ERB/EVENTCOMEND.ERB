@@ -88,11 +88,30 @@ ENDIF
 ;	ENDIF
 ;ENDIF
 
-;知識系素質の取得処理
+LOCAL:1 = 500
 FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+	;知識系素質の取得処理
 	CALL 知識系素質の取得(LOCAL)
+	;体力の回復
+	;昼食
+	IF TIME > 720 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 0) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (LOCAL:1 * 3 / (3 - TALENT:LOCAL:回復速度)))
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 0
+	ENDIF
+	;夕食
+	IF TIME > 1140 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 1) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (LOCAL:1 * 3 / (3 - TALENT:LOCAL:回復速度)))
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 1
+	ENDIF
+	;風呂
+	IF BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
+	ENDIF
 NEXT
 
 IF CFLAG:MASTER:酔いすぎ == 1
