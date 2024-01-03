@@ -13,7 +13,7 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_うふふ")
 @COM_TOOLTIP_414
 LOCALS = <br>■写真を撮る<br>
 LOCALS += "景切鏡を使って、景色を紙に写し取るコマンド。<br>実行した時の状況によって様々な写真が撮れる。"
-LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>COMタイプ：単独可能orうふふ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
@@ -23,31 +23,30 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;-------------------------------------------------
 @COM414
 #DIM 覗き許可フラグ
-RESULTS = 
 
 ;覗ける状態かどうかを見る
 CALL COM_ABLE404
 覗き許可フラグ = RESULT
-IF !TARGET
-	;カテゴリ１
-	;自撮り・風景写真
-	CALL 自撮り系風景系写真文字列算出
+IF CFLAG:TARGET:睡眠
+	CALL その他写真文字列算出
 ELSEIF CFLAG:PLAYER:うふふ && CFLAG:TARGET:うふふ
-	;カテゴリ２
+	;カテゴリ１
 	;ハメ撮り
 	CALL ハメ撮り系写真文字列算出
 ELSEIF 覗き許可フラグ
-	;カテゴリ３
+	;カテゴリ２
 	;盗撮
 	CALL 盗撮系写真文字列算出
+ELSEIF 現在仕事:TARGET:0 > 0 && CFLAG:TARGET:同行 < 1
+	;カテゴリ３
+	;仕事中
+	CALL 仕事中写真文字列算出
 ELSE
 	;カテゴリ４
 	;その他
 	CALL その他写真文字列算出
 ENDIF
 
-;RESULTSに実行時メッセージが入っているので受け渡す
-RSTR:コマンド結果受渡し文字列 = %RESULTS%
 
 RETURN 1
 ;-------------------------------------------------
@@ -55,7 +54,7 @@ RETURN 1
 ;-------------------------------------------------
 @COM_ABLE414
 ;作成中のため封印
-RETURN 0
+;RETURN 0
 
 ;移動実行判定
 SIF !TFLAG:ゲームフェイズ管理
@@ -63,26 +62,399 @@ SIF !TFLAG:ゲームフェイズ管理
 ;一括管理
 SIF GLOBAL_COMABLE(414)
 	RETURN RESULT
+;カメラ持ってる？
+SIF 景切鏡取得フラグ == 0
+	RETURN 0
+;覗きが出来ず、TARGETもいないなら不可
+CALL COM_ABLE404
+SIF RESULT == 0 && TARGET == 0
+	RETURN 0
 RETURN 1
 
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM414
-PRINTFORML %CALLNAME:PLAYER%は景切鏡で写真を撮った。
 ;複雑な分岐結果を一箇所で管理出来るよう、メッセージを文字列で管理する
 HTML_PRINT RSTR:コマンド結果受渡し文字列
 
 ;口上用のパラメータは追加してある最新の写真データベース行から持ってくる
 
 
-@自撮り系風景系写真文字列算出
-
-;まずは自撮り優先シチュの判定
-;自慰直後、かつ男じゃないなら自慰写真確定
-IF TALENT:PLAYER:性別 != 2
-ENDIF
 
 @ハメ撮り系写真文字列算出
+#DIMS 写真タイトル一時記録
+#DIMS 撮影日時一時記録
+#DIMS ランダム文字列
+#DIM 前ターン絶頂の強度
+;パターンの優先度は絶頂後＞好感度分岐
+;それにプラスしてハメ撮り（V・A）＞コスプレや全裸で分岐
+
+写真タイトル一時記録 = 
+;実行時メッセージを同時に入れ込む
+RSTR:コマンド結果受渡し文字列 = %CALLNAME:PLAYER%は景切鏡で
+
+;ハメた場所登録
+IF CFLAG:PLAYER:隠密
+	写真タイトル一時記録 += "物陰でこっそりと、"
+ELSEIF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	写真タイトル一時記録 += "ベッドの上、"
+ELSE
+	写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%で、"
+ENDIF
+
+IF TCVAR:TARGET:前ターン絶頂
+	;絶頂時はオートコマンド発生しないので、これで絶頂直後が撮れるはず
+	;一番強度の強い部位で文字列を決定、同じ場合はV>A>C>B>Sの優先度
+	前ターン絶頂の強度 = MAX(TCVAR:TARGET:前ターンＶ絶頂, TCVAR:TARGET:前ターンＡ絶頂, TCVAR:TARGET:前ターンＣ絶頂, TCVAR:TARGET:前ターンＢ絶頂, TCVAR:TARGET:前ターンＳ絶頂)
+	IF TCVAR:LOCAL:連続絶頂記録 > 1
+		写真タイトル一時記録 += "幾度も連続で"
+	ELSEIF TCVAR:TARGET:前ターンＶ絶頂 == 前ターン絶頂の強度
+		SIF TALENT:TARGET:Ｖ感度 > 0
+			写真タイトル一時記録 += "敏感な"
+		写真タイトル一時記録 += "膣で"
+	ELSEIF TCVAR:TARGET:前ターンＡ絶頂 == 前ターン絶頂の強度
+		SIF TALENT:TARGET:Ａ感度 > 0
+			写真タイトル一時記録 += "敏感な"
+		写真タイトル一時記録 += "アナルで"
+	ELSEIF TCVAR:TARGET:前ターンＣ絶頂 == 前ターン絶頂の強度
+		SIF TALENT:TARGET:Ｃ感度 > 0
+			写真タイトル一時記録 += "敏感な"
+		SIF フレーバー素質:TARGET:クリ大きさ == 3
+			写真タイトル一時記録 +="大きめの"
+		SIF フレーバー素質:TARGET:クリ大きさ == 4
+			写真タイトル一時記録 +="小さな陰茎のような"
+		写真タイトル一時記録 += "クリトリスで"
+	ELSEIF TCVAR:TARGET:前ターンＢ絶頂 == 前ターン絶頂の強度
+		SIF TALENT:TARGET:Ｂ感度 > 0
+			写真タイトル一時記録 += "敏感な"
+		SIF TALENT:TARGET:バストサイズ > 1
+			写真タイトル一時記録 += "大きな"
+		SIF TALENT:TARGET:バストサイズ < 0
+			写真タイトル一時記録 += "小さな"
+		写真タイトル一時記録 += "乳で"
+	ELSEIF TCVAR:TARGET:前ターンＳ絶頂 == 前ターン絶頂の強度
+		SIF TALENT:TARGET:Ｓ感度 > 0
+			写真タイトル一時記録 += "敏感な"
+		写真タイトル一時記録 += "体に触れられ"
+	ENDIF
+	写真タイトル一時記録 += @"絶頂する%CALLNAME:TARGET%"
+ELSE
+	;絶頂後でないなら服装とモードを判定する
+	IF CSTR:TARGET:着せ替え服 != ""
+		IF CSTR:TARGET:着せ替え服 == "全裸"
+			写真タイトル一時記録 += "全裸で"
+		ELSE
+			IF CSTR:TARGET:着せ替え服 == "浴衣"
+				写真タイトル一時記録 += "ユカタヴィラ"
+			ELSE
+				写真タイトル一時記録 += @"%CSTR:TARGET:着せ替え服%"
+			ENDIF
+			IF CSTR:TARGET:着せ替え服追加名 != ""
+				写真タイトル一時記録 += @"（%CSTR:TARGET:着せ替え服追加名%）を着て"
+			ELSE
+				写真タイトル一時記録 += "を着て"
+			ENDIF
+		ENDIF
+	ELSE
+		写真タイトル一時記録 += "普段着のまま"
+	ENDIF
+	IF 体位モード格納:TARGET:0 != ""
+		IF MODE系統確認(体位モード格納:TARGET:0, "アイテム系") || MODE系統確認(体位モード格納:TARGET:0, "触手系") || 体位モード格納:TARGET:0 == "乳首吸い"
+			写真タイトル一時記録 += @"%体位モード格納:TARGET:0%をされる"
+		ELSE
+			写真タイトル一時記録 += @"%体位モード格納:TARGET:0%をする"
+		ENDIF
+	ELSE
+		STRDATA ランダム文字列
+			DATA 頬を赤く染めた
+			DATA 潤んだ瞳で見つめる
+			DATA どこか期待するような顔をする
+			DATA 少し恥ずかしそうに顔を伏せた
+			DATA 手で目元を隠す
+			DATA なんとなくピースをする
+		ENDDATA
+		写真タイトル一時記録 += @"%ランダム文字列%"
+	ENDIF
+	写真タイトル一時記録 += @"%CALLNAME:TARGET%"
+ENDIF
+
+RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
+;データベース登録
+撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:PLAYER:現在マップ種別, "撮影場所", CFLAG:PLAYER:現在位置, "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 1
+
+
 @盗撮系写真文字列算出
+#DIMS 写真タイトル一時記録
+#DIMS 撮影日時一時記録
+#DIMS ランダム文字列
+#DIM 前ターン絶頂の強度
+
+写真タイトル一時記録 = 
+;実行時メッセージを同時に入れ込む
+RSTR:コマンド結果受渡し文字列 = %CALLNAME:PLAYER%は
+
+IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), 1) && GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), 3)
+	DRAWLINE
+	PRINTFORM %CALLNAME:PLAYER%は
+	IF TALENT:PLAYER:性別 == 2
+		PRINT 女性側
+	ELSE
+		PRINT 男性側
+	ENDIF
+	PRINTL を盗撮しようとしたが、誰かが隠れている気配も感じた…
+	PRINTBUTTONLC "[1]反対側を覗く", 1
+	PRINTBUTTONLC "[3]物陰を覗く", 3
+	PRINTL
+	$INPUT_LOOP
+	INPUT
+	IF RESULT == 1 || RESULT == 3
+		RFLAG:コマンド結果受渡し変数 = RESULT
+	ELSE
+		GOTO INPUT_LOOP
+	ENDIF
+ELSE
+	FOR LOCAL, 1, 5
+		IF GETBIT(覗き_ABLE(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), LOCAL)
+			RFLAG:コマンド結果受渡し変数 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+;RFLAG:コマンド結果受渡し変数２に覗き対象が入ってくる
+CALL 覗き候補選定
+
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 0
+		SELECTCASE RFLAG:コマンド結果受渡し変数
+			CASE 1
+				;反対側を覗く
+				IF TALENT:PLAYER:性別 == 2
+					RSTR:コマンド結果受渡し文字列 += "女性側"
+				ELSE
+					RSTR:コマンド結果受渡し文字列 += "男性側"
+				ENDIF
+				RSTR:コマンド結果受渡し文字列 += "を景切鏡で盗撮した<br>"
+				IF RFLAG:コマンド結果受渡し変数２
+					SELECTCASE CFLAG:PLAYER:現在位置
+						CASE 7, 8
+							写真タイトル一時記録 += "服を脱いでいる途中の"
+						CASE 9, 11
+							STRDATA ランダム文字列
+								DATA 裸で湯船に浸かっている
+								DATA 石鹸で体を洗っている
+							ENDDATA
+							写真タイトル一時記録 += @"%ランダム文字列%"
+						CASE 13, 14
+							写真タイトル一時記録 += "水着に着替えている途中の"
+					ENDSELECT
+				ELSE
+					RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
+					RETURN 0
+				ENDIF
+				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+			CASE 2
+				;隠れて覗く
+				RSTR:コマンド結果受渡し文字列 += @"物陰に隠れながら、景切鏡でこっそり盗撮した…<br>"
+				SELECTCASE CFLAG:PLAYER:現在位置
+					CASE 7, 8
+						写真タイトル一時記録 += "服を脱いでいる途中の"
+					CASE 9, 11
+						STRDATA ランダム文字列
+							DATA 裸で湯船に浸かっている
+							DATA 石鹸で体を洗っている
+						ENDDATA
+						写真タイトル一時記録 += @"%ランダム文字列%"
+					CASE 13, 14
+						写真タイトル一時記録 += "水着に着替えている途中の"
+				ENDSELECT
+				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+			CASE 3
+				;物陰で野外オナニーを見つける
+				RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
+				RSTR:コマンド結果受渡し文字列 += @"こっそりと物陰を景切鏡で盗撮した…<br>"
+				IF TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_絶頂
+					;絶頂シーン
+					写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄り、絶頂する%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+				ELSE
+					;オナニーシーン
+					写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄る%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+				ENDIF
+			CASE 4
+				;覗き専用場所から覗く
+				RSTR:コマンド結果受渡し文字列 += @"壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を盗撮した"
+				IF RFLAG:コマンド結果受渡し変数２
+					PRINTFORM 向こう側では%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置
+						CASE 702, 802
+							写真タイトル一時記録 += "服を脱いでいる途中の"
+						CASE 703, 803
+							写真タイトル一時記録 += "石鹸で体を洗っている"
+						CASE 704, 804
+							写真タイトル一時記録 += "裸で湯船に浸かっている"
+						CASE 705, 805
+							写真タイトル一時記録 += "裸で変わり湯に浸かっている"
+						CASE 706, 806
+							写真タイトル一時記録 += "サウナで汗を流している"
+						CASE 707, 807
+							写真タイトル一時記録 += "裸で露天風呂に浸かっている"
+						CASE 708, 808
+							写真タイトル一時記録 += "裸で壺湯に浸かっている"
+					ENDSELECT
+				ELSE
+					RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
+					RETURN 0
+				ENDIF
+				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		ENDSELECT
+ENDSELECT
+
+RSTR:コマンド結果受渡し文字列 += @"確認すると、『%写真タイトル一時記録%』の写真が撮れていた。"
+;データベース登録
+撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, "撮影場所", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, "撮影対象NAME", NAME:(RFLAG:コマンド結果受渡し変数２), "撮影対象NO", NO:(RFLAG:コマンド結果受渡し変数２), "撮影シチュカテゴリ", 2
+
+
+
+@仕事中写真文字列算出
+#DIMS 写真タイトル一時記録
+#DIMS 撮影日時一時記録
+#DIMS ランダム文字列
+#DIM 前ターン絶頂の強度
+
+写真タイトル一時記録 = 
+;実行時メッセージを同時に入れ込む
+RSTR:コマンド結果受渡し文字列 = %CALLNAME:PLAYER%は景切鏡で
+
+;仕事内容
+IF 現在仕事:TARGET:0 == 2
+	;ちゃんと仕事場にいるかで分岐
+	IF GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置) == GETPLACENAME(現在仕事:TARGET:1 / 10000, 現在仕事:TARGET:1 % 10000)
+		写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置)%で%MAP_GET("常駐業務名", GETPLACENAME(現在仕事:TARGET:1 / 10000, 現在仕事:TARGET:1 % 10000))%の仕事をしている"
+	ELSE
+		写真タイトル一時記録 += @"%MAP_GET("常駐業務名", GETPLACENAME(現在仕事:TARGET:1 / 10000, 現在仕事:TARGET:1 % 10000))%の仕事に向かうところの、"
+	ENDIF
+ELSEIF 現在仕事:TARGET:0 == 5
+	;ちゃんと仕事場にいるかで分岐
+	IF CFLAG:TARGET:現在マップ種別 == 0 && CFLAG:TARGET:現在位置 == 308
+		写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置)%で訓練をしている"
+	ELSE
+		写真タイトル一時記録 += @"訓練場に向かうところの、"
+	ENDIF
+ELSE
+	写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置)%で%現在仕事数字文字列変換(現在仕事:TARGET:0, 0, TARGET)%の仕事をしている"
+ENDIF
+;服装
+IF CSTR:TARGET:着せ替え服 != ""
+	IF CSTR:TARGET:着せ替え服 == "全裸"
+		写真タイトル一時記録 += "全裸の"
+	ELSE
+		IF CSTR:TARGET:着せ替え服 == "浴衣"
+			写真タイトル一時記録 += "ユカタヴィラ姿の"
+		ELSE
+			写真タイトル一時記録 += @"%CSTR:TARGET:着せ替え服%"
+		ENDIF
+		IF CSTR:TARGET:着せ替え服追加名 != ""
+			写真タイトル一時記録 += @"（%CSTR:TARGET:着せ替え服追加名%）を着た"
+		ELSE
+			写真タイトル一時記録 += "を着た"
+		ENDIF
+	ENDIF
+ELSE
+	写真タイトル一時記録 += "普段着の"
+ENDIF
+写真タイトル一時記録 += @"%CALLNAME:TARGET%"
+
+
+RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
+;データベース登録
+撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 3
+
 @その他写真文字列算出
+#DIMS 写真タイトル一時記録
+#DIMS 撮影日時一時記録
+#DIMS ランダム文字列
+#DIMS 服装一時記録
+#DIM 前ターン絶頂の強度
+
+写真タイトル一時記録 = 
+;実行時メッセージを同時に入れ込む
+RSTR:コマンド結果受渡し文字列 = %CALLNAME:PLAYER%は景切鏡で
+
+;服装を先に取得
+服装一時記録 = 
+IF CSTR:TARGET:着せ替え服 != ""
+	IF CSTR:TARGET:着せ替え服 == "全裸"
+		服装一時記録 += "全裸の"
+	ELSE
+		IF CSTR:TARGET:着せ替え服 == "浴衣"
+			服装一時記録 += "ユカタヴィラ姿の"
+		ELSE
+			服装一時記録 += @"%CSTR:TARGET:着せ替え服%"
+		ENDIF
+		IF CSTR:TARGET:着せ替え服追加名 != ""
+			服装一時記録 += @"（%CSTR:TARGET:着せ替え服追加名%）を着た"
+		ELSE
+			服装一時記録 += "を着た"
+		ENDIF
+	ENDIF
+ELSE
+	服装一時記録 += "普段着の"
+ENDIF
+
+IF CFLAG:TARGET:睡眠
+	写真タイトル一時記録 += @"すやすやと眠る%服装一時記録%%CALLNAME:TARGET%"
+ELSE
+	SELECTCASE RAND:3
+		CASE 0
+			写真タイトル一時記録 += @"%服装一時記録%%CALLNAME:TARGET%と%CALLNAME:PLAYER%のツーショット"
+		CASE 1
+			IF ENJOYROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+				写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置)%で"
+				SIF GET_TARGETNUM() > 1
+					写真タイトル一時記録 += "みんなと"
+				写真タイトル一時記録 += "遊ぶ"
+				写真タイトル一時記録 += @"%服装一時記録%%CALLNAME:TARGET%"
+			ELSE
+				写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置)%"
+				IF GET_TARGETNUM() > 1
+					写真タイトル一時記録 += "で他の人と話している"
+				ELSE
+					写真タイトル一時記録 += "にいる"
+				ENDIF
+				写真タイトル一時記録 += @"%服装一時記録%%CALLNAME:TARGET%"
+			ENDIF
+		CASE 2
+				写真タイトル一時記録 += "こっちに気づいて"
+				IF TALENT:TARGET:羞恥心 > 0
+					STRDATA ランダム文字列
+						DATA 小さくピースをする
+						DATA 少し恥ずかしそうにはにかむ
+						DATA 思わず隠れてしまった
+					ENDDATA
+				ELSEIF TALENT:TARGET:目立ちたがり > 0
+					STRDATA ランダム文字列
+						DATA びしっとポーズを取る
+						DATA キメ顔で目線を送る
+						DATA 近づいてきて、ドアップになった
+					ENDDATA
+				ELSE
+					STRDATA ランダム文字列
+						DATA ピースをする
+						DATA こちらに手を振る
+						DATA 笑顔を浮かべた
+					ENDDATA
+				ENDIF
+				写真タイトル一時記録 += @"%ランダム文字列%%服装一時記録%%CALLNAME:TARGET%"
+	ENDSELECT
+ENDIF
+
+RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
+;データベース登録
+撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 4
+
+
