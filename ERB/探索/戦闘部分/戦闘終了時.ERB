@@ -3,6 +3,7 @@
 #DIM ループ用
 #DIM エネミー数
 #DIM 探索口上キャラ番号
+#DIM レベルアップフラグ
 
 CALL 口上変数初期化
 WSTR:(K++) = 戦闘に勝利した！
@@ -25,14 +26,17 @@ FOR LOCAL, 0, 10
 	LOCAL:2 += 敵BATTLE_STATE:LOCAL:所持ルピ
 NEXT
 WSTR:(K++) = 経験値を{LOCAL:1, 5} 手に入れた！
+レベルアップフラグ = 0
 FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
 		CONTINUE
 	基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):蓄積EXP += LOCAL:1
 	CALL レベルアップ処理(BATTLE_STATE:LOCAL:キャラ番号)
+	SIF レベルアップフラグ < RESULT
+		レベルアップフラグ = RESULT
 	CALL 関係性一括上昇_探索(BATTLE_STATE:LOCAL:キャラ番号, 5)
 NEXT
-IF RESULT
+IF レベルアップフラグ
 	;ステータス代入
 	CALL 戦闘初期処理_味方
 ENDIF
@@ -102,9 +106,11 @@ CALL 戦闘終了時処理
 
 
 @戦闘終了時処理
+ダンジョン表示モード = マップ画面
 CALL 口上変数初期化
 VARSET 敵BATTLE_STATE:0:0
 VARSET 敵BATTLE_STATE_STR:0:0
+行動口上呼び出し用文字列 = 
 戦闘背景画像 = 
 
 ;画像リソースを全解放して顔グラ再生成

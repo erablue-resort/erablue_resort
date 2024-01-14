@@ -1,6 +1,6 @@
 ﻿
 
-@メッセージ欄表示用関数(画像リソース = "", 名前欄表示文字列 = "", 表示位置 = "下", WAITあり = 1)
+@メッセージ欄表示用関数(画像リソース = "", 名前欄表示文字列 = "", 表示位置 = "下", WAITあり = 1, ログ保存しないフラグ = 0)
 #DIMS 画像リソース
 #DIMS 名前欄表示文字列
 #DIMS 表示位置
@@ -9,12 +9,14 @@
 #DIM WAITあり
 	;１なら通常WAIT（デフォルト）、２ならFORCEWAIT、０でWAITなし
 #DIM 表示文章種類保存
+#DIM ログ保存しないフラグ
 VARSET LOCALS
 VARSET LOCAL
 VARSET 複数メッセージ欄_名前欄記録
 VARSET 複数メッセージ欄_メッセージ欄記録
 表示行数カウント = 0
 表示文章種類保存 = 0
+ログ保存用文字列 = 
 
 CALL メッセージ欄文字列受け渡し_下側_登録処理(名前欄表示文字列, 画像リソース)
 ;複数メッセージ欄_名前欄記録:メッセージ欄追加数カウント = %メッセージ欄スクロール表示(名前欄表示文字列, 画像リソース, メッセージ欄追加数カウント)%
@@ -31,6 +33,7 @@ FOR LOCAL,0,1000
 		ENDIF
 		CALL PRINT_STR_メッセージ用(WSTR:LOCAL)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%<br>"
+		ログ保存用文字列 += "<br>"
 		CALL メッセージ欄文字列受け渡し_下側_登録処理(名前欄表示文字列, 画像リソース)
 		CALL 画面再描画
 		WAIT
@@ -42,6 +45,7 @@ FOR LOCAL,0,1000
 		ENDIF
 		CALL PRINT_STR_メッセージ用(KSTR:LOCAL)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%<br>"
+		ログ保存用文字列 += "<br>"
 		表示文章種類保存 = 1
 		表示行数カウント += 1
 	ELSEIF !(WNSTR:LOCAL == "")
@@ -92,6 +96,13 @@ IF WAITあり == 1
 ELSEIF WAITあり == 2
 	FORCEWAIT
 ENDIF
+
+IF ログ保存しないフラグ == 0
+	IF ダンジョン表示モード == "戦闘画面"
+		サイド描画_戦闘ログ保存 += @"%ログ保存用文字列%<br>"
+	ENDIF
+ENDIF
+
 RETURN 1
 
 
@@ -116,6 +127,8 @@ FOR LCOUNT, 0, 100
 		;次の文字をボタンにする
 		LCOUNT += 1
 		表示文 += @"<button value='%LOCALS:LCOUNT%'>%LOCALS:LCOUNT%</button>"
+		;文字だけをログに保存
+		ログ保存用文字列 += @"<nonbutton>%LOCALS:LCOUNT%</nonbutton>"
 		CONTINUE
 	CASE "CALL"
 		;次の文字をCALLで呼び出す(引数なし)
@@ -126,8 +139,11 @@ FOR LCOUNT, 0, 100
 		;次の文字の色を変更する
 		LCOUNT += 1
 		表示文 += @"<font color='#%LOCALS:LCOUNT%'>"
+		;ログに保存
+		ログ保存用文字列 += @"<font color='#%LOCALS:LCOUNT%'>"
 		LCOUNT += 1
 		表示文 += @"%LOCALS:LCOUNT%</font>"
+		ログ保存用文字列 += @"%LOCALS:LCOUNT%</font>"
 		CONTINUE
 	CASE "INPUT"
 		;INPUTを呼び出す
@@ -145,29 +161,41 @@ FOR LCOUNT, 0, 100
 		;次の文字に打消し線を引く
 		LCOUNT += 1
 		表示文 += @"<s>%LOCALS:LCOUNT%</s>"
+		;ログに保存
+		ログ保存用文字列 += @"<s>%LOCALS:LCOUNT%</s>"
 		CONTINUE
 	CASE "B"
 		;次の文字を太字にする
 		LCOUNT += 1
 		表示文 += @"<b>%LOCALS:LCOUNT%</b>"
+		;ログに保存
+		ログ保存用文字列 += @"<b>%LOCALS:LCOUNT%</b>"
 		CONTINUE
 	CASE "I"
 		;次の文字を斜体にする
 		LCOUNT += 1
 		表示文 += @"<i>%LOCALS:LCOUNT%</i>"
+		;ログに保存
+		ログ保存用文字列 += @"<i>%LOCALS:LCOUNT%</i>"
 		CONTINUE
 	CASE "LINE"
 		;次の文字に下線を引く
 		LCOUNT += 1
 		表示文 += @"<u>%LOCALS:LCOUNT%</u>"
+		;ログに保存
+		ログ保存用文字列 += @"<u>%LOCALS:LCOUNT%</u>"
 		CONTINUE
 	CASE "H"
 		表示文 += "<img src='えっちハート' height='112' width='112'>"
+		;ログに保存
+		ログ保存用文字列 += "<img src='えっちハート' height='112' width='112'>"
 		CONTINUE
 	CASE "IMAGE"
 		;画像を表示する
 		LCOUNT += 1
 		表示文 += @"<img src='%LOCALS:LCOUNT%' height='112' width='112'>"
+		;ログに保存
+		ログ保存用文字列 += @"<img src='%LOCALS:LCOUNT%' height='112' width='112'>"
 		CONTINUE
 	CASE "PAGE"
 		メッセージ欄ページ送り用フラグ = 1
@@ -179,7 +207,10 @@ FOR LCOUNT, 0, 100
 	ENDSELECT
 
 	表示文 += @"%LOCALS:LCOUNT%"
+	;特殊コード以外の部分をログに保存
+	ログ保存用文字列 += @"%LOCALS:LCOUNT%"
 NEXT
+
 RESULTS = %表示文%
 SIF LOCAL:1 > 0
 	RESULTS:1 = %返し文%
@@ -193,6 +224,8 @@ SIF LOCAL > 0
 
 SELECTCASE ARGS
 	CASE "マップ画面"
+		RETURNF 3125 - 969 * メッセージ欄追加数カウント
+	CASE "アイテム画面"
 		RETURNF 3125 - 969 * メッセージ欄追加数カウント
 	CASE "戦闘画面"
 		RETURNF 4312 - 969 * メッセージ欄追加数カウント

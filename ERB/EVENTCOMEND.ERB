@@ -3,6 +3,9 @@
 
 
 @EVENTCOMEND0
+#DIM 食事回復量
+#DIM 料理ランク一時保存
+#DIM 料理属性一時保存, 10
 
 IF TFLAG:オートコマンドフラグ
 ELSE
@@ -88,11 +91,57 @@ ENDIF
 ;	ENDIF
 ;ENDIF
 
-;知識系素質の取得処理
+;設定している食事メニューによって回復量設定
+食事回復量 = 400
+料理ランク一時保存 = 0
+VARSET 料理属性一時保存
+FOR LOCAL, 1, 6
+	IF 現在設定メニュー:LOCAL
+		料理ランク一時保存 += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "料理ランク", 1)
+		料理属性一時保存:LOCAL = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "料理属性", 1) + 100
+	ENDIF
+NEXT
+食事回復量 += 料理ランク一時保存 * 10
+
+
 FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+	;知識系素質の取得処理
 	CALL 知識系素質の取得(LOCAL)
+	;体力の回復
+	;昼食
+	IF TIME > 720 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 0) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+			CASE 3
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+			CASE 4
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+			CASE 5
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+		ENDSELECT
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 0
+	ENDIF
+	;夕食
+	IF TIME > 1140 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 1) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)))
+		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+			CASE 3
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+			CASE 4
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+			CASE 5
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+		ENDSELECT
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 1
+	ENDIF
+	;風呂
+	IF BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
+	ENDIF
 NEXT
 
 IF CFLAG:MASTER:酔いすぎ == 1
@@ -200,7 +249,17 @@ FOR LOCAL,0,CHARANUM
 	;満腹残り時間の減少
 	TCVAR:LOCAL:満腹 = MAX(TCVAR:LOCAL:満腹 - TIME_PROGRESS(TFLAG:行動前時刻), 0)
 	
+	IF TCVAR:LOCAL:前ターン絶頂 && NOWEX:LOCAL:多重絶頂
+		TCVAR:LOCAL:連続絶頂記録 += 1
+	ELSE
+		TCVAR:LOCAL:連続絶頂記録 = 0
+	ENDIF
 	TCVAR:LOCAL:前ターン絶頂 = NOWEX:LOCAL:多重絶頂
+	TCVAR:LOCAL:前ターンＣ絶頂 = NOWEX:LOCAL:Ｃ絶頂
+	TCVAR:LOCAL:前ターンＢ絶頂 = NOWEX:LOCAL:Ｂ絶頂
+	TCVAR:LOCAL:前ターンＶ絶頂 = NOWEX:LOCAL:Ｖ絶頂
+	TCVAR:LOCAL:前ターンＡ絶頂 = NOWEX:LOCAL:Ａ絶頂
+	TCVAR:LOCAL:前ターンＳ絶頂 = NOWEX:LOCAL:Ｓ絶頂
 	TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
 	SIF !TFLAG:オートコマンドフラグ
 		TCVAR:LOCAL:被射精位置 = 0
