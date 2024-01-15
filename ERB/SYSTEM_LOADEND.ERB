@@ -8,28 +8,17 @@
 @SYSTEM_LOADEND
 #DIM 追加キャラ保存, 100
 #DIM 互換維持用変数, 100
+#DIM 同行配列番号
+#DIM L_C
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
+#DIMS 同行キャラ文字列一時保存
+#DIMS CSTR切り分け文字列格納, 2
 VARSET 比較用一時保存配列
 
 VARSET 追加キャラ保存
 LOCAL:1 = 0
-
-;番号ミスの互換処理、Ver0.030にて記述
-GETCHARA 2001
-IF RESULT > 0 && NAME:RESULT == "[誓いの再臨]ソフィーティア"
-	NO:RESULT = 1009
-ENDIF
-GETCHARA 2002
-IF RESULT > 0 && NAME:RESULT == "[一途な鶴の化身]いろは"
-	NO:RESULT = 1010
-ENDIF
-GETCHARA 2000
-IF RESULT > 0 && (NAME:RESULT == "[牛乳姫]楠舞　神夜" || NAME:RESULT == "[牛乳姫]楠舞神夜")
-	NO:RESULT = 1011
-ENDIF
-
 
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
@@ -59,6 +48,31 @@ FOR LOCAL, 0, CHARANUM
 	IF !RELATION_VAL:0:0 && FINDELEMENT(追加キャラ保存, LOCAL) < 0
 		CALL SET_RELATION(LOCAL)
 	ENDIF
+
+	;追加同行キャラチェック
+	同行キャラ文字列一時保存 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "同行キャラ"))%
+	VARSET LOCALS
+	REPLACE 同行キャラ文字列一時保存, " ", ""
+	SPLIT RESULTS, "%", LOCALS
+	LOCAL:2 = RESULT - 1
+	FOR LOCAL:10, 0, LOCAL:2
+		VARSET CSTR切り分け文字列格納
+		SPLIT LOCALS:(LOCAL:10), "_", CSTR切り分け文字列格納
+		;無い場合のみ追加する
+		IF FINDELEMENT(同行候補キャラ番号:LOCAL:0, FINDCHARA(NAME, CSTR切り分け文字列格納:0)) < 0
+			;空いてる場所を検索して突っ込む
+			同行配列番号 = FINDELEMENT(同行候補キャラ番号:LOCAL:0, 0)
+			IF 同行配列番号 > 0
+				同行候補キャラ番号:LOCAL:同行配列番号 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+				同行候補キャラ確率:LOCAL:同行配列番号 = TOINT(CSTR切り分け文字列格納:1)
+			ENDIF
+			L_C = FINDELEMENT(RELATION_NO:LOCAL:0, 0)
+			IF L_C > 0
+				RELATION_NO:LOCAL:L_C = 同行候補キャラ番号:LOCAL:同行配列番号
+				RELATION_VAL:LOCAL:L_C += 同行候補キャラ確率:LOCAL:同行配列番号 * 100
+			ENDIF
+		ENDIF
+	NEXT
 NEXT
 SIF !RELATION_VAL:0:0
 	RELATION_VAL:0:0 = 1
