@@ -1,4 +1,8 @@
 ﻿@ITEM_BUY
+#DIM 現在ページ
+#DIM 表示候補, 500
+#DIM 候補人数
+
 PRINTFORML {ITEMSALES:62}
 CALL ITEM_SALES
 PRINT_ITEM
@@ -24,32 +28,87 @@ ENDIF
 LOCAL = RESULT
 
 IF LOCAL == 70
-	CALL CHOICE("【元気になる薬】を購入しますか？", "はい", "いいえ")
+	現在ページ = 0
+	PRINTL 【元気になる薬】を購入しますか？
+	PRINTL ※３日間、使用したキャラの体力最大値が1000増加します。
+	PRINTBUTTON "[0] はい", 0
+	PRINTL
+	PRINTBUTTON "[1] いいえ", 1
+	PRINTL
+	BINPUT
 	SIF RESULT
 		RESTART
 	PRINTL 誰に使いますか？
-	PRINTL [0] - 戻る
-	FOR LOCAL:1,1,CHARANUM
-		IF BASE:(LOCAL:1):0 < MAXBASE:(LOCAL:1):0
-			PRINTFORM [{LOCAL:1}] - %CALLNAME:(LOCAL:1)% 
-			CALL PRINT_BASE("体力",LOCAL:1,0,32)
-			PRINTL
-		ENDIF
+
+	VARSET 表示候補
+	候補人数 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF CFLAG:LOCAL:滞在期間 < 0
+			CONTINUE
+		表示候補:候補人数 = LOCAL
+		候補人数 += 1
 	NEXT
+
 	$INPUT_LOOP_70
-	INPUT
-	IF RESULT == 0
-		RESTART
-	ELSEIF RESULT <= 0 || RESULT >= CHARANUM || BASE:RESULT:0 == MAXBASE:RESULT:0
-		GOTO INPUT_LOOP_70
-	ELSE
-		PRINTFORMW %CALLNAME:RESULT%の体力+300
-		MONEY -= ITEMPRICE:LOCAL
-		BASE:RESULT:0 += 300
-		SIF BASE:RESULT:0 > MAXBASE:RESULT:0
-			BASE:RESULT:0 = MAXBASE:RESULT:0
+	VARSET LOCAL
+	;表示処理
+	FOR LOCAL, 現在ページ * 30, 候補人数
+		IF CFLAG:(表示候補:LOCAL):元気になる薬フラグ > 0
+			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'><nonbutton>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</nonbutton>"
+			LOCALS += @"　使用済み：残{CFLAG:(表示候補:LOCAL):元気になる薬フラグ, 2}日　</font>"
+		ELSE
+			LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+			IF CFLAG:(表示候補:LOCAL):滞在期間 == 1
+				LOCALS += @"　　　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
+			ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+				LOCALS += "　　　　　常時滞在　"
+			ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+				LOCALS += @"　　　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
+			ENDIF
+		ENDIF
+		LOCAL:1 += 1
+		IF LOCAL:1 % 2 == 0
+			HTML_PRINT LOCALS
+			LOCALS = 
+		ENDIF
+		SIF LOCAL:1 > 29
+			BREAK
+	NEXT
+	IF LOCALS != ""
+		HTML_PRINT LOCALS
+		LOCALS = 
 	ENDIF
-	RESTART
+	PRINTL 
+	IF 現在ページ > 0
+		PRINTLC  [900]前のページへ
+	ELSE
+		PRINTLC  
+	ENDIF
+		PRINTLC  [999]戻る
+	IF 現在ページ < 候補人数 / 30
+		PRINTLC  [901]次のページへ
+	ENDIF
+	PRINTL
+	DRAWLINE
+
+	BINPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 999
+			RESTART
+		CASE 900
+			現在ページ -= 1
+			GOTO INPUT_LOOP_70
+		CASE 901
+			現在ページ += 1
+			GOTO INPUT_LOOP_70
+		CASEELSE
+			PRINTFORMW %NAME:LOCAL%の体力最大値が1000増加しました。
+			CFLAG:LOCAL:元気になる薬フラグ = 3
+			CALL 体力変動素質適用処理(LOCAL)
+			BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + 1000)
+	ENDSELECT
+	GOTO INPUT_LOOP_70
 ENDIF
 IF LOCAL == 71
 	CALL CHOICE("【薬の材料(双)】を購入しますか？", "はい", "いいえ")
@@ -269,7 +328,7 @@ SIF TALENT:MASTER:汚臭耐性 == 2
 	ENDIF
 
 ;禁断
-FOR LOCAL,70,100
+FOR LOCAL,71,100
 	;売切の場合はそのまま
 	SIF ITEMSALES:LOCAL == -1
 		CONTINUE
@@ -280,10 +339,6 @@ FOR LOCAL,70,100
 	;禁断の知識
 	IF (LOCAL > 70 && LOCAL < 77) || LOCAL == 90
 		SIF TALENT:MASTER:禁断の知識
-			ITEMSALES:LOCAL = 0
-	;調合知識
-	ELSEIF LOCAL == 70
-		SIF 知識素質:MASTER:調合知識
 			ITEMSALES:LOCAL = 0
 	ENDIF
 NEXT
