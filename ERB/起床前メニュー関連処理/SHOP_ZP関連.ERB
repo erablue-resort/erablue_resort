@@ -554,10 +554,13 @@ ENDSELECT
 #DIM キャラ番号
 #DIM CONST COST_TO_敏感 = 300
 #DIM CONST COST_TO_通常 = 100
+#DIM CONST COST_TO_鈍感 = 300
 #DIM CONST COST_胸定数 = 20
 #DIM CONST COST_種族変化 = 200
+#DIM 必要COST
 #DIMS 特殊種族一時保存
 
+必要COST = 0
 DRAWLINE
 PRINTL ZPを消費してキャラの素質を変化させることが出来ます。
 PRINTL どの素質を変化させますか？
@@ -596,12 +599,19 @@ IF RESULT == 1
 			PRINTFORML %TALENTNAME:(LOCAL:1)%は既に敏感です
 			CONTINUE
 		ENDIF
-		IF TALENT:キャラ番号:(LOCAL:1) == -1
+		IF TALENT:キャラ番号:(LOCAL:1) == -2
+			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:無し > 鈍感", LOCAL:1
+			PRINTFORML 　　　必要ZP:{COST_TO_鈍感}
+			必要COST = COST_TO_鈍感
+		ELSEIF TALENT:キャラ番号:(LOCAL:1) == -1
 			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:鈍感 > 通常", LOCAL:1
+			PRINTFORML 　　　必要ZP:{COST_TO_通常}
+			必要COST = COST_TO_通常
 		ELSE
 			PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:通常 > 敏感", LOCAL:1
+			PRINTFORML 　　　必要ZP:{COST_TO_敏感}
+			必要COST = COST_TO_敏感
 		ENDIF
-		PRINTFORML 　　　必要ZP:{TALENT:キャラ番号:(LOCAL:1)==-1 ? COST_TO_通常 # COST_TO_敏感}
 	NEXT
 	PRINTBUTTON "[999]戻る", 999
 	$INPUT_LOOP2
@@ -617,19 +627,21 @@ IF RESULT == 1
 				GOTO INPUT_LOOP2
 			ENDIF
 			;ZP足りる？
-			IF (TALENT:キャラ番号:(LOCAL:1) == -1 & FLAG:ZP所持量 < COST_TO_通常) || (TALENT:キャラ番号:(LOCAL:1) == 0 & FLAG:ZP所持量 < COST_TO_敏感)
+			IF FLAG:ZP所持量 < 必要COST
 				PRINTW ZPが足りません
 				RESTART
 			ENDIF
-			PRINTFORML {TALENT:キャラ番号:(LOCAL:1)==-1 ? COST_TO_通常 # COST_TO_敏感}ZPを支払い、%TALENTNAME:(LOCAL:1)%を上昇させますか？
+			PRINTFORML {必要COST}ZPを支払い、%TALENTNAME:(LOCAL:1)%を上昇させますか？
 			PRINTFORML （所持ZP：{FLAG:ZP所持量}）
 			PRINTBUTTONLC "[0]はい", 0
 			PRINTBUTTONLC "[1]いいえ", 1
 			INPUT
 			IF RESULT == 0
-				FLAG:ZP所持量 -= TALENT:キャラ番号:(LOCAL:1)==-1 ? COST_TO_通常 # COST_TO_敏感
+				FLAG:ZP所持量 -= 必要COST
 				PRINTFORM %TALENTNAME:(LOCAL:1)%が
-				IF TALENT:キャラ番号:(LOCAL:1) == -1
+				IF TALENT:キャラ番号:(LOCAL:1) == -2
+					PRINTFORMW 新たに発生しました。
+				ELSEIF TALENT:キャラ番号:(LOCAL:1) == -1
 					PRINTFORMW 鈍感から通常に上昇しました。
 				ELSEIF TALENT:キャラ番号:(LOCAL:1) == 0
 					PRINTFORMW 通常から敏感に上昇しました。
