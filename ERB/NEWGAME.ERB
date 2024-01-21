@@ -262,6 +262,7 @@ ELSE
 	CALL 素材アイテムデータベースセット
 	CALL 食堂メニューデータベースセット
 	CALL 写真データベースセット
+	CALL 乗機データベースセット
 
 	CALL 制服登録処理("バニー服")
 	CALL 制服登録処理("メイド服")
@@ -884,6 +885,7 @@ DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生CT", 3
 DT_COLUMN_ADD "各イベント用変数配列", "イベント再発生確率", 3
 DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅CT", 3
 DT_COLUMN_ADD "各イベント用変数配列", "イベント消滅確率", 3
+DT_COLUMN_ADD "各イベント用変数配列", "汎用イベ用_キャラNO保存", 3
 CALL イベント追加チェック
 
 
@@ -898,7 +900,6 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 NEXT
 
 イベント数 = ENUMFUNCBEGINSWITH("イベント関数_メインシナリオ_")
-
 FOR LOCAL, 0, イベント数
 	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 28)%
 	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
@@ -907,23 +908,46 @@ FOR LOCAL, 0, イベント数
 NEXT
 
 イベント数 = ENUMFUNCBEGINSWITH("イベント関数_サブイベント_")
-
 FOR LOCAL, 0, イベント数
 	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 26)%
 	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
 		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", "サブイベント"
 	ENDIF
 NEXT
-イベント数 = ENUMFUNCBEGINSWITH("イベント関数_ＥＸイベント_")
 
+イベント数 = ENUMFUNCBEGINSWITH("イベント関数_キャライベント_")
 FOR LOCAL, 0, イベント数
 	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 26)%
 	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
-		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", "ＥＸイベント"
+		DT_ROW_ADD "各イベント用変数配列", "イベント名", イベント名保存, "イベントカテゴリ", "キャライベント"
 	ENDIF
 NEXT
-イベント数 = ENUMFUNCBEGINSWITH("イベント関数_突発イベント_")
 
+;汎用イベントを突っ込む
+FOR LOCAL, 0, CHARANUM
+	IF GETBIT(TALENT:LOCAL:陥落不可, 0) && !CFLAG:LOCAL:恋慕不可_汎用解除禁止
+		イベント名保存 = 【汎用】%CALLNAME:LOCAL%[恋慕不可]解除
+		IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
+			IF NO:LOCAL == 999
+				DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%CALLNAME:LOCAL%[恋慕不可]解除", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", LOCAL + 90000
+			ELSE
+				DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%CALLNAME:LOCAL%[恋慕不可]解除", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", NO:LOCAL
+			ENDIF
+		ENDIF
+	ENDIF
+	IF GETBIT(TALENT:LOCAL:陥落不可, 1) && !CFLAG:LOCAL:セフレ不可_汎用解除禁止
+		イベント名保存 = 【汎用】%CALLNAME:LOCAL%[セフレ不可]解除
+		IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
+			IF NO:LOCAL == 999
+				DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%CALLNAME:LOCAL%[セフレ不可]解除", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", LOCAL + 90000
+			ELSE
+				DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%CALLNAME:LOCAL%[セフレ不可]解除", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", NO:LOCAL
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+イベント数 = ENUMFUNCBEGINSWITH("イベント関数_突発イベント_")
 FOR LOCAL, 0, イベント数
 	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 26)%
 	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
@@ -933,6 +957,7 @@ NEXT
 
 @イベント削除チェック
 #DIM イベント数
+#DIM 対象キャラ
 #DIMS イベント名保存
 VARSET LOCAL
 
@@ -940,8 +965,22 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	イベント名保存 = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
 	イベント数 = ENUMFUNCBEGINSWITH(@"イベント関数_メインシナリオ_%イベント名保存%")
 	イベント数 += ENUMFUNCBEGINSWITH(@"イベント関数_サブイベント_%イベント名保存%")
-	イベント数 += ENUMFUNCBEGINSWITH(@"イベント関数_ＥＸイベント_%イベント名保存%")
+	イベント数 += ENUMFUNCBEGINSWITH(@"イベント関数_キャライベント_%イベント名保存%")
 	イベント数 += ENUMFUNCBEGINSWITH(@"イベント関数_突発イベント_%イベント名保存%")
+	;汎用イベを見る
+	IF STRCOUNT(イベント名保存, "【汎用】")
+		対象キャラ = DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存")
+		IF 対象キャラ > 90000
+			対象キャラ = 対象キャラ - 90000
+		ELSE
+			対象キャラ = GETCHARA(対象キャラ)
+		ENDIF
+		IF STRCOUNT(イベント名保存, "[恋慕不可]解除") && !CFLAG:対象キャラ:恋慕不可_汎用解除禁止
+			イベント数 = 1
+		ELSEIF STRCOUNT(イベント名保存, "[セフレ不可]解除") && !CFLAG:対象キャラ:セフレ不可_汎用解除禁止
+			イベント数 = 1
+		ENDIF
+	ENDIF
 	IF イベント数 < 1
 		DT_ROW_REMOVE "各イベント用変数配列", DT_CELL_GET("各イベント用変数配列", LOCAL, "id")
 	ENDIF
@@ -984,6 +1023,25 @@ DT_COLUMN_ADD "所持衣装データベース", "改造履歴"
 DT_COLUMN_ADD "所持衣装データベース", "衣装種別"
 ;0番にはダミーデータ
 LOCAL = DT_ROW_ADD("所持衣装データベース")
+
+@乗機データベースセット
+DT_CREATE "所持乗機データベース"
+DT_COLUMN_ADD "所持乗機データベース", "乗機名"
+DT_COLUMN_ADD "所持乗機データベース", "乗機攻撃力", 3
+DT_COLUMN_ADD "所持乗機データベース", "武装0", 1
+DT_COLUMN_ADD "所持乗機データベース", "武装1", 1
+DT_COLUMN_ADD "所持乗機データベース", "武装2", 1
+DT_COLUMN_ADD "所持乗機データベース", "武装3", 1
+DT_COLUMN_ADD "所持乗機データベース", "武装4", 1
+DT_COLUMN_ADD "所持乗機データベース", "武装5", 1
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装0"
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装1"
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装2"
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装3"
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装4"
+DT_COLUMN_ADD "所持乗機データベース", "付け替え武装5"
+;あなたが使うだけだからこれいらないと思うんだけど将来的に使うパターンに備えて列だけ置いとく
+DT_COLUMN_ADD "所持乗機データベース", "装備キャラ番号", 3
 
 @戦闘用データベースセット
 FOR LOCAL, 0, 4

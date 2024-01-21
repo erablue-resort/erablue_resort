@@ -1,0 +1,165 @@
+﻿
+@乗機取得処理(乗機名一時保存)
+#DIMS 乗機名一時保存
+	
+;アンロック式なのでフラグ立てるだけ
+;ERDいじったりしなくていいようにデータベース管理
+ENUMFUNCBEGINSWITH @"乗機関数_%乗機名一時保存%"
+IF RESULT
+	FOR LOCAL, 1, DT_ROW_LENGTH("所持乗機データベース")
+		SELECTCASE DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名") 
+			CASE 乗機名一時保存
+				;すでに追加済みの場合は-2を返す
+				RETURN -2
+		ENDSELECT
+	NEXT
+	;抜けてきたら登録
+	CALLFORM 乗機関数_%乗機名一時保存%("乗機登録")
+	RETURN 1
+ELSE
+	;そもそも関数そのものが無い時は-1を返す
+	PRINTW 指定の乗機が見つかりません。
+	RETURN -1
+ENDIF
+
+
+@所持乗機リスト表示(ページ番号, ソート基準)
+#DIM ページ番号
+#DIM 装備中乗機番号
+#DIM 武装番号
+#DIMS ソート基準
+#DIM ソート後配列, 500
+
+IF ソート基準 != ""
+	ソート基準 = %ソート基準% DESC
+ENDIF
+DT_SELECT "所持乗機データベース", , ソート基準, ソート後配列
+
+;まず装備している乗機番号取得
+装備中乗機番号 = 装備乗機ID
+
+VARSET LOCAL
+VARSET LOCALS
+LOCALS = <div rect='262,75,5537,3625'><nobr>
+LOCALS += "　　　 乗機名　　　　　　　　　　<button value='乗機攻撃力'>攻撃力</button>　　<button value='武装0'>武装０</button>　　<button value='武装1'>武装１</button>　　<button value='武装2'>武装２</button>　　<button value='武装3'>武装３</button>　　<button value='武装4'>武装４</button>　　<button value='武装5'>武装５</button><br>"
+LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
+FOR LOCAL, 0, DT_ROW_LENGTH("所持乗機データベース")
+	DT_CELL_GETS "所持乗機データベース", ソート後配列:LOCAL, "乗機名", 1
+	;乗機名を一旦保存
+	LOCALS:10 = %RESULTS%
+	IF 装備中乗機番号 == ソート後配列:LOCAL
+		LOCALS += "<font color='#CCCC00'>"
+	ENDIF
+	LOCALS += @"　<button value='{LOCAL}'>"
+	LOCALS += @"%LOCALS:10, 30, LEFT%</button>"
+	IF 装備中乗機番号 == ソート後配列:LOCAL
+		LOCALS += "</font>"
+	ENDIF
+	LOCALS += @"{DT_CELL_GET("所持乗機データベース", ソート後配列:LOCAL, "乗機攻撃力", 1), 7}"
+
+	FOR 武装番号, 0, 6
+		SELECTCASE DT_CELL_GET("所持乗機データベース", ソート後配列:LOCAL, @"武装{武装番号}", 1)
+			CASE -1
+				LOCALS += @"　　　なし"
+			CASE 0
+				LOCALS += @"　　　固有"
+			CASE 1
+				LOCALS += @"　　魔法系"
+			CASE 2
+				LOCALS += @"　　機械系"
+			CASE 3
+				LOCALS += @"　　援護系"
+		ENDSELECT
+	NEXT
+	LOCALS += "<br>"
+NEXT
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+
+@所持乗機リスト表示_USERCOM
+#DIM ページ番号
+#DIM 表示アビ番号
+#DIMS ソート基準
+
+DO
+LOCALS = 
+LOCALS += "<div rect='200,12,5662,3750' border='31' bcolor='#C0C0C0'></div>"
+HTML_PRINT LOCALS, 1
+CALL 所持乗機リスト表示(ページ番号, ソート基準)
+LOCALS = 
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3575,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 表示用ステータス格納配列:30:0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	;文字列が入る場合、ソート条件が入るはず
+	ソート基準 = %RESULTS%
+	CONTINUE
+ENDIF
+LOCAL = TOINT(RESULTS)
+SELECTCASE LOCAL
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		RETURN 1
+	CASE IS < 500
+		LOCALS = <br>■%DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名")%<br><br>
+		TRYCALLFORM 乗機関数_%DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名")%("フレーバー")
+		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+
+		LOCALS += @"・使用可能武装<br>"
+		FOR 表示アビ番号, 0, 6
+			SIF DT_CELL_GET("所持乗機データベース", LOCAL, @"武装{表示アビ番号}") < 0
+				CONTINUE
+			VARSET RESULTS
+			IF DT_CELL_GET("所持乗機データベース", LOCAL, @"武装{表示アビ番号}") == 0
+				詳細文文字列受け渡し変数 = 
+				IF ダンジョン表示モード == ""
+					TRYCALLFORM 乗機アビ関数_%DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名")%_{表示アビ番号}("残弾セット")
+				ENDIF
+				TRYCALLFORM 乗機アビ関数_%DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名")%_{表示アビ番号}("アビ説明文")
+				LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			ELSE
+			ENDIF
+		NEXT
+		HTML_PRINT LOCALS
+		WAIT
+	CASE IS < 1000
+		LOCALS = <br>■%DT_CELL_GETS("所持乗機データベース", LOCAL - 500, "乗機名")%<br><br>
+		TRYCALLFORM 乗機関数_%DT_CELL_GETS("所持乗機データベース", LOCAL - 500, "乗機名")%("フレーバー")
+		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+
+		LOCALS += @"・使用可能武装<br>"
+		FOR 表示アビ番号, 0, 6
+			SIF DT_CELL_GET("所持乗機データベース", LOCAL - 500, @"武装{表示アビ番号}") < 0
+				CONTINUE
+			IF DT_CELL_GET("所持乗機データベース", LOCAL - 500, @"武装{表示アビ番号}") == 0
+				詳細文文字列受け渡し変数 = 
+				IF ダンジョン表示モード == ""
+					TRYCALLFORM 乗機アビ関数_%DT_CELL_GETS("所持乗機データベース", LOCAL - 500, "乗機名")%_{表示アビ番号}("残弾セット")
+				ENDIF
+				TRYCALLFORM 乗機アビ関数_%DT_CELL_GETS("所持乗機データベース", LOCAL - 500, "乗機名")%_{表示アビ番号}("アビ説明文")
+				LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			ELSE
+			ENDIF
+		NEXT
+		HTML_PRINT LOCALS
+		WAIT
+ENDSELECT
+LOOP 1

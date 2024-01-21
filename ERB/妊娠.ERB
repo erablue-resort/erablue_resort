@@ -9,13 +9,15 @@
 命中強度1 = 0
 命中強度2 = 0
 
+SIF 妊娠切り替えOPTION記憶
+	RETURN 0
 SIF TCVAR:ARG:膣内精液量 <= 0
 	RETURN 0
 SIF TCVAR:ARG:避妊薬
 	RETURN 0
-SIF 妊娠切り替えOPTION記憶
-	RETURN 0
 SIF TALENT:ARG:妊娠
+	RETURN 0
+SIF TALENT:ARG:妊娠不可 > 0
 	RETURN 0
 
 ;種親の確定
@@ -204,7 +206,8 @@ CFLAG:ARG:産後経過日 = 1
 @SET_PREGNANCY_PALAM(ARG)
 #DIM 消耗度_体力
 ;危険日がない場合セット
-IF TALENT:ARG:性別 != 2 && !INRANGE(CFLAG:ARG:危険日,1,10)
+
+IF RISKY_DAY(ARG) != -2 && !INRANGE(CFLAG:ARG:危険日,1,10)
 	CFLAG:ARG:危険日 = RAND:10 + 1
 ENDIF
 ;性交相手のリセット
@@ -325,12 +328,20 @@ ENDSELECT
 
 
 ;危険日と安全日の算出
-;戻り値: 超危険日2,危険日1,通常日0,安全日-1
+;戻り値: 超危険日2,危険日1,通常日0,安全日-1,妊娠しない-2
 @RISKY_DAY(ARG)
 #FUNCTION
 #DIM C_危険日
 #DIM C_安全日
 #DIM 妊娠危険度
+
+SIF GETBIT(TALENT:ARG:性別, 0) == 0
+	RETURNF -2
+SIF TALENT:ARG:妊娠不可
+	RETURNF -2
+SIF TALENT:ARG:Ｖ感度 == -2
+	RETURNF -2
+
 C_危険日 = CFLAG:ARG:危険日 % 10
 C_安全日 = (CFLAG:ARG:危険日 + 4) % 10
 IF C_危険日 == DAY % 10
