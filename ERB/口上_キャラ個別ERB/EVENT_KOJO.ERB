@@ -4,6 +4,7 @@
 ;--------------------------------------------------
 @KOJO_MESSAGE_COM
 #DIM 複数人プレイフラグ
+#DIM 対象キャラ
 
 複数人プレイフラグ = 0
 VARSET LOCAL
@@ -38,12 +39,17 @@ RESULT = 0
 ;SELECTCOM
 
 ;口上ありでも汎用喘ぎを使うならここで表示
-IF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
-	IF TFLAG:オートコマンドフラグ > 0
-		CALL 汎用喘ぎ処理(AUTOCOM_相手番号保存)
-	ELSE
-		CALL 汎用喘ぎ処理(TARGET)
-	ENDIF
+IF TFLAG:オートコマンドフラグ > 0
+	対象キャラ = AUTOCOM_相手番号保存
+ELSE
+	対象キャラ = TARGET
+ENDIF
+IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+	CALL 汎用喘ぎ処理(対象キャラ)
+ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+	;禁止時はなにもしない
+ELSEIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+	CALL 汎用喘ぎ処理(対象キャラ)
 ENDIF
 
 RESULT = 0
@@ -106,12 +112,10 @@ ENDIF
 IF K < 1 && LOCAL:1 == 1
 	;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
 	;口上なしで汎用喘ぎを使うならここで表示
-	IF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
-		IF TFLAG:オートコマンドフラグ > 0
-			CALL 汎用喘ぎ処理(AUTOCOM_相手番号保存)
-		ELSE
-			CALL 汎用喘ぎ処理(TARGET)
-		ENDIF
+	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+		;禁止時はなにもしない
+	ELSEIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
+		CALL 汎用喘ぎ処理(対象キャラ)
 	ENDIF
 	CALL TRAIN_MESSAGE_非口上時
 ENDIF
