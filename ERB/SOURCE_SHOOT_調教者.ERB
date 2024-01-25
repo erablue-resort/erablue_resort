@@ -4,13 +4,17 @@
 ;-------------------------------------------------------------------------------------------
 
 @EVENT_SHOOT_PLAYER
-#DIM 射精先キャラ, 2
+#DIM 射精先キャラ, 20
+#DIM 口上用キャラ番号
+#DIM 対象キャラ番号
 #DIM 選択中
+#DIM 選択キャラ
 #DIM 選択肢数
 VARSET LOCAL
 VARSET 射精先キャラ
 ;0では駄目なので初期化
 選択中 = -1
+選択キャラ = -1
 
 ;どこに射精するかを決定する
 
@@ -18,10 +22,8 @@ VARSET 射精先キャラ
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
-	SIF LOCAL:1 > 1
-		BREAK
 	IF CFLAG:(TARGET:LOCAL):うふふ
-		射精先キャラ:(LOCAL:1) = LOCAL
+		射精先キャラ:(LOCAL:1) = TARGET:LOCAL
 		LOCAL:1 += 1
 	ENDIF
 NEXT
@@ -34,80 +36,46 @@ IF 射精先キャラ:0 == 0
 	RETURN 0
 ENDIF
 
-;プレーヤーはMASTER、射精先ターゲットその１Ｖ挿入中
-IF MODE_確認("Ｖ挿入系", TARGET:(射精先キャラ:0)) != 0 && 知識素質:(TARGET:(射精先キャラ:0)):性知識 >= 0 && PLAYER == MASTER
-	PRINTFORML 限界を迎えた%CALLNAME:PLAYER%が膣内射精を予告すると、
-	IF 知識素質:(TARGET:(射精先キャラ:0)):性知識 < 0
-		PRINTFORML 意味をよくわかっていないが、%CALLNAME:(TARGET:(射精先キャラ:0))%は本能のままに喘ぎ声を上げながら膣を締めつけていた
-	ELSEIF TALENT:(TARGET:(射精先キャラ:0)):恋慕
-		PRINTFORM %CALLNAME:(TARGET:(射精先キャラ:0))%は\@ TALENT:(TARGET:(射精先キャラ:0)):妊娠 ? 膨らんだお腹を揺らしながら # 自ら腰を振り \@嬌声を上げて、
-		IF TALENT:(TARGET:(射精先キャラ:0)):妊娠 && CFLAG:(TARGET:(射精先キャラ:0)):子の父親 == PLAYER
-			PRINTFORM パパのチンポミルク頂戴
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:0)) > 0
-			PRINTFORM %CALLNAME:(TARGET:(射精先キャラ:0))%を
-			PRINTDATA
-				DATA ママにして
-				DATA 孕ませて
-				DATA 妊娠させて
-			ENDDATA
+;プレーヤーはPLAYER、Ｖ挿入中
+;ちんこは一本だけなので場合分けしなくていいはず
+IF MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER) > -1
+	口上用キャラ番号 = TOINT(体位モード配列:(MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER)):対象キャラ)
+	IF 知識素質:口上用キャラ番号:性知識 >= 0
+		PRINTFORML 限界を迎えた%CALLNAME:PLAYER%が膣内射精を予告すると、
+		IF 知識素質:口上用キャラ番号:性知識 < 0
+			PRINTFORML 意味をよくわかっていないが、%CALLNAME:口上用キャラ番号%は本能のままに喘ぎ声を上げながら膣を締めつけていた
+		ELSEIF TALENT:口上用キャラ番号:恋慕
+			PRINTFORM %CALLNAME:口上用キャラ番号%は\@ TALENT:口上用キャラ番号:妊娠 ? 膨らんだお腹を揺らしながら # 自ら腰を振り \@嬌声を上げて、
+			IF TALENT:口上用キャラ番号:妊娠 && CFLAG:口上用キャラ番号:子の父親 == PLAYER
+				PRINTFORM パパのチンポミルク頂戴
+			ELSEIF RISKY_DAY(口上用キャラ番号) > 0
+				PRINTFORM %CALLNAME:口上用キャラ番号%を
+				PRINTDATA
+					DATA ママにして
+					DATA 孕ませて
+					DATA 妊娠させて
+				ENDDATA
+			ELSE
+				PRINTFORM 中に出して
+			ENDIF
+			PRINT_IMG "えっちハート"
+			PRINTFORML 、と膣内射精をねだっていた
+		ELSEIF CFLAG:口上用キャラ番号:発情期フラグ < 0
+			IF TALENT:口上用キャラ番号:妊娠
+				PRINTFORML 発情中の%CALLNAME:口上用キャラ番号%は身重の体だから避妊の必要はない、と淫らな声で膣内射精をねだった
+			ELSE
+				PRINTFORML 発情中の%CALLNAME:口上用キャラ番号%は雌の本能に逆らえず、淫らな表情で種付けをねだった
+			ENDIF
 		ELSE
-			PRINTFORM 中に出して
-		ENDIF
-		PRINT_IMG "えっちハート"
-		PRINTFORML 、と膣内射精をねだっていた
-	ELSEIF CFLAG:(TARGET:(射精先キャラ:0)):発情期フラグ < 0
-		IF TALENT:(TARGET:(射精先キャラ:0)):妊娠
-			PRINTFORML 発情中の%CALLNAME:(TARGET:(射精先キャラ:0))%は身重の体だから避妊の必要はない、と淫らな声で膣内射精をねだった
-		ELSE
-			PRINTFORML 発情中の%CALLNAME:(TARGET:(射精先キャラ:0))%は雌の本能に逆らえず、淫らな表情で種付けをねだった
-		ENDIF
-	ELSE
-		IF TALENT:(TARGET:(射精先キャラ:0)):妊娠
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:0))%は自分の膨らんだお腹を一瞥すると、好きにして、と諦めたように返事をした
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:0)) > 0
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:0))%は必死に首を振って、今日は危険日だからせめて外に出して、と懇願する
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:0)) < 0
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:0))%は色っぽく喘ぎ、今日は大丈夫だから好きにして、と返事をした
-		ELSE
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:0))%は快感に蕩けた頭で、中出しを許していいものかと逡巡した
-		ENDIF
-	ENDIF
-;プレーヤーはMASTER、射精先ターゲットその２Ｖ挿入中
-ELSEIF 射精先キャラ:1 > 0 && MODE_確認("Ｖ挿入系", TARGET:(射精先キャラ:1)) != 0 && PLAYER == MASTER
-	PRINTFORML 限界を迎えた%CALLNAME:PLAYER%が膣内射精を予告すると、
-	IF 知識素質:(TARGET:(射精先キャラ:1)):性知識 < 0
-		PRINTFORML 意味をよくわかっていないが、%CALLNAME:(TARGET:(射精先キャラ:1))%は本能のままに喘ぎ声を上げながら膣を締めつけていた
-	ELSEIF TALENT:(TARGET:(射精先キャラ:1)):恋慕
-		PRINTFORM %CALLNAME:(射精先キャラ:1)%は\@ TALENT:(TARGET:(射精先キャラ:1)):妊娠 ? 膨らんだお腹を揺らしながら # 自ら腰を振り \@嬌声を上げて、
-		IF TALENT:(TARGET:(射精先キャラ:1)):妊娠 && CFLAG:(TARGET:(射精先キャラ:1)):子の父親 == PLAYER
-			PRINTFORM パパのチンポミルク頂戴
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:1)) > 0
-			PRINTFORM %CALLNAME:(TARGET:(射精先キャラ:1))%を
-			PRINTDATA
-				DATA ママにして
-				DATA 孕ませて
-				DATA 妊娠させて
-			ENDDATA
-		ELSE
-			PRINTFORM 中に出して
-		ENDIF
-		PRINT_IMG "えっちハート"
-		PRINTFORML 、と膣内射精をねだっていた
-	ELSEIF CFLAG:(TARGET:(射精先キャラ:1)):発情期フラグ < 0
-		IF TALENT:(TARGET:(射精先キャラ:1)):妊娠
-			PRINTFORML 発情中の%CALLNAME:(TARGET:(射精先キャラ:1))%は身重の体だから避妊の必要はない、と淫らな声で膣内射精をねだった
-		ELSE
-			PRINTFORML 発情中の%CALLNAME:(TARGET:(射精先キャラ:1))%は雌の本能に逆らえず、淫らな表情で種付けをねだった
-		ENDIF
-	ELSE
-		IF TALENT:(TARGET:(射精先キャラ:1)):妊娠
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:1))%は自分の膨らんだお腹を一瞥すると、好きにして、と諦めたように返事をした
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:1)) > 0
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:1))%は必死に首を振って、今日は危険日だからせめて外に出して、と懇願する
-		ELSEIF RISKY_DAY(TARGET:(射精先キャラ:1)) < 0
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:1))%は色っぽく喘ぎ、今日は大丈夫だから好きにして、と返事をした
-		ELSE
-			PRINTFORML %CALLNAME:(TARGET:(射精先キャラ:1))%は快感に蕩けた頭で、中出しを許していいものかと逡巡した
+			IF TALENT:口上用キャラ番号:妊娠
+				PRINTFORML %CALLNAME:口上用キャラ番号%は自分の膨らんだお腹を一瞥すると、好きにして、と諦めたように返事をした
+			ELSEIF RISKY_DAY(口上用キャラ番号) > 0
+				PRINTFORML %CALLNAME:口上用キャラ番号%は必死に首を振って、今日は危険日だからせめて外に出して、と懇願する
+			ELSEIF RISKY_DAY(口上用キャラ番号) < 0
+				PRINTFORML %CALLNAME:口上用キャラ番号%は色っぽく喘ぎ、今日は大丈夫だから好きにして、と返事をした
+			ELSE
+				PRINTFORML %CALLNAME:口上用キャラ番号%は快感に蕩けた頭で、中出しを許していいものかと逡巡した
+			ENDIF
 		ENDIF
 	ENDIF
 ENDIF
@@ -117,18 +85,18 @@ FOR LOCAL, 0, 31
 	SIF オート射精先オプション:LOCAL == -1
 		BREAK
 
-	TRYCCALLFORM SHOOT_ABLE_{オート射精先オプション:LOCAL}(射精先キャラ:0)
-		;ABLEが通れば決定、通らないなら３P先見る
-		IF !RESULT
-			TRYCALLFORM SHOOT_ABLE_{オート射精先オプション:LOCAL}(射精先キャラ:1)
-			SIF !RESULT
-				CONTINUE
+	FOR 対象キャラ番号, 0, CHARANUM
+		SIF 射精先キャラ:対象キャラ番号 < 1
+			BREAK
+		RESULT = 0
+		TRYCALLFORM SHOOT_ABLE_{オート射精先オプション:LOCAL}(射精先キャラ:対象キャラ番号)
+		;ABLEが通れば決定
+		IF RESULT
+			選択中 = オート射精先オプション:LOCAL
+			LOCAL = 999
+			GOTO 射精実処理部分
 		ENDIF
-		選択中 = オート射精先オプション:LOCAL
-		LOCAL = 200
-		GOTO 射精実処理部分
-	CATCH
-	ENDCATCH
+	NEXT
 NEXT
 
 $INPUT_LOOP
@@ -136,93 +104,55 @@ $INPUT_LOOP
 LOCALS =
 LOCAL:1 = 0
 LOCAL:2 = 0
-FOR LOCAL, 0, 31
-	TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:0)
-		;ABLEが通れば選択肢を出す
-		SIF !RESULT
-			CONTINUE
-		CALLFORM SHOOT_NAME_{LOCAL}
-		;選択中のものはえっちな色にする
-		SIF 選択中 == LOCAL
-			LOCALS += @"<font color='#0xFF3399'>"
-		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}]%CALLNAME:(TARGET:(射精先キャラ:0))%:%TSTR:コマンド名受渡%</button><br>"
-		SIF 選択中 == LOCAL
-			LOCALS += @"</font>"
-		LOCAL:1 += 1
-		SETBIT LOCAL:2, LOCAL
-	CATCH
-	ENDCATCH
-NEXT
-IF LOCAL:1
-	LOCALS += "<br>"
-ENDIF
-IF 射精先キャラ:1 > 0
-	LOCAL:3 = 0
+選択肢数 = 0
+
+FOR 対象キャラ番号, 0, CHARANUM
+	SIF 射精先キャラ:対象キャラ番号 < 1
+		BREAK
+	LOCAL:1 = 0
 	FOR LOCAL, 0, 31
-		TRYCCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:1)
-			;ABLEが通れば選択肢を出す
-			SIF !RESULT
-				CONTINUE
+		RESULT = 0
+		TRYCALLFORM SHOOT_ABLE_{LOCAL}(射精先キャラ:対象キャラ番号)
+		;ABLEが通れば決定
+		IF RESULT
 			CALLFORM SHOOT_NAME_{LOCAL}
 			;選択中のものはえっちな色にする
-			SIF 選択中 == LOCAL
+			SIF 選択中 == LOCAL + 対象キャラ番号 * 100
 				LOCALS += @"<font color='#0xFF3399'>"
-			LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}]%CALLNAME:(TARGET:(射精先キャラ:1))%:%TSTR:コマンド名受渡%</button><br>"
-			SIF 選択中 == LOCAL
+			LOCALS += @"<button value='{LOCAL + 対象キャラ番号 * 100}'>[{LOCAL + 対象キャラ番号 * 100}]%CALLNAME:(射精先キャラ:対象キャラ番号)%:%TSTR:コマンド名受渡%</button><br>"
+			SIF 選択中 == LOCAL + 対象キャラ番号 * 100
 				LOCALS += @"</font>"
-			LOCAL:3 += 1
-			SETBIT LOCAL:2, LOCAL
-		CATCH
-		ENDCATCH
+			LOCAL:1 += 1
+			LOCAL:5 = LOCAL + 対象キャラ番号 * 100
+		ENDIF
 	NEXT
-	IF LOCAL:3
+	IF LOCAL:1
 		LOCALS += "<br>"
+		選択肢数 += LOCAL:1
 	ENDIF
-ENDIF
+NEXT
 PRINTL
 DRAWLINE
 
-
-;有効な射精先をカウント
-選択肢数 = 0
-FOR LOCAL, 0, 31
-	IF GETBIT(LOCAL:2, LOCAL)
-		選択肢数 += 1
-		LOCAL:5 = LOCAL
-	ENDIF
-NEXT
-
 IF 選択肢数 == 1
 	;射精先が一択の場合
-	RFLAG:フィニッシュ場所 = LOCAL:5
+	RFLAG:フィニッシュ場所 = LOCAL:5 % 100
+	対象キャラ番号 = LOCAL:5 / 100
 
-	;射精先がターゲットその１にあるなら処理
-	IF LOCAL:1
-		CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:0)
-		CALL SHOOT絶頂計算(TARGET:(射精先キャラ:0))
-		TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:0)
-		PRINTL 
-		SIF RCVAR:(TARGET:(射精先キャラ:0)):被射精絶頂の強度
-			CALL SHOOT絶頂口上(TARGET:(射精先キャラ:0))
-		TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
-	ENDIF
-
-	;射精先がターゲットその２にあるなら処理
-	IF LOCAL:3
-		CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:1)
-		CALL SHOOT絶頂計算(TARGET:(射精先キャラ:1))
-		TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:1)
-		PRINTL 
-		SIF RCVAR:(TARGET:(射精先キャラ:1)):被射精絶頂の強度
-			CALL SHOOT絶頂口上(TARGET:(射精先キャラ:1))
-		TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:1))}
-	ENDIF
+	;射精処理
+	CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:対象キャラ番号)
+	CALL SHOOT絶頂計算(射精先キャラ:対象キャラ番号)
+	TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:対象キャラ番号)
+	PRINTL 
+	SIF RCVAR:(射精先キャラ:対象キャラ番号):被射精絶頂の強度
+		CALL SHOOT絶頂口上(射精先キャラ:対象キャラ番号)
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}
 	
 	RETURN 0
 ELSEIF !選択肢数
 	;有効な射精先がない（＝汎用のみ）の場合
 	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}
 	RETURN 0
 ENDIF
 
@@ -232,94 +162,64 @@ HTML_PRINT LOCALS
 
 SELECTCASE 選択中
 	CASE 0 TO 30
-		TRYCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:0)
-		LOCAL = RESULT
-		TRYCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:1)
-		LOCAL += RESULT
-		IF LOCAL
-			PRINTBUTTON @"[200]発射！", 200
+		RESULT = 0
+		IF 選択キャラ > -1
+			TRYCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:対象キャラ番号)
+		ENDIF
+		IF RESULT
+			PRINTBUTTON @"[999]発射！", 999
 		ELSE
 			SETCOLOR 0x666666
-			PRINTL [200]有効な射精先を選択してください
+			PRINTL [999]有効な射精先を選択してください
 			RESETCOLOR
 		ENDIF
 	CASEELSE
 		SETCOLOR 0x666666
-		PRINTL [200]有効な射精先を選択してください
+		PRINTL [999]有効な射精先を選択してください
 		RESETCOLOR
 ENDSELECT
-
 PRINTL
 
-INPUT
-
+BINPUT
 LOCAL = RESULT
 
 $射精実処理部分
 LOCAL:10 = 0
 SELECTCASE LOCAL
-	CASE 0 TO 30, 100 TO 130
-		TRYCALLFORM SHOOT_ABLE_{LOCAL % 100}(射精先キャラ:0)
-		LOCAL:10 = RESULT
-		TRYCALLFORM SHOOT_ABLE_{LOCAL % 100}(射精先キャラ:1)
-		LOCAL:10 += RESULT
-		SIF LOCAL:10
-			選択中 = LOCAL % 100
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
-	CASE 200
-		TRYCCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:0)
+	CASE 999
+		TRYCCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:選択キャラ)
 			IF RESULT
 				;射精実処理
 				RFLAG:フィニッシュ場所 = 選択中
-				CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:0)
+				CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:選択キャラ)
 				PRINTL
 				DRAWLINE
-				CALL SHOOT絶頂計算(TARGET:(射精先キャラ:0))
-				SIF RCVAR:(TARGET:(射精先キャラ:0)):被射精絶頂の強度
-					CALL SHOOT絶頂口上(TARGET:(射精先キャラ:0))
-				TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:0)
+				CALL SHOOT絶頂計算(射精先キャラ:選択キャラ)
+				SIF RCVAR:(射精先キャラ:選択キャラ):被射精絶頂の強度
+					CALL SHOOT絶頂口上(射精先キャラ:選択キャラ)
+				TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:選択キャラ)
 				PRINTL 
-				TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:0))}
+				TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:選択キャラ)}
 				LOCAL:10 ++
-				RFLAG:フィニッシュ相手番号 = TARGET:(射精先キャラ:0)
+				RFLAG:フィニッシュ相手番号 = 射精先キャラ:選択キャラ
 			ENDIF
 		CATCH
 		ENDCATCH
-		IF 射精先キャラ:1 > 0
-			TRYCCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:1)
-				IF RESULT
-					;射精実処理
-					RFLAG:フィニッシュ場所 = 選択中
-					CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:1)
-					PRINTL
-					DRAWLINE
-					CALL SHOOT絶頂計算(TARGET:(射精先キャラ:1))
-					SIF RCVAR:(TARGET:(射精先キャラ:1)):被射精絶頂の強度
-						CALL SHOOT絶頂口上(TARGET:(射精先キャラ:1))
-					TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:1)
-					PRINTL 
-					TRYCALLFORM KOJO_ORGASM_被射精_{NO:(TARGET:(射精先キャラ:1))}
-					LOCAL:10 ++
-					IF RFLAG:フィニッシュ相手番号
-						TFLAG:フィニッシュ相手番号2 = TARGET:(射精先キャラ:1)
-					ELSE
-						RFLAG:フィニッシュ相手番号 = TARGET:(射精先キャラ:1)
-					ENDIF
-				ENDIF
-			CATCH
-			ENDCATCH
-		ENDIF
 		;有効な射精先ではない
 		IF !LOCAL:10
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 		ENDIF
 	CASEELSE
+		TRYCALLFORM SHOOT_ABLE_{LOCAL % 100}(射精先キャラ:(LOCAL / 100))
+		LOCAL:10 = RESULT
+		IF LOCAL:10
+			選択中 = LOCAL % 100
+			選択キャラ = LOCAL / 100
+		ENDIF
 		REUSELASTLINE 
 		GOTO INPUT_LOOP
 ENDSELECT
-
 
 RETURN 0
 
