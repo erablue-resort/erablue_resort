@@ -81,6 +81,14 @@ IF TFLAG:調教モード == 3
 	NEXT
 ELSE
 	TARGET = TARGET:1
+	IF FLAG:モード管理 == 1
+		IF TFLAG:あなたターゲット用
+			TFLAG:TARGET変更用 = 0
+			TARGET = 0
+		ENDIF
+	ELSE
+		PLAYER = MASTER
+	ENDIF
 	FOR LOCAL,1,CHARANUM
 		SIF TFLAG:TARGET変更用 < 1
 			BREAK
@@ -128,7 +136,7 @@ IF TFLAG:調教モード == 3
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(飲み会TARGET:LOCAL):6 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
-		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:PLAYER:311
+		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
@@ -143,7 +151,7 @@ ELSE
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):6 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
-		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:PLAYER:311
+		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
@@ -269,7 +277,7 @@ PRINTL
 ;-------------------------------------------------
 ;現在位置情報
 ;-------------------------------------------------
-PRINTFORM %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%
+PRINTFORM %GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%
 ;-------------------------------------------------
 ;雑務ゲージ
 ;-------------------------------------------------
@@ -296,7 +304,7 @@ PRINTL -------------------------------------------------------------------------
 ;-------------------------------------------------
 VARSET LOCAL
 
-IF TARGET
+IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 	;MASTERの位置から見て他の部屋にだれかいるかどうか
 	LOCAL:1 = 0
 	FOR LOCAL,1,CHARANUM
@@ -318,8 +326,14 @@ IF TARGET
 	;同室一覧から即座に相手を変えられるようにする
 		SIF TARGET:LOCAL < 1
 			BREAK
-		IF TARGET:LOCAL == TARGET
-		ELSEIF TARGET:LOCAL
+		IF TARGET:LOCAL == PLAYER
+			IF TARGET != MASTER && FLAG:モード管理 == 1
+				PRINTBUTTON @"[%CALLNAME:MASTER%]", 2000
+				PRINT  
+			ENDIF
+		ELSEIF TARGET:LOCAL == TARGET
+			CONTINUE
+		ELSE
 			ボタン表示格納用 = [%CALLNAME:(TARGET:LOCAL)%
 			IF CFLAG:(TARGET:LOCAL):ゲージ起動分類 == 1
 				SETCOLOR カラーパレット("えっちな色")
@@ -359,8 +373,8 @@ IF TARGET
 				PRINTBUTTON ボタン表示格納用, (TARGET:LOCAL)+2000
 			ENDIF
 			RESETCOLOR
+			PRINT  
 		ENDIF
-		PRINT  
 	NEXT
 	IF TFLAG:調教モード == 3
 		PRINTL
@@ -422,7 +436,10 @@ IF TARGET
 	PRINTL 
 		
 	;ここで立ち絵表示
-	LOCAL = 助手は誰だ()
+	LOCAL = 二人目画像表示用()
+	IF FLAG:モード管理 == 1 && TARGET == MASTER
+		TARGET = PLAYER
+	ENDIF
 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
 		LOCALS '= @"<div rect='0, 0, 1125, 2475'><button value='889' title='表示方法変更:正方形(\@ LOCAL? 3P対応# 単独\@)'>%短冊グラ表示用文字列関数(TARGET)%"
 		LOCALS += @"%"<br>" * 20%[表示方法変更:\@ LOCAL? 3P対応# 正方形\@]</button>"
@@ -444,6 +461,9 @@ IF TARGET
 			LOCALS += @"<button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする'>[%CALLNAME:LOCAL%]</button>"
 		LOCALS += @"</div>"
 		HTML_PRINT LOCALS, 1
+	ENDIF
+	IF FLAG:モード管理 == 1 && TARGET == PLAYER
+		TARGET = MASTER
 	ENDIF
 	PRINT 　　　　　　　　　　　 
 	IF CFLAG:TARGET:ゲージ起動分類 == 1 || CFLAG:TARGET:発情期フラグ < 0
@@ -621,7 +641,7 @@ ENDIF
 
 
 IF BASE:PLAYER:酩酊 > 0
-	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 		PRINT 　　　　　　　　　　　 
 	LOCALS = 酩酊(%CALLNAME:PLAYER%)
 	PRINTFORM %LOCALS,20,LEFT%
@@ -634,7 +654,7 @@ IF BASE:PLAYER:酩酊 > 0
 	PRINTFORM %LOCALS,14,LEFT%
 	PRINTL 
 ELSEIF BASE:酩酊 < 0
-	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 		PRINT 　　　　　　　　　　　 
 	LOCALS = 二日酔い(%CALLNAME:TARGET%)
 	PRINTFORM %LOCALS,20,LEFT%
@@ -644,7 +664,7 @@ ELSEIF BASE:酩酊 < 0
 	PRINTL 
 ENDIF
 
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
 IF TALENT:PLAYER:2 & 2
 	LOCALS = 勃起(%CALLNAME:PLAYER%)
@@ -656,14 +676,16 @@ CALL PRINT_COLORBAR, BASE:PLAYER:勃起, MAXBASE:PLAYER:勃起, 600, 100, BARCOL
 		LOCALS = ({BASE:PLAYER:勃起,4}/{1000,4})
 	ENDIF
 	PRINTFORM %LOCALS,14,LEFT%　
-	IF あなた射精我慢フラグ
-		PRINT 射精我慢:
-		PRINTBUTTON "[ON]", 890
-	ELSE
-		PRINT 射精我慢:
-		PRINTBUTTON "[OFF]", 890
+	IF PLAYER == MASTER
+		IF あなた射精我慢フラグ
+			PRINT 射精我慢:
+			PRINTBUTTON "[ON]", 890
+		ELSE
+			PRINT 射精我慢:
+			PRINTBUTTON "[OFF]", 890
+		ENDIF
+		PRINT 　　
 	ENDIF
-	PRINT 　　
 	PRINTBUTTON "[射精先設定]", 891
 ENDIF
 
@@ -671,7 +693,7 @@ PRINTL
 CALL SHOW_INFO_PALAM_PLAYER
 
 PRINTL 
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
 IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	SETBGCOLOR 0x101020
@@ -858,7 +880,7 @@ HTML_PRINT HTML表示文字列, 1
 #DIMS ゲージ数値
 
 VARSET LOCAL
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
 LOCALS = <div rect='0,0,5625,312'>
 ゲージ表示文 = <div rect='50,0,5625,312'>
@@ -911,7 +933,7 @@ FOR LOCAL, 0, 5
 	LOCAL:3 ++
 	IF LOCAL:3 % PRINTCPERLINE() == 0
 		LOCALS += "<br>"
-		SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ())
+		SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 			LOCALS += "　　　　　　　　　　　 "
 	ENDIF
 NEXT
@@ -1023,11 +1045,6 @@ ELSEIF !CFLAG:ARG:睡眠 && (!ARG:1 || CAN_MOVE_1(CFLAG:PLAYER:現在マップ�
 	IF CFLAG:ARG:前ターン位置 == CFLAG:ARG:現在位置 && CFLAG:ARG:前マップ種別 == CFLAG:ARG:現在マップ種別
 		PRINTFORMW %CALLNAME:ARG%が%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%に居\@CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:現在位置) == 2 ? る # た\@
 		LOCAL:3 = 1
-	;さっきから居るのは分かってて相手が移動した場合は別の場所で表示が出る
-	;これいらなくね？
-	; ELSEIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:前ターン位置) < 2 && CFLAG:ARG:前ターン位置 != CFLAG:MASTER:前ターン位置
-	; 	PRINTFORMW %CALLNAME:ARG%が%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%に来た
-	; 	LOCAL:3 = 2
 	ENDIF
 	IF !ARG:1 && LOCAL:3
 		IF CFLAG:ARG:情事目撃 && CFLAG:(CFLAG:ARG:情事目撃):現在位置 != CFLAG:ARG:現在位置
@@ -1044,43 +1061,33 @@ ENDIF
 
 @MODE_BUTTON
 VARSET LOCAL
-;うふふでなかったり、3Pじゃなけりゃそもそも表示されない
-SIF !CFLAG:うふふ || !助手は誰だ()
+;うふふ時のみ
+SIF !CFLAG:うふふ
 	RETURN 0
 LOCAL = FLAG:モード管理
 
-SIF LOCAL
-	SETCOLOR 0x666666
+SIF LOCAL == 0
+	SETCOLOR カラーパレット("黄")
 ;短冊or2人同時表示時に助手切り替えボタンと被るのを防ぐ
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 4) || GETBIT(画像サイズ切り替えOPTION記憶, 0)
 	PRINTFORM %"　" * 12%
 PRINTBUTTON "[通常]", 9101
 RESETCOLOR
 PRINT  
-SIF !GETBIT(LOCAL,0)
-	SETCOLOR 0x666666
-PRINTBUTTON "[同時]", 9102
-RESETCOLOR
-PRINT  
-SIF !GETBIT(LOCAL,1)
-	SETCOLOR 0x666666
-PRINTBUTTON "[助手(MANUAL)]", 9103
-RESETCOLOR
-PRINT  
-SIF !GETBIT(LOCAL,2)
-	SETCOLOR 0x666666
-PRINTBUTTON "[助手(AUTO)]", 9104
-RESETCOLOR
-PRINT   
-
-IF GETBIT(LOCAL,2)
-
-	IF !GETBIT(LOCAL,3)
-		PRINTBUTTON "[NORMAL]", 9105
-	ELSE
-		PRINTBUTTON "[EXTREME]", 9105
-	ENDIF
+IF LOCAL == 1
+	SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[指示(%CALLNAME:PLAYER%指示中)]", 9102
+ELSE
+	PRINTBUTTON "[指示]", 9102
 ENDIF
+RESETCOLOR
+; IF GET_TARGETNUM() > 1
+; 	PRINT  
+; 	SIF LOCAL == 2
+; 		SETCOLOR カラーパレット("黄")
+; 	PRINTBUTTON "[同時]", 9103
+; 	RESETCOLOR
+; ENDIF
 PRINTL 
 
 ;-------------------------------------------------

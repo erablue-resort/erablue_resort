@@ -5,9 +5,6 @@
 @COMNAME104
 #FUNCTIONS
 TSTR:コマンド名受渡 = 触手アナル挿入
-IF MODE_確認_完全一致("触手アナル挿入", PLAYER, TARGET) > -1
-	TSTR:コマンド名受渡 = 触手アナル挿入解除
-ENDIF
 ;複数モード_ダミーをリセット
 複数モード_ダミー = 0
 
@@ -32,16 +29,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM104
 #DIM 快楽基礎値
 
-IF MODE_確認_完全一致("触手アナル挿入", PLAYER, TARGET) > -1
-	CALL MODE_DELETE_ターゲット側("触手アナル挿入", TARGET)
-ELSE
-	CALL MODE_CHANGE("触手アナル挿入", PLAYER, TARGET)
-ENDIF
+CALL MODE_CHANGE("触手アナル挿入", PLAYER, TARGET)
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
-
-
 
 RCVAR:触手コマンドフラグ = 1
 
@@ -71,8 +62,8 @@ RETURN 1
 #DIM 実行値
 #DIM ＋表示フラグ
 
-;モード実行中なら問答無用で許可
-SIF MODE_確認_完全一致("触手アナル挿入", PLAYER, TARGET) > -1
+;あなた相手なら許可
+SIF TARGET == MASTER
 	RETURN 1
 
 SKIPDISP ARG
@@ -235,9 +226,9 @@ SIF !TFLAG:ゲームフェイズ管理
 ;一括管理
 SIF GLOBAL_COMABLE(104)
 	RETURN RESULT
-;モード実行中なら問答無用で許可
-SIF MODE_確認_完全一致("触手アナル挿入", PLAYER, TARGET) > -1
-	RETURN 1
+;モード実行中ならだめ
+SIF MODE_確認_ターゲット側("触手アナル挿入", TARGET) > -1
+	RETURN 0
 ;Aがない場合駄目
 SIF TALENT:TARGET:Ａ感度 == -2
 	RETURN 0
@@ -265,6 +256,9 @@ SIF TEQUIP:TARGET:アナル == 1
 ;操作術レベル不足
 SIF あなた特殊能力:触手変化術 < 2
 	RETURN 0
+;将来的には許可する予定だけど（ユリウスとか）一旦あなた以外は封印
+SIF PLAYER != MASTER
+	RETURN 0
 
 
 RETURN 1
@@ -274,36 +268,30 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM104
 
-IF MODE_確認_完全一致("触手アナル挿入", PLAYER, TARGET) > -1
-	;メッセージ表示タイミングはモード付加後なのでモードがあれば＝吸い付いたタイミング
-	PRINTFORM %CALLNAME:PLAYER%は自らの触手を%CALLNAME:TARGET%の
-	IF TEQUIP:下腹部前鎧あり || TEQUIP:下腹部後鎧あり
-		PRINT 鎧の隙間から
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下に
-		ENDIF
-		PRINT 潜り込ませ、
-	ELSEIF TEQUIP:下半身服あり
-		PRINT 服の隙間から
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下に
-		ENDIF
-		PRINT 潜り込ませ、
-	ELSEIF TEQUIP:下半身下着あり
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下から
-		ENDIF
-		PRINT 下着に潜り込ませ、
+PRINTFORM %CALLNAME:PLAYER%は自らの触手を%CALLNAME:TARGET%の
+IF TEQUIP:下腹部前鎧あり || TEQUIP:下腹部後鎧あり
+	PRINT 鎧の隙間から
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下に
 	ENDIF
-	
-	IF EXP:Ａ経験 <= EXPLV:2
-		PRINT まだ固く閉じられた
-	ELSEIF EXP:Ａ経験 >= EXPLV:4
-		PRINT すっかり柔らかく淫靡になった
+	PRINT 潜り込ませ、
+ELSEIF TEQUIP:下半身服あり
+	PRINT 服の隙間から
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下に
 	ENDIF
-	PRINTFORML アナルへと挿入した
-ELSE
-	;メッセージ表示タイミングはモード付加後なのでモードが無いなら＝解除したタイミング
-	PRINTFORM %CALLNAME:PLAYER%は触手を%CALLNAME:TARGET%のアナルから引き抜いた…
+	PRINT 潜り込ませ、
+ELSEIF TEQUIP:下半身下着あり
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下から
+	ENDIF
+	PRINT 下着に潜り込ませ、
 ENDIF
+
+IF EXP:Ａ経験 <= EXPLV:2
+	PRINT まだ固く閉じられた
+ELSEIF EXP:Ａ経験 >= EXPLV:4
+	PRINT すっかり柔らかく淫靡になった
+ENDIF
+PRINTFORML アナルへと挿入した
 

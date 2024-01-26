@@ -115,8 +115,10 @@ PRINTL ＞
 @USERCOM
 #DIM ページ番号
 #DIM 数値変換用
+#DIM 実行キャラ番号
 #DIM 対象キャラ番号
 #DIM TARGET何人目？
+#DIM 口上無しフラグ
 
 ページ番号 = 0
 ;RETURN 0でSOURCE_CHECK以降に進む
@@ -126,10 +128,49 @@ IF NEXTCOM >= 0
 	NEXTCOM = -1
 ENDIF
 
-IF RSTR:SELECTCOM_S受け渡し != ""
-	;受け渡しがある場合はRESULTSに派生コマンドが入っているはず
+IF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "MODE詳細設定処理") > 0
+	;モードの強さや速さを変動させるボタン
+	;_でSPLITすればRESULTS:1に変動種類、2にキャラ番号、3に変動内容が入る
+	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+	IF ISNUMERIC(RESULTS:3)
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", TOINT(RESULTS:3)
+	ELSEIF RESULTS:3 == "上昇"
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MIN(4, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") + 1)
+	ELSEIF RESULTS:3 == "下降"
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MAX(0, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") - 1)
+	ENDIF
+ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
+	;モードを中止させるボタン
+	;_でSPLITすればRESULTS:1に中止させるモードの配列が入る
+	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+	実行キャラ番号 = TOINT(体位モード配列:TOINT(RESULTS:1):実行キャラ)
+	対象キャラ番号 = TOINT(体位モード配列:TOINT(RESULTS:1):対象キャラ)
+	TRYCALLFORM MESSAGE_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%解除(実行キャラ番号, 対象キャラ番号)
+	PRINTL
+	IF 実行キャラ番号 != MASTER
+		TRYCCALLFORM KOJO_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
+			PRINTL 
+			口上無しフラグ = 0
+		CATCH
+			口上無しフラグ = 1
+		ENDCATCH
+	ENDIF
+	IF 対象キャラ番号 != MASTER
+		TRYCCALLFORM KOJO_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
+			PRINTL 
+			口上無しフラグ = 0
+		CATCH
+			口上無しフラグ = 1
+		ENDCATCH
+	ENDIF
+	SIF 口上無しフラグ
+		TRYCALLFORM MESSAGE_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%解除_非口上時(実行キャラ番号, 対象キャラ番号)
+	WAIT
+	CALL MODE_DELETE_配列詰め(TOINT(RESULTS:1))
+ELSEIF RSTR:SELECTCOM_S受け渡し != ""
+	;受け渡しがある場合はRSTR:SELECTCOM_S受け渡しに派生コマンドが入っているはず
 	SELECTCOM = -1
-	SELECTCOM_S = %RESULTS%
+	SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
 	TRYCALLFORM COM_ABLE_S%SELECTCOM_S%
 	SIF RESULT == 0 || RESULT == -1
 		RETURN 1
@@ -138,123 +179,65 @@ IF RSTR:SELECTCOM_S受け渡し != ""
 	RSTR:SELECTCOM_S受け渡し = %SELECTCOM_S%
 	RESULT = 1
 	LOCAL:2 = 0
-	TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
-	SIF !RESULT
-		SETBIT LOCAL:2, 0
-	IF COMMODE() == 2
-		LOCAL:1 = TARGET
-		TARGET = 助手は誰だ()
-		RESULT = 1
+	IF TARGET == MASTER
+		TARGET = PLAYER
+		PLAYER = MASTER
+		RFLAG:指示モード対象あなたフラグ = 1
+		TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+		RFLAG:指示モード対象あなたフラグ = 0
+		SIF !RESULT
+			TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+		PLAYER = TARGET
+		TARGET = MASTER
+	ELSE
 		TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
 		SIF !RESULT
-			SETBIT LOCAL:2, 1
-		TARGET = LOCAL:1
-	ENDIF
-	IF LOCAL:2
-		SIF GETBIT(LOCAL:2, 0)
-			TRYCALLFORM CAN_COM_S%SELECTCOM_S%
-		IF GETBIT(LOCAL:2, 1)
-			LOCAL:1 = TARGET
-			TARGET = 助手は誰だ()
-			TRYCALLFORM CAN_COM_S%SELECTCOM_S%
-			TARGET = LOCAL:1
+			SETBIT LOCAL:2, 0
+		; IF COMMODE() == 2
+		; 	LOCAL:1 = TARGET
+		; 	TARGET = 助手は誰だ()
+		; 	RESULT = 1
+		; 	TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+		; 	SIF !RESULT
+		; 		SETBIT LOCAL:2, 1
+		; 	TARGET = LOCAL:1
+		; ENDIF
+		IF LOCAL:2
+			SIF GETBIT(LOCAL:2, 0)
+				TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+			; IF GETBIT(LOCAL:2, 1)
+			; 	LOCAL:1 = TARGET
+			; 	TARGET = 助手は誰だ()
+			; 	TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+			; 	TARGET = LOCAL:1
+			; ENDIF
+			RETURN 1
 		ENDIF
+	ENDIF
+ELSEIF RESULT == 9101
+	;通常モード
+	FLAG:モード管理 = 0
+	TFLAG:あなたターゲット用 = 0
+	RETURN 1
+ELSEIF RESULT == 9102
+	;指示モード
+	SIF !CFLAG:うふふ
+		RETURN 1
+	IF TARGET == MASTER
+		FLAG:モード管理 = 0
+		TFLAG:あなたターゲット用 = 0
 		RETURN 1
 	ENDIF
-ELSEIF RESULT >= 9220 && RESULT <= 9233
-	LOCAL = RESULT
-	IF MODE_確認_プレイヤー側("Ａ挿入系", PLAYER) > -1
-		対象キャラ番号 = TOINT(体位モード配列:(MODE_確認_プレイヤー側("Ａ挿入系", PLAYER)):対象キャラ)
-		SELECTCASE LOCAL
-			CASE 9220
-				A挿入強さ:対象キャラ番号:0 = MAX(A挿入強さ:対象キャラ番号:0 - 1, 0)
-			CASE 9201 TO 9205
-				A挿入強さ:対象キャラ番号:0 = LOCAL - 9221
-			CASE 9226
-				A挿入強さ:対象キャラ番号:0 = MIN(A挿入強さ:対象キャラ番号:0 + 1, 4)
-			CASE 9227
-				A挿入速さ:対象キャラ番号:0 = MAX(A挿入速さ:対象キャラ番号:0 - 1, 0)
-			CASE 9228 TO 9232
-				A挿入速さ:対象キャラ番号:0 = LOCAL - 9228
-			CASE 9233
-				A挿入速さ:対象キャラ番号:0 = MIN(A挿入速さ:対象キャラ番号:0 + 1, 4)
-		ENDSELECT
-	ENDIF
-	; IF MODE_確認("Ａ同時挿入", TARGET)
-	; 	SELECTCASE LOCAL
-	; 		CASE 9220
-	; 			A挿入強さ:(助手は誰だ()):0 = MAX(A挿入強さ:(助手は誰だ()):0 - 1, 0)
-	; 		CASE 9201 TO 9205
-	; 			A挿入強さ:(助手は誰だ()):0 = LOCAL - 9221
-	; 		CASE 9226
-	; 			A挿入強さ:(助手は誰だ()):0 = MIN(A挿入強さ:(助手は誰だ()):0 + 1, 4)
-	; 		CASE 9227
-	; 			A挿入速さ:(助手は誰だ()):0 = MAX(A挿入速さ:(助手は誰だ()):0 - 1, 0)
-	; 		CASE 9228 TO 9232
-	; 			A挿入速さ:(助手は誰だ()):0 = LOCAL - 9228
-	; 		CASE 9233
-	; 			A挿入速さ:(助手は誰だ()):0 = MIN(A挿入速さ:(助手は誰だ()):0 + 1, 4)
-	; 	ENDSELECT
-	; ENDIF
+	FLAG:モード管理 = 1
+	SIF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+		TFLAG:あなたターゲット用 = 1
+	PLAYER = TARGET
 	RETURN 1
-ELSEIF RESULT >= 9200 && RESULT <= 9213
-	LOCAL = RESULT
-	IF MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER) > -1
-		対象キャラ番号 = TOINT(体位モード配列:(MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER)):対象キャラ)
-		SELECTCASE LOCAL
-			CASE 9200
-				V挿入強さ:対象キャラ番号:0 = MAX(V挿入強さ:対象キャラ番号:0 - 1, 0)
-			CASE 9201 TO 9205
-				V挿入強さ:対象キャラ番号:0 = LOCAL - 9201
-			CASE 9206
-				V挿入強さ:対象キャラ番号:0 = MIN(V挿入強さ:対象キャラ番号:0 + 1, 4)
-			CASE 9207
-				V挿入速さ:対象キャラ番号:0 = MAX(V挿入速さ:対象キャラ番号:0 - 1, 0)
-			CASE 9208 TO 9212
-				V挿入速さ:対象キャラ番号:0 = LOCAL - 9208
-			CASE 9213
-				V挿入速さ:対象キャラ番号:0 = MIN(V挿入速さ:対象キャラ番号:0 + 1, 4)
-		ENDSELECT
-	ENDIF
-	; IF MODE_確認("同時挿入", TARGET)
-	; 	SELECTCASE LOCAL
-	; 		CASE 9200
-	; 			V挿入強さ:(助手は誰だ()):0 = MAX(V挿入強さ:(助手は誰だ()):0 - 1, 0)
-	; 		CASE 9201 TO 9205
-	; 			V挿入強さ:(助手は誰だ()):0 = LOCAL - 9201
-	; 		CASE 9206
-	; 			V挿入強さ:(助手は誰だ()):0 = MIN(V挿入強さ:(助手は誰だ()):0 + 1, 4)
-	; 		CASE 9207
-	; 			V挿入速さ:(助手は誰だ()):0 = MAX(V挿入速さ:(助手は誰だ()):0 - 1, 0)
-	; 		CASE 9208 TO 9212
-	; 			V挿入速さ:(助手は誰だ()):0 = LOCAL - 9208
-	; 		CASE 9213
-	; 			V挿入速さ:(助手は誰だ()):0 = MIN(V挿入速さ:(助手は誰だ()):0 + 1, 4)
-	; 	ENDSELECT
-	; ENDIF
-	RETURN 1
-ELSEIF RESULT > 9100 && RESULT <= 9105
-;9101-9105はモード変更用
-	SIF !CFLAG:うふふ || !助手は誰だ()
-	;3P中でないならなにもしない
+ELSEIF RESULT == 9103
+	;同時モード
+	SIF !CFLAG:うふふ
 		RETURN 1
-	IF RESULT == 9101
-		FOR LOCAL, 0, 3
-			CLEARBIT FLAG:モード管理, LOCAL
-		NEXT
-	ELSEIF GROUPMATCH(RESULT, 9102, 9103, 9104)
-		LOCAL:1 = RESULT - 9102
-		FOR LOCAL, 0, 3
-			IF LOCAL == LOCAL:1
-				SETBIT FLAG:モード管理, LOCAL
-			ELSE
-				CLEARBIT FLAG:モード管理, LOCAL
-			ENDIF
-		NEXT
-	ELSE
-		SIF GETBIT(FLAG:モード管理, 2)
-			INVERTBIT FLAG:モード管理, 3
-	ENDIF
+	FLAG:モード管理 = 9103
 	RETURN 1
 ELSEIF RESULT == 9100
 ;9100でINFO格納フィルタ
@@ -264,9 +247,18 @@ ELSEIF RESULT >=9000
 ;9000番代は簡易コマンドフィルタに使う
 	INVERTBIT 簡易コマンドフィルタ:(RESULT - 9000), 0
 	RETURN 1
-ELSEIF RESULT >=2000
+ELSEIF RESULT == 2000
+	IF FLAG:モード管理 == 1
+		;指示モード時のみ、あなたをターゲットに出来る
+		TFLAG:あなたターゲット用 = 1
+	ENDIF
+	RETURN 1
+ELSEIF RESULT > 2000
 ;2000番以降は相手変えのショートカットに使う
 	IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+		PRINTW 一緒に隠密中は相手を変更出来ません
+		RETURN 1
+	ELSEIF FLAG:モード管理 == 1 && CFLAG:MASTER:隠密 && CFLAG:PLAYER:隠密
 		PRINTW 一緒に隠密中は相手を変更出来ません
 		RETURN 1
 	ENDIF
@@ -275,7 +267,8 @@ ELSEIF RESULT >=2000
 		RETURN 1
 	ELSEIF CFLAG:数値変換用:同室
 		TFLAG:TARGET変更用 = 数値変換用
-	PREVCOM = RESULT
+		TFLAG:あなたターゲット用 = 0
+		PREVCOM = RESULT
 	ENDIF
 	RETURN 1
 ELSEIF RESULT >= 0 && RESULT <= 700
@@ -290,8 +283,8 @@ ELSEIF RESULT >= 0 && RESULT <= 700
 	SELECTCOM = RESULT
 	;助手モードならPLAYERを一旦助手に変更
 	LOCAL:10 = PLAYER
-	SIF COMMODE() == 3
-		PLAYER = 助手は誰だ()
+	; SIF COMMODE() == 3
+	; 	PLAYER = 助手は誰だ()
 	TRYCALLFORM COM_ABLE{SELECTCOM}
 	PLAYER = LOCAL:10
 	SIF RESULT == 0
@@ -301,30 +294,41 @@ ELSEIF RESULT >= 0 && RESULT <= 700
 	TFLAG:SELECTCOM受け渡し = SELECTCOM
 	RESULT = 1
 	LOCAL:2 = 0
-	TRYCALLFORM CAN_COM{SELECTCOM}(1)
-	SIF !RESULT
-		SETBIT LOCAL:2, 0
-	IF COMMODE() == 2
-		LOCAL:1 = TARGET
-		TARGET = 助手は誰だ()
-		RESULT = 1
+	IF TARGET == MASTER
+		TARGET = PLAYER
+		PLAYER = MASTER
+		RFLAG:指示モード対象あなたフラグ = 1
+		TRYCALLFORM CAN_COM{SELECTCOM}(1)
+		RFLAG:指示モード対象あなたフラグ = 0
+		SIF !RESULT
+			TRYCALLFORM CAN_COM{SELECTCOM}
+		PLAYER = TARGET
+		TARGET = MASTER
+	ELSE
 		TRYCALLFORM CAN_COM{SELECTCOM}(1)
 		SIF !RESULT
-			SETBIT LOCAL:2, 1
-		TARGET = LOCAL:1
-	ENDIF
-	IF LOCAL:2
-		SIF GETBIT(LOCAL:2, 0)
-			TRYCALLFORM CAN_COM{SELECTCOM}
-		IF GETBIT(LOCAL:2, 1)
-			LOCAL:1 = TARGET
-			TARGET = 助手は誰だ()
-			TRYCALLFORM CAN_COM{SELECTCOM}
-			TARGET = LOCAL:1
+			SETBIT LOCAL:2, 0
+		; IF COMMODE() == 2
+		; 	LOCAL:1 = TARGET
+		; 	TARGET = 助手は誰だ()
+		; 	RESULT = 1
+		; 	TRYCALLFORM CAN_COM{SELECTCOM}(1)
+		; 	SIF !RESULT
+		; 		SETBIT LOCAL:2, 1
+		; 	TARGET = LOCAL:1
+		; ENDIF
+		IF LOCAL:2
+			SIF GETBIT(LOCAL:2, 0)
+				TRYCALLFORM CAN_COM{SELECTCOM}
+			; IF GETBIT(LOCAL:2, 1)
+			; 	LOCAL:1 = TARGET
+			; 	TARGET = 助手は誰だ()
+			; 	TRYCALLFORM CAN_COM{SELECTCOM}
+			; 	TARGET = LOCAL:1
+			; ENDIF
+			RETURN 1
 		ENDIF
-		RETURN 1
 	ENDIF
-
 
 ELSEIF RESULT == 803
 	FOR LOCAL, 1, CHARANUM
@@ -399,12 +403,12 @@ ELSEIF RESULT == 888
 ELSEIF RESULT == 889
 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
 		INVERTBIT 画像サイズ切り替えOPTION記憶, 0
-		IF 助手は誰だ()
+		IF 二人目画像表示用()
 			SETBIT 画像サイズ切り替えOPTION記憶, 4
 		ELSE
 			CLEARBIT 画像サイズ切り替えOPTION記憶, 4
 		ENDIF
-	ELSEIF GETBIT(画像サイズ切り替えOPTION記憶, 4) && 助手は誰だ()
+	ELSEIF GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用()
 		CLEARBIT 画像サイズ切り替えOPTION記憶, 4
 	ELSE
 		INVERTBIT 画像サイズ切り替えOPTION記憶, 0
@@ -597,31 +601,31 @@ SIF ARGS == "その他"
 
 FOR LOCAL,0,700
 	;助手モードはいったんPLAYERを助手にする
-	IF GETBIT(FLAG:モード管理, 1)
-		LOCAL:10 = PLAYER
-		PLAYER = 助手は誰だ()
-	ENDIF
+	; IF GETBIT(FLAG:モード管理, 1)
+	; 	LOCAL:10 = PLAYER
+	; 	PLAYER = 助手は誰だ()
+	; ENDIF
 	TRYCCALLFORM COM_ABLE{LOCAL}
 		;助手モードのときに変えたPLAYERを元に戻す
-		SIF GETBIT(FLAG:モード管理, 1)
-			PLAYER = LOCAL:10
+		; SIF GETBIT(FLAG:モード管理, 1)
+		; 	PLAYER = LOCAL:10
 		SIF RESULT == 0
 			CONTINUE
 	CATCH
 		;CATCHでも元に戻す
-		SIF GETBIT(FLAG:モード管理, 1)
-			PLAYER = LOCAL:10
+		; SIF GETBIT(FLAG:モード管理, 1)
+		; 	PLAYER = LOCAL:10
 		CONTINUE
 	ENDCATCH
 	;同時モードはいったんTARGETを助手と入替えてもう一度チェック
-	IF GETBIT(FLAG:モード管理, 0)
-		LOCAL:10 = TARGET
-		TARGET = 助手は誰だ()
-		CALLFORM COM_ABLE{LOCAL}
-		TARGET = LOCAL:10
-		SIF RESULT == 0
-			CONTINUE
-	ENDIF
+	; IF GETBIT(FLAG:モード管理, 0)
+	; 	LOCAL:10 = TARGET
+	; 	TARGET = 助手は誰だ()
+	; 	CALLFORM COM_ABLE{LOCAL}
+	; 	TARGET = LOCAL:10
+	; 	SIF RESULT == 0
+	; 		CONTINUE
+	; ENDIF
 		弱点コマンドカテゴリ = 
 	TRYCALLFORMF COMTYPE_{LOCAL}
 	;複合条件処理
