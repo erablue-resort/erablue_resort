@@ -126,6 +126,7 @@ RETURNF モード確認結果
 
 @SHOW_MODE()
 #DIM 配列番号
+#DIM 配列番号受け渡し
 #DIM 表示番号
 #DIM 実行キャラ番号
 #DIM 対象キャラ番号
@@ -185,7 +186,8 @@ SIF ソート用番号_実行者PLAYER + ソート用番号_対象者PLAYER + �
 ソート用番号_実行者TARGET = 0
 ソート用番号_対象者TARGET = 0
 ソート用番号_その他 = 0
-FOR 配列番号, 0, 表示上限
+FOR 配列番号, 0, 表示上限	
+	配列番号受け渡し = 0
 	実行キャラ番号 = 0
 	対象キャラ番号 = 0
 	実行モード名 = 
@@ -193,29 +195,34 @@ FOR 配列番号, 0, 表示上限
 		実行キャラ番号 = TOINT(体位モード配列:(ソート用配列_実行者PLAYER:配列番号):実行キャラ)
 		対象キャラ番号 = TOINT(体位モード配列:(ソート用配列_実行者PLAYER:配列番号):対象キャラ)
 		実行モード名 = %体位モード配列:(ソート用配列_実行者PLAYER:配列番号):モード名%
+		配列番号受け渡し = ソート用配列_実行者PLAYER:配列番号
 		ソート用番号_実行者PLAYER += 1
 	ELSEIF ソート用配列_対象者PLAYER:(配列番号 - ソート用番号_実行者PLAYER) > -1
 		表示番号 = 配列番号 - ソート用番号_実行者PLAYER
 		実行キャラ番号 = TOINT(体位モード配列:(ソート用配列_対象者PLAYER:表示番号):実行キャラ)
 		対象キャラ番号 = TOINT(体位モード配列:(ソート用配列_対象者PLAYER:表示番号):対象キャラ)
 		実行モード名 = %体位モード配列:(ソート用配列_対象者PLAYER:表示番号):モード名%
+		配列番号受け渡し = ソート用配列_対象者PLAYER:表示番号
 		ソート用番号_対象者PLAYER += 1
 	ELSEIF ソート用配列_実行者TARGET:(配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER) > -1
 		表示番号 = 配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER
 		実行キャラ番号 = TOINT(体位モード配列:(ソート用配列_実行者TARGET:表示番号):実行キャラ)
 		対象キャラ番号 = TOINT(体位モード配列:(ソート用配列_実行者TARGET:表示番号):対象キャラ)
 		実行モード名 = %体位モード配列:(ソート用配列_実行者TARGET:表示番号):モード名%
+		配列番号受け渡し = ソート用配列_実行者TARGET:表示番号
 		ソート用番号_実行者TARGET += 1
 	ELSEIF ソート用配列_対象者TARGET:(配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER - ソート用番号_実行者TARGET) > -1
 		表示番号 = 配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER - ソート用番号_実行者TARGET
 		実行キャラ番号 = TOINT(体位モード配列:(ソート用配列_対象者TARGET:表示番号):実行キャラ)
 		対象キャラ番号 = TOINT(体位モード配列:(ソート用配列_対象者TARGET:表示番号):対象キャラ)
 		実行モード名 = %体位モード配列:(ソート用配列_対象者TARGET:表示番号):モード名%
+		配列番号受け渡し = ソート用配列_対象者TARGET:表示番号
 		ソート用番号_対象者TARGET += 1
 	ELSEIF ソート用配列_その他:(配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER - ソート用番号_実行者TARGET - ソート用番号_対象者TARGET) > -1
 		表示番号 = 配列番号 - ソート用番号_実行者PLAYER - ソート用番号_対象者PLAYER - ソート用番号_実行者TARGET - ソート用番号_対象者TARGET
 		実行キャラ番号 = TOINT(体位モード配列:(ソート用配列_その他:表示番号):実行キャラ)
 		対象キャラ番号 = TOINT(体位モード配列:(ソート用配列_その他:表示番号):対象キャラ)
+		配列番号受け渡し = ソート用配列_その他:表示番号
 		実行モード名 = %体位モード配列:(ソート用配列_その他:表示番号):モード名%
 		ソート用番号_その他 += 1
 	ENDIF
@@ -234,6 +241,7 @@ FOR 配列番号, 0, 表示上限
 	PRINT_IMG "えっちハート"
 	PRINT ]
 	RESETCOLOR
+	PRINTBUTTON "[✕]", @"モード中断_{配列番号受け渡し}"
 	CALL MODE詳細設定処理(対象キャラ番号, 実行モード名, 実行キャラ番号)
 	PRINTL 
 NEXT
@@ -241,54 +249,55 @@ NEXT
 @MODE詳細設定処理(対象キャラ番号, 体位モード, 実行キャラ番号)
 #DIM 対象キャラ番号
 #DIM 実行キャラ番号
+#DIM 判定数値保存
 #DIMS 体位モード
 
 IF 実行キャラ番号 == PLAYER
 	IF MODE系統確認(体位モード, "Ｖ挿入系")
 		PRINT 　　Ｖ挿入強さ：
-		PRINTBUTTON "[-]", 9200
+		PRINTBUTTON "[-]", @"MODE詳細設定処理_V挿入強さ_{対象キャラ番号}_下降"
 		FOR LOCAL, 0, 6
 			IF V挿入強さ:対象キャラ番号:0 >= LOCAL
-				PRINTBUTTON "■", 9201 + LOCAL
+				PRINTBUTTON "■", @"MODE詳細設定処理_V挿入強さ_{対象キャラ番号}_{LOCAL}"
 			ELSE
-				PRINTBUTTON "□", 9201 + LOCAL
+				PRINTBUTTON "□", @"MODE詳細設定処理_V挿入強さ_{対象キャラ番号}_{LOCAL}"
 			ENDIF
 		NEXT
-		PRINTBUTTON "[+]", 9206
+		PRINTBUTTON "[+]", @"MODE詳細設定処理_V挿入強さ_{対象キャラ番号}_上昇"
 		PRINT 　　
 		PRINT Ｖ挿入速さ：
-		PRINTBUTTON "[-]", 9207
+		PRINTBUTTON "[-]", @"MODE詳細設定処理_V挿入速さ_{対象キャラ番号}_下降"
 		FOR LOCAL, 0, 6
 			IF V挿入速さ:対象キャラ番号:0 >= LOCAL
-				PRINTBUTTON "■", 9208 + LOCAL
+				PRINTBUTTON "■", @"MODE詳細設定処理_V挿入速さ_{対象キャラ番号}_{LOCAL}"
 			ELSE
-				PRINTBUTTON "□", 9208 + LOCAL
+				PRINTBUTTON "□", @"MODE詳細設定処理_V挿入速さ_{対象キャラ番号}_{LOCAL}"
 			ENDIF
 		NEXT
-		PRINTBUTTON "[+]", 9213
+		PRINTBUTTON "[+]", @"MODE詳細設定処理_V挿入速さ_{対象キャラ番号}_上昇"
 	ENDIF
 	IF MODE系統確認(体位モード, "Ａ挿入系")
 		PRINT 　　Ａ挿入強さ：
-		PRINTBUTTON "[-]", 9220
+		PRINTBUTTON "[-]", @"MODE詳細設定処理_A挿入強さ_{対象キャラ番号}_下降"
 		FOR LOCAL, 0, 6
 			IF A挿入強さ:対象キャラ番号:0 >= LOCAL
-				PRINTBUTTON "■", 9221 + LOCAL
+				PRINTBUTTON "■", @"MODE詳細設定処理_A挿入強さ_{対象キャラ番号}_{LOCAL}"
 			ELSE
-				PRINTBUTTON "□", 9221 + LOCAL
+				PRINTBUTTON "□", @"MODE詳細設定処理_A挿入強さ_{対象キャラ番号}_{LOCAL}"
 			ENDIF
 		NEXT
-		PRINTBUTTON "[+]", 9226
+		PRINTBUTTON "[+]", @"MODE詳細設定処理_A挿入強さ_{対象キャラ番号}_上昇"
 		PRINT 　　
 		PRINT Ａ挿入速さ：
-		PRINTBUTTON "[-]", 9227
+		PRINTBUTTON "[-]", @"MODE詳細設定処理_A挿入速さ_{対象キャラ番号}_下降"
 		FOR LOCAL, 0, 6
 			IF A挿入速さ:対象キャラ番号:0 >= LOCAL
-				PRINTBUTTON "■", 9228 + LOCAL
+				PRINTBUTTON "■", @"MODE詳細設定処理_A挿入速さ_{対象キャラ番号}_{LOCAL}"
 			ELSE
-				PRINTBUTTON "□", 9228 + LOCAL
+				PRINTBUTTON "□", @"MODE詳細設定処理_A挿入速さ_{対象キャラ番号}_{LOCAL}"
 			ENDIF
 		NEXT
-		PRINTBUTTON "[+]", 9233
+		PRINTBUTTON "[+]", @"MODE詳細設定処理_A挿入速さ_{対象キャラ番号}_上昇"
 	ENDIF
 ELSE
 	IF MODE系統確認(体位モード, "Ｖ挿入系")
@@ -330,6 +339,33 @@ ELSE
 		NEXT
 	ENDIF
 ENDIF
+IF 実行キャラ番号 == PLAYER || 対象キャラ番号 == PLAYER
+	IF 系統リスト_アイテム系(体位モード) && 体位モード != "アナルビーズ"
+		PRINTFORM 　　%体位モード%強さ：
+		PRINTBUTTON "[-]", @"MODE詳細設定処理_%体位モード%強さ_{対象キャラ番号}_下降"
+		判定数値保存 = GETVAR(@"%体位モード%強さ:{対象キャラ番号}:0")
+		FOR LOCAL, 0, 6
+			IF 判定数値保存 >= LOCAL
+				PRINTBUTTON "■", @"MODE詳細設定処理_%体位モード%強さ_{対象キャラ番号}_{LOCAL}"
+			ELSE
+				PRINTBUTTON "□", @"MODE詳細設定処理_%体位モード%強さ_{対象キャラ番号}_{LOCAL}"
+			ENDIF
+		NEXT
+		PRINTBUTTON "[+]", @"MODE詳細設定処理_%体位モード%強さ_{対象キャラ番号}_上昇"
+	ENDIF
+ELSE
+	IF 系統リスト_アイテム系(体位モード) && 体位モード != "アナルビーズ"
+		PRINTFORM 　　%体位モード%強さ：   
+		判定数値保存 = GETVAR(@"%体位モード%強さ:{対象キャラ番号}:0")
+		FOR LOCAL, 0, 6
+			IF 判定数値保存 >= LOCAL
+				PRINT ■
+			ELSE
+				PRINT □
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
 
 @MODE_CHECK
 ;モードが持続している間、特定の快楽が発生し続ける
@@ -353,6 +389,7 @@ FOR 配列番号, 削除番号 + 1, 体位モード上限
 	体位モード配列:(配列番号 - 1):実行キャラ = %体位モード配列:配列番号:実行キャラ%
 	体位モード配列:(配列番号 - 1):対象キャラ = %体位モード配列:配列番号:対象キャラ%
 NEXT
+CALL 部位専有再計算()
 
 
 @MODE_DELETE_プレイヤー側(削除モード名, 判定キャラ番号 = -1)
@@ -477,10 +514,17 @@ FOR 配列番号, 0, 体位モード上限
 	ENDIF
 NEXT
 
+CALL 部位専有再計算()
+
+@部位専有再計算
+#DIM 対象キャラ番号
+#DIM 実行キャラ番号
+#DIM 配列番号
+
 ;現在あるモードを参照して部位専有を入れ直す
 ;助手も全員リセット
 FOR LOCAL, 0, 7
-	TEQUIP:PLAYER:(101 + LOCAL) = 0
+	TEQUIP:MASTER:(101 + LOCAL) = 0
 	FOR 配列番号, 0, CHARANUM
 		SIF TARGET:配列番号 < 1
 			BREAK

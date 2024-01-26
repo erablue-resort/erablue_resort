@@ -81,6 +81,10 @@ RETURN 1
 #DIM 実行値
 #DIM ＋表示フラグ
 
+;あなた相手なら許可
+SIF TARGET == MASTER
+	RETURN 1
+
 SKIPDISP ARG
 
 ;-------------------------------------------------
@@ -253,9 +257,9 @@ SIF !TFLAG:ゲームフェイズ管理
 ;一括管理
 SIF GLOBAL_COMABLE(103)
 	RETURN RESULT
-;モード実行中なら問答無用で許可
-SIF MODE_確認_完全一致("触手挿入", PLAYER, TARGET) > -1
-	RETURN 1
+;すでにあるとだめ
+SIF MODE_確認_ターゲット側("触手挿入", TARGET) > -1
+	RETURN 0
 ;バイブ挿入中はダメ
 SIF TEQUIP:13
 	RETURN 0
@@ -279,6 +283,9 @@ SIF TEQUIP:TARGET:膣 == 1
 ;操作術レベル不足
 SIF あなた特殊能力:触手変化術 < 2
 	RETURN 0
+;将来的には許可する予定だけど（ユリウスとか）一旦あなた以外は封印
+SIF PLAYER != MASTER
+	RETURN 0
 
 
 RETURN 1
@@ -288,33 +295,27 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM103
 
-IF MODE_確認_完全一致("触手挿入", PLAYER, TARGET) > -1
-	;メッセージ表示タイミングはモード付加後なのでモードがあれば＝吸い付いたタイミング
-	PRINTFORM %CALLNAME:PLAYER%は自らの触手を%CALLNAME:TARGET%の
-	IF TEQUIP:下腹部前鎧あり || TEQUIP:下腹部後鎧あり
-		PRINT 鎧の隙間から
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下に
-		ENDIF
-		PRINT 潜り込ませ、
-	ELSEIF TEQUIP:下半身服あり
-		PRINT 服の隙間から
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下に
-		ENDIF
-		PRINT 潜り込ませ、
-	ELSEIF TEQUIP:下半身下着あり
-		IF TEQUIP:下タイツあり
-			PRINT タイツの下から
-		ENDIF
-		PRINT 下着に潜り込ませ、
+PRINTFORM %CALLNAME:PLAYER%は自らの触手を%CALLNAME:TARGET%の
+IF TEQUIP:下腹部前鎧あり || TEQUIP:下腹部後鎧あり
+	PRINT 鎧の隙間から
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下に
 	ENDIF
-	IF PALAM:欲情 >= PALAMLV:3 && PALAM:潤滑 < PALAMLV:3
-		PRINT 興奮で濡れそぼった
+	PRINT 潜り込ませ、
+ELSEIF TEQUIP:下半身服あり
+	PRINT 服の隙間から
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下に
 	ENDIF
-	PRINTFORML 膣へと挿入した
-ELSE
-	;メッセージ表示タイミングはモード付加後なのでモードが無いなら＝解除したタイミング
-	PRINTFORM %CALLNAME:PLAYER%は触手を%CALLNAME:TARGET%の膣から引き抜いた…
+	PRINT 潜り込ませ、
+ELSEIF TEQUIP:下半身下着あり
+	IF TEQUIP:下タイツあり
+		PRINT タイツの下から
+	ENDIF
+	PRINT 下着に潜り込ませ、
 ENDIF
+IF PALAM:欲情 >= PALAMLV:3 && PALAM:潤滑 < PALAMLV:3
+	PRINT 興奮で濡れそぼった
+ENDIF
+PRINTFORML 膣へと挿入した
 
