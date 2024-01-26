@@ -35,30 +35,37 @@ ELSEIF TFLAG:オートコマンドフラグ == -1
 	CALL 自室キャラ訪問処理
 ELSE
 	;複数モード時か否か
-	IF FLAG:モード管理 % 8
-		;同時モード時は通常処理に加えてTARGETを切り替えてもう一度。
-		;将来的にはCAN_COMが両方通らないならば処理を行わないようにしたい。
-		IF GETBIT(FLAG:モード管理, 0)
-			CALL CALL_COM(TARGET)
-			LOCAL = TARGET
-			TARGET = 助手は誰だ()
-			CALL CALL_COM(TARGET)
-			TARGET = LOCAL
-		;助手モード時はPLAYERを助手に切り替えて処理する
-		ELSEIF GETBIT(FLAG:モード管理, 1)
-			LOCAL = PLAYER
-			PLAYER = 助手は誰だ()
-			CALL CALL_COM(TARGET)
-			PLAYER = LOCAL
-		ENDIF
-	ELSE
+	; IF FLAG:モード管理 % 8
+	; 	;同時モード時は通常処理に加えてTARGETを切り替えてもう一度。
+	; 	;将来的にはCAN_COMが両方通らないならば処理を行わないようにしたい。
+	; 	IF GETBIT(FLAG:モード管理, 0)
+	; 		CALL CALL_COM(TARGET)
+	; 		LOCAL = TARGET
+	; 		TARGET = 助手は誰だ()
+	; 		CALL CALL_COM(TARGET)
+	; 		TARGET = LOCAL
+	; 	;助手モード時はPLAYERを助手に切り替えて処理する
+	; 	ELSEIF GETBIT(FLAG:モード管理, 1)
+	; 		LOCAL = PLAYER
+	; 		PLAYER = 助手は誰だ()
+	; 		CALL CALL_COM(TARGET)
+	; 		PLAYER = LOCAL
+	; 	ENDIF
+	; ELSE
 		CALL CALL_COM(TARGET)
-	ENDIF
+	;ENDIF
 ENDIF
 SIF RESULT == -1
 	RETURN -1
 SIF !RESULT
 	GOTO SKIP
+;-------------------------------------------------
+;モード持続時チェック
+;-------------------------------------------------
+CALL MODE_CHECK
+;-------------------------------------------------
+;キャラ個別チェック
+;-------------------------------------------------
 FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -77,10 +84,6 @@ FOR LOCAL,0,CHARANUM
 	;-------------------------------------------------
 	;中毒充足のチェック
 	;-------------------------------------------------
-	;-------------------------------------------------
-	;モード持続時チェック
-	;-------------------------------------------------
-	CALL MODE_CHECK(LOCAL)
 	;-------------------------------------------------
 	;経験加算
 	;-------------------------------------------------
@@ -184,13 +187,13 @@ CALL KOJO_MESSAGE_COM
 CALL 挿入アニメ表示(TARGET, "_挿入", FLAG_挿入アニメフィルタ)
 TFLAG:メッセージ重複防止 = 1
 ;同時モードなら助手のぶんも表示
-IF GETBIT(FLAG:モード管理, 0) && TFLAG:オートコマンドフラグ == 0
-	LOCAL = TARGET
-	TARGET = 助手は誰だ()
-	CALL KOJO_MESSAGE_COM
-	CALL 挿入アニメ表示(TARGET, "_挿入", FLAG_挿入アニメフィルタ)
-	TARGET = LOCAL
-ENDIF
+; IF GETBIT(FLAG:モード管理, 0) && TFLAG:オートコマンドフラグ == 0
+; 	LOCAL = TARGET
+; 	TARGET = 助手は誰だ()
+; 	CALL KOJO_MESSAGE_COM
+; 	CALL 挿入アニメ表示(TARGET, "_挿入", FLAG_挿入アニメフィルタ)
+; 	TARGET = LOCAL
+; ENDIF
 TFLAG:メッセージ重複防止 = 0
 ;-------------------------------------------------
 ;EXP取得表示
@@ -336,6 +339,8 @@ FOR LOCAL:1, 0, CHARANUM
 		SKIPDISP 1
 	LOCAL:3 = 0
 	FOR LOCAL,0,100
+		SIF LOCAL:1 == PLAYER && LOCAL > 4
+			BREAK
 		;コマンド入力前のCUPを追加
 		CUP:(LOCAL:1):LOCAL += TCVAR:(LOCAL:1):(600 + LOCAL)
 		SIF PALAMNAME:LOCAL == ""
@@ -425,6 +430,12 @@ SIF SOURCE:ARG:快Ｂ > 0
 	PRINTFORM 快Ｂ({SOURCE:ARG:快Ｂ})
 SIF SOURCE:ARG:快Ｓ > 0
 	PRINTFORM 快Ｓ({SOURCE:ARG:快Ｓ})
+
+IF ARG == PLAYER
+	PRINTL 　
+	RETURN 0
+ENDIF
+
 SIF SOURCE:ARG:情愛 > 0
 	PRINTFORM 情愛({SOURCE:ARG:情愛})
 SIF SOURCE:ARG:性行動 > 0

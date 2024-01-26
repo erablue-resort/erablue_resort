@@ -5,7 +5,7 @@
 @COMNAME46
 #FUNCTIONS
 TSTR:コマンド名受渡 = アナルビーズ
-SIF MODE_確認("アナルビーズ", TARGET)
+SIF MODE_確認_ターゲット側("アナルビーズ", TARGET) > -1
 	TSTR:コマンド名受渡 = アナルビーズ解除
 
 ;弱点コマンド欄に専用の文字列を表示したい場合、これを設定すること
@@ -21,7 +21,7 @@ SIF MODE_確認("アナルビーズ", TARGET)
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("道具系")
 弱点コマンドカテゴリ = A
-SIF !MODE_確認("アナルビーズ", TARGET) && 初期設定中 == 0
+SIF MODE_確認_ターゲット側("アナルビーズ", TARGET) < 0 && 初期設定中 == 0
 	弱点コマンドカテゴリ = 
 同時モード許可 = 1
 助手モード許可 = 1
@@ -36,10 +36,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM46
 ;着脱の処理
-IF MODE_確認("アナルビーズ", TARGET)
-	CALL MODE_DELETE("アナルビーズ")
+IF MODE_確認_ターゲット側("アナルビーズ", TARGET) > -1
+	CALL MODE_DELETE_ターゲット側("アナルビーズ", TARGET)
 ELSE
-	CALL MODE_CHANGE("アナルビーズ")
+	CALL MODE_CHANGE("アナルビーズ", PLAYER, TARGET)
 ENDIF
 ;-------------------------------------------------
 ;ソース追加処理
@@ -51,18 +51,18 @@ LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
 CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
 
 ;装着時
-IF MODE_確認("アナルビーズ", TARGET)
+IF MODE_確認_ターゲット側("アナルビーズ", TARGET) > -1
 	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER,200)
 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
 ;外す時
-ELSEIF !MODE_確認("アナルビーズ", TARGET)
+ELSEIF MODE_確認_ターゲット側("アナルビーズ", TARGET) < 0
 	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER,750)
 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 200)
 ENDIF
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
-SIF !MODE_確認("アナルビーズ", TARGET)
+SIF MODE_確認_ターゲット側("アナルビーズ", TARGET) < 0
 	EXP:Ａ経験 += 2
 
 ;同性愛　レズなら戻り値1ゲイなら戻り値2
@@ -72,11 +72,6 @@ IF HETEROSEX(TARGET,PLAYER)
 ENDIF
 
 EXP:PLAYER:道具使用経験 ++
-
-;-------------------------------------------------
-;モードの設定
-;-------------------------------------------------
-CALL MODE_DELETE("Ａ挿入系")
 
 RETURN 1
 ;-------------------------------------------------
@@ -91,7 +86,7 @@ SIF !TFLAG:ゲームフェイズ管理
 SIF GLOBAL_COMABLE(46)
 	RETURN RESULT
 ;解除はいつでも可能
-SIF MODE_確認("アナルビーズ", TARGET)
+SIF MODE_確認_ターゲット側("アナルビーズ", TARGET) > -1
 	RETURN 1
 ;Aがない場合駄目
 SIF TALENT:TARGET:Ａ感度 == -2
@@ -110,17 +105,8 @@ SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:�
 SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
 	RETURN 0
 	
-;アナルバイブ使用中は不可
-SIF TEQUIP:14
-	RETURN 0
-;普通の浣腸使用中は不可
-SIF TEQUIP:21
-	RETURN 0
-;バルーン使用中は不可
-SIF TEQUIP:22
-	RETURN 0
-;電極使用中は不可
-SIF TEQUIP:23
+;部位使ってると駄目
+SIF TEQUIP:TARGET:アナル
 	RETURN 0
 ;新妻プレイ中はダメ
 SIF TEQUIP:33
@@ -131,7 +117,7 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM46
-IF !MODE_確認("アナルビーズ", TARGET)
+IF MODE_確認_ターゲット側("アナルビーズ", TARGET) < 0
 	PRINTFORML %CALLNAME:TARGET%のアヌスからアナルビーズを勢い良く引き抜いた…
 ELSE
 	PRINTFORML %CALLNAME:TARGET%の菊穴にアナルビーズをひとつづつ飲み込ませていった…
