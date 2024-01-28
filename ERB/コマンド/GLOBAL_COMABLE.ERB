@@ -27,25 +27,15 @@ ELSE
 ENDIF
 
 ;複数モード対応か否か
-; IF FLAG:モード管理 % 8
-; 	;初期化
-; 	同時モード許可 = 0
-; 	助手モード許可 = 0
-; 	CALLFORMF COMTYPE_{ARG}
-; 	;同時モード時
-; 	IF GETBIT(FLAG:モード管理, 0)
-; 		IF !同時モード許可
-; 			RESULT = 0
-; 			RETURNF 1
-; 		ENDIF
-; 	;助手モード時
-; 	ELSE
-; 		IF !助手モード許可
-; 			RESULT = 0
-; 			RETURNF 1
-; 		ENDIF
-; 	ENDIF
-; ENDIF
+同時モード許可 = 0
+CALLFORMF COMTYPE_{ARG}
+;同時モード時
+IF FLAG:モード管理 == 2
+	IF 同時モード許可 < 同時モード_選択数
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ENDIF
 
 
 ;コマンド種別による一括管理
@@ -108,10 +98,22 @@ RETURNF LOCAL
 @GLOBAL_COMABLE_S(ARGS)
 #FUNCTION
 #DIMS 分割文字列, 10
+
+;コマンドフィルタ
 LOCALS = /%ARGS%/
 IF STRCOUNT(SAVESTR:2,LOCALS)
 	RESULT = 0
 	RETURNF 1
+ENDIF
+
+;複数モード対応か否か
+同時モード許可 = 0
+TRYCALLFORMF COMTYPE_S_%ARGS%
+IF FLAG:モード管理 == 2
+	IF 同時モード許可 < 同時モード_選択数
+		RESULT = 0
+		RETURNF 1
+	ENDIF
 ENDIF
 
 ;コマンド種別による一括管理
@@ -183,7 +185,7 @@ ELSEIF LOCALS == "被挿入中"
 	ENDIF
 ELSE
 	;隠密時は相手も隠密じゃないとダメ
-	IF CFLAG:MASTER:隠密 && (!TARGET || !CFLAG:TARGET:隠密)
+	IF CFLAG:PLAYER:隠密 && (!TARGET:1 || !CFLAG:TARGET:隠密)
 		RESULT = 0
 		RETURNF 1
 	ENDIF

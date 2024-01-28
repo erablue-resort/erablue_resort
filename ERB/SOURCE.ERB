@@ -25,28 +25,28 @@ ELSEIF TFLAG:オートコマンドフラグ == -1
 	CALL 自室キャラ訪問処理
 ELSE
 	;複数モード時か否か
-	; IF FLAG:モード管理 % 8
-	; 	;同時モード時は通常処理に加えてTARGETを切り替えてもう一度。
-	; 	;将来的にはCAN_COMが両方通らないならば処理を行わないようにしたい。
-	; 	IF GETBIT(FLAG:モード管理, 0)
-	; 		CALL CALL_COM(TARGET)
-	; 		LOCAL = TARGET
-	; 		TARGET = 助手は誰だ()
-	; 		CALL CALL_COM(TARGET)
-	; 		TARGET = LOCAL
-	; 	;助手モード時はPLAYERを助手に切り替えて処理する
-	; 	ELSEIF GETBIT(FLAG:モード管理, 1)
-	; 		LOCAL = PLAYER
-	; 		PLAYER = 助手は誰だ()
-	; 		CALL CALL_COM(TARGET)
-	; 		PLAYER = LOCAL
-	; 	ENDIF
-	; ELSE
+	IF FLAG:モード管理 == 2
+		LOCAL:10 = TARGET
+		;同時モード時は全員分回す
+		VARSET 体位モード例外配列
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 0
+				BREAK
+			TARGET = 同時モード_選択キャラ:LOCAL
+			CALL CALL_COM(TARGET)
+			IF RESULT == -1
+				RETURN -1
+			ENDIF
+		NEXT
+		VARSET 体位モード例外配列
+		TARGET = LOCAL:10
+	ELSE
 		CALL CALL_COM(TARGET)
-	;ENDIF
+	ENDIF
 ENDIF
-SIF RESULT == -1
+IF RESULT == -1
 	RETURN -1
+ENDIF
 SIF !RESULT
 	GOTO SKIP
 ;-------------------------------------------------

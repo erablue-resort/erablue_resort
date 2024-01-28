@@ -18,7 +18,7 @@ SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
 ;弱点コマンドカテゴリ = V
-同時モード許可 = 1
+同時モード許可 = 3
 助手モード許可 = 1
 
 @COM_TOOLTIP_60
@@ -29,28 +29,35 @@ LOCALS += "<br>固有の取得経験：Ｖ経験(TARGET)・Ｖ性交経験(TARGE
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM60
-IF COMMODE() == 2
-	; TRYCALLFORM COM_ABLE60_12
-	; IF RESULT
-	; 	TRYCALLFORM CAN_体位12(1)
-	; 	IF !RESULT
-	; 		TRYCALLFORM CAN_体位12(0)
-	; 		RETURN -1
-	; 	ENDIF
-	; 	LOCAL = TARGET
-	; 	TARGET = 助手は誰だ()
-	; 	TRYCALLFORM CAN_体位12(1)
-	; 	IF !RESULT
-	; 		TARGET = LOCAL
-	; 		RETURN -1
-	; 	ENDIF
-	; 	TARGET = LOCAL
-	; 	TRYCALLFORM COM60_12
-	; 	;メッセージ用に体位の種類を保存
-	; 	RFLAG:コマンド結果受渡し変数 = 12
-	; 	RETURN 1
-	; ENDIF
-	; RETURN 0
+IF FLAG:モード管理 == 2
+	IF RFLAG:コマンド結果受渡し変数 == 12
+		TRYCALLFORM COM60_12
+	ELSE
+		LOCAL:10 = TARGET
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 1
+				BREAK
+			RESULT = 0
+			TARGET = 同時モード_選択キャラ:LOCAL
+			TRYCALLFORM COM_ABLE60_12
+			IF RESULT == 0
+				TARGET = LOCAL:10
+				RETURN -1
+			ENDIF
+			RESULT = 1
+			TRYCALLFORM CAN_体位12(1)
+			IF !RESULT
+				TRYCALLFORM CAN_体位12(0)
+				RETURN -1
+			ENDIF
+		NEXT
+		TARGET = LOCAL:10
+
+		TRYCALLFORM COM60_12
+		;メッセージ用に体位の種類を保存
+		RFLAG:コマンド結果受渡し変数 = 12
+	ENDIF
+	RETURN 1
 ELSE
 	$体位_LOOP
 	DRAWLINE
@@ -194,11 +201,15 @@ CALL 体位COM(450, 90, 100)
 CALL MODE_CHANGE("立ちバック", PLAYER, TARGET)
 RETURN RESULT
 
-; @COM60_12
-; ;同時挿入
-; CALL 体位COM(350, 70, 90)
-; CALL MODE_CHANGE("同時挿入")
-; RETURN RESULT
+@COM60_12
+;同時挿入
+CALL 体位COM(350, 70, 90)
+IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	CALL MODE_CHANGE("後背位", PLAYER, TARGET)
+ELSE
+	CALL MODE_CHANGE("立ちバック", PLAYER, TARGET)
+ENDIF
+RETURN RESULT
 
 
 @体位COM(ARG, ARG:1, ARG:2)
@@ -369,7 +380,7 @@ RETURN LOCAL
 ;実行判定処理
 ;-------------------------------------------------
 ;縄で縛られている場合は無視（縄が無い時のみ実行判定を行う）
-IF TEQUIP:縄 == 0
+;IF TEQUIP:縄 == 0
 	実行値 = 0
 	＋表示フラグ = 0
 	;すべての命令に共通の要素を考慮
@@ -530,7 +541,7 @@ IF TEQUIP:縄 == 0
 	;実行できない
 	SIF 実行値 < ARG
 		RETURN 0
-ENDIF
+;ENDIF
 RETURN 1
 ;-------------------------------------------------
 ;実行判定
@@ -727,12 +738,12 @@ RETURN 1
 @COM_ABLE60_12
 ;同時挿入
 ;男側がハーヴィンかつ相手がハーヴィン以外ならプレイマットかベッドが必要
-IF TALENT:MASTER:種族 == 4 && TALENT:TARGET:種族 != 4
+IF TALENT:PLAYER:種族 == 4 && TALENT:TARGET:種族 != 4
 	IF TEQUIP:31
 		SIF ITEM:20 == 0 && NOITEM == 0
 			RETURN 0
 	ELSE
-		SIF !BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 			RETURN 0
 	ENDIF
 ENDIF
@@ -743,6 +754,7 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM60
+#DIM 同時キャラ番号
 
 ;;対面立位
 ;IF RFLAG:コマンド結果受渡し変数
@@ -886,9 +898,15 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 	CASE 12
 		;同時挿入
 		;二人目のときはスキップ
-		;SIF !TFLAG:メッセージ重複防止
-		;	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と%CALLNAME:助手は誰だ()%を左右に並べると、腟内へと交互に陰茎を挿入した
-
+		IF !TFLAG:メッセージ重複防止
+			PRINTFORM %CALLNAME:PLAYER%は
+			FOR 同時キャラ番号, 0, 同時モード_選択数
+				SIF 同時キャラ番号 > 0
+					PRINT 、
+				PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
+			NEXT
+			PRINTFORML を並べると、腟内へと順番に陰茎を挿入した
+		ENDIF
 ENDSELECT
 
 IF TALENT:処女
