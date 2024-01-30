@@ -110,10 +110,24 @@ ELSE
 		CASE 0 TO 11
 			TRYCALLFORM COM_ABLE62_{LOCAL}
 			IF RESULT
-				TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
-				IF !RESULT
-					TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
-					GOTO 体位_LOOP
+				IF TARGET == MASTER
+					TARGET = PLAYER
+					PLAYER = MASTER
+					RFLAG:指示モード対象あなたフラグ = 1
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
+					RFLAG:指示モード対象あなたフラグ = 0
+					PLAYER = TARGET
+					TARGET = MASTER
+				ELSE
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
 				ENDIF
 				TRYCALLFORM COM62_{LOCAL}
 				;メッセージ用に体位の種類を保存
@@ -399,7 +413,12 @@ RETURN LOCAL
 		＋表示フラグ = 1
 	ENDIF
 	;PALAM:潤滑（の不足）
-	IF PALAM:潤滑 < PALAMLV:3
+	IF RFLAG:指示モード対象あなたフラグ
+		LOCAL = PALAM:MASTER:潤滑
+	ELSE
+		LOCAL = PALAM:潤滑
+	ENDIF
+	IF LOCAL < PALAMLV:3
 		PRINT  - 
 		実行値 -= 5
 		PRINT 潤滑不足

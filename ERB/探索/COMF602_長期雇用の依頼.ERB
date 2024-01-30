@@ -28,9 +28,15 @@ DRAWLINE
 IF CFLAG:TARGET:長期雇用
 	PRINTL ※既に長期雇用済みです
 	PRINTFORML %CALLNAME:TARGET%の長期雇用を取り消しますか？　（現在消費中ルピ：１日 / 1000ルピ）
+ELSEIF CFLAG:TARGET:スイートルーム滞在フラグ && 滞在キャラ数 >= 滞在キャラ上限
+	PRINTL ※長期雇用すると、スイートルームから通常の部屋に移動します。
+	PRINTW ※通常の部屋に空きが無いので長期雇用出来ません。
+	RETURN -1
 ELSE
 	PRINTL 探索の手伝いを長期に渡って依頼することで、毎日ルピを消費する代わりにキャラクターが帰宅しないようになります。
 	PRINTL ※探索パーティから外すことは可能です。
+	SIF CFLAG:TARGET:スイートルーム滞在フラグ
+		PRINTL ※長期雇用すると、スイートルームから通常の部屋に移動します。
 	PRINTFORML %CALLNAME:TARGET%を長期雇用しますか？　（必要ルピ：１日 / 1000ルピ）
 ENDIF
 
@@ -45,6 +51,16 @@ INPUT
 SELECTCASE RESULT
 	CASE 0
 		CFLAG:TARGET:長期雇用 = !CFLAG:TARGET:長期雇用
+		;長期雇用するとスイートから抜ける
+		IF CFLAG:TARGET:スイートルーム滞在フラグ
+			CALL 滞在者部屋割り配列削除処理(TARGET)
+			FOR LOCAL, 0, 滞在キャラ上限
+				IF 滞在者部屋割り配列:LOCAL < 1
+					滞在者部屋割り配列:LOCAL = TARGET
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
 	CASE 1
 		RETURN -1
 	CASEELSE
