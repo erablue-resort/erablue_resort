@@ -33,14 +33,14 @@ ENDIF
 ;装備中耳飾り表示
 DRAWLINE
 詳細文文字列受け渡し変数 = 
-TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "耳飾り名")%(装備ステータス補正保存:キャラ番号:装備耳飾り番号)
+TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "耳飾り名", 1)%(装備ステータス補正保存:キャラ番号:装備耳飾り番号)
 LOCALS = <div rect='200,0,5662,1250' border='31' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='262, 62, 1125, 1125'>%顔グラ表示用文字列関数(キャラ番号)%</div>"
 LOCALS += @"<div rect='1387,62,5537,1125'>■%CALLNAME:キャラ番号%が装備中の耳飾り<br>"
 IF 詳細文文字列受け渡し変数 == ""
 	LOCALS += "なし</div>"
 ELSE
-	LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "耳飾り名")%<br>%詳細文文字列受け渡し変数%</div>"
+	LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "耳飾り名", 1)%<br>%詳細文文字列受け渡し変数%</div>"
 ENDIF
 ;所持耳飾りリスト表示
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
@@ -87,7 +87,7 @@ SELECTCASE LOCAL
 		ページ番号 += 1
 		RESTART
 	CASE 1002
-		DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "装備キャラ番号", 0
+		DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "装備キャラ番号", 0, 1
 		装備ステータス補正保存:キャラ番号:装備耳飾り番号 = 0
 		CALL 装備再計算処理(キャラ番号)
 		PRINTFORMW %CALLNAME:キャラ番号%は耳飾りを外した。
@@ -96,14 +96,14 @@ SELECTCASE LOCAL
 		RETURN 0
 	CASE IS < 500
 		IF 装備ステータス補正保存:キャラ番号:装備耳飾り番号 > 0
-			DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "装備キャラ番号", 0
+			DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "装備キャラ番号", 0, 1
 		ENDIF
 		LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
 		IF LOCAL:1 > 0
 			装備ステータス補正保存:(LOCAL:1):装備耳飾り番号 = 0
 			CALL 装備再計算処理(LOCAL:1)
 		ENDIF
-		装備ステータス補正保存:キャラ番号:装備耳飾り番号 = LOCAL
+		装備ステータス補正保存:キャラ番号:装備耳飾り番号 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
 		DT_CELL_SET "所持耳飾りデータベース", LOCAL, "装備キャラ番号", キャラ番号
 		CALL 装備再計算処理(キャラ番号)
 		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%を装備した。
@@ -113,7 +113,7 @@ SELECTCASE LOCAL
 	CASE IS < 1000
 		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(LOCAL - 500)
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL - 500, "id"))
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
@@ -136,19 +136,19 @@ IF キャラ番号 > 0
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
-		IF LOCAL:1 == LOCAL
+		IF LOCAL:1 == DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
 			LOCALS += "<font color='#CCCC00'>"
 		ENDIF
 		LOCALS += @"<button value='{LOCAL}'>"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(LOCAL)
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
 		LOCALS += @"%詳細文文字列受け渡し変数２, 56, LEFT%"
 		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
 			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号"))%"
 		ENDIF
 		LOCALS += "</button>"
-		IF LOCAL:1 == LOCAL
+		IF LOCAL:1 == DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
 			LOCALS += "</font>"
 		ENDIF
 		LOCALS += "<br>"
@@ -163,7 +163,7 @@ ELSE
 		LOCALS += @"<button value='{LOCAL}'>"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
 		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(LOCAL)
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
 		LOCALS += @"%詳細文文字列受け渡し変数２, 56, LEFT%"
 		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
 			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号"))%"
@@ -217,14 +217,14 @@ SELECTCASE LOCAL
 	CASE IS < 500
 		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(LOCAL)
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
 	CASE IS < 1000
 		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(LOCAL - 500)
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL - 500, "id"))
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
