@@ -18,8 +18,8 @@ ENDIF
 @COMTYPE_81
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
-同時モード許可 = 1
-助手モード許可 = 1
+同時モード許可 = 3
+
 
 @COM_TOOLTIP_81
 LOCALS = <br>■フェラチオ<br>
@@ -32,9 +32,12 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;-------------------------------------------------
 ;モードの設定
 ;-------------------------------------------------
-IF MODE_確認_完全一致("パイズリ", TARGET, PLAYER) < 0
+IF RFLAG:同時モード体位変化フラグ
+	CALL MODE_CHANGE("パイズリフェラ", TARGET, PLAYER)
+ELSEIF MODE_確認_完全一致("パイズリ", TARGET, PLAYER) < 0
 	CALL MODE_CHANGE("フェラチオ", TARGET, PLAYER)
 ELSE
+	RFLAG:同時モード体位変化フラグ = 1
 	CALL MODE_DELETE_プレイヤー側("パイズリ", TARGET)
 	CALL MODE_CHANGE("パイズリフェラ", TARGET, PLAYER)
 ENDIF
@@ -98,7 +101,7 @@ RETURN 1
 
 @CAN_COM81(ARG)
 SKIPDISP ARG
-PRINTL フェラチオ
+PRINTFORML フェラチオ(%CALLNAME:TARGET%)
 ;-------------------------------------------------
 ;実行判定処理
 ;-------------------------------------------------
@@ -276,8 +279,8 @@ SIF TALENT:PLAYER:Ｃ感度 == -2
 SIF TALENT:猫舌 && ABL:技巧 < 2
 	RETURN 0
 ;ボールギャグ使用中は不可
-SIF TEQUIP:ボールギャグ
-	RETURN 0
+; SIF TEQUIP:ボールギャグ
+; 	RETURN 0
 ;口、ペニスを何かに使ってる・届かないなら無理
 IF MODE_確認_完全一致("パイズリ", TARGET, PLAYER) < 0
 	SIF TEQUIP:PLAYER:ペニス
@@ -292,7 +295,22 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM81
-VARSET LOCAL
+#DIM 同時キャラ番号
+IF FLAG:モード管理 == 2
+	FOR 同時キャラ番号, 0, 同時モード_選択数
+		SIF 同時キャラ番号 > 0
+			PRINT 、
+		PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
+	NEXT
+	IF MODE_確認_完全一致("パイズリフェラ", TARGET, PLAYER) > -1
+		PRINTFORML は乳房を寄せ合いながら%CALLNAME:PLAYER%のペニスに舌を這わせた…
+	ELSE
+		PRINTFORML は分担して%CALLNAME:PLAYER%のペニスに舌を這わせている…
+	ENDIF
+	RETURN 0
+ENDIF
+
+;VARSET LOCAL
 
 ;;お掃除
 ;IF LOCAL && (TCVAR:LOCAL:103 == PLAYER || TCVAR:LOCAL:105 == PLAYER)

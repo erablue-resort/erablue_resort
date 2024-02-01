@@ -23,10 +23,9 @@ FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	IF TARGET:LOCAL == PLAYER
-		射精先キャラ:(LOCAL:1) = MASTER
+		射精先キャラ:(LOCAL:1) = 9999
 		LOCAL:1 += 1
-	ENDIF
-	IF CFLAG:(TARGET:LOCAL):うふふ
+	ELSEIF CFLAG:(TARGET:LOCAL):うふふ
 		射精先キャラ:(LOCAL:1) = TARGET:LOCAL
 		LOCAL:1 += 1
 	ENDIF
@@ -43,7 +42,7 @@ ENDIF
 ;プレーヤーはPLAYER、Ｖ挿入中
 ;ちんこは一本だけなので場合分けしなくていいはず
 IF MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER) > -1
-	口上用キャラ番号 = TOINT(体位モード配列:(MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER)):対象キャラ)
+	口上用キャラ番号 = DT_CELL_GET("体位モードデータベース", (MODE_確認_プレイヤー側("Ｖ挿入系", PLAYER)), "対象キャラ")
 	IF 知識素質:口上用キャラ番号:性知識 >= 0
 		PRINTFORML 限界を迎えた%CALLNAME:PLAYER%が膣内射精を予告すると、
 		IF 知識素質:口上用キャラ番号:性知識 < 0
@@ -92,6 +91,8 @@ FOR LOCAL, 0, 31
 	FOR 対象キャラ番号, 0, CHARANUM
 		SIF 射精先キャラ:対象キャラ番号 < 1
 			BREAK
+		SIF 射精先キャラ:対象キャラ番号 == 9999
+			射精先キャラ:対象キャラ番号 = 0
 		RESULT = 0
 		TRYCALLFORM SHOOT_ABLE_{オート射精先オプション:LOCAL}(射精先キャラ:対象キャラ番号)
 		;ABLEが通れば決定
@@ -101,6 +102,8 @@ FOR LOCAL, 0, 31
 			LOCAL = 999
 			GOTO 射精実処理部分
 		ENDIF
+		SIF 射精先キャラ:対象キャラ番号 == 0
+			射精先キャラ:対象キャラ番号 = 9999
 	NEXT
 NEXT
 
@@ -114,6 +117,8 @@ LOCAL:2 = 0
 FOR 対象キャラ番号, 0, CHARANUM
 	SIF 射精先キャラ:対象キャラ番号 < 1
 		BREAK
+	SIF 射精先キャラ:対象キャラ番号 == 9999
+		射精先キャラ:対象キャラ番号 = 0
 	LOCAL:1 = 0
 	FOR LOCAL, 0, 31
 		RESULT = 0
@@ -122,10 +127,10 @@ FOR 対象キャラ番号, 0, CHARANUM
 		IF RESULT
 			CALLFORM SHOOT_NAME_{LOCAL}
 			;選択中のものはえっちな色にする
-			SIF 選択中 == LOCAL + 対象キャラ番号 * 100
+			SIF 選択中 == LOCAL && 選択キャラ == 対象キャラ番号
 				LOCALS += @"<font color='#0xFF3399'>"
 			LOCALS += @"<button value='{LOCAL + 対象キャラ番号 * 100}'>[{LOCAL + 対象キャラ番号 * 100}]%CALLNAME:(射精先キャラ:対象キャラ番号)%:%TSTR:コマンド名受渡%</button><br>"
-			SIF 選択中 == LOCAL + 対象キャラ番号 * 100
+			SIF 選択中 == LOCAL && 選択キャラ == 対象キャラ番号
 				LOCALS += @"</font>"
 			LOCAL:1 += 1
 			LOCAL:5 = LOCAL + 対象キャラ番号 * 100
@@ -135,6 +140,8 @@ FOR 対象キャラ番号, 0, CHARANUM
 		LOCALS += "<br>"
 		選択肢数 += LOCAL:1
 	ENDIF
+	SIF 射精先キャラ:対象キャラ番号 == 0
+		射精先キャラ:対象キャラ番号 = 9999
 NEXT
 PRINTL
 DRAWLINE
@@ -143,6 +150,9 @@ IF 選択肢数 == 1
 	;射精先が一択の場合
 	RFLAG:フィニッシュ場所 = LOCAL:5 % 100
 	対象キャラ番号 = LOCAL:5 / 100
+
+	SIF 射精先キャラ:対象キャラ番号 == 9999
+		射精先キャラ:対象キャラ番号 = 0
 
 	;射精処理
 	CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:対象キャラ番号)
@@ -153,11 +163,18 @@ IF 選択肢数 == 1
 		CALL SHOOT絶頂口上(射精先キャラ:対象キャラ番号)
 	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}
 	
+	SIF 射精先キャラ:対象キャラ番号 == 0
+		射精先キャラ:対象キャラ番号 = 9999
+
 	RETURN 0
 ELSEIF !選択肢数
 	;有効な射精先がない（＝汎用のみ）の場合
+	SIF 射精先キャラ:0 == 9999
+		射精先キャラ:0 = 0
 	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
 	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}
+	SIF 射精先キャラ:0 == 0
+		射精先キャラ:0 = 9999
 	RETURN 0
 ENDIF
 
@@ -169,7 +186,11 @@ SELECTCASE 選択中
 	CASE 0 TO 30
 		RESULT = 0
 		IF 選択キャラ > -1
+			SIF 射精先キャラ:選択キャラ == 9999
+				射精先キャラ:選択キャラ = 0
 			TRYCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:選択キャラ)
+			SIF 射精先キャラ:選択キャラ == 0
+				射精先キャラ:選択キャラ = 9999
 		ENDIF
 		IF RESULT
 			PRINTBUTTON @"[999]発射！", 999
@@ -192,6 +213,8 @@ $射精実処理部分
 LOCAL:10 = 0
 SELECTCASE LOCAL
 	CASE 999
+		SIF 射精先キャラ:選択キャラ == 9999
+			射精先キャラ:選択キャラ = 0
 		TRYCCALLFORM SHOOT_ABLE_{選択中}(射精先キャラ:選択キャラ)
 			IF RESULT
 				;射精実処理
@@ -210,18 +233,24 @@ SELECTCASE LOCAL
 			ENDIF
 		CATCH
 		ENDCATCH
+		SIF 射精先キャラ:選択キャラ == 0
+			射精先キャラ:選択キャラ = 9999
 		;有効な射精先ではない
 		IF !LOCAL:10
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 		ENDIF
 	CASEELSE
+		SIF 射精先キャラ:(LOCAL / 100) == 9999
+			射精先キャラ:(LOCAL / 100) = 0
 		TRYCALLFORM SHOOT_ABLE_{LOCAL % 100}(射精先キャラ:(LOCAL / 100))
 		LOCAL:10 = RESULT
 		IF LOCAL:10
 			選択中 = LOCAL % 100
 			選択キャラ = LOCAL / 100
 		ENDIF
+		SIF 射精先キャラ:(LOCAL / 100) == 0
+			射精先キャラ:(LOCAL / 100) = 9999
 		REUSELASTLINE 
 		GOTO INPUT_LOOP
 ENDSELECT

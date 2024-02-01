@@ -16,6 +16,7 @@
 #DIMS 同行キャラ文字列一時保存
 #DIMS CSTR切り分け文字列格納, 2
 VARSET 比較用一時保存配列
+VARSET 同時モード_選択キャラ, -1
 
 VARSET 追加キャラ保存
 LOCAL:1 = 0
@@ -80,6 +81,7 @@ SIF !RELATION_VAL:0:0
 	RELATION_VAL:0:0 = 1
 CALL 戦闘用データベースセット
 CALL 従業員業務用マップセット
+CALL 体位モードデータベースセット
 
 ボタン化用カラーマトリクス:0:0 = 768,256,256,  0,  0
 ボタン化用カラーマトリクス:1:0 = 256,768,256,  0,  0
@@ -202,6 +204,53 @@ ENDIF
 ; SIF DT_EXIST("所持乗機データベース") == 0
 ; 	CALL 乗機データベースセット
 
+IF 指輪耳飾り衣装ID管理変更 == 0
+	FOR LOCAL, 1, CHARANUM
+		IF 装備ステータス補正保存:LOCAL:装備指輪番号
+			LOCAL:1 = DT_CELL_GET("所持指輪データベース", 装備ステータス補正保存:LOCAL:装備指輪番号, "id")
+			装備ステータス補正保存:LOCAL:装備指輪番号 = LOCAL:1
+		ENDIF
+		IF 装備ステータス補正保存:LOCAL:装備耳飾り番号
+			LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "id")
+			装備ステータス補正保存:LOCAL:装備耳飾り番号 = LOCAL:1
+		ENDIF
+		IF 装備ステータス補正保存:LOCAL:装備衣装番号
+			LOCAL:1 = DT_CELL_GET("所持衣装データベース", 装備ステータス補正保存:LOCAL:装備衣装番号, "id")
+			装備ステータス補正保存:LOCAL:装備衣装番号 = LOCAL:1
+		ENDIF
+	NEXT
+	指輪耳飾り衣装ID管理変更 = 1
+ENDIF
+
+IF イベ再発生対策 == 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+		SIF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "魔物襲撃"
+			CONTINUE
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", 0
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生確率", 0
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", 0
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", 0
+	NEXT
+	イベ再発生対策 = 1
+ENDIF
+
+IF イベ名前被り対策 == 0
+	VARSET LOCALS
+	LOCAL:1 = 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+		SIF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == ""
+			BREAK
+		IF FINDELEMENT(LOCALS, ESCAPE(@"%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%"), , , 1) > -1
+			DT_ROW_REMOVE "各イベント用変数配列", DT_CELL_GET("各イベント用変数配列", LOCAL, "id")
+			LOCAL -= 1
+		ELSE
+			LOCALS:(LOCAL:1) = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	イベ名前被り対策 = 1
+ENDIF
+
 ;ここまで0.036にしたとき消す、互換を34に
 
 ;------------------------------------------------------------------------------------------
@@ -253,6 +302,12 @@ FOR LOCAL, 1, CHARANUM
 				ENDIF
 			ENDIF
 		NEXT
+	ENDIF
+
+	;弱点コマンドの設定がされているかどうかチェック
+	IF EXISTFUNCTION(@"弱点コマンド変更_{NO:LOCAL}")
+		VARSET 弱点コマンド枠:LOCAL:0
+		TRYCALLFORM 弱点コマンド変更_{NO:LOCAL}
 	ENDIF
 NEXT
 

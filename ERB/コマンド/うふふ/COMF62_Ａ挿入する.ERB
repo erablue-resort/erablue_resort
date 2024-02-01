@@ -17,8 +17,7 @@ SIF MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("Ａ系")
 ;弱点コマンドカテゴリ = A
-同時モード許可 = 1
-助手モード許可 = 1
+同時モード許可 = 3
 
 @COM_TOOLTIP_62
 LOCALS = <br>■Ａ挿入する<br>
@@ -28,28 +27,37 @@ LOCALS += "<br>固有の取得経験：Ａ経験(TARGET)・Ａ性交経験(TARGE
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM62
-IF COMMODE() == 2
-	; TRYCALLFORM COM_ABLE62_12
-	; IF RESULT
-	; 	TRYCALLFORM CAN_Ａ体位12(1)
-	; 	IF !RESULT
-	; 		TRYCALLFORM CAN_Ａ体位12(0)
-	; 		RETURN -1
-	; 	ENDIF
-	; 	LOCAL = TARGET
-	; 	TARGET = 助手は誰だ()
-	; 			TRYCALLFORM CAN_Ａ体位12(1)
-	; 	IF !RESULT
-	; 		TARGET = LOCAL
-	; 		RETURN -1
-	; 	ENDIF
-	; 	TARGET = LOCAL
-	; 	TRYCALLFORM COM62_12
-	; 	;メッセージ用に体位の種類を保存
-	; 	RFLAG:コマンド結果受渡し変数 = 12
-	; 	RETURN 1
-	; ENDIF
-	; RETURN 0
+IF FLAG:モード管理 == 2
+	IF RFLAG:コマンド結果受渡し変数 == 12
+		TRYCALLFORM COM62_12
+		RETURN 0
+	ELSE
+		LOCAL:10 = TARGET
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 0
+				BREAK
+			RESULT = 0
+			TARGET = 同時モード_選択キャラ:LOCAL
+			TRYCALLFORM COM_ABLE62_12
+			IF RESULT == 0
+				TARGET = LOCAL:10
+				RETURN -1
+			ENDIF
+			RESULT = 1
+			TRYCALLFORM CAN_Ａ体位12(1)
+			IF !RESULT
+				TRYCALLFORM CAN_Ａ体位12(0)
+				RETURN -1
+			ENDIF
+		NEXT
+		TARGET = LOCAL:10
+
+		TRYCALLFORM COM62_12
+		;メッセージ用に体位の種類を保存
+		RFLAG:コマンド結果受渡し変数 = 12
+		RETURN 0
+	ENDIF
+	RETURN 0
 ELSE
 	$体位_LOOP
 	DRAWLINE
@@ -102,10 +110,24 @@ ELSE
 		CASE 0 TO 11
 			TRYCALLFORM COM_ABLE62_{LOCAL}
 			IF RESULT
-				TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
-				IF !RESULT
-					TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
-					GOTO 体位_LOOP
+				IF TARGET == MASTER
+					TARGET = PLAYER
+					PLAYER = MASTER
+					RFLAG:指示モード対象あなたフラグ = 1
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
+					RFLAG:指示モード対象あなたフラグ = 0
+					PLAYER = TARGET
+					TARGET = MASTER
+				ELSE
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
 				ENDIF
 				TRYCALLFORM COM62_{LOCAL}
 				;メッセージ用に体位の種類を保存
@@ -193,11 +215,15 @@ CALL Ａ体位COM(450, 90, 100)
 CALL MODE_CHANGE("Ａ立ちバック", PLAYER, TARGET)
 RETURN RESULT
 
-; @COM62_12
-; ;同時挿入
-; CALL Ａ体位COM(350, 70, 90)
-; CALL MODE_CHANGE("Ａ同時挿入")
-; RETURN RESULT
+@COM62_12
+;同時挿入
+CALL Ａ体位COM(350, 70, 90)
+IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	CALL MODE_CHANGE("Ａ後背位", PLAYER, TARGET)
+ELSE
+	CALL MODE_CHANGE("Ａ立ちバック", PLAYER, TARGET)
+ENDIF
+RETURN RESULT
 
 
 
@@ -350,7 +376,7 @@ RETURN LOCAL
 ;実行判定処理
 ;-------------------------------------------------
 ;縄で縛られている場合は無視（縄が無い時のみ実行判定を行う）
-IF TEQUIP:縄 == 0
+;IF TEQUIP:縄 == 0
 	実行値 = 0
 	＋表示フラグ = 0
 	;すべての命令に共通の要素を考慮
@@ -387,7 +413,12 @@ IF TEQUIP:縄 == 0
 		＋表示フラグ = 1
 	ENDIF
 	;PALAM:潤滑（の不足）
-	IF PALAM:潤滑 < PALAMLV:3
+	IF RFLAG:指示モード対象あなたフラグ
+		LOCAL = PALAM:MASTER:潤滑
+	ELSE
+		LOCAL = PALAM:潤滑
+	ENDIF
+	IF LOCAL < PALAMLV:3
 		PRINT  - 
 		実行値 -= 5
 		PRINT 潤滑不足
@@ -495,7 +526,7 @@ IF TEQUIP:縄 == 0
 	;実行できない
 	SIF 実行値 < ARG
 		RETURN 0
-ENDIF
+;ENDIF
 RETURN 1
 ;-------------------------------------------------
 ;実行判定
@@ -714,6 +745,7 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM62
+#DIM 同時キャラ番号
 
 
 
@@ -757,6 +789,13 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 	CASE 12
 		;同時導入
 		;二人目のときはスキップ
-		;SIF !TFLAG:メッセージ重複防止
-		;	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と%CALLNAME:助手は誰だ()%を左右に並べると、アナルへと交互に陰茎を挿入した
+		IF !TFLAG:メッセージ重複防止
+			PRINTFORM %CALLNAME:PLAYER%は
+			FOR 同時キャラ番号, 0, 同時モード_選択数
+				SIF 同時キャラ番号 > 0
+					PRINT 、
+				PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
+			NEXT
+			PRINTFORML を並べると、アナルへと順番に陰茎を挿入した
+		ENDIF
 ENDSELECT

@@ -1,0 +1,69 @@
+﻿
+@COMNAME356
+#FUNCTIONS
+TSTR:コマンド名受渡 = 同行解除
+IF CFLAG:TARGET:デート
+	TSTR:コマンド名受渡 = デートを終える
+ENDIF
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_356
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_356
+LOCALS = <br>■同行解除<br>
+LOCALS += "キャラの同行を解除するコマンド。<br>一緒に隠密中・うふふ中は同行が解除されない。<br>デート中は[デートを終える]に変化。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM356
+CFLAG:TARGET:同行 = 0
+CFLAG:TARGET:デート = 0
+TIME += 1
+
+IF CFLAG:TARGET:デート
+	;将来的にデートの内容に応じて好感度上昇とかしたいが未実装
+	PRINTFORMW %CALLNAME:TARGET%とのデートを終え、別れた
+ELSE
+	PRINTFORMW %CALLNAME:TARGET%との同行を終え、別れた
+ENDIF
+
+;SOURCEまで回さないのでここで口上を表示させる
+; ;ボールギャグ
+; IF TEQUIP:20 && SELECTCOM != 107 && FLAG:7 < 1
+; 	SELECTCOM = LOCAL
+; 	RETURN 1
+; ELSE
+	RESULT = 0
+	RESULTS =
+	IF FLAG:口上表示切り替えオプション < 1
+		SELECTCOM = LOCAL
+		RETURN 1
+	ENDIF
+	RESULT = 0
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_356
+; ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE356
+;連れ出す実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(356)
+	RETURN RESULT
+;同行状態
+SIF CFLAG:TARGET:同行 < 1
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------

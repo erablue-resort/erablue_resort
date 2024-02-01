@@ -4,14 +4,9 @@
 ;-------------------------------------------------
 @COMNAME3
 #FUNCTIONS
-SELECTCASE COMMODE()
-CASE 1
-	TSTR:コマンド名受渡 = 指挿入れ
-CASE 2
+TSTR:コマンド名受渡 = 指挿入れ
+SIF FLAG:モード管理 == 2
 	TSTR:コマンド名受渡 = 同時に指挿入れ
-CASE 3
-	TSTR:コマンド名受渡 = 助手が指挿入れ
-ENDSELECT
 
 ;複数モード_ダミーをリセット
 複数モード_ダミー = 0
@@ -25,8 +20,9 @@ ENDSELECT
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
 弱点コマンドカテゴリ = V
-同時モード許可 = 1
-助手モード許可 = 1
+同時モード許可 = 2
+オートコマンド許可 = 1
+
 
 @COM_TOOLTIP_3
 LOCALS = <br>■指挿入れ<br>
@@ -109,7 +105,19 @@ RETURN 1
 ;-------------------------------------------------
 
 @MESSAGE_COM3
+#DIM 同時キャラ番号
 ;下半身着衣
+PRINTFORM %CALLNAME:PLAYER%は
+IF FLAG:モード管理 == 2
+	FOR 同時キャラ番号, 0, 同時モード_選択数
+		SIF 同時キャラ番号 > 0
+			PRINT 、
+		PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
+	NEXT
+	PRINT の秘裂に指をゆっくりと挿入した…
+	RETURN 0
+ENDIF
+
 SIF TEQUIP:下半身服あり
 		PRINTFORM 服の中に手を差し入れ
 PRINTFORM %CALLNAME:TARGET%の
@@ -126,23 +134,18 @@ IF TALENT:種族 < 0
 ELSE
 	PRINT 秘裂
 ENDIF
-;バイブの有無で分岐・アイテム調整未実装のため一旦封印
-; IF TEQUIP:バイブ
-; 	PRINTFORML の中で、妖しくうねるバイブを前後に抜き差しした
-; ELSE
-	PRINTFORML に%CALLNAME:PLAYER%の指をゆっくりと挿入した…
-	IF NOWEX:1
-		IF TALENT:処女 == 1
-			PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%にすがりつき、挿入された指をピクピクと締め付けている…
-		ELSE
-			PRINTFORML %CALLNAME:TARGET%は涎をたらし、自ら腰を振って快楽を貪っている…
-		ENDIF
+PRINTFORML に指をゆっくりと挿入した…
+IF NOWEX:1
+	IF TALENT:処女 == 1
+		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%にすがりつき、挿入された指をピクピクと締め付けている…
 	ELSE
-		IF TALENT:処女 == 1
-			PRINTFORML %CALLNAME:TARGET%は不慣れな感触に体を強ばらせている…
-		ELSE
-			PRINTFORML %CALLNAME:TARGET%は膣内でうごめく指の感触に甘い嬌声をあげている…
-		ENDIF
+		PRINTFORML %CALLNAME:TARGET%は涎をたらし、自ら腰を振って快楽を貪っている…
 	ENDIF
-; ENDIF
+ELSE
+	IF TALENT:処女 == 1
+		PRINTFORML %CALLNAME:TARGET%は不慣れな感触に体を強ばらせている…
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%は膣内でうごめく指の感触に甘い嬌声をあげている…
+	ENDIF
+ENDIF
 

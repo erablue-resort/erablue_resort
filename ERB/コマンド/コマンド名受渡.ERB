@@ -87,3 +87,64 @@ IF 複数モード_ダミー
 ENDIF
 
 RETURNF LOCAL
+
+@同時モード設定()
+#DIM 同室番号
+#DIM 選択キャラカウント
+#DIM 選択キャラ一時保存
+;同室者から、同時コマンドのターゲットを指定する
+;まず候補を並べる
+
+選択キャラカウント = 0
+DRAWLINE
+FOR 同室番号, 1, CHARANUM
+	SIF TARGET:同室番号 < 1
+		BREAK
+	SIF CFLAG:(TARGET:同室番号):うふふ == 0
+		CONTINUE
+	;うふふ同室者は全部並べる
+	IF GETBIT(選択キャラ一時保存, 同室番号)
+		SETCOLOR カラーパレット("えっちな色")
+		選択キャラカウント += 1
+	ENDIF
+	PRINTBUTTON @"[{同室番号}] %NAME:(TARGET:同室番号)%", 同室番号
+	RESETCOLOR
+	PRINTL
+NEXT
+PRINTL
+IF 選択キャラカウント < 2
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] これで決定
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[998] これで決定", 998
+ENDIF
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		選択キャラ一時保存 = 0
+		RETURN 0
+	CASE 998
+		VARSET 同時モード_選択キャラ, -1
+		同時モード_選択数 = 選択キャラカウント
+		選択キャラカウント = 0
+		FOR 同室番号, 1, CHARANUM
+			SIF TARGET:同室番号 < 1
+				BREAK
+			IF GETBIT(選択キャラ一時保存, 同室番号)
+				同時モード_選択キャラ:選択キャラカウント = TARGET:同室番号
+				選択キャラカウント += 1
+			ENDIF
+		NEXT
+		TFLAG:TARGET変更用 = 同時モード_選択キャラ:0
+		選択キャラ一時保存 = 0
+		RETURN 1
+	CASEELSE
+		INVERTBIT 選択キャラ一時保存, RESULT
+		RESTART
+ENDSELECT

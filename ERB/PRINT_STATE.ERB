@@ -137,6 +137,9 @@ IF ARG != MASTER
 		CASE 140
 			CALL 汎用喘ぎ個別設定(ARG)
 			RESTART
+		CASE 998
+			CALL 弱点コマンド全表示(ARG)
+			RESTART
 		CASE 999
 			能力表示 = 0
 			RETURN 0
@@ -147,7 +150,6 @@ ELSE
 ENDIF
 
 @通常能力表示画面(ARG)
-#DIMS 弱点コマンドSPLIT用配列, 10
 #DIM L_C, 2
 #DIM 同行キャラ番, 100
 #DIM 同行キャラ値, 100
@@ -294,8 +296,8 @@ IF 装備ステータス補正保存:ARG:装備指輪番号 == 0
 	LOCALS += "<br>"
 	LOCALS += "<br>"
 ELSE
-	TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名")%(装備ステータス補正保存:ARG:装備指輪番号)
-	LOCALS += @"■%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名")%<br>%詳細文文字列受け渡し変数%<br>"
+	TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名", 1)%(装備ステータス補正保存:ARG:装備指輪番号)
+	LOCALS += @"■%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
 ENDIF
 LOCALS += "<br></div>"
 詳細文文字列受け渡し変数 = 
@@ -307,18 +309,18 @@ IF 装備ステータス補正保存:ARG:装備耳飾り番号 == 0
 	LOCALS += "<br>"
 	LOCALS += "<br>"
 ELSE
-	TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%(装備ステータス補正保存:ARG:装備耳飾り番号)
-	LOCALS += @"■%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名")%<br>%詳細文文字列受け渡し変数%<br>"
+	TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名", 1)%(装備ステータス補正保存:ARG:装備耳飾り番号)
+	LOCALS += @"■%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
 ENDIF
 LOCALS += "<br></div>"
 
 詳細文文字列受け渡し変数 = 
-装備衣装名 = %DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%
+装備衣装名 = %DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名", 1)%
 LOCALS += "<div rect='1250,1575,3750,787'>□ 装備探索時衣装 □--------------------------------------------<br>"
 IF 装備ステータス補正保存:ARG:装備衣装番号
 	LOCALS += @"%装備衣装名%<br>"
 	LOCALS += "説明："
-	TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%("フレーバー")
+	TRYCALLFORM 衣装関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名", 1)%("フレーバー")
 	LOCALS += @"%詳細文文字列受け渡し変数%"
 	LOCALS += "</div>"
 ELSE
@@ -393,7 +395,7 @@ ELSE
 	LOCALS += "衣装アビリティ："
 	VARSET RESULTS
 	LOCAL:1 = 0
-	表示アビ数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名")%_")
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:ARG:装備衣装番号, "衣装名", 1)%_")
 	FOR LOCAL, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
 		CALLFORM %RESULTS:LOCAL%(@"アビ名", ARG)
@@ -989,7 +991,9 @@ RETURN STRCOUNT(LOCALS, "<br>") - 2
 #DIMS 弱点コマンドSPLIT用配列, 10
 LOCALS = □ 弱点コマンド □---------------------<br>
 
-FOR LOCAL, 0, 5
+FOR LOCAL, 0, 8
+	SIF 弱点コマンド枠:ARG:LOCAL == ""
+		BREAK
 	IF 弱点看破:ARG:LOCAL || 弱点コマンド全表示OPTION
 		弱点コマンド欄表示名 = 
 		IF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
@@ -1045,7 +1049,15 @@ FOR LOCAL, 0, 5
 		LOCALS += @"　[？？？？？]<br>"
 	ENDIF
 NEXT
-
+LOCAL:1 = 0
+FOR LOCAL, 8, 50
+	SIF 弱点コマンド枠:ARG:LOCAL == ""
+		BREAK
+	LOCAL:1 += 1
+NEXT
+IF LOCAL:1 > 0
+	LOCALS += @"　他{LOCAL:1, 2}件　　<button value='998'>[998] 全て表示</button>"
+ENDIF
 RESULTS = %LOCALS%
 RETURN STRCOUNT(LOCALS, "<br>") - 2
 
@@ -1457,3 +1469,79 @@ SIF (GROUPMATCH(TALENT:ARG:種族,種族_ドラフ,種族_ハーヴィン) || TA
 SIF TALENT:ARG:母乳体質 == 3
 	PRINTFORML 　胸は妊娠の影響で少し大きくなり、子供のための母乳を蓄えている
 
+
+
+@弱点コマンド全表示(対象キャラ番号)
+#DIM 対象キャラ番号
+#DIMS 弱点コマンドSPLIT用配列, 10
+
+DRAWLINE
+VARSET LOCALS
+VARSET LOCAL
+FOR LOCAL, 0, 50
+	SIF 弱点コマンド枠:対象キャラ番号:LOCAL == ""
+		CONTINUE
+	IF 弱点看破:対象キャラ番号:LOCAL || 弱点コマンド全表示OPTION
+		弱点コマンド欄表示名 = 
+		IF STRFIND(弱点コマンド枠:対象キャラ番号:LOCAL, "_") >= 0
+			SPLIT 弱点コマンド枠:対象キャラ番号:LOCAL, "_", 弱点コマンドSPLIT用配列
+			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
+				CASE 370 TO 374
+					LOCAL:1 = TARGET
+					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS:1 = {LOCAL, 2}：[キャラ固有：%弱点コマンド欄表示名%]
+					ELSE
+						LOCALS:1 = {LOCAL, 2}：[キャラ固有：%TSTR:コマンド名受渡%]
+					ENDIF
+					TARGET = LOCAL:1
+				CASE 380 TO 384
+					LOCAL:1 = CFLAG:MASTER:現在位置
+					LOCAL:2 = CFLAG:MASTER:現在マップ種別
+					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
+					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS:1 = {LOCAL, 2}：[場所固有：%弱点コマンド欄表示名%]
+					ELSE
+						LOCALS:1 = {LOCAL, 2}：[場所固有：%TSTR:コマンド名受渡%]
+					ENDIF
+					CFLAG:MASTER:現在位置 = LOCAL:1
+					CFLAG:MASTER:現在マップ種別 = LOCAL:2
+				CASEELSE
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS:1 = {LOCAL, 2}：[%弱点コマンド欄表示名%派生：
+					ELSE
+						LOCALS:1 = {LOCAL, 2}：[%TSTR:コマンド名受渡%派生：
+					ENDIF
+					弱点コマンド欄表示名 = 
+					CALLFORMF COMNAME_S%弱点コマンド枠:対象キャラ番号:LOCAL%
+					IF 弱点コマンド欄表示名 != ""
+						LOCALS:1 += @"%弱点コマンド欄表示名%]"
+					ELSE
+						LOCALS:1 += @"%TSTR:コマンド名受渡%]"
+					ENDIF
+			ENDSELECT
+		ELSE
+			CALLFORMF COMNAME%弱点コマンド枠:対象キャラ番号:LOCAL%
+			IF 弱点コマンド欄表示名 != ""
+				LOCALS:1 = {LOCAL, 2}：[%弱点コマンド欄表示名%]
+			ELSE
+				LOCALS:1 = {LOCAL, 2}：[%TSTR:コマンド名受渡%]
+			ENDIF
+		ENDIF
+	ELSE
+		LOCALS:1 = {LOCAL, 2}：[？？？？？]
+	ENDIF
+	LOCAL:10 += 1
+	IF LOCAL:10 % 3 == 0
+		LOCALS += @"%LOCALS:1, 30, LEFT%<br>"
+	ELSE
+		LOCALS += @"%LOCALS:1, 30, LEFT%　　　"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS
+WAIT

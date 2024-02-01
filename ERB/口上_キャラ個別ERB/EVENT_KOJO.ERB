@@ -4,6 +4,7 @@
 ;--------------------------------------------------
 @KOJO_MESSAGE_COM
 #DIM 複数人プレイフラグ
+#DIMS 呼び出し文字列
 #DIM 対象キャラ
 
 複数人プレイフラグ = 0
@@ -54,6 +55,14 @@ ENDIF
 
 RESULT = 0
 IF RFLAG:サイドボタン操作
+ELSEIF TFLAG:オートコマンドフラグ >= 3000
+	LOCAL = TARGET
+	TARGET = PLAYER
+	PLAYER = AUTOCOM_相手番号保存
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_{TFLAG:オートコマンドフラグ - 3000}
+	TRYCALLFORMF COMTYPE_{TFLAG:オートコマンドフラグ - 3000}
+	PLAYER = TARGET
+	TARGET = LOCAL
 ELSEIF TFLAG:オートコマンドフラグ > 2000
 	TRYCALLFORM KOJO_ALLAUTOCOM_{NO:AUTOCOM_相手番号保存}_{TFLAG:オートコマンドフラグ - 2000}
 ELSEIF TFLAG:オートコマンドフラグ > 1000
@@ -65,20 +74,20 @@ ELSEIF TFLAG:オートコマンドフラグ == -1
 ELSEIF RSTR:SELECTCOM_S受け渡し != ""
 	TRYCALLFORM KOJO_COM_{NO:TARGET}_%RSTR:SELECTCOM_S受け渡し%
 	TRYCALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
-	IF TFLAG:コマンドタイプ受渡 == 12
-		複数人プレイフラグ = 1
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = %RSTR:SELECTCOM_S受け渡し%
 	ENDIF
 ELSEIF SELECTCOM >= 380 && SELECTCOM <= 384
 	TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
 	TRYCALLFORMF COMTYPE_{SELECTCOM}
-	IF TFLAG:コマンドタイプ受渡 == 12
-		複数人プレイフラグ = 1
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = {SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
 	ENDIF
 ELSEIF SELECTCOM >= 370 && SELECTCOM <= 374
 	TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}_{NO:TARGET}
 	TRYCALLFORMF COMTYPE_{SELECTCOM}
-	IF TFLAG:コマンドタイプ受渡 == 12
-		複数人プレイフラグ = 1
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = {SELECTCOM}_{NO:TARGET}
 	ENDIF
 ELSEIF SELECTCOM == 404
 	;覗きは対象がTARGETじゃないことがあるので別枠で設定
@@ -86,25 +95,37 @@ ELSEIF SELECTCOM == 404
 ELSE
 	TRYCALLFORM KOJO_COM_{NO:TARGET}_{SELECTCOM}
 	TRYCALLFORMF COMTYPE_{SELECTCOM}
-	IF TFLAG:コマンドタイプ受渡 == 12
-		複数人プレイフラグ = 1
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = {SELECTCOM}
 	ENDIF
 ENDIF
 
 SIF K < 1
 	LOCAL:1 = 1
 
-IF 複数人プレイフラグ
+
+IF SELECTCOM == 210
+	;呼び出される側の口上を呼ぶ
 	DRAWLINE
-	;複数人プレイコマンドなので、TARGETじゃない方のキャラも喋らせる
-	IF SELECTCOM == 210
-		;呼び出すだけはまだTARGET配列にキャラ番号が入ってないのでここで直接投げる
-		TRYCALLFORM KOJO_COM_{NO:(RFLAG:コマンド結果受渡し変数)}_{SELECTCOM}_非対象側
-	ELSEIF TARGET != TARGET:1
-		TRYCALLFORM KOJO_COM_{NO:(TARGET:1)}_{SELECTCOM}_非対象側
-	ELSEIF TARGET != TARGET:2
-		TRYCALLFORM KOJO_COM_{NO:(TARGET:2)}_{SELECTCOM}_非対象側
-	ENDIF
+	TRYCALLFORM KOJO_COM_{NO:(RFLAG:コマンド結果受渡し変数)}_{SELECTCOM}_非対象側
+ENDIF
+
+IF FLAG:モード管理 == 2
+	;同時モード時は全員喋らせる
+	FOR LOCAL, 0, 同時モード_選択数
+		SIF 同時モード_選択キャラ:LOCAL == TARGET
+			CONTINUE
+		DRAWLINE
+		対象キャラ = 同時モード_選択キャラ:LOCAL
+		IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+			CALL 汎用喘ぎ処理(対象キャラ)
+		ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+			;禁止時はなにもしない
+		ELSEIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+			CALL 汎用喘ぎ処理(対象キャラ)
+		ENDIF
+		TRYCALLFORM KOJO_COM_{NO:対象キャラ}_%呼び出し文字列%
+	NEXT
 ENDIF
 
 
@@ -167,12 +188,12 @@ IF FLAG:口上表示切り替えオプション <= 0
 ENDIF
 
 ;ボールギャグ
-IF TEQUIP:ボールギャグ && SELECTCOM != 106
-	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
+; IF TEQUIP:ボールギャグ && SELECTCOM != 106
+; 	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
 ;SELECTCOM
-ELSE
+; ELSE
 	TRYCALLFORM KOJO_ORGASM_射精_{NO:TARGET}
-ENDIF
+; ENDIF
 
 ;-------------------------------------------------
 ;@KOJO_MESSAGE_PALAMCNG関係
@@ -190,10 +211,10 @@ IF FLAG:口上表示切り替えオプション <= 0
 ENDIF
 
 ;ボールギャグ
-IF TEQUIP:ボールギャグ && SELECTCOM != 106
-	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
+; IF TEQUIP:ボールギャグ && SELECTCOM != 106
+; 	TRYCALLFORM KOJO_COM_BALLGAG_K{NO:TARGET}
 ;SELECTCOM
-ELSE
+; ELSE
 	;取得ソースなどで絶頂を分岐させる予定だけど上手い手段が思いつかないので一旦封印
 	
 	; IF TFLAG:露出コマンドフラグ
@@ -209,7 +230,7 @@ ELSE
 	; ELSE
 		TRYCALLFORM KOJO_ORGASM_通常絶頂_{NO:TARGET}
 	; ENDIF
-ENDIF
+; ENDIF
 CALL 挿入アニメ表示(TARGET, "_絶頂")
 
 ;-------------------------------------------------
@@ -245,9 +266,9 @@ IF !RESULT && FLAG:6 > 0
 ENDIF
 ;ボールギャグ
 LOCALS = 
-IF TEQUIP:20 && SELECTCOM != 106
-	LOCALS = BALLGAG_
-ENDIF
+; IF TEQUIP:20 && SELECTCOM != 106
+; 	LOCALS = BALLGAG_
+; ENDIF
 TRYCALLFORM KOJO%RESULTS%_MESSAGE_PALAMCNG_E_K%LOCALS%{NO:TARGET}
 
 ;-------------------------------------------------
@@ -271,9 +292,9 @@ IF !RESULT && FLAG:6 > 0
 ENDIF
 ;ボールギャグ
 LOCALS = 
-IF TEQUIP:20 && SELECTCOM != 106
-	LOCALS = BALLGAG_
-ENDIF
+; IF TEQUIP:20 && SELECTCOM != 106
+; 	LOCALS = BALLGAG_
+; ENDIF
 TRYCALLFORM KOJO%RESULTS%_MESSAGE_MARKCNG_%LOCALS%K{NO:TARGET}
 
 ;-------------------------------------------------

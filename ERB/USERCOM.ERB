@@ -16,7 +16,7 @@ SIF !TFLAG:ゲームフェイズ管理
 
 RESETCOLOR
 PRINTC 能力表示(マスター)[804]
-PRINTC コマンドフィルタ[809]
+PRINTC OPTION[809]
 IF CFLAG:うふふ && TARGET > 0
 	PRINTC 服を脱ぐ[820]
 	IF CFLAG:うふふ == 2
@@ -143,12 +143,12 @@ ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
 	;モードを中止させるボタン
 	;_でSPLITすればRESULTS:1に中止させるモードの配列が入る
 	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
-	実行キャラ番号 = TOINT(体位モード配列:TOINT(RESULTS:1):実行キャラ)
-	対象キャラ番号 = TOINT(体位モード配列:TOINT(RESULTS:1):対象キャラ)
-	TRYCALLFORM MESSAGE_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%解除(実行キャラ番号, 対象キャラ番号)
+	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "実行キャラ")
+	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "対象キャラ")
+	TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除(実行キャラ番号, 対象キャラ番号)
 	PRINTL
 	IF 実行キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
+		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
 			PRINTL 
 			口上無しフラグ = 0
 		CATCH
@@ -156,7 +156,7 @@ ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
 		ENDCATCH
 	ENDIF
 	IF 対象キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
+		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
 			PRINTL 
 			口上無しフラグ = 0
 		CATCH
@@ -164,60 +164,85 @@ ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
 		ENDCATCH
 	ENDIF
 	SIF 口上無しフラグ
-		TRYCALLFORM MESSAGE_MODE_%体位モード配列:TOINT(RESULTS:1):モード名%解除_非口上時(実行キャラ番号, 対象キャラ番号)
+		TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除_非口上時(実行キャラ番号, 対象キャラ番号)
 	WAIT
 	CALL MODE_DELETE_配列詰め(TOINT(RESULTS:1))
 ELSEIF RSTR:SELECTCOM_S受け渡し != ""
 	;受け渡しがある場合はRSTR:SELECTCOM_S受け渡しに派生コマンドが入っているはず
 	SELECTCOM = -1
 	SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
-	TRYCALLFORM COM_ABLE_S%SELECTCOM_S%
-	SIF RESULT == 0 || RESULT == -1
-		RETURN 1
 	SIF TRAIN_COMNAME_S(SELECTCOM_S) == ""
 		RETURN 1
 	RSTR:SELECTCOM_S受け渡し = %SELECTCOM_S%
 	RESULT = 1
 	LOCAL:2 = 0
-	IF TARGET == MASTER
-		TARGET = PLAYER
-		PLAYER = MASTER
-		RFLAG:指示モード対象あなたフラグ = 1
-		TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
-		RFLAG:指示モード対象あなたフラグ = 0
-		SIF !RESULT
-			TRYCALLFORM CAN_COM_S%SELECTCOM_S%
-		PLAYER = TARGET
-		TARGET = MASTER
+	IF FLAG:モード管理 == 2
+		LOCAL:10 = TARGET
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 0
+				BREAK
+			RESULT = 0
+			TARGET = 同時モード_選択キャラ:LOCAL
+			TRYCALLFORM COM_ABLE_S%SELECTCOM_S%
+			IF RESULT == 0
+				TARGET = LOCAL:10
+				RETURN 1
+			ENDIF
+			RESULT = 1
+			IF TARGET == MASTER
+				TARGET = PLAYER
+				PLAYER = MASTER
+				RFLAG:指示モード対象あなたフラグ = 1
+				TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+				RFLAG:指示モード対象あなたフラグ = 0
+				LOCAL:2 = RESULT
+				SIF !LOCAL:2
+					TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+				PLAYER = TARGET
+				TARGET = MASTER
+				SIF !LOCAL:2
+					RETURN 1
+			ELSE
+				TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+				IF !RESULT
+					TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+					RETURN 1
+				ENDIF
+			ENDIF
+		NEXT
+		RSTR:SELECTCOM_S受け渡し = %SELECTCOM_S%
+		TARGET = LOCAL:10
 	ELSE
-		TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
-		SIF !RESULT
-			SETBIT LOCAL:2, 0
-		; IF COMMODE() == 2
-		; 	LOCAL:1 = TARGET
-		; 	TARGET = 助手は誰だ()
-		; 	RESULT = 1
-		; 	TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
-		; 	SIF !RESULT
-		; 		SETBIT LOCAL:2, 1
-		; 	TARGET = LOCAL:1
-		; ENDIF
-		IF LOCAL:2
-			SIF GETBIT(LOCAL:2, 0)
-				TRYCALLFORM CAN_COM_S%SELECTCOM_S%
-			; IF GETBIT(LOCAL:2, 1)
-			; 	LOCAL:1 = TARGET
-			; 	TARGET = 助手は誰だ()
-			; 	TRYCALLFORM CAN_COM_S%SELECTCOM_S%
-			; 	TARGET = LOCAL:1
-			; ENDIF
+		TRYCALLFORM COM_ABLE_S%SELECTCOM_S%
+		SIF RESULT == 0 || RESULT == -1
 			RETURN 1
+		IF TARGET == MASTER
+			TARGET = PLAYER
+			PLAYER = MASTER
+			RFLAG:指示モード対象あなたフラグ = 1
+			TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+			RFLAG:指示モード対象あなたフラグ = 0
+			LOCAL:2 = RESULT
+			SIF !LOCAL:2
+				TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+			PLAYER = TARGET
+			TARGET = MASTER
+			SIF !LOCAL:2
+				RETURN 1
+		ELSE
+			TRYCALLFORM CAN_COM_S%SELECTCOM_S%(1)
+			IF !RESULT
+				TRYCALLFORM CAN_COM_S%SELECTCOM_S%
+				RETURN 1
+			ENDIF
 		ENDIF
 	ENDIF
 ELSEIF RESULT == 9101
 	;通常モード
 	FLAG:モード管理 = 0
 	TFLAG:あなたターゲット用 = 0
+	VARSET 同時モード_選択キャラ, -1
+	同時モード_選択数 = 0
 	RETURN 1
 ELSEIF RESULT == 9102
 	;指示モード
@@ -229,6 +254,8 @@ ELSEIF RESULT == 9102
 		RETURN 1
 	ENDIF
 	FLAG:モード管理 = 1
+	VARSET 同時モード_選択キャラ, -1
+	同時モード_選択数 = 0
 	SIF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
 		TFLAG:あなたターゲット用 = 1
 	PLAYER = TARGET
@@ -237,7 +264,9 @@ ELSEIF RESULT == 9103
 	;同時モード
 	SIF !CFLAG:うふふ
 		RETURN 1
-	FLAG:モード管理 = 9103
+	CALL 同時モード設定()
+	SIF RESULT
+		FLAG:モード管理 = 2
 	RETURN 1
 ELSEIF RESULT == 9100
 ;9100でINFO格納フィルタ
@@ -250,6 +279,11 @@ ELSEIF RESULT >=9000
 ELSEIF RESULT == 2000
 	IF FLAG:モード管理 == 1
 		;指示モード時のみ、あなたをターゲットに出来る
+		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 0)
+			FLAG:モード管理 = 1
+			VARSET 同時モード_選択キャラ, -1
+			同時モード_選択数 = 0
+		ENDIF
 		TFLAG:あなたターゲット用 = 1
 	ENDIF
 	RETURN 1
@@ -266,6 +300,11 @@ ELSEIF RESULT > 2000
 	IF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
 		RETURN 1
 	ELSEIF CFLAG:数値変換用:同室
+		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 数値変換用)
+			FLAG:モード管理 = 0
+			VARSET 同時モード_選択キャラ, -1
+			同時モード_選択数 = 0
+		ENDIF
 		TFLAG:TARGET変更用 = 数値変換用
 		TFLAG:あなたターゲット用 = 0
 		PREVCOM = RESULT
@@ -281,52 +320,70 @@ ELSEIF RESULT >= 0 && RESULT <= 700
 		RETURN RESULT
 	ENDIF
 	SELECTCOM = RESULT
-	;助手モードならPLAYERを一旦助手に変更
-	LOCAL:10 = PLAYER
-	; SIF COMMODE() == 3
-	; 	PLAYER = 助手は誰だ()
-	TRYCALLFORM COM_ABLE{SELECTCOM}
-	PLAYER = LOCAL:10
-	SIF RESULT == 0
-		RETURN 1
 	SIF TRAIN_COMNAME(SELECTCOM) == ""
 		RETURN 1
-	TFLAG:SELECTCOM受け渡し = SELECTCOM
-	RESULT = 1
-	LOCAL:2 = 0
-	IF TARGET == MASTER
-		TARGET = PLAYER
-		PLAYER = MASTER
-		RFLAG:指示モード対象あなたフラグ = 1
-		TRYCALLFORM CAN_COM{SELECTCOM}(1)
-		RFLAG:指示モード対象あなたフラグ = 0
-		SIF !RESULT
-			TRYCALLFORM CAN_COM{SELECTCOM}
-		PLAYER = TARGET
-		TARGET = MASTER
+	IF FLAG:モード管理 == 2
+		LOCAL:10 = TARGET
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 0
+				BREAK
+			RESULT = 0
+			TARGET = 同時モード_選択キャラ:LOCAL
+			TRYCALLFORM COM_ABLE{SELECTCOM}
+			IF RESULT == 0
+				TARGET = LOCAL:10
+				RETURN 1
+			ENDIF
+			RESULT = 1
+			IF TARGET == MASTER
+				TARGET = PLAYER
+				PLAYER = MASTER
+				RFLAG:指示モード対象あなたフラグ = 1
+				TRYCALLFORM CAN_COM{SELECTCOM}(1)
+				RFLAG:指示モード対象あなたフラグ = 0
+				LOCAL:2 = RESULT
+				SIF !LOCAL:2
+					TRYCALLFORM CAN_COM{SELECTCOM}
+				PLAYER = TARGET
+				TARGET = MASTER
+				SIF !LOCAL:2
+					RETURN 1
+			ELSE
+				TRYCALLFORM CAN_COM{SELECTCOM}(1)
+				IF !RESULT
+					TRYCALLFORM CAN_COM{SELECTCOM}
+					RETURN 1
+				ENDIF
+			ENDIF
+		NEXT
+		TFLAG:SELECTCOM受け渡し = SELECTCOM
+		TARGET = LOCAL:10
 	ELSE
-		TRYCALLFORM CAN_COM{SELECTCOM}(1)
-		SIF !RESULT
-			SETBIT LOCAL:2, 0
-		; IF COMMODE() == 2
-		; 	LOCAL:1 = TARGET
-		; 	TARGET = 助手は誰だ()
-		; 	RESULT = 1
-		; 	TRYCALLFORM CAN_COM{SELECTCOM}(1)
-		; 	SIF !RESULT
-		; 		SETBIT LOCAL:2, 1
-		; 	TARGET = LOCAL:1
-		; ENDIF
-		IF LOCAL:2
-			SIF GETBIT(LOCAL:2, 0)
-				TRYCALLFORM CAN_COM{SELECTCOM}
-			; IF GETBIT(LOCAL:2, 1)
-			; 	LOCAL:1 = TARGET
-			; 	TARGET = 助手は誰だ()
-			; 	TRYCALLFORM CAN_COM{SELECTCOM}
-			; 	TARGET = LOCAL:1
-			; ENDIF
+		RESULT = 0
+		TRYCALLFORM COM_ABLE{SELECTCOM}
+		SIF RESULT == 0
 			RETURN 1
+		TFLAG:SELECTCOM受け渡し = SELECTCOM
+		RESULT = 1
+		IF TARGET == MASTER
+			TARGET = PLAYER
+			PLAYER = MASTER
+			RFLAG:指示モード対象あなたフラグ = 1
+			TRYCALLFORM CAN_COM{SELECTCOM}(1)
+			RFLAG:指示モード対象あなたフラグ = 0
+			LOCAL:2 = RESULT
+			SIF !LOCAL:2
+				TRYCALLFORM CAN_COM{SELECTCOM}
+			PLAYER = TARGET
+			TARGET = MASTER
+			SIF !LOCAL:2
+				RETURN 1
+		ELSE
+			TRYCALLFORM CAN_COM{SELECTCOM}(1)
+			IF !RESULT
+				TRYCALLFORM CAN_COM{SELECTCOM}
+				RETURN 1
+			ENDIF
 		ENDIF
 	ENDIF
 
@@ -356,7 +413,7 @@ ELSEIF RESULT == 804
 	CALL PRINT_STATE(MASTER)
 	RETURN 1
 ELSEIF RESULT == 809
-	CALL OPTION_COMMAND_FILTER
+	CALL OPTION
 	RETURN 1
 ELSEIF RESULT == 820 && CFLAG:うふふ
 	CALL CLOTHES_SETTING_TRAIN(PLAYER)
@@ -448,6 +505,8 @@ ELSEIF RESULT == 999 && CFLAG:うふふ
 	CFLAG:PLAYER:うふふ = 0
 	;同時モードもリセット
 	FLAG:モード管理 = 0
+	同時モード_選択数 = 0
+	VARSET 同時モード_選択キャラ, -1
 	RETURN 1
 ELSEIF RESULT == 998 && CFLAG:飲み会
 	FOR LOCAL,0,CHARANUM
@@ -585,6 +644,8 @@ PRINTL
 
 @SHOW_COMMAND_実処理(ARGS)
 #DIMS 複合条件保存, 10
+#DIM スキップフラグ
+#DIM 配列番号
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
 TOOLTIP_SETDURATION 100000
@@ -600,33 +661,31 @@ SIF ARGS == "その他"
 	LOCAL:3 = 49
 
 FOR LOCAL,0,700
-	;助手モードはいったんPLAYERを助手にする
-	; IF GETBIT(FLAG:モード管理, 1)
-	; 	LOCAL:10 = PLAYER
-	; 	PLAYER = 助手は誰だ()
-	; ENDIF
-	TRYCCALLFORM COM_ABLE{LOCAL}
-		;助手モードのときに変えたPLAYERを元に戻す
-		; SIF GETBIT(FLAG:モード管理, 1)
-		; 	PLAYER = LOCAL:10
+	SIF EXISTFUNCTION(@"COM_ABLE{LOCAL}") == 0
+		CONTINUE
+	IF FLAG:モード管理 == 2
+		LOCAL:10 = TARGET
+		スキップフラグ = 0
+		FOR 配列番号, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:配列番号 < 0
+				BREAK
+			RESULT = 0
+			TARGET = 同時モード_選択キャラ:配列番号
+			TRYCALLFORM COM_ABLE{LOCAL}
+			IF RESULT == 0
+				スキップフラグ = 1
+				BREAK
+			ENDIF
+		NEXT
+		TARGET = LOCAL:10
+		SIF スキップフラグ
+			CONTINUE
+	ELSE
+		TRYCALLFORM COM_ABLE{LOCAL}
 		SIF RESULT == 0
 			CONTINUE
-	CATCH
-		;CATCHでも元に戻す
-		; SIF GETBIT(FLAG:モード管理, 1)
-		; 	PLAYER = LOCAL:10
-		CONTINUE
-	ENDCATCH
-	;同時モードはいったんTARGETを助手と入替えてもう一度チェック
-	; IF GETBIT(FLAG:モード管理, 0)
-	; 	LOCAL:10 = TARGET
-	; 	TARGET = 助手は誰だ()
-	; 	CALLFORM COM_ABLE{LOCAL}
-	; 	TARGET = LOCAL:10
-	; 	SIF RESULT == 0
-	; 		CONTINUE
-	; ENDIF
-		弱点コマンドカテゴリ = 
+	ENDIF
+	弱点コマンドカテゴリ = 
 	TRYCALLFORMF COMTYPE_{LOCAL}
 	;複合条件処理
 	IF TFLAG:コマンドタイプ受渡 > 99
@@ -697,11 +756,11 @@ FOR LOCAL,0,700
 	IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
 		LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 	ENDIF
-	FOR LOCAL:10, 0, 5
+	FOR LOCAL:10, 0, 50
 		SIF 弱点看破:TARGET:(LOCAL:10) == 0
 			CONTINUE
-		SIF 弱点コマンドカテゴリ == ""
-			CONTINUE
+		; SIF 弱点コマンドカテゴリ == ""
+		; 	CONTINUE
 		IF 弱点コマンド枠:TARGET:(LOCAL:10) == LOCALS:1
 			LOCALS += "<font color='#FF3399'>"
 			LOCAL:4 = 1
@@ -813,11 +872,11 @@ FOR LOCAL, 0, 500
 		IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
 			LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 		ENDIF
-		FOR LOCAL:10, 0, 5
+		FOR LOCAL:10, 0, 50
 			SIF 弱点看破:TARGET:(LOCAL:10) == 0
 				CONTINUE
-			SIF 弱点コマンドカテゴリ == ""
-				CONTINUE
+			; SIF 弱点コマンドカテゴリ == ""
+			; 	CONTINUE
 			IF 弱点コマンド枠:TARGET:(LOCAL:10) == @"%LOCALS:1%"
 				LOCALS += "<font color='#FF3399'>"
 				LOCAL:4 = 1

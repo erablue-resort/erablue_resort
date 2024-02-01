@@ -7,11 +7,14 @@
 #DIM ランダム格納
 #DIM PREAUTO候補者数
 #DIM AUTO候補者数
+#DIM REVERSEAUTO候補者数
 #DIM ALLAUTOCOM番号
+#DIM COM番号
 
 VARSET AUTOCOM_候補情報
 PREAUTO候補者数 = 0
 AUTO候補者数 = 0
+REVERSEAUTO候補者数 = 0
 
 ;次ターンがキャラの自動行動かどうかの判定処理
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
@@ -53,10 +56,10 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	LOCAL:1 = 0
 	;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
 	;PRE_AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
-	FOR LOCAL, 1, 100
-		TRYCCALLFORM PRE_AUTOCOM_ABLE{LOCAL}(TARGET:同室者番号)
+	FOR COM番号, 1, 100
+		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
 			IF RESULT
-				行動候補:(LOCAL:1) = LOCAL
+				行動候補:(LOCAL:1) = COM番号
 				LOCAL:1 += 1
 			ENDIF
 		CATCH
@@ -65,10 +68,11 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	;登録したCOM番号からランダムで選出
 	IF 行動候補:0
-		IF AUTO候補者数
+		IF AUTO候補者数 || REVERSEAUTO候補者数
 			;最優先コマンドが優先のため通常AUTOCOMは削除
 			VARSET AUTOCOM_候補情報
 			AUTO候補者数 = 0
+			REVERSEAUTO候補者数 = 0
 		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
 		AUTOCOM_候補情報:PREAUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
@@ -86,10 +90,10 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	LOCAL:1 = 0
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;PALAM_AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
-	FOR LOCAL, 1, 100
-		TRYCCALLFORM AUTOCOM_ABLE{LOCAL}(TARGET:同室者番号)
+	FOR COM番号, 1, 100
+		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
 			IF RESULT
-				行動候補:(LOCAL:1) = LOCAL + 1000
+				行動候補:(LOCAL:1) = COM番号 + 1000
 				LOCAL:1 += 1
 			ENDIF
 		CATCH
@@ -98,9 +102,46 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	;登録したCOM番号からランダムで選出
 	IF 行動候補:0
+		IF REVERSEAUTO候補者数
+			;通常オートコマンドが優先のため逆COMは削除
+			VARSET AUTOCOM_候補情報
+			REVERSEAUTO候補者数 = 0
+		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
 		AUTOCOM_候補情報:AUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
 		AUTO候補者数 += 1
+	ENDIF
+	
+
+	;通常のオートコマンドを優先して発動
+	SIF AUTO候補者数 > 0
+		CONTINUE
+
+	LOCAL:1 = 0
+	LOCAL = TARGET
+	TARGET = PLAYER
+	PLAYER = TARGET:同室者番号
+	;反応コマンドの有無（通常優先度の反応コマンド）
+	;許可されたCOMを全部見て行って条件とマッチしたCOM番号+3000を登録しておく
+	FOR COM番号, 0, 700
+		オートコマンド許可 = 0
+		TRYCALLFORMF COMTYPE_{COM番号}
+		IF オートコマンド許可
+			TRYCALLFORM COM_ABLE{COM番号}
+			IF RESULT
+				行動候補:(LOCAL:1) = COM番号 + 3000
+				LOCAL:1 += 1
+			ENDIF
+		ENDIF
+	NEXT
+	PLAYER = TARGET
+	TARGET = LOCAL
+
+	;登録したCOM番号からランダムで選出
+	IF 行動候補:0
+		ランダム格納 = RAND:(LOCAL:1)
+		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		REVERSEAUTO候補者数 += 1
 	ENDIF
 NEXT
 
@@ -112,6 +153,11 @@ IF PREAUTO候補者数 > 0
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
 ELSEIF AUTO候補者数 > 0
 	ランダム格納 = RAND:AUTO候補者数
+	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
+	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
+ELSEIF REVERSEAUTO候補者数 > 0
+	ランダム格納 = RAND:REVERSEAUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
 	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)

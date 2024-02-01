@@ -15,6 +15,14 @@ NEXT
 ;@COMの呼び出し
 ;-------------------------------------------------
 IF RFLAG:サイドボタン操作
+ELSEIF TFLAG:オートコマンドフラグ >= 3000
+	LOCAL = TARGET
+	TARGET = PLAYER
+	PLAYER = AUTOCOM_相手番号保存
+	SELECTCOM = TFLAG:オートコマンドフラグ - 3000
+	CALL CALL_COM(TARGET)
+	PLAYER = TARGET
+	TARGET = LOCAL
 ELSEIF TFLAG:オートコマンドフラグ > 2000
 	TRYCALLFORM ALLAUTOCOM{TFLAG:オートコマンドフラグ - 2000}
 ELSEIF TFLAG:オートコマンドフラグ > 1000
@@ -25,28 +33,28 @@ ELSEIF TFLAG:オートコマンドフラグ == -1
 	CALL 自室キャラ訪問処理
 ELSE
 	;複数モード時か否か
-	; IF FLAG:モード管理 % 8
-	; 	;同時モード時は通常処理に加えてTARGETを切り替えてもう一度。
-	; 	;将来的にはCAN_COMが両方通らないならば処理を行わないようにしたい。
-	; 	IF GETBIT(FLAG:モード管理, 0)
-	; 		CALL CALL_COM(TARGET)
-	; 		LOCAL = TARGET
-	; 		TARGET = 助手は誰だ()
-	; 		CALL CALL_COM(TARGET)
-	; 		TARGET = LOCAL
-	; 	;助手モード時はPLAYERを助手に切り替えて処理する
-	; 	ELSEIF GETBIT(FLAG:モード管理, 1)
-	; 		LOCAL = PLAYER
-	; 		PLAYER = 助手は誰だ()
-	; 		CALL CALL_COM(TARGET)
-	; 		PLAYER = LOCAL
-	; 	ENDIF
-	; ELSE
+	IF FLAG:モード管理 == 2
+		LOCAL:10 = TARGET
+		;同時モード時は全員分回す
+		VARSET 体位モード例外配列
+		FOR LOCAL, 0, 同時モード_選択数
+			SIF 同時モード_選択キャラ:LOCAL < 0
+				BREAK
+			TARGET = 同時モード_選択キャラ:LOCAL
+			CALL CALL_COM(TARGET)
+			IF RESULT == -1
+				RETURN -1
+			ENDIF
+		NEXT
+		VARSET 体位モード例外配列
+		TARGET = LOCAL:10
+	ELSE
 		CALL CALL_COM(TARGET)
-	;ENDIF
+	ENDIF
 ENDIF
-SIF RESULT == -1
+IF RESULT == -1
 	RETURN -1
+ENDIF
 SIF !RESULT
 	GOTO SKIP
 ;-------------------------------------------------
@@ -269,12 +277,14 @@ PRINTL
 ;パラメータ変動とそれによる口上
 ;-------------------------------------------------
 ;CALL KOJO_MESSAGE_PALAMCNG_D
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	CALL 技巧上昇判定(LOCAL)
 	SIF RESULT
 		TRYCALLFORM KOJO_SKILLUP_技巧_{NO:LOCAL}
+	SIF LOCAL == MASTER
+		CONTINUE
 	CALL 性知識上昇判定(LOCAL)
 	SIF RESULT
 		TRYCALLFORM KOJO_SKILLUP_性知識_{NO:LOCAL}
@@ -329,8 +339,6 @@ FOR LOCAL:1, 0, CHARANUM
 		SKIPDISP 1
 	LOCAL:3 = 0
 	FOR LOCAL,0,100
-		SIF LOCAL:1 == MASTER && LOCAL > 4
-			BREAK
 		;コマンド入力前のCUPを追加
 		CUP:(LOCAL:1):LOCAL += TCVAR:(LOCAL:1):(600 + LOCAL)
 		SIF PALAMNAME:LOCAL == ""
