@@ -18,7 +18,7 @@
 #DIM EXP一時保存, 100
 #DIM EXP数値保存, 100
 #DIMS CONST 好物一覧 = "食べ物","酒","宝石","アクセサリ","実用品","本","花","その他"
-#DIM 好物一時保存
+#DIMS 好物一時保存
 #DIM 同行者一時保存, 100
 #DIM 同行確率一時保存, 100
 #DIMS CONST 同行確率一覧 = "-25","-5","+5","+25"
@@ -59,7 +59,7 @@ VARSET ランダムキャラ戦闘タイプ:0
 VARSET LOCAL
 ランダムキャラ素質:0 = 1
 ランダムキャラ素質:1 = 1
-好物一時保存 = RAND(VARSIZE("好物一覧"))
+好物一時保存 '= 好物一覧:RAND(VARSIZE("好物一覧"))
 服装数値保存:30 = !RAND:3 + !RAND:3 + !RAND:3
 ;ビキニ　8/27 ワンピース 12/27 ボーイレッグ 6/27 プランジングネック 1/27
 
@@ -387,7 +387,7 @@ SELECTCASE 表示モード
 			ENDIF
 		ENDIF
 		LOCALS += "<br>"
-		LOCALS += @"　プレゼントの好み：%好物一覧:好物一時保存%"
+		LOCALS += @"　プレゼントの好み：%好物一時保存%"
 		LOCALS += "<br>"
 		LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
 		LOCALS:1 = 
@@ -1399,16 +1399,39 @@ SELECTCASE LOCAL
 		INPUTS
 		ランダムキャラ出演作品 = %SUBSTRING(RESULTS, 0, 24)%
 	CASE 103
+		LOCAL:2 = 0
+		LOCAL:3 = LINECOUNT
+		$SUBINPUT_LOOP
 		PRINTL プレゼントの好みを設定してください。
 		FOR LOCAL:1, 0, VARSIZE("好物一覧")
+			IF STRFIND(好物一時保存, 好物一覧:(LOCAL:1)) >= 0 || GETBIT(LOCAL:2, LOCAL:1)
+				SETBIT LOCAL:2, LOCAL:1
+			ELSE
+				SETCOLOR 0x666666
+			ENDIF
 			PRINTFORM [{LOCAL:1}] %好物一覧:(LOCAL:1), 10, LEFT%　
-			SIF (LOCAL:1 + 1) % 5 == 0
+			RESETCOLOR
+			SIF (LOCAL:1 + 1) % 8 == 0
 				PRINTL 
 		NEXT
-		SIF LOCAL:1 + 1 % 5
+		SIF LOCAL:1 + 1 % 8
 			PRINTL
+		PRINTL [99] 戻る
+		好物一時保存 '= ""
 		BINPUT
-		好物一時保存 = RESULT
+		IF RESULT == 99
+			FOR LOCAL:1, 0, VARSIZE("好物一覧")
+				SIF GETBIT(LOCAL:2, LOCAL:1)
+					好物一時保存 += 好物一覧:(LOCAL:1) + "_"
+			NEXT
+			SIF 好物一時保存 == ""
+				好物一時保存 '= 好物一覧:(RAND:(VARSIZE("好物一覧")))
+			GOTO 従業員_LOOP
+		ELSE
+			INVERTBIT LOCAL:2, RESULT
+			CLEARLINE LINECOUNT - LOCAL:3
+			GOTO SUBINPUT_LOOP
+		ENDIF
 	CASE 110
 		表示モード = 110
 	CASE 120
@@ -1481,7 +1504,8 @@ SELECTCASE LOCAL
 			ENDIF
 			PRINTL 
 			PRINTFORML 基礎,身長,{身長保存}
-			PRINTFORML 基礎,バスト,{バスト保存}
+			SIF バスト数値設定フラグ
+				PRINTFORML 基礎,バスト,{バスト保存}
 			PRINTL 
 			PRINTL {
 			PRINTL CSTR,知識素質設定,
@@ -1554,7 +1578,7 @@ SELECTCASE LOCAL
 			PRINTL ;食べ物,酒,宝石,アクセサリ,実用品,本,花,その他
 			PRINTL ;複数好みにする場合は「食べ物_酒」のように記述すること
 			PRINTL ;-------------------------------------------------------------------------------------------
-			PRINTFORML CSTR,プレゼント好み,%好物一覧:好物一時保存%
+			PRINTFORML CSTR,プレゼント好み,%好物一時保存%
 			PRINTL 
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;同行キャラ設定
@@ -1719,6 +1743,11 @@ SELECTCASE LOCAL
 		ページ数 = 0
 		表示モード = 3
 	CASE 999
+		IF CSVエディタフラグ
+			CALL CHOICE("CSVエディタを終了しますか？（セーブは自動では行われません）", "はい", "いいえ")
+			SIF RESULT
+				GOTO 従業員_LOOP
+		ENDIF
 		RETURN 0
 ENDSELECT
 
