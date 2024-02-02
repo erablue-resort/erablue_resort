@@ -1,20 +1,23 @@
 ﻿@BEFORE_AUTOCOM
-#DIM 行動候補, 100
+#DIM 行動候補, 500
+#DIMS 行動候補文字列, 500
 #DIM 同室者番号
 #DIM キャラ番号
 #DIMS AUTOCOM_候補情報, 100
-#DIMS 候補者_AUTO番号_文字列分割, 2
+#DIMS 候補者_AUTO番号_文字列分割, 3
 #DIM ランダム格納
 #DIM PREAUTO候補者数
 #DIM AUTO候補者数
 #DIM REVERSEAUTO候補者数
 #DIM ALLAUTOCOM番号
 #DIM COM番号
+#DIM 派生番号
 
 VARSET AUTOCOM_候補情報
 PREAUTO候補者数 = 0
 AUTO候補者数 = 0
 REVERSEAUTO候補者数 = 0
+AUTOCOM_派生保存 = 
 
 ;次ターンがキャラの自動行動かどうかの判定処理
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
@@ -47,11 +50,12 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;相手が緊縛されてる場合は次へ
 	SIF MODE_確認_ターゲット側("触手緊縛", TARGET:同室者番号) > -1
 		CONTINUE
-	;相手が絶頂してる時は動かない
-	SIF NOWEX:(TARGET:同室者番号):多重絶頂
+	;相手が強い絶頂してる時は動かない
+	SIF NOWEX:(TARGET:同室者番号):多重絶頂 > 1
 		CONTINUE
 
 	VARSET 行動候補
+	VARSET 行動候補文字列
 
 	LOCAL:1 = 0
 	;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
@@ -89,7 +93,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	LOCAL:1 = 0
 	;反応コマンドの有無（通常優先度の反応コマンド）
-	;PALAM_AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
+	;AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
 	FOR COM番号, 1, 100
 		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
 			IF RESULT
@@ -123,13 +127,29 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	PLAYER = TARGET:同室者番号
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;許可されたCOMを全部見て行って条件とマッチしたCOM番号+3000を登録しておく
+	FOR COM番号, 0, 500
+		SIF COM番号 >= 370 && COM番号 <= 390
+			CONTINUE
+		FOR 派生番号, 1, 50
+			オートコマンド許可 = 0
+			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
+			IF オートコマンド許可
+				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
+				IF RESULT
+					行動候補文字列:(LOCAL:1) = {COM番号 + 3000}_{派生番号}
+					LOCAL:1 += 1
+				ENDIF
+			ENDIF
+		NEXT
+	NEXT
+
 	FOR COM番号, 0, 700
 		オートコマンド許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
 		IF オートコマンド許可
 			TRYCALLFORM COM_ABLE{COM番号}
 			IF RESULT
-				行動候補:(LOCAL:1) = COM番号 + 3000
+				行動候補文字列:(LOCAL:1) = {COM番号 + 3000}
 				LOCAL:1 += 1
 			ENDIF
 		ENDIF
@@ -138,14 +158,15 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	TARGET = LOCAL
 
 	;登録したCOM番号からランダムで選出
-	IF 行動候補:0
+	IF LOCAL:1 > 0
 		ランダム格納 = RAND:(LOCAL:1)
-		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_%行動候補文字列:ランダム格納%
 		REVERSEAUTO候補者数 += 1
 	ENDIF
 NEXT
 
 ;同室者全員分見終わったら同一優先度からRAND
+候補者_AUTO番号_文字列分割 = 
 IF PREAUTO候補者数 > 0
 	ランダム格納 = RAND:PREAUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
@@ -159,6 +180,9 @@ ELSEIF AUTO候補者数 > 0
 ELSEIF REVERSEAUTO候補者数 > 0
 	ランダム格納 = RAND:REVERSEAUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
+	IF 候補者_AUTO番号_文字列分割:2 != ""
+		AUTOCOM_派生保存 = %候補者_AUTO番号_文字列分割:2%
+	ENDIF
 	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
 ENDIF
