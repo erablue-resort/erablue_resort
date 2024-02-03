@@ -404,9 +404,6 @@ CFLAG:ARG:酔いすぎ = 0
 SIF 発情期判定(ARG)
 	CFLAG:ARG:発情期フラグ = RAND:9 + 1
 
-;引き継ぎバグ対応のため関係性はリセットしてあるので、全員セットし直す
-CALL SET_RELATION(ARG)
-
 IF 引き継ぎキャラフラグ == 0
 	VARSET LOCALS
 	;招待時同行キャラ
@@ -488,10 +485,46 @@ IF 引き継ぎキャラフラグ == 0
 	ELSEIF !BASE:ARG:身長 || (!BASE:ARG:バスト && TALENT:ARG:性別 != 2)
 		CALL INIT_BODYSIZE(ARG)
 	ENDIF
+ELSE
+	SIF !BASE:ARG:身長
+		CALL INIT_BODYSIZE(ARG)
 
-ELSEIF !BASE:ARG:身長
-	CALL INIT_BODYSIZE(ARG)
+	;同行キャラをCSVを見て入れ直す
+	VARSET LOCAL
+	VARSET LOCALS
+	;まず引き継ぎキャラ同士の同行記録を見る
+	IF CSTR:ARG:引き継ぎ用同行キャラ確率保存 != ""
+		SPLIT CSTR:ARG:引き継ぎ用同行キャラ確率保存, "_", LOCALS
+		FOR LOCAL, 0, 20
+			SIF LOCALS:LOCAL == ""
+				BREAK
+			同行候補キャラ番号:ARG:(LOCAL:1) = FINDCHARA(NAME, LOCALS:LOCAL)
+			同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(LOCALS:(LOCAL + 1))
+			LOCAL:1 += 1
+			LOCAL += 1
+		NEXT
+	ENDIF
+	;招待時同行キャラをCSVから見直す
+	VARSET LOCALS
+	CSTR:ARG:同行キャラ = %CSVCSTR(NO:ARG, GETNUM(CSTR, "同行キャラ"))%
+	REPLACE CSTR:ARG:同行キャラ, " ", ""
+	SPLIT RESULTS, "%", LOCALS
+	FOR LOCAL, 0, 100
+		SIF LOCALS:LOCAL == ""
+			BREAK
+		SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+		SIF FINDELEMENT(同行候補キャラ番号:ARG:0, FINDCHARA(NAME, CSTR切り分け文字列格納:0)) > -1
+			CONTINUE
+		;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+		同行候補キャラ番号:ARG:(LOCAL:1) = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+		同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
+		LOCAL:1 += 1
+	NEXT
+
 ENDIF
+
+;引き継ぎバグ対応のため関係性はリセットしてあるので、全員セットし直す
+CALL SET_RELATION(ARG)
 
 ;性癖の設定
 IF TALENT:ARG:性別嗜好 == -1

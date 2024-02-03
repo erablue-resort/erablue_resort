@@ -1,5 +1,6 @@
 ﻿@周回引き継ぎ処理
 #DIM 引き継ぎ枠
+#DIM 同行枠
 
 DRAWLINE
 PRINTL 一部のデータを引き継ぎ、新しいゲームを開始します。
@@ -158,7 +159,7 @@ PRINTL
 
 BINPUT
 IF RESULT == 1000
-	RETURN -1
+	RETURN 0
 ELSEIF RESULT == 900
 	現在ページ = MAX(現在ページ - 1, 0)
 	GOTO 表示処理_LOOP
@@ -172,6 +173,7 @@ ENDIF
 
 @周回実処理
 #DIM 弱点配列
+#DIM 同行枠
 ; ・引き継ぐデータ
 ; あなた特殊能力・ランダムキャラの存在（従業員ではなくなります）
 ; 各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
@@ -223,9 +225,21 @@ SAVECHARA "あなた", "あなた", 0
 FOR LOCAL, 0, 10
 	IF 引き継ぎキャラ番号:LOCAL > 0
 		;関係性は一旦リセットする
-		;本来は引き継ぐべきだが、応急処置でバグを直すために消す処理を入れ込む
+		;ただし、引き継ぐキャラ同士は維持する
+		
+		CSTR:(引き継ぎキャラ番号:LOCAL):引き継ぎ用同行キャラ確率保存 = 
+		FOR 同行枠, 0, 100
+			SIF 同行候補キャラ番号:(引き継ぎキャラ番号:LOCAL):同行枠 == 0
+				CONTINUE
+			IF FINDELEMENT(引き継ぎキャラ番号, 同行候補キャラ番号:(引き継ぎキャラ番号:LOCAL):同行枠) > -1
+				CSTR:(引き継ぎキャラ番号:LOCAL):引き継ぎ用同行キャラ確率保存 += @"%NAME:(同行候補キャラ番号:(引き継ぎキャラ番号:LOCAL):同行枠)%_{同行候補キャラ確率:(引き継ぎキャラ番号:LOCAL):同行枠}_"
+			ENDIF
+		NEXT
+
 		VARSET RELATION_NO:(引き継ぎキャラ番号:LOCAL):0
 		VARSET RELATION_VAL:(引き継ぎキャラ番号:LOCAL):0
+		VARSET 同行候補キャラ番号:(引き継ぎキャラ番号:LOCAL):0
+		VARSET 同行候補キャラ確率:(引き継ぎキャラ番号:LOCAL):0
 		;SAVECHARAメモにキャラのNOを入れておく
 		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
 	ENDIF
