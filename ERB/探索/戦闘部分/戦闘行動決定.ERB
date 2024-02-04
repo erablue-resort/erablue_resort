@@ -98,6 +98,7 @@ ENDIF
 
 CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔", @"%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%",,0,1)
 
+クイック行動フラグ_TARGET = 0
 BINPUTS
 IF STRCOUNT(RESULTS, "サイド領域") > 0
 	CALL サイド領域_実行処理_戦闘中
@@ -112,6 +113,15 @@ SELECTCASE 戦闘行動内容
 		IF 戦闘行動内容 < 10
 			PRINTFORML ■%CALLNAME:(BATTLE_STATE:戦闘行動内容:キャラ番号)%
 		ELSE
+			;クイック行動状態だと行動内容を切り替えてreturn
+			IF クイック行動フラグ
+				クイック行動フラグ_TARGET = 戦闘行動内容
+				戦闘行動内容 = 100
+				エネミー画像ボタン化フラグ = 0
+				キャラ画像ボタン化フラグ = 0
+				上メニュー操作許可フラグ = 0
+				RETURN 0
+			ENDIF
 			PRINTFORML ■%敵BATTLE_STATE_STR:(戦闘行動内容 - 10):エネミー名%
 		ENDIF
 		PRINTL ＜バフ＞
@@ -279,6 +289,10 @@ SELECTCASE 戦闘行動内容
 		INVERTBIT 奥義使用確認スキップフラグ, 0
 		CALL 画面再描画
 		RESTART
+	CASE 1004
+		INVERTBIT クイック行動フラグ, 0
+		CALL 画面再描画
+		RESTART
 	CASE 100 TO 101
 		;通常攻撃or奥義
 		エネミー画像ボタン化フラグ = 0
@@ -316,8 +330,13 @@ SELECTCASE 戦闘行動内容
 		口上用技名保存 = 通常攻撃
 		TRYCCALLFORM 固有通常攻撃_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}
 		CATCH
-			アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
-			CALL アビ対象選択テンプレート_敵単体
+			IF クイック行動フラグ_TARGET >= 10
+				VARSET アビテンプレート用_対象保存, -1
+				アビテンプレート用_対象保存:0 = クイック行動フラグ_TARGET
+			ELSE
+				アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+				CALL アビ対象選択テンプレート_敵単体
+			ENDIF
 			アビテンプレート用_アビ名 = 攻撃
 			アビ汎用変数:効果割合 = 100
 			CALL アビテンプレート_通常攻撃処理

@@ -40,17 +40,15 @@ RESULT = 0
 ;SELECTCOM
 
 ;口上ありでも汎用喘ぎを使うならここで表示
-IF TFLAG:オートコマンドフラグ > 0
-	対象キャラ = AUTOCOM_相手番号保存
-ELSE
+IF TFLAG:オートコマンドフラグ == 0
 	対象キャラ = TARGET
-ENDIF
-IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
-	CALL 汎用喘ぎ処理(対象キャラ)
-ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
-	;禁止時はなにもしない
-ELSEIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
-	CALL 汎用喘ぎ処理(対象キャラ)
+	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+		CALL 汎用喘ぎ処理(対象キャラ)
+	ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+		;禁止時はなにもしない
+	ELSEIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+		CALL 汎用喘ぎ処理(対象キャラ)
+	ENDIF
 ENDIF
 
 RESULT = 0
@@ -59,8 +57,12 @@ ELSEIF TFLAG:オートコマンドフラグ >= 3000
 	LOCAL = TARGET
 	TARGET = PLAYER
 	PLAYER = AUTOCOM_相手番号保存
-	TRYCALLFORM KOJO_COM_{NO:TARGET}_{TFLAG:オートコマンドフラグ - 3000}
-	TRYCALLFORMF COMTYPE_{TFLAG:オートコマンドフラグ - 3000}
+	IF AUTOCOM_派生保存 != ""
+		LOCALS = {TFLAG:オートコマンドフラグ - 3000}_%AUTOCOM_派生保存%
+	ELSE
+		LOCALS = {TFLAG:オートコマンドフラグ - 3000}
+	ENDIF
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_%LOCALS%
 	PLAYER = TARGET
 	TARGET = LOCAL
 ELSEIF TFLAG:オートコマンドフラグ > 2000
@@ -130,7 +132,7 @@ ENDIF
 
 
 
-IF K < 1 && LOCAL:1 == 1
+IF K < 1 && LOCAL:1 == 1 && TFLAG:オートコマンドフラグ == 0
 	;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
 	;口上なしで汎用喘ぎを使うならここで表示
 	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1

@@ -1,97 +1,97 @@
-﻿;------------------------------------------------------------------------------
-;キス時、相手からディープキスに派生する
-;------------------------------------------------------------------------------
-@AUTOCOM10
-;-------------------------------------------------
-;モードの設定
-;-------------------------------------------------
-LOCAL = TARGET
-TARGET = AUTOCOM_相手番号保存
-CALL MODE_CHANGE("ディープキス", AUTOCOM_相手番号保存, PLAYER)
-TARGET = LOCAL
-;-------------------------------------------------
-;COM別FLAGの設定
-;-------------------------------------------------
-;奉仕コマンドフラグ
-RCVAR:AUTOCOM_相手番号保存:奉仕コマンドフラグ = 1
-;-------------------------------------------------
-;ソース追加処理
-;-------------------------------------------------
+﻿; ;------------------------------------------------------------------------------
+; ;キス時、相手からディープキスに派生する
+; ;------------------------------------------------------------------------------
+; @AUTOCOM10
+; ;-------------------------------------------------
+; ;モードの設定
+; ;-------------------------------------------------
+; LOCAL = TARGET
+; TARGET = AUTOCOM_相手番号保存
+; CALL MODE_CHANGE("ディープキス", AUTOCOM_相手番号保存, PLAYER)
+; TARGET = LOCAL
+; ;-------------------------------------------------
+; ;COM別FLAGの設定
+; ;-------------------------------------------------
+; ;奉仕コマンドフラグ
+; RCVAR:AUTOCOM_相手番号保存:奉仕コマンドフラグ = 1
+; ;-------------------------------------------------
+; ;ソース追加処理
+; ;-------------------------------------------------
 
-CALL SOURCE_CALC_露出_反感無し(AUTOCOM_相手番号保存, PLAYER, 50)
-CALL SOURCE_CALC_接触_不快無し(AUTOCOM_相手番号保存, PLAYER, 250)
-CALL SOURCE_CALC_快Ｓ(AUTOCOM_相手番号保存, PLAYER, 250)
-CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_相手番号保存, 250)
+; CALL SOURCE_CALC_露出_反感無し(AUTOCOM_相手番号保存, PLAYER, 50)
+; CALL SOURCE_CALC_接触_不快無し(AUTOCOM_相手番号保存, PLAYER, 250)
+; CALL SOURCE_CALC_快Ｓ(AUTOCOM_相手番号保存, PLAYER, 250)
+; CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_相手番号保存, 250)
 
-;-------------------------------------------------
-;特殊ソース処理
-;-------------------------------------------------
+; ;-------------------------------------------------
+; ;特殊ソース処理
+; ;-------------------------------------------------
 
-;舌を使う調教では、調教者の舌使いによって、快感のソース増加
-IF TALENT:PLAYER:舌使い
-	CALL SOURCE_CALC_接触_不快無し(AUTOCOM_相手番号保存, PLAYER, 50)
-	CALL SOURCE_CALC_快Ｓ(AUTOCOM_相手番号保存, PLAYER, 150)
-ENDIF
+; ;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+; IF TALENT:PLAYER:舌使い
+; 	CALL SOURCE_CALC_接触_不快無し(AUTOCOM_相手番号保存, PLAYER, 50)
+; 	CALL SOURCE_CALC_快Ｓ(AUTOCOM_相手番号保存, PLAYER, 150)
+; ENDIF
 
-IF TALENT:AUTOCOM_相手番号保存:舌使い
-	CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_相手番号保存, 150)
-ENDIF
+; IF TALENT:AUTOCOM_相手番号保存:舌使い
+; 	CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_相手番号保存, 150)
+; ENDIF
 
-;猫舌では減少
-SIF TALENT:PLAYER:猫舌
-	CALL SOURCE_CALC_苦痛(AUTOCOM_相手番号保存, PLAYER, 20)
-
-
-;-------------------------------------------------
-;経験の処理
-;-------------------------------------------------
-;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(AUTOCOM_相手番号保存,PLAYER)
-	EXP:AUTOCOM_相手番号保存:同性愛経験 += 3
-	EXP:PLAYER:同性愛経験 += 3
-ENDIF
+; ;猫舌では減少
+; SIF TALENT:PLAYER:猫舌
+; 	CALL SOURCE_CALC_苦痛(AUTOCOM_相手番号保存, PLAYER, 20)
 
 
-SIF TALENT:AUTOCOM_相手番号保存:恋慕
-	EXP:AUTOCOM_相手番号保存:愛情経験 += 1
+; ;-------------------------------------------------
+; ;経験の処理
+; ;-------------------------------------------------
+; ;同性愛　レズなら戻り値1ゲイなら戻り値2
+; IF HETEROSEX(AUTOCOM_相手番号保存,PLAYER)
+; 	EXP:AUTOCOM_相手番号保存:同性愛経験 += 3
+; 	EXP:PLAYER:同性愛経験 += 3
+; ENDIF
 
-SIF TALENT:AUTOCOM_相手番号保存:猫舌
-	EXP:AUTOCOM_相手番号保存:嗜虐快楽経験 += 1
 
-EXP:AUTOCOM_相手番号保存:キス経験 ++
-EXP:PLAYER:キス経験 ++
-RETURN 1
+; SIF TALENT:AUTOCOM_相手番号保存:恋慕
+; 	EXP:AUTOCOM_相手番号保存:愛情経験 += 1
 
-@AUTOCOM_ABLE10(キャラ番号)
-#DIM キャラ番号
-;キスモードじゃない時はアウト
-SIF MODE_確認_プレイヤー側("キス", キャラ番号) < 0 && MODE_確認_ターゲット側("キス", キャラ番号) < 0
-	RETURN 0
-;無関心はアウト、真面目、恥じらいは性欲必要
-SIF TALENT:キャラ番号:自制心 > 0 && BASE:キャラ番号:性欲 < 1500
-	RETURN 0
-SIF TALENT:キャラ番号:無関心
-	RETURN 0
-SIF TALENT:キャラ番号:羞恥心 > 0 && BASE:キャラ番号:性欲 < 1500
-	RETURN 0
-;性知識1必要
-SIF 知識素質:キャラ番号:性知識 < 1
-	RETURN 0
-;基礎確率1/4、素質により変動
-LOCAL = MAX(4 - TALENT:キャラ番号:キス嗜好 - TALENT:キャラ番号:恋慕 - TALENT:キャラ番号:性的興味, 1)
-SIF RAND:LOCAL
-	RETURN 0
-;ディープキスのCANCOMがダメならアウト
-LOCAL = TARGET
-TARGET = キャラ番号
-CALL CAN_COM_S20_1(1)
-TARGET = LOCAL
-SIF RESULT == 0
-	RETURN 0
-RETURN 1
+; SIF TALENT:AUTOCOM_相手番号保存:猫舌
+; 	EXP:AUTOCOM_相手番号保存:嗜虐快楽経験 += 1
 
-@MESSAGE_AUTOCOM10
-PRINTFORM %CALLNAME:AUTOCOM_相手番号保存%は舌を入れ、%CALLNAME:PLAYER%の舌と絡めてきた…
+; EXP:AUTOCOM_相手番号保存:キス経験 ++
+; EXP:PLAYER:キス経験 ++
+; RETURN 1
+
+; @AUTOCOM_ABLE10(キャラ番号)
+; #DIM キャラ番号
+; ;キスモードじゃない時はアウト
+; SIF MODE_確認_プレイヤー側("キス", キャラ番号) < 0 && MODE_確認_ターゲット側("キス", キャラ番号) < 0
+; 	RETURN 0
+; ;無関心はアウト、真面目、恥じらいは性欲必要
+; SIF TALENT:キャラ番号:自制心 > 0 && BASE:キャラ番号:性欲 < 1500
+; 	RETURN 0
+; SIF TALENT:キャラ番号:無関心
+; 	RETURN 0
+; SIF TALENT:キャラ番号:羞恥心 > 0 && BASE:キャラ番号:性欲 < 1500
+; 	RETURN 0
+; ;性知識1必要
+; SIF 知識素質:キャラ番号:性知識 < 1
+; 	RETURN 0
+; ;基礎確率1/4、素質により変動
+; LOCAL = MAX(4 - TALENT:キャラ番号:キス嗜好 - TALENT:キャラ番号:恋慕 - TALENT:キャラ番号:性的興味, 1)
+; SIF RAND:LOCAL
+; 	RETURN 0
+; ;ディープキスのCANCOMがダメならアウト
+; LOCAL = TARGET
+; TARGET = キャラ番号
+; CALL CAN_COM_S20_1(1)
+; TARGET = LOCAL
+; SIF RESULT == 0
+; 	RETURN 0
+; RETURN 1
+
+; @MESSAGE_AUTOCOM10
+; PRINTFORM %CALLNAME:AUTOCOM_相手番号保存%は舌を入れ、%CALLNAME:PLAYER%の舌と絡めてきた…
 
 
 
