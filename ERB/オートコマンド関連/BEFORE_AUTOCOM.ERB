@@ -35,6 +35,9 @@ IF !TARGET
 	GOTO 非同室AUTOCOM
 ENDIF
 
+SIF FLAG:オートコマンド切り替えオプション == 3
+	RETURN 0
+
 ;二人同時にオートコマンドの対象になる場合、もう一人を予約する
 ;現状、射精後の精飲or乳間見せつけのみ
 IF GROUPMATCH(TFLAG:オートコマンドフラグ, 1, 2) && !RFLAG:フィニッシュ相手番号 && TFLAG:フィニッシュ相手番号2
@@ -53,6 +56,9 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;相手が強い絶頂してる時は動かない
 	SIF NOWEX:(TARGET:同室者番号):多重絶頂 > 1
 		CONTINUE
+
+	SIF GETBIT(FLAG:オートコマンド切り替えオプション, 0)
+		GOTO オート一般コマンド
 
 	VARSET 行動候補
 	VARSET 行動候補文字列
@@ -115,7 +121,14 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		AUTOCOM_候補情報:AUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
 		AUTO候補者数 += 1
 	ENDIF
-	
+
+	SIF GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+		CONTINUE
+
+	$オート一般コマンド
+	;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
+	SIF TFLAG:オートコマンドフラグ
+		RETURN 0
 
 	;通常のオートコマンドを優先して発動
 	SIF AUTO候補者数 > 0
