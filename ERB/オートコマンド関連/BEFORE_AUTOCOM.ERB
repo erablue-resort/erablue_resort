@@ -35,7 +35,7 @@ IF !TARGET
 	GOTO 非同室AUTOCOM
 ENDIF
 
-SIF FLAG:オートコマンド切り替えオプション == 3
+SIF FLAG:オートコマンド切り替えオプション == 7
 	RETURN 0
 
 ;二人同時にオートコマンドの対象になる場合、もう一人を予約する
@@ -122,9 +122,6 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		AUTO候補者数 += 1
 	ENDIF
 
-	SIF GETBIT(FLAG:オートコマンド切り替えオプション, 1)
-		CONTINUE
-
 	$オート一般コマンド
 	;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
 	SIF TFLAG:オートコマンドフラグ
@@ -147,6 +144,10 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		FOR 派生番号, 1, 50
 			オートコマンド許可 = 0
 			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
+			SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+				CONTINUE
+			SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+				CONTINUE
 			IF オートコマンド許可
 				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
 				IF RESULT
@@ -160,6 +161,10 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	FOR COM番号, 0, 700
 		オートコマンド許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
+		SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+			CONTINUE
+		SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+			CONTINUE
 		IF オートコマンド許可
 			TRYCALLFORM COM_ABLE{COM番号}
 			IF RESULT
