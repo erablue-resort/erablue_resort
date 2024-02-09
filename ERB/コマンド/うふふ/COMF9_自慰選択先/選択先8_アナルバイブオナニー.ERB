@@ -1,0 +1,105 @@
+﻿
+@COMNAME_S9_8
+#FUNCTIONS
+TSTR:コマンド名受渡 = アナルアナルバイブオナニー
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_9_8
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+;自慰系オートコマンドは個別に禁止設定を行うため2を入れる
+オートコマンド許可 = 2
+
+
+@COM_TOOLTIP_S9_8
+LOCALS = <br>■アナルバイブオナニー<br>
+LOCALS += "相手が見ている前でアナルバイブを挿入し自慰を行うコマンド。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：露出・快Ｂ・歓楽(一定条件時)・反感(一定条件時)"
+LOCALS += "<br>固有の取得経験：自慰経験(自慰実行者)、調教自慰経験(自慰実行者)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM_S9_8
+;弱点コマンドをバイブと共通させる
+FOR LOCAL, 0, 50
+	IF 弱点コマンド枠:PLAYER:LOCAL == "45"
+		TCVAR:PLAYER:弱点コマンドフラグ = 1
+		SIF 弱点看破:PLAYER:LOCAL == 0
+			弱点看破:PLAYER:LOCAL = 1
+	ENDIF
+NEXT
+
+;共通処理
+CALL Ａ自慰系共通処理
+;モード遷移
+CALL MODE_CHANGE("アナルバイブ", MASTER, 自慰ターゲット保存)
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S9_8
+
+IF FLAG:オートコマンド判定中フラグ
+	;オート時のみ実行判定を行う
+	CALL 自慰_ABLE_アナルバイブオナニー
+	RETURN RESULT
+ELSE
+	;選択から飛んでくるのでABLEは常に0
+	RETURN 0
+ENDIF
+
+@自慰_ABLE_アナルバイブオナニー
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("9_8")
+	RETURN RESULT
+;鎧があると駄目
+SIF TEQUIP:(自慰ターゲット保存):下腹部後鎧あり
+	RETURN 0
+;服駄目
+SIF TEQUIP:(自慰ターゲット保存):下半身服あり && !TEQUIP:(自慰ターゲット保存):スカートめくり可 && !TEQUIP:(自慰ターゲット保存):ずらし可
+	RETURN 0
+;タイツ駄目
+SIF TEQUIP:(自慰ターゲット保存):下タイツあり && !TEQUIP:(自慰ターゲット保存):下タイツ破れ
+	RETURN 0
+;存在しない場合駄目
+SIF TALENT:(自慰ターゲット保存):Ａ感度 == -2
+	RETURN 0
+;アナル経験
+SIF EXP:(自慰ターゲット保存):Ａ経験 < 30
+	RETURN 0
+;使用中
+SIF TEQUIP:(自慰ターゲット保存):アナル
+	RETURN 0
+;関数実行のため、派生番号を返す
+RETURN 8
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S9_8
+
+PRINTFORM %CALLNAME:(自慰ターゲット保存)%は
+IF TEQUIP:(自慰ターゲット保存):下半身服あり && TEQUIP:(自慰ターゲット保存):ずらし可
+	PRINT 服をズラして
+ELSEIF TEQUIP:(自慰ターゲット保存):下半身下着あり
+    PRINT 下着をズラして
+ENDIF
+PRINTL アナルバイブを肛門に入れ、スイッチを入れた…
+
+
+@MESSAGE_COM_S9_8_非口上時
+SIF (自慰ターゲット保存)== MASTER
+    RETURN 0
+
+IF EXP:(自慰ターゲット保存):調教自慰経験 <= 10
+    PRINTFORML 誰かに見られながらの自慰には慣れていないようで、%CALLNAME:(自慰ターゲット保存)%は顔を赤くして%CALLNAME:MASTER%を睨んでいる…
+ELSEIF EXP:(自慰ターゲット保存):調教自慰経験 <= 50
+    PRINTFORML 少し慣れてきたようだが、まだ%CALLNAME:MASTER%の視線が気になるようだ…
+ELSE
+    PRINTFORML %CALLNAME:(自慰ターゲット保存)%は%CALLNAME:MASTER%に見られながらの自慰に、妙な高揚感を覚えている…
+ENDIF

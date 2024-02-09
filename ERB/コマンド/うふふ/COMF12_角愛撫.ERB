@@ -1,0 +1,82 @@
+﻿;-------------------------------------------------
+;角愛撫
+;愛撫系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME12
+#FUNCTIONS
+TSTR:コマンド名受渡 = 角愛撫
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_12
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中")
+
+@COM_TOOLTIP_12
+LOCALS = <br>■角愛撫<br>
+LOCALS += "相手の角を性的に愛撫するコマンド。"
+LOCALS += "<br>COMタイプ：うふふor被挿入中<br>取得ソース：快Ｓ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：角開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM12
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+RCVAR:角開発フラグ = 2
+
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 60)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE12
+;角愛撫
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(12)
+	RETURN RESULT
+;角がない場合駄目
+SIF TALENT:TARGET:角あり == 0
+	RETURN 0
+;角開発必要
+SIF EXP:TARGET:角開発 < 50
+	RETURN 0
+;指を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM12
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の角をかりかりとひっかくように愛撫した…
+
+@MESSAGE_COM12_非口上時
+
+IF EXP:TARGET:角開発 < 100
+	PRINTFORML %CALLNAME:TARGET%はくすぐったそうに身を捩っている…
+ELSE
+	PRINTFORML %CALLNAME:TARGET%は角からの快楽に顔を緩ませている…
+ENDIF

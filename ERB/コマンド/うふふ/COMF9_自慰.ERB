@@ -4,15 +4,7 @@
 ;-------------------------------------------------
 @COMNAME9
 #FUNCTIONS
-SELECTCASE COMMODE()
-CASE 1
-	TSTR:コマンド名受渡 = 自慰
-CASE 2
-	TSTR:コマンド名受渡 = 同時に自慰させる
-ENDSELECT
-
-;複数モード_ダミーをリセット
-複数モード_ダミー = 0
+TSTR:コマンド名受渡 = 自慰
 
 ;===================================================
 ;コマンドタイプ
@@ -20,254 +12,108 @@ ENDSELECT
 @COMTYPE_9
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
-弱点コマンドカテゴリ = U
-同時モード許可 = 999
 
 @COM_TOOLTIP_9
 LOCALS = <br>■自慰<br>
-LOCALS += "相手にその場で自慰をさせるコマンド。"
-LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ(一定条件時)・快Ｖ(一定条件時)・快Ｂ(一定条件時)・快Ａ(一定条件時)・苦痛(一定条件時)・露出"
-LOCALS += "<br>固有の取得経験：自慰経験(TARGET)・調教自慰経験(TARGET)<br>"
+LOCALS += "相手にその場で自慰をさせるコマンド。<br>自慰モードに移行し、派生コマンドで自慰詳細の指示を出すことが出来る。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：選択肢により異なる"
+LOCALS += "<br>固有の取得経験：自慰経験・調教自慰経験<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM9
-#DIM 快定数
-;-------------------------------------------------
-;COM別FLAGの設定
-;-------------------------------------------------
+#DIMS CONST 選択先順番制御 = "クリオナ"
+#DIM 選択先保存
+#DIM PLAYER保存
+#DIMS PLAYER自慰選択肢, 100
+#DIMS TARGET自慰選択肢, 100
+;身体に触れる
 
-;-------------------------------------------------
-;ソース追加処理
-;-------------------------------------------------
-
-
-;快計算
-快定数 = 80
-
-CALL SOURCE_CALC_露出(TARGET, PLAYER, 400)
-;二穴バイブ
-IF MODE_確認_ターゲット側("バイブ", TARGET) > -1 && MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	RFLAG:コマンド結果受渡し変数 = 13
-	CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
-	CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
-	CALL SOURCE_CALC_露出(TARGET, PLAYER, 80)
-	;苦痛過剰になりそうなので単体より苦痛軽減
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 60 * PAIN_CHECK_V(TARGET) / 1000)
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 80 * PAIN_CHECK_A(TARGET) / 1000)
-;バイブ
-ELSEIF MODE_確認_ターゲット側("バイブ", TARGET) > -1
-	RFLAG:コマンド結果受渡し変数 = 11
-	CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
-	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 80 * PAIN_CHECK_V(TARGET) / 1000)
-;アナルバイブ
-ELSEIF MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	RFLAG:コマンド結果受渡し変数 = 12
-	CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
-	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 100 * PAIN_CHECK_A(TARGET) / 1000)
-; ;シャワー
-; ELSEIF TEQUIP:32
-; 	CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 快定数)
-; 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
-; ;ビデオ
-; ELSEIF TEQUIP:28
-; 	CALL SOURCE_CALC_液体(TARGET, PLAYER, 50)
-; 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 300)
+IF RFLAG:サイドボタン受渡し変数
+	;サイドボタンから来た時は選択処理挟まず直接コマンド実行に飛ぶ
+	選択先保存 = RFLAG:サイドボタン受渡し変数
 ELSE
-	RFLAG:コマンド結果受渡し変数 = RANDOM_PART(TARGET)
-	SELECTCASE RFLAG:コマンド結果受渡し変数
-		CASE 0
-			CALL SOURCE_CALC_快Ｃ(TARGET, TARGET, 快定数)
-		CASE 1
-			CALL SOURCE_CALC_快Ｖ(TARGET, TARGET, 快定数)
-		CASE 2
-			CALL SOURCE_CALC_快Ａ(TARGET, TARGET, 快定数)
-		CASE 3
-			CALL SOURCE_CALC_快Ｂ(TARGET, TARGET, 快定数)
+	DRAWLINE
+	PRINTL どの自慰を行いますか？
+	DRAWLINE
+	PRINTFORML ■%CALLNAME:PLAYER%
+	自慰ターゲット保存 = PLAYER
+	FOR LOCAL, 0, VARSIZE("選択先順番制御")
+		CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
+		IF RESULT
+			PRINTBUTTON @"[{LOCAL}] %選択先順番制御:LOCAL%", LOCAL
+			PRINTL 
+		ENDIF
+	NEXT
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH "自慰_ABLE_"
+	ARRAYCOPY "RESULTS", "PLAYER自慰選択肢"
+	FOR LOCAL, 0, RESULT
+		CALLFORM %PLAYER自慰選択肢:LOCAL%
+		IF RESULT
+			LOCALS = %REPLACE(PLAYER自慰選択肢:LOCAL, "自慰_ABLE_", "")%
+			SIF MATCH(選択先順番制御, LOCALS)
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL + 100}] %LOCALS%", LOCAL + 100
+			PRINTL 
+		ENDIF
+	NEXT
+	PRINTL 
+	PRINTFORML ■%CALLNAME:TARGET%
+	自慰ターゲット保存 = TARGET
+	FOR LOCAL, 0, VARSIZE("選択先順番制御")
+		CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
+		IF RESULT
+			PRINTBUTTON @"[{LOCAL + 200}] %選択先順番制御:LOCAL%", LOCAL + 200
+			PRINTL 
+		ENDIF
+	NEXT
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH "自慰_ABLE_"
+	ARRAYCOPY "RESULTS", "TARGET自慰選択肢"
+	FOR LOCAL, 0, RESULT
+		CALLFORM %TARGET自慰選択肢:LOCAL%
+		IF RESULT
+			LOCALS = %REPLACE(TARGET自慰選択肢:LOCAL, "自慰_ABLE_", "")%
+			SIF MATCH(選択先順番制御, LOCALS)
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL + 300}] %LOCALS%", LOCAL + 300
+			PRINTL 
+		ENDIF
+	NEXT
+	PRINTL 
+	PRINTBUTTON "[999] 戻る", 999
+	PRINTL 
+	DRAWLINE
+	BINPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 999
+			RETURN -1
+		CASE 0 TO 99
+			自慰ターゲット保存 = PLAYER
+			CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
+			選択先保存 = RESULT
+		CASE 100 TO 199
+			自慰ターゲット保存 = PLAYER
+			CALLFORM %PLAYER自慰選択肢:(LOCAL - 100)%
+			選択先保存 = RESULT
+		CASE 200 TO 299
+			自慰ターゲット保存 = TARGET
+			CALLFORM 自慰_ABLE_%選択先順番制御:(LOCAL - 200)%
+			選択先保存 = RESULT
+		CASE 300 TO 399
+			自慰ターゲット保存 = TARGET
+			CALLFORM %TARGET自慰選択肢:(LOCAL - 300)%
+			選択先保存 = RESULT
 	ENDSELECT
 ENDIF
-;-------------------------------------------------
-;経験の処理
-;-------------------------------------------------
-;ビデオ撮影時は経験にプラス
-IF TEQUIP:ビデオ撮影
-	EXP:自慰経験 += 2
-	EXP:調教自慰経験 += 2
-ELSE
-	EXP:自慰経験 += 1
-	EXP:調教自慰経験 += 1
-ENDIF
-;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 4
-	EXP:PLAYER:同性愛経験 += 4
-ENDIF
-RETURN 1
 
-
-@CAN_COM9(ARG)
-SIF RFLAG:指示モード対象あなたフラグ
-	RETURN 1
-	
-SKIPDISP ARG
-SIF TEQUIP:ビデオ撮影
-	PRINT 公開
-SIF TEQUIP:シャワー
-	PRINT シャワー
-IF MODE_確認_ターゲット側("バイブ", TARGET) > -1 && MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	PRINT 二穴バイブ
-ELSEIF MODE_確認_ターゲット側("バイブ", TARGET) > -1
-	PRINT バイブ
-ELSEIF MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	PRINT アナルバイブ
-ENDIF
-
-IF TEQUIP:ビデオ撮影 || TEQUIP:シャワー || MODE_確認_ターゲット側("バイブ", TARGET) > -1 || MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	PRINT オナニー
-ELSE
-	PRINT 自慰
-ENDIF
-PRINTFORML (%CALLNAME:TARGET%)
-;-------------------------------------------------
-;実行できるかの判定
-;-------------------------------------------------
-VARSET A
-;すべての命令に共通の要素を考慮
-
-CALL COM_ORDER
-
-;ABL:欲望
-IF ABL:欲望
-	SIF S
-		PRINT  + 
-	A += ABL:欲望 * 3
-	PRINT 欲望
-	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 3,')
-	S = 1
-ENDIF
-;ABL:露出癖
-IF ABL:露出癖
-	SIF S
-		PRINT  + 
-	A += ABL:露出癖 * 4
-	PRINT 露出癖
-	PRINTV 'LV,ABL:露出癖,'(,ABL:露出癖 * 4,')
-	S = 1
-ENDIF
-;ABL:自慰中毒
-IF ABL:自慰中毒
-	SIF S
-		PRINT  + 
-	A += ABL:自慰中毒 * 3
-	PRINT 自慰中毒
-	PRINTV 'LV,ABL:自慰中毒,'(,ABL:自慰中毒 * 3,')
-	S = 1
-ENDIF
-
-IF MARK:快楽刻印
-	SIF S
-		PRINT  + 
-	A += MARK:快楽刻印 * 3
-	PRINT 快楽刻印
-	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 3,')
-	S = 1
-ENDIF
-
-;自制心
-IF TALENT:自制心
-	PRINT  - 
-	A -= 5
-	PRINT 自制心
-	PRINTV '(,5,')
-	S = 1
-ENDIF
-;恥じらい
-IF TALENT:羞恥心 > 0
-	PRINT  - 
-	A -= 5
-	PRINT 恥じらい
-	PRINTV '(,5,')
-	S = 1
-ENDIF
-;恥薄い
-IF TALENT:羞恥心 < 0
-	SIF S
-		PRINT  + 
-	A += 2
-	PRINT 恥薄い
-	PRINTV '(,2,')
-	S = 1
-ENDIF
-;自慰しやすい
-IF TALENT:自慰しやすい
-	SIF S
-		PRINT  + 
-	A += 5
-	PRINT 自慰しやすい
-	PRINTV '(,5,')
-	S = 1
-ENDIF
-;快感に素直
-IF TALENT:快感応答 > 0
-	SIF S
-		PRINT  + 
-	A += 5
-	PRINT 快感に素直
-	PRINTV '(,5,')
-	S = 1
-ENDIF
-;快感の否定（淫乱、娼婦で無効）
-IF TALENT:快感応答 < 0 && !TALENT:淫乱
-	PRINT  - 
-	A -= 5
-	PRINT 快感の否定
-	PRINTV '(,5,')
-	S = 1
-ENDIF
-
-;媚薬
-IF TEQUIP:媚薬
-	SIF S
-		PRINT  + 
-	A += 8
-	PRINT 媚薬
-	PRINTV '(,8,')
-	S = 1
-ENDIF
-
-;合計を表示(33以上で実行)
-PRINT  = 
-PRINTV A
-
-;難易度上昇
-;公開で+10、バイブで+5、アナルバイブで+5、シャワーで＋3
-V = 33
-SIF TEQUIP:ビデオ撮影
-	V += 10
-SIF TEQUIP:シャワー
-	V += 3
-SIF MODE_確認_ターゲット側("バイブ", TARGET) > -1
-	V += 5
-SIF MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	V += 5
-
-SIF A < V
-	PRINT  < 
-SIF A == V
-	PRINT  = 
-SIF A > V
-	PRINT  > 
-PRINT 実行値
-PRINTV V
-
-WAIT
-SKIPDISP 0
-;実行できない
-SIF A < V
-	RETURN 0
-RETURN 1
-
+;COM実行処理
+;弱点コマンド処理の都合上、CALL_COMを経由させる
+RSTR:SELECTCOM_S受け渡し = 9_{選択先保存}
+SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
+CALL CALL_COM(自慰ターゲット保存)
+RETURN RESULT
 
 ;-------------------------------------------------
 ;実行判定
@@ -280,96 +126,13 @@ SIF !TFLAG:ゲームフェイズ管理
 ;一括管理
 SIF GLOBAL_COMABLE(9)
 	RETURN RESULT
-;性感帯無い場合駄目
-SIF RANDOM_PART(TARGET) == -1
-	RETURN 0
-;鎧があると不可
-SIF TEQUIP:上半身鎧あり
-	RETURN 0
-SIF TEQUIP:下腹部前鎧あり
-	RETURN 0
-;縄使用中は不可
-; SIF TEQUIP:縄
-; 	RETURN 0
 RETURN 1
 
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM9
-#DIM 同時キャラ番号
+CALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%
 
-IF FLAG:モード管理 == 2
-	FOR 同時キャラ番号, 0, 同時モード_選択数
-		SIF 同時キャラ番号 > 0
-			PRINT 、
-		PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
-	NEXT
-	PRINT は自らの手で自らを慰め、快楽を味わっている…
-	RETURN 0
-ENDIF
-
-PRINTFORM %CALLNAME:TARGET%は
-;ビデオ撮影中
-SIF TEQUIP:ビデオ撮影
-	PRINT ビデオカメラの前で
-;露出癖LV3以上
-SIF ABL:露出癖 >= 3
-	PRINT 見せつけるようにして、
-;バイブ＋アナルバイブ
-IF MODE_確認_ターゲット側("バイブ", TARGET) > -1 && MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	PRINT くわえ込んだ２本のバイブを自ら抜き挿ししながら
-;バイブ
-ELSEIF MODE_確認_ターゲット側("バイブ", TARGET) > -1
-	PRINT ヴァギナに入れられたバイブを自ら抜き挿ししながら
-;アナルバイブ
-ELSEIF MODE_確認_ターゲット側("アナルバイブ", TARGET) > -1
-	PRINT 突っ込まれているアナルバイブを自ら抜き挿ししながら
-ELSE
-	SELECTCASE RFLAG:コマンド結果受渡し変数
-		CASE 0
-			IF GETBIT(TALENT:TARGET:性別, 1)
-				IF MODE_確認_ターゲット側("オナホール", TARGET) > -1
-					PRINT オナホールを自ら上下させて
-				ELSE
-					PRINT 自らのペニスを扱きながら
-				ENDIF
-			ELSE
-				IF MODE_確認_ターゲット側("クリキャップ", TARGET) > -1
-					PRINT 着けられた機械を押し付けるようにして
-				ELSE
-					PRINT 自らのクリトリスを弄くり回しながら
-				ENDIF
-			ENDIF
-		CASE 1
-			IF MODE_確認_ターゲット側("ニプルキャップ", TARGET) > -1
-				PRINT 着けられた機械を押し付けるようにして
-			ELSE
-				PRINT 自らの乳首を弄くり回しながら
-			ENDIF
-		CASE 2
-			PRINT 自らの膣に指を入れて弄くり回しながら
-		CASE 3
-			PRINT 自らの尻穴を指で弄くり回しながら
-	ENDSELECT
-ENDIF
-PRINTL 快感を味わっている…
-
-; ;バイブ＋アナルバイブ＋Ｖ感覚LV5以上＋Ａ感覚LV5以上＋Ｃ感覚LV5以上＋Ｂ感覚LV5以上＋欲情のPALAMLV4以上
-; IF TEQUIP:バイブ && TEQUIP:アナルバイブ && ABL:Ｖ感覚 >= 5 && ABL:Ａ感覚 >= 5 && ABL:Ｃ感覚 >= 5 && ABL:Ｂ感覚 >= 5 && PALAM:欲情 >= PALAMLV:4
-; 	PRINTFORML %CALLNAME:TARGET%はよだれをふきこぼし、ビクビクと身体を痙攣させながら鳴き叫んでいる
-; 	PRINTFORML どうやら絶頂から降りられず、イキっぱなしになっているようだ…
-; ;バイブ＋Ｖ感覚LV5以上＋Ｃ感覚LV5以上＋Ｂ感覚LV5以上＋欲情のPALAMLV4以上
-; ELSEIF TEQUIP:バイブ && ABL:Ｖ感覚 >= 5 && ABL:Ｃ感覚 >= 5 && ABL:Ｂ感覚 >= 5 && PALAM:欲情 >= PALAMLV:4
-; 	PRINTFORML %CALLNAME:TARGET%は愛液が飛び散るのもお構いなしに、バイブを激しく出し入れしている
-; 	PRINTFORML どうやらもうほかの事を気にする余裕も無いようだ…
-; ;アナルバイブ＋Ａ感覚LV5以上＋Ｃ感覚LV5以上＋Ｂ感覚LV5以上＋欲情のPALAMLV4以上
-; ELSEIF TEQUIP:アナルバイブ && ABL:Ａ感覚 >= 5 && ABL:Ｃ感覚 >= 5 && ABL:Ｂ感覚 >= 5 && PALAM:欲情 >= PALAMLV:4
-; 	PRINTFORML %CALLNAME:TARGET%はガクガク身体を震わせながら、アヌスにバイブを突きこんでいる
-; 	PRINTFORML どうやら襞をえぐられるたびに何度も絶頂してしまっているようだ…
-; ;自慰中毒LV3以上＋Ｃ感覚LV5以上＋Ｂ感覚LV5以上＋欲情のPALAMLV4以上
-; ELSEIF ABL:自慰中毒 >= 3 && ABL:Ｃ感覚 >= 5 && ABL:Ｂ感覚 >= 5 && PALAM:欲情 >= PALAMLV:4
-; 	PRINTFORML %CALLNAME:TARGET%は嬌声をあげながら一心不乱に自らの秘部をまさぐり続けている
-; 	PRINTFORML どうやら止めたくても手が勝手に動いて止まらないようだ…
-; ENDIF
-
+@MESSAGE_COM9_非口上時
+CALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%_非口上時
