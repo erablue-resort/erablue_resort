@@ -12,33 +12,46 @@ VARSET 作成アニメ種類
 レイヤー番号 = 50
 ;+20 読み込み +40 背景素材に使用
 
+
+;一日一回オプション対象に終了
+IF 戦闘行動キャラ < 10
+	SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
+		RETURN 0
+ELSE
+	SIF MATCH(カットイン一日一回フラグ, 敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名) > 0
+		RETURN 0
+ENDIF
+	
 ;戦闘行動キャラを対象に
 キャラTEMP = BATTLE_STATE:戦闘行動キャラ:キャラ番号
 CSTR:キャラTEMP:画像フォルダ = {NO:キャラTEMP}%CALLNAME:キャラTEMP%
 
 
 ;アニメ選択オプションを確認する
-; SELECTCASE アニメ選択オプション
-; 	CASE アニメ選択オプションが横カットイン優先のとき
-;		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
-;			作成アニメ種類 = 横カットイン
-;		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
-;			作成アニメ種類 = 縦カットイン
-;		ENDIF
-; 	CASE アニメ選択オプションが縦カットイン優先のとき
-;		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
-;			作成アニメ種類 = 縦カットイン
-;		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
-;			作成アニメ種類 = 横カットイン
-;		ENDIF
-; ENDSELECT
+SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン個別選択オプション
+ 	CASE "横カットイン"
+		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+			作成アニメ種類 = 横カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+			作成アニメ種類 = 縦カットイン
+		ENDIF
+ 	CASE "縦カットイン"
+		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+			作成アニメ種類 = 縦カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+			作成アニメ種類 = 横カットイン
+		ENDIF
+	CASE "デフォルト"
+	CASEELSE
+		RETURN 0
+ENDSELECT
 
 ;選択オプションまだ作ってないのでとりあえず直でファイルがあるかを見る
-IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
-	作成アニメ種類 = 横カットイン
-ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
-	作成アニメ種類 = 縦カットイン
-ENDIF
+;IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+;	作成アニメ種類 = 横カットイン
+;ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+;	作成アニメ種類 = 縦カットイン
+;ENDIF
 
 IF 作成アニメ種類 == ""
 ;画像がないまたはアニメ選択オプションがデフォルトならデフォルト画像を使う
@@ -52,9 +65,6 @@ ENDIF
 ;カットイン発生が確定したので演出に依らない共通データ読み込み
 
 ;セリフをもらってくる
-;-----------------------------------------------
-;テストエリア
-;セリフもらえないので代入
 IF 口上なしフラグ
 	CALL 奥義名呼び出し(キャラTEMP)
 	FOR LOCAL, 0, (26 - STRLENSU(@"%TSTR:コマンド名受渡%")) / 2
@@ -67,7 +77,6 @@ ELSE
 	NEXT	
 	奥義メッセージ前 += @"%KSTR:0%"
 ENDIF
-;----------------------------------------------
 
 ;中央揃え
 CALL 奥義名呼び出し(キャラTEMP)
@@ -456,6 +465,20 @@ SELECTCASE 作成アニメ種類
 		待機フレーム数 = 0, 40, 0, 0, 0, 0, 0, 0
 
 ENDSELECT
+
+;一日一回表示するのとき
+IF カットイン演出一括表示フラグ == 2
+	IF 戦闘行動キャラ < 10
+		TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ = 1
+	ELSE
+		FOR LOCAL, 0, 100
+			IF カットイン一日一回フラグ:LOCAL == ""
+				カットイン一日一回フラグ = %敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名%
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
 
 RETURN 1
 
