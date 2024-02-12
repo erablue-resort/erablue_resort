@@ -12,55 +12,123 @@ VARSET 作成アニメ種類
 レイヤー番号 = 50
 ;+20 読み込み +40 背景素材に使用
 
-
-;一日一回オプション対象に終了
+;表示設定
 IF 戦闘行動キャラ < 10
-	SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
-		RETURN 0
+	;まず個別の表示設定
+	SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン個別選択オプション
+		CASE "非表示"
+			RETURN 0
+		CASE "表示"
+			;処理を行わず次へ
+		CASE "一日一回のみ"
+			;カットイン済みフラグがないなら次へ
+			SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
+				RETURN 0
+		CASEELSE
+			;全体設定に従う
+			SELECTCASE カットイン演出一括表示フラグ
+				CASE 1
+					;非表示
+					RETURN 0
+				CASE 2
+					;カットイン済みフラグがないなら次へ
+					SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
+						RETURN 0
+				CASEELSE
+					;処理を行わず次へ
+			ENDSELECT
+	ENDSELECT
 ELSE
-	SIF MATCH(カットイン一日一回フラグ, 敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名) > 0
-		RETURN 0
+	;全体設定に従う
+	SELECTCASE カットイン演出一括表示フラグ
+		CASE 1
+			;非表示
+			RETURN 0
+		CASE 2
+			;カットイン済みフラグがないなら次へ
+			SIF MATCH(カットイン一日一回フラグ, 敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名) > 0
+				RETURN 0
+		CASEELSE
+			;処理を行わず次へ
+	ENDSELECT
 ENDIF
-	
+
 ;戦闘行動キャラを対象に
 キャラTEMP = BATTLE_STATE:戦闘行動キャラ:キャラ番号
 CSTR:キャラTEMP:画像フォルダ = {NO:キャラTEMP}%CALLNAME:キャラTEMP%
 
-
 ;アニメ選択オプションを確認する
-SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン個別選択オプション
- 	CASE "横カットイン"
+;まず個別
+SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン画像選択オプション
+	CASE "横カットイン"
 		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
 			作成アニメ種類 = 横カットイン
 		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
 			作成アニメ種類 = 縦カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSE
+			RETURN 0
 		ENDIF
- 	CASE "縦カットイン"
+	CASE "縦カットイン"
 		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
 			作成アニメ種類 = 縦カットイン
 		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
 			作成アニメ種類 = 横カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSE
+			RETURN 0
 		ENDIF
 	CASE "デフォルト"
+		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+			作成アニメ種類 = 縦カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+			作成アニメ種類 = 横カットイン
+		ELSE
+			RETURN 0
+		ENDIF
 	CASEELSE
-		RETURN 0
+		;全体設定を見る
+		SELECTCASE カットイン画像一括表示フラグ
+			CASE 0
+				;縦
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSE
+					RETURN 0
+				ENDIF
+			CASE 1
+				;横
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSE
+					RETURN 0
+				ENDIF
+			CASE 2
+				;デフォルト
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSE
+					RETURN 0
+				ENDIF
+		ENDSELECT
 ENDSELECT
 
-;選択オプションまだ作ってないのでとりあえず直でファイルがあるかを見る
-;IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
-;	作成アニメ種類 = 横カットイン
-;ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
-;	作成アニメ種類 = 縦カットイン
-;ENDIF
-
-IF 作成アニメ種類 == ""
-;画像がないまたはアニメ選択オプションがデフォルトならデフォルト画像を使う
-	IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
-		作成アニメ種類 = デフォルト
-	ELSE
-		RETURN 0
-	ENDIF
-ENDIF
 
 ;カットイン発生が確定したので演出に依らない共通データ読み込み
 
