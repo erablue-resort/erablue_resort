@@ -5,62 +5,135 @@
 #DIMS 作成アニメ種類
 #DIMS 奥義メッセージ前
 #DIMS 奥義メッセージ後
+#DIM 分割数
+#DIM 表示文字数
+
 VARSET 奥義メッセージ前
 VARSET 奥義メッセージ後
 VARSET 作成アニメ種類
+VARSET RESULTS
 
 レイヤー番号 = 50
 ;+20 読み込み +40 背景素材に使用
 
-
-;一日一回オプション対象に終了
+;表示設定
 IF 戦闘行動キャラ < 10
-	SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
-		RETURN 0
+	;まず個別の表示設定
+	SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン個別選択オプション
+		CASE "非表示"
+			RETURN 0
+		CASE "表示"
+			;処理を行わず次へ
+		CASE "一日一回のみ"
+			;カットイン済みフラグがないなら次へ
+			SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
+				RETURN 0
+		CASEELSE
+			;全体設定に従う
+			SELECTCASE カットイン演出一括表示フラグ
+				CASE 1
+					;非表示
+					RETURN 0
+				CASE 2
+					;カットイン済みフラグがないなら次へ
+					SIF TCVAR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン済フラグ > 0
+						RETURN 0
+				CASEELSE
+					;処理を行わず次へ
+			ENDSELECT
+	ENDSELECT
 ELSE
-	SIF MATCH(カットイン一日一回フラグ, 敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名) > 0
-		RETURN 0
+	;全体設定に従う
+	SELECTCASE カットイン演出一括表示フラグ
+		CASE 1
+			;非表示
+			RETURN 0
+		CASE 2
+			;カットイン済みフラグがないなら次へ
+			SIF MATCH(カットイン一日一回フラグ, 敵BATTLE_STATE_STR:戦闘行動キャラ:エネミー名) > 0
+				RETURN 0
+		CASEELSE
+			;処理を行わず次へ
+	ENDSELECT
 ENDIF
-	
+
 ;戦闘行動キャラを対象に
 キャラTEMP = BATTLE_STATE:戦闘行動キャラ:キャラ番号
-CSTR:キャラTEMP:画像フォルダ = {NO:キャラTEMP}%CALLNAME:キャラTEMP%
-
+SIF CSTR:キャラTEMP:画像フォルダ == ""
+	CSTR:キャラTEMP:画像フォルダ = {NO:キャラTEMP}%CALLNAME:キャラTEMP%
 
 ;アニメ選択オプションを確認する
-SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン個別選択オプション
- 	CASE "横カットイン"
+;まず個別
+SELECTCASE CSTR:(BATTLE_STATE:戦闘行動キャラ:0):カットイン画像選択オプション
+	CASE "横カットイン"
 		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
 			作成アニメ種類 = 横カットイン
 		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
 			作成アニメ種類 = 縦カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSE
+			RETURN 0
 		ENDIF
- 	CASE "縦カットイン"
+	CASE "縦カットイン"
 		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
 			作成アニメ種類 = 縦カットイン
 		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
 			作成アニメ種類 = 横カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSE
+			RETURN 0
 		ENDIF
 	CASE "デフォルト"
+		IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+			作成アニメ種類 = デフォルト
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+			作成アニメ種類 = 縦カットイン
+		ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+			作成アニメ種類 = 横カットイン
+		ELSE
+			RETURN 0
+		ENDIF
 	CASEELSE
-		RETURN 0
+		;全体設定を見る
+		SELECTCASE カットイン画像一括表示フラグ
+			CASE 0
+				;縦
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSE
+					RETURN 0
+				ENDIF
+			CASE 1
+				;横
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSE
+					RETURN 0
+				ENDIF
+			CASE 2
+				;デフォルト
+				IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
+					作成アニメ種類 = デフォルト
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
+					作成アニメ種類 = 縦カットイン
+				ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
+					作成アニメ種類 = 横カットイン
+				ELSE
+					RETURN 0
+				ENDIF
+		ENDSELECT
 ENDSELECT
 
-;選択オプションまだ作ってないのでとりあえず直でファイルがあるかを見る
-;IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/横カットイン.png")
-;	作成アニメ種類 = 横カットイン
-;ELSEIF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/縦カットイン.png")
-;	作成アニメ種類 = 縦カットイン
-;ENDIF
-
-IF 作成アニメ種類 == ""
-;画像がないまたはアニメ選択オプションがデフォルトならデフォルト画像を使う
-	IF EXISTFILE(@"resources/%CSTR:キャラTEMP:画像フォルダ%/顔_デフォルト.png")
-		作成アニメ種類 = デフォルト
-	ELSE
-		RETURN 0
-	ENDIF
-ENDIF
 
 ;カットイン発生が確定したので演出に依らない共通データ読み込み
 
@@ -72,10 +145,11 @@ IF 口上なしフラグ
 	NEXT	
 	奥義メッセージ前 += @"%TSTR:コマンド名受渡%"
 ELSE
-	FOR LOCAL, 0, (26 - STRLENSU(@"%KSTR:0%")) / 2
+	CALL PRINT_STR_メッセージ用(KSTR:0)
+	FOR LOCAL, 0, (26 - HTML_STRINGLEN(RESULTS) / 2) / 2
 		奥義メッセージ前 += "　"
 	NEXT	
-	奥義メッセージ前 += @"%KSTR:0%"
+	奥義メッセージ前 += @"%RESULTS%"
 ENDIF
 
 ;中央揃え
@@ -179,11 +253,45 @@ SELECTCASE 作成アニメ種類
 			CALL カットイン用カラーマトリクス取得(0)
 			GDRAWG レイヤー番号 + LOCAL, レイヤー番号 + 41, 0, 0, 900, 900, 0, 0,  GWIDTH (レイヤー番号 + 41), GHEIGHT(レイヤー番号 + 41), カットイン用カラーマトリクス:0:0
 		NEXT
-		
+
 		FOR LOCAL, 0, 5
 			GSETPEN レイヤー番号 + LOCAL, 0X80FFFFFF, 1
 			GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
-			GDRAWTEXT レイヤー番号 + LOCAL, @"%奥義メッセージ前%", 140, 620
+			VARSET RESULTS
+			表示文字数 = 0
+			HTML_TAGSPLIT 奥義メッセージ前
+			FOR 分割数, 0, RESULT
+				IF RESULTS:分割数 == "<b>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 1
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<i>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 2
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<s>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 4
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<u>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 8
+					CONTINUE
+				ELSEIF GROUPMATCH(RESULTS:分割数, "</b>", "</i>", "</s>", "</u>")
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<img src='えっちハート' height='112' width='112'>"
+					GGETTEXTSIZE LOCALS, GGETFONT(レイヤー番号 + LOCAL), GGETFONTSIZE(レイヤー番号 + LOCAL)
+					GDRAWSPRITE レイヤー番号 + LOCAL, "えっちハート", RESULT + 140, 620, 24, 24
+					表示文字数 += 2
+					CONTINUE
+				ENDIF
+				SIF RESULTS:分割数 == ""
+					BREAK
+				LOCALS = 
+				FOR LOCAL:1, 0, 表示文字数
+					LOCALS += " "
+				NEXT
+				LOCALS += @"%RESULTS:分割数%"
+				GDRAWTEXT レイヤー番号 + LOCAL, @"%LOCALS%", 140, 620
+				表示文字数 += STRLENS(RESULTS:分割数)
+			NEXT
 		NEXT
 
 		FOR LOCAL, 5, 9
@@ -303,7 +411,41 @@ SELECTCASE 作成アニメ種類
 		FOR LOCAL, 0, 5
 			GSETPEN レイヤー番号 + LOCAL, 0X80FFFFFF, 1
 			GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
-			GDRAWTEXT レイヤー番号 + LOCAL, @"%奥義メッセージ前%", 140, 620
+			VARSET RESULTS
+			表示文字数 = 0
+			HTML_TAGSPLIT 奥義メッセージ前
+			FOR 分割数, 0, RESULT
+				IF RESULTS:分割数 == "<b>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 1
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<i>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 2
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<s>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 4
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<u>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 8
+					CONTINUE
+				ELSEIF GROUPMATCH(RESULTS:分割数, "</b>", "</i>", "</s>", "</u>")
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<img src='えっちハート' height='112' width='112'>"
+					GGETTEXTSIZE LOCALS, GGETFONT(レイヤー番号 + LOCAL), GGETFONTSIZE(レイヤー番号 + LOCAL)
+					GDRAWSPRITE レイヤー番号 + LOCAL, "えっちハート", RESULT + 140, 620, 24, 24
+					表示文字数 += 2
+					CONTINUE
+				ENDIF
+				SIF RESULTS:分割数 == ""
+					BREAK
+				LOCALS = 
+				FOR LOCAL:1, 0, 表示文字数
+					LOCALS += " "
+				NEXT
+				LOCALS += @"%RESULTS:分割数%"
+				GDRAWTEXT レイヤー番号 + LOCAL, @"%LOCALS%", 140, 620
+				表示文字数 += STRLENS(RESULTS:分割数)
+			NEXT
 		NEXT
 
 		FOR LOCAL, 5, 9
@@ -418,7 +560,41 @@ SELECTCASE 作成アニメ種類
 		FOR LOCAL, 0, 5
 			GSETPEN レイヤー番号 + LOCAL, 0X80FFFFFF, 1
 			GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
-			GDRAWTEXT レイヤー番号 + LOCAL, @"%奥義メッセージ前%", 140, 620
+			VARSET RESULTS
+			表示文字数 = 0
+			HTML_TAGSPLIT 奥義メッセージ前
+			FOR 分割数, 0, RESULT
+				IF RESULTS:分割数 == "<b>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 1
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<i>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 2
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<s>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 4
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<u>"
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24, 8
+					CONTINUE
+				ELSEIF GROUPMATCH(RESULTS:分割数, "</b>", "</i>", "</s>", "</u>")
+					GSETFONT レイヤー番号 + LOCAL, GETFONT(), 24
+					CONTINUE
+				ELSEIF RESULTS:分割数 == "<img src='えっちハート' height='112' width='112'>"
+					GGETTEXTSIZE LOCALS, GGETFONT(レイヤー番号 + LOCAL), GGETFONTSIZE(レイヤー番号 + LOCAL)
+					GDRAWSPRITE レイヤー番号 + LOCAL, "えっちハート", RESULT + 140, 620, 24, 24
+					表示文字数 += 2
+					CONTINUE
+				ENDIF
+				SIF RESULTS:分割数 == ""
+					BREAK
+				LOCALS = 
+				FOR LOCAL:1, 0, 表示文字数
+					LOCALS += " "
+				NEXT
+				LOCALS += @"%RESULTS:分割数%"
+				GDRAWTEXT レイヤー番号 + LOCAL, @"%LOCALS%", 140, 620
+				表示文字数 += STRLENS(RESULTS:分割数)
+			NEXT
 		NEXT
 
 		FOR LOCAL, 5, 9
