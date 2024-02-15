@@ -17,13 +17,13 @@ LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-;性交渉をお願いする
-@COM353
-;まず成功度の蓄積量を判定、蓄積100で成功
-;想定としては有利素質を盛りに盛って２回目（つまり上限は99）
-;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
-LOCAL = CFLAG:好感度レベル / 2
-LOCAL += 恋慕_性愛比較(TARGET) / 2
+;可視化できるよう別関数化
+@COM353_SUB(ARG)
+#FUNCTION
+VARSET LOCAL
+SWAP LOCAL:1, TARGET
+TARGET = ARG
+
 SIF BASE:性欲 > 1000
 	LOCAL += 10
 SIF BASE:酩酊 > 0
@@ -81,12 +81,24 @@ ENDIF
 IF TALENT:子持ち == 1
 	LOCAL -= 10
 ENDIF
+SWAP LOCAL:1, TARGET
+
+RETURNF LOCAL
+
+;性交渉をお願いする
+@COM353
+;まず成功度の蓄積量を判定、蓄積100で成功
+;想定としては有利素質を盛りに盛って２回目（つまり上限は99）
+;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
+
+LOCAL = CFLAG:好感度レベル / 2
+LOCAL += 恋慕_性愛比較(TARGET) / 2
+LOCAL += COM353_SUB(TARGET)
 SIF 欲情フィールド展開フラグ
 	LOCAL += 20
 SIF CFLAG:TARGET:発情期フラグ < 0
 	LOCAL += 30
 LOCAL += (ABL:PLAYER:話術技能 - 3) * 5
-
 LOCAL += CFLAG:TARGET:お願いックス回数 * 30
 ;二回目以降は一発OKもアリ
 RFLAG:コマンド結果受渡し変数２ = MIN(LOCAL, 99 + CFLAG:TARGET:お願いックス回数)
