@@ -11,6 +11,7 @@
 #DIM 購入個数
 #DIM 売却許可フラグ
 #DIM 売却モード
+#DIM 売価
 
 VARSET LOCALS
 選択アイテム番号 = -1
@@ -61,10 +62,14 @@ IF 売却モード == 0
 		IF 商売文字列保存:1 == ""
 			;特殊値段を設定されてない場合
 			CALLFORM アイテム個別文章表示_%商売文字列保存:0%("値段")
-			商売文字列保存:1 = %NUM_FORMAT(RESULT)%
+			売価 = RESULT
+			商売文字列保存:1 = %NUM_FORMAT(売価)%
 			商売文字列保存:2 = %詳細文文字列受け渡し変数%
+		ELSE
+			売価 = TOINT(商売文字列保存:1)
+			商売文字列保存:1 = %NUM_FORMAT(売価)%
 		ENDIF
-		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 2}]%商売文字列保存:0, 20, LEFT%{TOINT(商売文字列保存:1), 6}%商売文字列保存:2%</button>"
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 2}]%商売文字列保存:0, 20, LEFT%%商売文字列保存:1, 6%%商売文字列保存:2%</button>"
 		LOCALS:1 += "<br>"
 	NEXT
 	LOCALS += @"<div rect='156,537,1937,2687'>%LOCALS:1%</div>"
@@ -73,6 +78,7 @@ IF 売却モード == 0
 
 	IF 選択アイテム番号 > -1
 		;アイテム詳細文章
+		VARSET 商売文字列保存
 		SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
 		TRYCALLFORM アイテム個別文章表示_%商売文字列保存:0%
 		LOCALS:3 = %詳細文文字列受け渡し変数%<br><br>
@@ -157,19 +163,31 @@ SELECTCASE RESULT
 		GOTO 購入画面LOOP
 	CASE 1000
 		IF 売却モード == 0
+			VARSET 商売文字列保存
 			SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
 			IF 商売文字列保存:2 == "ルピ"
-				IF MONEY < TOINT(商売文字列保存:1) * 購入個数
+				売価 = TOINT(商売文字列保存:1)
+				IF MONEY < 売価 * 購入個数
 					PRINTW ルピが足りません
 					GOTO 購入画面LOOP
 				ENDIF
-				MONEY -= TOINT(商売文字列保存:1) * 購入個数
+				MONEY -= 売価 * 購入個数
 			ELSEIF 商売文字列保存:2 == "ZP"
-				IF FLAG:ZP所持量 < TOINT(商売文字列保存:1) * 購入個数
+				売価 = TOINT(商売文字列保存:1)
+				IF FLAG:ZP所持量 < 売価 * 購入個数
 					PRINTW ZPが足りません
 					GOTO 購入画面LOOP
 				ENDIF
-				FLAG:ZP所持量 -= TOINT(商売文字列保存:1) * 購入個数
+				FLAG:ZP所持量 -= 売価 * 購入個数
+			ELSE
+				;特殊値段を設定されてない場合
+				CALLFORM アイテム個別文章表示_%商売文字列保存:0%("値段")
+				売価 = RESULT
+				IF MONEY < 売価 * 購入個数
+					PRINTW ルピが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				MONEY -= 売価 * 購入個数
 			ENDIF
 			CALL アイテム増減汎用処理(商売文字列保存:0, 購入個数)
 			PRINTFORMW %商売文字列保存:0%を%TOFULL(TOSTR(購入個数)), 4%個購入しました。
