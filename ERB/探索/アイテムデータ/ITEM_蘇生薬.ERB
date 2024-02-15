@@ -1,0 +1,50 @@
+﻿
+@アイテム個別文章表示_蘇生薬(ARGS)
+;蘇生薬
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 3000
+ENDIF
+
+LOCALS = 
+LOCALS += @"■蘇生薬　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "蘇生薬")}<br>"
+;LOCALS += -------------------------------------------------|←文字横幅ここまで
+LOCALS += "空の世界で広く使われている、蘇生のための汎用的な薬<br>"
+LOCALS += "幅広い材料が必要で、精製もそれなりに難しい<br>"
+LOCALS += "これが作れれば錬金術師として一人前と言っていいだろう<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "戦闘不能状態の味方のＨＰを[１００]回復する<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_蘇生薬
+CALL 汎用使用先表示("味方単体")
+
+@アイテム効果処理_蘇生薬(ARG)
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:0
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "蘇生薬") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:ＨＰ > 0
+	PRINTW 対象が戦闘不能ではありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＨＰ < 100
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを{BATTLE_STATE:ARG:最大ＨＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを100回復しました
+ENDIF
+
+BATTLE_STATE:ARG:ＨＰ = MIN(BATTLE_STATE:ARG:ＨＰ + 100, BATTLE_STATE:ARG:最大ＨＰ)
+CALL アイテム増減汎用処理("蘇生薬", -1)
+
+RETURN 1
