@@ -9,6 +9,7 @@
 キャラ画像ボタン化フラグ = 0
 アイテム使用済みフラグ = 0
 ターン中奥義回数保存 = 0
+兵装使用済みフラグ = 0
 VARSET チェンバ基準キャラ保存, -1
 行動口上呼び出し用文字列 = 
 サイド描画_戦闘ログ保存 = 
@@ -86,6 +87,11 @@ ELSEIF 戦闘行動キャラ < 10
 	IF アビテンプレート用_味方全滅フラグ || アビテンプレート用_敵全滅フラグ
 		GOTO 戦闘終了処理
 	ENDIF
+	IF 戦闘行動キャラ == 9
+		戦闘行動キャラ = 戦闘行動キャラ_一時保存
+		CALL アビテンプレ変数リセット
+		GOTO 行動入力_LOOP
+	ENDIF
 ELSE
 	;10以上の数値が入ってるとエネミーの行動
 	;CALL 敵行動決定
@@ -129,7 +135,7 @@ ELSEIF !LOCAL:1
 ELSEIF LOCAL:3 == 0
 	;ターン数を増やして最初から行動
 	戦闘行動内容 = -1
-	CALL ターン開始時処理
+	CALL ターン切り替え処理
 	IF RESULT
 		GOTO 戦闘終了処理
 	ENDIF
@@ -193,6 +199,11 @@ IF 上メニュー操作許可フラグ
 	ELSE
 		LOCALS:2 = <nonbutton><font color='#666666'>[1000]アイテムを使う</font></nonbutton>　
 	ENDIF
+	IF 兵装使用済みフラグ == 0
+		LOCALS:2 += "<button value='2000'>[2000]兵装を使う</button>　"
+	ELSE
+		LOCALS:2 += "<nonbutton><font color='#666666'>[2000]兵装を使う</font></nonbutton>　"
+	ENDIF
 	LOCALS:2 +="<button value='1001'>[1001]逃げる</button>　"
 	IF アビ使用確認スキップフラグ == 0
 		LOCALS:3 +="<button value='1002'>[1002]アビ使用確認:ON</button>　"
@@ -217,6 +228,9 @@ IF 上メニュー操作許可フラグ
 		CASEELSE
 			LOCALS:3 +="<button value='1005'>[1005]全体カットイン設定:表示</button>　"
 	ENDSELECT
+ENDIF
+IF 展開中フィールド名格納 != ""
+	LOCALS:4 = <button value='1010'>フィールド：「%展開中フィールド名格納%」展開中</button>
 ENDIF
 
 FOR LOCAL:1, 0, 6
@@ -277,6 +291,8 @@ NEXT
 @戦闘初期処理_味方(初期設定フラグ = 0)
 #DIM 初期設定フラグ
 
+
+;キャラ追加
 FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
 		CONTINUE
@@ -339,8 +355,9 @@ FOR LOCAL, 0, 4
 NEXT
 
 ;乗機装備時、９にPLAYERのステータスを入れる
-BATTLE_STATE:9:キャラ番号 = 0
+BATTLE_STATE:9:キャラ番号 = PLAYER
 BATTLE_STATE:9:攻撃力 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機攻撃力", 1)
+BATTLE_STATE:9:命中率 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機命中率", 1)
 BATTLE_STATE:9:クリティカルダメージ率 = 150
 
 @戦闘初期処理_敵
@@ -362,7 +379,7 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
-@ターン開始時処理
+@ターン切り替え処理
 
 ;チェインバースト処理
 IF ターン中奥義回数保存 > 1
@@ -476,11 +493,6 @@ CALL ターン終了時処理関数
 SIF RESULT
 	RETURN 1
 
-現在ターン数 += 1
-アイテム使用済みフラグ = 0
-ターン中奥義回数保存 = 0
-VARSET チェンバ基準キャラ保存, -1
-
 ;行動済みフラグの解消
 FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
@@ -516,6 +528,24 @@ FOR LOCAL, 10, 20
 	CALL バフターン経過処理(LOCAL)
 	CALL デバフターン経過処理(LOCAL)
 NEXT
+
+;フィールドのターン経過処理
+IF 展開中フィールド残りターン数 == 1
+	CALL 口上変数初期化
+	WSTR:(K++) = %展開中フィールド名格納%が消失した！
+	CALL メッセージ欄表示用関数(,,,0)
+	展開中フィールド残りターン数 = 0
+	展開中フィールド名格納 = 
+ELSEIF 展開中フィールド残りターン数 > 1
+	展開中フィールド残りターン数 -= 1
+ENDIF
+
+;各種変数の更新
+現在ターン数 += 1
+アイテム使用済みフラグ = 0
+兵装使用済みフラグ = 0
+ターン中奥義回数保存 = 0
+VARSET チェンバ基準キャラ保存, -1
 
 ;ターン切り替わり時に顔グラ再生成
 CALL 探索用顔グラフィック生成
