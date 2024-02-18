@@ -106,6 +106,9 @@ CALL 戦闘終了時処理
 
 
 @戦闘終了時処理
+#DIM 表示兵装数
+#DIM 兵装番号
+
 ダンジョン表示モード = マップ画面
 サイド描画縦スクロール保存 = 0
 CALL 口上変数初期化
@@ -135,6 +138,23 @@ NEXT
 VARSET 戦闘中カウント:0:0
 探索中全体カウント:累積ターン数 += 現在ターン数
 現在ターン数 = 0
+
+;乗機の戦闘中回数、及びCT制のリセット
+表示兵装数 = ENUMFUNCBEGINSWITH(@"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_")
+FOR LOCAL, 0, 表示兵装数
+	兵装番号 = TOINT(REPLACE(RESULTS:LOCAL, @"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_", ""))
+	IF 乗機残弾種別:兵装番号 == 2
+		;CT制の時は残CTを0にセット
+		乗機残弾数:兵装番号 = 0
+	ELSEIF 乗機残弾種別:兵装番号 == 0
+		;戦闘中制限の場合は残弾セットを呼ぶ
+		IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1))
+			CALLFORM %RESULTS:LOCAL%("残弾セット", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
+		ELSE
+			CALLFORM %RESULTS:LOCAL%("残弾セット")
+		ENDIF
+	ENDIF
+NEXT
 
 @レベルアップ処理(キャラ番号)
 #DIM キャラ番号

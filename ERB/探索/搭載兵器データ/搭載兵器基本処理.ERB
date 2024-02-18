@@ -1,0 +1,348 @@
+﻿
+@汎用搭載兵器取得処理(兵器名一時保存)
+#DIMS 兵器名一時保存
+
+;アンロック式なのでフラグ立てるだけ
+;ERDいじったりしなくていいようにデータベース管理
+ENUMFUNCBEGINSWITH @"搭載兵器関数_%兵器名一時保存%"
+;同じものを複数持てるので重複チェックはしない
+IF RESULT
+	;抜けてきたら登録
+	CALLFORM 搭載兵器関数_%兵器名一時保存%("兵器登録")
+	RETURN 1
+ELSE
+	;関数が無い時は-1を返す
+	PRINTW 指定の兵器が見つかりません。
+	RETURN -1
+ENDIF
+
+@汎用搭載兵器取得処理_設計図(兵器名一時保存)
+#DIMS 兵器名一時保存
+
+CALL 汎用搭載兵器取得処理(兵器名一時保存)
+
+IF RESULT == 1
+	;設計図状態なので設計図フラグを立てる
+	DT_CELL_SET "所持兵器データベース", DT_ROW_LENGTH("所持兵器データベース") - 1, "設計状態フラグ", 1
+	RETURN 1
+ELSE
+	RETURN -1
+ENDIF
+
+@搭載兵器装備処理(対象乗機id, 武装番号)
+#DIM 対象乗機id
+#DIM 武装番号
+#DIM ページ番号
+#DIMS ソート基準
+#DIM 選択兵器番号
+#DIM id一時保存
+
+DO
+DRAWLINE
+LOCALS = 
+LOCALS += "<div rect='200,12,5662,3750' border='31' bcolor='#C0C0C0'></div>"
+HTML_PRINT LOCALS, 1
+CALL 所持兵器リスト表示(ページ番号, ソート基準, 対象乗機id, 武装番号)
+LOCALS = 
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3575,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 表示用ステータス格納配列:(29 * ページ番号 + 30):0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	;文字列が入る場合、ソート条件が入るはず
+	ソート基準 = %RESULTS%
+	CONTINUE
+ENDIF
+選択兵器番号 = TOINT(RESULTS)
+SELECTCASE 選択兵器番号
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		RETURN 1
+	CASE IS < 500
+		;搭載兵器装備
+		;誰かが装備してるんならそれをはずす
+		IF DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 1) > 0
+			id一時保存 = DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 1)
+			FOR LOCAL, 0, 6
+				IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}", 1)) && 表示用ステータス格納配列:選択兵器番号:0 == TOINT(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}", 1))
+					DT_CELL_SET "所持乗機データベース", id一時保存, @"武装{LOCAL}", "", 1
+					BREAK
+				ENDIF
+			NEXT
+			DT_CELL_SET "所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 0, 1
+		ENDIF
+		;乗機と兵器両方に互いのidを突っ込む
+		DT_CELL_SET "所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 対象乗機id, 1
+		DT_CELL_SET "所持乗機データベース", 対象乗機id, @"武装{武装番号}", @"{表示用ステータス格納配列:選択兵器番号:0}", 1
+		PRINTFORMW %DT_CELL_GETS("所持乗機データベース", 対象乗機id, "乗機名", 1)%の武装%TOFULL(TOSTR(武装番号))%に%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器名", 1)%を装備しました。
+	CASE IS < 1000
+		;詳細表示
+		選択兵器番号 -= 500
+		LOCALS = <br>■%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器名", 1)%<br><br>
+		TRYCALLFORM 搭載兵器関数_%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器名", 1)%("フレーバー", 表示用ステータス格納配列:選択兵器番号:0)
+		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		IF DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 1) > 0
+			id一時保存 = DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id", 1)
+			LOCALS += @"<br>乗機：%DT_CELL_GETS("所持乗機データベース", id一時保存, "乗機名", 1)%の"
+			FOR LOCAL, 0, 6
+				IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}", 1)) && 表示用ステータス格納配列:選択兵器番号:0 == TOINT(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}", 1))
+					LOCALS += @"武装%TOFULL(TOSTR(LOCAL))%に装備中<br>"
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		HTML_PRINT LOCALS
+		WAIT
+ENDSELECT
+
+
+LOOP 1
+
+
+
+
+
+@所持兵器リスト表示(ページ番号, ソート基準, 対象乗機id = 0, 武装番号 = -1)
+#DIM ページ番号
+#DIM 武装番号
+#DIM 対象乗機id
+#DIMS ソート基準
+#DIM ソート後配列, 500
+#DIM ソート後配列_装備可能, 500
+#DIM ソート後配列_装備不可, 500
+#DIM 表示数
+
+VARSET ソート後配列
+VARSET ソート後配列_装備可能
+VARSET ソート後配列_装備不可
+
+IF ソート基準 != ""
+	ソート基準 = %ソート基準% DESC
+ENDIF
+DT_SELECT "所持兵器データベース", , ソート基準, ソート後配列
+
+;対象乗機idがある場合、ソート後配列を更に分ける
+IF 対象乗機id > 0
+	VARSET LOCAL
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持兵器データベース")
+		CALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 対象乗機id, "乗機名", 1)%_{武装番号}("装備条件判定", ソート後配列:LOCAL)
+		IF RESULT
+			ソート後配列_装備可能:(LOCAL:1) = ソート後配列:LOCAL
+			LOCAL:1 += 1
+		ELSE
+			ソート後配列_装備不可:(LOCAL:2) = ソート後配列:LOCAL
+			LOCAL:2 += 1
+		ENDIF
+	NEXT
+	;処理の簡略化のために装備可能配列をソート後配列にコピー
+	VARSET ソート後配列
+	ARRAYCOPY "ソート後配列_装備可能", "ソート後配列"
+ENDIF
+
+
+VARSET LOCAL
+VARSET LOCALS
+表示数 = 0
+LOCALS = <div rect='262,75,5537,3625'><nobr>
+LOCALS += "　　　 兵器名　　　　　　　　　　<button value='攻撃力補正_強化後'>攻撃</button>　 <button value='命中率補正_強化後'>命中</button>　<button value='残弾種別'>種別</button>　<button value='残弾数'>弾数</button>　<button value='兵器カテゴリ'>カテゴリ</button>　<button value='兵器距離適性'>距離適性</button>　<button value='装備乗機id'>装備機体</button><br>"
+LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
+FOR LOCAL, 0, DT_ROW_LENGTH("所持兵器データベース")
+	SIF ソート後配列:LOCAL < 1
+		BREAK
+	SIF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "設計状態フラグ", 1)
+		CONTINUE
+	表示用ステータス格納配列:表示数:0 = ソート後配列:LOCAL
+	SIF 対象乗機id > 0 && 対象乗機id == DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1)
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>"
+	DT_CELL_GETS "所持兵器データベース", ソート後配列:LOCAL, "兵器名", 1
+	LOCALS += @"　<button value='{LOCAL}'>"
+	LOCALS += @"%RESULTS, 24, LEFT%</button>"
+	LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button>"
+	IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1) > 0
+		LOCALS:1 = +{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1)}
+		LOCALS += @"%LOCALS:1, 7%"
+	ELSE
+		LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1), 5}"
+	ENDIF
+	IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1) > 0
+		LOCALS:1 = +{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1)}
+		LOCALS += @"%LOCALS:1, 7%"
+	ELSE
+		LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1), 5}"
+	ENDIF
+	SELECTCASE DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "残弾種別", 1)
+		CASE 0
+			LOCALS += "　戦闘"
+		CASE 1
+			LOCALS += "　探索"
+		CASE 2
+			LOCALS += "　ＣＴ"
+	ENDSELECT
+	LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "残弾数", 1), 6}"
+	IF STRLENS(DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器カテゴリ", 1)) > 8
+		LOCALS += "　　特殊"
+	ELSE
+		LOCALS += @"%DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器カテゴリ", 1), 10%"
+	ENDIF
+	IF STRLENS(DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器距離適性", 1)) > 8
+		LOCALS += "　　特殊"
+	ELSE
+		LOCALS += @"%DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器距離適性", 1), 10%"
+	ENDIF
+	IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1) > 0
+		LOCALS += @"　%DT_CELL_GETS("所持乗機データベース", DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1), "乗機名", 1)%"
+	ENDIF
+	SIF 対象乗機id > 0 && 対象乗機id == DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1)
+		LOCALS += "</font>"
+
+	LOCALS += "<br>"
+	表示数 += 1
+NEXT
+
+;対象乗機idがある場合、ソート後配列_装備不可を表示
+IF 対象乗機id > 0
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>"
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持兵器データベース")
+		SIF ソート後配列_装備不可:LOCAL < 1
+			BREAK
+		SIF DT_CELL_GET("所持兵器データベース", ソート後配列_装備不可:LOCAL, "設計状態フラグ", 1)
+			CONTINUE
+		表示用ステータス格納配列:表示数:0 = ソート後配列:LOCAL
+		DT_CELL_GETS "所持兵器データベース", ソート後配列:LOCAL, "兵器名", 1
+		LOCALS += @"　<button value='{LOCAL}'>"
+		LOCALS += @"%RESULTS, 24, LEFT%</button>"
+		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button>"
+		IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1) > 0
+			LOCALS:1 = +{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1)}
+			LOCALS += @"%LOCALS:1, 7%"
+		ELSE
+			LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "攻撃力補正_強化後", 1), 5}"
+		ENDIF
+		IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1) > 0
+			LOCALS:1 = +{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1)}
+			LOCALS += @"%LOCALS:1, 7%"
+		ELSE
+			LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "命中率補正_強化後", 1), 5}"
+		ENDIF
+		SELECTCASE DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "残弾種別", 1)
+			CASE 0
+				LOCALS += "　戦闘"
+			CASE 1
+				LOCALS += "　探索"
+			CASE 2
+				LOCALS += "　ＣＴ"
+		ENDSELECT
+		LOCALS += @"{DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "残弾数", 1), 6}"
+		IF STRLENS(DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器カテゴリ", 1)) > 8
+			LOCALS += "　　特殊"
+		ELSE
+			LOCALS += @"%DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器カテゴリ", 1), 10%"
+		ENDIF
+		IF STRLENS(DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器距離適性", 1)) > 8
+			LOCALS += "　　特殊"
+		ELSE
+			LOCALS += @"%DT_CELL_GETS("所持兵器データベース", ソート後配列:LOCAL, "兵器距離適性", 1), 10%"
+		ENDIF
+		IF DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1) > 0
+			LOCALS += @"　%DT_CELL_GETS("所持乗機データベース", DT_CELL_GET("所持兵器データベース", ソート後配列:LOCAL, "装備乗機id", 1), "乗機名", 1)%"
+		ENDIF
+
+		LOCALS += "<br>"
+		表示数 += 1
+	NEXT
+	LOCALS += @"</font>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+
+
+@所持兵器リスト表示_USERCOM
+#DIM ページ番号
+#DIMS ソート基準
+#DIM 選択兵器番号
+#DIM id一時保存
+
+DO
+LOCALS = 
+LOCALS += "<div rect='200,12,5662,150' border='31' bcolor='#C0C0C0'></div>"
+HTML_PRINT LOCALS, 1
+CALL 所持兵器リスト表示(ページ番号, ソート基準)
+LOCALS = 
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3575,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 表示用ステータス格納配列:(29 * ページ番号 + 30):0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	;文字列が入る場合、ソート条件が入るはず
+	ソート基準 = %RESULTS%
+	CONTINUE
+ENDIF
+選択兵器番号 = TOINT(RESULTS)
+SELECTCASE 選択兵器番号
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		RETURN 1
+	CASE IS < 500
+	CASE IS < 1000
+		選択兵器番号 -= 500
+ENDSELECT
+
+LOCALS = <br>■%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器名")%<br><br>
+TRYCALLFORM 搭載兵器関数_%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器名")%("フレーバー", 表示用ステータス格納配列:選択兵器番号:0)
+LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+
+LOCALS += @"カテゴリ：%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器カテゴリ")%　　距離適性：%DT_CELL_GETS("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "兵器距離適性")%<br>"
+LOCALS += @"攻撃補正：{DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "攻撃力補正_強化後", 1), 4}　　命中補正：{DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "命中率補正_強化後", 1), 4}<br>"
+LOCALS += @"攻撃変動：{DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "攻撃力変動値_強化後", 1), 4}　　命中変動：{DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "命中率変動値_強化後", 1), 4}<br>"
+SELECTCASE DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "残弾種別", 1)
+ENDSELECT
+
+LOCALS += @"残弾種別：%残弾種別名:(DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "残弾種別", 1))%　　　ターン数：{DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "残弾数_強化後", 1), 2}<br>"
+LOCALS += @"<br>"
+
+IF DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id") > 0
+	id一時保存 = DT_CELL_GET("所持兵器データベース", 表示用ステータス格納配列:選択兵器番号:0, "装備乗機id")
+	LOCALS += @"<br>乗機：%DT_CELL_GETS("所持乗機データベース", id一時保存, "乗機名")%の"
+	FOR LOCAL, 0, 6
+		IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}")) && 表示用ステータス格納配列:選択兵器番号:0 == TOINT(DT_CELL_GETS("所持乗機データベース", id一時保存, @"武装{LOCAL}"))
+			LOCALS += @"武装%TOFULL(TOSTR(LOCAL))%に装備中<br>"
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+WAIT
+
+LOOP 1

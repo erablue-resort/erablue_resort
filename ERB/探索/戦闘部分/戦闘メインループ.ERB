@@ -290,6 +290,8 @@ NEXT
 
 @戦闘初期処理_味方(初期設定フラグ = 0)
 #DIM 初期設定フラグ
+#DIM 表示兵装数
+#DIM 兵装番号
 
 
 ;キャラ追加
@@ -359,6 +361,25 @@ BATTLE_STATE:9:キャラ番号 = PLAYER
 BATTLE_STATE:9:攻撃力 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機攻撃力", 1)
 BATTLE_STATE:9:命中率 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機命中率", 1)
 BATTLE_STATE:9:クリティカルダメージ率 = 150
+
+;初期設定時に残弾のリセット
+IF 初期設定フラグ
+	VARSET 乗機残弾種別
+	VARSET 乗機残弾数
+	表示兵装数 = ENUMFUNCBEGINSWITH(@"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_")
+	FOR LOCAL, 0, 表示兵装数
+		兵装番号 = TOINT(REPLACE(RESULTS:LOCAL, @"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_", ""))
+		IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1))
+			CALLFORM %RESULTS:LOCAL%("残弾セット", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
+		ELSE
+			CALLFORM %RESULTS:LOCAL%("残弾セット")
+		ENDIF
+		IF 乗機残弾種別:兵装番号 == 2
+			;CT制の時は残CTを0にセット
+			乗機残弾数:兵装番号 = 0
+		ENDIF
+	NEXT
+ENDIF
 
 @戦闘初期処理_敵
 FOR LOCAL, 0, 10
