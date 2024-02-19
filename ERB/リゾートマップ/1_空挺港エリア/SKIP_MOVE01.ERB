@@ -24,7 +24,7 @@ $LOOP
 
 
 ;暫定目的地に直接移動できる場合
-IF CAN_MOVE_1(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
+IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
 	;そこに移動
 	RETURN ARG
 ENDIF
@@ -37,6 +37,8 @@ SELECTCASE スタート地点
 		RETURN 2
 	CASE 10
 		RETURN 9
+	CASE 11
+		RETURN 2
 ENDSELECT
 
 ;マップ間を移動する際の処理
@@ -71,7 +73,7 @@ ENDSELECT
 ;地点追加時要フォロー（全ケース修正すること）
 SELECTCASE ARG
 CASE 1
-;エリア出口
+;エリア出口へは広場経由必須
 	RETURN 2
 CASE 3 TO 9
 ;店舗＋港
@@ -80,7 +82,74 @@ CASE 3 TO 9
 CASE 10
 ;よろず屋
 	RETURN 9
+CASE 11
+;鍛冶施設へは広場経由必須
+	RETURN 2
 ENDSELECT
 GOTO LOOP
 
+@CAN_MOVE_1(ARG, ARG:1)
+;部屋の構造
+;ARG 移動元
+;ARG:1 移動先
+;戻り値はビット管理 & 1で移動可能、 & 2で見通し可能
+;RETURNF 1 移動可能
+;RETURNF 2 移動不可だが見通せる
+;RETURNF 3 直通（移動可能＆見通せる）
 
+#FUNCTION
+
+SELECTCASE ARG
+	CASE 1
+		;入り口～広場
+		SIF ARG:1 == 2
+			RETURNF 3
+		SIF ARG:1 == 11
+			RETURNF 1
+	CASE 2
+		;入り口と広場は見通せるが、店の中は見えない
+		SIF ARG:1 == 1 || ARG:1 == 9
+			RETURNF 3
+		SIF ARG:1 >= 3 && ARG:1 <= 8
+			RETURNF 1
+		SIF ARG:1 == 11
+			RETURNF 1
+	CASE 3 TO 8
+		;広場に出るのみ
+		SIF ARG:1 == 2
+			RETURNF 1
+	CASE 9
+		;広場とよろずや
+		SIF ARG:1 == 2
+			RETURNF 3
+		SIF イベント完了フラグ確認("大拡張！空艇港") && ARG:1 == 10
+			RETURNF 1
+	CASE 10
+		;港に出るのみ
+		SIF ARG:1 == 9
+			RETURNF 1
+	CASE 11
+		;広場か入り口
+		SIF ARG:1 == 1
+			RETURNF 1
+		SIF ARG:1 == 2
+			RETURNF 1
+ENDSELECT
+RETURNF 0
+
+
+
+@存在しない移動先_1(場所番号)
+#FUNCTION
+#DIM 場所番号
+
+IF イベント完了フラグ確認("大拡張！空艇港") && 場所番号 == 10
+	RETURNF 0
+ENDIF
+IF 場所番号 >= 1 && 場所番号 <= 9
+	RETURNF 0
+ENDIF
+IF 港改造度:11:0 > 0 && 場所番号 == 11
+	RETURNF 0
+ENDIF
+RETURNF 1

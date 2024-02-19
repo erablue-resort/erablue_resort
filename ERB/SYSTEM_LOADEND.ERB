@@ -95,29 +95,6 @@ CALL 体位モードデータベースセット
 
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
-
-	SIF CFLAG:LOCAL:長期雇用 && TALENT:LOCAL:従業員
-		CFLAG:LOCAL:長期雇用 = 0
-
-	SIF 現在仕事:LOCAL:1 == 102
-		現在仕事:LOCAL:1 = 2
-
-	FOR LOCAL:1, 0, 5
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "306"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_1
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "307"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_2
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "308"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_3
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "309"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_4
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "310"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_5
-		SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == "312"
-			弱点コマンド枠:LOCAL:(LOCAL:1) = 306_6
-	NEXT
-	;ここまで0.035で消す
-
 	SIF TCVAR:LOCAL:野外オナニー_残時間 == -1
 		TCVAR:LOCAL:野外オナニー_残時間 = 0
 	
@@ -129,74 +106,8 @@ FOR LOCAL, 1, CHARANUM
 			TALENT:LOCAL:妊娠不可 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "妊娠不可"))
 	ENDIF
 	;ここまで0.036で消す
+	;ここまで0.037で消す
 NEXT
-
-IF 陥落不可適用フラグ == 0
-	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
-		IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "【汎用】")
-			IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "恋慕不可")
-				IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ")
-					CLEARBIT TALENT:(FINDCHARA(NO, DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))):陥落不可, 0
-				ENDIF
-			ELSEIF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "セフレ不可")
-				IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ")
-					CLEARBIT TALENT:(FINDCHARA(NO, DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))):陥落不可, 1
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	陥落不可適用フラグ = 1
-ENDIF
-
-;調教システム改定による体力数値の変動
-IF 体力数値変更済みフラグ == 0
-	体力数値変更済みフラグ = 1
-	FOR LOCAL, 1, CHARANUM
-		BASE:LOCAL:体力 = CSVBASE(NO:LOCAL, 0)
-		MAXBASE:LOCAL:体力 = CSVBASE(NO:LOCAL, 0)
-		CALL 体力変動素質適用処理(LOCAL)
-		BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
-		BASE:LOCAL:性欲 = MIN(MAXBASE:LOCAL:性欲, BASE:LOCAL:性欲)
-	NEXT
-ENDIF
-DT_COLUMN_ADD "所持素材データベース", "プレゼントカテゴリ"
-
-IF クライアントサイズ変更通知 == 0
-	SETCOLOR 0xFF0000
-	PRINTL ＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
-	PRINTL 開発の進行により、推奨するクライアントサイズが980*900から1600*900に変更されました。
-	PRINTL emuera.configは自動で切り替わらないため、手動での変更をお願いします。
-	PRINTL メニューバーの「ヘルプ」＞「設定」＞「ウィンドウ」＞「ウィンドウ幅」を変更してください。
-	PRINTL ＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
-	FORCEWAIT
-	RESETCOLOR
-	クライアントサイズ変更通知 = 1
-ENDIF
-
-SIF スイートルーム部屋数 == 0
-	スイートルーム部屋数 = 1
-
-DT_COLUMN_ADD "所持素材データベース", "食材分類"
-
-IF DT_EXIST("料理メニューデータベース") == 0
-	CALL 食堂メニューデータベースセット
-ENDIF
-
-IF 輸入品店初回品揃え変動 == 0
-	CALL 輸入品店品揃え変動処理
-	輸入品店初回品揃え変動 = 1
-ENDIF
-
-SIF 開発済み料理名フラグ文字列 == ""
-	開発済み料理名フラグ文字列 += "_"
-
-IF オート射精先初期設定 == 0
-	オート射精先初期設定 = 1
-	VARSET オート射精先オプション, -1
-ENDIF
-
-CALL エロ衣装登録処理("セクシーランジェリー")
-;ここまで0.035にしたとき消す、互換を33に
 
 CALL 写真データベースセット
 
@@ -274,7 +185,23 @@ ENDIF
 	CALL 制服登録処理("チャイナドレス")
 	CALL 制服登録処理("ミニチャイナ")
 
+IF バルツ乗機兵装フォロー == 0
+	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:23:7, 2)
+		CALL 汎用搭載兵器取得処理_設計図("10mmバルカン砲")
+	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:25:5, 4)
+		CALL 汎用搭載兵器取得処理("メタル・デストロイヤー")
+	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:10:5, 4)
+		CALL 乗機取得処理_設計図("コロッサスレプリカ")
+	IF GETBIT(ダンジョン構造配列_バルツ地下廃工場:26:4, 4)
+		CALL 汎用搭載兵器取得処理("近接用ブレード")
+		CALL 汎用搭載兵器取得処理_設計図("近接用ブレード")
+	ENDIF
+
+	バルツ乗機兵装フォロー = 1
+ENDIF
+
 ;ここまで0.036にしたとき消す、互換を34に
+;ここまで0.037にしたとき消す、互換を35に
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理
