@@ -1,0 +1,83 @@
+﻿
+@COMNAME_S60_3
+#FUNCTIONS
+TSTR:コマンド名受渡 = 子宮口挿入
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_60_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
+弱点コマンドカテゴリ = V
+同時モード許可 = 3
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S60_3
+LOCALS = <br>■子宮口挿入<br>
+LOCALS += "柔らかく熟れた子宮口にペニスを挿入するコマンド。<br>Ｖ挿入系モード時のみ実行可能。"
+LOCALS += "<br>COMタイプ：Ｖ系<br>取得ソース：快Ｖ・接触・苦痛"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・ポルチオ開発(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S60_3
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+CALLF COMNAME_S60_3()
+RCVAR:ポルチオ開発フラグ = 5
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 600)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ性交経験 ++
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S60_3
+;子宮口実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("60_3")
+	RETURN RESULT
+;Ｖ挿入系モードじゃない時はアウト
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) < 0
+	RETURN 0
+;解放イベ踏んでないとアウト
+SIF CFLAG:TARGET:子宮口許可フラグ == 0
+	RETURN 0
+;オプション封印
+SIF 子宮口挿入_封印
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S60_3
+#DIM 同時キャラ番号
+PRINTFORM %CALLNAME:PLAYER%は
+PRINTFORML 柔らかく熟れた%CALLNAME:TARGET%の子宮にペニスを突き入れた…
+

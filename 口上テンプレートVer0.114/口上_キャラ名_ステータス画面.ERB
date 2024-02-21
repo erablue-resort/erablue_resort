@@ -1,4 +1,103 @@
 ﻿;--------------------------------------------------
+;キャラが表示されている時、画面に表示される一言口上
+;--------------------------------------------------
+;・使い方
+;「XXXX」をキャラクター番号に置換し、それぞれの関数に処理を入れる
+;　口上と同じ感覚で使う為に書式を統一しているが、通常時の画面で表示されるので
+;　基本的にWAIT系列は使わないことを推奨
+;　また、一行のみの表示を想定。二行以上は基本的に禁止
+;　※うふふ中には表示されません
+;--------------------------------------------------
+@口上_INFO画面_一言コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
+CALL 口上変数初期化
+
+;以下は分岐の例
+;仕事中の一言口上
+IF TALENT:対象キャラ:従業員 && CFLAG:対象キャラ:現在位置 == 現在仕事:対象キャラ:1 % 10000 && CFLAG:対象キャラ:現在マップ種別 == 現在仕事:対象キャラ:1 / 10000
+	SELECTCASE 現在仕事:対象キャラ:1
+		CASE 2
+			;ロビーで受付中
+			KSTR:(K++) = 
+		CASE 503
+			;バーエリアでバーテンダー中
+			KSTR:(K++) = 
+		CASE 506
+			;図書室で司書中
+			KSTR:(K++) = 
+		CASE 1503, 15
+			;プールで監視員中
+			KSTR:(K++) = 
+		CASE IS > 10000
+			;各種店舗で店番中
+			CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:(現在仕事:対象キャラ:1 - 10000):0}
+			SELECTCASE TSTR:場所名受渡
+				CASE "道具屋"
+					KSTR:(K++) = 
+				CASE "土産物屋"
+					KSTR:(K++) = 
+				CASE "食事処"
+					KSTR:(K++) = 
+				CASE "装飾品店"
+					KSTR:(K++) = 
+			ENDSELECT
+	ENDSELECT
+ENDIF
+;この時点で口上が入ってるなら表示へ飛ばす
+SIF KSTR:0 != ""
+	GOTO 表示位置
+;状況で分岐
+
+IF CFLAG:対象キャラ:飲み会
+	;飲み会中
+	KSTR:(K++) = 
+ELSEIF CFLAG:対象キャラ:睡眠
+	;睡眠中
+	KSTR:(K++) = 
+ELSEIF CFLAG:対象キャラ:デート
+	;デート中
+	KSTR:(K++) = 
+ELSEIF CFLAG:対象キャラ:一緒に遊ぶ
+	;一緒に遊ぶ中
+	KSTR:(K++) = 
+ELSEIF CFLAG:対象キャラ:同行
+	;同行中
+	KSTR:(K++) = 
+ELSEIF CFLAG:PLAYER:隠密 && CFLAG:対象キャラ:隠密
+	;一緒に隠密中
+	KSTR:(K++) = 
+ELSEIF CFLAG:PLAYER:隠密 && !CFLAG:対象キャラ:隠密
+	;あなたが隠れていて、キャラはあなたに気づいていない
+	KSTR:(K++) = 
+ELSEIF !CFLAG:PLAYER:隠密 && CFLAG:対象キャラ:隠密
+	;キャラの野外オナニー中
+	KSTR:(K++) = 
+ENDIF
+;この時点で口上が入ってるなら表示へ飛ばす
+SIF KSTR:0 != ""
+	GOTO 表示位置
+
+;最も多い好感度要素で分岐
+SELECTCASE MAXFIND(4, CFLAG:対象キャラ:友情度, CFLAG:対象キャラ:信頼度, CFLAG:対象キャラ:恋心度, CFLAG:対象キャラ:性愛度)
+	CASE 0
+		;友情度
+		KSTR:(K++) = 
+	CASE 1
+		;信頼度
+		KSTR:(K++) = 
+	CASE 2
+		;恋心度
+		KSTR:(K++) = 
+	CASE 3
+		;性愛度
+		KSTR:(K++) = 
+ENDSELECT
+
+$表示位置
+CALL 口上変数表示(対象キャラ, 1)
+
+
+;--------------------------------------------------
 ;ステータス画面などに表示される一言口上
 ;--------------------------------------------------
 ;・使い方
@@ -6,10 +105,10 @@
 ;　口上と同じ感覚で使う為に書式を統一しているが、ステータス画面で表示されるので
 ;　基本的にWAIT系列は使わないことを推奨
 ;--------------------------------------------------
-@口上_ステータス画面_友情コメント_XXXX
+@口上_ステータス画面_友情コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
-SELECTCASE CFLAG:LOCAL:友情度
+SELECTCASE CFLAG:対象キャラ:友情度
 	CASE IS == 0
 		;初対面
 		KSTR:(K++) = 
@@ -29,13 +128,13 @@ SELECTCASE CFLAG:LOCAL:友情度
 		;無二の友
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ)
+CALL 口上変数表示(対象キャラ, 1)
 
-@口上_ステータス画面_信頼コメント_XXXX
+@口上_ステータス画面_信頼コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
-SELECTCASE CFLAG:LOCAL:信頼度
+SELECTCASE CFLAG:対象キャラ:信頼度
 	CASE IS == 0
 		;初対面
 		KSTR:(K++) = 
@@ -55,13 +154,13 @@ SELECTCASE CFLAG:LOCAL:信頼度
 		;水魚の交わり
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ)
+CALL 口上変数表示(対象キャラ, 1)
 
-@口上_ステータス画面_恋心コメント_XXXX
+@口上_ステータス画面_恋心コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
-SELECTCASE CFLAG:LOCAL:恋心度
+SELECTCASE CFLAG:対象キャラ:恋心度
 	CASE IS == 0
 		;初対面
 		KSTR:(K++) = 
@@ -81,13 +180,13 @@ SELECTCASE CFLAG:LOCAL:恋心度
 		;最愛の人
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ)
+CALL 口上変数表示(対象キャラ, 1)
 
-@口上_ステータス画面_性愛コメント_XXXX
+@口上_ステータス画面_性愛コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
-SELECTCASE CFLAG:LOCAL:性愛度
+SELECTCASE CFLAG:対象キャラ:性愛度
 	CASE IS == 0
 		;初対面
 		KSTR:(K++) = 
@@ -107,13 +206,13 @@ SELECTCASE CFLAG:LOCAL:性愛度
 		;肉欲の虜
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL, CSTR:LOCAL:キャラ固有好感度要素 == ""? 1# 0)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ, CSTR:対象キャラ:キャラ固有好感度要素 == ""? 1# 0)
+CALL 口上変数表示(対象キャラ, 1)
 
-@口上_ステータス画面_キャラ固有好感度要素コメント_XXXX
+@口上_ステータス画面_キャラ固有好感度要素コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
-SELECTCASE CFLAG:LOCAL:キャラ固有好感度
+SELECTCASE CFLAG:対象キャラ:キャラ固有好感度
 	CASE IS == 0
 		;初対面
 		KSTR:(K++) = 
@@ -133,14 +232,14 @@ SELECTCASE CFLAG:LOCAL:キャラ固有好感度
 		;
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL, 1)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ, 1)
+CALL 口上変数表示(対象キャラ, 1)
 
-@口上_ステータス画面_恋慕コメント_XXXX
+@口上_ステータス画面_恋慕コメント_XXXX(対象キャラ)
+#DIM 対象キャラ
 CALL 口上変数初期化
-LOCAL = FINDCHARA(NO, XXXX)
 PRINTL 
-SELECTCASE CFLAG:LOCAL:恋慕レベル
+SELECTCASE CFLAG:対象キャラ:恋慕レベル
 	CASE IS == 0
 		;脈ナシ
 		KSTR:(K++) = 
@@ -160,6 +259,6 @@ SELECTCASE CFLAG:LOCAL:恋慕レベル
 		;最愛の人
 		KSTR:(K++) = 
 ENDSELECT
-CALL コメント文頭処理(LOCAL, 1)
-CALL 口上変数表示(LOCAL, 1)
+CALL コメント文頭処理(対象キャラ, 1)
+CALL 口上変数表示(対象キャラ, 1)
 
