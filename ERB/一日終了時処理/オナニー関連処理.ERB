@@ -20,7 +20,7 @@ SIF 知識素質:ARG:性知識 < 0 && EXP:ARG:自慰経験 <= 0
 SIF RANDOM_PART(ARG) == -1
 	RETURN 0
 ;前回の野外オナニーの正常終了から時間経過してないとしない
-;興味の場合は一日一回、愛好の場合は４時間置き、中毒の場合は２時間置き
+;興味の場合は一日一回、愛好の場合は４時間置き（一日２回絶頂まで）、中毒の場合は２時間置き（一日３回絶頂まで）
 SELECTCASE 性癖素質:ARG:野外オナニー
 	CASE 1
 		SIF TCVAR:ARG:野外オナニー_開始時刻
@@ -28,8 +28,12 @@ SELECTCASE 性癖素質:ARG:野外オナニー
 	CASE 2
 		SIF TCVAR:ARG:野外オナニー_開始時刻 + 4 * 60 > NOW()
 			RETURN 0
+		SIF TCVAR:ARG:野外オナニー_実行回数 > 1
+			RETURN 0
 	CASE 3
 		SIF TCVAR:ARG:野外オナニー_開始時刻 + 2 * 60 > NOW()
+			RETURN 0
+		SIF TCVAR:ARG:野外オナニー_実行回数 > 2
 			RETURN 0
 ENDSELECT
 ;性欲や自慰しやすいなどの条件を見る
@@ -99,7 +103,6 @@ ENDIF
 ;フラグ周りを初期化する
 ;-------------------------------------------------
 @野外オナニー途中終了(ARG)
-TCVAR:ARG:野外オナニー_開始時刻 = 0
 TCVAR:ARG:野外オナニー_残時間 = 0
 TCVAR:ARG:野外オナニー_場所ID = 0
 TCVAR:ARG:野外オナニー_部位 = 0
@@ -415,3 +418,19 @@ ELSE
 ENDIF
 CFLAG:ARG:体力成長値 += 絶頂回数 * 5
 NOWEX:ARG:オナニー部位 = 0
+TCVAR:ARG:野外オナニー_実行回数 += 1
+
+
+
+@野外オナニー欲求不満処理(対象キャラ)
+#DIM 対象キャラ
+#DIM 性欲上昇量
+
+DRAWLINE
+PRINTFORML %CALLNAME:対象キャラ%は満足行く野外オナニーが出来ず、悶々としている……。
+
+性欲上昇量 = MIN(MAXBASE:対象キャラ:性欲 - BASE:対象キャラ:性欲, 500)
+
+PRINTFORMW %CALLNAME:対象キャラ%の性欲が{性欲上昇量}上昇した。
+PRINTL
+TRYCALLFORM KOJO_欲求不満_野外オナニー_{NO:対象キャラ}(対象キャラ)

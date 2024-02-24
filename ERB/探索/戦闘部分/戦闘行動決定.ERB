@@ -927,6 +927,7 @@ ENDIF
 #DIM 反撃威力
 #DIM 反撃威力_固定値
 #DIM データベース行数
+#DIM ゲージ上昇量
 
 戦闘行動対象 = 対象保存
 CALL アビテンプレ変数リセット
@@ -935,7 +936,25 @@ CALL アビテンプレ変数リセット
 FOR LOCAL, 0, 10
 	SIF 被ダメ反応者:LOCAL < 0
 		CONTINUE
+	;死んでたらダメ
+	IF 被ダメ反応者:LOCAL < 10
+		SIF BATTLE_STATE:(被ダメ反応者:LOCAL):ＨＰ < 1
+			CONTINUE
+	ELSE
+		SIF 敵BATTLE_STATE:(被ダメ反応者:LOCAL - 10):ＨＰ < 1
+			CONTINUE
+	ENDIF
 	戦闘行動キャラ = 被ダメ反応者:LOCAL
+
+	;被ダメ奥義ゲージ上昇
+	IF 戦闘行動キャラ < 10
+		ゲージ上昇量 = RAND(3,7)
+		CALL バフ・デバフ測定(戦闘行動キャラ, "ゲージ上昇効率")
+		ゲージ上昇量 = ゲージ上昇量 * RESULT / 100
+		CALL バフ・デバフ測定(戦闘行動キャラ, "ゲージ上昇効率_被ダメ時")
+		ゲージ上昇量 = ゲージ上昇量 * RESULT / 100
+		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = MIN(BATTLE_STATE:戦闘行動キャラ:奥義ゲージ + ゲージ上昇量, BATTLE_STATE:戦闘行動キャラ:ゲージ最大値)
+	ENDIF
 
 	;カウンターバフ時
 	バフ番号 = バフ存在チェック("カウンター", 戦闘行動キャラ)
@@ -988,6 +1007,14 @@ NEXT
 FOR LOCAL, 0, 10
 	SIF 回避反応者:LOCAL < 0
 		CONTINUE
+	;死んでたらダメ
+	IF 回避反応者:LOCAL < 10
+		SIF BATTLE_STATE:(回避反応者:LOCAL):ＨＰ < 1
+			CONTINUE
+	ELSE
+		SIF 敵BATTLE_STATE:(回避反応者:LOCAL - 10):ＨＰ < 1
+			CONTINUE
+	ENDIF
 	戦闘行動キャラ = 回避反応者:LOCAL
 
 	;回避反撃バフ時
@@ -1041,6 +1068,14 @@ NEXT
 FOR LOCAL, 0, 10
 	SIF 被タゲ反応者:LOCAL < 0
 		CONTINUE
+	;死んでたらダメ
+	IF 被タゲ反応者:LOCAL < 10
+		SIF BATTLE_STATE:(被タゲ反応者:LOCAL):ＨＰ < 1
+			CONTINUE
+	ELSE
+		SIF 敵BATTLE_STATE:(被タゲ反応者:LOCAL - 10):ＨＰ < 1
+			CONTINUE
+	ENDIF
 	戦闘行動キャラ = 被タゲ反応者:LOCAL
 
 	;被タゲ特殊バフ時
