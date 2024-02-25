@@ -1,0 +1,159 @@
+﻿@物陰連れ込まれ処理
+#DIM 対象キャラ
+#DIM 連れ込みキャラ
+#DIMS 条件性癖, 50
+#DIM 性欲閾値
+#DIM 性癖カウント
+
+;あなたうふふ時は発動しない
+SIF CFLAG:MASTER:うふふ
+	RETURN 0
+
+;あなた隠密時は発動しない
+SIF CFLAG:MASTER:隠密
+	RETURN 0
+
+;飲み会時も多分処理がめんどくさいので発動しない
+SIF CFLAG:MASTER:飲み会
+	RETURN 0
+
+連れ込みキャラ = 0
+連れ込みパターン = 
+;同室している全員分を見る
+;条件を満たしているキャラがいたらその時点で発動（＝それより後のキャラは満たしてても発動しない）
+FOR 対象キャラ, 1, CHARANUM
+	SIF TARGET:対象キャラ < 1
+		BREAK
+	;既に誰かが隠密してたら発動しない
+	IF CFLAG:(TARGET:対象キャラ):隠密
+		連れ込みキャラ = 0
+		連れ込みパターン = 
+		RETURN 0
+	ENDIF
+
+	;一日一回まで
+	SIF TCVAR:(TARGET:対象キャラ):連れ込み済フラグ
+		CONTINUE
+	;寝てるとダメ
+	SIF CFLAG:(TARGET:対象キャラ):睡眠
+		CONTINUE
+	;陥落済み必須
+	SIF 陥落チェック(TARGET:対象キャラ) == 0
+		CONTINUE
+	;性欲なしはダメ
+	SIF TALENT:(TARGET:対象キャラ):性欲 == -2
+		CONTINUE
+	;無知はダメ
+	SIF 知識素質:(TARGET:対象キャラ):性知識 == -2
+		CONTINUE
+	;うふふ経験済み必須
+	SIF 初体験日:(TARGET:対象キャラ):初うふふ == 0
+		CONTINUE
+	;以下、連れ込みルート分岐
+	IF CFLAG:(TARGET:対象キャラ):中毒欲求不満フラグ >= 3
+		;性癖中毒欲求不満
+		連れ込みキャラ = TARGET:対象キャラ
+		性癖カウント = ENUMFUNCBEGINSWITH("中毒連れ込み判定_")
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 性癖カウント
+			CALLFORM %RESULTS:LOCAL%(TARGET:対象キャラ)
+			IF RESULT
+				条件性癖:(LOCAL:1) = %REPLACE(RESULTS:LOCAL, "中毒連れ込み判定_", "")%
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+		IF LOCAL:1 > 0
+			連れ込みパターン = %条件性癖:(RAND:(LOCAL:1))%
+			BREAK
+		ENDIF
+	ENDIF
+	IF CFLAG:(TARGET:対象キャラ):発情期フラグ == -2
+		;超発情期
+		連れ込みキャラ = TARGET:対象キャラ
+		連れ込みパターン = 発情期
+		BREAK
+	ELSE
+		性欲閾値 = 連れ込み条件セット(TARGET:対象キャラ)
+		IF BASE:(TARGET:対象キャラ):性欲 > 性欲閾値 && MAX(PALAM:(TARGET:対象キャラ):快Ｃ, PALAM:(TARGET:対象キャラ):快Ｖ, PALAM:(TARGET:対象キャラ):快Ａ, PALAM:(TARGET:対象キャラ):快Ｂ, PALAM:(TARGET:対象キャラ):快Ｓ) > 6000
+			;性欲＋一定以上の快楽
+			連れ込みキャラ = TARGET:対象キャラ
+			連れ込みパターン = 一般
+			BREAK
+		ENDIF
+	ENDIF
+NEXT
+
+SIF 連れ込みキャラ == 0
+	RETURN 0
+
+;共通処理部分
+CFLAG:MASTER:隠密 = 1
+CFLAG:連れ込みキャラ:隠密 = 1
+CFLAG:MASTER:うふふ = 1
+CFLAG:連れ込みキャラ:うふふ = 1
+TFLAG:TARGET変更用 = 連れ込みキャラ
+PALAM:連れ込みキャラ:欲情 = 30000
+PALAM:連れ込みキャラ:潤滑 = 30000
+
+DRAWLINE
+IF GETNUM(性癖素質, 連れ込みパターン) > -1
+	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+	PRINTFORML どうやら[%連れ込みパターン%(中毒)]の欲求が限界のようだ
+	PRINTW 満たされるまでは解放されないだろう…（条件：該当性癖を満たしつつ絶頂１回）
+ELSEIF 連れ込みパターン == "発情期"
+	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+	PRINTFORML どうやら発情期の強さがピークに達しているようだ
+	PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
+ELSE
+	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+	PRINTFORML どうやら性欲が溜まっているところに煽りすぎたようだ
+	PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
+ENDIF
+PRINTL
+TRYCALLFORM KOJO_EVENT_物陰連れ込み_{NO:連れ込みキャラ}(連れ込みキャラ)
+
+@連れ込み条件セット(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 性欲閾値
+#DIM ループ用
+
+;基礎は1500
+性欲閾値 = 1500
+
+SIF TALENT:対象キャラ:処女
+	性欲閾値 += 500
+SIF TALENT:対象キャラ:童貞 == 0
+	性欲閾値 += 500
+SIF TALENT:対象キャラ:セフレ
+	性欲閾値 -= 200
+
+性欲閾値 -= TALENT:対象キャラ:度胸 * 50
+性欲閾値 += TALENT:対象キャラ:プライド * 100
+性欲閾値 -= TALENT:対象キャラ:ツンデレ * 100
+SIF TALENT:対象キャラ:マイペース > 0
+	性欲閾値 -= 50
+SIF TALENT:対象キャラ:会話資質 < 0
+	性欲閾値 += TALENT:対象キャラ:会話資質 * 50
+SIF TALENT:対象キャラ:精神的余裕 < 0
+	性欲閾値 -= 50
+SIF TALENT:対象キャラ:精神的余裕 > 0
+	性欲閾値 += 50
+性欲閾値 += TALENT:対象キャラ:自制心 * 100
+性欲閾値 += TALENT:対象キャラ:無関心 * 300
+性欲閾値 += TALENT:対象キャラ:感情乏しい * 300
+性欲閾値 -= TALENT:対象キャラ:性的興味 * 100
+性欲閾値 += TALENT:対象キャラ:一線越えない * 200
+性欲閾値 -= TALENT:対象キャラ:性欲 * 100
+性欲閾値 -= TALENT:対象キャラ:経験豊富 * 100
+性欲閾値 += TALENT:対象キャラ:羞恥心 * 100
+性欲閾値 -= TALENT:対象キャラ:快感応答 * 100
+
+FOR ループ用, 0, 100
+	IF 経験値テーブル:ループ用 >= CFLAG:対象キャラ:性愛度
+		性欲閾値 -= ループ用 * 2
+		BREAK
+	ENDIF
+NEXT
+
+RETURNF 性欲閾値

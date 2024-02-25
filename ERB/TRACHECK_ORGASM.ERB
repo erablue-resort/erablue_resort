@@ -383,6 +383,38 @@ IF RCVAR:ARG:絶頂の強度 > 0
 	CFLAG:ARG:体力成長値 += RCVAR:ARG:絶頂の強度 * 5
 ENDIF
 
+;連れ込み状態時、満足したか
+;ついでに中毒欲求不満の判定も行う
+CALL 中毒連れ込み判定_逆アナル(ARG)
+IF RESULT
+	IF NOWEX:ARG:Ｃ絶頂 && MODE_確認_完全一致("Ａ挿入系", ARG, MASTER)
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "逆アナル"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
+ENDIF
+CALL 中毒連れ込み判定_搾乳プレイ(ARG)
+IF RESULT
+	IF NOWEX:ARG:Ｂ絶頂 && MODE_確認_ターゲット側("搾乳機", ARG)
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "搾乳プレイ"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
+ENDIF
+CALL 中毒連れ込み判定_触手プレイ(ARG)
+IF RESULT
+	IF RCVAR:ARG:絶頂の強度 && MODE_確認_ターゲット側("触手系", ARG)
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "触手プレイ"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
+ENDIF
+
+IF 連れ込みパターン == "一般" || 連れ込みパターン == "発情期"
+	SIF RCVAR:ARG:絶頂の強度 + TCVAR:ARG:うふふ中Ｃ絶頂累積 + TCVAR:ARG:うふふ中Ｂ絶頂累積 + TCVAR:ARG:うふふ中Ｖ絶頂累積 + TCVAR:ARG:うふふ中Ａ絶頂累積 + TCVAR:ARG:うふふ中Ｓ絶頂累積 > 2
+		RCVAR:ARG:連れ込み満足フラグ = 1
+ENDIF
+
 RETURN 1
 
 
@@ -545,7 +577,7 @@ FOR 部位番号, 0, 5
 		;基礎200を素質や経験などで増減させる
 		体力減少量計算値 = 200
 
-		;各絶頂経験の分減らす（最大50）
+		;各絶頂経験の分減らす（最大150）
 		体力減少量計算値 -= MIN(150, EXP:キャラ番号:(部位番号 + 5))
 
 		;素質による上下
