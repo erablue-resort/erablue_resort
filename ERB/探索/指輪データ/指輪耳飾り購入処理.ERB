@@ -284,6 +284,8 @@ SELECTCASE LOCAL
 			LOCALS = %詳細文文字列受け渡し変数%
 			TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL - 500, "id"))
 			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			;売値なので半分に
+			基礎販売額 = 基礎販売額 / 2
 			LOCALS += @"売却額：{基礎販売額}ルピ<br>"
 		ENDIF
 		HTML_PRINT LOCALS
@@ -306,11 +308,19 @@ SELECTCASE LOCAL
 		ページ番号 += 1
 		GOTO RESTART_SPOT
 	CASE 1010
+		VARSET 表示用ステータス格納配列:0:0
+		DO
 		CALL 所持指輪リスト表示_USERCOM
-		GOTO RESTART_SPOT
+		SIF RESULT == -1
+			GOTO RESTART_SPOT
+		LOOP 1
 	CASE 1011
+		VARSET 表示用ステータス格納配列:0:0
+		DO
 		CALL 所持耳飾りリスト表示_USERCOM
-		GOTO RESTART_SPOT
+		SIF RESULT == -1
+			GOTO RESTART_SPOT
+		LOOP 1
 	CASE 1100 TO 1102
 		購入_売却モード = LOCAL - 1100
 		VARSET 表示用ステータス格納配列:0:0
@@ -333,10 +343,12 @@ LOOP 1
 IF 購入_売却モード == 1
 	;基礎価格の算出
 	TRYCALLFORM 指輪個別文章表示_%DT_CELL_GETS("所持指輪データベース", 指輪id番号, "指輪名", 1)%
+	;購入ではなく販売なので半分に
+	基礎販売額 = 基礎販売額 / 2
 
 	;オプション数の算出
 	オプション数 = STRCOUNT(DT_CELL_GETS("所持指輪データベース", 指輪id番号, "オプションステータス補正", 1), "_") / 2
 
-	;オプション数の数だけ倍々に
-	基礎販売額 = 基礎販売額 * POWER(2, オプション数)
+	;オプション数１個につき50%売値UP
+	基礎販売額 = 基礎販売額 * (10 + オプション数 * 5) / 10
 ENDIF

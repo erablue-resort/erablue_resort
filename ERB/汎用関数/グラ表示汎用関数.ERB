@@ -163,6 +163,7 @@ RETURNF RESULTS
 #DIM L_CNT, 3
 #DIM LNCOUNT
 #DIM G_NUM
+#DIM C_NUM
 #DIM F_NUM
 #DIMS G_NAME
 #DIMS FOLDER, 10
@@ -187,51 +188,68 @@ FOR L_CNT, 0, F_NUM
 	FOLDER:L_CNT '= SUBSTRING(RESULTS:L_CNT, 10, STRLENS(RESULTS:L_CNT)-28)
 NEXT
 
-PRINTL 一覧より使用する画像フォルダを選択してください
+DRAWLINE
+PRINTL 使用する画像フォルダを選択してください
+PRINTL ※例としてランダムな画像を５つ表示中
+DRAWLINE
 TEMP_HTML = 
+
 FOR L_CNT, 0, F_NUM
 	PRINTFORML [{L_CNT}] %FOLDER:L_CNT%
-	FOR L_CNT:2, 0, 2
-		短冊フラグ = L_CNT:2
-		LOCALS = \@ L_CNT:2? 短冊_# 顔_\@
+	G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, "*.png")
+	PRINTFORM 総画像数：{G_NUM, 3}枚
+	C_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, "*カットイン.png")
+	IF C_NUM
+		PRINTL 　　カットインあり
+	ELSE
+		PRINTL 　　カットインなし
+	ENDIF
+	LOCALS = 短冊_
+	VARSET RESULTS
+	G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, LOCALS + "*.png")
+	IF G_NUM
+		TEMP_HTML_MAX_HEIGHT = 1500
+		短冊フラグ = 1
+	ELSE
+		LOCALS = 顔_
+		VARSET RESULTS
 		G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, LOCALS + "*.png")
-		FOR L_CNT:1, 0, G_NUM
-			G_NAME '= SUBSTRING(RESULTS:(L_CNT:1), 10, -1)
-			LOCAL = TEMP_gID + L_CNT*2000 + L_CNT:2*1000+ L_CNT:1 + 1
-			GCREATEFROMFILE LOCAL, G_NAME
-			SIF スプライト作成(TOSTR(LOCAL), LOCAL, 短冊フラグ) == 0
-				CONTINUE
-			TEMP_HTML_MAX_HEIGHT = L_CNT:2? 1500# 750
-			LOCALS = {(L_CNT:1 % 8) * 750}, 0, 750, {TEMP_HTML_MAX_HEIGHT}
-			TEMP_HTML += @"<div rect='%LOCALS%'><button value='{L_CNT}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='750' height='{TEMP_HTML_MAX_HEIGHT}'></button></div>"
-			IF (L_CNT:1 + 1) % 8 == 0
-				描画開始行数 = LINECOUNT
-				CALL 画像一斉表示("左", 0, 1)
-			ENDIF
-		NEXT
-		IF TEMP_HTML != ""
-			描画開始行数 = LINECOUNT
-			CALL 画像一斉表示("左", 0, 1)
-		ENDIF
+		TEMP_HTML_MAX_HEIGHT = 750
+		短冊フラグ = 0
+	ENDIF
+	FOR L_CNT:1, 0, 5
+		G_NAME '= SUBSTRING(RESULTS:(RAND:G_NUM), 10, -1)
+		LOCAL = TEMP_gID + L_CNT * 10 + L_CNT:1
+		GCREATEFROMFILE LOCAL, G_NAME
+		SIF スプライト作成(TOSTR(LOCAL), LOCAL, 短冊フラグ) == 0
+			CONTINUE
+		TEMP_HTML_MAX_HEIGHT = 1500
+		LOCALS = {(L_CNT:1 % 8) * 750}, 0, 750, {TEMP_HTML_MAX_HEIGHT}
+		TEMP_HTML += @"<div rect='%LOCALS%'><button value='{L_CNT}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='750' height='{TEMP_HTML_MAX_HEIGHT}'></button></div>"
+		TEMP_HTML_MAX_HEIGHT = 240
 	NEXT
+	描画開始行数 = LINECOUNT
+	CALL 画像一斉表示("左", 0, 1)
 NEXT
 
+
+PRINTL [200] 画像のランダム表示をリロール
 PRINTL [100] 戻る
 
-INPUT
-$LOOP_INPUT
+BINPUT
+LOCAL = RESULT
 IF INRANGE(RESULT, 0, F_NUM)
 	CSTR:ARG:画像フォルダ '= FOLDER:RESULT
 	PRINTFORMW 画像フォルダを%CSTR:ARG:画像フォルダ%に変更しました
 	SUBSTRING CSTR:ARG:画像フォルダ, STRLENS(TOSTR(NO:ARG) + CALLNAME:ARG), -1
-ELSEIF RESULT != 100
-	GOTO LOOP_INPUT
 ENDIF
 
 FOR L_CNT, 0, (F_NUM+1)*2000
 	GDISPOSE TEMP_gID + L_CNT
 NEXT
 CLEARLINE LINECOUNT - LNCOUNT
+SIF LOCAL == 200
+	RESTART
 PRINTFORML 現在の画像フォルダは%CSTR:ARG:画像フォルダ%です
 CALL CLOTHES_TODAY(ARG)
 RETURN
@@ -452,3 +470,39 @@ SPRITECREATE 元スプライト, グラフィックID, 0, 0, 元横幅, 元縦�
 
 RETURNF
 
+@画像フォルダ有効チェック(対象キャラ)
+#DIM 対象キャラ
+#DIM F_NUM
+#DIMS FOLDER
+
+IF CSTR:対象キャラ:画像フォルダ != ""
+	;CSTRに入ってるフォルダ名は有効か？
+	LOCALS '= "resources\\" + CSTR:対象キャラ:画像フォルダ
+	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png")
+	IF F_NUM
+		;デフォルト画像があるなら有効と見なす
+		RETURN 1
+	ENDIF
+ENDIF
+
+;この下はCSTRに文字列が入ってないor入ってるフォルダ名が有効ではないパターン
+;仮に一番上のフォルダを見に行く
+CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+
+LOCALS '= "resources\\" + CSTR:対象キャラ:画像フォルダ
+F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png")
+IF F_NUM
+	;デフォルト画像があるなら有効と見なしてこのまま帰る
+	RETURN 1
+ENDIF
+
+;ないならサブフォルダを見に行く
+LOCALS '= "resources\\" + TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ
+F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
+IF F_NUM < 1
+	;そもそも画像がないので帰る、CSTRはそのまま
+	RETURN 0
+ENDIF
+;見つかったら一番最初のフォルダを選択しておく
+FOLDER '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
+CSTR:対象キャラ:画像フォルダ '= FOLDER

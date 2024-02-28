@@ -819,6 +819,7 @@ SELECTCASE 表示モード
 		ELSE
 			LOCALS += @"%DECIMAL_STRING(身長保存, 1)%cm"
 			LOCALS += @"　　　<button value='{12998}'>[手動で設定する]</button>"
+			LOCALS += @"　<button value='{12996}'>[リロール]</button>"
 		ENDIF
 		LOCALS += "<br>"
 		LOCALS += "バストサイズ："
@@ -831,6 +832,7 @@ SELECTCASE 表示モード
 			ENDIF
 			LOCALS += @"<button value='{12026}'>[%LOCALS:1%]</button>"
 			LOCALS += @"　　　<button value='{12999}'>[カップ数で指定する]</button>"
+			LOCALS += @"　<button value='{12997}'>[リロール]</button>"
 		ELSE
 			FOR LOCAL, -2, 4
 				IF ランダムキャラ素質:3 == LOCAL
@@ -861,7 +863,7 @@ SELECTCASE 表示モード
 		LOCALS += "<br>"
 		IF !身長数値設定フラグ
 			LOCALS += "体格："
-			FOR LOCAL, -2, 3
+			FOR LOCAL, -3, 3
 				IF ランダムキャラ素質:31 == LOCAL
 					LOCALS:1 = C0C0C0
 				ELSE
@@ -1325,7 +1327,7 @@ SELECTCASE LOCAL
 		ランダムキャラ素質:6 = LOCAL - 12030
 	CASE 12039 TO 12042
 		ランダムキャラ素質:30 = LOCAL - 12040
-	CASE 12048 TO 12052
+	CASE 12047 TO 12052
 		IF ランダムキャラ素質:0 == 3
 			ランダムキャラ素質:31 = MIN(LOCAL - 12050, 0)
 		ELSEIF ランダムキャラ素質:0 == 4
@@ -1342,6 +1344,11 @@ SELECTCASE LOCAL
 		INVERTBIT 肉体特徴数値保存:(LOCAL - 12070), 0
 	CASE 12077 TO 12083
 		体型保存 = LOCAL - 12080
+	CASE 12996
+		身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
+		ランダムキャラ素質:3 = EDIT用バストTALENT算出(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+	CASE 12997
+		バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
 	CASE 12998
 		INVERTBIT 身長数値設定フラグ, 0
 	CASE 12999
@@ -1857,7 +1864,7 @@ NEXT
 #DIM アンダーバスト
 #DIMS CONST 表記 = "(-)","(AAA)","(AA)","(A)","(B)","(C)","(D)","(E)","(F)","(G)","(H)","(I)","(J)","(K)","(L)","(M)","(N)","(O)","(P)","(Q)","(R)","(S)","(T)","(U)","(V)","(W)","(X)","(Y)","(Z)","(Z+) "
 
-LOCAL = (バスト保存 - アンダーバスト) / 25
+LOCAL = (バスト保存 - アンダーバスト + 10) / 25 - 1
 
 ;文字列変数が若干不自由なので無理やり作成
 LOCAL = MAX(LOCAL, 1)
@@ -1900,7 +1907,7 @@ ENDSELECT
 #DIM アンダーバスト
 
 ;最低サイズ算出
-LOCAL = アンダーバスト + 4 + ((バストサイズ + 2) * 50)
+LOCAL = アンダーバスト + 40 + ((バストサイズ + 2) * 50)
 SIF バストサイズ == 3
 	LOCAL += 25
 
@@ -1910,6 +1917,11 @@ IF バストサイズ < 2
 	LOCAL = LOCAL + RAND:50
 ELSE
 	;それ以上の時、+7.4cmまで許容
+	LOCAL = LOCAL + RAND:75
+ENDIF
+
+IF バストサイズ == 3 && RAND:10 == 0
+	;魔乳時、たまーーに限界突破する
 	LOCAL = LOCAL + RAND:75
 ENDIF
 

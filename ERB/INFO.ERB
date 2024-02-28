@@ -16,7 +16,7 @@ CALL CHARA_ATTITUDE
 CALL CHARA_MOVEMENT
 IF TCVAR:MASTER:馴れ合い強度 >= 1
 	LOCAL:1 = IN_ROOM("MIN", CFLAG:MASTER:現在位置, "CFLAG", 6)
-	LOCAL:2 = CFLAG:(LOCAL:1):6
+	LOCAL:2 = CFLAG:(LOCAL:1):態度保存
 	; IF CFLAG:MASTER:隠密
 	; 	;隠密だと空気変わらない
 	; ELSEIF LOCAL:2 <= 0 && LOCAL:1 > 0 && CFLAG:(LOCAL:1):現在位置 != CFLAG:(LOCAL:1):前ターン位置 && !CFLAG:(LOCAL:1):睡眠
@@ -38,30 +38,28 @@ CFLAG:MASTER:睡眠 = 0
 ;同室中のキャラをTARGETに代入
 VARSET TARGET
 VARSET 飲み会TARGET
-;キャラを好感度レベルの降順に並び替え
-CALL SORT_CFLAG(21)
 IF TFLAG:調教モード == 3
 	FOR LOCAL,1,CHARANUM
-		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(RESULT:LOCAL):現在マップ種別
+		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別
 			CONTINUE
-		SIF CFLAG:MASTER:現在位置 != CFLAG:(RESULT:LOCAL):現在位置
+		SIF CFLAG:MASTER:現在位置 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置
 			CONTINUE
-		IF CFLAG:(RESULT:LOCAL):飲み会
+		IF CFLAG:(CFLAG_SORTARRAY:LOCAL):飲み会
 			LOCAL:1 ++
-			飲み会TARGET:(LOCAL:1) = RESULT:LOCAL
+			飲み会TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 		ELSE
 			LOCAL:2 ++
-			TARGET:(LOCAL:2) = RESULT:LOCAL
+			TARGET:(LOCAL:2) = CFLAG_SORTARRAY:LOCAL
 		ENDIF
 	NEXT
 ELSE
 	FOR LOCAL,1,CHARANUM
-		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(RESULT:LOCAL):現在マップ種別
+		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別
 			CONTINUE
-		SIF CFLAG:MASTER:現在位置 != CFLAG:(RESULT:LOCAL):現在位置
+		SIF CFLAG:MASTER:現在位置 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置
 			CONTINUE
 		LOCAL:1 ++
-		TARGET:(LOCAL:1) = RESULT:LOCAL
+		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 	NEXT
 ENDIF
 
@@ -115,7 +113,7 @@ FOR LOCAL,1,CHARANUM
 	;覗きは一旦オミット
 	ELSE
 	; 	;相手からこちらが見えていて、相手かこちらかが移動したかこちらが押し倒した
-	; 	SIF CAN_MOVE_1(CFLAG:LOCAL:現在位置, CFLAG:MASTER:現在位置) == 2 && (CFLAG:MASTER:前ターン位置 != CFLAG:MASTER:現在位置 || CFLAG:LOCAL:前ターン位置 != CFLAG:LOCAL:現在位置 || TRAIN_COMNAME(PREVCOM) == "押し倒す") && !CFLAG:LOCAL:睡眠
+	; 	SIF CAN_MOVE(CFLAG:LOCAL:現在位置, CFLAG:MASTER:現在位置) == 2 && (CFLAG:MASTER:前ターン位置 != CFLAG:MASTER:現在位置 || CFLAG:LOCAL:前ターン位置 != CFLAG:LOCAL:現在位置 || TRAIN_COMNAME(PREVCOM) == "押し倒す") && !CFLAG:LOCAL:睡眠
 	; 		CALL AFFAIR_DISCLOSURE(LOCAL, 1)
 		CFLAG:LOCAL:同室 = 0
 	ENDIF
@@ -126,14 +124,14 @@ IF TFLAG:調教モード == 3
 	FOR LOCAL,1,CHARANUM
 		SIF 飲み会TARGET:LOCAL < 1
 			BREAK
-		;合意か弱味がないと2以上にならない
-		IF GETBIT(CFLAG:(飲み会TARGET:LOCAL):1,0) || CFLAG:(飲み会TARGET:LOCAL):10
-			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = CFLAG:(飲み会TARGET:LOCAL):6
+		;合意がないと2以上にならない
+		IF GETBIT(CFLAG:(飲み会TARGET:LOCAL):1,0)
+			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = CFLAG:(飲み会TARGET:LOCAL):態度保存
 		;飲み会中は酩酊数値一定以上でも2以上になる
 		ELSEIF BASE:(飲み会TARGET:LOCAL):酩酊 > 500
-			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = CFLAG:(飲み会TARGET:LOCAL):6
+			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = CFLAG:(飲み会TARGET:LOCAL):態度保存
 		ELSE
-			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(飲み会TARGET:LOCAL):6 , 1)
+			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(飲み会TARGET:LOCAL):態度保存 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
 		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
@@ -144,11 +142,11 @@ ELSE
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL < 1
 			BREAK
-		;合意か弱味がないと2以上にならない
-		IF GETBIT(CFLAG:(TARGET:LOCAL):1,0) || CFLAG:(TARGET:LOCAL):10
-			TCVAR:(TARGET:LOCAL):馴れ合い強度 = CFLAG:(TARGET:LOCAL):6
+		;合意がないと2以上にならない
+		IF GETBIT(CFLAG:(TARGET:LOCAL):1,0)
+			TCVAR:(TARGET:LOCAL):馴れ合い強度 = CFLAG:(TARGET:LOCAL):態度保存
 		ELSE
-			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):6 , 1)
+			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):態度保存 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
 		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
@@ -239,6 +237,12 @@ FOR LOCAL,0,CHARANUM
 
 NEXT
 ;-------------------------------------------------
+;連れ込まれ処理
+;-------------------------------------------------
+IF 連れ込みパターン == ""
+	CALL 物陰連れ込まれ処理
+ENDIF
+;-------------------------------------------------
 ;遭遇口上（TARGETのみ）
 ;-------------------------------------------------
 CALL KOJO_遭遇時EVENT
@@ -310,7 +314,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 	FOR LOCAL,1,CHARANUM
 		SIF CFLAG:LOCAL:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:LOCAL:現在マップ種別 == CFLAG:MASTER:現在マップ種別
 			CONTINUE
-		SIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:LOCAL:現在位置) == 2
+		SIF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:LOCAL:現在位置) == 2
 			LOCAL:1 ++
 	NEXT
 	IF CFLAG:うふふ == 1
@@ -633,7 +637,14 @@ IF TARGET > 0
 	PRINTL 
 	PRINTL 
 	PRINTL 
-	PRINTL 
+	IF CFLAG:TARGET:うふふ == 0
+		TRYCCALLFORM 口上_INFO画面_一言コメント_{NO:TARGET}
+		CATCH
+			PRINTL 
+		ENDCATCH
+	ELSE
+		PRINTL 
+	ENDIF
 
 	DRAWLINE
 ELSEIF FLAG:モード管理 == 1 && TARGET == MASTER
@@ -990,24 +1001,20 @@ HTML_PRINT HTML文字列, 1
 
 ;-------------------------------------------------
 ;関数名:SORT_CFLAG
-;CFLAG:ARGの昇順でRESULT:1にキャラ番号を代入する
+;CFLAG:ARGの昇順でCFLAG_SORTARRAY:1にキャラ番号を代入する
 ;ARG CFLAGの番号
 ;-------------------------------------------------
 @SORT_CFLAG(ARG)
-VARSET LOCAL
-VARSET RESULT
-FOR LOCAL:10,1,CHARANUM
-	LOCAL:1 = 0
-	FOR LOCAL,1,CHARANUM
-		SIF MATCH(RESULT,LOCAL)
-			CONTINUE
-		IF CFLAG:LOCAL:ARG >= LOCAL:1
-			LOCAL:1 = CFLAG:LOCAL:ARG
-			LOCAL:2 = LOCAL
-		ENDIF
-	NEXT
-RESULT:(LOCAL:10) = LOCAL:2
+#DIM SORT_NUM, 3000
+VARSET SORT_NUM
+VARSET CFLAG_SORTARRAY
+
+FOR LOCAL, 1, CHARANUM
+	SORT_NUM:(LOCAL - 1) = (CFLAG:LOCAL:ARG + 1) * -1
+	CFLAG_SORTARRAY:(LOCAL - 1) = LOCAL
 NEXT
+ARRAYMSORT SORT_NUM, CFLAG_SORTARRAY
+ARRAYSHIFT CFLAG_SORTARRAY, 1, 0
 
 ;キャラの態度
 @CHARA_ATTITUDE
@@ -1028,18 +1035,18 @@ FOR LOCAL,1,CHARANUM
 		LOCAL:1 = LOCAL:1 * (5000 + MAX(PALAM:LOCAL:欲情,5000)) / 10000
 	SELECTCASE LOCAL:1
 		CASE IS >= 150
-			CFLAG:LOCAL:6 = 3
+			CFLAG:LOCAL:態度保存 = 3
 		CASE IS >= 100 + TALENT:LOCAL:一線越えない * 20
-			CFLAG:LOCAL:6 = 2
+			CFLAG:LOCAL:態度保存 = 2
 		CASE IS >= 50 + TALENT:LOCAL:一線越えない * 10
-			CFLAG:LOCAL:6 = 1
+			CFLAG:LOCAL:態度保存 = 1
 		CASEELSE
-			CFLAG:LOCAL:6 = 0
+			CFLAG:LOCAL:態度保存 = 0
 	ENDSELECT
 	SIF CFLAG:LOCAL:怒り
-		CFLAG:LOCAL:6 = 0
+		CFLAG:LOCAL:態度保存 = 0
 	SIF CFLAG:LOCAL:睡眠
-		CFLAG:LOCAL:6 = 0
+		CFLAG:LOCAL:態度保存 = 0
 NEXT
 
 ;情事の発覚
@@ -1054,7 +1061,7 @@ ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ
 	PRINTFORMW %CALLNAME:ARG%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
 	SIF !GETBIT(CFLAG:ARG:10 , 1)
 		PRINTFORMW %CALLNAME:ARG%に弱みを握られた
-	IF CFLAG:ARG:6 < 2
+	IF CFLAG:ARG:態度保存 < 2
 		IF !ARG:1
 			;見た人
 			CALL KOJO_EVENT(1,ARG,LOCAL:1)
@@ -1077,25 +1084,17 @@ ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ
 	SETBIT CFLAG:ARG:10 ,1
 ENDIF
 IF LOCAL:2
-	FOR LOCAL,0,CHARANUM
-		CFLAG:LOCAL:うふふ = 0
-		CALL 性欲ゲージ減少処理(LOCAL)
-		TCVAR:LOCAL:初うふふフラグ = 0
-	NEXT
-	FLAG:モード管理 = 0
-	TFLAG:あなたターゲット用 = 0
-	VARSET 同時モード_選択キャラ, -1
-	同時モード_選択数 = 0
+	CALL うふふ終了処理
 	RETURN 1
 ENDIF
 ;通常遭遇
 ;こちらからも見える位置にいる、もしくは同室
 IF CFLAG:MASTER:隠密
 	;隠密だとそもそも遭遇しない
-ELSEIF !CFLAG:ARG:睡眠 && (!ARG:1 || CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:ARG:現在位置) == 2)
+ELSEIF !CFLAG:ARG:睡眠 && (!ARG:1 || CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:ARG:現在位置) == 2)
 	;さっきから居るのは分かっていたか否か
 	IF CFLAG:ARG:前ターン位置 == CFLAG:ARG:現在位置 && CFLAG:ARG:前マップ種別 == CFLAG:ARG:現在マップ種別
-		PRINTFORMW %CALLNAME:ARG%が%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%に居\@CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:現在位置) == 2 ? る # た\@
+		PRINTFORMW %CALLNAME:ARG%が%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%に居\@CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:現在位置) == 2 ? る # た\@
 		LOCAL:3 = 1
 	ENDIF
 	IF !ARG:1 && LOCAL:3
@@ -1249,10 +1248,10 @@ LOCALS = 体力:
 ;ゲージ幅決定（1000の時450、最大1800）
 ゲージ幅 = MIN(350 + MAX(MAXBASE:キャラ番号:体力 - 700, 0) / 3, 1800)
 IF BASE:キャラ番号:体力 > 0
-	ゲージ表示文 += @"<shape type='rect' param='0,70,{BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力},30' color='#50B050'>"
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{MAX(1, BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力)},30' color='#50B050'>"
 ENDIF
 IF MAXBASE:キャラ番号:体力 - BASE:キャラ番号:体力 > 0
-	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - (BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力)},30' color='#205020'>"
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - (MAX(1, BASE:キャラ番号:体力 * ゲージ幅 / MAXBASE:キャラ番号:体力))},30' color='#205020'>"
 ENDIF
 ゲージ表示文 += "</div>"
 
@@ -1270,10 +1269,10 @@ LOCALS = 性欲:
 ;ゲージ幅決定（1000の時450、最大1800）
 ゲージ幅 = MIN(350 + MAX(MAXBASE:キャラ番号:性欲 - 700, 0) / 3, 1800)
 IF BASE:キャラ番号:性欲 > 0
-	ゲージ表示文 += @"<shape type='rect' param='0,70,{BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲},30' color='#%カラーパレット_HTML("えっちなゲージ有")%'>"
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{MAX(1, BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲)},30' color='#%カラーパレット_HTML("えっちなゲージ有")%'>"
 ENDIF
 IF MAXBASE:キャラ番号:性欲 - BASE:キャラ番号:性欲 > 0
-	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - (BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲)},30' color='#%カラーパレット_HTML("えっちなゲージ無")%'>"
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - MAX(1, BASE:キャラ番号:性欲 * ゲージ幅 / MAXBASE:キャラ番号:性欲)},30' color='#%カラーパレット_HTML("えっちなゲージ無")%'>"
 ENDIF
 ゲージ表示文 += "</div>"
 

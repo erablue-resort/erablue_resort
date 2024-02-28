@@ -63,24 +63,23 @@ IF TFLAG:長距離移動時_目的地格納
 	ENDIF
 	CALL CHARA_MOVEMENT
 	TFLAG:行動前時刻 = TIME + 1440 * DAY
-	;キャラを好感度レベルの降順に並び替え
+	;キャラをTARGET配列に突っ込む
 	VARSET TARGET
-	CALL SORT_CFLAG(21)
 	LOCAL:1 = 0
 	FOR LOCAL,1,CHARANUM
-		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(RESULT:LOCAL):現在マップ種別
+		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別
 			CONTINUE
-		SIF CFLAG:MASTER:現在位置 != CFLAG:(RESULT:LOCAL):現在位置
+		SIF CFLAG:MASTER:現在位置 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置
 			CONTINUE
 		LOCAL:1 ++
-		TARGET:(LOCAL:1) = RESULT:LOCAL
+		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 	NEXT
 	
 	出会ったキャラ記録 = 
 	;誰かいないかチェック
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
-			CONTINUE
+			BREAK
 		SIF CFLAG:(TARGET:LOCAL):同行
 			CONTINUE
 		SIF 出会ったキャラ記録 != ""
@@ -131,7 +130,7 @@ IF TFLAG:長距離移動時_目的地格納
 	
 		LOCAL:1 = IN_ROOM("MIN", 18, "CFLAG", 6)
 	;遠距離移動
-	IF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
+	IF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
 		CFLAG:MASTER:現在位置 = (TFLAG:長距離移動時_目的地格納)
 		;遠距離移動フラグ消去
 		TFLAG:長距離移動時_目的地格納 = 0
@@ -164,7 +163,7 @@ PRINTL
 PRINTFORML 現在{CFLAG:MASTER:現在位置}:%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%にいます
 
 FOR LOCAL,0,21
-	SIF CAN_MOVE_1(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, LOCAL) & 1
+	SIF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, LOCAL) & 1
 		PRINTBUTTONLC @"[{LOCAL}] - %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL)%", LOCAL
 NEXT
 PRINTL
@@ -253,14 +252,15 @@ RETURN 0
 ;マップ描画処理
 ;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
 ;-----------------------------------------------------------
-@DRAW_MAP(表示幅 = -1, 表示開始数 = 0)
+@DRAW_MAP(表示幅 = -1, 表示開始数_横 = 0, 表示開始数_縦 = 0)
 #DIMS 表示文字列
 #DIM 改行数
 #DIM 最大横サイズ
-#DIM 表示開始数
+#DIM 表示開始数_横
+#DIM 表示開始数_縦
 #DIM 描画横幅カウント
 #DIM 表示幅
-#DIMS AA, 40
+#DIMS AA, 50
 #DIM SPOT
 #DIM MODE
 #DIM LOCATION
@@ -282,7 +282,7 @@ ENDCATCH
 ;-----------------------------------------------------------
 ;描画処理
 ;-----------------------------------------------------------
-FOR LINENUM, 0, VARSIZE("AA")
+FOR LINENUM, 表示開始数_縦, VARSIZE("AA")
 	SIF AA:LINENUM == ""
 		CONTINUE
 	;行ごとに初期化
@@ -292,7 +292,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 	;行の終端までループ
 	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
 		;指定幅まで描画
-		SIF 表示幅 > 0 && 描画横幅カウント > 表示幅 + 表示開始数
+		SIF 表示幅 > 0 && 描画横幅カウント > 表示幅 + 表示開始数_横
 			BREAK
 		;1文字取り出す
 		SUBSTRINGU AA:LINENUM, X_POINT, 1
@@ -303,7 +303,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
 			SIF TOINT(RESULTS) == 0
 				FOUND_INT = 0
-			IF 表示開始数 > 描画横幅カウント
+			IF 表示開始数_横 > 描画横幅カウント
 				;表示開始未満なら描画しない
 			ELSEIF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
 				表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
@@ -313,7 +313,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 			X_POINT += 2
 		;ふつうの文字
 		ELSE
-			IF 表示開始数 <= 描画横幅カウント
+			IF 表示開始数_横 <= 描画横幅カウント
 				TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 表示文字列)
 			ENDIF
 			X_POINT ++
@@ -328,6 +328,7 @@ FOR LINENUM, 0, VARSIZE("AA")
 NEXT
 
 RESULTS = %表示文字列%
+サイド描画_クイック移動マップ縦幅保存 = 改行数
 RETURN 最大横サイズ
 
 ;-------------------------------------------------

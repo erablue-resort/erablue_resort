@@ -20,7 +20,7 @@ SIF 知識素質:ARG:性知識 < 0 && EXP:ARG:自慰経験 <= 0
 SIF RANDOM_PART(ARG) == -1
 	RETURN 0
 ;前回の野外オナニーの正常終了から時間経過してないとしない
-;興味の場合は一日一回、愛好の場合は４時間置き、中毒の場合は２時間置き
+;興味の場合は一日一回、愛好の場合は４時間置き（一日２回絶頂まで）、中毒の場合は２時間置き（一日３回絶頂まで）
 SELECTCASE 性癖素質:ARG:野外オナニー
 	CASE 1
 		SIF TCVAR:ARG:野外オナニー_開始時刻
@@ -28,8 +28,12 @@ SELECTCASE 性癖素質:ARG:野外オナニー
 	CASE 2
 		SIF TCVAR:ARG:野外オナニー_開始時刻 + 4 * 60 > NOW()
 			RETURN 0
+		SIF TCVAR:ARG:野外オナニー_実行回数 > 1
+			RETURN 0
 	CASE 3
 		SIF TCVAR:ARG:野外オナニー_開始時刻 + 2 * 60 > NOW()
+			RETURN 0
+		SIF TCVAR:ARG:野外オナニー_実行回数 > 2
 			RETURN 0
 ENDSELECT
 ;性欲や自慰しやすいなどの条件を見る
@@ -99,7 +103,6 @@ ENDIF
 ;フラグ周りを初期化する
 ;-------------------------------------------------
 @野外オナニー途中終了(ARG)
-TCVAR:ARG:野外オナニー_開始時刻 = 0
 TCVAR:ARG:野外オナニー_残時間 = 0
 TCVAR:ARG:野外オナニー_場所ID = 0
 TCVAR:ARG:野外オナニー_部位 = 0
@@ -116,9 +119,11 @@ RETURNF TCVAR:ARG:野外オナニー_残時間 || TCVAR:ARG:野外オナニー_�
 
 @一日終了時オナニー判定(ARG)
 #DIM オナニー部位
+#DIMS 使用道具
 #DIMS 部位名称
 ;覚えたてでＣを覚えた時に0になってしまうので定数だけずらす
 #DIM CONST 覚えたて定数 = 100
+使用道具 = 
 
 ;酔い潰れや体力０の時はオナニーしない
 IF CFLAG:ARG:酔いすぎ
@@ -146,6 +151,13 @@ IF TALENT:ARG:母乳体質 && BASE:ARG:母乳 >= (MAXBASE:ARG:母乳 * 4 / 5)
 	RETURN 1
 ENDIF
 
+;使用道具の設定
+IF オナニー部位 == 部位_Ｃ && GETBIT(TALENT:ARG:性別, 0)
+	IF プレゼント履歴:ARG:Ｅマッサージャ > 0
+		使用道具 = Ｅマッサージャ
+	ENDIF
+ENDIF
+
 ;オナニー覚えたて
 ;１０回以上オナニーしたら覚えたてボーナスおしまい
 SIF CFLAG:ARG:オナニー覚えたて && EXP:ARG:自慰経験 > 10
@@ -159,7 +171,11 @@ IF CFLAG:ARG:オナニー覚えたて
 	PRINTFORM %CALLNAME:ARG%は
 	SIF TALENT:ARG:羞恥心 || ABL:ARG:欲望 < 3
 		PRINT そっと
-	PRINTFORML 自らの%PART_DESCRIPTION(ARG, オナニー部位)%に手を伸ばした
+	IF 使用道具 == ""
+		PRINTFORML 自らの%PART_DESCRIPTION(ARG, オナニー部位)%に手を伸ばした
+	ELSE
+		PRINTFORML %使用道具%を取り出し、%PART_DESCRIPTION(ARG, オナニー部位)%に近づけた
+	ENDIF
 	PRINTL
 	IF ABL:ARG:オナニー部位 >= 3 || ABL:ARG:欲望 >= 4
 		PRINTFORMW そのまま夢中になって、自慰が齎す快楽に自らの身を委ねている…
@@ -167,7 +183,7 @@ IF CFLAG:ARG:オナニー覚えたて
 		PRINTFORMW 慣れない手付きながら、自らを絶頂に導こうと励んでいる…
 	ENDIF
 
-	CALL オナニー実処理(ARG, オナニー部位)
+	CALL オナニー実処理(ARG, オナニー部位, 使用道具)
 	PRINTW
 	RETURN 1
 ENDIF
@@ -195,7 +211,11 @@ IF BASE:ARG:性欲 >= (1000 - TALENT:ARG:自慰しやすい * 200)
 	PRINTFORM %CALLNAME:ARG%は
 	SIF TALENT:ARG:羞恥心 || ABL:ARG:欲望 < 3
 		PRINT そっと
-	PRINTFORML 自らの%PART_DESCRIPTION(ARG, オナニー部位)%に手を伸ばした
+	IF 使用道具 == ""
+		PRINTFORML 自らの%PART_DESCRIPTION(ARG, オナニー部位)%に手を伸ばした
+	ELSE
+		PRINTFORML %使用道具%を取り出し、%PART_DESCRIPTION(ARG, オナニー部位)%に近づけた
+	ENDIF
 	PRINTL
 	IF ABL:ARG:オナニー部位 >= 5
 		PRINTFORMW どうすれば自分が気持ち良いのか熟知した様子で指を動かし、幾度も幾度も絶頂を重ねている…
@@ -205,19 +225,20 @@ IF BASE:ARG:性欲 >= (1000 - TALENT:ARG:自慰しやすい * 200)
 		PRINTFORMW 単調な手付きながら、自らを絶頂に導こうと励んでいる…
 	ENDIF
 
-	CALL オナニー実処理(ARG, オナニー部位)
+	CALL オナニー実処理(ARG, オナニー部位, 使用道具)
 	PRINTW
 	RETURN 1
 ENDIF
 
 
-@オナニー実処理(ARG, オナニー部位)
+@オナニー実処理(ARG, オナニー部位, 使用道具 = "")
 #DIM オナニー部位
 #DIM オナニー回数
 #DIM 絶頂回数
 #DIM 射精回数
 #DIM 噴乳回数
 #DIM 性欲減少量
+#DIMS 使用道具
 
 IF EXP:ARG:自慰経験 > 500
 	オナニー回数 = 8
@@ -227,6 +248,10 @@ ELSE
 	オナニー回数 = 1
 ENDIF
 オナニー回数 += RAND(ABL:ARG:オナニー部位 + 1)
+
+;道具によるオナニー回数増加
+SIF 使用道具 == "Ｅマッサージャ"
+	オナニー回数 += 5
 
 EXP:ARG:自慰経験 += オナニー回数
 PRINTFORML 自慰経験 + {オナニー回数}
@@ -393,3 +418,19 @@ ELSE
 ENDIF
 CFLAG:ARG:体力成長値 += 絶頂回数 * 5
 NOWEX:ARG:オナニー部位 = 0
+TCVAR:ARG:野外オナニー_実行回数 += 1
+
+
+
+@野外オナニー欲求不満処理(対象キャラ)
+#DIM 対象キャラ
+#DIM 性欲上昇量
+
+DRAWLINE
+PRINTFORML %CALLNAME:対象キャラ%は満足行く野外オナニーが出来ず、悶々としている……。
+
+性欲上昇量 = MIN(MAXBASE:対象キャラ:性欲 - BASE:対象キャラ:性欲, 500)
+
+PRINTFORMW %CALLNAME:対象キャラ%の性欲が{性欲上昇量}上昇した。
+PRINTL
+TRYCALLFORM KOJO_欲求不満_野外オナニー_{NO:対象キャラ}(対象キャラ)

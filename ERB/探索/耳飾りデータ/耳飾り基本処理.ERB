@@ -126,6 +126,11 @@ LOOP 1
 #DIM ページ番号
 #DIM y軸位置
 
+;ページめくり用にステータス格納
+FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
+	表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
+NEXT
+
 LOCALS = <div rect='262,{y軸位置},5537,3625'><nobr>
 LOCALS += "　　　 耳飾り名　　　　　　　　　属性　奥義補正　　　　　　　　　　　　　　　　　　　　　　　　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
@@ -178,7 +183,6 @@ HTML_PRINT LOCALS, 1
 @所持耳飾りリスト表示_USERCOM
 #DIM ページ番号
 
-DO
 LOCALS = 
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
 HTML_PRINT LOCALS, 1
@@ -203,8 +207,14 @@ HTML_PRINT LOCALS, 1
 FOR LOCAL, 0, 45
 	PRINTL
 NEXT
-BINPUT
-LOCAL = RESULT
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	VARSET 表示用ステータス格納配列:0:0
+	表示切り替え文字列 = %RESULTS%
+	ページ番号 = 0
+	RETURN 0
+ENDIF
+LOCAL = TOINT(RESULTS)
 SELECTCASE LOCAL
 	CASE 1000
 		ページ番号 -= 1
@@ -213,7 +223,7 @@ SELECTCASE LOCAL
 	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
-		RETURN 1
+		RETURN -1
 	CASE IS < 500
 		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%
 		LOCALS = %詳細文文字列受け渡し変数%
@@ -229,4 +239,3 @@ SELECTCASE LOCAL
 		HTML_PRINT LOCALS
 		WAIT
 ENDSELECT
-LOOP 1

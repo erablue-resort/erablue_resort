@@ -153,7 +153,35 @@ SIF RCVAR:ARG:尻尾開発フラグ
 ;体力減少
 ;-------------------------------------------------
 @SOURCE_DOWNBASE(ARG)
-BASE:ARG:体力 = MAX(0,BASE:ARG:体力 - DOWNBASE:ARG:体力)
+; BASE:ARG:体力 = MAX(0, BASE:ARG:体力 - DOWNBASE:ARG:体力)
+
+IF DOWNBASE:ARG:体力 > 1
+	IF BASE:ARG:体力 > 1
+		BASE:ARG:体力 = MAX(1, BASE:ARG:体力 - DOWNBASE:ARG:体力)
+		IF BASE:ARG:体力 == 1
+			;指示モード解除
+			IF PLAYER == ARG && FLAG:モード管理 == 1
+				FLAG:モード管理 = 0
+				TFLAG:あなたターゲット用 = 0
+			ENDIF
+			TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
+			SIF 干渉強化変数:ARG:干渉種類 == 10
+				CALL 干渉強化関数_10("実補正処理")
+			SIF NO:ARG == 57
+				TCVAR:ARG:食いしばりフラグ += 3
+			IF TCVAR:ARG:食いしばりフラグ
+				PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
+			ELSE
+				BASE:ARG:体力 = 0
+			ENDIF
+		ENDIF
+	ELSEIF TCVAR:ARG:食いしばりフラグ > 0
+		TCVAR:ARG:食いしばりフラグ -= 1
+	ELSEIF TCVAR:ARG:食いしばりフラグ < 1
+		BASE:ARG:体力 = 0
+	ENDIF
+ENDIF
+
 ;-------------------------------------------------
 ;刻印取得のチェック
 ;-------------------------------------------------
@@ -976,18 +1004,17 @@ RETURN 0
 
 @性知識上昇判定(ARG)
 
-;性知識マイナスは上昇しない。無知シチュ
-SIF 知識素質:ARG:性知識 < 0
-	RETURN 0
-
-SIF 知識素質:ARG:性知識 >= ABL:ARG:技巧
+SIF 知識素質:ARG:性知識 > ABL:ARG:技巧
 	RETURN 0
 
 ;最大値は３
 SIF 知識素質:ARG:性知識 > 2
 	RETURN 0
 
-IF 性知識経験値:ARG:0 > ((知識素質:ARG:性知識 + 1) *(知識素質:ARG:性知識 + 1) *(知識素質:ARG:性知識 + 1) * 10 + 10)
+;性知識マイナスの場合、基礎値に0を使用する
+LOCAL = MAX(知識素質:ARG:性知識, 0)
+
+IF 性知識経験値:ARG:0 > ((LOCAL + 1) * (LOCAL + 1) * (LOCAL + 1) * 10 + 10)
 	性知識経験値:ARG:0 = 0
 	知識素質:ARG:性知識 += 1
 	PRINTFORML %CALLNAME:ARG%の性知識Lvが%性知識段階表示(知識素質:ARG:性知識 - 1, ARG)%から%性知識段階表示(知識素質:ARG:性知識, ARG)%に上昇した

@@ -6,6 +6,7 @@
 #DIM 食事回復量
 #DIM 料理ランク一時保存
 #DIM 料理属性一時保存, 10
+#DIM モード中キャラカウント
 
 IF TFLAG:オートコマンドフラグ
 ELSE
@@ -165,40 +166,23 @@ IF CFLAG:MASTER:酔いすぎ == 1
 		CFLAG:現在マップ種別 = 0
 		CALL KOJO_EVENT(7, TARGET, 5)
 	ENDIF
-	FOR LOCAL,0,CHARANUM
-		CFLAG:LOCAL:うふふ = 0
-		CALL 性欲ゲージ減少処理(LOCAL)
-		CFLAG:LOCAL:飲み会 = 0
-		TCVAR:LOCAL:初うふふフラグ = 0
-	NEXT
-	TFLAG:あなたターゲット用 = 0
-	VARSET 同時モード_選択キャラ, -1
-	同時モード_選択数 = 0
-	FLAG:モード管理 = 0
+	CALL うふふ終了処理
 	FLAG:一日終了 = 1
 ENDIF
 IF TARGET && RCVAR:不機嫌
 	PRINTFORMW %CALLNAME:TARGET%を怒らせてしまった…
 	SIF AUTOCOM_相手番号保存 == TARGET
 		TFLAG:オートコマンドフラグ = 0
-	FOR LOCAL,0,CHARANUM
-		CFLAG:LOCAL:うふふ = 0
-		CALL 性欲ゲージ減少処理(LOCAL)
-		CFLAG:LOCAL:飲み会 = 0
-		TCVAR:LOCAL:初うふふフラグ = 0
-		;モードもリセット
-		DT_CLEAR "体位モードデータベース"
-	NEXT
-	FLAG:モード管理 = 0
-	TFLAG:あなたターゲット用 = 0
-	VARSET 同時モード_選択キャラ, -1
-	同時モード_選択数 = 0
+	CALL うふふ終了処理
 ENDIF
+モード中キャラカウント = 0
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	IF BASE:(TARGET:LOCAL):体力 < 1
-		PRINTFORMW （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
+		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
+		TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		FORCEWAIT
 		CFLAG:(TARGET:LOCAL):体力限界 = 1
 		CALL CHARA_SLEEP, TARGET:LOCAL
 		CFLAG:(TARGET:LOCAL):うふふ = 0
@@ -213,13 +197,21 @@ FOR LOCAL, 1, CHARANUM
 		TFLAG:あなたターゲット用 = 0
 		VARSET 同時モード_選択キャラ, -1
 		同時モード_選択数 = 0
+		連れ込みパターン = 
 	ENDIF
+	SIF CFLAG:(TARGET:LOCAL):うふふ
+		モード中キャラカウント += 1
 NEXT
+IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
+	CALL うふふ終了処理
+ENDIF
+モード中キャラカウント = 0
 FOR LOCAL, 1, CHARANUM
 	SIF 飲み会TARGET:LOCAL < 1
 		BREAK
 	IF BASE:(飲み会TARGET:LOCAL):体力 < 1
-		PRINTFORMW （%CALLNAME:(飲み会TARGET:LOCAL)%の体力が限界に来ています）
+		PRINTFORML （%CALLNAME:(飲み会TARGET:LOCAL)%の体力が限界に来ています）
+		FORCEWAIT
 		CFLAG:(飲み会TARGET:LOCAL):体力限界 = 1
 		CALL CHARA_SLEEP, 飲み会TARGET:LOCAL
 		CFLAG:(飲み会TARGET:LOCAL):うふふ = 0
@@ -235,7 +227,12 @@ FOR LOCAL, 1, CHARANUM
 		VARSET 同時モード_選択キャラ, -1
 		同時モード_選択数 = 0
 	ENDIF
+	SIF CFLAG:(TARGET:LOCAL):飲み会
+		モード中キャラカウント += 1
 NEXT
+IF CFLAG:MASTER:飲み会 && モード中キャラカウント == 0
+	CALL 飲み会終了処理
+ENDIF
 
 LOCAL = TIME - TIME:2
 IF LOCAL > 0
@@ -259,6 +256,10 @@ FOR LOCAL,0,CHARANUM
 	;処女喪失
 	SIF RCVAR:LOCAL:破瓜
 		TALENT:LOCAL:処女 = 0
+	
+	;連れ込み満足
+	SIF RCVAR:LOCAL:連れ込み満足フラグ
+		連れ込みパターン = 
 
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -325,6 +326,34 @@ FOR LOCAL,0,CHARANUM
 		TCVAR:LOCAL:(400 + LOCAL:1) = EXP:LOCAL:(LOCAL:1)
 	NEXT
 
+	;発情期フラグの更新
+	IF 発情期判定(LOCAL)
+		IF 発情期切り替えOPTION記憶 || TALENT:LOCAL:性欲 == -2
+			CFLAG:LOCAL:発情期フラグ = 0
+		ELSE
+			IF CFLAG:LOCAL:発情期フラグ < 0
+				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
+				IF CFLAG:LOCAL:発情期フラグ > -1
+					;発情期が終わった時、性欲を大きく減らす
+					BASE:LOCAL:性欲 = MAX(0, BASE:LOCAL:性欲 - 1500)
+				ENDIF
+			ELSE
+				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
+			ENDIF
+		ENDIF
+		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
+		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
+			IF (TALENT:LOCAL:種族 == 3 || LOCAL == 11) && TALENT:LOCAL:母乳体質 != 3
+				IF CFLAG:LOCAL:発情期フラグ < 0
+					SIF TALENT:LOCAL:母乳体質 == 0
+						TALENT:LOCAL:母乳体質 = 2
+				ELSE
+					SIF TALENT:LOCAL:母乳体質 == 2
+						TALENT:LOCAL:母乳体質 = 0
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
 NEXT
 
 ;童貞喪失

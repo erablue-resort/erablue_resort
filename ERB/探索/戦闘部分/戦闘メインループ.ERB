@@ -2,6 +2,7 @@
 @BATTLE_MAIN_LOOP
 #DIM 行動対象
 #DIM 探索口上キャラ番号
+#DIM 行動キャラ一時保存
 
 ;戦闘メイン処理
 ダンジョン表示モード = 戦闘画面
@@ -9,12 +10,17 @@
 キャラ画像ボタン化フラグ = 0
 アイテム使用済みフラグ = 0
 ターン中奥義回数保存 = 0
+兵装使用済みフラグ = 0
 VARSET チェンバ基準キャラ保存, -1
 行動口上呼び出し用文字列 = 
 サイド描画_戦闘ログ保存 = 
 サイド描画縦スクロール保存 = 0
 アビテンプレート用_味方全滅フラグ = 0
 アビテンプレート用_敵全滅フラグ = 0
+特殊反応フラグ = 0
+VARSET 回避反応者, -1
+VARSET 被タゲ反応者, -1
+VARSET 被ダメ反応者, -1
 現在ターン数 = 1
 SIF 戦闘背景画像 == ""
 	戦闘背景画像 = %ダンジョン背景画像%
@@ -69,8 +75,8 @@ ELSEIF 戦闘行動キャラ < 10
 				BREAK
 			ENDIF
 		NEXT
-		探索口上キャラ番号 = NO:(BATTLE_STATE:(RAND:LOCAL):キャラ番号)
-		TRYCALLFORM KOJO_DUNGEON_逃走時_{探索口上キャラ番号}()
+		探索口上キャラ番号 = (BATTLE_STATE:(RAND:LOCAL):キャラ番号)
+		TRYCALLFORM KOJO_DUNGEON_逃走時_{NO:探索口上キャラ番号}(探索口上キャラ番号)
 		KSTR:(K++) = 君たちは逃走した……
 		CALL メッセージ欄表示用関数()
 		探索中全体カウント:累積逃走数 += 1
@@ -86,6 +92,11 @@ ELSEIF 戦闘行動キャラ < 10
 	IF アビテンプレート用_味方全滅フラグ || アビテンプレート用_敵全滅フラグ
 		GOTO 戦闘終了処理
 	ENDIF
+	IF 戦闘行動キャラ == 9
+		戦闘行動キャラ = 戦闘行動キャラ_一時保存
+		CALL アビテンプレ変数リセット
+		GOTO 行動入力_LOOP
+	ENDIF
 ELSE
 	;10以上の数値が入ってるとエネミーの行動
 	;CALL 敵行動決定
@@ -93,6 +104,21 @@ ELSE
 	CALL 画面再描画
 	CALL 敵戦闘行動実処理関数
 ENDIF
+
+;行動後に特殊反応をまとめて動かす
+行動キャラ一時保存 = 戦闘行動キャラ
+
+特殊反応フラグ = 1
+CALL 被タゲ時効果処理(行動キャラ一時保存)
+CALL 回避時効果処理(行動キャラ一時保存)
+CALL 被ダメージ時効果処理(行動キャラ一時保存)
+
+VARSET 被タゲ反応者, -1
+VARSET 回避反応者, -1
+VARSET 被ダメ反応者, -1
+特殊反応フラグ = 0
+
+戦闘行動キャラ = 行動キャラ一時保存
 
 ;行動後発動処理
 ;毒や再生など
@@ -129,7 +155,7 @@ ELSEIF !LOCAL:1
 ELSEIF LOCAL:3 == 0
 	;ターン数を増やして最初から行動
 	戦闘行動内容 = -1
-	CALL ターン開始時処理
+	CALL ターン切り替え処理
 	IF RESULT
 		GOTO 戦闘終了処理
 	ENDIF
@@ -193,6 +219,11 @@ IF 上メニュー操作許可フラグ
 	ELSE
 		LOCALS:2 = <nonbutton><font color='#666666'>[1000]アイテムを使う</font></nonbutton>　
 	ENDIF
+	IF 兵装使用済みフラグ == 0 && 装備乗機ID
+		LOCALS:2 += "<button value='2000'>[2000]兵装を使う</button>　"
+	ELSE
+		LOCALS:2 += "<nonbutton><font color='#666666'>[2000]兵装を使う</font></nonbutton>　"
+	ENDIF
 	LOCALS:2 +="<button value='1001'>[1001]逃げる</button>　"
 	IF アビ使用確認スキップフラグ == 0
 		LOCALS:3 +="<button value='1002'>[1002]アビ使用確認:ON</button>　"
@@ -217,6 +248,9 @@ IF 上メニュー操作許可フラグ
 		CASEELSE
 			LOCALS:3 +="<button value='1005'>[1005]全体カットイン設定:表示</button>　"
 	ENDSELECT
+ENDIF
+IF 展開中フィールド名格納 != ""
+	LOCALS:4 = <button value='1010'>フィールド：「%展開中フィールド名格納%」展開中</button>
 ENDIF
 
 FOR LOCAL:1, 0, 6
@@ -276,8 +310,16 @@ NEXT
 
 @戦闘初期処理_味方(初期設定フラグ = 0)
 #DIM 初期設定フラグ
+#DIM 表示兵装数
+#DIM 兵装番号
 
-FOR LOCAL, 0, 4
+
+;キャラ追加
+FOR LOCAL, 0, 14
+	IF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	ENDIF
+
 	SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
 		CONTINUE
 
@@ -297,6 +339,7 @@ FOR LOCAL, 0, 4
 	BATTLE_STATE:LOCAL:DA率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):DA率 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):DA率
 	BATTLE_STATE:LOCAL:TA率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):TA率 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):TA率
 	BATTLE_STATE:LOCAL:ゲージ上昇効率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ上昇効率 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ上昇効率
+	BATTLE_STATE:LOCAL:ゲージ上昇効率_被ダメ時 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ上昇効率_被ダメ時 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ上昇効率_被ダメ時
 	BATTLE_STATE:LOCAL:ゲージ最大値 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ最大値 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):ゲージ最大値
 	BATTLE_STATE:LOCAL:命中率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):命中率 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):命中率
 	BATTLE_STATE:LOCAL:回避率 = 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ番号):回避率 + 装備ステータス補正保存:(BATTLE_STATE:LOCAL:キャラ番号):回避率
@@ -339,9 +382,29 @@ FOR LOCAL, 0, 4
 NEXT
 
 ;乗機装備時、９にPLAYERのステータスを入れる
-BATTLE_STATE:9:キャラ番号 = 0
+BATTLE_STATE:9:キャラ番号 = PLAYER
 BATTLE_STATE:9:攻撃力 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機攻撃力", 1)
+BATTLE_STATE:9:命中率 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機命中率", 1)
 BATTLE_STATE:9:クリティカルダメージ率 = 150
+
+;初期設定時に残弾のリセット
+IF 初期設定フラグ
+	VARSET 乗機残弾種別
+	VARSET 乗機残弾数
+	表示兵装数 = ENUMFUNCBEGINSWITH(@"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_")
+	FOR LOCAL, 0, 表示兵装数
+		兵装番号 = TOINT(REPLACE(RESULTS:LOCAL, @"乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%_", ""))
+		IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1))
+			CALLFORM %RESULTS:LOCAL%("残弾セット", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
+		ELSE
+			CALLFORM %RESULTS:LOCAL%("残弾セット")
+		ENDIF
+		IF 乗機残弾種別:兵装番号 == 2
+			;CT制の時は残CTを0にセット
+			乗機残弾数:兵装番号 = 0
+		ENDIF
+	NEXT
+ENDIF
 
 @戦闘初期処理_敵
 FOR LOCAL, 0, 10
@@ -362,7 +425,7 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
-@ターン開始時処理
+@ターン切り替え処理
 
 ;チェインバースト処理
 IF ターン中奥義回数保存 > 1
@@ -476,11 +539,6 @@ CALL ターン終了時処理関数
 SIF RESULT
 	RETURN 1
 
-現在ターン数 += 1
-アイテム使用済みフラグ = 0
-ターン中奥義回数保存 = 0
-VARSET チェンバ基準キャラ保存, -1
-
 ;行動済みフラグの解消
 FOR LOCAL, 0, 4
 	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
@@ -516,6 +574,24 @@ FOR LOCAL, 10, 20
 	CALL バフターン経過処理(LOCAL)
 	CALL デバフターン経過処理(LOCAL)
 NEXT
+
+;フィールドのターン経過処理
+IF 展開中フィールド残りターン数 == 1
+	CALL 口上変数初期化
+	WSTR:(K++) = %展開中フィールド名格納%が消失した！
+	CALL メッセージ欄表示用関数(,,,0)
+	展開中フィールド残りターン数 = 0
+	展開中フィールド名格納 = 
+ELSEIF 展開中フィールド残りターン数 > 1
+	展開中フィールド残りターン数 -= 1
+ENDIF
+
+;各種変数の更新
+現在ターン数 += 1
+アイテム使用済みフラグ = 0
+兵装使用済みフラグ = 0
+ターン中奥義回数保存 = 0
+VARSET チェンバ基準キャラ保存, -1
 
 ;ターン切り替わり時に顔グラ再生成
 CALL 探索用顔グラフィック生成
@@ -554,6 +630,9 @@ IF 戦闘行動キャラ < 10
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
+	;回数消費
+	CALL デバフ回数経過処理(戦闘行動キャラ, "毒")
+	CALL デバフ回数経過処理(戦闘行動キャラ, "火傷")
 ELSE
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
 	FOR LOCAL:1, 0, データベース行数
@@ -572,6 +651,9 @@ ELSE
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
+	;回数消費
+	CALL デバフ回数経過処理(戦闘行動キャラ, "毒")
+	CALL デバフ回数経過処理(戦闘行動キャラ, "火傷")
 ENDIF
 
 ;再生処理
@@ -585,24 +667,28 @@ IF 戦闘行動キャラ < 10
 			効果量 = 効果量 * RAND(95, 105) / 100
 			効果量 = MIN(効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ - BATTLE_STATE:戦闘行動キャラ:ＨＰ)
 			WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
-			BATTLE_STATE:戦闘行動キャラ:ＨＰ = MAX(BATTLE_STATE:戦闘行動キャラ:ＨＰ + 効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ)
+			BATTLE_STATE:戦闘行動キャラ:ＨＰ = MIN(BATTLE_STATE:戦闘行動キャラ:ＨＰ + 効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ)
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
+	;回数消費
+	CALL バフ回数経過処理(戦闘行動キャラ, "再生")
 ELSE
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
 	FOR LOCAL:1, 0, データベース行数
 		効果種類 = %DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ対象能力")%
 		IF 効果種類 == "再生"
-			;ダメージ量決定
+			;回復量決定
 			効果量 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ効果量_固定値") + (敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ * DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ効果量_割合") / 100)
 			効果量 = 効果量 * RAND(95, 105) / 100
 			効果量 = MIN(効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ - 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ)
 			WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
-			敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ + 効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ)
+			敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MIN(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ + 効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ)
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
+	;回数消費
+	CALL バフ回数経過処理(戦闘行動キャラ, "再生")
 ENDIF
 
 ;行動回数持続の効果の回数を減少

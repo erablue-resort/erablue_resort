@@ -27,32 +27,6 @@ CFLAG:MASTER:睡眠 = 1
 
 ;何の珠を得られたか
 FOR LOCAL,0,CHARANUM
-	;発情期、凡そ１０日に１回（滞在してなくてもカウント）
-	IF 発情期判定(LOCAL)
-		IF 発情期切り替えOPTION記憶 || TALENT:LOCAL:性欲 == -2
-			SIF CFLAG:LOCAL:発情期フラグ < 0
-				CFLAG:LOCAL:発情期フラグ = RAND:9 + 1
-		ELSE
-			CFLAG:LOCAL:発情期フラグ -= 1
-		ENDIF
-		IF CFLAG:LOCAL:発情期フラグ == -4 - TALENT:LOCAL:性欲
-			CFLAG:LOCAL:発情期フラグ = 9 - TALENT:LOCAL:性欲
-			;発情期が終わった時、性欲を大きく減らす
-			BASE:LOCAL:性欲 = MAX(0, BASE:LOCAL:性欲 - 1500)
-		ENDIF
-	ENDIF
-	;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
-	IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-		IF (TALENT:LOCAL:種族 == 3 || LOCAL == 11) && TALENT:LOCAL:母乳体質 != 3
-			IF CFLAG:LOCAL:発情期フラグ < 0
-				SIF TALENT:LOCAL:母乳体質 == 0
-					TALENT:LOCAL:母乳体質 = 2
-			ELSE
-				SIF TALENT:LOCAL:母乳体質 == 2
-					TALENT:LOCAL:母乳体質 = 0
-			ENDIF
-		ENDIF
-	ENDIF
 	;滞在してないキャラはスルー
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -61,13 +35,17 @@ FOR LOCAL,0,CHARANUM
 	;以下はマスターだと無視
 	SIF LOCAL == MASTER
 		CONTINUE
+	;野外オナニー欲求不満
+	IF 性癖素質:LOCAL:野外オナニー > 2 && TCVAR:LOCAL:野外オナニー_実行回数 < 3
+		CALL 野外オナニー欲求不満処理(LOCAL)
+	ENDIF
 	IF 性癖素質:LOCAL:性癖開発用フラグ変数
 		;性癖開発チャレンジ
 		;チャレンジ時はオナニー判定が出ない
 		CALL 口上変数初期化
 		DRAWLINE
 		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:LOCAL:性癖開発用フラグ変数)%(LOCAL)
-		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:LOCAL:性癖開発用フラグ変数)%_XXXX(RESULT)
+		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:LOCAL:性癖開発用フラグ変数)%_XXXX(LOCAL, RESULT)
 			CALL 口上変数初期化
 		CATCH
 			CALL 口上変数表示(LOCAL, 0)
@@ -77,7 +55,7 @@ FOR LOCAL,0,CHARANUM
 		;一日終了時自慰判定
 		CALL 一日終了時オナニー判定(LOCAL)
 		IF RESULT
-			TRYCALLFORM KOJO_一日終了時オナニー_{NO:LOCAL}
+			TRYCALLFORM KOJO_一日終了時オナニー_{NO:LOCAL}(LOCAL)
 			CALL 口上変数初期化
 		ENDIF
 	ENDIF
@@ -152,6 +130,7 @@ FOR LOCAL, 0, CHARANUM
 			ENDIF
 		ENDIF
 	ENDIF
+	CALL 口上変数初期化
 	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 5
 		IF 基礎BATTLE_STATE:LOCAL:Lv < 最大レベル
 			IF 基礎BATTLE_STATE:LOCAL:蓄積EXP >  戦闘経験値テーブル:(MAX(最大レベル - 2, 0))

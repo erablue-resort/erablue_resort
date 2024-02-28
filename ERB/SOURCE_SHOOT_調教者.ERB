@@ -35,7 +35,7 @@ NEXT
 ;オートコマンドのみのはずなので、オートコマンド相手の口上を呼び出す
 IF 射精先キャラ:0 == 0
 	TRYCALLFORM MESSAGE_SHOOT_30(-1)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:AUTOCOM_相手番号保存}
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:AUTOCOM_相手番号保存}(AUTOCOM_相手番号保存)
 	RETURN 0
 ENDIF
 
@@ -161,7 +161,7 @@ IF 選択肢数 == 1
 	PRINTL 
 	SIF RCVAR:(射精先キャラ:対象キャラ番号):被射精絶頂の強度
 		CALL SHOOT絶頂口上(射精先キャラ:対象キャラ番号)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}(射精先キャラ:対象キャラ番号)
 	
 	SIF 射精先キャラ:対象キャラ番号 == 0
 		射精先キャラ:対象キャラ番号 = 9999
@@ -172,7 +172,7 @@ ELSEIF !選択肢数
 	SIF 射精先キャラ:0 == 9999
 		射精先キャラ:0 = 0
 	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}
+	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}(射精先キャラ:0)
 	SIF 射精先キャラ:0 == 0
 		射精先キャラ:0 = 9999
 	RETURN 0
@@ -227,7 +227,7 @@ SELECTCASE LOCAL
 					CALL SHOOT絶頂口上(射精先キャラ:選択キャラ)
 				TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:選択キャラ)
 				PRINTL 
-				TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:選択キャラ)}
+				TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:選択キャラ)}(射精先キャラ:選択キャラ)
 				LOCAL:10 ++
 				RFLAG:フィニッシュ相手番号 = 射精先キャラ:選択キャラ
 			ENDIF
@@ -603,6 +603,37 @@ IF RCVAR:ARG:被射精絶頂の強度 > 0
 	CALL 絶頂体力減少処理(ARG, NOWEX:ARG:被射精Ｃ絶頂, NOWEX:ARG:被射精Ｖ絶頂, NOWEX:ARG:被射精Ａ絶頂, NOWEX:ARG:被射精Ｂ絶頂, NOWEX:ARG:被射精Ｓ絶頂)
 	CALL ZP_取得処理(ARG, RCVAR:ARG:被射精絶頂の強度)
 	CFLAG:ARG:体力成長値 += RCVAR:ARG:被射精絶頂の強度 * 5
+ENDIF
+
+
+;連れ込み状態時、満足したか
+;ついでに中毒欲求不満の判定も行う
+CALL 中毒連れ込み判定_精飲(ARG)
+IF RESULT
+	;精飲時は必ず絶頂するはずなのでフラグだけ見る
+	IF RCVAR:ARG:精飲フラグ
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "精飲"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
+ENDIF
+CALL 中毒連れ込み判定_膣内射精(ARG)
+IF RESULT
+	;膣内射精時は必ず絶頂するはずなのでフラグだけ見る
+	IF RCVAR:ARG:膣内射精フラグ
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "膣内射精"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
+ENDIF
+CALL 中毒連れ込み判定_腸内射精(ARG)
+IF RESULT
+	;腸内射精時は必ず絶頂するはずなのでフラグだけ見る
+	IF RCVAR:ARG:腸内射精フラグ
+		CFLAG:ARG:中毒欲求不満フラグ = -1
+		SIF 連れ込みパターン == "腸内射精"
+			RCVAR:ARG:連れ込み満足フラグ = 1
+	ENDIF
 ENDIF
 
 RETURN 1

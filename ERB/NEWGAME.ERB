@@ -252,6 +252,7 @@ ELSE
 	CALL 食堂メニューデータベースセット
 	CALL 写真データベースセット
 	CALL 乗機データベースセット
+	CALL 所持兵器データベースセット
 	CALL 従業員業務用マップセット
 	CALL 体位モードデータベースセット
 
@@ -405,8 +406,8 @@ CFLAG:ARG:同行 = 0
 CFLAG:ARG:デート = 0
 CFLAG:ARG:酔いすぎ = 0
 ;発情期
-SIF 発情期判定(ARG)
-	CFLAG:ARG:発情期フラグ = RAND:9 + 1
+; SIF 発情期判定(ARG)
+; 	CFLAG:ARG:発情期フラグ = RAND:9 + 1
 
 IF 引き継ぎキャラフラグ == 0
 	VARSET LOCALS
@@ -482,13 +483,15 @@ IF 引き継ぎキャラフラグ == 0
 	CALL 体力変動素質適用処理(ARG)
 	
 	BASE:ARG:体力 = MAXBASE:ARG:体力
-	
-	
+
 	IF 従業員追加中フラグ
 		従業員追加中フラグ = 0
 	ELSEIF !BASE:ARG:身長 || (!BASE:ARG:バスト && TALENT:ARG:性別 != 2)
 		CALL INIT_BODYSIZE(ARG)
 	ENDIF
+
+	;画像フォルダで有効なものを探す
+	CALL 画像フォルダ有効チェック(ARG)
 ELSE
 	SIF !BASE:ARG:身長
 		CALL INIT_BODYSIZE(ARG)
@@ -1062,20 +1065,48 @@ LOCAL = DT_ROW_ADD("所持衣装データベース")
 DT_CREATE "所持乗機データベース"
 DT_COLUMN_ADD "所持乗機データベース", "乗機名"
 DT_COLUMN_ADD "所持乗機データベース", "乗機攻撃力", 3
-DT_COLUMN_ADD "所持乗機データベース", "武装0", 1
-DT_COLUMN_ADD "所持乗機データベース", "武装1", 1
-DT_COLUMN_ADD "所持乗機データベース", "武装2", 1
-DT_COLUMN_ADD "所持乗機データベース", "武装3", 1
-DT_COLUMN_ADD "所持乗機データベース", "武装4", 1
-DT_COLUMN_ADD "所持乗機データベース", "武装5", 1
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装0"
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装1"
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装2"
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装3"
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装4"
-DT_COLUMN_ADD "所持乗機データベース", "付け替え武装5"
+DT_COLUMN_ADD "所持乗機データベース", "乗機攻撃力_強化後", 3
+DT_COLUMN_ADD "所持乗機データベース", "乗機命中率", 3
+DT_COLUMN_ADD "所持乗機データベース", "乗機命中率_強化後", 3
+DT_COLUMN_ADD "所持乗機データベース", "武装0"
+DT_COLUMN_ADD "所持乗機データベース", "武装1"
+DT_COLUMN_ADD "所持乗機データベース", "武装2"
+DT_COLUMN_ADD "所持乗機データベース", "武装3"
+DT_COLUMN_ADD "所持乗機データベース", "武装4"
+DT_COLUMN_ADD "所持乗機データベース", "武装5"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装0"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装1"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装2"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装3"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装4"
+DT_COLUMN_ADD "所持乗機データベース", "強化後武装5"
 ;あなたが使うだけだからこれいらないと思うんだけど将来的に使うパターンに備えて列だけ置いとく
 DT_COLUMN_ADD "所持乗機データベース", "装備キャラ番号", 3
+;このフラグが立ってる時は持ってない。設計可能
+DT_COLUMN_ADD "所持乗機データベース", "設計状態フラグ", 1
+;何人サブパイロットが乗れるか？
+DT_COLUMN_ADD "所持乗機データベース", "サブ搭乗数", 1
+DT_COLUMN_ADD "所持乗機データベース", "サブ搭乗数_強化後", 1
+
+@所持兵器データベースセット
+DT_CREATE "所持兵器データベース"
+DT_COLUMN_ADD "所持兵器データベース", "兵器名"
+DT_COLUMN_ADD "所持兵器データベース", "攻撃力補正", 3
+DT_COLUMN_ADD "所持兵器データベース", "攻撃力補正_強化後", 3
+DT_COLUMN_ADD "所持兵器データベース", "命中率補正", 3
+DT_COLUMN_ADD "所持兵器データベース", "命中率補正_強化後", 3
+DT_COLUMN_ADD "所持兵器データベース", "攻撃力変動値", 3
+DT_COLUMN_ADD "所持兵器データベース", "攻撃力変動値_強化後", 3
+DT_COLUMN_ADD "所持兵器データベース", "命中率変動値", 3
+DT_COLUMN_ADD "所持兵器データベース", "命中率変動値_強化後", 3
+DT_COLUMN_ADD "所持兵器データベース", "残弾種別", 1
+DT_COLUMN_ADD "所持兵器データベース", "残弾数", 1
+DT_COLUMN_ADD "所持兵器データベース", "残弾数_強化後", 1
+DT_COLUMN_ADD "所持兵器データベース", "兵器カテゴリ"
+DT_COLUMN_ADD "所持兵器データベース", "兵器距離適性"
+DT_COLUMN_ADD "所持兵器データベース", "装備乗機id", 4
+;このフラグが立ってる時は持ってない。設計可能
+DT_COLUMN_ADD "所持兵器データベース", "設計状態フラグ", 1
 
 @戦闘用データベースセット
 FOR LOCAL, 0, 4

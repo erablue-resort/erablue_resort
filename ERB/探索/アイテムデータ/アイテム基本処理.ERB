@@ -149,7 +149,7 @@ LOCALS = <div rect='200,0,5537,3625' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='262,75,5537,3625'><nobr>"
 
 現在表示ランク = -1
-FOR COUNT, ページ番号 * 25, ページ番号 * 25 + 41
+FOR COUNT, ページ番号 * 41, ページ番号 * 41 + 41
 	IF ソート後素材順:COUNT < 0
 		BREAK
 	ENDIF
@@ -188,7 +188,7 @@ IF ページ番号 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-IF (ページ番号 * 25) + 25 < 200 && 表示アイテム名:((ページ番号 * 25) + 25) != ""
+IF (ページ番号 * 41) + 41 < 1000 && ソート後素材順:((ページ番号 * 41) + 41) != -1
 	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
 ELSE
 	LOCALS += "　　　　　　　　　　"
@@ -228,30 +228,25 @@ ENDSELECT
 LOOP 1
 
 
-@ダンジョンアイテム画面表示_USERCOM
+@ダンジョンアイテム画面表示_USERCOM(y軸位置 = 0)
 #DIM ページ番号
-DO
+#DIM y軸位置
+
 LOCALS = 
-LOCALS += "<div rect='200,0,5662,3750' border='31' bcolor='#C0C0C0'></div>"
-LOCALS += "<div rect='262,100,5662,3750'>"
-IF 選択用変数 > 0
-	詳細文文字列受け渡し変数 = 
-	TRYCALLFORM アイテム個別文章表示_%表示アイテム名:選択用変数%
-	LOCALS += @"%詳細文文字列受け渡し変数%"
-ELSE
-	VARSET 表示アイテム名
-	DT_COLUMN_NAMES "所持アイテムデータベース", 表示アイテム名
-	FOR LOCAL, (ページ番号 * 25) + 1, (ページ番号 * 25) + 25
-		IF 表示アイテム名:LOCAL != ""
-			LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 2}]%表示アイテム名:LOCAL, 40, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL))), 4%</button><br>"
-		ELSE
-			LOCALS += "<br>"
-		ENDIF
-	NEXT
-ENDIF
+LOCALS += @"<div rect='200,{y軸位置},5662,3625' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += @"<div rect='262,{y軸位置 + 100},5537,3625'>"
+VARSET 表示アイテム名
+DT_COLUMN_NAMES "所持アイテムデータベース", 表示アイテム名
+FOR LOCAL, (ページ番号 * 25) + 1, (ページ番号 * 25) + 25
+	IF 表示アイテム名:LOCAL != ""
+		LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 2}]%表示アイテム名:LOCAL, 40, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL))), 4%</button><br>"
+	ELSE
+		LOCALS += "<br>"
+	ENDIF
+NEXT
 LOCALS += "</div>"
 
-LOCALS += "<div rect='262,3562,5537,3625'>"
+LOCALS += @"<div rect='262,{y軸位置 + 3462},5537,300'>"
 IF ページ番号 > 0
 	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
 ELSE
@@ -265,21 +260,109 @@ ENDIF
 LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　　"
 LOCALS += "　　<button value='999'>[999]戻る</button></div>"
 HTML_PRINT LOCALS, 1
-FOR LOCAL, 0, 34
+FOR LOCAL, 0, 32 + (y軸位置 / 100)
 	PRINTL
 NEXT
 
-BINPUT
-SELECTCASE RESULT
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	VARSET 表示用ステータス格納配列:0:0
+	表示切り替え文字列 = %RESULTS%
+	ページ番号 = 0
+	RETURN 0
+ENDIF
+LOCAL = TOINT(RESULTS)
+SELECTCASE LOCAL
 	CASE 999
 		ページ番号 = 0
-		選択用変数 = 0
-		RETURN 0
+		RETURN -1
 	CASE 1000
 		ページ番号 -= 1
 	CASE 1001
 		ページ番号 += 1
 	CASEELSE
-		選択用変数 = RESULT
+		詳細文文字列受け渡し変数 = 
+		TRYCALLFORM アイテム個別文章表示_%表示アイテム名:LOCAL%
+		LOCALS = %詳細文文字列受け渡し変数%
+		HTML_PRINT LOCALS
+		WAIT
 ENDSELECT
-LOOP 1
+
+
+@素材アイテム一覧表示_USERCOM(y軸位置 = 0)
+#DIM ページ番号
+#DIM y軸位置
+#DIM ソート後素材順, 1000
+#DIM 現在表示ランク
+VARSET ソート後素材順, -1
+
+;データベースをランク順にソート
+DT_SELECT "所持素材データベース", "所持素材数 > 0", "素材ランク ASC, 素材属性 ASC", ソート後素材順
+
+VARSET LOCAL
+VARSET LOCALS
+LOCALS = <div rect='200,{y軸位置},5662,3625' border='31' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='262,{y軸位置 + 75},5537,3625'><nobr>"
+
+現在表示ランク = -1
+FOR COUNT, ページ番号 * 41, ページ番号 * 41 + 41
+	IF ソート後素材順:COUNT < 0
+		BREAK
+	ENDIF
+	IF 現在表示ランク < DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		SIF LOCAL
+			LOCALS += "<br>"
+		IF LOCAL % 2 == 1
+			LOCALS += "<br>"
+			LOCAL += 1
+		ENDIF
+		現在表示ランク = DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
+	ENDIF
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%属性")%
+	LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1)%
+	LOCALS += @"　<font color='#%LOCALS:1%'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</font>　　"
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+
+LOCALS += "</div>"
+
+LOCALS += @"<div rect='262,{y軸位置 + 3437},5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 41) + 41 < 1000 && ソート後素材順:((ページ番号 * 41) + 41) != -1
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 32 + (y軸位置 / 100)
+	PRINTL
+NEXT
+
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	VARSET 表示用ステータス格納配列:0:0
+	表示切り替え文字列 = %RESULTS%
+	ページ番号 = 0
+	RETURN 0
+ENDIF
+LOCAL = TOINT(RESULTS)
+SELECTCASE LOCAL
+	CASE 999
+		ページ番号 = 0
+		RETURN -1
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+ENDSELECT

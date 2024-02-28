@@ -44,11 +44,23 @@ IF CFLAG:MASTER:現在マップ種別 == 0
 		RETURN 0
 ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 999
 	;陥落状態のキャラの部屋なら添い寝可能
-	IF 陥落チェック(TARGET) && CFLAG:MASTER:現在位置 == CFLAG:TARGET:現在位置 && CFLAG:MASTER:現在位置 < 1000 && TARGET == 滞在者部屋割り配列:(CFLAG:MASTER:現在位置)
-	ELSEIF TALENT:TARGET:従業員 && 陥落チェック(TARGET) && CFLAG:MASTER:現在位置 == CFLAG:TARGET:現在位置 && TARGET == 従業員部屋割り配列:(CFLAG:MASTER:現在位置 - 1000)
-	ELSE
+	SIF 陥落チェック(TARGET) < 1
 		RETURN 0
-	ENDIF
+	SELECTCASE CFLAG:MASTER:現在位置
+		CASE IS >= 2000
+			;スイートルームに複数人泊まってたらアウト
+			SIF STRCOUNT(スイートルーム部屋割り配列:LOCAL, "_") > 2
+				RETURN 0
+			;そもそも部屋じゃないならアウト
+			SIF STRCOUNT(スイートルーム部屋割り配列:LOCAL, @"_{TARGET}_") < 1
+				RETURN 0
+		CASE IS >= 1000
+			SIF TARGET != 従業員部屋割り配列:(CFLAG:MASTER:現在位置 - 1000)
+				RETURN 0
+		CASEELSE
+			SIF TARGET != 滞在者部屋割り配列:(CFLAG:MASTER:現在位置)
+				RETURN 0
+	ENDSELECT
 ELSE
 	RETURN 0
 ENDIF
