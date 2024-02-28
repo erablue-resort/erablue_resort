@@ -13,7 +13,7 @@
 #DIM 移動キャラ
 
 ;現在位置取得
-移動キャラ = 0
+移動キャラ = MASTER
 スタート地点 = CFLAG:MASTER:現在位置
 IF ARG:1
 	移動キャラ = ARG:1
@@ -36,9 +36,21 @@ IF スタートマップ != 目的マップ
 				CASE 5
 					ARG = 5
 				CASE 7
-					ARG = 7
+					;覗き場の場合は入れる方から入る
+					IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
+						;女部分があれば女子
+						ARG =  8
+					ELSE
+						ARG =  7
+					ENDIF
 				CASE 8
-					ARG = 8
+					;覗き場の場合は入れる方から入る
+					IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
+						;女部分がないなら男子
+						ARG =  7
+					ELSE
+						ARG =  8
+					ENDIF
 				CASE 15
 					ARG = 15
 			ENDSELECT
@@ -47,9 +59,11 @@ IF スタートマップ != 目的マップ
 		CASE 5
 			ARG = 2
 		CASE 7
-			ARG = 6
+			SIF 目的マップ != 8
+				ARG = 6
 		CASE 8
-			ARG = 6
+			SIF 目的マップ != 7
+				ARG = 6
 		CASE 15
 			IF (TALENT:移動キャラ:性別 & 1 == 1)
 				;女部分があれば女子
@@ -59,7 +73,6 @@ IF スタートマップ != 目的マップ
 			ENDIF
 	ENDSELECT
 ENDIF
-
 ;暫定目的地に直接移動できる場合
 IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
 	;そこに移動
@@ -86,9 +99,9 @@ SELECTCASE スタート地点
 		RETURN 302
 	CASE 504 TO 506
 		RETURN 503
-	CASE 703 TO 711
+	CASE 711
 		RETURN 702
-	CASE 803 TO 811
+	CASE 811
 		RETURN 802
 	CASE 1503 TO 1507
 		IF TALENT:移動キャラ:性別 == 2
@@ -118,7 +131,7 @@ CASE 2
 		RETURN 8
 	;15（プール）からは入れる方の更衣室を経由する
 	ELSEIF (スタート地点 == 15)
-		IF (TALENT:移動キャラ:性別 & 1 == 1)
+		IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
 			;女部分があれば女子
 			RETURN 14
 		ELSE
@@ -147,9 +160,13 @@ CASE 6
 		RETURN 7
 	ELSEIF (スタート地点 == 11)
 		RETURN 8
+	ELSEIF スタート地点 >= 703 && スタート地点 <= 709
+		RETURN 702
+	ELSEIF スタート地点 >= 803 && スタート地点 <= 809
+		RETURN 802
 	;15（プール）からは入れる方の更衣室を経由する
 	ELSEIF (スタート地点 == 15)
-		IF (TALENT:移動キャラ:性別 & 1 == 1)
+		IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
 			;女部分があれば女子
 			RETURN 14
 		ELSE
@@ -193,7 +210,7 @@ CASE 14
 CASE 15
 ;プール
 	;入れる方の更衣室を目指す
-	IF (TALENT:移動キャラ:性別 & 1 == 1)
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
 		;女部分があれば女子
 		RETURN 14
 	ELSE
@@ -210,12 +227,62 @@ CASE 504 TO 506
 	;バーエリアを目指す
 	RETURN 503
 
+;本来入り口への誘導は必要ないが、男湯女湯だけは必要なので残す
+CASE 702
+	;入れる方なら6を目指す、入れないなら隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
+		;女部分があれば女子
+		RETURN 710
+	ELSE
+		RETURN 6
+	ENDIF
+CASE 802
+	;入れる方なら6を目指す、入れないなら隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
+		;女部分がないなら男子
+		RETURN 810
+	ELSE
+		RETURN 6
+	ENDIF
+CASE 710
+	;入れる方の隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
+		;女部分があれば女子
+		RETURN 810
+	ELSE
+		RETURN 702
+	ENDIF
+CASE 810
+	;入れる方の隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
+		;女部分がないなら男子
+		RETURN 710
+	ELSE
+		RETURN 802
+	ENDIF
 ;温泉は現状全エリアが相互通行可能ではないため、CASE分けを追加
-CASE 703 TO 711
+CASE 703 TO 709
+	;入れる方の隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
+		;女部分があれば女子
+		RETURN 710
+	ELSE
+		RETURN 702
+	ENDIF
+CASE 803 TO 809
+	;入れる方の隠し通路を目指す
+	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
+		;女部分がないなら男子
+		RETURN 810
+	ELSE
+		RETURN 802
+	ENDIF
+CASE 711
+	;脱衣所を目指す
 	RETURN 702
-CASE 803 TO 811
+CASE 811
+	;脱衣所を目指す
 	RETURN 802
-
 ENDSELECT
 GOTO LOOP
 
@@ -382,28 +449,44 @@ SELECTCASE ARG
 	;温泉施設内部
 	;脱衣所からはどのエリアにも行ける
 	CASE 702
-		SIF ARG:1 == 6 || ARG:1 >= 703 || ARG:1 <= 711
+		SIF ARG:1 == 6 || (ARG:1 >= 703 && ARG:1 <= 711)
 			RETURNF 1
-	;温泉内部からは脱衣所＋内部ならどこへでも
-	CASE 703 TO 710
+	;温泉内部からは脱衣所＋内部ならどこへでも、反対側の隠し通路もOK
+	CASE 703 TO 709
 		SIF ARG:1 == 702
 			RETURNF 1
-		SIF ARG:1 >= 703 || ARG:1 <= 710
+		SIF ARG:1 >= 703 && ARG:1 <= 710
 			RETURNF 3
+	;隠し通路は相互に移動可能
+	CASE 710
+		SIF ARG:1 == 702
+			RETURNF 1
+		SIF ARG:1 >= 703 && ARG:1 <= 710
+			RETURNF 3
+		SIF ARG:1 >= 809 && ARG:1 <= 810
+			RETURNF 1
 	;マッサージ施設は脱衣所と外
 	CASE 711
 		SIF ARG:1 == 6 || ARG:1 == 702
 			RETURNF 1
 	;脱衣所からはどのエリアにも行ける
 	CASE 802
-		SIF ARG:1 == 6 || ARG:1 >= 803 || ARG:1 <= 811
+		SIF ARG:1 == 6 || (ARG:1 >= 803 && ARG:1 <= 811)
 			RETURNF 1
 	;温泉内部からは脱衣所＋内部ならどこへでも
-	CASE 803 TO 810
+	CASE 803 TO 809
 		SIF ARG:1 == 802
 			RETURNF 1
-		SIF ARG:1 >= 803 || ARG:1 <= 810
+		SIF ARG:1 >= 803 && ARG:1 <= 810
 			RETURNF 3
+	;隠し通路は相互に移動可能
+	CASE 810
+		SIF ARG:1 == 802
+			RETURNF 1
+		SIF ARG:1 >= 803 && ARG:1 <= 810
+			RETURNF 3
+		SIF ARG:1 >= 709 && ARG:1 <= 710
+			RETURNF 1
 	;マッサージ施設は脱衣所と外
 	CASE 811
 		SIF ARG:1 == 6 || ARG:1 == 802
