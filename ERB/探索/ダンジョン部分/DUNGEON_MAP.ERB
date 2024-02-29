@@ -205,7 +205,7 @@ IF ダンジョン表示モード == "マップ画面"
 	LOCALS += "<div rect='200,2937,4375,125'><button value='i'>[i]アイテム</button>"
 	LOCALS += "　<button value='m'>[m]素材アイテム一覧</button>"
 	LOCALS += "　<button value='t'>[t]仲間と会話</button>"
-	;LOCALS += "　<button value='e'>[e]サブと交代</button>"
+	LOCALS += "　<button value='e'>[e]サブと交代</button>"
 	LOCALS += "　<button value='p'>[p]ダンジョンから抜ける</button></div>"
 	LOCALS += @"%TSTR:メッセージ欄文字列受け渡し_下側%"
 
@@ -438,5 +438,100 @@ ELSE
 ENDIF
 
 @サブメンバー交代処理()
+#DIM 交代候補_メイン
+#DIM 交代候補_サブ
+#DIM 交代ステータス保存
+#DIM INPUT保存
 
+交代候補_メイン = -1
+交代候補_サブ = -1
 
+;全員分の画像を再生成
+CALL 探索用顔グラフィック生成
+CALL DUNGEON_キャラ描画
+
+DO
+DRAWLINE
+PRINTL メインメンバーとサブメンバーを入れ替えることが出来ます。
+PRINTL 入れ替えたいキャラを左右それぞれで選んでください。
+DRAWLINE
+;順番に並べる
+LOCALS = 
+LOCALS += "<div rect='2887,1530, 500, 200'>←→</div>"
+FOR LOCAL, 10, 14
+	SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
+		BREAK
+	LOCALS += @"<div rect='100, {(LOCAL - 10) * 790}, 2500, 5000'>"
+	IF 交代候補_サブ == LOCAL
+		LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}_ボタン' height='750' width='2462'></button>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}' srcb='キャラ_{LOCAL}_ボタン' height='750' width='2462'></button>"
+	ENDIF
+	LOCALS += "</div>"
+NEXT
+FOR LOCAL, 0, 4
+	SIF BATTLE_STATE:(LOCAL):キャラ番号 < 1
+		BREAK
+	LOCALS += @"<div rect='3375,{LOCAL * 790}, 2500, 1000'>"
+	IF 交代候補_メイン == LOCAL
+		LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}_ボタン' height='750' width='2462'></button>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL}' ><img src='キャラ_{LOCAL}' srcb='キャラ_{LOCAL}_ボタン' height='750' width='2462'></button>"
+	ENDIF
+	LOCALS += "</div>"
+NEXT
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 29
+	PRINTL
+NEXT
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+PRINTL
+
+BINPUT
+INPUT保存 = RESULT
+SELECTCASE INPUT保存
+	CASE 1 TO 3
+		IF 交代候補_サブ > 9
+			;交代処理
+			FOR LOCAL, 0, 200
+				交代ステータス保存 = BATTLE_STATE:交代候補_サブ:LOCAL
+				BATTLE_STATE:交代候補_サブ:LOCAL = BATTLE_STATE:INPUT保存:LOCAL
+				BATTLE_STATE:INPUT保存:LOCAL = 交代ステータス保存
+			NEXT
+			PRINTFORMW %CALLNAME:(BATTLE_STATE:交代候補_サブ:0)%と%CALLNAME:(BATTLE_STATE:INPUT保存:0)%を交代しました。
+			交代候補_メイン = -1
+			交代候補_サブ = -1
+			RESTART
+		ELSE
+			IF INPUT保存 != 交代候補_メイン
+				交代候補_メイン = INPUT保存
+			ELSE
+				交代候補_メイン = -1
+			ENDIF
+		ENDIF
+	CASE 10 TO 13
+		IF 交代候補_メイン > -1
+			;交代処理
+			FOR LOCAL, 0, 200
+				交代ステータス保存 = BATTLE_STATE:INPUT保存:LOCAL
+				BATTLE_STATE:INPUT保存:LOCAL = BATTLE_STATE:交代候補_メイン:LOCAL
+				BATTLE_STATE:交代候補_メイン:LOCAL = 交代ステータス保存
+			NEXT
+			PRINTFORMW %CALLNAME:(BATTLE_STATE:INPUT保存:0)%と%CALLNAME:(BATTLE_STATE:交代候補_メイン:0)%を交代しました。
+			交代候補_メイン = -1
+			交代候補_サブ = -1
+			RESTART
+		ELSE
+			IF INPUT保存 != 交代候補_サブ
+				交代候補_サブ = INPUT保存
+			ELSE
+				交代候補_サブ = -1
+			ENDIF
+		ENDIF
+	CASE 999
+		交代候補_メイン = -1
+		交代候補_サブ = -1
+		RETURN 0
+ENDSELECT
+LOOP 1
