@@ -7,6 +7,7 @@
 #DIM 料理ランク一時保存
 #DIM 料理属性一時保存, 10
 #DIM モード中キャラカウント
+#DIM 表示候補, 1000
 
 IF TFLAG:オートコマンドフラグ
 ELSE
@@ -179,16 +180,16 @@ ENDIF
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
-	IF BASE:(TARGET:LOCAL):体力 < 1
+	IF BASE:(TARGET:LOCAL):体力 < 1 && !CFLAG:(TARGET:LOCAL):体力限界
 		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
 		TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
 		FORCEWAIT
 		CFLAG:(TARGET:LOCAL):体力限界 = 1
-		CALL CHARA_SLEEP, TARGET:LOCAL
-		CFLAG:(TARGET:LOCAL):うふふ = 0
-		CALL 性欲ゲージ減少処理(TARGET:LOCAL)
-		CFLAG:(TARGET:LOCAL):飲み会 = 0
-		TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
+		;CALL CHARA_SLEEP, TARGET:LOCAL
+		;CFLAG:(TARGET:LOCAL):うふふ = 0
+		;CFLAG:(TARGET:LOCAL):飲み会 = 0
+		;TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
+		;CALL 性欲ゲージ減少処理(TARGET:LOCAL)
 		SIF AUTOCOM_相手番号保存 == TARGET:LOCAL
 			TFLAG:オートコマンドフラグ = 0
 		;モードもリセット
@@ -199,11 +200,34 @@ FOR LOCAL, 1, CHARANUM
 		同時モード_選択数 = 0
 		連れ込みパターン = 
 	ENDIF
-	SIF CFLAG:(TARGET:LOCAL):うふふ
+	SIF !CFLAG:(TARGET:LOCAL):体力限界
 		モード中キャラカウント += 1
 NEXT
 IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
-	CALL うふふ終了処理
+	CALL 呼び出す候補キャラ登録(表示候補)
+	IF RESULT > 0 && BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
+		PRINTL
+		PRINTFORML %CALLNAME:MASTER%の相手が全員ダウンしてしまった……
+		PRINTFORML 新しい相手を呼び出しますか？
+		PRINTBUTTON "[0] はい", 0
+		PRINTL
+		PRINTBUTTON "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			CALL COM210
+			IF RESULT == -1
+				CALL うふふ終了処理
+			ELSE
+				;呼び出した相手をTARGETに
+				TFLAG:TARGET変更用 = RFLAG:コマンド結果受渡し変数
+			ENDIF
+		ELSE
+			CALL うふふ終了処理
+		ENDIF
+	ELSE
+		CALL うふふ終了処理
+	ENDIF
 ENDIF
 モード中キャラカウント = 0
 FOR LOCAL, 1, CHARANUM
@@ -258,8 +282,10 @@ FOR LOCAL,0,CHARANUM
 		TALENT:LOCAL:処女 = 0
 	
 	;連れ込み満足
-	SIF RCVAR:LOCAL:連れ込み満足フラグ
+	IF RCVAR:LOCAL:連れ込み満足フラグ
 		連れ込みパターン = 
+		TCVAR:LOCAL:連れ込み済フラグ = 1
+	ENDIF
 
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE

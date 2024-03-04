@@ -1,0 +1,524 @@
+﻿
+@素材アイテム登録処理
+#DIMS 比較用一時保存配列, 1000
+#DIMS 素材名分割用, 2
+VARSET 比較用一時保存配列
+
+FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+	;登録されてないアイテム判定のため比較用配列に保存
+	比較用一時保存配列:LOCAL = %DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名")%
+	IF ENUMFUNCENDSWITH(@"素材性能記述_%比較用一時保存配列:LOCAL%") == 0
+		;登録されてるけどERBがないアイテムを削除
+		比較用一時保存配列:LOCAL = 
+		DT_ROW_REMOVE "所持素材データベース", DT_CELL_GET("所持素材データベース", LOCAL, "id")
+		LOCAL -= 1
+	ELSE
+		;登録されてるERBと性能を比較して異なるなら再セット
+		素材性能_カテゴリ = 
+		素材性能_素材ランク = 0
+		素材性能_属性 = 無
+		素材性能_プレゼント = 
+		素材性能_食材分類 = 
+		CALLFORM 素材性能記述_%比較用一時保存配列:LOCAL%
+		SIF 素材性能_カテゴリ != DT_CELL_GETS("所持素材データベース", LOCAL, "素材カテゴリ")
+			DT_CELL_SET "所持素材データベース", LOCAL, "素材カテゴリ", 素材性能_カテゴリ
+		SIF 素材性能_素材ランク != DT_CELL_GET("所持素材データベース", LOCAL, "素材ランク")
+			DT_CELL_SET "所持素材データベース", LOCAL, "素材ランク", 素材性能_素材ランク
+		SIF 属性文字列数値変換(素材性能_属性) != DT_CELL_GET("所持素材データベース", LOCAL, "素材属性")
+			DT_CELL_SET "所持素材データベース", LOCAL, "素材属性", 属性文字列数値変換(素材性能_属性)
+		SIF 素材性能_プレゼント != DT_CELL_GETS("所持素材データベース", LOCAL, "プレゼントカテゴリ")
+			DT_CELL_SET "所持素材データベース", LOCAL, "プレゼントカテゴリ", 素材性能_プレゼント
+		SIF 素材性能_食材分類 != DT_CELL_GETS("所持素材データベース", LOCAL, "食材分類")
+			DT_CELL_SET "所持素材データベース", LOCAL, "食材分類", 素材性能_食材分類
+	ENDIF
+NEXT
+
+;ERBにあるのに登録されてないアイテムを登録
+ENUMFUNCBEGINSWITH "素材性能記述_"
+FOR COUNT, 0, RESULT
+	SPLIT RESULTS:COUNT, "_", 素材名分割用
+	IF !MATCH(比較用一時保存配列, 素材名分割用:1)
+		素材性能_カテゴリ = 
+		素材性能_素材ランク = 0
+		素材性能_属性 = 無
+		素材性能_プレゼント = 
+		素材性能_食材分類 = 
+		CALLFORM %RESULTS:COUNT%
+		DT_ROW_ADD "所持素材データベース", "素材アイテム名", 素材名分割用:1, "所持素材数", 0, "累計入手素材数", 0, "素材カテゴリ", 素材性能_カテゴリ, "素材ランク", 素材性能_素材ランク, "素材属性", 属性文字列数値変換(素材性能_属性), "素材値相場", 100, "プレゼントカテゴリ", 素材性能_プレゼント, "食材分類", 素材性能_食材分類
+	ENDIF
+NEXT
+
+@素材アイテム数量算出(素材アイテム名)
+#FUNCTION
+#DIMS 素材アイテム名
+
+FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名") == 素材アイテム名
+		RETURNF DT_CELL_GET("所持素材データベース", LOCAL, "所持素材数")
+	ENDIF
+NEXT
+RETURNF -1
+
+@素材アイテム数量セット_数値指定(素材アイテム名, 指定数)
+#DIMS 素材アイテム名
+#DIM 指定数
+
+FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名") == 素材アイテム名
+		DT_CELL_SET "所持素材データベース", LOCAL, "所持素材数", 指定数
+		RETURN 1
+	ENDIF
+NEXT
+RETURN -1
+
+
+@素材アイテム一覧表示(表示条件 = "所持素材数 > 0", ボタン化フラグ = 0, 選択解除フラグ = 0)
+#DIMS 表示条件
+#DIM ページ番号
+#DIM ボタン化フラグ
+#DIM 選択解除フラグ
+#DIM ソート後素材順, 1000
+#DIM 現在表示ランク
+VARSET ソート後素材順, -1
+
+;データベースをランク順にソート
+DT_SELECT "所持素材データベース", 表示条件, "素材ランク ASC, 素材属性 ASC", ソート後素材順
+
+DO
+VARSET LOCAL
+VARSET LOCALS
+LOCALS = <div rect='200,0,5537,3625' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='262,75,5537,3625'><nobr>"
+
+現在表示ランク = -1
+FOR COUNT, ページ番号 * 41, ページ番号 * 41 + 41
+	IF ソート後素材順:COUNT < 0
+		BREAK
+	ENDIF
+	IF 現在表示ランク < DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		SIF LOCAL
+			LOCALS += "<br>"
+		IF LOCAL % 2 == 1
+			LOCALS += "<br>"
+			LOCAL += 1
+		ENDIF
+		現在表示ランク = DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
+	ENDIF
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%属性")%
+	IF STRFIND(表示条件, "プレゼントカテゴリ") > -1
+		LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1)%
+	ELSE
+		LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1)%
+	ENDIF
+	IF ボタン化フラグ
+		LOCALS += @"　<font color='#%LOCALS:1%'><button value='{COUNT}'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</button></font>　　"
+	ELSE
+		LOCALS += @"　<font color='#%LOCALS:1%'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</font>　　"
+	ENDIF
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+
+LOCALS += "</div>"
+
+LOCALS += "<div rect='262,3437,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 41) + 41 < 1000 && ソート後素材順:((ページ番号 * 41) + 41) != -1
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 選択解除フラグ
+	LOCALS += "　　　　　　　　　　　　　　　　　　　<button value='998'>[998] 選択を外す</button>"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+
+DRAWLINE
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 33
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN -1
+	CASE 998
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN -2
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+	CASEELSE
+		ページ番号 = 0
+		選択用変数 = 0
+		RETURN ソート後素材順:RESULT
+ENDSELECT
+LOOP 1
+
+
+
+@素材アイテム一覧表示_USERCOM(y軸位置 = 0)
+#DIM ページ番号
+#DIM y軸位置
+#DIM ソート後素材順, 1000
+#DIM 現在表示ランク
+VARSET ソート後素材順, -1
+
+;データベースをランク順にソート
+DT_SELECT "所持素材データベース", "所持素材数 > 0", "素材ランク ASC, 素材属性 ASC", ソート後素材順
+
+VARSET LOCAL
+VARSET LOCALS
+LOCALS = <div rect='200,{y軸位置},5662,3625' border='31' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='262,{y軸位置 + 75},5537,3625'><nobr>"
+
+現在表示ランク = -1
+FOR COUNT, ページ番号 * 41, ページ番号 * 41 + 41
+	IF ソート後素材順:COUNT < 0
+		BREAK
+	ENDIF
+	IF 現在表示ランク < DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		SIF LOCAL
+			LOCALS += "<br>"
+		IF LOCAL % 2 == 1
+			LOCALS += "<br>"
+			LOCAL += 1
+		ENDIF
+		現在表示ランク = DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+		LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
+	ENDIF
+	LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%属性")%
+	LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1)%
+	LOCALS += @"　<font color='#%LOCALS:1%'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</font>　　"
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		LOCALS += "<br>"
+	ENDIF
+NEXT
+
+LOCALS += "</div>"
+
+LOCALS += @"<div rect='262,{y軸位置 + 3437},5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF (ページ番号 * 41) + 41 < 1000 && ソート後素材順:((ページ番号 * 41) + 41) != -1
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　"
+LOCALS += "　　<button value='999'>[999]戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+FOR COUNT, 0, 32 + (y軸位置 / 100)
+	PRINTL
+NEXT
+
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	VARSET 表示用ステータス格納配列:0:0
+	表示切り替え文字列 = %RESULTS%
+	ページ番号 = 0
+	RETURN 0
+ENDIF
+LOCAL = TOINT(RESULTS)
+SELECTCASE LOCAL
+	CASE 999
+		ページ番号 = 0
+		RETURN -1
+	CASE 1000
+		ページ番号 -= 1
+	CASE 1001
+		ページ番号 += 1
+ENDSELECT
+
+;-------------------------------------------------
+;配列にアイテム名と値段放り込んでこれを呼ぶとお店になる処理
+;完全に独立しているのでリゾートだろうがダンジョンだろうが呼べる
+;
+;汎用アイテム購入用_品揃え登録:0 = ゴブリンの剣,200,ルピ
+;のように記述する
+;金額入れてないとランクに応じたルピの金額になる
+;-------------------------------------------------
+@汎用素材購入画面処理(売却許可フラグ = 1)
+#DIMS 商売文字列保存, 3
+#DIM 選択アイテム番号
+#DIM 購入個数
+#DIM 売却許可フラグ
+#DIM 売却モード
+#DIM 売価
+#DIMS 表示条件
+#DIM ページ番号
+#DIM ボタン化フラグ
+#DIM ソート後素材順, 1000
+#DIM 現在表示ランク
+#DIM 改行数
+VARSET ソート後素材順, -1
+
+VARSET LOCALS
+選択アイテム番号 = -1
+購入個数 = 1
+売却モード = 0
+詳細文文字列受け渡し変数 = 
+
+$購入画面LOOP
+
+IF 汎用アイテム購入用_序文 != ""
+	DRAWLINE
+	HTML_PRINT 汎用アイテム購入用_序文
+	DRAWLINE
+ENDIF
+
+;枠作成
+LOCALS = <div rect='81,31,1937,381' border='31' bcolor='#C0C0C0'></div>
+IF 売却モード == 0
+	LOCALS += "<div rect='81,444,1937,2812' border='31' bcolor='#C0C0C0'></div>"
+	LOCALS += "<div rect='2050,444,3125,2812' border='31' bcolor='#C0C0C0'></div>"
+	IF 売却許可フラグ
+		LOCALS += "<div rect='2050,31,3125,381' border='31' bcolor='#C0C0C0'></div>"
+		LOCALS += "<div rect='2125,125,3125,381'>"
+		;購入画面
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>■購入</font>"
+		LOCALS += "　　　<button value='1100'>■売却</button>"
+		LOCALS += "</div>"
+	ENDIF
+ELSE
+	LOCALS += "<div rect='2050,31,3125,381' border='31' bcolor='#C0C0C0'></div>"
+	LOCALS += "<div rect='2125,125,3125,381'>"
+	;売却画面
+	LOCALS += @"<button value='1100'>■購入</button>"
+	LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>■売却</font>"
+	LOCALS += "</div>"
+ENDIF
+
+LOCALS:2 = 所持ルピ：%NUM_FORMAT(MONEY)%<br>
+LOCALS:2 += @"所持ZP　：%ZP所持量全文字列()%"
+LOCALS += @"<div rect='156,125,1862,312'>%LOCALS:2%</div>"
+
+IF 売却モード == 0
+	;購入画面
+	;品揃え描写
+	LOCALS:1 = 
+	FOR LOCAL, 0, 100
+		SIF 汎用アイテム購入用_品揃え登録:LOCAL == ""
+			BREAK
+		VARSET 商売文字列保存
+		SPLIT 汎用アイテム購入用_品揃え登録:LOCAL, ",", 商売文字列保存
+		IF 商売文字列保存:1 == ""
+			;特殊値段を設定されてない場合
+			CALLFORM 素材性能記述_%商売文字列保存:0%
+			売価 = (素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300
+			商売文字列保存:1 = %NUM_FORMAT(売価)%
+			商売文字列保存:2 = ルピ
+		ELSE
+			売価 = TOINT(商売文字列保存:1)
+			商売文字列保存:1 = %NUM_FORMAT(売価)%
+		ENDIF
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 2}]%商売文字列保存:0, 20, LEFT%%商売文字列保存:1, 6%%商売文字列保存:2%</button>"
+		LOCALS:1 += "<br>"
+	NEXT
+	LOCALS += @"<div rect='156,537,1937,2687'>%LOCALS:1%</div>"
+
+	LOCALS += "<div rect='1100,3081,825,125'><button value='999'>[999] 店から出る</button></div>"
+
+	IF 選択アイテム番号 > -1
+		;アイテム詳細文章
+		VARSET 商売文字列保存
+		SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
+		TRYCALLFORM 素材性能記述_%商売文字列保存:0%
+		LOCALS:3 = <font color='#%カラーパレット_HTML(@"%素材性能_属性%属性")%'>
+		LOCALS:3 += @"■%商売文字列保存:0%<br>"
+		LOCALS:3 += @"属性：%素材性能_属性%</font><br>"
+		LOCALS:3 += @"プレゼント種類：%素材性能_プレゼント%<br>"
+		LOCALS:3 += @"ランク：%TOFULL(TOSTR(素材性能_素材ランク))%<br>"
+		LOCALS:3 += @"現在所持数：%TOFULL(TOSTR(素材アイテム数量算出(商売文字列保存:0)))%<br>"
+		VARSET 商売文字列保存
+		SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
+		IF 商売文字列保存:1 == ""
+			;特殊値段を設定されてない場合
+			CALLFORM 素材性能記述_%商売文字列保存:0%
+			売価 = (素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300
+		ELSE
+			売価 = TOINT(商売文字列保存:1)
+		ENDIF
+		LOCALS:3 += @"購入額：{購入個数, 2}個 / {売価 * 購入個数, 6}ルピ<br><br>"
+		LOCALS:3 += @"<button value='1011'>[+10]</button> "
+		LOCALS:3 += @"<button value='1001'>[+1]</button>"
+		LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個購入する</button>　"
+		LOCALS:3 += @"<button value='1002'>[-1]</button> "
+		LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		LOCALS += @"<div rect='2125,537,3800,2687'>%LOCALS:3%</div>"
+	ENDIF
+	改行数 = 29
+ELSE
+	;売却画面
+	;データベースをランク順にソート
+	DT_SELECT "所持素材データベース", "プレゼントカテゴリ <> '' and 所持素材数 > 0", "素材ランク ASC, 素材属性 ASC", ソート後素材順
+
+	VARSET LOCAL
+	LOCALS += "<div rect='81,444,5537,3625' border='31' bcolor='#C0C0C0'></div>"
+	LOCALS += "<div rect='130,520,5537,3625'><nobr>"
+
+	IF 選択アイテム番号 > -1
+		LOCALS += "</div>"
+		;アイテム詳細文章
+		TRYCALLFORM 素材性能記述_%DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)%
+		LOCALS:3 = <font color='#%カラーパレット_HTML(@"%素材性能_属性%属性")%'>
+		LOCALS:3 += @"■%DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)%<br>"
+		LOCALS:3 += @"属性：%素材性能_属性%</font><br>"
+		LOCALS:3 += @"プレゼント種類：%素材性能_プレゼント%<br>"
+		LOCALS:3 += @"ランク：%TOFULL(TOSTR(素材性能_素材ランク))%<br>"
+		LOCALS:3 += @"現在所持数：%TOFULL(TOSTR(素材アイテム数量算出(DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1))))%<br>"
+		LOCALS:3 += @"売却額：{購入個数, 2}個 / {(((素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300) / 2) * 購入個数, 6}ルピ<br><br>"
+		LOCALS:3 += @"<button value='1011'>[+10]</button> "
+		LOCALS:3 += @"<button value='1001'>[+1]</button>"
+		LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個売却する</button>　"
+		LOCALS:3 += @"<button value='1002'>[-1]</button> "
+		LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		LOCALS += @"<div rect='130,537,3800,2687'>%LOCALS:3%</div>"
+	ELSE
+		現在表示ランク = -1
+		FOR COUNT, ページ番号 * 41, ページ番号 * 41 + 41
+			IF ソート後素材順:COUNT < 0
+				BREAK
+			ENDIF
+			IF 現在表示ランク < DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+				SIF LOCAL
+					LOCALS += "<br>"
+				IF LOCAL % 2 == 1
+					LOCALS += "<br>"
+					LOCAL += 1
+				ENDIF
+				現在表示ランク = DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材ランク", 1)
+				LOCALS += @"---- ランク%TOFULL(TOSTR(現在表示ランク))% ------------------------------------------------------------<br>"
+			ENDIF
+			LOCALS:10 = %カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%属性")%
+			LOCALS:11 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1)%
+			LOCALS += @"　<font color='#%LOCALS:10%'><button value='{COUNT}'>%LOCALS:11, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</button></font>　　"
+			LOCAL += 1
+			IF LOCAL % 2 == 0
+				LOCALS += "<br>"
+			ENDIF
+		NEXT
+
+		LOCALS += "</div>"
+	ENDIF
+
+
+	LOCALS += "<div rect='1900,3881,4025,125'>"
+	IF ページ番号 > 0
+		LOCALS += "<button value='1101'>[1101] 前のページへ</button>　　　"
+	ELSE
+		LOCALS += "　　　 　　　　　　　　　"
+	ENDIF
+	IF ソート後素材順:(ページ番号 * 41 + 41) > 0
+		LOCALS += "<button value='1102'>[1102] 次のページへ</button>　　　"
+	ELSE
+		LOCALS += "　　　 　　　　　　　　　"
+	ENDIF
+	LOCALS += "<button value='999'>[999] 店から出る</button></div>"
+
+	改行数 = 37
+ENDIF
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 改行数
+	PRINTL
+NEXT
+BINPUT
+
+SELECTCASE RESULT
+	CASE 0 TO 99
+		選択アイテム番号 = RESULT
+		購入個数 = 1
+	CASE 999
+		汎用アイテム購入用_序文 = 
+		購入個数 = 1
+		選択アイテム番号 = -1
+		VARSET 汎用アイテム購入用_品揃え登録
+		RETURN 0
+	CASE 1011
+		IF 売却モード == 0
+			購入個数 = MIN(購入個数 + 10, 99) 
+		ELSE
+			購入個数 = MIN(購入個数 + 10, 素材アイテム数量算出(DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)))
+		ENDIF
+	CASE 1001
+		IF 売却モード == 0
+			購入個数 = MIN(購入個数 + 1, 99) 
+		ELSE
+			購入個数 = MIN(購入個数 + 1, 素材アイテム数量算出(DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1))) 
+		ENDIF
+	CASE 1002
+		購入個数 = MAX(購入個数 - 1, 1)
+	CASE 1012
+		購入個数 = MAX(購入個数 - 10, 1)
+	CASE 1100
+		INVERTBIT 売却モード, 0
+		購入個数 = 1
+		選択アイテム番号 = -1
+		GOTO 購入画面LOOP
+	CASE 1000
+		IF 売却モード == 0
+			VARSET 商売文字列保存
+			SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
+			IF 商売文字列保存:2 == "ルピ"
+				売価 = TOINT(商売文字列保存:1)
+				IF MONEY < 売価 * 購入個数
+					PRINTW ルピが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				MONEY -= 売価 * 購入個数
+			ELSEIF 商売文字列保存:2 == "ZP"
+				売価 = TOINT(商売文字列保存:1)
+				IF FLAG:ZP所持量 < 売価 * 購入個数
+					PRINTW ZPが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				FLAG:ZP所持量 -= 売価 * 購入個数
+			ELSE
+				;特殊値段を設定されてない場合
+				CALLFORM 素材性能記述_%商売文字列保存:0%
+				売価 = (素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300
+				IF MONEY < 売価 * 購入個数
+					PRINTW ルピが足りません
+					GOTO 購入画面LOOP
+				ENDIF
+				MONEY -= 売価 * 購入個数
+			ENDIF
+			CALL 素材入手処理(商売文字列保存:0, 購入個数)
+			PRINTFORMW %商売文字列保存:0%を%TOFULL(TOSTR(購入個数)), 4%個購入しました。
+			購入個数 = 1
+		ELSE
+			CALL 素材入手処理(DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1), 購入個数 * -1, 1)
+			PRINTFORMW %表示アイテム名:選択アイテム番号%を%TOFULL(TOSTR(購入個数)), 4%個売却しました。
+			TRYCALLFORM 素材性能記述_%DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)%
+			売価 = ((素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300) / 2
+			MONEY += 売価 * 購入個数
+			購入個数 = 1
+			VARSET ソート後素材順, -1
+			VARSET LOCALS
+			選択アイテム番号 = -1
+			購入個数 = 1
+		ENDIF
+ENDSELECT
+
+GOTO 購入画面LOOP
