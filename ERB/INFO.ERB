@@ -21,10 +21,6 @@ IF TCVAR:MASTER:馴れ合い強度 >= 1
 	; 	;隠密だと空気変わらない
 	; ELSEIF LOCAL:2 <= 0 && LOCAL:1 > 0 && CFLAG:(LOCAL:1):現在位置 != CFLAG:(LOCAL:1):前ターン位置 && !CFLAG:(LOCAL:1):睡眠
 	; 	PRINTFORMW %CALLNAME:(LOCAL:1)%が入ってきたことにより空気が変わってしまった…
-	; 	FOR LOCAL, 0, CHARANUM
-	; 		SIF CFLAG:LOCAL:同室 && CFLAG:LOCAL:6 >= 1 && !CFLAG:LOCAL:睡眠
-	; 			CALL KOJO_EVENT(8, LOCAL, LOCAL:1)
-	; 	NEXT
 	; ENDIF
 ENDIF
 VARSET LOCAL
@@ -108,7 +104,7 @@ FOR LOCAL,1,CHARANUM
 	IF CFLAG:LOCAL:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:LOCAL:現在マップ種別
 		;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
 		SIF !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:睡眠
-			CALL AFFAIR_DISCLOSURE(LOCAL, 0)
+			CALL AFFAIR_DISCLOSURE(LOCAL)
 		CFLAG:LOCAL:同室 = 1
 	;覗きは一旦オミット
 	ELSE
@@ -1013,12 +1009,8 @@ FOR LOCAL,1,CHARANUM
 	;既成事実
 	SIF GETBIT (CFLAG:LOCAL:1 ,1)
 		LOCAL:1 += 5
-	;弱味
-	SIF CFLAG:LOCAL:10
-		LOCAL:1 += 5
-	;弱味がなければ欲情補正
-	SIF !CFLAG:LOCAL:10
-		LOCAL:1 = LOCAL:1 * (5000 + MAX(PALAM:LOCAL:欲情,5000)) / 10000
+	;欲情補正
+	LOCAL:1 = LOCAL:1 * (5000 + MAX(PALAM:LOCAL:欲情,5000)) / 10000
 	SELECTCASE LOCAL:1
 		CASE IS >= 150
 			CFLAG:LOCAL:態度保存 = 3
@@ -1036,38 +1028,21 @@ FOR LOCAL,1,CHARANUM
 NEXT
 
 ;情事の発覚
-@AFFAIR_DISCLOSURE(ARG, ARG:1)
-;ARG 入室してきたキャラの番号　ARG:1 0なら同室、1なら覗き
+@AFFAIR_DISCLOSURE(対象キャラ)
+#DIM 対象キャラ
 VARSET LOCAL
 LOCAL:1 = IN_ROOM("MAX", CFLAG:MASTER:現在位置, "CFLAG", GETNUM(CFLAG, "うふふ"))
 IF CFLAG:MASTER:隠密
 	;隠密だとそもそも遭遇しない
 ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ
 	DRAWLINE
-	PRINTFORMW %CALLNAME:ARG%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
-	SIF !GETBIT(CFLAG:ARG:10 , 1)
-		PRINTFORMW %CALLNAME:ARG%に弱みを握られた
-	IF CFLAG:ARG:態度保存 < 2
-		IF !ARG:1
-			;見た人
-			CALL KOJO_EVENT(1,ARG,LOCAL:1)
-			;見られた人（最も地位の高いTARGETで代表）
-			CALL KOJO_EVENT(2,LOCAL:1,ARG)
-		ENDIF
-		DRAWLINE
-		LOCAL:2 = 1
-		;謹慎処分とか弱味とかの処理を入れる予定
-	ELSEIF !ARG:1
-		PRINTFORMW %CALLNAME:ARG%は負けじと%CALLNAME:MASTER%に体を摺り寄せてきた
-		CFLAG:ARG:うふふ = CFLAG:(LOCAL:1):うふふ
-		;見た人
-		CALL KOJO_EVENT(3,ARG,LOCAL:1)
-		;見られた人（最も地位の高いTARGETで代表）
-		CALL KOJO_EVENT(4,LOCAL:1,ARG)
+	PRINTFORMW %CALLNAME:対象キャラ%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
+	IF 陥落チェック(対象キャラ)
+		PRINTFORMW %CALLNAME:対象キャラ%は負けじと%CALLNAME:MASTER%に体を摺り寄せてきた
+		CFLAG:対象キャラ:うふふ = CFLAG:(LOCAL:1):うふふ
 		DRAWLINE
 		RETURN 0
 	ENDIF
-	SETBIT CFLAG:ARG:10 ,1
 ENDIF
 IF LOCAL:2
 	CALL うふふ終了処理
@@ -1077,19 +1052,19 @@ ENDIF
 ;こちらからも見える位置にいる、もしくは同室
 IF CFLAG:MASTER:隠密
 	;隠密だとそもそも遭遇しない
-ELSEIF !CFLAG:ARG:睡眠 && (!ARG:1 || CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:ARG:現在位置) == 2)
+ELSEIF !CFLAG:対象キャラ:睡眠 && CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:対象キャラ:現在位置) == 2
 	;さっきから居るのは分かっていたか否か
-	IF CFLAG:ARG:前ターン位置 == CFLAG:ARG:現在位置 && CFLAG:ARG:前マップ種別 == CFLAG:ARG:現在マップ種別
-		PRINTFORMW %CALLNAME:ARG%が%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%に居\@CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:現在位置) == 2 ? る # た\@
+	IF CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:前マップ種別 == CFLAG:対象キャラ:現在マップ種別
+		PRINTFORMW %CALLNAME:対象キャラ%が%GETPLACENAME(CFLAG:対象キャラ:現在マップ種別, CFLAG:対象キャラ:現在位置)%に居\@CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:ARG:現在位置) == 2 ? る # た\@
 		LOCAL:3 = 1
 	ENDIF
-	IF !ARG:1 && LOCAL:3
-		IF CFLAG:ARG:情事目撃 && CFLAG:(CFLAG:ARG:情事目撃):現在位置 != CFLAG:ARG:現在位置
-			PRINTFORMW %CALLNAME:ARG%に先の%CALLNAME:(CFLAG:ARG:情事目撃)%との一件について問い詰められた…
-			CALL KOJO_EVENT(0, ARG, 2)
-			CFLAG:ARG:情事目撃 = 0
+	IF LOCAL:3
+		IF CFLAG:対象キャラ:情事目撃 && CFLAG:(CFLAG:対象キャラ:情事目撃):現在位置 != CFLAG:対象キャラ:現在位置
+			PRINTFORMW %CALLNAME:対象キャラ%に先の%CALLNAME:(CFLAG:対象キャラ:情事目撃)%との一件について問い詰められた…
+			CALL KOJO_EVENT(0, 対象キャラ, 2)
+			CFLAG:対象キャラ:情事目撃 = 0
 		ELSE
-			CALL KOJO_EVENT(0, ARG, LOCAL:3 - 1)
+			CALL KOJO_EVENT(0, 対象キャラ, LOCAL:3 - 1)
 		ENDIF
 	ENDIF
 ENDIF
