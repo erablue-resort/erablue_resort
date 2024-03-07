@@ -1,0 +1,84 @@
+﻿@EVENTLOAD
+CALL RESET_GRAPH_0
+
+;-----------------------------------------------------------
+;リゾートエリア グラフ化
+;-----------------------------------------------------------
+@RESET_GRAPH_0
+#DIM CONST 男性 = 1p1
+#DIM CONST 女性 = 1p0
+#DIM 場所番号, 2
+#DIM 始点ノード
+#DIM 終点ノード
+
+;各変数の初期化
+NODE_COUNT_MAP0 = 0
+VARSET NODE_MAP0, -1
+VARSET DISTANCE_MALE_MAP0, WEIGHT_DISCONNECTED
+VARSET NEXT_MALE_MAP0, -1
+VARSET DISTANCE_FEMALE_MAP0, WEIGHT_DISCONNECTED
+VARSET NEXT_FEMALE_MAP0, -1
+
+;ノードの定義
+FOR 場所番号:0, 0, MAX_LOCATION
+	SIF 存在しない移動先_0(場所番号:0)
+		CONTINUE
+	NODE_MAP0:NODE_COUNT_MAP0 = 場所番号:0
+	NODE_COUNT_MAP0 ++
+NEXT
+
+;ノードの距離の初期設定
+;隣接しているもののみ
+FOR 始点ノード, 0, NODE_COUNT_MAP0
+	場所番号:0 = NODE_MAP0:始点ノード
+	FOR 終点ノード, 0, NODE_COUNT_MAP0
+		SIF 始点ノード == 終点ノード
+			CONTINUE
+		場所番号:1 = NODE_MAP0:終点ノード
+		IF CAN_MOVE_0(場所番号:0, 場所番号:1) & 1
+			DISTANCE_MALE_MAP0:始点ノード:終点ノード = EDGE_WEIGHT_0(場所番号:0, 場所番号:1, 男性)
+			NEXT_MALE_MAP0:始点ノード:終点ノード = 終点ノード
+			DISTANCE_FEMALE_MAP0:始点ノード:終点ノード = EDGE_WEIGHT_0(場所番号:0, 場所番号:1, 女性)
+			NEXT_FEMALE_MAP0:始点ノード:終点ノード = 終点ノード
+		ENDIF
+	NEXT
+NEXT
+
+CALL FLOYD_WARSHALL(NODE_COUNT_MAP0, DISTANCE_MALE_MAP0, NEXT_MALE_MAP0)
+CALL FLOYD_WARSHALL(NODE_COUNT_MAP0, DISTANCE_FEMALE_MAP0, NEXT_FEMALE_MAP0)
+
+@POINT_TO_NODE_0(場所番号)
+#FUNCTION
+#DIM 場所番号
+
+RETURNF FINDELEMENT(NODE_MAP0, 場所番号, 0, NODE_COUNT_MAP0)
+
+@EDGE_WEIGHT_0(場所番号:0, 場所番号:1, 性別)
+#FUNCTION
+#DIM CONST マップ番号 = 0
+#DIM 場所番号, 2
+#DIM 性別
+#DIM 場所忌避, 2
+
+FOR LOCAL, 0, 2
+	;隠し通路は性別固有施設と扱わない
+	IF 場所番号:LOCAL == 810 || 場所番号:LOCAL == 710
+		場所忌避:LOCAL = 0
+	ELSE
+		SELECTCASE 性別
+			CASE 2
+				;男性の場合、女性用施設は避ける
+				場所忌避:LOCAL = FEMALEROOM(マップ番号, 場所番号:LOCAL)
+			CASEELSE
+				;女性の場合、男性用施設は避ける
+				場所忌避:LOCAL = MALEROOM(マップ番号, 場所番号:LOCAL)
+		ENDSELECT
+	ENDIF
+NEXT
+
+;始点が通常エリアで終点が忌避エリアの場合、重みをつける(なるべく通らないようにする)
+IF !場所忌避:0 && 場所忌避:1
+	RETURNF WEIGHT_DISLIKE
+ELSE
+	RETURNF 1
+ENDIF
