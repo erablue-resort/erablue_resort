@@ -19,27 +19,44 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_探索")
 ;-------------------------------------------------
 ;現状はお金がちょっと上がって好感度UP用の仮アイテムが手に入る
 
-IF 探索フラグ
-	PRINTL 探索は一日一回までです。
-	RETURN 0
-ENDIF
 
 DRAWLINE
 PRINTL 探索形式を選んでください。
 DRAWLINE
-PRINTBUTTONLC "[0] 簡易探索", 0
-PRINTL 
-PRINTL 　　　：周囲の安全な地帯を探索し、ルピや素材などを手に入れる（※開発中のため報酬が大幅に増加しています）
-PRINTL 
-IF BATTLE_STATE:0:0
-	PRINTBUTTONLC "[1] ダンジョン探索", 1
+IF 探索フラグ
+	PRINTL 探索は一日一回まで
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [0] 簡易探索
+	PRINTL 
+	PRINTL 　　　：周囲の安全な地帯を探索し、ルピや素材などを手に入れる（※開発中のため報酬が大幅に増加しています）
+	PRINTL 
+	IF BATTLE_STATE:0:0
+		PRINTPLAIN [1] ダンジョン探索
+	ELSE
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAIN [1] ダンジョン探索（パーティメンバーが一人以上必要です）
+	ENDIF
+	PRINTL 
+	PRINTL 　　　：解放されたダンジョンを攻略する
 ELSE
-	SETCOLOR 0x666666
-	PRINTPLAIN [1] ダンジョン探索（パーティメンバーが一人以上必要です）
+	PRINTBUTTONLC "[0] 簡易探索", 0
+	PRINTL 
+	PRINTL 　　　：周囲の安全な地帯を探索し、ルピや素材などを手に入れる（※開発中のため報酬が大幅に増加しています）
+	PRINTL 
+	IF BATTLE_STATE:0:0
+		PRINTBUTTONLC "[1] ダンジョン探索", 1
+	ELSE
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAIN [1] ダンジョン探索（パーティメンバーが一人以上必要です）
+	ENDIF
+	PRINTL 
+	PRINTL 　　　：解放されたダンジョンを攻略する
 ENDIF
-PRINTL 
-PRINTL 　　　：解放されたダンジョンを攻略する
 RESETCOLOR
+PRINTL 
+PRINTBUTTONLC "[2] 自動探索編成", 2
+PRINTL 
+PRINTL 　　　：業務［自動探索］に設定したキャラが赴くダンジョンを設定します
 PRINTL 
 PRINTL
 PRINTBUTTONLC "[999] 戻る", 999
@@ -65,6 +82,8 @@ SELECTCASE RESULT
 			ENDIF
 		NEXT
 		PRINTW あなたとパーティメンバーの探索経験が増加しました
+		TIME += 120
+		探索フラグ ++
 	CASE 1
 		IF BATTLE_STATE:0:0 < 1
 			REUSELASTLINE 
@@ -73,6 +92,13 @@ SELECTCASE RESULT
 		CALL ダンジョンリスト描画
 		SIF RESULT == -1
 			RETURN -1
+		TIME += 120
+		探索フラグ ++
+	CASE 2
+		CALL ダンジョン自動探索編成処理
+		SIF RESULT == -1
+			RESTART
+		RETURN -1
 	CASE 999
 		RETURN -1
 	CASEELSE
@@ -80,8 +106,6 @@ SELECTCASE RESULT
 		GOTO INPUT_LOOP
 ENDSELECT
 
-TIME += 120
-探索フラグ ++
 RETURN 1
 
 ;-------------------------------------------------
@@ -110,6 +134,8 @@ RETURN 1
 #DIMS 未クリアリスト表示文
 #DIMS クリア済みリスト表示文
 #DIM 表示候補数
+#DIM ページ数_未クリア
+#DIM ページ数_クリア済み
 
 VARSET LOCAL
 VARSET LOCALS
@@ -232,6 +258,8 @@ SELECTCASE LOCAL
 			RESTART
 		ENDIF
 	CASE 999
+		ページ数_未クリア = 0
+		ページ数_クリア済み = 0
 		RETURN -1
 	CASEELSE
 		REUSELASTLINE

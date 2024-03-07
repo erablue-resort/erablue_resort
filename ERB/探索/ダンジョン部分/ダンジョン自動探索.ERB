@@ -1,0 +1,251 @@
+﻿@ダンジョン自動探索処理
+#DIMS 表示用リスト_クリア済み, 100
+#DIM 表示用リスト_人数記録, 100
+#DIMS ダンジョン名保存
+#DIMS クリア済みリスト表示文
+#DIM 関数総数
+#DIM 表示候補数
+#DIM 派遣合計人数
+#DIM 対象人数
+#DIM 取得ルピ量
+#DIM 取得EXP量
+#DIM レベルアップフラグ
+
+VARSET 表示用リスト_クリア済み
+VARSET 表示用リスト_人数記録
+
+表示候補数 = 0
+関数総数 = ENUMFUNCBEGINSWITH("ダンジョン初期処理_")
+FOR LOCAL, 0, 関数総数
+	ダンジョン名保存 = %SUBSTRING(RESULTS:LOCAL, 19)%
+	IF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%")
+		IF GETVAR(@"ダンジョンクリアフラグ_%ダンジョン名保存%") == 1
+			表示用リスト_クリア済み:表示候補数 = %ダンジョン名保存%
+			IF MAP_HAS("自動探索対象ダンジョン", ダンジョン名保存) < 1
+				表示用リスト_人数記録:表示候補数 = 0
+			ELSE
+				表示用リスト_人数記録:表示候補数 = TOINT(MAP_GET("自動探索対象ダンジョン", ダンジョン名保存))
+			ENDIF
+			表示候補数 += 1
+		ENDIF
+	ENDIF
+NEXT
+IF 表示候補数 < 1
+	;クリア済みダンジョンが無い場合はここで何もせず戻す
+	RETURN -1
+ENDIF
+
+;未振り分け人数をクリア済みダンジョンにランダムに突っ込む
+派遣合計人数 = SUMARRAY(表示用リスト_人数記録)
+IF 派遣合計人数 < 仕事人数表示用:自動探索担当人数
+	FOR LOCAL, 0, 仕事人数表示用:自動探索担当人数 - 派遣合計人数
+		表示用リスト_人数記録:(RAND:表示候補数) += 1
+	NEXT
+ENDIF
+
+;人数記録に応じてダンジョンの素材やEXPを取得
+LOCALS = ■探索結果<br>
+MAP_CREATE "自動探索ドロップ"
+FOR LOCAL, 0, 表示候補数
+	ダンジョン名保存 = %表示用リスト_クリア済み:LOCAL%
+	対象人数 = 表示用リスト_人数記録:LOCAL
+	SIF 対象人数 < 1
+		CONTINUE
+	LOCALS += @"　・%ダンジョン名保存% を{対象人数, 2}人が自動探索<br>"
+	CALLFORM 敵討伐後処理_ダンジョン固有_%ダンジョン名保存%(対象人数 * 3)
+	CALLFORM ダンジョン解説文_%ダンジョン名保存%
+	取得ルピ量 += RESULT * 対象人数 * 250 * RAND(80,120) / 100
+	;一体あたりの目安を取る
+	IF RESULT == 1
+		LOCAL:1 = 戦闘経験値テーブル:0 / 5
+	ELSE
+		LOCAL:1 = 戦闘経験値テーブル:(RESULT - 1) - 戦闘経験値テーブル:(RESULT - 2) / (RESULT + 4)
+	ENDIF
+	取得EXP量 += LOCAL:1 * 対象人数 / 2 * RAND(80,120) / 100
+NEXT
+LOCALS += @"　合計で{取得ルピ量, 6}ルピを取得しました。<br>"
+MONEY += 取得ルピ量
+LOCALS += @"　合計で{取得EXP量, 6}EXPを取得しました。<br>"
+HTML_PRINT LOCALS
+LOCALS = 
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 < 1
+		CONTINUE
+	SIF 現在仕事:LOCAL:0 != 6
+		CONTINUE
+	基礎BATTLE_STATE:LOCAL:蓄積EXP += 取得EXP量
+	CALL 口上変数初期化
+	CALL レベルアップ処理(LOCAL)
+	IF RESULT
+		PRINTL 
+		CALL 口上変数表示(LOCAL, 0)
+	ENDIF
+NEXT
+IF MAP_SIZE("自動探索ドロップ") > 0
+	LOCALS += "<br>"
+	LOCALS += "　以下のアイテムを取得しました。<br>"
+	MAP_GETKEYS "自動探索ドロップ", 1
+	FOR LOCAL, 0, MAP_SIZE("自動探索ドロップ")
+		LOCALS += @"　　%RESULTS:LOCAL%：%MAP_GET("自動探索ドロップ", RESULTS:LOCAL), 2%個<br>"
+	NEXT
+ENDIF
+MAP_RELEASE "自動探索ドロップ"
+HTML_PRINT LOCALS
+
+@ダンジョン自動探索編成処理
+#DIMS 表示用リスト_クリア済み, 100
+#DIM 表示用リスト_人数記録, 100
+#DIM レベルソート_クリア済み, 100
+#DIMS ダンジョン名保存
+#DIMS クリア済みリスト表示文
+#DIM 関数総数
+#DIM 表示候補数
+#DIM 派遣合計人数
+#DIM ページ数
+
+VARSET 表示用リスト_クリア済み
+VARSET レベルソート_クリア済み
+VARSET 表示用リスト_人数記録
+ページ数 = 0
+
+表示候補数 = 0
+関数総数 = ENUMFUNCBEGINSWITH("ダンジョン初期処理_")
+FOR LOCAL, 0, 関数総数
+	ダンジョン名保存 = %SUBSTRING(RESULTS:LOCAL, 19)%
+	IF GETVAR(@"ダンジョン出現フラグ_%ダンジョン名保存%")
+		IF GETVAR(@"ダンジョンクリアフラグ_%ダンジョン名保存%") == 1
+			表示用リスト_クリア済み:表示候補数 = %ダンジョン名保存%
+			IF MAP_HAS("自動探索対象ダンジョン", ダンジョン名保存) < 1
+				MAP_SET "自動探索対象ダンジョン", ダンジョン名保存, "0"
+				表示用リスト_人数記録:表示候補数 = 0
+			ELSE
+				表示用リスト_人数記録:表示候補数 = TOINT(MAP_GET("自動探索対象ダンジョン", ダンジョン名保存))
+			ENDIF
+			CALLFORM ダンジョン解説文_%ダンジョン名保存%
+			;降順ソートするためマイナス数値
+			レベルソート_クリア済み:表示候補数 = RESULT * -1
+			表示候補数 += 1
+		ENDIF
+	ENDIF
+NEXT
+IF 表示候補数 < 1
+	PRINTW クリア済みダンジョンがありません
+	RETURN -1
+ENDIF
+ARRAYMSORT レベルソート_クリア済み, 表示用リスト_クリア済み, 表示用リスト_人数記録
+
+$表示_LOOP
+派遣合計人数 = SUMARRAY(表示用リスト_人数記録)
+DRAWLINE
+PRINTL どのダンジョンへ何人送るかを選んでください
+PRINTL 設定されてない分の人数はランダムなダンジョンへ赴きます。
+DRAWLINE
+LOCALS = 
+;まず余り人数を表示
+LOCALS += @"<div rect='30, 30, 6000, 260' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'>"
+LOCALS += "未振り分け人数："
+IF 派遣合計人数 < 仕事人数表示用:自動探索担当人数
+	LOCALS += @"{仕事人数表示用:自動探索担当人数 - 派遣合計人数, 2}人 "
+	FOR LOCAL, 0, MIN(仕事人数表示用:自動探索担当人数 - 派遣合計人数, 64)
+		LOCALS += @"<shape type='rect' param='25, 0, 50, 100' color='#%カラーパレット_HTML("赤")%'>"
+	NEXT
+ENDIF
+LOCALS += "</div>"
+;ダンジョンとその振り分け人数を表示
+LOCALS += @"<div rect='30, 310, 6000, 2812' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'> "
+FOR LOCAL, ページ数 * 9, MIN(表示候補数, ページ数 * 9 + 9)
+	CALLFORM ダンジョン解説文_%表示用リスト_クリア済み:LOCAL%
+	LOCALS += @"■%表示用リスト_クリア済み:LOCAL, 34, LEFT%推奨Lv：{RESULT, 3}<br>　　"
+	LOCALS += @"<button value='{LOCAL * 10}'>[-5]</button>"
+	LOCALS += @"<button value='{LOCAL * 10 + 1}'>[-1]</button> "
+	LOCALS += @"割当人数：{表示用リスト_人数記録:LOCAL, 2}人 "
+	LOCALS += @"　<button value='{LOCAL * 10 + 2}'>[+1]</button>"
+	LOCALS += @"<button value='{LOCAL * 10 + 3}'>[+5]</button> "
+	FOR COUNT, 0, MIN(表示用リスト_人数記録:LOCAL, 50)
+		LOCALS += @"<shape type='rect' param='25, 0, 50, 100' color='#%カラーパレット_HTML("赤")%'>"
+	NEXT
+	LOCALS += "<br>"
+NEXT
+LOCALS += "</div>"
+LOCALS += @"<div rect='262,2900,5000,300'>"
+IF ページ数 > 0
+	LOCALS += "<button value='997'>[997]前のページ</button>　"
+ELSE
+	LOCALS += "　　　　　　　　　"
+ENDIF
+LOCALS += @"- PAGE {ページ数 + 1, 2, LEFT} -　　"
+IF ページ数 * 9 + 9 <= 表示候補数
+	LOCALS += "<button value='998'>[998]次のページ</button>　"
+ELSE
+	LOCALS += "　　　　　　　　　"
+ENDIF
+LOCALS += "<button value='996'>[996]これで決定</button>　　"
+LOCALS += "<button value='999'>[999]変更せず戻る</button></div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 996
+		;画面を抜ける際に人数設定をMAPに格納
+		FOR LOCAL, 0, 表示候補数
+			MAP_SET "自動探索対象ダンジョン", 表示用リスト_クリア済み:LOCAL, @"{表示用リスト_人数記録:LOCAL}"
+			DEBUGPRINTFORML {RESULT}
+		NEXT
+		RETURN 0
+	CASE 997
+		ページ数 -= 1
+		GOTO 表示_LOOP
+	CASE 998
+		ページ数 += 1
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN 0
+	CASEELSE
+		SELECTCASE LOCAL % 10
+			CASE 0
+				表示用リスト_人数記録:(LOCAL / 10) = MAX(0, 表示用リスト_人数記録:(LOCAL / 10) - 5)
+			CASE 1
+				表示用リスト_人数記録:(LOCAL / 10) = MAX(0, 表示用リスト_人数記録:(LOCAL / 10) - 1)
+			CASE 2
+				表示用リスト_人数記録:(LOCAL / 10) = 表示用リスト_人数記録:(LOCAL / 10) + MIN(仕事人数表示用:自動探索担当人数 - 派遣合計人数, 1)
+			CASE 3
+				表示用リスト_人数記録:(LOCAL / 10) = 表示用リスト_人数記録:(LOCAL / 10) + MIN(仕事人数表示用:自動探索担当人数 - 派遣合計人数, 5)
+		ENDSELECT
+		GOTO 表示_LOOP
+ENDSELECT
+
+@ダンジョン自動探索_人数調整
+#DIM 派遣人数
+#DIM 候補D数
+#DIM 表示用リスト_人数記録, 100
+
+派遣人数 = 0
+VARSET RESULTS
+候補D数 = MAP_SIZE("自動探索対象ダンジョン")
+SIF 候補D数 < 1
+	RETURN 0
+;現時点でダンジョンに設定している人数を見る
+MAP_GETKEYS "自動探索対象ダンジョン", 1
+FOR LOCAL, 0, 候補D数
+	表示用リスト_人数記録:LOCAL = TOINT(MAP_GET("自動探索対象ダンジョン", RESULTS:LOCAL))
+	派遣人数 += 表示用リスト_人数記録:LOCAL
+NEXT
+
+IF 派遣人数 > 仕事人数表示用:自動探索担当人数
+	;人数オーバーしてる時
+	DO
+		LOCAL = RAND:候補D数
+		IF 表示用リスト_人数記録:LOCAL > 0
+			表示用リスト_人数記録:LOCAL -= 1
+			派遣人数 -= 1
+		ENDIF
+	LOOP 派遣人数 > 仕事人数表示用:自動探索担当人数
+	FOR LOCAL, 0, 候補D数
+		MAP_SET "自動探索対象ダンジョン", RESULTS:LOCAL, @"{表示用リスト_人数記録:LOCAL}"
+	NEXT
+ENDIF
