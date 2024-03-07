@@ -8,285 +8,37 @@
 ;ARG:1　移動キャラID
 
 #DIM スタート地点
-#DIM スタートマップ
-#DIM 目的マップ
 #DIM 移動キャラ
+#DIM DEST_NODE
 
 ;現在位置取得
 移動キャラ = MASTER
-スタート地点 = CFLAG:MASTER:現在位置
-IF ARG:1
+SIF ARG:1
 	移動キャラ = ARG:1
-	スタート地点 = CFLAG:移動キャラ:現在位置
+スタート地点 = CFLAG:移動キャラ:現在位置
+
+IF POINT_TO_NODE_0(スタート地点) == -1
+	PRINTFORML スタート地点:{スタート地点}は存在しません。
+	JUMP 移動エラー文章表示(移動キャラ, ARG)
+ELSEIF POINT_TO_NODE_0(ARG) == -1
+	PRINTFORML ゴール地点:{ARG}は存在しません。
+	JUMP 移動エラー文章表示(移動キャラ, ARG)
+ELSEIF !GETBIT(TALENT:移動キャラ:性別, 0)
+	;女部分がないなら男性
+	DEST_NODE = NEXT_MALE_MAP0:(POINT_TO_NODE_0(スタート地点)):(POINT_TO_NODE_0(ARG))
+ELSE
+	;女性
+	DEST_NODE = NEXT_FEMALE_MAP0:(POINT_TO_NODE_0(スタート地点)):(POINT_TO_NODE_0(ARG))
 ENDIF
-
-$LOOP
-;マップ間を移動する際の処理
-;（下のパターン分けでやると爆発的に量が増えていくため追加）
-;マップ種別取得
-スタートマップ = 派生マップ番号取得(0, スタート地点)
-目的マップ = 派生マップ番号取得(0, ARG)
-IF スタートマップ != 目的マップ
-	;スタート種別ごとに場合分け
-	SELECTCASE スタートマップ
-		CASE 0
-			SELECTCASE 目的マップ
-				CASE 3
-					ARG = 3
-				CASE 5
-					ARG = 5
-				CASE 7
-					;覗き場の場合は入れる方から入る
-					IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-						;女部分があれば女子
-						ARG =  8
-					ELSE
-						ARG =  7
-					ENDIF
-				CASE 8
-					;覗き場の場合は入れる方から入る
-					IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
-						;女部分がないなら男子
-						ARG =  7
-					ELSE
-						ARG =  8
-					ENDIF
-				CASE 15
-					ARG = 15
-			ENDSELECT
-		CASE 3
-			ARG = 2
-		CASE 5
-			ARG = 2
-		CASE 7
-			SIF 目的マップ != 8
-				ARG = 6
-		CASE 8
-			SIF 目的マップ != 7
-				ARG = 6
-		CASE 15
-			IF (TALENT:移動キャラ:性別 & 1 == 1)
-				;女部分があれば女子
-				ARG = 14
-			ELSE
-				ARG = 13
-			ENDIF
-	ENDSELECT
+IF DEST_NODE == -1
+	PRINTFORML 経由地点が見つかりません。
+	JUMP 移動エラー文章表示(移動キャラ, ARG)
+ELSEIF NODE_MAP0:DEST_NODE == -1
+	PRINTFORML 経由地点が不正です。
+	JUMP 移動エラー文章表示(移動キャラ, ARG)
 ENDIF
-;暫定目的地に直接移動できる場合
-IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
-	;そこに移動
-	RETURN ARG
-ENDIF
-
-;袋小路から行ける場所は固定なので、そこを目指す
-SELECTCASE スタート地点
-	CASE 1
-		RETURN 2
-	CASE 3
-		RETURN 2
-	CASE 4
-		RETURN 2
-	CASE 5
-		RETURN 2
-	CASE 10
-		RETURN 9
-	CASE 12
-		RETURN 11
-	CASE 20
-		RETURN 6
-	CASE 302 TO 308
-		RETURN 302
-	CASE 504 TO 506
-		RETURN 503
-	CASE 711
-		RETURN 702
-	CASE 811
-		RETURN 802
-	CASE 1503 TO 1507
-		IF TALENT:移動キャラ:性別 == 2
-			RETURN 1513
-		ELSE
-			RETURN 1514
-		ENDIF
-ENDSELECT
-
-
-;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
-;地点追加時要フォロー（全ケース修正すること）
-SELECTCASE ARG
-CASE 1
-;玄関
-	;玄関へはロビー経由必須
-	RETURN 2
-CASE 2
-;ロビー
-	;7と8（脱衣所）からは廊下を目指す
-	IF (スタート地点 == 7) || (スタート地点 == 8)
-		RETURN 6
-	;9と11（男湯女湯）からはそれぞれ脱衣所を経由する
-	ELSEIF (スタート地点 == 9)
-		RETURN 7
-	ELSEIF (スタート地点 == 11)
-		RETURN 8
-	;15（プール）からは入れる方の更衣室を経由する
-	ELSEIF (スタート地点 == 15)
-		IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-			;女部分があれば女子
-			RETURN 14
-		ELSE
-			RETURN 13
-		ENDIF
-	ENDIF
-CASE 3
-;庭
-	;庭へはロビー経由必須
-	RETURN 2
-CASE 4
-;食堂
-	;食堂へはロビー経由必須
-	RETURN 2
-CASE 5
-;遊戯場
-	;遊戯場へはロビー経由必須
-	RETURN 2
-CASE 6
-;廊下
-	;1.3.4.5.13.14からは2を目指す
-	IF GROUPMATCH(スタート地点,1,3,4,5,13,14)
-		RETURN 2
-	;9と11（男湯女湯）からはそれぞれ脱衣所を経由する
-	ELSEIF (スタート地点 == 9)
-		RETURN 7
-	ELSEIF (スタート地点 == 11)
-		RETURN 8
-	ELSEIF スタート地点 >= 703 && スタート地点 <= 711
-		RETURN 702
-	ELSEIF スタート地点 >= 803 && スタート地点 <= 811
-		RETURN 802
-	;15（プール）からは入れる方の更衣室を経由する
-	ELSEIF (スタート地点 == 15)
-		IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-			;女部分があれば女子
-			RETURN 14
-		ELSE
-			RETURN 13
-		ENDIF
-	ENDIF
-CASE 7
-;男子脱衣所
-	;内部からは袋小路処理や直接移動処理でOKなので外から目指す場合
-	;男子脱衣所へは廊下経由必須
-	RETURN 6
-CASE 8
-;女子脱衣所
-	;内部からは袋小路処理や直接移動処理でOKなので外から目指す場合
-	;女子脱衣所へは廊下経由必須
-	RETURN 6
-CASE 9
-;男湯
-	;男湯へは脱衣所経由必須
-	RETURN 7
-CASE 10
-;男露天
-	;男露天へは男湯経由必須
-	RETURN 9
-CASE 11
-;女湯
-	;女湯へは脱衣所経由必須
-	RETURN 8
-CASE 12
-;女露天
-	;女露天へは女湯経由必須
-	RETURN 11
-CASE 13
-;男更衣室
-	;更衣室へはロビー経由必須
-	RETURN 2
-CASE 14
-;女更衣室
-	;更衣室へはロビー経由必須
-	RETURN 2
-CASE 15
-;プール
-	;入れる方の更衣室を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-		;女部分があれば女子
-		RETURN 14
-	ELSE
-		RETURN 13
-	ENDIF
-CASE 20
-;自室
-	;自室へはロビー経由必須
-	RETURN 6
-
-;バーエリアは現状全エリアが相互通行可能ではないため、CASE分けを一つだけ追加
-CASE 504 TO 506
-;ボドゲ・卓球
-	;バーエリアを目指す
-	RETURN 503
-
-;本来入り口への誘導は必要ないが、男湯女湯だけは必要なので残す
-CASE 702
-	;入れる方なら6を目指す、入れないなら隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-		;女部分があれば女子
-		RETURN 710
-	ELSE
-		RETURN 6
-	ENDIF
-CASE 802
-	;入れる方なら6を目指す、入れないなら隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
-		;女部分がないなら男子
-		RETURN 810
-	ELSE
-		RETURN 6
-	ENDIF
-CASE 710
-	;入れる方の隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-		;女部分があれば女子
-		RETURN 810
-	ELSE
-		RETURN 702
-	ENDIF
-CASE 810
-	;入れる方の隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
-		;女部分がないなら男子
-		RETURN 710
-	ELSE
-		RETURN 802
-	ENDIF
-;温泉は現状全エリアが相互通行可能ではないため、CASE分けを追加
-CASE 703 TO 709
-	;入れる方の隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 1
-		;女部分があれば女子
-		RETURN 710
-	ELSE
-		RETURN 702
-	ENDIF
-CASE 803 TO 809
-	;入れる方の隠し通路を目指す
-	IF GETBIT(TALENT:移動キャラ:性別, 0) == 0
-		;女部分がないなら男子
-		RETURN 810
-	ELSE
-		RETURN 802
-	ENDIF
-CASE 711
-	;脱衣所を目指す
-	RETURN 702
-CASE 811
-	;脱衣所を目指す
-	RETURN 802
-ENDSELECT
-CALL 移動エラー文章表示(移動キャラ, ARG)
-GOTO LOOP
-
+;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{ARG}を目指し、経由地点:{NODE_MAP0:DEST_NODE}へ移動…
+RETURN NODE_MAP0:DEST_NODE
 
 @CAN_MOVE_0(ARG, ARG:1)
 ;部屋の構造
@@ -310,13 +62,17 @@ SELECTCASE ARG
 		SIF ARG:1 == 1
 			RETURNF 3
 		;庭直通
-		SIF ARG:1 == 3
+		SIF ARG:1 == 3 && !施設改造度:3:0
 			RETURNF 3
+		SIF ARG:1 == 303 && 施設改造度:3:0
+			RETURNF 1
 		;食堂移動可
 		SIF ARG:1 == 4
 			RETURNF 1
 		;遊戯場移動可
-		SIF ARG:1 == 5
+		SIF ARG:1 == 5 && !施設改造度:5:0
+			RETURNF 1
+		SIF ARG:1 == 503 && 施設改造度:5:0
 			RETURNF 1
 		;廊下直通
 		SIF ARG:1 == 6
@@ -348,10 +104,14 @@ SELECTCASE ARG
 		SIF ARG:1 == 2
 			RETURNF 3
 		;男子脱衣所移動可
-		SIF ARG:1 == 7
+		SIF ARG:1 == 7 && !施設改造度:7:0
+			RETURNF 1
+		SIF ARG:1 == 702 && 施設改造度:7:0
 			RETURNF 1
 		;女子脱衣所移動可
-		SIF ARG:1 == 8
+		SIF ARG:1 == 8 && !施設改造度:8:0
+			RETURNF 1
+		SIF ARG:1 == 802 && 施設改造度:8:0
 			RETURNF 1
 		;自室移動可
 		SIF ARG:1 == 20
@@ -404,7 +164,9 @@ SELECTCASE ARG
 		SIF ARG:1 == 2
 			RETURNF 1
 		;プール移動可
-		SIF ARG:1 == 15
+		SIF ARG:1 == 15 && !施設改造度:15:0
+			RETURNF 1
+		SIF ARG:1 == 1503 && 施設改造度:15:0
 			RETURNF 1
 	;女更衣室
 	CASE 14
@@ -412,7 +174,9 @@ SELECTCASE ARG
 		SIF ARG:1 == 2
 			RETURNF 1
 		;プール移動可
-		SIF ARG:1 == 15
+		SIF ARG:1 == 15 && !施設改造度:15:0
+			RETURNF 1
+		SIF ARG:1 == 1503 && 施設改造度:15:0
 			RETURNF 1
 	;プール
 	CASE 15
