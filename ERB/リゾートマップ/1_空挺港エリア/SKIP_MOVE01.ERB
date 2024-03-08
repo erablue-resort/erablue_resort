@@ -3,37 +3,39 @@
 ;遠距離移動処理
 ;-----------------------------------------------------------
 
-@SKIP_MOVE_1(ARG, ARG:1)
-;ARG　目的地
-;ARG:1　移動キャラID
-
+@SKIP_MOVE_1(目的地, 移動キャラ = 0)
 #DIM スタート地点
+#DIM 目的地
 #DIM 移動キャラ
+#DIM START_NODE
+#DIM GOAL_NODE
 #DIM DEST_NODE
 
 ;現在位置取得
-移動キャラ = MASTER
-SIF ARG:1
-	移動キャラ = ARG:1
+SIF 移動キャラ <= 0
+	移動キャラ = MASTER
 スタート地点 = CFLAG:移動キャラ:現在位置
 
-IF POINT_TO_NODE_1(スタート地点) == -1
+START_NODE = POINT_TO_NODE_1(スタート地点)
+IF START_NODE == -1
 	PRINTFORML スタート地点:{スタート地点}は存在しません。
-	JUMP 移動エラー文章表示(移動キャラ, ARG)
-ELSEIF POINT_TO_NODE_1(ARG) == -1
-	PRINTFORML ゴール地点:{ARG}は存在しません。
-	JUMP 移動エラー文章表示(移動キャラ, ARG)
-ELSE
-	DEST_NODE = NEXT_MAP1:(POINT_TO_NODE_1(スタート地点)):(POINT_TO_NODE_1(ARG))
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
 ENDIF
+GOAL_NODE = POINT_TO_NODE_1(目的地)
+IF GOAL_NODE == -1
+	PRINTFORML ゴール地点:{目的地}は存在しません。
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
+ENDIF
+
+DEST_NODE = NEXT_MAP1:START_NODE:GOAL_NODE
 IF DEST_NODE == -1
 	PRINTFORML 経由地点が見つかりません。
-	JUMP 移動エラー文章表示(移動キャラ, ARG)
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
 ELSEIF NODE_MAP1:DEST_NODE == -1
 	PRINTFORML 経由地点が不正です。
-	JUMP 移動エラー文章表示(移動キャラ, ARG)
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
 ENDIF
-;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{ARG}を目指し、経由地点:{NODE_MAP1:DEST_NODE}へ移動…
+;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{目的地}を目指し、経由地点:{NODE_MAP1:DEST_NODE}へ移動…
 RETURN NODE_MAP1:DEST_NODE
 
 @CAN_MOVE_1(ARG, ARG:1)
