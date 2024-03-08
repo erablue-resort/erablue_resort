@@ -20,8 +20,7 @@ LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM210
-
-#DIM 表示候補, 500
+#DIM 表示候補, 1000
 #DIM 現在ページ
 #DIM 呼び出し対象
 
@@ -34,24 +33,7 @@ DRAWLINE
 PRINTL 誰を呼び出しますか？
 DRAWLINE
 
-;表示キャラを登録
-LOCAL:1 = 0
-FOR LOCAL, 1, CHARANUM
-	;滞在してないキャラは出さない
-	SIF CFLAG:LOCAL:滞在期間 < 0
-		CONTINUE
-	;セフレでも恋慕でもないキャラは出さない
-	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
-		CONTINUE
-	;睡眠中はアウト
-	SIF CFLAG:LOCAL:睡眠
-		CONTINUE
-	;既に同室者はアウト
-	SIF MATCH(TARGET, LOCAL)
-		CONTINUE
-	表示候補:(LOCAL:1) = LOCAL
-	LOCAL:1 += 1
-NEXT
+CALL 呼び出す候補キャラ登録(表示候補)
 
 $表示_LOOP
 DRAWLINE
@@ -123,12 +105,40 @@ RFLAG:コマンド結果受渡し変数 = 呼び出し対象
 ;モード管理フラグを初期化
 FLAG:モード管理 = 0
 
+
+@呼び出す候補キャラ登録(表示候補)
+#DIM REF 表示候補
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;滞在してないキャラは出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;セフレでも恋慕でもないキャラは出さない
+	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
+		CONTINUE
+	;睡眠中はアウト
+	SIF CFLAG:LOCAL:睡眠
+		CONTINUE
+	;既に同室者はアウト
+	SIF MATCH(TARGET, LOCAL)
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+
+RETURN LOCAL:1
+
 @CAN_COM210(ARG)
 SKIPDISP ARG
 PRINTFORML 他のキャラを呼び出す(%CALLNAME:TARGET%)
 ;-------------------------------------------------
 ;実行判定処理
 ;-------------------------------------------------
+
+;体力限界時はオート許可
+SIF CFLAG:体力限界
+	RETURN 1
+
 A = 0
 S = 0
 ;すべての命令に共通の要素を考慮

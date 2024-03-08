@@ -41,6 +41,7 @@ IF TFLAG:エリア切り替え時_目的地格納
 		CFLAG:PLAYER:現在マップ種別 = TFLAG:エリア切り替え時_目的地格納 - 100
 		CALLFORM エリア情報登録_{TFLAG:エリア切り替え時_目的地格納 - 100}("エリア移動可能場所")
 		CFLAG:PLAYER:現在位置 = RESULT
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		TFLAG:エリア切り替え時_目的地格納 = 0
 		TRYCALLFORM エリア来訪時イベント_{CFLAG:PLAYER:現在マップ種別}
 		TFLAG:長距離移動時_目的地格納 = 0
@@ -104,7 +105,7 @@ IF TFLAG:長距離移動時_目的地格納
 		; 	TFLAG:長距離移動時_目的地格納 = 0
 		; 	RETURN 0
 		; ELSE
-			IF RFLAG:立ち止まらないフラグ
+			IF RFLAG:立ち止まらないフラグ > 0
 				PRINTL
 			ELSE
 				PRINTL ……どうしますか？
@@ -122,6 +123,8 @@ IF TFLAG:長距離移動時_目的地格納
 				ELSE
 					TFLAG:長距離移動時_目的地格納 = 0
 					TFLAG:エリア切り替え時_目的地格納 = 0
+					;エリアまたぎ移動キャンセル用にフラグを突っ込む
+					RFLAG:立ち止まらないフラグ = -1
 					RETURN 0
 				ENDIF
 			ENDIF
@@ -132,6 +135,7 @@ IF TFLAG:長距離移動時_目的地格納
 	;遠距離移動
 	IF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
 		CFLAG:MASTER:現在位置 = (TFLAG:長距離移動時_目的地格納)
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		;遠距離移動フラグ消去
 		TFLAG:長距離移動時_目的地格納 = 0
 		SIF !TFLAG:エリア切り替え時_目的地格納
@@ -144,11 +148,7 @@ IF TFLAG:長距離移動時_目的地格納
 		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:長距離移動時_目的地格納)
 		;現在位置を更新し、次も移動の扱いにする
 		CFLAG:MASTER:現在位置 = RESULT
-		;マップ間をまたいで移動時の処理
-		CALL マップ遷移判定処理(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-		IF RESULT
-			CFLAG:PLAYER:現在位置 = RESULT
-		ENDIF
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	ENDIF
 	RESTART
 ENDIF
@@ -223,11 +223,7 @@ ELSE
 	CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(LOCAL:10)
 	;現在位置を更新し、次も移動の扱いにする
 	CFLAG:MASTER:現在位置 = RESULT
-	;マップ間をまたいで移動時の処理
-	CALL マップ遷移判定処理(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-	IF RESULT
-		CFLAG:PLAYER:現在位置 = RESULT
-	ENDIF
+	TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	TIME += 1
 	RESTART
 ENDIF

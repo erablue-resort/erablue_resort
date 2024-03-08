@@ -1,0 +1,257 @@
+﻿
+@ZP_SHOP_能力
+#DIM 表示数
+#DIM 選択中番号
+#DIMS 能力名保存, 50
+VARSET RESULTS
+VARSET 能力名保存
+選択中番号 = -1
+表示数 = ENUMFUNCBEGINSWITH("ZP能力取得_")
+ARRAYCOPY "RESULTS", "能力名保存"
+
+$表示部分
+DRAWLINE
+PRINTL 所持していない特殊能力の一覧です。
+PRINTL どの能力を手に入れますか？
+DRAWLINE
+
+LOCALS = <div rect='81,31,1937,381' border='31' bcolor='#C0C0C0'></div>
+LOCALS:2 = 所持ルピ：%NUM_FORMAT(MONEY)%<br>
+LOCALS:2 += @"所持ZP　：%ZP所持量全文字列()%"
+LOCALS += @"<div rect='156,125,1862,312'>%LOCALS:2%</div>"
+
+LOCALS += "<div rect='81,412,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,412,4000,2812' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='156,540,1937,2812'>"
+FOR LOCAL, 0, 表示数
+	CALLFORM %能力名保存:LOCAL%
+	SIF RESULT == -1
+		CONTINUE
+	LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %SUBSTRING(能力名保存:LOCAL, 11)% - ZP:{RESULT}</button>"
+	LOCALS += "<br>"
+NEXT
+LOCALS += "<br>"
+LOCALS += @"<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+IF 選択中番号 > -1
+	LOCALS += "<div rect='2125,540,3875,2812'>"
+	CALLFORM %能力名保存:選択中番号%
+	LOCALS += @"%詳細文文字列受け渡し変数%<br><br>"
+	LOCALS += @"{RESULT}ZPを支払い、%SUBSTRING(能力名保存:選択中番号, 11)%を取得しますか？<br>"
+	LOCALS += @"<button value='100'>[100] 取得する</button>"
+	LOCALS += "<br>"
+	LOCALS += "</div>"
+ENDIF
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 28
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		選択中番号 = -1
+		RETURN 0
+	CASE 100
+		CALLFORM %能力名保存:選択中番号%
+		IF FLAG:ZP所持量 < RESULT
+			PRINTW ZPが足りません
+		ELSE
+			CALLFORM %能力名保存:選択中番号%("取得時処理")
+			FLAG:ZP所持量 -= RESULT
+			PRINTFORMW %詳細文文字列受け渡し変数%
+		ENDIF
+		選択中番号 = -1
+	CASEELSE
+		選択中番号 = LOCAL
+ENDSELECT
+GOTO 表示部分
+
+@ZP能力取得_ハーレム入門(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:ハーレム
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［ハーレム入門］を取得しました
+	あなた特殊能力:ハーレム = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = 一度に複数人を恋慕対象にするための能力です。<br>取得すると同時に３人まで対象に取ることが出来ます。<br>
+	LOCALS += "また、恋慕素質を獲得した人数に応じてこの能力は成長します。"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 25
+
+@ZP能力取得_ギャンブラー(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:ギャンブラー
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［ギャンブラー］を取得しました
+	あなた特殊能力:ギャンブラー = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = 賭け事を多く経験するための能力です。<br>取得するとカードや卓球勝負の際、確実に賭け事を行うことが出来ます。<br>
+	LOCALS += "別にゲーム自体に強くなるわけではない点には注意してください。"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 15
+
+@ZP能力取得_技巧レベル上昇(処理モード = "")
+#DIMS 処理モード
+#DIM ZP消費量
+
+SIF ABL:PLAYER:技巧 >= 10
+	RETURN -1
+
+ZP消費量 = ABL:PLAYER:技巧 * ABL:PLAYER:技巧 * 5
+IF 処理モード == "取得時処理"
+	ABL:PLAYER:技巧 += 1
+	LOCALS = 技巧がLv{ABL:PLAYER:技巧}に上昇しました
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = 相手により大きな快楽を与えるための能力です。<br>技巧レベルが高まるたびに値段は上昇します。<br>
+	LOCALS += @"現在技巧：Lv{ABL:PLAYER:技巧, 2}"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN ZP消費量
+
+@ZP能力取得_危険日感知(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:危険日感知
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［危険日感知］を取得しました
+	あなた特殊能力:危険日感知 = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = キャラクターの危険日を詳細に知ることが出来る能力です。<br>
+	LOCALS += "仲を深めたキャラクターの危険日を把握すれば、妊娠の回避や或いはその逆の事も容易になるでしょう。<br>"
+	LOCALS += "現在の状態がキャラ名の横に常に表示される他、詳細な危険日周期は能力表示画面で確認できます。<br>"
+	LOCALS += "また、発情期の周期も危険日と一致しています。"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 20
+
+@ZP能力取得_触手変化術(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:危険日感知
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［触手変化術］を取得しました
+	あなた特殊能力:触手変化術 = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = 肉体の一部を触手に変化させ、自在に操る魔法です。様々な触手コマンドが使用可能になります。<br>
+	LOCALS += "取得直後では触手種類も与える快楽量も少ないですが、触手変化術のLvと技巧を上げることにより増加します。<br>"
+	LOCALS += "ただし対象が性癖素質[触手プレイ]を持っていない場合、触手関連のコマンドは実行出来ません。<br>"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 80
+
+
+@ZP能力取得_居場所感知(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:居場所感知
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［居場所感知］を取得しました
+	あなた特殊能力:居場所感知 = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = リゾート内のどこにキャラがいるかを感知する術です。<br>
+	LOCALS += "場所ごとに誰がいるかを表示する機能と、追跡設定をしているキャラがどの場所にいるかを表示する機能があります。<br>"
+	LOCALS += "現在効果実装中。debug用居場所表示を代わりとしてUSERCOMにおいています。<br>"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 1
+
+@ZP能力取得_フレンドリーセンス(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:フレンドリーセンス
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［フレンドリーセンス］を取得しました
+	あなた特殊能力:フレンドリーセンス = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = キャラの好感度・恋慕度を数値化して表示し、また好みのプレゼントを知ることが出来る術です。<br>
+	LOCALS += "現在効果実装中。取得しなくても効果を発揮しています。<br>"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 1
+
+@ZP能力取得_体力成長の加護(処理モード = "")
+#DIMS 処理モード
+#DIM 費用
+
+SIF あなた特殊能力:体力成長の加護 > 3
+	RETURN -1
+
+費用 = POWER(あなた特殊能力:体力成長の加護 + 1, 3) * 4
+IF 処理モード == "取得時処理"
+	あなた特殊能力:体力成長の加護 += 1
+	LOCALS = 能力［体力成長の加護 Lv{あなた特殊能力:体力成長の加護}］を取得しました
+	詳細文文字列受け渡し変数 = %LOCALS%
+	;体力再計算
+	FOR LOCAL,1,CHARANUM
+		CALL 体力変動素質適用処理(LOCAL)
+	NEXT
+ELSE
+	LOCALS = 絶頂によって体力が０になったキャラの体力上限が成長するようになります。<br>
+	LOCALS += "能力取得・成長前に体力が０になったことがある場合、能力取得・成長時にその分も成長します。<br>"
+	LOCALS += "Lv1：ダウン1回で上限+10　　Lv2：ダウン1回で上限+15<br>"
+	LOCALS += "Lv3：ダウン1回で上限+20　　Lv4：ダウン1回で上限+30<br>"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 費用
+
+@ZP能力取得_ダンジョン探索PRO(処理モード = "")
+#DIMS 処理モード
+
+SIF あなた特殊能力:ダンジョン探索PRO
+	RETURN -1
+
+IF 処理モード == "取得時処理"
+	LOCALS = 能力［ダンジョン探索PRO Lv1］を取得しました
+	あなた特殊能力:ダンジョン探索PRO = 1
+	詳細文文字列受け渡し変数 = %LOCALS%
+ELSE
+	LOCALS = 従業員へ業務［自動探索］を命じることが出来るようになります。（未実装）<br>
+	LOCALS += "自動探索業務に従事しているキャラが一人以上いる時、クリア済みダンジョンを自動で探索してくれます。（未実装）<br>"
+	LOCALS += "探索結果は一日の終了時にまとめて表示されます。（未実装）<br>"
+	詳細文文字列受け渡し変数 = %LOCALS%
+ENDIF
+
+;値段を返す
+RETURN 1

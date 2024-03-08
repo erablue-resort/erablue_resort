@@ -77,9 +77,7 @@ LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rec
 LOCALS += "<div rect='156,156,1937,2812'>"
 FOR LOCAL, 0, 10
 	IF 現在仕事数字文字列変換(LOCAL) != ""
-		SIF ARG == PLAYER && LOCAL == 3
-			CONTINUE
-		SIF ARG == PLAYER && LOCAL == 2
+		SIF 仕事条件判定関数(ARG, LOCAL) == 0
 			CONTINUE
 		IF 現在仕事:ARG:0 == LOCAL
 			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%</font><br>"
@@ -101,7 +99,12 @@ LOCALS:1 += "</div>"
 LOCALS:1 += "<div rect='2312,437,3675,2812'>"
 LOCALS:1 += @"%現在仕事数字文字列変換(現在仕事:ARG:0, 1, ARG)%"
 LOCALS:1 += "<br><br>"
-LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
+;仕事レベルが存在するなら表示
+IF 仕事レベル存在チェック(現在仕事:ARG:0)
+	LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
+ELSE
+	LOCALS:1 += @"仕事レベルなし"
+ENDIF
 LOCALS:1 += "</div>"
 
 
@@ -122,7 +125,7 @@ SELECTCASE LOCAL
 			現在仕事:ARG:0 = 0
 		ENDIF
 		RETURN 0
-	CASE 0 TO 5
+	CASE 0 TO 6
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
 			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
 			REUSELASTLINE 
@@ -217,9 +220,17 @@ SELECTCASE ARG
 			RETURNF ""
 		ENDIF
 		IF ARG:1
-			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。<br>　　　訓練場に常駐する。"
+			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。<br>　　　（全キャラ中最も高いレベルより上には成長しない）<br>　　　訓練場に常駐する。"
 		ENDIF
 		RETURNF "訓練"
+	CASE 6
+		IF あなた特殊能力:ダンジョン探索PRO < 1
+			RETURNF ""
+		ENDIF
+		IF ARG:1
+			RETURNF @"クリア済みのダンジョンに赴き、素材を集めてくる業務。<br>効果：一日の最後に素材やEXPを獲得する。<br>　　　獲得量は赴いたダンジョンによって変動する。<br>　　　（赴くダンジョンの設定は「探索へ出かける」から行う）<br>　　　%CALLNAME:MASTER%が探索をしていない日は効果が増加する。<br>　　　日中はリゾートにおらず、夕方以降は自室にいる。"
+		ENDIF
+		RETURNF "自動探索"
 ENDSELECT
 
 @仕事条件判定関数(キャラ番号, 仕事番号)
@@ -229,9 +240,13 @@ ENDSELECT
 
 SELECTCASE 仕事番号
 	CASE 2,3
-		IF キャラ番号 == PLAYER
+		SIF キャラ番号 == PLAYER
 			RETURNF 0
-		ENDIF
+	CASE 5,6
+		SIF キャラ番号 == PLAYER
+			RETURNF 0
+		SIF TALENT:キャラ番号:非戦闘キャラ
+			RETURNF 0
 ENDSELECT
 
 RETURNF 1
@@ -252,3 +267,13 @@ SELECTCASE 現在仕事:キャラ番号:0
 			現在仕事:キャラ番号:1 = 選択番号
 		ENDIF
 ENDSELECT
+
+@仕事レベル存在チェック(チェック番号)
+#FUNCTION
+#DIM チェック番号
+
+IF GROUPMATCH(チェック番号, 1, 2, 3, 4)
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF

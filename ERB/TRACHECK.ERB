@@ -153,34 +153,21 @@ SIF RCVAR:ARG:尻尾開発フラグ
 ;体力減少
 ;-------------------------------------------------
 @SOURCE_DOWNBASE(ARG)
-; BASE:ARG:体力 = MAX(0, BASE:ARG:体力 - DOWNBASE:ARG:体力)
-
-IF DOWNBASE:ARG:体力 > 1
-	IF BASE:ARG:体力 > 1
-		BASE:ARG:体力 = MAX(1, BASE:ARG:体力 - DOWNBASE:ARG:体力)
-		IF BASE:ARG:体力 == 1
-			;指示モード解除
-			IF PLAYER == ARG && FLAG:モード管理 == 1
-				FLAG:モード管理 = 0
-				TFLAG:あなたターゲット用 = 0
-			ENDIF
-			TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
-			SIF 干渉強化変数:ARG:干渉種類 == 10
-				CALL 干渉強化関数_10("実補正処理")
-			SIF NO:ARG == 57
-				TCVAR:ARG:食いしばりフラグ += 3
-			IF TCVAR:ARG:食いしばりフラグ
-				PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
-			ELSE
-				BASE:ARG:体力 = 0
-			ENDIF
-		ENDIF
-	ELSEIF TCVAR:ARG:食いしばりフラグ > 0
-		TCVAR:ARG:食いしばりフラグ -= 1
-	ELSEIF TCVAR:ARG:食いしばりフラグ < 1
-		BASE:ARG:体力 = 0
+IF DOWNBASE:ARG:体力 > 0 && BASE:ARG:体力 > 1 && BASE:ARG:体力 <= DOWNBASE:ARG:体力
+	;指示モード解除
+	IF PLAYER == ARG && FLAG:モード管理 == 1
+		FLAG:モード管理 = 0
+		TFLAG:あなたターゲット用 = 0
 	ENDIF
+	TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
+	SIF 干渉強化変数:ARG:干渉種類 == 10
+		CALL 干渉強化関数_10("実補正処理")
+	SIF NO:ARG == 57
+		TCVAR:ARG:食いしばりフラグ += 3
+	SIF ARG != MASTER && TCVAR:ARG:食いしばりフラグ
+		PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
 ENDIF
+BASE:ARG:体力 = MAX(0, BASE:ARG:体力 - DOWNBASE:ARG:体力)
 
 ;-------------------------------------------------
 ;刻印取得のチェック
@@ -813,7 +800,9 @@ ENDCATCH
 
 ;現在レベルより高ければレベルアップ処理
 IF CFLAG:ARG:好感度レベル < 計算後レベル
-	PRINTFORML 好感度LvUP!! {CFLAG:ARG:好感度レベル} > {計算後レベル}
+	IF あなた特殊能力:フレンドリーセンス
+		PRINTFORML 好感度LvUP!! {CFLAG:ARG:好感度レベル} > {計算後レベル}
+	ENDIF
 	IF CFLAG:ARG:好感度レベル <= 関係閾値:0 && 計算後レベル > 関係閾値:0
 		LOCALS '= 関係名:1:要素最大値
 		PRINTFORML 初対面 > %LOCALS%
@@ -870,55 +859,72 @@ ENDIF
 PRINTW 
 
 ;V調教の苦痛、反発補正(フィストなど激しいものは別処理)(実際には1000倍されてるので使用時は1/1000に)
-@PAIN_CHECK_V(ARG)
+@PAIN_CHECK_V(対象キャラ)
 #FUNCTION
+#DIM 対象キャラ
 VARSET LOCAL
 ;EXP:Ｖ経験をみる
-IF EXP:ARG:Ｖ経験 < EXPLV:1
+IF EXP:対象キャラ:Ｖ経験 < EXPLV:1
 	LOCAL = 20
-ELSEIF EXP:ARG:Ｖ経験 < EXPLV:2
+ELSEIF EXP:対象キャラ:Ｖ経験 < EXPLV:2
 	LOCAL = 12
-ELSEIF EXP:ARG:Ｖ経験 < EXPLV:3
+ELSEIF EXP:対象キャラ:Ｖ経験 < EXPLV:3
 	LOCAL = 10
-ELSEIF EXP:ARG:Ｖ経験 < EXPLV:4
+ELSEIF EXP:対象キャラ:Ｖ経験 < EXPLV:4
 	LOCAL = 8
-ELSEIF EXP:ARG:Ｖ経験 < EXPLV:5
+ELSEIF EXP:対象キャラ:Ｖ経験 < EXPLV:5
 	LOCAL = 6
-ELSEIF EXP:ARG:Ｖ経験 >= EXPLV:5
+ELSEIF EXP:対象キャラ:Ｖ経験 >= EXPLV:5
 	LOCAL = 4
 ELSE
 	LOCAL = 2
 ENDIF
 
+;EXP:ポルチオ開発を見る（ポルチオ時のみ）
+IF RCVAR:対象キャラ:ポルチオ開発フラグ
+	SELECTCASE EXP:対象キャラ:ポルチオ開発
+		CASE IS < EXPLV:2
+			LOCAL += 10
+		CASE IS < EXPLV:3
+			LOCAL += 8
+		CASE IS < EXPLV:4
+			LOCAL += 5
+		CASE IS < EXPLV:5
+			LOCAL += 2
+		CASEELSE
+			LOCAL += 0
+	ENDSELECT
+ENDIF
+
 ;PALAM:Ｖ感覚をみる
-IF EX:ARG:Ｖ絶頂 > 0
+IF EX:対象キャラ:Ｖ絶頂 > 0
 	LOCAL:1 = 0
-ELSEIF PALAM:ARG:快Ｖ < PALAMLV:1
+ELSEIF PALAM:対象キャラ:快Ｖ < PALAMLV:1
 	LOCAL:1 = 15
-ELSEIF PALAM:ARG:快Ｖ < EXPLV:2
+ELSEIF PALAM:対象キャラ:快Ｖ < EXPLV:2
 	LOCAL:1 = 12
-ELSEIF PALAM:ARG:快Ｖ < EXPLV:3
+ELSEIF PALAM:対象キャラ:快Ｖ < EXPLV:3
 	LOCAL:1 = 8
-ELSEIF PALAM:ARG:快Ｖ < EXPLV:4
+ELSEIF PALAM:対象キャラ:快Ｖ < EXPLV:4
 	LOCAL:1 = 5
-ELSEIF PALAM:ARG:快Ｖ < EXPLV:5
+ELSEIF PALAM:対象キャラ:快Ｖ < EXPLV:5
 	LOCAL:1 = 2
-ELSEIF PALAM:ARG:快Ｖ >= EXPLV:5
+ELSEIF PALAM:対象キャラ:快Ｖ >= EXPLV:5
 	LOCAL:1 = 1
 ELSE
 	LOCAL:1 = 0
 ENDIF
 
 ;PALAM:潤滑をみる
-IF PALAM:ARG:潤滑 < PALAMLV:1
+IF PALAM:対象キャラ:潤滑 < PALAMLV:1
 	LOCAL:2 = 15
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:2
 	LOCAL:2 = 12
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:3
 	LOCAL:2 = 10
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:4
 	LOCAL:2 = 8
-ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+ELSEIF PALAM:対象キャラ:潤滑 >= PALAMLV:4
 	LOCAL:2 = 5
 ELSE
 	LOCAL:2 = 2
@@ -927,53 +933,70 @@ ENDIF
 RETURNF LOCAL * LOCAL:1 * LOCAL:2
 
 ;アナル調教の苦痛補正(実際には1000倍されてるので使用時は1/1000に)
-@PAIN_CHECK_A(ARG)
+@PAIN_CHECK_A(対象キャラ)
 #FUNCTION
+#DIM 対象キャラ
 VARSET LOCAL
 ;EXP:Ａ経験をみる
-IF EXP:ARG:Ａ経験 < EXPLV:1
+IF EXP:対象キャラ:Ａ経験 < EXPLV:1
 	LOCAL = 20
-ELSEIF EXP:ARG:Ａ経験 < EXPLV:2
+ELSEIF EXP:対象キャラ:Ａ経験 < EXPLV:2
 	LOCAL = 12
-ELSEIF EXP:ARG:Ａ経験 < EXPLV:3
+ELSEIF EXP:対象キャラ:Ａ経験 < EXPLV:3
 	LOCAL = 10
-ELSEIF EXP:ARG:Ａ経験 < EXPLV:4
+ELSEIF EXP:対象キャラ:Ａ経験 < EXPLV:4
 	LOCAL = 8
-ELSEIF EXP:ARG:Ａ経験 < EXPLV:5
+ELSEIF EXP:対象キャラ:Ａ経験 < EXPLV:5
 	LOCAL = 6
-ELSEIF EXP:ARG:Ａ経験 >= EXPLV:5
+ELSEIF EXP:対象キャラ:Ａ経験 >= EXPLV:5
 	LOCAL = 4
 ELSE
 	LOCAL = 2
 ENDIF
 
+;EXP:Ｓ字結腸開発を見る（Ｓ字結腸時のみ）
+IF RCVAR:対象キャラ:Ｓ字結腸開発フラグ
+	SELECTCASE EXP:対象キャラ:Ｓ字結腸開発
+		CASE IS < EXPLV:2
+			LOCAL += 10
+		CASE IS < EXPLV:3
+			LOCAL += 8
+		CASE IS < EXPLV:4
+			LOCAL += 5
+		CASE IS < EXPLV:5
+			LOCAL += 2
+		CASEELSE
+			LOCAL += 0
+	ENDSELECT
+ENDIF
+
 ;PALAM:Ａ感覚をみる
-IF PALAM:ARG:快Ａ < PALAMLV:1
+IF PALAM:対象キャラ:快Ａ < PALAMLV:1
 	LOCAL:1 = 20
-ELSEIF PALAM:ARG:快Ａ < EXPLV:2
+ELSEIF PALAM:対象キャラ:快Ａ < EXPLV:2
 	LOCAL:1 = 15
-ELSEIF PALAM:ARG:快Ａ < EXPLV:3
+ELSEIF PALAM:対象キャラ:快Ａ < EXPLV:3
 	LOCAL:1 = 10
-ELSEIF PALAM:ARG:快Ａ < EXPLV:4
+ELSEIF PALAM:対象キャラ:快Ａ < EXPLV:4
 	LOCAL:1 = 6
-ELSEIF PALAM:ARG:快Ａ < EXPLV:5
+ELSEIF PALAM:対象キャラ:快Ａ < EXPLV:5
 	LOCAL:1 = 2
-ELSEIF PALAM:ARG:快Ａ >= EXPLV:5
+ELSEIF PALAM:対象キャラ:快Ａ >= EXPLV:5
 	LOCAL:1 = 1
 ELSE
 	LOCAL:1 = 0
 ENDIF
 
 ;PALAM:潤滑をみる
-IF PALAM:ARG:潤滑 < PALAMLV:1
+IF PALAM:対象キャラ:潤滑 < PALAMLV:1
 	LOCAL:2 = 15
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:2
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:2
 	LOCAL:2 = 12
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:3
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:3
 	LOCAL:2 = 10
-ELSEIF PALAM:ARG:潤滑 < PALAMLV:4
+ELSEIF PALAM:対象キャラ:潤滑 < PALAMLV:4
 	LOCAL:2 = 8
-ELSEIF PALAM:ARG:潤滑 >= PALAMLV:4
+ELSEIF PALAM:対象キャラ:潤滑 >= PALAMLV:4
 	LOCAL:2 = 5
 ELSE
 	LOCAL:2 = 2

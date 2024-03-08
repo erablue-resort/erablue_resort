@@ -1,4 +1,5 @@
 ﻿@SHOW_SHOP
+#DIM コマンド表示数
 ;奴隷購入ページフラグ
 TFLAG:ゲームフェイズ管理 = 0
 TOOLTIP_CUSTOM 1
@@ -7,6 +8,7 @@ TOOLTIP_SETDURATION 100000
 
 CALL リゾートランク上昇チェック()
 CALL イベント発生条件チェック()
+CALL モブ観光客算出
 
 DRAWLINE
 LOCALS = %月算出()%
@@ -52,11 +54,7 @@ IF TSTR:NEWイベントフラグ != ""
 ELSE
 	LOCALS += "<button value='120'>[120] - イベントリスト</button>　　　　　　　　　"
 ENDIF
-IF 探索フラグ == 0
-	LOCALS += "<button value='101'>[101] - 探索へ出かける</button>　　　　　　　　　"
-ELSE
-	LOCALS += "<font color='#666666'><nonbutton>[101] - 探索へ出かける</nonbutton></font>　　　　　　　　　"
-ENDIF
+LOCALS += "<button value='101'>[101] - 探索へ出かける</button>　　　　　　　　　"
 LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[リゾート]---------------------------------------------------------------------------------------------</font><br>"
 IF 滞在キャラ数 >= 滞在キャラ上限
@@ -100,18 +98,29 @@ LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[ショップ類]-------------------------------------------------------------------------------------------</font><br>"
 LOCALS += "<button value='114'>[114] - 通信販売</button>　　　　　　　　　　　　"
 LOCALS += "<button value='115'>[115] - ZPショップ</button>　　　　　　　　　　　"
+コマンド表示数 = 0
 IF イベント完了フラグ確認("大拡張！空艇港")
 	LOCALS += @"<button value='116'>[116] - よろず屋で依頼を出す</button>　　　　　　"
 	LOCALS += "<br>"
 	LOCALS += @"<button value='117'>[117] - 輸入品店</button>　　　　　　　　　　　　"
+	コマンド表示数 += 1
 ELSE
 	LOCALS += "<br>"
 ENDIF
 FOR LOCAL, 3, 9
 	IF 空艇港店舗状況:LOCAL:0 == 1
 		LOCALS += @"<button value='{140 + LOCAL}'>[{140 + LOCAL}] - 道具屋</button>　　　　　　　　　　　　　"
+		コマンド表示数 += 1
+	ELSEIF 空艇港店舗状況:LOCAL:0 == 2
+		LOCALS += @"<button value='{140 + LOCAL}'>[{140 + LOCAL}] - 土産物店</button>　　　　　　　　　　　　"
+		コマンド表示数 += 1
 	ELSEIF 空艇港店舗状況:LOCAL:0 == 4
 		LOCALS += @"<button value='{140 + LOCAL}'>[{140 + LOCAL}] - 装飾品店</button>　　　　　　　　　　　　"
+		コマンド表示数 += 1
+	ENDIF
+	IF コマンド表示数 > 2
+		LOCALS += "<br>"
+		コマンド表示数 = 0
 	ENDIF
 NEXT
 LOCALS += "<br><br>"
@@ -140,16 +149,12 @@ SELECTCASE RESULT
 		CALL TRAIN_MAIN
 		RETURN 1
 	CASE 101
-		IF 探索フラグ
-			PRINTW 探索は一日一回までです。
-		ELSE
-			CALL COM601
-			IF RESULT == 1
-				CALL ダンジョン内_SOURCE_CHECK(0)
-				CALL TURN_RESET
-				LOCALS = %月算出()%
-				SAVEDATA 99, @"%GETTIMES()% {RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)"
-			ENDIF
+		CALL COM601
+		IF RESULT == 1
+			CALL ダンジョン内_SOURCE_CHECK(0)
+			CALL TURN_RESET
+			LOCALS = %月算出()%
+			SAVEDATA 99, @"%GETTIMES()% {RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)"
 		ENDIF
 	CASE 110
 		SIF 滞在キャラ数 < 滞在キャラ上限
@@ -186,6 +191,8 @@ SELECTCASE RESULT
 	CASE 143 TO 148
 		IF 空艇港店舗状況:(RESULT - 140):0 == 1
 			CALL 空艇港店舗用コマンド_COM_1
+		ELSEIF 空艇港店舗状況:(RESULT - 140):0 == 2
+			CALL 空艇港店舗用コマンド_COM_2
 		ELSEIF 空艇港店舗状況:(RESULT - 140):0 == 4
 			CALL 空艇港店舗用コマンド_COM_4
 		ENDIF
@@ -203,17 +210,19 @@ SELECTCASE RESULT
 	CASE 9999
 		;デバッグ用
 		; ENUMFUNCBEGINSWITH "素材性能記述_"
-		; FOR LOCAL, 0, RESULT
-		; 	SPLIT RESULTS:LOCAL, "_", LOCALS
-		; 	CALL 素材入手処理(@"%LOCALS:1%", 5)
+		
+		; FOR LOCAL, 0, 100
+		; 	DT_ROW_ADD "料理メニューデータベース", "メニュー名", @"{LOCAL}", "料理ランク", 1, "料理属性", 0,  "メイン食材ID", 10, "調理器具ID",  0,
 		; NEXT
 		
-		CALL 汎用搭載兵器取得処理("10mmバルカン砲")
-		CALL 汎用搭載兵器取得処理("メタル・デストロイヤー")
-		CALL 汎用搭載兵器取得処理("近接用ブレード")
-		CALL 乗機取得処理("バトルケッタギア")
-		CALL 乗機取得処理("汎用型走艇")
-		CALL 乗機取得処理("コロッサスレプリカ")
+		; CALL 汎用搭載兵器取得処理("10mmバルカン砲")
+		; CALL 汎用搭載兵器取得処理("メタル・デストロイヤー")
+		; CALL 汎用搭載兵器取得処理("近接用ブレード")
+		; CALL 乗機取得処理("バトルケッタギア")
+		; CALL 乗機取得処理("汎用型走艇")
+		; CALL 乗機取得処理("コロッサスレプリカ")
+
+		;CALL キャラ居場所感知処理
 ENDSELECT
 
 
@@ -230,8 +239,9 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 CALL 関係性同行決定()
 
-IF モブ観光客数 == 0
-	CALL モブ観光客算出
+IF モブ観光客数 > 0
+	DRAWLINE
+	PRINTFORMW 今日のモブ観光客数は{モブ観光客数, 4}人です。
 ENDIF
 
 

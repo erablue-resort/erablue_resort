@@ -1,0 +1,269 @@
+﻿@キャラ居場所感知処理
+#DIM 表示マップ種別
+#DIMS 滞在者保存, 100
+#DIM 滞在部屋番号保存, 100
+#DIM 配列番号
+#DIM 表示省略フラグ
+#DIM 省略カウント
+#DIM 対象キャラ
+#DIM 入室禁止フラグ
+#DIM TARGET登録
+
+表示マップ種別 = CFLAG:MASTER:現在マップ種別
+表示省略フラグ = 1
+入室禁止フラグ = 0
+
+$RE_LOOP
+;全員の居場所を見て配列に突っ込む
+VARSET 滞在者保存
+VARSET 滞在部屋番号保存
+配列番号 = 0
+FOR 対象キャラ, 1, CHARANUM
+	SIF CFLAG:対象キャラ:滞在期間 < 0
+		CONTINUE
+	SIF CFLAG:対象キャラ:現在マップ種別 != 表示マップ種別
+		CONTINUE
+	SIF CFLAG:対象キャラ:現在位置 == 999
+		CONTINUE
+	IF FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置) > -1
+		滞在者保存:(FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置)) += @"{対象キャラ}_"
+	ELSE
+		滞在者保存:配列番号 = {対象キャラ}_
+		滞在部屋番号保存:配列番号 = CFLAG:対象キャラ:現在位置
+		配列番号 += 1
+	ENDIF
+NEXT
+;部屋番号順にソート
+ARRAYMSORT 滞在部屋番号保存, 滞在者保存
+
+;マップ種別表示
+$表示_LOOP
+LOCALS = 
+DRAWLINE
+;個別追跡キャラ表示
+FOR LOCAL, 0, 3
+	LOCALS += @"<div rect='{30 + LOCAL * 2030}, 30, 2000, 600' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+	IF 個別移動管理キャラ:LOCAL > 0
+		LOCALS += @"■%NAME:(個別移動管理キャラ:LOCAL)%<br>"
+		CALLFORM エリア情報登録_{CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別}("エリア名")
+		IF CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別 == 0 && CFLAG:(個別移動管理キャラ:LOCAL):現在位置 == 999
+			LOCALS += @"現在リゾートの外にいます<br><br>"
+		ELSE
+			LOCALS += @"<button value='追跡移動_{LOCAL}'>現在マップ：%TSTR:場所名受渡%<br>"
+			LOCALS += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%</button><br>"
+		ENDIF
+		LOCALS += @"<button value='外す_{LOCAL}'>[個別追跡から外す]</button>"
+	ENDIF
+	LOCALS += "</nobr></div>"
+NEXT
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 6
+	PRINTL
+NEXT
+DRAWLINE
+FOR LOCAL, 0, 10
+	TSTR:場所名受渡 = 
+	TRYCCALLFORM エリア情報登録_{LOCAL}("エリア名")
+		IF TSTR:場所名受渡 != ""
+			IF 表示マップ種別 == LOCAL
+				SETCOLOR カラーパレット("黄")
+				PRINTPLAINFORM [%TSTR:場所名受渡%]
+				RESETCOLOR
+			ELSE
+				PRINTBUTTON @"[%TSTR:場所名受渡%]", @"マップ切り替え_{LOCAL}"
+			ENDIF
+			PRINT 　　
+		ENDIF
+	CATCH
+		BREAK
+	ENDCATCH
+NEXT
+IF 表示マップ種別 == 999
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAINFORM [宿泊エリア]
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[宿泊エリア]", "マップ切り替え_999"
+ENDIF
+PRINTL
+DRAWLINE
+;全部表示
+省略カウント = 0
+FOR LOCAL, 0, 100
+	SIF 滞在部屋番号保存:LOCAL < 1
+		BREAK
+	IF 表示省略フラグ && LOCAL > 6
+		省略カウント += 1
+		CONTINUE
+	ENDIF
+	DEBUGPRINTFORML {滞在部屋番号保存:LOCAL}：%滞在者保存:LOCAL%：{LOCAL}
+	
+	;うふふ中・飲み会中は移動なし
+	IF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ
+		PRINTFORML ■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL)%
+	ELSE
+		PRINTBUTTON @"■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL)%", 滞在部屋番号保存:LOCAL
+		PRINTL
+	ENDIF
+	VARSET RESULTS
+	SPLIT 滞在者保存:LOCAL, "_", RESULTS
+	FOR 配列番号, 0, CHARANUM
+		SIF RESULTS:配列番号 == ""
+			BREAK
+		SIF 配列番号 > 0
+			PRINT 、
+		IF MATCH(個別移動管理キャラ, TOINT(RESULTS:配列番号))
+			PRINTFORM %CALLNAME:TOINT(RESULTS:配列番号)%
+		ELSE
+			PRINTBUTTON @"%CALLNAME:TOINT(RESULTS:配列番号)%", @"追跡_%RESULTS:配列番号%"
+		ENDIF
+	NEXT
+	PRINTL
+	PRINTL
+NEXT
+IF 省略カウント > 0
+	IF 表示省略フラグ
+		PRINTFORM 他、{省略カウント, 2}箇所にキャラが存在　　
+		PRINTBUTTON "[省略部分を展開する]", "表示省略"
+		PRINTL
+	ELSE
+		PRINTBUTTON "[展開部分を省略する]", "表示省略"
+		PRINTL
+	ENDIF
+ENDIF
+PRINTBUTTON "[999] 戻る", 999
+TARGET登録 = 0
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	IF STRFIND(RESULTS, "追跡_") > -1
+		;追跡キャラ設定
+		対象キャラ = TOINT(SUBSTRING(RESULTS, 5))
+		DRAWLINE
+		IF 個別移動管理キャラ:2 < 1
+			PRINTFORMW 個別に居場所感知するキャラに%CALLNAME:対象キャラ%を追加しました。
+			FOR LOCAL, 0, 3
+				IF 個別移動管理キャラ:LOCAL < 1
+					個別移動管理キャラ:LOCAL = 対象キャラ
+					BREAK
+				ENDIF
+			NEXT
+			GOTO 表示_LOOP
+		ELSE
+			PRINTFORML %CALLNAME:対象キャラ%を個別に居場所感知するキャラに設定します。
+			PRINTL 誰と入れ替えますか？
+			DRAWLINE
+			FOR LOCAL, 0, 3
+				IF 個別移動管理キャラ:LOCAL > 0
+					PRINTBUTTON @"[{LOCAL}] %NAME:(個別移動管理キャラ:LOCAL)%", LOCAL
+					PRINTL
+				ENDIF
+			NEXT
+			PRINTL
+			PRINTBUTTON "[999] 戻る", 999
+			PRINTL
+			BINPUT
+			SELECTCASE RESULT
+				CASE 999
+					GOTO 表示_LOOP
+				CASE 0 TO 2
+					個別移動管理キャラ:RESULT = 対象キャラ
+					GOTO 表示_LOOP
+			ENDSELECT
+		ENDIF
+	ELSEIF STRFIND(RESULTS, "外す_") > -1
+		対象キャラ = TOINT(SUBSTRING(RESULTS, 5))
+		ARRAYSHIFT 個別移動管理キャラ, -1, 0, 対象キャラ
+		GOTO 表示_LOOP
+	ELSEIF RESULTS == "表示省略"
+		INVERTBIT 表示省略フラグ, 0
+		GOTO 表示_LOOP
+	ELSEIF STRFIND(RESULTS, "マップ切り替え_") > -1
+		表示マップ種別 = TOINT(SUBSTRING(RESULTS, 15))
+		GOTO RE_LOOP
+	ELSEIF STRFIND(RESULTS, "追跡移動_") > -1
+		対象キャラ = 個別移動管理キャラ:(TOINT(SUBSTRING(RESULTS, 9)))
+		RESULTS = {CFLAG:対象キャラ:現在位置}
+		表示マップ種別 = CFLAG:対象キャラ:現在マップ種別
+		TARGET登録 = 対象キャラ
+	ENDIF
+ENDIF
+LOCAL = TOINT(RESULTS)
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASEELSE
+		;クイック移動処理
+		SIF 表示マップ種別 == CFLAG:MASTER:現在マップ種別 && LOCAL == CFLAG:MASTER:現在位置
+			RETURN 0
+		;まずはエリア移動から
+		TFLAG:SELECTCOM受け渡し = 400
+		SELECTCOM = 400
+		IF 表示マップ種別 != CFLAG:MASTER:現在マップ種別
+			IF 表示マップ種別 == 999
+				IF CFLAG:MASTER:現在マップ種別 != 0
+					TFLAG:エリア切り替え時_目的地格納 = 100
+					CALL COM400
+				ENDIF
+			ELSEIF CFLAG:MASTER:現在マップ種別 == 999
+				CFLAG:MASTER:現在マップ種別 = 0
+				CFLAG:MASTER:現在位置 = 20
+				IF 表示マップ種別 != 0
+					TFLAG:エリア切り替え時_目的地格納 = 表示マップ種別 + 100
+					CALL COM400
+				ENDIF
+			ELSE
+				TFLAG:エリア切り替え時_目的地格納 = 表示マップ種別 + 100
+				CALL COM400
+			ENDIF
+		ENDIF
+		;どっかで立ち止まったなら以降の処理キャンセル
+		SIF RFLAG:立ち止まらないフラグ < 0
+			RETURN 0
+		;次にエリア内移動
+		IF 表示マップ種別 == 999
+			SELECTCASE LOCAL
+				CASE IS >= 2000
+					SPLIT スイートルーム部屋割り配列:(LOCAL - 2000), "_", RESULTS
+					FOR 対象キャラ, 0, RESULT
+						IF CFLAG:(TOINT(RESULTS:対象キャラ)):現在マップ種別 == 999 && CFLAG:(TOINT(RESULTS:対象キャラ)):現在位置 == LOCAL && CFLAG:(TOINT(RESULTS:対象キャラ)):睡眠 && 陥落チェック((TOINT(RESULTS:対象キャラ))) == 0
+								LOCAL:2 = 1
+						ENDIF
+					NEXT
+				CASE IS >= 1000
+					IF CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):睡眠 && CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):現在位置 == LOCAL - 1000 && 陥落チェック(従業員部屋割り配列:(LOCAL - 1000)) == 0
+						入室禁止フラグ = 1
+					ENDIF
+				CASEELSE
+					IF CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:LOCAL):睡眠 && CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && 陥落チェック(滞在者部屋割り配列:LOCAL) == 0
+						入室禁止フラグ = 1
+					ENDIF
+			ENDSELECT
+			IF 入室禁止フラグ
+				PRINTL 部屋には鍵が掛かっている。
+				PRINTW どうやら眠っているようだ…
+				CFLAG:MASTER:現在マップ種別 = 0
+				CFLAG:MASTER:現在位置 = 20
+			ELSE
+				CFLAG:MASTER:現在マップ種別 = 999
+				CFLAG:MASTER:現在位置 = LOCAL
+				SIF TARGET登録
+					TFLAG:TARGET変更用 = TARGET登録
+			ENDIF
+		ELSEIF LOCAL != CFLAG:MASTER:現在位置
+			TFLAG:長距離移動時_目的地格納 = LOCAL
+			CALLFORM SKIP_MOVE_{CFLAG:MASTER:現在マップ種別}(LOCAL)
+			;現在位置を更新し、次も移動の扱いにする
+			CFLAG:MASTER:現在位置 = RESULT
+			;マップ間をまたいで移動時の処理
+			CALL マップ遷移判定処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
+			IF RESULT
+				CFLAG:MASTER:現在位置 = RESULT
+			ENDIF
+			TIME += 1
+			TFLAG:SELECTCOM受け渡し = 400
+			SELECTCOM = 400
+			CALL COM400
+			SIF TARGET登録
+				TFLAG:TARGET変更用 = TARGET登録
+		ENDIF
+ENDSELECT

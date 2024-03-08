@@ -3,90 +3,25 @@
 ;遠距離移動処理
 ;-----------------------------------------------------------
 
-@SKIP_MOVE_1(ARG, ARG:1)
-;ARG　目的地
-;ARG:1　移動キャラID
-
+@SKIP_MOVE_1(目的地, 移動キャラ = 0)
 #DIM スタート地点
-#DIM スタートマップ
-#DIM 目的マップ
-#DIM 移動キャラ = 0
+#DIM 目的地
+#DIM 移動キャラ
+#DIM 経由地
 
 ;現在位置取得
-移動キャラ = 0
-スタート地点 = CFLAG:MASTER:現在位置
-IF ARG:1
-	移動キャラ = ARG:1
-	スタート地点 = CFLAG:移動キャラ:現在位置
+SIF 移動キャラ <= 0
+	移動キャラ = MASTER
+スタート地点 = CFLAG:移動キャラ:現在位置
+
+;経由地の取得
+経由地 = GET_DEST(スタート地点, 目的地, NODE_MAP1, NODE_REVERSE_MAP1, NEXT_MAP1)
+IF 経由地 == -1
+	PRINTFORML %RESULTS%
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
 ENDIF
-
-$LOOP
-
-
-;暫定目的地に直接移動できる場合
-IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
-	;そこに移動
-	RETURN ARG
-ENDIF
-
-;袋小路から行ける場所は固定なので、そこを目指す
-SELECTCASE スタート地点
-	CASE 1
-		RETURN 2
-	CASE 3 TO 9
-		RETURN 2
-	CASE 10
-		RETURN 9
-	CASE 11
-		RETURN 2
-ENDSELECT
-
-;マップ間を移動する際の処理
-;（下のパターン分けでやると爆発的に量が増えていくため追加）
-;マップ種別取得
-
-;現在個別マップなしのため封印
-; スタートマップ = スタート地点 / 100
-; 目的マップ = ARG / 100
-; IF スタートマップ != 目的マップ
-; 	;スタート種別ごとに場合分け
-; 	SELECTCASE スタートマップ
-; 		CASE 0
-; 			SELECTCASE 目的マップ
-; 				CASE 3
-; 					RETURN 3
-; 				CASE 5
-; 					RETURN 5
-; 				CASE 15
-; 					RETURN 15
-; 			ENDSELECT
-; 		CASE 3
-; 			RETURN 2
-; 		CASE 5
-; 			RETURN 2
-; 		CASE 15
-; 			RETURN 2
-; 	ENDSELECT
-; ENDIF
-
-;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
-;地点追加時要フォロー（全ケース修正すること）
-SELECTCASE ARG
-CASE 1
-;エリア出口へは広場経由必須
-	RETURN 2
-CASE 3 TO 9
-;店舗＋港
-	;店舗＋港へは広場経由必須
-	RETURN 2
-CASE 10
-;よろず屋
-	RETURN 9
-CASE 11
-;鍛冶施設へは広場経由必須
-	RETURN 2
-ENDSELECT
-GOTO LOOP
+;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{目的地}を目指し、経由地点:{経由地}へ移動…
+RETURN 経由地
 
 @CAN_MOVE_1(ARG, ARG:1)
 ;部屋の構造
@@ -104,7 +39,7 @@ SELECTCASE ARG
 		;入り口～広場
 		SIF ARG:1 == 2
 			RETURNF 3
-		SIF ARG:1 == 11
+		SIF ARG:1 == 11 && 港改造度:11:0 > 0
 			RETURNF 1
 	CASE 2
 		;入り口と広場は見通せるが、店の中は見えない
@@ -112,7 +47,7 @@ SELECTCASE ARG
 			RETURNF 3
 		SIF ARG:1 >= 3 && ARG:1 <= 8
 			RETURNF 1
-		SIF ARG:1 == 11
+		SIF ARG:1 == 11 && 港改造度:11:0 > 0
 			RETURNF 1
 	CASE 3 TO 8
 		;広場に出るのみ

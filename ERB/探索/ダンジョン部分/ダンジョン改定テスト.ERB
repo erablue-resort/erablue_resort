@@ -1,5 +1,6 @@
 ﻿@DUNGEON_MAIN_LOOP(ARGS)
 #DIM 味方生存チェック
+#DIM ランダム候補
 
 ;ダンジョン入場時処理
 ダンジョン表示モード = マップ画面
@@ -28,11 +29,16 @@ DO
 	IF ダンジョン表示モード == "マップ画面"
 		;マスイベント処理
 		CALL 踏破マス開放処理
-		TRYCCALLFORM ダンジョンマス情報_%ダンジョン名%_{ダンジョン現在位置:0}_{ダンジョン現在位置:1}("マスイベント")
-		CATCH
+		CALL ダンジョンマス処理受け渡し関数(ダンジョン現在位置:0, ダンジョン現在位置:1, "マスイベント")
+		IF RESULT == -1
 			PRINTW マスの指定先が間違っています。
 			PRINTW ダンジョンの開発者に連絡してください。
-		ENDCATCH
+		ENDIF
+		; TRYCCALLFORM ダンジョンマス情報_%ダンジョン名%_{ダンジョン現在位置:0}_{ダンジョン現在位置:1}("マスイベント")
+		; CATCH
+		; 	PRINTW マスの指定先が間違っています。
+		; 	PRINTW ダンジョンの開発者に連絡してください。
+		; ENDCATCH
 	ENDIF
 
 	$描画_LOOP
@@ -47,7 +53,7 @@ DO
 	NEXT
 	IF 味方生存チェック == 0
 		CALL 口上変数初期化
-		WSTR:(K++) = 戦える味方が一人もいなくなってしまった…。
+		WSTR:(K++) = メインメンバーが全滅してしまった…。
 		WSTR:(K++) = ダンジョンを脱出します。
 		CALL メッセージ欄表示用関数(,,,0)
 		ダンジョン終了フラグ = 1
@@ -64,9 +70,24 @@ DO
 LOOP 1
 
 
+@ダンジョンマス処理受け渡し関数(深度, 分岐, モード受渡)
+#DIM 深度
+#DIM 分岐
+#DIMS モード受渡
+
+IF ランダムダンジョン中フラグ
+	CALL ランダムダンジョン媒介(深度, 分岐, モード受渡)
+ELSE
+	TRYCCALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}(モード受渡)
+	CATCH
+		RETURN -1
+	ENDCATCH
+ENDIF
+
 @DUNGEON_操作処理_マップ画面
 #DIMS 移動先配列, 3
 #DIM 探索口上キャラ番号
+#DIM ランダム候補
 
 BINPUTS
 IF STRCOUNT(RESULTS, "サイド領域") > 0
@@ -85,16 +106,23 @@ SELECTCASE LOCALS
 		キャラ画像ボタン化フラグ = 0
 		選択用変数 = -1
 		RETURN -1
+	CASE "e"
+		CALL サブメンバー交代処理()
+		RETURN -1
 	CASE "m"
 		CALL 素材アイテム一覧表示()
 		RETURN -1
 	CASE "t"
-		FOR LOCAL, 0, 4
-			IF BATTLE_STATE:LOCAL:キャラ番号 < 1
-				BREAK
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 14
+			SIF LOCAL > 3 && LOCAL < 10
+				CONTINUE
+			IF BATTLE_STATE:LOCAL:キャラ番号 > 0
+				ランダム候補:(LOCAL:1) = LOCAL
+				LOCAL:1 += 1
 			ENDIF
 		NEXT
-		探索口上キャラ番号 = BATTLE_STATE:(RAND:LOCAL):キャラ番号
+		探索口上キャラ番号 = BATTLE_STATE:(ランダム候補:(RAND:(LOCAL:1))):キャラ番号
 		TRYCCALLFORM KOJO_DUNGEON_仲間と会話_{NO:探索口上キャラ番号}(探索口上キャラ番号)
 		CATCH
 			CALL 汎用口上_仲間と会話(BATTLE_STATE:(RAND:LOCAL):キャラ番号)
@@ -163,8 +191,10 @@ FOR 深度, (ダンジョン現在位置:0 / 8) * 8, (ダンジョン現在位�
 		ダンジョンマス画像URL_重ね表示 = 
 		IF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 1)
 			IF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 2) || GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 3)
-				CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
-				CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
+				CALL ダンジョンマス処理受け渡し関数(深度, 分岐, "マス画像")
+				CALL ダンジョンマス処理受け渡し関数(深度, 分岐, "接続先")
+				; CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
+				; CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
 				LOCALS += @"<div rect='{169 + ((深度 % 8) * 400)}, {262 + (分岐 * 312)}, 262, 262' border='31' bcolor='#101010'><button value='move_{深度}_{分岐}'><img src='%ダンジョンマス画像URL%' srcb='自機アイコン' height='200' width='200'></button></div>"
 				IF ダンジョンマス画像URL_重ね表示 != ""
 					LOCALS += @"<div rect='{200 + ((深度 % 8) * 400)}, {294 + (分岐 * 312)}, 200, 200'><img src='%ダンジョンマス画像URL_重ね表示%' height='200' width='200'></div>"
@@ -174,8 +204,10 @@ FOR 深度, (ダンジョン現在位置:0 / 8) * 8, (ダンジョン現在位�
 				LOCALS += @"<div rect='{169 + ((深度 % 8) * 400)}, {262 + (分岐 * 312)}, 262, 262' border='31' bcolor='#101010'><button value='move_{深度}_{分岐}'><img src='%ダンジョンマス画像URL%' srcb='自機アイコン' height='200' width='200'></button></div>"
 			ENDIF
 		ELSEIF GETBIT(GETVAR(@"ダンジョン構造配列_%ダンジョン名%:深度:分岐"), 3)
-			CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
-			CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
+			CALL ダンジョンマス処理受け渡し関数(深度, 分岐, "マス画像")
+			CALL ダンジョンマス処理受け渡し関数(深度, 分岐, "接続先")
+			; CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("マス画像")
+			; CALLFORM ダンジョンマス情報_%ダンジョン名%_{深度}_{分岐}("接続先")
 			LOCALS += @"<div rect='{169 + ((深度 % 8) * 400)}, {262 + (分岐 * 312)}, 262, 262' border='31' bcolor='#101010'><img src='%ダンジョンマス画像URL%' height='200' width='200'></div>"
 			IF ダンジョンマス画像URL_重ね表示 != ""
 				LOCALS += @"<div rect='{200 + ((深度 % 8) * 400)}, {294 + (分岐 * 312)}, 200, 200'><img src='%ダンジョンマス画像URL_重ね表示%' height='200' width='200'></div>"
@@ -438,8 +470,11 @@ WAIT
 #DIM 選定用配列, 10
 
 VARSET LOCAL
-;めくれる服を履いているキャラ
-FOR LOCAL, 0, 4
+;知識所持キャラ
+FOR LOCAL, 0, 14
+	IF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	ENDIF
 	IF BATTLE_STATE:LOCAL:0 < 1
 		BREAK
 	ENDIF
@@ -523,7 +558,9 @@ NEXT
 SPRITEDISPOSEALL 0
 
 EXP:MASTER:探索経験 ++
-FOR ループ用, 0, 4
+FOR ループ用, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
 	LOCAL = BATTLE_STATE:ループ用:キャラ番号
 	IF INRANGE(LOCAL, 1, CHARANUM-1)
 		EXP:LOCAL:探索経験 ++
@@ -543,6 +580,7 @@ VARSET ダンジョン内一時変数:0
 サイド描画_ダンジョンログ保存 = 
 サイド描画縦スクロール保存 = 0
 サイド描画横スクロール保存 = 0
+ランダムダンジョン中フラグ = 0
 
 VARSET 探索中カウント:0:0
 VARSET 探索中全体カウント
@@ -566,7 +604,8 @@ SETVAR @"ダンジョン構造配列_%ダンジョン名%:{ダンジョン現在
 #DIM マス深度
 #DIM マス分岐
 ルート開放時フラグ = 1
-CALLFORM ダンジョンマス情報_%ダンジョン名%_{マス深度}_{マス分岐}("接続先")
+CALL ダンジョンマス処理受け渡し関数(マス深度, マス分岐, "接続先")
+; CALLFORM ダンジョンマス情報_%ダンジョン名%_{マス深度}_{マス分岐}("接続先")
 ルート開放時フラグ = 0
 
 

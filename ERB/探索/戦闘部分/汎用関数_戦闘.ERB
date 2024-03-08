@@ -622,3 +622,53 @@ SELECTCASE 初期ステータスタイプ
 		基礎BATTLE_STATE:ARG:クリティカルダメージ率 = 150
 		基礎BATTLE_STATE:ARG:敵対心 = 100
 ENDSELECT
+
+@サブメンバーステータス取得(取得能力値)
+#FUNCTION
+#DIMS 取得能力値
+#DIM 対象キャラ
+#DIM ステータス一時保存
+
+;指定のステータスについて、サブメンバーで最も高い値を返す
+;BATTLE_STATE、CFLAG、知識素質に対応
+;該当ステータスが無い場合は-1を返す
+;サブメンバーが一人もいない場合は0を返す
+
+SIF MAX(BATTLE_STATE:10:0, BATTLE_STATE:11:0, BATTLE_STATE:12:0, BATTLE_STATE:13:0) < 1
+	RETURNF 0
+
+口上用サブメンバー保存番号 = -1
+ステータス一時保存 = 0
+IF GETNUM(BATTLE_STATE, 取得能力値, 2) > -1
+	FOR 対象キャラ, 10, 14
+		SIF BATTLE_STATE:対象キャラ:0 < 1
+			CONTINUE
+		IF ステータス一時保存 < BATTLE_STATE:対象キャラ:取得能力値
+			ステータス一時保存 = BATTLE_STATE:対象キャラ:取得能力値
+			口上用サブメンバー保存番号 = 対象キャラ
+		ENDIF
+	NEXT
+	RETURNF ステータス一時保存
+ELSEIF GETNUM(CFLAG, 取得能力値) > -1
+	FOR 対象キャラ, 10, 14
+		SIF BATTLE_STATE:対象キャラ:0 < 1
+			CONTINUE
+		IF ステータス一時保存 < CFLAG:(BATTLE_STATE:対象キャラ:0):取得能力値
+			ステータス一時保存 = CFLAG:(BATTLE_STATE:対象キャラ:0):取得能力値
+			口上用サブメンバー保存番号 = 対象キャラ
+		ENDIF
+	NEXT
+	RETURNF ステータス一時保存
+ELSEIF GETNUM(知識素質, 取得能力値) > -1
+	FOR 対象キャラ, 10, 14
+		SIF BATTLE_STATE:対象キャラ:0 < 1
+			CONTINUE
+		IF ステータス一時保存 < 知識素質:(BATTLE_STATE:対象キャラ:0):取得能力値
+			ステータス一時保存 = 知識素質:(BATTLE_STATE:対象キャラ:0):取得能力値
+			口上用サブメンバー保存番号 = 対象キャラ
+		ENDIF
+	NEXT
+	RETURNF ステータス一時保存
+ELSE
+	RETURNF -1
+ENDIF

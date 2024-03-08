@@ -119,6 +119,7 @@ HTML_PRINT LOCALS, 1
 #DIM 選択乗機番号
 #DIM 表示id
 #DIM 兵器id
+#DIM サブメンバー数保存
 
 LOCALS = 
 LOCALS += @"<div rect='200,{y軸位置},5662,3750' border='31' bcolor='#C0C0C0'></div>"
@@ -165,9 +166,18 @@ SELECTCASE 選択乗機番号
 		IF 表示用ステータス格納配列:選択乗機番号:0 == 装備乗機ID
 			PRINTFORMW %DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%を乗機設定から外しました。
 			装備乗機ID = 0
+			FOR LOCAL, 10, 14
+				BATTLE_STATE:LOCAL:0 = 0
+			NEXT
 		ELSE
+			サブメンバー数保存 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1)
 			装備乗機ID = 表示用ステータス格納配列:選択乗機番号:0
 			PRINTFORMW %DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%を乗機に設定しました。
+			IF サブメンバー数保存 > DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1)
+				FOR LOCAL, (10 + DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1)), 14
+					BATTLE_STATE:LOCAL:0 = 0
+				NEXT
+			ENDIF
 		ENDIF
 	CASE IS < 1000
 		表示id = 表示用ステータス格納配列:(選択乗機番号 - 500):0
@@ -248,7 +258,7 @@ LOCALS += "<div rect='250,60,5662,200'>作成したい乗機を選択してく�
 LOCALS += "<div rect='200,262,5662,3750' border='31' bcolor='#C0C0C0'></div>"
 HTML_PRINT LOCALS, 1
 ;設計状態のみ表示
-CALL 所持乗機リスト表示(ページ番号, ソート基準, 1)
+CALL 所持乗機リスト表示(ページ番号, ソート基準, 1, 350)
 LOCALS = 
 ;戻るボタンと前次ページボタン
 LOCALS += "<div rect='262,3825,5537,3625'>"
@@ -424,6 +434,7 @@ LOOP 1
 #DIM 攻撃力_一時保存
 #DIM 命中率_一時保存
 #DIM INPUT保存
+#DIMS 兵器名保存
 ;使用兵装表示から兵装実行処理まで全部ここで完結させる
 
 ;まずはメッセージ欄に使用可能兵装を並べる
@@ -440,9 +451,11 @@ FOR LOCAL, 0, 表示兵装数
 	IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1))
 		CALLFORM %RESULTS:LOCAL%("アビ名", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
 		CALLFORM %RESULTS:LOCAL%("アビ説明文", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
-	ELSE
+	ELSEIF DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1) == "固有"
 		CALLFORM %RESULTS:LOCAL%("アビ名")
 		CALLFORM %RESULTS:LOCAL%("アビ説明文")
+	ELSE
+		CONTINUE
 	ENDIF
 	IF TSTR:コマンド名受渡 != ""
 		IF アビテンプレート用_アビ封印用フラグ || (乗機残弾種別:兵装番号 == 2 && 乗機残弾数:兵装番号 > 0) || (乗機残弾種別:兵装番号 != 2 && 乗機残弾数:兵装番号 < 1)
@@ -481,8 +494,10 @@ SELECTCASE INPUT保存
 
 		IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1))
 			CALLFORM %兵装関数名保存:INPUT保存%("アビ名", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)))
+			兵器名保存 = %DT_CELL_GETS("所持兵器データベース", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)), "兵器名", 1)%
 		ELSE
 			CALLFORM %兵装関数名保存:INPUT保存%("アビ名")
+			兵器名保存 = %TSTR:コマンド名受渡%
 		ENDIF
 		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
@@ -537,7 +552,7 @@ SELECTCASE INPUT保存
 			ENDIF
 		ENDIF
 		CALL 口上変数初期化
-		IF アビテンプレート用_アビ名 == DT_CELL_GETS("所持兵器データベース", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)), "兵器名", 1)
+		IF アビテンプレート用_アビ名 == 兵器名保存
 			アビ汎用文字列:実行時メッセージ１ = %CALLNAME:PLAYER%は%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%の%アビテンプレート用_アビ名%を使った！
 		ELSE
 			アビ汎用文字列:実行時メッセージ１ = %CALLNAME:PLAYER%は%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%の%DT_CELL_GETS("所持兵器データベース", TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{兵装番号}", 1)), "兵器名", 1)%を使った！
