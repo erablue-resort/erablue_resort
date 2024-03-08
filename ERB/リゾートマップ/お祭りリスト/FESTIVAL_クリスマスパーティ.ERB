@@ -1,99 +1,88 @@
-﻿; @MOVE_ROUTINE_FESTIVAL_クリスマスパーティ(キャラ番号, ARGS)
-; #DIM キャラ番号
-; #DIM 時間計算
-; #DIM CONST 開催費用 = 10000
+﻿@MOVE_ROUTINE_FESTIVAL_クリスマスパーティ(対象キャラ, ARGS)
+#DIM 対象キャラ
+#DIM 時間計算
+#DIM CONST 開催費用 = 10000
 
-; SELECTCASE ARGS
-; 	CASE "お祭り説明"
-; 		LOCALS = <div rect='2125,500,3762,2812'>
-; 		LOCALS += "■クリスマスパーティ<br>"
-; 		LOCALS += "<br>"
-; 		LOCALS += "リゾート全体をクリスマスムードで盛り上げます。<br>"
-; 		LOCALS += "楽しげな雰囲気に包まれて、条件なく全てのキャラが友情を感じやすくなるでしょう。<br>"
-; 		LOCALS += "<br>"
-; 		LOCALS += "好感度要素：友情の上昇率が1.2倍になります。<br>"
-; 		LOCALS += "一定条件を満たしたキャラがクリスマスの衣装を着ることがあります。<br>"
-; 		LOCALS += "<br>"
-; 		IF 10000 > MONEY
-; 			LOCALS += @"ルピが不足しています。（必要ルピ：%NUM_FORMAT(開催費用)%）<br>"
-; 		ELSE
-; 			LOCALS += @"<button value='0'>[0] このお祭りを企画する（必要ルピ：%NUM_FORMAT(開催費用)%）</button><br>"
-; 		ENDIF
-; 		LOCALS += "</div>"
-; 		HTML_PRINT LOCALS, 1
-; 	CASE "出現条件"
-; 		;既に予定に入ってたらアウト
-; 		SIF 開催予定祭り名 == "FESTIVAL_クリスマスパーティ"
-; 			RETURN 0
-; 		;春の月限定
-; 		SIF DAY % 120 / 30 != 0
-; 			RETURN 0
-; 		RETURN 1
-; 	CASE "参加判定"
-; 		;とりあえず全員参加
-; 		RETURN 1
-; 	CASE "特設マップ"
-; 		;存在しない
-; 		RETURN 0
-; 	CASE "起床時刻"
-; 		時間計算 = 480 - (TALENT:キャラ番号:早起き * 30)
-; 		RETURN 時間計算
-; 	CASE "就寝時刻"
-; 		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
-; 		RETURN 時間計算
-; 	CASE "初期位置"
-; 		CFLAG:キャラ番号:現在位置 = 6
-; 		CFLAG:キャラ番号:現在マップ種別 = 0
-; 	CASE "移動処理"
-; 		CALL MOVE_ROUTINE_移動処理(キャラ番号, "FESTIVAL_クリスマスパーティ")
-; 	CASE "お祭り補正条件"
-; 		;条件なし
-; 		RETURN 1
-; 		ENDIF
-; 	CASE "お祭り補正内容"
-; 		;好感度要素：友情に補正
-; 		NOWEX:キャラ番号:友情度上昇格納 = MAX(NOWEX:キャラ番号:友情度上昇格納 * 13 / 10, 0)
-; ENDSELECT
+SELECTCASE ARGS
+	CASE "お祭り説明"
+		LOCALS = <div rect='2125,500,3762,2812'>
+		LOCALS += "■クリスマスパーティ<br>"
+		LOCALS += "<br>"
+		LOCALS += "リゾート全体をクリスマスムードで盛り上げます。<br>"
+		LOCALS += "楽しげな雰囲気に包まれて、条件なく全てのキャラが友情を感じやすくなるでしょう。<br>"
+		LOCALS += "<br>"
+		LOCALS += "好感度要素：友情の上昇率が1.2倍になります。<br>"
+		LOCALS += "従業員の制服がクリスマスの衣装となります。<br>"
+		LOCALS += "一定条件を満たしたキャラがクリスマスの衣装を着ることがあります。<br>"
+		LOCALS += "<br>"
+		IF 10000 > MONEY
+			LOCALS += @"ルピが不足しています。（必要ルピ：%NUM_FORMAT(開催費用)%）<br>"
+		ELSE
+			LOCALS += @"<button value='0'>[0] このお祭りを企画する（必要ルピ：%NUM_FORMAT(開催費用)%）</button><br>"
+		ENDIF
+		LOCALS += "</div>"
+		HTML_PRINT LOCALS, 1
+	CASE "出現条件"
+		;既に予定に入ってたらアウト
+		SIF 開催予定祭り名 == "FESTIVAL_クリスマスパーティ"
+			RETURN 0
+		;冬の月限定
+		SIF DAY % 120 / 30 != 3
+			RETURN 0
+		RETURN 1
+	CASE "参加判定"
+		;ルーチンは変動させないので0を返す
+		RETURN 0
+	CASE "特設マップ"
+		;存在しない
+		RETURN 0
+	CASE "起床時刻"
+		;ルーチンは変動しないので必要なし
+	CASE "就寝時刻"
+		;ルーチンは変動しないので必要なし
+	CASE "初期位置"
+		;ルーチンは変動しないので必要なし
+	CASE "移動処理"
+		;ルーチンは変動しないので必要なし
+	CASE "お祭り補正条件"
+		;条件なし
+		RETURN 1
+	CASE "お祭り補正内容"
+		;好感度要素：友情に補正
+		NOWEX:対象キャラ:友情度上昇格納 = MAX(NOWEX:対象キャラ:友情度上昇格納 * 13 / 10, 0)
+	CASE "服装変更"
+		;お祭り開催で服入手
+		CALL 制服登録処理("ミニスカサンタ")
+		;女性のみ
+		IF GETBIT(TALENT:対象キャラ:性別, 0)
+			IF TALENT:対象キャラ:従業員
+				;従業員は全員着る
+			ELSEIF TALENT:対象キャラ:目立ちたがり
+				;目立ちたがりも全員着る
+			ELSE
+				;基本的に他人時は着ない
+				SIF CFLAG:対象キャラ:好感度レベル < 関係閾値:1
+					RETURN 0
+				;恥じらい持ちは親友から
+				SIF TALENT:対象キャラ:羞恥心 > 0 && CFLAG:対象キャラ:好感度レベル < 関係閾値:3
+					RETURN 0
+				;保守的は友人から
+				SIF TALENT:対象キャラ:性的興味 < 0 && CFLAG:対象キャラ:好感度レベル < 関係閾値:2
+					RETURN 0
+				;真面目・自制心は友人から
+				SIF TALENT:対象キャラ:自制心 > 0 && CFLAG:対象キャラ:好感度レベル < 関係閾値:2
+					RETURN 0
+				;無関心は着ない
+				SIF TALENT:対象キャラ:無関心
+					RETURN 0
+				;陰気は親友から
+				SIF TALENT:対象キャラ:陽気／陰気 < 0 && CFLAG:対象キャラ:好感度レベル < 関係閾値:3
+					RETURN 0
+				;ランダムキャラかつ中年は着ない
+				SIF TALENT:対象キャラ:年齢 == 2 && TALENT:対象キャラ:ランダムキャラ
+					RETURN 0
+			ENDIF
+			RSTR:服装名受け渡し = ミニスカサンタ
+		ENDIF
+ENDSELECT
 
-
-; @ROUTINE_PLAN_FESTIVAL_クリスマスパーティ(キャラ番号, マップ種別取得フラグ = 0)
-; #DIM マップ種別取得フラグ
-; #DIM キャラ番号
-
-; ;時間ごとにどの場所にいるべきかを決定
-; SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-; 	;19時半まではお祭りにいる
-; 	CASE IS < 1170
-; 		SIF マップ種別取得フラグ
-; 			RETURN 0
-; 		RETURN ROUTINE_PLAN_FESTIVAL_クリスマスパーティ先決定関数(キャラ番号)
-; 	;風呂の前後１５分は脱衣所
-; 	CASE IS < 1185
-; 		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-; 	;21時までは風呂にいる
-; 	CASE IS < 1260
-; 		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-; 	;風呂の前後１５分は脱衣所
-; 	CASE IS < 1275
-; 		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-; 	;着替え後１５分はロビーに居る
-; 	CASE IS < 1290
-; 		SIF マップ種別取得フラグ
-; 			RETURN 0
-; 		RETURN 2
-; 	;寝るまでは自室にいる
-; 	CASEELSE
-; 		SIF マップ種別取得フラグ
-; 			RETURN 999
-; 		RETURN 999
-; ENDSELECT
-
-; @ROUTINE_PLAN_FESTIVAL_クリスマスパーティ先決定関数(ARG)
-; #FUNCTION
-; IF TCVAR:ARG:移動ルーチンインターバル時間 > 0
-; 	RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
-; ENDIF
-
-; 移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(RAND:5 + 1)%
-; TCVAR:ARG:移動ルーチンインターバル時間 = RAND(60, 120)
-; RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
