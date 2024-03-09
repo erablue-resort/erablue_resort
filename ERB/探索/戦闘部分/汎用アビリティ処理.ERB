@@ -81,7 +81,7 @@ SELECTCASE 基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存
 		SELECTCASE 基礎BATTLE_STATE:キャラ番号:属性
 			CASE 0
 				;火
-				JUMP 汎用アビリティ処理_ブレイズ(ARGS, GET_SKILL_LEVEL(2, キャラ番号), キャラ番号)
+				JUMP 汎用アビリティ処理_エクスプロージョン(ARGS, GET_SKILL_LEVEL(2, キャラ番号), キャラ番号)
 			CASE 1
 				;水
 				JUMP 汎用アビリティ処理_アクアシュート(ARGS, GET_SKILL_LEVEL(2, キャラ番号), キャラ番号)
@@ -1365,6 +1365,47 @@ SELECTCASE ARGS
 			アビ汎用変数:持続ターン = 3
 			CALL アビテンプレート_有利効果_バフ効果セット
 		ENDIF
+ENDSELECT
+
+@汎用アビリティ処理_エクスプロージョン(ARGS, LEVEL, キャラ番号)
+#DIM LEVEL
+#DIM キャラ番号
+#DIM 消費ＭＰ
+#DIMS アビ名
+#DIM 効果数値
+#DIM 対象数
+IF LEVEL >= 3
+	アビ名 = エクスプロージョン＋＋
+	効果数値 = 50
+	消費ＭＰ = 45
+ELSEIF LEVEL >= 2
+	アビ名 = エクスプロージョン＋
+	効果数値 = 35
+	消費ＭＰ = 35
+ELSEIF LEVEL >= 1
+	アビ名 = エクスプロージョン
+	効果数値 = 25
+	消費ＭＰ = 30
+ELSE
+	アビ名 = 
+ENDIF
+
+SELECTCASE ARGS
+	CASE "アビ名"
+		TSTR:コマンド名受渡 = %アビ名%
+	CASE "アビ説明文"
+		詳細文文字列受け渡し変数 = 消費ＭＰ：%TOFULL(TOSTR(消費ＭＰ))%<br>敵全体に火属性の［攻撃力✕敵の数×{効果数値}％］ダメージを与える。
+		RETURN 消費ＭＰ
+	CASE "アビ効果"
+		対象数 = 0
+		FOR LOCAL, 10, 20
+			SIF 敵BATTLE_STATE_STR:(LOCAL - 10):エネミー名 == ""
+				CONTINUE
+			対象数 += 1
+		NEXT
+		CALL アビ対象選択テンプレート_敵全体_生者のみ
+		アビ汎用変数:効果割合 = 効果数値 * MAX(対象数, 1)
+		CALL アビテンプレート_ダメージ処理_火属性
 ENDSELECT
 
 @汎用アビリティ処理_チルブレイン(ARGS, LEVEL, キャラ番号)
