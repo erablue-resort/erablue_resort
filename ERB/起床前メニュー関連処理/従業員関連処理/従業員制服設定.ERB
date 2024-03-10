@@ -30,6 +30,8 @@ FOR LOCAL, 0, 50
 	LOCALS += "]</button><br>"
 NEXT
 LOCALS += "<br>"
+LOCALS += "<button value='998'>[998] 一括設定</button>"
+LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
@@ -49,6 +51,9 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
 		RETURN 0
+	CASE 998
+		CALL 従業員制服設定_切り替え(9999)
+		RESTART
 	CASE 0 TO 49
 		CALL 従業員制服設定_切り替え(従業員一覧:LOCAL)
 		RESTART
@@ -60,6 +65,7 @@ LOOP 1
 #DIM ページ数
 #DIMS 制服一時配列, 100
 #DIMS 分割文字列配列, 2
+#DIMS 衣装合算
 ページ数 = 0
 
 DRAWLINE
@@ -68,22 +74,30 @@ PRINTL ※開発中のため、正しく挙動しないことがあります。
 DRAWLINE
 LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1937,2812'>"
+IF ARG != 9999
 	LOCALS += @"%CALLNAME:ARG, 16, LEFT%["
 	IF 現在制服:ARG:0 == ""
 		LOCALS += "設定なし]"
 	ELSE
 		LOCALS += @"%現在制服:ARG:0%]"
 	ENDIF
+ELSE
+	LOCALS += @"一括設定"
+ENDIF
 LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
 
-;仕事の説明を表示
 LOCALS:1 = <div rect='2125,156,3675,2812'>
 LOCALS:1 += "<button value='100'>[100] なし　　　　　に変更</button><br>"
-SPLIT 所持制服文字列, "_", 制服一時配列
+IF フィールド展開:露出フィールド
+	衣装合算 = %所持制服文字列%%所持エロ衣装文字列%
+	SPLIT 衣装合算, "_", 制服一時配列
+ELSE
+	SPLIT 所持制服文字列, "_", 制服一時配列
+ENDIF
 FOR LOCAL, 0, 100
 	IF 制服一時配列:LOCAL == ""
 		BREAK
@@ -107,19 +121,38 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
 		RETURN 0
+	CASE 998
+		RETURN 0
 	CASE 100
-		現在制服:ARG:0 = 
-		CALL CLOTHES_RESET_TRAIN(ARG)
+		IF ARG == 9999
+			FOR LOCAL, 1, CHARANUM
+				SIF TALENT:LOCAL:従業員 == 0
+					CONTINUE
+				現在制服:LOCAL:0 = 
+				CALL CLOTHES_RESET_TRAIN(LOCAL)
+			NEXT
+		ELSE
+			現在制服:ARG:0 = 
+			CALL CLOTHES_RESET_TRAIN(ARG)
+		ENDIF
 		RETURN 0
 	CASE 0 TO 99
-		IF STRCOUNT(制服一時配列:LOCAL, "キャラ専用")
-			SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
-			現在制服:ARG:0 = %分割文字列配列:0%
+		SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+		IF ARG == 9999
+			FOR LOCAL, 1, CHARANUM
+				SIF TALENT:LOCAL:従業員 == 0
+					CONTINUE
+				現在制服:LOCAL:0 = %分割文字列配列:1%
+				CALL CLOTHES_RESET_TRAIN(LOCAL)
+			NEXT
 		ELSE
-			SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
-			現在制服:ARG:0 = %分割文字列配列:1%
+			IF STRCOUNT(制服一時配列:LOCAL, "キャラ専用")
+				現在制服:ARG:0 = %分割文字列配列:1%
+			ELSE
+				現在制服:ARG:0 = %分割文字列配列:1%
+			ENDIF
+			CALL CLOTHES_RESET_TRAIN(ARG)
 		ENDIF
-		CALL CLOTHES_RESET_TRAIN(ARG)
 		RETURN 0
 ENDSELECT
 LOOP 1

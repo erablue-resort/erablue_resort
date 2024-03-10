@@ -326,9 +326,10 @@ ENDIF
 PRINTL 　　　　　値段：（変動させる日数×1）ZP
 PRINTL 　　　　　…リゾート内において、子供を出産するまでにかかる時間を変動させます。
 PRINTL
+RESETCOLOR
 PRINTBUTTON "[1]リゾートに欲情フィールドを展開する", 1
-IF 欲情フィールド展開フラグ
-	PRINTFORM 　　現在：展開済み（残り{欲情フィールド展開フラグ}日）
+IF フィールド展開:欲情フィールド
+	PRINTFORM 　　現在：展開済み（残り{フィールド展開:欲情フィールド}日）
 ELSE
 	PRINTFORM 　　現在：非展開
 ENDIF
@@ -336,7 +337,20 @@ PRINTL 　　　　　値段：（展開する日数×2）ZP
 PRINTL 　　　　　…リゾート内にいるキャラクターを欲情させるフィールドを展開します。
 PRINTL 　　　　　　時間経過による性欲上昇量が倍になります。
 PRINTL 　　　　　　コマンド「性交渉をお願いする」の効果が大きく上昇します。
-PRINTFORML 　　　　　　特定の素質を持ったキャラ、及びモブ観光客が%CALLNAME:PLAYER%にセクハラをすることがあります。(未実装)
+PRINTFORML 　　　　　　特定の素質を持ったキャラ、及びモブ観光客が%CALLNAME:PLAYER%にセクハラをすることがあります。
+PRINTL
+RESETCOLOR
+IF フィールド展開:露出フィールド
+	PRINTBUTTON "[2]露出フィールドの展開をやめる", 2
+	PRINTFORM 　　現在：展開済み（消費ZP 1日 / 5ZP）
+ELSE
+	PRINTBUTTON "[2]リゾートに露出フィールドを展開する", 2
+	PRINTFORM 　　現在：非展開
+ENDIF
+PRINTL 　　　　　消費ZP 1日 / 5ZP（維持している限り永続）
+PRINTL 　　　　　…リゾート内にいるキャラクターに、露出の認識をごまかすフィールドを展開します。
+PRINTL 　　　　　　従業員の制服にエロ衣装、全裸を設定出来るようになります。
+PRINTL 　　　　　　水着を着る場所でキャラクターが着る衣装が全裸になります。
 PRINTL
 RESETCOLOR
 PRINTBUTTON "[999]戻る", 999
@@ -413,7 +427,7 @@ SELECTCASE RESULT
 	CASE 1
 		フィールド期間変化値 = 1
 		$INPUT_BEFORE3
-		PRINTFORML フィールドを展開する日数を入力してください。（現在の展開期間：{欲情フィールド展開フラグ}日）
+		PRINTFORML フィールドを展開する日数を入力してください。（現在の展開期間：{フィールド展開:欲情フィールド}日）
 		PRINTBUTTON "[<< -10] ",-999
 		PRINTBUTTON "[< -1] ",-998
 		PRINTBUTTON @" [{フィールド期間変化値}日] 決定  ", 1
@@ -445,7 +459,7 @@ SELECTCASE RESULT
 			REUSELASTLINE ZPが足りません
 			GOTO INPUT_LOOP3
 		ELSE
-			IF 欲情フィールド展開フラグ
+			IF フィールド展開:欲情フィールド
 				PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日延長します。よろしいですか？
 			ELSE
 				PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日展開します。よろしいですか？
@@ -457,12 +471,12 @@ SELECTCASE RESULT
 			SELECTCASE RESULT
 				CASE 0
 					FLAG:ZP所持量 -= 消費ZP
-					IF 欲情フィールド展開フラグ
+					IF フィールド展開:欲情フィールド
 						PRINTFORMW 欲情フィールドを{フィールド期間変化値}日延長しました。
 					ELSE
 						PRINTFORMW 欲情フィールドを{フィールド期間変化値}日展開しました。
 					ENDIF
-					欲情フィールド展開フラグ += フィールド期間変化値
+					フィールド展開:欲情フィールド += フィールド期間変化値
 					RESTART
 				CASE 1
 					GOTO INPUT_BEFORE3
@@ -471,9 +485,53 @@ SELECTCASE RESULT
 					GOTO INPUT_LOOP3_3
 			ENDSELECT
 		ENDIF
+	CASE 2
+		IF フィールド展開:露出フィールド
+			PRINTFORML フィールドの展開を止めますか？
+		ELSE
+			PRINTFORML フィールドを展開しますか？　毎日ZPを消費し続けます。
+		ENDIF
+		PRINTBUTTON "[0] はい", 0
+		PRINTL
+		PRINTBUTTON "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		$INPUT_LOOP4
+		SELECTCASE RESULT
+			CASE 0
+				IF フィールド展開:露出フィールド
+					PRINTFORMW 露出フィールドの展開を止めました。
+					CALL 露出フィールド停止処理
+				ELSE
+					PRINTFORMW 露出フィールドを展開しました。
+				ENDIF
+				INVERTBIT フィールド展開:露出フィールド, 0
+				RESTART
+			CASE 1
+				RESTART
+		ENDSELECT
 	CASE 999
 		RETURN 0
 	CASEELSE
 		REUSELASTLINE 
 		GOTO INPUT_LOOP
 ENDSELECT
+
+@露出フィールド停止処理
+#DIMS 分割文字列配列, 2
+#DIMS 制服一時配列, 100
+;エロ制服を配列に登録
+SPLIT 所持エロ衣装文字列, "_", 制服一時配列
+FOR LOCAL, 0, 100
+	SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+	RESULTS:LOCAL = %分割文字列配列:1%
+NEXT
+
+;従業員かつエロ制服だとなしにする
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	IF MATCH(RESULTS, 現在制服:LOCAL:0)
+		現在制服:LOCAL:0 = 
+	ENDIF
+NEXT

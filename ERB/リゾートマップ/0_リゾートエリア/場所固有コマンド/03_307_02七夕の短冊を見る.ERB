@@ -1,0 +1,80 @@
+﻿
+;-------------------------------------------------
+;03_307_02短冊を見る
+;-------------------------------------------------
+@COMNAME_PLACE_381_0_307
+#FUNCTION
+
+IF 施設改造度:3:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+TSTR:コマンド名受渡 = 短冊を見る
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_381_0_307
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+		
+@COM381_0_307
+;ランダムで滞在キャラを選び、ランダムで短冊を生成するだけ
+VARSET RESULT
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	RESULT:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+RFLAG:コマンド結果受渡し変数 = RESULT:(RAND:(LOCAL:1))
+
+;TARGETがいるなら優先して見る
+SIF TARGET > 0
+	RFLAG:コマンド結果受渡し変数 = TARGET
+
+TIME += 5
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE381_0_307
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM381_0_307
+
+PRINTFORML %CALLNAME:PLAYER%は笹飾りの短冊を見た
+PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数)%の短冊がある…
+
+@MESSAGE_COM381_0_307_非口上時
+IF TALENT:(RFLAG:コマンド結果受渡し変数):恋慕
+	PRINTDATA
+		DATAFORM %CALLNAME:PLAYER%と毎日いちゃいちゃしたいと書いてある…
+		DATAFORM %CALLNAME:PLAYER%ともっと触れ合いたいと書いてある…
+		DATA 愛する人が出来て幸せだから願い事はないと書いてある…
+		DATA 恋人のためにもっと魅力的になりたいと書いてある
+		DATAFORM %CALLNAME:PLAYER%とずっと一緒にいられますように、と書いてある…
+	ENDDATA
+ELSE
+	PRINTDATA
+		DATA 自分の将来についての願い事のようだ
+		DATA 今欲しいものについての願い事のようだ
+		DATA 人間関係についての願い事のようだ
+		DATA 世界平和についての願い事のようだ
+		DATA お金についての願い事のようだ
+	ENDDATA
+ENDIF
