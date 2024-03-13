@@ -21,11 +21,47 @@ ELSEIF 能力表示 == 1
 	CALL 性的能力表示画面(ARG)
 ELSEIF 能力表示 == 2
 	CALL 戦闘能力表示画面(ARG)
+ELSEIF 能力表示 == 3
+	CALL キャラ解説表示画面(ARG)
 ENDIF
 
 
 IF ARG != MASTER
 	;CALL CHOICE_LOVE(ARG)
+	PRINTL
+	DRAWLINE
+	IF 能力表示 != 0
+		PRINTBUTTON "[90]通常能力　　", 90
+	ELSE
+		SETCOLOR カラーパレット("黄")
+		PRINTPLAIN [90]通常能力　　
+		RESETCOLOR
+	ENDIF
+	IF 能力表示 != 1
+		PRINTBUTTON "[91]性的能力　　", 91
+	ELSE
+		SETCOLOR カラーパレット("黄")
+		PRINTPLAIN [91]性的能力　　
+		RESETCOLOR
+	ENDIF
+	IF TALENT:ARG:非戦闘キャラ == 0
+		IF 能力表示 != 2
+			PRINTBUTTON "[92]戦闘能力　　", 92
+		ELSE
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [92]戦闘能力　　
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	IF EXISTFUNCTION(@"口上_ステータス画面_キャラ解説_{NO:ARG}")
+		IF 能力表示 != 3
+			PRINTBUTTON "[93]キャラ解説　　", 93
+		ELSE
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [93]キャラ解説　　
+			RESETCOLOR
+		ENDIF
+	ENDIF
 	PRINTL
 	DRAWLINE
 	IF GETBIT(ページめくりフラグ, 0)
@@ -38,16 +74,6 @@ IF ARG != MASTER
 	ELSE
 		PRINTLC  
 	ENDIF
-	IF 能力表示 != 0
-		PRINTBUTTONLC "[90]通常能力表示へ", 90
-	ENDIF
-	IF 能力表示 != 1
-		PRINTBUTTONLC "[91]性的能力表示へ", 91
-	ENDIF
-	IF 能力表示 != 2 && TALENT:ARG:非戦闘キャラ == 0
-		PRINTBUTTONLC "[92]戦闘能力表示へ", 92
-	ENDIF
-	PRINTL
 	IF TFLAG:調教モード == -1
 		PRINTBUTTONLC "[130]画像フォルダ選択", 130
 		IF ARG == 6
@@ -107,6 +133,9 @@ IF ARG != MASTER
 			RESTART
 		CASE 92
 			能力表示 = 2
+			RESTART
+		CASE 93
+			能力表示 = 3
 			RESTART
 		CASE 110
 			CALL CHOICE_LOVE(ARG)
@@ -431,6 +460,9 @@ FOR LOCAL, 0, 26
 	PRINTL
 NEXT
 
+TRYCALLFORM 口上_ステータス画面_固有特性解説_{NO:ARG}(ARG)
+
+
 @性的能力表示画面(ARG)
 #DIM L_C, 2
 ;ここで立ち絵表示
@@ -593,6 +625,41 @@ SIF TALENT:ARG:妊娠
 FOR LOCAL, 0, 10
 	PRINTL
 NEXT
+
+
+@キャラ解説表示画面(ARG)
+;ここで立ち絵表示
+CALL 画像描画終了
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(ARG)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
+ENDIF
+PRINTFORM ■%NAME:ARG%
+PRINTL
+IF ARG != PLAYER
+	PRINT 　
+	CALL 通常時体力ゲージ表示(ARG)
+	PRINTL 
+	PRINT 　
+	CALL 通常時性欲ゲージ表示(ARG)
+	PRINTL 
+ENDIF
+PRINTL
+PRINTL □ 解説 □---------------------------------------------------------------------
+IF CSTR:ARG:出演作品 != ""
+	PRINTFORML ■出典：%CSTR:ARG:出演作品%
+	PRINTL
+ENDIF
+
+CALLFORM 口上_ステータス画面_キャラ解説_{NO:ARG}(ARG)
+
+IF K < 18
+	FOR LOCAL, 0, 18 - K
+		PRINTL
+	NEXT
+ENDIF
+
 
 
 @CHOICE_LOVE(ARG)
@@ -1175,9 +1242,8 @@ FOR LOCAL, 1, 100
 		IF ツールチップ切り替えOPTION記憶 == 0
 			LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</nonbutton>"
 		ELSE
-			LOCALS += @"<nonbutton>[%ERDNAME(性癖素質, LOCAL)%]</nonbutton>"
+			LOCALS += @"<nonbutton>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</nonbutton>"
 		ENDIF
-		;PRINTFORM [%ERDNAME(性癖素質, LOCAL)%]
 		IF STRLENS(名前格納) > 50
 			名前格納 = 
 			HTML_PRINT @"　%LOCALS%"
