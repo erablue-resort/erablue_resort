@@ -94,19 +94,45 @@ RETURNF LOCAL
 LOCAL = CFLAG:好感度レベル / 2
 LOCAL += 恋慕_性愛比較(TARGET) / 2
 LOCAL += COM353_SUB(TARGET)
-SIF フィールド展開:欲情フィールド
-	LOCAL += 20
+SIF フィールド展開:欲情フィールド && LOCAL > 0
+	LOCAL = LOCAL * 3 / 2
 SIF CFLAG:TARGET:発情期フラグ < 0
 	LOCAL += 30
 LOCAL += (ABL:PLAYER:話術技能 - 3) * 5
 LOCAL += CFLAG:TARGET:お願いックス回数 * 30
+;遊び人素質による補正 （下限の底上げ）
+SELECTCASE あなた特殊能力:遊び人
+	CASE IS >= 4
+		LOCAL:1 = 33
+	CASE 3
+		LOCAL:1 = 20
+	CASE 2
+		LOCAL:1 = 15
+	CASE 1
+		LOCAL:1 = 9
+	CASEELSE
+		LOCAL:1 = 0
+ENDSELECT
+;好感度が無二の友未満である場合、大きく成功度と下限が減少
+SELECTCASE CFLAG:好感度レベル
+	CASE IS <= 関係閾値:3
+		LOCAL -= 40
+		SIF LOCAL > 0
+			LOCAL /= 3
+		LOCAL:1 = 0
+	CASE (1 + 関係閾値:3) TO 関係閾値:4
+		LOCAL -= 20
+		SIF LOCAL > 0
+			LOCAL /= 2
+		LOCAL:1 /= 2
+ENDSELECT
 ;二回目以降は一発OKもアリ
 RFLAG:コマンド結果受渡し変数２ = MIN(LOCAL, 99 + CFLAG:TARGET:お願いックス回数)
-RFLAG:コマンド結果受渡し変数２ = MAX(RFLAG:コマンド結果受渡し変数２, 1)
+RFLAG:コマンド結果受渡し変数２ = MAX(RFLAG:コマンド結果受渡し変数２, 1 + LOCAL:1)
 
 CFLAG:TARGET:お願いックス蓄積値 += RFLAG:コマンド結果受渡し変数２
-;性知識-2の場合基本OK
-IF 知識素質:TARGET:性知識 < -1
+;性知識-2の場合、無二の友以上なら基本OK
+IF 知識素質:TARGET:性知識 < -1 && CFLAG:好感度レベル > 関係閾値:4
 	CFLAG:TARGET:お願いックス蓄積値 = 101
 ENDIF
 
@@ -178,8 +204,8 @@ SIF TFLAG:調教モード == 3
 ;二人きりでないとだめ
 SIF GET_TARGETNUM() > 1
 	RETURN 0
-;無二の友以上
-SIF CFLAG:好感度レベル < 1 + 関係閾値:4
+;友人以上
+SIF CFLAG:好感度レベル < 1 + 関係閾値:2
 	RETURN 0
 ;既に恋慕・セフレを得ている場合はだめ
 SIF 陥落チェック(TARGET)
@@ -250,6 +276,12 @@ ELSE
 	ELSE
 		;それ以上
 		PRINTL 何かしらの手段を講じない限り、このままではほぼほぼ無理な話だろう…
+	ENDIF
+
+	IF あなた特殊能力:フレンドリーセンス
+		PRINTL
+		PRINTFORML お願い蓄積値：{CFLAG:TARGET:お願いックス蓄積値, 2} / 100
+		PRINTL ※100に到達するとお願い成功
 	ENDIF
 ENDIF
 
