@@ -3,6 +3,7 @@
 #DIMS 表示用リスト, 100
 #DIMS NEWフラグ用リスト, 100
 #DIM 表示候補数
+#DIM クリア済み視聴フラグ
 VARSET LOCAL
 VARSET LOCALS
 VARSET NEWフラグ用リスト
@@ -11,51 +12,81 @@ VARSET NEWフラグ用リスト
 SPLIT TSTR:NEWイベントフラグ, "_", NEWフラグ用リスト
 
 DRAWLINE
-PRINTL 開始するイベントを選んでください。
+IF クリア済み視聴フラグ
+	PRINTL 再視聴するクリア済みイベントを選んでください。
+	PRINTBUTTON "[9998] イベントリストへ戻る", 9998
+ELSE
+	PRINTL 開始するイベントを選んでください。
+	PRINTBUTTON "[9998] クリア済みイベントを再視聴する", 9998
+ENDIF
+PRINTL
 DRAWLINE
-FOR LOCAL, 0, 表示候補数
-	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -2
-		CONTINUE
-	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
-		CONTINUE
-	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
-		LOCALS:10 = 
-		LOCALS:11 = 
-		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
-			LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
-			LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+IF クリア済み視聴フラグ
+	FOR LOCAL, 0, 表示候補数
+		;発生してないものは出さない
+		SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
+			CONTINUE
+		;再発生中だと出さない
+		SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+			CONTINUE
+		IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 1
+			SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+				CASE "メインシナリオ"
+					LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				CASE "サブイベント"
+					LOCALS:2 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				CASE "キャライベント"
+					LOCALS:3 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+				CASE "突発イベント"
+					LOCALS:4 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button><br>"
+			ENDSELECT
 		ENDIF
-		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
-			CASE "メインシナリオ"
-				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
-			CASE "サブイベント"
-				LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
-			CASE "キャライベント"
-				LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
-			CASE "突発イベント"
-				LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
-		ENDSELECT
-	ENDIF
-	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
-		;CT-2は再発生でないと起こり得ないはず
-		LOCALS:10 = 
-		LOCALS:11 = 
-		IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
-			LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
-			LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+	NEXT
+ELSE
+	FOR LOCAL, 0, 表示候補数
+		SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -2
+			CONTINUE
+		SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
+			CONTINUE
+		IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+			LOCALS:10 = 
+			LOCALS:11 = 
+			IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
+				LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
+				LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+			ENDIF
+			SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+				CASE "メインシナリオ"
+					LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+				CASE "サブイベント"
+					LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+				CASE "キャライベント"
+					LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+				CASE "突発イベント"
+					LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+			ENDSELECT
 		ENDIF
-		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
-			CASE "メインシナリオ"
-				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
-			CASE "サブイベント"
-				LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
-			CASE "キャライベント"
-				LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
-			CASE "突発イベント"
-				LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
-		ENDSELECT
-	ENDIF
-NEXT
+		IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+			;CT-2は再発生でないと起こり得ないはず
+			LOCALS:10 = 
+			LOCALS:11 = 
+			IF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
+				LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
+				LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+			ENDIF
+			SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
+				CASE "メインシナリオ"
+					LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
+				CASE "サブイベント"
+					LOCALS:2 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
+				CASE "キャライベント"
+					LOCALS:3 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
+				CASE "突発イベント"
+					LOCALS:4 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%　(再発生)</button>%LOCALS:11%<br>"
+			ENDSELECT
+		ENDIF
+	NEXT
+ENDIF
 
 LOCALS = <div rect='81,31,1937,1250' border='31' bcolor='#C0C0C0'></div><div rect='156,156,1837,1250'><nobr>%LOCALS:1%</nobr></div>
 LOCALS += @"<div rect='81,1331,1937,1531' border='31' bcolor='#C0C0C0'></div><div rect='156,1425,1837,1531'><nobr>%LOCALS:4%</nobr></div>"
@@ -70,7 +101,7 @@ HTML_PRINT LOCALS
 FOR LOCAL, 0, 25
 	PRINTL
 NEXT
-PRINTBUTTON "[999]戻る", 999
+PRINTBUTTON "[9999]戻る", 9999
 PRINTL
 
 BINPUT
@@ -101,7 +132,11 @@ SELECTCASE LOCAL
 			TSTR:NEWイベントフラグ = %RESULTS%
 		ENDIF
 		RESTART
-	CASE 999
+	CASE 9998
+		INVERTBIT クリア済み視聴フラグ, 0
+		RESTART
+	CASE 9999
+		クリア済み視聴フラグ = 0
 		RETURN 0
 ENDSELECT
 

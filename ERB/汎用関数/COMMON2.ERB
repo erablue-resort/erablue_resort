@@ -110,6 +110,47 @@ RETURN 従業員人数
 #DIM ドロップ確率
 #DIMS 入手アイテム名
 #DIM データベース行数
+#DIMS 入手アイテム種別
+
+入手アイテム種別 = 
+FOR COUNT, 0, DT_ROW_LENGTH("所持素材データベース")
+	IF DT_CELL_GETS("所持素材データベース", COUNT, "素材アイテム名") == 入手アイテム名
+		入手アイテム種別 = 素材
+		BREAK
+	ENDIF
+NEXT
+IF 入手アイテム種別 == ""
+	ENUMFUNCBEGINSWITH @"アイテム個別文章表示_%入手アイテム名%"
+	IF RESULT > 0
+		入手アイテム種別 = 探索アイテム
+	ENDIF
+ENDIF
+IF 入手アイテム種別 == ""
+	ENUMFUNCBEGINSWITH @"指輪ステータス決定_%入手アイテム名%"
+	IF RESULT > 0
+		入手アイテム種別 = 指輪
+	ENDIF
+ENDIF
+IF 入手アイテム種別 == ""
+	ENUMFUNCBEGINSWITH @"耳飾りステータス決定_%入手アイテム名%"
+	IF RESULT > 0
+		入手アイテム種別 = 耳飾り
+	ENDIF
+ENDIF
+;他、必要な種別があればここに増やしていく
+
+IF 入手アイテム種別 == ""
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL アイテム名が不正です。制作者に連絡してください。
+	PRINTL
+	PRINTL
+	PRINTL
+	PRINTL
+	FORCEWAIT
+ENDIF
 
 LOCAL = RAND:100
 
@@ -129,9 +170,18 @@ IF LOCAL < ドロップ確率
 			MAP_SET "自動探索ドロップ", 入手アイテム名, "1"
 		ENDIF
 	ENDIF
-	CALL 素材入手処理(入手アイテム名, 1)
+	SELECTCASE 入手アイテム種別
+		CASE "素材"
+			CALL 素材入手処理(入手アイテム名, 1)
+		CASE "探索アイテム"
+			CALL アイテム増減汎用処理(入手アイテム名, 1)
+		CASE "指輪"
+			CALL 汎用指輪取得処理(入手アイテム名, ドロップ質の良さ)
+		CASE "耳飾り"
+			CALL 汎用耳飾り取得処理(入手アイテム名)
+	ENDSELECT
 ENDIF
-
+ドロップ質の良さ = 0
 
 @素材入手処理(入手アイテム名, 入手数 = 1, 累計入手無効フラグ = 0)
 #DIMS 入手アイテム名
