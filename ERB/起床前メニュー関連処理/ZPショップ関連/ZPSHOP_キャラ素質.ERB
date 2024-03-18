@@ -23,6 +23,8 @@ FOR LOCAL, 1, CHARANUM
 NEXT
 
 $表示_LOOP
+PRINTBUTTON @"[998] %NAME:MASTER%", 998
+PRINTL
 DRAWLINE
 LOCAL:1 = 0
 ;キャラの表示（15人まで）
@@ -35,6 +37,8 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	PRINTBUTTON @"[{LOCAL}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]")%", LOCAL
 	PRINTL 
 NEXT
+SIF 表示候補:LOCAL == -1
+	LOCAL:1 = 1
 
 DRAWLINE
 
@@ -65,6 +69,10 @@ SELECTCASE RESULT
 		GOTO 表示_LOOP
 	CASE 999
 		RETURN -1
+	CASE 998
+		CALL ZP_素質変化(MASTER)
+		SIF RESULT == -1
+			RESTART
 	CASEELSE
 		IF 表示候補:RESULT >= CHARANUM
 			REUSELASTLINE 
@@ -99,13 +107,19 @@ IF GETBIT(TALENT:キャラ番号:性別, 0)
 	PRINTBUTTONLC "[2]乳の大きさを変化させる", 2
 	PRINTL
 ENDIF
-PRINTBUTTONLC "[3]種族を変化させる", 3
-PRINTL
-IF TALENT:キャラ番号:妊娠不可 && GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:Ｖ感度 > -2
-	PRINTBUTTONLC "[4]妊娠を可能にさせる", 4
+IF GETBIT(TALENT:キャラ番号:性別, 1)
+	PRINTBUTTONLC "[3]男性器の大きさを変化させる", 3
 	PRINTL
 ENDIF
-; PRINTBUTTONLC "[5]称号素質を設定する", 5
+PRINTBUTTONLC "[4]性別を変化させる", 4
+PRINTL
+PRINTBUTTONLC "[5]種族を変化させる", 5
+PRINTL
+IF TALENT:キャラ番号:妊娠不可 && GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:Ｖ感度 > -2
+	PRINTBUTTONLC "[6]妊娠を可能にさせる", 6
+	PRINTL
+ENDIF
+; PRINTBUTTONLC "[7]称号素質を設定する", 5
 ; PRINTL
 PRINTBUTTONLC "[999]戻る", 999
 PRINTL
@@ -115,14 +129,25 @@ BINPUT
 SELECTCASE RESULT
 	CASE 1
 		CALL 敏感素質変化(キャラ番号)
+		RESTART
 	CASE 2
 		CALL バスト素質変化(キャラ番号)
+		RESTART
 	CASE 3
-		CALL 種族素質変化(キャラ番号)
+		CALL 男性器素質変化(キャラ番号)
+		RESTART
 	CASE 4
-		CALL 妊娠不可素質変化(キャラ番号)
+		CALL 性別素質変化(キャラ番号)
+		RESTART
 	CASE 5
+		CALL 種族素質変化(キャラ番号)
+		RESTART
+	CASE 6
+		CALL 妊娠不可素質変化(キャラ番号)
+		RESTART
+	CASE 7
 		CALL 称号素質設定(キャラ番号)
+		RESTART
 	CASE 999
 		RETURN -1
 ENDSELECT
@@ -215,7 +240,8 @@ DRAWLINE
 FOR LOCAL:1 , -2, 4
 	IF TALENT:対象キャラ:バストサイズ == LOCAL:1
 		SETCOLOR 0x666666
-		PRINTFORML [{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（現在の大きさ）
+		PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（現在の大きさ）
+		PRINTL
 		RESETCOLOR
 	ELSE
 		PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1)%（{ABS(TALENT:対象キャラ:バストサイズ - LOCAL:1) * COST_胸定数}）", LOCAL:1
@@ -249,6 +275,163 @@ SELECTCASE LOCAL:1
 			PRINTFORMW %CALLNAME:対象キャラ%のバストサイズが%GET_TALENTNAME(205, TALENT:対象キャラ:バストサイズ)%から%GET_TALENTNAME(205, LOCAL:1)%に変化しました。
 			TALENT:対象キャラ:バストサイズ = LOCAL:1
 			CALL SET_BODYSIZE(対象キャラ,2)
+		ENDIF
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP3
+ENDSELECT
+
+@男性器素質変化(対象キャラ)
+#DIM 対象キャラ
+#DIM CONST COST_男性器定数 = 20
+#DIM 必要COST
+
+DRAWLINE
+PRINTL ZPを消費してキャラの男性器の大きさを変化させることができます。
+PRINTL 任意の大きさを選択してください
+DRAWLINE
+FOR LOCAL:1 , -2, 3
+	IF TALENT:対象キャラ:男性器サイズ == LOCAL:1
+		SETCOLOR 0x666666
+		PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(162, LOCAL:1)%（現在の大きさ）
+		PRINTL
+		RESETCOLOR
+	ELSE
+		PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(162, LOCAL:1)%（{ABS(TALENT:対象キャラ:男性器サイズ - LOCAL:1) * COST_男性器定数}）", LOCAL:1
+		PRINTL
+	ENDIF
+NEXT
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP3
+INPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 999
+		RETURN 0
+	CASE TALENT:対象キャラ:男性器サイズ
+		REUSELASTLINE 
+		GOTO INPUT_LOOP3
+	CASE -2 TO 2
+		;ZP足りる？
+		IF FLAG:ZP所持量 < ABS(TALENT:対象キャラ:男性器サイズ - LOCAL:1) * COST_男性器定数
+			PRINTW ZPが足りません
+		GOTO INPUT_LOOP3
+		ENDIF
+		PRINTFORM {ABS(TALENT:対象キャラ:男性器サイズ - LOCAL:1) * COST_男性器定数}
+		PRINTFORML ZPを支払い、男性器サイズを変化させますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= ABS(TALENT:対象キャラ:男性器サイズ - LOCAL:1) * COST_男性器定数
+			PRINTFORMW %CALLNAME:対象キャラ%の男性器サイズが%GET_TALENTNAME(162, TALENT:対象キャラ:男性器サイズ)%から%GET_TALENTNAME(162, LOCAL:1)%に変化しました。
+			TALENT:対象キャラ:男性器サイズ = LOCAL:1
+		ENDIF
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP3
+ENDSELECT
+
+@性別素質変化(対象キャラ)
+#DIM 対象キャラ
+#DIM CONST COST_性別定数 = 30
+#DIM 必要COST
+
+DRAWLINE
+PRINTL ZPを消費してキャラの性別を変化させることができます。
+PRINTL 任意の性別を選択してください。
+PRINTL ※その他への変化は出来ません。元がその他の場合、性別変化させると元に戻せなくなります。
+DRAWLINE
+FOR LOCAL:1 , 1, 4
+	SIF 素質切り替えOPTION記憶:ふたなり_女性 && LOCAL:1 == 3
+		CONTINUE
+	IF TALENT:対象キャラ:性別 == LOCAL:1
+		SETCOLOR 0x666666
+		PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（現在の性別）
+		PRINTL
+		RESETCOLOR
+	ELSE
+		PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（{COST_性別定数}）", LOCAL:1
+		PRINTL
+	ENDIF
+NEXT
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP3
+INPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 999
+		RETURN 0
+	CASE TALENT:対象キャラ:性別
+		REUSELASTLINE 
+		GOTO INPUT_LOOP3
+	CASE -2 TO 2
+		;ZP足りる？
+		IF FLAG:ZP所持量 < COST_性別定数
+			PRINTW ZPが足りません
+		GOTO INPUT_LOOP3
+		ENDIF
+		PRINTFORM {COST_性別定数}
+		PRINTFORML ZPを支払い、性別を変化させますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= COST_性別定数
+			PRINTFORMW %CALLNAME:対象キャラ%の性別が%GET_TALENTNAME(2, TALENT:対象キャラ:性別)%から%GET_TALENTNAME(2, LOCAL:1)%に変化しました。
+			LOCAL = TALENT:対象キャラ:性別
+			TALENT:対象キャラ:性別 = LOCAL:1
+			IF GETBIT(TALENT:対象キャラ:性別, 0) != GETBIT(LOCAL, 0)
+				IF GETBIT(CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別")), 0) == GETBIT(TALENT:対象キャラ:性別, 0) && CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "種族")) == TALENT:対象キャラ:種族
+					;元の性別・種族に戻ったのなら初期化
+					BASE:対象キャラ:身長 = 0
+					BASE:対象キャラ:バスト = 0
+					CALL INIT_BODYSIZE(対象キャラ)
+				ELSEIF TALENT:対象キャラ:性別 == 2
+					;女・ふたなり＞男パターン
+					SELECTCASE TALENT:対象キャラ:種族
+						CASE 3
+							;ドラフは男ドラフ並に
+							TALENT:対象キャラ:体格 = 2
+						CASE 4
+							;ハーヴィンは変化なし
+						CASEELSE
+							;他は体格を＋０～１する
+							TALENT:対象キャラ:体格 = MIN(1, TALENT:対象キャラ:体格 + RAND:2)
+					ENDSELECT
+					CALL SET_BODYSIZE(対象キャラ,3)
+				ELSE
+					;男＞女・ふたなりパターン
+					SELECTCASE TALENT:対象キャラ:種族
+						CASE 3
+							;ドラフは小柄に
+							TALENT:対象キャラ:体格 = -1
+						CASE 4
+							;ハーヴィンは変化なし
+						CASEELSE
+							;他は体格を－０～１する
+							TALENT:対象キャラ:体格 = MIN(-3, TALENT:対象キャラ:体格 - RAND:2)
+					ENDSELECT
+					CALL SET_BODYSIZE(対象キャラ,3)
+				ENDIF
+			ENDIF
+			IF NO:対象キャラ == 25
+				;カリオストロだけ特殊処理
+				IF TALENT:対象キャラ:性別 == 2
+					TALENT:対象キャラ:性転換 = 0
+				ELSE
+					TALENT:対象キャラ:性転換 = 2
+				ENDIF
+			ELSEIF TALENT:対象キャラ:性別 == 2 && CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別")) == 1
+				TALENT:対象キャラ:性転換 = 1
+			ELSEIF TALENT:対象キャラ:性別 == 1 && (CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別")) == 2 || (CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別")) == 3 && 素質切り替えOPTION記憶:ふたなり_女性))
+				TALENT:対象キャラ:性転換 = 2
+			ENDIF
+			;ふたなり、その他の場合は何に変化しても元女・元男はつかない
 		ENDIF
 		RETURN 0
 	CASEELSE
