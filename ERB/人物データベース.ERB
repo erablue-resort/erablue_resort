@@ -1,0 +1,252 @@
+﻿@人物データベースセット
+DT_CREATE "人物データベース"
+
+;NAMEと同様のものが入る想定。名前を付けなかった場合は空
+DT_COLUMN_ADD "人物データベース", "名前"
+
+;CALLNAMEと同様のものが入る想定。名前を付けなかった場合は空
+DT_COLUMN_ADD "人物データベース", "呼び名"
+
+;NOが入る。"キャラクタ数上限 = 3000"に沿って型を決定
+;ランダム・ユニーク問わずキャラではない場合は空。GET_PERSON_ナンバーでは-1が返される
+DT_COLUMN_ADD "人物データベース", "ナンバー", 2
+
+;TALENT:性別と同様のものが入る想定。取りうる値(0～3)に沿って型を決定
+DT_COLUMN_ADD "人物データベース", "性別", 1
+
+;TALENT:種族と同様のものが入る想定。取りうる値(-3～6)に沿って型を決定
+DT_COLUMN_ADD "人物データベース", "種族", 1
+
+;CSTR:プレゼント好みと同様のものが入る想定
+DT_COLUMN_ADD "人物データベース", "プレゼント好み"
+
+;周回回数累計:0が入る
+;空の場合、GET_PERSON_周回数では-1が返される
+DT_COLUMN_ADD "人物データベース", "出会った周回", 4
+
+;ゲーム中に生まれた場合、DAYが入る
+;生まれがゲーム外のユニークキャラ等は空。GET_PERSON_生年日では-1が返される
+DT_COLUMN_ADD "人物データベース", "生年日", 4
+
+;人物として父親/母親がゲーム中に存在すればそのidが入る
+;母親/父親がゲーム内に存在しない人物ならば空。GET_PERSON_母親/GET_PERSON_父親では空のID(0)が返される
+DT_COLUMN_ADD "人物データベース", "母親", 4
+DT_COLUMN_ADD "人物データベース", "父親", 4
+
+;「誰々が◯週目の何年目何日に産んだ」のような文字列を入れる想定
+DT_COLUMN_ADD "人物データベース", "経歴"
+
+
+;空のキャラを人物データベースに登録する
+@ADD_PERSON()
+#FUNCTION
+#DIM ID
+
+ID = DT_ROW_ADD("人物データベース")
+SIF !ID
+	THROW 人物データの登録に失敗しました
+RETURNF ID
+
+
+;キャラの追加時に実行。キャラを人物データベースに登録し、IDを振る
+@ADD_PERSON_FROM_CHARA(C_ID)
+#DIM C_ID
+
+{
+	DT_ROW_ADD "人物データベース",
+		"名前", NAME:C_ID,
+		"呼び名", CALLNAME:C_ID,
+		"ナンバー", NO:C_ID,
+		"性別", TALENT:C_ID:性別,
+		"種族", TALENT:C_ID:種族,
+		"プレゼント好み", CSTR:C_ID:プレゼント好み,
+		"出会った周回", 周回回数累計:0
+}
+;そうそう Utils.TimePoint() が0になることはないはず
+SIF !RESULT
+	THROW 人物データの登録に失敗しました
+CFLAG:C_ID:人物番号 = RESULT
+RETURN RESULT
+
+
+;人物データベースに登録済のキャラのデータを現在のものに更新する
+@UPDATE_PERSON_FROM_CHARA(C_ID)
+#DIM C_ID
+
+{
+	DT_ROW_SET "人物データベース", CFLAG:C_ID:人物番号
+		"名前", NAME:C_ID,
+		"呼び名", CALLNAME:C_ID,
+		"ナンバー", NO:C_ID,
+		"性別", TALENT:C_ID:性別,
+		"種族", TALENT:C_ID:種族,
+		"プレゼント好み", CSTR:C_ID:プレゼント好み
+}
+RETURN RESULT
+
+
+;人物データベースのIDからキャラ登録番号を逆引きする
+@FIND_CHARA_FROM_PERSON_ID(ID)
+#FUNCTION
+#DIM ID
+RETURNF FINDCHARA(CFLAG:人物番号, ID)
+
+
+;各カラムのGET系
+@GET_PERSON_名前(ID)
+#FUNCTIONS
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF NAME:C_ID
+ELSE
+	RETURNF DT_CELL_GETS("人物データベース", ID, "名前", 1)
+ENDIF
+
+@GET_PERSON_呼び名(ID)
+#FUNCTIONS
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF CALLNAME:C_ID
+ELSE
+	RETURNF DT_CELL_GETS("人物データベース", ID, "呼び名", 1)
+ENDIF
+
+@GET_PERSON_ナンバー(ID)
+#FUNCTION
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF NO:C_ID
+ELSEIF DT_CELL_ISNULL("人物データベース", ID, "ナンバー", 1) == 1
+	RETURNF -1
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "ナンバー", 1)
+ENDIF
+
+@GET_PERSON_性別(ID)
+#FUNCTION
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF TALENT:C_ID:性別
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "性別", 1)
+ENDIF
+
+@GET_PERSON_種族(ID)
+#FUNCTION
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF TALENT:C_ID:種族
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "種族", 1)
+ENDIF
+
+@GET_PERSON_プレゼント好み(ID)
+#FUNCTIONS
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF CSTR:C_ID:プレゼント好み
+ELSE
+	RETURNF DT_CELL_GETS("人物データベース", ID, "プレゼント好み", 1)
+ENDIF
+
+@GET_PERSON_周回数(ID)
+#FUNCTION
+#DIM ID
+IF DT_CELL_ISNULL("人物データベース", ID, "出会った周回", 1) == 1
+	RETURNF -1
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "出会った周回", 1)
+ENDIF
+
+@GET_PERSON_生年日(ID)
+#FUNCTION
+#DIM ID
+IF DT_CELL_ISNULL("人物データベース", ID, "生年日", 1) == 1
+	RETURNF -1
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "生年日", 1)
+ENDIF
+
+@GET_PERSON_母親(ID)
+#FUNCTION
+#DIM ID
+RETURNF DT_CELL_GET("人物データベース", ID, "母親", 1)
+
+@GET_PERSON_父親(ID)
+#FUNCTION
+#DIM ID
+RETURNF DT_CELL_GET("人物データベース", ID, "父親", 1)
+
+@GET_PERSON_経歴(ID)
+#FUNCTIONS
+#DIM ID
+RETURNF DT_CELL_GETS("人物データベース", ID, "経歴", 1)
+
+
+;各カラムのSET系
+@SET_PERSON_名前(ID, VAL)
+#DIM ID
+#DIMS VAL
+RETURN DT_CELL_SET("人物データベース", ID, "名前", VAL, 1)
+
+@SET_PERSON_呼び名(ID, VAL)
+#DIM ID
+#DIMS VAL
+RETURN DT_CELL_SET("人物データベース", ID, "呼び名", VAL, 1)
+
+@SET_PERSON_ナンバー(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "ナンバー", VAL, 1)
+
+@SET_PERSON_性別(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "性別", VAL, 1)
+
+@SET_PERSON_種族(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "種族", VAL, 1)
+
+@SET_PERSON_プレゼント好み(ID, VAL)
+#DIM ID
+#DIMS VAL
+RETURN DT_CELL_SET("人物データベース", ID, "プレゼント好み", VAL, 1)
+
+@SET_PERSON_周回数(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "出会った周回", VAL, 1)
+
+@SET_PERSON_生年日(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "生年日", VAL, 1)
+
+@SET_PERSON_母親(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "母親", VAL, 1)
+
+@SET_PERSON_父親(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "父親", VAL, 1)
+
+@SET_PERSON_経歴(ID, VAL)
+#DIM ID
+#DIMS VAL
+RETURN DT_CELL_SET("人物データベース", ID, "経歴", VAL, 1)

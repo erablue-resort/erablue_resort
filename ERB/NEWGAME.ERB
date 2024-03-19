@@ -81,6 +81,16 @@ CALL DEFAULT_OPTION
 ;	GOTO INPUT_LOOP
 ;ENDIF
 
+;キャラの作成前に必要なデータベース
+IF 引き継ぎ中フラグ
+	LOADTEXT "dat/人物DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/人物DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持素材データベース", LOCALS:1, LOCALS:0
+ELSE
+	CALL 人物データベースセット
+ENDIF
 
 初期設定中 = 1
 LOCAL:1 = 0
@@ -103,6 +113,7 @@ IF 引き継ぎ中フラグ
 ELSE
 	;あなた登録
 	ADDCHARA 0
+	CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
 ENDIF
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
@@ -116,6 +127,7 @@ FOR LOCAL, 1, キャラクタ数上限
 		CONTINUE
 	ADDCHARA LOCAL
 	設定中キャラ番号 = CHARANUM - 1
+	CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
 	IF 引き継ぎ中フラグ && LOCAL != 0
 		FOR LOCAL:1, 0, 500
 			IF キャラ変数引き継ぎ:(LOCAL:1):キャラ番号 == 設定中キャラ番号
@@ -196,6 +208,7 @@ IF 引き継ぎ中フラグ
 			基礎BATTLE_STATE:設定中キャラ番号:得意武器 = TOINT(小分割文字列:3)
 			CALL 初期ステータス設定_テンプレート適用(タイプ数値文字列変換(TOINT(小分割文字列:5)), 設定中キャラ番号)
 			知識素質:設定中キャラ番号:性知識 = TOINT(小分割文字列:7)
+			CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
 		ENDIF
 	NEXT
 ENDIF
