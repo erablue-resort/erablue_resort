@@ -82,6 +82,8 @@ PRINTL
 RESETCOLOR
 PRINTBUTTONLC "[999]やめる", 999
 PRINTBUTTON "[説明]", 998
+PRINTL
+PRINTBUTTONLC "[997] 性別制御オプション", 997
 PRINTL 
 DRAWLINE
 
@@ -163,6 +165,9 @@ SELECTCASE RESULT
 		GOTO 広告_LOOP
 	CASE 999
 		RETURN 0
+	CASE 997
+		CALL OPTION_招待切り替え
+		RESTART
 	CASEELSE
 		GOTO INPUT_LOOP
 ENDSELECT
@@ -271,6 +276,9 @@ FOR LOCAL, 1, CHARANUM
 	;サプチケで呼ぶ予定のキャラは排除
 	SIF LOCAL == サプチケキャラ招待
 		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
+		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
 		SIF 解放キャラ招待:(LOCAL:2) == 0
@@ -345,6 +353,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -463,6 +474,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -583,6 +597,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -801,3 +818,26 @@ SELECTCASE リゾートランク
 			リゾートランク = 6
 		ENDIF
 ENDSELECT
+
+
+@性別招待制御_実処理(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+;制御オプションに引っかかると１を返す、大丈夫なら０
+
+SELECTCASE TALENT:対象キャラ:性別
+	CASE 0
+		SIF GETBIT(性別招待制御OPTION, 3)
+			RETURNF 1
+	CASE 1
+		SIF GETBIT(性別招待制御OPTION, 0)
+			RETURNF 1
+	CASE 2
+		SIF GETBIT(性別招待制御OPTION, 1)
+			RETURNF 1
+	CASE 3
+		SIF GETBIT(性別招待制御OPTION, 2)
+			RETURNF 1
+ENDSELECT
+
+RETURNF 0
