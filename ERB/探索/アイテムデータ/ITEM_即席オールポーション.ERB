@@ -1,0 +1,55 @@
+﻿
+@アイテム個別文章表示_即席オールポーション(ARGS)
+;ポーション
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 800
+ENDIF
+
+LOCALS = 
+LOCALS += @"■即席オールポーション　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "即席オールポーション")}<br>"
+LOCALS += "その場にある材料で調合したオールポーション。<br>"
+LOCALS += "日持ちしないので探索が終わった時に全て失われる。<br>"
+LOCALS += "その代わりに効果はそこそこ大きめ。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方全体のＨＰを[８００]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_即席オールポーション
+CALL 汎用使用先表示("味方全体")
+
+@アイテム効果処理_即席オールポーション(ARG)
+;ARG = 隊列の何番目か
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "即席オールポーション") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+LOCAL:1 = 0
+FOR LOCAL, 0, 4
+	SIF !BATTLE_STATE:LOCAL:0
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:最大ＨＰ == BATTLE_STATE:LOCAL:ＨＰ
+		CONTINUE
+	IF BATTLE_STATE:LOCAL:最大ＨＰ - BATTLE_STATE:LOCAL:ＨＰ < 800
+		PRINTFORML %CALLNAME:(BATTLE_STATE:LOCAL:0)%のＨＰを{BATTLE_STATE:LOCAL:最大ＨＰ - BATTLE_STATE:LOCAL:ＨＰ}回復しました
+	ELSE
+		PRINTFORML %CALLNAME:(BATTLE_STATE:LOCAL:0)%のＨＰを800回復しました
+	ENDIF
+	BATTLE_STATE:LOCAL:ＨＰ = MIN(BATTLE_STATE:LOCAL:ＨＰ + 800, BATTLE_STATE:LOCAL:最大ＨＰ)
+	LOCAL:1 += 1
+NEXT
+
+IF LOCAL:1 > 0
+	WAIT
+	CALL アイテム増減汎用処理("即席オールポーション", -1)
+ELSE
+	PRINTW 回復可能な対象がいません。
+ENDIF
+
+RETURN 1

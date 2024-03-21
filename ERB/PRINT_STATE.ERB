@@ -554,40 +554,76 @@ IF あなた特殊能力:発情鑑定術 || あなた特殊能力:危険日感�
 			PRINT 妊娠中
 			PRINT_IMG "えっちハート"
 		ELSEIF RISKY_DAY(ARG) == 2
-			SETCOLOR カラーパレット("赤ピンク")
-			PRINT_IMG "えっちハート"
-			IF 発情期判定(ARG)
-				PRINT 超危険日・強発情中
-			ELSE
-				PRINT 超危険日
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "超危険日"
+				SETBIT LOCAL, 0
 			ENDIF
-			PRINT_IMG "えっちハート"
-			RESETCOLOR
-			PRINTFORM 　危険日終了まであと 2日
+			IF 発情期判定(ARG)
+				SIF LOCAL
+					LOCALS += "・"
+				LOCALS += "強発情中"
+				SETBIT LOCAL, 1
+			ENDIF
+			IF LOCAL
+				SETCOLOR カラーパレット("赤ピンク")
+				PRINT_IMG "えっちハート"
+				PRINTFORM %LOCALS%
+				PRINT_IMG "えっちハート"
+				RESETCOLOR
+				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期終了まであと 2日
+				ELSE
+					PRINTFORM 　危険日終了まであと 2日
+				ENDIF
+			ENDIF
 		ELSEIF RISKY_DAY(ARG) == 1
-			SETCOLOR カラーパレット("薄ピンク")
-			IF 発情期判定(ARG)
-				PRINT 危険日・発情中
-			ELSE
-				PRINT 危険日
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "危険日"
+				SETBIT LOCAL, 0
 			ENDIF
-			PRINT_IMG "えっちハート"
-			RESETCOLOR
-			PRINTFORM 　危険日終了まであと{1 + (LOCAL / 9 *2), 2}日
-		ELSEIF RISKY_DAY(ARG) == -1
-			SETCOLOR 0xccffff
-			PRINT 安全日
-			RESETCOLOR
 			IF 発情期判定(ARG)
-				PRINTFORM 　発情期・危険日まであと{LOCAL, 2}日
-			ELSE
-				PRINTFORM 　危険日まであと{LOCAL,2}日
+				SIF LOCAL
+					LOCALS += "・"
+				LOCALS += "発情中"
+				SETBIT LOCAL, 1
+			ENDIF
+			IF LOCAL
+				SETCOLOR カラーパレット("薄ピンク")
+				PRINTFORM %LOCALS%
+				PRINT_IMG "えっちハート"
+				RESETCOLOR
+				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期終了まであと{1 + (LOCAL / 9 *2), 2}日
+				ELSE
+					PRINTFORM 　危険日終了まであと{1 + (LOCAL / 9 *2), 2}日
+				ENDIF
+			ENDIF
+		ELSEIF RISKY_DAY(ARG) == -1
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "安全日"
+				SETBIT LOCAL, 0
+			ENDIF
+			IF LOCAL
+				SETCOLOR 0xccffff
+				PRINTFORM %LOCALS%
+				RESETCOLOR
+				IF 発情期判定(ARG) && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期まであと{LOCAL, 2}日
+				ELSE
+					PRINTFORM 　危険日まであと{LOCAL, 2}日
+				ENDIF
 			ENDIF
 		ELSEIF RISKY_DAY(ARG) == -2
 			PRINTFORM 妊娠不可
 		ELSE
 			IF 発情期判定(ARG)
-				PRINTFORM 発情期・危険日まであと{LOCAL, 2}日
+				PRINTFORM 発情期まであと{LOCAL, 2}日
 			ELSE
 				PRINTFORM 危険日まであと{LOCAL, 2}日
 			ENDIF
@@ -994,8 +1030,10 @@ SIF TALENT:ARG:エルーン耳
 	LOCALS += "（エルーン耳）"
 SIF TALENT:ARG:ハーヴィン耳
 	LOCALS += "（ハーヴィン耳）"
-SIF TALENT:ARG:発情期あり
+SIF TALENT:ARG:発情期あり > 0
 	LOCALS += "（発情期あり）"
+SIF TALENT:ARG:発情期あり < 0
+	LOCALS += "（発情期なし）"
 IF CFLAG:ARG:発情期フラグ < 0
 	LOCALS += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>（発情期<img src='えっちハート'>）</font>"
 ENDIF
@@ -1007,7 +1045,7 @@ IF TALENT:ARG:妊娠
 		LOCALS += "（妊娠中"
 	ENDIF
 	LOCALS += "<img src='えっちハート'>）</font>"
-ELSEIF あなた特殊能力:危険日感知
+ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
 	SELECTCASE RISKY_DAY(ARG)
 		CASE 1
 			LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（危険日<img src='えっちハート'>）</font>"
@@ -1027,11 +1065,11 @@ IF TALENT:ARG:性別 == 1
 		名前格納 += "（処女）"
 ELSEIF TALENT:ARG:性別 == 2
 	名前格納 += "男性"
-	SIF TALENT:ARG:童貞 == 0
+	SIF TALENT:ARG:非童貞 == 0
 		名前格納 += "（童貞）"
 ELSEIF TALENT:ARG:性別 == 3
 	名前格納 += "ふたなり"
-	SIF TALENT:ARG:童貞 == 0
+	SIF TALENT:ARG:非童貞 == 0
 		名前格納 += "(童貞)"
 	SIF TALENT:ARG:処女
 		名前格納 += "（処女）"
