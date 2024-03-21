@@ -301,59 +301,64 @@ IF GETBIT(CSVTALENT(NO:ARG, GETNUM(TALENT, "性別")), 0) == GETBIT(TALENT:ARG:�
 ENDIF
 
 IF TALENT:ARG:ランダムキャラ == 0
-	SIF CSVTALENT(NO:ARG, GETNUM(TALENT, "体格")) && TALENT:ARG:体格 != CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
-		TALENT:ARG:体格 = CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
-
-	SIF CSVTALENT(NO:ARG, GETNUM(TALENT, "体型")) && TALENT:ARG:体型 != CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
-		TALENT:ARG:体型 = CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
-
-	;CSVに体型、体格の記述が無い場合は身長と種族と性別をもとに算出する
-	IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
-		;身長が存在する場合、そこから算出
-		IF CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
-			SELECTCASE CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
-				CASE IS < 1000 + IS_MALE(ARG)*100
-					TALENT:ARG:体格 = 体格_ハーヴィン並
-				CASE IS < 1300 + IS_MALE(ARG)*100
-					TALENT:ARG:体格 = 体格_子供
-				CASE IS < 1500 + IS_MALE(ARG)*100
-					TALENT:ARG:体格 = 体格_小柄
-				CASE IS < 1700 + IS_MALE(ARG)*100
-					TALENT:ARG:体格 = 体格_普通
-				CASE IS < 1900 + IS_MALE(ARG)*100
-					TALENT:ARG:体格 = 体格_長身
-				CASEELSE
-					TALENT:ARG:体格 = 体格_男ドラフ並
-			ENDSELECT 
-		;ハーヴィンはハーヴィン並
-		ELSEIF TALENT:ARG:種族 == 種族_ハーヴィン
-			TALENT:ARG:体格 = 体格_ハーヴィン並
-		ELSEIF TALENT:ARG:種族 == 種族_ドラフ
-			;男性ドラフは男ドラフ並
-			IF IS_MALE(ARG)
-				TALENT:ARG:体格 = 体格_男ドラフ並
-			;女性ドラフは小柄
-			ELSE
-				TALENT:ARG:体格 = 体格_小柄
-			ENDIF
-		ELSE
-			;どこにも引っかからない場合、男は長身、女は普通に
-			IF IS_MALE(ARG)
-				TALENT:ARG:体格 = 体格_長身
-			ELSE
-				TALENT:ARG:体格 = 体格_普通
-			ENDIF
-		ENDIF
-	ENDIF
-
-	IF CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
-		;男性ドラフはグラマー（肉感的）
-		SIF TALENT:ARG:種族 == 種族_ドラフ && IS_MALE(ARG)
-			TALENT:ARG:体型 = 体型_グラマー
-	ENDIF
+	CALL INIT_BODYTALENT(ARG)
 ENDIF
 
 ;身長、バスト数値を決める
 LOCAL = SETBIT_PI(ARG)
 CALL SET_BODYSIZE(ARG, SETBIT_PI(ARG))
 
+
+
+@INIT_BODYTALENT(ARG)
+
+SIF CSVTALENT(NO:ARG, GETNUM(TALENT, "体格")) && TALENT:ARG:体格 != CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
+	TALENT:ARG:体格 = CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
+
+SIF CSVTALENT(NO:ARG, GETNUM(TALENT, "体型")) && TALENT:ARG:体型 != CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
+	TALENT:ARG:体型 = CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
+
+;CSVに体型、体格の記述が無い場合は身長と種族と性別をもとに算出する
+IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体格"))
+	;身長が存在する場合、そこから算出
+	IF CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
+		SELECTCASE CSVBASE(NO:ARG, GETNUM(BASE, "身長"))
+			CASE IS < 1000 + IS_MALE(ARG)*100
+				TALENT:ARG:体格 = 体格_ハーヴィン並
+			CASE IS < 1300 + IS_MALE(ARG)*100
+				TALENT:ARG:体格 = 体格_子供
+			CASE IS < 1500 + IS_MALE(ARG)*100
+				TALENT:ARG:体格 = 体格_小柄
+			CASE IS < 1700 + IS_MALE(ARG)*100
+				TALENT:ARG:体格 = 体格_普通
+			CASE IS < 1900 + IS_MALE(ARG)*100
+				TALENT:ARG:体格 = 体格_長身
+			CASEELSE
+				TALENT:ARG:体格 = 体格_男ドラフ並
+		ENDSELECT 
+	;ハーヴィンはハーヴィン並
+	ELSEIF TALENT:ARG:種族 == 種族_ハーヴィン
+		TALENT:ARG:体格 = 体格_ハーヴィン並
+	ELSEIF TALENT:ARG:種族 == 種族_ドラフ
+		;男性ドラフは男ドラフ並
+		IF IS_MALE(ARG)
+			TALENT:ARG:体格 = 体格_男ドラフ並
+		;女性ドラフは小柄
+		ELSE
+			TALENT:ARG:体格 = 体格_小柄
+		ENDIF
+	ELSE
+		;どこにも引っかからない場合、男は長身、女は普通に
+		IF IS_MALE(ARG)
+			TALENT:ARG:体格 = 体格_長身
+		ELSE
+			TALENT:ARG:体格 = 体格_普通
+		ENDIF
+	ENDIF
+ENDIF
+
+IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
+	;男性ドラフはグラマー（肉感的）
+	SIF TALENT:ARG:種族 == 種族_ドラフ && IS_MALE(ARG)
+		TALENT:ARG:体型 = 体型_グラマー
+ENDIF
