@@ -24,6 +24,10 @@ DT_COLUMN_ADD "人物データベース", "プレゼント好み"
 ;空の場合、GET_PERSON_周回数では-1が返される
 DT_COLUMN_ADD "人物データベース", "出会った周回", 4
 
+;生まれがゲーム外のキャラの生まれた順序を入れる。姉/兄のほうが大きい値になる
+;ゲーム内で生まれた子供等は空。GET_PERSON_出生順では最小値より1小さい値(-129)が返される
+DT_COLUMN_ADD "人物データベース", "出生順", 1
+
 ;ゲーム中に生まれた場合、DAYが入る
 ;生まれがゲーム外のユニークキャラ等は空。GET_PERSON_生年日では-1が返される
 DT_COLUMN_ADD "人物データベース", "生年日", 4
@@ -84,7 +88,8 @@ RETURNF ID
 		"性別", TALENT:C_ID:性別,
 		"種族", TALENT:C_ID:種族,
 		"プレゼント好み", CSTR:C_ID:プレゼント好み,
-		"出会った周回", 周回回数累計:0
+		"出会った周回", 周回回数累計:0,
+		"出生順", 127
 }
 ;そうそう Utils.TimePoint() が0になることはないはず
 SIF !RESULT
@@ -155,7 +160,7 @@ SIF (PARENT & 3) == 3
 SIF (PARENT & 2) == 2
 	FILTER += @"父親 = {ID}"
 
-DT_SELECT "人物データベース", FILTER, "出会った周回 ASC, 生年日 ASC"
+DT_SELECT "人物データベース", FILTER, "出生順 DESC, 出会った周回 ASC, 生年日 ASC"
 RETURN RESULT
 
 
@@ -237,6 +242,15 @@ ELSE
 	RETURNF DT_CELL_GET("人物データベース", ID, "出会った周回", 1)
 ENDIF
 
+@GET_PERSON_出生順(ID)
+#FUNCTION
+#DIM ID
+IF DT_CELL_ISNULL("人物データベース", ID, "出生順", 1) == 1
+	RETURNF -129
+ELSE
+	RETURNF DT_CELL_GET("人物データベース", ID, "出生順", 1)
+ENDIF
+
 @GET_PERSON_生年日(ID)
 #FUNCTION
 #DIM ID
@@ -297,6 +311,11 @@ RETURN DT_CELL_SET("人物データベース", ID, "プレゼント好み", VAL,
 #DIM ID
 #DIM VAL
 RETURN DT_CELL_SET("人物データベース", ID, "出会った周回", VAL, 1)
+
+@SET_PERSON_出生順(ID, VAL)
+#DIM ID
+#DIM VAL
+RETURN DT_CELL_SET("人物データベース", ID, "出生順", VAL, 1)
 
 @SET_PERSON_生年日(ID, VAL)
 #DIM ID
