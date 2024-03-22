@@ -23,6 +23,8 @@ ELSEIF 能力表示 == 2
 	CALL 戦闘能力表示画面(ARG)
 ELSEIF 能力表示 == 3
 	CALL キャラ解説表示画面(ARG)
+ELSEIF 能力表示 == 4
+	CALL 血縁関係表示画面(ARG)
 ENDIF
 
 
@@ -59,6 +61,15 @@ IF ARG != MASTER
 		ELSE
 			SETCOLOR カラーパレット("黄")
 			PRINTPLAIN [93]キャラ解説　　
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	IF EXIST_FAMILY(CFLAG:ARG:人物番号)
+		IF 能力表示 != 4
+			PRINTBUTTON "[94]血縁関係　　", 94
+		ELSE
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [94]血縁関係　　
 			RESETCOLOR
 		ENDIF
 	ENDIF
@@ -136,6 +147,9 @@ IF ARG != MASTER
 			RESTART
 		CASE 93
 			能力表示 = 3
+			RESTART
+		CASE 94
+			能力表示 = 4
 			RESTART
 		CASE 110
 			CALL CHOICE_LOVE(ARG)
@@ -661,12 +675,13 @@ ENDIF
 CALL PRINT_STATE_EXP(ARG)
 CALL PRINT_STATE_EX(ARG)
 
-IF EXP:ARG:妊娠経験 > 0
-	PRINTL
-	PRINTL □ 子供 □---------------------------------------------------------------------
-	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
-	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
-ENDIF
+;子供は血縁関係タブに移動
+;IF EXP:ARG:妊娠経験 > 0
+;	PRINTL
+;	PRINTL □ 子供 □---------------------------------------------------------------------
+;	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+;	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+;ENDIF
 SIF TALENT:ARG:妊娠
 	CALL PRINT_STATE_妊娠状態(ARG)
 PRINTL 
@@ -708,6 +723,109 @@ IF K < 18
 	NEXT
 ENDIF
 
+
+@血縁関係表示画面(ARG)
+#DIM L_C
+#DIM MOTHER
+#DIM FATHER
+#DIM BIRTHDAY
+#DIM LAP
+#DIM CHILD_COUNT
+#DIMS CHILD_NAME
+
+;ここで立ち絵表示
+CALL 画像描画終了
+L_C = LINECOUNT
+
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 237, 1125, 2250'>%短冊グラ表示用文字列関数(ARG)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 237, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
+ENDIF
+PRINTL
+PRINTFORM ■%NAME:ARG%
+PRINTL
+IF ARG != PLAYER
+	PRINT 　
+	CALL 通常時体力ゲージ表示(ARG)
+	PRINTL 
+	PRINT 　
+	CALL 通常時性欲ゲージ表示(ARG)
+	PRINTL 
+ENDIF
+PRINTL 
+
+BIRTHDAY = GET_PERSON_生年日(CFLAG:ARG:人物番号)
+IF BIRTHDAY >= 0
+	PRINTL □ 誕生日 □-------------------------------------------------------------------
+	PRINT 　
+	LAP = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
+	SIF LAP >= 0 && LAP != 周回回数累計:0
+		PRINTFORM {LAP + 1}周目 
+	PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)
+	PRINTL 
+ENDIF
+
+MOTHER = GET_PERSON_母親(CFLAG:ARG:人物番号)
+IF MOTHER && FIND_CHARA_FROM_PERSON_ID(MOTHER) >= 0
+	PRINTL □ 母親 □---------------------------------------------------------------------
+	PRINTFORML 　%GET_PERSON_名前(MOTHER)%
+	PRINTL 
+ENDIF
+
+FATHER = GET_PERSON_父親(CFLAG:ARG:人物番号)
+IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
+	PRINTL □ 父親 □---------------------------------------------------------------------
+	PRINTFORML 　%GET_PERSON_名前(FATHER)%
+	PRINTL 
+ENDIF
+
+CALL FIND_CHILDREN(CFLAG:ARG:人物番号)
+CHILD_COUNT = RESULT
+IF EXP:ARG:妊娠経験 > 0 || CHILD_COUNT > 0
+	PRINTL
+	PRINTL □ 子供 □---------------------------------------------------------------------
+	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+	PRINTL 
+	FOR LOCAL, 1, (CHILD_COUNT + 1)
+		PRINTFORM 　%"第" + TOSTR(LOCAL + MAX(0, EXP:ARG:出産経験 - CHILD_COUNT)) + "子", 7, LEFT% 
+		CHILD_NAME '= GET_PERSON_呼び名(RESULT:LOCAL)
+		IF CHILD_NAME != ""
+			PRINTFORM %CHILD_NAME%
+			IF GETBIT(GET_PERSON_性別(RESULT:LOCAL), 0)
+				PRINT (♀) 
+			ELSE
+				PRINT (♂) 
+			ENDIF
+		ENDIF
+		BIRTHDAY = GET_PERSON_生年日(RESULT:LOCAL)
+		IF BIRTHDAY >= 0
+			LAP = GET_PERSON_出会った周回(RESULT:LOCAL)
+			SIF LAP >= 0 && LAP != 周回回数累計:0
+				PRINTFORM {LAP + 1}周目 
+			PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)に
+		ENDIF
+		FATHER = GET_PERSON_父親(RESULT:LOCAL)
+		IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
+			PRINTFORM %GET_PERSON_呼び名(FATHER)%との間に生まれた
+		ELSEIF BIRTHDAY >= 0
+			PRINT 生まれた
+		ENDIF
+		IF CHILD_NAME == ""
+			IF GETBIT(GET_PERSON_性別(RESULT:LOCAL), 0)
+				PRINT 女の子
+			ELSE
+				PRINT 男の子
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+	PRINTL
+NEXT
 
 
 @CHOICE_LOVE(ARG)
