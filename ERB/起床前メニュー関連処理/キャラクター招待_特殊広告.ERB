@@ -1,9 +1,157 @@
-﻿@特殊広告一覧表示(左側表示文字列)
+﻿@特殊広告一覧表示(左側表示文字列, 表示キー_左)
 #DIMS REF 左側表示文字列
+#DIMS 表示キー_左
+#DIM 関数総数
 
-左側表示文字列 += "<button value='10'>├[10] ＤＭを送る</button><br>"
-左側表示文字列 += "<button value='10'>├[11] ＤＭを送る</button><br>"
-左側表示文字列 += "<button value='10'>├[12] ＤＭを送る</button><br>"
-左側表示文字列 += "<button value='10'>├[13] ＤＭを送る</button><br>"
-左側表示文字列 += "<button value='10'>├[14] ＤＭを送る</button><br>"
-左側表示文字列 += "<button value='10'>├[15] ＤＭを送る</button><br>"
+LOCAL = 0
+VARSET RESULTS
+VARSET 特殊広告関数保存
+関数総数 = ENUMFUNCBEGINSWITH("特殊広告_")
+ARRAYCOPY "RESULTS", "特殊広告関数保存"
+
+IF 関数総数 > 0
+	FOR LOCAL, 0, 関数総数
+		IF LOCAL == 関数総数 - 1
+			LOCALS = └
+		ELSE
+			LOCALS = ├
+		ENDIF
+		IF 表示キー_左 == 特殊広告関数保存:LOCAL
+			左側表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'>%LOCALS%[{関数総数 + 9}] %REPLACE(特殊広告関数保存:LOCAL, "特殊広告_", "")%</font><br>"
+		ELSE
+			左側表示文字列 += @"<button value='{LOCAL + 10}'>%LOCALS%[{LOCAL + 10}] %REPLACE(特殊広告関数保存:LOCAL, "特殊広告_", "")%</button><br>"
+		ENDIF
+	NEXT
+ENDIF
+
+
+@特殊広告_ＤＭを送る(処理モード, 入力数値 = 0)
+#DIMS 処理モード
+#DIM 入力数値
+#DIM 表示候補, 500
+#DIM 現在ページ
+#DIM 広告対象
+
+SELECTCASE 処理モード
+	CASE "右側表示"
+		詳細文文字列受け渡し変数 += "■ＤＭ（ダイレクトメッセージ）を送る<br><br>"
+		詳細文文字列受け渡し変数 += "一定以上の好感度があるキャラに対して、手紙形式の広告を送ります。5000ルピの費用が掛かります。<br>"
+		詳細文文字列受け渡し変数 += "指定したキャラを狙うことが出来ますが、消費するルピは割高な上に必ず訪れてくれるとは限りません。<br>"
+		詳細文文字列受け渡し変数 += "また、訪問確率は好感度を上げることで上昇します。<br><br>"
+		詳細文文字列受け渡し変数 += "<button value='100'>[100] ＤＭを送るキャラを選ぶ</button>"
+	CASE "実処理"
+		VARSET 表示候補, -1
+		現在ページ = 0
+
+		;表示キャラを登録
+		LOCAL:1 = 0
+		FOR LOCAL, 1, CHARANUM
+			;招待不可キャラは排除
+			SIF CFLAG:LOCAL:招待不可フラグ
+				CONTINUE
+			;好感度レベル11以上（顔見知り以上）条件
+			SIF CFLAG:LOCAL:好感度レベル < 1+関係閾値:1
+				CONTINUE
+			;滞在済みは出さない
+			SIF CFLAG:LOCAL:滞在期間 >= 0
+				CONTINUE
+			;オプションによる制御
+			SIF 性別招待制御_実処理(LOCAL)
+				CONTINUE
+			LOCAL:3 = 0
+			FOR LOCAL:2, 0, 100
+				SIF 解放キャラ招待:(LOCAL:2) == 0
+					BREAK
+				IF 解放キャラ招待:(LOCAL:2) == LOCAL
+					LOCAL:3 = 1
+					BREAK
+				ELSEIF LOCAL:2 < 20 && スイートルーム招待:(LOCAL:2) == LOCAL
+					LOCAL:3 = 1
+					BREAK
+				ENDIF
+			NEXT
+			SIF LOCAL:3
+				CONTINUE
+			表示候補:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		NEXT
+
+		$表示_LOOP
+
+		;広告対象の表示
+		DRAWLINE
+		PRINTL 誰にダイレクトメールを出しますか？
+		DRAWLINE
+		LOCAL:1 = 0
+		;キャラの表示（15人まで）
+		FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+			;登録が終わったら表示終了
+			IF 表示候補:LOCAL == -1
+				BREAK
+			ENDIF
+			PRINTBUTTON @"[{LOCAL,3,RIGHT}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 50, LEFT%", LOCAL
+			SIF LOCAL % 2 != 0
+				PRINTL 
+		NEXT
+		PRINTL
+		DRAWLINE
+
+		;ページめくり表示
+		IF 現在ページ > 0
+			PRINTBUTTONLC "[900]前ページへ", 900
+		ELSE
+			PRINTLC 　　　
+		ENDIF
+		PRINTFORM - {現在ページ + 1} -
+		IF 表示候補:((現在ページ * 30) + 30) > 0
+			PRINTBUTTONC "[901]次ページへ", 901
+		ENDIF
+		PRINTL 
+		PRINTBUTTON "[999]戻る", 999
+
+		$INPUT_LOOP
+		BINPUT
+
+		;広告対象のINPUT
+		SELECTCASE RESULT
+			CASE 900
+				現在ページ = MAX(現在ページ - 1, 0)
+				GOTO 表示_LOOP
+			CASE 901
+				SIF LOCAL:1 == 0
+					現在ページ += 1
+				GOTO 表示_LOOP
+			CASE 999
+				RETURN -1
+			CASE IS >= CHARANUM, IS < 0
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+			CASEELSE
+				IF 表示候補:RESULT < 0
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				広告対象 = 表示候補:RESULT
+		ENDSELECT
+
+		DRAWLINE
+		PRINTFORMW %CALLNAME:MASTER%は費用として5000ルピを支払い、%CALLNAME:広告対象%にダイレクトメールを送った。
+		MONEY -= 5000
+
+		LOCAL = RAND:100
+		LOCAL:1 = 50
+		集客人数 = 1
+		;基礎確率50%、以下の素質で上下させる
+		;好感度による確率上昇。＋０％～１８％
+		LOCAL:1 += (CFLAG:広告対象:好感度レベル - 10) / 5
+		;恋慕だと確定で来る
+		IF TALENT:広告対象:恋慕
+			LOCAL:1 += 100
+		ENDIF
+
+		;実際に来るかどうかわかるのは起床後の朝だが判定はここで確定させる
+		ＤＭキャラ招待 = 広告対象
+		;失敗時、負の数にする
+		SIF LOCAL >= LOCAL:1
+			ＤＭキャラ招待 = ＤＭキャラ招待 * -1
+ENDSELECT
