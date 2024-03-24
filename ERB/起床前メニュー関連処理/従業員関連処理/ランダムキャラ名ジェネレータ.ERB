@@ -1,0 +1,179 @@
+﻿
+;キャラ名を完全ランダムで作成してみるテスト
+; 種族　2：エルーン　3：ドラフ　4：ハーヴィン　それ以外：それ以外全部
+; 性別　1：男性　それ以外：女性
+;この関数内で使っている清音・半音などはあくまでこの関数内での便宜上の呼び名であって
+;言語学的に正しいものではないので、ご了承を。
+@ランダムキャラ名ジェネレータ(種族=0,性別=0)
+#FUNCTIONS
+#DIM 種族
+#DIM 性別
+#DIM 文字数
+#DIM L_C
+#DIM L_B
+#DIM 母音, 6
+#DIMS 子音, 6
+#DIMS 子音括, 3
+#DIMS CONST 清音 = "AKSTNHMYRW"
+#DIMS CONST 濁音 = "GZDBP"
+#DIMS CONST 半音 = "L"
+#DIMS CONST 拗音 = "X"
+#DIMS CONST 単音 = "Q"
+{
+#DIMS CONST 五十音 = 
+"アカサタナハマヤラワガザダバパァャン",
+"イキシチニヒミ　リ　ギジヂビピィ　ー",
+"ウクスツヌフムユルヴグズヅブプゥュッ",
+"エケセテネヘメ　レ　ゲゼデベペェ　ヲ",
+"オコソトノホモヨロ　ゴゾドボポォョ　"
+}
+
+VARSET 子音
+VARSET 母音
+
+子音括:1 '= 清音 
+子音括:2 '= 清音 + 濁音 + 半音 + 拗音 + 単音
+
+;種族によって文字数・傾向を決める
+SELECTCASE 種族
+	CASE 種族_エルーン
+		;３，４文字が多く、５文字は少ない。２，６文字は非常に稀
+		文字数 = TOINT(RANDSTR("233333444445556"))
+	CASE 種族_ハーヴィン
+		;５，６文字が多く、３，４文字は少ない。２文字は非常に稀
+		文字数 = TOINT(RANDSTR("233444555556666"))
+		;濁音あり、ラ行多め
+		子音括:1 += 濁音 + "RRRR"
+	CASEELSE
+		;３，４，５文字が多く、２，６文字は少ない
+		文字数 = TOINT(RANDSTR("223333444455566"))
+		;濁音あり、ドラフ男性は濁音多め、それ以外は清音多め
+		子音括:1 += 濁音 + \@ 種族 == 種族_ドラフ && 性別? 濁音# 清音\@
+ENDSELECT
+子音括 '= 子音括:1
+
+L_B = 0
+FOR L_C, 0, 文字数
+	DO
+		IF !L_C || 子音:(L_C-1) == 単音
+			;１文字目及び前の文字が単音の場合は清音or濁音から
+			子音:L_C '= RANDSTR(子音括:1)
+			IF !L_C && 種族 == 種族_ドラフ && (性別 || RAND:5)
+				;男ドラフは1文字目の母音がA、女ドラフもAに偏る
+				母音:L_C = 0
+				;女ドラフの1文字目は清音に偏る
+				SIF !性別 && RAND:5
+					子音:L_C '= RANDSTR(清音)
+			ELSEIF STRFIND("YWX", 子音:L_C) > 0
+				母音:L_C = 2 * RAND(2 + (子音:L_C == "W" ? 0# 1))
+			ELSE
+				母音:L_C = RAND:5
+			ENDIF
+		ELSEIF L_C == 文字数 - 1 && 種族 == 種族_ドラフ
+			;ドラフの場合、最後の文字の母音は1文字目と同じ
+			母音:L_C = 母音:0
+			IF 性別 && STRFIND(濁音, 子音:0) < 0
+				;男ドラフで1文字目が濁音でなければ濁音になる
+				子音:L_C '= RANDSTR(濁音)
+			ELSE
+				;小文字が最後にくるドラフはヴァンツァしか見当たらないので例外として無視
+				子音:L_C '= RANDSTR(子音括:1)
+			ENDIF
+		ELSEIF L_C == 文字数 - 1 && 種族 == 種族_ハーヴィン && MATCH(子音, "R") == 1
+			;ハーヴィンかつ最後までにラ行が１つだけの場合、最後の文字はラ行確定
+			子音:L_C '= "R"
+			母音:L_C = RAND:5
+		ELSEIF STRFINDU(子音括:1, 子音:L_B) > -1
+			;前の文字が清音・濁音の場合、半音と単音が候補に入る
+			子音括 '= 子音括:1 + 半音 + 単音
+			SELECTCASE 母音:L_B
+				;拗音が候補に入るケース
+				CASE 1
+					;Iは「い」以外
+					SIF 子音:L_B != "A"
+						子音括 += 拗音
+				CASE 2
+					;Uは「ヴスズツフ」
+					SIF STRFIND("WSZYH", 子音:L_B) > -1
+						子音括 += 拗音
+				CASE 3
+					;Eは「テデ」
+					SIF STRFIND("TD", 子音:L_B) > -1
+						子音括 += 拗音
+			ENDSELECT
+			子音:L_C '= RANDSTR(子音括)
+			IF 子音:L_C == 半音
+				;半音は前の文字の母音によって候補が変動する
+				IF 母音:L_B == 1
+					;Iからは「ィォ」
+					母音:L_C = TOINT(RANDSTR("14"))
+				ELSEIF 母音:L_B == 3 && STRFIND("TD", 子音:L_B) > -1
+					;Eからは「テデ」の場合のみ「ィェ」
+					母音:L_C = TOINT(RANDSTR("13"))
+				ELSEIF 母音:L_B == 4
+					;Oからは「ゥォ」
+					母音:L_C = TOINT(RANDSTR("24"))
+				ELSE
+					;それ以外の場合は前の母音と同じもののみ
+					母音:L_C = 母音:L_B
+				ENDIF
+			ELSEIF 子音:L_C == 単音 && L_C == 文字数 - 1
+				;最後の文字に「ッ」は入らない
+				母音:L_C = TOINT(RANDSTR("013"))
+			ELSE
+				子音:L_C '= RANDSTR(子音括)
+				母音:L_C = RAND:5
+			ENDIF
+			;空白文字にあたった場合やり直し
+		ELSE
+			;前の文字が半音・拗音の場合、半音・拗音が続くケースは限られる
+			子音括 '= 子音括:1 + 単音
+			SELECTCASE 母音:L_B
+				CASE 1
+					;Iからは「ぇ」のみ
+					子音括 += 半音
+					子音:L_C '= RANDSTR(子音括)
+					IF 子音:L_C == 半音
+						母音:L_C = 3
+					ELSE
+						母音:L_C = RAND:5
+					ENDIF
+				CASE 2
+					;Uからは「ぁぃぉ」のみ
+					子音括 += 半音
+					子音:L_C '= RANDSTR(子音括)
+					IF 子音:L_C == 半音
+						母音:L_C = TOINT(RANDSTR("014"))
+					ELSE
+						母音:L_C = RAND:5
+					ENDIF
+				CASEELSE
+					子音:L_C '= RANDSTR(子音括)
+					母音:L_C = RAND:5
+			ENDSELECT
+		ENDIF
+	;空白文字にあたった場合及び最後の文字が「ッ」になった場合やり直し
+	LOOP SUBSTRINGU(五十音:(母音:L_C), STRFINDU(子音括:2,子音:L_C), 1) == "　" || (L_C == 文字数 - 1 && 子音:L_C == 単音 && 母音:L_C == 2)
+	L_B = L_C
+NEXT
+
+
+LOCALS '= ""
+FOR L_C, 0, 文字数
+	LOCALS += SUBSTRINGU(五十音:(母音:L_C), STRFINDU(子音括:2,子音:L_C), 1)
+NEXT
+
+SIF 種族 == 種族_ハーヴィン && MATCH(子音, "R") < 2
+	RESTART
+
+SIF 種族 == 種族_エルーン && STRCOUNT(LOCALS, "ヴ")
+	RESTART
+
+RETURNF LOCALS
+
+;文字列ARGSの中から等確率で１文字を選んで返す
+@RANDSTR(ARGS)
+#FUNCTIONS
+SIF ARGS == ""
+	RETURNF ""
+RETURNF SUBSTRINGU(ARGS, RAND(STRLENSU(ARGS)), 1)
