@@ -182,7 +182,15 @@ ENDIF
 
 引き継ぎ中フラグ = 1
 
+;人物データベースを最後に更新しておく
+FOR LOCAL, 0, CHARANUM
+	CALL UPDATE_PERSON_FROM_CHARA(LOCAL)
+NEXT
+
 ;データベースを退避
+DT_TOXML "人物データベース"
+SAVETEXT RESULTS:0, "dat/人物DT_XML.txt"
+SAVETEXT RESULTS:1, "dat/人物DT_schema.txt"
 DT_TOXML "所持素材データベース"
 SAVETEXT RESULTS:0, "dat/素材DT_XML.txt"
 SAVETEXT RESULTS:1, "dat/素材DT_schema.txt"
@@ -201,6 +209,7 @@ SAVETEXT RESULTS:1, "dat/アイテムDT_schema.txt"
 
 ;変数を退避
 制服引き継ぎ = %所持制服文字列%
+エロ衣装引き継ぎ = %所持エロ衣装文字列%
 所持ルピ引き継ぎ = MONEY
 FOR LOCAL, 0, 100
 	あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
@@ -248,14 +257,17 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
-IF ランダムキャラ引き継ぎフラグ
-	FOR LOCAL, 0, 100
-		従業員初期値引き継ぎ:LOCAL = %従業員初期値記録:LOCAL%
-	NEXT
-ENDIF
+周回回数累計:0 += 1
 
-周回回数累計 += 1
-RESETDATA
+ARRAYCOPY "周回回数累計", "周回回数累計_退避"
+IF ランダムキャラ引き継ぎフラグ
+	ARRAYCOPY "従業員初期値記録", "従業員初期値記録_退避"
+	RESETDATA
+	ARRAYCOPY "従業員初期値記録_退避", "従業員初期値記録"
+ELSE
+	RESETDATA
+ENDIF
+ARRAYCOPY "周回回数累計_退避", "周回回数累計"
 BEGIN FIRST
 
 
@@ -265,7 +277,7 @@ BEGIN FIRST
 #DIM 記録位置
 #DIMS 分割文字列, 2
 
-FOR 記録位置, 0, 100
+FOR 記録位置, 0, 従業員初期値最大記録数
 	SPLIT 従業員初期値記録:記録位置, "_", 分割文字列
 	IF TOINT(分割文字列:1) == キャラ番号
 		RETURNF 記録位置

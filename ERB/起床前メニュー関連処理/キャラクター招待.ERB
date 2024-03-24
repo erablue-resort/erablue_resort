@@ -1,4 +1,4 @@
-﻿@キャラクター招待
+﻿@キャラクター招待_旧版
 
 ;一日開始時メニューから呼び出し
 
@@ -82,6 +82,8 @@ PRINTL
 RESETCOLOR
 PRINTBUTTONLC "[999]やめる", 999
 PRINTBUTTON "[説明]", 998
+PRINTL
+PRINTBUTTONLC "[997] 性別制御オプション", 997
 PRINTL 
 DRAWLINE
 
@@ -163,6 +165,9 @@ SELECTCASE RESULT
 		GOTO 広告_LOOP
 	CASE 999
 		RETURN 0
+	CASE 997
+		CALL OPTION_招待切り替え
+		RESTART
 	CASEELSE
 		GOTO INPUT_LOOP
 ENDSELECT
@@ -173,14 +178,7 @@ RETURN 1
 @通常広告
 #DIM 集客候補, 500
 #DIM 候補人数
-#DIM 招待キャラ数補正
 VARSET 集客候補
-
-;招待キャラ数補正
-招待キャラ数補正 = 0
-IF イベント完了フラグ確認("大拡張！空艇港") > 0
-	招待キャラ数補正 += 1
-ENDIF
 
 ;広告プランの表示
 DRAWLINE
@@ -232,7 +230,7 @@ SELECTCASE RESULT
 		PRINTW 近くの島に広告を出しました。
 		MONEY -= 3000
 		CALL 人気上昇処理(3000)
-		集客人数 = RAND:2 + 2 + 招待キャラ数補正
+		集客人数 = RAND:2 + 2 + 招待キャラ数補正算出()
 	CASE 2
 		IF MONEY < 5000
 			PRINTW ルピが足りません
@@ -241,7 +239,7 @@ SELECTCASE RESULT
 		PRINTW 遠くの島まで広告を出しました。
 		MONEY -= 5000
 		CALL 人気上昇処理(5000)
-		集客人数 = RAND:3 + 3 + 招待キャラ数補正
+		集客人数 = RAND:3 + 3 + 招待キャラ数補正算出()
 	CASE 3
 		IF MONEY < 10000
 			PRINTW ルピが足りません
@@ -250,7 +248,7 @@ SELECTCASE RESULT
 		PRINTW 奮発して空域全体に広告を出しました！
 		MONEY -= 10000
 		CALL 人気上昇処理(10000)
-		集客人数 = RAND:3 + 5 + 招待キャラ数補正
+		集客人数 = RAND:3 + 5 + 招待キャラ数補正算出()
 	CASE 999
 		RETURN -1
 	CASEELSE
@@ -270,6 +268,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;サプチケで呼ぶ予定のキャラは排除
 	SIF LOCAL == サプチケキャラ招待
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -345,6 +346,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -463,6 +467,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -583,6 +590,9 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	;滞在済みは出さない
 	SIF CFLAG:LOCAL:滞在期間 >= 0
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(LOCAL)
 		CONTINUE
 	LOCAL:3 = 0
 	FOR LOCAL:2, 0, 100
@@ -801,3 +811,26 @@ SELECTCASE リゾートランク
 			リゾートランク = 6
 		ENDIF
 ENDSELECT
+
+
+@性別招待制御_実処理(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+;制御オプションに引っかかると１を返す、大丈夫なら０
+
+SELECTCASE TALENT:対象キャラ:性別
+	CASE 0
+		SIF GETBIT(性別招待制御OPTION, 3)
+			RETURNF 1
+	CASE 1
+		SIF GETBIT(性別招待制御OPTION, 0)
+			RETURNF 1
+	CASE 2
+		SIF GETBIT(性別招待制御OPTION, 1)
+			RETURNF 1
+	CASE 3
+		SIF GETBIT(性別招待制御OPTION, 2)
+			RETURNF 1
+ENDSELECT
+
+RETURNF 0

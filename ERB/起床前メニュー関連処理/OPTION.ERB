@@ -6,6 +6,7 @@ PRINTL [1] - コマンドフィルタ
 PRINTL [2] - 特定素質の切り替え
 PRINTL [3] - 機能切り替え
 PRINTL [4] - 起床時刻の設定
+PRINTL [5] - キャラクター招待に関する設定
 PRINTL 
 PRINTL [99] - 特定バグ対応ボタン
 PRINTL [100]-戻る
@@ -40,6 +41,8 @@ ELSEIF RESULT == 4
 	SIF RESULT < 0 || RESULT > 23
 		GOTO INPUT_LOOP2
 	CFLAG:MASTER:起床予定時刻 = RESULT * 60
+ELSEIF RESULT == 5
+	CALL OPTION_招待切り替え
 ELSEIF RESULT == 99
 	PRINTL 周回でキャラを引き継いだ時にエラーが発生してしまう現象へ対処するボタンです
 	PRINTL 現在存在するキャラの関係性を全てリセットし、初期状態に戻します
@@ -1175,7 +1178,7 @@ SELECTCASE 画面表示用変数
 		LOCALS += "<br>"
 		LOCALS += "※能力表示画面から設定出来る、キャラ個別の汎用喘ぎ使用可不可設定の方が優先されます。<br>"
 		LOCALS += "<br>"
-		LOCALS += "・汎用喘ぎ（現在："
+		LOCALS += "・女性（ふたなり・その他）キャラ汎用喘ぎ（現在："
 		SELECTCASE 汎用喘ぎ使用OPTION
 			CASE 0
 				LOCALS += "使用しない）<br>"
@@ -1186,6 +1189,19 @@ SELECTCASE 画面表示用変数
 			CASE 3
 				LOCALS += "全てのキャラに使用）<br>"
 				LOCALS += "　　　<font color='#666666'><button value='701'>[使用しない]</button></font> / <font color='#666666'><button value='702'>[口上無しキャラのみ使用]</button></font> / [全てのキャラに使用]<br>"
+		ENDSELECT
+		LOCALS += "<br>"
+		LOCALS += "・男性キャラ汎用喘ぎ（現在："
+		SELECTCASE 汎用喘ぎ使用OPTION_男
+			CASE 0
+				LOCALS += "使用しない）<br>"
+				LOCALS += "　　　[使用しない] / <font color='#666666'><button value='705'>[口上無しキャラのみ使用]</button></font> / <font color='#666666'><button value='706'>[全てのキャラに使用]</button></font><br>"
+			CASE 1
+				LOCALS += "口上が無いキャラのみ使用）<br>"
+				LOCALS += "　　　<font color='#666666'><button value='704'>[使用しない]</button></font> / [口上無しキャラのみ使用] / <font color='#666666'><button value='706'>[全てのキャラに使用]</button></font><br>"
+			CASE 3
+				LOCALS += "全てのキャラに使用）<br>"
+				LOCALS += "　　　<font color='#666666'><button value='704'>[使用しない]</button></font> / <font color='#666666'><button value='705'>[口上無しキャラのみ使用]</button></font> / [全てのキャラに使用]<br>"
 		ENDSELECT
 	CASE 800
 		LOCALS += "・身体項目表示切り替え<br>"
@@ -1334,6 +1350,12 @@ SELECTCASE LOCAL
 		汎用喘ぎ使用OPTION = 1
 	CASE 703
 		汎用喘ぎ使用OPTION = 3
+	CASE 704
+		汎用喘ぎ使用OPTION_男 = 0
+	CASE 705
+		汎用喘ぎ使用OPTION_男 = 1
+	CASE 706
+		汎用喘ぎ使用OPTION_男 = 3
 	CASE 801 TO 803
 		INVERTBIT 身体項目表示切り替えOPTION, (LOCAL - 801)
 	CASE 901
@@ -1405,8 +1427,18 @@ RESTART
 DRAWLINE
 PRINTL 汎用喘ぎを使用するか否かを個別に設定出来ます。
 PRINTL
-PRINT 現在の全体設定：
+PRINTL ・現在の全体設定
+PRINT ・女性（ふたなり・その他）キャラ：
 SELECTCASE 汎用喘ぎ使用OPTION
+	CASE 0
+		PRINTL 使用しない
+	CASE 1
+		PRINTL 口上が無いキャラのみ使用
+	CASE 3
+		PRINTL 全てのキャラに使用
+ENDSELECT
+PRINT ・男性キャラ：
+SELECTCASE 汎用喘ぎ使用OPTION_男
 	CASE 0
 		PRINTL 使用しない
 	CASE 1
@@ -1441,5 +1473,130 @@ SELECTCASE RESULT
 		RETURN 0
 	CASEELSE
 		CFLAG:対象キャラ:汎用喘ぎ禁止フラグ = RESULT
+		RESTART
+ENDSELECT
+
+
+@OPTION_招待切り替え
+
+DRAWLINE
+PRINTL リゾートに訪れるキャラの性別設定を行います。
+PRINTL ※広告による招待・常連素質による訪問に影響します
+PRINTL 　ZPショップによる解放・イベントなどでの訪問は設定に関わらず実行されます。
+DRAWLINE
+PRINTL
+PRINTL ・現在の設定
+PRINT 　　女性：
+IF GETBIT(性別招待制御OPTION, 0)
+	PRINT リゾートを訪問しない　　　
+	PRINTBUTTON "[0] 切り替える", 0
+	PRINTL
+ELSE
+	PRINT リゾートを訪問する　　　　
+	PRINTBUTTON "[0] 切り替える", 0
+	PRINTL
+ENDIF
+PRINT 　　男性：
+IF GETBIT(性別招待制御OPTION, 1)
+	PRINT リゾートを訪問しない　　　
+	PRINTBUTTON "[1] 切り替える", 1
+	PRINTL
+ELSE
+	PRINT リゾートを訪問する　　　　
+	PRINTBUTTON "[1] 切り替える", 1
+	PRINTL
+ENDIF
+PRINT 　　ふたなり：
+IF GETBIT(性別招待制御OPTION, 2)
+	PRINT リゾートを訪問しない　
+	PRINTBUTTON "[2] 切り替える", 2
+	PRINTL
+ELSE
+	PRINT リゾートを訪問する　　
+	PRINTBUTTON "[2] 切り替える", 2
+	PRINTL
+ENDIF
+PRINT 　　その他：
+IF GETBIT(性別招待制御OPTION, 3)
+	PRINT リゾートを訪問しない　　
+	PRINTBUTTON "[3] 切り替える", 3
+	PRINTL
+ELSE
+	PRINT リゾートを訪問する　　　
+	PRINTBUTTON "[3] 切り替える", 3
+	PRINTL
+ENDIF
+
+PRINTL
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		RETURN 0
+	CASEELSE
+		INVERTBIT 性別招待制御OPTION, RESULT
+		RESTART
+ENDSELECT
+
+@OPTION_キャラ制限初期切り替え
+
+DRAWLINE
+PRINTL 登場が制限されているキャラクターの初期登場設定を変更します。
+PRINTL ※この設定はゲームが始まってからは変更出来ません。
+PRINTL ※初期開放時、イベントシナリオと矛盾が発生する場合があります。
+DRAWLINE
+PRINTL
+PRINTL ・現在の設定
+
+PRINT ZPショップ加入キャラ：
+IF GETBIT(キャラ制限初期OPTION, 0)
+	PRINT 全開放　　　　　
+	PRINTBUTTON "[0] 切り替える", 0
+	PRINTL
+	PRINTL 　（初期からリゾートを訪れる）
+	PRINTL
+ELSE
+	PRINT デフォルト　　　
+	PRINTBUTTON "[0] 切り替える", 0
+	PRINTL
+	PRINTL 　（加入にダンジョン攻略・イベント視聴が必須）
+	PRINTL 　（加入にZP消費が必須）
+ENDIF
+PRINTL
+PRINT イベント加入キャラ：
+IF GETBIT(キャラ制限初期OPTION, 1)
+	PRINT 全開放　　　　　　
+	PRINTBUTTON "[1] 切り替える", 1
+	PRINTL
+	PRINTL 　（初期からリゾートを訪れる）
+ELSE
+	PRINT デフォルト　　　　
+	PRINTBUTTON "[1] 切り替える", 1
+	PRINTL
+	PRINTL 　（キャラによって異なる特定の条件が必須）
+ENDIF
+PRINTL
+PRINTL
+PRINTBUTTON "[999] これで決定する", 999
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		;解放処理
+		FOR LOCAL, 1, CHARANUM
+			IF (CFLAG:LOCAL:招待不可フラグ == 1 || CFLAG:LOCAL:招待不可フラグ == 3) && GETBIT(キャラ制限初期OPTION, 0)
+				CFLAG:LOCAL:招待不可フラグ = 0
+			ENDIF
+			IF CFLAG:LOCAL:招待不可フラグ == 2 && GETBIT(キャラ制限初期OPTION, 1)
+				CFLAG:LOCAL:招待不可フラグ = 0
+			ENDIF
+		NEXT
+		RETURN 0
+	CASEELSE
+		INVERTBIT キャラ制限初期OPTION, RESULT
 		RESTART
 ENDSELECT

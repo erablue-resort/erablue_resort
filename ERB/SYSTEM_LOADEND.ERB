@@ -23,6 +23,10 @@ LOCAL:1 = 0
 
 ダンジョン表示モード = 
 
+;旧セーブとの互換処理（キャラの作成前に必要）
+;0.038になる頃には不要なはず
+CALL 人物データベースセット
+
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
@@ -33,6 +37,7 @@ FOR LOCAL, 1, キャラクタ数上限
 		CONTINUE
 	追加キャラ保存:(LOCAL:1) = CHARANUM
 	ADDCHARA LOCAL
+	CALL ADD_PERSON_FROM_CHARA(追加キャラ保存:(LOCAL:1))
 	LOCAL:1 += 1
 NEXT
 
@@ -105,18 +110,6 @@ CALL 体位モードデータベースセット
 
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
-	SIF TCVAR:LOCAL:野外オナニー_残時間 == -1
-		TCVAR:LOCAL:野外オナニー_残時間 = 0
-	
-	IF 陥落不可適用フラグ == 0
-		SIF CSVTALENT(NO:LOCAL, GETNUM(TALENT, "陥落不可"))
-			TALENT:LOCAL:陥落不可 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "陥落不可"))
-
-		SIF CSVTALENT(NO:LOCAL, GETNUM(TALENT, "妊娠不可"))
-			TALENT:LOCAL:妊娠不可 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "妊娠不可"))
-	ENDIF
-	;ここまで0.036で消す
-
 	SIF NO:LOCAL == 999
 		CFLAG:LOCAL:招待不可フラグ = 0
 
@@ -148,7 +141,7 @@ FOR LOCAL, 1, CHARANUM
 		ENDIF
 		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
 		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-			IF (TALENT:LOCAL:種族 == 3 || LOCAL == 11) && TALENT:LOCAL:母乳体質 != 3
+			IF (TALENT:LOCAL:種族 == 3 || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3
 				IF CFLAG:LOCAL:発情期フラグ < 0
 					SIF TALENT:LOCAL:母乳体質 == 0
 						TALENT:LOCAL:母乳体質 = 2
@@ -167,104 +160,12 @@ FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:現在位置 == 303 && CFLAG:LOCAL:現在マップ種別 == 999
 		CFLAG:LOCAL:現在マップ種別 = 0
 	;ここまで0.037で消す
+
+	TALENT:LOCAL:無関心 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "無関心"))
+	TALENT:LOCAL:情熱的 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "情熱的"))
+
+	;ここまで0.038で消す
 NEXT
-
-CALL 写真データベースセット
-
-ITEMSALES:70 = 10000
-
-SIF ダンジョンクリアフラグ_名前を亡くした遺跡
-	CALL イベント完了フラグ汎用処理("【条件確認】温泉を作るために")
-
-
-FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
-	IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ") == "ＥＸイベント"
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベントカテゴリ", "キャライベント"
-	ENDIF
-	IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "未神宮への参拝"
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベントカテゴリ", "キャライベント"
-	ENDIF
-NEXT
-
-IF DT_COLUMN_EXIST("各イベント用変数配列", "汎用イベ用_キャラNO保存") == 0
-	DT_COLUMN_ADD "各イベント用変数配列", "汎用イベ用_キャラNO保存", 3
-ENDIF
-
-SIF DT_EXIST("所持乗機データベース") == 0
-	CALL 乗機データベースセット
-SIF DT_EXIST("所持兵器データベース") == 0
-	CALL 所持兵器データベースセット
-
-IF 指輪耳飾り衣装ID管理変更 == 0
-	FOR LOCAL, 1, CHARANUM
-		IF 装備ステータス補正保存:LOCAL:装備指輪番号
-			LOCAL:1 = DT_CELL_GET("所持指輪データベース", 装備ステータス補正保存:LOCAL:装備指輪番号, "id")
-			装備ステータス補正保存:LOCAL:装備指輪番号 = LOCAL:1
-		ENDIF
-		IF 装備ステータス補正保存:LOCAL:装備耳飾り番号
-			LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "id")
-			装備ステータス補正保存:LOCAL:装備耳飾り番号 = LOCAL:1
-		ENDIF
-		IF 装備ステータス補正保存:LOCAL:装備衣装番号
-			LOCAL:1 = DT_CELL_GET("所持衣装データベース", 装備ステータス補正保存:LOCAL:装備衣装番号, "id")
-			装備ステータス補正保存:LOCAL:装備衣装番号 = LOCAL:1
-		ENDIF
-	NEXT
-	指輪耳飾り衣装ID管理変更 = 1
-ENDIF
-
-IF イベ再発生対策 == 0
-	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
-		SIF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "魔物襲撃"
-			CONTINUE
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", 0
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生確率", 0
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", 0
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", 0
-	NEXT
-	イベ再発生対策 = 1
-ENDIF
-
-IF イベ名前被り対策 == 0
-	VARSET LOCALS
-	LOCAL:1 = 0
-	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
-		SIF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == ""
-			BREAK
-		IF FINDELEMENT(LOCALS, ESCAPE(@"%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%"), , , 1) > -1
-			DT_ROW_REMOVE "各イベント用変数配列", DT_CELL_GET("各イベント用変数配列", LOCAL, "id")
-			LOCAL -= 1
-		ELSE
-			LOCALS:(LOCAL:1) = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
-			LOCAL:1 += 1
-		ENDIF
-	NEXT
-	イベ名前被り対策 = 1
-ENDIF
-
-	CALL 制服登録処理("チャイナドレス")
-	CALL 制服登録処理("ミニチャイナ")
-
-IF バルツ乗機兵装フォロー == 0
-	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:23:7, 2)
-		CALL 汎用搭載兵器取得処理_設計図("10mmバルカン砲")
-	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:25:5, 4)
-		CALL 汎用搭載兵器取得処理("メタル・デストロイヤー")
-	SIF GETBIT(ダンジョン構造配列_バルツ地下廃工場:10:5, 4)
-		CALL 乗機取得処理_設計図("コロッサスレプリカ")
-	IF GETBIT(ダンジョン構造配列_バルツ地下廃工場:26:4, 4)
-		CALL 汎用搭載兵器取得処理("近接用ブレード")
-		CALL 汎用搭載兵器取得処理_設計図("近接用ブレード")
-	ENDIF
-
-	バルツ乗機兵装フォロー = 1
-ENDIF
-
-IF 陥落不可適用フラグ == 0
-	陥落不可適用フラグ = 1
-ENDIF
-
-;ここまで0.036にしたとき消す、互換を34に
 
 IF パーティ編成許可制 == 0
 	パーティ編成許可制 = 1
@@ -288,6 +189,21 @@ ENDIF
 SIF MAP_EXIST("自動探索対象ダンジョン") == 0
 	CALL 自動探索用マップセット
 ;ここまで0.037にしたとき消す、互換を35に
+
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	IF !CFLAG:LOCAL:人物番号
+		CALL ADD_PERSON_FROM_CHARA(LOCAL)
+		LOCAL:1 = 1
+	ELSEIF GET_PERSON_出生順(CFLAG:LOCAL:人物番号) == -129
+		CALL SET_PERSON_出生順(CFLAG:LOCAL:人物番号, 127)
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+SIF LOCAL:1 == 1
+	CALL ユニークキャラ親子関係セット
+
+;ここまで0.038にしたとき消す、互換を36に
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理

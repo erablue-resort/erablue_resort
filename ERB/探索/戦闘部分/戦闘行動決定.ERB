@@ -624,20 +624,28 @@ VARSET 攻撃対象
 IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 	CALL バフ・デバフ測定(戦闘行動キャラ, "最大ＣＴ増加")
 	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン >= 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン + RESULT
-		TRYCCALLFORM 敵チャージ行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
-			敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
-			CALL アビテンプレート用_表示メッセージ変換処理
-			CALL メッセージ欄表示用関数(,,,0)
-			CALL 行動済みフラグチェック処理(戦闘行動キャラ)
-			RETURN 0
-		CATCH
-		ENDCATCH
+		IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):ランダムエネミーフラグ
+			CALL ランダムエネミーチャージ行動処理(戦闘行動キャラ - 10)
+		ELSE
+			TRYCCALLFORM 敵チャージ行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
+				敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
+				CALL アビテンプレート用_表示メッセージ変換処理
+				CALL メッセージ欄表示用関数(,,,0)
+				CALL 行動済みフラグチェック処理(戦闘行動キャラ)
+				RETURN 0
+			CATCH
+			ENDCATCH
+		ENDIF
 	ENDIF
 ENDIF
 
 ;通常攻撃
 RESULT = 0
-TRYCALLFORM 敵トリガー行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
+IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):ランダムエネミーフラグ
+	CALL ランダムエネミートリガー行動処理(戦闘行動キャラ - 10)
+ELSE
+	TRYCALLFORM 敵トリガー行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%
+ENDIF
 ;何か動いたなら１が返る、何も動いてないなら通常攻撃をさせる
 IF RESULT == 0
 	CALL アビ対象選択テンプレート_味方ランダムＸ体(1)
@@ -815,6 +823,19 @@ RETURN LOCAL
 
 
 
+@ダメージ上限計算(隊列番号)
+#FUNCTION
+#DIM 隊列番号
+
+;将来的にはキャラを見て上限突破要素などを盛り込むが、現在は固定
+
+RETURNF 9999
+
+
+
+
+
+
 
 @回復量計算処理(回復威力変数, 回復側使用能力値 = "回復力", 乱数幅 = 5)
 #DIM 回復威力変数
@@ -883,7 +904,7 @@ IF バフ番号 > -1
 		WSTR:(K++) = %文字列一時保存%
 	ENDIF
 	;回数消費
-	CALL バフ回数経過処理(戦闘行動キャラ, "自動復活")
+	CALL バフ回数経過処理(隊列番号, "自動復活")
 ELSE
 	;バフ・デバフをリセット
 	DT_CLEAR @"バフデータベース_{隊列番号}"

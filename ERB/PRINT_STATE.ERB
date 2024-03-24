@@ -11,6 +11,14 @@ TOOLTIP_SETDURATION 100000
 IF TALENT:ARG:非戦闘キャラ && 能力表示 == 2
 	能力表示 = 0
 ENDIF
+;キャラ解説がないなら封印
+IF EXISTFUNCTION(@"口上_ステータス画面_キャラ解説_{NO:ARG}") == 0 && 能力表示 == 3
+	能力表示 = 0
+ENDIF
+;血縁が無いならタブ封印
+IF EXIST_FAMILY(CFLAG:ARG:人物番号) == 0 && 能力表示 == 4
+	能力表示 = 0
+ENDIF
 
 
 DRAWLINE
@@ -23,6 +31,8 @@ ELSEIF 能力表示 == 2
 	CALL 戦闘能力表示画面(ARG)
 ELSEIF 能力表示 == 3
 	CALL キャラ解説表示画面(ARG)
+ELSEIF 能力表示 == 4
+	CALL 血縁関係表示画面(ARG)
 ENDIF
 
 
@@ -59,6 +69,15 @@ IF ARG != MASTER
 		ELSE
 			SETCOLOR カラーパレット("黄")
 			PRINTPLAIN [93]キャラ解説　　
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	IF EXIST_FAMILY(CFLAG:ARG:人物番号)
+		IF 能力表示 != 4
+			PRINTBUTTON "[94]血縁関係　　", 94
+		ELSE
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [94]血縁関係　　
 			RESETCOLOR
 		ENDIF
 	ENDIF
@@ -136,6 +155,9 @@ IF ARG != MASTER
 			RESTART
 		CASE 93
 			能力表示 = 3
+			RESTART
+		CASE 94
+			能力表示 = 4
 			RESTART
 		CASE 110
 			CALL CHOICE_LOVE(ARG)
@@ -554,40 +576,76 @@ IF あなた特殊能力:発情鑑定術 || あなた特殊能力:危険日感�
 			PRINT 妊娠中
 			PRINT_IMG "えっちハート"
 		ELSEIF RISKY_DAY(ARG) == 2
-			SETCOLOR カラーパレット("赤ピンク")
-			PRINT_IMG "えっちハート"
-			IF 発情期判定(ARG)
-				PRINT 超危険日・強発情中
-			ELSE
-				PRINT 超危険日
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "超危険日"
+				SETBIT LOCAL, 0
 			ENDIF
-			PRINT_IMG "えっちハート"
-			RESETCOLOR
-			PRINTFORM 　危険日終了まであと 2日
+			IF 発情期判定(ARG)
+				SIF LOCAL
+					LOCALS += "・"
+				LOCALS += "強発情中"
+				SETBIT LOCAL, 1
+			ENDIF
+			IF LOCAL
+				SETCOLOR カラーパレット("赤ピンク")
+				PRINT_IMG "えっちハート"
+				PRINTFORM %LOCALS%
+				PRINT_IMG "えっちハート"
+				RESETCOLOR
+				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期終了まであと 2日
+				ELSE
+					PRINTFORM 　危険日終了まであと 2日
+				ENDIF
+			ENDIF
 		ELSEIF RISKY_DAY(ARG) == 1
-			SETCOLOR カラーパレット("薄ピンク")
-			IF 発情期判定(ARG)
-				PRINT 危険日・発情中
-			ELSE
-				PRINT 危険日
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "危険日"
+				SETBIT LOCAL, 0
 			ENDIF
-			PRINT_IMG "えっちハート"
-			RESETCOLOR
-			PRINTFORM 　危険日終了まであと{1 + (LOCAL / 9 *2), 2}日
-		ELSEIF RISKY_DAY(ARG) == -1
-			SETCOLOR 0xccffff
-			PRINT 安全日
-			RESETCOLOR
 			IF 発情期判定(ARG)
-				PRINTFORM 　発情期・危険日まであと{LOCAL, 2}日
-			ELSE
-				PRINTFORM 　危険日まであと{LOCAL,2}日
+				SIF LOCAL
+					LOCALS += "・"
+				LOCALS += "発情中"
+				SETBIT LOCAL, 1
+			ENDIF
+			IF LOCAL
+				SETCOLOR カラーパレット("薄ピンク")
+				PRINTFORM %LOCALS%
+				PRINT_IMG "えっちハート"
+				RESETCOLOR
+				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期終了まであと{1 + (LOCAL / 9 *2), 2}日
+				ELSE
+					PRINTFORM 　危険日終了まであと{1 + (LOCAL / 9 *2), 2}日
+				ENDIF
+			ENDIF
+		ELSEIF RISKY_DAY(ARG) == -1
+			LOCALS = 
+			LOCAL = 0
+			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+				LOCALS += "安全日"
+				SETBIT LOCAL, 0
+			ENDIF
+			IF LOCAL
+				SETCOLOR 0xccffff
+				PRINTFORM %LOCALS%
+				RESETCOLOR
+				IF 発情期判定(ARG) && GETBIT(LOCAL, 0) == 0
+					PRINTFORM 　発情期まであと{LOCAL, 2}日
+				ELSE
+					PRINTFORM 　危険日まであと{LOCAL, 2}日
+				ENDIF
 			ENDIF
 		ELSEIF RISKY_DAY(ARG) == -2
 			PRINTFORM 妊娠不可
 		ELSE
 			IF 発情期判定(ARG)
-				PRINTFORM 発情期・危険日まであと{LOCAL, 2}日
+				PRINTFORM 発情期まであと{LOCAL, 2}日
 			ELSE
 				PRINTFORM 危険日まであと{LOCAL, 2}日
 			ENDIF
@@ -625,12 +683,13 @@ ENDIF
 CALL PRINT_STATE_EXP(ARG)
 CALL PRINT_STATE_EX(ARG)
 
-IF EXP:ARG:妊娠経験 > 0
-	PRINTL
-	PRINTL □ 子供 □---------------------------------------------------------------------
-	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
-	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
-ENDIF
+;子供は血縁関係タブに移動
+;IF EXP:ARG:妊娠経験 > 0
+;	PRINTL
+;	PRINTL □ 子供 □---------------------------------------------------------------------
+;	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+;	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+;ENDIF
 SIF TALENT:ARG:妊娠
 	CALL PRINT_STATE_妊娠状態(ARG)
 PRINTL 
@@ -672,6 +731,109 @@ IF K < 18
 	NEXT
 ENDIF
 
+
+@血縁関係表示画面(ARG)
+#DIM L_C
+#DIM MOTHER
+#DIM FATHER
+#DIM BIRTHDAY
+#DIM LAP
+#DIM CHILD_COUNT
+#DIMS CHILD_NAME
+
+;ここで立ち絵表示
+CALL 画像描画終了
+L_C = LINECOUNT
+
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 237, 1125, 2250'>%短冊グラ表示用文字列関数(ARG)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 237, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
+ENDIF
+PRINTL
+PRINTFORM ■%NAME:ARG%
+PRINTL
+IF ARG != PLAYER
+	PRINT 　
+	CALL 通常時体力ゲージ表示(ARG)
+	PRINTL 
+	PRINT 　
+	CALL 通常時性欲ゲージ表示(ARG)
+	PRINTL 
+ENDIF
+PRINTL 
+
+BIRTHDAY = GET_PERSON_生年日(CFLAG:ARG:人物番号)
+IF BIRTHDAY >= 0
+	PRINTL □ 誕生日 □-------------------------------------------------------------------
+	PRINT 　
+	LAP = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
+	SIF LAP >= 0 && LAP != 周回回数累計:0
+		PRINTFORM {LAP + 1}周目 
+	PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)
+	PRINTL 
+ENDIF
+
+MOTHER = GET_PERSON_母親(CFLAG:ARG:人物番号)
+IF MOTHER && FIND_CHARA_FROM_PERSON_ID(MOTHER) >= 0
+	PRINTL □ 母親 □---------------------------------------------------------------------
+	PRINTFORML 　%GET_PERSON_名前(MOTHER)%
+	PRINTL 
+ENDIF
+
+FATHER = GET_PERSON_父親(CFLAG:ARG:人物番号)
+IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
+	PRINTL □ 父親 □---------------------------------------------------------------------
+	PRINTFORML 　%GET_PERSON_名前(FATHER)%
+	PRINTL 
+ENDIF
+
+CALL FIND_CHILDREN(CFLAG:ARG:人物番号)
+CHILD_COUNT = RESULT
+IF EXP:ARG:妊娠経験 > 0 || CHILD_COUNT > 0
+	PRINTL
+	PRINTL □ 子供 □---------------------------------------------------------------------
+	PRINTFORML 　%CALLNAME:MASTER%との子供：{CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+	PRINTFORML 　それ以外の子供：{EXP:ARG:妊娠経験 - CFLAG:ARG:MASTERの子供妊娠回数, 2}人
+	PRINTL 
+	FOR LOCAL, 1, (CHILD_COUNT + 1)
+		PRINTFORM 　%"第" + TOSTR(LOCAL + MAX(0, EXP:ARG:出産経験 - CHILD_COUNT)) + "子", 7, LEFT% 
+		CHILD_NAME '= GET_PERSON_呼び名(RESULT:LOCAL)
+		IF CHILD_NAME != ""
+			PRINTFORM %CHILD_NAME%
+			IF GETBIT(GET_PERSON_性別(RESULT:LOCAL), 0)
+				PRINT (♀) 
+			ELSE
+				PRINT (♂) 
+			ENDIF
+		ENDIF
+		BIRTHDAY = GET_PERSON_生年日(RESULT:LOCAL)
+		IF BIRTHDAY >= 0
+			LAP = GET_PERSON_出会った周回(RESULT:LOCAL)
+			SIF LAP >= 0 && LAP != 周回回数累計:0
+				PRINTFORM {LAP + 1}周目 
+			PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)に
+		ENDIF
+		FATHER = GET_PERSON_父親(RESULT:LOCAL)
+		IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
+			PRINTFORM %GET_PERSON_呼び名(FATHER)%との間に生まれた
+		ELSEIF BIRTHDAY >= 0
+			PRINT 生まれた
+		ENDIF
+		IF CHILD_NAME == ""
+			IF GETBIT(GET_PERSON_性別(RESULT:LOCAL), 0)
+				PRINT 女の子
+			ELSE
+				PRINT 男の子
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+	PRINTL
+NEXT
 
 
 @CHOICE_LOVE(ARG)
@@ -994,8 +1156,10 @@ SIF TALENT:ARG:エルーン耳
 	LOCALS += "（エルーン耳）"
 SIF TALENT:ARG:ハーヴィン耳
 	LOCALS += "（ハーヴィン耳）"
-SIF TALENT:ARG:発情期あり
+SIF TALENT:ARG:発情期あり > 0
 	LOCALS += "（発情期あり）"
+SIF TALENT:ARG:発情期あり < 0
+	LOCALS += "（発情期なし）"
 IF CFLAG:ARG:発情期フラグ < 0
 	LOCALS += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>（発情期<img src='えっちハート'>）</font>"
 ENDIF
@@ -1007,7 +1171,7 @@ IF TALENT:ARG:妊娠
 		LOCALS += "（妊娠中"
 	ENDIF
 	LOCALS += "<img src='えっちハート'>）</font>"
-ELSEIF あなた特殊能力:危険日感知
+ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
 	SELECTCASE RISKY_DAY(ARG)
 		CASE 1
 			LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（危険日<img src='えっちハート'>）</font>"
@@ -1027,11 +1191,11 @@ IF TALENT:ARG:性別 == 1
 		名前格納 += "（処女）"
 ELSEIF TALENT:ARG:性別 == 2
 	名前格納 += "男性"
-	SIF TALENT:ARG:童貞 == 0
+	SIF TALENT:ARG:非童貞 == 0
 		名前格納 += "（童貞）"
 ELSEIF TALENT:ARG:性別 == 3
 	名前格納 += "ふたなり"
-	SIF TALENT:ARG:童貞 == 0
+	SIF TALENT:ARG:非童貞 == 0
 		名前格納 += "(童貞)"
 	SIF TALENT:ARG:処女
 		名前格納 += "（処女）"
@@ -1079,8 +1243,6 @@ IF ARG == PLAYER || TALENT:ARG:ランダムキャラ
 ENDIF
 IF TALENT:ARG:性別 & 2
 	LOCALS += @"　男性器サイズ：%GET_TALENTNAME(162,TALENT:ARG:男性器サイズ)%"
-	SIF TALENT:ARG:男性器サイズ == 0
-		LOCALS += "平凡"
 	LOCALS += "<br>"
 ENDIF
 IF あなた特殊能力:フレンドリーセンス
@@ -1333,9 +1495,9 @@ FOR LOCAL, 0, 200
 	ELSEIF TALENT:ARG:2 & 1 && LOCAL == 52
 		CONTINUE
 	ENDIF
-	PRINTFORM %EXPNAME:LOCAL,12%:{EXP:ARG:LOCAL,5,LEFT} 
+	PRINTFORM %EXPNAME:LOCAL,18%:{EXP:ARG:LOCAL,5,LEFT}　
 	LOCAL:1 += 1
-	SIF LOCAL:1 % 4 == 0
+	SIF LOCAL:1 % 3 == 0
 		PRINTL 
 NEXT
 PRINTL

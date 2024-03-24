@@ -81,6 +81,16 @@ CALL DEFAULT_OPTION
 ;	GOTO INPUT_LOOP
 ;ENDIF
 
+;キャラの作成前に必要なデータベース
+IF 引き継ぎ中フラグ
+	LOADTEXT "dat/人物DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/人物DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "所持素材データベース", LOCALS:1, LOCALS:0
+ELSE
+	CALL 人物データベースセット
+ENDIF
 
 初期設定中 = 1
 LOCAL:1 = 0
@@ -103,6 +113,7 @@ IF 引き継ぎ中フラグ
 ELSE
 	;あなた登録
 	ADDCHARA 0
+	CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
 ENDIF
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
@@ -116,6 +127,7 @@ FOR LOCAL, 1, キャラクタ数上限
 		CONTINUE
 	ADDCHARA LOCAL
 	設定中キャラ番号 = CHARANUM - 1
+	CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
 	IF 引き継ぎ中フラグ && LOCAL != 0
 		FOR LOCAL:1, 0, 500
 			IF キャラ変数引き継ぎ:(LOCAL:1):キャラ番号 == 設定中キャラ番号
@@ -132,15 +144,15 @@ NEXT
 
 ;引き継ぎランダムキャラの追加
 IF 引き継ぎ中フラグ
-	FOR LOCAL, 0, 100
+	FOR LOCAL, 0, 従業員初期値最大記録数
 		SIF MATCH(引き継いだランダムキャラ, LOCAL) > 0
 			CONTINUE
-		IF 従業員初期値引き継ぎ:LOCAL != ""
+		IF 従業員初期値記録:LOCAL != ""
 			VARSET 大分割文字列
 			VARSET 小分割文字列
 			ADDCHARA 999
 			設定中キャラ番号 = CHARANUM - 1
-			SPLIT 従業員初期値引き継ぎ:LOCAL, "^^^", 大分割文字列
+			SPLIT 従業員初期値記録:LOCAL, "^^^", 大分割文字列
 			;弱点
 			FOR LOCAL:1, 0, 500
 				IF キャラ変数引き継ぎ:(LOCAL:1):キャラ番号 == LOCAL * -1
@@ -196,6 +208,8 @@ IF 引き継ぎ中フラグ
 			基礎BATTLE_STATE:設定中キャラ番号:得意武器 = TOINT(小分割文字列:3)
 			CALL 初期ステータス設定_テンプレート適用(タイプ数値文字列変換(TOINT(小分割文字列:5)), 設定中キャラ番号)
 			知識素質:設定中キャラ番号:性知識 = TOINT(小分割文字列:7)
+			CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
+			CFLAG:設定中キャラ番号:招待不可フラグ = 0
 		ENDIF
 	NEXT
 ENDIF
@@ -209,6 +223,7 @@ SIF TALENT:MASTER:2 & 2
 スイートルーム部屋数 = 1
 開発済み料理名フラグ文字列 += "_"
 
+CALL ユニークキャラ親子関係セット
 CALL イベントデータベースセット
 CALL 戦闘用データベースセット
 IF 引き継ぎ中フラグ
@@ -239,6 +254,7 @@ IF 引き継ぎ中フラグ
 	DT_FROMXML "所持アイテムデータベース", LOCALS:1, LOCALS:0
 
 	所持制服文字列 = %制服引き継ぎ%
+	所持エロ衣装文字列 = %エロ衣装引き継ぎ%
 	MONEY = 所持ルピ引き継ぎ
 	FOR LOCAL, 0, 100
 		あなた特殊能力:LOCAL = あなた特殊能力引き継ぎ:LOCAL
@@ -249,13 +265,6 @@ ELSE
 	CALL 耳飾りデータベースセット
 	CALL 衣装データベースセット
 	CALL 素材アイテムデータベースセット
-	CALL 食堂メニューデータベースセット
-	CALL 写真データベースセット
-	CALL 乗機データベースセット
-	CALL 所持兵器データベースセット
-	CALL 従業員業務用マップセット
-	CALL 自動探索用マップセット
-	CALL 体位モードデータベースセット
 
 	CALL 制服登録処理("バニー服")
 	CALL 制服登録処理("メイド服")
@@ -270,6 +279,15 @@ ELSE
 	身体項目表示切り替えOPTION = 7
 	VARSET オート射精先オプション, -1
 ENDIF
+
+CALL 食堂メニューデータベースセット
+CALL 写真データベースセット
+CALL 乗機データベースセット
+CALL 所持兵器データベースセット
+CALL 従業員業務用マップセット
+CALL 自動探索用マップセット
+CALL 体位モードデータベースセット
+
 CALL 素材アイテム登録処理
 
 従業員キャラ上限 = 2
@@ -310,6 +328,7 @@ FLAG:従業員数 = 1
 DAY = 1
 FLAG:ZP所持量 = 1
 汎用喘ぎ使用OPTION = 3
+汎用喘ぎ使用OPTION_男 = 0
 CALL 最大レベル算出保存
 VARSET 同時モード_選択キャラ, -1
 
@@ -335,6 +354,21 @@ VARSET ＤＭキャラ招待
 
 PRINTW パラメータの初期化処理が終了しました
 
+;呼び出し設定
+PRINTL
+PRINTW キャラクターの招待制御オプションを呼び出します。
+PRINTL
+CALL OPTION_招待切り替え
+PRINTL
+PRINTW このオプションはゲーム開始後もOPTIONから呼び出すことが出来ます。
+
+;呼び出し設定
+PRINTL
+PRINTW 登場制限キャラクターの登場オプションを呼び出します。
+PRINTL
+CALL OPTION_キャラ制限初期切り替え
+PRINTL
+
 ;素質設定
 PRINTL
 PRINTW 素質の切り替えオプションを呼び出します。
@@ -359,13 +393,14 @@ CALL シナリオ_OP
 初期設定中 = 0
 IF 引き継ぎ中フラグ
 	;使用する変数を掃除
+	VARSET 周回回数累計_退避
 	VARSET キャラ変数引き継ぎ
 	VARSET キャラ文字列引き継ぎ
 	制服引き継ぎ = 
 	所持ルピ引き継ぎ = 0
 	VARSET 引き継ぎキャラ番号
 	VARSET あなた特殊能力引き継ぎ
-	VARSET 従業員初期値引き継ぎ
+	VARSET 従業員初期値記録_退避
 	引き継ぎ中フラグ = 0
 ENDIF
 BEGIN SHOP
@@ -491,6 +526,9 @@ IF 引き継ぎキャラフラグ == 0
 		従業員追加中フラグ = 0
 	ELSEIF !BASE:ARG:身長 || (!BASE:ARG:バスト && TALENT:ARG:性別 != 2)
 		CALL INIT_BODYSIZE(ARG)
+	ELSEIF BASE:ARG:身長
+		;身長があるなら体格の設定
+		CALL INIT_BODYTALENT(ARG)
 	ENDIF
 
 	;画像フォルダで有効なものを探す
@@ -530,8 +568,8 @@ ELSE
 		同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
 		LOCAL:1 += 1
 	NEXT
-
 ENDIF
+
 
 ;引き継ぎバグ対応のため関係性はリセットしてあるので、全員セットし直す
 CALL SET_RELATION(ARG)
@@ -875,7 +913,7 @@ NEXT
 ;素質によって体力を加算減算する
 SIF GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:処女 == 0
 	体力計算値 += 200
-SIF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:童貞 > 0
+SIF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:非童貞 > 0
 	体力計算値 += 200
 体力計算値 += TALENT:キャラ番号:度胸 * 50
 SIF TALENT:キャラ番号:精神的余裕 > 0
@@ -1454,8 +1492,10 @@ SIF TALENT:キャラ番号:エルーン耳
 	LOCALS += " （エルーン耳）"
 SIF TALENT:キャラ番号:ハーヴィン耳
 	LOCALS += " （ハーヴィン耳）"
-SIF TALENT:キャラ番号:発情期あり
+SIF TALENT:キャラ番号:発情期あり > 0
 	LOCALS += " （発情期あり）"
+SIF TALENT:キャラ番号:発情期あり < 0
+	LOCALS += " （発情期なし）"
 LOCALS += "<br>"
 LOCALS += "　性別："
 IF TALENT:キャラ番号:性別 == 1
@@ -1464,11 +1504,11 @@ IF TALENT:キャラ番号:性別 == 1
 		LOCALS += "（処女）"
 ELSEIF TALENT:キャラ番号:性別 == 2
 	LOCALS += "男性"
-	SIF TALENT:キャラ番号:童貞 == 0
+	SIF TALENT:キャラ番号:非童貞 == 0
 		LOCALS += "（童貞）"
 ELSEIF TALENT:キャラ番号:性別 == 3
 	LOCALS += "ふたなり"
-	SIF TALENT:キャラ番号:童貞 == 0
+	SIF TALENT:キャラ番号:非童貞 == 0
 		LOCALS += "(童貞)"
 	SIF TALENT:キャラ番号:処女
 		LOCALS += "（処女）"
@@ -1483,8 +1523,6 @@ LOCALS += "<br>"
 
 IF TALENT:キャラ番号:性別 & 2
 	PRINTFORM 　男性器サイズ：%GET_TALENTNAME(162,TALENT:キャラ番号:男性器サイズ)%
-	SIF TALENT:キャラ番号:男性器サイズ == 0
-		PRINT 平凡
 	PRINTL
 ENDIF
 LOCALS += "<br>"
