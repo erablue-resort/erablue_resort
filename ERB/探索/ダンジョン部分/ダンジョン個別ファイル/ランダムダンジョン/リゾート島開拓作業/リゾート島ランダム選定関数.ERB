@@ -1,21 +1,46 @@
 ﻿
 @ランダムエネミーセット関数
+#DIM 対象エネミー
+
+FOR LOCAL, 0, 4
+	;基本４体、数字が被ったら減る
+	対象エネミー = RAND:10
+	CALL ランダムエネミーステータス設定(対象エネミー)
+NEXT
 
 @ランダムエネミーステータス設定(対象エネミー)
 #DIM 対象エネミー
+#DIMS 関数名
 
-;Lvと名前からステータスを計算して入れ込む
+敵BATTLE_STATE:対象エネミー:Lv = LIMIT(RAND:5 - 2 + ランダムダンジョン階層記録, 1, 80)
+敵BATTLE_STATE:対象エネミー:ランダムエネミーフラグ = 1
+
+;種族決定
+LOCAL = ENUMFUNCBEGINSWITH("敵BATTLE_STATE_ランダム_")
+関数名 = %RESULTS:(RAND:LOCAL)%
+敵BATTLE_STATE_STR:対象エネミー:エネミー名 = Lv{敵BATTLE_STATE:対象エネミー:Lv}_%REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
+敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー = %REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
+CALLFORM %関数名%(対象エネミー)
 
 @ランダムエネミー討伐後処理(対象エネミー)
 #DIM 対象エネミー
 
-;トレハン用のデバフデータベースは対象エネミー+10なことに注意
+TRYCALLFORM 敵討伐後処理_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%(対象エネミー + 10)
 
 @ランダムエネミーチャージ行動処理(対象エネミー)
 #DIM 対象エネミー
-
+TRYCCALLFORM 敵チャージ行動_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%
+	敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
+	CALL アビテンプレート用_表示メッセージ変換処理
+	CALL メッセージ欄表示用関数(,,,0)
+	CALL 行動済みフラグチェック処理(戦闘行動キャラ)
+CATCH
+ENDCATCH
 
 @ランダムエネミートリガー行動処理(対象エネミー)
 #DIM 対象エネミー
+RESULT = 0
+TRYCALLFORM 敵トリガー行動_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%
+RETURN RESULT
 
 

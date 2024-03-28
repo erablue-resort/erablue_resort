@@ -2,6 +2,7 @@
 #DIM 味方生存チェック
 
 ;ダンジョン入場時処理
+CALL TURN_RESET
 ダンジョン表示モード = マップ画面
 ダンジョン終了フラグ = 0
 ダンジョン名 = %ARGS%
@@ -223,7 +224,11 @@ HTML文字列受け渡し = %LOCALS%
 ;基礎情報
 GSETPEN レイヤー番号, 0x00FFFFFF, -1
 LOCALS = %月算出()%
-GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+IF ランダムダンジョン階層記録
+	GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名% {ランダムダンジョン階層記録}階層", 32, 7
+ELSE
+	GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+ENDIF
 
 CALL リソース登録(@"ダンジョン_1", レイヤー番号)
 
@@ -571,10 +576,19 @@ FOR ループ用, 0, 14
 		CSTR:LOCAL:ダンジョン突入前の服 '= ""
 	ENDIF
 NEXT
+EXP:MASTER:探索経験 += 探索中全体カウント:累積勝利数
+FOR ループ用, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	IF BATTLE_STATE:ループ用:0
+		EXP:(BATTLE_STATE:ループ用:0):探索経験 += 探索中全体カウント:累積勝利数
+		CALL SOURCE_CALC_好感度要素_信頼度UP(BATTLE_STATE:ループ用:0, PLAYER, 50 * 探索中全体カウント:累積勝利数)
+	ENDIF
+NEXT
 PRINTW あなたとパーティメンバーの探索経験が増加しました
 
 ;一時変数のリセット
-VARSET ダンジョン内一時変数:0
+VARSET ダンジョン内一時変数
 ダンジョン名 = 
 サイド描画_ダンジョンログ保存 = 
 サイド描画縦スクロール保存 = 0
@@ -585,6 +599,10 @@ VARSET 探索中カウント:0:0
 VARSET 探索中全体カウント
 
 ダンジョン表示モード = 
+ランダムダンジョン階層記録 = 0
+
+;探索中のみアイテムを削除
+CALL アイテム削除処理("即席オールポーション")
 
 @踏破マス開放処理
 #DIM マス数値仮受

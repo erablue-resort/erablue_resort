@@ -1,0 +1,69 @@
+﻿
+@アイテム個別文章表示_火の魔石(ARGS)
+VARSET LOCALS
+CALL 口上変数初期化
+
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 2000
+ENDIF
+
+
+LOCALS += @"■火の魔石　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "火の魔石")}<br>"
+;LOCALS +="－－－－－－－－－－－－－－－－－－－－－－－－－－－－<br>" 改行目安
+LOCALS += "火の魔力を多く含んだ魔石。<br>"
+LOCALS += "起動すると付近の魔力に応じた炎を噴出させる。<br>"
+LOCALS += "効果範囲は狭いが、使い手次第で威力を高められるため有用な<br>"
+LOCALS += "攻撃道具である。<br>"
+LOCALS += "<br>"
+LOCALS:1 += "【効果】<br>"
+LOCALS:1 += "敵単体へ[ＰＴの最大レベル✕５０]のダメージを与える。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%%LOCALS:1%
+KSTR:(K++) = %LOCALS:1%
+
+@アイテム使用先表示_火の魔石
+CALL 汎用使用先表示("敵単体")
+
+@アイテム効果処理_火の魔石(ARG)
+#DIM レベル記録
+;ARG = エネミーが何番目か、10からカウント
+CALL 口上変数初期化
+
+IF 戦闘行動内容 != 10
+	PRINTW 戦闘中でない時は使用出来ません
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "火の魔石") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF 敵BATTLE_STATE_STR:(ARG - 10):エネミー名 == ""
+	PRINTW 対象が不正です
+	RETURN 0
+ENDIF
+
+レベル記録 = 0
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:0 < 1
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:Lv > レベル記録
+		レベル記録 = BATTLE_STATE:LOCAL:Lv
+NEXT
+
+NSTR:(K++) = %敵BATTLE_STATE_STR:(ARG - 10):エネミー名%に
+KSTR:(K++) = {レベル記録 * 50}のダメージ！
+敵BATTLE_STATE:(ARG - 10):ＨＰ = MAX(敵BATTLE_STATE:(ARG - 10):ＨＰ - (レベル記録 * 50), 0)
+IF 敵BATTLE_STATE:(ARG - 10):ＨＰ < 1
+	KSTR:(K++) = %敵BATTLE_STATE_STR:(ARG - 10):エネミー名%は倒れた！
+	CALL 戦闘不能時処理(ARG)
+ENDIF
+CALL メッセージ欄表示用関数()
+
+CALL アイテム増減汎用処理("火の魔石", -1)
+
+RETURN 1
