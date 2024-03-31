@@ -1,0 +1,206 @@
+﻿@キャラ履歴表示画面(ARG)
+#DIM イベント件数
+#DIM 人物ID
+#DIM 検索リザルトID, 1000
+#DIMS フィルタ
+;#DIM 履歴現在ページ
+#DIM 表示行数 = 20; 履歴の表示行数
+;#DIM 履歴表示フィルタ
+;ここで立ち絵表示
+CALL 画像描画終了
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(ARG)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
+ENDIF
+PRINTFORM ■%NAME:ARG%
+PRINTL
+IF ARG != PLAYER
+	PRINT 　
+	CALL 通常時体力ゲージ表示(ARG)
+	PRINTL 
+	PRINT 　
+	CALL 通常時性欲ゲージ表示(ARG)
+	PRINTL 
+ENDIF
+PRINTL
+PRINTL □ 履歴 □---------------------------------------------------------------------
+
+フィルタ = 
+;フィルタリング条件を取り込んでいく,0日常1うふふ2探索3実績4リゾート5非うふふ6非実績7その他
+SIF GETBIT(履歴表示フィルタ, 0) == 1
+	フィルタ += @" AND DAILY <> 1 "
+SIF GETBIT(履歴表示フィルタ, 1) == 1
+	フィルタ += @" AND ADULT <> 1 "
+SIF GETBIT(履歴表示フィルタ, 2) == 1
+	フィルタ += @" AND QUEST <> 1 "
+SIF GETBIT(履歴表示フィルタ, 3) == 1
+	フィルタ += @" AND TROPHY <> 1 "
+SIF GETBIT(履歴表示フィルタ, 4) == 1
+	フィルタ += @" AND HISTORY <> 1 "
+SIF GETBIT(履歴表示フィルタ, 5) == 1
+	フィルタ += @" AND ADULT <> 0 "
+SIF GETBIT(履歴表示フィルタ, 6) == 1
+	フィルタ += @" AND TROPHY <> 0 "
+SIF GETBIT(履歴表示フィルタ, 7) == 1
+	フィルタ += @" AND OTHERS <> 1 "
+
+LOCAL = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
+フィルタ += @" AND LOOP >= {LOCAL} "
+
+;キャラIDがARGの人物または0(全体履歴)と一致する、かつフィルタ条件をみたす
+イベント件数 = DT_SELECT("履歴データベース", @"(キャラID = {CFLAG:ARG:人物番号} OR キャラID = 0)%フィルタ% ", "LOOP ASC, DATE ASC", 検索リザルトID)
+
+LOCALS = 
+IF イベント件数 > 表示行数
+	SIF 履歴現在ページ > 0
+		LOCALS += @"<div rect='0,2300,5000,200'><button value='900'>[900]前のページへ</button></div>"
+	SIF 履歴現在ページ < イベント件数 / (表示行数 + 1)
+		LOCALS += @"<div rect='1000,2300,5000,200'><button value='901'>[901]次のページへ</button></div>"
+ELSE 
+	履歴現在ページ = 0
+ENDIF
+
+
+LOCALS += @"<div rect='0,0,5000,2500'>"
+FOR LOCAL, 0 + (表示行数 * 履歴現在ページ), MIN((表示行数 * (履歴現在ページ + 1)), イベント件数)
+	LOCALS += @"%DT_CELL_GETS("履歴データベース", 検索リザルトID:LOCAL, "NOTE", 1)%"
+    LOCALS += @"<br>"
+    NEXT
+LOCALS += @"</div>"
+
+
+LOCALS += @"<div rect='0,2500,5000,300'>履歴表示フィルタ："
+
+SELECTCASE GETBIT(履歴表示フィルタ, 0); 日常
+	CASE 0
+		LOCALS += "<button value='1001'>[日常]</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1001'>[日常]</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 1); うふふ
+	CASE 0
+		LOCALS += "<button value='1002'>[うふふ]　</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1002'>[うふふ]　</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 3); 実績
+	CASE 0
+		LOCALS += "<button value='1004'>[実績]　</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1004'>[実績]　</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 4); リゾート
+	CASE 0
+		LOCALS += "<button value='1005'>[リゾート]</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1005'>[リゾート]</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 7); その他
+	CASE 0
+		LOCALS += "<button value='1008'>[その他]</button>"
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1008'>[その他]</button></font>"
+ENDSELECT
+
+LOCALS += "<br>　　　　　　　　　"
+
+SELECTCASE GETBIT(履歴表示フィルタ, 2); 探索
+	CASE 0
+		LOCALS += "<button value='1003'>[探索]</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1003'>[探索]</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 5); 非うふふ
+	CASE 0
+		LOCALS += "<button value='1006'>[非うふふ]</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1006'>[非うふふ]</button></font> / "
+ENDSELECT
+SELECTCASE GETBIT(履歴表示フィルタ, 6); 非実績
+	CASE 0
+		LOCALS += "<button value='1007'>[非実績]</button> / "
+	CASE 1
+		LOCALS += "<font color='#666666'><button value='1007'>[非実績]</button></font> / "
+ENDSELECT
+
+
+LOCALS += @"</div>"
+
+
+HTML_PRINT LOCALS, 1
+
+ 
+IF K < 18
+	FOR LOCAL, 0, 26 - K
+		PRINTL
+	NEXT
+ENDIF
+
+
+@履歴データベース作成
+;初期設定
+DT_CREATE "履歴データベース"
+DT_COLUMN_ADD "履歴データベース", "キャラID", 4
+DT_COLUMN_ADD "履歴データベース", "LOOP", 4
+DT_COLUMN_ADD "履歴データベース", "DATE", 4
+DT_COLUMN_ADD "履歴データベース", "NOTE"
+DT_COLUMN_ADD "履歴データベース", "DAILY", 1
+DT_COLUMN_ADD "履歴データベース", "ADULT", 1
+DT_COLUMN_ADD "履歴データベース", "QUEST", 1
+DT_COLUMN_ADD "履歴データベース", "TROPHY", 1
+DT_COLUMN_ADD "履歴データベース", "HISTORY", 1
+DT_COLUMN_ADD "履歴データベース", "OTHERS", 1 ;他フラグがないとき1で登録する
+
+
+@履歴データベース登録(登録キャラID, 履歴文字列, 特殊履歴タイプ = 0, 日常フィルタ = 0, うふふフィルタ = 0, 探索フィルタ = 0, 実績フィルタ = 0, リゾートフィルタ = 0, 周回 = -1, 日付 = 0)
+#DIM 登録キャラID; CFLAG::人物番号　0で全体履歴
+#DIM 周回
+#DIM 日付
+#DIM 日常フィルタ
+#DIM うふふフィルタ
+#DIM 探索フィルタ
+#DIM 実績フィルタ
+#DIM リゾートフィルタ
+#DIM その他フィルタ
+#DIMS 履歴文字列
+#DIM 特殊履歴タイプ; -1で日付非表示
+
+LOCALS = 
+
+;今日の周回日付を取得
+SIF 周回 == -1
+	周回 = 周回回数累計:0
+SIF 日付 == 0
+	日付 = DAY
+
+IF 特殊履歴タイプ == -1; 日付の非表示ができるようにする
+ELSE
+    IF 周回 > 0
+        LOCALS += @"{周回 + 1}周目 "
+    ENDIF
+
+    ;-2 空欄 -1 破線 (0 = DAY) 1以上で指定の日付
+    IF 日付 == -1
+        LOCALS += @"ーーーーーーーーーー"
+    ELSE
+        LOCALS += @"{日付 / 120 + 1}年目 %月登録:((日付 / 30) % 4)% {日付 % 30 + 1}日"
+    ENDIF
+	STRLENS LOCALS
+	FOR LOCAL, 0, 20 - RESULT:0
+		LOCALS += @" "
+	NEXT
+	LOCALS += "："
+ENDIF
+
+;任意の入力
+LOCALS += @"%履歴文字列%"
+
+
+;全フラグがないときその他フィルタをつける
+その他フィルタ = 0
+SIF 日常フィルタ == 0 && うふふフィルタ == 0 && 探索フィルタ == 0 && 実績フィルタ == 0 && リゾートフィルタ == 0
+	その他フィルタ = 1
+
+DT_ROW_ADD "履歴データベース", "キャラID", 登録キャラID, "LOOP", 周回, "DATE", 日付, "NOTE", @"%LOCALS%", "DAILY", 日常フィルタ, "ADULT", うふふフィルタ, "QUEST", 探索フィルタ, "TROPHY", 実績フィルタ, "HISTORY", リゾートフィルタ, "OTHERS", その他フィルタ
+
