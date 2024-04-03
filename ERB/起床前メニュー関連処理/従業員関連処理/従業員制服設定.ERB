@@ -30,6 +30,8 @@ FOR LOCAL, 0, 50
 	LOCALS += "]</button><br>"
 NEXT
 LOCALS += "<br>"
+LOCALS += "<button value='997'>[997] 制服改造</button>"
+LOCALS += "<br>"
 LOCALS += "<button value='998'>[998] 一括設定</button>"
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
@@ -53,6 +55,9 @@ SELECTCASE LOCAL
 		RETURN 0
 	CASE 998
 		CALL 従業員制服設定_切り替え(9999)
+		RESTART
+	CASE 997
+		CALL 従業員制服改造設定
 		RESTART
 	CASE 0 TO 49
 		CALL 従業員制服設定_切り替え(従業員一覧:LOCAL)
@@ -170,6 +175,126 @@ SELECTCASE LOCAL
 			CALL CLOTHES_RESET_TRAIN(ARG)
 		ENDIF
 		RETURN 0
+ENDSELECT
+LOOP 1
+
+@従業員制服改造設定(改造対象 = -1)
+#DIM 改造対象
+#DIMS 対象衣装名
+#DIMS 表示衣装
+#DIMS 制服一時配列, 100
+#DIMS 分割文字列配列, 2
+
+DRAWLINE
+PRINTL 従業員が着用する制服の設定を行います。
+PRINTL ※開発中のため、仕事が正しく挙動しないことがあります。
+DRAWLINE
+LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
+
+;現在いる従業員を一覧表示
+対象衣装名 '= ""
+IF フィールド展開:露出フィールド
+	表示衣装 '= 所持制服文字列 + 所持エロ衣装文字列
+ELSE
+	表示衣装 '= 所持制服文字列
+ENDIF
+SPLIT 表示衣装, "_", 制服一時配列
+LOCALS += "<div rect='156,156,1937,2812'>"
+FOR LOCAL, 0, 100
+	IF 制服一時配列:LOCAL == ""
+		BREAK
+	ENDIF
+	SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
+	IF GETNUM(制服改造, 分割文字列配列:1, 1) == -1
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>%分割文字列配列:1%</font>"
+	ELSEIF 改造対象 < 0 || 改造対象 == GETNUM(制服改造, 分割文字列配列:1, 1)
+		改造対象 = GETNUM(制服改造, 分割文字列配列:1, 1)
+		対象衣装名 '= 分割文字列配列:1
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>%分割文字列配列:1%</font> [設定中]"
+	ELSE
+		LOCALS += @"<button value='{GETNUM(制服改造, 分割文字列配列:1, 1)}'>%分割文字列配列:1%</button>"
+	ENDIF
+	LOCALS += "<br>"
+NEXT
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+LOCALS += "<div rect='2125,156,3675,2812'>"
+IF 改造対象 < 0
+	LOCALS += "改造可能な制服はありません<br>"
+ELSE
+	SIF !制服改造:改造対象:改造状況フラグ
+		CALLFORM 制服改造初期化_%対象衣装名%()
+	FOR LOCAL, 1, 23
+		IF EQUIPNAME_TIPS(LOCAL) != ""
+			LOCALS += @"<nonbutton title='%EQUIPNAME_TIPS(LOCAL)%'>%EQUIPNAME:LOCAL%"
+			LOCALS += @"<font color='#808080'>%"(?)", 24 - STRLENS(EQUIPNAME:LOCAL), LEFT%</font>"
+			LOCALS += "：</nonbutton>"
+		ELSE
+			LOCALS += @"%EQUIPNAME:LOCAL, 24, LEFT%："
+		ENDIF
+		RESULT = 1
+		CALLFORM 制服改造可_%対象衣装名%(LOCAL)
+		IF RESULT == 0
+			LOCALS += @"<font color='#808080'>この項目は改造できません</font>"
+		ELSEIF LOCAL == 9
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[ノーブラ]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[ブラ着用]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 2 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 2}'>[ニプレス]</button></font>"
+		ELSEIF LOCAL == 17
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[ノーパン]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[下着着用]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 2 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 2}'>[前張り]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 3 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 3}'>[ふんどし]</button></font>"
+		ELSE
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[なし]</button></font>"
+			LOCALS += @"<font color='#\@ 制服改造:改造対象:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[あり]</button></font>"
+		ENDIF
+		LOCALS += "<br>"
+	NEXT
+	LOCALS += "</div>"
+	LOCALS += "<div rect='2125,2662,3675,2812'>"
+	IF 制服改造:改造対象:改造状況フラグ > 0
+		LOCALS += @"%" " * 51%<button value='998'>[初期値に戻す]</button>　　　　"
+	ELSE
+		LOCALS += @"%" " * 51%<font color='#333333'>[初期値に戻す]</font>　　　　"
+	ENDIF
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+DO
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		FOR LOCAL, 1, CHARANUM
+			SIF TALENT:LOCAL:従業員 == 0
+				CONTINUE
+			SIF 現在制服:LOCAL:0 == "" || 現在制服:LOCAL:0 == "全裸"
+				CONTINUE
+			SIF GETNUM(制服改造, 現在制服:LOCAL:0, 1) == -1
+				CONTINUE
+			CALL CLOTHES_RESET_TRAIN(LOCAL)
+		NEXT
+		RETURN 0
+	CASE 998
+		CALLFORM 制服改造初期化_%対象衣装名%()
+		RESTART
+	CASE 0 TO 99
+		改造対象 = LOCAL
+		RESTART
+	CASE 1000 TO 1399
+		制服改造:改造対象:((LOCAL - 1000) / 10) = LOCAL % 10
+		制服改造:改造対象:改造状況フラグ = 1
+		RESTART
 ENDSELECT
 LOOP 1
 
