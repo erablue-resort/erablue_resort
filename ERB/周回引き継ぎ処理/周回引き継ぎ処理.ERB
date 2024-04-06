@@ -24,12 +24,19 @@ FOR LOCAL, 0, 引き継ぎ枠
 NEXT
 PRINTL
 IF ランダムキャラ引き継ぎフラグ
-	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在ON", 100
+	HTML_PRINT @"<button value='100'>[100] ランダムキャラの存在を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
 ELSE
-	PRINTBUTTON "[100] ランダムキャラの存在を引き継ぐ:現在OFF", 100
+	HTML_PRINT @"<button value='100'>[100] ランダムキャラの存在を<font color='#%カラーパレット_HTML("グレーアウト")%'>引き継ぐ</font> / 引き継がない</button>", 1
 ENDIF
 PRINT 　　
 PRINTBUTTON "[説明]", 101
+IF あなた引き継ぎフラグ
+	HTML_PRINT @"<button value='102'>[102] %CALLNAME:MASTER%の能力・履歴を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
+ELSE
+	HTML_PRINT @"<button value='102'>[102] %CALLNAME:MASTER%の能力・履歴を<font color='#%カラーパレット_HTML("グレーアウト")%'>引き継ぐ</font> / 引き継がない</button>", 1
+ENDIF
+PRINT 　　
+PRINTBUTTON "[説明]", 103
 PRINTL
 PRINTL
 PRINTBUTTON "[998] これで新しいゲームを開始する", 998
@@ -47,6 +54,16 @@ SELECTCASE LOCAL
 		PRINTL この周回中に存在したランダムキャラを、次周でも登場させます。
 		PRINTL ランダムキャラは従業員ではなくなり、ネームドキャラと同様に扱われます。
 		PRINTL このオプションをOFFにした場合でも個別に引き継ぎキャラに選んだ場合、次周に引き継がれます。
+		WAIT
+		RESTART
+	CASE 102
+		INVERTBIT あなた引き継ぎフラグ, 0
+		RESTART
+	CASE 103
+		DRAWLINE
+		PRINTFORML %CALLNAME:MASTER%のステータス、獲得した特殊能力、および履歴を引き継ぎます。
+		PRINTFORML 引き継いだ場合、%CALLNAME:MASTER%の履歴と引き継いでいないキャラクターの履歴の整合性が取れなくなります。
+		PRINTL 引き継ぎキャラとの履歴の整合性は保たれます。
 		WAIT
 		RESTART
 	CASE 999
@@ -214,9 +231,6 @@ SAVETEXT RESULTS:1, "dat/履歴DT_schema.txt"
 制服引き継ぎ = %所持制服文字列%
 エロ衣装引き継ぎ = %所持エロ衣装文字列%
 所持ルピ引き継ぎ = MONEY
-FOR LOCAL, 0, 100
-	あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
-NEXT
 LOCAL:1 = 0
 FOR LOCAL, 1, CHARANUM
 	キャラ変数引き継ぎ:(LOCAL):キャラ番号 = NO:LOCAL
@@ -230,8 +244,15 @@ FOR LOCAL, 1, CHARANUM
 	NEXT
 NEXT
 
+VARSET あなた特殊能力引き継ぎ
 ;あなたの退避
-SAVECHARA "あなた", "あなた", 0
+IF あなた引き継ぎフラグ
+	SAVECHARA "あなた", "あなた", 0
+	あなた引き継ぎ = 1
+	FOR LOCAL, 0, 100
+		あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
+	NEXT
+ENDIF
 
 ;選択したキャラの退避
 FOR LOCAL, 0, 10
