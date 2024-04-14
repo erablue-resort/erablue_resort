@@ -1,0 +1,204 @@
+﻿@服ERB生成処理
+#DIM 服構造保存, 30
+#DIM 表示番号, 20
+#DIMS 服名保存
+#DIM 服種別設定保存
+#DIM 編集モード
+
+
+LOCALS = 
+;左ウインドウ表示
+LOCALS += "<div rect='81,375,1937,2812' padding='75' border='31' bcolor='#C0C0C0'>"
+LOCALS += "<button value='100'>[100] 名前を設定する</button><br>"
+LOCALS += "<button value='101'>[101] 服種別を設定する</button><br>"
+LOCALS += "<br>"
+IF 服名保存 == ""
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 生成不能（名称未設定）</font><br>"
+ELSEIF MAXARRAY(服構造保存) < 1
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 生成不能（全裸状態）</font><br>"
+ELSEIF ENUMFUNCENDSWITH(@"CLOTHES_CHANGE_%服名保存%") > 0
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 生成不能（同名の服が存在）</font><br>"
+ELSE
+	LOCALS += "<button value='998'>[998] この設定で生成する</button><br>"
+ENDIF
+LOCALS += "<button value='999'>[999] 生成せず戻る</button><br>"
+LOCALS += "</div>"
+
+;右ウインドウ表示
+LOCALS += "<div rect='2050,375,3875,2812' padding='75' border='31' bcolor='#C0C0C0'>"
+LOCALS += @"%"■服名称", 24, LEFT%："
+IF 服名保存 == ""
+	LOCALS += "（未設定）"
+ELSE
+	LOCALS += 服名保存
+ENDIF
+LOCALS += "　　<button value='100'>[変更]</button><br>"
+LOCALS += @"%"■服種別設定", 24, LEFT%："
+SELECTCASE 服種別設定保存
+	CASE 0
+		LOCALS += "設定なし"
+	CASE 1
+		LOCALS += "制服として初期所持"
+	CASE 2
+		LOCALS += "エロ衣装として初期所持"
+ENDSELECT
+LOCALS += "　　<button value='101'>[変更]</button><br>"
+LOCALS += "-------------------------------------------------------------------------<br>"
+
+IF 編集モード == 0
+	LOCALS += "■上半身設定<br>"
+	VARSET 表示番号
+	表示番号 = 1,2,3,4,5,6,7,8,9,10,19,20,21
+ELSE
+	LOCALS += "■下半身設定<br>"
+	VARSET 表示番号
+	表示番号 = 11,12,13,14,15,16,17,18,19,20,22
+ENDIF
+
+FOR LOCAL, 1, 23
+	SIF !MATCH(表示番号, LOCAL)
+		CONTINUE
+	IF EQUIPNAME_TIPS(LOCAL) != ""
+		LOCALS += @"<nonbutton title='%EQUIPNAME_TIPS(LOCAL)%'>%EQUIPNAME:LOCAL%"
+		LOCALS += @"<font color='#808080'>%"(?)", 24 - STRLENS(EQUIPNAME:LOCAL), LEFT%</font>"
+		LOCALS += "：</nonbutton>"
+	ELSE
+		LOCALS += @"%EQUIPNAME:LOCAL, 24, LEFT%："
+	ENDIF
+	IF LOCAL == 9
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[ノーブラ]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[ブラ着用]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 2 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 2}'>[ニプレス]</button></font>"
+	ELSEIF LOCAL == 17
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[ノーパン]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[下着着用]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 2 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 2}'>[前張り]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 3 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 3}'>[ふんどし]</button></font>"
+	ELSE
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 0 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 0}'>[なし]</button></font>"
+		LOCALS += @"<font color='#\@ 服構造保存:LOCAL == 1 ? C0C0C0 # 333333\@'><button value='{1000 + LOCAL * 10 + 1}'>[あり]</button></font>"
+	ENDIF
+	LOCALS += "<br>"
+NEXT
+LOCALS += "</div>"
+LOCALS += "<div rect='2250,2975,3875,2812'>"
+IF 編集モード == 0
+	LOCALS += "<button value='200'>[200] 下半身設定へ</button>"
+ELSE
+	LOCALS += "<button value='200'>[200] 上半身設定へ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 28
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 100
+		DRAWLINE
+		PRINTL 服の名称を入力してください。
+		PRINTBUTTON "[変更せず戻る]", "変更せず戻る"
+		PRINTL
+		DRAWLINE
+		INPUTS
+		IF RESULTS != "変更せず戻る"
+			服名保存 = %RESULTS%
+			PRINTFORMW 服名称を「%服名保存%」に変更しました。
+		ENDIF
+	CASE 101
+		DRAWLINE
+		PRINTL 服の種別を設定してください。
+		DRAWLINE
+		FOR LOCAL, 0, 3
+			SELECTCASE LOCAL
+				CASE 0
+					LOCALS = 設定なし
+				CASE 1
+					LOCALS = 制服として初期所持
+				CASE 2
+					LOCALS = エロ衣装として初期所持
+			ENDSELECT
+			IF 服種別設定保存 == LOCAL
+				SETCOLOR カラーパレット("黄")
+				PRINTPLAINFORM [{LOCAL}] %LOCALS%
+				RESETCOLOR
+				PRINTL
+			ELSE
+				PRINTBUTTON @"[{LOCAL}] %LOCALS%", LOCAL
+				PRINTL
+			ENDIF
+		NEXT
+		PRINTL
+		PRINTBUTTON @"[999] 戻る", 999
+		PRINTL
+		BINPUT
+		IF RESULT != 999
+			服種別設定保存 = RESULT
+			SELECTCASE RESULT
+				CASE 0
+					LOCALS = 設定なし
+				CASE 1
+					LOCALS = 制服として初期所持
+				CASE 2
+					LOCALS = エロ衣装として初期所持
+			ENDSELECT
+			PRINTFORMW 服種別を「%LOCALS%」に変更しました。
+			IF 服種別設定保存 == 0
+				PRINTFORMW 設定なしの場合、入手処理を別に記述しない限りゲーム中に登場しないので注意してください。
+			ENDIF
+		ENDIF
+	CASE 200
+		INVERTBIT 編集モード, 0
+	CASE 999
+		VARSET 服構造保存
+		服名保存 = 
+		服種別設定保存 = 0
+		編集モード = 0
+		RETURN 0
+	CASE 998
+		;ERBファイル生成
+		CLEARLINE LINECOUNT
+		;記述データPRINT
+		PRINTFORML @CLOTHES_CHANGE_%服名保存%(キャラ番号)
+		PRINTL #DIM キャラ番号
+		PRINTL 
+		PRINTL ;一個前の服装を保持
+		PRINTFORML SIF CSTR:キャラ番号:着せ替え服 != "%服名保存%"
+		PRINTL 	CSTR:キャラ番号:脱ぐ前の服 = %CSTR:キャラ番号:着せ替え服%
+		PRINTL 
+
+		PRINTFORML CSTR:キャラ番号:着せ替え服 = %服名保存%
+		PRINTFORML CSTR:キャラ番号:着せ替え服追加名 = 
+		FOR LOCAL, 1, 23
+			PRINTFORML TEQUIP:キャラ番号:%EQUIPNAME:LOCAL% = {服構造保存:LOCAL}
+		NEXT
+		PRINTL
+
+		IF 服種別設定保存 == 1
+			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
+			PRINTFORML CALL 制服登録処理("%服名保存%")
+			PRINTL
+		ELSEIF 服種別設定保存 == 2
+			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
+			PRINTFORML CALL エロ衣装登録処理("%服名保存%")
+			PRINTL
+		ENDIF
+		PRINTL
+
+		OUTPUTLOG @"ERB_EDITFILE/CLOTHES_%服名保存%.ERB"
+		CLEARLINE LINECOUNT
+		PRINTL ERB_EDITFILEフォルダに出力しました。ERBフォルダに移動して再起動してください
+		WAIT
+
+		VARSET 服構造保存
+		服名保存 = 
+		服種別設定保存 = 0
+		編集モード = 0
+		RETURN 0
+	CASEELSE
+		服構造保存:((RESULT - 1000) / 10) = RESULT % 10
+ENDSELECT
+
+RESTART
