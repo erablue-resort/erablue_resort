@@ -1,0 +1,50 @@
+﻿@EVENTLOAD
+CALL RESET_GRAPH_2
+
+;-----------------------------------------------------------
+;空挺港エリア グラフ化
+;-----------------------------------------------------------
+@RESET_GRAPH_2
+#DIM 場所番号, 2
+#DIM 始点ノード
+#DIM 終点ノード
+#DIM DISTANCE_MAP2, MAX_NODE, MAX_NODE
+
+;各変数の初期化
+NODE_COUNT_MAP2 = 0
+VARSET NODE_MAP2, -1
+VARSET NODE_REVERSE_MAP2, -1
+VARSET DISTANCE_MAP2, WEIGHT_DISCONNECTED
+VARSET NEXT_MAP2, -1
+
+;ノードの定義
+FOR 場所番号:0, 0, MAX_LOCATION
+	SIF 存在しない移動先_2(場所番号:0)
+		CONTINUE
+	NODE_MAP2:NODE_COUNT_MAP2 = 場所番号:0
+	NODE_REVERSE_MAP2:(場所番号:0) = NODE_COUNT_MAP2
+	NODE_COUNT_MAP2 ++
+NEXT
+
+;ノードの距離の初期設定
+;隣接しているもののみ
+FOR 始点ノード, 0, NODE_COUNT_MAP2
+	場所番号:0 = NODE_MAP2:始点ノード
+	FOR 終点ノード, 0, NODE_COUNT_MAP2
+		SIF 始点ノード == 終点ノード
+			CONTINUE
+		場所番号:1 = NODE_MAP2:終点ノード
+		IF CAN_MOVE_2(場所番号:0, 場所番号:1) & 1
+			DISTANCE_MAP2:始点ノード:終点ノード = EDGE_WEIGHT_2(場所番号:0, 場所番号:1)
+			NEXT_MAP2:始点ノード:終点ノード = 終点ノード
+		ENDIF
+	NEXT
+NEXT
+
+CALL FLOYD_WARSHALL(NODE_COUNT_MAP2, DISTANCE_MAP2, NEXT_MAP2)
+
+@EDGE_WEIGHT_2(場所番号:0, 場所番号:1)
+#FUNCTION
+#DIM 場所番号, 2
+
+RETURNF 1
