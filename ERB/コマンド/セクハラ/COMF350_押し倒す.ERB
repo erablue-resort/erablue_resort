@@ -16,7 +16,7 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 
 @COM_TOOLTIP_350
 LOCALS = <br>■押し倒す<br>
-LOCALS += "あるいは抱き寄せる。すでに合意を得ている相手と性交渉を行うコマンド。<br>通常二人きり時のみだが、一緒に隠密時は同じ場所に他のキャラがいても二人きり扱いになる。"
+LOCALS += "あるいは抱き寄せる。すでに合意を得ている相手と性交渉を行うコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
 LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
@@ -30,16 +30,16 @@ ELSE
 		SIF TARGET:LOCAL <= 0
 			BREAK
 		CFLAG:(TARGET:LOCAL):うふふ = 1
+		IF 初体験日:(TARGET:LOCAL):初うふふ == 0
+			初体験日:(TARGET:LOCAL):初うふふ = DAY
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(TARGET:LOCAL)%とえっちをした</font><img src='えっちハート'>","うふふ")
+			CALL 履歴データベース登録(CFLAG:(TARGET:LOCAL):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%とえっちをした</font><img src='えっちハート'>","うふふ")
+			TCVAR:(TARGET:LOCAL):初うふふフラグ = 1
+		ENDIF
 	NEXT
 ENDIF
 CFLAG:MASTER:うふふ = 1
 
-IF 初体験日:TARGET:初うふふ == 0
-	初体験日:TARGET:初うふふ = DAY
-	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:TARGET%とえっちをした</font><img src='えっちハート'>","うふふ")
-	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%とえっちをした</font><img src='えっちハート'>","うふふ")
-	TCVAR:TARGET:初うふふフラグ = 1
-ENDIF
 
 ;3Pモード管理フラグを初期化
 FLAG:モード管理 = 0
@@ -66,18 +66,17 @@ SIF TCVAR:MASTER:馴れ合い強度 < 2
 	RETURN 0
 ;隠密中は本人の合意素質のみでOK
 IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
-	SIF !GETBIT(CFLAG:TARGET:1 , 0)
+	SIF !GETBIT(CFLAG:TARGET:関係性 , 0)
 		RETURN 0
-;合意がないとダメ
 ELSE
-	;非隠密時は二人きりでないとだめ
-	SIF GET_TARGETNUM() > 1
-		RETURN 0
-	SIF !GETBIT(CFLAG:TARGET:1 , 0)
-		RETURN 0
+	;非隠密時は全員陥落済みでないとだめ
+	FOR LOCAL,1,CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF 陥落チェック(TARGET:LOCAL) == 0
+			RETURN 0
+	NEXT
 ENDIF
-SIF GET_TARGETNUM() > 1 && TCVAR:MASTER:馴れ合い強度 < 3
-	RETURN 0
 ;睡眠中
 SIF CFLAG:睡眠
 	RETURN 0
