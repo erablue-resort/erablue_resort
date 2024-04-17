@@ -178,11 +178,9 @@ NEXT
 #DIM 寝る
 #DIM 起きる
 
-RESULT = 0
-TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝時刻")
+CALL CHARA_ROUTINE_STATUS(ARG, "就寝時刻")
 寝る = RESULT
-RESULT = 0
-TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "起床時刻")
+CALL CHARA_ROUTINE_STATUS(ARG, "起床時刻")
 起きる = RESULT
 
 ;時間設定ない場合は22時寝の8時起き
@@ -255,6 +253,8 @@ RETURNF TIME + DAY * 24 * 60
 RETURNF TIME + DAY * 1440 - ARG
 
 @CHARA_SLEEP, ARG
+#DIM 睡眠場所指定
+#DIM 睡眠マップ
 #DIM 睡眠場所
 #DIM 部屋割
 VARSET LOCAL
@@ -281,10 +281,13 @@ VARSET LOCAL
 ;	ENDIF
 ;ENDIF
 
-睡眠場所 = 0
 IF !CFLAG:ARG:睡眠
-	TRYCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "就寝場所")
-	睡眠場所 = RESULT
+	CALL CHARA_ROUTINE_STATUS(ARG, "就寝場所")
+	睡眠場所指定 = RESULT
+	IF 睡眠場所指定
+		睡眠マップ = RESULT:1
+		睡眠場所 = RESULT:2
+	ENDIF
 	CFLAG:ARG:同行 = 0
 	CFLAG:ARG:デート = 0
 	CFLAG:ARG:睡眠 = 1
@@ -307,12 +310,12 @@ IF !CFLAG:ARG:睡眠
 			PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
 		ENDIF
 	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
-		IF 睡眠場所 == 303
-			IF CFLAG:MASTER:現在位置 == 303 && CFLAG:MASTER:現在マップ種別 == 0
-				PRINTFORMW %CALLNAME:ARG%はこのままメインテントで眠るようだ。
+		IF 睡眠場所指定
+			IF CFLAG:MASTER:現在位置 == 睡眠場所 && CFLAG:MASTER:現在マップ種別 == 睡眠マップ
+				PRINTFORMW %CALLNAME:ARG%はこのまま%GETPLACENAME(睡眠マップ, 睡眠場所)%で眠るようだ。
 				TRYCALLFORM KOJO_EVENT_この場おやすみ_{NO:ARG}
 			ELSE
-				PRINTFORMW %CALLNAME:ARG%はメインテントで眠るようだ。
+				PRINTFORMW %CALLNAME:ARG%は%GETPLACENAME(睡眠マップ, 睡眠場所)%で眠るようだ。
 				TRYCALLFORM KOJO_EVENT_移動おやすみ_{NO:ARG}
 			ENDIF
 		ELSE
@@ -330,10 +333,10 @@ IF !CFLAG:ARG:睡眠
 	IF CFLAG:ARG:酔いすぎ == 1 || CFLAG:ARG:体力限界
 		;泥酔時は基本そのまま
 		;体力限界時はあなたが同じ部屋にいるはずなので運んだ後のはず
-	ELSEIF 睡眠場所
+	ELSEIF 睡眠場所指定
 		;寝る場所指定がある場合はそこへ
 		CFLAG:ARG:現在位置 = 睡眠場所
-		CFLAG:ARG:現在マップ種別 = 0
+		CFLAG:ARG:現在マップ種別 = 睡眠マップ
 	ELSE
 		;指定なしの場合、場所を宿泊エリアの個室に設定する
 		CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
@@ -397,7 +400,7 @@ IF CFLAG:ARG:睡眠
 		RETURN 0
 	ENDIF
 	PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
-	CALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, "初期位置")
+	CALL CHARA_ROUTINE_STATUS(ARG, "初期位置")
 	;起きても酩酊が残ってるなら二日酔い
 	SIF BASE:ARG:酩酊
 		CFLAG:ARG:酔いすぎ = 2
