@@ -249,6 +249,62 @@ RETURN 0
 ; 		ENDIF
 ; 	NEXT
 
+@入室不可処理
+#DIM ループ用
+#DIM 部屋主配列, 10
+
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 2
+		IF CFLAG:PLAYER:現在位置 >= 1000 && CFLAG:PLAYER:現在位置 <= 1049
+			LOCAL = CFLAG:PLAYER:現在位置 - 1000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
+							LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2
+					CALLF GETPLACENAME_2_10(CFLAG:PLAYER:現在位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら眠っているようだ…
+					CFLAG:PLAYER:現在マップ種別 = 2
+					CFLAG:PLAYER:現在位置 = 1
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					CALLF GETPLACENAME_2_10(CFLAG:PLAYER:現在位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					CFLAG:PLAYER:現在マップ種別 = 2
+					CFLAG:PLAYER:現在位置 = 1
+				ENDIF
+			ENDIF
+		ENDIF
+ENDSELECT
+
+
 ;-----------------------------------------------------------
 ;マップ描画処理
 ;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない

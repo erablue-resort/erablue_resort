@@ -1,4 +1,6 @@
 ﻿@EVENTTRAIN0
+#DIM 定住フラグ
+
 VARSET TARGET
 DRAWLINE
 CALL 招待キャラ来訪処理
@@ -13,14 +15,46 @@ FOR LOCAL,0,CHARANUM
 	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999  && !CFLAG:LOCAL:長期雇用
 		CFLAG:LOCAL:滞在期間 -= 1
 		IF CFLAG:LOCAL:滞在期間 == 0
-			;0になったら帰宅し滞在期間をマイナスに
-			PRINTFORML %CALLNAME:LOCAL%は滞在を終え、帰っていった
-			IF CFLAG:LOCAL:リゾート来訪回数 >= 3 && TALENT:LOCAL:常連 == 0
-				PRINTFORMW %CALLNAME:LOCAL%はリゾートへの来訪を重ね、［常連］になった！
-				TALENT:LOCAL:常連 = 1
+			定住フラグ = 0
+			IF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0 && TALENT:LOCAL:常連 && TALENT:LOCAL:定住者 == 0
+				;常連かつ定住者じゃない時、一定確率で定住を申し出る
+				;素質とかで確率を変動させたいけど、とりあえずは25％くらいで
+				;IF RAND:4 == 0
+				IF 1
+					PRINTFORML %CALLNAME:LOCAL%はこのリゾート島に定住を希望しているようだ。
+					PRINTL 定住を許可しますか？
+					PRINTBUTTON "[0] はい", 0
+					PRINTL
+					PRINTBUTTON "[1] いいえ", 1
+					PRINTL
+					BINPUT
+					IF RESULT == 0
+						PRINTFORML %CALLNAME:LOCAL%の定住を許可しました！
+						PRINTFORMW %CALLNAME:LOCAL%は居住区エリアの住宅街で暮らし始めました
+						TALENT:LOCAL:定住者 = 1
+						FOR LOCAL:1, 0, 50
+							IF 定住者部屋割り配列:(LOCAL:1) == ""
+								定住者部屋割り配列:(LOCAL:1) = {LOCAL}_
+								BREAK
+							ENDIF
+						NEXT
+						CALL 滞在者部屋割り配列削除処理(LOCAL)
+						定住フラグ = 1
+					ELSE
+						PRINTFORMW %CALLNAME:LOCAL%の定住を断りました
+					ENDIF
+				ENDIF
 			ENDIF
-			CALL 滞在終了時初期化(LOCAL)
-			CFLAG:LOCAL:滞在期間 = -1
+			IF 定住フラグ == 0
+				;0になったら帰宅し滞在期間をマイナスに
+				PRINTFORML %CALLNAME:LOCAL%は滞在を終え、帰っていった
+				IF CFLAG:LOCAL:リゾート来訪回数 >= 3 && TALENT:LOCAL:常連 == 0
+					PRINTFORMW %CALLNAME:LOCAL%はリゾートへの来訪を重ね、［常連］になった！
+					TALENT:LOCAL:常連 = 1
+				ENDIF
+				CALL 滞在終了時初期化(LOCAL)
+				CFLAG:LOCAL:滞在期間 = -1
+			ENDIF
 		ENDIF
 	ENDIF
 	;キャラ個別処理があれば呼び出す
