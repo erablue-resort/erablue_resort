@@ -1,0 +1,141 @@
+﻿
+@大規模エリア建設条件_居住区エリア(建築位置)
+#DIM 建築位置
+;一個まで
+SIF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0
+	RETURN 0
+;イベント見ること
+SIF イベント完了フラグ確認("居住区エリア建設解禁") < 1
+	RETURN 0
+
+RETURN 1
+
+@大規模エリア解説文章_居住区エリア
+LOCALS = 
+LOCALS += "※以下の文章はすべて開発中・未実装要素です。<br>"
+LOCALS += "リゾート島に人々が定住可能になるエリア。<br>"
+LOCALS += "定住者はリゾートの滞在枠を専有しないが、一日終了時のルピ収入も発生させない。<br>"
+LOCALS += "<br>"
+LOCALS += "・施設一覧<br>"
+LOCALS += "　■住宅街<br>"
+LOCALS += "　　定住者が寝泊まりする場所。キャラごとに個別の部屋を持つ。<br>"
+LOCALS += "　　一定以上仲が良いキャラ同士は同じ部屋に住むことがある。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+;建設値段を返す
+RETURN 2000000
+
+@MAP_VIEWING_2(AA)
+#DIMS REF AA, 0
+TRYCALLFORM MAP_RESORT_2_{TFLAG:マップ種別}(AA)
+
+@エリア情報登録_2(ARGS)
+SELECTCASE ARGS
+	CASE "エリア名"
+		TSTR:場所名受渡 = 居住区エリア
+	CASE "エリア移動可能場所"
+		RETURN 1
+ENDSELECT
+
+
+
+@MAP_RESORT_2_0(AA)
+#DIMS REF AA, 0
+#DIM MAP
+
+MAP = 0
+AA:(MAP++) = ┏━┓┏━━┓┏━┓┏━━┓┏━┓│　│┏━┓
+AA:(MAP++) = ┗━┛┗━━┛┗━┛┗━━┛┗━┛│　│┃02┃
+AA:(MAP++) = ┏━━┓┏━┓┏━━┓┏━┓┏━┓│　│┗━┛
+AA:(MAP++) = ┗━━┛┗━┛┗━━┛┗━┛┃　┃│　│┏━┓
+AA:(MAP++) = ┏━┓┏━━┓┏━┓┏━━┓┗━┛│　│┃　┃
+AA:(MAP++) = ┗━┛┃┏━┛┗━┛┗━━┛┏━┓│　│┃　┃
+AA:(MAP++) = ┏━┓┗┛　　　　　　┏━┓┃　┃│　│┃03┃
+AA:(MAP++) = ┃　┃┏━┓　住宅街　┗━┛┃　┃│　│┃　┃
+AA:(MAP++) = ┃　┃┗━┛　　　　　　┏┓┗━┛│　│┃　┃
+AA:(MAP++) = ┗━┛┏━━┓┏━┓┏━┛┃┏━┓│　│┗━┛
+AA:(MAP++) = ┏━┓┗━━┛┗━┛┗━━┛┗━┛│　│┏━┓
+AA:(MAP++) = ┃　┃┏━┓┏━━┓┏━┓┏━━┓│　│┃　┃
+AA:(MAP++) = ┗━┛┗━┛┗━━┛┗━┛┗━━┛│　│┃04┃
+AA:(MAP++) = ┏━┓┏━━┓┏━┓┏━━┓┏━┓│　│┃　┃
+AA:(MAP++) = ┗━┛┗━━┛┗━┛┗━━┛┗━┛│　│┗━┛
+AA:(MAP++) = ─────────────────┘　└───
+AA:(MAP++) = 　　　　　　　　　　　　　　　　　　01
+AA:(MAP++) = ─────────────────┐　┌───
+AA:(MAP++) = 　┏━━━━━━━┓┏━━━━━┓│　│
+AA:(MAP++) = 　┃　　　05　　　┃┃　　06　　┃│　│
+AA:(MAP++) = 　┗━━━━━━━┛┗━━━━━┛│　│
+AA:(MAP++) = 
+AA:(MAP++) = 01：住宅街前交差点
+AA:(MAP++) = 02：公園　　　　　03：地元向け商店　04：保育所
+AA:(MAP++) = 05：診療所　　　　06：郵便局
+
+
+
+
+@GETPLACENAME_2_0(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 1
+		TSTR:場所名受渡 = 住宅街前交差点
+	CASE 2
+		TSTR:場所名受渡 = 公園
+	CASE 3
+		TSTR:場所名受渡 = 地元向け商店
+	CASE 4
+		TSTR:場所名受渡 = 保育所
+	CASE 5
+		TSTR:場所名受渡 = 診療所
+	CASE 6
+		TSTR:場所名受渡 = 郵便局
+ENDSELECT
+
+@GETPLACENAME_2_10(ARG)
+#FUNCTION
+#DIMS 配列分解文字列, 2
+
+IF 定住者部屋割り配列:(ARG - 1000) == ""
+	LOCALS = 居住者なし
+ELSE
+	VARSET 配列分解文字列
+	SPLIT 定住者部屋割り配列:(ARG - 1000), "_", 配列分解文字列
+	IF STRCOUNT(定住者部屋割り配列:(ARG - 1000), "_") > 2
+		LOCALS = %CALLNAME:(TOINT(配列分解文字列:0))%他
+	ELSE
+		LOCALS = %CALLNAME:(TOINT(配列分解文字列:0))%
+	ENDIF
+ENDIF
+TSTR:場所名受渡 = 住宅街{ARG}番地：%LOCALS%
+
+
+@DRAW_MAP_BG_2_0(SLICED, 表示文字列)
+#DIMS REF 表示文字列
+#DIMS SLICED
+SELECTCASE SLICED
+	;ふつうの
+	CASEELSE
+		表示文字列 += @"%SLICED%"
+ENDSELECT
+
+
+
+@エリア来訪時イベント_2
+
+IF 居住区初来訪イベントフラグ == 0
+	DRAWLINE
+	PRINTL ［初来訪：居住区エリア］
+	DRAWLINE
+	PRINTW
+	PRINTFORMW %CALLNAME:PLAYER%は島を開拓し、空いたエリアに建設した居住区を訪れた。
+	PRINTFORMW 既に何人かの定住希望者が引っ越してきており、公園からは子供が遊ぶ声も聞こえてくる。
+	PRINTFORMW リゾートを大きくするには、地元産業が育つことも大事だ。
+	PRINTFORMW いつまでも外からの輸入に頼っていてはいくらルピがあっても足りやしない。
+	PRINTL 
+	PRINTFORMW 現状では小さな村でしかないが、今後発展していけば街と呼べるような規模にも育つだろう。※未実装です
+	PRINTL 
+	PRINTFORMW また、人が増えれば商業も活性化する。商業が活性化すれば人も増える。
+	PRINTFORMW 空艇港の商店通りを強化すれば、定住者が店を開いてくれることがあるかもしれない。※未実装です
+	PRINTFORMW 余裕があればそちらも開発を進めておこう。
+	居住区初来訪イベントフラグ = 1
+ENDIF

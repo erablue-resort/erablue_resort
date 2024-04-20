@@ -1,69 +1,72 @@
 ﻿;キャラが一日どう過ごすかをここで決定し、それに準ずる行動範囲を設定する。
 @移動ルーチンセット決定(ARG)
-#DIM ループ用
-#DIM ルーチン候補配列, 10
-#DIM ショッピング候補配列, 10
 
 移動ルーチン:ARG:ルーチンID = 
-移動ルーチン:ARG:マップ内ルーチンID = 
 移動ルーチン:ARG:PMルーチンID = 
-移動ルーチン:ARG:PMマップ内ルーチンID = 
 
 ;日付限定のイベントなどがあるかどうかをチェック
 ;イベント番号順に関数が存在するかを見る
-VARSET RESULTS
-VARSET RESULT
 IF 開催予定日取り == DAY
-	TRYCALLFORM MOVE_ROUTINE_%開催予定祭り名%(ARG, "参加判定")
-	;1が帰ってきたら参加なのでIDに入力
-	IF RESULT
-		移動ルーチン:ARG:ルーチンID = %開催予定祭り名%
-	ENDIF
+	TRYCCALLFORM MOVE_ROUTINE_%開催予定祭り名%(ARG, "参加判定")
+		;1が帰ってきたら参加なのでIDに入力
+		IF RESULT
+			移動ルーチン:ARG:ルーチンID = %開催予定祭り名%
+			CALLFORM ROUTINE_SCHEDULE_%開催予定祭り名%(ARG)
+			RETURN 0
+		ENDIF
+	CATCH
+	ENDCATCH
 ENDIF
-
-;イベントでルーチンが入ったなら関数を抜ける
-SIF 移動ルーチン:ARG:ルーチンID != ""
-	RETURN 0
-
 
 ;従業員の業務で居場所指定があるかどうかをチェック
 ;イベント番号順に関数が存在するかを見る
-VARSET RESULTS
-VARSET RESULT
-TRYCALLFORM MOVE_ROUTINE_業務_%現在仕事数字文字列変換(現在仕事:ARG:0)%(ARG, "参加判定")
-;1が帰ってきたら仕事なのでIDに入力して関数を抜ける
-IF RESULT
-	移動ルーチン:ARG:ルーチンID = 業務_%現在仕事数字文字列変換(現在仕事:ARG:0)%
-	RETURN 0
-ENDIF
+TRYCCALLFORM MOVE_ROUTINE_業務_%現在仕事数字文字列変換(現在仕事:ARG:0)%(ARG, "参加判定")
+	;1が帰ってきたら仕事なのでIDに入力して関数を抜ける
+	IF RESULT
+		移動ルーチン:ARG:ルーチンID = 業務_%現在仕事数字文字列変換(現在仕事:ARG:0)%
+		CALLFORM ROUTINE_SCHEDULE_業務_%現在仕事数字文字列変換(現在仕事:ARG:0)%(ARG)
+		RETURN 0
+	ENDIF
+CATCH
+ENDCATCH
 
-;キャラ個別移動関数があるかをチェック（未実装））
+;キャラ個別移動関数があるかをチェック（未実装）
 ;TRYCCALLFORM ～～～
-;	SIF RESULT
+;	IF RESULT
+;		移動ルーチン:ARG:ルーチンID = ～～～
+;		CALLFORM ROUTINE_SCHEDULE_～～～(ARG)
 ;		RETURN 0
+;	ENDIF
 ;CATCH
 ;ENDCATCH
 ;
-;キャラ個別でルーチンが入ったなら関数を抜ける
-;SIF 移動ルーチン:ARG:ルーチンID != ""
-;	RETURN 0
-
 ;午前と午後で違うルーチンのキャラも居ていいよね
-DO
+CALL 汎用移動ルーチン決定(ARG, GETNUM(移動ルーチン, "ルーチンID"))
+
 ;1/3の確率（実際はもう少し高い）で午前も午後も同じ行動をする
-IF 移動ルーチン:ARG:PMルーチンID != "" && !RAND:3
-	SWAP 移動ルーチン:ARG:ルーチンID, 移動ルーチン:ARG:PMルーチンID
-	SWAP 移動ルーチン:ARG:マップ内ルーチンID, 移動ルーチン:ARG:PMマップ内ルーチンID
-	BREAK
+IF !RAND:3
+	CALL 汎用移動ルーチン決定(ARG, GETNUM(移動ルーチン, "PMルーチンID"))
 ENDIF
 
-;最後に汎用移動ルーチンの選択
-;1:プールで遊ぶ、2:外で遊ぶ、3:遊戯室で遊ぶは常時発生
+;スケジュールの設定
+IF 移動ルーチン:ARG:PMルーチンID != ""
+	CALLFORM ROUTINE_SCHEDULE_AM_%移動ルーチン:ARG:ルーチンID%(ARG)
+	CALLFORM ROUTINE_SCHEDULE_PM_%移動ルーチン:ARG:PMルーチンID%(ARG)
+ELSE
+	CALLFORM ROUTINE_SCHEDULE_%移動ルーチン:ARG:ルーチンID%(ARG)
+ENDIF
+
+@汎用移動ルーチン決定(対象キャラ, ルーチンID格納先)
+#DIM 対象キャラ
+#DIM ルーチンID格納先
+#DIMS ルーチン候補配列, 10
+
+;プールで遊ぶ、外で遊ぶ、遊戯室で遊ぶは常時発生
 ;他は条件満たした時出現
 LOCAL = 3
-ルーチン候補配列:0 = 1
-ルーチン候補配列:1 = 2
-ルーチン候補配列:2 = 3
+ルーチン候補配列:0 '= "プールで遊ぶ"
+ルーチン候補配列:1 '= "外で遊ぶ"
+ルーチン候補配列:2 '= "遊戯室で遊ぶ"
 LOCAL:2 = 0
 IF ダンジョンクリアフラグ_沿岸部の森
 	FOR LOCAL:1, 3, 9
@@ -73,105 +76,51 @@ IF ダンジョンクリアフラグ_沿岸部の森
 		ENDIF
 	NEXT
 	IF LOCAL:2 > 0
-		ルーチン候補配列:LOCAL = 4
+		ルーチン候補配列:LOCAL '= "空艇港でショッピング"
 		LOCAL += 1
 	ENDIF
 ENDIF
-
-
-移動ルーチン:ARG:ルーチンID = %TOSTR(ルーチン候補配列:(RAND:LOCAL))%
-
-
-;選択箇所が改造済みならば更に分岐
-SELECTCASE 移動ルーチン:ARG:ルーチンID
-	CASE "1"
-		IF 施設改造度:15:0
-			;プールサイド、メインプール、ボールプール、流れるプールの４択
-			移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(RAND:4 + 3)%
-			;ハーヴィンはメインプールに行かない
-			SIF TALENT:ARG:種族 == 4 && 移動ルーチン:ARG:マップ内ルーチンID == "4"
-				移動ルーチン:ARG:マップ内ルーチンID = 5
-		ENDIF
-	CASE "2"
-		IF 施設改造度:3:0
-			;メインテント、バーベキューエリア、渓流エリア、サウナテントの４択
-			LOCAL = 4
-			;訓練場増築済みだと5択
-			SIF 施設改造度:3:8
-				LOCAL += 1
-			移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(RAND:LOCAL + 3)%
-			;釣り好きはキャンプ場にいると絶対渓流に行く
-			SIF 知識素質:ARG:釣り好き
-				移動ルーチン:ARG:マップ内ルーチンID = 5
-		ENDIF
-	CASE "3"
-		IF 施設改造度:5:0
-			;バーエリア、ボードゲームエリア、卓球場の３択
-			LOCAL = 3
-			;図書館増築済みだと4択
-			SIF 施設改造度:5:6
-				LOCAL += 1
-			移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(RAND:LOCAL + 3)%
-		ENDIF
-ENDSELECT
-
-SWAP 移動ルーチン:ARG:ルーチンID, 移動ルーチン:ARG:PMルーチンID
-SWAP 移動ルーチン:ARG:マップ内ルーチンID, 移動ルーチン:ARG:PMマップ内ルーチンID
-
-LOOP 移動ルーチン:ARG:ルーチンID == ""
-
-
-
-@脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-#FUNCTION
-#DIM マップ種別取得フラグ
-#DIM キャラ番号
-
-SIF マップ種別取得フラグ
-	RETURNF 0
-
-IF 施設改造度:7:0
-	;温泉改造済時
-	;他のルーチンと風呂場ルーチンが干渉しないよう、脱衣所に入る時点でインターバル時間をリセット
-	TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
-	IF TALENT:キャラ番号:性別 == 2
-		RETURNF 702
-	ELSE
-		RETURNF 802
-	ENDIF
+IF TALENT:対象キャラ:定住者
+	移動ルーチン:対象キャラ:ルーチンID格納先 = 居住区エリアで日常生活
+	LOCAL += 1
 ELSE
-	IF TALENT:キャラ番号:性別 == 2
-		RETURNF 7
-	ELSE
-		RETURNF 8
-	ENDIF
+	移動ルーチン:対象キャラ:ルーチンID格納先 '= ルーチン候補配列:(RAND:LOCAL)
 ENDIF
 
-@風呂場算出(キャラ番号, マップ種別取得フラグ)
-#FUNCTION
-#DIM マップ種別取得フラグ
-#DIM キャラ番号
 
-SIF マップ種別取得フラグ
-	RETURNF 0
+; IF TALENT:対象キャラ:定住者
+; 	ルーチン候補配列:LOCAL '= "居住区エリアで日常生活"
+; 	LOCAL += 1
+; ENDIF
 
-IF 施設改造度:7:0
-	;温泉改造済時
-	IF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
-		RETURNF TOINT(移動ルーチン:キャラ番号:風呂場ルーチンID)
-	ENDIF
+; 移動ルーチン:対象キャラ:ルーチンID格納先 '= ルーチン候補配列:(RAND:LOCAL)
 
-	TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(30, 60)
-	IF TALENT:キャラ番号:性別 == 2
-		移動ルーチン:キャラ番号:風呂場ルーチンID = %TOSTR(703 + RAND:6)%
-	ELSE
-		移動ルーチン:キャラ番号:風呂場ルーチンID = %TOSTR(803 + RAND:6)%
-	ENDIF
-	RETURNF TOINT(移動ルーチン:キャラ番号:風呂場ルーチンID)
+@キャラ就寝場所セット(ARG)
+SIF ARG == MASTER
+	RETURN
+;現在位置が自室なら泥酔や体力限界で自室に運ばれた可能性があるのでそのままにする
+SIF CFLAG:ARG:現在位置 == キャラクター部屋検索(ARG) && CFLAG:ARG:現在マップ種別 == 部屋検索_マップ種別
+	RETURN
+
+CALL CHARA_ROUTINE_STATUS(ARG, "就寝場所")
+IF RESULT
+	CFLAG:ARG:現在マップ種別 = RESULT:1
+	CFLAG:ARG:現在位置 = RESULT:2
 ELSE
-	IF TALENT:キャラ番号:性別 == 2
-		RETURNF 9 + RAND:2
-	ELSE
-		RETURNF 11 + RAND:2
-	ENDIF
+	CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+	CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
 ENDIF
+
+@CHARA_ROUTINE_STATUS(ARG, ARGS)
+IF ARGS == "就寝時刻" || ARGS == "就寝場所"
+	TRYCCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:PMルーチンID%(ARG, ARGS)
+		RETURN RESULT
+	CATCH
+	ENDCATCH
+ENDIF
+
+TRYCCALLFORM MOVE_ROUTINE_%移動ルーチン:ARG:ルーチンID%(ARG, ARGS)
+	RETURN RESULT
+CATCH
+ENDCATCH
+RETURN 0

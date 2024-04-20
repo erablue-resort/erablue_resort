@@ -1,58 +1,7 @@
 ﻿;------------------------------------------------------------------------------
-;汎用移動処理
+;汎用ルーチン プールで遊ぶ
 ;------------------------------------------------------------------------------
-@MOVE_ROUTINE_移動処理(キャラ番号, ARGS)
-#DIM キャラ番号
-VARSET RESULT
-VARSET LOCAL
-
-;まずルーチンから情報取得
-CALLFORM ROUTINE_PLAN_%ARGS%(キャラ番号, 1)
-LOCAL = RESULT
-CALLFORM ROUTINE_PLAN_%ARGS%(キャラ番号)
-LOCAL:1 = RESULT
-
-IF LOCAL:1 != 998 && CFLAG:キャラ番号:現在位置 == 999 && CFLAG:キャラ番号:現在マップ種別 == 0
-		CFLAG:キャラ番号:現在位置 = 1
-		CFLAG:キャラ番号:現在マップ種別 = 0
-ENDIF
-
-IF CFLAG:キャラ番号:現在マップ種別 == LOCAL
-	IF CFLAG:キャラ番号:現在位置 == LOCAL:1
-		;いるなら処理無し
-	ELSEIF LOCAL:1 == 999 && CFLAG:キャラ番号:現在位置 == キャラクター部屋検索(キャラ番号)
-		;いるなら処理無し
-	ELSEIF LOCAL:1 == 998
-		;でかけてるパターン
-		CFLAG:キャラ番号:現在位置 = 999
-		CFLAG:キャラ番号:現在マップ種別 = 0
-	ELSE
-		;いないならルーチン通りの場所へ向けて移動
-		IF LOCAL:1 == 999
-			CALL 自室移動処理(キャラ番号)
-		ELSE
-			CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(LOCAL:1, キャラ番号)
-			CALL 汎用移動処理(キャラ番号)
-		ENDIF
-		RETURN 1
-	ENDIF
-ELSE
-	CALLFORM エリア情報登録_{CFLAG:キャラ番号:現在マップ種別}("エリア移動可能場所")
-	IF CFLAG:キャラ番号:現在位置 == RESULT || CFLAG:キャラ番号:現在マップ種別 == 999
-		;マップ種別から違う場合は目的のマップへ移動
-		CALL 汎用マップ間移動処理(キャラ番号)
-	ELSE
-		CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(RESULT, キャラ番号)
-		CALL 汎用移動処理(キャラ番号)
-	ENDIF
-	RETURN 1
-ENDIF
-
-
-;------------------------------------------------------------------------------
-;汎用ルーチン 番号１：プールで遊ぶ
-;------------------------------------------------------------------------------
-@MOVE_ROUTINE_1(キャラ番号, ARGS)
+@MOVE_ROUTINE_プールで遊ぶ(キャラ番号, ARGS)
 #DIM キャラ番号
 #DIM 時間計算
 
@@ -60,119 +9,80 @@ SELECTCASE ARGS
 	CASE "起床時刻"
 		時間計算 = 480 - (TALENT:キャラ番号:早起き * 30)
 		RETURN 時間計算
-	
+
 	CASE "就寝時刻"
 		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
 		RETURN 時間計算
-	
+
+	CASE "就寝場所"
+		RETURN 0
+
 	CASE "初期位置"
 		CFLAG:キャラ番号:現在位置 = 6
 		CFLAG:キャラ番号:現在マップ種別 = 0
-	
-	CASE "移動処理"
-		CALL MOVE_ROUTINE_移動処理(キャラ番号, "1")
-		RETURN RESULT
 ENDSELECT
 
-@ROUTINE_PLAN_1(キャラ番号, マップ種別取得フラグ = 0)
-#DIM マップ種別取得フラグ
+@ROUTINE_SCHEDULE_プールで遊ぶ(キャラ番号)
 #DIM キャラ番号
+CALL ROUTINE_SCHEDULE_AM_プールで遊ぶ(キャラ番号)
+CALL ROUTINE_SCHEDULE_PM_プールで遊ぶ(キャラ番号)
 
-;時間ごとにどの場所にいるべきかを決定
-SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-	;9時より前はロビーにいる
-	CASE IS < 540
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;プールの前後１５分は着替え
-	CASE IS < 555
-		SIF マップ種別取得フラグ
-			RETURN 0
-		IF TALENT:キャラ番号:性別 == 2
-			RETURN 13
-		ELSE
-			RETURN 14
-		ENDIF
-	;12時まではプールにいる
-	CASE IS < 705
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 1500 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 15
-	;プールの前後１５分は着替え
-	CASE IS < 720
-		SIF マップ種別取得フラグ
-			RETURN 0
-		IF TALENT:キャラ番号:性別 == 2
-			RETURN 13
-		ELSE
-			RETURN 14
-		ENDIF
-	;13時半までは食堂にいる
-	CASE IS < 810
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;プールの前後１５分は着替え
-	CASE IS < 825
-		SIF マップ種別取得フラグ
-			RETURN 0
-		IF TALENT:キャラ番号:性別 == 2
-			RETURN 13
-		ELSE
-			RETURN 14
-		ENDIF
-	;18時まではプールにいる
-	CASE IS < 1065
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 1500 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 15
-	;プールの前後１５分は着替え
-	CASE IS < 1080
-		SIF マップ種別取得フラグ
-			RETURN 0
-		IF TALENT:キャラ番号:性別 == 2
-			RETURN 13
-		ELSE
-			RETURN 14
-		ENDIF
-	;19時半までは食堂にいる
-	CASE IS < 1170
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1185
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;21時までは風呂にいる
-	CASE IS < 1260
-		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1275
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;着替え後１５分はロビーに居る（早寝のキャラは即座に部屋に戻り、寝る）
-	CASE IS < 1290  - (TALENT:キャラ番号:早寝 > 0 ? 60 # 0)
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;寝るまでは自室にいる
-	CASEELSE
-		SIF マップ種別取得フラグ
-			RETURN 999
-		RETURN 999
-ENDSELECT
+@ROUTINE_SCHEDULE_AM_プールで遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
 
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
 
+;起床後はロビーへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "交流")
+スケジュール番号++
+
+;9時からプール
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 540 + TCVAR:キャラ番号:行動時間ゆらぎ, "プールで遊ぶ", "所要時間", "120")
+スケジュール番号++
+
+;12時の15分前(着替え時間)から食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 705 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+@ROUTINE_SCHEDULE_PM_プールで遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+スケジュール番号 = FIND_BLANK_SCHEDULE(キャラ番号)
+
+;13時半からプール
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 810 + TCVAR:キャラ番号:行動時間ゆらぎ, "プールで遊ぶ", "所要時間", "180")
+スケジュール番号++
+
+;18時の15分前(着替え時間)から食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1065 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ELSE
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;21時30分から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1290 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ENDIF
 
 
 ;------------------------------------------------------------------------------
-;汎用ルーチン 番号２：外で遊ぶ
+;汎用ルーチン 外で遊ぶ
 ;------------------------------------------------------------------------------
-@MOVE_ROUTINE_2(キャラ番号, ARGS)
+@MOVE_ROUTINE_外で遊ぶ(キャラ番号, ARGS)
 #DIM キャラ番号
 #DIM 時間計算
 
@@ -180,97 +90,87 @@ SELECTCASE ARGS
 	CASE "起床時刻"
 		時間計算 = 480 - (TALENT:キャラ番号:早起き * 30)
 		RETURN 時間計算
-	
+
 	CASE "就寝時刻"
 		時間計算 = 1290 - (TALENT:キャラ番号:早寝 * 60)
 		RETURN 時間計算
-	
+
 	CASE "就寝場所"
 		;キャンプ場の時、メインテントで眠る
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 303
-	
+		IF 施設改造度:3:0
+			RESULT:1 = 0
+			RESULT:2 = 303
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+
 	CASE "初期位置"
 		CFLAG:キャラ番号:現在位置 = 6
 		CFLAG:キャラ番号:現在マップ種別 = 0
-	
-	CASE "移動処理"
-		CALL MOVE_ROUTINE_移動処理(キャラ番号, "2")
-		RETURN RESULT
 ENDSELECT
 
-@ROUTINE_PLAN_2(キャラ番号, マップ種別取得フラグ = 0)
-#DIM マップ種別取得フラグ
+@ROUTINE_SCHEDULE_外で遊ぶ(キャラ番号)
 #DIM キャラ番号
+CALL ROUTINE_SCHEDULE_AM_外で遊ぶ(キャラ番号)
+CALL ROUTINE_SCHEDULE_PM_外で遊ぶ(キャラ番号)
 
-;時間ごとにどの場所にいるべきかを決定
-SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-	;9時より前はロビーにいる
-	CASE IS < 540
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;12時までは外にいる
-	CASE IS < 720
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 300 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 3
-	;13時半までは食堂にいる（キャンプ場改造済ならバーベキューエリア）
-	CASE IS < 810
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 304
-		RETURN 4
-	;18時までは外にいる
-	CASE IS < 1080
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 300 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 3
-	;19時半までは食堂にいる（キャンプ場改造済ならバーベキューエリア）
-	CASE IS < 1170
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 304
-		RETURN 4
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1185
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;21時までは風呂にいる
-	CASE IS < 1260
-		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1275
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;着替え後１５分はロビーに居る（早寝のキャラは即座に部屋に戻り、寝る）
-	CASE IS < 1290  - (TALENT:キャラ番号:早寝 > 0 ? 60 # 0)
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;寝るまでは自室にいる（キャンプ場改造済ならメインテント）
-	CASEELSE
-		IF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			SIF マップ種別取得フラグ
-				RETURN 0
-			RETURN 303
-		ENDIF
-		SIF マップ種別取得フラグ
-			RETURN 999
-		RETURN 999
-ENDSELECT
+@ROUTINE_SCHEDULE_AM_外で遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
 
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
 
+;起床後はロビーへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "交流")
+スケジュール番号++
+
+;9時から外へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 540 + TCVAR:キャラ番号:行動時間ゆらぎ, "外で遊ぶ", "所要時間", "120")
+スケジュール番号++
+
+;12時から食堂（キャンプ場改造済ならバーベキューエリア）
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "バーベキュー", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+@ROUTINE_SCHEDULE_PM_外で遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+スケジュール番号 = FIND_BLANK_SCHEDULE(キャラ番号)
+
+;13時半から外へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 810 + TCVAR:キャラ番号:行動時間ゆらぎ, "外で遊ぶ", "所要時間", "180")
+スケジュール番号++
+
+;18時から食堂（キャンプ場改造済ならバーベキューエリア）
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1080 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "バーベキュー", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室（キャンプ場改造済ならメインテント）
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩", "小分類", "キャンプ")
+	スケジュール番号++
+ELSE
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;21時30分から寝るまでは自室（キャンプ場改造済ならメインテント）
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1290 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩", "小分類", "キャンプ")
+	スケジュール番号++
+ENDIF
 
 
 ;------------------------------------------------------------------------------
-;汎用ルーチン 番号３：遊戯室で遊ぶ
+;汎用ルーチン 遊戯室で遊ぶ
 ;------------------------------------------------------------------------------
-@MOVE_ROUTINE_3(キャラ番号, ARGS)
+@MOVE_ROUTINE_遊戯室で遊ぶ(キャラ番号, ARGS)
 #DIM キャラ番号
 #DIM 時間計算
 
@@ -278,80 +178,80 @@ SELECTCASE ARGS
 	CASE "起床時刻"
 		時間計算 = 510 - (TALENT:キャラ番号:早起き * 30)
 		RETURN 時間計算
-	
+
 	CASE "就寝時刻"
 		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
 		RETURN 時間計算
-	
+
+	CASE "就寝場所"
+		RETURN 0
+
 	CASE "初期位置"
 		CFLAG:キャラ番号:現在位置 = 6
 		CFLAG:キャラ番号:現在マップ種別 = 0
-	
-	CASE "移動処理"
-		CALL MOVE_ROUTINE_移動処理(キャラ番号, "3")
-		RETURN RESULT
 ENDSELECT
 
-@ROUTINE_PLAN_3(キャラ番号, マップ種別取得フラグ = 0)
-#DIM マップ種別取得フラグ
+@ROUTINE_SCHEDULE_遊戯室で遊ぶ(キャラ番号)
 #DIM キャラ番号
+CALL ROUTINE_SCHEDULE_AM_遊戯室で遊ぶ(キャラ番号)
+CALL ROUTINE_SCHEDULE_PM_遊戯室で遊ぶ(キャラ番号)
 
-;時間ごとにどの場所にいるべきかを決定
-SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-	;9時より前はロビーにいる
-	CASE IS < 540
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;12時までは遊戯室にいる
-	CASE IS < 720
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 500 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 5
-	;13時半までは食堂にいる
-	CASE IS < 810
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;18時までは遊戯室にいる
-	CASE IS < 1080
-		SIF マップ種別取得フラグ
-			RETURN 0
-		SIF 移動ルーチン:キャラ番号:マップ内ルーチンID != ""
-			RETURN 500 + TOINT(移動ルーチン:キャラ番号:マップ内ルーチンID)
-		RETURN 5
-	;19時半までは食堂にいる
-	CASE IS < 1170
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1185
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;21時までは風呂にいる
-	CASE IS < 1260
-		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1275
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;着替え後１５分はロビーに居る（早寝のキャラは即座に部屋に戻り、寝る）
-	CASE IS < 1290  - (TALENT:キャラ番号:早寝 > 0 ? 60 # 0)
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	CASEELSE
-		SIF マップ種別取得フラグ
-			RETURN 999
-		RETURN 999
-ENDSELECT
+@ROUTINE_SCHEDULE_AM_遊戯室で遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
+
+;起床後はロビーへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "交流")
+スケジュール番号++
+
+;9時から遊戯室へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 540 + TCVAR:キャラ番号:行動時間ゆらぎ, "遊戯室で遊ぶ", "所要時間", "120")
+スケジュール番号++
+
+;12時から食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+@ROUTINE_SCHEDULE_PM_遊戯室で遊ぶ(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+スケジュール番号 = FIND_BLANK_SCHEDULE(キャラ番号)
+
+;13時半から遊戯室へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 810 + TCVAR:キャラ番号:行動時間ゆらぎ, "遊戯室で遊ぶ", "所要時間", "180")
+スケジュール番号++
+
+;18時から食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1080 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ELSE
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;21時30分から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1290 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ENDIF
 
 
 ;------------------------------------------------------------------------------
-;汎用ルーチン 番号４：空艇港でショッピング
+;汎用ルーチン 空艇港でショッピング
 ;------------------------------------------------------------------------------
-@MOVE_ROUTINE_4(キャラ番号, ARGS)
+@MOVE_ROUTINE_空艇港でショッピング(キャラ番号, ARGS)
 #DIM キャラ番号
 #DIM 時間計算
 
@@ -359,193 +259,135 @@ SELECTCASE ARGS
 	CASE "起床時刻"
 		時間計算 = 540 - (TALENT:キャラ番号:早起き * 30)
 		RETURN 時間計算
-	
+
 	CASE "就寝時刻"
 		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
 		RETURN 時間計算
-	
+
+	CASE "就寝場所"
+		RETURN 0
+
 	CASE "初期位置"
 		CFLAG:キャラ番号:現在位置 = 6
 		CFLAG:キャラ番号:現在マップ種別 = 0
-	
-	CASE "移動処理"
-		CALL MOVE_ROUTINE_移動処理(キャラ番号, "4")
-		RETURN RESULT
 ENDSELECT
 
-@ROUTINE_PLAN_4(キャラ番号, マップ種別取得フラグ = 0)
-#DIM マップ種別取得フラグ
+@ROUTINE_SCHEDULE_空艇港でショッピング(キャラ番号)
 #DIM キャラ番号
+CALL ROUTINE_SCHEDULE_AM_空艇港でショッピング(キャラ番号)
+CALL ROUTINE_SCHEDULE_PM_空艇港でショッピング(キャラ番号)
 
-;時間ごとにどの場所にいるべきかを決定
-SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-	;9時30分より前はロビーにいる
-	CASE IS < 570
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;12時までは店にいる
-	;１～２時間ごとに場所を変える
-	CASE IS < 720
-		SIF マップ種別取得フラグ
-			RETURN 1
-		RETURN ROUTINE_PLAN_4_ショッピング先決定関数(キャラ番号)
-	;13時半までは食事処、無いなら食堂にいる
-	CASE IS < 810
-		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
-		FOR LOCAL, 3, 9
-			IF 空艇港店舗状況:LOCAL:0 == 3
-				SIF マップ種別取得フラグ
-					RETURN 1
-				RETURN LOCAL
-			ENDIF
-		NEXT
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;18時までは店にいる
-	CASE IS < 1080
-		SIF マップ種別取得フラグ
-			RETURN 1
-		RETURN ROUTINE_PLAN_4_ショッピング先決定関数(キャラ番号)
-	;19時半までは食事処、無いなら食堂にいる
-	CASE IS < 1170
-		FOR LOCAL, 3, 9
-			IF 空艇港店舗状況:LOCAL:0 == 3
-				SIF マップ種別取得フラグ
-					RETURN 1
-				RETURN LOCAL
-			ENDIF
-		NEXT
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 4
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1185
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;21時までは風呂にいる
-	CASE IS < 1260
-		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1275
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;着替え後１５分はロビーに居る（早寝のキャラは即座に部屋に戻り、寝る）
-	CASE IS < 1290  - (TALENT:キャラ番号:早寝 > 0 ? 60 # 0)
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;寝るまでは自室にいる
-	CASEELSE
-		SIF マップ種別取得フラグ
-			RETURN 999
-		RETURN 999
-ENDSELECT
+@ROUTINE_SCHEDULE_AM_空艇港でショッピング(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
 
-@ROUTINE_PLAN_4_ショッピング先決定関数(ARG)
-#FUNCTION
-#DIM ショッピング候補配列, 10
-VARSET ショッピング候補配列
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
 
-IF TCVAR:ARG:移動ルーチンインターバル時間 > 0
-	RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
-ENDIF
+;起床後はロビーへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "交流")
+スケジュール番号++
 
-LOCAL:1 = 0
-FOR LOCAL, 3, 9
-	IF 空艇港店舗状況:LOCAL:0 > 0 && 空艇港店舗状況:LOCAL:0 != 3
-		ショッピング候補配列:(LOCAL:1) = LOCAL
-		LOCAL:1 += 1
-	ENDIF
-NEXT
-IF LOCAL:1
-	移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(ショッピング候補配列:(RAND:(LOCAL:1)))%
-	TCVAR:ARG:移動ルーチンインターバル時間 = RAND(60, 120)
-	RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
+;9時から店へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 540 + TCVAR:キャラ番号:行動時間ゆらぎ, "空艇港でショッピング", "所要時間", "120")
+スケジュール番号++
+
+;12時から食事処、無いなら食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "外食", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+@ROUTINE_SCHEDULE_PM_空艇港でショッピング(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+スケジュール番号 = FIND_BLANK_SCHEDULE(キャラ番号)
+
+;13時半から店へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 810 + TCVAR:キャラ番号:行動時間ゆらぎ, "空艇港でショッピング", "所要時間", "180")
+スケジュール番号++
+
+;18時から食事処、無いなら食堂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1080 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "外食", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
 ELSE
-	RETURNF 2
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;21時30分から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1290 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
 ENDIF
 
 
-@汎用移動処理(キャラ番号)
+
+;------------------------------------------------------------------------------
+;汎用ルーチン 居住区エリアで日常生活
+;------------------------------------------------------------------------------
+@MOVE_ROUTINE_居住区エリアで日常生活(キャラ番号, ARGS)
 #DIM キャラ番号
-;同じ部屋にいるなら移動先PRINT
-IF CFLAG:キャラ番号:同室 && !CFLAG:MASTER:睡眠
-	PRINTFORMW %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, RESULT)%】に移動した
-ENDIF
+#DIM 時間計算
 
-;移動処理
-CFLAG:キャラ番号:現在位置 = RESULT
+SELECTCASE ARGS
+	CASE "起床時刻"
+		時間計算 = 540 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
 
-;同じ部屋に来たならPRINT
-SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別 
-	PRINTFORMW %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
+	CASE "就寝時刻"
+		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
 
+	CASE "就寝場所"
+		RETURN 0
 
-@汎用マップ間移動処理(キャラ番号)
-;仮処理置き
-;マップ増やしたらちゃんと汎用化すること！！！！！！！！
-#DIM キャラ番号
-VARSET RESULT
-VARSET LOCAL
-
-;まずルーチンから情報取得
-CALLFORM ROUTINE_PLAN_%移動ルーチン:キャラ番号:ルーチンID%(キャラ番号, 1)
-LOCAL = RESULT
-CALLFORM ROUTINE_PLAN_%移動ルーチン:キャラ番号:ルーチンID%(キャラ番号)
-LOCAL:1 = RESULT
-
-;同じ部屋にいるなら移動先PRINT
-LOCALS = %マップエリア名取得(LOCAL)%
-SIF CFLAG:キャラ番号:同室 && !CFLAG:MASTER:睡眠
-	PRINTFORMW %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から【%LOCALS%】に移動した
-;移動処理
-CFLAG:キャラ番号:現在位置 = マップ移動初期位置(CFLAG:キャラ番号:現在マップ種別, LOCAL)
-SIF CFLAG:キャラ番号:現在位置 == 999
-	CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
-CFLAG:キャラ番号:現在マップ種別 = LOCAL
-;同じ部屋に来たならPRINT
-SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別 
-	PRINTFORMW %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
-
-
-@自室移動処理(キャラ番号)
-#DIM キャラ番号
-;既に自室ならスキップ
-IF CFLAG:キャラ番号:現在マップ種別 == 999 && CFLAG:キャラ番号:現在位置 == キャラクター部屋検索(キャラ番号)
-	RETURN 0
-ENDIF
-
-;同じ部屋にいるなら移動先PRINT
-SIF CFLAG:キャラ番号:同室 && !CFLAG:MASTER:睡眠
-	PRINTFORMW %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から自室に移動した
-;移動処理
-CFLAG:キャラ番号:現在マップ種別 = 999
-CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
-
-;同じ部屋に来たならPRINT
-SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:PLAYER:現在マップ種別 == 999
-	PRINTFORMW %CALLNAME:キャラ番号%が自室に戻って来た
-
-
-
-@マップ移動初期位置(移動前マップ, 移動後マップ)
-#FUNCTION
-#DIM 移動前マップ
-#DIM 移動後マップ
-
-SELECTCASE 移動後マップ
-	CASE 0
-		SELECTCASE 移動前マップ
-			CASE 999
-				RETURNF 6
-			CASEELSE
-				RETURNF 1
-		ENDSELECT
-	CASE 1
-		RETURNF 1
-	CASE 100
-		CALLFORMF マップ移動初期位置_%開催予定祭り名%(移動前マップ, 移動後マップ)
-		RETURNF RESULT
-	CASE 999
-		RETURNF 999
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = 1
+		CFLAG:キャラ番号:現在マップ種別 = 2
 ENDSELECT
+
+@ROUTINE_SCHEDULE_居住区エリアで日常生活(キャラ番号)
+#DIM キャラ番号
+CALL ROUTINE_SCHEDULE_AM_居住区エリアで日常生活(キャラ番号)
+CALL ROUTINE_SCHEDULE_PM_居住区エリアで日常生活(キャラ番号)
+
+@ROUTINE_SCHEDULE_AM_居住区エリアで日常生活(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
+
+;起床後は家でのんびり
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "休憩")
+スケジュール番号++
+
+;9時から店へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 540 + TCVAR:キャラ番号:行動時間ゆらぎ, "居住区でのんびり", "所要時間", "120")
+スケジュール番号++
+
+;12時になったら家に戻る
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "自炊", "所要時間", "60", "優先度", "4")
+スケジュール番号++
+
+@ROUTINE_SCHEDULE_PM_居住区エリアで日常生活(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+スケジュール番号 = FIND_BLANK_SCHEDULE(キャラ番号)
+
+;13時半から店へ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 810 + TCVAR:キャラ番号:行動時間ゆらぎ, "居住区でのんびり", "所要時間", "180")
+スケジュール番号++
+
+;18時から帰宅、家に寝るまでいる
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1080 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+スケジュール番号++

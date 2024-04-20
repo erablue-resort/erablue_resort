@@ -1,0 +1,172 @@
+﻿@大規模エリア建築メニュー処理
+
+DRAWLINE
+PRINTL リゾート島にある大規模な土地を開発します。
+PRINTL ※開発中のため、正しく挙動しないことがあります。
+DRAWLINE
+
+CALL リゾート遠景表示処理("")
+
+PRINT [999] 戻る
+
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASEELSE
+		CALL 大規模エリア建築実処理(LOCAL)
+ENDSELECT
+
+RESTART
+
+
+
+@リゾート遠景表示処理(処理モード)
+#DIMS エリア名
+#DIMS 処理モード
+#DIM ボタン数値
+
+LOCALS = <div rect='81,31,5900,3812' border='31' bcolor='#C0C0C0'><img src='リゾート遠景' height='3800' width='5900'></div>
+
+IF 処理モード == "移動処理"
+	IF CFLAG:MASTER:現在マップ種別 != 0
+		ボタン数値 = 0
+	ELSE
+		ボタン数値 = 999
+	ENDIF
+	エリア名 = リゾートエリア
+	LOCALS += @"<div rect='3200,2400,700,500'><button value='{ボタン数値}'><img src='リゾートハウス' height='500'></button></div>"
+	LOCALS += @"<div rect='3100,2830,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+ELSE
+	エリア名 = リゾートエリア
+	LOCALS += @"<div rect='3200,2400,700,500'><img src='リゾートハウス' height='500'></div>"
+	LOCALS += @"<div rect='3100,2830,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+ENDIF
+
+IF ダンジョンクリアフラグ_沿岸部の森
+	IF 処理モード == "移動処理"
+		IF CFLAG:MASTER:現在マップ種別 != 1
+			ボタン数値 = 1
+		ELSE
+			ボタン数値 = 999
+		ENDIF
+		エリア名 = 空艇港エリア
+		LOCALS += @"<div rect='2650,2900,700,500'><button value='{ボタン数値}'><img src='空艇港' height='500'></button></div>"
+		LOCALS += @"<div rect='2600,3330,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+	ELSE
+		エリア名 = 空艇港エリア
+		LOCALS += @"<div rect='2650,2900,700,500'><img src='空艇港' height='500'></div>"
+		LOCALS += @"<div rect='2600,3330,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+	ENDIF
+ENDIF
+
+IF 開拓エリア解放フラグ:0
+	IF 処理モード == "移動処理" 
+		IF CFLAG:MASTER:現在マップ種別 != 開拓エリア開発番号:0
+			ボタン数値 = 開拓エリア開発番号:0
+		ELSE
+			ボタン数値 = 999
+		ENDIF
+		IF 開拓エリア開発番号:0 == 0
+			エリア名 = ＊空きエリア＊
+			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+		ELSE
+			CALLFORM エリア情報登録_{開拓エリア開発番号:0}("エリア名")
+			エリア名 = %TSTR:場所名受渡%
+			LOCALS += @"<div rect='4250,2300,700,500'><button value='{ボタン数値}'><img src='%エリア名%' height='500'></button></div>"
+			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+		ENDIF
+	ELSE
+		ボタン数値 = 0
+		IF 開拓エリア開発番号:0 == 0
+			エリア名 = ＊空きエリア＊
+			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+		ELSE
+			CALLFORM エリア情報登録_{開拓エリア開発番号:0}("エリア名")
+			エリア名 = %TSTR:場所名受渡%
+			LOCALS += @"<div rect='4250,2300,700,500'><img src='%エリア名%' height='500'></div>"
+			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+		ENDIF
+	ENDIF
+ENDIF
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+DRAWLINE
+
+
+@大規模エリア建築実処理(建築位置)
+#DIMS エリア名
+#DIM 建築位置
+#DIM 候補数
+#DIM 必要ルピ
+
+;候補を表示
+DRAWLINE
+PRINTL このエリアに建設する大規模エリアを選んでください
+DRAWLINE
+LOCALS = <div rect='81,0,5900,2012' padding='75' border='31' bcolor='#C0C0C0'>
+LOCALS += "</div>"
+
+VARSET RESULTS
+LOCAL:1 = 0
+候補数 = ENUMFUNCBEGINSWITH("大規模エリア建設条件_")
+FOR LOCAL, 0, 候補数
+	CALLFORM %RESULTS:LOCAL%(建築位置)
+	SIF RESULT == 0
+		CONTINUE
+	エリア名 = %REPLACE(RESULTS:LOCAL, "大規模エリア建設条件_", "")%
+	LOCALS += @"<div rect='{LOCAL * 1000 + 356},{LOCAL / 5 * 800 + 155},600,500'><button value='{LOCAL}'><img src='%エリア名%' height='500'></button></div>"
+	LOCALS += @"<div rect='{LOCAL * 1000 + 106 + (20 - STRLENS(エリア名)) * 25},{LOCAL / 5 * 800 + 585},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{LOCAL}'>%エリア名%</button></div>"
+NEXT
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 18
+	PRINTL
+NEXT
+DRAWLINE
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASEELSE
+		エリア名 = %REPLACE(RESULTS:LOCAL, "大規模エリア建設条件_", "")%
+		CALLFORM 大規模エリア解説文章_%エリア名%
+		必要ルピ = RESULT
+		DRAWLINE
+		PRINTFORML ──%エリア名%──
+		PRINTL
+		HTML_PRINT 詳細文文字列受け渡し変数
+		PRINTL
+		DRAWLINE
+		IF MONEY < 必要ルピ
+			PRINTFORML 「%エリア名%」を建設しますか？
+			PRINTFORML 必要ルピ：%NUM_FORMAT(必要ルピ)%ルピ
+			PRINTL
+			PRINTW ルピが足りません。
+		ELSE
+			PRINTFORML 「%エリア名%」を建設しますか？
+			PRINTFORML 必要ルピ：%NUM_FORMAT(必要ルピ)%ルピ
+			PRINTBUTTON "[0] はい", 0
+			PRINTL
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				MONEY -= 必要ルピ
+				PRINTFORMW 空きエリアに「%エリア名%」を建設しました。
+				開拓エリア開発番号:0 = GETVAR(@"大規模番号_%エリア名%")
+				RETURN 0
+			ENDIF
+		ENDIF
+ENDSELECT
+
+RESTART

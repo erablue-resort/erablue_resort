@@ -22,21 +22,8 @@ ENDIF
 SIF !TALENT:ARG:処女
 	RETURN 0
 RCVAR:ARG:破瓜 = 1
+RCVAR:ARG:破瓜_相手番号 = ARG:1
 VARSET LOCAL
-;ビデオ撮影処理
-IF TEQUIP:ARG:28
-	;性交
-	IF ARG:2 == 1
-		LOCALS = LV1/
-	;バイブ
-	ELSEIF ARG:2 == 2
-		LOCALS = LV3/
-	;その他
-	ELSE
-		LOCALS = LV4/
-	ENDIF
-	TSTR:1 += LOCALS
-ENDIF
 ;SOURCE追加
 IF TALENT:ARG:処女 == 1
 	PRINT 処女喪失
@@ -164,7 +151,7 @@ IF DOWNBASE:ARG:体力 > 0 && BASE:ARG:体力 > 1 && BASE:ARG:体力 <= DOWNBASE
 	ENDIF
 	TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
 	SIF 干渉強化変数:ARG:干渉種類 == 10
-		CALL 干渉強化関数_10("実補正処理")
+		CALL 干渉強化関数_10("実補正処理", ARG)
 	SIF キャラ一致チェック(ARG, "[十天衆]サラーサ")
 		TCVAR:ARG:食いしばりフラグ += 3
 	SIF ARG != MASTER && TCVAR:ARG:食いしばりフラグ
@@ -539,9 +526,7 @@ IF 恋愛対象外チェック(ARG)
 ENDIF
 
 ;好感度表示
-TFLAG:好感度計算用 += NOWEX:ARG:好感度上昇格納
-CALL 関係性ゲージUP用関数(ARG, TFLAG:好感度計算用, "好感度")
-FLAG:12 += TFLAG:好感度計算用
+CALL 関係性ゲージUP用関数(ARG, 0, "好感度")
 
 $他キャラループ
 ;TARGET以外の好感度上昇も見る
@@ -549,7 +534,44 @@ FOR ループ用, 0, CHARANUM
 	SIF CFLAG:ループ用:滞在期間 < 0
 		CONTINUE
 	IF ループ用 != ARG
-		CALL 関係性ゲージUP用関数(ループ用, 1, "好感度")
+		;干渉補正
+		CALL 干渉補正実処理関数(ループ用, "好感度増加時")
+		
+		;最大値を取る
+		NOWEX:ループ用:好感度上昇格納 = MAX(NOWEX:ループ用:友情度上昇格納, NOWEX:ループ用:信頼度上昇格納, NOWEX:ループ用:恋心度上昇格納, NOWEX:ループ用:性愛度上昇格納, NOWEX:ループ用:キャラ固有好感度要素上昇格納)
+
+		;反感・不快と相殺する
+		;まず反感
+		IF CUP:ループ用:反感 <= NOWEX:ループ用:好感度上昇格納
+			NOWEX:ループ用:好感度上昇格納 -= CUP:ループ用:反感
+			CUP:ループ用:反感 = 0
+		ELSE
+			CUP:ループ用:反感 -= NOWEX:ループ用:好感度上昇格納
+			NOWEX:ループ用:好感度上昇格納 = 0
+		ENDIF
+		;不快
+		IF CUP:ループ用:不快 <= NOWEX:ループ用:好感度上昇格納
+			NOWEX:ループ用:好感度上昇格納 -= CUP:ループ用:不快
+			CUP:ループ用:不快 = 0
+		ELSE
+			CUP:ループ用:不快 -= NOWEX:ループ用:好感度上昇格納
+			NOWEX:ループ用:好感度上昇格納 = 0
+		ENDIF
+
+		;相殺分適用
+		NOWEX:ループ用:友情度上昇格納 = MIN(NOWEX:ループ用:友情度上昇格納, NOWEX:ループ用:好感度上昇格納)
+		NOWEX:ループ用:信頼度上昇格納 = MIN(NOWEX:ループ用:信頼度上昇格納, NOWEX:ループ用:好感度上昇格納)
+		NOWEX:ループ用:恋心度上昇格納 = MIN(NOWEX:ループ用:恋心度上昇格納, NOWEX:ループ用:好感度上昇格納)
+		NOWEX:ループ用:性愛度上昇格納 = MIN(NOWEX:ループ用:性愛度上昇格納, NOWEX:ループ用:好感度上昇格納)
+		NOWEX:ループ用:キャラ固有好感度要素上昇格納 = MIN(NOWEX:ループ用:キャラ固有好感度要素上昇格納, NOWEX:ループ用:好感度上昇格納)
+
+		;恋愛対象外だと恋心を友情に、性愛を０に
+		IF 恋愛対象外チェック(ループ用)
+			NOWEX:ループ用:友情度上昇格納 += NOWEX:ループ用:恋心度上昇格納
+			NOWEX:ループ用:恋心度上昇格納 = 0
+			NOWEX:ループ用:性愛度上昇格納 = 0
+		ENDIF
+		CALL 関係性ゲージUP用関数(ループ用, 0, "好感度")
 	ENDIF
 NEXT
 
@@ -632,6 +654,29 @@ FOR ループ用, 0, CHARANUM
 	SIF CFLAG:ループ用:滞在期間 < 0
 		CONTINUE
 	IF CFLAG:ループ用:ゲージ起動分類 == 1 && NOWEX:ループ用:恋慕度上昇格納 && ループ用 != ARG
+		;反感・不快と相殺する
+		;まず反感
+		IF CUP:ループ用:反感 <= NOWEX:ループ用:恋慕度上昇格納
+			NOWEX:ループ用:恋慕度上昇格納 -= CUP:ループ用:反感
+			CUP:ループ用:反感 = 0
+		ELSE
+			CUP:ループ用:反感 -= NOWEX:ループ用:恋慕度上昇格納
+			NOWEX:ループ用:恋慕度上昇格納 = 0
+		ENDIF
+		;不快
+		IF CUP:ループ用:不快 <= NOWEX:ループ用:恋慕度上昇格納
+			NOWEX:ループ用:恋慕度上昇格納 -= CUP:ループ用:不快
+			CUP:ループ用:不快 = 0
+		ELSE
+			CUP:ループ用:不快 -= NOWEX:ループ用:恋慕度上昇格納
+			NOWEX:ループ用:恋慕度上昇格納 = 0
+		ENDIF
+
+
+		;恋愛対象外だと０に
+		IF 恋愛対象外チェック(ループ用) || GETBIT(TALENT:ループ用:陥落不可, 0)
+			NOWEX:ループ用:恋慕度上昇格納 = 0
+		ENDIF
 		CALL 関係性ゲージUP用関数(ループ用, NOWEX:ループ用:恋慕度上昇格納, "恋慕度")
 	ENDIF
 NEXT
@@ -673,93 +718,93 @@ RETURNF 対象外フラグ
 
 SELECTCASE ARGS
 	CASE "好感度"
-	LOCAL = 0
-	IF NOWEX:ARG:友情度上昇格納
-		CFLAG:ARG:友情度 += NOWEX:ARG:友情度上昇格納
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORM \@(NOWEX:ARG:友情度上昇格納 >= 0) ? 好感度要素：友情＋{NOWEX:ARG:友情度上昇格納} # 好感度要素：友情－{-NOWEX:ARG:友情度上昇格納}\@
-		IF 干渉強化変数:ARG:干渉種類 == 1
-			SETCOLOR カラーパレット("黄")
-			PRINT 　干渉効果発動中！
-			RESETCOLOR
+		LOCAL = 0
+		IF NOWEX:ARG:友情度上昇格納
+			CFLAG:ARG:友情度 += NOWEX:ARG:友情度上昇格納
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORM \@(NOWEX:ARG:友情度上昇格納 >= 0) ? 好感度要素：友情＋{NOWEX:ARG:友情度上昇格納} # 好感度要素：友情－{-NOWEX:ARG:友情度上昇格納}\@
+			IF 干渉強化変数:ARG:干渉種類 == 1
+				SETCOLOR カラーパレット("黄")
+				PRINT 　干渉効果発動中！
+				RESETCOLOR
+			ENDIF
+			PRINTL
+			LOCAL = 1
 		ENDIF
-		PRINTL
-		LOCAL = 1
-	ENDIF
-	IF NOWEX:ARG:信頼度上昇格納
-		CFLAG:ARG:信頼度 += NOWEX:ARG:信頼度上昇格納
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORM \@(NOWEX:ARG:信頼度上昇格納 >= 0) ? 好感度要素：信頼＋{NOWEX:ARG:信頼度上昇格納} # 好感度要素：信頼－{-NOWEX:ARG:信頼度上昇格納}\@
-		IF 干渉強化変数:ARG:干渉種類 == 2
-			SETCOLOR カラーパレット("黄")
-			PRINT 　干渉効果発動中！
-			RESETCOLOR
+		IF NOWEX:ARG:信頼度上昇格納
+			CFLAG:ARG:信頼度 += NOWEX:ARG:信頼度上昇格納
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORM \@(NOWEX:ARG:信頼度上昇格納 >= 0) ? 好感度要素：信頼＋{NOWEX:ARG:信頼度上昇格納} # 好感度要素：信頼－{-NOWEX:ARG:信頼度上昇格納}\@
+			IF 干渉強化変数:ARG:干渉種類 == 2
+				SETCOLOR カラーパレット("黄")
+				PRINT 　干渉効果発動中！
+				RESETCOLOR
+			ENDIF
+			PRINTL
+			LOCAL = 1
 		ENDIF
-		PRINTL
-		LOCAL = 1
-	ENDIF
-	IF NOWEX:ARG:恋心度上昇格納
-		CFLAG:ARG:恋心度 += NOWEX:ARG:恋心度上昇格納
-		CFLAG:ARG:恋慕度 = MAX(CFLAG:ARG:恋慕度, CFLAG:ARG:恋心度 / 3)
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORM \@(NOWEX:ARG:恋心度上昇格納 >= 0) ? 好感度要素：恋心＋{NOWEX:ARG:恋心度上昇格納} # 好感度要素：恋心－{-NOWEX:ARG:恋心度上昇格納}\@
-		IF 干渉強化変数:ARG:干渉種類 == 3
-			SETCOLOR カラーパレット("黄")
-			PRINT 　干渉効果発動中！
-			RESETCOLOR
+		IF NOWEX:ARG:恋心度上昇格納
+			CFLAG:ARG:恋心度 += NOWEX:ARG:恋心度上昇格納
+			CFLAG:ARG:恋慕度 = MAX(CFLAG:ARG:恋慕度, CFLAG:ARG:恋心度 / 3)
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORM \@(NOWEX:ARG:恋心度上昇格納 >= 0) ? 好感度要素：恋心＋{NOWEX:ARG:恋心度上昇格納} # 好感度要素：恋心－{-NOWEX:ARG:恋心度上昇格納}\@
+			IF 干渉強化変数:ARG:干渉種類 == 3
+				SETCOLOR カラーパレット("黄")
+				PRINT 　干渉効果発動中！
+				RESETCOLOR
+			ENDIF
+			PRINTL
+			LOCAL = 2
 		ENDIF
-		PRINTL
-		LOCAL = 2
-	ENDIF
-	IF NOWEX:ARG:性愛度上昇格納
-		CFLAG:ARG:性愛度 += NOWEX:ARG:性愛度上昇格納
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORM \@(NOWEX:ARG:性愛度上昇格納 >= 0) ? 好感度要素：性愛＋{NOWEX:ARG:性愛度上昇格納} # 好感度要素：性愛－{-NOWEX:ARG:性愛度上昇格納}\@
-		IF 干渉強化変数:ARG:干渉種類 == 4
-			SETCOLOR カラーパレット("黄")
-			PRINT 　干渉効果発動中！
-			RESETCOLOR
+		IF NOWEX:ARG:性愛度上昇格納
+			CFLAG:ARG:性愛度 += NOWEX:ARG:性愛度上昇格納
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORM \@(NOWEX:ARG:性愛度上昇格納 >= 0) ? 好感度要素：性愛＋{NOWEX:ARG:性愛度上昇格納} # 好感度要素：性愛－{-NOWEX:ARG:性愛度上昇格納}\@
+			IF 干渉強化変数:ARG:干渉種類 == 4
+				SETCOLOR カラーパレット("黄")
+				PRINT 　干渉効果発動中！
+				RESETCOLOR
+			ENDIF
+			PRINTL
+			LOCAL = 1
 		ENDIF
-		PRINTL
-		LOCAL = 1
-	ENDIF
-	IF NOWEX:ARG:キャラ固有好感度要素上昇格納
-		CFLAG:ARG:キャラ固有好感度 += NOWEX:ARG:キャラ固有好感度要素上昇格納
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORML \@(NOWEX:ARG:キャラ固有好感度要素上昇格納 >= 0) ? 好感度要素：%CSTR:ARG:キャラ固有好感度要素%＋{NOWEX:ARG:キャラ固有好感度要素上昇格納} # 好感度要素：%CSTR:ARG:キャラ固有好感度要素%－{-NOWEX:ARG:キャラ固有好感度要素上昇格納}\@
-		LOCAL = 1
-	ENDIF
-	SIF LOCAL
-		CALL FAVOR_LvUPCheck(ARG)
-	IF LOCAL == 2
-		SKIPDISP 1
-		CALL Love_LvUPCheck(ARG)
-		SKIPDISP 0
-	ENDIF
+		IF NOWEX:ARG:キャラ固有好感度要素上昇格納
+			CFLAG:ARG:キャラ固有好感度 += NOWEX:ARG:キャラ固有好感度要素上昇格納
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORML \@(NOWEX:ARG:キャラ固有好感度要素上昇格納 >= 0) ? 好感度要素：%CSTR:ARG:キャラ固有好感度要素%＋{NOWEX:ARG:キャラ固有好感度要素上昇格納} # 好感度要素：%CSTR:ARG:キャラ固有好感度要素%－{-NOWEX:ARG:キャラ固有好感度要素上昇格納}\@
+			LOCAL = 1
+		ENDIF
+		SIF LOCAL
+			CALL FAVOR_LvUPCheck(ARG)
+		IF LOCAL == 2
+			SKIPDISP 1
+			CALL Love_LvUPCheck(ARG)
+			SKIPDISP 0
+		ENDIF
 
 	CASE "恋慕度"
-	IF ARG:1 > 0
-		CFLAG:ARG:恋慕度 += ARG:1
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORML \@(ARG:1 >= 0) ? 恋慕度＋{ARG:1} # 恋慕度－{-ARG:1}\@
-		CALL Love_LvUPCheck(ARG)
-	ENDIF
+		IF ARG:1 > 0
+			CFLAG:ARG:恋慕度 += ARG:1
+			PRINTFORM %CALLNAME:ARG%：
+			PRINTFORML \@(ARG:1 >= 0) ? 恋慕度＋{ARG:1} # 恋慕度－{-ARG:1}\@
+			CALL Love_LvUPCheck(ARG)
+		ENDIF
 	
-	CASE "屈服度"
-	IF ARG:1 > 0
-		CFLAG:ARG:屈服度 += ARG:1
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORML \@(ARG:1 >= 0) ? 屈服度＋{ARG:1} # 屈服度－{-ARG:1}\@
-		;CALL Love_LvUPCheck(ARG)
-	ENDIF
+	; CASE "屈服度"
+	; IF ARG:1 > 0
+	; 	CFLAG:ARG:屈服度 += ARG:1
+	; 	PRINTFORM %CALLNAME:ARG%：
+	; 	PRINTFORML \@(ARG:1 >= 0) ? 屈服度＋{ARG:1} # 屈服度－{-ARG:1}\@
+	; 	;CALL Love_LvUPCheck(ARG)
+	; ENDIF
 	
-	CASE "快楽堕ち度"
-	IF ARG:1 > 0
-		CFLAG:ARG:快楽堕ち度 += ARG:1
-		PRINTFORM %CALLNAME:ARG%：
-		PRINTFORML \@(ARG:1 >= 0) ? 快楽堕ち度＋{ARG:1} # 快楽堕ち度－{-ARG:1}\@
-		;CALL Love_LvUPCheck(ARG)
-	ENDIF
+	; CASE "快楽堕ち度"
+	; IF ARG:1 > 0
+	; 	CFLAG:ARG:快楽堕ち度 += ARG:1
+	; 	PRINTFORM %CALLNAME:ARG%：
+	; 	PRINTFORML \@(ARG:1 >= 0) ? 快楽堕ち度＋{ARG:1} # 快楽堕ち度－{-ARG:1}\@
+	; 	;CALL Love_LvUPCheck(ARG)
+	; ENDIF
 ENDSELECT
 
 
@@ -809,7 +854,6 @@ IF CFLAG:ARG:好感度レベル < 計算後レベル
 	IF CFLAG:ARG:好感度レベル <= 関係閾値:0 && 計算後レベル > 関係閾値:0
 		LOCALS '= 関係名:1:要素最大値
 		PRINTFORML 初対面 > %LOCALS%
-		初体験日:ARG:初対面 = DAY
 		CSTR:ARG:現在の好感度表示 '= LOCALS
 	ENDIF
 	FOR ループ用, 1, 5

@@ -63,7 +63,9 @@ IF 鍛冶場作成許可フラグ
 		LOCALS += "<button value='探索集約_搭載兵器'>■搭載兵器一覧表示</button>　　"
 	ENDIF
 ENDIF
+LOCALS += "<br>"
 LOCALS += "</div>"
+LOCALS += "<div rect='5200, 1000, 700, 200'><button value='9999'>[9999]戻る</button></div>"
 
 HTML_PRINT LOCALS, 1
 SELECTCASE 表示切り替え文字列
@@ -103,6 +105,10 @@ RESTART
 #DIM 属性一時保存
 #DIM 横始点
 #DIM 表示位置調整用
+#DIM 表示アビ番号
+#DIM 表示id
+#DIM 兵器id
+
 CALL 画像描画終了
 
 縦幅 = 2250
@@ -117,7 +123,7 @@ FOR ループ用, 0, 4
 		ELSE
 			属性一時保存 = 基礎BATTLE_STATE:(BATTLE_STATE:ループ用:0):属性
 		ENDIF
-		LOCALS += @"<div rect='{550 + ループ用 * 1250}, {y軸位置}, {横幅 + 100}, {縦幅 + 100}' border='31' bcolor='#%カラーパレット_HTML(@"%属性数値文字列変換(属性一時保存)%属性")%'></div>"
+		LOCALS += @"<div rect='{550 + ループ用 * 1250}, {y軸位置}, {横幅 + 100}, {縦幅 + 100}' border='31' bcolor='#%属性数値文字色変換_HTML(属性一時保存)%'></div>"
 	ELSE
 		LOCALS += @"<div rect='{550 + ループ用 * 1250}, {y軸位置}, {横幅 + 100}, {縦幅 + 100}' border='31' bcolor='#C0C0C0'></div>"
 	ENDIF
@@ -125,7 +131,7 @@ FOR ループ用, 0, 4
 	IF BATTLE_STATE:ループ用:0 > 0
 		LOCALS:2 '= 短冊グラ表示用文字列関数((BATTLE_STATE:ループ用:0), ループ用)
 		LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}' title='%RESULTS:(2 + ループ用)%'>%LOCALS:2%</button></div>"
-		LOCALS += @"<div rect='{550 + ループ用 * 1250}, {縦幅 + y軸位置 + 120}, {横幅 + 100}, 200' border='31' bcolor='#%カラーパレット_HTML(@"%属性数値文字列変換(属性一時保存)%属性")%'></div>"
+		LOCALS += @"<div rect='{550 + ループ用 * 1250}, {縦幅 + y軸位置 + 120}, {横幅 + 100}, 200' border='31' bcolor='#%属性数値文字色変換_HTML(属性一時保存)%'></div>"
 		RESULTS:(2 + ループ用) '= ""
 	ELSE
 		LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><shape type='rect' param='%LOCALS:1%' color='#%TOSTR(GETBGCOLOR(), "X")%'></button></div>"
@@ -140,34 +146,46 @@ FOR ループ用, 0, 4
 NEXT
 
 ;乗機枠サブメンバー
-LOCALS += @"<div rect='194, {縦幅 + y軸位置 + 370}, 5662, 900' border='31' bcolor='#C0C0C0'></div>"
-LOCALS += @"<div rect='280, {縦幅 + y軸位置 + 450}, 5550, 900'>"
+LOCALS += @"<div rect='194, {縦幅 + y軸位置 + 370}, 2831, 900' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
 IF 鍛冶場作成許可フラグ == 0
 	LOCALS += "■乗機：システム未開放"
 ELSEIF 装備乗機ID == 0
 	LOCALS += "<button value='探索集約_乗機'>■乗機：未設定</button>"
 ELSE
-	LOCALS += @"<button value='探索集約_乗機'>■乗機：%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%</button>　　"
+	LOCALS += @"<button value='探索集約_乗機'>■乗機：%DT_CELL_GETS("所持乗機データベース", 装備乗機ID, "乗機名", 1)%</button><br>"
+	LOCALS += @"・使用可能武装<br>"
+	FOR 表示アビ番号, 0, 6
+		表示id = 装備乗機ID
+		TSTR:コマンド名受渡 = 
+		SIF DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{表示アビ番号}", 1) == "不可"
+			CONTINUE
+		IF DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{表示アビ番号}", 1) == "固有"
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{表示アビ番号}("アビ名")
+			LOCALS += @"　<button value='{表示アビ番号 + 10}'>[%TSTR:コマンド名受渡%]（固有武装）</button><br>"
+		ELSEIF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{表示アビ番号}", 1))
+			兵器id = TOINT(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{表示アビ番号}", 1))
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{表示アビ番号}("アビ名", 兵器id)
+			LOCALS += @"　<button value='{表示アビ番号 + 10}'>[%TSTR:コマンド名受渡%]</button><br>"
+		ELSE
+			LOCALS += @"　<button value='{表示アビ番号 + 10}'>[未装備]</button><br>"
+		ENDIF
+	NEXT
+	LOCALS += "</div>"
+	LOCALS += @"<div rect='3056, {縦幅 + y軸位置 + 370}, 2800, 900' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
 	LOCALS += @"搭載可能人数：{DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1), 2}人<br>"
 	IF DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1) > 0
 		FOR LOCAL, 0, DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1)
-			LOCALS += @"サブパイロット{LOCAL + 1}："
+			LOCALS += @"<button value='{LOCAL + 100}'>[サブパイロット{LOCAL + 1}："
 			IF BATTLE_STATE:(LOCAL + 10):0 < 1
-				LOCALS += "未設定<br>"
+				LOCALS += "未設定]</button><br>"
 			ELSE
-				LOCALS += @"%NAME:(BATTLE_STATE:(LOCAL + 10):0)%<br>"
+				LOCALS += @"%NAME:(BATTLE_STATE:(LOCAL + 10):0)%]</button><br>"
 			ENDIF
 		NEXT
 	ENDIF
 ENDIF
 LOCALS += "</div>"
 
-
-LOCALS += @"<div rect='262,{y軸位置 + 3575},5537,3625'>"
-LOCALS += "　　　　　　　　　　"
-LOCALS += "　　　　　　　　　　"
-LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
-LOCALS += "　　<button value='999'>[999]戻る</button></div>"
 HTML_PRINT LOCALS, 1
 
 FOR ループ用, 0, 32 + (y軸位置 / 100)
@@ -189,7 +207,55 @@ SELECTCASE LOCAL
 			表示切り替え文字列 = メンバー編成
 		ENDIF
 		RETURN 0
-	CASE 999
+	CASE 10 TO 16
+		;武装の説明表示
+		LOCALS = 
+		IF DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{LOCAL - 10}", 1) == "固有"
+			詳細文文字列受け渡し変数 = 
+			IF ダンジョン表示モード == ""
+				TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("残弾セット")
+			ENDIF
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("アビ名")
+			LOCALS += @"■%TSTR:コマンド名受渡%（固有武装）<br>"
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("アビ説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			LOCALS += @"<button value='999'>[999] 戻る</button><br>"
+		ELSEIF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{LOCAL - 10}", 1))
+			兵器id = TOINT(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{LOCAL - 10}", 1))
+			詳細文文字列受け渡し変数 = 
+			IF ダンジョン表示モード == ""
+				TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("残弾セット", 兵器id)
+			ENDIF
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("アビ名", 兵器id)
+			LOCALS += @"■%TSTR:コマンド名受渡%<br>"
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("アビ説明文", 兵器id)
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("装備条件説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			LOCALS += @"<button value='0'>[0] 搭載兵器を変更する</button>　　　　　<button value='1'>[1] 搭載兵器を外す</button>　　　　　<button value='999'>[999] 戻る</button><br>"
+		ELSE
+			LOCALS += @"■未装備<br>"
+			TRYCALLFORM 乗機兵装関数_%DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%_{LOCAL - 10}("装備条件説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+			LOCALS += @"<button value='0'>[0] 搭載兵器を変更する</button>　　　　　<button value='999'>[999] 戻る</button><br>"
+		ENDIF
+		HTML_PRINT LOCALS
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				CALL 搭載兵器装備処理(表示id, LOCAL - 10)
+			CASE 1
+				PRINTFORMW %DT_CELL_GETS("所持乗機データベース", 表示id, "乗機名", 1)%の武装%TOFULL(TOSTR(LOCAL - 10))%に装備されていた%DT_CELL_GETS("所持兵器データベース", TOINT(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{LOCAL - 10}", 1)), "兵器名", 1)%を外しました。
+				DT_CELL_SET "所持兵器データベース", TOINT(DT_CELL_GETS("所持乗機データベース", 表示id, @"武装{LOCAL - 10}", 1)), "装備乗機id", 0, 1
+				DT_CELL_SET "所持乗機データベース", 表示id, @"武装{LOCAL - 10}", "", 1
+		ENDSELECT
+		RETURN 0
+	CASE 100 TO 104
+		初期選択 = LOCAL - 90
+		VARSET 表示用ステータス格納配列:0:0
+		表示切り替え文字列 = 探索集約_サブメンバー編成
+		RETURN 0
+	CASE 9999
 		RETURN -1
 ENDSELECT
 
@@ -310,6 +376,12 @@ NEXT
 #DIM 入れ替え候補_メンバー = -1
 #DIM 入れ替え候補_リスト = -1
 #DIM ソート基準配列, 1000
+
+IF (初期選択 >= 0 && 初期選択 <= 3) || (初期選択 >= 10 && 初期選択 <= 13)
+	入れ替え候補_メンバー = 初期選択
+	初期選択 = -1
+ENDIF
+
 VARSET ソート基準配列
 VARSET 表示用ステータス格納配列:0:0
 
@@ -406,7 +478,7 @@ FOR LOCAL, ページ番号 * 28, ページ番号 * 28 + 28
 			LOCALS:1 = %SUBSTRING(LOCALS:1, 0, 44)%
 		LOCALS += @"%LOCALS:1, 44, LEFT%"
 	ENDIF
-	LOCALS += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(表示用ステータス格納配列:LOCAL:9)%属性")%'>"
+	LOCALS += @"<font color='#%属性数値文字色変換_HTML(表示用ステータス格納配列:LOCAL:9)%'>"
 	LOCALS += @"%属性数値文字列変換(表示用ステータス格納配列:LOCAL:9), 4%</font>"
 	LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 6}"
 	IF 表示用ステータス格納配列:LOCAL:2
@@ -436,7 +508,7 @@ IF 表示用ステータス格納配列:(29 + (ページ番号 * 28)):0 > 0
 ELSE
 	LOCALS += "　　　　　　　　　"
 ENDIF
-LOCALS += "<button value='9999'>[9999]戻る</button></div>"
+LOCALS += "</div>"
 HTML_PRINT LOCALS, 1
 
 FOR LOCAL, 0, 32 + (y軸位置 / 100)

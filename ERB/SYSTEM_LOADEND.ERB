@@ -26,6 +26,7 @@ LOCAL:1 = 0
 ;旧セーブとの互換処理（キャラの作成前に必要）
 ;0.038になる頃には不要なはず
 CALL 人物データベースセット
+CALL 履歴データベース作成
 
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
@@ -104,91 +105,27 @@ CALL 体位モードデータベースセット
 ボタン化用カラーマトリクス:3:0 =   0,  0,  0,256,  0
 ボタン化用カラーマトリクス:4:0 =   0,  0,  0,  0,256
 
+;初期所持服登録
+LOCAL:1 = ENUMFUNCBEGINSWITH("CLOTHES_初期所持関数_")
+IF LOCAL:1 > 0
+	FOR LOCAL, 0, LOCAL:1
+		CALLFORM %RESULTS:LOCAL%
+	NEXT
+ENDIF
+
 ;------------------------------------------------------------------------------------------
 ;旧セーブとの互換のために入れる処理
 ;------------------------------------------------------------------------------------------
 
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
-	SIF NO:LOCAL == 999
-		CFLAG:LOCAL:招待不可フラグ = 0
-
-	SIF 発情期判定(LOCAL) == 0
-		CFLAG:LOCAL:発情期フラグ = 0
-
-	IF 基礎BATTLE_STATE:LOCAL:ゲージ上昇効率_被ダメ時 == 0
-		IF 基礎BATTLE_STATE:LOCAL:ステータスタイプ保存 == 2
-			基礎BATTLE_STATE:LOCAL:ゲージ上昇効率_被ダメ時 = 150
-		ELSE
-			基礎BATTLE_STATE:LOCAL:ゲージ上昇効率_被ダメ時 = 100
-		ENDIF
-	ENDIF
-
-	;発情期フラグの更新
-	IF 発情期判定(LOCAL)
-		IF 発情期切り替えOPTION記憶 || TALENT:LOCAL:性欲 == -2
-			CFLAG:LOCAL:発情期フラグ = 0
-		ELSE
-			IF CFLAG:LOCAL:発情期フラグ < 0
-				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
-				IF CFLAG:LOCAL:発情期フラグ > -1
-					;発情期が終わった時、性欲を大きく減らす
-					BASE:LOCAL:性欲 = MAX(0, BASE:LOCAL:性欲 - 1500)
-				ENDIF
-			ELSE
-				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
-			ENDIF
-		ENDIF
-		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
-		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-			IF (TALENT:LOCAL:種族 == 3 || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3
-				IF CFLAG:LOCAL:発情期フラグ < 0
-					SIF TALENT:LOCAL:母乳体質 == 0
-						TALENT:LOCAL:母乳体質 = 2
-				ELSE
-					SIF TALENT:LOCAL:母乳体質 == 2
-						TALENT:LOCAL:母乳体質 = 0
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-
-	IF パーティ編成許可制 == 0 && 基礎BATTLE_STATE:LOCAL:Lv > 1
-		CFLAG:LOCAL:探索参加許可フラグ = 1
-	ENDIF
-	
-	SIF CFLAG:LOCAL:現在位置 == 303 && CFLAG:LOCAL:現在マップ種別 == 999
-		CFLAG:LOCAL:現在マップ種別 = 0
-	;ここまで0.037で消す
 
 	TALENT:LOCAL:無関心 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "無関心"))
 	TALENT:LOCAL:情熱的 = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "情熱的"))
 
 	;ここまで0.038で消す
+	;ここまで0.039で消す
 NEXT
-
-IF パーティ編成許可制 == 0
-	パーティ編成許可制 = 1
-ENDIF
-
-IF 乗機サブパイロットフォロー == 0
-	DT_COLUMN_ADD "所持乗機データベース", "サブ搭乗数", 1
-	DT_COLUMN_ADD "所持乗機データベース", "サブ搭乗数_強化後", 1
-	FOR LOCAL, 0, DT_ROW_LENGTH("所持乗機データベース")
-		IF DT_CELL_GETS("所持乗機データベース", LOCAL, "乗機名") == "コロッサスレプリカ"
-			DT_CELL_SET "所持乗機データベース", LOCAL, "サブ搭乗数", 2
-			DT_CELL_SET "所持乗機データベース", LOCAL, "サブ搭乗数_強化後", 2
-		ELSE
-			DT_CELL_SET "所持乗機データベース", LOCAL, "サブ搭乗数", 1
-			DT_CELL_SET "所持乗機データベース", LOCAL, "サブ搭乗数_強化後", 1
-		ENDIF
-	NEXT
-	乗機サブパイロットフォロー = 1
-ENDIF
-
-SIF MAP_EXIST("自動探索対象ダンジョン") == 0
-	CALL 自動探索用マップセット
-;ここまで0.037にしたとき消す、互換を35に
 
 LOCAL:1 = 0
 FOR LOCAL, 0, CHARANUM
@@ -203,7 +140,21 @@ NEXT
 SIF LOCAL:1 == 1
 	CALL ユニークキャラ親子関係セット
 
+IF STRCOUNT(所持制服文字列, @"汎用/リゾート従業員制服_") == 0
+	所持制服文字列 = 汎用/リゾート従業員制服_%所持制服文字列%
+	FOR LOCAL, 0, CHARANUM
+		SIF !TALENT:LOCAL:ランダムキャラ || !TALENT:LOCAL:従業員 || 現在制服:LOCAL:0 != ""
+			CONTINUE
+		現在制服:LOCAL:0 = リゾート従業員制服
+	NEXT
+ENDIF
+
+基礎BATTLE_STATE:FINDCHARA(NO, 165):属性 = 0
+基礎BATTLE_STATE:FINDCHARA(NO, 166):属性 = 2
+
 ;ここまで0.038にしたとき消す、互換を36に
+
+;ここまで0.039にしたとき消す、互換を37に
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理
@@ -276,5 +227,6 @@ ENDIF
 CALL 素材アイテム登録処理
 
 ;念のため変数リセット
+CALL TRAIN_VAR_RESET
 CALL TURN_RESET
 CALL 最大レベル算出保存

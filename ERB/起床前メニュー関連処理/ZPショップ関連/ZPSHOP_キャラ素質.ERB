@@ -339,6 +339,7 @@ ENDSELECT
 #DIM 対象キャラ
 #DIM CONST COST_性別定数 = 30
 #DIM 必要COST
+#DIM 変更位置
 
 DRAWLINE
 PRINTL ZPを消費してキャラの性別を変化させることができます。
@@ -360,7 +361,7 @@ FOR LOCAL:1 , 1, 4
 NEXT
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP3
-INPUT
+BINPUT
 LOCAL:1 = RESULT
 SELECTCASE LOCAL:1
 	CASE 999
@@ -368,7 +369,7 @@ SELECTCASE LOCAL:1
 	CASE TALENT:対象キャラ:性別
 		REUSELASTLINE 
 		GOTO INPUT_LOOP3
-	CASE -2 TO 2
+	CASE 1 TO 3
 		;ZP足りる？
 		IF FLAG:ZP所持量 < COST_性別定数
 			PRINTW ZPが足りません
@@ -397,16 +398,25 @@ SELECTCASE LOCAL:1
 						CASE 3
 							;ドラフは男ドラフ並に
 							TALENT:対象キャラ:体格 = 2
-							TALENT:対象キャラ:男性器サイズ = RAND(1,2)
+							SIF LOCAL == 1
+								TALENT:対象キャラ:男性器サイズ = RAND(1,2)
 						CASE 4
 							;ハーヴィンは変化なし
-							TALENT:対象キャラ:男性器サイズ = RAND(-2,-1)
+							SIF LOCAL == 1
+								TALENT:対象キャラ:男性器サイズ = RAND(-2,-1)
 						CASEELSE
 							;他は体格を＋０～１する
 							TALENT:対象キャラ:体格 = MIN(1, TALENT:対象キャラ:体格 + RAND:2)
-							TALENT:対象キャラ:男性器サイズ = RAND(-1,1)
+							SIF LOCAL == 1
+								TALENT:対象キャラ:男性器サイズ = RAND(-1,1)
 					ENDSELECT
-					CALL SET_BODYSIZE(対象キャラ,3)
+					変更位置 = 3
+					SIF 身長固定キャラ(対象キャラ)
+						CLEARBIT 変更位置, 0
+					SIF バスト固定キャラ(対象キャラ)
+						CLEARBIT 変更位置, 1
+					SIF 変更位置
+						CALL SET_BODYSIZE(対象キャラ,変更位置)
 				ELSE
 					;男＞女・ふたなりパターン
 					SELECTCASE TALENT:対象キャラ:種族
@@ -419,10 +429,16 @@ SELECTCASE LOCAL:1
 							TALENT:対象キャラ:バストサイズ = -2
 						CASEELSE
 							;他は体格を－０～１する
-							TALENT:対象キャラ:体格 = MIN(-3, TALENT:対象キャラ:体格 - RAND:2)
+							TALENT:対象キャラ:体格 = MAX(-3, TALENT:対象キャラ:体格 - RAND:2)
 							TALENT:対象キャラ:バストサイズ = LIMIT(RAND(TALENT:対象キャラ:体格 - 2, TALENT:対象キャラ:体格 + 2), -2, 3)
 					ENDSELECT
-					CALL SET_BODYSIZE(対象キャラ,3)
+					変更位置 = 3
+					SIF 身長固定キャラ(対象キャラ)
+						CLEARBIT 変更位置, 0
+					SIF バスト固定キャラ(対象キャラ)
+						CLEARBIT 変更位置, 1
+					SIF 変更位置
+						CALL SET_BODYSIZE(対象キャラ,変更位置)
 				ENDIF
 			ENDIF
 			IF キャラ一致チェック(対象キャラ, "[開闢の錬金術師]カリオストロ")
@@ -649,3 +665,32 @@ ENDSELECT
 
 @称号素質設定(対象キャラ)
 #DIM 対象キャラ
+
+
+@身長固定キャラ(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+;身長が入ってないなら固定も何もないので0
+SIF BASE:対象キャラ:身長 == 0
+	RETURNF 0
+
+;以下、性転換しても身長を変動させないキャラを置く
+IF キャラ一致チェック(対象キャラ, "[小さき赤き竜]ビィ")
+	RETURNF 1
+ENDIF
+
+
+
+@バスト固定キャラ(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+;バストが入ってないなら固定も何もないので0
+SIF BASE:対象キャラ:バスト == 0
+	RETURNF 0
+
+;以下、性転換してもバストを変動させないキャラを置く
+IF キャラ一致チェック(対象キャラ, "[小さき赤き竜]ビィ")
+	RETURNF 1
+ENDIF

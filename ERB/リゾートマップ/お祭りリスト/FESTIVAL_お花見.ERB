@@ -41,11 +41,11 @@ SELECTCASE ARGS
 	CASE "就寝時刻"
 		時間計算 = 1320 - (TALENT:キャラ番号:早寝 * 60)
 		RETURN 時間計算
+	CASE "就寝場所"
+		RETURN 0
 	CASE "初期位置"
 		CFLAG:キャラ番号:現在位置 = 6
 		CFLAG:キャラ番号:現在マップ種別 = 0
-	CASE "移動処理"
-		CALL MOVE_ROUTINE_移動処理(キャラ番号, "FESTIVAL_お花見")
 	CASE "お祭り補正条件"
 		;お花見マップに居る時
 		IF CFLAG:キャラ番号:現在マップ種別 == 100
@@ -64,47 +64,67 @@ SELECTCASE ARGS
 ENDSELECT
 
 
-@ROUTINE_PLAN_FESTIVAL_お花見(キャラ番号, マップ種別取得フラグ = 0)
-#DIM マップ種別取得フラグ
+@ROUTINE_SCHEDULE_FESTIVAL_お花見(キャラ番号)
 #DIM キャラ番号
+#DIM スケジュール番号
 
-;時間ごとにどの場所にいるべきかを決定
-SELECTCASE TIME + TCVAR:キャラ番号:行動時間ゆらぎ
-	;19時半まではお祭りにいる
-	CASE IS < 1170
-		SIF マップ種別取得フラグ
-			RETURN 100
-		RETURN ROUTINE_PLAN_FESTIVAL_お花見先決定関数(キャラ番号)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1185
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;21時までは風呂にいる
-	CASE IS < 1260
-		RETURN 風呂場算出(キャラ番号, マップ種別取得フラグ)
-	;風呂の前後１５分は脱衣所
-	CASE IS < 1275
-		RETURN 脱衣所場所算出(キャラ番号, マップ種別取得フラグ)
-	;着替え後１５分はロビーに居る
-	CASE IS < 1290
-		SIF マップ種別取得フラグ
-			RETURN 0
-		RETURN 2
-	;寝るまでは自室にいる
-	CASEELSE
-		SIF マップ種別取得フラグ
-			RETURN 999
-		RETURN 999
-ENDSELECT
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
 
-@ROUTINE_PLAN_FESTIVAL_お花見先決定関数(ARG)
-#FUNCTION
-IF TCVAR:ARG:移動ルーチンインターバル時間 > 0 && 移動ルーチン:ARG:マップ内ルーチンID != ""
-	RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
+;起床後はお祭りへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "お花見を楽しむ", "所要時間", "150")
+スケジュール番号++
+
+;12時から昼休憩
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;13時からお祭りへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 780 + TCVAR:キャラ番号:行動時間ゆらぎ, "お花見を楽しむ", "所要時間", "180")
+スケジュール番号++
+
+;18時半から夕休憩
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1110 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ELSE
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;21時30分から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1290 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
 ENDIF
 
-移動ルーチン:ARG:マップ内ルーチンID = %TOSTR(RAND:5 + 1)%
-TCVAR:ARG:移動ルーチンインターバル時間 = RAND(60, 120)
-RETURNF TOINT(移動ルーチン:ARG:マップ内ルーチンID)
+@SCHEDULE_お花見を楽しむ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+	CASE "経過処理"
+		SIF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+			RETURN
+
+		スケジュール状態:キャラ番号:目的マップ = 100
+		スケジュール状態:キャラ番号:目的地 = RAND:5 + 1
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(60, 120)
+	CASE "終了処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+ENDSELECT
 
 @マップ移動初期位置_FESTIVAL_お花見(移動前マップ, 移動後マップ)
 #FUNCTION

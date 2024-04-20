@@ -8,8 +8,9 @@ PRINTL [3] - 機能切り替え
 PRINTL [4] - 起床時刻の設定
 PRINTL [5] - キャラクター招待に関する設定
 PRINTL 
-PRINTL [99] - 特定バグ対応ボタン
-PRINTL [100]-戻る
+PRINTL [100] - 周回引き継ぎバグ対応ボタン
+PRINTL [101] - 履歴多重登録バグ対応ボタン
+PRINTL [999]-戻る
 
 
 $INPUT_LOOP
@@ -43,7 +44,7 @@ ELSEIF RESULT == 4
 	CFLAG:MASTER:起床予定時刻 = RESULT * 60
 ELSEIF RESULT == 5
 	CALL OPTION_招待切り替え
-ELSEIF RESULT == 99
+ELSEIF RESULT == 100
 	PRINTL 周回でキャラを引き継いだ時にエラーが発生してしまう現象へ対処するボタンです
 	PRINTL 現在存在するキャラの関係性を全てリセットし、初期状態に戻します
 	PRINTL ※詰みを回避するための非常用処理です。通常は実行しないでください。
@@ -60,7 +61,20 @@ ELSEIF RESULT == 99
 		NEXT
 		PRINTW 実行しました。
 	ENDIF
-ELSEIF RESULT == 100
+ELSEIF RESULT == 101
+	PRINTL キャラクターの履歴が大量に重複して登録されてしまうバグに対応するボタンです。
+	PRINTL 現在存在するキャラの履歴を全てリセットし、初期状態に戻します。
+	PRINTL ※削除時に達成している履歴について再登録はされないので注意してください
+	PRINTL 
+	PRINTL 実行してよろしいですか？
+	PRINTL [0] はい
+	PRINTL [1] いいえ
+	BINPUT
+	IF RESULT == 0
+		DT_CLEAR "履歴データベース"
+		PRINTW 実行しました。
+	ENDIF
+ELSEIF RESULT == 999
 	RETURN 0
 ELSE
 	GOTO INPUT_LOOP
@@ -1083,10 +1097,44 @@ SELECTCASE 画面表示用変数
 		LOCALS += "・発情期切り替え<br>"
 		LOCALS += "エルーンやドラフ、あるいは特定キャラに訪れる発情期のON/OFFを切り替えます。<br>"
 		LOCALS += "<br>"
-		IF 発情期切り替えOPTION記憶 == 0
-			LOCALS += "　<button value='201'>[201] 発情期をOFFにする（現在ON）</button>"
-		ELSEIF 発情期切り替えOPTION記憶
-			LOCALS += "　<button value='201'>[201] 発情期をONにする（現在OFF）</button>"
+		;発情期切り替えOPTION記憶 BIT管理 0:エルーン女性 1:エルーン男性 2:ドラフ女性 3:ドラフ男性 4:発情あり女性 5:発情あり男性
+		LOCALS += "　<button value='201'>[201] 全体の発情期をOFFにする</button><br>"
+		LOCALS += "　<button value='202'>[202] 全体の発情期をONにする</button><br><br>"
+		LOCALS += "　<button value='203'>[203] エルーン女性（ふたなり）の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 0) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
+		ENDIF
+		LOCALS += "　<button value='204'>[204] エルーン男性の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 1) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
+		ENDIF
+		LOCALS += "　<button value='205'>[205] ドラフ女性（ふたなり）の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 2) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
+		ENDIF
+		LOCALS += "　<button value='206'>[206] ドラフ男性の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 3) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
+		ENDIF
+		LOCALS += "　<button value='207'>[207] 発情あり素質を持つ女性（ふたなり）の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 4) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
+		ENDIF
+		LOCALS += "　<button value='208'>[208] 発情あり素質を持つ男性の発情期を切り替え：現在"
+		IF GETBIT(発情期切り替えOPTION記憶, 5) == 0
+			LOCALS += "ON</button><br>"
+		ELSE
+			LOCALS += "OFF</button><br>"
 		ENDIF
 	CASE 300
 		LOCALS += "・妊娠切り替え<br>"
@@ -1235,6 +1283,16 @@ SELECTCASE 画面表示用変数
 		ELSEIF 子宮口挿入_封印
 			LOCALS += "　<button value='903'>[903] 子宮口挿入関連の機能を許可する（現在：禁止）</button>"
 		ENDIF
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += "・連れ込み禁止設定<br>"
+		LOCALS += "キャラが自動で物陰に連れ込んでくるかどうかを設定します。<br>"
+		LOCALS += "<br>"
+		IF 連れ込み制御OPTION == 0
+			LOCALS += "　<button value='904'>[904] キャラの連れ込みを禁止する（現在：許可）</button>"
+		ELSEIF 連れ込み制御OPTION
+			LOCALS += "　<button value='904'>[904] キャラの連れ込みを許可する（現在：禁止）</button>"
+		ENDIF
 	CASE 1000
 		LOCALS += "・オートコマンド可否切り替え<br>"
 		LOCALS += "キャラクターが自動で行動する機能を切り替えます。<br>"
@@ -1309,7 +1367,16 @@ SELECTCASE LOCAL
 	CASE 101
 		INVERTBIT ツールチップ切り替えOPTION記憶, 0
 	CASE 201
-		INVERTBIT 発情期切り替えOPTION記憶, 0
+		発情期切り替えOPTION記憶 = 0
+	CASE 202
+		SETBIT 発情期切り替えOPTION記憶, 0
+		SETBIT 発情期切り替えOPTION記憶, 1
+		SETBIT 発情期切り替えOPTION記憶, 2
+		SETBIT 発情期切り替えOPTION記憶, 3
+		SETBIT 発情期切り替えOPTION記憶, 4
+		SETBIT 発情期切り替えOPTION記憶, 5
+	CASE 203 TO 208
+		INVERTBIT 発情期切り替えOPTION記憶, LOCAL - 203
 	CASE 301
 		INVERTBIT 妊娠切り替えOPTION記憶, 0
 	CASE 401
@@ -1362,8 +1429,10 @@ SELECTCASE LOCAL
 		INVERTBIT サイド領域非表示オプション, 0
 	CASE 902
 		CALL オート射精先設定
-	CASE 902
+	CASE 903
 		INVERTBIT 子宮口挿入_封印, 0
+	CASE 904
+		INVERTBIT 連れ込み制御OPTION, 0
 	CASE 1001
 		INVERTBIT FLAG:オートコマンド切り替えオプション, 0
 	CASE 1002
@@ -1488,42 +1557,34 @@ PRINTL
 PRINTL ・現在の設定
 PRINT 　　女性：
 IF GETBIT(性別招待制御OPTION, 0)
-	PRINT リゾートを訪問しない　　　
-	PRINTBUTTON "[0] 切り替える", 0
+	HTML_PRINT @"<button value='0'>[0] <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問する</font> / リゾートを訪問しない</button>"
 	PRINTL
 ELSE
-	PRINT リゾートを訪問する　　　　
-	PRINTBUTTON "[0] 切り替える", 0
+	HTML_PRINT @"<button value='0'>[0] リゾートを訪問する / <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問しない</font></button>"
 	PRINTL
 ENDIF
 PRINT 　　男性：
 IF GETBIT(性別招待制御OPTION, 1)
-	PRINT リゾートを訪問しない　　　
-	PRINTBUTTON "[1] 切り替える", 1
+	HTML_PRINT @"<button value='1'>[1] <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問する</font> / リゾートを訪問しない</button>"
 	PRINTL
 ELSE
-	PRINT リゾートを訪問する　　　　
-	PRINTBUTTON "[1] 切り替える", 1
+	HTML_PRINT @"<button value='1'>[1] リゾートを訪問する / <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問しない</font></button>"
 	PRINTL
 ENDIF
 PRINT 　　ふたなり：
 IF GETBIT(性別招待制御OPTION, 2)
-	PRINT リゾートを訪問しない　
-	PRINTBUTTON "[2] 切り替える", 2
+	HTML_PRINT @"<button value='2'>[2] <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問する</font> / リゾートを訪問しない</button>"
 	PRINTL
 ELSE
-	PRINT リゾートを訪問する　　
-	PRINTBUTTON "[2] 切り替える", 2
+	HTML_PRINT @"<button value='2'>[2] リゾートを訪問する / <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問しない</font></button>"
 	PRINTL
 ENDIF
 PRINT 　　その他：
 IF GETBIT(性別招待制御OPTION, 3)
-	PRINT リゾートを訪問しない　　
-	PRINTBUTTON "[3] 切り替える", 3
+	HTML_PRINT @"<button value='3'>[3] <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問する</font> / リゾートを訪問しない</button>"
 	PRINTL
 ELSE
-	PRINT リゾートを訪問する　　　
-	PRINTBUTTON "[3] 切り替える", 3
+	HTML_PRINT @"<button value='3'>[3] リゾートを訪問する / <font color='#%カラーパレット_HTML("グレーアウト")%'>リゾートを訪問しない</font></button>"
 	PRINTL
 ENDIF
 

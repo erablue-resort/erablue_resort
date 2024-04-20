@@ -177,6 +177,11 @@ IF DAY == 開催予定日取り
 		PRINT 　　　特設マップ出現中！
 		RESETCOLOR
 	ENDIF
+ELSEIF エリアNEW表示判定()
+	;存在するけど訪れたことのないエリアがあるなら強調表示
+	SETCOLOR カラーパレット("黄")
+	PRINT 　NEW！
+	RESETCOLOR
 ENDIF
 PRINTL 
 PRINTBUTTON @"[999] - 戻る", 999
@@ -243,6 +248,62 @@ RETURN 0
 ; 				RETURNF 1
 ; 		ENDIF
 ; 	NEXT
+
+@入室不可処理
+#DIM ループ用
+#DIM 部屋主配列, 10
+
+SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 2
+		IF CFLAG:PLAYER:現在位置 >= 1000 && CFLAG:PLAYER:現在位置 <= 1049
+			LOCAL = CFLAG:PLAYER:現在位置 - 1000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
+							LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2
+					CALLF GETPLACENAME_2_10(CFLAG:PLAYER:現在位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら眠っているようだ…
+					CFLAG:PLAYER:現在マップ種別 = 2
+					CFLAG:PLAYER:現在位置 = 1
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					CALLF GETPLACENAME_2_10(CFLAG:PLAYER:現在位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					CFLAG:PLAYER:現在マップ種別 = 2
+					CFLAG:PLAYER:現在位置 = 1
+				ENDIF
+			ENDIF
+		ENDIF
+ENDSELECT
+
 
 ;-----------------------------------------------------------
 ;マップ描画処理
@@ -359,16 +420,27 @@ RETURN 1
 DRAWLINE
 PRINTL どのエリアに移動しますか？
 DRAWLINE
+CALL リゾート遠景表示処理("移動処理")
+
 FOR LOCAL, 0, 10
 	TSTR:場所名受渡 = 
 	SIF CFLAG:PLAYER:現在マップ種別 == LOCAL
 		CONTINUE
 	TRYCCALLFORM エリア情報登録_{LOCAL}("エリア名")
 		IF TSTR:場所名受渡 != ""
+			SIF ENUMFUNCENDSWITH(@"大規模エリア建設条件_%TSTR:場所名受渡%") > 0 && MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) < 1
+				CONTINUE
 			PRINTBUTTON @"[{LOCAL}]%TSTR:場所名受渡%へ移動する", LOCAL
 			;工事中表示
 			IF TSTR:場所名受渡 == "空艇港エリア" && イベント完了フラグ確認("渡りに船の定期便") && 渡りに船の定期便_受諾日付 + 3 > DAY
 				PRINTFORM 　（現在工事中！　残り%TOFULL(TOSTR(3 - (DAY - 渡りに船の定期便_受諾日付)))%日）
+			ENDIF
+			;NEW表示
+			IF エリアNEW表示判定(TSTR:場所名受渡)
+				;存在するけど訪れたことのないエリアがあるなら強調表示
+				SETCOLOR カラーパレット("黄")
+				PRINT 　NEW！
+				RESETCOLOR
 			ENDIF
 			PRINTL 
 		ENDIF
@@ -392,8 +464,8 @@ PRINTBUTTON "[999]戻る", 999
 PRINTL 
 $INPUT_LOOP
 BINPUT
-
-SELECTCASE RESULT
+LOCAL = RESULT
+SELECTCASE LOCAL
 	CASE 0
 		IF CFLAG:PLAYER:現在マップ種別 == 0
 			REUSELASTLINE 
@@ -401,18 +473,6 @@ SELECTCASE RESULT
 		ENDIF
 		;０を入れると移動してない時と見分けがつかないため+100した数値を入れる
 		TFLAG:エリア切り替え時_目的地格納 = 100
-	CASE 1
-		IF CFLAG:PLAYER:現在マップ種別 == 1
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		TRYCALLFORM エリア情報登録_1("エリア名")
-		IF TSTR:場所名受渡 == ""
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		;+100した数値を入れる
-		TFLAG:エリア切り替え時_目的地格納 = 101
 	CASE 100
 		IF CFLAG:PLAYER:現在マップ種別 == 100
 			REUSELASTLINE 
@@ -424,8 +484,17 @@ SELECTCASE RESULT
 	CASE 999
 		RETURN -1
 	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
+		IF CFLAG:PLAYER:現在マップ種別 == LOCAL
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TRYCALLFORM エリア情報登録_{LOCAL}("エリア名")
+		IF TSTR:場所名受渡 == ""
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		;+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = LOCAL + 100
 ENDSELECT
 
 RETURN 1

@@ -1,0 +1,84 @@
+﻿
+;-----------------------------------------------------------
+;遠距離移動処理
+;-----------------------------------------------------------
+
+@SKIP_MOVE_2(目的地, 移動キャラ = 0)
+#DIM スタート地点
+#DIM 目的地
+#DIM 移動キャラ
+#DIM 経由地
+
+;現在位置取得
+SIF 移動キャラ <= 0
+	移動キャラ = MASTER
+スタート地点 = CFLAG:移動キャラ:現在位置
+
+;経由地の取得
+経由地 = GET_DEST(スタート地点, 目的地, NODE_MAP2, NODE_REVERSE_MAP2, NEXT_MAP2)
+IF 経由地 == -1
+	PRINTFORML %RESULTS%
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
+ENDIF
+;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{目的地}を目指し、経由地点:{経由地}へ移動…
+RETURN 経由地
+
+@CAN_MOVE_2(ARG, ARG:1)
+;部屋の構造
+;ARG 移動元
+;ARG:1 移動先
+;戻り値はビット管理 & 1で移動可能、 & 2で見通し可能
+;RETURNF 1 移動可能
+;RETURNF 2 移動不可だが見通せる
+;RETURNF 3 直通（移動可能＆見通せる）
+
+#FUNCTION
+
+;居住区へは場所関係なく全部OK
+SIF ARG:1 >= 1000 && ARG:1 <= 1049
+	RETURNF 1
+
+SELECTCASE ARG
+	CASE 1
+		;広場～各商店
+		SIF ARG:1 >= 2 && ARG:1 <= 6
+			RETURNF 1
+	CASE 2
+		;広場と同じ通りには行ける、別の通りには広場経由必須
+		SIF GROUPMATCH(ARG:1, 1, 3, 4)
+			RETURNF 1
+	CASE 3
+		;広場と同じ通りには行ける、別の通りには広場経由必須
+		SIF GROUPMATCH(ARG:1, 1, 2, 4)
+			RETURNF 1
+	CASE 4
+		;広場と同じ通りには行ける、別の通りには広場経由必須
+		SIF GROUPMATCH(ARG:1, 1, 2, 3)
+			RETURNF 1
+	CASE 5
+		;広場と同じ通りには行ける、別の通りには広場経由必須
+		SIF GROUPMATCH(ARG:1, 1, 6)
+			RETURNF 1
+	CASE 6
+		;広場と同じ通りには行ける、別の通りには広場経由必須
+		SIF GROUPMATCH(ARG:1, 1, 5)
+			RETURNF 1
+	CASE 1000 TO 1049
+		SIF ARG:1 >= 1 && ARG:1 <= 6
+			RETURNF 1
+ENDSELECT
+RETURNF 0
+
+
+
+@存在しない移動先_2(場所番号)
+#FUNCTION
+#DIM 場所番号
+
+IF 場所番号 >= 1 && 場所番号 <= 6
+	RETURNF 0
+ENDIF
+IF 場所番号 >= 1000 && 場所番号 <= 1049
+	RETURNF 0
+ENDIF
+RETURNF 1

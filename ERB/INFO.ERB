@@ -389,7 +389,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 						ENDIF
 						SIF GETCOLOR() != カラーパレット("えっちな色")
 							SETCOLOR カラーパレット("ピンク")
-					ELSEIF あなた特殊能力:危険日感知
+					ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:(飲み会TARGET:LOCAL):性別, 0) && TALENT:(飲み会TARGET:LOCAL):Ｖ感度 > -2
 						IF RISKY_DAY(飲み会TARGET:LOCAL) == 2 
 							ボタン表示格納用 += "(危)"
 							SETCOLOR カラーパレット("赤ピンク")
@@ -463,7 +463,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		SETCOLOR カラーパレット("えっちな色")
 	ELSEIF TALENT:TARGET:妊娠
 		SETCOLOR カラーパレット("ピンク")
-	ELSEIF あなた特殊能力:危険日感知
+	ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:TARGET:性別, 0) && TALENT:TARGET:Ｖ感度 > -2
 		IF RISKY_DAY(TARGET) == 2
 			SETCOLOR カラーパレット("赤ピンク")
 		ELSEIF RISKY_DAY(TARGET) == 1
@@ -488,7 +488,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		ENDIF
 		PRINT_IMG "えっちハート"
 		PRINT )
-	ELSEIF あなた特殊能力:危険日感知
+	ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:TARGET:性別, 0) && TALENT:TARGET:Ｖ感度 > -2
 		IF RISKY_DAY(TARGET) == 2
 			SETCOLOR カラーパレット("赤ピンク")
 			PRINT (
@@ -550,10 +550,21 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		PRINTL 
 		PRINT 　　　　　　　　　　　 
 		CALL PRINT_恋慕レベル表示(TARGET)
-	ELSE
-		PRINTL
 	ENDIF
 	RESETCOLOR
+	PRINTL
+	PRINT 　　　　　　　 　　　　　服装:
+	IF CSTR:TARGET:着せ替え服 != ""
+		IF CSTR:TARGET:着せ替え服 == "浴衣"
+			PRINT ユカタヴィラ
+		ELSE
+			PRINTFORM %CSTR:TARGET:着せ替え服%
+		ENDIF
+		SIF CSTR:TARGET:着せ替え服追加名 != ""
+			PRINTFORM （%CSTR:TARGET:着せ替え服追加名%）
+	ELSE
+		PRINT 普段着
+	ENDIF
 	PRINTL
 ELSE
 	TFLAG:調教モード = 0
@@ -587,6 +598,7 @@ IF TARGET > 0
 	PRINT 　　　　　　　　　　　 
 	CALL 通常時性欲ゲージ表示(TARGET)
 	PRINTL 
+	PRINTL
 
 	IF BASE:酩酊 > 0
 		LOCALS = 酩酊:
@@ -625,7 +637,6 @@ IF TARGET > 0
 	SETCOLOR 0xffd900
 	PRINTBUTTON "[能力表示]", 803
 	RESETCOLOR
-	PRINTL 
 	PRINTL 
 	PRINTL 
 	PRINTL 
@@ -744,6 +755,15 @@ ENDIF
 PRINTL
 CALL SHOW_INFO_PALAM_PLAYER
 
+PRINTL 
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+PRINT 連れ込み禁止機能:
+IF 連れ込み制御OPTION
+	PRINTBUTTON "[ON]", 892
+ELSE
+	PRINTBUTTON "[OFF]", 892
+ENDIF
 PRINTL 
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
@@ -1250,5 +1270,26 @@ ENDIF
 ゲージ表示文 += "</div>"
 
 LOCALS:1 = {BASE:キャラ番号:性欲,4}/{MAXBASE:キャラ番号:性欲,4}
-LOCALS += @"%ゲージ表示文%<div rect='62,0,3125,250'>%LOCALS:1, ゲージ幅 / 50%</div>"
+
+IF CFLAG:キャラ番号:うふふ
+	ゲージ表示文 += "<div rect='62,0,3125,250'>"
+	;ゲージ幅決定（1000の時450、最大1800）
+	ゲージ幅 = MIN(350 + MAX(MAXBASE:キャラ番号:満足 - 700, 0) / 3, 1800)
+	IF BASE:キャラ番号:満足 > 0
+		ゲージ表示文 += @"<shape type='rect' param='0,70,{MAX(1, BASE:キャラ番号:満足 * ゲージ幅 / MAXBASE:キャラ番号:満足)},30' color='#%カラーパレット_HTML("黄")%'>"
+	ENDIF
+	; IF MAXBASE:キャラ番号:満足 - BASE:キャラ番号:満足 > 0
+	; 	ゲージ表示文 += @"<shape type='rect' param='0,70,{ゲージ幅 - MAX(1, BASE:キャラ番号:満足 * ゲージ幅 / MAXBASE:キャラ番号:満足)},30' color='#%カラーパレット_HTML("えっちなゲージ無")%'>"
+	; ENDIF
+	ゲージ表示文 += "</div>"
+	ゲージ表示文 += @"<div rect='{MAX(1, BASE:キャラ番号:満足 * ゲージ幅 / MAXBASE:キャラ番号:満足) + 20},65,100,250'>▴</div>"
+	LOCALS:2 = 満足度{BASE:キャラ番号:満足 * 100 / MAX(BASE:キャラ番号:性欲, 1), 3}\%
+	IF 連れ込みパターン != ""
+		LOCALS:2 = <img src='えっちハート'>欲求不満<img src='えっちハート'>：%連れ込みパターン%
+	ENDIF
+	ゲージ表示文 += @"<div rect='{LIMIT((BASE:キャラ番号:満足 * ゲージ幅 / MAXBASE:キャラ番号:満足) - 80, 1, 1350)},145,3000,250'>%LOCALS:2%</div>"
+
+	LOCALS += @"%ゲージ表示文%<div rect='62,0,3125,250'>%LOCALS:1, ゲージ幅 / 50%</div>"
+ENDIF
+
 HTML_PRINT LOCALS, 1

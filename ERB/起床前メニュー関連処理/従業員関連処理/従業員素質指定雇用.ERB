@@ -35,6 +35,7 @@
 #DIM ページ数
 #DIM 必要ルピ
 #DIM 登録番号
+#DIMS 汎用画像キー
 #DIMS CONST 表示切替 = "情報・素質","能力・経験","服装","同行者"
 
 表示モード = 0
@@ -44,6 +45,9 @@
 ランダムキャラ二つ名 = （未定）
 ランダムキャラ服装名 = （未定）
 ランダムキャラ出演作品 = 
+汎用画像キー = 
+SIF CSVエディタフラグ
+	汎用立ち絵制御OPTION = 0
 VARSET ランダムキャラ素質:0
 VARSET ランダムキャラ経験:0
 VARSET TALENT一時保存:0
@@ -251,6 +255,15 @@ IF CSVエディタフラグ
 	LOCALS += "<br>"
 	LOCALS += "<button value='161'>[161] 水着を設定する</button>"
 	LOCALS += "<br>"
+ELSE
+	IF 汎用立ち絵制御OPTION
+		LOCALS += "<button value='170'>[170] 汎用立ち絵を選択する</button>"
+		LOCALS += "<button value='171'>[171] 汎用立ち絵をOFFにする</button>"
+		LOCALS += "<br>"
+	ELSE
+		LOCALS += "<button value='171'>[171] 汎用立ち絵をONにする</button>"
+		LOCALS += "<br>"
+	ENDIF
 ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='200'>[200] これで決定する</button>"
@@ -277,7 +290,7 @@ SELECTCASE 表示モード
 				LOCALS += @"■[従業員]（ランダム決定）　　　"
 			ENDIF
 		ENDIF
-		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%属性")%
+		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF ランダムキャラ出演作品 != ""
@@ -328,6 +341,13 @@ SELECTCASE 表示モード
 				ELSE
 					LOCALS += "　　　　　　　　　"
 				ENDIF
+			CASE 2
+				LOCALS += "男性"
+				IF GETBIT(ランダムキャラ素質:2, 1) == 0
+					LOCALS += "（童貞）　　　　　"
+				ELSE
+					LOCALS += "　　　　　　　　　"
+				ENDIF
 			CASE 3
 				LOCALS += "ふたなり"
 				IF GETBIT(ランダムキャラ素質:2, 0) == 0
@@ -341,12 +361,14 @@ SELECTCASE 表示モード
 					LOCALS += "　　　　　"
 				ENDIF
 		ENDSELECT
-		LOCALS += @"バストサイズ："
-		IF バスト数値設定フラグ
-			LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
-			LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
-		ELSE
-			LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
+		IF GETBIT(ランダムキャラ素質:1, 0)
+			LOCALS += @"バストサイズ："
+			IF バスト数値設定フラグ
+				LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
+				LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
+			ELSE
+				LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
+			ENDIF
 		ENDIF
 		LOCALS += "<br>"
 		LOCALS += @"　性知識レベル："
@@ -385,7 +407,7 @@ SELECTCASE 表示モード
 				LOCALS += @"%GET_TALENTNAME(160,ランダムキャラ素質:30), 12, LEFT%"
 			ENDIF
 		ENDIF
-		IF ランダムキャラ素質:1 == 3
+		IF GETBIT(ランダムキャラ素質:1, 1)
 			LOCALS += "<br>　男性器サイズ："
 			LOCALS += @"%GET_TALENTNAME(162,ランダムキャラ素質:32)%"
 		ENDIF
@@ -460,7 +482,7 @@ SELECTCASE 表示モード
 				LOCALS += @"■[従業員]（ランダム決定）　　　"
 			ENDIF
 		ENDIF
-		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%属性")%
+		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF ランダムキャラ出演作品 != ""
@@ -515,7 +537,7 @@ SELECTCASE 表示モード
 				LOCALS += @"■[従業員]（ランダム決定）　　　"
 			ENDIF
 		ENDIF
-		LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%属性")%
+		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF ランダムキャラ出演作品 != ""
@@ -689,7 +711,7 @@ SELECTCASE 表示モード
 		LOCALS += "属性："
 		FOR LOCAL, 0, 6
 			IF ランダムキャラ戦闘タイプ:0 == LOCAL
-				LOCALS:1 = %カラーパレット_HTML(@"%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%属性")%
+				LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 			ELSE
 				LOCALS:1 = 333333
 			ENDIF
@@ -756,29 +778,33 @@ SELECTCASE 表示モード
 		LOCALS += "<br>"
 		LOCALS += "性別："
 		IF ランダムキャラ素質:1 == 1
-			LOCALS:1 = C0C0C0
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12007}'>[女性]</button></font>"
-			LOCALS:1 = 333333
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12008}'>[ふたなり]</button></font>"
+			LOCALS += @"<button value='{12007}'>[女性]</button>"
+			LOCALS += @"<font color='#333333'><button value='{12008}'>[男性]</button></font>"
+			LOCALS += @"<font color='#333333'><button value='{12009}'>[ふたなり]</button></font>"
+		ELSEIF ランダムキャラ素質:1 == 2
+			LOCALS += @"<font color='#333333'><button value='{12007}'>[女性]</button></font>"
+			LOCALS += @"<button value='{12008}'>[男性]</button>"
+			LOCALS += @"<font color='#333333'><button value='{12009}'>[ふたなり]</button></font>"
 		ELSE
-			LOCALS:1 = 333333
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12007}'>[女性]</button></font>"
-			LOCALS:1 = C0C0C0
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12008}'>[ふたなり]</button></font>"
+			LOCALS += @"<font color='#333333'><button value='{12007}'>[女性]</button></font>"
+			LOCALS += @"<font color='#333333'><button value='{12008}'>[男性]</button></font>"
+			LOCALS += @"<button value='{12009}'>[ふたなり]</button>"
 		ENDIF
 		LOCALS += "　　　純潔："
-		IF GETBIT(ランダムキャラ素質:2, 0) == 0
-			LOCALS:1 = C0C0C0
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12010}'>[処女]</button></font>"
-			LOCALS:1 = 333333
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12011}'>[非処女]</button></font>"
-		ELSE
-			LOCALS:1 = 333333
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12010}'>[処女]</button></font>"
-			LOCALS:1 = C0C0C0
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12011}'>[非処女]</button></font>"
+		IF GETBIT(ランダムキャラ素質:1, 0)
+			IF GETBIT(ランダムキャラ素質:2, 0) == 0
+				LOCALS:1 = C0C0C0
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12010}'>[処女]</button></font>"
+				LOCALS:1 = 333333
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12011}'>[非処女]</button></font>"
+			ELSE
+				LOCALS:1 = 333333
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12010}'>[処女]</button></font>"
+				LOCALS:1 = C0C0C0
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12011}'>[非処女]</button></font>"
+			ENDIF
 		ENDIF
-		IF ランダムキャラ素質:1 == 3
+		IF ランダムキャラ素質:1 != 1
 			IF GETBIT(ランダムキャラ素質:2, 1) == 0
 				LOCALS:1 = C0C0C0
 				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12012}'>[童貞]</button></font>"
@@ -818,27 +844,29 @@ SELECTCASE 表示モード
 			LOCALS += @"　<button value='{12996}'>[リロール]</button>"
 		ENDIF
 		LOCALS += "<br>"
-		LOCALS += "バストサイズ："
-		IF バスト数値設定フラグ
-			IF バスト保存
-				LOCALS:1 = %DECIMAL_STRING(バスト保存, 1)%cm
-				LOCALS:1 += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
-			ELSE
-				LOCALS:1 = 未設定
-			ENDIF
-			LOCALS += @"<button value='{12026}'>[%LOCALS:1%]</button>"
-			LOCALS += @"　　　<button value='{12999}'>[カップ数で指定する]</button>"
-			LOCALS += @"　<button value='{12997}'>[リロール]</button>"
-		ELSE
-			FOR LOCAL, -2, 4
-				IF ランダムキャラ素質:3 == LOCAL
-					LOCALS:1 = C0C0C0
+		IF GETBIT(ランダムキャラ素質:1, 0)
+			LOCALS += "バストサイズ："
+			IF バスト数値設定フラグ
+				IF バスト保存
+					LOCALS:1 = %DECIMAL_STRING(バスト保存, 1)%cm
+					LOCALS:1 += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
 				ELSE
-					LOCALS:1 = 333333
+					LOCALS:1 = 未設定
 				ENDIF
-				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
-			NEXT
-			LOCALS += @"　　　<button value='{12999}'>[数値で指定する]</button>"
+				LOCALS += @"<button value='{12026}'>[%LOCALS:1%]</button>"
+				LOCALS += @"　　　<button value='{12999}'>[カップ数で指定する]</button>"
+				LOCALS += @"　<button value='{12997}'>[リロール]</button>"
+			ELSE
+				FOR LOCAL, -2, 4
+					IF ランダムキャラ素質:3 == LOCAL
+						LOCALS:1 = C0C0C0
+					ELSE
+						LOCALS:1 = 333333
+					ENDIF
+					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
+				NEXT
+				LOCALS += @"　　　<button value='{12999}'>[数値で指定する]</button>"
+			ENDIF
 		ENDIF
 		LOCALS += "<br>"
 		IF CSVエディタフラグ == 0
@@ -887,7 +915,7 @@ SELECTCASE 表示モード
 			ENDIF
 		NEXT
 		LOCALS += "<br>"
-		IF ランダムキャラ素質:1 == 3
+		IF GETBIT(ランダムキャラ素質:1, 1)
 			LOCALS += "男性器サイズ："
 			FOR LOCAL, -2, 3
 				IF ランダムキャラ素質:32 == LOCAL
@@ -1197,6 +1225,29 @@ ELSE
 	ENDIF
 ENDIF
 
+
+IF 汎用立ち絵制御OPTION
+	LOCALS:1 = <div rect='2050,31,1200,1200' padding='6' border='31' bcolor='#C0C0C0'>
+	IF 汎用画像キー == ""
+		LOCALS:1 += "<button value='170'><img src='Noimage_顔' height='1125'></button>"
+	ELSE
+		SPRITEDISPOSE @"短冊グラ3000"
+		GDISPOSE 3000
+		GCREATEFROMFILE 3000, @"汎用グラフィック/顔_%汎用画像キー%.png"
+		;設定中の顔グラが存在すればそちらを拡縮で表示
+		LOCAL = 画像サイズ切り替えOPTION記憶:1
+		画像サイズ切り替えOPTION記憶:1 = 1
+		SIF スプライト作成(@"短冊グラ3000", 3000, 0)
+			LOCALS:1 += @"<button value='170'><img src='短冊グラ3000'height='1125'></button>"
+		画像サイズ切り替えOPTION記憶:1 = LOCAL
+	ENDIF
+	LOCALS:1 += "</div>"
+	HTML_PRINT LOCALS:1
+	FOR LOCAL, 0, 10
+		PRINTL
+	NEXT
+ENDIF
+
 HTML_PRINT LOCALS
 FOR LOCAL, 0, 28
 	PRINTL
@@ -1282,7 +1333,12 @@ SELECTCASE LOCAL
 	CASE 12007
 		ランダムキャラ素質:1 = 1
 		ランダムキャラ素質:32 = 0
+		ランダムキャラ素質:2 = 0
 	CASE 12008
+		ランダムキャラ素質:1 = 2
+		ランダムキャラ素質:3 = 0
+		ランダムキャラ素質:2 = 0
+	CASE 12009
 		ランダムキャラ素質:1 = 3
 	CASE 12010
 		CLEARBIT ランダムキャラ素質:2, 0
@@ -1505,6 +1561,10 @@ SELECTCASE LOCAL
 		PRINTFORML [0] %水着一覧:0%  [1] %水着一覧:1%  [2] %水着一覧:2%  [3] %水着一覧:3%  
 		BINPUT
 		服装数値保存:30 = RESULT
+	CASE 170
+		CALL 汎用立ち絵選択処理(汎用画像キー)
+	CASE 171
+		INVERTBIT 汎用立ち絵制御OPTION, 0
 	CASE 200
 		IF ランダムキャラネーム == ""
 			ランダムキャラネーム = %ランダムキャラ名前生成(ランダムキャラ素質:0)%
@@ -1701,6 +1761,9 @@ SELECTCASE LOCAL
 		ENDIF
 		TALENT:(LOCAL:1):205 = ランダムキャラ素質:3
 		
+		IF 汎用立ち絵制御OPTION
+			CSTR:(LOCAL:1):汎用立ち絵登録文字列 = %汎用画像キー%
+		ENDIF
 		
 		BASE:(LOCAL:1):身長 = 身長保存
 		MAXBASE:(LOCAL:1):身長 = 身長保存
@@ -2061,3 +2124,72 @@ SELECTCASE ARG
 ENDSELECT
 
 RETURNF LOCALS
+
+
+@汎用立ち絵選択処理(汎用画像キー)
+#DIMS REF 汎用画像キー
+#DIM F_NUM
+#DIM ページ数
+#DIMS G_NAME
+
+;汎用立ち絵を全部ずらっと並べてそこから任意のものを選ぶ
+;種族や体型・バストなどによる制限はない
+VARSET RESULTS
+VARSET LOCAL
+VARSET TEMP_HTML
+SPRITEDISPOSEALL 0
+ページ数 = 0
+
+DRAWLINE
+LOCALS '= "resources\\汎用グラフィック"
+F_NUM = ENUMFILES(LOCALS, "顔_*.png", 1)
+
+$表示_LOOP
+FOR LOCAL, ページ数, ページ数 * 40 + 40
+	SIF LOCAL >= F_NUM
+		BREAK
+	G_NAME '= SUBSTRING(RESULTS:LOCAL, 10, -1)
+	GCREATEFROMFILE LOCAL, G_NAME
+	SIF スプライト作成(TOSTR(LOCAL), LOCAL, 0) == 0
+		CONTINUE
+	LOCALS = {(LOCAL % 8) * 750}, 0, 750, 750
+	TEMP_HTML += @"<div rect='%LOCALS%'><button value='{LOCAL}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='750' height='750'></button></div>"
+	SIF (LOCAL + 1) % 8 == 0
+		TEMP_HTML += "<br><br><br><br><br><br><br>"
+NEXT
+HTML_PRINT TEMP_HTML
+SIF (LOCAL + 1) % 8
+	TEMP_HTML += "<br><br><br><br><br><br><br>"
+
+TEMP_HTML = 
+DRAWLINE
+IF ページ数 > 0
+	TEMP_HTML += "<button value='9997'>[9997] 前のページへ</button>"
+ELSE
+	TEMP_HTML += "　　　 　　　　　　"
+ENDIF
+TEMP_HTML += "　　　　　　<button value='9999'>[9999] 戻る</button>　　　　　　"
+IF F_NUM >= ページ数 * 40 + 40
+	TEMP_HTML += "<button value='9998'>[9998] 次のページへ</button>"
+ELSE
+	TEMP_HTML += "　　　 　　　　　　"
+ENDIF
+HTML_PRINT TEMP_HTML
+BINPUT
+SELECTCASE RESULT
+	CASE 9997
+		ページ数 -= 1
+		GOTO 表示_LOOP
+	CASE 9998
+		ページ数 += 1
+		GOTO 表示_LOOP
+	CASE 9999
+		RETURN 0
+	CASEELSE
+		DRAWLINE
+		汎用画像キー = %REPLACE(RESULTS:RESULT, ESCAPE("resources\\汎用グラフィック\\顔_"), "")%
+		汎用画像キー = %REPLACE(汎用画像キー, ".png", "")%
+		HTML_PRINT @"<div rect='0, 0, 750, 750'><img src='{RESULT}' width='750' height='750'></div><br><br><br><br><br><br><br>"
+		PRINTFORMW %汎用画像キー%を選択しました。
+		RETURN 0
+ENDSELECT

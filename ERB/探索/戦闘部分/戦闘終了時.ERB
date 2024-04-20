@@ -55,17 +55,6 @@ IF 料理セット判定("カツサンド")
 ENDIF
 MONEY += LOCAL:2
 
-EXP:MASTER:探索経験 ++
-FOR ループ用, 0, 14
-	SIF LOCAL > 3 && LOCAL < 10
-		CONTINUE
-	IF BATTLE_STATE:ループ用:0
-		EXP:(BATTLE_STATE:ループ用:0):探索経験 ++
-		CALL SOURCE_CALC_好感度要素_信頼度UP(BATTLE_STATE:ループ用:0, PLAYER, 50)
-	ENDIF
-NEXT
-WSTR:(K++) = あなたとパーティメンバーの探索経験が増加しました
-
 ;ドロップ判定処理
 エネミー数 = 0
 FOR LOCAL, 0, 10
@@ -80,6 +69,7 @@ FOR LOCAL, 0, 10
 	ENDIF
 
 	エネミー数 += 1
+	探索中全体カウント:累計討伐エネミー数 += 1　
 	IF 敵BATTLE_STATE:LOCAL:ボスフラグ
 		;ボスは５匹分
 		エネミー数 += 4
@@ -109,6 +99,13 @@ FOR LOCAL, 0, 4
 		BREAK
 	ENDIF
 NEXT
+FOR LOCAL, 0, 10
+	SIF 敵BATTLE_STATE_STR:LOCAL:エネミー名 == ""
+		CONTINUE
+	IF 敵BATTLE_STATE:LOCAL:ＨＰ < 1
+		探索中全体カウント:累計討伐エネミー数 += 1
+	ENDIF　
+NEXT
 探索口上キャラ番号 = BATTLE_STATE:(RAND:LOCAL):キャラ番号
 TRYCALLFORM KOJO_DUNGEON_全滅時_{探索口上キャラ番号}(探索口上キャラ番号)
 
@@ -131,6 +128,7 @@ VARSET 敵BATTLE_STATE_STR:0:0
 戦闘背景画像 = 
 アビテンプレート用_味方全滅フラグ = 0
 アビテンプレート用_敵全滅フラグ = 0
+展開中フィールド名格納 = 
 
 ;画像リソースを全解放して顔グラ再生成
 SPRITEDISPOSEALL 0
@@ -223,268 +221,16 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 	ENDIF
 
 	KSTR:(K++) = Lv{基礎BATTLE_STATE:キャラ番号:Lv} > Lv{計算後レベル}
-	LOCAL = 計算後レベル - 基礎BATTLE_STATE:キャラ番号:Lv
-	SELECTCASE 基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存
-		CASE -1
-			TRYCALLFORM 戦闘ステータスレベルアップ設定_{NO:キャラ番号}(キャラ番号, LOCAL)
-		CASE 0
-			;バランス
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 40 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 20 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-		CASE 1
-			;攻撃
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 36 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 24 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 24 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 22 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 5
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 5
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 5
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 5
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-		CASE 2
-			;防御
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 50 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 26 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 22 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 18 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 2
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 1
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 2
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 1
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 2
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 1
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 2
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 1
-			ENDIF
-		CASE 3
-			;回復
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 36 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 26 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 26 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 24 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-		CASE 4
-			;サポート
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 38 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 26 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 22 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 26 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 3
-				基礎BATTLE_STATE:キャラ番号:TA率 += 1
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-		CASE 5
-			;連撃
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 36 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 22 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 26 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 6
-				基礎BATTLE_STATE:キャラ番号:TA率 += 3
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 6
-				基礎BATTLE_STATE:キャラ番号:TA率 += 3
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 6
-				基礎BATTLE_STATE:キャラ番号:TA率 += 3
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 6
-				基礎BATTLE_STATE:キャラ番号:TA率 += 3
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-		CASE 6
-			;回避
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 40 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 16 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 30 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 5
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 5
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 5
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 5
-			ENDIF
-		CASE 7
-			;奥義
-			基礎BATTLE_STATE:キャラ番号:最大ＨＰ += 40 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:最大ＭＰ += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:攻撃力 += 22 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:防御力 += 18 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:回復力 += 20 * LOCAL
-			基礎BATTLE_STATE:キャラ番号:行動速度 += 18 * LOCAL
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 20 && 計算後レベル >= 20
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 40 && 計算後レベル >= 40
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 60 && 計算後レベル >= 60
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-			IF 基礎BATTLE_STATE:キャラ番号:Lv < 80 && 計算後レベル >= 80
-				基礎BATTLE_STATE:キャラ番号:DA率 += 4
-				基礎BATTLE_STATE:キャラ番号:TA率 += 2
-				基礎BATTLE_STATE:キャラ番号:命中率 += 4
-				基礎BATTLE_STATE:キャラ番号:回避率 += 2
-			ENDIF
-	ENDSELECT
 	レベルアップ数 = 計算後レベル - 基礎BATTLE_STATE:キャラ番号:Lv
+	IF 計算後レベル / 10 > 基礎BATTLE_STATE:キャラ番号:Lv / 10
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"Lv{計算後レベル / 10 * 10}になった","探索")
+	ENDIF
+	IF 基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存 == -1
+		;固有
+		TRYCALLFORM 戦闘ステータスレベルアップ設定_{NO:キャラ番号}(キャラ番号, レベルアップ数)
+	ELSE
+		CALL ステータスレベルアップ設定_テンプレート適用(キャラ番号, レベルアップ数)
+	ENDIF
 	基礎BATTLE_STATE:キャラ番号:Lv = 計算後レベル
 	SIF 最大レベル保存 < 計算後レベル
 		最大レベル保存 = 計算後レベル
@@ -501,11 +247,13 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 				IF MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
 					;使えるけど保存したアビ配列にないアビ＝習得したアビ
 					WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+					CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"アビリティ：%TSTR:コマンド名受渡%を習得した","探索")
 				ELSEIF MATCH(アビ名一時保存, TSTR:コマンド名受渡) == 0
 					;以前から使えたけど名前が一致しないアビ＝強化されたアビ
 					LOCAL = FINDELEMENT(アビ関数名保存, RESULTS:アビ番号)
 					LOCALS = %アビ名一時保存:LOCAL%
 					WSTR:(K++) = %CALLNAME:キャラ番号%のアビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された！
+					CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"アビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された","探索")
 				ENDIF
 			ENDIF
 		NEXT
@@ -519,11 +267,13 @@ IF 基礎BATTLE_STATE:キャラ番号:Lv < 計算後レベル
 				IF MATCH(アビ関数名保存, RESULTS:アビ番号) == 0
 					;使えるけど保存したアビ配列にないアビ＝習得したアビ
 					WSTR:(K++) = %CALLNAME:キャラ番号%はアビリティ：%TSTR:コマンド名受渡%を覚えた！
+					CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"アビリティ：%TSTR:コマンド名受渡%を習得した","探索")
 				ELSEIF MATCH(アビ名一時保存, TSTR:コマンド名受渡) == 0
 					;以前から使えたけど名前が一致しないアビ＝強化されたアビ
 					LOCAL = FINDELEMENT(アビ関数名保存, RESULTS:アビ番号)
 					LOCALS = %アビ名一時保存:LOCAL%
 					WSTR:(K++) = %CALLNAME:キャラ番号%のアビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された！
+					CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"アビリティ：%LOCALS%が%TSTR:コマンド名受渡%に強化された","探索")
 				ENDIF
 			ENDIF
 		NEXT

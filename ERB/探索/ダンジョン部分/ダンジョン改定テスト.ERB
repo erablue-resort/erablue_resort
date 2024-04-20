@@ -2,6 +2,7 @@
 #DIM 味方生存チェック
 
 ;ダンジョン入場時処理
+CALL TURN_RESET
 ダンジョン表示モード = マップ画面
 ダンジョン終了フラグ = 0
 ダンジョン名 = %ARGS%
@@ -130,6 +131,8 @@ SELECTCASE LOCALS
 	CASE "0"
 		CALL 戦闘能力表示画面(BATTLE_STATE:0:0)
 		CALL ダンジョン能力表示キャラ切り替え(0)
+		SIF BATTLE_STATE:0:ＨＰ > BATTLE_STATE:0:最大ＨＰ
+			BATTLE_STATE:0:ＨＰ = BATTLE_STATE:0:最大ＨＰ
 		IF RESULT >= 0
 			LOCALS = %TOSTR(RESULT)%
 			GOTO 切り替え_LOOP
@@ -138,6 +141,8 @@ SELECTCASE LOCALS
 	CASE "1"
 		CALL 戦闘能力表示画面(BATTLE_STATE:1:0)
 		CALL ダンジョン能力表示キャラ切り替え(1)
+		SIF BATTLE_STATE:1:ＨＰ > BATTLE_STATE:1:最大ＨＰ
+			BATTLE_STATE:1:ＨＰ = BATTLE_STATE:1:最大ＨＰ
 		IF RESULT >= 0
 			LOCALS = %TOSTR(RESULT)%
 			GOTO 切り替え_LOOP
@@ -146,6 +151,8 @@ SELECTCASE LOCALS
 	CASE "2"
 		CALL 戦闘能力表示画面(BATTLE_STATE:2:0)
 		CALL ダンジョン能力表示キャラ切り替え(2)
+		SIF BATTLE_STATE:2:ＨＰ > BATTLE_STATE:2:最大ＨＰ
+			BATTLE_STATE:2:ＨＰ = BATTLE_STATE:2:最大ＨＰ
 		IF RESULT >= 0
 			LOCALS = %TOSTR(RESULT)%
 			GOTO 切り替え_LOOP
@@ -154,6 +161,8 @@ SELECTCASE LOCALS
 	CASE "3"
 		CALL 戦闘能力表示画面(BATTLE_STATE:3:0)
 		CALL ダンジョン能力表示キャラ切り替え(3)
+		SIF BATTLE_STATE:3:ＨＰ > BATTLE_STATE:3:最大ＨＰ
+			BATTLE_STATE:3:ＨＰ = BATTLE_STATE:3:最大ＨＰ
 		IF RESULT >= 0
 			LOCALS = %TOSTR(RESULT)%
 			GOTO 切り替え_LOOP
@@ -223,7 +232,11 @@ HTML文字列受け渡し = %LOCALS%
 ;基礎情報
 GSETPEN レイヤー番号, 0x00FFFFFF, -1
 LOCALS = %月算出()%
-GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+IF ランダムダンジョン階層記録
+	GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名% {ランダムダンジョン階層記録}階層", 32, 7
+ELSE
+	GDRAWTEXT レイヤー番号, @"{RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%)：■%ダンジョン名%", 32, 7
+ENDIF
 
 CALL リソース登録(@"ダンジョン_1", レイヤー番号)
 
@@ -454,9 +467,7 @@ FOR LOCAL, 0, CHARANUM
 	;NOWEXのリセット
 	VARSET NOWEX:LOCAL:0, 0
 	CFLAG:LOCAL:快楽計算フラグ = 0
-	FOR LOCAL:1,0,200
-		TCVAR:LOCAL:(400 + LOCAL:1) = EXP:LOCAL:(LOCAL:1)
-	NEXT
+	CALL EXP変動記録処理(LOCAL)
 NEXT
 RFLAG:ZP取得量 = 0
 
@@ -475,7 +486,7 @@ FOR LOCAL, 0, 14
 		CONTINUE
 	ENDIF
 	IF BATTLE_STATE:LOCAL:0 < 1
-		BREAK
+		CONTINUE
 	ENDIF
 	IF 知識素質:(BATTLE_STATE:LOCAL:0):検索知識 >= 必要レベル
 		選定用配列:(LOCAL:1) = BATTLE_STATE:LOCAL:0
@@ -571,10 +582,19 @@ FOR ループ用, 0, 14
 		CSTR:LOCAL:ダンジョン突入前の服 '= ""
 	ENDIF
 NEXT
+EXP:MASTER:探索経験 += 探索中全体カウント:累積勝利数
+FOR ループ用, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	IF BATTLE_STATE:ループ用:0
+		EXP:(BATTLE_STATE:ループ用:0):探索経験 += 探索中全体カウント:累積勝利数
+		CALL SOURCE_CALC_好感度要素_信頼度UP(BATTLE_STATE:ループ用:0, PLAYER, 50 * 探索中全体カウント:累積勝利数)
+	ENDIF
+NEXT
 PRINTW あなたとパーティメンバーの探索経験が増加しました
 
 ;一時変数のリセット
-VARSET ダンジョン内一時変数:0
+VARSET ダンジョン内一時変数
 ダンジョン名 = 
 サイド描画_ダンジョンログ保存 = 
 サイド描画縦スクロール保存 = 0
@@ -585,6 +605,10 @@ VARSET 探索中カウント:0:0
 VARSET 探索中全体カウント
 
 ダンジョン表示モード = 
+ランダムダンジョン階層記録 = 0
+
+;探索中のみアイテムを削除
+CALL アイテム削除処理("即席オールポーション")
 
 @踏破マス開放処理
 #DIM マス数値仮受
