@@ -92,6 +92,11 @@ GOTO INPUT_LOOP
 
 
 @ZP_SHOP_アイテム
+#DIM 危険日変動薬購入数
+
+SIF 危険日変動薬購入数 < 1
+	危険日変動薬購入数 = 1
+
 DRAWLINE
 PRINTL ZPを消費し、特別なアイテムを入手できます。
 PRINTL どのアイテムを購入しますか？
@@ -107,15 +112,28 @@ DRAWLINE
 ; PRINTL 　　　　　…陥落済みのキャラに対して、即座に発情期を開始させる薬。消耗品。
 ; PRINTL 　　　　　　発情期が存在しないキャラに対しては使用出来ません。
 ; PRINTL
-PRINTBUTTON "[2]危険日変動薬を購入する", 2
-PRINTL 　　　　　値段：5ZP
+PRINTBUTTON "[-10]", 1
+PRINTBUTTON "[-1]", 2
+PRINT 　　
+IF 危険日変動薬購入数 * 5 > FLAG:ZP所持量
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM [0]危険日変動薬を{危険日変動薬購入数}個購入する
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"[0]危険日変動薬を{危険日変動薬購入数}個購入する", 0
+ENDIF
+PRINT 　　
+PRINTBUTTON "[+1]", 3
+PRINTBUTTON "[+10]", 4
+PRINTL
+PRINTFORML 　　　　　値段：{危険日変動薬購入数 * 5}ZP
 PRINTL 　　　　　…陥落済みのキャラに対して使用可能な、危険日を薬を服用した日に変化させる薬。消耗品。
 PRINTL 　　　　　　発情期が存在するキャラの場合、発情期も変動する。
 PRINTL
 
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP
-INPUT
+BINPUT
 
 SELECTCASE RESULT
 	; CASE 0
@@ -154,26 +172,32 @@ SELECTCASE RESULT
 	; 		PRINTW 発情誘発剤を一回分購入しました。
 	; 	ENDIF
 	; 	RESTART
+	CASE 1
+		危険日変動薬購入数 -= 10
+		RESTART
 	CASE 2
-		IF FLAG:ZP所持量 < 5
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
-		PRINTL 5ZPを支払い、危険日変動薬を取得しますか？
+		危険日変動薬購入数 -= 1
+		RESTART
+	CASE 0
+		PRINTFORML {危険日変動薬購入数 * 5}ZPを支払い、危険日変動薬を{危険日変動薬購入数}個取得しますか？
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
-			FLAG:ZP所持量 -= 5
-			ITEM:危険日変動薬 += 1
-			PRINTW 危険日変動薬を一回分購入しました。
+			FLAG:ZP所持量 -= 危険日変動薬購入数 * 5
+			ITEM:危険日変動薬 += 危険日変動薬購入数
+			PRINTFORMW 危険日変動薬を{危険日変動薬購入数}個購入しました。
 		ENDIF
+		危険日変動薬購入数 = 1
+		RESTART
+	CASE 3
+		危険日変動薬購入数 += 1
+		RESTART
+	CASE 4
+		危険日変動薬購入数 += 10
 		RESTART
 	CASE 999
 		RETURN 0
-	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
 ENDSELECT
 
 
