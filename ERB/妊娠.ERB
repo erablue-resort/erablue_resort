@@ -136,92 +136,226 @@ TCVAR:ARG:膣内精液量 = 0
 
 
 ;出産 とりあえずの実装
-@BIRTHING(ARG)
-DRAWLINE
-IF CFLAG:ARG:滞在期間 == -1 && ARG != MASTER
-	SETCOLOR カラーパレット("ピンク")
-	PRINTFORML %CALLNAME:ARG%が出産したという連絡がありました
-	RESETCOLOR
-	CALL CREATE_CHILD(ARG, 1)
-	TRYCALLFORM KOJO_出産_リゾート外_{NO:ARG}(ARG)
+@BIRTHING(MOTHER)
+#DIM MOTHER
+#DIM FATHER
+#DIM DOMINANT
+#DIM CHILD_COUNT
+
+FATHER = CFLAG:MOTHER:子の父親
+;特徴をよく引き継ぐ側の親を1/2ずつで選択(ただしあなたは優先度低)
+IF FATHER < 0 || FATHER == MASTER || (MOTHER != MASTER && RAND:2 == 0)
+	DOMINANT = MOTHER
 ELSE
-	SETCOLOR カラーパレット("ピンク")
-	PRINTFORML %CALLNAME:ARG%は産気づいた…
-	RESETCOLOR
-	SIF 知識素質:ARG:性知識 == -2
-		PRINTFORML %CALLNAME:ARG%は何が起こったか分からない様子で、破水の痛みに混乱している…
-	SIF ARG != MASTER
-		PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:ARG%を\@ TALENT:MASTER:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2 ? 支えながら # 抱き上げて \@、医務室へと急いだ…
-	PRINTL ……
-	PRINTL …
-	PRINTL
-	SETCOLOR カラーパレット("ピンク")
-	PRINTFORM %CALLNAME:ARG%は
-	IF (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2) && 異種妊娠(ARG)
-		PRINTL 大変な苦労の末、なんとか出産を終えました
-	ELSE
-		PRINTFORML \@知識素質:ARG:性知識 == -2?大変な混乱と痛みの中で、なんとか#苦労の末、\@出産を終えました
-	ENDIF
-	RESETCOLOR
-	PRINTFORML %CALLNAME:ARG%は疲れ切った様子ながら優しい微笑みを浮かべ、自らの子供を撫でている…
-	IF 知識素質:ARG:性知識 == -2
-		SETCOLOR 0xffd900
-		PRINTFORML %CALLNAME:ARG%は出産を経て最低限の性知識を身に着けた！
-		RESETCOLOR
-		知識素質:ARG:性知識 = 0
-		性知識経験値:ARG:0 = 0
-	ENDIF
-	CALL CREATE_CHILD(ARG)
-	TRYCALLFORM KOJO_出産_リゾート内_{NO:ARG}(ARG)
+	DOMINANT = FATHER
 ENDIF
 
-IF TALENT:ARG:子持ち == 0
-	PRINTFORM %CALLNAME:ARG%は
+;子供の人数の決定
+CHILD_COUNT = 1
+SIF RAND:100 == 0
+	CHILD_COUNT = 2
+
+DRAWLINE
+IF CFLAG:MOTHER:滞在期間 == -1 && MOTHER != MASTER
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %CALLNAME:MOTHER%が出産したという連絡がありました
+	RESETCOLOR
+
+	;子供の姿の描写
+	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, TALENT:DOMINANT:性別, CHILD_COUNT)%のようです…
+	PRINTL 
+
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+	TRYCALLFORM KOJO_出産_リゾート外_{NO:MOTHER}(MOTHER)
+ELSE
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %CALLNAME:MOTHER%は産気づいた…
+	RESETCOLOR
+	SIF 知識素質:MOTHER:性知識 == -2
+		PRINTFORML %CALLNAME:MOTHER%は何が起こったか分からない様子で、破水の痛みに混乱している…
+	SIF MOTHER != MASTER
+		PRINTFORMW %CALLNAME:MASTER%は%CALLNAME:MOTHER%を\@ TALENT:MASTER:種族 == 種族_ハーヴィン || TALENT:MOTHER:体格 == -2 ? 支えながら # 抱き上げて \@、医務室へと急いだ…
+	PRINTL ……
+	PRINTL …
+	PRINTL 
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %CALLNAME:MOTHER%は
+	IF (TALENT:MOTHER:種族 == 種族_ハーヴィン || TALENT:MOTHER:体格 == -2) && 異種妊娠(MOTHER)
+		PRINTL 大変な苦労の末、なんとか出産を終えました
+	ELSE
+		PRINTFORML \@ 知識素質:MOTHER:性知識 == -2 ? 大変な混乱と痛みの中で、なんとか # 苦労の末、\@出産を終えました
+	ENDIF
+	RESETCOLOR
+
+	;子供の姿と母親の反応の描写
+	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, TALENT:DOMINANT:性別, CHILD_COUNT)%です…
+	IF MOTHER == MASTER
+		PRINTFORML %CALLNAME:MOTHER%は優しく自分の子供\@ (CHILD_COUNT > 1) ? たち # \@を撫でた…
+	ELSE
+		PRINTFORML %CALLNAME:MOTHER%は疲れ切った様子ながら優しい微笑みを浮かべ、自らの子供\@ (CHILD_COUNT > 1) ? たち # \@を撫でている…
+		IF 知識素質:MOTHER:性知識 == -2
+			SETCOLOR 0xffd900
+			PRINTFORML %CALLNAME:MOTHER%は出産を経て最低限の性知識を身に着けた！
+			RESETCOLOR
+			知識素質:MOTHER:性知識 = 0
+			性知識経験値:MOTHER:0 = 0
+		ENDIF
+	ENDIF
+	PRINTL 
+
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+	TRYCALLFORM KOJO_出産_リゾート内_{NO:MOTHER}(MOTHER)
+ENDIF
+
+IF TALENT:MOTHER:子持ち == 0
+	PRINTFORM %CALLNAME:MOTHER%は
 	SETCOLOR カラーパレット("えっちな色")
 	PRINT [子持ち]
 	RESETCOLOR
 	PRINT を得た！
-	TALENT:ARG:子持ち = 1
+	TALENT:MOTHER:子持ち = 1
 ENDIF
 
-LOCAL:1 = MAX(5,妊娠期間 / 2)
 PRINTFORML 
 PRINTW
-SIF CFLAG:ARG:子の父親 == MASTER
-	MASTERの子供の数:0 ++
-SIF ARG == MASTER
-	MASTERの子供の数:1 ++
-TALENT:ARG:妊娠 = 0
-CFLAG:ARG:妊娠経過日 = 0
-CFLAG:ARG:子の父親 = 0
-CFLAG:ARG:妊娠発覚 = 0
-EXP:ARG:出産経験 += 1
-CFLAG:ARG:産後経過日 = 1
+SIF CFLAG:MOTHER:子の父親 == MASTER
+	MASTERの子供の数:0 += CHILD_COUNT
+SIF MOTHER == MASTER
+	MASTERの子供の数:1 += CHILD_COUNT
+TALENT:MOTHER:妊娠 = 0
+CFLAG:MOTHER:妊娠経過日 = 0
+CFLAG:MOTHER:子の父親 = 0
+CFLAG:MOTHER:妊娠発覚 = 0
+EXP:MOTHER:出産経験 += CHILD_COUNT
+CFLAG:MOTHER:産後経過日 = 1
 
 
-;子供のデータ作成
-@CREATE_CHILD(MOTHER, リゾート外フラグ = 0)
+@子供描写(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
+#FUNCTIONS
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
-#DIM RECESSIVE
-#DIM リゾート外フラグ
+#DIM 子供性別
+#DIM 子供人数
+
+LOCALS '= @"%CALLNAME:DOMINANT%に似て"
+;似てる相手が母親でもあなたでもない場合は名前が唐突に出るので説明を一言加える
+SIF DOMINANT == FATHER && DOMINANT != MASTER
+	LOCALS '= "父親の" + LOCALS
+
+IF GETBIT(子供性別, 1)
+	LOCALS += "元気な"
+ELSE
+	LOCALS += "かわいらしい"
+ENDIF
+
+IF 子供人数 > 2
+	LOCALS += @"%TOFULL(TOSTR(子供人数))%つ子の"
+ELSEIF 子供人数 == 2
+	LOCALS += "双子の"
+ENDIF
+
+IF 子供性別 == 2
+	LOCALS += "男の子"
+ELSE
+	LOCALS += "女の子"
+	SIF 子供性別 != 1
+		LOCALS += "？"
+ENDIF
+
+SIF 子供人数 >= 2
+	LOCALS += "たち"
+
+RETURNF LOCALS
+
+
+;子供たちのデータ作成
+@CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+#DIM MOTHER
+#DIM FATHER
+#DIM DOMINANT
+#DIM CHILD_COUNT
+#DIM 命名フラグ
+#DIM 子供ID
+
+命名フラグ = (MOTHER == MASTER || FATHER == MASTER)
+IF 命名フラグ
+	CALL CHILDREN_NAMING_CHECK(DOMINANT, CHILD_COUNT)
+	命名フラグ = RESULT
+ENDIF
+
+IF CHILD_COUNT >= 2
+	FOR LOCAL, 0, CHILD_COUNT
+		CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ, LOCAL + 1)
+		SIF LOCAL == 0
+			子供ID = RESULT
+	NEXT
+ELSE
+	CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ)
+	子供ID = RESULT
+ENDIF
+
+IF 命名フラグ
+	PRINTFORML %GET_PERSON_呼び名(子供ID)%\@ (CHILD_COUNT >= 2) ? たち # \@はリゾート併設の保育園で育てられるようです
+ELSE
+	PRINTFORML 子供\@ (CHILD_COUNT >= 2) ? たち # \@は%CALLNAME:MOTHER%の元で育てられるようです
+ENDIF
+
+RETURN CHILD_COUNT
+
+
+;子供たちに一人一人名前を付けるかの選択
+@CHILDREN_NAMING_CHECK(PARENT, 子供人数)
+#DIM PARENT
+#DIM 子供人数
+#DIM 命名フラグ
+
+PRINTFORML 子供\@ (子供人数 >= 2) ? たち # \@の名前はどうしようか？
+PRINTBUTTONLC "[0]よく考える", 0
+PRINTBUTTONLC "[1]なんでもいい", 1
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		SIF 子供人数 >= 2
+			PRINT 一人ずつ、
+		PRINTFORML 自分\@ (PARENT != MASTER) ? と%CALLNAME:PARENT% # \@で考えます
+		命名フラグ = 1
+	CASE 1
+		PRINTL 名前を決めず、以降の登場シーンでは「（○○の）子供」とだけ表記します
+		命名フラグ = 0
+ENDSELECT
+
+PRINT よろしいですか？　
+SETCOLOR カラーパレット("真っ赤")
+PRINTL ※後から変更できません！
+RESETCOLOR
+
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		RETURN 命名フラグ
+	CASE 1
+		RESTART
+ENDSELECT
+
+
+;子供のデータ作成
+@CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ, 子供順番 = 0)
+#DIM MOTHER
+#DIM FATHER
+#DIM DOMINANT
+#DIM 命名フラグ
+#DIM 子供順番
 #DIM 子供ID
 #DIMS 子供名前
 #DIM 子供性別
 #DIM 子供種族
+#DIM 命名種族
 #DIMS 子供プレゼント好み
 #DIMS 子供経歴
 
-FATHER = CFLAG:MOTHER:子の父親
-;母親と父親を1/2ずつで選択(ただしあなたは優先度低)
-IF FATHER < 0 || FATHER == MASTER || (MOTHER != MASTER && RAND:2 == 0)
-	DOMINANT = MOTHER
-	RECESSIVE = FATHER
-ELSE
-	DOMINANT = FATHER
-	RECESSIVE = MOTHER
-ENDIF
 子供ID = ADD_PERSON()
 
 ;性別
@@ -231,39 +365,22 @@ CALL SET_PERSON_性別(子供ID, 子供性別)
 ;種族 親の種族が一致していればその種族、それ以外はその他
 IF FATHER < 0 || (TALENT:FATHER:種族 != TALENT:MOTHER:種族)
 	子供種族 = 6
+	命名種族 = TALENT:DOMINANT:種族
 ELSE
 	子供種族 = TALENT:MOTHER:種族
+	命名種族 = 子供種族
 ENDIF
 CALL SET_PERSON_種族(子供ID, 子供種族)
 
-;子供の姿の描写
-PRINTFORM %CALLNAME:DOMINANT%に似て
-IF GETBIT(子供性別, 0)
-	PRINTFORM かわいらしい女の子
-	SIF GETBIT(子供性別, 1)
-		PRINT ？
-ELSE
-	PRINT 元気な男の子
-ENDIF
-SIF リゾート外フラグ
-	PRINT のよう
-PRINTL です…
-PRINTL 
-
 ;名前/呼び名
-IF MOTHER == MASTER || FATHER == MASTER
-	CALL CHILD_NAMING(DOMINANT, 子供性別)
+子供名前 '= ""
+IF 命名フラグ
+	CALL CHILD_NAMING(DOMINANT, 子供性別, 命名種族, 子供順番)
 	子供名前 '= RESULTS
-ELSE
-	子供名前 '= ""
-ENDIF
-IF 子供名前 != ""
 	CALL SET_PERSON_名前(子供ID, @"[%CALLNAME:MOTHER%の子供]" + 子供名前)
 	CALL SET_PERSON_呼び名(子供ID, 子供名前)
-	PRINTFORML %子供名前%はリゾート併設の保育園で育てられるようです
 ELSE
-	CALL SET_PERSON_名前(子供ID, @"[%CALLNAME:MOTHER%の子供]%CALLNAME:MOTHER%の{DAY}")
-	PRINTFORML 子供は%CALLNAME:MOTHER%の元で育てられるようです
+	CALL SET_PERSON_名前(子供ID, @"[%CALLNAME:MOTHER%の子供]%CALLNAME:MOTHER%の{DAY}" + ((子供順番 > 0) ? @"-{子供順番}" # ""))
 ENDIF
 
 ;プレゼント好み
@@ -297,19 +414,20 @@ CALL SET_PERSON_経歴(子供ID, 子供経歴)
 RETURN 子供ID
 
 
-@CHILD_NAMING(PARENT, 子供性別)
+@CHILD_NAMING(PARENT, 子供性別, 命名種族, 子供順番)
 #DIM PARENT
 #DIM 子供性別
+#DIM 命名種族
+#DIM 子供順番
 #DIMS 子供名前
 
-PRINTL 名前はどうしようか？
+PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…
 PRINTBUTTONLC "[0]自分で考える", 0
 IF PARENT != MASTER
 	PRINTBUTTONLC @"[1]%CALLNAME:PARENT%に考えてもらう", 1
 ELSE
 	PRINTBUTTONLC "[1]ふと頭に浮かんできた名前にする", 1
 ENDIF
-PRINTBUTTONLC "[2]なんでもいい", 2
 BINPUT
 SELECTCASE RESULT
 	CASE 0
@@ -328,7 +446,7 @@ SELECTCASE RESULT
 			RESTART
 	CASE 1
 		$INPUT_LOOP1
-		子供名前 = %ランダムキャラ名前生成(TALENT:PARENT:種族, 子供性別)%
+		子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
 		PRINTFORML %CALLNAME:PARENT%は%子供名前%と名付けたいようだ…
 		PRINTBUTTONLC "[0]それにする", 0
 		PRINTBUTTONLC "[1]別の名前を考えてもらう", 1
@@ -338,18 +456,6 @@ SELECTCASE RESULT
 			GOTO INPUT_LOOP1
 		SIF RESULT == 2
 			RESTART
-	CASE 2
-		PRINTL 名前を決めず、以降の登場シーンでは「（○○の）子供」とだけ表記します
-		PRINTL よろしいですか？
-		PRINTBUTTONLC "[0]はい", 0
-		PRINTBUTTONLC "[1]いいえ", 1
-		BINPUT
-		IF RESULT == 0
-			RESULTS '= ""
-			RETURN
-		ELSEIF RESULT == 1
-			RESTART
-		ENDIF
 ENDSELECT
 SIF PARENT != MASTER
 	PRINTFORM %CALLNAME:PARENT%と相談した結果、
