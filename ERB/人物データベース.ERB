@@ -363,3 +363,48 @@ RETURN DT_CELL_SET("人物データベース", ID, "父親", VAL, 1)
 #DIM ID
 #DIMS VAL
 RETURN DT_CELL_SET("人物データベース", ID, "経歴", VAL, 1)
+
+
+;どこからも参照できなくなった人物データを消去する
+@人物データベースGC
+DT_CREATE "人物番号一時リスト"
+DT_COLUMN_ADD "人物番号一時リスト", "人物番号", 4
+
+LOCAL:1 = DT_ROW_LENGTH("人物データベース")
+FOR LOCAL, 0, LOCAL:1
+	DT_ROW_ADD "人物番号一時リスト", "人物番号", DT_CELL_GET("人物データベース", LOCAL, "id")
+NEXT
+
+FOR LOCAL, 0, CHARANUM
+	CALL 人物データベースGC_マーク(CFLAG:LOCAL:人物番号)
+NEXT
+
+LOCAL:1 = DT_ROW_LENGTH("人物番号一時リスト")
+FOR LOCAL, 0, LOCAL:1
+	DT_ROW_REMOVE "人物データベース", DT_CELL_GET("人物番号一時リスト", LOCAL, "人物番号")
+NEXT
+
+
+@人物データベースGC_マーク(ID)
+#DIM DYNAMIC ID
+#DIM DYNAMIC CHILD_COUNT
+#DIM DYNAMIC CHILD_ITER
+#DIM DYNAMIC CHILDREN, 200
+
+DT_SELECT "人物番号一時リスト", @"人物番号 = {ID}"
+SIF RESULT == 0
+	RETURN
+
+DT_ROW_REMOVE "人物番号一時リスト", RESULT:1
+
+CALL 人物データベースGC_マーク(DT_CELL_GET("人物データベース", ID, "母親", 1))
+CALL 人物データベースGC_マーク(DT_CELL_GET("人物データベース", ID, "父親", 1))
+
+CHILD_COUNT = DT_SELECT("人物データベース", @"母親 = {ID} Or 父親 = {ID}", "", CHILDREN)
+;Emueraの不具合でFORだと動かない
+CHILD_ITER = 0
+WHILE CHILD_ITER < CHILD_COUNT
+	CALL 人物データベースGC_マーク(CHILDREN:CHILD_ITER)
+	CHILD_ITER ++
+WEND
+RETURN
