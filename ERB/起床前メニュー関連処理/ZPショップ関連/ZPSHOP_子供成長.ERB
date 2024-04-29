@@ -1,0 +1,584 @@
+﻿@ZP_SHOP_子供成長
+#DIM TARGET保存
+#DIM ページ
+#DIM 子供人物番号
+
+LOCAL:1 = 0
+FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+	IF 定住者部屋割り配列:LOCAL == ""
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+IF LOCAL:1 == 0
+	PRINTW 住宅街が一杯です。
+	RETURN
+ENDIF
+
+TARGET保存 = TARGET
+TARGET = 0
+
+ページ = 0
+$INPUT_LOOP
+PRINTL 
+CALL 子供一覧表示(ページ)
+INPUT
+SELECTCASE RESULT
+	CASE -1
+		TARGET = TARGET保存
+		RETURN -1
+	CASE -2
+		ページ ++
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASE -3
+		ページ --
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+	CASE IS > 0
+		子供人物番号 = RESULT
+		REUSELASTLINE 
+		SIF !EXIST_PERSON(子供人物番号)
+			GOTO INPUT_LOOP
+		CALL ZP_子供成長(子供人物番号)
+		SIF RESULT == -1
+			GOTO INPUT_LOOP
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+TARGET = TARGET保存
+RETURN
+
+@ZP_子供成長(子供人物番号)
+#DIM 子供人物番号
+#DIM CONST COST_BASE = 450
+#DIM CONST COST_PER_AGE = 50
+#DIM CONST 年齢_幼児 = -3
+#DIM 必要COST
+#DIM 成長後年齢
+
+DRAWLINE
+PRINTFORML ZPを消費して%GET_PERSON_呼び名(子供人物番号)%を成長させることが出来ます。
+PRINTL どこまで成長させますか？
+DRAWLINE
+FOR LOCAL, -2, 2
+	PRINTBUTTON @"[{LOCAL, 2}]%GET_TALENTNAME(164, LOCAL, 0)%", LOCAL
+	PRINTFORML 　　　必要ZP:{COST_BASE + COST_PER_AGE * (LOCAL - 年齢_幼児)}
+NEXT
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+
+BINPUT
+SIF RESULT == 999
+	RETURN -1
+
+成長後年齢 = RESULT
+必要COST = COST_BASE + COST_PER_AGE * (成長後年齢 - 年齢_幼児)
+
+IF FLAG:ZP所持量 < 必要COST
+	PRINTW ZPが足りません
+	RESTART
+ENDIF
+PRINTFORML {必要COST}ZPを支払い、%GET_PERSON_呼び名(子供人物番号)%を成長させますか？
+PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+SIF RESULT == 1
+	RESTART
+
+FLAG:ZP所持量 -= 必要COST
+SELECTCASE 成長後年齢
+	CASE -2
+		PRINTFORML まだまだ幼いが、%GET_PERSON_呼び名(子供人物番号)%は少し成長した！
+	CASE -1
+		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は\@ (GET_PERSON_性別(子供人物番号) == 2) ? 少年 # 少女 \@と呼べるまでに成長した！
+	CASE 0
+		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は成人と呼べるまでに成長した！
+	CASE 1
+		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%はすっかり大人の姿に成長した！
+ENDSELECT
+PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は保育所を卒園し、居住区エリアの住宅街に引っ越したようだ。
+PRINTW 
+CALL 子供成長処理(子供人物番号, 成長後年齢)
+
+RETURN 0
+
+
+@子供成長処理(子供人物番号, 成長後年齢)
+#DIM 子供人物番号
+#DIM 成長後年齢
+#DIM MOTHER
+#DIM FATHER
+#DIM DOMINANT
+#DIM RECESSIVE
+#DIM PARENT
+#DIM TARGET保存
+#DIM ベース種族
+#DIM 素質選択用, 10
+#DIM バスト種別
+#DIMS 汎用画像キー
+
+
+MOTHER = FIND_MOTHER_CHARA_FROM_PERSON_ID(子供人物番号)
+FATHER = FIND_FATHER_CHARA_FROM_PERSON_ID(子供人物番号)
+;素質をよく引き継ぐ側の親を1/2ずつで選択(ただしあなたは優先度低)
+IF FATHER < 0 || FATHER == MASTER || (MOTHER != MASTER && RAND:2 == 0)
+	DOMINANT = MOTHER
+	RECESSIVE = FATHER
+ELSE
+	DOMINANT = FATHER
+	RECESSIVE = MOTHER
+ENDIF
+
+TARGET保存 = TARGET
+TARGET = CHARANUM
+ADDCHARA 999
+
+;名前・呼び名・NO
+NAME:TARGET '= GET_PERSON_名前(子供人物番号)
+CALLNAME:TARGET '= GET_PERSON_呼び名(子供人物番号)
+CALL SET_PERSON_ナンバー(子供人物番号, 999)
+
+;戦闘関連設定
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+基礎BATTLE_STATE:属性 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:属性 # RAND:6
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+基礎BATTLE_STATE:得意武器 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:得意武器 # RAND:10
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+基礎BATTLE_STATE:ステータスタイプ保存 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:ステータスタイプ保存 # RAND:8
+CSTR:戦闘基礎ステータス設定 '= @" 属性_%属性数値文字列変換(基礎BATTLE_STATE:属性)% 得意武器_%得意武器数値文字列変換(基礎BATTLE_STATE:得意武器)% 初期ステータスタイプ_%成長タイプ:(基礎BATTLE_STATE:ステータスタイプ保存)%"
+
+;種族
+TALENT:種族 = GET_PERSON_種族(子供人物番号)
+ベース種族 = ベース種族検索(子供人物番号)
+
+;発情期あり
+IF TALENT:種族 == 種族_その他
+	TALENT:発情期あり = 0
+	IF GROUPMATCH(ベース種族, 種族_エルーン, 種族_ドラフ)
+		TALENT:発情期あり = 1
+	ELSE
+		PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
+		IF PARENT > 0
+			IF GROUPMATCH(ベース種族検索(CFLAG:PARENT:人物番号), 種族_エルーン, 種族_ドラフ)
+				TALENT:発情期あり = 1
+			ELSEIF キャラ一致チェック(PARENT, "[六竜の『金』]ガレヲン")
+				TALENT:発情期あり = 1
+			ELSEIF TALENT:PARENT:発情期あり > 0
+				TALENT:発情期あり = 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;性別
+TALENT:性別 = GET_PERSON_性別(子供人物番号)
+;男性が許可されてないならふたなり化
+SIF GETBIT(性別招待制御OPTION, 1) && TALENT:性別 == 2
+	TALENT:性別 = 3
+;ふたなりが許可されてないなら女化
+SIF (素質切り替えOPTION記憶:ふたなり_女性 || GETBIT(性別招待制御OPTION, 2)) && TALENT:性別 == 3
+	TALENT:性別 = 1
+;女性が許可されてないなら男化
+SIF GETBIT(性別招待制御OPTION, 0) && (TALENT:性別 == 1 || TALENT:性別 == 0)
+	TALENT:性別 = 2
+
+;処女・童貞・性知識
+TALENT:処女 = 1
+TALENT:非童貞 = 0
+CSTR:知識素質設定 '= " 性知識Lv-2 "
+
+;年齢
+TALENT:年齢 = 成長後年齢
+
+;バストサイズ 母親優先
+IF GETBIT(TALENT:性別, 0)
+	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	IF PARENT >= 0
+		;平均により補正
+		TALENT:バストサイズ = TALENT:PARENT:バストサイズ + バストサイズ_平均(ベース種族, 成長後年齢) - バストサイズ_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:年齢)
+		;±1
+		TALENT:バストサイズ = LIMIT(TALENT:バストサイズ + RAND:2 + RAND:2 - 1, -2, 3)
+	ELSE
+		TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢)
+	ENDIF
+ENDIF
+
+;男性器サイズ 父親優先
+IF GETBIT(TALENT:性別, 1)
+	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "ランダム")
+	IF PARENT >= 0
+		;平均により補正
+		TALENT:男性器サイズ = TALENT:PARENT:男性器サイズ + 男性器サイズ_平均(ベース種族, TALENT:性別, 成長後年齢) - 男性器サイズ_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, TALENT:PARENT:年齢)
+		;±1
+		TALENT:男性器サイズ = LIMIT(TALENT:男性器サイズ + RAND:2 + RAND:2 - 1, -2, 2)
+	ELSE
+		TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢)
+	ENDIF
+ENDIF
+
+;耳・尻尾
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
+IF PARENT >= 0
+	TALENT:エルーン耳 = TALENT:PARENT:エルーン耳
+	TALENT:ハーヴィン耳 = TALENT:PARENT:ハーヴィン耳
+	TALENT:尻尾あり = TALENT:PARENT:尻尾あり
+ENDIF
+
+;角
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
+IF PARENT >= 0
+	TALENT:角あり = TALENT:PARENT:角あり
+ENDIF
+
+;容姿 両親の平均
+IF NO:MOTHER == 0 || NO:MOTHER == 999
+	TALENT:容姿 = TALENT:MOTHER:容姿
+ELSE
+	;名有りキャラは美形として扱う
+	TALENT:容姿 = 1
+ENDIF
+IF FATHER >= 0 && (NO:FATHER == 0 || NO:FATHER == 999)
+	TALENT:容姿 = (TALENT:容姿 + TALENT:FATHER:容姿 + 1) / 2
+ELSEIF FATHER >= 0
+	;名有りキャラは美形として扱う
+	TALENT:容姿 = (TALENT:容姿 + 1 + 1) / 2
+ENDIF
+TALENT:容姿 = LIMIT(TALENT:容姿, -1, 2)
+
+;体格 同性の親優先
+IF TALENT:性別 != 2
+	PARENT = 遺伝元(MOTHER, FATHER, "ランダム")
+ELSE
+	PARENT = 遺伝元(FATHER, MOTHER, "ランダム")
+ENDIF
+IF PARENT >= 0
+	;平均により補正
+	TALENT:体格 = TALENT:PARENT:体格 + 体格_平均(ベース種族, TALENT:性別, 成長後年齢) - 体格_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, TALENT:PARENT:年齢)
+	;±1
+	TALENT:体格 = LIMIT(TALENT:体格 + RAND:2 + RAND:2 - 1, -3, 2)
+ELSE
+	TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
+ENDIF
+
+;体型
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "ランダム")
+IF PARENT >= 0
+	;平均により補正
+	TALENT:体型 = TALENT:PARENT:体型 + 体型_平均(ベース種族) - 体型_平均(ベース種族検索(CFLAG:PARENT:人物番号))
+	;±1
+	TALENT:体型 = LIMIT(TALENT:体型 + RAND:2 + RAND:2 - 1, -3, 3)
+ELSE
+	TALENT:体型 = ランダム体型(ベース種族)
+ENDIF
+
+;素質
+;まずは独自の素質6個～8個（うち2つは性格系の素質確定）
+CALL ランダム素質選択(素質選択用)
+FOR LOCAL, 0, 8
+	SIF 素質選択用:LOCAL == 0
+		BREAK
+	TALENT:(ランダムキャラ素質番号(素質選択用:LOCAL)) = ランダムキャラ素質値(素質選択用:LOCAL)
+NEXT
+
+;親からの素質遺伝(上の素質が上書きされる可能性あり)
+CALL 素質遺伝(TARGET, RECESSIVE, 50)
+CALL 素質遺伝(TARGET, DOMINANT, 50)
+
+;素質が多くなりすぎないように削除
+CALL 素質削減(TARGET, 12)
+
+;敏感系
+FOR LOCAL, 0, 5
+	PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
+	SIF PARENT >= 0
+		TALENT:(LOCAL + 101) = TALENT:PARENT:(LOCAL + 101)
+NEXT
+FOR LOCAL, 0, 5
+	SELECTCASE RAND:10
+		CASE IS < 2
+			;鈍感方向へ1
+			TALENT:(LOCAL + 101) -= 1
+		CASE IS < 7
+		CASEELSE
+			;敏感方向へ1
+			TALENT:(LOCAL + 101) += 1
+	ENDSELECT
+	TALENT:(LOCAL + 101) = LIMIT(TALENT:(LOCAL + 101), -1, 1)
+NEXT
+IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:陥没乳首_なし == 0
+	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	IF PARENT >= 0
+		TALENT:陥没乳首 = TALENT:PARENT:陥没乳首
+	ELSEIF RAND:10 == 0
+		TALENT:陥没乳首 = 1
+	ENDIF
+ENDIF
+IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:母乳体質_なし == 0
+	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	IF PARENT >= 0
+		TALENT:母乳体質 = TALENT:PARENT:母乳体質
+	ELSEIF RAND:10 == 0
+		TALENT:母乳体質 = 1
+	ENDIF
+ENDIF
+IF GETBIT(TALENT:性別, 1)
+	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "ランダム")
+	IF PARENT >= 0
+		TALENT:絶倫 = TALENT:PARENT:絶倫
+	ELSEIF RAND:3 == 0
+		TALENT:絶倫 = 1
+	ENDIF
+ENDIF
+
+;プレゼント好み
+CSTR:プレゼント好み '= GET_PERSON_プレゼント好み(子供人物番号)
+SIF TALENT:飲兵衛 > 0
+	CSTR:プレゼント好み += "_酒"
+
+IF 汎用立ち絵制御OPTION
+	IF TALENT:性別 == 2
+	ELSE
+		SELECTCASE ベース種族
+			CASE 2
+				SELECTCASE TALENT:バストサイズ
+					CASE -2
+						バスト種別 = 0
+					CASE -1, 0
+						バスト種別 = 1
+					CASE 1
+						バスト種別 = 2
+					CASE 2, 3
+						バスト種別 = 3
+				ENDSELECT
+				汎用画像キー = エルーン\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
+			CASE 3
+				バスト種別 = (TALENT:バストサイズ <= 2) ? 3 # 4
+				汎用画像キー = ドラフ\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
+			CASE 4
+				バスト種別 = 0
+				汎用画像キー = ハーヴィン{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
+			CASEELSE
+				SELECTCASE TALENT:バストサイズ
+					CASE -2
+						バスト種別 = 0
+					CASE -1, 0
+						バスト種別 = 1
+					CASE 1
+						バスト種別 = 2
+					CASE 2, 3
+						バスト種別 = 3
+				ENDSELECT
+				汎用画像キー = ヒューマン\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
+		ENDSELECT
+	ENDIF
+ENDIF
+
+CFLAG:人物番号 = 子供人物番号
+CALL コマンド存在チェック
+CALL キャラクター初期化(TARGET)
+
+TALENT:定住者 = 1
+CFLAG:滞在期間 = 999
+CFLAG:招待不可フラグ = 0
+IF 汎用立ち絵制御OPTION
+	CSTR:汎用立ち絵登録文字列 = %汎用画像キー%
+ENDIF
+CALL ステータス記録(TARGET)
+
+FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+	IF 定住者部屋割り配列:LOCAL == ""
+		定住者部屋割り配列:LOCAL = {TARGET}_
+		BREAK
+	ENDIF
+NEXT
+
+TARGET = TARGET保存
+RETURN 0
+
+
+@遺伝元(PARENT:0, PARENT:1, ARGS:0 = "", ARGS:1 = "", ARGS:2 = "", ARGS:3 = "")
+#FUNCTION
+#DIM PARENT, 2
+#DIM 候補, 4
+#DIM 候補数
+#DIM 性器要求
+#DIM 性別限定
+#DIM あなた除外
+#DIM ランダム選択
+
+VARSET 候補, -1
+候補数 = 0
+
+性器要求 = 0
+性別限定 = 0
+あなた除外 = 0
+ランダム選択 = 1
+FOR LOCAL, 0, 4
+	SELECTCASE ARGS:LOCAL
+		CASE "女性器あり"
+			性器要求 |= 1
+		CASE "男性器あり"
+			性器要求 |= 2
+
+		CASE "女性のみ"
+			性別限定 = 1
+		CASE "男性のみ"
+			性別限定 = 2
+
+		CASE "あなた除外"
+			あなた除外 = 1
+
+		CASE "固定"
+			ランダム選択 = 0
+		CASE "両親のみ"
+			ランダム選択 = 1
+		CASE "ランダム"
+			ランダム選択 = 2
+	ENDSELECT
+NEXT
+
+FOR LOCAL, 0, 2
+	SIF PARENT:LOCAL < 0
+		CONTINUE
+
+	SIF (TALENT:(PARENT:LOCAL):性別 & 性器要求) != 性器要求
+		CONTINUE
+
+	SIF 性別限定 == 1 && TALENT:(PARENT:LOCAL):性別 == 2
+		CONTINUE
+	SIF 性別限定 == 2 && TALENT:(PARENT:LOCAL):性別 != 2
+		CONTINUE
+
+	SIF あなた除外 && PARENT:LOCAL == 0
+		CONTINUE
+
+	SIF ランダム選択 == 0
+		RETURNF PARENT:LOCAL
+
+	IF 候補数 == 0
+		;顕性側は2倍出る
+		候補:候補数 = PARENT:LOCAL
+		候補数 ++
+		候補:候補数 = PARENT:LOCAL
+		候補数 ++
+	ELSE
+		候補:候補数 = PARENT:LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+SIF 候補数 == 0
+	RETURNF -1
+
+IF ランダム選択 == 2
+	候補:候補数 = -1
+	候補数 ++
+ENDIF
+RETURNF 候補:(RAND:候補数)
+
+
+@ベース種族検索(ID)
+#FUNCTION
+#DIM ID
+#DIM ベース候補リスト, 31
+#DIM ベース候補数
+#DIM ベース候補ポインタ
+
+VARSET ベース候補リスト, -1
+ベース候補リスト:0 = ID
+ベース候補数 = 1
+
+;3代上くらいまでさかのぼって見つからないならもう血はぐちゃぐちゃだと思うのでそのくらいで打ち切る
+ベース候補ポインタ = 0
+WHILE ベース候補ポインタ < MIN(ベース候補数, 15)
+	SIF INRANGE(GET_PERSON_種族(ベース候補リスト:ベース候補ポインタ), 1, 4)
+		RETURNF GET_PERSON_種族(ベース候補リスト:ベース候補ポインタ)
+
+	LOCAL = GET_PERSON_母親(ベース候補リスト:ベース候補ポインタ)
+	IF LOCAL && FINDELEMENT(ベース候補リスト, LOCAL) == -1
+		ベース候補リスト:ベース候補数 = LOCAL
+		ベース候補数 ++
+	ENDIF
+
+	LOCAL = GET_PERSON_父親(ベース候補リスト:ベース候補ポインタ)
+	IF LOCAL && FINDELEMENT(ベース候補リスト, LOCAL) == -1
+		ベース候補リスト:ベース候補数 = LOCAL
+		ベース候補数 ++
+	ENDIF
+
+	ベース候補ポインタ ++
+WEND
+
+RETURNF GET_PERSON_種族(ID)
+
+@素質遺伝(CHILD, PARENT, PERCENTAGE)
+#DIM CHILD
+#DIM PARENT
+#DIM PERCENTAGE
+#DIM 遺伝候補, VARSIZE("遺伝可能配列")
+#DIM 遺伝候補数
+#DIM TALENT_NO
+#DIM 削除対象
+
+VARSET 遺伝候補, -1
+遺伝候補数 = 0
+
+;遺伝候補の洗い出し
+FOR LOCAL, 0, VARSIZE("遺伝可能配列")
+	TALENT_NO = 遺伝可能配列:LOCAL
+	IF STRLENS(GET_TALENTNAME(TALENT_NO, TALENT:PARENT:TALENT_NO, 0)) > 0
+		遺伝候補:遺伝候補数 = TALENT_NO
+		遺伝候補数 ++
+	ENDIF
+NEXT
+
+;遺伝候補をPERCENTAGEに沿って減らす
+LOCAL = 遺伝候補数 * (100 - PERCENTAGE) / 100
+WHILE LOCAL > 0
+	削除対象 = RAND:遺伝候補数
+	遺伝候補数 --
+	遺伝候補:削除対象 = 遺伝候補:遺伝候補数
+	遺伝候補:遺伝候補数 = -1
+	LOCAL --
+WEND
+
+;残ったものを遺伝させる
+FOR LOCAL, 0, 遺伝候補数
+	TALENT_NO = 遺伝候補:LOCAL
+	TALENT:CHILD:TALENT_NO = TALENT:PARENT:TALENT_NO
+NEXT
+
+@素質削減(CHILD, QUANTITY)
+#DIM CHILD
+#DIM QUANTITY
+#DIM 削減候補, VARSIZE("遺伝可能配列")
+#DIM 削減候補数
+#DIM TALENT_NO
+#DIM 削除対象
+
+VARSET 削減候補, -1
+削減候補数 = 0
+
+;削減候補の洗い出し
+FOR LOCAL, 0, VARSIZE("遺伝可能配列")
+	TALENT_NO = 遺伝可能配列:LOCAL
+	IF STRLENS(GET_TALENTNAME(TALENT_NO, TALENT:CHILD:TALENT_NO, 0)) > 0
+		削減候補:削減候補数 = TALENT_NO
+		削減候補数 ++
+	ENDIF
+NEXT
+
+;削減候補をQUANTITYに沿って減らす
+LOCAL = 削減候補数 - QUANTITY
+WHILE LOCAL > 0
+	削除対象 = RAND:削減候補数
+	TALENT_NO = 削減候補:削除対象
+
+	削減候補数 --
+	削減候補:削除対象 = 削減候補:削減候補数
+	削減候補:削減候補数 = -1
+	TALENT:CHILD:TALENT_NO = 0
+	LOCAL --
+WEND
