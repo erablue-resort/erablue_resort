@@ -5,6 +5,7 @@
 #DIM 表示アビ数
 #DIM アビ番号
 #DIM 消費ＭＰ
+#DIM 行動キャラ一時保存
 
 VARSET LOCALS
 上メニュー操作許可フラグ = 1
@@ -231,6 +232,7 @@ SELECTCASE 戦闘行動内容
 		ダンジョン表示モード = アイテム画面
 		CALL 口上変数初期化
 		$INPUT_LOOP_ITEM
+		CALL アビテンプレ変数リセット
 		CALL 画面再描画
 		BINPUTS
 		IF STRCOUNT(RESULTS, "サイド領域") > 0
@@ -238,43 +240,61 @@ SELECTCASE 戦闘行動内容
 			GOTO INPUT_LOOP_ITEM
 		ENDIF
 		LOCAL = TOINT(RESULTS)
+		行動キャラ一時保存 = 戦闘行動キャラ
+		戦闘行動キャラ = 9
 		SELECTCASE LOCAL
 			CASE 1 TO 24
 				IF DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:LOCAL)
 					選択用変数 = LOCAL
 					$INPUT_LOOP_ITEM2
 					CALL 画面再描画
-					INPUT
+					SIF ダンジョン表示モード != "戦闘画面"
+						BINPUT
 					LOCAL = RESULT
 					IF LOCAL == 999
 						ダンジョン表示モード = アイテム画面
 						キャラ画像ボタン化フラグ = 1
 						CLEARLINE 1
 						選択用変数 = -1
+						戦闘行動キャラ = 行動キャラ一時保存
 						GOTO INPUT_LOOP_ITEM
 					ENDIF
+					アビ汎用文字列:実行時メッセージ１ = %CALLNAME:PLAYER%は%表示アイテム名:選択用変数%を使った！
 					TRYCCALLFORM アイテム効果処理_%表示アイテム名:選択用変数%(LOCAL)
 						IF RESULT == 0
 							REUSELASTLINE 
 							GOTO INPUT_LOOP_ITEM2
+						ELSEIF RESULT == -1
+							ダンジョン表示モード = アイテム画面
+							キャラ画像ボタン化フラグ = 1
+							CLEARLINE 1
+							選択用変数 = -1
+							戦闘行動キャラ = 行動キャラ一時保存
+							GOTO INPUT_LOOP_ITEM
 						ENDIF
+						CALL アイテム増減汎用処理(表示アイテム名:選択用変数, -1)
+						CALL アビテンプレート用_表示メッセージ変換処理
+						CALL メッセージ欄表示用関数(,,,0)
 						アイテム使用済みフラグ = 1
 					CATCH
 						REUSELASTLINE 
 						GOTO INPUT_LOOP_ITEM2
 					ENDCATCH
-				ELSE
-					REUSELASTLINE 
-					GOTO INPUT_LOOP_ITEM
 				ENDIF
 			CASE 999
 			CASEELSE
+				戦闘行動キャラ = 行動キャラ一時保存
 				REUSELASTLINE 
 				GOTO INPUT_LOOP_ITEM
 		ENDSELECT
+		戦闘行動キャラ = 行動キャラ一時保存
 		ダンジョン表示モード = 戦闘画面
 		選択用変数 = -1
+		CALL アビテンプレ変数リセット
 		CALL 画面再描画
+		IF アビテンプレート用_味方全滅フラグ || アビテンプレート用_敵全滅フラグ
+			RETURN 0
+		ENDIF
 		RESTART
 	CASE 1001
 		;逃げる
