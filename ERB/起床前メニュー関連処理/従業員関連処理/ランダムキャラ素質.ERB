@@ -20,6 +20,34 @@ RETURNF ABS(ARG) % 10000
 #FUNCTION
 RETURNF SIGN(ARG) * (ABS(ARG) / 10000 + 1)
 
+@ランダム素質選択(素質配列)
+#DIM REF 素質配列, 0
+#DIM 重複チェック用, 8
+
+;6個～8個（うち2つは性格系の素質確定）
+LOCAL:1 = RAND(6, 8 + 1)
+FOR LOCAL, 0, 8
+	SELECTCASE LOCAL
+		CASE IS < 2
+			素質配列:LOCAL = ランダム素質_性格のみ()
+		CASE IS < LOCAL:1
+			素質配列:LOCAL = ランダム素質()
+		CASEELSE
+			素質配列:LOCAL = 0
+	ENDSELECT
+NEXT
+FOR LOCAL, 0, 8
+	IF 素質配列:LOCAL == 0
+		重複チェック用:LOCAL = LOCAL * -10000
+	ELSE
+		重複チェック用:LOCAL = ランダムキャラ素質番号(素質配列:LOCAL)
+	ENDIF
+NEXT
+SIF NOSAMES(重複チェック用:0, 重複チェック用:1, 重複チェック用:2, 重複チェック用:3, 重複チェック用:4, 重複チェック用:5, 重複チェック用:6, 重複チェック用:7) == 0
+	RESTART
+
+RETURN
+
 
 @ランダム年齢(性別)
 #FUNCTION
@@ -308,6 +336,71 @@ SELECTCASE 種族
 ENDSELECT
 RETURNF 体格
 
+@体格_平均(種族, 性別, 年齢)
+#FUNCTION
+#DIM 種族
+#DIM 性別
+#DIM 年齢
+
+SELECTCASE 種族
+	CASE 種族_ドラフ
+		IF 性別 != 2
+			;女性
+			SELECTCASE 年齢
+				CASE 4
+					;ロリババア
+					RETURNF -2
+				CASE -2
+					;幼い
+					RETURNF -2
+				CASEELSE
+					;それ以外
+					RETURNF -1
+			ENDSELECT
+		ELSE
+			;男性
+			SELECTCASE 年齢
+				CASE -2, -1
+					;幼い/若い
+					RETURNF -1
+				CASE 0
+					;成人
+					RETURNF 1
+				CASEELSE
+					;それ以外
+					RETURNF 2
+			ENDSELECT
+		ENDIF
+	CASE 種族_ハーヴィン
+		RETURNF -3
+	CASEELSE
+		IF 性別 != 2
+			;女性
+			SELECTCASE 年齢
+				CASE 4
+					;ロリババア
+					RETURNF -2
+				CASE -2
+					;幼い
+					RETURNF -1
+				CASEELSE
+					;それ以外
+					RETURNF 0
+			ENDSELECT
+		ELSE
+			;男性
+			SELECTCASE 年齢
+				CASE -2, -1
+					;幼い/若い
+					RETURNF -1
+				CASEELSE
+					;それ以外
+					RETURNF 0
+			ENDSELECT
+		ENDIF
+ENDSELECT
+
+
 @ランダム体型(種族)
 #FUNCTION
 #DIM 種族
@@ -319,6 +412,19 @@ SELECTCASE 種族
 		RETURNF RAND:2 + RAND:2 - 0
 	CASEELSE
 		RETURNF RAND:2 + RAND:2 - 1
+ENDSELECT
+
+@体型_平均(種族)
+#FUNCTION
+#DIM 種族
+
+SELECTCASE 種族
+	CASE 種族_エルーン
+		RETURNF -1
+	CASE 種族_ドラフ
+		RETURNF 1
+	CASEELSE
+		RETURNF 0
 ENDSELECT
 
 
@@ -349,12 +455,30 @@ SELECTCASE 種族
 		RETURNF 成熟度
 ENDSELECT
 
+@バストサイズ_平均(種族, 年齢)
+#FUNCTION
+#DIM 種族
+#DIM 年齢
+
+SELECTCASE 種族
+	CASE 種族_ドラフ
+		IF 年齢 == -2
+			RETURNF 2
+		ELSE
+			RETURNF 3
+		ENDIF
+	CASE 種族_ハーヴィン
+		RETURNF -2
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+
+
 @ランダム男性器サイズ(種族, 性別, 年齢)
 #FUNCTION
 #DIM 種族
 #DIM 性別
 #DIM 年齢
-#DIM 男性器サイズ
 
 IF 種族 == 種族_ハーヴィン
 	;ハーヴィン
@@ -464,3 +588,40 @@ ELSE
 	ENDSELECT
 ENDIF
 
+@男性器サイズ_平均(種族, 性別, 年齢)
+#FUNCTION
+#DIM 種族
+#DIM 性別
+#DIM 年齢
+
+IF 種族 == 種族_ハーヴィン
+	;ハーヴィン
+	SELECTCASE 年齢
+		CASE -2
+			;幼い
+			RETURNF -2
+		CASEELSE
+			;それ以外
+			RETURNF -1
+	ENDSELECT
+ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && 年齢 >= 0
+	;成人以降のドラフ男
+	SELECTCASE 年齢
+		CASE 0
+			;成人
+			RETURNF 1
+		CASEELSE
+			;それ以外
+			RETURNF 2
+	ENDSELECT
+ELSE
+	;それ以外
+	SELECTCASE 年齢
+		CASE -2
+			;幼い
+			RETURNF -2
+		CASEELSE
+			;それ以外
+			RETURNF 0
+	ENDSELECT
+ENDIF
