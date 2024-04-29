@@ -386,60 +386,15 @@ SELECTCASE LOCAL:1
 			PRINTFORMW %CALLNAME:対象キャラ%の性別が%GET_TALENTNAME(2, TALENT:対象キャラ:性別)%から%GET_TALENTNAME(2, LOCAL:1)%に変化しました。
 			LOCAL = TALENT:対象キャラ:性別
 			TALENT:対象キャラ:性別 = LOCAL:1
-			IF GETBIT(TALENT:対象キャラ:性別, 0) != GETBIT(LOCAL, 0)
-				IF GETBIT(CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別")), 0) == GETBIT(TALENT:対象キャラ:性別, 0) && CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "種族")) == TALENT:対象キャラ:種族
-					;元の性別・種族に戻ったのなら初期化
-					BASE:対象キャラ:身長 = 0
-					BASE:対象キャラ:バスト = 0
-					CALL INIT_BODYSIZE(対象キャラ)
-				ELSEIF TALENT:対象キャラ:性別 == 2
-					;女・ふたなり＞男パターン
-					SELECTCASE TALENT:対象キャラ:種族
-						CASE 3
-							;ドラフは男ドラフ並に
-							TALENT:対象キャラ:体格 = 2
-							SIF LOCAL == 1
-								TALENT:対象キャラ:男性器サイズ = RAND(1,2)
-						CASE 4
-							;ハーヴィンは変化なし
-							SIF LOCAL == 1
-								TALENT:対象キャラ:男性器サイズ = RAND(-2,-1)
-						CASEELSE
-							;他は体格を＋０～１する
-							TALENT:対象キャラ:体格 = MIN(1, TALENT:対象キャラ:体格 + RAND:2)
-							SIF LOCAL == 1
-								TALENT:対象キャラ:男性器サイズ = RAND(-1,1)
-					ENDSELECT
-					変更位置 = 3
-					SIF 身長固定キャラ(対象キャラ)
-						CLEARBIT 変更位置, 0
-					SIF バスト固定キャラ(対象キャラ)
-						CLEARBIT 変更位置, 1
-					SIF 変更位置
-						CALL SET_BODYSIZE(対象キャラ,変更位置)
-				ELSE
-					;男＞女・ふたなりパターン
-					SELECTCASE TALENT:対象キャラ:種族
-						CASE 3
-							;ドラフは小柄に
-							TALENT:対象キャラ:体格 = -1
-							TALENT:対象キャラ:バストサイズ = 3
-						CASE 4
-							;ハーヴィンは体格変化なし
-							TALENT:対象キャラ:バストサイズ = -2
-						CASEELSE
-							;他は体格を－０～１する
-							TALENT:対象キャラ:体格 = MAX(-3, TALENT:対象キャラ:体格 - RAND:2)
-							TALENT:対象キャラ:バストサイズ = LIMIT(RAND(TALENT:対象キャラ:体格 - 2, TALENT:対象キャラ:体格 + 2), -2, 3)
-					ENDSELECT
-					変更位置 = 3
-					SIF 身長固定キャラ(対象キャラ)
-						CLEARBIT 変更位置, 0
-					SIF バスト固定キャラ(対象キャラ)
-						CLEARBIT 変更位置, 1
-					SIF 変更位置
-						CALL SET_BODYSIZE(対象キャラ,変更位置)
-				ENDIF
+			CALL ZP_SHOP_性別特徴変換(対象キャラ, LOCAL, LOCAL:1)
+			IF RESULT == 0
+				変更位置 = 3
+				SIF 身長固定キャラ(対象キャラ)
+					CLEARBIT 変更位置, 0
+				SIF バスト固定キャラ(対象キャラ)
+					CLEARBIT 変更位置, 1
+				SIF 変更位置
+					CALL SET_BODYSIZE(対象キャラ, 変更位置)
 			ENDIF
 			IF キャラ一致チェック(対象キャラ, "[開闢の錬金術師]カリオストロ")
 				;カリオストロだけ特殊処理
@@ -460,6 +415,61 @@ SELECTCASE LOCAL:1
 		REUSELASTLINE 
 		GOTO INPUT_LOOP3
 ENDSELECT
+
+@ZP_SHOP_性別特徴変換(キャラ番号, 変更元性別, 変更先性別)
+#DIM キャラ番号
+#DIM 変更元性別
+#DIM 変更先性別
+
+IF GETBIT(変更先性別, 0) != GETBIT(変更元性別, 0)
+	IF !TALENT:キャラ番号:ランダムキャラ && GETBIT(CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "性別")), 0) == GETBIT(変更先性別, 0) && CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "種族")) == TALENT:キャラ番号:種族
+		;元の性別・種族に戻ったのなら初期化
+		BASE:キャラ番号:身長 = 0
+		BASE:キャラ番号:バスト = 0
+		CALL INIT_BODYSIZE(キャラ番号)
+		RETURN 1
+	ELSEIF 変更先性別 == 2
+		;女・ふたなり＞男パターン
+		SELECTCASE TALENT:キャラ番号:種族
+			CASE 3
+				;ドラフは男ドラフ並に
+				TALENT:キャラ番号:体格 = 2
+			CASE 4
+				;ハーヴィンは変化なし
+			CASEELSE
+				;他は体格を＋０～１する
+				TALENT:キャラ番号:体格 = MIN(1, TALENT:キャラ番号:体格 + RAND:2)
+		ENDSELECT
+		SIF 変更元性別 == 1
+			TALENT:キャラ番号:男性器サイズ = ランダム男性器サイズ(TALENT:キャラ番号:種族, 変更先性別, TALENT:キャラ番号:年齢)
+		RETURN 0
+	ELSEIF 変更元性別 == 2
+		;男＞女・ふたなりパターン
+		SELECTCASE TALENT:キャラ番号:種族
+			CASE 3
+				;ドラフは小柄に
+				TALENT:キャラ番号:体格 = -1
+			CASE 4
+				;ハーヴィンは体格変化なし
+			CASEELSE
+				;他は体格を－０～１する
+				TALENT:キャラ番号:体格 = MAX(-3, TALENT:キャラ番号:体格 - RAND:2)
+		ENDSELECT
+		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(TALENT:キャラ番号:種族, TALENT:キャラ番号:年齢)
+		RETURN 0
+	ELSE
+		;その他＞女・ふたなりパターン
+		SIF 変更先性別 == 3
+			TALENT:キャラ番号:男性器サイズ = ランダム男性器サイズ(TALENT:キャラ番号:種族, 変更先性別, TALENT:キャラ番号:年齢)
+		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(TALENT:キャラ番号:種族, TALENT:キャラ番号:年齢)
+		RETURN 0
+	ENDIF
+ELSEIF !GETBIT(変更元性別, 1) && GETBIT(変更先性別, 1)
+	TALENT:キャラ番号:男性器サイズ = ランダム男性器サイズ(TALENT:キャラ番号:種族, 変更先性別, TALENT:キャラ番号:年齢)
+	RETURN 1
+ENDIF
+RETURN 1
+
 
 @種族素質変化(対象キャラ)
 #DIM 対象キャラ
@@ -558,58 +568,8 @@ IF TALENT:キャラ番号:母乳体質 == 2
 	TALENT:キャラ番号:母乳体質 = 0
 ENDIF
 
-IF 変更元種族 == 4 && 変更先種族 != 5
-	;元がハーヴィンの場合、ランダムでバスト変化
-	SELECTCASE RAND:100
-		CASE 0 TO 16
-			TALENT:キャラ番号:バストサイズ = -2
-		CASE 17 TO 33
-			TALENT:キャラ番号:バストサイズ = -1
-		CASE 34 TO 50
-			TALENT:キャラ番号:バストサイズ = 0
-		CASE 51 TO 67
-			TALENT:キャラ番号:バストサイズ = 1
-		CASE 68 TO 84
-			TALENT:キャラ番号:バストサイズ = 2
-		CASE 85 TO 99
-			TALENT:キャラ番号:バストサイズ = 3
-	ENDSELECT
-	SELECTCASE RAND:100
-		CASE 0 TO 59
-			TALENT:キャラ番号:体格 = -1
-		CASE 60 TO 94
-			TALENT:キャラ番号:体格 = 0
-		CASE 95 TO 99
-			TALENT:キャラ番号:体格 = 1
-	ENDSELECT
-ELSEIF 変更元種族 == 3 && 変更先種族 != 5
-	;元がドラフの場合、ランダムでバスト変化
-	SELECTCASE RAND:100
-		CASE 0 TO 16
-			TALENT:キャラ番号:バストサイズ = -2
-		CASE 17 TO 33
-			TALENT:キャラ番号:バストサイズ = -1
-		CASE 34 TO 50
-			TALENT:キャラ番号:バストサイズ = 0
-		CASE 51 TO 67
-			TALENT:キャラ番号:バストサイズ = 1
-		CASE 68 TO 84
-			TALENT:キャラ番号:バストサイズ = 2
-		CASE 85 TO 99
-			TALENT:キャラ番号:バストサイズ = 3
-	ENDSELECT
-	SELECTCASE RAND:100
-		CASE 0 TO 59
-			TALENT:キャラ番号:体格 = -1
-		CASE 60 TO 94
-			TALENT:キャラ番号:体格 = 0
-		CASE 95 TO 99
-			TALENT:キャラ番号:体格 = 1
-	ENDSELECT
-ENDIF
-
 ;CSVと同じ種族、あるいは星晶獣やその他の場合、CSVと同じ体格体型に戻す
-IF 変更先種族 == 5 || 変更先種族 == 6 || 変更先種族 == CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "種族"))
+IF 変更先種族 == 5 || 変更先種族 == 6 || (!TALENT:キャラ番号:ランダムキャラ && 変更先種族 == CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "種族")))
 	TALENT:キャラ番号:角あり = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "角あり"))
 	TALENT:キャラ番号:尻尾あり = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "尻尾あり"))
 	TALENT:キャラ番号:エルーン耳 = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "エルーン耳"))
@@ -619,6 +579,15 @@ IF 変更先種族 == 5 || 変更先種族 == 6 || 変更先種族 == CSVTALENT(
 	BASE:キャラ番号:バスト = 0
 	CALL INIT_BODYSIZE(キャラ番号)
 	RETURN 1
+ENDIF
+
+;ここを通るのはヒューマン～ハーヴィンの4種族のみ
+
+IF !((変更元種族 == 1 && 変更先種族 == 2) || (変更元種族 == 2 && 変更先種族 == 1))
+	;ヒューマン←→エルーンの場合を除き、ランダムでバスト・体格変化
+	SIF GETBIT(TALENT:キャラ番号:性別, 0)
+		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(変更先種族, TALENT:キャラ番号:年齢)
+	TALENT:キャラ番号:体格 = ランダム体格(変更先種族, TALENT:キャラ番号:性別, TALENT:キャラ番号:年齢, TALENT:キャラ番号:バストサイズ)
 ENDIF
 
 ;種族に応じた変化
@@ -641,26 +610,18 @@ SELECTCASE 変更先種族
 		TALENT:キャラ番号:ハーヴィン耳 = 0
 	CASE 3
 		;ドラフ
-		IF TALENT:キャラ番号:性別 == 2
-			TALENT:キャラ番号:体格 = 2
-		ELSE
-			TALENT:キャラ番号:体格 = -1
-			TALENT:キャラ番号:バストサイズ = 3 - !RAND:5
-		ENDIF
 		TALENT:キャラ番号:角あり = 1
 		TALENT:キャラ番号:尻尾あり = 0
 		TALENT:キャラ番号:エルーン耳 = 0
 		TALENT:キャラ番号:ハーヴィン耳 = 0
 	CASE 4
 		;ハーヴィン
-		TALENT:キャラ番号:体格 = -3
 		TALENT:キャラ番号:角あり = 0
 		TALENT:キャラ番号:尻尾あり = 0
 		TALENT:キャラ番号:エルーン耳 = 0
 		TALENT:キャラ番号:ハーヴィン耳 = 1
-		SIF TALENT:キャラ番号:性別 != 2
-			TALENT:キャラ番号:バストサイズ = -2 + !RAND:5
 ENDSELECT
+RETURN 0
 
 
 @称号素質設定(対象キャラ)
