@@ -155,26 +155,34 @@ DO
 BINPUT
 SELECTCASE RESULT
 	CASE 100
+		能力表示現在ページ = 0
 		RETURN 100
 	CASE 101
+		能力表示現在ページ = 0
 		RETURN 101
 	CASE 90
 		能力表示 = 0
+		能力表示現在ページ = 0
 		RESTART
 	CASE 91
 		能力表示 = 1
+		能力表示現在ページ = 0
 		RESTART
 	CASE 92
 		能力表示 = 2
+		能力表示現在ページ = 0
 		RESTART
 	CASE 93
 		能力表示 = 3
+		能力表示現在ページ = 0
 		RESTART
 	CASE 94
 		能力表示 = 4
+		能力表示現在ページ = 0
 		RESTART
 	CASE 95
 		能力表示 = 5
+		能力表示現在ページ = 0
 		RESTART
 	CASE 110
 		CALL CHOICE_LOVE(ARG)
@@ -214,10 +222,10 @@ SELECTCASE RESULT
 		INVERTBIT 全表示フラグ:0, 0
 		RESTART
 	CASE 900
-		履歴現在ページ --
+		能力表示現在ページ --
 		RESTART
 	CASE 901
-		履歴現在ページ ++
+		能力表示現在ページ ++
 		RESTART
 	CASE 998
 		CALL 弱点コマンド全表示(ARG)
@@ -822,6 +830,7 @@ ENDIF
 #DIM CHILD_COUNT
 #DIMS CHILD_NAME
 #DIM MASTERとの子供人数
+#DIM 子供表示人数
 
 ;ここで立ち絵表示
 CALL 画像描画終了
@@ -852,38 +861,38 @@ IF BIRTHDAY >= 0
 	LAP = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
 	SIF LAP >= 0 && LAP != 周回回数累計:0
 		PRINTFORM {LAP + 1}周目 
-	PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)
+	PRINTFORML {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)
 	PRINTL 
 ENDIF
 
-MOTHER = GET_PERSON_母親(CFLAG:ARG:人物番号)
-IF MOTHER && FIND_CHARA_FROM_PERSON_ID(MOTHER) >= 0
+MOTHER = FIND_MOTHER_CHARA_FROM_PERSON_ID(CFLAG:ARG:人物番号)
+IF MOTHER >= 0
 	PRINTL □ 母親 □---------------------------------------------------------------------
-	PRINTFORML 　%GET_PERSON_名前(MOTHER)%
+	PRINTFORML 　%NAME:MOTHER%
 	PRINTL 
 ENDIF
 
-FATHER = GET_PERSON_父親(CFLAG:ARG:人物番号)
-IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
+FATHER = FIND_FATHER_CHARA_FROM_PERSON_ID(CFLAG:ARG:人物番号)
+IF FATHER >= 0
 	PRINTL □ 父親 □---------------------------------------------------------------------
-	PRINTFORML 　%GET_PERSON_名前(FATHER)%
+	PRINTFORML 　%NAME:FATHER%
 	PRINTL 
 ENDIF
+子供表示人数 = 27 - (LINECOUNT - L_C) - 4
 
 CALL FIND_CHILDREN(CFLAG:ARG:人物番号)
 CHILD_COUNT = RESULT
 IF CHILD_COUNT > 0
-	PRINTL
 	PRINTL □ 子供 □---------------------------------------------------------------------
 	MASTERとの子供人数 = 0
-	FOR LOCAL, 1, (CHILD_COUNT + 1)
+	FOR LOCAL, 1, (1 + CHILD_COUNT)
 		SIF GET_PERSON_父親(RESULT:LOCAL) == CFLAG:MASTER:人物番号
 			MASTERとの子供人数 ++
 	NEXT
 	PRINTFORML 　%CALLNAME:MASTER%との子供：{MASTERとの子供人数, 2}人
 	PRINTFORML 　それ以外の子供：{EXP:ARG:出産経験 - MASTERとの子供人数, 2}人
 	PRINTL 
-	FOR LOCAL, 1, (CHILD_COUNT + 1)
+	FOR LOCAL, (1 + 子供表示人数 * 能力表示現在ページ), MIN(1 + CHILD_COUNT, 1 + 子供表示人数 * (能力表示現在ページ + 1))
 		PRINTFORM 　%"第" + TOSTR(LOCAL + MAX(0, EXP:ARG:出産経験 - CHILD_COUNT)) + "子", 7, LEFT% 
 		CHILD_NAME '= GET_PERSON_呼び名(RESULT:LOCAL)
 		IF CHILD_NAME != ""
@@ -901,9 +910,9 @@ IF CHILD_COUNT > 0
 				PRINTFORM {LAP + 1}周目 
 			PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)に
 		ENDIF
-		FATHER = GET_PERSON_父親(RESULT:LOCAL)
-		IF FATHER && FIND_CHARA_FROM_PERSON_ID(FATHER) >= 0
-			PRINTFORM %GET_PERSON_呼び名(FATHER)%との間に生まれた
+		FATHER = FIND_FATHER_CHARA_FROM_PERSON_ID(RESULT:LOCAL)
+		IF FATHER >= 0
+			PRINTFORM %CALLNAME:FATHER%との間に生まれた
 		ELSEIF BIRTHDAY >= 0
 			PRINT 生まれた
 		ENDIF
@@ -916,12 +925,31 @@ IF CHILD_COUNT > 0
 		ENDIF
 		PRINTL 
 	NEXT
+
 ENDIF
 
-FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+FOR LOCAL, 0, 27 - (LINECOUNT - L_C)
 	PRINTL
 NEXT
 
+PRINTL 
+IF CHILD_COUNT > 0
+	IF CHILD_COUNT > 子供表示人数 && 能力表示現在ページ > 0
+		PRINTBUTTONLC "[900]前のページへ", 900
+	ELSE
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTLC [---]前のページへ
+		RESETCOLOR
+	ENDIF
+	IF CHILD_COUNT > 子供表示人数 && 能力表示現在ページ < CHILD_COUNT / (子供表示人数 + 1)
+		PRINTBUTTONLC "[901]次のページへ", 901
+	ELSE
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTLC [---]次のページへ
+		RESETCOLOR
+	ENDIF
+ENDIF
+PRINTL 
 
 @CHOICE_LOVE(ARG)
 #DIM 恋慕枠数

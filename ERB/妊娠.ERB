@@ -140,35 +140,46 @@ TCVAR:ARG:膣内精液量 = 0
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
-#DIM CHILD_COUNT
+#DIM 子供性別候補, 2
+#DIM 子供性別
+#DIM 子供人数
 
 FATHER = CFLAG:MOTHER:子の父親
-;特徴をよく引き継ぐ側の親を1/2ずつで選択(ただしあなたは優先度低)
+;見た目をよく引き継ぐ側の親を1/2ずつで選択(ただしあなたは優先度低)
 IF FATHER < 0 || FATHER == MASTER || (MOTHER != MASTER && RAND:2 == 0)
 	DOMINANT = MOTHER
 ELSE
 	DOMINANT = FATHER
 ENDIF
 
+;子供の性別の決定:両親の性別に依存（父親不明の場合は男性扱いとする）
+子供性別候補:0 = TALENT:MOTHER:性別
+IF FATHER < 0
+	子供性別候補:1 = 2
+ELSE
+	子供性別候補:1 = TALENT:FATHER:性別
+ENDIF
+子供性別 = 子供性別候補:(RAND:2)
+
 ;子供の人数の決定
 SELECTCASE TALENT:MOTHER:受胎体質
 	CASE 1
 		;双子胎
-		CHILD_COUNT = 1
+		子供人数 = 1
 		SIF RAND:2
-			CHILD_COUNT = 2
+			子供人数 = 2
 		SIF RAND:16 == 0
-			CHILD_COUNT = 3
+			子供人数 = 3
 	CASE 2
 		;多産
-		CHILD_COUNT = 5 - SQRT(RAND:16)
+		子供人数 = 5 - SQRT(RAND:16)
 	CASE 3
 		;畜生胎
-		CHILD_COUNT = 12 - SQRT(RAND:49)
+		子供人数 = 12 - SQRT(RAND:49)
 	CASEELSE
-		CHILD_COUNT = 1
+		子供人数 = 1
 		SIF RAND:100 == 0
-			CHILD_COUNT = 2
+			子供人数 = 2
 ENDSELECT
 
 DRAWLINE
@@ -178,10 +189,10 @@ IF CFLAG:MOTHER:滞在期間 == -1 && MOTHER != MASTER
 	RESETCOLOR
 
 	;子供の姿の描写
-	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, TALENT:DOMINANT:性別, CHILD_COUNT)%のようです…
+	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)%のようです…
 	PRINTL 
 
-	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
 	TRYCALLFORM KOJO_出産_リゾート外_{NO:MOTHER}(MOTHER)
 ELSE
 	SETCOLOR カラーパレット("ピンク")
@@ -204,11 +215,11 @@ ELSE
 	RESETCOLOR
 
 	;子供の姿と母親の反応の描写
-	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, TALENT:DOMINANT:性別, CHILD_COUNT)%です…
+	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)%です…
 	IF MOTHER == MASTER
-		PRINTFORML %CALLNAME:MOTHER%は優しく自分の子供\@ (CHILD_COUNT > 1) ? たち # \@を撫でた…
+		PRINTFORML %CALLNAME:MOTHER%は優しく自分の子供\@ (子供人数 > 1) ? たち # \@を撫でた…
 	ELSE
-		PRINTFORML %CALLNAME:MOTHER%は疲れ切った様子ながら優しい微笑みを浮かべ、自らの子供\@ (CHILD_COUNT > 1) ? たち # \@を撫でている…
+		PRINTFORML %CALLNAME:MOTHER%は疲れ切った様子ながら優しい微笑みを浮かべ、自らの子供\@ (子供人数 > 1) ? たち # \@を撫でている…
 		IF 知識素質:MOTHER:性知識 == -2
 			SETCOLOR 0xffd900
 			PRINTFORML %CALLNAME:MOTHER%は出産を経て最低限の性知識を身に着けた！
@@ -219,7 +230,7 @@ ELSE
 	ENDIF
 	PRINTL 
 
-	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
 	TRYCALLFORM KOJO_出産_リゾート内_{NO:MOTHER}(MOTHER)
 ENDIF
 
@@ -235,14 +246,14 @@ ENDIF
 PRINTFORML 
 PRINTW
 SIF CFLAG:MOTHER:子の父親 == MASTER
-	MASTERの子供の数:0 += CHILD_COUNT
+	MASTERの子供の数:0 += 子供人数
 SIF MOTHER == MASTER
-	MASTERの子供の数:1 += CHILD_COUNT
+	MASTERの子供の数:1 += 子供人数
 TALENT:MOTHER:妊娠 = 0
 CFLAG:MOTHER:妊娠経過日 = 0
 CFLAG:MOTHER:子の父親 = 0
 CFLAG:MOTHER:妊娠発覚 = 0
-EXP:MOTHER:出産経験 += CHILD_COUNT
+EXP:MOTHER:出産経験 += 子供人数
 CFLAG:MOTHER:産後経過日 = 1
 
 
@@ -286,38 +297,39 @@ RETURNF LOCALS
 
 
 ;子供たちのデータ作成
-@CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, CHILD_COUNT)
+@CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
-#DIM CHILD_COUNT
+#DIM 子供人数
+#DIM 子供性別
 #DIM 命名フラグ
 #DIM 子供ID
 
 命名フラグ = (MOTHER == MASTER || FATHER == MASTER)
 IF 命名フラグ
-	CALL CHILDREN_NAMING_CHECK(DOMINANT, CHILD_COUNT)
+	CALL CHILDREN_NAMING_CHECK(DOMINANT, 子供人数)
 	命名フラグ = RESULT
 ENDIF
 
-IF CHILD_COUNT >= 2
-	FOR LOCAL, 0, CHILD_COUNT
-		CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ, LOCAL + 1)
+IF 子供人数 >= 2
+	FOR LOCAL, 0, 子供人数
+		CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ, LOCAL + 1)
 		SIF LOCAL == 0
 			子供ID = RESULT
 	NEXT
 ELSE
-	CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ)
+	CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ)
 	子供ID = RESULT
 ENDIF
 
 IF 命名フラグ
-	PRINTFORML %GET_PERSON_呼び名(子供ID)%\@ (CHILD_COUNT >= 2) ? たち # \@はリゾート併設の保育園で育てられるようです
+	PRINTFORML %GET_PERSON_呼び名(子供ID)%\@ (子供人数 >= 2) ? たち # \@はリゾート併設の保育園で育てられるようです
 ELSE
-	PRINTFORML 子供\@ (CHILD_COUNT >= 2) ? たち # \@は%CALLNAME:MOTHER%の元で育てられるようです
+	PRINTFORML 子供\@ (子供人数 >= 2) ? たち # \@は%CALLNAME:MOTHER%の元で育てられるようです
 ENDIF
 
-RETURN CHILD_COUNT
+RETURN 子供人数
 
 
 ;子供たちに一人一人名前を付けるかの選択
@@ -358,7 +370,7 @@ ENDSELECT
 
 
 ;子供のデータ作成
-@CREATE_CHILD(MOTHER, FATHER, DOMINANT, 命名フラグ, 子供順番 = 0)
+@CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ, 子供順番 = 0)
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
@@ -375,7 +387,6 @@ ENDSELECT
 子供ID = ADD_PERSON()
 
 ;性別
-子供性別 = TALENT:DOMINANT:性別
 CALL SET_PERSON_性別(子供ID, 子供性別)
 
 ;種族 親の種族が一致していればその種族、それ以外はその他
