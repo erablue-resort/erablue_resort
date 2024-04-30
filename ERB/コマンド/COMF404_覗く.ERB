@@ -104,8 +104,13 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 			;該当者なし
 			RFLAG:コマンド結果受渡し変数２ = 0
 		ELSE
-			LOCAL = RAND:(LOCAL:1)
-			RFLAG:コマンド結果受渡し変数２ = 候補者:LOCAL
+			;画像があるキャラが除き対象になりやすいように
+			DO
+				LOCAL = RAND:(LOCAL:1)
+				RFLAG:コマンド結果受渡し変数２ = 候補者:LOCAL
+				SIF GRAP_RAND(RFLAG:コマンド結果受渡し変数２, "短冊_", "全裸") != "デフォルト"
+					BREAK
+			LOOP RAND:100
 		ENDIF
 	CASE 2
 		;隠れて覗く
@@ -292,30 +297,32 @@ ENDSELECT
 #DIM キャラ番号
 #DIM 報酬時間; ms
 #DIMS 画像指定文字列
+#DIMS 対象フォルダ
 
 SIF CSTR:キャラ番号:画像フォルダ == ""
     CSTR:キャラ番号:画像フォルダ = {NO:キャラ番号}%CALLNAME:キャラ番号%
- 
-IF EXISTFILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/%画像指定文字列%.png")
+対象フォルダ '= "resources\\" + CSTR:キャラ番号:画像フォルダ
+
+IF !EXISTFILE(@"%対象フォルダ%/%画像指定文字列%.png")
+	IF 画像指定文字列 == "短冊_湯浴み着" && EXISTFILE(@"%対象フォルダ%/短冊_全裸.png")
+		画像指定文字列 = 短冊_全裸
+	ELSE
+		RETURN
+	ENDIF
+ENDIF
 	IF 画像指定文字列 == "短冊_全裸" || 画像指定文字列 == "短冊_湯浴み着"
-		RESULT = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/", @"%画像指定文字列%_差分_表情*.png")
+		RESULT = ENUMFILES(対象フォルダ, 画像指定文字列 + "_差分_表情*.png")
 		LOCAL = RAND:(RESULT + 1)
 		SELECTCASE LOCAL
-			CASE 0
-				画像指定文字列 '= 画像指定文字列 + "_差分_表情.png" 
 			CASE RESULT
 				画像指定文字列 '= 画像指定文字列 + ".png"
 			CASEELSE
-				画像指定文字列 '= 画像指定文字列 + "_差分_表情" + @"{LOCAL}" + ".png"
+				画像指定文字列 '= SUBSTRING(RESULTS:LOCAL, 1 +STRLENS(対象フォルダ), -1)
 		ENDSELECT
-	ELSE 
-		RESULT = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/", @"%画像指定文字列%*.png")
-		LOCAL = RAND:(RESULT + 1)
-		IF LOCAL == 0
-			画像指定文字列 '= 画像指定文字列 + ".png"
-		ELSE
-			画像指定文字列 '= 画像指定文字列 + @"{LOCAL}" + ".png"
-		ENDIF
+	ELSE
+		RESULT = ENUMFILES(対象フォルダ, 画像指定文字列 + "*.png")
+		LOCAL = RAND:RESULT
+		画像指定文字列 '= SUBSTRING(RESULTS:LOCAL, 1 +STRLENS(対象フォルダ), -1)
 	ENDIF
 	;画像はここで確定させて持ち込む　レイヤー番号 = 50
     GDISPOSE 50
@@ -342,7 +349,7 @@ IF EXISTFILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/%画像指定
             TINPUT 報酬時間, 0, 1, "これ以上はまずい！"
             CALL カットイン終了
     ENDSELECT
-ENDIF
+;ENDIF
 
 @覗き見るカットイン
 #DIM レイヤー番号
