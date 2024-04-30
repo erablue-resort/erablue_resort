@@ -33,6 +33,53 @@ FOR L_CNT, 1, CHARANUM
 	SIF L_C >= 100
 		BREAK
 NEXT
+
+;-------------------------------------------------
+;SET_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2をセットする
+;正常に追加できたら0、空きがなかった場合は1、引数チェックで弾かれた場合は-1を返す
+;基本、アップデート用の処理なので削除はしない
+;-------------------------------------------------
+@SET_RELATION(ARG, ARG:1, ARG:2)
+#DIM 同行配列番号
+#DIM REL_NO
+#DIM L_C
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURN -1
+SIF !INRANGE(ARG:1, 0, CHARANUM-1)
+	RETURN -1
+
+;同キャラの場合戻る
+SIF ARG == ARG:1
+	RETURN -1
+
+;無い場合のみ追加する
+IF FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1) < 0
+	;空いてる場所を検索して突っ込む
+	同行配列番号 = FINDELEMENT(同行候補キャラ番号:ARG:0, 0)
+	SIF 同行配列番号 < 0
+		RETURN 1
+
+	REL_NO = FINDELEMENT(RELATION_NO:ARG:0, ARG:1)
+	IF REL_NO < 0
+		;無い場合、空いてる場所を検索して突っ込む
+		L_C = FINDELEMENT(RELATION_NO:ARG:0, 0)
+		SIF L_C < 0
+			RETURN 1
+
+		同行候補キャラ番号:ARG:同行配列番号 = ARG:1
+		同行候補キャラ確率:ARG:同行配列番号 = ARG:2
+		RELATION_NO:ARG:L_C = ARG:1
+		RELATION_VAL:ARG:L_C = ARG:2 * 100
+	ELSE
+		同行候補キャラ番号:ARG:同行配列番号 = ARG:1
+		同行候補キャラ確率:ARG:同行配列番号 = ARG:2
+		RELATION_NO:ARG:REL_NO = ARG:1
+		RELATION_VAL:ARG:REL_NO = ARG:2 * 100
+	ENDIF
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;ADD_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2を加算する
 ;加算結果が100を上回るたび、同行候補キャラ確率を上昇させる
