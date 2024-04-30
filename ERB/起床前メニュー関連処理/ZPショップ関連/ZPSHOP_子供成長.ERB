@@ -195,27 +195,21 @@ TALENT:年齢 = 成長後年齢
 
 ;バストサイズ 母親優先
 IF GETBIT(TALENT:性別, 0)
-	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢)
+	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "両親のみ")
 	IF PARENT >= 0
-		;平均により補正
-		TALENT:バストサイズ = TALENT:PARENT:バストサイズ + バストサイズ_平均(ベース種族, 成長後年齢) - バストサイズ_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:年齢)
-		;±1
-		TALENT:バストサイズ = LIMIT(TALENT:バストサイズ + RAND:2 + RAND:2 - 1, -2, 3)
-	ELSE
-		TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢)
+		;因子により補正
+		TALENT:バストサイズ = LIMIT(TALENT:バストサイズ + 因子取得_バストサイズ(PARENT), -2, 3)
 	ENDIF
 ENDIF
 
 ;男性器サイズ 父親優先
 IF GETBIT(TALENT:性別, 1)
-	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "ランダム")
+	TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢)
+	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "両親のみ")
 	IF PARENT >= 0
-		;平均により補正
-		TALENT:男性器サイズ = TALENT:PARENT:男性器サイズ + 男性器サイズ_平均(ベース種族, TALENT:性別, 成長後年齢) - 男性器サイズ_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, TALENT:PARENT:年齢)
-		;±1
-		TALENT:男性器サイズ = LIMIT(TALENT:男性器サイズ + RAND:2 + RAND:2 - 1, -2, 2)
-	ELSE
-		TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢)
+		;因子により補正
+		TALENT:男性器サイズ = LIMIT(TALENT:男性器サイズ + 因子取得_男性器サイズ(PARENT), -2, 2)
 	ENDIF
 ENDIF
 
@@ -233,45 +227,29 @@ IF PARENT >= 0
 	TALENT:角あり = TALENT:PARENT:角あり
 ENDIF
 
-;容姿 両親の平均
-IF NO:MOTHER == 0 || NO:MOTHER == 999
-	TALENT:容姿 = TALENT:MOTHER:容姿
-ELSE
-	;名有りキャラは美形として扱う
-	TALENT:容姿 = 1
-ENDIF
-IF FATHER >= 0 && (NO:FATHER == 0 || NO:FATHER == 999)
-	TALENT:容姿 = (TALENT:容姿 + TALENT:FATHER:容姿 + 1) / 2
-ELSEIF FATHER >= 0
-	;名有りキャラは美形として扱う
-	TALENT:容姿 = (TALENT:容姿 + 1 + 1) / 2
-ENDIF
-TALENT:容姿 = LIMIT(TALENT:容姿, -1, 2)
+;容姿 両親の平均（乱数要素なし）
+TALENT:容姿 = 親容姿(MOTHER)
+SIF FATHER >= 0
+	TALENT:容姿 = LIMIT((TALENT:容姿 + 親容姿(FATHER) + 1) / 2, -1, 2)
 
 ;体格 同性の親優先
+TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
 IF TALENT:性別 != 2
-	PARENT = 遺伝元(MOTHER, FATHER, "ランダム")
+	PARENT = 遺伝元(MOTHER, FATHER, "両親のみ")
 ELSE
-	PARENT = 遺伝元(FATHER, MOTHER, "ランダム")
+	PARENT = 遺伝元(FATHER, MOTHER, "両親のみ")
 ENDIF
 IF PARENT >= 0
-	;平均により補正
-	TALENT:体格 = TALENT:PARENT:体格 + 体格_平均(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ) - 体格_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, TALENT:PARENT:年齢, TALENT:PARENT:バストサイズ)
-	;±1
-	TALENT:体格 = LIMIT(TALENT:体格 + RAND:2 + RAND:2 - 1, -3, 2)
-ELSE
-	TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
+	;因子により補正
+	TALENT:体格 = LIMIT(TALENT:体格 + 因子取得_体格(PARENT), -3, 2)
 ENDIF
 
 ;体型
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "ランダム")
+TALENT:体型 = ランダム体型(ベース種族)
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
 IF PARENT >= 0
-	;平均により補正
-	TALENT:体型 = TALENT:PARENT:体型 + 体型_平均(ベース種族) - 体型_平均(ベース種族検索(CFLAG:PARENT:人物番号))
-	;±1
-	TALENT:体型 = LIMIT(TALENT:体型 + RAND:2 + RAND:2 - 1, -3, 3)
-ELSE
-	TALENT:体型 = ランダム体型(ベース種族)
+	;因子により補正
+	TALENT:体型 = LIMIT(TALENT:体型 + 因子取得_体型(PARENT), -3, 3)
 ENDIF
 
 ;素質
@@ -582,3 +560,62 @@ WHILE LOCAL > 0
 	TALENT:CHILD:TALENT_NO = 0
 	LOCAL --
 WEND
+
+
+@親年齢(PARENT)
+#FUNCTION
+#DIM PARENT
+IF NO:PARENT == 0 || NO:PARENT == 999
+	;あなたとランダムキャラは設定されているものを使う
+	RETURNF TALENT:PARENT:年齢
+ELSE
+	;名有りキャラは大人として扱う
+	RETURNF 1
+ENDIF
+
+@親容姿(PARENT)
+#FUNCTION
+#DIM PARENT
+IF NO:PARENT == 0 || NO:PARENT == 999
+	;あなたとランダムキャラは設定されているものを使う
+	RETURNF TALENT:PARENT:容姿
+ELSE
+	;名有りキャラは美形として扱う
+	RETURNF 1
+ENDIF
+
+@因子取得_体格(PARENT)
+#FUNCTION
+#DIM PARENT
+RETURNF TALENT:PARENT:体格 - 体格_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, 親年齢(PARENT), TALENT:PARENT:バストサイズ)
+
+@因子取得_体型(PARENT)
+#FUNCTION
+#DIM PARENT
+RETURNF TALENT:PARENT:体型 - 体型_平均(ベース種族検索(CFLAG:PARENT:人物番号))
+
+@因子取得_バストサイズ(PARENT)
+#FUNCTION
+#DIM PARENT
+#DIM ベース種族
+#DIM バストサイズ格納
+ベース種族 = ベース種族検索(CFLAG:PARENT:人物番号)
+IF GETBIT(TALENT:PARENT:性別, 0)
+	バストサイズ格納 = TALENT:PARENT:バストサイズ
+ELSE
+	バストサイズ格納 = ランダムバストサイズ(ベース種族, 親年齢(PARENT))
+ENDIF
+RETURNF バストサイズ格納 - バストサイズ_平均(ベース種族, 親年齢(PARENT))
+
+@因子取得_男性器サイズ(PARENT)
+#FUNCTION
+#DIM PARENT
+#DIM ベース種族
+#DIM 男性器サイズ格納
+ベース種族 = ベース種族検索(CFLAG:PARENT:人物番号)
+IF GETBIT(TALENT:PARENT:性別, 1)
+	男性器サイズ格納 = TALENT:PARENT:男性器サイズ
+ELSE
+	男性器サイズ格納 = ランダム男性器サイズ(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
+ENDIF
+RETURNF 男性器サイズ格納 - 男性器サイズ_平均(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
