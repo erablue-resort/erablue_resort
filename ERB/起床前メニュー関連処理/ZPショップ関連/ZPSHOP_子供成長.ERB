@@ -142,11 +142,11 @@ CALLNAME:TARGET '= GET_PERSON_呼び名(子供人物番号)
 CALL SET_PERSON_ナンバー(子供人物番号, 999)
 
 ;戦闘関連設定
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
 基礎BATTLE_STATE:属性 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:属性 # RAND:6
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
 基礎BATTLE_STATE:得意武器 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:得意武器 # RAND:10
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "あなた除外", "ランダム")
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
 基礎BATTLE_STATE:ステータスタイプ保存 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:ステータスタイプ保存 # RAND:8
 CSTR:戦闘基礎ステータス設定 '= @" 属性_%属性数値文字列変換(基礎BATTLE_STATE:属性)% 得意武器_%得意武器数値文字列変換(基礎BATTLE_STATE:得意武器)% 初期ステータスタイプ_%成長タイプ:(基礎BATTLE_STATE:ステータスタイプ保存)%"
 
@@ -195,8 +195,8 @@ TALENT:年齢 = 成長後年齢
 
 ;バストサイズ 母親優先
 IF GETBIT(TALENT:性別, 0)
+	PARENT = 遺伝元(MOTHER, FATHER, "両親のみ", "女性器あり")
 	TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢)
-	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "両親のみ")
 	IF PARENT >= 0
 		;因子により補正
 		TALENT:バストサイズ = LIMIT(TALENT:バストサイズ + 因子取得_バストサイズ(PARENT), -2, 3)
@@ -205,8 +205,8 @@ ENDIF
 
 ;男性器サイズ 父親優先
 IF GETBIT(TALENT:性別, 1)
+	PARENT = 遺伝元(FATHER, MOTHER, "両親のみ", "男性器あり")
 	TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢)
-	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "両親のみ")
 	IF PARENT >= 0
 		;因子により補正
 		TALENT:男性器サイズ = LIMIT(TALENT:男性器サイズ + 因子取得_男性器サイズ(PARENT), -2, 2)
@@ -232,21 +232,18 @@ TALENT:容姿 = 親容姿(MOTHER)
 SIF FATHER >= 0
 	TALENT:容姿 = LIMIT((TALENT:容姿 + 親容姿(FATHER) + 1) / 2, -1, 2)
 
-;体格 同性の親優先
-TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
+;体格・体型 同性の親優先
 IF TALENT:性別 != 2
 	PARENT = 遺伝元(MOTHER, FATHER, "両親のみ")
 ELSE
 	PARENT = 遺伝元(FATHER, MOTHER, "両親のみ")
 ENDIF
+TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
 IF PARENT >= 0
 	;因子により補正
 	TALENT:体格 = LIMIT(TALENT:体格 + 因子取得_体格(PARENT), -3, 2)
 ENDIF
-
-;体型
 TALENT:体型 = ランダム体型(ベース種族)
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
 IF PARENT >= 0
 	;因子により補正
 	TALENT:体型 = LIMIT(TALENT:体型 + 因子取得_体型(PARENT), -3, 3)
@@ -287,7 +284,7 @@ FOR LOCAL, 0, 5
 	TALENT:(LOCAL + 101) = LIMIT(TALENT:(LOCAL + 101), -1, 1)
 NEXT
 IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:陥没乳首_なし == 0
-	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "女性器あり")
 	IF PARENT >= 0
 		TALENT:陥没乳首 = TALENT:PARENT:陥没乳首
 	ELSEIF RAND:10 == 0
@@ -295,7 +292,7 @@ IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:陥没乳首_
 	ENDIF
 ENDIF
 IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:母乳体質_なし == 0
-	PARENT = 遺伝元(MOTHER, FATHER, "女性器あり", "ランダム")
+	PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "女性器あり")
 	IF PARENT >= 0
 		TALENT:母乳体質 = TALENT:PARENT:母乳体質
 	ELSEIF RAND:10 == 0
@@ -303,7 +300,7 @@ IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:母乳体質_
 	ENDIF
 ENDIF
 IF GETBIT(TALENT:性別, 1)
-	PARENT = 遺伝元(FATHER, MOTHER, "男性器あり", "ランダム")
+	PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "男性器あり")
 	IF PARENT >= 0
 		TALENT:絶倫 = TALENT:PARENT:絶倫
 	ELSEIF RAND:3 == 0
@@ -377,24 +374,21 @@ TARGET = TARGET保存
 RETURN 0
 
 
-@遺伝元(PARENT:0, PARENT:1, ARGS:0 = "", ARGS:1 = "", ARGS:2 = "", ARGS:3 = "")
+@遺伝元(PARENT:0, PARENT:1, ランダム性 = "両親のみ", ARGS:0 = "", ARGS:1 = "")
 #FUNCTION
 #DIM PARENT, 2
 #DIM 候補, 4
-#DIM 候補数
 #DIM 性器要求
 #DIM 性別限定
 #DIM あなた除外
-#DIM ランダム選択
+#DIMS ランダム性
 
 VARSET 候補, -1
-候補数 = 0
 
 性器要求 = 0
 性別限定 = 0
 あなた除外 = 0
-ランダム選択 = 1
-FOR LOCAL, 0, 4
+FOR LOCAL, 0, 2
 	SELECTCASE ARGS:LOCAL
 		CASE "女性器あり"
 			性器要求 |= 1
@@ -408,13 +402,6 @@ FOR LOCAL, 0, 4
 
 		CASE "あなた除外"
 			あなた除外 = 1
-
-		CASE "固定"
-			ランダム選択 = 0
-		CASE "両親のみ"
-			ランダム選択 = 1
-		CASE "ランダム"
-			ランダム選択 = 2
 	ENDSELECT
 NEXT
 
@@ -433,28 +420,21 @@ FOR LOCAL, 0, 2
 	SIF あなた除外 && PARENT:LOCAL == 0
 		CONTINUE
 
-	SIF ランダム選択 == 0
+	SIF ランダム性 == "固定"
 		RETURNF PARENT:LOCAL
 
-	IF 候補数 == 0
-		;顕性側は2倍出る
-		候補:候補数 = PARENT:LOCAL
-		候補数 ++
-		候補:候補数 = PARENT:LOCAL
-		候補数 ++
-	ELSE
-		候補:候補数 = PARENT:LOCAL
-		候補数 ++
-	ENDIF
+	候補:LOCAL = PARENT:LOCAL
+	候補:(LOCAL + 2) = PARENT:LOCAL
 NEXT
-SIF 候補数 == 0
-	RETURNF -1
-
-IF ランダム選択 == 2
-	候補:候補数 = -1
-	候補数 ++
+IF 候補:2 != -1
+	IF ランダム性 == "変異あり"
+		候補:3 = -1
+	ELSE
+		候補:3 = 候補:2
+	ENDIF
 ENDIF
-RETURNF 候補:(RAND:候補数)
+
+RETURNF 候補:(RAND:4)
 
 
 @ベース種族検索(ID)
