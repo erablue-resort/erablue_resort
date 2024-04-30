@@ -2,9 +2,9 @@
 ;-------------------------------------------------
 ;キャラ同士の関係性の変動を保持・参照する関数郡
 ;-------------------------------------------------
-;SET_RELATION(キャラ登録番号)　同行候補キャラ設定より、関係性の初期値を設定する
+;INIT_RELATION(キャラ登録番号)　同行候補キャラ設定より、関係性の初期値を設定する
 ;-------------------------------------------------
-@SET_RELATION(ARG)
+@INIT_RELATION(ARG)
 #DIM L_CNT
 #DIM L_C
 #DIM REL_NO
@@ -12,12 +12,15 @@
 SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURN
 
-VARSET LOCAL
-FOR L_CNT, 0, 100
-	SIF L_CNT >= CHARANUM
-		BREAK
-	LOCAL:L_CNT = 同行候補キャラ番号:ARG:L_CNT
-NEXT
+VARSET RELATION_NO:ARG:0
+VARSET RELATION_VAL:ARG:0
+
+;VARSET LOCAL
+;FOR L_CNT, 0, 100
+;	SIF L_CNT >= CHARANUM
+;		BREAK
+;	LOCAL:L_CNT = 同行候補キャラ番号:ARG:L_CNT
+;NEXT
 
 L_C = 0
 FOR L_CNT, 1, CHARANUM
@@ -30,6 +33,53 @@ FOR L_CNT, 1, CHARANUM
 	SIF L_C >= 100
 		BREAK
 NEXT
+
+;-------------------------------------------------
+;SET_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2をセットする
+;正常に追加できたら0、空きがなかった場合は1、引数チェックで弾かれた場合は-1を返す
+;基本、アップデート用の処理なので削除はしない
+;-------------------------------------------------
+@SET_RELATION(ARG, ARG:1, ARG:2)
+#DIM 同行配列番号
+#DIM REL_NO
+#DIM L_C
+
+SIF !INRANGE(ARG, 0, CHARANUM-1)
+	RETURN -1
+SIF !INRANGE(ARG:1, 0, CHARANUM-1)
+	RETURN -1
+
+;同キャラの場合戻る
+SIF ARG == ARG:1
+	RETURN -1
+
+;無い場合のみ追加する
+IF FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1) < 0
+	;空いてる場所を検索して突っ込む
+	同行配列番号 = FINDELEMENT(同行候補キャラ番号:ARG:0, 0)
+	SIF 同行配列番号 < 0
+		RETURN 1
+
+	REL_NO = FINDELEMENT(RELATION_NO:ARG:0, ARG:1)
+	IF REL_NO < 0
+		;無い場合、空いてる場所を検索して突っ込む
+		L_C = FINDELEMENT(RELATION_NO:ARG:0, 0)
+		SIF L_C < 0
+			RETURN 1
+
+		同行候補キャラ番号:ARG:同行配列番号 = ARG:1
+		同行候補キャラ確率:ARG:同行配列番号 = ARG:2
+		RELATION_NO:ARG:L_C = ARG:1
+		RELATION_VAL:ARG:L_C = ARG:2 * 100
+	ELSE
+		同行候補キャラ番号:ARG:同行配列番号 = ARG:1
+		同行候補キャラ確率:ARG:同行配列番号 = ARG:2
+		RELATION_NO:ARG:REL_NO = ARG:1
+		RELATION_VAL:ARG:REL_NO = ARG:2 * 100
+	ENDIF
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;ADD_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2を加算する
 ;加算結果が100を上回るたび、同行候補キャラ確率を上昇させる
@@ -95,6 +145,11 @@ ELSE
 	;増加後、100の位が繰り上がる場合は同行確率を上昇させる
 	LOCAL:100 =  RELATION_VAL:ARG:REL_NO % 100 + ARG:2
 	RELATION_VAL:ARG:REL_NO += ARG:2
+	;負の値は保持しない
+	IF RELATION_VAL:ARG:REL_NO < 0
+		CALL DEL_RELATION(ARG, ARG:1)
+		RETURN
+	ENDIF
 	IF LOCAL:100 >= 100
 		LOCAL = FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1)
 		IF LOCAL >= 0
@@ -104,11 +159,6 @@ ELSE
 			;新規に同行関係になるのは5％から
 			CALL SET_同行候補(ARG, ARG:1, RELATION_VAL:ARG:REL_NO)
 		ENDIF
-	ENDIF
-	;負の値は保持しない
-	IF RELATION_VAL:ARG:REL_NO < 0
-		CALL DEL_RELATION(ARG, ARG:1)
-		RETURN
 	ENDIF
 ENDIF
 
@@ -132,7 +182,7 @@ RETURN
 ;-------------------------------------------------
 @GET_RELATION(ARG, ARG:1)
 #FUNCTION
-#DIM L_CNT
+;#DIM L_CNT
 #DIM REL_NO
 SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURNF 0
@@ -153,12 +203,15 @@ SIF REL_NO < 0
 RETURNF RELATION_VAL:ARG:REL_NO
 
 ;-------------------------------------------------
-;DEL_RELATION(ARG, ARG:1)　キャラ登録番号ARGのARG:1に対する関係性を破棄する
+;DEL_RELATION(ARG, ARG:1, 同行候補 = 0)　キャラ登録番号ARGのARG:1に対する関係性を破棄する
 ;ARG:1が負の値の場合、{絶対値}個分が空になるようにRELATION_VALが低い順に破棄する
+;同行候補が真の場合、同行候補キャラ配列にも値が存在するものだけが削除対象になる(ARG:1が負の場合)
 ;-------------------------------------------------
-@DEL_RELATION(ARG, ARG:1)
+@DEL_RELATION(ARG, ARG:1, 同行候補 = 0)
+#DIM 同行候補
 #DIM L_CNT
 #DIM REL_NO, 3
+#DIM 最小値
 
 SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURN
@@ -171,7 +224,7 @@ IF ARG:1 >= 0
 		ARRAYREMOVE RELATION_VAL:ARG:0, REL_NO, 1
 		;同行候補も削除する
 		REL_NO:1 = FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1)
-		IF REL_NO >= 0
+		IF REL_NO:1 >= 0
 			ARRAYREMOVE 同行候補キャラ番号:ARG:0, REL_NO:1, 1
 			ARRAYREMOVE 同行候補キャラ確率:ARG:0, REL_NO:1, 1
 		ENDIF
@@ -179,7 +232,16 @@ IF ARG:1 >= 0
 ELSE
 	FOR LOCAL, 0, ABS(ARG:1)
 		;一番低い値を探して破棄する
-		REL_NO = FINDELEMENT(RELATION_VAL:ARG:0, MINARRAY(RELATION_VAL:ARG:0, 0, 100 - ABS(ARG:1)))
+		最小値 = __INT_MAX__
+		REL_NO = -1
+		FOR LOCAL, 0, (100 - ABS(ARG:1))
+			SIF 同行候補 && FINDELEMENT(同行候補キャラ番号:ARG:0, RELATION_NO:ARG:LOCAL) == -1
+				CONTINUE
+			IF 最小値 > RELATION_VAL:ARG:LOCAL
+				最小値 = RELATION_VAL:ARG:LOCAL
+				REL_NO = LOCAL
+			ENDIF
+		NEXT
 		;登録されているキャラ番号を記録しておく
 		REL_NO:2 = RELATION_NO:ARG:REL_NO
 		ARRAYREMOVE RELATION_NO:ARG:0, REL_NO, 1
@@ -204,7 +266,10 @@ ENDIF
 REL_NO = FINDELEMENT(同行候補キャラ番号:ARG:0, 0)
 IF REL_NO < 0
 	;空きがない場合、空きを作る
-	CALL DEL_RELATION(ARG, -1)
+	CALL DEL_RELATION(ARG, -1, 1)
+	;自分自身が削除された場合、何もせず終わる
+	SIF FINDELEMENT(RELATION_NO:ARG:0, ARG:1) == -1
+		RETURN
 	REL_NO = 99
 ENDIF
 
