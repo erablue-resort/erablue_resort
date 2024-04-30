@@ -35,11 +35,13 @@ FOR L_CNT, 1, CHARANUM
 NEXT
 
 ;-------------------------------------------------
-;SET_RELATION(ARG, ARG:1, ARG:2)　キャラ登録番号ARGのARG:1に対する関係性にARG:2をセットする
+;SET_RELATION(ARG, ARG:1, ARG:2, OVERWRITE = 0)　キャラ登録番号ARGのARG:1に対する関係性にARG:2をセットする
+;OVERWRITEが真なら既に関係があっても上書きする
 ;正常に追加できたら0、空きがなかった場合は1、引数チェックで弾かれた場合は-1を返す
 ;基本、アップデート用の処理なので削除はしない
 ;-------------------------------------------------
-@SET_RELATION(ARG, ARG:1, ARG:2)
+@SET_RELATION(ARG, ARG:1, ARG:2, OVERWRITE = 0)
+#DIM OVERWRITE
 #DIM 同行配列番号
 #DIM REL_NO
 #DIM L_C
@@ -52,6 +54,17 @@ SIF !INRANGE(ARG:1, 0, CHARANUM-1)
 ;同キャラの場合戻る
 SIF ARG == ARG:1
 	RETURN -1
+
+;上書きモード時の処理
+IF OVERWRITE
+	CALL DEL_RELATION(ARG, ARG:1)
+	IF FINDELEMENT(同行候補キャラ番号:ARG:0, 0) < 0
+		CALL DEL_RELATION(ARG, -1, 1)
+	ENDIF
+	IF FINDELEMENT(RELATION_NO:ARG:0, 0) < 0
+		CALL DEL_RELATION(ARG, -1)
+	ENDIF
+ENDIF
 
 ;無い場合のみ追加する
 IF FINDELEMENT(同行候補キャラ番号:ARG:0, ARG:1) < 0
