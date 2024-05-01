@@ -356,6 +356,7 @@ ENDIF
 CFLAG:人物番号 = 子供人物番号
 CALL コマンド存在チェック
 CALL キャラクター初期化(TARGET)
+CALL 子供相性初期化(TARGET)
 
 TALENT:定住者 = 1
 CFLAG:滞在期間 = 999
@@ -419,7 +420,7 @@ FOR LOCAL, 0, 2
 	SIF 性別限定 == 2 && TALENT:(PARENT:LOCAL):性別 != 2
 		CONTINUE
 
-	SIF あなた除外 && PARENT:LOCAL == 0
+	SIF あなた除外 && PARENT:LOCAL == MASTER
 		CONTINUE
 
 	SIF ランダム性 == "固定"
@@ -613,3 +614,100 @@ ELSE
 	男性器サイズ格納 = ランダム男性器サイズ(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
 ENDIF
 RETURNF 男性器サイズ格納 - 男性器サイズ_平均(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
+
+
+@子供相性初期化(CHILD)
+#DIM CONST 親子同行確率 = 50
+#DIM CONST 姉妹同行確率 = 30
+#DIM CONST 双子同行確率 = 100
+#DIM CHILD
+#DIM MOTHER
+#DIM FATHER
+#DIM SISTER_COUNT
+#DIM SISTER
+#DIM 相性数
+
+VARSET 同行候補キャラ番号:CHILD:0
+VARSET 同行候補キャラ確率:CHILD:0
+相性数 = 0
+
+MOTHER = FIND_MOTHER_CHARA_FROM_PERSON_ID(CFLAG:CHILD:人物番号)
+IF MOTHER >= 0 && MASTER != MOTHER
+	同行候補キャラ番号:CHILD:相性数 = MOTHER
+	同行候補キャラ確率:CHILD:相性数 = 親子同行確率
+	相性数 ++
+	CALL SET_RELATION(MOTHER, CHILD, 親子同行確率, 1)
+ENDIF
+
+FATHER = FIND_FATHER_CHARA_FROM_PERSON_ID(CFLAG:CHILD:人物番号)
+IF FATHER >= 0 && MASTER != FATHER
+	同行候補キャラ番号:CHILD:相性数 = FATHER
+	同行候補キャラ確率:CHILD:相性数 = 親子同行確率
+	相性数 ++
+	CALL SET_RELATION(FATHER, CHILD, 親子同行確率, 1)
+ENDIF
+
+;両親がはっきりしている場合、同じ両親の組み合わせから生まれた姉妹にも同行する
+IF MOTHER >= 0 && FATHER >= 0
+	CALL FIND_CHILDREN(CFLAG:MOTHER:人物番号, CFLAG:FATHER:人物番号)
+	SISTER_COUNT = RESULT
+	FOR LOCAL, 1, (SISTER_COUNT + 1)
+		SIF CFLAG:CHILD:人物番号 == RESULT:LOCAL
+			CONTINUE
+		SISTER = FIND_CHARA_FROM_PERSON_ID(RESULT:LOCAL)
+		IF SISTER >= 0 && MASTER != SISTER
+			IF GET_PERSON_生年日(CFLAG:CHILD:人物番号) == GET_PERSON_生年日(RESULT:LOCAL) && GET_PERSON_出会った周回(CFLAG:CHILD:人物番号) == GET_PERSON_出会った周回(RESULT:LOCAL) && GET_PERSON_出生順(CFLAG:CHILD:人物番号) == GET_PERSON_出生順(RESULT:LOCAL)
+				同行候補キャラ番号:CHILD:相性数 = SISTER
+				同行候補キャラ確率:CHILD:相性数 = 双子同行確率
+				相性数 ++
+				CALL SET_RELATION(SISTER, CHILD, 双子同行確率, 1)
+			ELSE
+				同行候補キャラ番号:CHILD:相性数 = SISTER
+				同行候補キャラ確率:CHILD:相性数 = 姉妹同行確率
+				相性数 ++
+				CALL SET_RELATION(SISTER, CHILD, 姉妹同行確率, 1)
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+CALL INIT_RELATION(CHILD)
+
+;アップデート用処理 そのうち不要になる
+@子供相性設定確認(CHILD)
+#DIM CHILD
+#DIM MOTHER
+#DIM FATHER
+#DIM SISTER_COUNT
+#DIM SISTER
+
+
+MOTHER = FIND_MOTHER_CHARA_FROM_PERSON_ID(CFLAG:CHILD:人物番号)
+IF MOTHER >= 0 && MASTER != MOTHER
+	SIF 同行候補キャラ番号:CHILD:0 != MOTHER
+		CALL 子供相性初期化(CHILD)
+	RETURN 0
+ENDIF
+
+FATHER = FIND_FATHER_CHARA_FROM_PERSON_ID(CFLAG:CHILD:人物番号)
+IF FATHER >= 0 && MASTER != FATHER
+	SIF 同行候補キャラ番号:CHILD:0 != FATHER
+		CALL 子供相性初期化(CHILD)
+	RETURN 0
+ENDIF
+
+;両親がはっきりしている場合、同じ両親の組み合わせから生まれた姉妹にも同行する
+IF MOTHER >= 0 && FATHER >= 0
+	CALL FIND_CHILDREN(CFLAG:MOTHER:人物番号, CFLAG:FATHER:人物番号)
+	SISTER_COUNT = RESULT
+	FOR LOCAL, 1, (SISTER_COUNT + 1)
+		SIF CFLAG:CHILD:人物番号 == RESULT:LOCAL
+			CONTINUE
+		SISTER = FIND_CHARA_FROM_PERSON_ID(RESULT:LOCAL)
+		IF SISTER >= 0 && MASTER != SISTER
+			SIF 同行候補キャラ番号:CHILD:0 != SISTER
+				CALL 子供相性初期化(CHILD)
+			RETURN 0
+		ENDIF
+	NEXT
+ENDIF
