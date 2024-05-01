@@ -259,7 +259,9 @@ FOR LOCAL, 0, 8
 NEXT
 
 ;親からの素質遺伝(上の素質が上書きされる可能性あり)
-CALL 素質遺伝(TARGET, RECESSIVE, 50)
+IF RECESSIVE >= 0
+	CALL 素質遺伝(TARGET, RECESSIVE, 50)
+ENDIF
 CALL 素質遺伝(TARGET, DOMINANT, 50)
 
 ;素質が多くなりすぎないように削除
@@ -294,7 +296,7 @@ ENDIF
 IF TALENT:バストサイズ > 1 && 素質切り替えOPTION記憶:母乳体質_なし == 0
 	PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "女性器あり")
 	IF PARENT >= 0
-		TALENT:母乳体質 = TALENT:PARENT:母乳体質
+		TALENT:母乳体質 = (TALENT:PARENT:母乳体質 == 1) ? 1 # 0
 	ELSEIF RAND:10 == 0
 		TALENT:母乳体質 = 1
 	ENDIF
@@ -513,11 +515,13 @@ NEXT
 #DIM QUANTITY
 #DIM 削減候補, VARSIZE("遺伝可能配列")
 #DIM 削減候補数
+#DIM 性格数
 #DIM TALENT_NO
 #DIM 削除対象
 
 VARSET 削減候補, -1
 削減候補数 = 0
+性格数 = 0
 
 ;削減候補の洗い出し
 FOR LOCAL, 0, VARSIZE("遺伝可能配列")
@@ -525,6 +529,8 @@ FOR LOCAL, 0, VARSIZE("遺伝可能配列")
 	IF STRLENS(GET_TALENTNAME(TALENT_NO, TALENT:CHILD:TALENT_NO, 0)) > 0
 		削減候補:削減候補数 = TALENT_NO
 		削減候補数 ++
+		SIF FINDELEMENT(素質候補_性格, ランダム素質_キー(TALENT_NO, TALENT:CHILD:TALENT_NO)) >= 0
+			性格数 ++
 	ENDIF
 NEXT
 
@@ -534,6 +540,14 @@ WHILE LOCAL > 0
 	削除対象 = RAND:削減候補数
 	TALENT_NO = 削減候補:削除対象
 
+	IF FINDELEMENT(素質候補_性格, ランダム素質_キー(TALENT_NO, TALENT:CHILD:TALENT_NO)) >= 0
+		;最低でも素質の1/4は性格
+		IF 性格数 <= QUANTITY / 4
+			CONTINUE
+		ELSE
+			性格数 --
+		ENDIF
+	ENDIF
 	削減候補数 --
 	削減候補:削除対象 = 削減候補:削減候補数
 	削減候補:削減候補数 = -1
