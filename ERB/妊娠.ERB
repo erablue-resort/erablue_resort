@@ -447,6 +447,7 @@ RETURN 子供ID
 #DIM 命名種族
 #DIM 子供順番
 #DIMS 子供名前
+#DIM ランダムネームフラグ
 
 PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…
 PRINTBUTTONLC "[0]自分で考える", 0
@@ -472,14 +473,23 @@ SELECTCASE RESULT
 		SIF RESULT == 1
 			RESTART
 	CASE 1
+		ランダムネームフラグ = 0
 		$INPUT_LOOP1
-		子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+		TRYCCALLFORM 固有子供命名設定_{NO:PARENT}(PARENT, 子供性別, 子供順番)
+			;RESULTSに命名が返ってくる
+			子供名前 = %RESULTS%
+			SIF ランダムネームフラグ
+				子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+		CATCH
+			子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+		ENDCATCH
 		PRINTFORML %CALLNAME:PARENT%は%子供名前%と名付けたいようだ…
 		PRINTBUTTONLC "[0]それにする", 0
 		PRINTBUTTONLC "[1]別の名前を考えてもらう", 1
 		PRINTBUTTONLC "[2]やっぱり自分で考えようかな", 2
 		BINPUT
 		SIF RESULT == 1
+			ランダムネームフラグ = 1
 			GOTO INPUT_LOOP1
 		SIF RESULT == 2
 			RESTART
