@@ -664,6 +664,7 @@ SIF RESULT
 #DIM 効果量
 #DIM ループ用
 #DIM データベース行数
+#DIM 阻害判定
 
 CALL 口上変数初期化
 行動不能フラグ = 0
@@ -728,7 +729,7 @@ ELSE
 	CALL デバフ回数経過処理(戦闘行動キャラ, "ＭＰ自傷")
 ENDIF
 
-;再生処理
+;再生・高揚処理
 IF 戦闘行動キャラ < 10
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
 	FOR LOCAL:1, 0, データベース行数
@@ -742,17 +743,42 @@ IF 戦闘行動キャラ < 10
 			FOR LOCAL:2, 0, データベース行数
 				効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:2, "デバフ対象能力")%
 				IF 効果種類 == "強圧"
-					WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のＨＰは回復しなかった…
-				ELSE
-					WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
-					BATTLE_STATE:戦闘行動キャラ:ＨＰ = MIN(BATTLE_STATE:戦闘行動キャラ:ＨＰ + 効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ)
+					阻害判定 = 1
+					BREAK
 				ENDIF
 			NEXT
+			IF 阻害判定 == 1
+				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%のＨＰは回復しなかった…
+			ELSE
+				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
+				BATTLE_STATE:戦闘行動キャラ:ＨＰ = MIN(BATTLE_STATE:戦闘行動キャラ:ＨＰ + 効果量, BATTLE_STATE:戦闘行動キャラ:最大ＨＰ)
+			ENDIF
+			CALL メッセージ欄表示用関数(,,,0)
+		ELSEIF 効果種類 == "高揚"
+			;上昇量決定
+			効果量 = DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ効果量_固定値") + (BATTLE_STATE:戦闘行動キャラ:奥義ゲージ * DT_CELL_GET(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ効果量_割合") / 100)
+			効果量 = 効果量 * RAND(95, 105) / 100
+			効果量 = MIN(効果量, BATTLE_STATE:戦闘行動キャラ:ゲージ最大値 - BATTLE_STATE:戦闘行動キャラ:奥義ゲージ)
+			データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
+			FOR LOCAL:2, 0, データベース行数
+				効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:2, "デバフ対象能力")%
+				IF 効果種類 == "恐怖"
+					阻害判定 = 1
+					BREAK
+				ENDIF
+			NEXT
+			IF 阻害判定 == 1
+				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義ゲージは上昇しなかった…
+			ELSE
+				WSTR:(K++) =%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で%CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%の奥義ゲージが{効果量}上昇！
+				BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = MIN(BATTLE_STATE:戦闘行動キャラ:奥義ゲージ + 効果量, BATTLE_STATE:戦闘行動キャラ:ゲージ最大値)
+			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
 	;回数消費
 	CALL バフ回数経過処理(戦闘行動キャラ, "再生")
+	CALL バフ回数経過処理(戦闘行動キャラ, "高揚")
 ELSE
 	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{戦闘行動キャラ}")
 	FOR LOCAL:1, 0, データベース行数
@@ -766,12 +792,16 @@ ELSE
 			FOR LOCAL:2, 0, データベース行数
 				効果種類 = %DT_CELL_GETS(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:2, "デバフ対象能力")%
 				IF 効果種類 == "強圧"
-					WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%のＨＰは回復しなかった…
-				ELSE
-					WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
-					敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MIN(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ + 効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ)
+					阻害判定 = 1
+					BREAK
 				ENDIF
 			NEXT
+			IF 阻害判定 == 1
+				WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%のＨＰは回復しなかった…
+			ELSE
+				WSTR:(K++) = %敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名%は%DT_CELL_GETS(@"バフデータベース_{戦闘行動キャラ}", LOCAL:1, "バフ名")%の効果で{効果量}のＨＰを回復！
+				敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MIN(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ + 効果量, 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大ＨＰ)
+			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
 	NEXT
