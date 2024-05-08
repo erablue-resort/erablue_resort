@@ -2,7 +2,6 @@
 @BATTLE_MAIN_LOOP
 #DIM 行動対象
 #DIM 探索口上キャラ番号
-#DIM 行動キャラ一時保存
 
 ;戦闘メイン処理
 ダンジョン表示モード = 戦闘画面
@@ -60,6 +59,7 @@ CALL メッセージ欄表示用関数()
 VARSET 戦闘中カウント:0:0
 VARSET 行動種別フラグ:0:0
 CALL 戦闘開始時処理関数()
+CALL 反応行動処理関数()
 SIF RESULT
 	GOTO 戦闘終了処理
 
@@ -78,6 +78,9 @@ CALL 行動順決定
 ;行動前発動処理
 ;魅了など
 CALL 行動前発動効果処理()
+CALL 反応行動処理関数()
+SIF RESULT
+	GOTO 戦闘終了処理
 
 IF 行動不能フラグ
 	;行動不能なのでスキップして行動後処理へ
@@ -133,21 +136,17 @@ ELSE
 	CALL 敵戦闘行動実処理関数
 ENDIF
 
-;行動後に特殊反応をまとめて動かす
-行動キャラ一時保存 = 戦闘行動キャラ
-
-特殊反応フラグ = 1
-CALL 被タゲ時効果処理(行動キャラ一時保存)
-CALL 回避時効果処理(行動キャラ一時保存)
-CALL 被ダメージ時効果処理(行動キャラ一時保存)
-
-特殊反応フラグ = 0
-
-戦闘行動キャラ = 行動キャラ一時保存
+CALL 反応行動処理関数()
+SIF RESULT
+	GOTO 戦闘終了処理
 
 ;行動後発動処理
 ;毒や再生など
 CALL 行動後発動効果処理()
+CALL 反応行動処理関数()
+SIF RESULT
+	GOTO 戦闘終了処理
+
 IF 戦闘行動キャラ < 10
 	IF BATTLE_STATE:戦闘行動キャラ:奥義ゲージ >= 100
 		探索中顔グラキー:戦闘行動キャラ = 奥義ゲージMAX
@@ -155,7 +154,7 @@ IF 戦闘行動キャラ < 10
 		探索中顔グラキー:戦闘行動キャラ = 通常時
 	ENDIF
 ENDIF
-CALL 探索用顔グラフィック生成
+CALL 探索用顔グラフィック生成()
 
 $戦闘終了処理
 VARSET LOCAL
@@ -180,15 +179,15 @@ FOR LOCAL, 0, 10
 NEXT
 
 IF !LOCAL:2
-	CALL 戦闘勝利時処理
+	CALL 戦闘勝利時処理()
 	RETURN 0
 ELSEIF !LOCAL:1
-	CALL 全滅時処理
+	CALL 全滅時処理()
 	RETURN 1
 ELSEIF LOCAL:3 == 0
 	;ターン数を増やして最初から行動
 	戦闘行動内容 = -1
-	CALL ターン切り替え処理
+	CALL ターン切り替え処理()
 	IF RESULT
 		GOTO 戦闘終了処理
 	ENDIF
@@ -680,7 +679,7 @@ IF 戦闘行動キャラ < 10
 			BATTLE_STATE:戦闘行動キャラ:ＨＰ = MAX(BATTLE_STATE:戦闘行動キャラ:ＨＰ - 効果量, 0)
 			IF BATTLE_STATE:戦闘行動キャラ:ＨＰ < 1
 				WSTR:(K++) = %CALLNAME:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)%は倒れた！
-				CALL 戦闘不能時処理(戦闘行動キャラ, -1)
+				CALL 戦闘不能者登録(戦闘行動キャラ, -1)
 			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
@@ -713,7 +712,7 @@ ELSE
 			敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ = MAX(敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ - 効果量, 0)
 			IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):ＨＰ < 1
 				WSTR:(K++) = %(敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー名)%は倒れた！
-				CALL 戦闘不能時処理(戦闘行動キャラ, -1)
+				CALL 戦闘不能者登録(戦闘行動キャラ, -1)
 			ENDIF
 			CALL メッセージ欄表示用関数(,,,0)
 		ENDIF
