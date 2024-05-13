@@ -90,13 +90,13 @@ ENDIF
 LOCALS += "</div>"
 
 LOCALS += "<div rect='156,2600,5850,150'>"
-LOCALS += "　　　　　　　　　　　　　　　<button value='998'>[998] 既存メニューを見る</button>"
-LOCALS += "　　　　　　　　　　<button value='999'>[999] 戻る</button>"
+; LOCALS += "　　　　　　　　　　　　　　　<button value='998'>[998] 既存メニューを見る</button>"
+; LOCALS += "　　　　　　　　　　<button value='999'>[999] 戻る</button>"
 
 
-; LOCALS += "<button value='997'>[997] レシピブックを見る</button>"
-; LOCALS += "　　　　　　　<button value='998'>[998] 既存メニューを見る</button>"
-; LOCALS += "　　　　　　　<button value='999'>[999] 戻る</button>"
+LOCALS += "<button value='997'>[997] レシピブックを見る</button>"
+LOCALS += "　　　　　　　<button value='998'>[998] 既存メニューを見る</button>"
+LOCALS += "　　　　　　　<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
@@ -476,7 +476,13 @@ ENDIF
 
 @レシピブック閲覧
 #DIM レシピ数
+#DIMS レシピ配列, 200
+#DIM 選択レシピ
 ;作ったことのある特殊料理を並べて表示
+
+選択レシピ = -1
+
+$表示RESTART
 
 DRAWLINE
 PRINTL 特殊料理のレシピを確認出来ます。
@@ -484,12 +490,81 @@ DRAWLINE
 ;左ウィンドウ描画
 LOCALS = <div rect='81,31,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>
 ;存在する特殊料理を全て表示
+VARSET レシピ配列
 レシピ数 = ENUMFUNCBEGINSWITH("特殊料理_")
+ARRAYCOPY "RESULTS", "レシピ配列"
 FOR COUNT, 0, レシピ数
+	SPLIT レシピ配列:COUNT, "_", RESULTS
+	IF STRCOUNT(開発済み料理名フラグ文字列, @"_%RESULTS:2%_") == 0
+		LOCALS += @"？？？？？？？？？？<br>"
+	ELSE
+		LOCALS += @"<button value='{COUNT}'>%RESULTS:2%</button><br>"
+	ENDIF
 NEXT
 LOCALS += "</div>"
 
 ;右ウィンドウ描画
 LOCALS += "<div rect='2050,31,3875,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
-
+IF 選択レシピ > -1
+	SPLIT レシピ配列:選択レシピ, "_", RESULTS
+	LOCALS += @"■%RESULTS:2%<br><br>"
+	CALLFORM %レシピ配列:選択レシピ%("レシピ参照")
+	LOCALS += @"・レシピ<br>%RESULTS%<br>"
+	CALLFORM %レシピ配列:選択レシピ%("料理基礎ステータス")
+	LOCALS += @"・収入効果<br>%RESULTS%<br>"
+	CALLFORM %レシピ配列:選択レシピ%("料理特殊ステータス")
+	LOCALS += @"・特殊効果<br>%詳細文文字列受け渡し変数%<br>"
+ENDIF 
 LOCALS += "</div>"
+
+;戻るボタン
+LOCALS += "<div rect='1400,2650,700,200'><button value='999'>[999] 戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 26
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		選択レシピ = -1
+		RETURN 0
+	CASEELSE
+		選択レシピ = RESULT
+		GOTO 表示RESTART
+ENDSELECT
+
+
+@レシピランダム取得処理
+#DIM レシピ数
+#DIMS レシピ配列, 200
+#DIM 候補数
+#DIMS 候補配列, 200
+;所持してないレシピをランダムで取る
+
+;まずは持ってないレシピをリスト化
+VARSET レシピ配列
+VARSET 候補配列
+候補数 = 0
+レシピ数 = ENUMFUNCBEGINSWITH("特殊料理_")
+ARRAYCOPY "RESULTS", "レシピ配列"
+FOR COUNT, 0, レシピ数
+	SPLIT レシピ配列:COUNT, "_", RESULTS
+	IF STRCOUNT(開発済み料理名フラグ文字列, @"_%RESULTS:2%_") == 0
+		候補配列:候補数 = %RESULTS:2%
+		候補数 += 1
+	ENDIF
+NEXT
+
+IF 候補数 < 1
+	;全部レシピがあるなら戻る
+	RETURN -1
+ENDIF
+
+;候補からランダムでレシピGET
+VARSET RESULTS
+RESULTS = %候補配列:(RAND:候補数)%
+開発済み料理名フラグ文字列 += @"%RESULTS%_"
+
