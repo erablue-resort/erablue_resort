@@ -2141,6 +2141,7 @@ RETURNF LOCALS
 #DIMS REF 汎用画像キー
 #DIM F_NUM
 #DIM ページ数
+#DIM 改行フラグ
 #DIMS G_NAME
 
 ;汎用立ち絵を全部ずらっと並べてそこから任意のものを選ぶ
@@ -2156,21 +2157,28 @@ LOCALS '= "resources\\汎用グラフィック"
 F_NUM = ENUMFILES(LOCALS, "顔_*.png", 1)
 
 $表示_LOOP
-FOR LOCAL, ページ数, ページ数 * 40 + 40
+改行フラグ = 0
+TEMP_HTML = 
+FOR LOCAL, ページ数 * 40, ページ数 * 40 + 40
 	SIF LOCAL >= F_NUM
 		BREAK
 	G_NAME '= SUBSTRING(RESULTS:LOCAL, 10, -1)
+	GDISPOSE LOCAL
 	GCREATEFROMFILE LOCAL, G_NAME
 	SIF スプライト作成(TOSTR(LOCAL), LOCAL, 0) == 0
 		CONTINUE
 	LOCALS = {(LOCAL % 8) * 750}, 0, 750, 750
 	TEMP_HTML += @"<div rect='%LOCALS%'><button value='{LOCAL}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='750' height='750'></button></div>"
-	SIF (LOCAL + 1) % 8 == 0
+	IF (LOCAL + 1) % 8 == 0
+		改行フラグ = 0
 		TEMP_HTML += "<br><br><br><br><br><br><br>"
+	ELSE
+		改行フラグ = 1
+	ENDIF
 NEXT
-HTML_PRINT TEMP_HTML
-SIF (LOCAL + 1) % 8
+SIF 改行フラグ
 	TEMP_HTML += "<br><br><br><br><br><br><br>"
+HTML_PRINT TEMP_HTML
 
 TEMP_HTML = 
 DRAWLINE

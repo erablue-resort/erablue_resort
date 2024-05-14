@@ -1,1263 +1,1263 @@
-@COMNAME666
-#FUNCTIONS
-TSTR:コマンド名受渡 = おさわりテスト
-
-@COMTYPE_666
-#FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
-;弱点コマンドカテゴリ = S
-
-
-
-@COM_TOOLTIP_666
-LOCALS = <br>■おさわりテスト<br>
-LOCALS += "おさわりモードを呼び出します"
-TSTR:ツールチップ受渡 = %LOCALS%
-
-
-@COM666
-
-@CAN_COM666(ARG)
-SKIPDISP ARG
-PRINTFORML おさわりテストする(%CALLNAME:TARGET%)
-;-------------------------------------------------
-;実行できるかの判定
-;-------------------------------------------------
-
-SIF CSTR:TARGET:画像フォルダ == ""
-    CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
-
-RESULT = ENUMFILES(@"resources/%CSTR:TARGET:画像フォルダ%/おさわりフォルダ/", @"*.png")
-SIF RESULT == 0
-    RETURN 0
-
-CALL COM_ORDER
-
-RETURN 1
-
-;-------------------------------------------------
-;実行判定
-;-------------------------------------------------
-@COM_ABLE666
-;作成中のため封印
-RETURN 0
-
-;キスする実行判定
-SIF !TFLAG:ゲームフェイズ管理
-	RETURN 0
-;一括管理
-SIF GLOBAL_COMABLE(666)
-	RETURN RESULT
-SIF CSTR:TARGET:画像フォルダ == ""
-    CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
-
-RESULT = ENUMFILES(@"resources/%CSTR:TARGET:画像フォルダ%/おさわりフォルダ/", @"*.png")
-SIF RESULT == 0
-    RETURN 0
-RETURN 1
-
-;-------------------------------------------------
-;実行時メッセージ
-;-------------------------------------------------
-@MESSAGE_COM666
-
-CALL おさわりモード(TARGET, 0)
-
-
-{
-    ;
-配置レイヤー
-1 SUB
-2 MAIN
-3 EFFECT
-4 EFFECT2
-5 TEXT
-6 CHECK
-7 - 11 CLICKICON
-}
-@おさわりモード(キャラ番号, おさわりスタンス)
-#DIM キャラ番号
-#DIM レイヤー番号 = 50
-#DIMS おさわりフォルダ = "おさわりフォルダ"
-#DIMS 対象フォルダ
-#DIMS 対象ファイルアーカイブ,100,100,100 ;カテゴリ分けしてファイル名を預かる
-#DIM 対象ファイル数,100,100
-#DIM CONST 衣装種類数 = 15
-#DIM CONST 差分種類数 = 3
-{
-#DIMS CONST 衣装種類 =
- "短冊_デフォルト", "短冊_水着", "短冊_湯浴み着", "短冊_全裸", "短冊_浴衣",
- "短冊_部屋着", "短冊_おしゃれ着", "短冊_バニー服", "短冊_メイド服", "短冊_マイクロビキニ",
- "短冊_逆バニー", "短冊_チャイナドレス", "短冊_ミニチャイナ", "短冊_セクシーランジェリー", "短冊_ミニスカサンタ", 
-}
-{
-#DIMS CONST 差分種類 = 
-"表情", "欲情", "絶頂"
-}
-#DIM 現在衣装種類ID ;シーン外で現在着用している衣装
-#DIM 適正衣装種類ID ;シーンに適切な理想の種類を記憶しておく　ex.コスプレ、脱衣状態など
-#DIM 適正差分種類ID
-#DIM 対象衣装種類ID ;実際にセットする種類
-#DIM 対象差分種類ID
-#DIM 対象ファイルID
-#DIM 選択コマンドID ;おさわり内でのID
-#DIM クリック色指定
-#DIM 弱点コマンド指定
-#DIM おさわり容認カウンタ,100
-#DIM おさわり実効カウンタ,100
-#DIM おさわり警告カウンタ
-#DIM おさわり警告フラグ
-#DIM おさわり実効フラグ
-#DIM おさわりスタンス ;0=弱セクハラ,1=強セクハラ,2=マッサージ（予定）
-
-#DIM CONST 画像位置 = 620, 180
-#DIM CONST 画像サイズ = 2 ;SCALE
-
-#DIMS システムコマンド選択
-#DIM システムコマンド格納,10
-{
-#DIMS CONST システムコマンド = 
-    "", "おさわりモード終了", "画像ロック", "おさわり強度", "リンパの話をする", "テストコマンド（脱着衣）"
-}
-
-#DIM 画像切り替えカウンタ
-#DIM 画像切り替えフラグ
-#DIM 画像ロックフラグ
-#DIMS メッセージ予約
-
-;テスト用カウンタを作る
-#DIM TIME保存
-#DIM DYNAMIC クリックカウンタ
-#DIM DYNAMIC コマンドカウンタ
-#DIM DYNAMIC タイマカウンタ
-TIME保存 = TIME
-
-
-FOR LOCAL, 0, 50
-    PRINTL
-NEXT
-
-SIF CSTR:キャラ番号:画像フォルダ == ""
-    CSTR:キャラ番号:画像フォルダ = {NO:キャラ番号}%CALLNAME:キャラ番号%
-
-対象フォルダ '= "resources\\" + CSTR:キャラ番号:画像フォルダ
-
-;アーカイブ作成
-VARSET 対象ファイルアーカイブ
-VARSET 対象ファイル数
-FOR LOCAL, 0, 衣装種類数
-    FOR LOCAL:1, 0, 差分種類数
-        対象ファイル数:LOCAL:(LOCAL:1) = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/", 衣装種類:LOCAL + "_差分_" + 差分種類:(LOCAL:1) + "*.png")
-        FOR LOCAL:2, 0, 対象ファイル数:LOCAL:(LOCAL:1)
-            対象ファイルアーカイブ:LOCAL:(LOCAL:1):(LOCAL:2) '= SUBSTRING(RESULTS:(LOCAL:2), 2 +STRLENS(対象フォルダ) +STRLENS(おさわりフォルダ), -1)
-        NEXT
-    NEXT
-    VARSET RESULTS
-    RESULT = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/", 衣装種類:LOCAL + ".png")
-    対象ファイルアーカイブ:LOCAL:0:(対象ファイル数:LOCAL:0) '= SUBSTRING(RESULTS:0, 2 +STRLENS(対象フォルダ) +STRLENS(おさわりフォルダ), -1)
-    対象ファイル数:LOCAL:0 += RESULT
-NEXT
-
-
-;初期画像の割り当て
-SELECTCASE CSTR:TARGET:着せ替え服
-    CASE "水着"
-        現在衣装種類ID = 1
-    CASE "湯浴み着"
-        現在衣装種類ID = 2
-    CASE "全裸"
-        現在衣装種類ID = 3
-    CASE "浴衣"
-        現在衣装種類ID = 4
-    CASE "部屋着"
-        現在衣装種類ID = 5
-    CASE "おしゃれ着"
-        現在衣装種類ID = 6
-    CASE "バニー服"
-        現在衣装種類ID = 7
-    CASE "メイド服"
-        現在衣装種類ID = 8
-    CASE "マイクロビキニ"
-        現在衣装種類ID = 9
-    CASE "逆バニー"
-        現在衣装種類ID = 10
-    CASE "チャイナドレス"
-        現在衣装種類ID = 11
-    CASE "ミニチャイナ"
-        現在衣装種類ID = 12
-    CASE "セクシーランジェリー"
-        現在衣装種類ID = 13
-    CASE "ミニスカサンタ"
-        現在衣装種類ID = 14
-    CASEELSE ;デフォルト
-        現在衣装種類ID = 0
-ENDSELECT
-
-適正衣装種類ID = 現在衣装種類ID
-
-IF PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0
-    適正差分種類ID = 1
-    メッセージ予約 = %CALLNAME:TARGET%は熱のこもった目でこちらを見つめている・・・
-ELSE
-    適正差分種類ID = 0
-    メッセージ予約 = %CALLNAME:TARGET%はおさわりできるような雰囲気ではない・・・
-ENDIF
-
-
-;最初のCOM実行までのクリック数をランダムにする
-FOR LOCAL, 0, 100
-    おさわり実効カウンタ:LOCAL = RAND:100
-NEXT
-VARSET おさわり警告カウンタ
-
-
-VARSET 画像ロックフラグ
-画像切り替えカウンタ = 5
-
-
-;演出の都合上リソース開放が前後するので、他から持ち込んでいる場合のため開放しておく
-GDISPOSE レイヤー番号 + 2
-GDISPOSE レイヤー番号 + 3
-
-
-$画像切り替え
-
-;画像切り替え時に容認リセット
-VARSET おさわり容認カウンタ
-
-;システムウィンドウ
-;スタンスごとに表示するコマンドを指定する
-CBGREMOVERANGE -6, -6
-CBGREMOVERANGE -5, -5
-SELECTCASE おさわりスタンス
-    CASE 0
-        システムコマンド格納 = 1, 2, 3, 0
-    CASE 1
-        システムコマンド格納 = 1, 2, 3, 5, 0
-    CASE 2
-        システムコマンド格納 = 1, 2, 4, 0
-ENDSELECT
-GDISPOSE レイヤー番号 + 10,
-GCREATE レイヤー番号 + 10, 1600, 900
-
-GSETBRUSH レイヤー番号 + 10, 0xFF101010
-GFILLRECTANGLE レイヤー番号 + 10, 0, 0, 620, 540
-
-GSETFONT レイヤー番号 + 10, GETFONT(), 18
-FOR LOCAL, 0, 10
-    SIF システムコマンド格納:LOCAL == 0
-        BREAK
-    GSETBRUSH レイヤー番号 + 10, 0xFFC0C0C0
-    GFILLRECTANGLE レイヤー番号 + 10, 0, 170 + LOCAL * 50, 400, 40
-    GSETBRUSH レイヤー番号 + 10, 0xFF101010
-    GFILLRECTANGLE レイヤー番号 + 10, 5, 175 + LOCAL * 50, 390, 30
-    GSETPEN レイヤー番号 + 10, 0xFFC0C0C0, 1
-    GDRAWTEXT レイヤー番号 + 10, システムコマンド:(システムコマンド格納:LOCAL), 10, 180 + LOCAL * 50
-NEXT
-
-CBGSETG レイヤー番号 + 10, 0, 0, -5
-VARSET メッセージ予約
-
-画像切り替えフラグ = 0
-SIF 画像ロックフラグ
-    GOTO 入力待ち
-
-;複数枚あるとき現在値と違うIDの選出,一枚ならID:0
-;対象差分がないときは適正衣装、デフォルトの順に差分チェック
-SELECTCASE 対象ファイル数:適正衣装種類ID:適正差分種類ID
-    CASE 0
-        IF 対象ファイル数:適正衣装種類ID:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
-            対象衣装種類ID = 適正衣装種類ID
-            対象差分種類ID = 1
-        ELSEIF 対象ファイル数:適正衣装種類ID:0
-            対象衣装種類ID = 適正衣装種類ID
-            対象差分種類ID = 0
-        ELSEIF 対象ファイル数:0:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
-            対象衣装種類ID = 0
-            対象差分種類ID = 1
-        ELSEIF 対象ファイル数:0:0
-            対象衣装種類ID = 0
-            対象差分種類ID = 0
-        ELSE
-        ENDIF
-        IF 対象ファイル数:対象衣装種類ID:対象差分種類ID > 1
-            FOR LOCAL, 0, 10
-                LOCAL:1 = RAND:(対象ファイル数:対象衣装種類ID:対象差分種類ID)
-                SIF 対象ファイルID == LOCAL:1
-                    CONTINUE
-                対象ファイルID = LOCAL:1
-                BREAK
-            NEXT
-        ELSE
-            対象ファイルID = 0
-        ENDIF
-    CASE 1
-        対象衣装種類ID = 適正衣装種類ID
-        対象差分種類ID = 適正差分種類ID
-        対象ファイルID = 0
-    CASEELSE
-        対象衣装種類ID = 適正衣装種類ID
-        対象差分種類ID = 適正差分種類ID
-        FOR LOCAL, 0, 10
-            LOCAL:1 = RAND:(対象ファイル数:対象衣装種類ID:対象差分種類ID)
-            SIF 対象ファイルID == LOCAL:1
-                CONTINUE
-            対象ファイルID = LOCAL:1
-            BREAK
-        NEXT
-ENDSELECT
-
-CBGSETG レイヤー番号 + 3, 0, 0, -1
-CBGREMOVERANGE -2, -2
-
-GDISPOSE レイヤー番号
-GCREATEFROMFILE レイヤー番号, @"%CSTR:キャラ番号:画像フォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
-
-FOR LOCAL, 0, 5
-    GDISPOSE レイヤー番号 + 1
-    GCREATE レイヤー番号 + 1, 1600, 900
-    CALL カットイン用カラーマトリクス取得(50 - LOCAL * 10)
-    GDRAWG レイヤー番号 + 1, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号), GHEIGHT(レイヤー番号), カットイン用カラーマトリクス:0:0
-    CBGSETG レイヤー番号 + 1, 0, 0, -2
-    AWAIT 50
-NEXT
-
-;次回フェードインに使う画像を作っておく
-GDISPOSE レイヤー番号 + 2
-GCREATEFROMFILE レイヤー番号 + 2, @"%CSTR:キャラ番号:画像フォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
-GDISPOSE レイヤー番号 + 3
-GCREATE レイヤー番号 + 3, 1600, 900
-GDRAWG レイヤー番号 + 3, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号 + 2) * 画像サイズ, GHEIGHT(レイヤー番号 + 2) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号 + 2), GHEIGHT(レイヤー番号 + 2)
-
-CBGREMOVERANGE -1, -1
-
-;当たり判定の設定
-CBGREMOVEBMAP
-GDISPOSE レイヤー番号 + 20
-GCREATEFROMFILE レイヤー番号 + 20, @"%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
-CBGSETBMAPG レイヤー番号 + 20
-
-{
-;当たり判定の可視化 SIZEは上に合わせること
-GDISPOSE レイヤー番号 + 21
-GCREATE レイヤー番号 + 21, 1600, 900
-CALL カットイン用カラーマトリクス取得(50)
-GDRAWG レイヤー番号 + 21, レイヤー番号 + 20, 0, 0, 1600, 900, 0, 0, GWIDTH (レイヤー番号 + 20), GHEIGHT(レイヤー番号 + 20), カットイン用カラーマトリクス:0:0
-CBGSETG レイヤー番号 + 21, 0, 0, -2
-}
-
-
-$入力待ち
-
-CBGREMOVERANGE -6, -6
-GDISPOSE レイヤー番号 + 11
-GCREATE レイヤー番号 + 11, 1600, 900
-GSETFONT レイヤー番号 + 11, GETFONT(), 18
-GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 2) * 50
-SIF 画像ロックフラグ
-    GDRAWTEXT レイヤー番号 + 11, "×", 370, 180 + FINDELEMENT(システムコマンド格納, 2) * 50
-SELECTCASE おさわりスタンス
-    CASE 0
-        GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
-    CASE 1
-        GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
-        GDRAWTEXT レイヤー番号 + 11, "×", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
-ENDSELECT
-;特記事項がないときTIPSを表示する
-IF メッセージ予約 == ""
-    SELECTCASE RAND:5
-        CASE 0
-            GDRAWTEXT レイヤー番号 + 11, "TIPS:各機能切り替えはクリックでも変更できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-        CASE 1
-            GDRAWTEXT レイヤー番号 + 11, "TIPS:Ｌキーで画像を表示中のものに固定できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-        CASE 2
-            GDRAWTEXT レイヤー番号 + 11, "TIPS:Ｓキーでおさわり強度を変更できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-        CASE 3
-            GDRAWTEXT レイヤー番号 + 11, "TIPS:欲情度が低いときはおさわり厳禁", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-        CASE 4
-            GDRAWTEXT レイヤー番号 + 11, "TIPS:SPACEキーでおさわりモードが終了できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-    ENDSELECT
-ELSE
-    GDRAWTEXT レイヤー番号 + 11, メッセージ予約, 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
-ENDIF
-VARSET メッセージ予約
-CBGSETG レイヤー番号 + 11, 0, 0, -6
-
-INPUTMOUSEKEY
-LOCAL:2 = RESULT:2
-LOCAL:3 = RESULT:3
-クリックカウンタ ++
-
-
-;PRINTFORML DEBUG PRINTPOINT X {RESULT:2}, Y {RESULT:3},
-;PRINTFORML DEBUG PRINTCOLOR {RESULT:4}
-
-;入力キーの識別と割り当て
-IF RESULT == 1
-    ;PRINTFORM 入力キー確認メッセージ {RESULT:4} 
-    CALL おさわり部位判定(おさわりスタンス, RESULT:4)
-    選択コマンドID = RESULT
-    ;おさわりでない部分
-    SELECTCASE 選択コマンドID
-        CASE 99
-            システムコマンド選択 = 
-        CASE 100
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:0)
-        CASE 101
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:1)
-        CASE 102
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:2)
-        CASE 103
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:3)
-        CASE 104
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:4)
-        CASE 105
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:5)
-        CASE 106
-            システムコマンド選択 '= システムコマンド:(システムコマンド格納:6)
-        CASEELSE
-            GOTO おさわり実行処理
-    ENDSELECT
-    CALL クリックアイコン(LOCAL:2, LOCAL:3)
-ELSEIF RESULT == 3 ;キーボード入力
-    ;PRINTFORM 入力キー確認メッセージ {RESULT:2} 
-    SELECTCASE RESULT:2
-        CASE 32 ;SPACE
-            システムコマンド選択 = おさわりモード終了
-        CASE 76 ;L
-            システムコマンド選択 = 画像ロック
-        CASE 82 ;R
-            システムコマンド選択 = リンパの話をする
-            ;正しくはlymph
-        CASE 83 ;S
-            システムコマンド選択 = おさわり強度
-    ENDSELECT
-ELSE ;マウスホイール
-    GOTO 入力待ち
-ENDIF
-
-;システム操作はここ
-SELECTCASE システムコマンド選択
-    CASE "おさわりモード終了"
-        GOTO 終了処理
-    CASE "画像ロック"
-        IF 画像ロックフラグ
-            画像ロックフラグ = 0
-            メッセージ予約 = 画像切り替えを行います
-        ELSE
-            画像ロックフラグ = 1
-            メッセージ予約 = 表示中の画像で固定します
-        ENDIF
-    CASE "おさわり強度"
-        IF おさわりスタンス == 0
-            おさわりスタンス = 1
-            メッセージ予約 = おさわり強度を強くします
-        ELSEIF おさわりスタンス == 1
-            おさわりスタンス = 0
-            メッセージ予約 = おさわり強度を弱くします
-        ENDIF
-    CASE "リンパの話をする"
-        VARSET おさわり容認カウンタ
-        PRINTL
-        PRINTFORML リンパなら仕方ないと%CALLNAME:TARGET%は納得したようだ
-    CASE "テストコマンド（脱着衣）"
-        IF 適正衣装種類ID != 3
-            適正衣装種類ID = 3
-            メッセージ予約 = 脱衣テスト
-            GOTO 画像切り替え
-        ELSE
-            適正衣装種類ID = 現在衣装種類ID
-            メッセージ予約 = 着衣テスト
-            GOTO 画像切り替え
-        ENDIF
-ENDSELECT
-
-GOTO 入力待ち
-
-
-$おさわり実行処理
-
-弱点コマンド指定 = 0
-;WEEK
-IF RSTR:SELECTCOM_S受け渡し == ""
-    LOCALS:1 '= TOSTR(SELECTCOM)
-ELSE
-    LOCALS:1 '= RSTR:SELECTCOM_S受け渡し
-ENDIF
-FOR LOCAL, 0, 500
-    IF 弱点コマンド枠:キャラ番号:LOCAL == LOCALS:1
-        弱点コマンド指定 = 1
-        BREAK
-    ENDIF
-    SIF 弱点コマンド枠:キャラ番号:LOCAL == ""
-        BREAK
-NEXT
-
-
-おさわり実効フラグ = 0
-おさわり実効カウンタ:選択コマンドID += RAND(20, 40)
-IF おさわり実効カウンタ:選択コマンドID > 100
-    おさわり実効カウンタ:選択コマンドID = おさわり実効カウンタ:選択コマンドID % 100
-    おさわり実効フラグ = 1
-    ;その気でないときは一発警告
-    IF PALAM:TARGET:欲情 < PALAMLV:2 && CFLAG:TARGET:発情期フラグ >= 0
-        おさわり容認カウンタ:選択コマンドID = 100
-    ENDIF
-ENDIF
-
-;COUNT
-おさわり警告フラグ = 0
-おさわり容認カウンタ:選択コマンドID += RAND(5, 10)
-IF おさわり容認カウンタ:選択コマンドID > 100
-    おさわり容認カウンタ:選択コマンドID = おさわり容認カウンタ:選択コマンドID % 100
-    おさわり警告フラグ = 1
-    クリック色指定 = 1
-ENDIF
-
-;COLOR
-IF !おさわり警告フラグ
-    クリック色指定 = 0
-    SELECTCASE おさわり容認カウンタ:選択コマンドID
-        CASE IS < 25
-            クリック色指定 = 3
-        CASE IS < 50
-            クリック色指定 = 2
-        CASE IS < 75
-            クリック色指定 = 4
-        CASEELSE
-            クリック色指定 = 5
-    ENDSELECT
-ENDIF
-
-CALL クリックアイコン(LOCAL:2, LOCAL:3, クリック色指定)
-
-;COM反映ブロック
-IF おさわり実効フラグ
-    コマンドカウンタ ++
-    CALL ハートエフェクト(画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 弱点コマンド指定)
-
-    画像切り替えカウンタ --
-    IF !画像切り替えカウンタ
-        画像切り替えカウンタ = 5
-        画像切り替えフラグ = 1
-    ENDIF
-
-    ;今回初めて欲情になったとき
-    IF PALAM:TARGET:欲情 >= PALAMLV:4 && LOCAL:11 < PALAMLV:4
-        LOCAL:11 = PALAM:TARGET:欲情
-        適正差分種類ID = 1
-        画像切り替えフラグ = 1
-    ENDIF
-    LOCAL:11 = PALAM:TARGET:欲情
-
-    ;適正差分を指定する（現状では絶頂から復帰するための処理）
-    IF PALAM:TARGET:欲情 >= PALAMLV:4
-        適正差分種類ID = 1
-    ELSE
-        適正差分種類ID = 0
-    ENDIF
-
-    PRINTL
-
-   ;------------------------コマンド実行処理の抽出
-   ;方針：DRAWLINE,WAIT,SOURCE表示などをとばしつつ、テキストの抽出とCOM実行をする
-   ;CALL_COM
-   ;    CAN_COMに引数(1)を渡してSKIPDISPしてもらう 可否判定をするならおさわり部位判定内ですることになるので外してもいいかもしれない
-   ;    ARGの置換
-   ;    RETURNのコメントアウト
-    RESULT = 0
-    TCVAR:TARGET:弱点コマンドフラグ = 0
-    弱点コマンドカテゴリ = 
-    IF RSTR:SELECTCOM_S受け渡し != ""
-        IF TCVAR:TARGET:食いしばりフラグ
-        ELSEIF TARGET == MASTER
-            TARGET = PLAYER
-            PLAYER = MASTER
-            RFLAG:指示モード対象あなたフラグ = 1
-            TRYCALLFORM CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
-            RFLAG:指示モード対象あなたフラグ = 0
-            PLAYER = TARGET
-            TARGET = MASTER
-        ELSE
-            TRYCALLFORM CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
-        ENDIF
-        TRYCALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
-        TRYCALLFORM COM_S%RSTR:SELECTCOM_S受け渡し%
-        LOCAL:1 = RESULT
-        IF LOCAL:1 >= 0
-            LOCALS = %RSTR:SELECTCOM_S受け渡し%
-            IF STRFIND(コマンド初回フラグ:TARGET:0, @"-%LOCALS%-") < 0
-                コマンド初回フラグ_一時保存:TARGET:0 += @"-%LOCALS%-"
-            ENDIF
-            IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-%LOCALS%-") < 0
-                コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-%LOCALS%-"
-            ENDIF
-            IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
-                LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
-            ENDIF
-            ; IF 弱点コマンドカテゴリ != ""
-                FOR LOCAL, 0, 50
-                    IF 弱点コマンド枠:TARGET:LOCAL == LOCALS
-                        TCVAR:TARGET:弱点コマンドフラグ = 1
-                        IF 弱点看破:TARGET:LOCAL == 0
-                            弱点看破:TARGET:LOCAL = 1
-                            LOCAL:4 = 0
-                            LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:TARGET:0, ".")
-                            FOR LOCAL:3, 0, LOCAL:2 + 1
-                                SIF 弱点看破:TARGET:(LOCAL:3) == 0
-                                    LOCAL:4 ++
-                            NEXT
-                            IF LOCAL:4 == 0
-                                CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ")
-                                CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ")
-                            ENDIF
-                        ENDIF
-                    ENDIF
-                NEXT
-            ; ENDIF
-        ENDIF
-        SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
-        ;RETURN LOCAL:1
-    ELSE
-        IF TCVAR:TARGET:食いしばりフラグ
-        ELSEIF TARGET == MASTER
-            TARGET = PLAYER
-            PLAYER = MASTER
-            RFLAG:指示モード対象あなたフラグ = 1
-            TRYCALLFORM CAN_COM{SELECTCOM}(1)
-            RFLAG:指示モード対象あなたフラグ = 0
-            PLAYER = TARGET
-            TARGET = MASTER
-        ELSE
-            TRYCALLFORM CAN_COM{SELECTCOM}(1)
-        ENDIF
-        TRYCALLFORMF COMTYPE_{SELECTCOM}
-        TRYCALLFORM COM{SELECTCOM}
-        ;LOCAL:1 = RESULT
-        IF LOCAL:1 >= 0
-            SELECTCASE SELECTCOM
-                CASE 370 TO 374
-                    LOCALS = {SELECTCOM}_{NO:TARGET}
-                CASE 380 TO 384
-                    LOCALS = {SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
-                CASE 385 TO 389
-                    LOCALS = {SELECTCOM}_%開催予定祭り名%
-                CASE 400
-                    LOCALS = {SELECTCOM}
-                    ;追い出され・入室不可判定
-                    CALL 入室不可処理
-                CASEELSE
-                    LOCALS = {SELECTCOM}
-            ENDSELECT
-            IF STRFIND(コマンド初回フラグ:TARGET:0, @"-%LOCALS%-") < 0
-                コマンド初回フラグ_一時保存:TARGET:0 += @"-%LOCALS%-"
-            ENDIF
-            IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-%LOCALS%-") < 0
-                コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-%LOCALS%-"
-            ENDIF
-            ; IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
-            ; 	LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
-            ; ENDIF
-            ; IF 弱点コマンドカテゴリ != ""
-                FOR LOCAL, 0, 50
-                    IF 弱点コマンド枠:TARGET:LOCAL == LOCALS
-                        TCVAR:TARGET:弱点コマンドフラグ = 1
-                        IF 弱点看破:TARGET:LOCAL == 0
-                            弱点看破:TARGET:LOCAL = 1
-                            LOCAL:4 = 0
-                            LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:TARGET:0, ".")
-                            FOR LOCAL:3, 0, LOCAL:2 + 1
-                                SIF 弱点看破:TARGET:(LOCAL:3) == 0
-                                    LOCAL:4 ++
-                            NEXT
-                            IF LOCAL:4 == 0
-                                CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ")
-                                CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ")
-                            ENDIF
-                        ENDIF
-                    ENDIF
-                NEXT
-            ; ENDIF
-        ENDIF
-        ;RETURN LOCAL:1
-    ENDIF
-    ;-------------------------------------
-
-    CALL SOURCE_補正処理(TARGET)
-    CALL SOURCE_ABLUP(TARGET)
-
-    ;------------対面プレイのテキストの抽出
-    IF FLAG:汎用文章表示切り替えオプション > 0
-        IF TCVAR:TARGET:弱点コマンドフラグ
-            SETCOLOR カラーパレット("えっちな色")
-            PRINTL <<<弱点コマンド！！>>>
-            RESETCOLOR
-        ENDIF
-        IF RSTR:SELECTCOM_S受け渡し != ""
-            TRYCCALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%
-            CATCH
-            ENDCATCH
-        ELSE
-            TRYCCALLFORM MESSAGE_COM{SELECTCOM}
-            CATCH
-            ENDCATCH
-        ENDIF
-    ENDIF
-    IF K < 1 && LOCAL:1 == 1
-        ;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
-        ;口上なしで汎用喘ぎを使うならここで表示
-        IF CFLAG:TARGET:汎用喘ぎ禁止フラグ == 1
-            ;禁止時はなにもしない
-        ELSEIF TFLAG:オートコマンドフラグ == 0
-            IF TALENT:TARGET:性別 == 2
-                SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1) == 0
-                    CALL 汎用喘ぎ処理(TARGET)
-            ELSE
-                SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
-                    CALL 汎用喘ぎ処理(TARGET)
-            ENDIF
-        ENDIF
-        IF RSTR:SELECTCOM_S受け渡し != ""
-            TRYCCALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%_非口上時
-            CATCH
-            ENDCATCH
-        ELSE
-            TRYCCALLFORM MESSAGE_COM{SELECTCOM}_非口上時
-            CATCH
-            ENDCATCH
-        ENDIF
-    ENDIF
-
-    ;絶頂時のグラフィック切り替え予約と画面効果
-    ;抽出テキスト
-    IF NOWEX:TARGET:多重絶頂 || NOWEX:TARGET:射精
-        適正差分種類ID = 2 ;絶頂
-        画像切り替えカウンタ = 3
-        画像切り替えフラグ = 1
-
-        IF NOWEX:TARGET:多重絶頂
-            ;セクハラS絶頂があるので地の文で教える
-            SIF NOWEX:TARGET:4
-                PRINTFORML %CALLNAME:TARGET%は小刻みに肌をひくつかせて絶頂した 
-            IF FLAG:汎用文章表示切り替えオプション > 0
-                CALL PALAM_MESSAGE_通常絶頂
-            ENDIF
-            IF FLAG:口上表示切り替えオプション <= 0
-                BREAK
-            ENDIF
-            TRYCALLFORM KOJO_ORGASM_通常絶頂_{NO:TARGET}(TARGET)
-        ENDIF
-        VARSET NOWEX:TARGET:多重絶頂
-        IF NOWEX:TARGET:射精
-            SIF NOWEX:TARGET:射精 > 1
-                PRINT 大量
-            PRINTFORML 射精(%CALLNAME:TARGET%)
-            IF FLAG:汎用文章表示切り替えオプション > 0
-                CALL PALAM_MESSAGE_射精
-            ENDIF
-            IF FLAG:口上表示切り替えオプション <= 0
-                BREAK
-            ENDIF
-                TRYCALLFORM KOJO_ORGASM_射精_{NO:TARGET}(TARGET)
-            PRINTL
-        ENDIF
-        VARSET NOWEX:TARGET:射精
-
-        ;FLASH
-        GDISPOSE レイヤー番号 + 4
-        GCREATE レイヤー番号 + 4, 1600, 900
-        GSETBRUSH レイヤー番号 + 4, 0xC0FFFFFF
-        GFILLRECTANGLE レイヤー番号 + 4, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ
-        CBGSETG レイヤー番号 + 4, 0, 0, -3
-        AWAIT 50
-        CBGREMOVERANGE -3, -3
-        AWAIT 50
-        CBGSETG レイヤー番号 + 4, 0, 0, -3
-        AWAIT 50
-        CBGREMOVERANGE -3, -3
-        AWAIT 50
-        FOR LOCAL, 0, 5
-            GDISPOSE レイヤー番号 + 4
-            GCREATE レイヤー番号 + 4, 1600, 900
-            GSETBRUSH レイヤー番号 + 4, 0xA0FFFFFF - 0x10000000 * LOCAL
-            GFILLRECTANGLE レイヤー番号 + 4, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ
-            CBGSETG レイヤー番号 + 4, 0, 0, -3
-            AWAIT 50
-        NEXT
-        CBGREMOVERANGE -3, -3
-
-    ENDIF
-
-    ;ステータス変動　表示はSKIP
-    SKIPDISP 1
-    CALL 技巧上昇判定(TARGET)
-        SIF RESULT
-            TRYCALLFORM KOJO_SKILLUP_技巧_{NO:TARGET}(TARGET)
-    CALL 性知識上昇判定(TARGET)
-        SIF RESULT
-            TRYCALLFORM KOJO_SKILLUP_性知識_{NO:TARGET}(TARGET)
-    CALL JUJUN_UP_CHECK(TARGET)
-    CALL Love_CALC(TARGET)
-    CALL FAVOR_CALC(TARGET)
-    CALL 性癖取得チェック(TARGET)
-    CALL 性癖成長チェック(TARGET)
-
-    ;--------------------SOURCE_CHECKから抽出　中身はそのまま
-        SIF CFLAG:TARGET:滞在期間 < 0
-            CONTINUE
-        SIF RCVAR:TARGET:表示カット
-            SKIPDISP 1
-        LOCAL:3 = 0
-        FOR LOCAL,0,100
-            ;コマンド入力前のCUPを追加
-            CUP:TARGET:LOCAL += TCVAR:TARGET:(600 + LOCAL)
-            SIF PALAMNAME:LOCAL == ""
-                CONTINUE
-            SIF CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL == 0
-                CONTINUE
-            IF !LOCAL:3
-                PRINTL
-                PRINTFORML %CALLNAME:TARGET%
-            ENDIF
-            LOCAL:3 ++
-            LOCAL:2 = CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL + TCVAR:TARGET:(600 + LOCAL)
-            PRINTFORM %PALAMNAME:LOCAL,8,LEFT% {PALAM:TARGET:LOCAL,10,LEFT} + {CUP:TARGET:LOCAL,10,LEFT} =   {PALAM:TARGET:LOCAL + CUP:TARGET:LOCAL,10,LEFT}
-            IF 干渉強化変数:TARGET:干渉種類 - 5 == LOCAL
-                SETCOLOR カラーパレット("黄")
-                PRINT 　干渉効果発動中！
-                RESETCOLOR
-            ENDIF
-            PRINTL
-            PALAM:TARGET:LOCAL += CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL
-            PALAM:TARGET:LOCAL = MAX(0, PALAM:TARGET:LOCAL)
-            CUP:TARGET:LOCAL = 0
-            CDOWN:TARGET:LOCAL = 0
-        NEXT
-        ;干渉ランク上昇判定
-        IF 干渉強化変数:TARGET:干渉ランク < 5
-            IF 干渉経験値テーブル:(干渉強化変数:TARGET:干渉ランク) <= 干渉強化変数:TARGET:干渉経験値
-                干渉強化変数:TARGET:干渉ランク += 1
-                PRINTFORMW %CALLNAME:TARGET%の干渉ランクが上昇した！
-            ENDIF
-        ENDIF
-        SKIPDISP 0
-    ;-----------------------------------------------------
-ENDIF
-
-
-LOCALS = 
-IF おさわり警告フラグ
-    VARSET おさわり容認カウンタ
-    IF PALAM:TARGET:欲情 < PALAMLV:2
-        LOCALS += @"<br>%CALLNAME:TARGET%は咎めるような視線をこちらに向けている<br>あまり乗り気ではないようだ・・・<br>"
-    ELSE
-        LOCALS += @"<br>%CALLNAME:TARGET%は咎めるような視線をこちらに向けている<br>もう少し丁寧にやった方がよさそうだ・・・<br>"
-    ENDIF
-    FOR LOCAL, 0, 10
-        AWAIT 50
-    NEXT
-    おさわり警告カウンタ ++
-    IF おさわり警告カウンタ > 2
-       LOCALS += @"<br>%CALLNAME:TARGET%に制止されてしまった<br>どうやら怒らせてしまったようだ・・・<br>"
-       HTML_PRINT LOCALS
-       GOTO 終了処理
-    ENDIF
-ENDIF
-
-HTML_PRINT LOCALS
-
-
-IF 画像切り替えフラグ
-    GOTO 画像切り替え
-ENDIF
-
-GOTO 入力待ち
-
-$終了処理
-
-TIME = TIME保存 + (TIME - TIME保存) / 3
-PRINTFORM  CLICK {クリックカウンタ} COM {コマンドカウンタ} {(TIME - TIME保存) / 60}時間{(TIME - TIME保存) % 60}分経過
-FOR LOCAL, 0, 5
-    CBGREMOVERANGE -2, -2
-    GDISPOSE レイヤー番号 + 1
-    GCREATE レイヤー番号 + 1, 1600, 900
-    CALL カットイン用カラーマトリクス取得(LOCAL * 10)
-    GDRAWG レイヤー番号 + 1, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号), GHEIGHT(レイヤー番号), カットイン用カラーマトリクス:0:0
-    CBGSETG レイヤー番号 + 1, 0, 0, -2
-    AWAIT 50
-NEXT
-
-CALL 特定キャラモードリセット(TARGET)
-CBGCLEAR
-SETANIMETIMER -1
-GDISPOSE レイヤー番号
-GDISPOSE レイヤー番号 + 1
-GDISPOSE レイヤー番号 + 2
-GDISPOSE レイヤー番号 + 3
-GDISPOSE レイヤー番号 + 10
-GDISPOSE レイヤー番号 + 11
-GDISPOSE レイヤー番号 + 20
-GDISPOSE レイヤー番号 + 21
-GDISPOSE 80
-GDISPOSE 81
-GDISPOSE 82
-GDISPOSE 83
-SPRITEDISPOSEALL 0
-RETURN
-
-
-@ハートエフェクト(ARG, ARG:1, ARG:2, ARG:3, ARG:4)
-#DIM カラーマトリクス, 5, 5
-
-CBGREMOVERANGE -4, -4
-
-;GID 80 に素材を読み込まれている前提
-IF !GCREATED(82)
-    GDISPOSE 82
-    GCREATE 82, 720, 720
-
-    カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-    カラーマトリクス:1:0 =   0,  64,   0,   0,   0
-    カラーマトリクス:2:0 =   0,   0, 192,   0,   0
-    カラーマトリクス:3:0 =   0,   0,   0, 256,   0
-    カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+; @COMNAME666
+; #FUNCTIONS
+; TSTR:コマンド名受渡 = おさわりテスト
+
+; @COMTYPE_666
+; #FUNCTION
+; TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
+; ;弱点コマンドカテゴリ = S
+
+
+
+; @COM_TOOLTIP_666
+; LOCALS = <br>■おさわりテスト<br>
+; LOCALS += "おさわりモードを呼び出します"
+; TSTR:ツールチップ受渡 = %LOCALS%
+
+
+; @COM666
+
+; @CAN_COM666(ARG)
+; SKIPDISP ARG
+; PRINTFORML おさわりテストする(%CALLNAME:TARGET%)
+; ;-------------------------------------------------
+; ;実行できるかの判定
+; ;-------------------------------------------------
+
+; SIF CSTR:TARGET:画像フォルダ == ""
+;     CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
+
+; RESULT = ENUMFILES(@"resources/%CSTR:TARGET:画像フォルダ%/おさわりフォルダ/", @"*.png")
+; SIF RESULT == 0
+;     RETURN 0
+
+; CALL COM_ORDER
+
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行判定
+; ;-------------------------------------------------
+; @COM_ABLE666
+; ;作成中のため封印
+; RETURN 0
+
+; ;キスする実行判定
+; SIF !TFLAG:ゲームフェイズ管理
+; 	RETURN 0
+; ;一括管理
+; SIF GLOBAL_COMABLE(666)
+; 	RETURN RESULT
+; SIF CSTR:TARGET:画像フォルダ == ""
+;     CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
+
+; RESULT = ENUMFILES(@"resources/%CSTR:TARGET:画像フォルダ%/おさわりフォルダ/", @"*.png")
+; SIF RESULT == 0
+;     RETURN 0
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行時メッセージ
+; ;-------------------------------------------------
+; @MESSAGE_COM666
+
+; CALL おさわりモード(TARGET, 0)
+
+
+; {
+;     ;
+; 配置レイヤー
+; 1 SUB
+; 2 MAIN
+; 3 EFFECT
+; 4 EFFECT2
+; 5 TEXT
+; 6 CHECK
+; 7 - 11 CLICKICON
+; }
+; @おさわりモード(キャラ番号, おさわりスタンス)
+; #DIM キャラ番号
+; #DIM レイヤー番号 = 50
+; #DIMS おさわりフォルダ = "おさわりフォルダ"
+; #DIMS 対象フォルダ
+; #DIMS 対象ファイルアーカイブ,100,100,100 ;カテゴリ分けしてファイル名を預かる
+; #DIM 対象ファイル数,100,100
+; #DIM CONST 衣装種類数 = 15
+; #DIM CONST 差分種類数 = 3
+; {
+; #DIMS CONST 衣装種類 =
+;  "短冊_デフォルト", "短冊_水着", "短冊_湯浴み着", "短冊_全裸", "短冊_浴衣",
+;  "短冊_部屋着", "短冊_おしゃれ着", "短冊_バニー服", "短冊_メイド服", "短冊_マイクロビキニ",
+;  "短冊_逆バニー", "短冊_チャイナドレス", "短冊_ミニチャイナ", "短冊_セクシーランジェリー", "短冊_ミニスカサンタ", 
+; }
+; {
+; #DIMS CONST 差分種類 = 
+; "表情", "欲情", "絶頂"
+; }
+; #DIM 現在衣装種類ID ;シーン外で現在着用している衣装
+; #DIM 適正衣装種類ID ;シーンに適切な理想の種類を記憶しておく　ex.コスプレ、脱衣状態など
+; #DIM 適正差分種類ID
+; #DIM 対象衣装種類ID ;実際にセットする種類
+; #DIM 対象差分種類ID
+; #DIM 対象ファイルID
+; #DIM 選択コマンドID ;おさわり内でのID
+; #DIM クリック色指定
+; #DIM 弱点コマンド指定
+; #DIM おさわり容認カウンタ,100
+; #DIM おさわり実効カウンタ,100
+; #DIM おさわり警告カウンタ
+; #DIM おさわり警告フラグ
+; #DIM おさわり実効フラグ
+; #DIM おさわりスタンス ;0=弱セクハラ,1=強セクハラ,2=マッサージ（予定）
+
+; #DIM CONST 画像位置 = 620, 180
+; #DIM CONST 画像サイズ = 2 ;SCALE
+
+; #DIMS システムコマンド選択
+; #DIM システムコマンド格納,10
+; {
+; #DIMS CONST システムコマンド = 
+;     "", "おさわりモード終了", "画像ロック", "おさわり強度", "リンパの話をする", "テストコマンド（脱着衣）"
+; }
+
+; #DIM 画像切り替えカウンタ
+; #DIM 画像切り替えフラグ
+; #DIM 画像ロックフラグ
+; #DIMS メッセージ予約
+
+; ;テスト用カウンタを作る
+; #DIM TIME保存
+; #DIM DYNAMIC クリックカウンタ
+; #DIM DYNAMIC コマンドカウンタ
+; #DIM DYNAMIC タイマカウンタ
+; TIME保存 = TIME
+
+
+; FOR LOCAL, 0, 50
+;     PRINTL
+; NEXT
+
+; SIF CSTR:キャラ番号:画像フォルダ == ""
+;     CSTR:キャラ番号:画像フォルダ = {NO:キャラ番号}%CALLNAME:キャラ番号%
+
+; 対象フォルダ '= "resources\\" + CSTR:キャラ番号:画像フォルダ
+
+; ;アーカイブ作成
+; VARSET 対象ファイルアーカイブ
+; VARSET 対象ファイル数
+; FOR LOCAL, 0, 衣装種類数
+;     FOR LOCAL:1, 0, 差分種類数
+;         対象ファイル数:LOCAL:(LOCAL:1) = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/", 衣装種類:LOCAL + "_差分_" + 差分種類:(LOCAL:1) + "*.png")
+;         FOR LOCAL:2, 0, 対象ファイル数:LOCAL:(LOCAL:1)
+;             対象ファイルアーカイブ:LOCAL:(LOCAL:1):(LOCAL:2) '= SUBSTRING(RESULTS:(LOCAL:2), 2 +STRLENS(対象フォルダ) +STRLENS(おさわりフォルダ), -1)
+;         NEXT
+;     NEXT
+;     VARSET RESULTS
+;     RESULT = ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/", 衣装種類:LOCAL + ".png")
+;     対象ファイルアーカイブ:LOCAL:0:(対象ファイル数:LOCAL:0) '= SUBSTRING(RESULTS:0, 2 +STRLENS(対象フォルダ) +STRLENS(おさわりフォルダ), -1)
+;     対象ファイル数:LOCAL:0 += RESULT
+; NEXT
+
+
+; ;初期画像の割り当て
+; SELECTCASE CSTR:TARGET:着せ替え服
+;     CASE "水着"
+;         現在衣装種類ID = 1
+;     CASE "湯浴み着"
+;         現在衣装種類ID = 2
+;     CASE "全裸"
+;         現在衣装種類ID = 3
+;     CASE "浴衣"
+;         現在衣装種類ID = 4
+;     CASE "部屋着"
+;         現在衣装種類ID = 5
+;     CASE "おしゃれ着"
+;         現在衣装種類ID = 6
+;     CASE "バニー服"
+;         現在衣装種類ID = 7
+;     CASE "メイド服"
+;         現在衣装種類ID = 8
+;     CASE "マイクロビキニ"
+;         現在衣装種類ID = 9
+;     CASE "逆バニー"
+;         現在衣装種類ID = 10
+;     CASE "チャイナドレス"
+;         現在衣装種類ID = 11
+;     CASE "ミニチャイナ"
+;         現在衣装種類ID = 12
+;     CASE "セクシーランジェリー"
+;         現在衣装種類ID = 13
+;     CASE "ミニスカサンタ"
+;         現在衣装種類ID = 14
+;     CASEELSE ;デフォルト
+;         現在衣装種類ID = 0
+; ENDSELECT
+
+; 適正衣装種類ID = 現在衣装種類ID
+
+; IF PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0
+;     適正差分種類ID = 1
+;     メッセージ予約 = %CALLNAME:TARGET%は熱のこもった目でこちらを見つめている・・・
+; ELSE
+;     適正差分種類ID = 0
+;     メッセージ予約 = %CALLNAME:TARGET%はおさわりできるような雰囲気ではない・・・
+; ENDIF
+
+
+; ;最初のCOM実行までのクリック数をランダムにする
+; FOR LOCAL, 0, 100
+;     おさわり実効カウンタ:LOCAL = RAND:100
+; NEXT
+; VARSET おさわり警告カウンタ
+
+
+; VARSET 画像ロックフラグ
+; 画像切り替えカウンタ = 5
+
+
+; ;演出の都合上リソース開放が前後するので、他から持ち込んでいる場合のため開放しておく
+; GDISPOSE レイヤー番号 + 2
+; GDISPOSE レイヤー番号 + 3
+
+
+; $画像切り替え
+
+; ;画像切り替え時に容認リセット
+; VARSET おさわり容認カウンタ
+
+; ;システムウィンドウ
+; ;スタンスごとに表示するコマンドを指定する
+; CBGREMOVERANGE -6, -6
+; CBGREMOVERANGE -5, -5
+; SELECTCASE おさわりスタンス
+;     CASE 0
+;         システムコマンド格納 = 1, 2, 3, 0
+;     CASE 1
+;         システムコマンド格納 = 1, 2, 3, 5, 0
+;     CASE 2
+;         システムコマンド格納 = 1, 2, 4, 0
+; ENDSELECT
+; GDISPOSE レイヤー番号 + 10,
+; GCREATE レイヤー番号 + 10, 1600, 900
+
+; GSETBRUSH レイヤー番号 + 10, 0xFF101010
+; GFILLRECTANGLE レイヤー番号 + 10, 0, 0, 620, 540
+
+; GSETFONT レイヤー番号 + 10, GETFONT(), 18
+; FOR LOCAL, 0, 10
+;     SIF システムコマンド格納:LOCAL == 0
+;         BREAK
+;     GSETBRUSH レイヤー番号 + 10, 0xFFC0C0C0
+;     GFILLRECTANGLE レイヤー番号 + 10, 0, 170 + LOCAL * 50, 400, 40
+;     GSETBRUSH レイヤー番号 + 10, 0xFF101010
+;     GFILLRECTANGLE レイヤー番号 + 10, 5, 175 + LOCAL * 50, 390, 30
+;     GSETPEN レイヤー番号 + 10, 0xFFC0C0C0, 1
+;     GDRAWTEXT レイヤー番号 + 10, システムコマンド:(システムコマンド格納:LOCAL), 10, 180 + LOCAL * 50
+; NEXT
+
+; CBGSETG レイヤー番号 + 10, 0, 0, -5
+; VARSET メッセージ予約
+
+; 画像切り替えフラグ = 0
+; SIF 画像ロックフラグ
+;     GOTO 入力待ち
+
+; ;複数枚あるとき現在値と違うIDの選出,一枚ならID:0
+; ;対象差分がないときは適正衣装、デフォルトの順に差分チェック
+; SELECTCASE 対象ファイル数:適正衣装種類ID:適正差分種類ID
+;     CASE 0
+;         IF 対象ファイル数:適正衣装種類ID:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
+;             対象衣装種類ID = 適正衣装種類ID
+;             対象差分種類ID = 1
+;         ELSEIF 対象ファイル数:適正衣装種類ID:0
+;             対象衣装種類ID = 適正衣装種類ID
+;             対象差分種類ID = 0
+;         ELSEIF 対象ファイル数:0:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
+;             対象衣装種類ID = 0
+;             対象差分種類ID = 1
+;         ELSEIF 対象ファイル数:0:0
+;             対象衣装種類ID = 0
+;             対象差分種類ID = 0
+;         ELSE
+;         ENDIF
+;         IF 対象ファイル数:対象衣装種類ID:対象差分種類ID > 1
+;             FOR LOCAL, 0, 10
+;                 LOCAL:1 = RAND:(対象ファイル数:対象衣装種類ID:対象差分種類ID)
+;                 SIF 対象ファイルID == LOCAL:1
+;                     CONTINUE
+;                 対象ファイルID = LOCAL:1
+;                 BREAK
+;             NEXT
+;         ELSE
+;             対象ファイルID = 0
+;         ENDIF
+;     CASE 1
+;         対象衣装種類ID = 適正衣装種類ID
+;         対象差分種類ID = 適正差分種類ID
+;         対象ファイルID = 0
+;     CASEELSE
+;         対象衣装種類ID = 適正衣装種類ID
+;         対象差分種類ID = 適正差分種類ID
+;         FOR LOCAL, 0, 10
+;             LOCAL:1 = RAND:(対象ファイル数:対象衣装種類ID:対象差分種類ID)
+;             SIF 対象ファイルID == LOCAL:1
+;                 CONTINUE
+;             対象ファイルID = LOCAL:1
+;             BREAK
+;         NEXT
+; ENDSELECT
+
+; CBGSETG レイヤー番号 + 3, 0, 0, -1
+; CBGREMOVERANGE -2, -2
+
+; GDISPOSE レイヤー番号
+; GCREATEFROMFILE レイヤー番号, @"%CSTR:キャラ番号:画像フォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
+
+; FOR LOCAL, 0, 5
+;     GDISPOSE レイヤー番号 + 1
+;     GCREATE レイヤー番号 + 1, 1600, 900
+;     CALL カットイン用カラーマトリクス取得(50 - LOCAL * 10)
+;     GDRAWG レイヤー番号 + 1, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号), GHEIGHT(レイヤー番号), カットイン用カラーマトリクス:0:0
+;     CBGSETG レイヤー番号 + 1, 0, 0, -2
+;     AWAIT 50
+; NEXT
+
+; ;次回フェードインに使う画像を作っておく
+; GDISPOSE レイヤー番号 + 2
+; GCREATEFROMFILE レイヤー番号 + 2, @"%CSTR:キャラ番号:画像フォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
+; GDISPOSE レイヤー番号 + 3
+; GCREATE レイヤー番号 + 3, 1600, 900
+; GDRAWG レイヤー番号 + 3, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号 + 2) * 画像サイズ, GHEIGHT(レイヤー番号 + 2) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号 + 2), GHEIGHT(レイヤー番号 + 2)
+
+; CBGREMOVERANGE -1, -1
+
+; ;当たり判定の設定
+; CBGREMOVEBMAP
+; GDISPOSE レイヤー番号 + 20
+; GCREATEFROMFILE レイヤー番号 + 20, @"%CSTR:キャラ番号:画像フォルダ%/%おさわりフォルダ%/%対象ファイルアーカイブ:対象衣装種類ID:対象差分種類ID:対象ファイルID%"
+; CBGSETBMAPG レイヤー番号 + 20
+
+; {
+; ;当たり判定の可視化 SIZEは上に合わせること
+; GDISPOSE レイヤー番号 + 21
+; GCREATE レイヤー番号 + 21, 1600, 900
+; CALL カットイン用カラーマトリクス取得(50)
+; GDRAWG レイヤー番号 + 21, レイヤー番号 + 20, 0, 0, 1600, 900, 0, 0, GWIDTH (レイヤー番号 + 20), GHEIGHT(レイヤー番号 + 20), カットイン用カラーマトリクス:0:0
+; CBGSETG レイヤー番号 + 21, 0, 0, -2
+; }
+
+
+; $入力待ち
+
+; CBGREMOVERANGE -6, -6
+; GDISPOSE レイヤー番号 + 11
+; GCREATE レイヤー番号 + 11, 1600, 900
+; GSETFONT レイヤー番号 + 11, GETFONT(), 18
+; GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 2) * 50
+; SIF 画像ロックフラグ
+;     GDRAWTEXT レイヤー番号 + 11, "×", 370, 180 + FINDELEMENT(システムコマンド格納, 2) * 50
+; SELECTCASE おさわりスタンス
+;     CASE 0
+;         GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
+;     CASE 1
+;         GDRAWTEXT レイヤー番号 + 11, "□", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
+;         GDRAWTEXT レイヤー番号 + 11, "×", 370, 180 + FINDELEMENT(システムコマンド格納, 3) * 50
+; ENDSELECT
+; ;特記事項がないときTIPSを表示する
+; IF メッセージ予約 == ""
+;     SELECTCASE RAND:5
+;         CASE 0
+;             GDRAWTEXT レイヤー番号 + 11, "TIPS:各機能切り替えはクリックでも変更できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+;         CASE 1
+;             GDRAWTEXT レイヤー番号 + 11, "TIPS:Ｌキーで画像を表示中のものに固定できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+;         CASE 2
+;             GDRAWTEXT レイヤー番号 + 11, "TIPS:Ｓキーでおさわり強度を変更できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+;         CASE 3
+;             GDRAWTEXT レイヤー番号 + 11, "TIPS:欲情度が低いときはおさわり厳禁", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+;         CASE 4
+;             GDRAWTEXT レイヤー番号 + 11, "TIPS:SPACEキーでおさわりモードが終了できる", 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+;     ENDSELECT
+; ELSE
+;     GDRAWTEXT レイヤー番号 + 11, メッセージ予約, 0, 180 + FINDELEMENT(システムコマンド格納, 0) * 50
+; ENDIF
+; VARSET メッセージ予約
+; CBGSETG レイヤー番号 + 11, 0, 0, -6
+
+; INPUTMOUSEKEY
+; LOCAL:2 = RESULT:2
+; LOCAL:3 = RESULT:3
+; クリックカウンタ ++
+
+
+; ;PRINTFORML DEBUG PRINTPOINT X {RESULT:2}, Y {RESULT:3},
+; ;PRINTFORML DEBUG PRINTCOLOR {RESULT:4}
+
+; ;入力キーの識別と割り当て
+; IF RESULT == 1
+;     ;PRINTFORM 入力キー確認メッセージ {RESULT:4} 
+;     CALL おさわり部位判定(おさわりスタンス, RESULT:4)
+;     選択コマンドID = RESULT
+;     ;おさわりでない部分
+;     SELECTCASE 選択コマンドID
+;         CASE 99
+;             システムコマンド選択 = 
+;         CASE 100
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:0)
+;         CASE 101
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:1)
+;         CASE 102
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:2)
+;         CASE 103
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:3)
+;         CASE 104
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:4)
+;         CASE 105
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:5)
+;         CASE 106
+;             システムコマンド選択 '= システムコマンド:(システムコマンド格納:6)
+;         CASEELSE
+;             GOTO おさわり実行処理
+;     ENDSELECT
+;     CALL クリックアイコン(LOCAL:2, LOCAL:3)
+; ELSEIF RESULT == 3 ;キーボード入力
+;     ;PRINTFORM 入力キー確認メッセージ {RESULT:2} 
+;     SELECTCASE RESULT:2
+;         CASE 32 ;SPACE
+;             システムコマンド選択 = おさわりモード終了
+;         CASE 76 ;L
+;             システムコマンド選択 = 画像ロック
+;         CASE 82 ;R
+;             システムコマンド選択 = リンパの話をする
+;             ;正しくはlymph
+;         CASE 83 ;S
+;             システムコマンド選択 = おさわり強度
+;     ENDSELECT
+; ELSE ;マウスホイール
+;     GOTO 入力待ち
+; ENDIF
+
+; ;システム操作はここ
+; SELECTCASE システムコマンド選択
+;     CASE "おさわりモード終了"
+;         GOTO 終了処理
+;     CASE "画像ロック"
+;         IF 画像ロックフラグ
+;             画像ロックフラグ = 0
+;             メッセージ予約 = 画像切り替えを行います
+;         ELSE
+;             画像ロックフラグ = 1
+;             メッセージ予約 = 表示中の画像で固定します
+;         ENDIF
+;     CASE "おさわり強度"
+;         IF おさわりスタンス == 0
+;             おさわりスタンス = 1
+;             メッセージ予約 = おさわり強度を強くします
+;         ELSEIF おさわりスタンス == 1
+;             おさわりスタンス = 0
+;             メッセージ予約 = おさわり強度を弱くします
+;         ENDIF
+;     CASE "リンパの話をする"
+;         VARSET おさわり容認カウンタ
+;         PRINTL
+;         PRINTFORML リンパなら仕方ないと%CALLNAME:TARGET%は納得したようだ
+;     CASE "テストコマンド（脱着衣）"
+;         IF 適正衣装種類ID != 3
+;             適正衣装種類ID = 3
+;             メッセージ予約 = 脱衣テスト
+;             GOTO 画像切り替え
+;         ELSE
+;             適正衣装種類ID = 現在衣装種類ID
+;             メッセージ予約 = 着衣テスト
+;             GOTO 画像切り替え
+;         ENDIF
+; ENDSELECT
+
+; GOTO 入力待ち
+
+
+; $おさわり実行処理
+
+; 弱点コマンド指定 = 0
+; ;WEEK
+; IF RSTR:SELECTCOM_S受け渡し == ""
+;     LOCALS:1 '= TOSTR(SELECTCOM)
+; ELSE
+;     LOCALS:1 '= RSTR:SELECTCOM_S受け渡し
+; ENDIF
+; FOR LOCAL, 0, 500
+;     IF 弱点コマンド枠:キャラ番号:LOCAL == LOCALS:1
+;         弱点コマンド指定 = 1
+;         BREAK
+;     ENDIF
+;     SIF 弱点コマンド枠:キャラ番号:LOCAL == ""
+;         BREAK
+; NEXT
+
+
+; おさわり実効フラグ = 0
+; おさわり実効カウンタ:選択コマンドID += RAND(20, 40)
+; IF おさわり実効カウンタ:選択コマンドID > 100
+;     おさわり実効カウンタ:選択コマンドID = おさわり実効カウンタ:選択コマンドID % 100
+;     おさわり実効フラグ = 1
+;     ;その気でないときは一発警告
+;     IF PALAM:TARGET:欲情 < PALAMLV:2 && CFLAG:TARGET:発情期フラグ >= 0
+;         おさわり容認カウンタ:選択コマンドID = 100
+;     ENDIF
+; ENDIF
+
+; ;COUNT
+; おさわり警告フラグ = 0
+; おさわり容認カウンタ:選択コマンドID += RAND(5, 10)
+; IF おさわり容認カウンタ:選択コマンドID > 100
+;     おさわり容認カウンタ:選択コマンドID = おさわり容認カウンタ:選択コマンドID % 100
+;     おさわり警告フラグ = 1
+;     クリック色指定 = 1
+; ENDIF
+
+; ;COLOR
+; IF !おさわり警告フラグ
+;     クリック色指定 = 0
+;     SELECTCASE おさわり容認カウンタ:選択コマンドID
+;         CASE IS < 25
+;             クリック色指定 = 3
+;         CASE IS < 50
+;             クリック色指定 = 2
+;         CASE IS < 75
+;             クリック色指定 = 4
+;         CASEELSE
+;             クリック色指定 = 5
+;     ENDSELECT
+; ENDIF
+
+; CALL クリックアイコン(LOCAL:2, LOCAL:3, クリック色指定)
+
+; ;COM反映ブロック
+; IF おさわり実効フラグ
+;     コマンドカウンタ ++
+;     CALL ハートエフェクト(画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 弱点コマンド指定)
+
+;     画像切り替えカウンタ --
+;     IF !画像切り替えカウンタ
+;         画像切り替えカウンタ = 5
+;         画像切り替えフラグ = 1
+;     ENDIF
+
+;     ;今回初めて欲情になったとき
+;     IF PALAM:TARGET:欲情 >= PALAMLV:4 && LOCAL:11 < PALAMLV:4
+;         LOCAL:11 = PALAM:TARGET:欲情
+;         適正差分種類ID = 1
+;         画像切り替えフラグ = 1
+;     ENDIF
+;     LOCAL:11 = PALAM:TARGET:欲情
+
+;     ;適正差分を指定する（現状では絶頂から復帰するための処理）
+;     IF PALAM:TARGET:欲情 >= PALAMLV:4
+;         適正差分種類ID = 1
+;     ELSE
+;         適正差分種類ID = 0
+;     ENDIF
+
+;     PRINTL
+
+;    ;------------------------コマンド実行処理の抽出
+;    ;方針：DRAWLINE,WAIT,SOURCE表示などをとばしつつ、テキストの抽出とCOM実行をする
+;    ;CALL_COM
+;    ;    CAN_COMに引数(1)を渡してSKIPDISPしてもらう 可否判定をするならおさわり部位判定内ですることになるので外してもいいかもしれない
+;    ;    ARGの置換
+;    ;    RETURNのコメントアウト
+;     RESULT = 0
+;     TCVAR:TARGET:弱点コマンドフラグ = 0
+;     弱点コマンドカテゴリ = 
+;     IF RSTR:SELECTCOM_S受け渡し != ""
+;         IF TCVAR:TARGET:食いしばりフラグ
+;         ELSEIF TARGET == MASTER
+;             TARGET = PLAYER
+;             PLAYER = MASTER
+;             RFLAG:指示モード対象あなたフラグ = 1
+;             TRYCALLFORM CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
+;             RFLAG:指示モード対象あなたフラグ = 0
+;             PLAYER = TARGET
+;             TARGET = MASTER
+;         ELSE
+;             TRYCALLFORM CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
+;         ENDIF
+;         TRYCALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+;         TRYCALLFORM COM_S%RSTR:SELECTCOM_S受け渡し%
+;         LOCAL:1 = RESULT
+;         IF LOCAL:1 >= 0
+;             LOCALS = %RSTR:SELECTCOM_S受け渡し%
+;             IF STRFIND(コマンド初回フラグ:TARGET:0, @"-%LOCALS%-") < 0
+;                 コマンド初回フラグ_一時保存:TARGET:0 += @"-%LOCALS%-"
+;             ENDIF
+;             IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-%LOCALS%-") < 0
+;                 コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-%LOCALS%-"
+;             ENDIF
+;             IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+;                 LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+;             ENDIF
+;             ; IF 弱点コマンドカテゴリ != ""
+;                 FOR LOCAL, 0, 50
+;                     IF 弱点コマンド枠:TARGET:LOCAL == LOCALS
+;                         TCVAR:TARGET:弱点コマンドフラグ = 1
+;                         IF 弱点看破:TARGET:LOCAL == 0
+;                             弱点看破:TARGET:LOCAL = 1
+;                             LOCAL:4 = 0
+;                             LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:TARGET:0, ".")
+;                             FOR LOCAL:3, 0, LOCAL:2 + 1
+;                                 SIF 弱点看破:TARGET:(LOCAL:3) == 0
+;                                     LOCAL:4 ++
+;                             NEXT
+;                             IF LOCAL:4 == 0
+;                                 CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ")
+;                                 CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ")
+;                             ENDIF
+;                         ENDIF
+;                     ENDIF
+;                 NEXT
+;             ; ENDIF
+;         ENDIF
+;         SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+;         ;RETURN LOCAL:1
+;     ELSE
+;         IF TCVAR:TARGET:食いしばりフラグ
+;         ELSEIF TARGET == MASTER
+;             TARGET = PLAYER
+;             PLAYER = MASTER
+;             RFLAG:指示モード対象あなたフラグ = 1
+;             TRYCALLFORM CAN_COM{SELECTCOM}(1)
+;             RFLAG:指示モード対象あなたフラグ = 0
+;             PLAYER = TARGET
+;             TARGET = MASTER
+;         ELSE
+;             TRYCALLFORM CAN_COM{SELECTCOM}(1)
+;         ENDIF
+;         TRYCALLFORMF COMTYPE_{SELECTCOM}
+;         TRYCALLFORM COM{SELECTCOM}
+;         ;LOCAL:1 = RESULT
+;         IF LOCAL:1 >= 0
+;             SELECTCASE SELECTCOM
+;                 CASE 370 TO 374
+;                     LOCALS = {SELECTCOM}_{NO:TARGET}
+;                 CASE 380 TO 384
+;                     LOCALS = {SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+;                 CASE 385 TO 389
+;                     LOCALS = {SELECTCOM}_%開催予定祭り名%
+;                 CASE 400
+;                     LOCALS = {SELECTCOM}
+;                     ;追い出され・入室不可判定
+;                     CALL 入室不可処理
+;                 CASEELSE
+;                     LOCALS = {SELECTCOM}
+;             ENDSELECT
+;             IF STRFIND(コマンド初回フラグ:TARGET:0, @"-%LOCALS%-") < 0
+;                 コマンド初回フラグ_一時保存:TARGET:0 += @"-%LOCALS%-"
+;             ENDIF
+;             IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-%LOCALS%-") < 0
+;                 コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-%LOCALS%-"
+;             ENDIF
+;             ; IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+;             ; 	LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+;             ; ENDIF
+;             ; IF 弱点コマンドカテゴリ != ""
+;                 FOR LOCAL, 0, 50
+;                     IF 弱点コマンド枠:TARGET:LOCAL == LOCALS
+;                         TCVAR:TARGET:弱点コマンドフラグ = 1
+;                         IF 弱点看破:TARGET:LOCAL == 0
+;                             弱点看破:TARGET:LOCAL = 1
+;                             LOCAL:4 = 0
+;                             LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:TARGET:0, ".")
+;                             FOR LOCAL:3, 0, LOCAL:2 + 1
+;                                 SIF 弱点看破:TARGET:(LOCAL:3) == 0
+;                                     LOCAL:4 ++
+;                             NEXT
+;                             IF LOCAL:4 == 0
+;                                 CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ")
+;                                 CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ")
+;                             ENDIF
+;                         ENDIF
+;                     ENDIF
+;                 NEXT
+;             ; ENDIF
+;         ENDIF
+;         ;RETURN LOCAL:1
+;     ENDIF
+;     ;-------------------------------------
+
+;     CALL SOURCE_補正処理(TARGET)
+;     CALL SOURCE_ABLUP(TARGET)
+
+;     ;------------対面プレイのテキストの抽出
+;     IF FLAG:汎用文章表示切り替えオプション > 0
+;         IF TCVAR:TARGET:弱点コマンドフラグ
+;             SETCOLOR カラーパレット("えっちな色")
+;             PRINTL <<<弱点コマンド！！>>>
+;             RESETCOLOR
+;         ENDIF
+;         IF RSTR:SELECTCOM_S受け渡し != ""
+;             TRYCCALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%
+;             CATCH
+;             ENDCATCH
+;         ELSE
+;             TRYCCALLFORM MESSAGE_COM{SELECTCOM}
+;             CATCH
+;             ENDCATCH
+;         ENDIF
+;     ENDIF
+;     IF K < 1 && LOCAL:1 == 1
+;         ;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
+;         ;口上なしで汎用喘ぎを使うならここで表示
+;         IF CFLAG:TARGET:汎用喘ぎ禁止フラグ == 1
+;             ;禁止時はなにもしない
+;         ELSEIF TFLAG:オートコマンドフラグ == 0
+;             IF TALENT:TARGET:性別 == 2
+;                 SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1) == 0
+;                     CALL 汎用喘ぎ処理(TARGET)
+;             ELSE
+;                 SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
+;                     CALL 汎用喘ぎ処理(TARGET)
+;             ENDIF
+;         ENDIF
+;         IF RSTR:SELECTCOM_S受け渡し != ""
+;             TRYCCALLFORM MESSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%_非口上時
+;             CATCH
+;             ENDCATCH
+;         ELSE
+;             TRYCCALLFORM MESSAGE_COM{SELECTCOM}_非口上時
+;             CATCH
+;             ENDCATCH
+;         ENDIF
+;     ENDIF
+
+;     ;絶頂時のグラフィック切り替え予約と画面効果
+;     ;抽出テキスト
+;     IF NOWEX:TARGET:多重絶頂 || NOWEX:TARGET:射精
+;         適正差分種類ID = 2 ;絶頂
+;         画像切り替えカウンタ = 3
+;         画像切り替えフラグ = 1
+
+;         IF NOWEX:TARGET:多重絶頂
+;             ;セクハラS絶頂があるので地の文で教える
+;             SIF NOWEX:TARGET:4
+;                 PRINTFORML %CALLNAME:TARGET%は小刻みに肌をひくつかせて絶頂した 
+;             IF FLAG:汎用文章表示切り替えオプション > 0
+;                 CALL PALAM_MESSAGE_通常絶頂
+;             ENDIF
+;             IF FLAG:口上表示切り替えオプション <= 0
+;                 BREAK
+;             ENDIF
+;             TRYCALLFORM KOJO_ORGASM_通常絶頂_{NO:TARGET}(TARGET)
+;         ENDIF
+;         VARSET NOWEX:TARGET:多重絶頂
+;         IF NOWEX:TARGET:射精
+;             SIF NOWEX:TARGET:射精 > 1
+;                 PRINT 大量
+;             PRINTFORML 射精(%CALLNAME:TARGET%)
+;             IF FLAG:汎用文章表示切り替えオプション > 0
+;                 CALL PALAM_MESSAGE_射精
+;             ENDIF
+;             IF FLAG:口上表示切り替えオプション <= 0
+;                 BREAK
+;             ENDIF
+;                 TRYCALLFORM KOJO_ORGASM_射精_{NO:TARGET}(TARGET)
+;             PRINTL
+;         ENDIF
+;         VARSET NOWEX:TARGET:射精
+
+;         ;FLASH
+;         GDISPOSE レイヤー番号 + 4
+;         GCREATE レイヤー番号 + 4, 1600, 900
+;         GSETBRUSH レイヤー番号 + 4, 0xC0FFFFFF
+;         GFILLRECTANGLE レイヤー番号 + 4, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ
+;         CBGSETG レイヤー番号 + 4, 0, 0, -3
+;         AWAIT 50
+;         CBGREMOVERANGE -3, -3
+;         AWAIT 50
+;         CBGSETG レイヤー番号 + 4, 0, 0, -3
+;         AWAIT 50
+;         CBGREMOVERANGE -3, -3
+;         AWAIT 50
+;         FOR LOCAL, 0, 5
+;             GDISPOSE レイヤー番号 + 4
+;             GCREATE レイヤー番号 + 4, 1600, 900
+;             GSETBRUSH レイヤー番号 + 4, 0xA0FFFFFF - 0x10000000 * LOCAL
+;             GFILLRECTANGLE レイヤー番号 + 4, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ
+;             CBGSETG レイヤー番号 + 4, 0, 0, -3
+;             AWAIT 50
+;         NEXT
+;         CBGREMOVERANGE -3, -3
+
+;     ENDIF
+
+;     ;ステータス変動　表示はSKIP
+;     SKIPDISP 1
+;     CALL 技巧上昇判定(TARGET)
+;         SIF RESULT
+;             TRYCALLFORM KOJO_SKILLUP_技巧_{NO:TARGET}(TARGET)
+;     CALL 性知識上昇判定(TARGET)
+;         SIF RESULT
+;             TRYCALLFORM KOJO_SKILLUP_性知識_{NO:TARGET}(TARGET)
+;     CALL JUJUN_UP_CHECK(TARGET)
+;     CALL Love_CALC(TARGET)
+;     CALL FAVOR_CALC(TARGET)
+;     CALL 性癖取得チェック(TARGET)
+;     CALL 性癖成長チェック(TARGET)
+
+;     ;--------------------SOURCE_CHECKから抽出　中身はそのまま
+;         SIF CFLAG:TARGET:滞在期間 < 0
+;             CONTINUE
+;         SIF RCVAR:TARGET:表示カット
+;             SKIPDISP 1
+;         LOCAL:3 = 0
+;         FOR LOCAL,0,100
+;             ;コマンド入力前のCUPを追加
+;             CUP:TARGET:LOCAL += TCVAR:TARGET:(600 + LOCAL)
+;             SIF PALAMNAME:LOCAL == ""
+;                 CONTINUE
+;             SIF CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL == 0
+;                 CONTINUE
+;             IF !LOCAL:3
+;                 PRINTL
+;                 PRINTFORML %CALLNAME:TARGET%
+;             ENDIF
+;             LOCAL:3 ++
+;             LOCAL:2 = CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL + TCVAR:TARGET:(600 + LOCAL)
+;             PRINTFORM %PALAMNAME:LOCAL,8,LEFT% {PALAM:TARGET:LOCAL,10,LEFT} + {CUP:TARGET:LOCAL,10,LEFT} =   {PALAM:TARGET:LOCAL + CUP:TARGET:LOCAL,10,LEFT}
+;             IF 干渉強化変数:TARGET:干渉種類 - 5 == LOCAL
+;                 SETCOLOR カラーパレット("黄")
+;                 PRINT 　干渉効果発動中！
+;                 RESETCOLOR
+;             ENDIF
+;             PRINTL
+;             PALAM:TARGET:LOCAL += CUP:TARGET:LOCAL - CDOWN:TARGET:LOCAL
+;             PALAM:TARGET:LOCAL = MAX(0, PALAM:TARGET:LOCAL)
+;             CUP:TARGET:LOCAL = 0
+;             CDOWN:TARGET:LOCAL = 0
+;         NEXT
+;         ;干渉ランク上昇判定
+;         IF 干渉強化変数:TARGET:干渉ランク < 5
+;             IF 干渉経験値テーブル:(干渉強化変数:TARGET:干渉ランク) <= 干渉強化変数:TARGET:干渉経験値
+;                 干渉強化変数:TARGET:干渉ランク += 1
+;                 PRINTFORMW %CALLNAME:TARGET%の干渉ランクが上昇した！
+;             ENDIF
+;         ENDIF
+;         SKIPDISP 0
+;     ;-----------------------------------------------------
+; ENDIF
+
+
+; LOCALS = 
+; IF おさわり警告フラグ
+;     VARSET おさわり容認カウンタ
+;     IF PALAM:TARGET:欲情 < PALAMLV:2
+;         LOCALS += @"<br>%CALLNAME:TARGET%は咎めるような視線をこちらに向けている<br>あまり乗り気ではないようだ・・・<br>"
+;     ELSE
+;         LOCALS += @"<br>%CALLNAME:TARGET%は咎めるような視線をこちらに向けている<br>もう少し丁寧にやった方がよさそうだ・・・<br>"
+;     ENDIF
+;     FOR LOCAL, 0, 10
+;         AWAIT 50
+;     NEXT
+;     おさわり警告カウンタ ++
+;     IF おさわり警告カウンタ > 2
+;        LOCALS += @"<br>%CALLNAME:TARGET%に制止されてしまった<br>どうやら怒らせてしまったようだ・・・<br>"
+;        HTML_PRINT LOCALS
+;        GOTO 終了処理
+;     ENDIF
+; ENDIF
+
+; HTML_PRINT LOCALS
+
+
+; IF 画像切り替えフラグ
+;     GOTO 画像切り替え
+; ENDIF
+
+; GOTO 入力待ち
+
+; $終了処理
+
+; TIME = TIME保存 + (TIME - TIME保存) / 3
+; PRINTFORM  CLICK {クリックカウンタ} COM {コマンドカウンタ} {(TIME - TIME保存) / 60}時間{(TIME - TIME保存) % 60}分経過
+; FOR LOCAL, 0, 5
+;     CBGREMOVERANGE -2, -2
+;     GDISPOSE レイヤー番号 + 1
+;     GCREATE レイヤー番号 + 1, 1600, 900
+;     CALL カットイン用カラーマトリクス取得(LOCAL * 10)
+;     GDRAWG レイヤー番号 + 1, レイヤー番号, 画像位置:0, 画像位置:1, GWIDTH(レイヤー番号) * 画像サイズ, GHEIGHT(レイヤー番号) * 画像サイズ, 0, 0, GWIDTH(レイヤー番号), GHEIGHT(レイヤー番号), カットイン用カラーマトリクス:0:0
+;     CBGSETG レイヤー番号 + 1, 0, 0, -2
+;     AWAIT 50
+; NEXT
+
+; CALL 特定キャラモードリセット(TARGET)
+; CBGCLEAR
+; SETANIMETIMER -1
+; GDISPOSE レイヤー番号
+; GDISPOSE レイヤー番号 + 1
+; GDISPOSE レイヤー番号 + 2
+; GDISPOSE レイヤー番号 + 3
+; GDISPOSE レイヤー番号 + 10
+; GDISPOSE レイヤー番号 + 11
+; GDISPOSE レイヤー番号 + 20
+; GDISPOSE レイヤー番号 + 21
+; GDISPOSE 80
+; GDISPOSE 81
+; GDISPOSE 82
+; GDISPOSE 83
+; SPRITEDISPOSEALL 0
+; RETURN
+
+
+; @ハートエフェクト(ARG, ARG:1, ARG:2, ARG:3, ARG:4)
+; #DIM カラーマトリクス, 5, 5
+
+; CBGREMOVERANGE -4, -4
+
+; ;GID 80 に素材を読み込まれている前提
+; IF !GCREATED(82)
+;     GDISPOSE 82
+;     GCREATE 82, 720, 720
+
+;     カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;     カラーマトリクス:1:0 =   0,  64,   0,   0,   0
+;     カラーマトリクス:2:0 =   0,   0, 192,   0,   0
+;     カラーマトリクス:3:0 =   0,   0,   0, 256,   0
+;     カラーマトリクス:4:0 =   0,   0,   0,   0, 256
     
-    GDRAWG 82, 80, 0, 0, 720, 720, 0, 0, 720, 720, カラーマトリクス:0:0
-ENDIF
+;     GDRAWG 82, 80, 0, 0, 720, 720, 0, 0, 720, 720, カラーマトリクス:0:0
+; ENDIF
 
-FOR LOCAL, 0, 6
-    SPRITEDISPOSE @"クリックアイコン_ハート{LOCAL}"
-    SPRITEANIMECREATE @"クリックアイコン_ハート{LOCAL}", 180, 180
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 0, 360, 180, 180,  0, 0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 180, 360, 180, 180,  0, 0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 360, 360, 180, 180,    0, 0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 540, 360, 180, 180, 0,   0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 0, 540, 180, 180,  0,   0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 180, 540, 180, 180, 0,  0, 100
-    SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 360, 540, 180, 180, 0,  0, 10000000
-NEXT
+; FOR LOCAL, 0, 6
+;     SPRITEDISPOSE @"クリックアイコン_ハート{LOCAL}"
+;     SPRITEANIMECREATE @"クリックアイコン_ハート{LOCAL}", 180, 180
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 0, 360, 180, 180,  0, 0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 180, 360, 180, 180,  0, 0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 360, 360, 180, 180,    0, 0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 540, 360, 180, 180, 0,   0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 0, 540, 180, 180,  0,   0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 180, 540, 180, 180, 0,  0, 100
+;     SPRITEANIMEADDFRAME @"クリックアイコン_ハート{LOCAL}", 82, 360, 540, 180, 180, 0,  0, 10000000
+; NEXT
 
-LOCAL:2 = 3
-SIF ARG:4 == 1
-    LOCAL:2 = 6
-FOR LOCAL, 0, LOCAL:2
-    CBGSETSPRITE @"クリックアイコン_ハート{LOCAL}", RAND:(ARG:2) + ARG - 90, - RAND(ARG:3 * 8 / 10) - 90, -4
-    AWAIT 10
-NEXT
-
-
-@クリックアイコン(ARG, ARG:1, ARG:2 = 0)
-#DIM カラーマトリクス, 5, 5
-;GID 80 READ 81 COLORFILTER
-
-IF !GCREATED(80)
-    GDISPOSE 80
-    GCREATEFROMFILE 80, @"カットイン素材/クリックアイコン.png"
-    GDISPOSE 81
-    GCREATE 81, 720, 720
-    GDRAWG 81, 80, 0, 0, 720, 720, 0, 0, 720, 720
-    SETANIMETIMER 50
-ENDIF
-
-;GRAFICSの色変え
-IF ARG:2 != LOCAL:2
-    SELECTCASE ARG:2
-        CASE 0
-            カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0, 256,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0, 256,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 256,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 0
-        CASE 1 ;RED
-            カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0,  64,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0,  64,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 1
-        CASE 2 ;GREEN
-            カラーマトリクス:0:0 =   0,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0, 256,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0,   0,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 2
-        CASE 3 ;BLUE
-            カラーマトリクス:0:0 =   0,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0, 256,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0, 256,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 3
-        CASE 4 ;YELLOW
-            カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0, 256,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0,  64,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 4
-        CASE 5 ;ORANGE
-            カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0, 192,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0,   0,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 5
-        CASE 6 ;PINK
-            カラーマトリクス:0:0 = 256,   0,   0,   0,   0
-            カラーマトリクス:1:0 =   0,   0,   0,   0,   0
-            カラーマトリクス:2:0 =   0,   0, 192,   0,   0
-            カラーマトリクス:3:0 =   0,   0,   0, 192,   0
-            カラーマトリクス:4:0 =   0,   0,   0,   0, 256
-            LOCAL:2 = 6
-    ENDSELECT
-    GDISPOSE 81
-    GCREATE 81, 720, 720
-    GDRAWG 81, 80, 0, 0, 720, 720, 0, 0, 720, 720, カラーマトリクス:0:0
-ENDIF
-
-SIF LOCAL:1 > 5
-    LOCAL:1 = 0
-
-SPRITEDISPOSE @"クリックアイコン{LOCAL:1}"
-SPRITEANIMECREATE @"クリックアイコン{LOCAL:1}", 180, 180
-
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 0, 0, 180, 180,  0, 0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 180, 0, 180, 180,  0, 0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 360, 0, 180, 180,    0, 0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 540, 0, 180, 180, 0,   0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 0, 180, 180, 180,  0,   0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 180, 180, 180, 180, 0,  0, 50
-SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 360, 180, 180, 180, 0,  0, 10000000
-
-CBGREMOVERANGE -7 - LOCAL:1, -7 - LOCAL:1
-
-CBGSETSPRITE @"クリックアイコン{LOCAL:1}", ARG - 90, ARG:1 + 90, -7 - LOCAL:1
-
-LOCAL:1 ++
+; LOCAL:2 = 3
+; SIF ARG:4 == 1
+;     LOCAL:2 = 6
+; FOR LOCAL, 0, LOCAL:2
+;     CBGSETSPRITE @"クリックアイコン_ハート{LOCAL}", RAND:(ARG:2) + ARG - 90, - RAND(ARG:3 * 8 / 10) - 90, -4
+;     AWAIT 10
+; NEXT
 
 
-@おさわり部位判定(おさわりスタンス, 判定色コード)
-#DIM おさわりスタンス
-#DIM 判定色コード
-#DIM 選択コマンドID
+; @クリックアイコン(ARG, ARG:1, ARG:2 = 0)
+; #DIM カラーマトリクス, 5, 5
+; ;GID 80 READ 81 COLORFILTER
 
-;各スタンスセクションにとばす
-SELECTCASE おさわりスタンス
-    CASE 0
-        GOTO 弱セクハラ
-    CASE 1
-        GOTO 強セクハラ
-ENDSELECT
+; IF !GCREATED(80)
+;     GDISPOSE 80
+;     GCREATEFROMFILE 80, @"カットイン素材/クリックアイコン.png"
+;     GDISPOSE 81
+;     GCREATE 81, 720, 720
+;     GDRAWG 81, 80, 0, 0, 720, 720, 0, 0, 720, 720
+;     SETANIMETIMER 50
+; ENDIF
 
-$弱セクハラ
-SELECTCASE 判定色コード
-    CASE 0x101020
-        選択コマンドID = 100
-    CASE 0x102010
-        選択コマンドID = 101
-    CASE 0x102020
-        選択コマンドID = 102
-    CASE 0x201010
-        選択コマンドID = 103
-    CASE 0x201020
-        選択コマンドID = 104
-    CASE 0x202010
-        選択コマンドID = 105
-    CASE 0x202020
-        選択コマンドID = 106
-    CASE 0x0000C0 ;背中
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_1
-        選択コマンドID = 0
-    CASE 0x00C000 ;耳
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_2
-        選択コマンドID = 1
-    CASE 0x00C0C0 ;角
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_3
-        選択コマンドID = 2
-    CASE 0xC00000 ;尻尾
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_4
-        選択コマンドID = 3
-    CASE 0xC000C0 ;お尻
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_5
-        選択コマンドID = 4
-    CASE 0xC0C000 ;お腹
-        IF PREGNANCY_PROGRESS(TARGET) <= 1
-            選択コマンドID = 100
-        ELSE
-            SELECTCOM = 306
-            RSTR:SELECTCOM_S受け渡し = 306_6
-            選択コマンドID = 5
-        ENDIF
-    CASE 0xC0C0C0 ;頭
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_7
-        選択コマンドID = 6
-    CASE 0x000080 ;髪
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_8
-        選択コマンドID = 7
-    CASE 0x008000 ;脇
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_9
-        選択コマンドID = 8
-    CASE 0x008080 ;太もも
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_10
-        選択コマンドID = 9
-    CASE 0x800000 ;へそ
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_11
-        選択コマンドID = 10
-    CASE 0x800080 ;角ブラシ 
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_12
-        選択コマンドID = 11
-    CASE 0x808000 ;尻尾ブラシ
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_13
-        選択コマンドID = 12
-    CASE 0x808080 ;下腹部
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_14
-        選択コマンドID = 13
-    CASE 0x000040 ;口
-        SELECTCOM = 311
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 14
-    CASE 0x004000 ;胸
-        SELECTCOM = 321
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 15
-    CASE 0x004040 ;スカート
-        SELECTCOM = 326
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 16
-    CASE 0x400000 ;乳首
-        SELECTCOM = 321
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 15
-    CASE 0x400040 ;股間
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_10
-        選択コマンドID = 9
-    CASEELSE
-        選択コマンドID = 99
-ENDSELECT
+; ;GRAFICSの色変え
+; IF ARG:2 != LOCAL:2
+;     SELECTCASE ARG:2
+;         CASE 0
+;             カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0, 256,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 256,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 0
+;         CASE 1 ;RED
+;             カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0,  64,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0,  64,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 1
+;         CASE 2 ;GREEN
+;             カラーマトリクス:0:0 =   0,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0,   0,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 2
+;         CASE 3 ;BLUE
+;             カラーマトリクス:0:0 =   0,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0, 256,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 3
+;         CASE 4 ;YELLOW
+;             カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0,  64,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 4
+;         CASE 5 ;ORANGE
+;             カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0, 192,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0,   0,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 5
+;         CASE 6 ;PINK
+;             カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+;             カラーマトリクス:1:0 =   0,   0,   0,   0,   0
+;             カラーマトリクス:2:0 =   0,   0, 192,   0,   0
+;             カラーマトリクス:3:0 =   0,   0,   0, 192,   0
+;             カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+;             LOCAL:2 = 6
+;     ENDSELECT
+;     GDISPOSE 81
+;     GCREATE 81, 720, 720
+;     GDRAWG 81, 80, 0, 0, 720, 720, 0, 0, 720, 720, カラーマトリクス:0:0
+; ENDIF
 
-RETURN 選択コマンドID
+; SIF LOCAL:1 > 5
+;     LOCAL:1 = 0
+
+; SPRITEDISPOSE @"クリックアイコン{LOCAL:1}"
+; SPRITEANIMECREATE @"クリックアイコン{LOCAL:1}", 180, 180
+
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 0, 0, 180, 180,  0, 0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 180, 0, 180, 180,  0, 0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 360, 0, 180, 180,    0, 0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 540, 0, 180, 180, 0,   0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 0, 180, 180, 180,  0,   0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 180, 180, 180, 180, 0,  0, 50
+; SPRITEANIMEADDFRAME @"クリックアイコン{LOCAL:1}", 81, 360, 180, 180, 180, 0,  0, 10000000
+
+; CBGREMOVERANGE -7 - LOCAL:1, -7 - LOCAL:1
+
+; CBGSETSPRITE @"クリックアイコン{LOCAL:1}", ARG - 90, ARG:1 + 90, -7 - LOCAL:1
+
+; LOCAL:1 ++
 
 
-$強セクハラ
-SELECTCASE 判定色コード
-    CASE 0x101020
-        選択コマンドID = 100
-    CASE 0x102010
-        選択コマンドID = 101
-    CASE 0x102020
-        選択コマンドID = 102
-    CASE 0x201010
-        選択コマンドID = 103
-    CASE 0x201020
-        選択コマンドID = 104
-    CASE 0x202010
-        選択コマンドID = 105
-    CASE 0x202020
-        選択コマンドID = 106
-    CASE 0x0000C0 ;背中
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_1
-        選択コマンドID = 0
-    CASE 0x00C000 ;耳
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_2
-        選択コマンドID = 1
-    CASE 0x00C0C0 ;角
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_3
-        選択コマンドID = 2
-    CASE 0xC00000 ;尻尾
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_4
-        選択コマンドID = 3
-    CASE 0xC000C0 ;お尻
-        SELECTCOM = 320
-        RSTR:SELECTCOM_S受け渡し =
-        選択コマンドID = 4
-    CASE 0xC0C000 ;お腹
-        IF PREGNANCY_PROGRESS(TARGET) <= 1
-            選択コマンドID = 100
-        ELSE
-            SELECTCOM = 306
-            RSTR:SELECTCOM_S受け渡し = 306_6
-            選択コマンドID = 5
-        ENDIF
-    CASE 0xC0C0C0 ;頭
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_7
-        選択コマンドID = 6
-    CASE 0x000080 ;髪
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_8
-        選択コマンドID = 7
-    CASE 0x008000 ;脇
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_9
-        選択コマンドID = 8
-    CASE 0x008080 ;太もも
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_10
-        選択コマンドID = 9
-    CASE 0x800000 ;へそ
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_11
-        選択コマンドID = 10
-    CASE 0x800080 ;角ブラシ 
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_12
-        選択コマンドID = 11
-    CASE 0x808000 ;尻尾ブラシ
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_13
-        選択コマンドID = 12
-    CASE 0x808080 ;下腹部
-        SELECTCOM = 306
-        RSTR:SELECTCOM_S受け渡し = 306_14
-        選択コマンドID = 13
-    CASE 0x000040 ;口
-        CALL CAN_COM20(1)
-        IF RESULT
-            SELECTCOM = 20
-            RSTR:SELECTCOM_S受け渡し = 
-            選択コマンドID = 14
-        ELSE
-            選択コマンドID = 99
-        ENDIF
-    CASE 0x004000 ;胸
-        SELECTCOM = 321
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 15
-    CASE 0x004040 ;スカート
-        SELECTCOM = 326
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 16
-    CASE 0x400000 ;乳首
-        SELECTCOM = 324
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 17
-    CASE 0x400040 ;股間
-        SELECTCOM = 327
-        RSTR:SELECTCOM_S受け渡し = 
-        選択コマンドID = 18
-    CASEELSE
-        選択コマンドID = 99
-ENDSELECT
+; @おさわり部位判定(おさわりスタンス, 判定色コード)
+; #DIM おさわりスタンス
+; #DIM 判定色コード
+; #DIM 選択コマンドID
 
-RETURN 選択コマンドID
+; ;各スタンスセクションにとばす
+; SELECTCASE おさわりスタンス
+;     CASE 0
+;         GOTO 弱セクハラ
+;     CASE 1
+;         GOTO 強セクハラ
+; ENDSELECT
+
+; $弱セクハラ
+; SELECTCASE 判定色コード
+;     CASE 0x101020
+;         選択コマンドID = 100
+;     CASE 0x102010
+;         選択コマンドID = 101
+;     CASE 0x102020
+;         選択コマンドID = 102
+;     CASE 0x201010
+;         選択コマンドID = 103
+;     CASE 0x201020
+;         選択コマンドID = 104
+;     CASE 0x202010
+;         選択コマンドID = 105
+;     CASE 0x202020
+;         選択コマンドID = 106
+;     CASE 0x0000C0 ;背中
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_1
+;         選択コマンドID = 0
+;     CASE 0x00C000 ;耳
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_2
+;         選択コマンドID = 1
+;     CASE 0x00C0C0 ;角
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_3
+;         選択コマンドID = 2
+;     CASE 0xC00000 ;尻尾
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_4
+;         選択コマンドID = 3
+;     CASE 0xC000C0 ;お尻
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_5
+;         選択コマンドID = 4
+;     CASE 0xC0C000 ;お腹
+;         IF PREGNANCY_PROGRESS(TARGET) <= 1
+;             選択コマンドID = 100
+;         ELSE
+;             SELECTCOM = 306
+;             RSTR:SELECTCOM_S受け渡し = 306_6
+;             選択コマンドID = 5
+;         ENDIF
+;     CASE 0xC0C0C0 ;頭
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_7
+;         選択コマンドID = 6
+;     CASE 0x000080 ;髪
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_8
+;         選択コマンドID = 7
+;     CASE 0x008000 ;脇
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_9
+;         選択コマンドID = 8
+;     CASE 0x008080 ;太もも
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_10
+;         選択コマンドID = 9
+;     CASE 0x800000 ;へそ
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_11
+;         選択コマンドID = 10
+;     CASE 0x800080 ;角ブラシ 
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_12
+;         選択コマンドID = 11
+;     CASE 0x808000 ;尻尾ブラシ
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_13
+;         選択コマンドID = 12
+;     CASE 0x808080 ;下腹部
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_14
+;         選択コマンドID = 13
+;     CASE 0x000040 ;口
+;         SELECTCOM = 311
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 14
+;     CASE 0x004000 ;胸
+;         SELECTCOM = 321
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 15
+;     CASE 0x004040 ;スカート
+;         SELECTCOM = 326
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 16
+;     CASE 0x400000 ;乳首
+;         SELECTCOM = 321
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 15
+;     CASE 0x400040 ;股間
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_10
+;         選択コマンドID = 9
+;     CASEELSE
+;         選択コマンドID = 99
+; ENDSELECT
+
+; RETURN 選択コマンドID
+
+
+; $強セクハラ
+; SELECTCASE 判定色コード
+;     CASE 0x101020
+;         選択コマンドID = 100
+;     CASE 0x102010
+;         選択コマンドID = 101
+;     CASE 0x102020
+;         選択コマンドID = 102
+;     CASE 0x201010
+;         選択コマンドID = 103
+;     CASE 0x201020
+;         選択コマンドID = 104
+;     CASE 0x202010
+;         選択コマンドID = 105
+;     CASE 0x202020
+;         選択コマンドID = 106
+;     CASE 0x0000C0 ;背中
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_1
+;         選択コマンドID = 0
+;     CASE 0x00C000 ;耳
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_2
+;         選択コマンドID = 1
+;     CASE 0x00C0C0 ;角
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_3
+;         選択コマンドID = 2
+;     CASE 0xC00000 ;尻尾
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_4
+;         選択コマンドID = 3
+;     CASE 0xC000C0 ;お尻
+;         SELECTCOM = 320
+;         RSTR:SELECTCOM_S受け渡し =
+;         選択コマンドID = 4
+;     CASE 0xC0C000 ;お腹
+;         IF PREGNANCY_PROGRESS(TARGET) <= 1
+;             選択コマンドID = 100
+;         ELSE
+;             SELECTCOM = 306
+;             RSTR:SELECTCOM_S受け渡し = 306_6
+;             選択コマンドID = 5
+;         ENDIF
+;     CASE 0xC0C0C0 ;頭
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_7
+;         選択コマンドID = 6
+;     CASE 0x000080 ;髪
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_8
+;         選択コマンドID = 7
+;     CASE 0x008000 ;脇
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_9
+;         選択コマンドID = 8
+;     CASE 0x008080 ;太もも
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_10
+;         選択コマンドID = 9
+;     CASE 0x800000 ;へそ
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_11
+;         選択コマンドID = 10
+;     CASE 0x800080 ;角ブラシ 
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_12
+;         選択コマンドID = 11
+;     CASE 0x808000 ;尻尾ブラシ
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_13
+;         選択コマンドID = 12
+;     CASE 0x808080 ;下腹部
+;         SELECTCOM = 306
+;         RSTR:SELECTCOM_S受け渡し = 306_14
+;         選択コマンドID = 13
+;     CASE 0x000040 ;口
+;         CALL CAN_COM20(1)
+;         IF RESULT
+;             SELECTCOM = 20
+;             RSTR:SELECTCOM_S受け渡し = 
+;             選択コマンドID = 14
+;         ELSE
+;             選択コマンドID = 99
+;         ENDIF
+;     CASE 0x004000 ;胸
+;         SELECTCOM = 321
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 15
+;     CASE 0x004040 ;スカート
+;         SELECTCOM = 326
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 16
+;     CASE 0x400000 ;乳首
+;         SELECTCOM = 324
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 17
+;     CASE 0x400040 ;股間
+;         SELECTCOM = 327
+;         RSTR:SELECTCOM_S受け渡し = 
+;         選択コマンドID = 18
+;     CASEELSE
+;         選択コマンドID = 99
+; ENDSELECT
+
+; RETURN 選択コマンドID
 
