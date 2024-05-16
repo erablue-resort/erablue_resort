@@ -18,6 +18,22 @@ VARSET 射精先キャラ
 
 ;どこに射精するかを決定する
 
+;ハーヴィンオナホ中なら選択なしでそのまま
+IF MODE_確認_プレイヤー側("ハーヴィンオナホＶ", PLAYER) > -1
+	選択中 = 0
+	選択キャラ = 0
+	射精先キャラ:0 = DT_CELL_GET("体位モードデータベース", MODE_確認_プレイヤー側("ハーヴィンオナホＶ", PLAYER), "対象キャラ")
+	LOCAL = 999
+	GOTO 射精実処理部分
+ENDIF
+IF MODE_確認_プレイヤー側("ハーヴィンオナホＡ", PLAYER) > -1
+	選択中 = 1
+	選択キャラ = 0
+	射精先キャラ:0 = DT_CELL_GET("体位モードデータベース", MODE_確認_プレイヤー側("ハーヴィンオナホＡ", PLAYER), "対象キャラ")
+	LOCAL = 999
+	GOTO 射精実処理部分
+ENDIF
+
 ;まずTARGETのうちうふふ状態の相手を探す
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
@@ -35,7 +51,11 @@ NEXT
 ;オートコマンドのみのはずなので、オートコマンド相手の口上を呼び出す
 IF 射精先キャラ:0 == 0
 	TRYCALLFORM MESSAGE_SHOOT_30(-1)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:AUTOCOM_相手番号保存}(AUTOCOM_相手番号保存)
+	WAIT
+	TRYCCALLFORM KOJO_ORGASM_被射精_{NO:AUTOCOM_相手番号保存}(AUTOCOM_相手番号保存)
+		WAIT
+	CATCH
+	ENDCATCH
 	RETURN 0
 ENDIF
 
@@ -158,10 +178,14 @@ IF 選択肢数 == 1
 	CALLFORM SHOOT_PALAM_{RFLAG:フィニッシュ場所}(射精先キャラ:対象キャラ番号)
 	CALL SHOOT絶頂計算(射精先キャラ:対象キャラ番号)
 	TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:対象キャラ番号)
+	WAIT
 	PRINTL 
 	SIF RCVAR:(射精先キャラ:対象キャラ番号):被射精絶頂の強度
 		CALL SHOOT絶頂口上(射精先キャラ:対象キャラ番号)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}(射精先キャラ:対象キャラ番号)
+	TRYCCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:対象キャラ番号)}(射精先キャラ:対象キャラ番号)
+		WAIT
+	CATCH
+	ENDCATCH
 	
 	SIF 射精先キャラ:対象キャラ番号 == 0
 		射精先キャラ:対象キャラ番号 = 9999
@@ -172,7 +196,11 @@ ELSEIF !選択肢数
 	SIF 射精先キャラ:0 == 9999
 		射精先キャラ:0 = 0
 	TRYCALLFORM MESSAGE_SHOOT_30(射精先キャラ:0)
-	TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}(射精先キャラ:0)
+	WAIT
+	TRYCCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:0)}(射精先キャラ:0)
+		WAIT
+	CATCH
+	ENDCATCH
 	SIF 射精先キャラ:0 == 0
 		射精先キャラ:0 = 9999
 	RETURN 0
@@ -228,8 +256,12 @@ SELECTCASE LOCAL
 				SIF RCVAR:(射精先キャラ:選択キャラ):被射精絶頂の強度
 					CALL SHOOT絶頂口上(射精先キャラ:選択キャラ)
 				TRYCALLFORM MESSAGE_SHOOT_{RFLAG:フィニッシュ場所}(射精先キャラ:選択キャラ)
+				WAIT
 				PRINTL 
-				TRYCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:選択キャラ)}(射精先キャラ:選択キャラ)
+				TRYCCALLFORM KOJO_ORGASM_被射精_{NO:(射精先キャラ:選択キャラ)}(射精先キャラ:選択キャラ)
+					WAIT
+				CATCH
+				ENDCATCH
 				LOCAL:10 ++
 				RFLAG:フィニッシュ相手番号 = 射精先キャラ:選択キャラ
 			ENDIF
@@ -664,5 +696,6 @@ ENDSELECT
 IF TALENT:ARG:性別 & 2
 	PRINTL 同時に、自らの陰茎からも精液を吐き出した…
 ENDIF
+WAIT
 
 

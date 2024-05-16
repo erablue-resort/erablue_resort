@@ -8,6 +8,7 @@
 @SYSTEM_LOADEND
 #DIM 追加キャラ保存, 100
 #DIM 互換維持用変数, 100
+#DIMS 弱点一時保存, 50
 #DIM 同行配列番号
 #DIM L_C
 
@@ -166,10 +167,34 @@ NEXT
 ;ここまで互換のための処理
 ;------------------------------------------------------------------------------------------
 
+CALL コマンド存在チェック()
 
 FOR LOCAL, 1, CHARANUM
 	;キャラ体力再計算
 	CALL 体力変動素質適用処理(LOCAL)
+
+	;弱点コマンドの設定がされているかどうかチェック
+	VARSET 弱点一時保存
+	IF EXISTFUNCTION(@"弱点コマンド変更_{NO:LOCAL}")
+		FOR LOCAL:1, 0, 50
+			弱点一時保存:(LOCAL:1) = %弱点コマンド枠:LOCAL:(LOCAL:1)%
+		NEXT
+		VARSET 弱点コマンド枠:LOCAL:0
+		TRYCALLFORM 弱点コマンド変更_{NO:LOCAL}
+		FOR LOCAL:1, 0, 50
+			IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1"
+				弱点コマンド枠:LOCAL:(LOCAL:1) = %弱点一時保存:(LOCAL:1)%
+				IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
+					RESULTS = 
+					CALL 弱点コマンドランダム選出(LOCAL)
+					弱点コマンド枠:LOCAL:(LOCAL:1) = %RESULTS%
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+
+	;画像フォルダが有効かチェック
+	CALL 画像フォルダ有効チェック(LOCAL)
 
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -212,15 +237,6 @@ FOR LOCAL, 1, CHARANUM
 			ENDIF
 		NEXT
 	ENDIF
-
-	;弱点コマンドの設定がされているかどうかチェック
-	IF EXISTFUNCTION(@"弱点コマンド変更_{NO:LOCAL}")
-		VARSET 弱点コマンド枠:LOCAL:0
-		TRYCALLFORM 弱点コマンド変更_{NO:LOCAL}
-	ENDIF
-
-	;画像フォルダが有効かチェック
-	CALL 画像フォルダ有効チェック(LOCAL)
 NEXT
 
 CALL イベント追加チェック
