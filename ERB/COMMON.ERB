@@ -405,3 +405,34 @@ RETURNF TOSTR(FLAG:ZP所持量*1000 + ZP小数点以下所持量, "#,##0,.000")
 #FUNCTIONS
 RETURNF TOSTR(ARG:0, "N0")
 
+
+;-------------------------------------------------
+;eraTWから流用させていただきました。
+;-------------------------------------------------
+;単語1/単語2/…/単語n の書式で書かれたARGS:0～の単語のどれかを等確率で返す
+;(ARGSが複数あるのは関数などが突っ込まれることを想定しているため)
+;＿は何も出力しない選択とする
+;選択肢の数を100まで拡張、RESULT退避処理追加
+;抽選処理が等確率ならFOR-NEXT使わなくてよいと思ったのでRANDで済ませる
+;-------------------------------------------------
+@TEXTR(ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6)
+#FUNCTIONS
+#DIM  L_RESULT               ;RESULT退避用
+#DIMS DYNAMIC CHOICES        ;結果
+#DIMS DYNAMIC STR_ARRAY, 100 ;選択肢格納用の一時変数
+L_RESULT = RESULT
+;まず一つにまとめる
+ARGS = %ARGS%\/%ARGS:1%\/%ARGS:2%\/%ARGS:3%\/%ARGS:4%\/%ARGS:5%\/%ARGS:6%
+;不要な"/"を削る作業
+;空のARGSがあると//がたくさん出来て判定の邪魔になるので
+;1.//は置換で削る
+;2.最末尾が/なら削る（SPLITとRANDをそのまま使う都合上）
+ARGS '= REPLACE(ARGS, "\/+", "/")
+SIF CHARATU(ARGS, STRLENSU(ARGS) - 1) == "/"
+	ARGS '= SUBSTRINGU(ARGS, 0, STRLENSU(ARGS) - 1)
+SPLIT ARGS, "/", STR_ARRAY
+CHOICES '= STR_ARRAY:(RAND:RESULT)
+SIF CHOICES == "＿"
+	CHOICES =
+RESULT = L_RESULT
+RETURNF CHOICES
