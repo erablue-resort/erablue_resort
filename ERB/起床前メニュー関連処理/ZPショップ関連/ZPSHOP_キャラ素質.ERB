@@ -163,25 +163,42 @@ DRAWLINE
 PRINTL ZPを消費してキャラに敏感系素質を付与することが出来ます。
 PRINTL どの部位を敏感化しますか？
 DRAWLINE
-FOR LOCAL:1 , 101, 106,
+FOR LOCAL:1 , 101, 106
 	IF TALENT:対象キャラ:(LOCAL:1) > 0
-		PRINTFORML %TALENTNAME:(LOCAL:1)%は既に敏感です
+		PRINTPLAINFORM [{LOCAL:1}]%TALENTNAME:(LOCAL:1)%　　は既に敏感です
+		PRINTL
 		CONTINUE
 	ENDIF
 	IF TALENT:対象キャラ:(LOCAL:1) == -2
-		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:無し > 鈍感", LOCAL:1
+		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%　　:無し > 鈍感", LOCAL:1
 		PRINTFORML 　　　必要ZP:{COST_TO_鈍感}
 	ELSEIF TALENT:対象キャラ:(LOCAL:1) == -1
-		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:鈍感 > 通常", LOCAL:1
+		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%　　:鈍感 > 通常", LOCAL:1
 		PRINTFORML 　　　必要ZP:{COST_TO_通常}
 	ELSE
-		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%:通常 > 敏感", LOCAL:1
+		PRINTBUTTON @"[{LOCAL:1}]%TALENTNAME:(LOCAL:1)%　　:通常 > 敏感", LOCAL:1
 		PRINTFORML 　　　必要ZP:{COST_TO_敏感}
 	ENDIF
 NEXT
+
+IF TALENT:対象キャラ:イキやすさ >= 2
+	PRINTPLAIN [241]イキやすさは既に[即イキ]です
+	PRINTL
+ELSEIF TALENT:対象キャラ:イキやすさ == -1
+	PRINTBUTTON @"[241]イキやすさ:遅イキ > 通常", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_通常 / 2}
+ELSEIF TALENT:対象キャラ:イキやすさ == 0
+	PRINTBUTTON @"[241]イキやすさ:通常 > 早イキ", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}
+ELSEIF TALENT:対象キャラ:イキやすさ == 1
+	PRINTBUTTON @"[241]イキやすさ:早イキ > 即イキ", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}
+ENDIF
+
+PRINTL
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP2
-INPUT
+BINPUT
 LOCAL:1 = RESULT
 SELECTCASE RESULT
 	CASE 999
@@ -221,6 +238,43 @@ SELECTCASE RESULT
 				PRINTFORMW 通常から敏感に上昇しました。
 			ENDIF
 			TALENT:対象キャラ:(LOCAL:1) += 1
+		ENDIF
+		RETURN 0
+	CASE 241
+		;敏感なのに入ってきてない？
+		IF TALENT:対象キャラ:イキやすさ > 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP2
+		ENDIF
+		SELECTCASE TALENT:対象キャラ:イキやすさ
+			CASE -1
+				必要COST = COST_TO_通常 / 2
+			CASE 0
+				必要COST = COST_TO_敏感 * 2
+			CASE 1
+				必要COST = COST_TO_敏感 * 2
+		ENDSELECT
+		;ZP足りる？
+		IF FLAG:ZP所持量 < 必要COST
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTFORML {必要COST}ZPを支払い、イキやすさを上昇させますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORM イキやすさが
+			IF TALENT:対象キャラ:イキやすさ == -1
+				PRINTFORMW [遅イキ]から通常に上昇しました。
+			ELSEIF TALENT:対象キャラ:イキやすさ == 0
+				PRINTFORMW 通常から[早イキ]に上昇しました。
+			ELSEIF TALENT:対象キャラ:イキやすさ == 1
+				PRINTFORMW [早イキ]から[即イキ]に上昇しました。
+			ENDIF
+			TALENT:対象キャラ:イキやすさ += 1
 		ENDIF
 		RETURN 0
 	CASEELSE
