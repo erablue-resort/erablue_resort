@@ -469,6 +469,8 @@ RETURNF MAX(CFLAG:対象キャラ:恋慕レベル, 性愛_好感度レベル)
 
 
 @うふふ終了処理
+#DIM EXP番号
+#DIM 分身並べ替え基準, 5
 
 FOR LOCAL, 0, CHARANUM
 	SIF TARGET:LOCAL < 1
@@ -494,10 +496,33 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 CFLAG:PLAYER:うふふ = 0
 連れ込みパターン = 
+;オートコマンドもリセット
+TFLAG:オートコマンドフラグ = 0
+AUTOCOM_相手番号保存 = 0
+CALL TURN_RESET
 ;同時モードもリセット
 FLAG:モード管理 = 0
 同時モード_選択数 = 0
 VARSET 同時モード_選択キャラ, -1
+
+;分身を消す
+;降順に並べないとDELでキャラ番号がズレるのでまずソート
+VARSET 分身並べ替え基準
+FOR LOCAL, 0, 分身最大数
+	分身並べ替え基準:LOCAL = 分身登録:LOCAL:0 * -1
+NEXT
+ARRAYMSORT 分身並べ替え基準, 分身登録, 分身EXP保存
+FOR LOCAL, 0, 分身最大数
+	SIF 分身登録:LOCAL:0 < 1
+		CONTINUE
+	FOR EXP番号, 0, 200
+		EXP:(分身登録:LOCAL:1):EXP番号 += EXP:(分身登録:LOCAL:0):EXP番号 - 分身EXP保存:LOCAL:EXP番号
+	NEXT
+	DELCHARA 分身登録:LOCAL:0
+NEXT
+VARSET 分身登録:0:0
+VARSET 分身EXP保存:0:0
+CALL SORT_CFLAG(21)
 
 @飲み会終了処理
 

@@ -1,0 +1,73 @@
+﻿
+;----------------------------------------------------
+;キャラ固有コマンド処理
+;----------------------------------------------------
+;コマンド名
+;----------------------------------------------------
+@CHARACOMNAME371_2
+#FUNCTIONS
+	TSTR:コマンド名受渡 = 身外身の術
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_371_2
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+
+
+@COM_TOOLTIP_371_2
+LOCALS = <br>■身外身の術<br>
+LOCALS += "自身の分身を作りだし、個別に活動する術。<br>うふふ中のみ、複数人いるかのように振る舞うことが出来る。<br>分身が得た経験は本体に還元される。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@CHARACOM371_2
+
+ADDCOPYCHARA TARGET
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:0 < 1
+		分身登録:LOCAL:0 = CHARANUM - 1
+		分身登録:LOCAL:1 = TARGET
+		NAME:(分身登録:LOCAL:0) = %NAME:(分身登録:LOCAL:0)%%TOFULL(TOSTR(LOCAL + 2))%
+		CALLNAME:(分身登録:LOCAL:0) = %CALLNAME:(分身登録:LOCAL:0)%%TOFULL(TOSTR(LOCAL + 2))%
+		FOR LOCAL:1, 0, 200
+			;分身時点でのEXPを保存
+			分身EXP保存:LOCAL:(LOCAL:1) = EXP:TARGET:(LOCAL:1)
+		NEXT
+		BREAK
+	ENDIF
+NEXT
+CALL SORT_CFLAG(21)
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE371_2
+;クンニ実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(371)
+	RETURN RESULT
+
+;３体まで
+LOCAL:1 = 0
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:1 == TARGET
+		LOCAL:1 ++
+	ENDIF
+NEXT
+SIF LOCAL:1 >= 3
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM371_2
+PRINTFORML アンチラは身外身の術で分身を作り出した。
