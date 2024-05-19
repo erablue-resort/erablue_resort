@@ -1,0 +1,117 @@
+﻿;-------------------------------------------------
+;定住の誘い
+;-------------------------------------------------
+@COMNAME604
+#FUNCTIONS
+TSTR:コマンド名受渡 = 定住の誘い
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_604
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_604
+LOCALS = <br>■定住の誘い<br>
+LOCALS += "相手を居住区エリアに定住しないかと誘うコマンド。<br>"
+LOCALS += "成功時、居住区エリアに定住するようになる。<br>"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM604
+DRAWLINE
+PRINTFORML %CALLNAME:TARGET%を居住区エリアへの定住に誘いますか？
+
+
+
+PRINTBUTTON "[0]はい", 0
+PRINTL
+PRINTBUTTON "[1]いいえ", 1
+PRINTL
+$INPUT_LOOP
+BINPUT
+
+SELECTCASE RESULT
+	CASE 0
+		;好感度レベル80以上必要
+		IF CFLAG:TARGET:好感度レベル < 関係閾値:4
+			RFLAG:コマンド結果受渡し変数 = 0
+		ELSE
+			RFLAG:コマンド結果受渡し変数 = 1
+			TALENT:TARGET:定住者 = 1
+			CFLAG:TARGET:滞在期間 = 999
+			FOR LOCAL:1, 0, 50
+				IF 定住者部屋割り配列:(LOCAL:1) == ""
+					定住者部屋割り配列:(LOCAL:1) = {TARGET}_
+					BREAK
+				ENDIF
+			NEXT
+			IF TALENT:TARGET:従業員
+				FOR LOCAL, 0, 従業員キャラ上限
+					IF 従業員部屋割り配列:LOCAL == TARGET
+						従業員部屋割り配列:LOCAL = 0
+						BREAK
+					ENDIF
+				NEXT
+			ELSE
+				CALL 滞在者部屋割り配列削除処理(TARGET)
+			ENDIF
+		ENDIF
+	CASE 1
+		RETURN -1
+ENDSELECT
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE604
+#DIM ループ用
+;移動実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(604)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;既に定住者だと無し
+SIF TALENT:TARGET:定住者
+	RETURN 0
+;成功するのは80以上だが、話題に出すのに好感度レベル50以上
+SIF CFLAG:TARGET:好感度レベル < 関係閾値:3
+	RETURN 0
+;定住エリアが一杯
+SIF 定住エリア満杯()
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM604
+
+IF RFLAG:コマンド結果受渡し変数
+	;成功
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%の誘いに応じ、居住区エリアに定住するようになった！
+ELSE
+	;失敗
+	PRINTFORML %CALLNAME:TARGET%はまだここに定住する気はないようだ……
+ENDIF
+
+
+
+
+@定住エリア満杯()
+#FUNCTION
+
+SIF 定住者部屋割り配列:49 == ""
+	RETURNF 0
+
+RETURNF 1

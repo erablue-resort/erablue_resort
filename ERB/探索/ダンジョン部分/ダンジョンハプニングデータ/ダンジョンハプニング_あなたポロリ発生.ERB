@@ -1,0 +1,78 @@
+﻿@ダンジョンハプニング_あなたポロリ発生(対象キャラ番号)
+#DIM 対象キャラ番号
+
+WSTR:(K++) = 魔物の奇襲だ！
+KSTR:(K++) = なんとか撃退出来たが、不意打ちを受けた%CALLNAME:PLAYER%の服装が乱れて
+SELECTCASE TALENT:PLAYER:バストサイズ
+	CASE IS <= 0
+		KSTR:(K++) = 胸の部分が露出してしまっている。_PAGE
+	CASEELSE
+		KSTR:(K++) = 豊かな胸が服からこぼれてしまっている。_PAGE
+ENDSELECT
+
+CALL メッセージ欄表示用関数()
+CALL 口上変数初期化
+
+CALL セクハラ反応タイプ判定(対象キャラ番号)
+TRYCCALLFORM KOJO_ハプニング_あなたポロリ発生_{NO:対象キャラ番号}(対象キャラ番号)
+CATCH
+	SELECTCASE RFLAG:コマンド結果受渡し変数２
+		CASE 1
+			;無知
+			KSTR:(K++) = %CALLNAME:対象キャラ番号%は特に気にせず、服の乱れを直して探索に戻った。
+		CASE 2
+			;無反応
+			KSTR:(K++) = %CALLNAME:対象キャラ番号%は特に気にせず、服の乱れを直して探索に戻った。
+		CASEELSE
+			;汎用
+			IF TALENT:対象キャラ番号:性別 == TALENT:PLAYER:性別 || TALENT:PLAYER:性別 == 0
+				;同性、あるいは無性なら大した反応はしない
+				KSTR:(K++) = %CALLNAME:対象キャラ番号%は気をつけるように、と%CALLNAME:PLAYER%に注意している。
+			ELSE
+				SELECTCASE RFLAG:コマンド結果受渡し変数
+					CASE 1
+						;拒絶
+						KSTR:(K++) = %CALLNAME:対象キャラ番号%は咄嗟にそっぽを向き、%CALLNAME:PLAYER%に一言謝罪した。
+					CASE 2
+						;受入れ
+						KSTR:(K++) = %CALLNAME:対象キャラ番号%は他の視線からガードするように、%CALLNAME:PLAYER%の前に移動した。
+					CASE 3
+						;喜び
+						KSTR:(K++) = %CALLNAME:対象キャラ番号%は他の視線からガードするように%CALLNAME:PLAYER%の前に移動し、気をつけるようにと注意している。
+				ENDSELECT
+			ENDIF
+	ENDSELECT
+	CALL メッセージ欄表示用関数()
+ENDCATCH
+
+;ソース増減部分
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		;拒絶
+		CALL SOURCE_CALC_反感(対象キャラ番号, PLAYER, 40)
+		CALL SOURCE_CALC_露出(PLAYER, 対象キャラ番号, 120)
+	CASE 2
+		;受け入れ
+		CALL SOURCE_CALC_歓楽(対象キャラ番号, PLAYER, 50)
+		CALL SOURCE_CALC_露出(PLAYER, 対象キャラ番号, 120)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(対象キャラ番号, PLAYER, 30)
+	CASE 3
+		;喜び
+		CALL SOURCE_CALC_歓楽(対象キャラ番号, PLAYER, 100)
+		CALL SOURCE_CALC_露出(PLAYER, 対象キャラ番号, 120)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(対象キャラ番号, PLAYER, 60)
+ENDSELECT
+
+
+
+@ダンジョンハプニング_ABLE_あなたポロリ発生(判定キャラ番号)
+#DIM 判定キャラ番号
+
+SIF TALENT:PLAYER:性別 == 2
+	RETURN 0
+;すでに上半身裸だと発生しない
+SIF !TEQUIP:PLAYER:上半身服あり && !TEQUIP:PLAYER:上半身鎧あり && !TEQUIP:PLAYER:上タイツあり && !TEQUIP:PLAYER:上半身下着あり
+	RETURN 0
+
+
+RETURN 1

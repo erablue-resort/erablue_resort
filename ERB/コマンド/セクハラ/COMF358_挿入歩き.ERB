@@ -1,0 +1,158 @@
+﻿
+@COMNAME358
+#FUNCTIONS
+
+TSTR:コマンド名受渡 = 挿入歩き
+SIF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
+	TSTR:コマンド名受渡 = 挿入歩き解除
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_358
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
+
+@COM_TOOLTIP_358
+LOCALS = <br>■挿入歩き<br>
+LOCALS += "すでに合意を得ている相手をV、あるいはAに挿入したまま行動できるようにするコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM358
+
+IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
+	;解除時
+	IF MODE_確認_完全一致("挿入歩きＶ", PLAYER, TARGET) > -1
+		RFLAG:コマンド結果受渡し変数 = 1
+	ELSE
+		RFLAG:コマンド結果受渡し変数 = 2
+	ENDIF
+	CALL CLOTHES_CHANGE(TARGET, CSTR:TARGET:脱ぐ前の服)
+	TCVAR:TARGET:自動着替え禁止 = 0
+	CALL MODE_DELETE_ターゲット側("ハーヴィンオナホ系", TARGET)
+	RETURN 1
+ENDIF
+
+DRAWLINE
+PRINTL ■挿入先を選んでください
+PRINTL
+LOCAL = 0
+IF GETBIT(TALENT:TARGET:性別, 0) == 1 && TALENT:PLAYER:Ｖ感度 != -2
+	IF TEQUIP:TARGET:膣 == 0
+		PRINTBUTTONLC "[1]Ｖ挿入", 1
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF TALENT:TARGET:Ａ感度 != -2
+	IF TEQUIP:TARGET:アナル == 0
+		PRINTBUTTONLC "[2]Ａ挿入", 2
+		LOCAL += 1
+	ENDIF
+ENDIF
+SIF LOCAL == 0
+	PRINT 挿入先がありません。
+PRINTL
+PRINTL
+PRINTBUTTONLC "[999]戻る", 999
+
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 1 TO 2
+		TRYCALLFORM CAN_オナホ(1, LOCAL)
+		IF !RESULT
+			TRYCALLFORM CAN_オナホ(0, LOCAL)
+			RESTART
+		ENDIF
+	CASE 999
+		RETURN -1
+ENDSELECT
+
+RFLAG:コマンド結果受渡し変数 = LOCAL
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+IF LOCAL == 1
+	CALL MODE_CHANGE("挿入歩きＶ", PLAYER, TARGET)
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
+	;処女喪失
+	CALL LOST_VIRGIN(TARGET, PLAYER, 1)
+	;苦痛
+	LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+ELSE
+	CALL MODE_CHANGE("挿入歩きＡ", PLAYER, TARGET)
+	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 400)
+	;苦痛
+	LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+ENDIF
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 300)
+RCVAR:TARGET:露出コマンドフラグ = 1
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 400)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+CALL CLOTHES_CHANGE(TARGET, "全裸")
+TCVAR:TARGET:自動着替え禁止 = 1
+TIME += 5
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE358
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+
+IF MODE_確認_完全一致("挿入歩きＶ", PLAYER, TARGET) > -1 || MODE_確認_完全一致("挿入歩きＡ", PLAYER, TARGET) > -1
+	;解除時はいつでも
+	RETURN 1
+ELSE
+	;あなたにちんこあること
+	SIF GETBIT(TALENT:PLAYER:性別, 1) == 0 || TALENT:PLAYER:Ｃ感度 == -2
+		RETURN 0
+
+	;露出と欲情の同時
+	SIF フィールド展開:露出フィールド == 0 || フィールド展開:欲情フィールド == 0
+		RETURN 0
+
+	SIF TEQUIP:PLAYER:ペニス
+		RETURN 0
+
+	;ほかは基本的に押し倒すと判定は同一
+	CALL COM_ABLE350()
+	RETURN RESULT
+ENDIF
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM358
+
+IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
+	;実行時
+	PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%を全裸に剥き、後ろを向かせて
+	SELECTCASE RFLAG:コマンド結果受渡し変数
+		CASE 1
+			PRINTL 秘裂に挿入した
+		CASE 2
+			PRINTL 肛門に挿入した
+	ENDSELECT
+	PRINTFORML 更に挿入したまま、別の作業を始めた……
+ELSE
+	;解除時
+	PRINTFORML %CALLNAME:PLAYER%は挿入していた%CALLNAME:TARGET%を解放した。
+ENDIF

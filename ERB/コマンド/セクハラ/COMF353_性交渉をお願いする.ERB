@@ -97,14 +97,17 @@ RETURNF LOCAL
 ;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
 
 LOCAL = CFLAG:好感度レベル / 2
-LOCAL += 恋慕_性愛比較(TARGET) / 2
+IF CFLAG:TARGET:発情期フラグ < 0
+	LOCAL += 恋慕_性愛比較(TARGET) * 2
+ELSE
+	LOCAL += 恋慕_性愛比較(TARGET) / 2
+ENDIF
 LOCAL += COM353_SUB(TARGET)
 SIF フィールド展開:欲情フィールド && LOCAL > 0
 	LOCAL = LOCAL * 3 / 2
-SIF CFLAG:TARGET:発情期フラグ < 0
-	LOCAL += 30
 LOCAL += (ABL:PLAYER:話術技能 - 3) * 5
 LOCAL += CFLAG:TARGET:お願いックス回数 * 30
+LOCAL += CFLAG:TARGET:泥酔ックス回数 * 10
 ;遊び人素質による補正 （下限の底上げ）
 SELECTCASE あなた特殊能力:遊び人
 	CASE IS >= 4
@@ -120,12 +123,20 @@ SELECTCASE あなた特殊能力:遊び人
 ENDSELECT
 ;好感度が無二の友未満である場合、大きく成功度と下限が減少
 SELECTCASE CFLAG:好感度レベル
+	CASE IS <= 関係閾値:2
+		;顔見知り以下
+		LOCAL -= 55
+		SIF LOCAL > 0
+			LOCAL /= 2
+		LOCAL:1 = -1
 	CASE IS <= 関係閾値:3
+		;友人
 		LOCAL -= 40
 		SIF LOCAL > 0
-			LOCAL /= 3
-		LOCAL:1 = 0
-	CASE (1 + 関係閾値:3) TO 関係閾値:4
+			LOCAL /= 2
+		LOCAL:1 /= 8
+	CASE IS <= 関係閾値:4
+		;親友
 		LOCAL -= 20
 		SIF LOCAL > 0
 			LOCAL /= 2
@@ -142,7 +153,7 @@ IF 知識素質:TARGET:性知識 < -1 && CFLAG:好感度レベル > 関係閾値
 ENDIF
 
 ;セフレ不可の場合、問答無用でゼロにする
-IF GETBIT(TALENT:TARGET:陥落不可, 1)
+IF GETBIT(TALENT:TARGET:陥落不可, 1) && BASE:酩酊 < 500
 	RFLAG:コマンド結果受渡し変数２ = 0
 	CFLAG:TARGET:お願いックス蓄積値 = 0
 ENDIF
@@ -153,7 +164,11 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 	;うふふへ移行
 	CFLAG:TARGET:うふふ = 1
 	CFLAG:MASTER:うふふ = 1
-	CFLAG:TARGET:お願いックス回数 += 1
+	IF BASE:酩酊 < 500
+		CFLAG:TARGET:お願いックス回数 += 1
+	ELSE
+		CFLAG:TARGET:泥酔ックス回数 += 1
+	ENDIF
 	IF 初体験日:TARGET:初うふふ == 0
 		初体験日:TARGET:初うふふ = DAY
 		TCVAR:TARGET:初うふふフラグ = 1
@@ -169,11 +184,17 @@ ELSE
 	RFLAG:コマンド結果受渡し変数 = 0
 
 	;好感度レベルを下げる。拒否度が高いと更に下がる
-	CFLAG:TARGET:好感度レベル -= 20
-	SIF RFLAG:コマンド結果受渡し変数２ < 16
-		CFLAG:TARGET:好感度レベル -= 10
-	;下限１
-	CFLAG:TARGET:好感度レベル = MAX(CFLAG:TARGET:好感度レベル, 1)
+	IF CFLAG:TARGET:好感度レベル > 関係閾値:1
+		CFLAG:TARGET:好感度レベル -= 20
+		SIF RFLAG:コマンド結果受渡し変数２ < 16
+			CFLAG:TARGET:好感度レベル -= 10
+		;顔見知り未満にはならない
+		CFLAG:TARGET:好感度レベル = MAX(CFLAG:TARGET:好感度レベル, 1 + 関係閾値:1)
+	ELSE
+		;他人は強制的に下限値
+		CFLAG:TARGET:好感度レベル = 1
+	ENDIF
+
 	;好感度をレベルに応じた値に減少
 	CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
 	CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
@@ -220,8 +241,8 @@ SIF MODE_確認_プレイヤー側("ハーヴィンオナホ系", PLAYER) > -1
 ;二人きりでないとだめ
 SIF GET_TARGETNUM() > 1
 	RETURN 0
-;友人以上
-SIF CFLAG:好感度レベル < 1 + 関係閾値:2
+;友人以上(遊び人素質を持っていれば可能)
+SIF !あなた特殊能力:遊び人 && CFLAG:好感度レベル < 1 + 関係閾値:2
 	RETURN 0
 ;既に恋慕・セフレを得ている場合はだめ
 SIF 陥落チェック(TARGET)
