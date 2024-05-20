@@ -1,0 +1,132 @@
+﻿@よろず屋異世界裁店処理
+#DIM 値段一時登録
+#DIM 表示アビ番号
+#DIM 関数総数
+#DIMS 衣装関数登録, 500
+
+LOCALS = 
+DRAWLINE
+PRINTL 異世界デザインで作られた珍しい服を販売しています
+PRINTL ※そうでない服も並べてあります
+DRAWLINE
+LOCALS += "<div rect='4469,0,1562,625' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += @"<div rect='4531,62,1562,625'>所持ルピ：%NUM_FORMAT(MONEY)%ルピ<br>所持ZP　：%ZP所持量全文字列()%</div>"
+LOCALS += "<div rect='62,0,4375,3000' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>"
+;許可があり、かつ入手してない服を並べる
+VARSET RESULTS
+関数総数 = ENUMFUNCBEGINSWITH("CLOTHES_販売説明_")
+ARRAYCOPY "RESULTS", "衣装関数登録"
+VARSET RESULTS
+FOR LOCAL, 0, 関数総数
+	LOCALS += @"<button valie='{LOCAL}'>[{LOCAL}] %REPLACE(衣装関数登録:LOCAL, "CLOTHES_販売説明_", ""), 30, LEFT%を購入する</button>"
+NEXT
+
+LOCALS += "</div>"
+
+
+LOCALS += "<div rect='1550,2812,5125,281'>"
+LOCALS += "<button value='998'>[998] システムの説明</button>　　"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+IF チュートリアルフラグ:異世界裁店 == 0
+	RESULT = 998
+ELSE
+	BINPUT
+ENDIF
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN -1
+	CASE 998
+		DRAWLINE
+		PRINTL ［異世界裁店：チュートリアル］
+		DRAWLINE
+		HTML_PRINT "<img src='era_顔' height='900' width='900'>"
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		CALL 異世界裁店システムチュートリアル
+		DRAWLINE
+		RESTART
+	CASE IS >= 100
+		;詳細表示
+		DRAWLINE
+		PRINTFORML ■%輸入品店_品揃え登録文字列:(LOCAL - 100)%
+		SELECTCASE 輸入品店_品揃え登録:(LOCAL - 100):品目種別
+			CASE 1
+				;衣装
+				TRYCALLFORM 衣装関数_%輸入品店_品揃え登録文字列:(LOCAL - 100)%("フレーバー")
+				LOCALS = %詳細文文字列受け渡し変数%<br>
+				LOCALS += @"・追加アビ<br>"
+				VARSET RESULTS
+				関数総数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%輸入品店_品揃え登録文字列:(LOCAL - 100)%_")
+				FOR 表示アビ番号, 0, 関数総数
+					詳細文文字列受け渡し変数 = 
+					TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
+					LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+				NEXT
+				LOCALS += "<br>"
+				HTML_PRINT LOCALS
+			CASE 2
+				;指輪
+				CALLFORM 指輪基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
+				LOCALS = %詳細文文字列受け渡し変数%<br>
+				LOCALS += @"【オプション効果】<br>%オプション効果表示文字列作成(輸入品店_オプション固定登録:(LOCAL - 100))%"
+				HTML_PRINT LOCALS
+			CASE 3
+				;耳飾り
+				CALLFORM 耳飾り基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
+				LOCALS = %詳細文文字列受け渡し変数%
+				HTML_PRINT LOCALS
+			CASE 4
+				;食材
+				CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:(LOCAL - 100)%
+				PRINTFORM ランク：%TOFULL(TOSTR(素材性能_素材ランク))%　　属性：
+				SETCOLOR カラーパレット(@"%素材性能_属性%属性")
+				PRINTFORML %素材性能_属性%属性
+				RESETCOLOR
+		ENDSELECT
+		PRINTFORML
+		WAIT
+		RESTART
+	CASEELSE
+		;購入
+		IF 輸入品店_品揃え登録:LOCAL:値段 < 0
+			MONEY += 輸入品店_品揃え登録:LOCAL:値段
+		ELSE
+			MONEY -= 輸入品店_品揃え登録:LOCAL:値段
+		ENDIF
+		SELECTCASE 輸入品店_品揃え登録:LOCAL:品目種別
+			CASE 1
+				;衣装
+				CALL 汎用衣装取得処理(輸入品店_品揃え登録文字列:LOCAL)
+			CASE 2
+				;指輪
+				CALL 汎用指輪取得処理(輸入品店_品揃え登録文字列:LOCAL, 0, 輸入品店_品揃え登録:LOCAL:品目性能２ - 1)
+				;オプション固定のため一旦オプション無しで登録してから手動で入れ込む
+				DT_CELL_SET "所持指輪データベース", DT_ROW_LENGTH("所持指輪データベース") - 1, "オプションステータス補正", 輸入品店_オプション固定登録:LOCAL
+			CASE 3
+				;耳飾り
+				CALL 汎用耳飾り取得処理(輸入品店_品揃え登録文字列:LOCAL, 輸入品店_品揃え登録:LOCAL:品目性能２)
+			CASE 4
+				;食材
+				CALL 素材入手処理(輸入品店_品揃え登録文字列:LOCAL, 1)
+		ENDSELECT
+		PRINTFORMW %輸入品店_品揃え登録文字列:LOCAL%を購入しました。
+		輸入品店_品揃え登録文字列:LOCAL =
+		RESTART
+ENDSELECT
+
+
+
+
