@@ -17,6 +17,7 @@ SIF FLAG:モード管理 == 2
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
 ;弱点コマンドカテゴリ = S
 同時モード許可 = 3
+睡眠中許可 = 1
 
 
 
@@ -42,48 +43,47 @@ RCVAR:TARGET:奉仕コマンドフラグ = 1
 ;ソース追加処理
 ;-------------------------------------------------
 
+IF !CFLAG:睡眠
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_不潔(TARGET, PLAYER, 50)
 
-CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
-CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+	;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+	IF TALENT:PLAYER:舌使い
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+	ENDIF
+
+	IF TALENT:TARGET:舌使い
+		CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+	ENDIF
+
+	;猫舌では減少
+	SIF TALENT:PLAYER:猫舌
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+	;同性愛　レズなら戻り値1ゲイなら戻り値2
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:同性愛経験 += 3
+		EXP:PLAYER:同性愛経験 += 3
+	ENDIF
+
+	SIF TALENT:恋慕
+		EXP:愛情経験 += 1
+
+	SIF TALENT:TARGET:猫舌
+		EXP:嗜虐快楽経験 += 1
+ENDIF
 CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
 CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
-CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 100)
-
-CALL SOURCE_CALC_不潔(TARGET, PLAYER, 50)
-
-;-------------------------------------------------
-;特殊ソース処理
-;-------------------------------------------------
-
-;舌を使う調教では、調教者の舌使いによって、快感のソース増加
 IF TALENT:PLAYER:舌使い
-	CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
 	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
 ENDIF
 
-IF TALENT:TARGET:舌使い
-	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
-ENDIF
-
-;猫舌では減少
-SIF TALENT:PLAYER:猫舌
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
 
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
-;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 3
-	EXP:PLAYER:同性愛経験 += 3
-ENDIF
-
-
-SIF TALENT:恋慕
-	EXP:愛情経験 += 1
-
-SIF TALENT:TARGET:猫舌
-	EXP:嗜虐快楽経験 += 1
 
 EXP:キス経験 ++
 EXP:PLAYER:キス経験 ++
@@ -228,6 +228,15 @@ ELSEIF TALENT:キス嗜好 == 2
 	PRINTV '(,999,')
 	S = 10
 ENDIF
+;睡眠中
+IF CFLAG:睡眠
+	SIF S
+		PRINT  + 
+	A += 999
+	PRINT 睡眠中
+	PRINTV '(,999,')
+	S = 999
+ENDIF
 
 
 
@@ -312,6 +321,9 @@ IF FLAG:モード管理 == 2
 	NEXT
 	PRINT と交互に唇を重ね合わせた…
 	RETURN 0
+ENDIF
+IF CFLAG:睡眠
+	PRINT 眠っている
 ENDIF
 
 PRINTFORML %CALLNAME:TARGET%と唇を重ね合わせた…

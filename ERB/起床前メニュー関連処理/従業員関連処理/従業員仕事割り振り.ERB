@@ -1,5 +1,6 @@
 ﻿@従業員仕事割り振り
-#DIM 従業員一覧, 50
+#DIM 従業員一覧, 100
+#DIM ページ数
 VARSET 従業員一覧, -1
 VARSET 仕事人数表示用
 
@@ -12,20 +13,33 @@ LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rec
 ;現在いる従業員を一覧表示
 従業員一覧:0 = 0
 LOCAL:1 = 1
+仕事人数表示用:(現在仕事:0:0) += 1
 FOR LOCAL, 1, CHARANUM
 	SIF TALENT:LOCAL:従業員 == 0
 		CONTINUE
 	従業員一覧:(LOCAL:1) = LOCAL
+	仕事人数表示用:(現在仕事:(従業員一覧:(LOCAL:1)):0) += 1
 	LOCAL:1 += 1
 NEXT
 LOCALS += "<div rect='156,156,1937,2812'>"
-FOR LOCAL, 0, 50
-	SIF 従業員一覧:LOCAL < 0
-		BREAK
-	仕事人数表示用:(現在仕事:(従業員一覧:LOCAL):0) += 1
+FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
+	IF 従業員一覧:LOCAL < 0
+		LOCALS += "<br>"
+		CONTINUE
+	ENDIF
 	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0)%]</button>"
 	LOCALS += "<br>"
 NEXT
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>　＜ 前ページ</button>"
+ELSE
+	LOCALS += "　　　　　　　 "
+ENDIF
+LOCALS += "　　　　"
+IF 従業員一覧:(ページ数 * 17 + 17) > -1
+	LOCALS += "<button value='1001'>次ページ ＞</button>"
+ENDIF
+LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
@@ -48,23 +62,22 @@ FOR LOCAL, 0, 25
 NEXT
 DRAWLINE
 
-$INPUT_LOOP
-INPUT
+BINPUT
 
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 1000
+		ページ数 -= 1
+		RESTART
+	CASE 1001
+		ページ数 += 1
+		RESTART
 	CASE 999
+		ページ数 = 0
 		RETURN 0
 	CASE 0 TO 49
-		IF 従業員一覧:LOCAL < 0
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
 		CALL 従業員仕事割り振り_切り替え(従業員一覧:LOCAL)
 		RESTART
-	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
 ENDSELECT
 
 @従業員仕事割り振り_切り替え(ARG)
