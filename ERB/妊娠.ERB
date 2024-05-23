@@ -447,7 +447,8 @@ RETURN 子供ID
 #DIM 命名種族
 #DIM 子供順番
 #DIMS 子供名前
-#DIM ランダムネームフラグ
+#DIM 固定ネーム候補数
+#DIM 候補表示回数
 
 PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…
 PRINTBUTTONLC "[0]自分で考える", 0
@@ -473,27 +474,48 @@ SELECTCASE RESULT
 		SIF RESULT == 1
 			RESTART
 	CASE 1
-		ランダムネームフラグ = 0
-		$INPUT_LOOP1
-		TRYCCALLFORM 固有子供命名設定_{NO:PARENT}(PARENT, 子供性別, 子供順番)
-			;RESULTSに命名が返ってくる
-			子供名前 = %RESULTS%
-			SIF ランダムネームフラグ
-				子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+		TRYCCALLFORM 固有子供命名設定_固定_{NO:PARENT}(PARENT, 子供性別, 子供順番)
+			固定ネーム候補数 = FINDELEMENT(RESULTS, "", , , 1)
 		CATCH
-			子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+			固定ネーム候補数 = 0
 		ENDCATCH
-		PRINTFORML %CALLNAME:PARENT%は%子供名前%と名付けたいようだ…
-		PRINTBUTTONLC "[0]それにする", 0
-		PRINTBUTTONLC "[1]別の名前を考えてもらう", 1
-		PRINTBUTTONLC "[2]やっぱり自分で考えようかな", 2
-		BINPUT
-		IF RESULT == 1
-			ランダムネームフラグ = 1
-			GOTO INPUT_LOOP1
-		ENDIF
-		SIF RESULT == 2
-			RESTART
+
+		候補表示回数 = 0
+		WHILE 1
+			SIF 候補表示回数 == __INT_MAX__
+				候補表示回数 = 固定ネーム候補数
+			IF 候補表示回数 < 固定ネーム候補数
+				子供名前 = %RESULTS:候補表示回数%
+				IF 名前重複チェック(子供名前)
+					候補表示回数++
+					CONTINUE
+				ENDIF
+			ELSEIF 候補表示回数 < 100 && EXISTFUNCTION(@"固有子供命名設定_ランダム_{NO:PARENT}")
+				CALLFORM 固有子供命名設定_ランダム_{NO:PARENT}(PARENT, 子供性別)
+				;RESULTSに命名が返ってくる
+				子供名前 = %RESULTS%
+				IF 名前重複チェック(子供名前)
+					候補表示回数++
+					CONTINUE
+				ENDIF
+			ELSE
+				子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+			ENDIF
+
+			PRINTFORML %CALLNAME:PARENT%は%子供名前%と名付けたいようだ…
+			PRINTBUTTONLC "[0]それにする", 0
+			PRINTBUTTONLC "[1]別の名前を考えてもらう", 1
+			PRINTBUTTONLC "[2]やっぱり自分で考えようかな", 2
+			BINPUT
+			SIF RESULT == 0
+				BREAK
+			IF RESULT == 1
+				候補表示回数++
+				CONTINUE
+			ENDIF
+			SIF RESULT == 2
+				RESTART
+		WEND
 ENDSELECT
 SIF PARENT != MASTER
 	PRINTFORM %CALLNAME:PARENT%と相談した結果、
