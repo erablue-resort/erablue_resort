@@ -1,5 +1,7 @@
 ﻿
 @探索系集約表示
+#DIM 終了フラグ
+
 DRAWLINE
 LOCALS = <div rect='200,0,5662,1250' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='262, 62, 5537, 1125'>"
@@ -34,10 +36,10 @@ IF 表示切り替え文字列 == "探索集約_耳飾り"
 ELSE
 	LOCALS += "<button value='探索集約_耳飾り'>■耳飾り一覧表示</button>　　"
 ENDIF
-IF 表示切り替え文字列 == "探索集約_衣装"
-	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>■探索衣装一覧表示</font>　　"
+IF 表示切り替え文字列 == "探索集約_証"
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>■ジョブの証一覧表示</font>　　"
 ELSE
-	LOCALS += "<button value='探索集約_衣装'>■探索衣装一覧表示</button>　　"
+	LOCALS += "<button value='探索集約_証'>■ジョブの証一覧表示</button>　　"
 ENDIF
 LOCALS += "<br>"
 IF 表示切り替え文字列 == "探索集約_アイテム"
@@ -73,8 +75,8 @@ SELECTCASE 表示切り替え文字列
 		CALL 所持指輪リスト表示_USERCOM
 	CASE "探索集約_耳飾り"
 		CALL 所持耳飾りリスト表示_USERCOM
-	CASE "探索集約_衣装"
-		CALL 所持衣装リスト表示_USERCOM
+	CASE "探索集約_証"
+		CALL 所持証リスト表示_USERCOM
 	CASE "探索集約_アイテム"
 		CALL ダンジョンアイテム画面表示_USERCOM(1300)
 	CASE "探索集約_素材"
@@ -90,7 +92,20 @@ SELECTCASE 表示切り替え文字列
 	CASEELSE
 		CALL SHOW_PARTYMEMBER(1300)
 ENDSELECT
-IF RESULT == -1
+終了フラグ = RESULT
+
+;再計算
+CALL 戦闘初期処理_味方(1)
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:0 < 1
+		CONTINUE
+	CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+NEXT
+CALL 戦闘初期処理_味方(0)
+
+IF 終了フラグ == -1
 	表示切り替え文字列 = 
 	RETURN 0
 ENDIF
@@ -279,7 +294,7 @@ PRINTL
 PRINTL
 PRINTBUTTONLC "[110]指輪装備変更", 110
 PRINTBUTTONLC "[111]耳飾り装備変更", 111
-PRINTBUTTONLC "[112]探索衣装装備変更", 112
+PRINTBUTTONLC "[112]ジョブの証装備変更", 112
 PRINTL
 PRINTBUTTONLC "[113]経験値増加アイテムを使う", 113
 PRINTL
@@ -315,7 +330,7 @@ SELECTCASE RESULT
 		CALL 戦闘初期処理_味方(0)
 		RESTART
 	CASE 112
-		CALL 衣装付け替え処理画面(BATTLE_STATE:ARG:0)
+		CALL 証付け替え処理画面(BATTLE_STATE:ARG:0)
 		CALL 戦闘初期処理_味方(0)
 		RESTART
 	CASE 113
@@ -349,6 +364,16 @@ SELECTCASE RESULT
 				GOTO INPUT_LOOP2
 		ENDSELECT
 	CASE 999
+		;再計算
+		CALL 戦闘初期処理_味方(1)
+		FOR LOCAL, 0, 14
+			SIF LOCAL > 3 && LOCAL < 10
+				CONTINUE
+			SIF BATTLE_STATE:LOCAL:0 < 1
+				CONTINUE
+			CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+		NEXT
+		CALL 戦闘初期処理_味方(0)
 		RETURN -1
 	CASEELSE
 		REUSELASTLINE 

@@ -75,13 +75,13 @@ IF LOCAL:1 % 3 != 0
 	NSTR:(K++) = <br>
 ENDIF
 
-IF 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号 < 1
-	;衣装装備なし
+IF 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備証番号 < 1
+	;証装備なし
 ELSE
-	VARSET 衣装アビ関数名保存
+	VARSET 証アビ関数名保存
 	VARSET RESULTS
 	LOCAL:1 = 0
-	表示アビ数 = ENUMFUNCBEGINSWITH(@"衣装アビ関数_%DT_CELL_GETS("所持衣装データベース", 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号, "衣装名", 1)%_")
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備証番号, "ジョブ証名", 1)%_")
 	FOR LOCAL, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
 		アビテンプレート用_アビ封印用フラグ = 0
@@ -98,7 +98,7 @@ ELSE
 			ELSE
 				NSTR:(K++) = <button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 26, LEFT%</button>
 			ENDIF
-			衣装アビ関数名保存:LOCAL = %RESULTS:LOCAL%
+			証アビ関数名保存:LOCAL = %RESULTS:LOCAL%
 			LOCAL:1 += 1
 			IF LOCAL:1 % 3 == 0
 				NSTR:(K++) = <br>
@@ -373,7 +373,7 @@ ENDSELECT
 
 
 @戦闘行動実処理関数
-#DIM 衣装番号
+#DIM 証番号
 #DIM バフ番号
 #DIM データベース行数
 #DIM 奥義威力保存
@@ -618,17 +618,16 @@ SELECTCASE 戦闘行動内容
 	CASE 120 TO 129
 		CALL 口上変数初期化
 		VARSET RESULTS
-		CALLFORM %衣装アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		口上用技名保存 = %TSTR:コマンド名受渡%
 		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
-		衣装番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備衣装番号
+		証番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):装備証番号
 		;消費MP算出
 		RESULT = 0
-		CALLFORM %衣装アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		消費MP一時保存 = RESULT
 		IF アビ使用確認スキップフラグ == 0
-			KSTR:(K++) = ■%TSTR:コマンド名受渡%
 			KSTR:(K++) = %詳細文文字列受け渡し変数%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
 			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
@@ -673,7 +672,7 @@ SELECTCASE 戦闘行動内容
 			ENDIF
 		ENDIF
 		CALL 口上変数初期化
-		CALLFORM %衣装アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		IF アビテンプレート用_キャンセルフラグ
 			アビテンプレート用_キャンセルフラグ = 0
 			RETURN -1
@@ -1256,6 +1255,11 @@ NEXT
 VARSET 戦闘不能反応者_実行配列, -1
 VARSET 戦闘不能反応対象_実行配列, -1
 
+FOR LOCAL, 0, 20
+	SIF 戦闘不能反応者:LOCAL < 0
+		CONTINUE
+	DEBUGPRINTFORML {戦闘不能反応者:LOCAL}
+NEXT
 ARRAYCOPY "戦闘不能反応者", "戦闘不能反応者_実行配列"
 ARRAYCOPY "戦闘不能反応対象", "戦闘不能反応対象_実行配列"
 
@@ -1266,14 +1270,7 @@ VARSET 戦闘不能反応対象, -1
 FOR LOCAL, 0, 20
 	SIF 戦闘不能反応者_実行配列:LOCAL < 0
 		CONTINUE
-	;死んでたらダメ
-	IF 戦闘不能反応者_実行配列:LOCAL < 10
-		SIF BATTLE_STATE:(戦闘不能反応者_実行配列:LOCAL):ＨＰ < 1
-			CONTINUE
-	ELSE
-		SIF 敵BATTLE_STATE:(戦闘不能反応者_実行配列:LOCAL - 10):ＨＰ < 1
-			CONTINUE
-	ENDIF
+
 	戦闘行動キャラ = 戦闘不能反応者_実行配列:LOCAL
 	戦闘行動対象 = 戦闘不能反応対象_実行配列:LOCAL
 

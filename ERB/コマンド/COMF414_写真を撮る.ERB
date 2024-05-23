@@ -151,6 +151,8 @@ IF TCVAR:TARGET:前ターン絶頂
 		写真タイトル一時記録 += "体に触れられ"
 	ENDIF
 	写真タイトル一時記録 += @"絶頂する%CALLNAME:TARGET%"
+	EXP:TARGET:絶頂ハメ撮り回数 += 1
+	CALL 履歴登録チェック(TARGET, "被写体_ハメ撮り_絶頂時")
 ELSE
 	;絶頂後でないなら服装とモードを判定する
 	IF CSTR:TARGET:着せ替え服 != ""
@@ -209,6 +211,10 @@ RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記�
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
 DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 1
 
+EXP:TARGET:被写体回数 += 1
+CALL 履歴登録チェック(TARGET, "被写体")
+EXP:TARGET:ハメ撮り回数 += 1
+CALL 履歴登録チェック(TARGET, "被写体_ハメ撮り")
 
 @盗撮系写真文字列算出
 #DIMS 写真タイトル一時記録
@@ -270,6 +276,16 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					RETURN 0
 				ENDIF
 				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+				;履歴用に回数登録
+				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
+					;着替え覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+				ELSE
+					;入浴覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+				ENDIF
 			CASE 2
 				;隠れて覗く
 				RSTR:コマンド結果受渡し文字列 += @"物陰に隠れながら、景切鏡でこっそり盗撮した…<br>"
@@ -286,6 +302,15 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 						写真タイトル一時記録 += "水着に着替えている途中の"
 				ENDSELECT
 				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
+					;着替え覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+				ELSE
+					;入浴覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+				ENDIF
 			CASE 3
 				;物陰で野外オナニーを見つける
 				RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
@@ -297,6 +322,9 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					;オナニーシーン
 					写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄る%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
 				ENDIF
+				;履歴用に回数登録
+				EXP:(RFLAG:コマンド結果受渡し変数２):野外オナニー覗かれ回数 += 1
+				CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_野外オナニー")
 			CASE 4
 				;覗き専用場所から覗く
 				RSTR:コマンド結果受渡し文字列 += @"壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を盗撮した…<br>"
@@ -322,6 +350,15 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					RETURN 0
 				ENDIF
 				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 702, 802)
+					;着替え覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+				ELSE
+					;入浴覗きパターン
+					EXP:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+				ENDIF
 		ENDSELECT
 ENDSELECT
 
@@ -330,7 +367,8 @@ RSTR:コマンド結果受渡し文字列 += @"写真を確認すると、『%�
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
 DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, "撮影場所", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, "撮影場所名前", GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置), "撮影対象NAME", NAME:(RFLAG:コマンド結果受渡し変数２), "撮影対象NO", NO:(RFLAG:コマンド結果受渡し変数２), "撮影シチュカテゴリ", 2
 
-
+EXP:(RFLAG:コマンド結果受渡し変数２):被写体回数 += 1
+CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "被写体")
 
 @仕事中写真文字列算出
 #DIMS 写真タイトル一時記録
@@ -388,6 +426,10 @@ RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記�
 ;データベース登録
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
 DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 3
+
+EXP:TARGET:被写体回数 += 1
+CALL 履歴登録チェック(TARGET, "被写体")
+
 
 @その他写真文字列算出
 #DIMS 写真タイトル一時記録
@@ -473,6 +515,8 @@ RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記�
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
 DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 4
 
+EXP:TARGET:被写体回数 += 1
+CALL 履歴登録チェック(TARGET, "被写体")
 
 @所持写真一覧表示
 #DIM ページ数
