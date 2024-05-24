@@ -3,6 +3,7 @@
 #DIM ループ用
 #DIM 行数保存
 #DIM 文字数カウント
+#DIM うふふ終了フラグ
 
 VARSET LOCAL
 ;-------------------------------------------------
@@ -98,13 +99,17 @@ SIF !LOCAL:1
 	TFLAG:TARGET変更用 = 0
 
 ;MASTERと同室フラグ
+うふふ終了フラグ = 0
 FOR LOCAL,1,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	IF CFLAG:LOCAL:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:LOCAL:現在マップ種別
 		;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
-		SIF !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:睡眠
-			CALL AFFAIR_DISCLOSURE(LOCAL)
+		IF !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:睡眠
+			CALL AFFAIR_DISCLOSURE(LOCAL, うふふ終了フラグ)
+			SIF RESULT
+				うふふ終了フラグ = 1
+		ENDIF
 		CFLAG:LOCAL:同室 = 1
 	;覗きは一旦オミット
 	ELSE
@@ -114,6 +119,8 @@ FOR LOCAL,1,CHARANUM
 		CFLAG:LOCAL:同室 = 0
 	ENDIF
 NEXT
+SIF うふふ終了フラグ
+	CALL うふふ終了処理
 ;馴れ合い強度決定
 ;TARGET側
 IF TFLAG:調教モード == 3
@@ -184,6 +191,10 @@ FOR LOCAL,0,CHARANUM
 			CSTR:LOCAL:うふふ前の服 = %CSTR:LOCAL:着せ替え服%
 			SIF CSTR:LOCAL:うふふ前の服 == ""
 				CSTR:LOCAL:うふふ前の服 = デフォルト
+		ENDIF
+		;うふふ開始時間も記録
+		IF CFLAG:LOCAL:うふふ開始時間記録 < 1 && !CFLAG:LOCAL:体力限界
+			CFLAG:LOCAL:うふふ開始時間記録 = TIME + DAY * 1440
 		ENDIF
 		;うふふ中、全ての服がなくなっているのなら全裸に切り替える
 		LOCAL:10 = 0
@@ -1071,13 +1082,15 @@ FOR LOCAL,1,CHARANUM
 NEXT
 
 ;情事の発覚
-@AFFAIR_DISCLOSURE(対象キャラ)
+@AFFAIR_DISCLOSURE(対象キャラ, うふふ終了フラグ)
 #DIM 対象キャラ
+#DIM うふふ終了フラグ
+
 VARSET LOCAL
 LOCAL:1 = IN_ROOM("MAX", CFLAG:MASTER:現在位置, "CFLAG", GETNUM(CFLAG, "うふふ"))
 IF CFLAG:MASTER:隠密
 	;隠密だとそもそも遭遇しない
-ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ
+ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0
 	DRAWLINE
 	PRINTFORMW %CALLNAME:対象キャラ%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
 	IF 陥落チェック(対象キャラ)
@@ -1089,8 +1102,7 @@ ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ
 		LOCAL:2 = 1
 	ENDIF
 ENDIF
-IF LOCAL:2
-	CALL うふふ終了処理
+IF LOCAL:2 || うふふ終了フラグ
 	RETURN 1
 ENDIF
 ;通常遭遇
