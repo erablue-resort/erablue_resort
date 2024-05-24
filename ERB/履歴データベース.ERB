@@ -29,22 +29,61 @@ PRINTL □ 履歴 □-----------------------------------------------------------
 
 フィルタ = 
 ;フィルタリング条件を取り込んでいく,0日常1うふふ2探索3実績4リゾート5非うふふ6非実績7その他
-SIF GETBIT(履歴表示フィルタ, 0) == 1
-	フィルタ += @" AND DAILY <> 1 "
-SIF GETBIT(履歴表示フィルタ, 1) == 1
-	フィルタ += @" AND ADULT <> 1 "
-SIF GETBIT(履歴表示フィルタ, 2) == 1
-	フィルタ += @" AND QUEST <> 1 "
-SIF GETBIT(履歴表示フィルタ, 3) == 1
-	フィルタ += @" AND TROPHY <> 1 "
-SIF GETBIT(履歴表示フィルタ, 4) == 1
-	フィルタ += @" AND HISTORY <> 1 "
-SIF GETBIT(履歴表示フィルタ, 5) == 1
-	フィルタ += @" AND ADULT <> 0 "
-SIF GETBIT(履歴表示フィルタ, 6) == 1
-	フィルタ += @" AND TROPHY <> 0 "
-SIF GETBIT(履歴表示フィルタ, 7) == 1
-	フィルタ += @" AND OTHERS <> 1 "
+IF 部分一致
+	SIF GETBIT(履歴表示フィルタ, 0) == 1
+		フィルタ += @" AND DAILY <> 1 "
+	SIF GETBIT(履歴表示フィルタ, 1) == 1
+		フィルタ += @" AND ADULT <> 1 "
+	SIF GETBIT(履歴表示フィルタ, 2) == 1
+		フィルタ += @" AND QUEST <> 1 "
+	SIF GETBIT(履歴表示フィルタ, 3) == 1
+		フィルタ += @" AND TROPHY <> 1 "
+	SIF GETBIT(履歴表示フィルタ, 4) == 1
+		フィルタ += @" AND HISTORY <> 1 "
+	SIF GETBIT(履歴表示フィルタ, 5) == 1
+		フィルタ += @" AND ADULT <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 6) == 1
+		フィルタ += @" AND TROPHY <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 7) == 1
+		フィルタ += @" AND OTHERS <> 1 "
+ELSE
+	VARSET LOCALS
+	フィルタ = AND (
+	;フィルタリング条件を取り込んでいく,0日常1うふふ2探索3実績4リゾート5非うふふ6非実績7その他
+	SIF GETBIT(履歴表示フィルタ, 0) == 0
+		ARRAYSHIFT LOCALS, 1, " DAILY <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 1) == 0
+		ARRAYSHIFT LOCALS, 1, " ADULT <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 2) == 0
+		ARRAYSHIFT LOCALS, 1, " QUEST <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 3) == 0
+		ARRAYSHIFT LOCALS, 1, " TROPHY <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 4) == 0
+		ARRAYSHIFT LOCALS, 1, " HISTORY <> 0 "
+	IF LOCALS:0 == ""
+		GOTO 履歴取得スキップ
+	ELSE
+		FOR LOCAL,0,5
+			IF LOCALS:LOCAL != ""
+				IF LOCALS:(LOCAL + 1) == ""
+					フィルタ += @"%LOCALS:LOCAL%)"
+				ELSE
+					フィルタ += @"%LOCALS:LOCAL% OR"
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+
+	{
+		;ややこしいので一旦外してテスト
+	SIF GETBIT(履歴表示フィルタ, 5) == 1
+		フィルタ += @" AND ADULT <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 6) == 1
+		フィルタ += @" AND TROPHY <> 0 "
+	SIF GETBIT(履歴表示フィルタ, 7) == 1
+		フィルタ += @" AND OTHERS <> 1 "
+	}
+ENDIF
 
 LOCAL = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
 フィルタ += @" AND LOOP >= {LOCAL} "
@@ -70,6 +109,7 @@ FOR LOCAL, 0 + (表示行数 * 能力表示現在ページ), MIN((表示行数 *
     NEXT
 LOCALS += @"</div>"
 
+$履歴取得スキップ
 
 LOCALS += @"<div rect='0,2500,5000,300'>履歴表示フィルタ："
 
@@ -112,20 +152,27 @@ SELECTCASE GETBIT(履歴表示フィルタ, 2); 探索
 	CASE 1
 		LOCALS += "<font color='#666666'><button value='1003'>[探索]</button></font> / "
 ENDSELECT
-; SELECTCASE GETBIT(履歴表示フィルタ, 5); 非うふふ
-; 	CASE 0
-; 		LOCALS += "<button value='1006'>[非うふふ]</button> / "
-; 	CASE 1
-; 		LOCALS += "<font color='#666666'><button value='1006'>[非うふふ]</button></font> / "
-; ENDSELECT
-; SELECTCASE GETBIT(履歴表示フィルタ, 6); 非実績
-; 	CASE 0
-; 		LOCALS += "<button value='1007'>[非実績]</button> / "
-; 	CASE 1
-; 		LOCALS += "<font color='#666666'><button value='1007'>[非実績]</button></font> / "
-; ENDSELECT
+IF 部分一致
+	SELECTCASE GETBIT(履歴表示フィルタ, 5); 非うふふ
+		CASE 0
+			LOCALS += "<button value='1006'>[非うふふ]</button> / "
+		CASE 1
+			LOCALS += "<font color='#666666'><button value='1006'>[非うふふ]</button></font> / "
+	ENDSELECT
+	SELECTCASE GETBIT(履歴表示フィルタ, 6); 非実績
+		CASE 0
+			LOCALS += "<button value='1007'>[非実績]</button> / "
+		CASE 1
+			LOCALS += "<font color='#666666'><button value='1007'>[非実績]</button></font> / "
+	ENDSELECT
+ENDIF
 LOCALS += "<button value='1009'>[全てOFF]</button> / "
-LOCALS += "<button value='1010'>[全てON]</button>"
+LOCALS += "<button value='1010'>[全てON]</button> / "
+IF 部分一致
+	LOCALS += "<button value='1011'>[ON優先にする]</button>"
+ELSE
+	LOCALS += "<button value='1011'>[OFF優先にする]</button>"
+ENDIF
 
 LOCALS += "</div>"
 
