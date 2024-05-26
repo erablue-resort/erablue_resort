@@ -47,9 +47,14 @@ SIF 素質切り替えOPTION記憶:ふたなり_女性 ||  GETBIT(性別招待�
 ;男性が許可されてるなら1/4で男
 SIF GETBIT(性別招待制御OPTION, 1) == 0 && RAND:4 == 0
 	ランダムキャラ素質:1 = 2
-;女性が許可されてないなら男化
-SIF GETBIT(性別招待制御OPTION, 0) && ランダムキャラ素質:1 == 1
-	ランダムキャラ素質:1 = 2
+;女性が許可されてないなら男化orふたなり化
+IF GETBIT(性別招待制御OPTION, 0) && ランダムキャラ素質:1 == 1
+	IF 素質切り替えOPTION記憶:ふたなり_女性 == 0 &&  GETBIT(性別招待制御OPTION, 2) == 0
+		ランダムキャラ素質:1 = 3
+	ELSEIF GETBIT(性別招待制御OPTION, 1) == 0
+		ランダムキャラ素質:1 = 2
+	ENDIF
+ENDIF
 
 ランダムキャラネーム = %ランダムキャラ名前生成(ランダムキャラ素質:0, ランダムキャラ素質:1)%
 LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
@@ -331,43 +336,13 @@ LOCALS += @"%(EXPNAME:10), 16%:{LOCAL:3}"
 LOCALS += "</div>"
 
 $表示_LOOP
+汎用画像キー '= 汎用立ち絵取得処理(ランダムキャラネーム, ランダムキャラ素質:0, ランダムキャラ素質:3, ランダムキャラ素質:52)
+
 IF 汎用立ち絵制御OPTION
 	LOCALS:1 = <div rect='2050,31,1200,1200' padding='6' border='31' bcolor='#C0C0C0'>
 	IF ランダムキャラ素質:1 == 2
 		LOCALS:1 += "<img src='Noimage_顔' height='1125'>"
 	ELSE
-		SELECTCASE ランダムキャラ素質:0
-			CASE 1
-				SELECTCASE ランダムキャラ素質:3
-					CASE -2
-						バスト種別 = 0
-					CASE -1, 0
-						バスト種別 = 1
-					CASE 1
-						バスト種別 = 2
-					CASE 2, 3
-						バスト種別 = 3
-				ENDSELECT
-				汎用画像キー = ヒューマン\@ (ランダムキャラ素質:52 <= -2) ? 小 # \@{NAMEHASH(ランダムキャラネーム, 3)}_{バスト種別}
-			CASE 2
-				SELECTCASE ランダムキャラ素質:3
-					CASE -2
-						バスト種別 = 0
-					CASE -1, 0
-						バスト種別 = 1
-					CASE 1
-						バスト種別 = 2
-					CASE 2, 3
-						バスト種別 = 3
-				ENDSELECT
-				汎用画像キー = エルーン\@ (ランダムキャラ素質:52 <= -2) ? 小 # \@{NAMEHASH(ランダムキャラネーム, 3)}_{バスト種別}
-			CASE 3
-				バスト種別 = (ランダムキャラ素質:3 <= 2) ? 3 # 4
-				汎用画像キー = ドラフ\@ (ランダムキャラ素質:52 <= -2) ? 小 # \@{NAMEHASH(ランダムキャラネーム, 3)}_{バスト種別}
-			CASE 4
-				バスト種別 = 0
-				汎用画像キー = ハーヴィン{NAMEHASH(ランダムキャラネーム, 3)}_{バスト種別}
-		ENDSELECT
 		SPRITEDISPOSE @"短冊グラ3000"
 		GDISPOSE 3000
 		GCREATEFROMFILE 3000, @"汎用グラフィック/顔_%汎用画像キー%.png"
@@ -500,9 +475,7 @@ SELECTCASE LOCAL
 
 		CFLAG:(LOCAL:1):滞在期間 = 999
 		CFLAG:(LOCAL:1):招待不可フラグ = 0
-		IF 汎用立ち絵制御OPTION
-			CSTR:(LOCAL:1):汎用立ち絵登録文字列 = %汎用画像キー%
-		ENDIF
+		CSTR:(LOCAL:1):汎用立ち絵登録文字列 = %汎用画像キー%
 		CALL ステータス記録(LOCAL:1)
 
 		FOR LOCAL:2, 0, 従業員部屋数
@@ -559,3 +532,45 @@ FOR LOCAL, 0, 200
 		BREAK
 NEXT
 RETURNF LOCALS
+
+
+@汎用立ち絵取得処理(名前, 種族, バスト, 体格)
+#FUNCTIONS
+#DIMS 名前
+#DIM 種族
+#DIM バスト
+#DIM 体格
+#DIM バスト種別
+
+SELECTCASE 種族
+	CASE 1
+		SELECTCASE バスト
+			CASE -2
+				バスト種別 = 0
+			CASE -1, 0
+				バスト種別 = 1
+			CASE 1
+				バスト種別 = 2
+			CASE 2, 3
+				バスト種別 = 3
+		ENDSELECT
+		RETURNF @"ヒューマン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 3)}_{バスト種別}"
+	CASE 2
+		SELECTCASE バスト
+			CASE -2
+				バスト種別 = 0
+			CASE -1, 0
+				バスト種別 = 1
+			CASE 1
+				バスト種別 = 2
+			CASE 2, 3
+				バスト種別 = 3
+		ENDSELECT
+		RETURNF @"エルーン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 3)}_{バスト種別}"
+	CASE 3
+		バスト種別 = (バスト <= 2) ? 3 # 4
+		RETURNF @"ドラフ\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 3)}_{バスト種別}"
+	CASE 4
+		バスト種別 = 0
+		RETURNF @"ハーヴィン{NAMEHASH(名前, 3)}_{バスト種別}"
+ENDSELECT

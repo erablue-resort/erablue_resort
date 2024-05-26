@@ -110,18 +110,28 @@ CSTR:ARG:今日の水着 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
 #DIMS FOLDER
 #DIMS TYPE
 #DIMS PATRN, 2
+#DIMS 妊娠用PATRN保存
 #DIM L_CNT
 
 SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURNF
 
-VARSET LOCAL
-VARSET LOCALS
-VARSET RESULTS
-
 SIF CSTR:ARG:画像フォルダ == ""
 	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
 
+妊娠用PATRN保存 = 
+IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2
+	妊娠用PATRN保存 '= PATRN
+	PATRN '= "妊娠" + PATRN
+ENDIF
+
+$妊娠差分用_LOOP
+
+SIF ARG == 1
+
+VARSET LOCAL
+VARSET LOCALS
+VARSET RESULTS
 
 FOLDER '= "resources\\" + CSTR:ARG:画像フォルダ
 LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.png")
@@ -145,8 +155,29 @@ IF PATRN:1 != ""
 ENDIF
 LOCAL = LOCAL:10
 LOCAL:1 = LOCAL:11 - LOCAL:10
-SIF LOCAL + LOCAL:1 < 1
-	RETURNF "デフォルト"
+IF LOCAL + LOCAL:1 < 1
+	IF PATRN == "妊娠デフォルト"
+		;妊娠デフォルトが無いならデフォルトに戻してもういっかい
+		PATRN = デフォルト
+		;分岐用に一時保存にも入れておく
+		妊娠用PATRN保存 = デフォルト
+		GOTO 妊娠差分用_LOOP
+	ELSEIF STRCOUNT(PATRN, "妊娠") > 0
+		;着せ替えの妊娠差分がないなら戻して最初から
+		PATRN '= 妊娠用PATRN保存
+		妊娠用PATRN保存 = 
+		GOTO 妊娠差分用_LOOP
+	ELSE
+		IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2 && 妊娠用PATRN保存 == ""
+			;妊娠しててPATRN保存が空っぽ = 現在衣装のグラが妊娠も通常も無いパターン
+			;なので通常妊娠画像を見に行く
+			PATRN = 妊娠デフォルト
+			GOTO 妊娠差分用_LOOP
+		ELSE
+			RETURNF "デフォルト"
+		ENDIF
+	ENDIF
+ENDIF
 L_CNT = RAND(LOCAL + LOCAL:1)
 RESULTS '= LOCALS:L_CNT
 
