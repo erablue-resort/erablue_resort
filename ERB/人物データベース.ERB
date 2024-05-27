@@ -51,6 +51,10 @@ DT_COLUMN_ADD "人物データベース", "経歴"
 #DIM アリシア
 #DIM クラリス
 #DIM プロメティア
+#DIM シャトラ
+#DIM シャトラのママ
+#DIM ヤイア
+#DIM カレンティア
 
 FOR LOCAL, 0, CHARANUM
 	SIF キャラ一致チェック(LOCAL, "[揺らぎの斬姫]ナルメア")
@@ -65,11 +69,21 @@ FOR LOCAL, 0, CHARANUM
 		クラリス = CFLAG:LOCAL:人物番号
 	SIF キャラ一致チェック(LOCAL, "[相承の錬金術師]プロメティア")
 		プロメティア = CFLAG:LOCAL:人物番号
+	SIF キャラ一致チェック(LOCAL, "[北北東の守護神]シャトラ")
+		シャトラ = CFLAG:LOCAL:人物番号
+	SIF キャラ一致チェック(LOCAL, "[先代丑神]シャトラのママ")
+		シャトラのママ = CFLAG:LOCAL:人物番号
+	SIF キャラ一致チェック(LOCAL, "[信愛の妹君]ヤイア")
+		ヤイア = CFLAG:LOCAL:人物番号
+	SIF キャラ一致チェック(LOCAL, "[妹君の幽母]カレンティア")
+		カレンティア = CFLAG:LOCAL:人物番号
 NEXT
 
 CALL SET_PERSON_母親(ナルメア, ラルナ)
 CALL SET_PERSON_母親(アリーザ, アリシア)
 CALL SET_PERSON_母親(クラリス, プロメティア)
+CALL SET_PERSON_母親(シャトラ, シャトラのママ)
+CALL SET_PERSON_母親(ヤイア, カレンティア)
 
 
 ;空のキャラを人物データベースに登録する
@@ -156,14 +170,14 @@ RETURNF FIND_CHARA_FROM_PERSON_ID(FATHER_ID)
 #FUNCTION
 #DIM ID
 #DIM CHILD_COUNT
-#DIM CHILDREN, 200
+#DIM TMP_CHILDREN, 1
 
 SIF FIND_MOTHER_CHARA_FROM_PERSON_ID(ID) >= 0
 	RETURNF 1
 SIF FIND_FATHER_CHARA_FROM_PERSON_ID(ID) >= 0
 	RETURNF 1
 
-CHILD_COUNT = DT_SELECT("人物データベース", @"母親 = {ID}", , CHILDREN)
+CHILD_COUNT = DT_SELECT("人物データベース", @"母親 = {ID}", , TMP_CHILDREN)
 SIF CHILD_COUNT > 0
 	RETURNF 1
 RETURNF 0
@@ -189,6 +203,19 @@ ENDIF
 
 DT_SELECT "人物データベース", FILTER, "出生順 DESC, 出会った周回 ASC, 生年日 ASC"
 RETURN RESULT
+
+
+;指定された文字列が呼び名の人物を返す（複数いる場合は先頭）
+@FIND_PERSON_FROM_CALLNAME(C_NAME)
+#FUNCTION
+#DIMS C_NAME
+#DIM PERSON_COUNT
+#DIM TMP_PERSONS, 1
+
+PERSON_COUNT = DT_SELECT("人物データベース", @"呼び名 = '%C_NAME%'", , TMP_PERSONS)
+SIF PERSON_COUNT <= 0
+	RETURNF 0
+RETURNF TMP_PERSONS:0
 
 
 ;指定したIDの人物が存在するか確認する
@@ -398,7 +425,7 @@ DT_RELEASE "人物番号一時リスト"
 #DIM DYNAMIC ID
 #DIM DYNAMIC CHILD_COUNT
 #DIM DYNAMIC CHILD_ITER
-#DIM DYNAMIC CHILDREN, 200
+#DIM DYNAMIC CHILDREN, 子供最大数
 
 DT_SELECT "人物番号一時リスト", @"人物番号 = {ID}"
 SIF RESULT == 0

@@ -157,6 +157,10 @@ IF DOWNBASE:ARG:体力 > 0 && BASE:ARG:体力 > 1 && BASE:ARG:体力 <= DOWNBASE
 	SIF ARG != MASTER && TCVAR:ARG:食いしばりフラグ
 		PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
 ENDIF
+;履歴登録
+RESULT = MIN(BASE:ARG:体力, DOWNBASE:ARG:体力)
+CALL 履歴登録チェック(ARG, "体力減少")
+履歴用実績:ARG:体力減少量累積 += MIN(BASE:ARG:体力, DOWNBASE:ARG:体力)
 BASE:ARG:体力 = MAX(0, BASE:ARG:体力 - DOWNBASE:ARG:体力)
 
 ;-------------------------------------------------
@@ -720,6 +724,9 @@ SELECTCASE ARGS
 	CASE "好感度"
 		LOCAL = 0
 		IF NOWEX:ARG:友情度上昇格納
+			IF CFLAG:ARG:友情度 < 経験値テーブル:99 && CFLAG:ARG:友情度 + NOWEX:ARG:友情度上昇格納 >= 経験値テーブル:99
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への友情度が最大になった","日常")
+			ENDIF
 			CFLAG:ARG:友情度 += NOWEX:ARG:友情度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:友情度上昇格納 >= 0) ? 好感度要素：友情＋{NOWEX:ARG:友情度上昇格納} # 好感度要素：友情－{-NOWEX:ARG:友情度上昇格納}\@
@@ -732,6 +739,9 @@ SELECTCASE ARGS
 			LOCAL = 1
 		ENDIF
 		IF NOWEX:ARG:信頼度上昇格納
+			IF CFLAG:ARG:信頼度 < 経験値テーブル:99 && CFLAG:ARG:信頼度 + NOWEX:ARG:信頼度上昇格納 >= 経験値テーブル:99
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への信頼度が最大になった","日常")
+			ENDIF
 			CFLAG:ARG:信頼度 += NOWEX:ARG:信頼度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:信頼度上昇格納 >= 0) ? 好感度要素：信頼＋{NOWEX:ARG:信頼度上昇格納} # 好感度要素：信頼－{-NOWEX:ARG:信頼度上昇格納}\@
@@ -744,6 +754,9 @@ SELECTCASE ARGS
 			LOCAL = 1
 		ENDIF
 		IF NOWEX:ARG:恋心度上昇格納
+			IF CFLAG:ARG:恋心度 < 経験値テーブル:99 && CFLAG:ARG:恋心度 + NOWEX:ARG:恋心度上昇格納 >= 経験値テーブル:99
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への恋心度が最大になった","日常")
+			ENDIF
 			CFLAG:ARG:恋心度 += NOWEX:ARG:恋心度上昇格納
 			CFLAG:ARG:恋慕度 = MAX(CFLAG:ARG:恋慕度, CFLAG:ARG:恋心度 / 3)
 			PRINTFORM %CALLNAME:ARG%：
@@ -757,6 +770,9 @@ SELECTCASE ARGS
 			LOCAL = 2
 		ENDIF
 		IF NOWEX:ARG:性愛度上昇格納
+			IF CFLAG:ARG:性愛度 < 経験値テーブル:99 && CFLAG:ARG:性愛度 + NOWEX:ARG:性愛度上昇格納 >= 経験値テーブル:99
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への性愛度が最大になった","日常")
+			ENDIF
 			CFLAG:ARG:性愛度 += NOWEX:ARG:性愛度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:性愛度上昇格納 >= 0) ? 好感度要素：性愛＋{NOWEX:ARG:性愛度上昇格納} # 好感度要素：性愛－{-NOWEX:ARG:性愛度上昇格納}\@
@@ -769,6 +785,9 @@ SELECTCASE ARGS
 			LOCAL = 1
 		ENDIF
 		IF NOWEX:ARG:キャラ固有好感度要素上昇格納
+			IF CFLAG:ARG:キャラ固有好感度 < 経験値テーブル:99 && CFLAG:ARG:キャラ固有好感度 + NOWEX:ARG:キャラ固有好感度要素上昇格納 >= 経験値テーブル:99
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への%CSTR:ARG:キャラ固有好感度要素%が最大になった","日常")
+			ENDIF
 			CFLAG:ARG:キャラ固有好感度 += NOWEX:ARG:キャラ固有好感度要素上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORML \@(NOWEX:ARG:キャラ固有好感度要素上昇格納 >= 0) ? 好感度要素：%CSTR:ARG:キャラ固有好感度要素%＋{NOWEX:ARG:キャラ固有好感度要素上昇格納} # 好感度要素：%CSTR:ARG:キャラ固有好感度要素%－{-NOWEX:ARG:キャラ固有好感度要素上昇格納}\@
@@ -864,6 +883,9 @@ IF CFLAG:ARG:好感度レベル < 計算後レベル
 			CSTR:ARG:現在の好感度表示 '= LOCALS
 		ENDIF
 	NEXT
+	IF CFLAG:ARG:好感度レベル < 100 && 計算後レベル >= 100
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"%CALLNAME:MASTER%への好感度レベルが最大になった","日常")
+	ENDIF
 	CFLAG:ARG:好感度レベル = 計算後レベル
 ELSE
 	LOCAL = RANGEFIND(計算後レベル, 関係閾値:0, 関係閾値:1, 関係閾値:2, 関係閾値:3, 関係閾値:4, 関係閾値:5) + 1
@@ -901,6 +923,9 @@ IF CFLAG:ARG:恋慕レベル < 計算後レベル
 		PRINTL 好意を自覚 > ラブラブ
 	SIF CFLAG:ARG:恋慕レベル <= 80 && 計算後レベル > 80
 		PRINTL ラブラブ > 最愛の人
+	IF CFLAG:ARG:恋慕レベル < 100 && 計算後レベル >= 100
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%への恋慕レベルが最大になった</font>","日常")
+	ENDIF
 	CFLAG:ARG:恋慕レベル = 計算後レベル
 ENDIF
 PRINTW 

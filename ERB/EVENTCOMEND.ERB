@@ -8,6 +8,7 @@
 #DIM 料理属性一時保存, 10
 #DIM モード中キャラカウント
 #DIM FLAG保存
+#DIM 時間保存
 #DIM 表示候補, 1000
 
 IF TFLAG:オートコマンドフラグ
@@ -195,7 +196,21 @@ FOR LOCAL, 1, CHARANUM
 		TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
 		FORCEWAIT
 		CFLAG:(TARGET:LOCAL):体力限界 = 1
+		IF CFLAG:(TARGET:LOCAL):うふふ == 0 && CFLAG:(TARGET:LOCAL):飲み会 == 0
+			CFLAG:(TARGET:LOCAL):一緒に遊ぶ = 0
+			CFLAG:(TARGET:LOCAL):同行 = 0
+			CFLAG:(TARGET:LOCAL):デート = 0
+			CFLAG:(TARGET:LOCAL):隠密 = 0
+		ENDIF
 		EXP:(TARGET:LOCAL):ダウン経験 += 1
+		CALL 履歴登録チェック(TARGET:LOCAL, "ダウン経験")
+		;うふふ時間で履歴登録
+		時間保存 = (TIME + 1440 * DAY) - CFLAG:(TARGET:LOCAL):うふふ開始時間記録
+		IF 時間保存 > 300 && CFLAG:(TARGET:LOCAL):うふふ開始時間記録 > 0
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:(TARGET:LOCAL)%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+			CALL 履歴データベース登録(CFLAG:(TARGET:LOCAL):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+		ENDIF
+		CFLAG:(TARGET:LOCAL):うふふ開始時間記録 = 0
 		;経験取得表示スキップ用
 		TCVAR:(TARGET:LOCAL):436 = EXP:(TARGET:LOCAL):ダウン経験
 		;CALL CHARA_SLEEP, TARGET:LOCAL
@@ -205,6 +220,11 @@ FOR LOCAL, 1, CHARANUM
 		;CALL 性欲ゲージ減少処理(TARGET:LOCAL)
 		SIF AUTOCOM_相手番号保存 == TARGET:LOCAL
 			TFLAG:オートコマンドフラグ = 0
+		;オナホ時は自室に運ぶために現在地更新
+		IF CFLAG:(TARGET:LOCAL):同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET:LOCAL) > -1
+			CFLAG:(TARGET:LOCAL):現在位置 = CFLAG:MASTER:現在位置
+			CFLAG:(TARGET:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+		ENDIF
 		;モードもリセット
 		CALL 特定キャラモードリセット(TARGET:LOCAL)
 		FLAG:モード管理 = 0
@@ -254,6 +274,7 @@ FOR LOCAL, 1, CHARANUM
 		FORCEWAIT
 		CFLAG:(飲み会TARGET:LOCAL):体力限界 = 1
 		EXP:(飲み会TARGET:LOCAL):ダウン経験 += 1
+		CALL 履歴登録チェック(TARGET:LOCAL, "ダウン経験")
 		;経験取得表示スキップ用
 		TCVAR:(飲み会TARGET:LOCAL):436 = EXP:(飲み会TARGET:LOCAL):ダウン経験
 		CALL CHARA_SLEEP, 飲み会TARGET:LOCAL
@@ -310,8 +331,8 @@ FOR LOCAL,0,CHARANUM
 				LOCALS = %CALLNAME:(RCVAR:LOCAL:破瓜_相手番号)%の触手
 				LOCALS:1 = 触手
 		ENDSELECT
-		CALL 履歴データベース登録(CFLAG:(RCVAR:LOCAL:破瓜_相手番号):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS:1%で%CALLNAME:LOCAL%のＶ処女を奪った</font><img src='えっちハート'>","うふふ")
-		CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%にＶ処女を捧げた</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:(RCVAR:LOCAL:破瓜_相手番号):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS:1%で%CALLNAME:LOCAL%のＶ処女を奪った</font><img src='えっちハート'>","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%にＶ処女を捧げた</font><img src='えっちハート'>","うふふ実績")
 	ENDIF
 	
 	;連れ込み満足
@@ -597,13 +618,13 @@ FOR LOCAL,0,200
 				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>ゲーム中に[%REPLACE(EXPNAME:LOCAL, "経験", "")%]した回数が９９９回を超えた</font>","うふふ")
 		CASE GETNUM(EXP, "肉体熟知")
 			EXP一時保存 = 0
-			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 50 && TCVAR:対象キャラ:(400 + LOCAL) == EXP一時保存 + 50
+			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 50 && TCVAR:対象キャラ:(400 + LOCAL) <= EXP一時保存 + 50
 				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の[肉体熟知]が５０を超えた</font>","うふふ")
-			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 100 && TCVAR:対象キャラ:(400 + LOCAL) == EXP一時保存 + 100
+			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 100 && TCVAR:対象キャラ:(400 + LOCAL) <= EXP一時保存 + 100
 				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の[肉体熟知]が１００を超えた</font>","うふふ")
-			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 500 && TCVAR:対象キャラ:(400 + LOCAL) == EXP一時保存 + 500
+			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 500 && TCVAR:対象キャラ:(400 + LOCAL) <= EXP一時保存 + 500
 				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の[肉体熟知]が５００を超えた</font>","うふふ")
-			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 999 && TCVAR:対象キャラ:(400 + LOCAL) == EXP一時保存 + 999
+			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 + 999 && TCVAR:対象キャラ:(400 + LOCAL) <= EXP一時保存 + 999
 				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の[肉体熟知]が９９９を超えた</font>","うふふ")
 		CASE GETNUM(EXP, "乳首開発") TO GETNUM(EXP, "尻尾開発")
 			EXP一時保存 = CSVEXP(NO:対象キャラ, LOCAL)

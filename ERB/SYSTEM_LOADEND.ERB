@@ -11,6 +11,7 @@
 #DIMS 弱点一時保存, 50
 #DIM 同行配列番号
 #DIM L_C
+#DIM F_NUM
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -80,6 +81,24 @@ FOR LOCAL, 0, CHARANUM
 			CALL 口上変数初期化
 		ENDIF
 	ENDIF
+
+	;画像フォルダが空っぽならセット
+	SIF CSTR:LOCAL:画像フォルダ == ""
+		CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
+	;選択先の画像フォルダが有効かどうかをチェック
+	LOCALS '= "resources\\" + CSTR:LOCAL:画像フォルダ
+	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 0)
+	IF F_NUM < 1
+		;有効でない場合、有効なフォルダを探して来て入れ込む
+		LOCALS '= "resources\\" + TOSTR(NO:LOCAL) + CALLNAME:LOCAL
+		F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
+		IF F_NUM > 0
+			CSTR:LOCAL:画像フォルダ '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
+		ELSE
+			;有効なフォルダが一個も無いならCSTRをデフォ値にしておく
+			CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
+		ENDIF
+	ENDIF
 NEXT
 SIF !RELATION_VAL:0:0
 	RELATION_VAL:0:0 = 1
@@ -120,6 +139,10 @@ FOR LOCAL, 1, CHARANUM
 	ENDIF
 
 	;ここまで0.039で消す
+
+	;異常経験を殺す
+	EXP:LOCAL:53 = 0
+
 	;ここまで0.040で消す
 NEXT
 イキやすさフォロー = 1
@@ -162,6 +185,21 @@ CALL 制服登録処理("ミニチャイナ")
 CALL エロ衣装登録処理("逆バニー")
 CALL エロ衣装登録処理("マイクロビキニ")
 CALL エロ衣装登録処理("セクシーランジェリー")
+
+IF ジョブ証フォロー == 0
+	CALL ジョブ証データベースセット
+	FOR LOCAL, 1, DT_ROW_LENGTH("所持衣装データベース")
+		DT_ROW_ADD "所持ジョブ証データベース", "ジョブ証名", REPLACE(DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名"), "服", "証"), "ジョブ証種別", "通常ジョブ"
+		FOR LOCAL:1, 1, CHARANUM
+			IF 装備ステータス補正保存:(LOCAL:1):装備証番号 == DT_CELL_GET("所持衣装データベース", LOCAL, "id")
+				装備ステータス補正保存:(LOCAL:1):装備証番号 = DT_CELL_GET("所持ジョブ証データベース", LOCAL, "id")
+			ENDIF
+		NEXT
+	NEXT
+	ジョブ証フォロー = 1
+ENDIF
+
+TALENT:(FINDCHARA(NO, 101)):死者 = 1
 
 ;ここまで0.040にしたとき消す、互換を38に
 

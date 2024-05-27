@@ -110,24 +110,35 @@ CSTR:ARG:今日の水着 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
 #DIMS FOLDER
 #DIMS TYPE
 #DIMS PATRN, 2
+#DIMS 妊娠用PATRN保存
 #DIM L_CNT
+#DIMS 画像配列保存, 2000
 
 SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURNF
 
-VARSET LOCAL
-VARSET LOCALS
-VARSET RESULTS
-
 SIF CSTR:ARG:画像フォルダ == ""
 	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
 
+妊娠用PATRN保存 = 
+IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2
+	妊娠用PATRN保存 '= PATRN
+	PATRN '= "妊娠" + PATRN
+ENDIF
+
+$妊娠差分用_LOOP
+
+SIF ARG == 1
+
+VARSET LOCAL
+VARSET 画像配列保存
+VARSET RESULTS
 
 FOLDER '= "resources\\" + CSTR:ARG:画像フォルダ
 LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.png")
 FOR L_CNT, 0, LOCAL
 	IF STRCOUNT(RESULTS:L_CNT, "差分") == 0 || STRCOUNT(PATRN, "差分")
-		LOCALS:(LOCAL:10) '= RESULTS:L_CNT
+		画像配列保存:(LOCAL:10) '= RESULTS:L_CNT
 		LOCAL:10 += 1
 	ELSE
 	ENDIF
@@ -137,7 +148,7 @@ IF PATRN:1 != ""
 	LOCAL:1 = ENUMFILES(FOLDER, TYPE + PATRN:1 + "*.png")
 	FOR L_CNT, LOCAL, LOCAL + LOCAL:1
 		IF STRCOUNT(RESULTS:(L_CNT - LOCAL), "差分") == 0 || STRCOUNT(PATRN:1, "差分")
-			LOCALS:(LOCAL:11) '= RESULTS:(L_CNT - LOCAL)
+			画像配列保存:(LOCAL:11) '= RESULTS:(L_CNT - LOCAL)
 			LOCAL:11 += 1
 		ELSE
 		ENDIF
@@ -145,10 +156,31 @@ IF PATRN:1 != ""
 ENDIF
 LOCAL = LOCAL:10
 LOCAL:1 = LOCAL:11 - LOCAL:10
-SIF LOCAL + LOCAL:1 < 1
-	RETURNF "デフォルト"
+IF LOCAL + LOCAL:1 < 1
+	IF PATRN == "妊娠デフォルト"
+		;妊娠デフォルトが無いならデフォルトに戻してもういっかい
+		PATRN = デフォルト
+		;分岐用に一時保存にも入れておく
+		妊娠用PATRN保存 = デフォルト
+		GOTO 妊娠差分用_LOOP
+	ELSEIF STRCOUNT(PATRN, "妊娠") > 0
+		;着せ替えの妊娠差分がないなら戻して最初から
+		PATRN '= 妊娠用PATRN保存
+		妊娠用PATRN保存 = 
+		GOTO 妊娠差分用_LOOP
+	ELSE
+		IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2 && 妊娠用PATRN保存 == ""
+			;妊娠しててPATRN保存が空っぽ = 現在衣装のグラが妊娠も通常も無いパターン
+			;なので通常妊娠画像を見に行く
+			PATRN = 妊娠デフォルト
+			GOTO 妊娠差分用_LOOP
+		ELSE
+			RETURNF "デフォルト"
+		ENDIF
+	ENDIF
+ENDIF
 L_CNT = RAND(LOCAL + LOCAL:1)
-RESULTS '= LOCALS:L_CNT
+RESULTS '= 画像配列保存:L_CNT
 
 IF !STRCOUNT(PATRN, "差分") && !STRCOUNT(PATRN:1, "差分") 
 	CSTR:ARG:表示グラフィックカテゴリ '= PATRN
@@ -185,7 +217,9 @@ SPRITEDISPOSEALL 0
 LOCALS '= "resources\\" + TOSTR(NO:ARG) + CALLNAME:ARG
 F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
 IF F_NUM < 2
-	PRINTW 有効な画像フォルダは1つ以下しかありません
+	PRINTL 有効な画像フォルダは1つ以下しかありません
+	PRINTW 該当のフォルダを有効化します
+	CSTR:ARG:画像フォルダ '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
 	RETURN
 ELSEIF F_NUM > 10
 	PRINTL 有効な画像フォルダが多すぎます。最初に見つかった10個のみが有効となります。

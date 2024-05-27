@@ -416,6 +416,7 @@ IF TALENT:ARG:Ｃ感度 == -2
 	部位嗜好:部位_Ｃ = 0
 ENDIF
 
+
 IF 総和 == 0
 	FOR LOCAL, 0, 4
 		部位嗜好:LOCAL = 1
@@ -426,6 +427,8 @@ ENDIF
 
 選好 = RAND(総和) + 1
 FOR LOCAL, 0, 4
+	SIF 部位嗜好:LOCAL < 1
+		CONTINUE
 	SIF 選好 >= 総和
 		RETURNF LOCAL
 	総和 -= 部位嗜好:LOCAL
@@ -498,6 +501,7 @@ RETURNF MAX(CFLAG:対象キャラ:恋慕レベル, 性愛_好感度レベル)
 @うふふ終了処理
 #DIM EXP番号
 #DIM 分身並べ替え基準, 5
+#DIM 時間保存
 
 FOR LOCAL, 0, CHARANUM
 	SIF TARGET:LOCAL < 1
@@ -505,8 +509,16 @@ FOR LOCAL, 0, CHARANUM
 	IF CFLAG:(TARGET:LOCAL):うふふ
 		;うふふ終了口上
 		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+
+		;うふふ時間で履歴登録
+		時間保存 = (TIME + 1440 * DAY) - CFLAG:(TARGET:LOCAL):うふふ開始時間記録
+		IF 時間保存 > 300 && CFLAG:(TARGET:LOCAL):うふふ開始時間記録 > 0
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:(TARGET:LOCAL)%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+			CALL 履歴データベース登録(CFLAG:(TARGET:LOCAL):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+		ENDIF
 	ENDIF
 	CFLAG:(TARGET:LOCAL):うふふ = 0
+	CFLAG:(TARGET:LOCAL):うふふ開始時間記録 = 0
 	CALL 性欲ゲージ減少処理(TARGET:LOCAL)
 	TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
 	;モードもリセット

@@ -1,46 +1,64 @@
 ﻿
-@ランダムエネミーセット関数
+@ランダムエネミーセット関数(レベル目安)
 #DIM 対象エネミー
+#DIM レベル目安
 
 FOR LOCAL, 0, 4
 	;基本４体、数字が被ったら減る
 	対象エネミー = RAND:10
-	CALL ランダムエネミーステータス設定(対象エネミー)
+	CALL ランダムエネミーステータス設定(対象エネミー, レベル目安)
 NEXT
 
-@ランダムエネミーステータス設定(対象エネミー)
+@ランダムエネミーステータス設定(対象エネミー, レベル目安)
 #DIM 対象エネミー
 #DIMS 関数名
+#DIM レベル目安
+#DIMS 候補配列, 50
+#DIM 候補数
+#DIM 一時候補数
 
-敵BATTLE_STATE:対象エネミー:Lv = LIMIT(RAND:5 - 2 + ランダムダンジョン階層記録, 1, 80)
-敵BATTLE_STATE:対象エネミー:ランダムエネミーフラグ = 1
+;Lvを決定
+敵BATTLE_STATE:対象エネミー:ランダムエネミーフラグ = MAX(2, RAND:5 - 2 + レベル目安)
 
-;種族決定
-LOCAL = ENUMFUNCBEGINSWITH("敵BATTLE_STATE_ランダム_")
-関数名 = %RESULTS:(RAND:LOCAL)%
-敵BATTLE_STATE_STR:対象エネミー:エネミー名 = Lv{敵BATTLE_STATE:対象エネミー:Lv}_%REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
-敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー = %REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
-CALLFORM %関数名%(対象エネミー)
+;元になるエネミーを決定
+VARSET 候補配列
+候補数 = 0
+FOR LOCAL, 敵BATTLE_STATE:対象エネミー:ランダムエネミーフラグ, 0, -1
+	VARSET RESULTS
+	一時候補数 = ENUMFUNCBEGINSWITH(@"敵BATTLE_STATE_Lv{LOCAL}_")
+	IF 一時候補数 > 0
+		FOR LOCAL:1, 0, 一時候補数
+			;とりあえずボス以外が対象
+			敵BATTLE_STATE:10:ボスフラグ = 0
+			CALLFORM %RESULTS:(LOCAL:1)%(10)
+			SIF 敵BATTLE_STATE:10:ボスフラグ
+				CONTINUE
+			;ここにダンジョンごとの制限を入れるけど今は全対象で
 
-@ランダムエネミー討伐後処理(対象エネミー)
-#DIM 対象エネミー
+			候補配列:候補数 '= REPLACE(RESULTS, "敵BATTLE_STATE_", "")
+			候補数 ++
+			SIF 候補数 >= 50
+				BREAK
+		NEXT
+	ENDIF
+NEXT
 
-TRYCALLFORM 敵討伐後処理_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%(対象エネミー + 10)
+FOR LOCAL, 0, 200
+	敵BATTLE_STATE:10:LOCAL = 0
+NEXT
+FOR LOCAL, 0, 10
+	敵BATTLE_STATE_STR:10:LOCAL = 
+NEXT
 
-@ランダムエネミーチャージ行動処理(対象エネミー)
-#DIM 対象エネミー
-TRYCCALLFORM 敵チャージ行動_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%
-	敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
-	CALL アビテンプレート用_表示メッセージ変換処理
-	CALL メッセージ欄表示用関数(,,,0)
-	CALL 行動済みフラグチェック処理(戦闘行動キャラ)
-CATCH
-ENDCATCH
+;候補から対象を決定
+;例外規定はめんどくさいから無し。制限で候補が０体にならないようにすること
+敵BATTLE_STATE_STR:対象エネミー:エネミー名 '= 候補配列:(RAND:候補数)
 
-@ランダムエネミートリガー行動処理(対象エネミー)
-#DIM 対象エネミー
-RESULT = 0
-TRYCALLFORM 敵トリガー行動_ランダム_%敵BATTLE_STATE_STR:対象エネミー:ランダムエネミー関数キー%
-RETURN RESULT
+; LOCAL = ENUMFUNCBEGINSWITH("敵BATTLE_STATE_ランダム_")
+; 関数名 = %RESULTS:(RAND:LOCAL)%
+; 敵BATTLE_STATE_STR:対象エネミー:エネミー名 = Lv{敵BATTLE_STATE:対象エネミー:Lv}_%REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
+; 敵BATTLE_STATE_STR:対象エネミー:エネミー関数キー = %REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
+; CALLFORM %関数名%(対象エネミー)
+
 
 
