@@ -448,8 +448,12 @@ ENDIF
 @FAVOR_CALC(ARG)
 #DIM ループ用
 
-;干渉補正
-CALL 干渉補正実処理関数(ARG, "好感度増加時")
+;干渉/印象補正
+IF GROUPMATCH(干渉強化変数:ARG:干渉種類, 1, 2, 3, 4)
+	CALL 干渉補正実処理関数(ARG, "好感度増加時")
+ELSE
+	CALL 印象補正_好感度上昇(ARG)
+ENDIF
 
 ;最大値を取る
 NOWEX:ARG:好感度上昇格納 = MAX(NOWEX:ARG:友情度上昇格納, NOWEX:ARG:信頼度上昇格納, NOWEX:ARG:恋心度上昇格納, NOWEX:ARG:性愛度上昇格納, NOWEX:ARG:キャラ固有好感度要素上昇格納)
@@ -538,8 +542,12 @@ FOR ループ用, 0, CHARANUM
 	SIF CFLAG:ループ用:滞在期間 < 0
 		CONTINUE
 	IF ループ用 != ARG
-		;干渉補正
-		CALL 干渉補正実処理関数(ループ用, "好感度増加時")
+		;干渉/印象補正
+		IF GROUPMATCH(干渉強化変数:ループ用:干渉種類, 1, 2, 3, 4)
+			CALL 干渉補正実処理関数(ループ用, "好感度増加時")
+		ELSE
+			CALL 印象補正_好感度上昇(ループ用)
+		ENDIF
 		
 		;最大値を取る
 		NOWEX:ループ用:好感度上昇格納 = MAX(NOWEX:ループ用:友情度上昇格納, NOWEX:ループ用:信頼度上昇格納, NOWEX:ループ用:恋心度上昇格納, NOWEX:ループ用:性愛度上昇格納, NOWEX:ループ用:キャラ固有好感度要素上昇格納)
@@ -614,6 +622,54 @@ SIF CFLAG:キャラ番号:発情期フラグ < 0
 LOCAL = MAX(LOCAL, 1)
 
 RETURNF LOCAL
+
+@印象補正_好感度上昇(キャラ番号)
+#DIM キャラ番号
+
+SELECTCASE TALENT:MASTER:印象
+	CASE 1
+		IF NOWEX:キャラ番号:友情度上昇格納 > 0
+			NOWEX:キャラ番号:友情度上昇格納 += NOWEX:キャラ番号:友情度上昇格納 / 2
+		ENDIF
+		IF NOWEX:キャラ番号:恋心度上昇格納 > 0
+			NOWEX:キャラ番号:恋心度上昇格納 = MAX(1, NOWEX:キャラ番号:恋心度上昇格納 * 3 / 4)
+		ENDIF
+		IF NOWEX:キャラ番号:性愛度上昇格納 > 0
+			NOWEX:キャラ番号:性愛度上昇格納 = MAX(1, NOWEX:キャラ番号:性愛度上昇格納 * 3 / 4)
+		ENDIF
+	CASE 2
+		IF NOWEX:キャラ番号:信頼度上昇格納 > 0
+			NOWEX:キャラ番号:信頼度上昇格納 += NOWEX:キャラ番号:信頼度上昇格納 / 2
+		ENDIF
+		IF NOWEX:キャラ番号:性愛度上昇格納 > 0
+			NOWEX:キャラ番号:性愛度上昇格納 = MAX(1, NOWEX:キャラ番号:性愛度上昇格納 * 3 / 4)
+		ENDIF
+		IF NOWEX:キャラ番号:友情度上昇格納 > 0
+			NOWEX:キャラ番号:友情度上昇格納 = MAX(1, NOWEX:キャラ番号:友情度上昇格納 * 3 / 4)
+		ENDIF
+	CASE 3
+		IF NOWEX:キャラ番号:恋心度上昇格納 > 0
+			NOWEX:キャラ番号:恋心度上昇格納 += NOWEX:キャラ番号:恋心度上昇格納 / 2
+		ENDIF
+		IF NOWEX:キャラ番号:友情度上昇格納 > 0
+			NOWEX:キャラ番号:友情度上昇格納 = MAX(1, NOWEX:キャラ番号:友情度上昇格納 * 3 / 4)
+		ENDIF
+		IF NOWEX:キャラ番号:信頼度上昇格納 > 0
+			NOWEX:キャラ番号:信頼度上昇格納 = MAX(1, NOWEX:キャラ番号:信頼度上昇格納 * 3 / 4)
+		ENDIF
+	CASE 4
+		IF NOWEX:キャラ番号:性愛度上昇格納 > 0
+			NOWEX:キャラ番号:性愛度上昇格納 += NOWEX:キャラ番号:性愛度上昇格納 / 2
+		ENDIF
+		IF NOWEX:キャラ番号:信頼度上昇格納 > 0
+			NOWEX:キャラ番号:信頼度上昇格納 = MAX(1, NOWEX:キャラ番号:信頼度上昇格納 * 3 / 4)
+		ENDIF
+		IF NOWEX:キャラ番号:恋心度上昇格納 > 0
+			NOWEX:キャラ番号:恋心度上昇格納 = MAX(1, NOWEX:キャラ番号:恋心度上昇格納 * 3 / 4)
+		ENDIF
+ENDSELECT
+
+RETURN
 
 ;-------------------------------------------------
 ;恋慕度処理
@@ -832,6 +888,11 @@ ENDSELECT
 #DIM ループ用
 #DIM 要素最大値
 #DIM 計算後レベル
+#DIM 友情度記録
+#DIM 信頼度記録
+#DIM 恋心度記録
+#DIM 性愛度記録
+#DIM キャラ固有好感度記録
 #DIMS 関係名, 6, 5
 
 IF 関係名:0:0 == ""
@@ -843,18 +904,57 @@ IF 関係名:0:0 == ""
 	NEXT
 ENDIF
 
+LOCAL = 100501
+SIF 干渉強化変数:ARG:干渉種類 == 1
+	LOCAL += 2
+SIF TALENT:MASTER:印象 == 1
+	LOCAL += 1
+友情度記録 = CFLAG:ARG:友情度
+SIF 友情度記録 >= 100500
+	友情度記録 = LOCAL
+
+LOCAL = 100501
+SIF 干渉強化変数:ARG:干渉種類 == 2
+	LOCAL += 2
+SIF TALENT:MASTER:印象 == 2
+	LOCAL += 1
+信頼度記録 = CFLAG:ARG:信頼度
+SIF 信頼度記録 >= 100500
+	信頼度記録 = LOCAL
+
+LOCAL = 100501
+SIF 干渉強化変数:ARG:干渉種類 == 3
+	LOCAL += 2
+SIF TALENT:MASTER:印象 == 3
+	LOCAL += 1
+恋心度記録 = CFLAG:ARG:恋心度
+SIF 恋心度記録 >= 100500
+	恋心度記録 = LOCAL
+
+LOCAL = 100501
+SIF 干渉強化変数:ARG:干渉種類 == 4
+	LOCAL += 2
+SIF TALENT:MASTER:印象 == 4
+	LOCAL += 1
+性愛度記録 = CFLAG:ARG:性愛度
+SIF 性愛度記録 >= 100500
+	性愛度記録 = LOCAL
+
+LOCAL = 100501
+キャラ固有好感度記録 = MIN(LOCAL, CFLAG:ARG:キャラ固有好感度)
+
 SIF !INRANGE(ARG, 1, CHARANUM-1)
 	RETURN
 
 ;テーブルと比較してレベル算出
-要素最大値 = MAX(CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
+要素最大値 = MAX(友情度記録, 信頼度記録, 恋心度記録, 性愛度記録, キャラ固有好感度記録)
 FOR ループ用, 0, 100
 	IF 経験値テーブル:ループ用 >= 要素最大値
 		BREAK
 	ENDIF
 NEXT
 計算後レベル = ループ用
-要素最大値 = MAXFIND(5, CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
+要素最大値 = MAXFIND(5, 友情度記録, 信頼度記録, 恋心度記録, 性愛度記録, キャラ固有好感度記録)
 TRYCCALLFORM キャラ固有好感度関係名_{NO:ARG}()
 	FOR ループ用, 0, 6
 		CALLFORM キャラ固有好感度関係名_{NO:ARG}(関係閾値:ループ用)
@@ -862,7 +962,7 @@ TRYCCALLFORM キャラ固有好感度関係名_{NO:ARG}()
 	NEXT
 CATCH
 	SIF 要素最大値 == 5
-		要素最大値 = MAXFIND(4, CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度)
+		要素最大値 = MAXFIND(4, 友情度記録, 信頼度記録, 恋心度記録, 性愛度記録)
 ENDCATCH
 
 ;現在レベルより高ければレベルアップ処理
