@@ -121,6 +121,10 @@ IF TALENT:キャラ番号:妊娠不可 && GETBIT(TALENT:キャラ番号:性別, 
 ENDIF
 ; PRINTBUTTONLC "[7]称号素質を設定する", 5
 ; PRINTL
+IF キャラ番号 == MASTER
+	PRINTBUTTONLC "[998]あなたの設定をやり直す", 998
+	PRINTL
+ENDIF
 PRINTBUTTONLC "[999]戻る", 999
 PRINTL
 
@@ -147,6 +151,9 @@ SELECTCASE RESULT
 		RESTART
 	CASE 7
 		CALL 称号素質設定(キャラ番号)
+		RESTART
+	CASE 998
+		CALL キャラメイク設定
 		RESTART
 	CASE 999
 		RETURN -1
@@ -680,6 +687,35 @@ RETURN 0
 
 @称号素質設定(対象キャラ)
 #DIM 対象キャラ
+
+
+@キャラメイク設定
+#DIM CONST 必要COST = 300
+
+DRAWLINE
+PRINTL ZPを消費してゲーム開始時のあなたのステータス設定をやり直すことができます。
+PRINTL 設定の内容によっては、一部の能力、経験が初期化されてしまうことがあります。
+PRINTL また、性別を変更しても[元男]などの後天的な素質は付与されません。
+DRAWLINE
+
+;ZP足りる？
+IF FLAG:ZP所持量 < 必要COST
+	PRINTW ZPが足りません
+	RETURN 0
+ENDIF
+
+PRINTFORML {必要COST}ZPを支払い、ステータス設定をやり直しますか？
+PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+
+IF RESULT == 0
+	FLAG:ZP所持量 -= 必要COST
+	CALL 仮置きCUSTOM_TERMINAL(MASTER)
+	RETURN 1
+ENDIF
+RETURN 0
 
 
 @身長固定キャラ(対象キャラ)
