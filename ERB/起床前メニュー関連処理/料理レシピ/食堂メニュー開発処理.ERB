@@ -197,15 +197,51 @@ ENDSELECT
 @既存メニュー閲覧(ボタン化フラグ = 0, 選択解除フラグ = 0, 被り禁止フラグ = 0)
 #DIMS 表示条件
 #DIM ページ番号
+#DIM ページ登録
 #DIM ボタン化フラグ
 #DIM 被り禁止フラグ
 #DIM ソート後料理順, 1000
+#DIM ソート後ページ登録, 1000
 #DIM 現在表示ランク
 #DIM 選択解除フラグ
+#DIM 行数カウント
 VARSET ソート後料理順, -1
+VARSET ソート後ページ登録, -1
 
 ;データベースをランク順にソート
 DT_SELECT "料理メニューデータベース", "", "料理ランク ASC, 料理属性 ASC", ソート後料理順
+
+;ソート素材順にページ番号を振る
+行数カウント = 0
+現在表示ランク = -1
+ページ登録 = 0
+VARSET LOCAL
+VARSET LOCALS
+FOR COUNT, 0, 1000
+	SIF ソート後料理順:COUNT < 0
+		BREAK
+	IF 現在表示ランク < DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理ランク", 1)
+		SIF LOCAL
+			行数カウント ++
+		IF LOCAL % 2 == 1
+			行数カウント ++
+			LOCAL += 1
+		ENDIF
+		現在表示ランク = DT_CELL_GET("料理メニューデータベース", ソート後料理順:COUNT, "料理ランク", 1)
+		行数カウント ++
+	ENDIF
+	ソート後ページ登録:COUNT = ページ登録
+	LOCAL += 1
+	IF LOCAL % 2 == 0
+		行数カウント ++
+	ENDIF
+	IF 行数カウント >= 25 && LOCAL % 2 == 0
+		ページ登録 ++
+		行数カウント = 0
+	ENDIF
+NEXT
+
+ページ登録 = 0
 
 DO
 VARSET LOCAL
@@ -214,9 +250,12 @@ LOCALS = <div rect='200,0,5537,3625' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='262,75,5537,3625'><nobr>"
 
 現在表示ランク = -1
-FOR COUNT, ページ番号 * 56, ページ番号 * 56 + 56
+FOR COUNT, 0, 1000
 	IF ソート後料理順:COUNT < 0
 		BREAK
+	ENDIF
+	IF ソート後ページ登録:COUNT !=ページ番号
+		CONTINUE
 	ENDIF
 	IF 被り禁止フラグ == 1
 		SIF MATCH(現在設定メニュー, ソート後料理順:COUNT)
@@ -257,7 +296,7 @@ IF ページ番号 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-IF (ページ番号 * 56) + 56 < 1000 && ソート後料理順:((ページ番号 * 56) + 56) > 0
+IF MAXARRAY(ソート後ページ登録) > ページ番号
 	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
 ELSE
 	LOCALS += "　　　　　　　　　　"

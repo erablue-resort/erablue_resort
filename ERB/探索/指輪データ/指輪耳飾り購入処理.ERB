@@ -8,17 +8,20 @@
 ;-------------------------------------------------
 @指輪耳飾り購入画面処理(売却許可フラグ = 0)
 #DIMS 商売文字列保存, 3
-#DIMS 商品名保存, 100
-#DIMS 商品簡易文保存, 100
+#DIMS 商品名保存, 指輪所持最大数
+#DIMS 商品簡易文保存, 指輪所持最大数
 #DIM ページ番号
 #DIM 売却許可フラグ
 	;売却許可フラグ 0:売却禁止 1:売却可能 2:売却のみ
 #DIM 購入_売却モード
 	;購入_売却モード 0:購入 1:指輪売却 2:耳飾り売却
+#DIM 一括売却フラグ
+#DIM 一括売却合計額
 #DIM ソート番号
 VARSET LOCALS
 VARSET 商売文字列保存
 VARSET 表示用ステータス格納配列:0:0
+VARSET 選択配列
 
 IF 売却許可フラグ == 2
 	購入_売却モード = 1
@@ -37,7 +40,7 @@ ENDIF
 ;中身描写
 ;まず指輪のステータス補正を全部変数になおして放り込む
 IF 表示用ステータス格納配列:0:0 == 0
-	FOR LOCAL, 0, 500
+	FOR LOCAL, 0, 指輪所持最大数
 		VARSET LOCALS
 		IF 指輪購入用_品揃え登録:LOCAL == ""
 			BREAK
@@ -77,7 +80,7 @@ IF 表示用ステータス格納配列:0:0 == 0
 	NEXT
 	;次に耳飾りを配列に突っ込む
 	LOCAL:1 = 0
-	FOR LOCAL, LOCAL - 1, 500
+	FOR LOCAL, LOCAL - 1, 指輪所持最大数
 		VARSET LOCALS
 		IF 耳飾り購入用_品揃え登録:(LOCAL:1) == ""
 			BREAK
@@ -119,6 +122,14 @@ ELSEIF 購入_売却モード == 2
 	LOCALS += "　　　<button value='1101'>■指輪売却</button>"
 	LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>■耳飾り売却</font>"
 ENDIF
+IF 購入_売却モード
+	;売却モード時のみボタン出す
+	IF 一括売却フラグ
+		LOCALS += @"　　　<button value='1110'><font color='#%カラーパレット_HTML("黄")%'>[一括売却：ON]</font></button>"
+	ELSE
+		LOCALS += "　　　<button value='1110'>[一括売却：OFF]</button>"
+	ENDIF
+ENDIF
 LOCALS += "</div>"
 
 LOCALS += "<div rect='200,375,5662,3750' border='31' bcolor='#C0C0C0'></div>"
@@ -132,7 +143,7 @@ ELSEIF 購入_売却モード == 0
 	LOCALS += "　　　 指輪名　　　　　　　　　　値段　　　　　　ＨＰ　　ＭＰ　　攻撃力　防御力　回復力　行動速度　DA率　TA率<br>"
 	LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 	LOCAL:1 = 0
-	FOR LOCAL, 0, 500
+	FOR LOCAL, 0, 指輪所持最大数
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
@@ -178,7 +189,11 @@ IF 表示用ステータス格納配列:(ページ番号 * 30 + 30):0 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　"
 ENDIF
-LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+IF 一括売却フラグ
+	LOCALS += "　　　　　　　　　　　　　 <button value='1002'>[1002] 一括売却</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
 LOCALS += "　　<button value='999'>[999] 店から出る</button></div>"
 HTML_PRINT LOCALS, 1
 
@@ -191,7 +206,13 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 0 TO 499
-		IF 購入_売却モード == 0
+		IF 一括売却フラグ
+			IF MATCH(選択配列, 表示用ステータス格納配列:LOCAL:0)
+				選択配列:(FINDELEMENT(選択配列, 表示用ステータス格納配列:LOCAL:0)) = 0
+			ELSE
+				選択配列:(FINDELEMENT(選択配列, 0)) = 表示用ステータス格納配列:LOCAL:0
+			ENDIF
+		ELSEIF 購入_売却モード == 0
 			IF 表示用ステータス格納配列:LOCAL:9 == 1
 				IF MONEY < 表示用ステータス格納配列:LOCAL:0
 					PRINTW ルピが足りません
@@ -297,15 +318,82 @@ SELECTCASE LOCAL
 		VARSET 指輪購入用_品揃え登録
 		VARSET 商品簡易文保存
 		VARSET 表示用ステータス格納配列:0:0
+		VARSET 選択配列
 		購入_売却モード = 0
 		ソート番号 = 0
 		ページ番号 = 0
+		一括売却フラグ = 0
 		RETURN 0
 	CASE 1000
 		ページ番号 -= 1
 		GOTO RESTART_SPOT
 	CASE 1001
 		ページ番号 += 1
+		GOTO RESTART_SPOT
+	CASE 1002
+		IF 購入_売却モード == 1
+			一括売却合計額 = 0
+			LOCAL:1 = 0
+			LOCALS = 
+			FOR LOCAL, 0, 指輪所持最大数
+				SIF 選択配列:LOCAL < 1
+					CONTINUE
+				基礎販売額 = 0
+				LOCALS += @"%DT_CELL_GETS("所持指輪データベース", 選択配列:LOCAL, "指輪名", 1)%　　"
+				CALL 指輪価格算出(1, 選択配列:LOCAL)
+				LOCALS += @"売却額：{基礎販売額}ルピ<br>"
+				一括売却合計額 += 基礎販売額
+				IF DT_CELL_GET("所持指輪データベース", 選択配列:LOCAL, "装備キャラ番号", 1)
+					LOCALS += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%NAME:(DT_CELL_GET("所持指輪データベース", 選択配列:LOCAL, "装備キャラ番号", 1))%が装備中の指輪です！</font><br>"
+				ENDIF
+				LOCAL:1 ++
+			NEXT
+			LOCALS += @"合計額：%NUM_FORMAT(一括売却合計額)%ルピ<br>"
+			LOCALS += "これらの指輪を売却してよろしいですか？<br><button value='0'>[0] はい</button><br><button value='1'>[1] いいえ</button><br>"
+			HTML_PRINT LOCALS
+			BINPUT
+			IF RESULT == 0
+				PRINTFORML {LOCAL:1}個の指輪を売却しました。
+				PRINTFORMW 所持ルピ：%NUM_FORMAT(MONEY)%ルピ > %NUM_FORMAT(MONEY + 一括売却合計額)%ルピ
+				MONEY += 一括売却合計額
+				FOR LOCAL, 0, 指輪所持最大数
+					SIF 選択配列:LOCAL < 1
+						CONTINUE
+					CALL 汎用指輪削除処理(選択配列:LOCAL)
+				NEXT
+			ENDIF
+		ELSEIF 購入_売却モード == 2
+			一括売却合計額 = 0
+			LOCAL:1 = 0
+			LOCALS = 
+			FOR LOCAL, 0, 指輪所持最大数
+				SIF 選択配列:LOCAL < 1
+					CONTINUE
+				基礎販売額 = 0
+				TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 選択配列:LOCAL, "耳飾り名", 1)%
+				LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 選択配列:LOCAL, "耳飾り名", 1)%　　"
+				LOCALS += @"売却額：{基礎販売額}ルピ<br>"
+				一括売却合計額 += 基礎販売額
+				IF DT_CELL_GET("所持耳飾りデータベース", 選択配列:LOCAL, "装備キャラ番号", 1)
+					LOCALS += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%NAME:(DT_CELL_GET("所持耳飾りデータベース", 選択配列:LOCAL, "装備キャラ番号", 1))%が装備中の耳飾りです！</font><br>"
+				ENDIF
+				LOCAL:1 ++
+			NEXT
+			LOCALS += @"合計額：%NUM_FORMAT(一括売却合計額)%ルピ<br>"
+			LOCALS += "これらの耳飾りを売却してよろしいですか？<br><button value='0'>[0] はい</button><br><button value='1'>[1] いいえ</button><br>"
+			HTML_PRINT LOCALS
+			BINPUT
+			IF RESULT == 0
+				PRINTFORML {LOCAL:1}個の耳飾りを売却しました。
+				PRINTFORMW 所持ルピ：%NUM_FORMAT(MONEY)%ルピ > %NUM_FORMAT(MONEY + 一括売却合計額)%ルピ
+				MONEY += 一括売却合計額
+				FOR LOCAL, 0, 指輪所持最大数
+					SIF 選択配列:LOCAL < 1
+						CONTINUE
+					CALL 汎用耳飾り削除処理(選択配列:LOCAL)
+				NEXT
+			ENDIF
+		ENDIF
 		GOTO RESTART_SPOT
 	CASE 1010
 		VARSET 表示用ステータス格納配列:0:0
@@ -324,6 +412,11 @@ SELECTCASE LOCAL
 	CASE 1100 TO 1102
 		購入_売却モード = LOCAL - 1100
 		VARSET 表示用ステータス格納配列:0:0
+		VARSET 選択配列
+		GOTO RESTART_SPOT
+	CASE 1110
+		INVERTBIT 一括売却フラグ, 0
+		VARSET 選択配列
 		GOTO RESTART_SPOT
 	CASE 2001 TO 2008
 		ページ番号 = 0
