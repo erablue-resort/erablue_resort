@@ -37,7 +37,7 @@ IF !TARGET
 	GOTO 非同室AUTOCOM
 ENDIF
 
-SIF FLAG:オートコマンド切り替えオプション == 7
+SIF FLAG:オートコマンド切り替えオプション == 15
 	RETURN 0
 
 ;二人同時にオートコマンドの対象になる場合、もう一人を予約する
@@ -108,7 +108,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		CONTINUE
 
 	;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
-	SIF TFLAG:オートコマンドフラグ
+	SIF TFLAG:オートコマンドフラグ && TFLAG:オートコマンド連続発動 == 0
 		RETURN 0
 
 	LOCAL:1 = 0
@@ -138,7 +138,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	$オート一般コマンド
 	;既に現在のサイクルがオートコマンドだった場合、最優先コマンド以外は発動しない
-	SIF TFLAG:オートコマンドフラグ
+	SIF TFLAG:オートコマンドフラグ && TFLAG:オートコマンド連続発動 == 0
 		RETURN 0
 
 	;通常のオートコマンドを優先して発動
@@ -162,25 +162,33 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			CONTINUE
 		FOR 派生番号, 1, 50
 			オートコマンド許可 = 0
+			連続オート許可 = 0
 			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
 			;履歴にあるならダメ
-			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}_{派生番号}"
-				CONTINUE
-			SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 3000}_{派生番号}"
-				CONTINUE
-			SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 3000}_{派生番号}"
-				CONTINUE
-			SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 3000}_{派生番号}"
-				CONTINUE
-			SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}_{派生番号}"
-				CONTINUE
+			IF 連続オート許可 == 0
+				SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 3000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 3000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 3000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}_{派生番号}"
+					CONTINUE
+			ENDIF
 			;オプションによる制御
 			SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 				CONTINUE
 			SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
 				CONTINUE
+			SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
+				CONTINUE
 			;なにかのモード中は自慰しない
 			SIF オートコマンド許可 == 2 && (MODE_確認_プレイヤー側("ALL", PLAYER) > -1 || MODE_確認_ターゲット側("ALL", PLAYER) > -1)
+				CONTINUE
+			;なすがままの時は自慰しない
+			SIF オートコマンド許可 == 2 && TFLAG:オートコマンド連続発動
 				CONTINUE
 			IF オートコマンド許可
 				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
@@ -194,22 +202,27 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	FOR COM番号, 0, 700
 		オートコマンド許可 = 0
+		連続オート許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
 		;履歴にあるならダメ
-		SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}"
-			CONTINUE
-		SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 3000}"
-			CONTINUE
-		SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 3000}"
-			CONTINUE
-		SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 3000}"
-			CONTINUE
-		SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}"
-			CONTINUE
+		IF 連続オート許可 == 0
+			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 3000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 3000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 3000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}"
+				CONTINUE
+		ENDIF
 		;オプションによる制御
 		SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 			CONTINUE
 		SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+			CONTINUE
+		SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
 			CONTINUE
 		IF オートコマンド許可
 			TRYCALLFORM COM_ABLE{COM番号}
@@ -224,9 +237,6 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	;登録したCOM番号からランダムで選出
 	IF LOCAL:1 > 0
-		FOR LOCAL, 0, LOCAL:1
-			DEBUGPRINTFORML {LOCAL}：%CALLNAME:(TARGET:同室者番号)%：%行動候補文字列:LOCAL%
-		NEXT
 
 		ランダム格納 = RAND:(LOCAL:1)
 		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_%行動候補文字列:ランダム格納%
