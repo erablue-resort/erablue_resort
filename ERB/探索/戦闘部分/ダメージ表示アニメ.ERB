@@ -1,0 +1,174 @@
+﻿@ダメージ表示アニメ(表示ダメージ, 表示対象キャラ, 多段表示 = 0, 色指定 = 0, 属性補正フラグ = 0)
+#DIM CONST レイヤー番号 = 90
+#DIM 表示ダメージ
+#DIM 表示対象キャラ ;BATTLE_STATE:xx:
+#DIMS ダメージストック,6
+#DIM 画像位置,2
+#DIM 多段表示; 多段HIT用表示ずらし
+#DIM 色指定; 0=白, 1=緑, 2=黄　他はそのままカラーコードで受け入れる
+#DIM 属性補正フラグ
+#DIM 表示アニメID
+#DIM 現在レイヤー番号
+#DIM カラーA
+#DIM カラーB
+
+SIF ダメージアニメーション封印フラグ
+	RETURN 0
+
+LOCAL:11 = 8 ;縦移動
+LOCAL:12 = 18 ;FONT / 2
+
+VARSET ダメージストック
+
+SELECTCASE 表示対象キャラ
+CASE 0
+    画像位置 = 652, -563
+CASE 1
+    画像位置 = 652, -445
+CASE 2
+    画像位置 = 652, -328
+CASE 3
+    画像位置 = 652, -208
+CASE 10 
+    画像位置 = 43, -567
+CASE 11 
+    画像位置 = 278, -567
+CASE 12
+    画像位置 = 43, -476
+CASE 13
+    画像位置 = 278, -476
+CASE 14
+    画像位置 = 43, -383
+CASE 15
+    画像位置 = 278, -383
+CASE 16
+    画像位置 = 43, -291
+CASE 17
+    画像位置 = 278, -291
+CASE 18
+    画像位置 = 43, -199
+CASE 19
+    画像位置 = 278, -199
+ENDSELECT
+IF 多段表示
+    画像位置:1 -= 多段表示 * LOCAL:12 * 3 / 2
+ENDIF
+LOCAL:80 = 表示ダメージ % 10
+LOCAL:81 = 表示ダメージ / 10 % 10
+LOCAL:82 = 表示ダメージ / 100 % 10
+LOCAL:83 = 表示ダメージ / 1000 % 10
+LOCAL:84 = 表示ダメージ / 10000 % 10
+ダメージストック:0 '= TOSTR(LOCAL:80)
+ダメージストック:1 '= TOSTR(LOCAL:81)
+ダメージストック:2 '= TOSTR(LOCAL:82)
+ダメージストック:3 '= TOSTR(LOCAL:83)
+ダメージストック:4 '= TOSTR(LOCAL:84)
+IF !LOCAL:84
+    ダメージストック:4 = 
+    IF !LOCAL:83
+        ダメージストック:3 = 
+        IF !LOCAL:82
+            ダメージストック:2 = 
+            IF !LOCAL:81
+                ダメージストック:1 = 
+            ENDIF
+        ENDIF
+    ENDIF
+ENDIF
+LOCAL:98 = 表示アニメID % 10
+LOCAL:97 = 表示アニメID / 10
+IF 表示アニメID == 100
+    GDISPOSE レイヤー番号
+ELSE
+    GDISPOSE レイヤー番号 + LOCAL:97 + 1
+ENDIF
+GCREATE レイヤー番号 + LOCAL:97 , 1600, 1000
+LOCAL:1 = 0; 文字セット数
+IF アビ汎用変数:クリティカルフラグ == 999
+    色指定 = 2 ; 数字の色変え
+    カラーA = 0xFFF0F040
+    カラーB = 0xFFC0C000
+    GSETBRUSH 現在レイヤー番号, カラーA
+    GSETFONT 現在レイヤー番号, "GEORGIA", LOCAL:12, 2
+    GSETPEN 現在レイヤー番号, カラーB, 0
+    FOR LOCAL, 0, 6
+        GDRAWTEXT 現在レイヤー番号, "Critical!!!", 200 * LOCAL, LOCAL:98 * 100 + LOCAL:11 * 5
+    NEXT
+    LOCAL:1 ++
+ENDIF
+IF 属性補正フラグ == 1
+    カラーA = 0xFF40C0F0
+    カラーB = 0xFF0080C0
+    GSETBRUSH 現在レイヤー番号, カラーA
+    GSETFONT 現在レイヤー番号, "GEORGIA", LOCAL:12, 2
+    GSETPEN 現在レイヤー番号, カラーB, 0
+    FOR LOCAL, 0, 6
+        GDRAWTEXT 現在レイヤー番号, "Weak point", 200 * LOCAL, LOCAL:98 * 100 + LOCAL:11 * 5 + (LOCAL:1 * LOCAL:12)
+    NEXT
+    LOCAL:1 ++
+ENDIF
+IF 属性補正フラグ == -1
+    カラーA = 0xFFF08040
+    カラーB = 0xFFC04000
+    GSETBRUSH 現在レイヤー番号, カラーA
+    GSETFONT 現在レイヤー番号, "GEORGIA", LOCAL:12, 2
+    GSETPEN 現在レイヤー番号, カラーB, 0
+    FOR LOCAL, 0, 6
+        GDRAWTEXT 現在レイヤー番号, "Resisted", 200 * LOCAL, LOCAL:98 * 100 + LOCAL:11 * 5
+    NEXT
+    LOCAL:1 ++
+ENDIF
+SELECTCASE 色指定
+CASE 0 ;白
+    カラーA = 0xFFF0F0F0
+    カラーB = 0xFF808080
+CASE 1 ;緑　回復
+    カラーA = 0xFF40F040
+    カラーB = 0xFF008000
+CASE 2 ;黄
+    カラーA = 0xFFF0F040
+    カラーB = 0xFF808000
+CASEELSE
+    カラーA = 色指定
+    カラーB = カラーA
+ENDSELECT 
+現在レイヤー番号 = レイヤー番号 + LOCAL:97
+GSETBRUSH 現在レイヤー番号, カラーA
+GSETFONT 現在レイヤー番号, "GEORGIA", LOCAL:12 * 2, 2
+GSETPEN 現在レイヤー番号, カラーB, 0
+FOR LOCAL, 0, 6
+    FOR LOCAL:1, 0, 5
+        GDRAWTEXT 現在レイヤー番号, ダメージストック:(LOCAL:1), (80 - LOCAL:1 * (LOCAL:12 + 2)) + 200 * LOCAL, LOCAL:11 * MIN(LOCAL + 4 - LOCAL:1, 5) + LOCAL:98 * 100
+    NEXT
+NEXT
+SPRITEDISPOSE "ダメージA" + TOSTR(表示アニメID)
+SPRITEANIMECREATE "ダメージA" + TOSTR(表示アニメID), 100, 100
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 0, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 50
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 200, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 50
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 400, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 50
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 600, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 50
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 800, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 50
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 1000, 0 + LOCAL:98 * 100, 200, 100, 0, 0, 1000
+SPRITEANIMEADDFRAME "ダメージA" + TOSTR(表示アニメID), 現在レイヤー番号, 0, 0, 1, 1, 0, 0, 1000000
+;CBGSETSPRITE "ダメージA" + TOSTR(表示アニメID), 画像位置:0, 画像位置:1, -5 + (現在ターン数 % 3)
+;表示位置のゆらぎ
+IF !多段表示
+    LOCAL:31 = RAND(-40, 40)
+    LOCAL:32 = RAND(0, 20)
+ENDIF
+;ターンをまたいで表示するため、3レイヤーをローテする
+CBGSETSPRITE "ダメージA" + TOSTR(表示アニメID), 画像位置:0 + LOCAL:31, 画像位置:1 + LOCAL:32, -5 + (現在ターン数 % 3)
+SELECTCASE 現在ターン数 % 3
+CASE 0
+    CBGREMOVERANGE -4, -4
+CASE 1
+    CBGREMOVERANGE -3, -3
+CASE 2
+    CBGREMOVERANGE -5, -5
+ENDSELECT
+SETANIMETIMER 50
+表示アニメID ++
+IF 表示アニメID > 100
+    表示アニメID = 0
+ENDIF
+
