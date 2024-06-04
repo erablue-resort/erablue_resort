@@ -1,0 +1,121 @@
+﻿
+@COMNAME328
+#FUNCTIONS
+TSTR:コマンド名受渡 = スカートたくし上げ
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_328
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
+
+@COM_TOOLTIP_328
+LOCALS = <br>■スカートたくし上げ<br>
+LOCALS += "自分のスカートを上げて相手を誘惑するコマンド。<br>その場にいる人数が多いほど反感が増加する。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：歓楽・反感"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM328
+
+CALL セクハラ反応タイプ判定(TARGET)
+;RFLAG:コマンド結果受渡し変数
+;1:拒絶  2:受け入れ  3:喜び
+;RFLAG:コマンド結果受渡し変数２
+;1:無知  2:無反応  3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+
+IF GET_TARGETNUM() > 1
+	;自身とあなた以外のキャラが居る場合
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, (GET_TARGETNUM() - 1) * 5 + 50)
+ELSE
+	;二人きりの場合
+	IF 陥落チェック(TARGET) == 0
+		CALL SOURCE_CALC_反感(TARGET, PLAYER, 50)
+	ENDIF
+ENDIF	
+
+TIME += 3
+
+;性別によっては同性愛がないと歓楽発生しない
+IF TALENT:PLAYER:性別 == TALENT:TARGET:性別 && TALENT:PLAYER:性別 != 3
+	SIF 性癖素質:TARGET:同性愛 < 1
+		RETURN 1
+ENDIF
+;相手が無性だと歓楽発生しない
+SIF TALENT:TARGET:性別 == 0
+	RETURN 1
+;性欲なしも同様
+SIF TALENT:TARGET:性欲 == -2
+	RETURN 1
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+;ノーパン時、陥落が倍
+IF TEQUIP:PLAYER:下半身下着あり == 0
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 150)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ENDIF
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE328
+
+;実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(328)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;スカート着用必須
+SIF TEQUIP:PLAYER:下半身服あり == 0
+	RETURN 0
+SIF TEQUIP:PLAYER:スカートめくり可 == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM328
+
+PRINTFORML %CALLNAME:MASTER%は%CALLNAME:TARGET%に向かって、自分の服の裾をたくし上げた。
+
+
+
+@MESSAGE_COM328_非口上時
+
+PRINTFORM %CALLNAME:TARGET%は
+
+SELECTCASE RFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		PRINTFORM 何をしているのかわかっていない様子で、%CALLNAME:MASTER%のことを見ている。
+	CASE 2
+		;無反応
+		PRINTFORM 何も気にしないかのように無表情で%CALLNAME:MASTER%のことを見ている。
+	CASEELSE
+		;汎用
+		IF GET_TARGETNUM() > 1
+			PRINTFORM 慌てて%CALLNAME:MASTER%の服を抑え、こういうことをしないように注意した。
+		ELSE
+			IF RFLAG:コマンド結果受渡し変数 == 1
+				;拒絶
+				PRINTFORM 慌てて%CALLNAME:MASTER%の服を抑え、こういうことをしないように注意した。
+			ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+				;受け入れ
+				PRINTFORM 苦笑しながら%CALLNAME:MASTER%を軽く注意した。
+			ELSE
+				;喜び
+				PRINTFORM 自分以外の人にはしないように、と%CALLNAME:MASTER%を注意した。
+			ENDIF
+		ENDIF
+ENDSELECT
