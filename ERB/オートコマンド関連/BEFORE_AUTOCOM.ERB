@@ -24,7 +24,7 @@ AUTOCOM_派生保存 =
 ;次ターンがキャラの自動行動かどうかの判定処理
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
 ;ついでにフラグにAUTOCOM番号を入れといて行動内容も保存しとく
-;タゲなしの場合は即戻る
+;タゲなしの場合は戻る
 IF !TARGET
 	IF RFLAG:休憩選択フラグ
 		;休憩時TARGETが居ない場合に特殊処理に派生する
@@ -35,6 +35,12 @@ IF !TARGET
 		RETURN RESULT
 	ENDIF
 	GOTO 非同室AUTOCOM
+ENDIF
+
+;逆オナホ時はオプションに関係なく専用のオートコマンドを走らせる
+IF TFLAG:オートコマンド連続発動_逆オナホ
+	AUTOCOM_相手番号保存 = DT_CELL_GET("体位モードデータベース", MODE_確認_ターゲット側("ハーヴィンオナホ系", PLAYER), "実行キャラ")
+	RETURN 10
 ENDIF
 
 SIF FLAG:オートコマンド切り替えオプション == 15
@@ -177,6 +183,9 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 				SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}_{派生番号}"
 					CONTINUE
 			ENDIF
+			;無知の場合、やったことないならダメ
+			SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-{COM番号}_{派生番号}-") < 0
+				CONTINUE
 			;オプションによる制御
 			SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 				CONTINUE
@@ -217,6 +226,9 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 3000}"
 				CONTINUE
 		ENDIF
+		;無知の場合、やったことないならダメ
+		SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-{COM番号}-") < 0
+			CONTINUE
 		;オプションによる制御
 		SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 			CONTINUE

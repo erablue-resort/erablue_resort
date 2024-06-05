@@ -1,0 +1,562 @@
+﻿
+@COMNAME331
+#FUNCTIONS
+TSTR:コマンド名受渡 = 道具装着
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_331
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
+
+@COM_TOOLTIP_331
+LOCALS = <br>■道具装着<br>
+LOCALS += "相手に道具を装着させ、行動させるコマンド。"
+LOCALS += "<br>COMタイプ：セクハラ強<br>取得ソース：露出・道具ごとに個別"
+LOCALS += "<br>固有の取得経験：道具ごとに個別<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM331
+;所持している道具を並べて選択肢
+
+;無知と無反応をCANに反応させるため一旦反応タイプを呼ぶ
+CALL セクハラ反応タイプ判定(TARGET)
+
+DRAWLINE
+PRINTL ■装着させる道具を選んでください
+PRINTL
+LOCAL = 0
+;クリキャップ, オナホール, バイブ, アナルバイブ, アナルビーズ, ニプルキャップ
+;ペニバンと搾乳機は対象外
+IF GETBIT(TALENT:TARGET:性別, 1) == 0 && TALENT:TARGET:Ｃ感度 != -2
+	IF TEQUIP:TARGET:クリトリス == 0
+		PRINTBUTTONLC @"[1] クリキャップ", 1
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF GETBIT(TALENT:TARGET:性別, 1) == 1 && TALENT:TARGET:Ｃ感度 != -2
+	IF TEQUIP:TARGET:ペニス == 0
+		PRINTBUTTONLC @"[2] オナホール", 2
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF GETBIT(TALENT:TARGET:性別, 1) == 0 && TALENT:TARGET:Ｖ感度 != -2
+	IF TEQUIP:TARGET:膣 == 0
+		LOCALS = バイブ
+		SIF TALENT:TARGET:処女
+			LOCALS += "（処女）"
+		PRINTBUTTONLC @"[3] %LOCALS%", 3
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF TALENT:TARGET:Ａ感度 != -2
+	IF TEQUIP:TARGET:アナル == 0
+		PRINTBUTTONLC "[4] アナルバイブ", 4
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF TALENT:TARGET:Ａ感度 != -2
+	IF TEQUIP:TARGET:アナル == 0
+		PRINTBUTTONLC "[5] アナルビーズ", 5
+		LOCAL += 1
+	ENDIF
+ENDIF
+IF GETBIT(TALENT:TARGET:性別, 0) == 1 && TALENT:TARGET:Ｂ感度 != -2
+	IF TEQUIP:TARGET:胸 == 0
+		;陥没乳首は勃起必須
+		IF !TALENT:陥没乳首 || TCVAR:陥没乳首露出フラグ
+			PRINTBUTTONLC "[6] ニプルキャップ", 6
+			LOCAL += 1
+		ENDIF
+	ENDIF
+ENDIF
+SIF LOCAL == 0
+	PRINT 挿入先がありません。
+PRINTL
+PRINTL
+PRINTBUTTONLC "[999]戻る", 999
+
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 1 TO 6
+		TRYCALLFORM CAN_道具装着(1, LOCAL)
+		IF !RESULT
+			TRYCALLFORM CAN_道具装着(0, LOCAL)
+			RESTART
+		ENDIF
+	CASE 999
+		RETURN -1
+ENDSELECT
+
+RFLAG:コマンド結果受渡し変数 = LOCAL
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		;クリキャップ
+		CALL MODE_CHANGE("クリキャップ", PLAYER, TARGET)
+		CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 120)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 10)
+	CASE 2
+		;オナホール
+		CALL MODE_CHANGE("オナホール", PLAYER, TARGET)
+		CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER,200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 120)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 10)
+	CASE 3
+		;バイブ
+		CALL MODE_CHANGE("バイブ", PLAYER, TARGET)
+		CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 250)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 20)
+		;処女喪失
+		CALL LOST_VIRGIN(TARGET, PLAYER, 2)
+		;苦痛
+		LOCAL = 100 * PAIN_CHECK_V(TARGET) / 1000
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+	CASE 4
+		;アナルバイブ
+		CALL MODE_CHANGE("アナルバイブ", PLAYER, TARGET)
+		CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 250)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 20)
+
+		LOCAL = 250 * PAIN_CHECK_A(TARGET) / 1000
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+	CASE 5
+		;アナルビーズ
+		CALL MODE_CHANGE("アナルビーズ", PLAYER, TARGET)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 20)
+
+		LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+		;装着時
+		CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 200)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+	CASE 6
+		;ニプルキャップ
+		CALL MODE_CHANGE("ニプルキャップ", PLAYER, TARGET)
+		CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER,200)
+		SIF TALENT:陥没乳首
+			CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 120)
+		CALL SOURCE_CALC_露出(TARGET, PLAYER, 120)
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 10)
+ENDSELECT
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+	EXP:PLAYER:同性愛経験 += 1
+ENDIF
+
+EXP:PLAYER:道具使用経験 ++
+RCVAR:TARGET:道具コマンドフラグ = 1
+
+TIME += 10
+RETURN 1
+
+@CAN_道具装着(ARG, 部位フラグ)
+#DIM 実行値
+#DIM ＋表示フラグ
+#DIM 部位フラグ
+
+SKIPDISP ARG
+SELECTCASE 部位フラグ
+	CASE 1
+		LOCALS = クリキャップ
+	CASE 2
+		LOCALS = オナホール
+	CASE 3
+		LOCALS = バイブ
+	CASE 4
+		LOCALS = アナルバイブ
+	CASE 5
+		LOCALS = アナルビーズ
+	CASE 6
+		LOCALS = ニプルキャップ
+ENDSELECT
+PRINTFORML %LOCALS%装着(%CALLNAME:TARGET%)
+;-------------------------------------------------
+;実行できるかの判定
+;-------------------------------------------------
+実行値 = 0
+＋表示フラグ = 0
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+実行値 = RESULT
+＋表示フラグ = S
+
+;ABL:欲望
+IF ABL:欲望
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += ABL:欲望 * 3
+	PRINT 欲望
+	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 3,')
+	＋表示フラグ = 1
+ENDIF
+;快楽刻印
+IF MARK:快楽刻印
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += MARK:快楽刻印 * 3
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 3,')
+	＋表示フラグ = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,5)
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += GETPALAMLV(PALAM:欲情,5) * 3
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 3,')
+	＋表示フラグ = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0 && RFLAG:コマンド結果受渡し変数２ > 2
+	PRINT  - 
+	実行値 -= 10
+	PRINT 羞恥心
+	PRINTV '(,10,')
+	＋表示フラグ = 1
+ENDIF
+;快感の否定
+IF TALENT:快感応答 < 0 && !TALENT:恋慕
+	PRINT  - 
+	実行値 -= 5
+	PRINT 快感の否定
+	PRINTV '(,5,')
+	＋表示フラグ = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 15
+	PRINT 恋慕
+	PRINTV '(,15,')
+	＋表示フラグ = 1
+ELSE
+	;男嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 1 && TALENT:PLAYER:性別 == 2 && TALENT:性別嗜好 > 0
+		PRINT  - 
+		実行値 -= 12
+		PRINT 男嫌い
+		PRINTV '(,12,')
+		＋表示フラグ = 1
+	ENDIF
+	;女嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 1 && TALENT:PLAYER:性別 == 1 && TALENT:性別嗜好 > 0
+		PRINT  - 
+		実行値 -= 12
+		PRINT 女嫌い
+		PRINTV '(,12,')
+		＋表示フラグ = 1
+	ENDIF
+ENDIF
+;セフレ
+IF TALENT:セフレ
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 10
+	PRINT セフレ
+	PRINTV '(,10,')
+	＋表示フラグ = 1
+ENDIF
+;未陥落
+IF TALENT:セフレ == 0 && TALENT:恋慕 == 0
+	SIF ＋表示フラグ
+		PRINT  - 
+	実行値 -= 10
+	PRINT 未陥落
+	PRINTV '(,-10,')
+	＋表示フラグ = 1
+ENDIF
+
+;マゾ性感
+IF ABL:マゾ性感 < 3 && RFLAG:コマンド結果受渡し変数２ > 2
+	IF GET_TARGETNUM() > 1
+		LOCAL = GET_TARGETNUM() * 3
+		PRINT  - 
+		実行値 -= LOCAL
+		PRINT 同室者多数
+		PRINTV '(,LOCAL,')
+		＋表示フラグ = 1
+	ENDIF
+	IF ABL:マゾ性感 < 2
+		PRINT  - 
+		実行値 -= 15
+		PRINT マゾ性感
+		PRINT 不足
+		PRINTV '(,15,')
+		＋表示フラグ = 1
+	ENDIF
+ENDIF
+
+;無知
+IF RFLAG:コマンド結果受渡し変数２ == 1
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 6
+	PRINT 無知
+	PRINTV '(,6,')
+	＋表示フラグ = 1
+ENDIF
+
+;無関心
+IF RFLAG:コマンド結果受渡し変数２ == 2
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 15
+	PRINT 無関心
+	PRINTV '(,15,')
+	＋表示フラグ = 1
+ENDIF
+
+;媚薬
+IF TEQUIP:媚薬
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 6
+	PRINT 媚薬
+	PRINTV '(,6,')
+	＋表示フラグ = 1
+ENDIF
+
+;発情期
+IF CFLAG:発情期フラグ < 0
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 6
+	PRINT 発情中
+	PRINTV '(,6,')
+	＋表示フラグ = 1
+ENDIF
+
+SELECTCASE 部位フラグ
+	CASE 1
+		;クリキャップ
+		;ABL:Ｃ感覚
+		IF ABL:Ｃ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ｃ感覚 * 2
+			PRINT Ｃ感覚
+			PRINTV 'LV,ABL:Ｃ感覚,'(,ABL:Ｃ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;C経験
+		IF EXP:Ｃ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ｃ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+	CASE 2
+		;オナホール
+		;ABL:Ｃ感覚
+		IF ABL:Ｃ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ｃ感覚 * 2
+			PRINT Ｃ感覚
+			PRINTV 'LV,ABL:Ｃ感覚,'(,ABL:Ｃ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;C経験
+		IF EXP:Ｃ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ｃ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+	CASE 3
+		;バイブ
+		;PALAM:潤滑（の不足）
+		IF PALAM:潤滑 < PALAMLV:3
+			PRINT  - 
+			実行値 -= 5
+			PRINT 潤滑不足
+			PRINTV '(,5,')
+			＋表示フラグ = 1
+		ENDIF
+		;ABL:Ｖ感覚
+		IF ABL:Ｖ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ｖ感覚 * 2
+			PRINT Ｖ感覚
+			PRINTV 'LV,ABL:Ｖ感覚,'(,ABL:Ｖ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;処女
+		LOCAL = MAX(10,40 - EXP:Ｖ経験)
+		IF TALENT:処女
+			PRINT  - 
+			実行値 -= LOCAL
+			PRINT 処女
+			PRINTV '(,LOCAL,')
+			＋表示フラグ = 1
+		;V経験
+		ELSEIF EXP:Ｖ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ｖ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+	CASE 4
+		;アナルバイブ
+		;PALAM:潤滑（の不足）
+		IF PALAM:潤滑 < PALAMLV:3
+			PRINT  - 
+			実行値 -= 5
+			PRINT 潤滑不足
+			PRINTV '(,5,')
+			＋表示フラグ = 1
+		ENDIF
+		;ABL:A感覚
+		IF ABL:Ａ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ａ感覚 * 2
+			PRINT Ａ感覚
+			PRINTV 'LV,ABL:Ａ感覚,'(,ABL:Ａ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;A経験
+		IF EXP:Ａ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ａ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+	CASE 5
+		;アナルビーズ
+		;PALAM:潤滑（の不足）
+		IF PALAM:潤滑 < PALAMLV:3
+			PRINT  - 
+			実行値 -= 5
+			PRINT 潤滑不足
+			PRINTV '(,5,')
+			＋表示フラグ = 1
+		ENDIF
+		;ABL:A感覚
+		IF ABL:Ａ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ａ感覚 * 2
+			PRINT Ａ感覚
+			PRINTV 'LV,ABL:Ａ感覚,'(,ABL:Ａ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;A経験
+		IF EXP:Ａ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ａ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+	CASE 6
+		;ニプルキャップ
+		;ABL:Ｂ感覚
+		IF ABL:Ｂ感覚
+			SIF ＋表示フラグ
+				PRINT  + 
+			実行値 += ABL:Ｂ感覚 * 2
+			PRINT Ｂ感覚
+			PRINTV 'LV,ABL:Ｂ感覚,'(,ABL:Ｂ感覚 * 2,')
+			＋表示フラグ = 1
+		ENDIF
+		;B経験
+		IF EXP:Ｂ経験 < EXPLV:2
+			PRINT  - 
+			実行値 -= 15
+			PRINT Ｂ経験
+			PRINT 不足
+			PRINTV '(,15,')
+			＋表示フラグ = 1
+		ENDIF
+ENDSELECT
+
+;合計を表示(40以上で実行)
+PRINT  = 
+PRINTV 実行値
+
+SIF 実行値 < 40
+	PRINT  < 
+SIF 実行値 == 40
+	PRINT  = 
+SIF 実行値 > 40
+	PRINT  > 
+PRINT 実行値
+PRINTV 40
+
+WAIT
+SKIPDISP 0
+
+;実行できない
+SIF 実行値 < 40
+	RETURN 0
+	
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE331
+;実行判定
+SIF !TFLAG:ゲームフェイズ管理
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(331) && !RFLAG:罰ゲーム中
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM331
+
+PRINTFORM %CALLNAME:MASTER%は
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		LOCALS = クリキャップ
+	CASE 2
+		LOCALS = オナホール
+	CASE 3
+		LOCALS = バイブ
+	CASE 4
+		LOCALS = アナルバイブ
+	CASE 5
+		LOCALS = アナルビーズ
+	CASE 6
+		LOCALS = ニプルキャップ
+ENDSELECT
+
+IF 現在地自宅チェック(TARGET) || 現在地自宅チェック(PLAYER)
+	PRINTFORML %CALLNAME:TARGET%に%LOCALS%を装着させた
+ELSE
+	PRINTFORML %CALLNAME:TARGET%を物陰に連れ込み、%LOCALS%を装着させた
+ENDIF

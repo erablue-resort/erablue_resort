@@ -159,7 +159,7 @@ FOR LOCAL,0,CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:一緒に遊ぶ
 		CONTINUE
-	SIF モード実行中フラグ
+	SIF モード実行中フラグ && MODE_確認_ターゲット側("アイテム系", LOCAL) < 0
 		CONTINUE
 	;部屋移動
 	CALL CHARA_MOVEMENT_T(LOCAL)
@@ -303,14 +303,17 @@ IF !CFLAG:ARG:睡眠
 			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
 			PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
 		ENDIF
-	ELSEIF CFLAG:ARG:体力限界
+	ELSEIF CFLAG:ARG:体力限界 && TALENT:ARG:分身 == 0
+		;部屋へ戻る、分身は移動しない
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
-			;あなたがいる場合は部屋へと運ぶ、分身は運ばない
-			IF TALENT:ARG:分身 == 0
-				CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
-				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
-				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
-			ENDIF
+			;あなたがいる場合は部屋へと運ぶ
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+			PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
+		ELSE
+			;同室じゃない場合は勝手に戻る
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
 		ENDIF
 	ELSEIF CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
 		IF 睡眠場所指定
