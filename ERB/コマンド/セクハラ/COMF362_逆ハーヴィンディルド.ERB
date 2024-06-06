@@ -1,40 +1,25 @@
 ﻿
-@COMNAME357
+@COMNAME362
 #FUNCTIONS
 
-TSTR:コマンド名受渡 = ハーヴィンオナホ
-SIF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
-	TSTR:コマンド名受渡 = ハーヴィンオナホ解除
+TSTR:コマンド名受渡 = 逆ハーヴィンディルド
 
-	弱点コマンド欄表示名 = ハーヴィンオナホ
 ;===================================================
 ;コマンドタイプ
 ;===================================================
-@COMTYPE_357
+@COMTYPE_362
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 
-@COM_TOOLTIP_357
-LOCALS = <br>■ハーヴィンオナホ<br>
-LOCALS += "すでに合意を得ている、かつ体格がハーヴィン並の相手を<br>V、あるいはAに挿入したまま服の下に固定するコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
-LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
-LOCALS += "<br>固有の取得経験：なし<br>"
+@COM_TOOLTIP_362
+LOCALS = <br>■逆ハーヴィンディルド<br>
+LOCALS += "V、あるいはAに挿入したまま相手の服の下に自身を固定するコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：快Ｃ・接触"
+LOCALS += "<br>固有の取得経験：ＶorＡ性交経験(TARGET)・Ｃ性交経験_ＶorＡ挿入(PLAYER)<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-@COM357
-
-IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
-	;解除時
-	CALL CLOTHES_CHANGE(TARGET, CSTR:TARGET:脱ぐ前の服)
-	IF MODE_確認_完全一致("ハーヴィンオナホＶ", PLAYER, TARGET) > -1
-		RFLAG:コマンド結果受渡し変数 = 1
-	ELSE
-		RFLAG:コマンド結果受渡し変数 = 2
-	ENDIF
-	TCVAR:TARGET:自動着替え禁止 = 0
-	CALL MODE_DELETE_ターゲット側("ハーヴィンオナホ系", TARGET)
-	RETURN 1
-ENDIF
+@COM362
+;固定された後は自動で時間が進むのでモード化しない
 
 DRAWLINE
 PRINTL ■挿入先を選んでください
@@ -66,9 +51,9 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 1 TO 2
-		TRYCALLFORM CAN_オナホ(1, LOCAL)
+		TRYCALLFORM CAN_逆ディルド(1, LOCAL)
 		IF !RESULT
-			TRYCALLFORM CAN_オナホ(0, LOCAL)
+			TRYCALLFORM CAN_逆ディルド(0, LOCAL)
 			RESTART
 		ENDIF
 	CASE 999
@@ -81,7 +66,7 @@ RFLAG:コマンド結果受渡し変数 = LOCAL
 ;ソース追加処理
 ;-------------------------------------------------
 IF LOCAL == 1
-	CALL MODE_CHANGE("ハーヴィンオナホＶ", PLAYER, TARGET)
+	CALL MODE_CHANGE("ハーヴィンディルドＶ", TARGET, PLAYER)
 	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
 	;処女喪失
 	CALL LOST_VIRGIN(TARGET, PLAYER, 1)
@@ -89,7 +74,7 @@ IF LOCAL == 1
 	LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
 	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
 ELSE
-	CALL MODE_CHANGE("ハーヴィンオナホＡ", PLAYER, TARGET)
+	CALL MODE_CHANGE("ハーヴィンディルドＡ", TARGET, PLAYER)
 	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 400)
 	;苦痛
 	LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
@@ -97,8 +82,8 @@ ELSE
 ENDIF
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
 CALL SOURCE_CALC_接触(PLAYER, TARGET, 200)
-CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 250)
-RCVAR:TARGET:苦痛コマンドフラグ = 1
+CALL SOURCE_CALC_苦痛(PLAYER, TARGET, 250)
+RCVAR:PLAYER:苦痛コマンドフラグ = 1
 
 CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 400)
 
@@ -111,19 +96,19 @@ IF !TALENT:恋慕
 	ENDIF
 ENDIF
 
-CALL CLOTHES_CHANGE(TARGET, "全裸")
-TCVAR:TARGET:自動着替え禁止 = 1
-TIME += 5
+TIME += 15
+TFLAG:オートコマンド連続発動 = 11
+TFLAG:オートコマンド連続発動_逆オナホ = 1
 RETURN 1
 
 
-@CAN_オナホ(ARG, 部位フラグ)
+@CAN_逆ディルド(ARG, 部位フラグ)
 #DIM 実行値
 #DIM ＋表示フラグ
 #DIM 部位フラグ
 
 SKIPDISP ARG
-PRINTFORML ハーヴィンオナホ(%CALLNAME:TARGET%)
+PRINTFORML 逆ハーヴィンディルド(%CALLNAME:TARGET%)
 ;-------------------------------------------------
 ;実行できるかの判定
 ;-------------------------------------------------
@@ -134,7 +119,6 @@ PRINTFORML ハーヴィンオナホ(%CALLNAME:TARGET%)
 CALL COM_ORDER
 実行値 = RESULT
 ＋表示フラグ = S
-
 ;ABL:欲望
 IF ABL:欲望
 	SIF ＋表示フラグ
@@ -175,12 +159,7 @@ IF MARK:快楽刻印
 	＋表示フラグ = 1
 ENDIF
 ;PALAM:潤滑（の不足）
-IF RFLAG:指示モード対象あなたフラグ
-	LOCAL = PALAM:MASTER:潤滑
-ELSE
-	LOCAL = PALAM:潤滑
-ENDIF
-IF LOCAL < PALAMLV:3
+IF PALAM:潤滑 < PALAMLV:3
 	PRINT  - 
 	実行値 -= 5
 	PRINT 潤滑不足
@@ -286,23 +265,13 @@ ELSE
 	ENDIF
 ENDIF
 
-;マゾ性感
-IF ABL:マゾ性感 < 3
+;サド性感
+IF ABL:サド性感 < 3
 	PRINT  - 
 	実行値 -= 15
-	PRINT マゾ性感
+	PRINT サド性感
 	PRINT 不足
 	PRINTV '(,15,')
-	＋表示フラグ = 1
-ENDIF
-
-;調教者がふたなり
-IF (TALENT:PLAYER:性別 & 3) == 3
-	SIF ＋表示フラグ
-		PRINT  + 
-	実行値 += 4
-	PRINT ふたなり
-	PRINTV '(,4,')
 	＋表示フラグ = 1
 ENDIF
 
@@ -351,66 +320,41 @@ RETURN 1
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-@COM_ABLE357
+@COM_ABLE362
 SIF !TFLAG:ゲームフェイズ管理
 	RETURN 0
 
-IF MODE_確認_完全一致("ハーヴィンオナホＶ", PLAYER, TARGET) > -1 || MODE_確認_完全一致("ハーヴィンオナホＡ", PLAYER, TARGET) > -1
-	;解除時は同室者影響
-	IF !CFLAG:MASTER:隠密 || !CFLAG:TARGET:隠密
-		;非隠密時は全員陥落済みでないとだめ
-		FOR LOCAL,1,CHARANUM
-			SIF TARGET:LOCAL < 1
-				BREAK
-			SIF 陥落チェック(TARGET:LOCAL) == 0
-				RETURN 0
-		NEXT
-	ENDIF
-	RETURN 1
-ELSE
-	;一括管理
-	SIF GLOBAL_COMABLE(357)
-		RETURN RESULT
-	;既に他のモードあるとダメ
-	SIF MODE_確認_ターゲット側("ハーヴィンオナホ系", TARGET) > -1
-		RETURN 0
-	SIF MODE_確認_プレイヤー側("ハーヴィンオナホ系", TARGET) > -1
-		RETURN 0
-	;あなたにちんこあること
-	SIF GETBIT(TALENT:PLAYER:性別, 1) == 0 || TALENT:PLAYER:Ｃ感度 == -2
-		RETURN 0
-	;体格がハーヴィン並のみかつあなたがそれなりにデカいこと
-	;男女は……まあいいか
-	SIF TALENT:TARGET:体格 != 体格_ハーヴィン並
-		RETURN 0
-	SIF TALENT:PLAYER:体格 < 体格_普通
-		RETURN 0
-
-	SIF TEQUIP:PLAYER:ペニス
-		RETURN 0
-
-	;ほかは基本的に押し倒すと判定は同一
-	CALL COM_ABLE350()
+;一括管理
+SIF GLOBAL_COMABLE(362)
 	RETURN RESULT
-ENDIF
+;自分にちんこあること
+SIF GETBIT(TALENT:PLAYER:性別, 1) == 0 || TALENT:PLAYER:Ｃ感度 == -2
+	RETURN 0
+;体格がハーヴィン並のみかつ相手がそれなりにデカいこと
+;男女は……まあいいか
+SIF TALENT:PLAYER:体格 != 体格_ハーヴィン並
+	RETURN 0
+SIF TALENT:TARGET:体格 < 体格_普通
+	RETURN 0
+
+SIF TEQUIP:PLAYER:ペニス
+	RETURN 0
+
+;ほかは基本的に押し倒すと判定は同一
+CALL COM_ABLE350()
+RETURN RESULT
+
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
-@MESSAGE_COM357
+@MESSAGE_COM362
 
-IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
-	;実行時
-	PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%を全裸に剥き、抱えるようにして
-	SELECTCASE RFLAG:コマンド結果受渡し変数
-		CASE 1
-			PRINTL 秘裂に挿入した……
-		CASE 2
-			PRINTL 肛門に挿入した……
-	ENDSELECT
-	PRINTFORML そのまま%CALLNAME:TARGET%を密着させるように体に固定し、服の下に隠した。
-ELSE
-	;解除時
-	PRINTFORML %CALLNAME:PLAYER%は服を脱ぎ、固定していた%CALLNAME:TARGET%を解放した。
-ENDIF
-
+PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%を全裸に剥き、
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		PRINTL 抱きつかせる形で秘裂に挿入させた……
+	CASE 2
+		PRINTL 背中に抱きつかせる形で肛門に挿入させた……
+ENDSELECT
+PRINTFORML そのまま%CALLNAME:PLAYER%を密着させるように体に固定し、服の下に隠した。
 
