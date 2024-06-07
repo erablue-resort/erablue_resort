@@ -1,4 +1,5 @@
 ﻿@SOURCE_CHECK
+#DIM 対象キャラ
 #DIM FLAG保存
 
 SELECTCOM = TFLAG:SELECTCOM受け渡し
@@ -128,16 +129,16 @@ FOR LOCAL,0,CHARANUM
 	;中毒充足のチェック
 	;-------------------------------------------------
 NEXT
-;童貞喪失
-IF !TALENT:PLAYER:1 && TALENT:PLAYER:2 & 2
-	SELECTCASE SELECTCOM
-		CASE 60
-			PRINTFORMW 童貞喪失(%CALLNAME:PLAYER%)
-			SETBIT TALENT:PLAYER:非童貞, 0
-		CASE 62
-			SETBIT TALENT:PLAYER:非童貞, 1
-	ENDSELECT
-ENDIF
+; ;童貞喪失
+; IF !TALENT:PLAYER:1 && TALENT:PLAYER:2 & 2
+; 	SELECTCASE SELECTCOM
+; 		CASE 60
+; 			PRINTFORMW 童貞喪失(%CALLNAME:PLAYER%)
+; 			SETBIT TALENT:PLAYER:非童貞, 0
+; 		CASE 62
+; 			SETBIT TALENT:PLAYER:非童貞, 1
+; 	ENDSELECT
+; ENDIF
 
 ;-------------------------------------------------
 ;射精我慢処理、実際には絶頂我慢
@@ -169,8 +170,6 @@ FOR LOCAL,0,CHARANUM
 	CALL SOURCE_補正処理(LOCAL)
 NEXT
 
-;射精周りのフラグ設定
-; CALL SAMEN_SHOOT_FLAGSETTING
 $SKIP
 
 ;-------------------------------------------------
@@ -242,24 +241,33 @@ NEXT
 ;-------------------------------------------------
 ;CALL KOJO_MESSAGE_PALAMCNG_E
 ;触手射精未実装なので一旦コメントアウト
-;-------------------------------------------------
-;奴隷の絶頂時の口上
-;-------------------------------------------------
-CALL MESSAGE_PALAMCNG_絶頂強度表示
-IF NOWEX:TARGET:多重絶頂
-	CALL KOJO_ORGASM_絶頂
-	PRINTL
-ENDIF
-;-------------------------------------------------
-;奴隷射精時の口上
-;-------------------------------------------------
-IF NOWEX:TARGET:射精
-	SIF NOWEX:TARGET:射精 > 1
-		PRINT 大量
-	PRINTFORML 射精(%CALLNAME:TARGET%)
-	CALL KOJO_ORGASM_射精
-	PRINTL
-ENDIF
+FOR 対象キャラ, 0, CHARANUM
+	SIF CFLAG:対象キャラ:滞在期間 < 0
+		CONTINUE
+	SIF !CFLAG:対象キャラ:同室 && !CFLAG:対象キャラ:快楽計算フラグ && MODE_確認_ターゲット側("ALL", 対象キャラ) < 0 && 対象キャラ != 0
+		CONTINUE
+	IF 対象キャラ != PLAYER
+		;-------------------------------------------------
+		;奴隷の絶頂時の口上
+		;-------------------------------------------------
+		CALL MESSAGE_PALAMCNG_絶頂強度表示(対象キャラ)
+		IF NOWEX:対象キャラ:多重絶頂
+			CALL KOJO_ORGASM_絶頂(対象キャラ)
+			PRINTL
+		ENDIF
+		;-------------------------------------------------
+		;奴隷射精時の口上
+		;-------------------------------------------------
+		IF NOWEX:対象キャラ:射精
+			SIF NOWEX:対象キャラ:射精 > 1
+				PRINT 大量
+			PRINTFORML 射精(%CALLNAME:対象キャラ%)
+			CALL EVENT_SHOOT_CHARA(対象キャラ)
+			CALL KOJO_ORGASM_射精(対象キャラ)
+			PRINTL
+		ENDIF
+	ENDIF
+NEXT
 ;-------------------------------------------------
 ;調教者射精時
 ;-------------------------------------------------
@@ -271,6 +279,9 @@ IF NOWEX:PLAYER:射精
 	CALL EVENT_SHOOT_PLAYER
 	PRINTL
 ELSE
+	IF NOWEX:PLAYER:多重絶頂
+		CALL MESSAGE_PALAMCNG_絶頂強度表示(PLAYER)
+	ENDIF
 	RFLAG:フィニッシュフラグ = 0
 ENDIF
 ;-------------------------------------------------
