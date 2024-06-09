@@ -304,7 +304,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		SIF 反転オート許可 == 0
 			CONTINUE
 		;履歴にあるならダメ
-		IF 連続オート許可 == 0 && 中毒連続オート判定(PLAYER, COM番号) == 0
+		IF 連続オート許可 == 0
 			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 4000}"
 				CONTINUE
 			SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 4000}"
@@ -347,6 +347,21 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			;愛好以上だととりあえず挿入させようとしてくる
 			SIF MATCH(行動候補文字列, "4060")
 				REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4060", , , 1)
+		ENDIF
+		IF 性癖素質:(TARGET:同室者番号):腸内射精 > 1
+			;愛好以上だととりあえず挿入させようとしてくる
+			SIF MATCH(行動候補文字列, "4062")
+				REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4062", , , 1)
+		ENDIF
+		IF 性癖素質:(TARGET:同室者番号):精飲 > 1
+			;愛好以上だととりあえず挿入させようとしてくる
+			SIF MATCH(行動候補文字列, "3081")
+				REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3081", , , 1)
+		ENDIF
+		IF GETBIT(TALENT:(TARGET:同室者番号):非童貞, 0) == 0
+			;童貞はとりあえず入れようとしてくる
+			SIF MATCH(行動候補文字列, "3060")
+				REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3060", , , 1)
 		ENDIF
 
 		ランダム格納 = REVERSECOM番号
@@ -497,8 +512,8 @@ ENDIF
 
 @オートコマンド許可取り(反転フラグ = 0)
 #DIM 反転フラグ
-#DIM 対象キャラ
 #DIM 実行キャラ
+#DIM 対象キャラ
 ;許可が必要な場合のオートコマンドの許可表示処理
 
 ;相手があなたじゃないなら許可出し無し
@@ -517,9 +532,11 @@ SIF 対象キャラ != MASTER
 IF RSTR:SELECTCOM_S受け渡し != ""
 	;派生コマンド
 	CALLFORMF COMNAME_S%RSTR:SELECTCOM_S受け渡し%
+	LOCALS = %RSTR:SELECTCOM_S受け渡し%
 ELSE
 	;通常コマンド
 	CALLFORMF COMNAME{SELECTCOM}
+	LOCALS = {SELECTCOM}
 ENDIF
 
 DRAWLINE
@@ -542,14 +559,130 @@ BINPUT
 IF RESULT == 0
 	RETURN 0
 ELSE
-	PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:実行キャラ%の要求を断った…
-	RETURN -1
+	CALL 中毒連続判定(AUTOCOM_相手番号保存, LOCALS)
+	IF RESULT
+		RETURN 0
+	ELSE
+		PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:実行キャラ%の要求を断った…
+		RETURN -1
+	ENDIF
 ENDIF
 
 
-@中毒連続オート判定(判定キャラ, COM番号)
-#FUNCTION
+@中毒連続判定(判定キャラ, COM番号)
 #DIM 判定キャラ
-#DIM COM番号
+#DIMS COM番号
 
-;キャラの判定によっては履歴を無視して連続で要求する的な
+SELECTCASE COM番号
+	CASE "60"
+		;V挿入される側
+		IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:膣内射精 >= 2
+			PRINTFORML %CALLNAME:判定キャラ%はもう一度要求してきた…
+			PRINTL 許可しますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL 
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				RETURN 1
+			ELSE
+				IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:膣内射精 >= 3
+					PRINTFORML %CALLNAME:判定キャラ%はどうしてもやりたいようだ…
+					PRINTL 許可しますか？
+					PRINTBUTTON "[0] はい", 0
+					PRINTL 
+					PRINTBUTTON "[1] いいえ", 1
+					PRINTL
+					BINPUT
+					IF RESULT == 0
+						RETURN 1
+					ELSE
+						RETURN 0
+					ENDIF
+				ELSE
+					RETURN 0
+				ENDIF
+			ENDIF
+		ELSEIF TFLAG:オートコマンドフラグ >= 3000 && TFLAG:オートコマンドフラグ < 4000
+			;する側
+			IF GETBIT(TALENT:判定キャラ:非童貞, 0) == 0
+			PRINTFORML %CALLNAME:判定キャラ%はもう一度要求してきた…
+			PRINTL 許可しますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL 
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				RETURN 1
+			ELSE
+				RETURN 0
+			ENDIF
+			ENDIF
+		ENDIF
+	CASE "62"
+		;A挿入される側
+		IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:腸内射精 >= 2
+			PRINTFORML %CALLNAME:判定キャラ%はもう一度要求してきた…
+			PRINTL 許可しますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL 
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				RETURN 1
+			ELSE
+				IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:腸内射精 >= 3
+					PRINTFORML %CALLNAME:判定キャラ%はどうしてもやりたいようだ…
+					PRINTL 許可しますか？
+					PRINTBUTTON "[0] はい", 0
+					PRINTL 
+					PRINTBUTTON "[1] いいえ", 1
+					PRINTL
+					BINPUT
+					IF RESULT == 0
+						RETURN 1
+					ELSE
+						RETURN 0
+					ENDIF
+				ELSE
+					RETURN 0
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE "81"
+		;フェラする側
+		IF TFLAG:オートコマンドフラグ >= 3000 && TFLAG:オートコマンドフラグ < 4000 && 性癖素質:判定キャラ:精飲 >= 2
+			PRINTFORML %CALLNAME:判定キャラ%はもう一度要求してきた…
+			PRINTL 許可しますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL 
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				RETURN 1
+			ELSE
+				IF TFLAG:オートコマンドフラグ >= 4000 && TFLAG:オートコマンドフラグ < 4000 && 性癖素質:判定キャラ:精飲 >= 3
+					PRINTFORML %CALLNAME:判定キャラ%はどうしてもやりたいようだ…
+					PRINTL 許可しますか？
+					PRINTBUTTON "[0] はい", 0
+					PRINTL 
+					PRINTBUTTON "[1] いいえ", 1
+					PRINTL
+					BINPUT
+					IF RESULT == 0
+						RETURN 1
+					ELSE
+						RETURN 0
+					ENDIF
+				ELSE
+					RETURN 0
+				ENDIF
+			ENDIF
+		ENDIF
+ENDSELECT
+
+RETURN 0
