@@ -73,28 +73,39 @@ SIF !LOCAL:1
 	TFLAG:TARGET変更用 = 0
 
 ;MASTERと同室フラグ
+LOCALS '= ""
+LOCALS:1 '= ""
+;念の為好感度レベルでソートし直し
+CALL SORT_CFLAG(21)
+DRAWLINE
 うふふ終了フラグ = 0
 FOR LOCAL,1,CHARANUM
-	SIF CFLAG:LOCAL:滞在期間 < 0
+	SIF CFLAG:(CFLAG_SORTARRAY:LOCAL):滞在期間 < 0
 		CONTINUE
-	IF CFLAG:LOCAL:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:LOCAL:現在マップ種別
+	IF CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置 == CFLAG:MASTER:現在位置 && CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別 == CFLAG:MASTER:現在マップ種別
 		;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
-		IF !CFLAG:LOCAL:同室 && !CFLAG:LOCAL:睡眠
-			CALL AFFAIR_DISCLOSURE(LOCAL, うふふ終了フラグ)
+		IF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠
+			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 			SIF RESULT
 				うふふ終了フラグ = 1
+		ELSEIF !TCVAR:(CFLAG_SORTARRAY:LOCAL):挨拶フラグ && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && PREVCOM == 841
+			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 		ENDIF
-		CFLAG:LOCAL:同室 = 1
+		CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 = 1
 	;覗きは一旦オミット
 	ELSE
 	; 	;相手からこちらが見えていて、相手かこちらかが移動したかこちらが押し倒した
 	; 	SIF CAN_MOVE(CFLAG:LOCAL:現在位置, CFLAG:MASTER:現在位置) == 2 && (CFLAG:MASTER:前ターン位置 != CFLAG:MASTER:現在位置 || CFLAG:LOCAL:前ターン位置 != CFLAG:LOCAL:現在位置 || TRAIN_COMNAME(PREVCOM) == "押し倒す") && !CFLAG:LOCAL:睡眠
 	; 		CALL AFFAIR_DISCLOSURE(LOCAL, 1)
-		CFLAG:LOCAL:同室 = 0
+		CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 = 0
 	ENDIF
 NEXT
 SIF うふふ終了フラグ
 	CALL うふふ終了処理
+SIF LOCALS != ""
+	PRINTFORMW %LOCALS%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に居た
+SIF LOCALS:1 != ""
+	PRINTFORMW %LOCALS:1%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に来た
 ;馴れ合い強度決定
 ;TARGET側
 IF TFLAG:調教モード == 3
@@ -1089,9 +1100,12 @@ FOR LOCAL,1,CHARANUM
 NEXT
 
 ;情事の発覚
-@AFFAIR_DISCLOSURE(対象キャラ, うふふ終了フラグ)
+@AFFAIR_DISCLOSURE(対象キャラ, うふふ終了フラグ, 在室キャラ, 在室キャラ:1)
 #DIM 対象キャラ
 #DIM うふふ終了フラグ
+#DIMS REF 在室キャラ
+#DIM L_TMP
+#DIMS L_TMPS, 2
 
 VARSET LOCAL
 LOCAL:1 = IN_ROOM("MAX", CFLAG:MASTER:現在位置, "CFLAG", GETNUM(CFLAG, "うふふ"))
@@ -1106,6 +1120,7 @@ ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0
 		DRAWLINE
 		RETURN 0
 	ELSE
+		CFLAG:対象キャラ:情事目撃 = LOCAL:1
 		LOCAL:2 = 1
 	ENDIF
 ENDIF
@@ -1113,23 +1128,50 @@ IF LOCAL:2 || うふふ終了フラグ
 	RETURN 1
 ENDIF
 ;通常遭遇
-;こちらからも見える位置にいる、もしくは同室
-IF CFLAG:MASTER:隠密
-	;隠密だとそもそも遭遇しない
-ELSEIF !CFLAG:対象キャラ:睡眠 && CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, CFLAG:対象キャラ:現在位置) == 2
-	;さっきから居るのは分かっていたか否か
-	IF CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:前マップ種別 == CFLAG:対象キャラ:現在マップ種別
-		PRINTFORMW %CALLNAME:対象キャラ%が%GETPLACENAME(CFLAG:対象キャラ:現在マップ種別, CFLAG:対象キャラ:現在位置)%に居\@CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:前ターン位置, CFLAG:対象キャラ:現在位置) == 2 ? る # た\@
-		LOCAL:3 = 1
+;先んじて部屋にいたのか、あるいは後から来たのか
+IF (CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:前マップ種別 == CFLAG:対象キャラ:現在マップ種別)
+	IF REGEXPMATCH(在室キャラ, "たち$", L_TMP, L_TMPS) 
+	ELSEIF STRLENSU(在室キャラ) > 30
+		在室キャラ += "たち"
+	ELSE
+		SIF 在室キャラ != ""
+			在室キャラ += "、"
+		在室キャラ += CALLNAME:対象キャラ
 	ENDIF
-	IF LOCAL:3
-		IF CFLAG:対象キャラ:情事目撃 && CFLAG:(CFLAG:対象キャラ:情事目撃):現在位置 != CFLAG:対象キャラ:現在位置
-			PRINTFORMW %CALLNAME:対象キャラ%に先の%CALLNAME:(CFLAG:対象キャラ:情事目撃)%との一件について問い詰められた…
-			CALL KOJO_EVENT(0, 対象キャラ, 2)
-			CFLAG:対象キャラ:情事目撃 = 0
-		ELSE
-			CALL KOJO_EVENT(0, 対象キャラ, LOCAL:3 - 1)
-		ENDIF
+ELSEIF (CFLAG:対象キャラ:前ターン位置 != CFLAG:対象キャラ:現在位置 || CFLAG:対象キャラ:前マップ種別 != CFLAG:対象キャラ:現在マップ種別) && (CFLAG:MASTER:前ターン位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:前マップ種別 == CFLAG:MASTER:現在マップ種別)
+	IF REGEXPMATCH(在室キャラ:1, "たち$", L_TMP, L_TMPS) 
+	ELSEIF STRLENSU(在室キャラ:1) > 30
+		在室キャラ:1 += "たち"
+	ELSE
+		SIF 在室キャラ:1 != ""
+			在室キャラ:1 += "、"
+		在室キャラ:1 += CALLNAME:対象キャラ
+	ENDIF
+ENDIF
+IF CFLAG:MASTER:隠密
+	;隠密だと話しかけてこない
+	LOCAL:3 = 0
+ELSE
+	LOCAL:3 = 1
+ENDIF
+IF LOCAL:3
+	IF CFLAG:対象キャラ:情事目撃 && CFLAG:(CFLAG:対象キャラ:情事目撃):現在位置 != CFLAG:対象キャラ:現在位置
+		PRINTFORMW %CALLNAME:対象キャラ%に先の%CALLNAME:(CFLAG:対象キャラ:情事目撃)%との一件について問い詰められた…
+		TRYCALLFORM KOJO_EVENT_情事目撃_{NO:対象キャラ}(対象キャラ)
+		CFLAG:対象キャラ:情事目撃 = 0
+	ELSEIF !TCVAR:対象キャラ:挨拶フラグ
+		L_TMP = LINECOUNT
+		TRYCCALLFORM KOJO_EVENT_挨拶_{NO:対象キャラ}(対象キャラ)
+			IF L_TMP == LINECOUNT && STRLENSU(在室キャラ) + STRLENSU(在室キャラ:1) < 31 && MAX(CFLAG:対象キャラ:好感度レベル, CFLAG:対象キャラ:恋慕レベル) > 関係閾値:1
+				PRINTFORML あなたを見かけた%CALLNAME:対象キャラ%\@ MAX(CFLAG:対象キャラ:好感度レベル, CFLAG:対象キャラ:恋慕レベル) > 関係閾値:3? は、駆け寄ってきて# が\@挨拶してきた
+			ENDIF
+		CATCH
+			;ある程度顔見知りじゃないと挨拶しない
+			IF STRLENSU(在室キャラ) + STRLENSU(在室キャラ:1) < 31 && MAX(CFLAG:対象キャラ:好感度レベル, CFLAG:対象キャラ:恋慕レベル) > 関係閾値:1
+				PRINTFORML あなたを見かけた%CALLNAME:対象キャラ%\@ MAX(CFLAG:対象キャラ:好感度レベル, CFLAG:対象キャラ:恋慕レベル) > 関係閾値:3? は、駆け寄ってきて# が\@挨拶してきた
+			ENDIF
+		ENDCATCH
+		TCVAR:対象キャラ:挨拶フラグ = 1
 	ENDIF
 ENDIF
 

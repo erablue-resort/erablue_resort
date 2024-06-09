@@ -193,8 +193,8 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 				CONTINUE
 			SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
 				CONTINUE
-			;なにかのモード中は自慰しない
-			SIF オートコマンド許可 == 2 && (MODE_確認_プレイヤー側("ALL", PLAYER) > -1 || MODE_確認_ターゲット側("ALL", PLAYER) > -1)
+			;自慰中は自慰しない
+			SIF オートコマンド許可 == 2 && MODE_確認_ターゲット側("自慰系", PLAYER) > -1
 				CONTINUE
 			;なすがままの時は自慰しない
 			SIF オートコマンド許可 == 2 && TFLAG:オートコマンド連続発動
@@ -207,11 +207,60 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 				ENDIF
 			ENDIF
 		NEXT
+		;反転オート判定
+		FOR 派生番号, 1, 50
+			オートコマンド許可 = 0
+			連続オート許可 = 0
+			反転オート許可 = 0
+			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
+			;反転なしならダメ
+			SIF 反転オート許可 == 0
+				CONTINUE
+			;履歴にあるならダメ
+			IF 連続オート許可 == 0
+				SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 4000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 4000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 4000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 4000}_{派生番号}"
+					CONTINUE
+				SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 4000}_{派生番号}"
+					CONTINUE
+			ENDIF
+			;無知の場合、やったことないならダメ
+			SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ:PLAYER:0, @"-{COM番号}_{派生番号}-") < 0
+				CONTINUE
+			;オプションによる制御
+			SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+				CONTINUE
+			SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+				CONTINUE
+			SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
+				CONTINUE
+			;自慰中は自慰しない
+			SIF オートコマンド許可 == 2 && MODE_確認_ターゲット側("自慰系", PLAYER) > -1
+				CONTINUE
+			;なすがままの時は自慰しない
+			SIF オートコマンド許可 == 2 && TFLAG:オートコマンド連続発動
+				CONTINUE
+			IF オートコマンド許可
+				SWAP PLAYER, TARGET
+				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
+				IF RESULT
+					行動候補文字列:(LOCAL:1) = {COM番号 + 4000}_{派生番号}
+					LOCAL:1 += 1
+				ENDIF
+				SWAP PLAYER, TARGET
+			ENDIF
+		NEXT
 	NEXT
 
 	FOR COM番号, 0, 700
 		オートコマンド許可 = 0
 		連続オート許可 = 0
+		反転オート許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
 		;履歴にあるならダメ
 		IF 連続オート許可 == 0
@@ -242,6 +291,48 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 				行動候補文字列:(LOCAL:1) = {COM番号 + 3000}
 				LOCAL:1 += 1
 			ENDIF
+		ENDIF
+	NEXT
+	;反転モード判定
+	FOR COM番号, 0, 700
+		オートコマンド許可 = 0
+		連続オート許可 = 0
+		反転オート許可 = 0
+		TRYCALLFORMF COMTYPE_{COM番号}
+		;反転なしならダメ
+		SIF 反転オート許可 == 0
+			CONTINUE
+		;履歴にあるならダメ
+		IF 連続オート許可 == 0
+			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 4000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 4000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴２ == @"{COM番号 + 4000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴３ == @"{COM番号 + 4000}"
+				CONTINUE
+			SIF CSTR:PLAYER:オートコマンド履歴４ == @"{COM番号 + 4000}"
+				CONTINUE
+		ENDIF
+		;無知の場合、やったことないならダメ
+		SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-{COM番号}-") < 0
+			CONTINUE
+		;オプションによる制御
+		SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+			CONTINUE
+		SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+			CONTINUE
+		SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
+			CONTINUE
+		IF オートコマンド許可
+			SWAP PLAYER, TARGET
+			TRYCALLFORM COM_ABLE{COM番号}
+			IF RESULT
+				行動候補文字列:(LOCAL:1) = {COM番号 + 4000}
+				LOCAL:1 += 1
+			ENDIF
+			SWAP PLAYER, TARGET
 		ENDIF
 	NEXT
 	TARGET = TARGET保存
@@ -396,11 +487,22 @@ IF CFLAG:MASTER:うふふ
 	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴０ '= 記録文字列
 ENDIF
 
-@オートコマンド許可取り()
+@オートコマンド許可取り(反転フラグ = 0)
+#DIM 反転フラグ
+#DIM 対象キャラ
+#DIM 実行キャラ
 ;許可が必要な場合のオートコマンドの許可表示処理
 
 ;相手があなたじゃないなら許可出し無し
-SIF TARGET != MASTER
+IF 反転フラグ
+	実行キャラ = TARGET
+	対象キャラ = PLAYER
+ELSE
+	実行キャラ = PLAYER
+	対象キャラ = TARGET
+ENDIF
+
+SIF 対象キャラ != MASTER
 	RETURN 0
 
 IF RSTR:SELECTCOM_S受け渡し != ""
@@ -412,9 +514,13 @@ ELSE
 ENDIF
 
 DRAWLINE
-PRINTPLAINFORM %CALLNAME:PLAYER%が%CALLNAME:TARGET%に[%TSTR:コマンド名受渡%]を要求しているようだ。
+IF 反転フラグ
+	PRINTPLAINFORM %CALLNAME:実行キャラ%が%CALLNAME:対象キャラ%に[%TSTR:コマンド名受渡%]を実行しようとしているようだ。
+ELSE
+	PRINTPLAINFORM %CALLNAME:実行キャラ%が%CALLNAME:対象キャラ%に[%TSTR:コマンド名受渡%]を要求しているようだ。
+ENDIF
 PRINTL
-PRINTL 実行しますか？
+PRINTL 許可しますか？
 PRINTBUTTON "[0] はい", 0
 PRINTL 
 PRINTBUTTON "[1] いいえ", 1
@@ -425,6 +531,6 @@ BINPUT
 IF RESULT == 0
 	RETURN 0
 ELSE
-	PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:PLAYER%の要求を断った…
+	PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:実行キャラ%の要求を断った…
 	RETURN -1
 ENDIF
