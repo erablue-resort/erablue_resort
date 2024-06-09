@@ -3,7 +3,7 @@
 eraTohoTWより性行為アニメーションを移植させていただきました。
 
 各種effectに関しては、pixivよりフリー素材として公開されている
-以下の方々の素材を加工したりして作成しました。
+以下の方々の素材を切り貼りして作成しました。
 
 この場をお借りして、厚く御礼申し上げます。
 
@@ -19,5 +19,3 @@ https://www.pixiv.net/artworks/98111662
 https://www.pixiv.net/artworks/92672661
 NOXさま
 https://www.pixiv.net/artworks/75281220
-てれおぱさま
-https://www.pixiv.net/artworks/116161762
