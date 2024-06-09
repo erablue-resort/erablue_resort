@@ -9,6 +9,7 @@
 #DIM PREAUTO候補者数
 #DIM AUTO候補者数
 #DIM REVERSEAUTO候補者数
+#DIM REVERSECOM番号
 #DIM ALLAUTOCOM番号
 #DIM COM番号
 #DIM 派生番号
@@ -303,7 +304,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		SIF 反転オート許可 == 0
 			CONTINUE
 		;履歴にあるならダメ
-		IF 連続オート許可 == 0
+		IF 連続オート許可 == 0 && 中毒連続オート判定(PLAYER, COM番号) == 0
 			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 4000}"
 				CONTINUE
 			SIF CSTR:PLAYER:オートコマンド履歴１ == @"{COM番号 + 4000}"
@@ -340,8 +341,15 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 
 	;登録したCOM番号からランダムで選出
 	IF LOCAL:1 > 0
+		REVERSECOM番号 = RAND:(LOCAL:1)
+		;一定の条件時、特定コマンドを優先
+		IF 性癖素質:(TARGET:同室者番号):膣内射精 > 1
+			;愛好以上だととりあえず挿入させようとしてくる
+			SIF MATCH(行動候補文字列, "4060")
+				REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4060", , , 1)
+		ENDIF
 
-		ランダム格納 = RAND:(LOCAL:1)
+		ランダム格納 = REVERSECOM番号
 		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_%行動候補文字列:ランダム格納%
 		REVERSEAUTO候補者数 += 1
 	ENDIF
@@ -505,6 +513,7 @@ ENDIF
 SIF 対象キャラ != MASTER
 	RETURN 0
 
+許可取り文章 = 
 IF RSTR:SELECTCOM_S受け渡し != ""
 	;派生コマンド
 	CALLFORMF COMNAME_S%RSTR:SELECTCOM_S受け渡し%
@@ -514,7 +523,9 @@ ELSE
 ENDIF
 
 DRAWLINE
-IF 反転フラグ
+IF 許可取り文章 != ""
+	PRINTPLAINFORM %許可取り文章%
+ELSEIF 反転フラグ
 	PRINTPLAINFORM %CALLNAME:実行キャラ%が%CALLNAME:対象キャラ%に[%TSTR:コマンド名受渡%]を実行しようとしているようだ。
 ELSE
 	PRINTPLAINFORM %CALLNAME:実行キャラ%が%CALLNAME:対象キャラ%に[%TSTR:コマンド名受渡%]を要求しているようだ。
@@ -534,3 +545,11 @@ ELSE
 	PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:実行キャラ%の要求を断った…
 	RETURN -1
 ENDIF
+
+
+@中毒連続オート判定(判定キャラ, COM番号)
+#FUNCTION
+#DIM 判定キャラ
+#DIM COM番号
+
+;キャラの判定によっては履歴を無視して連続で要求する的な
