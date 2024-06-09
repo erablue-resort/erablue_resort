@@ -33,6 +33,8 @@ IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET) > -1
 	ENDIF
 	TCVAR:TARGET:自動着替え禁止 = 0
 	CALL MODE_DELETE_ターゲット側("ハーヴィンオナホ系", TARGET)
+	;即移動されないため短時間の同行をセット
+	CFLAG:TARGET:同行 = 1
 	RETURN 1
 ENDIF
 
@@ -85,12 +87,14 @@ IF LOCAL == 1
 	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
 	;処女喪失
 	CALL LOST_VIRGIN(TARGET, PLAYER, 1)
+	CALL LOST_MAN_VIRGIN(PLAYER, TARGET, 1)
 	;苦痛
 	LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
 	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
 ELSE
 	CALL MODE_CHANGE("ハーヴィンオナホＡ", PLAYER, TARGET)
 	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 400)
+	CALL LOST_MAN_VIRGIN(PLAYER, TARGET, 2)
 	;苦痛
 	LOCAL = 200 * PAIN_CHECK_A(TARGET) / 1000
 	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
@@ -109,6 +113,12 @@ IF !TALENT:恋慕
 	ELSEIF TALENT:貞操 == 0
 		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
 	ENDIF
+ENDIF
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
 ENDIF
 
 CALL CLOTHES_CHANGE(TARGET, "全裸")
@@ -212,14 +222,6 @@ IF TALENT:快感応答 < 0 && !TALENT:恋慕
 	PRINTV '(,5,')
 	＋表示フラグ = 1
 ENDIF
-;男嫌い（恋慕で無効）
-IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER) && TALENT:性別嗜好 > 0
-	PRINT  - 
-	実行値 -= 12
-	PRINT 男嫌い
-	PRINTV '(,12,')
-	＋表示フラグ = 1
-ENDIF
 ;恋慕
 IF TALENT:恋慕
 	SIF ＋表示フラグ
@@ -228,6 +230,23 @@ IF TALENT:恋慕
 	PRINT 恋慕
 	PRINTV '(,15,')
 	＋表示フラグ = 1
+ELSE
+	;男嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 1 && TALENT:PLAYER:性別 == 2 && TALENT:性別嗜好 > 0
+		PRINT  - 
+		実行値 -= 12
+		PRINT 男嫌い
+		PRINTV '(,12,')
+		＋表示フラグ = 1
+	ENDIF
+	;女嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 2 && TALENT:PLAYER:性別 == 1 && TALENT:性別嗜好 > 0
+		PRINT  - 
+		実行値 -= 12
+		PRINT 女嫌い
+		PRINTV '(,12,')
+		＋表示フラグ = 1
+	ENDIF
 ENDIF
 ;セフレ
 IF TALENT:セフレ
@@ -362,6 +381,11 @@ ELSE
 	;一括管理
 	SIF GLOBAL_COMABLE(357)
 		RETURN RESULT
+	;既に他のモードあるとダメ
+	SIF MODE_確認_ターゲット側("ハーヴィンオナホ系", TARGET) > -1
+		RETURN 0
+	SIF MODE_確認_プレイヤー側("ハーヴィンオナホ系", TARGET) > -1
+		RETURN 0
 	;あなたにちんこあること
 	SIF GETBIT(TALENT:PLAYER:性別, 1) == 0 || TALENT:PLAYER:Ｃ感度 == -2
 		RETURN 0
@@ -398,3 +422,5 @@ ELSE
 	;解除時
 	PRINTFORML %CALLNAME:PLAYER%は服を脱ぎ、固定していた%CALLNAME:TARGET%を解放した。
 ENDIF
+
+

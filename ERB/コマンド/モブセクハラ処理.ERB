@@ -1,0 +1,193 @@
+﻿@モブセクハラ処理
+#DIM セクハラ部位
+#DIMS レイプパターン
+#DIM セクハラ快楽量
+#DIM パターン数
+セクハラ快楽量 = 0
+
+;セクハラ発生率は1/3
+IF フィールド展開:欲情フィールド && RAND:3 == 0
+	IF RAPE制御OPTION
+		LOCAL = RAND:3
+	ELSE
+		LOCAL = RAND:2
+	ENDIF
+	;相手の性別決定
+	IF TALENT:PLAYER:性別 == 2 && EXP:PLAYER:同性愛経験 < 100
+		RFLAG:コマンド結果受渡し変数３ = 1
+	ELSEIF TALENT:PLAYER:性別 == 1 && EXP:PLAYER:同性愛経験 < 100
+		RFLAG:コマンド結果受渡し変数３ = 2
+	ELSE
+		IF RAND:2 == 0
+			RFLAG:コマンド結果受渡し変数３ = 1
+		ELSE
+			RFLAG:コマンド結果受渡し変数３ = 2
+		ENDIF
+	ENDIF
+	$パターン決定
+	SELECTCASE LOCAL
+		CASE 0
+			;愛撫セクハラパターン
+			;部位決定
+			セクハラ部位 = RANDOM_PART(PLAYER)
+			SIF セクハラ部位 == -1
+				RETURN 0
+
+			;快楽量決定、基本値から諸々補正
+			セクハラ快楽量 = RAND:500 + 30
+
+			SELECTCASE セクハラ部位
+				CASE 0
+					CALL SOURCE_CALC_快Ｃ(PLAYER, -1, セクハラ快楽量)
+				CASE 1
+					CALL SOURCE_CALC_快Ｖ(PLAYER, -1, セクハラ快楽量)
+				CASE 2
+					CALL SOURCE_CALC_快Ａ(PLAYER, -1, セクハラ快楽量)
+				CASE 3
+					CALL SOURCE_CALC_快Ｂ(PLAYER, -1, セクハラ快楽量)
+			ENDSELECT
+
+			;同性愛経験
+			IF RFLAG:コマンド結果受渡し変数３ == TALENT:PLAYER:性別 && TALENT:PLAYER:性別 < 3
+				EXP:PLAYER:同性愛経験 += 2
+			ENDIF
+
+			;口上用に数値受け渡し
+			RFLAG:コマンド結果受渡し変数 = セクハラ部位
+			RFLAG:コマンド結果受渡し変数２ = セクハラ快楽量
+		CASE 1
+			;その他セクハラパターン
+			セクハラ部位 = RAND:3 + 10
+			セクハラ快楽量 = RAND:100 + 30
+
+			SELECTCASE セクハラ部位
+				CASE 10
+					;キス
+					CALL SOURCE_CALC_快Ｓ(PLAYER, -1, セクハラ快楽量)
+				CASE 11
+					;ハグ
+					CALL SOURCE_CALC_歓楽(PLAYER, -1, セクハラ快楽量)
+				CASE 12
+					;淫語
+					CALL SOURCE_CALC_露出(PLAYER, -1, セクハラ快楽量)
+			ENDSELECT
+
+			;口上用に数値受け渡し
+			RFLAG:コマンド結果受渡し変数 = セクハラ部位
+			RFLAG:コマンド結果受渡し変数２ = セクハラ快楽量
+		CASE 2
+			;強姦パターン
+			VARSET LOCALS
+			パターン数 = 0
+
+			;Vレイプ
+			IF GETBIT(TALENT:PLAYER:性別, 0) && TALENT:PLAYER:Ｖ感度 != -2
+				IF !TALENT:PLAYER:処女 || 処女童貞RAPE制御OPTION
+					LOCALS:パターン数 = Vレイプ
+					パターン数 += 1
+				ENDIF
+			ENDIF
+			;Aレイプ
+			IF EXP:PLAYER:Ａ経験 > 50 && TALENT:PLAYER:Ａ感度 != -2
+				;男の時は同性愛やふたなり制御を見る
+				IF TALENT:PLAYER:性別 == 2 && 素質切り替えOPTION記憶:ふたなり_女性 && EXP:PLAYER:同性愛経験 < 100
+				ELSE
+					LOCALS:パターン数 = Aレイプ
+					パターン数 += 1
+				ENDIF
+			ENDIF
+			;おくちレイプ
+			;男の時は同性愛やふたなり制御を見る
+			IF TALENT:PLAYER:性別 == 2 && 素質切り替えOPTION記憶:ふたなり_女性 && EXP:PLAYER:同性愛経験 < 100
+			ELSE
+				LOCALS:パターン数 = おくちレイプ
+				パターン数 += 1
+			ENDIF
+			;V逆レイプ
+			IF GETBIT(TALENT:PLAYER:性別, 1) && TALENT:PLAYER:Ｃ感度 != -2
+				IF TALENT:PLAYER:非童貞 || 処女童貞RAPE制御OPTION
+					LOCALS:パターン数 = V逆レイプ
+					パターン数 += 1
+				ENDIF
+			ENDIF
+			;A逆レイプ
+			IF GETBIT(TALENT:PLAYER:性別, 1) && TALENT:PLAYER:Ｃ感度 != -2
+				IF TALENT:PLAYER:非童貞 || 処女童貞RAPE制御OPTION
+					LOCALS:パターン数 = A逆レイプ
+					パターン数 += 1
+				ENDIF
+			ENDIF
+			
+			;なかったらパターン変えて戻す
+			IF パターン数 < 1
+				LOCAL = 0
+				GOTO パターン決定
+			ENDIF
+
+			;ランダムで決定
+			レイプパターン = %LOCALS:(RAND:パターン数)%
+			SELECTCASE レイプパターン
+				CASE "Vレイプ"
+					CALL LOST_VIRGIN(PLAYER, -1, 1)
+
+					DO
+					CALL SOURCE_CALC_快Ｖ(PLAYER, -1, 400)
+					LOOP CUP:PLAYER:快Ｖ < 10000
+
+					CALL SOURCE_CALC_露出(PLAYER, -1, 200)
+					LOCAL = 200 * PAIN_CHECK_V(PLAYER) / 1000
+					CALL SOURCE_CALC_苦痛(PLAYER, -1, LOCAL)
+
+					EXP:PLAYER:Ｖ性交経験 ++
+					RFLAG:コマンド結果受渡し変数 = 20
+					RFLAG:コマンド結果受渡し変数２ = 400
+				CASE "Aレイプ"
+					DO
+					CALL SOURCE_CALC_快Ａ(PLAYER, -1, 400)
+					LOOP CUP:PLAYER:快Ａ < 10000
+
+					CALL SOURCE_CALC_露出(PLAYER, -1, 200)
+
+					LOCAL = 600 * PAIN_CHECK_A(PLAYER) / 1000
+					CALL SOURCE_CALC_苦痛(PLAYER, -1, LOCAL)
+
+					RFLAG:コマンド結果受渡し変数 = 21
+					RFLAG:コマンド結果受渡し変数２ = 400
+					EXP:PLAYER:Ａ性交経験 ++
+				CASE "おくちレイプ"
+					CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+					CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 300)
+					CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+					RFLAG:コマンド結果受渡し変数 = 22
+					RFLAG:コマンド結果受渡し変数２ = 30
+					EXP:PLAYER:口淫経験 += 1
+					EXP:PLAYER:精液経験 += 1
+				CASE "V逆レイプ"
+					CALL LOST_MAN_VIRGIN(PLAYER, -1, 1)
+					DO
+					CALL SOURCE_CALC_快Ｃ(PLAYER, -1, 400)
+					LOOP CUP:PLAYER:快Ｃ < 10000
+					CALL SOURCE_CALC_露出(PLAYER, -1, 200)
+					RFLAG:コマンド結果受渡し変数 = 23
+					RFLAG:コマンド結果受渡し変数２ = 400
+					EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+				CASE "A逆レイプ"
+					CALL LOST_MAN_VIRGIN(PLAYER, -1, 2)
+					DO
+					CALL SOURCE_CALC_快Ｃ(PLAYER, -1, 400)
+					LOOP CUP:PLAYER:快Ｃ < 10000
+					CALL SOURCE_CALC_露出(PLAYER, -1, 200)
+					RFLAG:コマンド結果受渡し変数 = 24
+					RFLAG:コマンド結果受渡し変数２ = 400
+					EXP:PLAYER:Ｃ性交経験_Ａ挿入 ++
+			ENDSELECT
+
+			;同性愛経験
+			IF RFLAG:コマンド結果受渡し変数３ == TALENT:PLAYER:性別 && TALENT:PLAYER:性別 < 3
+				EXP:PLAYER:同性愛経験 += 4
+			ENDIF
+	ENDSELECT
+ENDIF
+
+RETURN 0
+
