@@ -90,6 +90,7 @@ IF STRCOUNT(RESULTS, "サイド領域_サイド切り替え_")
 	SIF サイド描画表示種類 == "同室者" && STRCOUNT(RESULTS, "同室者")
 		INVERTBIT サイド領域_同室者表示フラグ, 0
 	サイド描画表示種類 = %REPLACE(RESULTS, "サイド領域_サイド切り替え_", "")%
+	サイド領域_同室者表示ページ数 = 0
 	RETURN 1
 ENDIF
 
@@ -158,6 +159,13 @@ SELECTCASE サイド描画表示種類
 		TIME += 1
 		TFLAG:SELECTCOM受け渡し = 400
 		SELECTCOM = 400
+	CASE "同室者"
+			IF RESULTS == "サイド領域_前ページ"
+				サイド領域_同室者表示ページ数 -= 1
+			ELSEIF RESULTS == "サイド領域_次ページ"
+				サイド領域_同室者表示ページ数 += 1
+			ENDIF
+			RETURN 1
 	CASE "クイック触れ合い"
 		IF RESULTS == "サイド領域_おさわりモード"
 			CALL おさわりモード(TARGET, 0)
@@ -247,6 +255,7 @@ ENDIF
 #DIMS REF 表示文字列
 #DIMS REF 追加表示文字列
 #DIMS ボタン文字列
+#DIMS 画像表示文字列
 #DIM L_CNT
 #DIM 助手人数
 #DIM 助手候補, 1000
@@ -256,6 +265,7 @@ ENDIF
 VARSET LOCAL
 VARSET 助手候補
 ボタン文字列 '= ""
+画像表示文字列 '= ""
 ;横に何人入るか
 表示可能人数 = ((1600 / GETCONFIG("フォントサイズ")) - 55 ) / 8
 IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用())
@@ -320,34 +330,52 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 	ENDIF
 	表示文字列 += @"%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%%ボタン文字列%<br>"
 ELSE
-	表示文字列 += "<br>"
+	;表示文字列 += "<br>"
 	FOR LOCAL, 1, CHARANUM
 		;表示可能人数が0なら表示終了
 		SIF 表示可能人数 < 1
 			BREAK
 		IF TARGET:LOCAL == TARGET
 		ELSEIF TARGET:LOCAL > 0 && LOCAL:2 < 4
+			IF LOCAL:1 < サイド領域_同室者表示ページ数 * 表示可能人数 * 4
+				LOCAL:1 ++
+				CONTINUE
+			ENDIF
 			VARSET LOCALS
 			CALL サイド領域_エロステータス把握(TARGET:LOCAL)
 			LOCALS '= RESULTS
 			LOCALS:1 '= RESULTS:1
 			LOCALS:2 '= 顔グラ表示用文字列関数(TARGET:LOCAL, 1+LOCAL:1, LOCAL:1 / 表示可能人数, 800)
-			表示文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%&#13;&#10;%RESULTS:(3+LOCAL:1)%'>%LOCALS:2%</button>"
+			画像表示文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%&#13;&#10;%RESULTS:(3+LOCAL:1)%'>%LOCALS:2%</button>"
 			ボタン文字列 += @"<button value='{TARGET:LOCAL + 2000}' title='%CALLNAME:(TARGET:LOCAL) + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:(TARGET:LOCAL) + "]", 16, LEFT%</font></button>"
 			LOCAL:1 ++
-			IF LOCAL:1 / 表示可能人数 > LOCAL:2
-				表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
+			LOCAL:3 ++
+			IF LOCAL:3 / 表示可能人数 > LOCAL:2
+				表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * 8%"
 				ボタン文字列 '= ""
+				画像表示文字列 '= ""
 				LOCAL:2 ++
 			ENDIF
 		ELSE
 			IF ボタン文字列 != ""
-				表示文字列 += @"%"<br>" * 8%%ボタン文字列%<br>"
+				表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * 8%"
 				ボタン文字列 '= ""
+				画像表示文字列 '= ""
 			ENDIF
 			BREAK
 		ENDIF
 	NEXT
+	追加表示文字列 += "<div rect='5600, 4125, 4225, 100'>"
+	IF サイド領域_同室者表示ページ数 > 0
+		追加表示文字列 += "<button value='サイド領域_前ページ'>[前のページへ]</button>"
+	ELSE
+		追加表示文字列 += "　　　　　　　"
+	ENDIF
+	追加表示文字列 += "　　　"
+	IF TARGET:LOCAL > 0
+		追加表示文字列 += "<button value='サイド領域_次ページ'>[次のページへ]</button>"
+	ENDIF
+	追加表示文字列 += "</div>"
 ENDIF
 
 
