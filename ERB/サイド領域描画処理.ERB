@@ -290,23 +290,29 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 		助手候補:L_CNT = 二人目画像表示用(L_CNT)
 		L_CNT ++
 	WEND
-	IF 表示可能人数 * 2 < 助手人数 + 1
-		;2段使っても表示しきれない場合、表示キャラをランダムで抽出する
-		FOR L_CNT, 助手人数, 1, -1
-			SWAP 助手候補:L_CNT, 助手候補:(RAND(1,L_CNT))
-		NEXT
-	ENDIF
+	; IF 表示可能人数 * 2 < 助手人数 + 1
+	; 	;2段使っても表示しきれない場合、表示キャラをランダムで抽出する
+	; 	FOR L_CNT, 助手人数, 1, -1
+	; 		SWAP 助手候補:L_CNT, 助手候補:(RAND(1,L_CNT))
+	; 	NEXT
+	; ENDIF
 	;INFO画面の３P表示と同室者表示の並びを合わせる
 	ASSI:1 = 助手候補:1
 	IF 表示可能人数 > 1
 		;助手を横一列に表示
-		FOR L_CNT, 0, MIN(表示可能人数*2,助手人数+1)
+		FOR L_CNT, 0, 助手人数 + 1
+			IF L_CNT < サイド領域_同室者表示ページ数 * 表示可能人数 * 2
+				CONTINUE
+			ENDIF
 			SIF サイド領域_同室者表示フラグ && L_CNT > 1
 				BREAK
-			IF L_CNT == 表示可能人数
+			SIF L_CNT - (サイド領域_同室者表示ページ数 * 表示可能人数 * 2) == 表示可能人数 * 2
+				BREAK
+			IF L_CNT - (サイド領域_同室者表示ページ数 * 表示可能人数 * 2) == 表示可能人数
 				;1度だけ折り返す
-				表示文字列 += @"%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%%ボタン文字列%<br>"
+				表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%"
 				ボタン文字列 '= ""
+				画像表示文字列 '= ""
 			ENDIF
 			LOCAL = 助手候補:L_CNT
 			CALL サイド領域_エロステータス把握(LOCAL)
@@ -315,9 +321,22 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 			SIF STRLENS(CALLNAME:LOCAL + LOCALS) + 2 > (横幅 * 2 / 100)
 				LOCALS '= ""
 			LOCALS:2 '= 短冊グラ表示用文字列関数(LOCAL, 1 + L_CNT, 横幅)
-			表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%&#13;&#10;%RESULTS:(3+L_CNT)%'>%LOCALS:2%</button>"
+			画像表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%&#13;&#10;%RESULTS:(3+L_CNT)%'>%LOCALS:2%</button>"
 			ボタン文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:LOCAL + "]" + LOCALS, MIN((横幅 * 2 / 100), 40), LEFT%</font></button>"
 		NEXT
+		IF サイド領域_同室者表示フラグ == 0
+			追加表示文字列 += "<div rect='5600, 4125, 4225, 100'>"
+			IF サイド領域_同室者表示ページ数 > 0
+				追加表示文字列 += "<button value='サイド領域_前ページ'>[前のページへ]</button>"
+			ELSE
+				追加表示文字列 += "　　　　　　　"
+			ENDIF
+			追加表示文字列 += "　　　"
+			IF 表示可能人数 * 2 * (サイド領域_同室者表示ページ数 + 1) < 助手人数 + 1
+				追加表示文字列 += "<button value='サイド領域_次ページ'>[次のページへ]</button>"
+			ENDIF
+			追加表示文字列 += "</div>"
+		ENDIF
 	ELSEIF 表示可能人数 == 1
 		;ターゲットのみ表示
 		LOCAL = TARGET
@@ -325,10 +344,10 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 		LOCALS '= RESULTS
 		LOCALS:1 '= RESULTS:1
 		LOCALS:2 '= 短冊グラ表示用文字列関数(LOCAL, 1, 横幅)
-		表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%&#13;&#10;%RESULTS:3%'>%LOCALS:2%</button>"
+		画像表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%&#13;&#10;%RESULTS:3%'>%LOCALS:2%</button>"
 		ボタン文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:LOCAL + "]" + LOCALS, 16, LEFT%</font></button>"
 	ENDIF
-	表示文字列 += @"%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%%ボタン文字列%<br>"
+	表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%"
 ELSE
 	;表示文字列 += "<br>"
 	FOR LOCAL, 1, CHARANUM
