@@ -12,7 +12,7 @@ SIF TALENT:TARGET:バストサイズ == -1
 ;===================================================
 @MASSAGE_COMTYPE_21
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_21
 IF TALENT:TARGET:バストサイズ == -1
@@ -48,6 +48,12 @@ CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
 
 ;理性削りが足りなかったりするとき用に反感もいるかも？
 
+;施術着を着ている場合、25%で脱がす。ここに関してはプレイヤーが選択できたほうがいいかも？
+IF TEQUIP:上半身下着あり && RAND:4 == 0
+	TEQUIP:上半身下着あり = 0
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -70,10 +76,12 @@ SIF TALENT:TARGET:Ｂ感度 == -2
 SIF TALENT:TARGET:性別 == 2
 	RETURN 0
 
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+
 ;相手が貧乳以下の場合、実行が少し楽になるとか。
-
-;このへんは現状よくわかんないのでとりあえず書かないでおく
-
 
 
 RETURN 1
@@ -82,7 +90,14 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MASSAGE_MESSAGE_COM21
-PRINTFORM %CALLNAME:PLAYER%は%TEXTR("マッサージオイルをつけた手で/マッサージという建前で")%、%CALLNAME:TARGET%の
+PRINTFORM %CALLNAME:PLAYER%は
+	IF RFLAG:コマンド結果受渡し変数 == 1
+	;施術着を脱がせたとき
+		PRINTFORM %CALLNAME:TARGET%が着ている施術着%TEXTR("の胸元をずらして乳房を露出させ/の胸元をたくし上げて乳房を露出させ/を「施術のため」と言い張って剥ぎ取って")%、
+	ELSEIF TEQUIP:上半身下着あり == 1
+		PRINTFORM %CALLNAME:TARGET%が着ている施術着の%TEXTR("胸元に手を差し込んで/中へと手を滑り込ませて/上から")%、
+	ENDIF
+PRINTFORM %TEXTR("マッサージオイルをつけた手で/マッサージという建前で")%、%CALLNAME:TARGET%の
 	IF TALENT:TARGET:バストサイズ == 3
 	;魔乳
 	;巨乳くらいまでは「デカパイ」とかそんな感じのワードでもいいかなと思ったんだけど、サイズ感の判別しっかりしてるほうがいいかもってことでTEXTRにはせず素質表記

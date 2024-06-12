@@ -11,13 +11,13 @@ TSTR:コマンド名受渡 = 背中の美肌エステ
 ;===================================================
 @MASSAGE_COMTYPE_4
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("通常マッサージ")
+TFLAG:コマンドタイプ受渡 = COMTYPE("通常マッサージ")
 
 @MASSAGE_COM_TOOLTIP_4
 LOCALS = <br>■背中の美肌エステ<br>
 LOCALS += "特性のアロマオイルで背中の肌ケアをする。保湿、美肌効果がある。"
 LOCALS += "背中を出しがちなエルーンのお客様に特に効果が高い。"
-LOCALS += "<br>COMタイプ：マッサージ<br>取得ソース：快Ｓ・接触・歓楽"
+LOCALS += "<br>COMタイプ：マッサージ<br>取得ソース：快Ｓ・接触・歓楽・露出(エルーン以外)"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
@@ -35,13 +35,18 @@ IF TALENT:TARGET:種族 == 2
 	CALL SOURCE_CALC_接触(TARGET, PLAYER, 100)
 	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 300)
 ELSE
-;エルーン以外だとちょっと露出が増える。愛撫が100だから……とりあえず80くらい？
+;エルーン以外だとちょっと露出が増える。愛撫が100だから……とりあえず50くらい？
 	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
 	CALL SOURCE_CALC_接触(TARGET, PLAYER, 100)
 	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 200)
-	CALL SOURCE_CALC_露出(TARGET, PLAYER, 80)
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
 ENDIF
 
+;上半身服がある場合は脱がす。浴衣とかバスローブみたいな施術着に、今後しないとも限らないため
+IF TEQUIP:上半身服あり == 1
+	TEQUIP:上半身服あり = 0
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -56,8 +61,9 @@ RETURN 1
 SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
 	RETURN 0
 
-;このへんは現状よくわかんないのでとりあえず書かないでおく
-
+;仰向けだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 0
+	RETURN 0
 
 
 RETURN 1
@@ -66,5 +72,9 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MASSAGE_MESSAGE_COM4
-PRINTFORML %CALLNAME:PLAYER%はエッセンシャルオイルを%CALLNAME:TARGET%の背に垂らし、マッサージしながら丁寧に塗りひろげた。
-
+PRINTFORM %CALLNAME:PLAYER%は
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORML 施術着をはだけさせて%CALLNAME:TARGET%の背中を出し、エッセンシャルオイルを垂らしてマッサージしながら丁寧に塗りひろげた。
+	ELSE
+		PRINTFORML エッセンシャルオイルを%CALLNAME:TARGET%の背に垂らし、マッサージしながら丁寧に塗りひろげた。
+	ENDIF

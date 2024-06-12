@@ -42,34 +42,41 @@ DRAWLINE
 RESETCOLOR
 PRINTC 能力表示(マスター)[804]
 PRINTC 探索系情報一覧[830]
-PRINTC OPTION[809]
-PRINTC マッサージを終える[999]
+IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+	PRINTFORMC 　%CALLNAME:TARGET%を仰向けにする[810]
+ELSE
+	PRINTFORMC 　%CALLNAME:TARGET%をうつ伏せにする[810]
+ENDIF
 PRINTL 
-PRINT ＜コマンド履歴:
+PRINTC マッサージを終える[999]
+PRINTC OPTION[809]
+PRINTL
+LOCALS = ＜コマンド履歴:
 FOR LOCAL, 0, 5
 	IF コマンド履歴:LOCAL >= 0
 		SIF LOCAL > 0
-			PRINT  - 
+			LOCALS += " - "
 		;COMABLEが通るならボタン化
 		TRYCALLFORM MASSAGE_COM_ABLE{コマンド履歴:LOCAL}
 		IF RESULT
-			PRINTBUTTON @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]", コマンド履歴:LOCAL
+			LOCALS += @"<button value='{コマンド履歴:LOCAL}'>[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]</button>"
 		ELSE
-			PRINTFORM [%TRAIN_COMNAME(コマンド履歴:LOCAL)%]
+			LOCALS += @"<nonbutton>[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]</nonbutton>"
 		ENDIF
 	ELSEIF コマンド履歴:LOCAL == -1
 		SIF LOCAL > 0
-			PRINT  - 
+			LOCALS += " - "
 		;COMABLEが通るならボタン化
 		TRYCALLFORM MASSAGE_COM_ABLE_S%派生コマンド履歴:LOCAL%
 		IF RESULT
-			PRINTBUTTON @"[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]", @"%派生コマンド履歴:LOCAL%"
+			LOCALS += @"<button value='%派生コマンド履歴:LOCAL%'>[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]</button>"
 		ELSE
-			PRINTFORM [%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]
+			LOCALS += @"<nonbutton>[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]</nonbutton>"
 		ENDIF
 	ENDIF
 NEXT
-PRINTL ＞
+LOCALS += "＞"
+HTML_PRINT LOCALS
 
 
 
@@ -104,6 +111,8 @@ PRINTL
 #DIMS コマンドキー
 #DIM 派生カテゴリ表示フラグ
 #DIMS コマンドカテゴリ
+#DIM 文字横幅保存
+#DIMS COM文字列保存
 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
@@ -169,7 +178,9 @@ FOR LOCAL, 0, 700
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME(LOCAL), 30%[{LOCAL, 3}]</button>　"
+		COM文字列保存 = %TRAIN_COMNAME(LOCAL)%
+		文字横幅保存 = STRLENS(COM文字列保存) - HTML_STRINGLEN(COM文字列保存)
+		LOCALS += @"%COM文字列保存, 30 + 文字横幅保存%[{LOCAL, 3}]</button>　"
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
@@ -248,7 +259,9 @@ FOR LOCAL, 0, 500
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME_S(コマンドキー), 30%[%コマンドキー,5%]</button>　"
+		COM文字列保存 = %TRAIN_COMNAME_S(コマンドキー)%
+		文字横幅保存 = STRLENS(COM文字列保存) - HTML_STRINGLEN(COM文字列保存)
+		LOCALS += @"%COM文字列保存, 30 + 文字横幅保存%[%コマンドキー,5%]</button>　"
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
@@ -412,6 +425,20 @@ ELSEIF RESULT == 803
 	RETURN 1
 ELSEIF RESULT == 804
 	CALL PRINT_STATE(MASTER)
+	RETURN 1
+ELSEIF RESULT == 810
+	IF PREGNANCY_SIZE(TARGET) >= 2
+		PRINTFORML %CALLNAME:TARGET%は妊娠してお腹が大きくなっている……。
+		PRINTW うつ伏せに寝ることは出来なさそうだ。
+	ELSE
+		INVERTBIT TCVAR:TARGET:マッサージ_うつ伏せフラグ, 0
+		PRINTFORM %CALLNAME:TARGET%に
+		IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+			PRINTW うつ伏せに寝てもらった。
+		ELSE
+			PRINTW 仰向けに寝てもらった。
+		ENDIF
+	ENDIF
 	RETURN 1
 ELSEIF RESULT == 809
 	CALL OPTION
@@ -609,6 +636,7 @@ ENDIF
 
 
 @EVENTCOMEND0_マッサージモード
+#DIM TARGET保存
 #DIM 食事回復量
 #DIM 料理ランク一時保存
 #DIM 料理属性一時保存, 10
@@ -650,6 +678,27 @@ ELSE
 	派生コマンド履歴:1 = %派生コマンド履歴:0%
 	派生コマンド履歴:0 = %RSTR:SELECTCOM_S受け渡し%
 ENDIF
+
+SELECTCASE SELECTCOM
+	CASE 51
+		;おまんこマッサージはうふふに移行する関係上、ここで色々処理
+		;通常モードに移行
+		TARGET保存 = TARGET
+		CALL ゲームフェイズ変更("通常モード")
+		TARGET = TARGET保存
+		;うふふに移行
+		CFLAG:TARGET:うふふ = 1
+		CFLAG:PLAYER:うふふ = 1
+		BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+
+		IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+			;うつ伏せだと後背位
+			CALL MODE_CHANGE("後背位", PLAYER, TARGET)
+		ELSE
+			;仰向けだと正常位
+			CALL MODE_CHANGE("正常位", PLAYER, TARGET)
+		ENDIF
+ENDSELECT
 
 ;キャラごとの特殊処理を呼び出す
 TRYCALLFORM MASSAGE_TURNEND_CHARAEVENT_{NO:TARGET}
@@ -732,32 +781,9 @@ FOR LOCAL, 1, CHARANUM
 	SIF !CFLAG:(TARGET:LOCAL):体力限界
 		モード中キャラカウント += 1
 NEXT
-; IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
-; 	CALL 呼び出す候補キャラ登録(表示候補)
-; 	IF RESULT > 0 && BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
-; 		PRINTL
-; 		PRINTFORML %CALLNAME:MASTER%の相手が全員ダウンしてしまった……
-; 		PRINTFORML 新しい相手を呼び出しますか？
-; 		PRINTBUTTON "[0] はい", 0
-; 		PRINTL
-; 		PRINTBUTTON "[1] いいえ", 1
-; 		PRINTL
-; 		BINPUT
-; 		IF RESULT == 0
-; 			CALL COM210
-; 			IF RESULT == -1
-; 				CALL うふふ終了処理
-; 			ELSE
-; 				;呼び出した相手をTARGETに
-; 				TFLAG:TARGET変更用 = RFLAG:コマンド結果受渡し変数
-; 			ENDIF
-; 		ELSE
-; 			CALL うふふ終了処理
-; 		ENDIF
-; 	ELSE
-; 		CALL うふふ終了処理
-; 	ENDIF
-; ENDIF
+IF モード中キャラカウント == 0
+	CALL ゲームフェイズ変更("通常モード")
+ENDIF
 ;非同室キャラのダウンを判定
 FOR LOCAL, 1, CHARANUM
 	SIF MATCH(TARGET, LOCAL) > 0

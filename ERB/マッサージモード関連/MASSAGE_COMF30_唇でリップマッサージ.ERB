@@ -1,0 +1,105 @@
+﻿;-------------------------------------------------
+;唇でリップマッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME30
+#FUNCTIONS
+TSTR:コマンド名受渡 = 唇でリップマッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_30
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_30
+LOCALS = <br>■唇でリップマッサージ<br>
+LOCALS += "キスモードには突入しない単発コマンド。"
+LOCALS += "お客様の唇を、同じくらい柔らかく繊細な施術具──つまりあなたの唇で『マッサージ』してあげる。"
+LOCALS += "あくまでこれはマッサージであってキスではなく、したがって浮気とかにもならないはずである。"
+LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：露出・接触・快Ｓ・不潔・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM30
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;基盤ができたあとで理性を削る処理を入れる
+
+;誰がどう見たってただのキスなので、キスのコマンドからそのまま持ってきた。
+;どう考えてもマッサージじゃないので歓楽は上がらない
+
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+ENDIF
+
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+ENDIF
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+IF CFLAG:PLAYER:ファーストキスフラグ == 0
+	CFLAG:PLAYER:ファーストキスフラグ = 1
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>エステ中に%CALLNAME:TARGET%の[唇]にファーストキスを捧げた</font><img src='えっちハート'>","うふふ")
+ENDIF
+
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	CFLAG:TARGET:ファーストキスフラグ = 1
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>エステ中に%CALLNAME:PLAYER%の[唇]にファーストキスを奪われた</font><img src='えっちハート'>","うふふ")
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE30
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;キスモードには入らない単発コマンド
+
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM30
+
+PRINTFORML %CALLNAME:PLAYER%は「これはマッサージだから」と偽って、%CALLNAME:TARGET%%TEXTR("と唇を重ね合わせた/の唇を奪った/とのキスを堪能した")%…
