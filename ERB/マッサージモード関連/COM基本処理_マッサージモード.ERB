@@ -1,4 +1,33 @@
-﻿
+﻿;========================================
+;@COMTYPE(ARGS)
+;指定した調教コマンドタイプ名に対応した数値を返す
+;========================================
+@MASSAGE_COMTYPE(ARGS)
+#FUNCTION
+#LOCALSSIZE 3
+TSTR:複合コマンドタイプ受け渡し = 
+SIF LOCALS == ""
+	SPLIT "通常マッサージ_微エロマッサージ_エロマッサージ", "_", LOCALS
+IF STRFIND(ARGS, "&") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 100
+ELSEIF STRFIND(ARGS, "_") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 101
+ELSE
+	RETURNF FINDELEMENT(LOCALS,ARGS,,,1)
+ENDIF
+
+;こっちは数字から文字列で返す
+@MASSAGE_COMTYPE_S(ARG)
+#FUNCTIONS
+#LOCALSSIZE 3
+SIF LOCALS == ""
+	SPLIT "通常マッサージ_微エロマッサージ_エロマッサージ", "_", LOCALS
+SIF ARG >= 100
+	RETURNF ""
+RETURNF LOCALS:ARG
+
 @SHOW_USERCOM_マッサージモード
 #DIM コマンド数
 VARSET LOCAL
@@ -45,11 +74,6 @@ PRINTL ＞
 
 
 @SHOW_COMMAND_マッサージモード
-#DIMS 複合条件保存, 10
-#DIM スキップフラグ
-#DIM 配列番号
-#DIMS コマンドキー
-#DIM 派生カテゴリ表示フラグ
 
 ;一旦モードはオミット
 ;CALL SHOW_MODE()
@@ -59,6 +83,27 @@ SETCOLOR 0xC0C0C0
 PRINT -----
 PRINTPLAIN [マッサージ]
 PRINTL -------------------------------------------------------------------------------------------
+CALL SHOW_COMMAND_マッサージモード_実処理("通常")
+PRINTL
+SETCOLOR 0xFF99EE
+文字色保存 = GETCOLOR()
+PRINT -----
+PRINTPLAIN [エロマッサージ]
+PRINTL ---------------------------------------------------------------------------------------
+CALL SHOW_COMMAND_マッサージモード_実処理("エロマッサージ")
+
+PRINTL
+RESETCOLOR
+PRINTL
+文字色保存 = 0
+
+@SHOW_COMMAND_マッサージモード_実処理(コマンドカテゴリ)
+#DIMS 複合条件保存, 10
+#DIM スキップフラグ
+#DIM 配列番号
+#DIMS コマンドキー
+#DIM 派生カテゴリ表示フラグ
+#DIMS コマンドカテゴリ
 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
@@ -67,6 +112,9 @@ TOOLTIP_SETDURATION 100000
 VARSET LOCALS
 LOCAL:1 = 0
 LOCAL:2 = 0
+LOCAL:3 = MASSAGE_COMTYPE(コマンドカテゴリ)
+SIF コマンドカテゴリ == "通常"
+	LOCAL:3 = 49
 
 FOR LOCAL, 0, 700
 	TRYCCALLFORM MASSAGE_COM_ABLE{LOCAL}
@@ -80,6 +128,16 @@ FOR LOCAL, 0, 700
 	TRYCALLFORMF MASSAGE_COMTYPE_{LOCAL}
 	SIF TFLAG:派生コマンド指定 > -1
 		CONTINUE
+	;指定カテゴリと同じコマンドだけ表示
+	SELECTCASE LOCAL:3
+		CASE 0 TO 48
+			SIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+				CONTINUE
+		CASE 49
+			;通常枠は通常と微エロを合算
+			SIF TFLAG:コマンドタイプ受渡 >= 2
+				CONTINUE
+	ENDSELECT
 	LOCALS:1 = {LOCAL}
 	IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
 		LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
@@ -111,14 +169,14 @@ FOR LOCAL, 0, 700
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME(LOCAL), 22%[{LOCAL, 3}]</button>"
+		LOCALS += @"%TRAIN_COMNAME(LOCAL), 30%[{LOCAL, 3}]</button>　"
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
 		ENDIF
 		LOCAL:2 += 1
 	ENDIF
-	IF LOCAL:2 >= 4
+	IF LOCAL:2 >= 3
 		LOCAL:2 = 0
 		HTML_PRINT LOCALS
 		LOCALS = 
@@ -144,6 +202,16 @@ FOR LOCAL, 0, 500
 		RESULT = 0
 		弱点コマンドカテゴリ = 
 		TRYCALLFORMF MASSAGE_COMTYPE_S_{LOCAL}_{LOCAL:1}
+		;指定カテゴリと同じコマンドだけ表示
+		SELECTCASE LOCAL:3
+			CASE 0 TO 48
+				SIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+					CONTINUE
+			CASE 49
+				;通常枠は通常と微エロを合算
+				SIF TFLAG:コマンドタイプ受渡 >= 2
+					CONTINUE
+		ENDSELECT
 		IF 派生カテゴリ表示フラグ == 0
 			PRINTL
 			派生名フラグ = 1
@@ -180,14 +248,14 @@ FOR LOCAL, 0, 500
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME_S(コマンドキー), 25%[%コマンドキー,5%]</button>"
+		LOCALS += @"%TRAIN_COMNAME_S(コマンドキー), 30%[%コマンドキー,5%]</button>　"
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
 		ENDIF
 		LOCAL:2 += 1
 		SETCOLOR 文字色保存
-		IF LOCAL:2 >= 4
+		IF LOCAL:2 >= 3
 			LOCAL:2 = 0
 			HTML_PRINT LOCALS
 			LOCALS = 
@@ -200,11 +268,6 @@ FOR LOCAL, 0, 500
 		LOCALS = 
 	ENDIF
 NEXT
-
-PRINTL
-RESETCOLOR
-PRINTL
-文字色保存 = 0
 
 @USERCOM_マッサージモード
 #DIM ページ番号
@@ -438,19 +501,31 @@ ENDIF
 #DIMS 呼び出し文字列
 #DIM 対象キャラ
 #DIM 入れ替え保存
+#DIM 汎用喘ぎうふふフラグ
 
 VARSET LOCAL
+汎用喘ぎうふふフラグ = 0
+TFLAG:コマンドタイプ受渡 = 0
+
 IF FLAG:汎用文章表示切り替えオプション > 0
 	IF SELECTCOM_S != ""
 		TRYCCALLFORM MASSAGE_MESSAGE_COM_S%SELECTCOM_S%
 			PRINTW
 		CATCH
 		ENDCATCH
+		TRYCALLFORMF MASSAGE_COMTYPE_S_%SELECTCOM_S%
+		;エロマッサージの時だけフラグON
+		SIF TFLAG:コマンドタイプ受渡 == 2
+			汎用喘ぎうふふフラグ = 1
 	ELSE
 		TRYCCALLFORM MASSAGE_MESSAGE_COM{SELECTCOM}
 			PRINTW
 		CATCH
 		ENDCATCH
+		TRYCALLFORMF MASSAGE_COMTYPE_{SELECTCOM}
+		;エロマッサージの時だけフラグON
+		SIF TFLAG:コマンドタイプ受渡 == 2
+			汎用喘ぎうふふフラグ = 1
 	ENDIF
 	PRINTL
 ENDIF
@@ -462,22 +537,26 @@ CALL 口上変数初期化
 RESULT = 0
 
 ;口上ありでも汎用喘ぎを使うならここで表示
-IF TFLAG:オートコマンドフラグ == 0
-	対象キャラ = TARGET
-	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
-		CALL 汎用喘ぎ処理(対象キャラ)
-	ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
-		;禁止時はなにもしない
+;エロマッサージの場合は一時的にうふふをONに
+
+対象キャラ = TARGET
+SIF 汎用喘ぎうふふフラグ
+	CFLAG:対象キャラ:うふふ = 1
+
+IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+	CALL 汎用喘ぎ処理(対象キャラ)
+ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+	;禁止時はなにもしない
+ELSE
+	IF TALENT:対象キャラ:性別 == 2
+		SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1)
+			CALL 汎用喘ぎ処理(対象キャラ)
 	ELSE
-		IF TALENT:対象キャラ:性別 == 2
-			SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1)
-				CALL 汎用喘ぎ処理(対象キャラ)
-		ELSE
-			SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
-				CALL 汎用喘ぎ処理(対象キャラ)
-		ENDIF
+		SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+			CALL 汎用喘ぎ処理(対象キャラ)
 	ENDIF
 ENDIF
+CFLAG:対象キャラ:うふふ = 0
 
 SIF TCVAR:TARGET:食いしばりフラグ
 	SKIPDISP 1
@@ -504,6 +583,8 @@ IF K < 1 && LOCAL:1 == 1
 	;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
 	;口上なしで汎用喘ぎを使うならここで表示
 	対象キャラ = TARGET
+	SIF 汎用喘ぎうふふフラグ
+		CFLAG:対象キャラ:うふふ = 1
 	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
 		;禁止時はなにもしない
 	ELSEIF TFLAG:オートコマンドフラグ == 0
@@ -522,6 +603,7 @@ IF K < 1 && LOCAL:1 == 1
 			TRYCALLFORM MASSAGE_MESSAGE_COM{SELECTCOM}_非口上時
 		ENDIF
 	ENDIF
+	CFLAG:対象キャラ:うふふ = 0
 ENDIF
 
 
