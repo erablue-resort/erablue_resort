@@ -75,8 +75,7 @@ PRINTL 　　　：業務［自動探索］に設定したキャラが赴くダ�
 PRINTL 
 PRINTL
 PRINTBUTTONLC "[999] 戻る", 999
-$INPUT_LOOP
-INPUT
+BINPUT
 
 SELECTCASE RESULT
 	CASE 0
@@ -102,8 +101,7 @@ SELECTCASE RESULT
 		探索フラグ ++
 	CASE 1
 		IF BATTLE_STATE:0:0 < 1
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
+			RESTART
 		ENDIF
 		CALL ダンジョンリスト描画
 		SIF RESULT == -1
@@ -120,9 +118,6 @@ SELECTCASE RESULT
 		RESTART
 	CASE 999
 		RETURN -1
-	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
 ENDSELECT
 
 RETURN 1
@@ -245,21 +240,26 @@ SELECTCASE LOCAL
 			REUSELASTLINE
 			GOTO INPUT_LOOP
 		ENDIF
-		CALLFORM ダンジョン解説文_%表示用リスト_未クリア:LOCAL%
-		PRINTFORML ■%表示用リスト_未クリア:LOCAL%　　推奨Lv：{RESULT,3}
-		PRINTL
-		HTML_PRINT 詳細文文字列受け渡し変数
-		PRINTL
-		PRINTL このダンジョンに入りますか？
-		PRINTBUTTONLC "[0] はい", 0
-		PRINTBUTTONLC "[1] いいえ", 1
-		PRINTL
-		BINPUT
-		IF RESULT == 0
-			CALL DUNGEON_MAIN_LOOP(表示用リスト_未クリア:LOCAL)
-		ELSE
-			RESTART
-		ENDIF
+		TRYCCALLFORM ダンジョン突入時特殊処理_%表示用リスト_未クリア:LOCAL%
+			SIF RESULT == -1
+				RESTART
+		CATCH
+			CALLFORM ダンジョン解説文_%表示用リスト_未クリア:LOCAL%
+			PRINTFORML ■%表示用リスト_未クリア:LOCAL%　　推奨Lv：{RESULT,3}
+			PRINTL
+			HTML_PRINT 詳細文文字列受け渡し変数
+			PRINTL
+			PRINTL このダンジョンに入りますか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				CALL DUNGEON_MAIN_LOOP(表示用リスト_未クリア:LOCAL)
+			ELSE
+				RESTART
+			ENDIF
+		ENDCATCH
 	CASE IS < 150
 		IF 表示用リスト_クリア済み:(LOCAL - 50) == ""
 			REUSELASTLINE
