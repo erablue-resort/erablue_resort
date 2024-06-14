@@ -11,7 +11,7 @@ TSTR:コマンド名受渡 = 膣内リンパマッサージ
 ;===================================================
 @MASSAGE_COMTYPE_27
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_27
 LOCALS = <br>■膣内リンパマッサージ<br>
@@ -28,7 +28,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 ;基盤ができたあとで理性を削る処理を入れる
 IF !TALENT:処女
-	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 1700)
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 170)
 ;処女膜を傷つけない浅い範囲(膣口からおよそ2センチ弱まで)なので快Ｖ自体は弱め
 ELSE
 	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 60)
@@ -52,6 +52,42 @@ IF TEQUIP:下半身下着あり == 1
 	TEQUIP:下半身下着あり = 0
 	RFLAG:コマンド結果受渡し変数 = 1
 ENDIF
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 200
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合でも「流石にこれはダメなやつなのでは？」と思いはじめる。が、時既に遅し。
+;警戒90で理性が45上がり、そこから理性が200下がるイメージでこの数値。ここにきて未だに警戒90なのが無知シチュの『味』。
+	BASE:TARGET:理性 -= 155
+	BASE:TARGET:性欲 += 200
+	BASE:TARGET:警戒 += 90
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 200
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 400
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒250で理性が125回復するも、煽られる性欲と与えられる刺激で理性が200削られて理性変動は-75。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒100で理性50回復、そこから理性200低下でこの数字となる。理性と警戒の合計値は少しだけ下がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 -= 150
+	BASE:TARGET:性欲 += 200
+	BASE:TARGET:警戒 += 100
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSE
+;実行に際し十分な理性・警戒削りがなされていない場合。
+;性欲は煽れるが、警戒と理性が跳ねる。警戒心がビンっ！ってなるので、煽られる性欲の理性低下を撥ね退けてしまう。
+	BASE:TARGET:理性 += 125
+	BASE:TARGET:性欲 += 150
+	BASE:TARGET:警戒 += 250
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDIF
+
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -72,7 +108,10 @@ SIF TALENT:TARGET:Ｖ感度 == -2
 SIF GETBIT(TALENT:TARGET:性別, 0) == 0
 	RETURN 0
 
-
+;理性警戒の合計が800以下じゃないとダメ
+;実行自体はできるが、この時点だと警戒と理性が跳ねる。されるがままになっちゃうのは合計値400以下くらいを想定。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 800
+	RETURN 0
 
 RETURN 1
 

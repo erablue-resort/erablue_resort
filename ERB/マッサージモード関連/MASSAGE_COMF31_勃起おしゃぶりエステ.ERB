@@ -11,7 +11,7 @@ TSTR:コマンド名受渡 = 勃起おしゃぶりエステ
 ;===================================================
 @MASSAGE_COMTYPE_31
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_31
 LOCALS = <br>■勃起おしゃぶりエステ<br>
@@ -29,7 +29,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;基盤ができたあとで理性を削る処理を入れる
 
 ;フェラからだいたいそのまま持ってきた
-CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
 
@@ -46,12 +46,34 @@ CALL SOURCE_CALC_奉仕(PLAYER, TARGET, 300)
 CALL SOURCE_CALC_不潔(PLAYER, TARGET, 250)
 
 
-
 ;下半身下着がある場合は脱がす。
 IF TEQUIP:下半身下着あり == 1
 	TEQUIP:下半身下着あり = 0
 	RFLAG:コマンド結果受渡し変数 = 1
 ENDIF
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 300
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合でも「流石にこれはダメだろ！」と思う。が、時既に遅し。
+;ようやく100上げることができた警戒で理性が50上がるが、気持ちよすぎてそこから理性が500下がるイメージでこの数値。シヴァ……
+	BASE:TARGET:理性 -= 450
+	BASE:TARGET:性欲 += 400
+	BASE:TARGET:警戒 += 100
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSE
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒300で理性が150回復するも、煽られる性欲と与えられる刺激で理性が300削られて理性変動は-150。
+;……というのが平常時における挙動だが、ちんぽをしゃぶられる快感に警戒心が塗りつぶされてしまう。
+;フェラを許しちゃった時点で『終わり』。ここまで来ちゃったらそらそうよ。
+	BASE:TARGET:理性 -= 240
+	BASE:TARGET:性欲 += 300
+	BASE:TARGET:警戒 += 10
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 200)
+ENDIF
+
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -81,6 +103,10 @@ SIF BASE:TARGET:勃起 < 1000
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
+;理性警戒の合計が400以下じゃないとダメ
+;実行できる時点で、十分な理性・警戒削りがなされている状態。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 400
+	RETURN 0
 
 RETURN 1
 

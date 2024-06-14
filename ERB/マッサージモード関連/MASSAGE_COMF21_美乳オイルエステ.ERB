@@ -4,7 +4,7 @@
 @MASSAGE_COMNAME21
 #FUNCTIONS
 TSTR:コマンド名受渡 = 美乳オイルエステ
-SIF TALENT:TARGET:バストサイズ == -1
+SIF TALENT:TARGET:バストサイズ <= -1
 	TSTR:コマンド名受渡 = 豊胸オイルエステ
 
 ;===================================================
@@ -12,22 +12,22 @@ SIF TALENT:TARGET:バストサイズ == -1
 ;===================================================
 @MASSAGE_COMTYPE_21
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_21
-IF TALENT:TARGET:バストサイズ == -1
+IF TALENT:TARGET:バストサイズ <= -1
 	LOCALS = <br>■豊胸オイルエステ<br>
 	LOCALS += "マッサージオイルを使って乳房を揉みほぐす。慎ましい胸にお悩みのあなたへ。"
-	LOCALS += "美肌にハリが出るほか、バストアップにも効果がある_-_、ということになっている_。"
+	LOCALS += "美肌にハリが出るほか、バストアップにも効果がある_-_ということになっている_。"
 	LOCALS += "気持ちよくなればなるほど効果があるってことですからね～。声は我慢しなくて大丈夫ですからね～。"
-	LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽"
+	LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽・不快(警戒下)・反感(警戒下)"
 	LOCALS += "<br>固有の取得経験：なし<br>"
 	TSTR:ツールチップ受渡 = %LOCALS%
 ELSE
 	LOCALS = <br>■美乳オイルエステ<br>
 	LOCALS += "マッサージオイルを使って乳房を揉みほぐす。"
 	LOCALS += "リンパの流れを良くすることで美乳・美肌効果が得られる_-_、ということになっている_。"
-	LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽"
+	LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽・不快(警戒下)・反感(警戒下)"
 	LOCALS += "<br>固有の取得経験：なし<br>"
 	TSTR:ツールチップ受渡 = %LOCALS%
 ENDIF
@@ -37,8 +37,6 @@ ENDIF
 ;ソース追加処理
 ;-------------------------------------------------
 
-;基盤ができたあとで理性を削る処理を入れる
-
 ;Ｂ愛撫より全体的に強め。勿論です、プロですから。
 ;性交ではなくマッサージの中での行為のため露出強め。エロマッサージなので歓楽は通常より弱め
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
@@ -46,7 +44,63 @@ CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
 CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
 CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
 
-;理性削りが足りなかったりするとき用に反感もいるかも？
+;胸を揉むため性欲を煽る。
+BASE:TARGET:性欲 += 80
+
+;警戒は理性の倍回復する。性欲の値で減少したりする。
+
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;……シヴァお前……
+	BASE:TARGET:理性 -= 70
+	BASE:TARGET:警戒 -= 70
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 900
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒140で理性が70回復するも、煽られる性欲と与えられる刺激で理性が80削られて理性変動は-10。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒56で理性28回復、そこから理性80低下でこの数字となる。理性と警戒の合計値はほんの少しだけ上がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 -= 52
+	BASE:TARGET:警戒 += 56
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF BASE:TARGET:理性 <= 200
+;理性がグズグズに煮詰まっちゃってると、警戒及び理性の回復は半分になる。
+	BASE:TARGET:理性 += 35
+	BASE:TARGET:警戒 += 70
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF TALENT:TARGET:バストサイズ <= -1
+;相手が貧乳以下の場合、実行可能であるならば「おっぱい大きくするためだし……」ってしぶしぶ受け入れるイメージ。
+;育ててくれるからちょっとだけ友情も上がるし、理性と警戒の回復も抑えめになる。いっぱい揉んで育ててあげよう。
+	BASE:TARGET:理性 += 40
+	BASE:TARGET:警戒 += 80
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 60)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 120)
+
+ELSEIF TALENT:TARGET:バストサイズ > -1 && (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1100
+;普乳以上かつ理性と警戒の削りが足りていないと、一気に警戒度が上がり、危機感で理性も回復してしまう。不快、反感も増える。
+;理性200以下と共存しちゃうけど、この場合理性200以下のほうが優先となる。
+	BASE:TARGET:理性 += 150
+	BASE:TARGET:警戒 += 300
+	CALL SOURCE_CALC_不快(TARGET, PLAYER, 200)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 200)
+
+ELSE
+;基本値 警戒が1100～900
+;反感まではいかないが、確実に回復してくる。このまま黒閃で反転術式の出力を戻されたらふりだしまで一直線なのでもっと理性を削りましょう。
+	BASE:TARGET:理性 += 50
+	BASE:TARGET:警戒 += 140
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ENDIF
+
 
 ;施術着を着ている場合、25%で脱がす。ここに関してはプレイヤーが選択できたほうがいいかも？
 IF TEQUIP:上半身下着あり && RAND:4 == 0
@@ -80,8 +134,9 @@ SIF TALENT:TARGET:性別 == 2
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
-
-;相手が貧乳以下の場合、実行が少し楽になるとか。
+;実行するだけならそこそこ緩い。削りが足りてないと反感食らうし警戒されるけど。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1400
+	RETURN 0
 
 
 RETURN 1

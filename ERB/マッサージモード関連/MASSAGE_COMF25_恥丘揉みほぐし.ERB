@@ -11,7 +11,7 @@ TSTR:コマンド名受渡 = 恥丘揉みほぐし
 ;===================================================
 @MASSAGE_COMTYPE_25
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_25
 LOCALS = <br>■恥丘揉みほぐし<br>
@@ -26,8 +26,6 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;ソース追加処理
 ;-------------------------------------------------
 
-;基盤ができたあとで理性を削る処理を入れる
-
 ;快Ｃ強め。でもローターより強いのはあれだから……200くらい？
 CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 75)
@@ -36,6 +34,35 @@ CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
 ;ローションは別のコマンドになるっぽいので気持ち程度
 CALL SOURCE_CALC_液体(TARGET, PLAYER, 1000)
 
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 150
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合でも「ちょっとこれはダメなやつなのでは？」と思いはじめる。が、時既に遅し。
+;警戒60で理性が30上がり、そこから理性が150下がるイメージでこの数値。
+	BASE:TARGET:理性 -= 120
+	BASE:TARGET:性欲 += 150
+	BASE:TARGET:警戒 += 60
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 500
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒200で理性が100回復するも、煽られる性欲と与えられる刺激で理性が150削られて理性変動は-50。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒80で理性40回復、そこから理性150低下でこの数字となる。理性と警戒の合計値は少しだけ下がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 -= 110
+	BASE:TARGET:性欲 += 150
+	BASE:TARGET:警戒 += 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSE
+;実行に際し十分な理性・警戒削りがなされていない場合。
+;一応性欲は煽れるが、警戒と理性が跳ねる。警戒心がビンっ！ってなるので、煽られる性欲の理性低下を撥ね退けてしまう。
+	BASE:TARGET:理性 += 100
+	BASE:TARGET:性欲 += 100
+	BASE:TARGET:警戒 += 200
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDIF
 
 ;-------------------------------------------------
 ;経験の処理
@@ -63,6 +90,10 @@ SIF TALENT:TARGET:Ｖ感度 == -2
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
+;理性警戒の合計が1000以下じゃないとダメ
+;実行自体はできるが、この時点だと警戒と理性が跳ねる。されるがままになっちゃうのは合計値500以下くらいを想定。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1000
+	RETURN 0
 
 RETURN 1
 

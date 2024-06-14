@@ -10,12 +10,24 @@ FOR LOCAL, 0, エネミー数
 	CALL ランダムエネミーステータス設定(対象エネミー, レベル目安)
 NEXT
 
-@ランダムエネミーステータス設定(対象エネミー, レベル目安)
+@ランダムボスセット関数(エネミー数, レベル目安)
+#DIM 対象エネミー
+#DIM レベル目安
+#DIM エネミー数
+エネミー数 = LIMIT(エネミー数, 1, 2)
+
+FOR 対象エネミー, 0, エネミー数
+	;最大２体、位置は固定
+	CALL ランダムエネミーステータス設定(対象エネミー * 4, レベル目安, 1)
+NEXT
+
+@ランダムエネミーステータス設定(対象エネミー, レベル目安, ボス許可 = 0)
 #DIM 対象エネミー
 #DIMS 関数名
 #DIM レベル目安
 #DIMS 候補配列, 50
 #DIM 候補数
+#DIM ボス許可
 #DIM 一時候補数
 
 ;Lvを決定
@@ -29,14 +41,19 @@ FOR LOCAL, 敵BATTLE_STATE:対象エネミー:ランダムエネミーフラグ,
 	一時候補数 = ENUMFUNCBEGINSWITH(@"敵BATTLE_STATE_Lv{LOCAL}_")
 	IF 一時候補数 > 0
 		FOR LOCAL:1, 0, 一時候補数
-			;とりあえずボス以外が対象
+			;ボスフラグを見る
 			敵BATTLE_STATE:10:ボスフラグ = 0
 			CALLFORM %RESULTS:(LOCAL:1)%(10)
-			SIF 敵BATTLE_STATE:10:ボスフラグ
-				CONTINUE
+			IF ボス許可 == 0
+				SIF 敵BATTLE_STATE:10:ボスフラグ
+					CONTINUE
+			ELSE
+				SIF 敵BATTLE_STATE:10:ボスフラグ == 0
+					CONTINUE
+			ENDIF
 			;ここにダンジョンごとの制限を入れるけど今は全対象で
 
-			候補配列:候補数 '= REPLACE(RESULTS, "敵BATTLE_STATE_", "")
+			候補配列:候補数 '= REPLACE(RESULTS:(LOCAL:1), "敵BATTLE_STATE_", "")
 			候補数 ++
 			SIF 候補数 >= 50
 				BREAK
@@ -54,12 +71,6 @@ NEXT
 ;候補から対象を決定
 ;例外規定はめんどくさいから無し。制限で候補が０体にならないようにすること
 敵BATTLE_STATE_STR:対象エネミー:エネミー名 '= 候補配列:(RAND:候補数)
-
-; LOCAL = ENUMFUNCBEGINSWITH("敵BATTLE_STATE_ランダム_")
-; 関数名 = %RESULTS:(RAND:LOCAL)%
-; 敵BATTLE_STATE_STR:対象エネミー:エネミー名 = Lv{敵BATTLE_STATE:対象エネミー:Lv}_%REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
-; 敵BATTLE_STATE_STR:対象エネミー:エネミー関数キー = %REPLACE(関数名, "敵BATTLE_STATE_ランダム_", "")%
-; CALLFORM %関数名%(対象エネミー)
 
 
 

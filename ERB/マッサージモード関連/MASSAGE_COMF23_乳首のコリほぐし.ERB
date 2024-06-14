@@ -13,7 +13,7 @@ SIF TALENT:TARGET:陥没乳首 && !TCVAR:TARGET:陥没乳首露出フラグ
 ;===================================================
 @MASSAGE_COMTYPE_23
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_23
 IF TALENT:TARGET:陥没乳首 && !TCVAR:TARGET:陥没乳首露出フラグ
@@ -34,8 +34,6 @@ ENDIF
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
-
-;基盤ができたあとで理性を削る処理を入れる
 
 ;Ｂ愛撫より全体的に強め。勿論です、プロですから。
 ;性交ではなくマッサージの中での行為のため露出強め。エロマッサージなので歓楽は通常より弱め
@@ -61,6 +59,53 @@ ENDIF
 
 RCVAR:乳首開発フラグ = 1
 
+;乳首をいじるため性欲を煽る。
+BASE:TARGET:性欲 += 80
+
+;警戒は理性の倍回復する。
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;……シヴァお前……
+	BASE:TARGET:理性 -= 50
+	BASE:TARGET:警戒 -= 50
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 700
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒140で理性が70回復するも、煽られる性欲と与えられる刺激で理性が80削られて理性変動は-10。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒56で理性28回復、そこから理性80低下でこの数字となる。理性と警戒の合計値はほんの少しだけ上がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 -= 52
+	BASE:TARGET:警戒 += 56
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF BASE:TARGET:理性 <= 200
+;理性がグズグズに煮詰まっちゃってると、警戒及び理性の回復は半分になる。理性200警戒800とかの場合これ。
+	BASE:TARGET:理性 += 35
+	BASE:TARGET:警戒 += 70
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF TALENT:TARGET:バストサイズ <= -1
+;相手が貧乳以下の場合、実行可能であるならば「これもおっぱい大きくするため……？」ってしぶしぶ受け入れるイメージ。
+	BASE:TARGET:理性 += 50
+	BASE:TARGET:警戒 += 100
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 60)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 120)
+
+ELSE
+;基本値
+	BASE:TARGET:理性 += 70
+	BASE:TARGET:警戒 += 140
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ENDIF
+
+
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -80,14 +125,16 @@ SIF TALENT:TARGET:Ｂ感度 == -2
 	RETURN 0
 
 ;乳首が勃起するくらいの欲情が必要
-SIF PALAM:欲情 <= PALAMLV:2
+SIF PALAM:欲情 <= PALAMLV:3
 	RETURN 0
 
 ;うつ伏せだとダメ
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
-
+;理性警戒の合計が1000以下じゃないとダメ
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1000
+	RETURN 0
 
 RETURN 1
 

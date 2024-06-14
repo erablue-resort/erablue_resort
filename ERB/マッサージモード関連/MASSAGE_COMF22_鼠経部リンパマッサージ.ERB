@@ -11,7 +11,7 @@ TSTR:コマンド名受渡 = 鼠経部リンパマッサージ
 ;===================================================
 @MASSAGE_COMTYPE_22
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_22
 LOCALS = <br>■鼠経部リンパマッサージ<br>
@@ -26,7 +26,6 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;ソース追加処理
 ;-------------------------------------------------
 
-;基盤ができたあとで理性を削る処理を入れる
 
 ;鼠径部からビキニラインにかけて素肌の上からの刺激なので快Ｖはほんの気持ち程度
 SIF TALENT:TARGET:Ｖ感度 >= -1
@@ -40,6 +39,26 @@ CALL SOURCE_CALC_露出(TARGET, PLAYER, 75)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 75)
 CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 150)
 
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 50
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;……シヴァお前……
+	BASE:TARGET:理性 -= 60
+	BASE:TARGET:性欲 += 50
+	BASE:TARGET:警戒 -= 50
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ELSE
+;局部に直接触れるわけではないので、警戒は少し上がるが理性は削れる。性欲も煽られる。なまごろし～！
+	BASE:TARGET:理性 -= 60
+	BASE:TARGET:性欲 += 50
+	BASE:TARGET:警戒 += 20
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDIF
 
 ;-------------------------------------------------
 ;経験の処理
@@ -59,6 +78,9 @@ SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
+;実行するだけならそこそこ緩い。警戒はされるけど。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1500
+	RETURN 0
 
 RETURN 1
 

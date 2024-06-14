@@ -11,7 +11,7 @@ TSTR:コマンド名受渡 = 唇でリップマッサージ
 ;===================================================
 @MASSAGE_COMTYPE_30
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("エロマッサージ")
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
 @MASSAGE_COM_TOOLTIP_30
 LOCALS = <br>■唇でリップマッサージ<br>
@@ -63,6 +63,36 @@ IF TALENT:PLAYER:舌使い
 	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
 ENDIF
 
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 40
+	BASE:TARGET:警戒 -= 80
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合でも「流石にこれはダメなやつなのでは？」と思いはじめる。が、まぁいいかとなる。
+;心地いいので警戒と理性は下がり続ける。
+	BASE:TARGET:理性 -= 50
+	BASE:TARGET:性欲 += 20
+	BASE:TARGET:警戒 -= 30
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 400
+;実行に際し十分な理性・警戒削りがなされている場合。
+;激しい快楽はないが、浮つくような心地の中で唇を奪われて抵抗する気持ちがうまく芽生えない状態。100警戒してるはずなのに、100絆されてプラマイゼロ。
+	BASE:TARGET:理性 -= 100
+	BASE:TARGET:性欲 += 40
+	BASE:TARGET:警戒 += 100
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
+ELSE
+;実行に際し十分な理性・警戒削りがなされていない場合。
+;どう言い訳しようとキスであることは間違いないので警戒と理性が跳ねる。
+	BASE:TARGET:理性 += 125
+	BASE:TARGET:性欲 += 40
+	BASE:TARGET:警戒 += 250
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+ENDIF
+
 
 ;-------------------------------------------------
 ;経験の処理
@@ -77,6 +107,11 @@ IF CFLAG:TARGET:ファーストキスフラグ == 0
 	CFLAG:TARGET:ファーストキスフラグ = 1
 	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>エステ中に%CALLNAME:PLAYER%の[唇]にファーストキスを奪われた</font><img src='えっちハート'>","うふふ")
 ENDIF
+
+;理性警戒の合計が700以下じゃないとダメ
+;実行自体はできるが、この時点だと警戒と理性が跳ねる。されるがままになっちゃうのは合計値400以下くらいを想定。
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 700
+	RETURN 0
 
 RETURN 1
 
