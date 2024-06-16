@@ -27,6 +27,8 @@ RESTART
 #DIMS エリア名
 #DIMS 処理モード
 #DIM ボタン数値
+#DIM 表示位置X, 10
+#DIM 表示位置Y, 10
 
 LOCALS = <div rect='81,31,5900,3812' border='31' bcolor='#C0C0C0'><img src='リゾート遠景' height='3800' width='5900'></div>
 
@@ -62,35 +64,42 @@ IF ダンジョンクリアフラグ_沿岸部の森
 	ENDIF
 ENDIF
 
-IF 開拓エリア解放フラグ:0
-	IF 処理モード == "移動処理" 
-		IF CFLAG:MASTER:現在マップ種別 != 開拓エリア開発番号:0
-			ボタン数値 = 開拓エリア開発番号:0
+表示位置X:0 = 4200
+表示位置Y:0 = 2730
+表示位置X:1 = 3500
+表示位置Y:1 = 2100
+
+FOR LOCAL, 0, 2
+	IF 開拓エリア解放フラグ:LOCAL
+		IF 処理モード == "移動処理" 
+			IF CFLAG:MASTER:現在マップ種別 != 開拓エリア開発番号:LOCAL
+				ボタン数値 = 開拓エリア開発番号:LOCAL
+			ELSE
+				ボタン数値 = 999
+			ENDIF
+			IF 開拓エリア開発番号:LOCAL == 0
+				エリア名 = ＊空きエリア＊
+				LOCALS += @"<div rect='{表示位置X:LOCAL},{表示位置Y:LOCAL},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+			ELSE
+				CALLFORM エリア情報登録_{開拓エリア開発番号:LOCAL}("エリア名")
+				エリア名 = %TSTR:場所名受渡%
+				LOCALS += @"<div rect='{表示位置X:LOCAL + 50},{表示位置Y:LOCAL - 430},700,500'><button value='{ボタン数値}'><img src='%エリア名%' height='500'></button></div>"
+				LOCALS += @"<div rect='{表示位置X:LOCAL},{表示位置Y:LOCAL},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+			ENDIF
 		ELSE
-			ボタン数値 = 999
-		ENDIF
-		IF 開拓エリア開発番号:0 == 0
-			エリア名 = ＊空きエリア＊
-			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
-		ELSE
-			CALLFORM エリア情報登録_{開拓エリア開発番号:0}("エリア名")
-			エリア名 = %TSTR:場所名受渡%
-			LOCALS += @"<div rect='4250,2300,700,500'><button value='{ボタン数値}'><img src='%エリア名%' height='500'></button></div>"
-			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
-		ENDIF
-	ELSE
-		ボタン数値 = 0
-		IF 開拓エリア開発番号:0 == 0
-			エリア名 = ＊空きエリア＊
-			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
-		ELSE
-			CALLFORM エリア情報登録_{開拓エリア開発番号:0}("エリア名")
-			エリア名 = %TSTR:場所名受渡%
-			LOCALS += @"<div rect='4250,2300,700,500'><img src='%エリア名%' height='500'></div>"
-			LOCALS += @"<div rect='4200,2730,{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+			ボタン数値 = LOCAL
+			IF 開拓エリア開発番号:LOCAL == 0
+				エリア名 = ＊空きエリア＊
+				LOCALS += @"<div rect='{表示位置X:LOCAL},{表示位置Y:LOCAL},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{ボタン数値}'>%エリア名%</button></div>"
+			ELSE
+				CALLFORM エリア情報登録_{開拓エリア開発番号:LOCAL}("エリア名")
+				エリア名 = %TSTR:場所名受渡%
+				LOCALS += @"<div rect='{表示位置X:LOCAL + 50},{表示位置Y:LOCAL - 430},700,500'><img src='%エリア名%' height='500'></div>"
+				LOCALS += @"<div rect='{表示位置X:LOCAL},{表示位置Y:LOCAL},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'>%エリア名%</div>"
+			ENDIF
 		ENDIF
 	ENDIF
-ENDIF
+NEXT
 
 HTML_PRINT LOCALS
 FOR LOCAL, 0, 34
@@ -120,8 +129,9 @@ FOR LOCAL, 0, 候補数
 	SIF RESULT == 0
 		CONTINUE
 	エリア名 = %REPLACE(RESULTS:LOCAL, "大規模エリア建設条件_", "")%
-	LOCALS += @"<div rect='{LOCAL * 1000 + 356},{LOCAL / 5 * 800 + 155},600,500'><button value='{LOCAL}'><img src='%エリア名%' height='500'></button></div>"
-	LOCALS += @"<div rect='{LOCAL * 1000 + 106 + (20 - STRLENS(エリア名)) * 25},{LOCAL / 5 * 800 + 585},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{LOCAL}'>%エリア名%</button></div>"
+	LOCALS += @"<div rect='{LOCAL:1 * 1000 + 356},{LOCAL:1 / 5 * 800 + 155},600,500'><button value='{LOCAL}'><img src='%エリア名%' height='500'></button></div>"
+	LOCALS += @"<div rect='{LOCAL:1 * 1000 + 106 + (20 - STRLENS(エリア名)) * 25},{LOCAL:1 / 5 * 800 + 585},{STRLENS(エリア名) * 50 + 120},212' padding='35,25,35' border='31' bcolor='#C0C0C0' color='#333333'><button value='{LOCAL}'>%エリア名%</button></div>"
+	LOCAL:1 ++
 NEXT
 
 HTML_PRINT LOCALS
@@ -163,7 +173,7 @@ SELECTCASE LOCAL
 			IF RESULT == 0
 				MONEY -= 必要ルピ
 				PRINTFORMW 空きエリアに「%エリア名%」を建設しました。
-				開拓エリア開発番号:0 = GETVAR(@"大規模番号_%エリア名%")
+				開拓エリア開発番号:建築位置 = GETVAR(@"大規模番号_%エリア名%")
 				RETURN 0
 			ENDIF
 		ENDIF
