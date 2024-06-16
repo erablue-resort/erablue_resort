@@ -1,0 +1,523 @@
+@スロットゲーム(基準レート)
+#DIM CONST レイヤー番号 = 50
+#DIM 有効キャラリスト,200
+#DIM 有効キャラ数
+#DIM スロットリールN,10;要素の置換
+#DIM スロットリールC,10;要素の置換
+#DIM スロットリールS,10;要素の置換
+#DIM CONST 最大表示枚数 = 10
+#DIMS キー文字列 ;画像の種類指定
+#DIM 画像表示サイズ,2
+#DIM パノラマサイズ,2
+#DIM CONST スクロール速度 = 20
+#DIM 表示枚数
+#DIM スタートタイム
+#DIM 回転時間
+#DIM 回転量
+#DIM CONST アニメタイマー = 50
+#DIM CONST フレームレート = 50
+#DIM 選択リール
+#DIM リール状態,3 ;何番目の枠で止まっているか
+#DIM リザルト状態,3 ;何番目の有効キャラリストIDで止まっているか
+#DIM CONST 文字列分割F = 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3 ;CALLNAMEの分割
+#DIM CONST 文字列分割R = 0, 1, 2, 2, 2, 4, 4, 4, 6, 6, 6
+#DIM CONST 文字数 = 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3
+#DIMS リザルト
+#DIM 基準レート
+#DIM レート
+#DIM リワード
+#DIM トータルリワード
+#DIM カラーマトリクス,5,5
+#DIM スロット変更カウンタ ;3回または、10%でキー文字列を変更する
+#DIM スケベスロットフラグ
+{
+    #DIMS CONST 衣装差分 = 
+    "デフォルト", "水着", "浴衣", "部屋着", "おしゃれ着", 
+    "バニー服", "メイド服", "チャイナドレス", "スモック", "トリック・オア・トリートメント", 
+    "", 
+}
+{
+    #DIMS CONST スケベ衣装差分 = 
+    "湯浴み着", "全裸", "マイクロビキニ", "逆バニー", "ミニチャイナ", 
+    "セクシーランジェリー", "ミニスカサンタ", "ミニメイド服", "",
+}
+{
+    #DIMS CONST 表情差分 = 
+    "", 
+}
+{
+    #DIMS CONST スケベ表情差分 = 
+    "正常位", "後背位", "Ａ正常位", "Ａ後背位", "膣内射精", 
+    "腸内射精", "口内射精", "乳内射精", "顔射", "パイズリ", 
+    "フェラチオ", "絶頂", "欲情", "", "", 
+}
+#DIMS 有効カテゴリ,100
+#DIM 有効カテゴリ数
+#DIMS 有効スケベカテゴリ,100
+#DIM 有効スケベカテゴリ数
+#DIM カテゴリ内有効キャラ数
+画像表示サイズ = 180, 360
+パノラマサイズ = 900, 120
+;画像表示サイズ = 360, 720
+;パノラマサイズ = 1600, 240
+
+スロット変更カウンタ = 3
+
+VARSET 有効カテゴリ
+VARSET 有効スケベカテゴリ
+VARSET 有効カテゴリ数
+VARSET 有効スケベカテゴリ数
+
+FOR LOCAL, 1, CHARANUM
+    SIF CSTR:LOCAL:画像フォルダ == ""
+        CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
+NEXT
+FOR LOCAL:1, 0, 100
+    SIF 衣装差分:(LOCAL:1) == ""
+        BREAK
+    VARSET カテゴリ内有効キャラ数
+    キー文字列 '= "短冊_" + 衣装差分:(LOCAL:1)
+    FOR LOCAL, 1, CHARANUM
+        IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+            カテゴリ内有効キャラ数 ++
+        ENDIF
+    NEXT
+    IF カテゴリ内有効キャラ数 > 4
+        ARRAYSHIFT 有効カテゴリ, 1, TOSTR(LOCAL:1)
+        有効カテゴリ数 ++
+    ENDIF
+    FOR LOCAL:2, 0, 100
+        SIF 表情差分:(LOCAL:2) == ""
+            BREAK
+        VARSET カテゴリ内有効キャラ数
+        キー文字列 '= "短冊_" + 衣装差分:(LOCAL:1) + 表情差分:(LOCAL:2)
+        FOR LOCAL, 1, CHARANUM
+            IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+                カテゴリ内有効キャラ数 ++
+            ENDIF
+        NEXT
+        IF カテゴリ内有効キャラ数 > 4
+            ARRAYSHIFT 有効カテゴリ, 1, TOSTR(LOCAL:1) + "_" + TOSTR(LOCAL:2)
+            有効カテゴリ数 ++
+        ENDIF
+    NEXT
+    FOR LOCAL:2, 0, 100
+        SIF スケベ表情差分:(LOCAL:2) == ""
+            BREAK
+        VARSET カテゴリ内有効キャラ数
+        キー文字列 '= "短冊_" + 衣装差分:(LOCAL:1) + スケベ表情差分:(LOCAL:2)
+        FOR LOCAL, 1, CHARANUM
+            IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+                カテゴリ内有効キャラ数 ++
+            ENDIF
+        NEXT
+        IF カテゴリ内有効キャラ数 > 4
+            ARRAYSHIFT 有効スケベカテゴリ, 1, TOSTR(LOCAL:1) + "_" + TOSTR(LOCAL:2 + 100)
+            有効スケベカテゴリ数 ++
+        ENDIF
+    NEXT
+NEXT
+FOR LOCAL:1, 0, 100
+    SIF スケベ衣装差分:(LOCAL:1) == ""
+        BREAK
+    VARSET カテゴリ内有効キャラ数
+    キー文字列 '= "短冊_" + スケベ衣装差分:(LOCAL:1)
+    FOR LOCAL, 1, CHARANUM
+        IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+            カテゴリ内有効キャラ数 ++
+        ENDIF
+    NEXT
+    IF カテゴリ内有効キャラ数 > 4
+        ARRAYSHIFT 有効スケベカテゴリ, 1, TOSTR(100 + LOCAL:1)
+        有効スケベカテゴリ数 ++
+    ENDIF
+    FOR LOCAL:2, 0, 100
+        SIF 表情差分:(LOCAL:2) == ""
+            BREAK
+        VARSET カテゴリ内有効キャラ数
+        キー文字列 '= "短冊_" + スケベ衣装差分:(LOCAL:1) + 表情差分:(LOCAL:2)
+        FOR LOCAL, 1, CHARANUM
+            IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+                カテゴリ内有効キャラ数 ++
+            ENDIF
+        NEXT
+        IF カテゴリ内有効キャラ数 > 4
+            ARRAYSHIFT 有効スケベカテゴリ, 1, TOSTR(100 + LOCAL:1) + "_" + TOSTR(LOCAL:2)
+            有効スケベカテゴリ数 ++
+        ENDIF
+    NEXT
+    FOR LOCAL:2, 0, 100
+        SIF スケベ表情差分:(LOCAL:2) == ""
+            BREAK
+        VARSET カテゴリ内有効キャラ数
+        キー文字列 '= "短冊_" + スケベ衣装差分:(LOCAL:1) + スケベ表情差分:(LOCAL:2)
+        FOR LOCAL, 1, CHARANUM
+            IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+                カテゴリ内有効キャラ数 ++
+            ENDIF
+        NEXT
+        IF カテゴリ内有効キャラ数 > 4
+            ARRAYSHIFT 有効スケベカテゴリ, 1, TOSTR(100 + LOCAL:1) + "_" + TOSTR(LOCAL:2 + 100)
+            有効スケベカテゴリ数 ++
+        ENDIF
+    NEXT
+NEXT
+;画像が足りないのでゲームしたことにする
+IF !有効カテゴリ数 && !有効スケベカテゴリ数
+    RESULT = レート * 3 * RAND:2
+    RETURN RESULT
+ENDIF
+$MAINLOOP
+RFLAG:コマンド結果受渡し変数３ ++ ;実行回数カウンタ
+
+IF スロット変更カウンタ == 3 || !スロット変更カウンタ
+    スロット変更カウンタ = 3
+    IF !スケベスロットフラグ
+        レート = 基準レート
+        SPLIT 有効カテゴリ:(RAND:有効カテゴリ数) , "_", LOCALS
+        キー文字列 '= "短冊_" + 衣装差分:TOINT(LOCALS) + 表情差分:TOINT(LOCALS:1)
+    ELSE
+        レート = 基準レート * 10
+        SPLIT 有効スケベカテゴリ:(RAND:有効スケベカテゴリ数) , "_", LOCALS
+        IF TOINT(LOCALS) < 100
+            キー文字列 '= "短冊_" + 衣装差分:TOINT(LOCALS) + スケベ表情差分:(TOINT(LOCALS:1) - 100)
+        ELSEIF TOINT(LOCALS:1) < 100
+            キー文字列 '= "短冊_" + スケベ衣装差分:(TOINT(LOCALS) - 100) + 表情差分:TOINT(LOCALS:1)
+        ELSE
+            キー文字列 '= "短冊_" + スケベ衣装差分:(TOINT(LOCALS) - 100) + スケベ表情差分:(TOINT(LOCALS:1) - 100)
+        ENDIF
+    ENDIF
+    SIF スケベスロットフラグ && RAND:3
+        スケベスロットフラグ = 0
+ENDIF
+スロット変更カウンタ --
+
+VARSET 有効キャラリスト
+VARSET 有効キャラ数
+FOR LOCAL, 1, CHARANUM
+	SIF CSTR:LOCAL:画像フォルダ == ""
+		CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
+	IF EXISTFILE("resources/" + CSTR:LOCAL:画像フォルダ + "/" + キー文字列 + ".png")
+		有効キャラ数 ++
+		ARRAYSHIFT 有効キャラリスト, 1, LOCAL
+	ENDIF
+NEXT
+FOR LOCAL, 0 , 有効キャラ数
+	SWAP 有効キャラリスト:(RAND:(有効キャラ数 - LOCAL)),有効キャラリスト:(有効キャラ数 - LOCAL - 1)
+NEXT
+表示枚数 = MIN(有効キャラ数, 最大表示枚数)
+FOR LOCAL, 0, 表示枚数
+スロットリールN:LOCAL = LOCAL 
+スロットリールC:LOCAL = LOCAL 
+スロットリールS:LOCAL = LOCAL 
+NEXT
+FOR LOCAL, 0 , 表示枚数
+    SWAP スロットリールN:(RAND:(表示枚数 - LOCAL)),スロットリールN:(表示枚数 - LOCAL - 1)
+    SWAP スロットリールC:(RAND:(表示枚数 - LOCAL)),スロットリールC:(表示枚数 - LOCAL - 1)
+    SWAP スロットリールS:(RAND:(表示枚数 - LOCAL)),スロットリールS:(表示枚数 - LOCAL - 1)
+NEXT
+
+GDISPOSE レイヤー番号 + 0 
+GCREATE レイヤー番号 + 0 , 画像表示サイズ:0 * 表示枚数 * 2, 画像表示サイズ:1
+
+FOR LOCAL, 0, 表示枚数
+    GDISPOSE レイヤー番号 + 1 
+    IF STRFIND(キー文字列, "差分") > 0
+        RESULT = ENUMFILES("resources/" + CSTR:(有効キャラリスト:LOCAL):画像フォルダ, キー文字列 + "*.png")
+        LOCALS '= SUBSTRING(RESULTS:(RAND:RESULT), 10, -1)
+    ELSE
+        RESULT = ENUMFILES("resources/" + CSTR:(有効キャラリスト:LOCAL):画像フォルダ, キー文字列 + "_差分_表情*.png")
+        LOCAL:1 = RAND:(RESULT + 1)
+        SELECTCASE LOCAL:1
+            CASE RESULT
+                LOCALS '= CSTR:(有効キャラリスト:LOCAL):画像フォルダ + "/" + キー文字列 + ".png"
+            CASEELSE
+                LOCALS '= SUBSTRING(RESULTS:(LOCAL:1), 10, -1)
+        ENDSELECT
+    ENDIF
+    GCREATEFROMFILE レイヤー番号 + 1 , LOCALS
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールN:LOCAL * 画像表示サイズ:0, 画像表示サイズ:1 * 0 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 0 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールN:LOCAL * 画像表示サイズ:0 + 表示枚数 * 画像表示サイズ:0, 画像表示サイズ:1 * 0 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 0 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールC:LOCAL * 画像表示サイズ:0, 画像表示サイズ:1 * 1 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 1 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールC:LOCAL * 画像表示サイズ:0 + 表示枚数 * 画像表示サイズ:0, 画像表示サイズ:1 * 1 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 1 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールS:LOCAL * 画像表示サイズ:0, 画像表示サイズ:1 * 2 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 2 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+    GDRAWG レイヤー番号 + 0 , レイヤー番号 + 1 , スロットリールS:LOCAL * 画像表示サイズ:0 + 表示枚数 * 画像表示サイズ:0, 画像表示サイズ:1 * 2 / 3, 画像表示サイズ:0, 画像表示サイズ:1 / 3, 0, GHEIGHT(レイヤー番号 + 1 ) * 2 / 3, GWIDTH(レイヤー番号 + 1 ), GHEIGHT(レイヤー番号 + 1 ) / 3
+NEXT
+;リール全表示
+;CBGSETG レイヤー番号 + 0,0,0,-1
+;WAIT
+;CBGREMOVERANGE -1 ,-1
+GDISPOSE レイヤー番号 + 2 
+GCREATE レイヤー番号 + 2 , パノラマサイズ:0, パノラマサイズ:1 * 4
+GSETBRUSH レイヤー番号 + 2 , 0xFF101010
+GFILLRECTANGLE レイヤー番号 + 2 , 0, 0, パノラマサイズ:0, パノラマサイズ:1 * 4
+GSETBRUSH レイヤー番号 + 2 , 0xFFC0C0C0
+GSETFONT レイヤー番号 + 2 , GETFONT(), 18
+GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
+GDRAWTEXT レイヤー番号 + 2 , "RATE:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3
+GGETTEXTSIZE TOSTR(レート), GETFONT(), 18
+GDRAWTEXT レイヤー番号 + 2 , TOSTR(レート), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3
+GDRAWTEXT レイヤー番号 + 2 , "REWARD:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3 + 20
+GGETTEXTSIZE TOSTR(トータルリワード), GETFONT(), 18
+GDRAWTEXT レイヤー番号 + 2 , TOSTR(トータルリワード), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3 + 20
+CBGSETG レイヤー番号 + 2 , 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -1
+FOR LOCAL:1, 0, 3
+    SPRITEDISPOSE @"スロットリソース{LOCAL:1}"
+    SPRITEANIMECREATE @"スロットリソース{LOCAL:1}", パノラマサイズ:0, パノラマサイズ:1
+    FOR LOCAL, 0, 表示枚数 * 画像表示サイズ:0 / スクロール速度
+        SPRITEANIMEADDFRAME @"スロットリソース{LOCAL:1}", レイヤー番号 + 0 , LOCAL * スクロール速度, パノラマサイズ:1 * LOCAL:1, パノラマサイズ:0, パノラマサイズ:1, 0, 0, フレームレート
+    NEXT
+NEXT
+CBGSETSPRITE "スロットリソース0", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * -1) / 2, -2
+CBGSETSPRITE "スロットリソース1", 0, (-CLIENTHEIGHT() + パノラマサイズ:1) / 2, -3
+CBGSETSPRITE "スロットリソース2", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 3) / 2, -4
+GDISPOSE レイヤー番号 + 4 
+GCREATE レイヤー番号 + 4 , パノラマサイズ:0, パノラマサイズ:1 * 3
+GSETBRUSH レイヤー番号 + 4 , 0x80101010
+GFILLRECTANGLE レイヤー番号 + 4 , 0, 0, (パノラマサイズ:0 - 画像表示サイズ:0) / 2, パノラマサイズ:1 *3
+GFILLRECTANGLE レイヤー番号 + 4 , (パノラマサイズ:0 + 画像表示サイズ:0) / 2, 0, (パノラマサイズ:0 - 画像表示サイズ:0) / 2, パノラマサイズ:1 *3
+CBGSETG レイヤー番号 + 4 , 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 3) / 2, -6
+
+SPRITEDISPOSE "ストップ0"
+SPRITEDISPOSE "ストップ1"
+SPRITEDISPOSE "ストップ2"
+VARSET リール状態, -1
+
+GDISPOSE レイヤー番号 + 3 
+GCREATE レイヤー番号 + 3 , 1600, 900
+GSETBRUSH レイヤー番号 + 3 , 0xFF000001
+GFILLRECTANGLE レイヤー番号 + 3 , 0, 900 - (CLIENTHEIGHT() - パノラマサイズ:1 * -3) / 2, パノラマサイズ:0, パノラマサイズ:1
+GSETBRUSH レイヤー番号 + 3 , 0xFF000002
+GFILLRECTANGLE レイヤー番号 + 3 , 0, 900 - (CLIENTHEIGHT() - パノラマサイズ:1 * -1) / 2, パノラマサイズ:0, パノラマサイズ:1
+GSETBRUSH レイヤー番号 + 3 , 0xFF000003
+GFILLRECTANGLE レイヤー番号 + 3 , 0, 900 - (CLIENTHEIGHT() - パノラマサイズ:1 * 1) / 2, パノラマサイズ:0, パノラマサイズ:1
+CBGSETBMAPG レイヤー番号 + 3 
+
+スタートタイム = GETTIME()
+SETANIMETIMER アニメタイマー
+
+$INPUTLOOP
+INPUTMOUSEKEY
+IF RESULT == 1
+    IF RESULT:1 == 0x100000 ;左クリック
+        SELECTCASE RESULT:4
+        CASE 0x000001
+            選択リール = 0
+        CASE 0x000002
+            選択リール = 1
+        CASE 0x000003
+            選択リール = 2
+        CASEELSE
+            GOTO INPUTLOOP
+        ENDSELECT 
+    ELSE
+        選択リール = 10
+    ENDIF
+ELSEIF RESULT == 3
+    SELECTCASE RESULT:2
+    CASE 49, 97 ;1 NUM1
+        選択リール = 0
+    CASE 50, 98 ;2 NUM2
+        選択リール = 1
+    CASE 51, 99 ;3 NUM3
+        選択リール = 2
+    CASEELSE
+        GOTO INPUTLOOP
+    ENDSELECT
+ELSE
+    GOTO INPUTLOOP
+ENDIF
+;該当のリールが止まっていないとき
+SELECTCASE 選択リール
+CASE IS < 3
+    IF リール状態:選択リール < 0
+        回転時間 = ((GETTIME() - スタートタイム) / フレームレート) % (表示枚数 * 画像表示サイズ:0 / スクロール速度)
+        SPRITECREATE @"ストップ{選択リール}", レイヤー番号 + 0, スクロール速度 * 回転時間, パノラマサイズ:1 * 選択リール, パノラマサイズ:0, パノラマサイズ:1
+        CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
+        リール状態:選択リール = (スクロール速度 * 回転時間 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
+        CBGREMOVERANGE -2 - 選択リール, -2 - 選択リール
+    ENDIF
+CASE 10
+    FOR LOCAL, 0, 3
+        選択リール = LOCAL
+        IF リール状態:選択リール < 0
+            回転時間 = ((GETTIME() - スタートタイム) / フレームレート) % (表示枚数 * 画像表示サイズ:0 / スクロール速度)
+            回転量 = (スクロール速度 * (回転時間))
+            SPRITECREATE @"ストップ{選択リール}", レイヤー番号 + 0, スクロール速度 * 回転時間, パノラマサイズ:1 * 選択リール, パノラマサイズ:0, パノラマサイズ:1
+            CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
+            ;回転量の補正　表示量最大の画像をとる
+            リール状態:選択リール = (スクロール速度 * 回転時間 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
+            CBGREMOVERANGE -2 - 選択リール, -2 - 選択リール
+        ENDIF
+    NEXT
+ENDSELECT
+;回転状態のリールがあればループ
+SIF FINDELEMENT(リール状態, -1) >= 0
+    GOTO INPUTLOOP
+
+SETANIMETIMER -1
+;中央の表示画像で判定する
+FOR LOCAL, 0, 3
+    リール状態:LOCAL = (リール状態:LOCAL + パノラマサイズ:0 / 画像表示サイズ:0 / 2) % 表示枚数
+NEXT
+;逆置換
+リザルト状態:0 = FINDELEMENT(スロットリールN, リール状態:0)
+リザルト状態:1 = FINDELEMENT(スロットリールC, リール状態:1)
+リザルト状態:2 = FINDELEMENT(スロットリールS, リール状態:2)
+FOR LOCAL, 0, 3
+    SPRITEDISPOSE @"リザルト{LOCAL}" 
+    SPRITECREATE @"リザルト{LOCAL}", レイヤー番号 + 0, リール状態:LOCAL * 画像表示サイズ:0, パノラマサイズ:1 * LOCAL, 画像表示サイズ:0, パノラマサイズ:1
+    CBGSETSPRITE @"リザルト{LOCAL}", 画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * LOCAL -1)) / 2, -7
+NEXT
+;CALLNAME検証
+{   
+LOCALS '= SUBSTRINGU(CALLNAME:(有効キャラリスト:(リザルト状態:0)), 0, 文字数:STRLENSU(CALLNAME:(有効キャラリスト:(リザルト状態:0))))
+                + SUBSTRINGU(CALLNAME:(有効キャラリスト:(リザルト状態:1)), 文字列分割F:STRLENSU(CALLNAME:(有効キャラリスト:(リザルト状態:1))), 文字数:STRLENSU(CALLNAME:(有効キャラリスト:(リザルト状態:1))))
+                + SUBSTRINGU(CALLNAME:(有効キャラリスト:(リザルト状態:2)), 文字列分割R:STRLENSU(CALLNAME:(有効キャラリスト:(リザルト状態:2))), -1)
+}
+GDISPOSE レイヤー番号 + 5 
+GCREATE レイヤー番号 + 5 , パノラマサイズ:0, パノラマサイズ:1 * 4
+GSETBRUSH レイヤー番号 + 5 , 0x80101010
+GFILLRECTANGLE レイヤー番号 + 5 , 0, 0, パノラマサイズ:0, パノラマサイズ:1 * 3
+GSETBRUSH レイヤー番号 + 5 , 0xFFC0C0C0
+GSETFONT レイヤー番号 + 5 , GETFONT(), 36
+GSETPEN レイヤー番号 + 5 , 0xFFC0C0C0, 0
+GDRAWTEXT レイヤー番号 + 5 , LOCALS, 画像表示サイズ:0 + 20, 80
+
+{
+    ;リール変数可視化
+    PRINTFORML リールID {リール状態:0} {リール状態:1} {リール状態:2}
+    PRINTFORML リザルトID {リール状態:0} {リール状態:1} {リール状態:2}
+    PRINTFORML %CALLNAME:(有効キャラリスト:(リール状態:0))%
+    PRINTFORML %CALLNAME:(有効キャラリスト:(リール状態:1))%
+    PRINTFORML %CALLNAME:(有効キャラリスト:(リール状態:2))%
+}
+IF ALLSAMES(リザルト状態:0,リザルト状態:1,リザルト状態:2)
+    リザルト = 当たり
+ELSE
+    ;名前が合っていれば正解
+    IF LOCALS == CALLNAME:(有効キャラリスト:(リザルト状態:0)) || LOCALS == CALLNAME:(有効キャラリスト:(リザルト状態:1)) || LOCALS == CALLNAME:(有効キャラリスト:(リザルト状態:2))
+        リザルト = 名前当たり
+    ;誰かの名前
+    ELSEIF FINDCHARA(CALLNAME, LOCALS) > 0
+        リザルト = 居る
+    ELSE
+        リザルト = 外れ
+    ENDIF
+ENDIF
+
+GSETFONT レイヤー番号 + 5 , GETFONT(), 18
+SELECTCASE リザルト
+CASE "当たり"
+    GDRAWTEXT レイヤー番号 + 5 , "あたり・・・", 画像表示サイズ:0 + 20, 120
+    リワード = 2
+CASE "名前当たり"
+    GDRAWTEXT レイヤー番号 + 5 , "アタリ・・・", 画像表示サイズ:0 + 20, 120
+    リワード = 4
+CASE "居る"
+    GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 + 20, 120
+    GDRAWTEXT レイヤー番号 + 5 , "そういう人が居るの？しょうがないなあ", 画像表示サイズ:0 + 20, 160
+    リワード = 8
+CASE "外れ"
+    GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 + 20, 120
+    リワード = -1
+ENDSELECT
+
+MONEY += レート * リワード
+
+GDRAWTEXT レイヤー番号 + 5 , "REWARD: " + TOSTR(レート * リワード), 画像表示サイズ:0 + 20, 300
+トータルリワード += レート * リワード
+;GDRAWTEXT レイヤー番号 + 5 , TOSTR(トータルリワード), 画像表示サイズ:0 + 200, 300
+GDRAWTEXT レイヤー番号 + 5 , "これは", 画像表示サイズ:0 + 20, 40
+GDRAWTEXT レイヤー番号 + 5 , "続けてプレイしますか？", 画像表示サイズ:0, パノラマサイズ:1 * 3 + 2
+CBGSETG レイヤー番号 + 5 ,  画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -6
+
+LOCAL:1 = 2 ;枠線
+LOCAL:2 = 18 + 2 + LOCAL:1 * 4 ;ブロックサイズ
+LOCAL:3 = 200 ;横幅
+GDISPOSE レイヤー番号 + 6 
+GCREATE レイヤー番号 + 6 , 800, 80
+GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
+GFILLRECTANGLE レイヤー番号 + 6 , 0, 0, LOCAL:3 * 2, LOCAL:2 * 2
+GSETBRUSH レイヤー番号 + 6 , 0xFF101010
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
+GSETFONT レイヤー番号 + 6 , GETFONT(), 18
+GSETPEN レイヤー番号 + 6 , 0xFFC0C0C0, 1
+GDRAWTEXT レイヤー番号 + 6 , "ＳＴＡＲＴ", LOCAL:1 * 2, LOCAL:1 * 2
+GDRAWTEXT レイヤー番号 + 6 , "ＥＸＩＴ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2
+カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+カラーマトリクス:2:0 =   0,   0, 256,   0,   0
+カラーマトリクス:3:0 =   0,   0,   0, 256,   0
+カラーマトリクス:4:0 = 100, 100, 100,   0, 256
+GDRAWG レイヤー番号 + 6 , レイヤー番号 + 6 , LOCAL:3, 0, LOCAL:3, LOCAL:2 * 2, 0, 0, LOCAL:3, LOCAL:2 * 2, カラーマトリクス:0:0
+SPRITEDISPOSE "ＳＴＡＲＴ0"
+SPRITEDISPOSE "ＳＴＡＲＴ1"
+SPRITECREATE "ＳＴＡＲＴ0", レイヤー番号 + 6 , 0, 0, LOCAL:3, LOCAL:2
+SPRITECREATE "ＳＴＡＲＴ1", レイヤー番号 + 6 , LOCAL:3, 0, LOCAL:3, LOCAL:2
+CBGSETBUTTONSPRITE 0x000001, "ＳＴＡＲＴ0", "ＳＴＡＲＴ1", 200, (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
+SPRITEDISPOSE "ＥＸＩＴ0"
+SPRITEDISPOSE "ＥＸＩＴ1"
+SPRITECREATE "ＥＸＩＴ0", レイヤー番号 + 6 , 0, LOCAL:2, LOCAL:3, LOCAL:2
+SPRITECREATE "ＥＸＩＴ1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2, LOCAL:3, LOCAL:2
+CBGSETBUTTONSPRITE 0x000002, "ＥＸＩＴ0", "ＥＸＩＴ1", 400, (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
+GDISPOSE レイヤー番号 + 3 
+GCREATE レイヤー番号 + 3 , 800, LOCAL:2 - (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2
+GSETBRUSH レイヤー番号 + 3 , 0xFF000001
+GFILLRECTANGLE レイヤー番号 + 3 , 200, 0, LOCAL:3, LOCAL:2
+GSETBRUSH レイヤー番号 + 3 , 0xFF000002
+GFILLRECTANGLE レイヤー番号 + 3 , 400, 0, LOCAL:3, LOCAL:2
+CBGSETBMAPG レイヤー番号 + 3 
+
+$INPUTLOOP2
+INPUTMOUSEKEY
+IF RESULT == 1
+    SELECTCASE RESULT:4
+    CASE 0x000001
+        LOCAL = 0
+    CASE 0x000002
+        LOCAL = 1
+    CASEELSE
+        GOTO INPUTLOOP2
+    ENDSELECT
+ELSEIF RESULT == 3
+    SELECTCASE RESULT:2
+    CASE 49, 97 ;1 NUM1
+        LOCAL = 0
+    CASE 50, 98 ;2 NUM2
+        LOCAL = 1
+    CASEELSE
+        GOTO INPUTLOOP
+    ENDSELECT
+ELSE
+    GOTO INPUTLOOP2
+ENDIF
+IF LOCAL
+    ;PRINTL 終了します
+ELSE
+    IF MONEY < レート
+        PRINTL ルピが足りない・・・
+    ELSE
+        IF !RAND:10
+            スロット変更カウンタ = 3
+            スケベスロットフラグ = 1
+        ENDIF
+        CBGCLEAR
+        GOTO MAINLOOP
+    ENDIF
+ENDIF
+
+
+GDISPOSE レイヤー番号 + 0 
+GDISPOSE レイヤー番号 + 1 
+GDISPOSE レイヤー番号 + 2 
+GDISPOSE レイヤー番号 + 3 
+GDISPOSE レイヤー番号 + 4 
+GDISPOSE レイヤー番号 + 5 
+GDISPOSE レイヤー番号 + 6 
+CBGCLEAR
+RESULT = トータルリワード
+VARSET トータルリワード
+RETURN RESULT
