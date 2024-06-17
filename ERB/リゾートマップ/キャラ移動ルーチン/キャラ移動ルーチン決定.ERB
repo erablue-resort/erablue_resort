@@ -60,6 +60,8 @@ ENDIF
 #DIM 対象キャラ
 #DIM ルーチンID格納先
 #DIMS ルーチン候補配列, 10
+#DIM 関数数
+#DIM 関数番号
 
 ;プールで遊ぶ、外で遊ぶ、遊戯室で遊ぶは常時発生
 ;他は条件満たした時出現
@@ -67,33 +69,22 @@ LOCAL = 3
 ルーチン候補配列:0 '= "プールで遊ぶ"
 ルーチン候補配列:1 '= "外で遊ぶ"
 ルーチン候補配列:2 '= "遊戯室で遊ぶ"
-LOCAL:2 = 0
-IF ダンジョンクリアフラグ_沿岸部の森
-	FOR LOCAL:1, 3, 9
-		IF 空艇港店舗状況:(LOCAL:1):0 > 0 && 空艇港店舗状況:(LOCAL:1):0 != 3
-			LOCAL:2 += 1
-			BREAK
-		ENDIF
-	NEXT
-	IF LOCAL:2 > 0
-		ルーチン候補配列:LOCAL '= "空艇港でショッピング"
+関数数 = ENUMFUNCBEGINSWITH("ROUTINE_ABLE_")
+FOR 関数番号, 0, 関数数
+	RESULT = 0
+	CALLFORM %RESULTS:関数番号%
+	IF RESULT
+		ルーチン候補配列:LOCAL = %REPLACE(RESULTS:関数番号, "ROUTINE_ABLE_", "")%
 		LOCAL += 1
 	ENDIF
-ENDIF
-IF TALENT:対象キャラ:定住者
+NEXT
+IF TALENT:対象キャラ:定住者 && RAND:2
+	;定住者の日常生活は確率が高い
 	移動ルーチン:対象キャラ:ルーチンID格納先 = 居住区エリアで日常生活
-	LOCAL += 1
 ELSE
 	移動ルーチン:対象キャラ:ルーチンID格納先 '= ルーチン候補配列:(RAND:LOCAL)
 ENDIF
 
-
-; IF TALENT:対象キャラ:定住者
-; 	ルーチン候補配列:LOCAL '= "居住区エリアで日常生活"
-; 	LOCAL += 1
-; ENDIF
-
-; 移動ルーチン:対象キャラ:ルーチンID格納先 '= ルーチン候補配列:(RAND:LOCAL)
 
 @キャラ就寝場所セット(ARG)
 SIF ARG == MASTER
