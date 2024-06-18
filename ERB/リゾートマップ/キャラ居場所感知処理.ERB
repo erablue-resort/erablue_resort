@@ -3,15 +3,15 @@
 #DIMS 滞在者保存, 100
 #DIM 滞在部屋番号保存, 100
 #DIM 配列番号
-#DIM 表示省略フラグ
-#DIM 省略カウント
+#DIM ページ数
 #DIM 対象キャラ
 #DIM 入室禁止フラグ
 #DIM TARGET登録
 
 表示マップ種別 = CFLAG:MASTER:現在マップ種別
-表示省略フラグ = 1
 入室禁止フラグ = 0
+ページ数 = 0
+個別移動枠切り替え = 1
 
 $RE_LOOP
 ;全員の居場所を見て配列に突っ込む
@@ -38,11 +38,16 @@ ARRAYMSORT 滞在部屋番号保存, 滞在者保存
 
 ;マップ種別表示
 $表示_LOOP
-LOCALS = 
+VARSET LOCALS
 DRAWLINE
 ;個別追跡キャラ表示
 FOR LOCAL, 0, 3
-	LOCALS += @"<div rect='{30 + LOCAL * 2030}, 30, 2000, 600' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+	LOCALS += @"<div rect='{30 + LOCAL * 2030}, 30, 2000, 600' padding='50,25,50'"
+	IF 個別移動枠切り替え
+		LOCALS += " color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+	ELSE
+		LOCALS += " color='#101010' border='31' bcolor='#666666'><nobr><font color='#666666'><clearbutton>"
+	ENDIF
 	IF 個別移動管理キャラ:LOCAL > 0
 		LOCALS += @"■%NAME:(個別移動管理キャラ:LOCAL)%<br>"
 		CALLFORM エリア情報登録_{CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別}("エリア名")
@@ -55,11 +60,53 @@ FOR LOCAL, 0, 3
 			LOCALS += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%</button><br>"
 		ENDIF
 		LOCALS += @"<button value='外す_{LOCAL}'>[個別追跡から外す]</button>"
+		LOCALS += @"　　<button value='リスト選択_{LOCAL}'>[リストから選択]</button>"
+	ELSE
+		LOCALS += @"<br><br><br>　　　　　　　　　　　<button value='リスト選択_{LOCAL}'>[リストから選択]</button>"
 	ENDIF
-	LOCALS += "</nobr></div>"
+	IF 個別移動枠切り替え
+		LOCALS += "</nobr></div>"
+	ELSE
+		LOCALS += "</nobr></font></clearbutton></div>"
+	ENDIF
 NEXT
-HTML_PRINT LOCALS, 1
-FOR LOCAL, 0, 6
+FOR LOCAL, 3, 6
+	LOCALS:1 += @"<div rect='{130 + (LOCAL - 3) * 2030}, 130, 2000, 600' padding='50,25,50'"
+	IF 個別移動枠切り替え
+		LOCALS:1 += " color='#101010' border='31' bcolor='#666666'><nobr><font color='#666666'><clearbutton>"
+	ELSE
+		LOCALS:1 += " color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+	ENDIF
+	IF 個別移動管理キャラ:LOCAL > 0
+		LOCALS:1 += @"■%NAME:(個別移動管理キャラ:LOCAL)%<br>"
+		CALLFORM エリア情報登録_{CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別}("エリア名")
+		IF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 個別移動管理キャラ:LOCAL) > -1
+			LOCALS:1 += @"<font color='#%カラーパレット_HTML("赤ピンク")%'><img src='えっちハート'>%DT_CELL_GETS("体位モードデータベース", MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 個別移動管理キャラ:LOCAL), "モード名")%中<img src='えっちハート'></font><br><br>"
+		ELSEIF CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別 == 0 && CFLAG:(個別移動管理キャラ:LOCAL):現在位置 == 999
+			LOCALS:1 += @"現在リゾートの外にいます<br><br>"
+		ELSE
+			LOCALS:1 += @"<button value='追跡移動_{LOCAL}'>現在マップ：%TSTR:場所名受渡%<br>"
+			LOCALS:1 += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%</button><br>"
+		ENDIF
+		LOCALS:1 += @"<button value='外す_{LOCAL}'>[個別追跡から外す]</button>"
+		LOCALS:1 += @"　　<button value='リスト選択_{LOCAL}'>[リストから選択]</button>"
+	ELSE
+		LOCALS:1 += @"<br><br><br>　　　　　　　　　　　<button value='リスト選択_{LOCAL}'>[リストから選択]</button>"
+	ENDIF
+	IF 個別移動枠切り替え
+		LOCALS:1 += "</nobr></font></clearbutton></div>"
+	ELSE
+		LOCALS:1 += "</nobr></div>"
+	ENDIF
+NEXT
+PRINTBUTTON "[枠切り替え]", "枠切り替え"
+PRINTL
+IF 個別移動枠切り替え
+	HTML_PRINT LOCALS:1 + LOCALS, 1
+ELSE
+	HTML_PRINT LOCALS + LOCALS:1, 1
+ENDIF
+FOR LOCAL, 0, 7
 	PRINTL
 NEXT
 DRAWLINE
@@ -91,13 +138,10 @@ ELSE
 ENDIF
 PRINTL
 DRAWLINE
-;全部表示
-省略カウント = 0
 FOR LOCAL, 0, 100
 	SIF 滞在部屋番号保存:LOCAL < 1
 		BREAK
-	IF 表示省略フラグ && LOCAL > 6
-		省略カウント += 1
+	IF LOCAL / 8 != ページ数
 		CONTINUE
 	ENDIF
 	
@@ -125,15 +169,15 @@ FOR LOCAL, 0, 100
 	PRINTL
 	PRINTL
 NEXT
-IF 省略カウント > 0
-	IF 表示省略フラグ
-		PRINTFORM 他、{省略カウント, 2}箇所にキャラが存在　　
-		PRINTBUTTON "[省略部分を展開する]", "表示省略"
-		PRINTL
-	ELSE
-		PRINTBUTTON "[展開部分を省略する]", "表示省略"
-		PRINTL
-	ENDIF
+IF ページ数 > 0
+	PRINTBUTTONLC "[998] 前のページへ", 998
+ELSE
+	PRINTLC 　
+ENDIF
+IF 滞在部屋番号保存:((ページ数 + 1) * 8) > 0
+	PRINTBUTTONLC "[997] 次のページへ", 997
+ELSE
+	PRINTLC 　
 ENDIF
 PRINTBUTTON "[999] 戻る", 999
 TARGET登録 = 0
@@ -143,20 +187,22 @@ IF ISNUMERIC(RESULTS) == 0
 		;追跡キャラ設定
 		対象キャラ = TOINT(SUBSTRING(RESULTS, 5))
 		DRAWLINE
-		IF 個別移動管理キャラ:2 < 1
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 6
+			IF 個別移動管理キャラ:LOCAL < 1
+				個別移動管理キャラ:LOCAL = 対象キャラ
+				LOCAL:1 = 1
+				BREAK
+			ENDIF
+		NEXT
+		IF LOCAL:1
 			PRINTFORMW 個別に居場所感知するキャラに%CALLNAME:対象キャラ%を追加しました。
-			FOR LOCAL, 0, 3
-				IF 個別移動管理キャラ:LOCAL < 1
-					個別移動管理キャラ:LOCAL = 対象キャラ
-					BREAK
-				ENDIF
-			NEXT
 			GOTO 表示_LOOP
 		ELSE
 			PRINTFORML %CALLNAME:対象キャラ%を個別に居場所感知するキャラに設定します。
 			PRINTL 誰と入れ替えますか？
 			DRAWLINE
-			FOR LOCAL, 0, 3
+			FOR LOCAL, 0, 6
 				IF 個別移動管理キャラ:LOCAL > 0
 					PRINTBUTTON @"[{LOCAL}] %NAME:(個別移動管理キャラ:LOCAL)%", LOCAL
 					PRINTL
@@ -169,32 +215,52 @@ IF ISNUMERIC(RESULTS) == 0
 			SELECTCASE RESULT
 				CASE 999
 					GOTO 表示_LOOP
-				CASE 0 TO 2
+				CASE 0 TO 5
 					個別移動管理キャラ:RESULT = 対象キャラ
 					GOTO 表示_LOOP
 			ENDSELECT
 		ENDIF
 	ELSEIF STRFIND(RESULTS, "外す_") > -1
 		対象キャラ = TOINT(SUBSTRING(RESULTS, 5))
-		ARRAYSHIFT 個別移動管理キャラ, -1, 0, 対象キャラ
+		個別移動管理キャラ:対象キャラ = 0
 		GOTO 表示_LOOP
-	ELSEIF RESULTS == "表示省略"
-		INVERTBIT 表示省略フラグ, 0
+	ELSEIF STRFIND(RESULTS, "リスト選択_") > -1
+		対象キャラ = TOINT(SUBSTRING(RESULTS, 11))
+		CALL 枠選択_リスト式(対象キャラ)
+		IF RESULT
+			FOR LOCAL, 0, 6
+				IF 個別移動管理キャラ:LOCAL < 1
+					個別移動管理キャラ:LOCAL = RESULT
+					BREAK
+				ENDIF
+			NEXT
+			PRINTFORMW 個別に居場所感知するキャラに%CALLNAME:RESULT%を追加しました。
+		ENDIF
 		GOTO 表示_LOOP
 	ELSEIF STRFIND(RESULTS, "マップ切り替え_") > -1
 		表示マップ種別 = TOINT(SUBSTRING(RESULTS, 15))
+		ページ数 = 0
 		GOTO RE_LOOP
 	ELSEIF STRFIND(RESULTS, "追跡移動_") > -1
 		対象キャラ = 個別移動管理キャラ:(TOINT(SUBSTRING(RESULTS, 9)))
 		RESULTS = {CFLAG:対象キャラ:現在位置}
 		表示マップ種別 = CFLAG:対象キャラ:現在マップ種別
 		TARGET登録 = 対象キャラ
+	ELSEIF RESULTS == "枠切り替え"
+		INVERTBIT 個別移動枠切り替え, 0
+		GOTO 表示_LOOP
 	ENDIF
 ENDIF
 LOCAL = TOINT(RESULTS)
 SELECTCASE LOCAL
 	CASE 999
 		RETURN 0
+	CASE 998
+		ページ数 -= 1
+		GOTO 表示_LOOP
+	CASE 997
+		ページ数 += 1
+		GOTO 表示_LOOP
 	CASEELSE
 		;クイック移動処理
 		SIF 表示マップ種別 == CFLAG:MASTER:現在マップ種別 && LOCAL == CFLAG:MASTER:現在位置
@@ -271,4 +337,79 @@ SELECTCASE LOCAL
 			SIF TARGET登録
 				TFLAG:TARGET変更用 = TARGET登録
 		ENDIF
+ENDSELECT
+
+@枠選択_リスト式(対象キャラ)
+#DIM 対象キャラ
+#DIM 表示候補, 500
+#DIM 現在ページ
+#DIM 候補人数
+
+;表示候補選定＆ソート処理
+VARSET 表示候補
+VARSET LOCALS
+候補人数 = 0
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	表示候補:(候補人数) = LOCAL
+	候補人数 += 1
+NEXT
+
+$表示_LOOP
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, 現在ページ * 30, (現在ページ * 30) + 30
+	SIF 表示候補:LOCAL < 1
+		BREAK
+	IF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "<font color='#FF3399'>"
+	ENDIF
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+	SIF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "</font>"
+	IF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+		LOCALS += "　　　常時滞在　"
+	ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+		LOCALS += @"　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間, 2}日　"
+	ENDIF
+
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+IF 現在ページ > 0
+	PRINTLC  [998]前のページへ
+ELSE
+	PRINTLC  
+ENDIF
+IF 表示候補:((現在ページ * 30) + 30) > 0
+	PRINTLC  [997]次のページへ
+ENDIF
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		RETURN 0
+	CASE 998
+		現在ページ -= 1
+		GOTO 表示_LOOP
+	CASE 997
+		現在ページ += 1
+		GOTO 表示_LOOP
+	CASEELSE
+		RETURN RESULT
 ENDSELECT
