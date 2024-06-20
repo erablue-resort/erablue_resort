@@ -42,13 +42,6 @@ RESETCOLOR
 PRINTL 
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
-; LOCAL = MAX(BASE:警戒 / 200,1)
-; PRINT 警戒:
-; SIF BASE:警戒 > 800
-; 	SETCOLOR 255,0,0
-; PRINTFORM %"★" * LOCAL,10,LEFT% 
-; RESETCOLOR
-; PRINTL 
 
 LOCALS = 警戒: 
 ゲージ表示文 = <div rect='0,0,3125,250'>
@@ -790,11 +783,6 @@ FOR LOCAL, 0, CHARANUM
 		ENDSELECT
 		SETBIT TCVAR:LOCAL:食事済みフラグ, 1
 	ENDIF
-	;風呂
-	IF BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && !CFLAG:LOCAL:うふふ
-		;回復早い、回復遅い
-		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
-	ENDIF
 NEXT
 
 モード中キャラカウント = 0
@@ -851,6 +839,50 @@ FOR LOCAL, 1, CHARANUM
 	ENDIF
 NEXT
 
+;--------------------------------------------------
+;警戒度上昇によるマッサージ中断
+;--------------------------------------------------
+IF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
+	SETCOLOR カラーパレット("黄")
+	DRAWLINE
+	PRINTL 警戒度が上限に到達しました
+	PRINTFORML %CALLNAME:TARGET%の好感度が減少し、マッサージモードを終了します
+	DRAWLINE
+	RESETCOLOR
+	WAIT
+
+	;再実行不能フラグを立てる
+	TCVAR:TARGET:マッサージ禁止 = 1
+
+	;好感度レベルを下げる
+	IF CFLAG:TARGET:好感度レベル > 関係閾値:1
+		CFLAG:TARGET:好感度レベル -= 10
+		;顔見知り未満にはならない
+		CFLAG:TARGET:好感度レベル = MAX(CFLAG:TARGET:好感度レベル, 1 + 関係閾値:1)
+	ELSE
+		;他人は強制的に下限値
+		CFLAG:TARGET:好感度レベル = 1
+	ENDIF
+
+	;好感度をレベルに応じた値に減少
+	CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:キャラ固有好感度 = MIN(CFLAG:TARGET:キャラ固有好感度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+
+	;恋慕レベルを下げる
+	CFLAG:TARGET:恋慕レベル -= 10
+	CFLAG:TARGET:恋慕レベル = MAX(CFLAG:TARGET:恋慕レベル, 0)
+	;恋慕度をレベルに応じた値に減少
+	CFLAG:TARGET:恋慕度 = MIN(CFLAG:TARGET:恋慕度, 経験値テーブル:(CFLAG:TARGET:恋慕レベル))
+
+	;通常モードに移行
+	CALL ゲームフェイズ変更("通常モード")
+ENDIF
+
+
+
 LOCAL = TIME - TIME:2
 IF LOCAL > 0
 	PRINTL
@@ -859,3 +891,17 @@ ENDIF
 TIME:2 = TIME > 1440 ? TIME - 1440 # TIME
 
 WAIT
+
+
+@警戒度初期値セット(対象キャラ)
+#DIM 対象キャラ
+
+;初期値1000
+BASE:対象キャラ:警戒 = 1000
+
+;とりあえず好感度でセット
+BASE:対象キャラ:警戒 -= CFLAG:対象キャラ:好感度レベル * 5
+
+TCVAR:対象キャラ:前ターン警戒度 = BASE:対象キャラ:警戒
+
+

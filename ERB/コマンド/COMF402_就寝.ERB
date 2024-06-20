@@ -36,6 +36,8 @@ RETURN 1
 ;-------------------------------------------------
 
 @COM_ABLE402
+#DIM 最大人数
+
 ;移動実行判定
 SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
@@ -53,10 +55,10 @@ ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 999
 	SELECTCASE CFLAG:MASTER:現在位置
 		CASE IS >= 2000
 			;スイートルームに複数人泊まってたらアウト
-			SIF STRCOUNT(スイートルーム部屋割り配列:LOCAL, "_") > 2
+			SIF STRCOUNT(スイートルーム部屋割り配列:(CFLAG:MASTER:現在位置 - 2000), "_") > 2
 				RETURN 0
 			;そもそも部屋じゃないならアウト
-			SIF STRCOUNT(スイートルーム部屋割り配列:LOCAL, @"_{TARGET}_") < 1
+			SIF STRCOUNT(スイートルーム部屋割り配列:(CFLAG:MASTER:現在位置 - 2000), @"_{TARGET}_") < 1
 				RETURN 0
 		CASE IS >= 1000
 			SIF TARGET != 従業員部屋割り配列:(CFLAG:MASTER:現在位置 - 1000)
@@ -64,6 +66,33 @@ ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 999
 		CASEELSE
 			SIF TARGET != 滞在者部屋割り配列:(CFLAG:MASTER:現在位置)
 				RETURN 0
+	ENDSELECT
+ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 2
+	;陥落状態のキャラの部屋なら添い寝可能
+	SIF 陥落チェック(TARGET) < 1
+		RETURN 0
+	SELECTCASE CFLAG:MASTER:現在位置
+		CASE IS >= 1000
+			;そもそも部屋じゃないならアウト
+			SIF STRCOUNT(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), @"_{TARGET}_") < 1 && STRFIND(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), @"{TARGET}_") != 0
+				RETURN 0
+			;複数人住んでたら全員陥落してないとアウト
+			IF STRCOUNT(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), "_") > 1
+				VARSET RESULTS
+				SPLIT 定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), "_", RESULTS
+				最大人数 = RESULT
+				FOR LOCAL, 0, 最大人数
+					SIF ISNUMERIC(RESULTS:LOCAL) == 0
+						CONTINUE
+					IF 陥落チェック(TOINT(RESULTS:LOCAL)) < 1
+						RETURN 0
+					ENDIF
+				NEXT
+				RETURN 0
+			ENDIF
+		CASEELSE
+			;住宅以外はダメ
+			RETURN 0
 	ENDSELECT
 ELSE
 	RETURN 0

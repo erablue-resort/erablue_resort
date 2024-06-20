@@ -20,6 +20,12 @@ RETURNF 1
 TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
 		
 @COM380_0_811
+
+IF チュートリアルフラグ:マッサージモード == 0
+	チュートリアルフラグ:マッサージモード = 1
+	CALL マッサージチュートリアル
+ENDIF
+
 ;移動しないように同行セット
 SIF CFLAG:TARGET:同行 < 1
 	CFLAG:TARGET:同行 = 1
@@ -29,7 +35,9 @@ SELECTCOM = 380
 CALL KOJO_MESSAGE_COM_通常モード
 
 ;マッサージモードに移行
+LOCAL = TARGET
 CALL ゲームフェイズ変更("マッサージモード")
+CALL 警戒度初期値セット(LOCAL)
 
 RETURN -1
 
@@ -47,6 +55,15 @@ SIF GLOBAL_COMABLE(380)
 	RETURN RESULT
 ;睡眠中
 SIF CFLAG:睡眠
+	RETURN 0
+;二人きりのみ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;禁止
+SIF TCVAR:TARGET:マッサージ禁止
+	RETURN 0
+;ちゃんと性別合わせて
+SIF GETBIT(TALENT:TARGET:性別, 0) == 0 && TALENT:TARGET:性別 != 0
 	RETURN 0
 RETURN 1
 
