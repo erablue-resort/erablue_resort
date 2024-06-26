@@ -1,14 +1,17 @@
 ﻿@SHOW_SHOP
 #DIM コマンド表示数
 ;奴隷購入ページフラグ
-TFLAG:ゲームフェイズ管理 = 0
+SAVESTR:ゲームフェイズ管理 = 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
 TOOLTIP_SETDURATION 100000
+CALL モブ観光客算出
+
+
+DO
 
 CALL リゾートランク上昇チェック()
 CALL イベント発生条件チェック()
-CALL モブ観光客算出
 CALL 従業員人数チェック()
 
 DRAWLINE
@@ -163,15 +166,19 @@ LOCALS += "<br>"
 SIF FLAG:エンディング後フラグ
 	LOCALS += "<button value='900'>[900] - 強くてNEWGAME</button>　　　　　　　　　　"
 LOCALS += "<br><br>"
+[IF_DEBUG]
+LOCALS += "<button value='9999'>[9999] - デバッグ用</button>　　　　　　　　　　"
+LOCALS += "<br><br>"
+[ENDIF]
 HTML_PRINT LOCALS
+BINPUT
 
-
-@USERSHOP
 SELECTCASE RESULT
 	CASE 800 TO 899
 		CALL 起床前メニュー上部分文章切り替え(RESULT)
 	CASE 100
 		DEBUGCLEAR
+		SAVESTR:ゲームフェイズ管理 = 通常モード
 		CALL TRAIN_MAIN
 		RETURN 1
 	CASE 101
@@ -233,14 +240,19 @@ SELECTCASE RESULT
 	CASE 203
 		CALL チュートリアル_MAIN
 	CASE 900
-		SIF FLAG:エンディング後フラグ
+		IF FLAG:エンディング後フラグ
 			CALL 周回引き継ぎ処理
+			SIF RESULT == -1
+				BEGIN FIRST
+		ENDIF
 	CASE 9999
 		;デバッグ用
+		CALL 通信販売_BUY
 ENDSELECT
 
+LOOP 1
 
-
+@USERSHOP
 
 @起床時処理
 FOR LOCAL, 0, CHARANUM

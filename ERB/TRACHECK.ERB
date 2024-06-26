@@ -2,21 +2,27 @@
 ;時間経過
 ;-------------------------------------------------
 @TRACHECK_TIME
-IF TFLAG:オートコマンドフラグ > 0
-	;オートコマンド時は時間経過しない
-ELSEIF RSTR:SELECTCOM_S受け渡し != ""
-	;うふふ系の派生は5分刻み
-	SPLIT RSTR:SELECTCOM_S受け渡し, "_", LOCALS
-	IF ISNUMERIC(LOCALS) && TOINT(LOCALS) < 200
-		TIME += 5
-	ENDIF
-ELSEIF SELECTCOM < 200
-	IF PLAYER >= 0 && TALENT:PLAYER:絶倫 && RAND:3 == 0
-	ELSE
+SELECTCASE SAVESTR:ゲームフェイズ管理
+	CASE "通常モード"
+		IF TFLAG:オートコマンドフラグ > 0
+			;オートコマンド時は時間経過しない
+		ELSEIF RSTR:SELECTCOM_S受け渡し != ""
+			;うふふ系の派生は5分刻み
+			SPLIT RSTR:SELECTCOM_S受け渡し, "_", LOCALS
+			IF ISNUMERIC(LOCALS) && TOINT(LOCALS) < 200
+				TIME += 5
+			ENDIF
+		ELSEIF SELECTCOM < 200
+			IF PLAYER >= 0 && TALENT:PLAYER:絶倫 && RAND:3 == 0
+			ELSE
+				;めんどくさいので5分刻み
+				TIME += 5
+			ENDIF
+		ENDIF
+	CASE "マッサージモード"
 		;めんどくさいので5分刻み
 		TIME += 5
-	ENDIF
-ENDIF
+ENDSELECT
 ;-------------------------------------------------
 ;処女喪失時の処理
 ;ARG		処女喪失対象
@@ -462,28 +468,26 @@ ENDIF
 ;苦痛快楽のチェック
 LOCAL = 0
 LOCAL:1 = CUP:ARG:快Ｃ + CUP:ARG:快Ｂ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｓ
-IF LOCAL:1 >= 3000 && CUP:ARG:苦痛 >= 2000
+IF LOCAL:1 >= 3000 && CUP:ARG:苦痛 >= MAX(1, 1500 - (ABL:ARG:マゾ性感 * 100))
 	LOCAL = 16
-ELSEIF LOCAL:1 >= 2500 && CUP:ARG:苦痛 >= 1500
+ELSEIF LOCAL:1 >= 2500 && CUP:ARG:苦痛 >= MAX(1, 1000 - (ABL:ARG:マゾ性感 * 80))
 	LOCAL = 12
-ELSEIF LOCAL:1 >= 1500 && CUP:ARG:苦痛 >= 1000
+ELSEIF LOCAL:1 >= 1500 && CUP:ARG:苦痛 >= MAX(1, 700 - (ABL:ARG:マゾ性感 * 60))
 	LOCAL = 8
-ELSEIF LOCAL:1 >= 1000 && CUP:ARG:苦痛 >= 700
+ELSEIF LOCAL:1 >= 1000 && CUP:ARG:苦痛 >= MAX(1, 500 - (ABL:ARG:マゾ性感 * 40))
 	LOCAL = 4
-ELSEIF LOCAL:1 >= 600 && CUP:ARG:苦痛 >= 500
+ELSEIF LOCAL:1 >= 600 && CUP:ARG:苦痛 >= MAX(1, 300 - (ABL:ARG:マゾ性感 * 30))
 	LOCAL = 2
-ELSEIF LOCAL:1 >= 300 && CUP:ARG:苦痛 >= 300
+ELSEIF LOCAL:1 >= 300 && CUP:ARG:苦痛 >= MAX(1, 100 - (ABL:ARG:マゾ性感 * 20))
 	LOCAL = 1
 ENDIF
 IF LOCAL > 0 && ARG > 0
 	EXP:ARG:苦痛快楽経験 += LOCAL
-
-	;嗜虐快楽経験
-	LOCAL = ABL:PLAYER:サド性感 + ABL:ARG:マゾ性感 - 1
-	SIF LOCAL > 0
-		EXP:PLAYER:嗜虐快楽経験 += LOCAL
 ENDIF
 
+;嗜虐快楽経験
+SIF RCVAR:ARG:嗜虐コマンドフラグ
+	EXP:ARG:嗜虐快楽経験 += 1
 
 ;-------------------------------------------------
 ;好感度処理
@@ -528,6 +532,7 @@ SIF TCVAR:ARG:弱点コマンドフラグ
 BASE:ARG:理性 -= (CUP:ARG:快Ｂ + CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｓ) / 100
 
 BASE:ARG:理性 = LIMIT(BASE:ARG:理性, 0, 理性キャップ算出(ARG))
+BASE:ARG:警戒 = LIMIT(BASE:ARG:警戒, 0, MAXBASE:ARG:警戒)
 
 IF TFLAG:調教モード != 2
 	SIF SOURCE:ARG:反感 > 0 && TFLAG:調教モード == 1

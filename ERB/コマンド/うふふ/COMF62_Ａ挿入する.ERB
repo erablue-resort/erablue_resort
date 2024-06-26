@@ -585,7 +585,7 @@ RETURN 1
 
 @COM_ABLE62
 ;Ａ挿入共通実行判定
-SIF !TFLAG:ゲームフェイズ管理
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(62)
@@ -595,21 +595,6 @@ SIF TALENT:TARGET:Ａ感度 == -2
 	RETURN 0
 ;調教者がオトコ、半人半妖、ふたなりの場合はある程度勃起してないとダメ
 SIF (TALENT:PLAYER:性別 & 2) && BASE:PLAYER:勃起 < 1000
-	RETURN 0
-;アナルバイブ挿入中はダメ
-SIF TEQUIP:14
-	RETURN 0
-;アナルビーズ使用中は不可
-SIF TEQUIP:15
-	RETURN 0
-;普通の浣腸使用中は不可
-SIF TEQUIP:21
-	RETURN 0
-;バルーン使用中は不可
-SIF TEQUIP:22
-	RETURN 0
-;電極使用中は不可
-SIF TEQUIP:23
 	RETURN 0
 ;一定のＡ経験が必要
 SIF EXP:2 < EXPLV:3
@@ -639,6 +624,8 @@ ENDIF
 ;オートコマンド中の制限
 IF FLAG:オートコマンド判定中フラグ
 	SIF EXP:PLAYER:Ａ経験 == 0 || EXP:TARGET:Ａ経験 == 0
+		RETURN 0
+	SIF MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 && MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
 		RETURN 0
 ENDIF
 
@@ -843,14 +830,11 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 		PRINTFORML %CALLNAME:PLAYER%は後ろ向きに尻を突き出した%CALLNAME:TARGET%のアナルへと%LOCALS%を挿入した
 	CASE 12
 		;同時導入
-		;二人目のときはスキップ
-		IF !TFLAG:メッセージ重複防止
-			PRINTFORM %CALLNAME:PLAYER%は
-			FOR 同時キャラ番号, 0, 同時モード_選択数
-				SIF 同時キャラ番号 > 0
-					PRINT 、
-				PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
-			NEXT
-			PRINTFORML を並べると、アナルへと順番に%LOCALS%を挿入した
-		ENDIF
+		PRINTFORM %CALLNAME:PLAYER%は
+		FOR 同時キャラ番号, 0, 同時モード_選択数
+			SIF 同時キャラ番号 > 0
+				PRINT 、
+			PRINTFORM %CALLNAME:(同時モード_選択キャラ:同時キャラ番号)%
+		NEXT
+		PRINTFORML を並べると、アナルへと順番に%LOCALS%を挿入した
 ENDSELECT

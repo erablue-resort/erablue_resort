@@ -1,0 +1,131 @@
+﻿
+;-------------------------------------------------
+;03_305_01渓流エリアで釣りをする
+;-------------------------------------------------
+@COMNAME_PLACE_380_3_6
+#FUNCTION
+
+TSTR:コマンド名受渡 = 釣りをする
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_3_6
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+		
+@COM380_3_6
+;RFLAG:コマンド結果受渡し変数　釣りモードの種類
+
+
+$INPUT_LOOP
+;釣りの種類を決定
+DRAWLINE
+PRINTL 
+PRINTL どのように釣りますか？
+PRINTBUTTONLC "[1]簡易釣りモード", 1
+PRINTBUTTON "[説明]", 10
+PRINTL 
+PRINTBUTTONLC "[2]ちゃんと釣りモード", 2
+PRINTBUTTON "[説明]", 20
+PRINTL 
+PRINTBUTTON "[999]釣りをやめる", 999
+INPUT
+
+SELECTCASE RESULT
+	CASE 1
+		RFLAG:コマンド結果受渡し変数 = RESULT
+		CALL 簡易釣りモード(6)
+	CASE 10
+		CALL 簡易釣りモード説明
+		GOTO INPUT_LOOP
+	CASE 2
+		RFLAG:コマンド結果受渡し変数 = RESULT
+		CALL ちゃんと釣りモード(6)
+	CASE 20
+		CALL ちゃんと釣りモード説明
+		GOTO INPUT_LOOP
+	CASE 999
+		RFLAG:コマンド結果受渡し変数 = RESULT
+		RETURN 1
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+;歓楽強度
+LOCAL:0 = 500
+;征服強度
+LOCAL:1 = 100
+
+IF RFLAG:コマンド結果受渡し変数２ >= 10
+	;大漁
+	TIMES LOCAL:0 , 2.00
+	TIMES LOCAL:1 , 2.00
+ELSEIF RFLAG:コマンド結果受渡し変数２ >= 5
+	;そこそこ釣れた
+	TIMES LOCAL:0 , 1.50
+	TIMES LOCAL:1 , 1.50
+ELSEIF  RFLAG:コマンド結果受渡し変数２ > 0
+	;とりあえず０じゃない
+	TIMES LOCAL:0 , 1.00
+	TIMES LOCAL:1 , 1.00
+ELSE
+	;ボウズ
+	TIMES LOCAL:0 , 0.50
+	TIMES LOCAL:1 , 0.50
+ENDIF
+
+IF TARGET
+	
+	
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+	CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0 / 2)
+ENDIF
+
+TIME += 60
+RETURN 1
+
+
+
+;-------------------------------------------------
+;実行判定
+;------------------------------------------------
+@COM_ABLE380_3_6
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_3_6
+SIF RFLAG:コマンド結果受渡し変数 == 999
+	RETURN 1
+IF TARGET
+	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と釣りをして楽しんだ。
+	IF RFLAG:コマンド結果受渡し変数２ >= 10
+		;大漁
+		PRINTL 山ほどの魚が釣れる大漁だった！
+		PRINTFORML %CALLNAME:TARGET%と一緒に喜びながら持ち帰った。
+	ELSEIF RFLAG:コマンド結果受渡し変数２ >= 5
+		;そこそこ釣れた
+		PRINTFORML 釣果は上々。%CALLNAME:TARGET%も嬉しそうにしている。
+	ELSEIF  RFLAG:コマンド結果受渡し変数２ > 0
+		;とりあえず０ではない
+		PRINTL あまり成果は上がらなかったが、楽しいひとときを過ごせた。
+	ELSE
+		;ボウズ
+		PRINTL 残念ながら、一匹も魚は釣れなかった…
+	ENDIF
+ELSE
+	PRINTFORML %CALLNAME:PLAYER%は一人釣りを楽しんだ。
+ENDIF
+

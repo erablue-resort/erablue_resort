@@ -388,6 +388,9 @@ SELECTCASE 処理内容
 		ELSEIF 小分類 == "外食"
 			スケジュール状態:キャラ番号:目的マップ = SCHEDULE_外食先決定関数(キャラ番号, 1)
 			スケジュール状態:キャラ番号:目的地 = SCHEDULE_外食先決定関数(キャラ番号, 0)
+		ELSEIF 小分類 == "海の家"
+			スケジュール状態:キャラ番号:目的マップ = 3
+			スケジュール状態:キャラ番号:目的地 = 2
 		ELSEIF 小分類 == "お弁当" || 小分類 == "屋台"
 			スケジュール状態:キャラ番号:目的マップ = CFLAG:キャラ番号:現在マップ種別
 			スケジュール状態:キャラ番号:目的地 = CFLAG:キャラ番号:現在位置
@@ -837,3 +840,103 @@ SIF マップ種別取得フラグ
 	RETURNF 2
 
 RETURNF RAND(2, 7)
+
+;------------------------------------------------------------------------------
+;海エリア関連
+;------------------------------------------------------------------------------
+@SCHEDULE_海入口(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		スケジュール状態:キャラ番号:目的マップ = 3
+		スケジュール状態:キャラ番号:目的地 = 1
+		RETURN 1
+	CASE "経過処理"
+	CASE "終了処理"
+		RETURN 1
+ENDSELECT
+
+@SCHEDULE_海更衣室、水着へ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		SELECTCASE スケジュール状態:キャラ番号:状況
+			CASE スケジュール_未実行
+				スケジュール状態:キャラ番号:目的マップ = 3
+				スケジュール状態:キャラ番号:目的地 = (TALENT:キャラ番号:性別 == 2) ? 4 # 5
+				TCVAR:キャラ番号:移動ルーチンインターバル時間 = 15
+				RETURN 0
+			CASE スケジュール_開始中
+				RETURN IS_AT_DESTINATION(キャラ番号)
+		ENDSELECT
+		RETURN 1
+	CASE "経過処理"
+		TCVAR:キャラ番号:水着着替え状態 = 1
+	CASE "終了処理"
+		RETURN 1
+ENDSELECT
+
+
+@SCHEDULE_海更衣室、普段着へ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		SELECTCASE スケジュール状態:キャラ番号:状況
+			CASE スケジュール_未実行
+				スケジュール状態:キャラ番号:目的マップ = 3
+				スケジュール状態:キャラ番号:目的地 = (TALENT:キャラ番号:性別 == 2) ? 4 # 5
+				TCVAR:キャラ番号:移動ルーチンインターバル時間 = 15
+				RETURN 0
+			CASE スケジュール_開始中
+				RETURN IS_AT_DESTINATION(キャラ番号)
+		ENDSELECT
+		RETURN 1
+	CASE "経過処理"
+		TCVAR:キャラ番号:水着着替え状態 = 0
+	CASE "終了処理"
+		RETURN 1
+ENDSELECT
+
+@SCHEDULE_海で遊ぶ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+	CASE "経過処理"
+		SIF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+			RETURN
+
+		スケジュール状態:キャラ番号:目的マップ = 3
+		スケジュール状態:キャラ番号:目的地 = SCHEDULE_海で遊ぶ先決定関数(キャラ番号)
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(60, 120)
+	CASE "終了処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+ENDSELECT
+
+@SCHEDULE_海で遊ぶ先決定関数(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+;海の家、海岸、桟橋の三択
+
+SELECTCASE RAND:3
+	CASE 2
+		RETURNF 2
+	CASE 1
+		RETURNF 3
+	CASE 0
+		RETURNF 6
+ENDSELECT

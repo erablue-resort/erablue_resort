@@ -6,6 +6,7 @@
 ;-------------------------------------------------------------------------------------------
 
 @SYSTEM_LOADEND
+#DIM 部屋セットチェック
 #DIM 追加キャラ保存, 100
 #DIM 互換維持用変数, 100
 #DIMS 弱点一時保存, 50
@@ -127,54 +128,55 @@ ENDIF
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
 
-	SIF イキやすさフォロー == 0
-		TALENT:LOCAL:イキやすさ = CSVTALENT(NO:LOCAL, GETNUM(TALENT, "イキやすさ"))
-	
-	IF 分身関係性フォロー == 0
-		;分身が関係性取得しちゃってたのでここで消す
-		FOR LOCAL:1, 0, 100
-			SIF RELATION_NO:LOCAL:(LOCAL:1) >= CHARANUM
-				CALL DEL_RELATION(LOCAL, LOCAL:1)
-		NEXT
-	ENDIF
-
-	;ここまで0.039で消す
-
 	;異常経験を殺す
 	EXP:LOCAL:53 = 0
 
-	SIF キャラ一致チェック(LOCAL, "[十天衆]オクトー")
-		TALENT:LOCAL:母乳体質 = 0
-	SIF キャラ一致チェック(LOCAL, "[冥闇の剛刃]バザラガ")
-		TALENT:LOCAL:母乳体質 = 0
+	;居住区がないのに定住したパターンのフォロー
+	IF MATCH(開拓エリア開発番号, 2) < 1 && TALENT:LOCAL:定住者
+		TALENT:LOCAL:定住者 = 0
+		CFLAG:LOCAL:滞在期間 = -1
+		CFLAG:LOCAL:長期雇用 = 0
+		CFLAG:LOCAL:現在位置 = 999
+		CFLAG:LOCAL:現在マップ種別 = 0
+		IF TALENT:LOCAL:従業員
+			SIF 従業員部屋数 < 40
+				従業員部屋数 += 1
+			CFLAG:LOCAL:滞在期間 = 999
+			LOCAL:1 = 0
+			FOR LOCAL:2, 0, 従業員部屋数
+				IF 従業員部屋割り配列:(LOCAL:2) < 1
+					従業員部屋割り配列:(LOCAL:2) = LOCAL
+					LOCAL:1 ++
+					BREAK
+				ENDIF
+			NEXT
+			IF LOCAL:1 == 0
+				;従業員部屋一杯なら従業員も消す
+				TALENT:LOCAL:従業員 = 0
+				CFLAG:LOCAL:滞在期間 = -1
+			ELSE
+				CFLAG:LOCAL:現在位置 = キャラクター部屋検索(LOCAL)
+				CFLAG:LOCAL:現在マップ種別 = 部屋検索_マップ種別
+			ENDIF
+			CALL 従業員人数チェック()
+		ENDIF
+	ENDIF
+	
+	BASE:LOCAL:警戒 = 0
+	MAXBASE:LOCAL:警戒 = 1001
+	
+	IF 命のリンクフォロー == 0
+		PRINTW ジータ・ルリア・グランについての命のリンク初期設定を開きます。
+		CALL OPTION_命のリンク初期切り替え
+	ENDIF
 
-	SIF 居住区初来訪イベントフラグ == 0
-		CALL 制服登録処理("スモック")
 	;ここまで0.040で消す
+	;ここまで0.041で消す
 NEXT
-イキやすさフォロー = 1
-分身関係性フォロー = 1
-
-IF 命のリンクフォロー == 0
-	PRINTW ジータ・ルリア・グランについての命のリンク初期設定を開きます。
-	CALL OPTION_命のリンク初期切り替え
-	命のリンクフォロー = 1
+IF MATCH(開拓エリア開発番号, 2) < 1
+	VARSET 定住者部屋割り配列
 ENDIF
-IF 人物データベースGC済 == 0
-	CALL 人物データベースGC
-	人物データベースGC済 = 1
-ENDIF
-FOR LOCAL, 1, CHARANUM
-	SIF NO:LOCAL != 999
-		CONTINUE
-	SIF DT_CELL_ISNULL("人物データベース", CFLAG:LOCAL:人物番号, "生年日", 1) == 1
-		CONTINUE
-	SIF DT_CELL_ISNULL("人物データベース", CFLAG:LOCAL:人物番号, "母親", 1) == 1
-		CONTINUE
-	CALL 子供相性設定確認(LOCAL)
-NEXT
 
-;ここまで0.039にしたとき消す、互換を37に
 IF 従業員部屋数 > 0
 	従業員フォロー = 1
 ENDIF
@@ -208,7 +210,19 @@ ENDIF
 
 TALENT:(FINDCHARA(NO, 101)):死者 = 1
 
+
+SIF 居住区初来訪イベントフラグ
+	CALL 制服登録処理("スモック")
+
+IF TALENT:FINDCHARA(NO, 180):種族 == 種族_エルーン
+	TALENT:FINDCHARA(NO, 180):尻尾あり = 1
+ENDIF
+
+BASE:MASTER:警戒 = 0
+MAXBASE:MASTER:警戒 = 1001
+
 ;ここまで0.040にしたとき消す、互換を38に
+;ここまで0.041にしたとき消す、互換を39に
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理
@@ -229,9 +243,9 @@ FOR LOCAL, 1, CHARANUM
 		VARSET 弱点コマンド枠:LOCAL:0
 		TRYCALLFORM 弱点コマンド変更_{NO:LOCAL}
 		FOR LOCAL:1, 0, 50
-			IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1"
+			IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
 				弱点コマンド枠:LOCAL:(LOCAL:1) = %弱点一時保存:(LOCAL:1)%
-				IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
+				IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || (弱点コマンド枠:LOCAL:(LOCAL:1) == "" && LOCAL:1 <= 5)
 					RESULTS = 
 					CALL 弱点コマンドランダム選出(LOCAL)
 					弱点コマンド枠:LOCAL:(LOCAL:1) = %RESULTS%
@@ -246,6 +260,7 @@ FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
 	;部屋の無いキャラがいないかチェック
+	部屋セットチェック = 0
 	IF キャラクター部屋検索(LOCAL) == -1 && CFLAG:LOCAL:スイートルーム滞在フラグ == 0
 		IF TALENT:LOCAL:従業員
 			FOR LOCAL:1, 0, 従業員部屋数
@@ -253,11 +268,36 @@ FOR LOCAL, 1, CHARANUM
 					従業員部屋割り配列:(LOCAL:1) = LOCAL
 					CFLAG:LOCAL:現在マップ種別 = 999
 					CFLAG:LOCAL:現在位置 = LOCAL:1 + 1000
-					RETURN 1
+					部屋セットチェック = 1
+					BREAK
 				ENDIF
 			NEXT
+			IF 部屋セットチェック == 0
+				PRINTL 想定しない挙動により、部屋が無い従業員が存在しています。
+				PRINTFORMW 対象キャラ：%NAME:LOCAL%
+				PRINTW 従業員部屋がいっぱいのため、該当キャラから従業員フラグを外し一旦島の外へと移動させます。
+				PRINTW 手間ですが、再びキャラクターを招待してください。
+				PRINTW 詫びルピとして１万ルピを増加させました。
+				MONEY += 10000
+				CFLAG:LOCAL:滞在期間 = -1
+				TALENT:LOCAL:従業員 = 0
+				TALENT:LOCAL:定住者 = 0
+				CALL 滞在終了時初期化(LOCAL)
+			ENDIF
 		ELSE
 			CALL 滞在者部屋割り配列挿入処理(LOCAL)
+			IF RESULT == 0
+				PRINTL 想定しない挙動により、部屋が無いキャラが存在しています。
+				PRINTFORMW 対象キャラ：%NAME:LOCAL%
+				PRINTW 客室がいっぱいのため、該当キャラを一旦島の外へと移動させます。
+				PRINTW 手間ですが、再びキャラクターを招待してください。
+				PRINTW 詫びルピとして１万ルピを増加させました。
+				MONEY += 10000
+				CFLAG:LOCAL:滞在期間 = -1
+				TALENT:LOCAL:従業員 = 0
+				TALENT:LOCAL:定住者 = 0
+				CALL 滞在終了時初期化(LOCAL)
+			ENDIF
 		ENDIF
 	ENDIF
 
@@ -288,7 +328,7 @@ NEXT
 
 CALL イベント追加チェック
 CALL イベント削除チェック
-IF TFLAG:ゲームフェイズ管理 == 0
+IF SAVESTR:ゲームフェイズ管理 == ""
 	CALL イベント発生条件チェック
 ENDIF
 

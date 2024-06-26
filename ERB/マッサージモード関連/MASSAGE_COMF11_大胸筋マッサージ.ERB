@@ -1,0 +1,87 @@
+﻿;-------------------------------------------------
+;大胸筋マッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME11
+#FUNCTIONS
+TSTR:コマンド名受渡 = 大胸筋マッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_11
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("微エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_11
+LOCALS = <br>■大胸筋マッサージ<br>
+LOCALS += "オイルを使って胸板をマッサージする。ｵｲﾙﾇﾛｯｶ……"
+LOCALS += "<br>COMタイプ：微エロマッサージ<br>取得ソース：快Ｂ・接触・歓楽"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM11
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;別に男は胸板ペタペタ触られたところでさほど警戒するわけでもないので、警戒は普通に下がる。
+CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 70)
+CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 20)
+CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 40)
+BASE:TARGET:理性 -= 40
+BASE:TARGET:警戒 -= 50
+
+;一応リラックス効果重点ってことでＢ感は抑えめ。
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 75)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 150)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE11
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+
+;オトコ限定
+SIF TALENT:TARGET:性別 != 2
+	RETURN 0
+
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM11
+PRINTFORM %CALLNAME:PLAYER%は
+	;今後浴衣とかバスローブみたいな施術着を着ないとも限らないため
+	SIF TEQUIP:TARGET:上半身服あり == 1 && TEQUIP:TARGET:はだけ可 == 1
+		PRINTFORM %CALLNAME:TARGET%が着ている施術着の前をはだけさせ、
+PRINTFORM マッサージオイルをつけた手のひらで%CALLNAME:TARGET%の
+	IF TALENT:TARGET:体格 >= 2
+	;ドラフ体格
+		PRINTFORM %TEXTR("がっしりとした/がっちりした/肉のついた厚い")%
+	ELSEIF TALENT:TARGET:体格 <= -1
+	;小柄以下
+		PRINTFORM %TEXTR("華奢な/小柄な")%
+	ENDIF
+PRINTFORML 胸板を丁寧に揉みほぐした。
+

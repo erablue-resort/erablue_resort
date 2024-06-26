@@ -1,0 +1,115 @@
+﻿;-------------------------------------------------
+;体外式ポルチオマッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME24
+#FUNCTIONS
+TSTR:コマンド名受渡 = 体外式ポルチオマッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_24
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_24
+LOCALS = <br>■体外式ポルチオマッサージ<br>
+LOCALS += "子宮口付近に存在する性感帯をお腹の上から指圧して、強い刺激を与える。"
+LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｖ・接触・苦痛・歓楽"
+LOCALS += "<br>固有の取得経験：ポルチオ開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM24
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:性欲 += 80
+	BASE:TARGET:警戒 -= 40
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;……シヴァお前……
+	BASE:TARGET:理性 -= 60
+	BASE:TARGET:性欲 += 80
+	BASE:TARGET:警戒 -= 50
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ELSE
+;局部に直接触れるわけではないので、警戒は少し上がるが理性は削れる。警戒で理性が10上がり、ポルチオへの刺激で理性が50下がるイメージでこの数値。
+;性欲も大きく煽られる。だいぶ強コマンド。
+	BASE:TARGET:理性 -= 40
+	BASE:TARGET:性欲 += 80
+	BASE:TARGET:警戒 += 20
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+ENDIF
+
+;ポルチオ責めよりは弱い。お腹を押し込まれるため苦痛がちょっとある
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 300)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
+
+;苦痛コマンドフラグだと苦痛快楽じゃなくて苦痛絶頂ばっかり溜まりがちだから快楽固定でマゾ性感上げの緩和を図る
+EXP:TARGET:苦痛快楽経験 += 1
+
+RCVAR:ポルチオ開発フラグ = 2
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE24
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;Ｖがないとダメ
+SIF GETBIT(TALENT:TARGET:性別, 0) == 0
+	RETURN 0
+SIF TALENT:TARGET:Ｖ感度 == -2
+	RETURN 0
+
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+;実行難易度もかなり緩い。ちょっと強すぎる気もしなくもないけど……えっちだからヨシ！
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1400
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM24
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%の
+	IF TALENT:TARGET:体型 >= 1
+	;肉感的以上
+		PRINTFORM むっちりとした
+	ELSEIF TALENT:TARGET:体型 <= -2
+	;細身以下
+		PRINTFORM 細く華奢な
+	ENDIF
+PRINTFORML お腹の上から、指の腹で円を描くようにしてポルチオを%TEXTR("刺激した/捏ねまわした")%。
+
+;削りが十分な時は追加のメッセージ
+IF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 900
+	PRINTW 
+	SELECTCASE RAND:2
+	CASE 0
+		PRINTFORM %CALLNAME:TARGET%は%TEXTR("とろんと目元を蕩けさせ/蕩けた顔でだらしなく口をあけて/法悦に目元を蕩けさせて")%、
+	CASE 1
+		PRINTFORM %CALLNAME:TARGET%はだらしなく緩んだ口から%TEXTR("あられもない声/快楽に染まった嬌声/淫らな声")%を%TEXTR("あげて/こぼして/こぼしながら")%、
+	ENDSELECT
+	PRINTFORML %CALLNAME:PLAYER%%TEXTR("の『マッサージ』/の手技/が与える快楽")%%TEXTR("に酔いしれている/にされるがままになっている/を受け入れている/を甘受している")%…
+ENDIF

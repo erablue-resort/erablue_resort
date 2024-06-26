@@ -1,0 +1,112 @@
+
+;-------------------------------------------------
+;遊戯室でスロットゲーム
+;-------------------------------------------------
+
+@COMNAME_PLACE_382_0_503
+#FUNCTION
+TSTR:コマンド名受渡 = スロットゲームで遊ぶ
+IF 施設改造度:5:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_382_0_503
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+@COM_TOOLTIP_382_0_503
+LOCALS = <br>■スロットゲームで遊ぶ<br>
+LOCALS += "スロットゲームで遊ぶコマンド。ミニゲーム『スロットゲーム』が発生。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：ギャンブル経験<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM382_0_503
+RFLAG:コマンド結果受渡し変数 = 0
+RFLAG:コマンド結果受渡し変数２ = 0
+RFLAG:コマンド結果受渡し変数３ = 0
+
+PRINTL 
+PRINTL ミニゲーム『スロットゲーム』
+PRINTL 
+PRINTL 
+$INPUT
+PRINTBUTTON "[0]遊ぶ ", 0
+PRINTBUTTON "[1]遊ばない ", 1
+PRINTBUTTON "[2]ミニゲームの説明を聞く ", 2
+BINPUT
+SELECTCASE RESULT 
+CASE 0
+CASE 1
+    PRINTFORML %CALLNAME:PLAYER%はその場から離れた・・・
+    RETURN
+CASE 2
+    PRINTW 回転するリールを止めて画像を完成させてください
+    PRINTL
+    PRINTW リールをクリックするか、数値を入力することでそれぞれのリールを止めることができます
+    PRINTL 
+    PRINTL STARTを選ぶことで続けて遊ぶことができます
+    PRINTW EXITを選ぶか、ルピがなくなるとゲームを終了します
+    PRINTL 
+    PRINTL 
+    PRINTL 
+    GOTO INPUT
+ENDSELECT
+
+PRINTFORM %CALLNAME:PLAYER%は・・・
+
+IF MONEY < 100
+    PRINTL スロットを遊ぶ手持ちがない・・・
+    RETURN 1
+ENDIF
+
+RFLAG:コマンド結果受渡し変数 = 1 ;遊び始めた
+
+IF あなた特殊能力:ギャンブラー
+    PRINT 迷わず賭け金の高いスロットを選んだ！
+    LOCAL = 1000
+ELSEIF CFLAG:PLAYER:隠密 || !TARGET
+    PRINT 人目を気にしながら賭け金の高いスロットを選んだ・・・
+    LOCAL = 1000
+ELSE
+    PRINT スロットゲームで遊び始めた・・・
+    LOCAL = 100
+ENDIF
+
+CALL スロットゲーム(LOCAL)
+RFLAG:コマンド結果受渡し変数２ = RESULT ;ルピ変動量
+
+EXP:PLAYER:ギャンブル経験 += RFLAG:コマンド結果受渡し変数３
+TIME += RFLAG:コマンド結果受渡し変数３ * 5
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE382_0_503
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(382)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM382_0_503
+
+SIF !RFLAG:コマンド結果受渡し変数 ;遊べなかった
+    RETURN
+
+PRINTFORML %CALLNAME:PLAYER%はスロットゲームを楽しんだ。
+

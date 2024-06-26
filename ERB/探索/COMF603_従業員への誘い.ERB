@@ -22,16 +22,18 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM603
-LOCAL:2 = 0
-FOR LOCAL, 0, 従業員部屋数
-	IF 従業員部屋割り配列:LOCAL < 1
-		LOCAL:2 = 1
-		BREAK
+IF TALENT:TARGET:定住者 < 1
+	LOCAL:2 = 0
+	FOR LOCAL, 0, 従業員部屋数
+		IF 従業員部屋割り配列:LOCAL < 1
+			LOCAL:2 = 1
+			BREAK
+		ENDIF
+	NEXT
+	IF LOCAL:2 == 0
+		PRINTW 従業員部屋がいっぱいです。
+		RETURN -1
 	ENDIF
-NEXT
-IF LOCAL:2 == 0
-	PRINTW 従業員部屋がいっぱいです。
-	RETURN -1
 ENDIF
 
 DRAWLINE
@@ -51,16 +53,19 @@ SELECTCASE RESULT
 		TALENT:TARGET:従業員 = 1
 		CFLAG:TARGET:滞在期間 = 999
 		CFLAG:TARGET:長期雇用 = 0
+		CFLAG:TARGET:探索参加許可フラグ = 1
 		IF STRFIND(NAME:TARGET, "[一般人]") > -1
 			NAME:TARGET = [従業員]%CALLNAME:TARGET%
 		ENDIF
-		CALL 滞在者部屋割り配列削除処理(TARGET)
-		FOR LOCAL, 0, 従業員部屋数
-			IF 従業員部屋割り配列:LOCAL < 1
-				従業員部屋割り配列:LOCAL = TARGET
-				BREAK
-			ENDIF
-		NEXT
+		IF TALENT:TARGET:定住者 < 1
+			CALL 滞在者部屋割り配列削除処理(TARGET)
+			FOR LOCAL, 0, 従業員部屋数
+				IF 従業員部屋割り配列:LOCAL < 1
+					従業員部屋割り配列:LOCAL = TARGET
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
 		CALL 従業員人数チェック()
 	CASE 1
 		RETURN -1
@@ -77,7 +82,7 @@ RETURN 1
 @COM_ABLE603
 #DIM ループ用
 ;移動実行判定
-SIF !TFLAG:ゲームフェイズ管理
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(602)

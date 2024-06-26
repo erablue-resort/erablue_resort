@@ -1,0 +1,907 @@
+﻿;========================================
+;@COMTYPE(ARGS)
+;指定した調教コマンドタイプ名に対応した数値を返す
+;========================================
+@MASSAGE_COMTYPE(ARGS)
+#FUNCTION
+#LOCALSSIZE 3
+TSTR:複合コマンドタイプ受け渡し = 
+SIF LOCALS == ""
+	SPLIT "通常マッサージ_微エロマッサージ_エロマッサージ", "_", LOCALS
+IF STRFIND(ARGS, "&") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 100
+ELSEIF STRFIND(ARGS, "_") >= 0
+	TSTR:複合コマンドタイプ受け渡し = %ARGS%
+	RETURNF 101
+ELSE
+	RETURNF FINDELEMENT(LOCALS,ARGS,,,1)
+ENDIF
+
+;こっちは数字から文字列で返す
+@MASSAGE_COMTYPE_S(ARG)
+#FUNCTIONS
+#LOCALSSIZE 3
+SIF LOCALS == ""
+	SPLIT "通常マッサージ_微エロマッサージ_エロマッサージ", "_", LOCALS
+SIF ARG >= 100
+	RETURNF ""
+RETURNF LOCALS:ARG
+
+@SHOW_INFO_マッサージモード
+#DIMS ゲージ表示文
+
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+LOCAL = MAX(BASE:理性 / 200,1)
+PRINT 理性:
+SIF BASE:理性 < 100
+	SETCOLOR 255,255,0
+PRINTFORM %"★" * LOCAL,10,LEFT% 
+RESETCOLOR
+PRINTL 
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+
+LOCALS = 警戒: 
+ゲージ表示文 = <div rect='0,0,3125,250'>
+IF BASE:TARGET:警戒 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{MAX(1, BASE:TARGET:警戒 * 450 / MAXBASE:TARGET:警戒)},30' color='#50B050'>"
+ENDIF
+IF MAXBASE:TARGET:警戒 - BASE:TARGET:警戒 > 0
+	ゲージ表示文 += @"<shape type='rect' param='0,70,{450 - (MAX(1, BASE:TARGET:警戒 * 450 / MAXBASE:TARGET:警戒))},30' color='#205020'>"
+ENDIF
+ゲージ表示文 += "</div>"
+
+LOCALS:1 = {BASE:TARGET:警戒,4}/{MAXBASE:TARGET:警戒,4}
+LOCALS += @"%ゲージ表示文%<div rect='62,0,3125,250'>%LOCALS:1, 9%</div>"
+HTML_PRINT LOCALS, 1
+
+
+@SHOW_USERCOM_マッサージモード
+#DIM コマンド数
+VARSET LOCAL
+
+;コマンド表示
+CALL SHOW_COMMAND_マッサージモード
+IF サイド領域非表示オプション == 0
+	CALL サイド領域_改行処理
+ENDIF
+DRAWLINE
+
+RESETCOLOR
+PRINTC 能力表示(マスター)[804]
+PRINTC 探索系情報一覧[830]
+IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+	PRINTFORMC 　%CALLNAME:TARGET%を仰向けにする[810]
+ELSE
+	PRINTFORMC 　%CALLNAME:TARGET%をうつ伏せにする[810]
+ENDIF
+PRINTL 
+PRINTC マッサージを終える[999]
+PRINTC OPTION[809]
+PRINTL
+LOCALS = ＜コマンド履歴:
+FOR LOCAL, 0, 5
+	IF コマンド履歴:LOCAL >= 0
+		SIF LOCAL > 0
+			LOCALS += " - "
+		;COMABLEが通るならボタン化
+		TRYCALLFORM MASSAGE_COM_ABLE{コマンド履歴:LOCAL}
+		IF RESULT
+			LOCALS += @"<button value='{コマンド履歴:LOCAL}'>[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]</button>"
+		ELSE
+			LOCALS += @"<nonbutton>[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]</nonbutton>"
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL == -1
+		SIF LOCAL > 0
+			LOCALS += " - "
+		;COMABLEが通るならボタン化
+		TRYCALLFORM MASSAGE_COM_ABLE_S%派生コマンド履歴:LOCAL%
+		IF RESULT
+			LOCALS += @"<button value='%派生コマンド履歴:LOCAL%'>[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]</button>"
+		ELSE
+			LOCALS += @"<nonbutton>[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]</nonbutton>"
+		ENDIF
+	ENDIF
+NEXT
+LOCALS += "＞"
+HTML_PRINT LOCALS
+
+
+
+@SHOW_COMMAND_マッサージモード
+
+;一旦モードはオミット
+;CALL SHOW_MODE()
+
+SETCOLOR 0xC0C0C0
+文字色保存 = GETCOLOR()
+PRINT -----
+PRINTPLAIN [マッサージ]
+PRINTL -------------------------------------------------------------------------------------------
+CALL SHOW_COMMAND_マッサージモード_実処理("通常")
+PRINTL
+SETCOLOR 0xFF99EE
+文字色保存 = GETCOLOR()
+PRINT -----
+PRINTPLAIN [エロマッサージ]
+PRINTL ---------------------------------------------------------------------------------------
+CALL SHOW_COMMAND_マッサージモード_実処理("エロマッサージ")
+
+PRINTL
+RESETCOLOR
+PRINTL
+文字色保存 = 0
+
+@SHOW_COMMAND_マッサージモード_実処理(コマンドカテゴリ)
+#DIMS 複合条件保存, 10
+#DIM スキップフラグ
+#DIM 配列番号
+#DIMS コマンドキー
+#DIM 派生カテゴリ表示フラグ
+#DIMS コマンドカテゴリ
+#DIM 文字横幅保存
+#DIMS COM文字列保存
+
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
+
+VARSET LOCALS
+LOCAL:1 = 0
+LOCAL:2 = 0
+LOCAL:3 = MASSAGE_COMTYPE(コマンドカテゴリ)
+SIF コマンドカテゴリ == "通常"
+	LOCAL:3 = 49
+
+FOR LOCAL, 0, 700
+	TRYCCALLFORM MASSAGE_COM_ABLE{LOCAL}
+		SIF RESULT == 0
+			CONTINUE
+	CATCH
+		CONTINUE
+	ENDCATCH
+	弱点コマンドカテゴリ = 
+	TFLAG:派生コマンド指定 = -1
+	TRYCALLFORMF MASSAGE_COMTYPE_{LOCAL}
+	SIF TFLAG:派生コマンド指定 > -1
+		CONTINUE
+	;指定カテゴリと同じコマンドだけ表示
+	SELECTCASE LOCAL:3
+		CASE 0 TO 48
+			SIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+				CONTINUE
+		CASE 49
+			;通常枠は通常と微エロを合算
+			SIF TFLAG:コマンドタイプ受渡 >= 2
+				CONTINUE
+	ENDSELECT
+	LOCALS:1 = {LOCAL}
+	IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+		LOCALS:1 = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+	ENDIF
+	CALLFORMF TRAIN_COMNAME(LOCAL)
+	IF TSTR:コマンドカラー受渡 == ""
+		;弱点コマンドは未実装
+		; FOR LOCAL:10, 0, 50
+		; 	SIF 弱点看破:TARGET:(LOCAL:10) == 0
+		; 		CONTINUE
+		; 	IF 弱点コマンド枠:TARGET:(LOCAL:10) == LOCALS:1
+		; 		LOCALS += "<font color='#FF3399'>"
+		; 		LOCAL:4 = 1
+		; 		BREAK
+		; 	ENDIF
+		; NEXT
+	ELSE
+		LOCALS += @"<font color='#%TSTR:コマンドカラー受渡%'>"
+		LOCAL:4 = 1
+	ENDIF
+	IF STRLENS(TRAIN_COMNAME(LOCAL))
+		LOCALS += @"<button value = '{LOCAL}'"
+		TRYCCALLFORM MASSAGE_COM_TOOLTIP_{LOCAL}
+			IF ツールチップ切り替えOPTION記憶 == 0
+				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
+			ELSE
+				LOCALS += @">"
+			ENDIF
+		CATCH
+			LOCALS += @">"
+		ENDCATCH
+		COM文字列保存 = %TRAIN_COMNAME(LOCAL)%
+		文字横幅保存 = STRLENS(COM文字列保存) - HTML_STRINGLEN(COM文字列保存)
+		LOCALS += @"%COM文字列保存, 30 + 文字横幅保存%[{LOCAL, 3}]</button>　"
+		IF LOCAL:4
+			LOCALS += "</font>"
+			LOCAL:4 = 0
+		ENDIF
+		LOCAL:2 += 1
+	ENDIF
+	IF LOCAL:2 >= 3
+		LOCAL:2 = 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+IF LOCALS != ""
+	LOCAL:2 = 0
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+
+FOR LOCAL, 0, 500
+	LOCAL:2 = 0
+	派生カテゴリ表示フラグ = 0
+	;派生コマンドを見る
+	FOR LOCAL:1, 1, 50
+		TRYCCALLFORM MASSAGE_COM_ABLE_S{LOCAL}_{LOCAL:1}
+			SIF RESULT == 0
+				CONTINUE
+		CATCH
+			CONTINUE
+		ENDCATCH
+		RESULT = 0
+		弱点コマンドカテゴリ = 
+		TRYCALLFORMF MASSAGE_COMTYPE_S_{LOCAL}_{LOCAL:1}
+		;指定カテゴリと同じコマンドだけ表示
+		SELECTCASE LOCAL:3
+			CASE 0 TO 48
+				SIF TFLAG:コマンドタイプ受渡 != LOCAL:3
+					CONTINUE
+			CASE 49
+				;通常枠は通常と微エロを合算
+				SIF TFLAG:コマンドタイプ受渡 >= 2
+					CONTINUE
+		ENDSELECT
+		IF 派生カテゴリ表示フラグ == 0
+			PRINTL
+			派生名フラグ = 1
+			PRINTFORML ▼%TRAIN_COMNAME(LOCAL)%派生
+			派生名フラグ = 0
+			派生カテゴリ表示フラグ = 1
+		ENDIF
+		コマンドキー = {LOCAL}_{LOCAL:1}
+		IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
+			コマンドキー = %SUBSTRING(弱点コマンドカテゴリ, 12)%
+		ENDIF
+		CALLFORMF TRAIN_COMNAME_S(コマンドキー)
+		IF TSTR:コマンドカラー受渡 == ""
+			; FOR LOCAL:10, 0, 50
+			; 	SIF 弱点看破:TARGET:(LOCAL:10) == 0
+			; 		CONTINUE
+			; 	IF 弱点コマンド枠:TARGET:(LOCAL:10) == @"%コマンドキー%"
+			; 		LOCALS += "<font color='#FF3399'>"
+			; 		LOCAL:4 = 1
+			; 		BREAK
+			; 	ENDIF
+			; NEXT
+		ELSE
+			LOCALS += @"<font color='#%TSTR:コマンドカラー受渡%'>"
+			LOCAL:4 = 1
+		ENDIF
+		LOCALS += @"<button value = '%コマンドキー%'"
+		TRYCCALLFORM MASSAGE_COM_TOOLTIP_S%コマンドキー%
+			IF ツールチップ切り替えOPTION記憶 == 0
+				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
+			ELSE
+				LOCALS += @">"
+			ENDIF
+		CATCH
+			LOCALS += @">"
+		ENDCATCH
+		COM文字列保存 = %TRAIN_COMNAME_S(コマンドキー)%
+		文字横幅保存 = STRLENS(COM文字列保存) - HTML_STRINGLEN(COM文字列保存)
+		LOCALS += @"%COM文字列保存, 30 + 文字横幅保存%[%コマンドキー,5%]</button>　"
+		IF LOCAL:4
+			LOCALS += "</font>"
+			LOCAL:4 = 0
+		ENDIF
+		LOCAL:2 += 1
+		SETCOLOR 文字色保存
+		IF LOCAL:2 >= 3
+			LOCAL:2 = 0
+			HTML_PRINT LOCALS
+			LOCALS = 
+		ENDIF
+	NEXT
+
+	IF LOCALS != ""
+		LOCAL:2 = 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+
+@USERCOM_マッサージモード
+#DIM ページ番号
+#DIM 数値変換用
+#DIM 実行キャラ番号
+#DIM 対象キャラ番号
+#DIM TARGET何人目？
+#DIM 口上無しフラグ
+
+ページ番号 = 0
+;RETURN 0でSOURCE_CHECK以降に進む
+;NEXTCOMを仕込む
+IF NEXTCOM >= 0
+	RESULT = NEXTCOM
+	NEXTCOM = -1
+ENDIF
+
+IF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "MODE詳細設定処理") > 0
+	;モードの強さや速さを変動させるボタン
+	;_でSPLITすればRESULTS:1に変動種類、2にキャラ番号、3に変動内容が入る
+	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+	IF ISNUMERIC(RESULTS:3)
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", TOINT(RESULTS:3)
+	ELSEIF RESULTS:3 == "上昇"
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MIN(5, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") + 1)
+	ELSEIF RESULTS:3 == "下降"
+		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MAX(0, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") - 1)
+	ENDIF
+	RETURN 1
+ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
+	;モードを中止させるボタン
+	;_でSPLITすればRESULTS:1に中止させるモードの配列が入る
+	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "実行キャラ")
+	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "対象キャラ")
+	TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除(実行キャラ番号, 対象キャラ番号)
+	PRINTL
+	IF 実行キャラ番号 != MASTER
+		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
+			PRINTL 
+			口上無しフラグ = 0
+		CATCH
+			口上無しフラグ = 1
+		ENDCATCH
+	ENDIF
+	IF 対象キャラ番号 != MASTER
+		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
+			PRINTL 
+			口上無しフラグ = 0
+		CATCH
+			口上無しフラグ = 1
+		ENDCATCH
+	ENDIF
+	SIF 口上無しフラグ
+		TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除_非口上時(実行キャラ番号, 対象キャラ番号)
+	WAIT
+	CALL MODE_DELETE_配列詰め(TOINT(RESULTS:1))
+ELSEIF RSTR:SELECTCOM_S受け渡し != ""
+	;受け渡しがある場合はRSTR:SELECTCOM_S受け渡しに派生コマンドが入っているはず
+	SELECTCOM = -1
+	SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
+	SIF TRAIN_COMNAME_S(SELECTCOM_S) == ""
+		RETURN 1
+	RSTR:SELECTCOM_S受け渡し = %SELECTCOM_S%
+	RESULT = 1
+	TRYCALLFORM MASSAGE_COM_ABLE_S%SELECTCOM_S%
+	SIF RESULT == 0 || RESULT == -1
+		RETURN 1
+	IF TCVAR:TARGET:食いしばりフラグ
+	ELSE
+		TRYCALLFORM MASSAGE_CAN_COM_S%SELECTCOM_S%(1)
+		IF !RESULT
+			TRYCALLFORM MASSAGE_CAN_COM_S%SELECTCOM_S%
+			RETURN 1
+		ENDIF
+	ENDIF
+ELSEIF RESULT == 9104
+	;オートコマンドオプション
+	FLAG:オートコマンド切り替えオプション += 1
+	SIF FLAG:オートコマンド切り替えオプション > 15
+		FLAG:オートコマンド切り替えオプション = 0
+	RETURN 1
+ELSEIF RESULT == 9100
+;9100でINFO格納フィルタ
+	INVERTBIT INFO格納フィルタ:(RESULT - 9100), 0
+	RETURN 1
+ELSEIF RESULT > 2000
+;2000番以降は相手変えのショートカットに使う
+	数値変換用 = RESULT - 2000
+	IF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
+		RETURN 1
+	ELSEIF CFLAG:数値変換用:同室
+		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 数値変換用)
+			FLAG:モード管理 = 0
+			VARSET 同時モード_選択キャラ, -1
+			同時モード_選択数 = 0
+		ENDIF
+		TFLAG:TARGET変更用 = 数値変換用
+		TFLAG:あなたターゲット用 = 0
+		PREVCOM = RESULT
+	ENDIF
+	RETURN 1
+ELSEIF RESULT >= 0 && RESULT <= 700
+	SELECTCOM = RESULT
+	SIF TRAIN_COMNAME(SELECTCOM) == ""
+		RETURN 1
+	RESULT = 0
+	TRYCALLFORM MASSAGE_COM_ABLE{SELECTCOM}
+	SIF RESULT == 0
+		RETURN 1
+	TFLAG:SELECTCOM受け渡し = SELECTCOM
+	RESULT = 1
+	IF TCVAR:TARGET:食いしばりフラグ
+	ELSE
+		TRYCALLFORM MASSAGE_CAN_COM{SELECTCOM}(1)
+		IF !RESULT
+			TRYCALLFORM MASSAGE_CAN_COM{SELECTCOM}
+			RETURN 1
+		ENDIF
+	ENDIF
+ELSEIF RESULT == 803
+	FOR LOCAL, 1, CHARANUM
+		IF TARGET:LOCAL == TARGET
+			TARGET何人目？ = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	$能力表示_LOOP
+	LOCAL:1 = 0
+	SIF TARGET何人目？ != 1
+		SETBIT LOCAL:1, 0
+	SIF TARGET:(TARGET何人目？ + 1) > 0
+		SETBIT LOCAL:1, 1
+	CALL PRINT_STATE(TARGET:TARGET何人目？, LOCAL:1)
+	IF RESULT == 100
+		TARGET何人目？ -= 1
+		GOTO 能力表示_LOOP
+	ELSEIF RESULT == 101
+		TARGET何人目？ += 1
+		GOTO 能力表示_LOOP
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 804
+	CALL PRINT_STATE(MASTER)
+	RETURN 1
+ELSEIF RESULT == 810
+	IF PREGNANCY_SIZE(TARGET) >= 2
+		PRINTFORML %CALLNAME:TARGET%は妊娠してお腹が大きくなっている……。
+		PRINTW うつ伏せに寝ることは出来なさそうだ。
+	ELSE
+		INVERTBIT TCVAR:TARGET:マッサージ_うつ伏せフラグ, 0
+		PRINTFORM %CALLNAME:TARGET%に
+		IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+			PRINTW うつ伏せに寝てもらった。
+		ELSE
+			PRINTW 仰向けに寝てもらった。
+		ENDIF
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 809
+	CALL OPTION
+	RETURN 1
+ELSEIF RESULT == 830
+	表示切り替え文字列 = 探索集約_探索メンバー
+	CALL 探索系集約表示
+	RETURN 1
+ELSEIF RESULT == 889
+	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
+		INVERTBIT 画像サイズ切り替えOPTION記憶, 0
+		IF 二人目画像表示用()
+			SETBIT 画像サイズ切り替えOPTION記憶, 4
+		ELSE
+			CLEARBIT 画像サイズ切り替えOPTION記憶, 4
+		ENDIF
+	ELSEIF GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用()
+		CLEARBIT 画像サイズ切り替えOPTION記憶, 4
+	ELSE
+		INVERTBIT 画像サイズ切り替えOPTION記憶, 0
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 890
+	INVERTBIT あなた射精我慢フラグ, 0
+	RETURN 1
+ELSEIF RESULT == 891
+	CALL オート射精先設定
+	RETURN 1
+ELSEIF RESULT == 892
+	INVERTBIT 連れ込み制御OPTION, 0
+	RETURN 1
+ELSEIF RESULT == 999
+	CALL ゲームフェイズ変更("通常モード")
+	RETURN 1
+ELSE
+	RETURN 1
+ENDIF
+RETURN 0
+
+
+@MASSAGE_CALL_COM(対象キャラ)
+#DIM 対象キャラ
+
+RESULT = 0
+IF RSTR:SELECTCOM_S受け渡し != ""
+	IF TCVAR:TARGET:食いしばりフラグ
+	ELSE
+		TRYCALLFORM MASSAGE_CAN_COM_S%RSTR:SELECTCOM_S受け渡し%
+	ENDIF
+	TRYCALLFORMF MASSAGE_COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+	TRYCALLFORM MASSAGE_COM_S%RSTR:SELECTCOM_S受け渡し%
+	LOCAL:1 = RESULT
+	IF LOCAL:1 >= 0
+		LOCALS = %RSTR:SELECTCOM_S受け渡し%
+		IF STRFIND(コマンド初回フラグ:対象キャラ:0, @"-MASSAGE_%LOCALS%-") < 0
+			コマンド初回フラグ_一時保存:対象キャラ:0 += @"-MASSAGE_%LOCALS%-"
+		ENDIF
+		IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-MASSAGE_%LOCALS%-") < 0
+			コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-MASSAGE_%LOCALS%-"
+		ENDIF
+	ENDIF
+	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
+	RETURN LOCAL:1
+ELSE
+	IF TCVAR:TARGET:食いしばりフラグ
+	ELSE
+		TRYCALLFORM MASSAGE_CAN_COM{SELECTCOM}
+	ENDIF
+	TRYCALLFORMF MASSAGE_COMTYPE_{SELECTCOM}
+	TRYCALLFORM MASSAGE_COM{SELECTCOM}
+	LOCAL:1 = RESULT
+	IF LOCAL:1 >= 0
+		LOCALS = {SELECTCOM}
+		IF STRFIND(コマンド初回フラグ:対象キャラ:0, @"-MASSAGE_%LOCALS%-") < 0
+			コマンド初回フラグ_一時保存:対象キャラ:0 += @"-MASSAGE_%LOCALS%-"
+		ENDIF
+		IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-MASSAGE_%LOCALS%-") < 0
+			コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-MASSAGE_%LOCALS%-"
+		ENDIF
+	ENDIF
+	RETURN LOCAL:1
+ENDIF
+
+
+
+@KOJO_MESSAGE_COM_マッサージモード
+#DIMS 呼び出し文字列
+#DIM 対象キャラ
+#DIM 入れ替え保存
+#DIM 汎用喘ぎうふふフラグ
+
+VARSET LOCAL
+汎用喘ぎうふふフラグ = 0
+TFLAG:コマンドタイプ受渡 = 0
+
+IF FLAG:汎用文章表示切り替えオプション > 0
+	IF SELECTCOM_S != ""
+		TRYCCALLFORM MASSAGE_MESSAGE_COM_S%SELECTCOM_S%
+			PRINTW
+		CATCH
+		ENDCATCH
+		TRYCALLFORMF MASSAGE_COMTYPE_S_%SELECTCOM_S%
+		;エロマッサージの時だけフラグON
+		SIF TFLAG:コマンドタイプ受渡 == 2
+			汎用喘ぎうふふフラグ = 1
+	ELSE
+		TRYCCALLFORM MASSAGE_MESSAGE_COM{SELECTCOM}
+			PRINTW
+		CATCH
+		ENDCATCH
+		TRYCALLFORMF MASSAGE_COMTYPE_{SELECTCOM}
+		;エロマッサージの時だけフラグON
+		SIF TFLAG:コマンドタイプ受渡 == 2
+			汎用喘ぎうふふフラグ = 1
+	ENDIF
+	PRINTL
+ENDIF
+IF FLAG:口上表示切り替えオプション <= 0
+	RETURN 0
+ENDIF
+
+CALL 口上変数初期化
+RESULT = 0
+
+;口上ありでも汎用喘ぎを使うならここで表示
+;エロマッサージの場合は一時的にうふふをONに
+
+対象キャラ = TARGET
+SIF 汎用喘ぎうふふフラグ
+	CFLAG:対象キャラ:うふふ = 1
+
+IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+	CALL 汎用喘ぎ処理(対象キャラ)
+ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+	;禁止時はなにもしない
+ELSE
+	IF TALENT:対象キャラ:性別 == 2
+		SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1)
+			CALL 汎用喘ぎ処理(対象キャラ)
+	ELSE
+		SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+			CALL 汎用喘ぎ処理(対象キャラ)
+	ENDIF
+ENDIF
+CFLAG:対象キャラ:うふふ = 0
+
+SIF TCVAR:TARGET:食いしばりフラグ
+	SKIPDISP 1
+
+RESULT = 0
+
+IF RSTR:SELECTCOM_S受け渡し != ""
+	TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_%RSTR:SELECTCOM_S受け渡し%(TARGET)
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = %RSTR:SELECTCOM_S受け渡し%
+	ENDIF
+ELSE
+	TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_{SELECTCOM}(TARGET)
+	IF FLAG:モード管理 == 2
+		呼び出し文字列 = {SELECTCOM}
+	ENDIF
+ENDIF
+
+SKIPDISP 0
+SIF K < 1
+	LOCAL:1 = 1
+
+IF K < 1 && LOCAL:1 == 1
+	;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
+	;口上なしで汎用喘ぎを使うならここで表示
+	対象キャラ = TARGET
+	SIF 汎用喘ぎうふふフラグ
+		CFLAG:対象キャラ:うふふ = 1
+	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+		;禁止時はなにもしない
+	ELSEIF TFLAG:オートコマンドフラグ == 0
+		IF TALENT:対象キャラ:性別 == 2
+			SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1) == 0
+				CALL 汎用喘ぎ処理(対象キャラ)
+		ELSE
+			SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
+				CALL 汎用喘ぎ処理(対象キャラ)
+		ENDIF
+	ENDIF
+	IF TCVAR:対象キャラ:食いしばりフラグ == 0
+		IF SELECTCOM_S != ""
+			TRYCALLFORM MASSAGE_MESSAGE_COM_S%SELECTCOM_S%_非口上時
+		ELSE
+			TRYCALLFORM MASSAGE_MESSAGE_COM{SELECTCOM}_非口上時
+		ENDIF
+	ENDIF
+	CFLAG:対象キャラ:うふふ = 0
+ENDIF
+
+
+
+@EVENTCOMEND0_マッサージモード
+#DIM TARGET保存
+#DIM 食事回復量
+#DIM 料理ランク一時保存
+#DIM 料理属性一時保存, 10
+#DIM モード中キャラカウント
+#DIM FLAG保存
+#DIM 時間保存
+#DIM 表示候補, 1000
+
+IF TFLAG:オートコマンドフラグ || TFLAG:オートコマンド連続発動
+ELSE
+	;コマンド履歴の保存
+	コマンド履歴:19 = コマンド履歴:18
+	コマンド履歴:18 = コマンド履歴:17
+	コマンド履歴:17 = コマンド履歴:16
+	コマンド履歴:16 = コマンド履歴:15
+	コマンド履歴:15 = CFLAG:MASTER:現在マップ種別
+	コマンド履歴:14 = コマンド履歴:13
+	コマンド履歴:13 = コマンド履歴:12
+	コマンド履歴:12 = コマンド履歴:11
+	コマンド履歴:11 = コマンド履歴:10
+	コマンド履歴:10 = CFLAG:MASTER:現在位置
+	コマンド履歴:9 = コマンド履歴:8
+	コマンド履歴:8 = コマンド履歴:7
+	コマンド履歴:7 = コマンド履歴:6
+	コマンド履歴:6 = コマンド履歴:5
+	コマンド履歴:5 = TARGET
+	コマンド履歴:4 = コマンド履歴:3
+	コマンド履歴:3 = コマンド履歴:2
+	コマンド履歴:2 = コマンド履歴:1
+	コマンド履歴:1 = コマンド履歴:0
+	IF RSTR:SELECTCOM_S受け渡し == ""
+		コマンド履歴:0 = SELECTCOM
+	ELSE
+		コマンド履歴:0 = -1
+	ENDIF
+	派生コマンド履歴:4 = %派生コマンド履歴:3%
+	派生コマンド履歴:3 = %派生コマンド履歴:2%
+	派生コマンド履歴:2 = %派生コマンド履歴:1%
+	派生コマンド履歴:1 = %派生コマンド履歴:0%
+	派生コマンド履歴:0 = %RSTR:SELECTCOM_S受け渡し%
+ENDIF
+
+SELECTCASE SELECTCOM
+	CASE 51
+		;おまんこマッサージはうふふに移行する関係上、ここで色々処理
+		;通常モードに移行
+		TARGET保存 = TARGET
+		CALL ゲームフェイズ変更("通常モード")
+		TARGET = TARGET保存
+		;うふふに移行
+		CFLAG:TARGET:うふふ = 1
+		CFLAG:PLAYER:うふふ = 1
+		BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+
+		IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+			;うつ伏せだと後背位
+			CALL MODE_CHANGE("後背位", PLAYER, TARGET)
+		ELSE
+			;仰向けだと正常位
+			CALL MODE_CHANGE("正常位", PLAYER, TARGET)
+		ENDIF
+ENDSELECT
+
+;キャラごとの特殊処理を呼び出す
+TRYCALLFORM MASSAGE_TURNEND_CHARAEVENT_{NO:TARGET}
+
+;諸々リセット
+CALL TURN_RESET
+COM_RAND = RAND:1000
+
+;設定している食事メニューによって回復量設定
+食事回復量 = 400
+料理ランク一時保存 = 0
+VARSET 料理属性一時保存
+FOR LOCAL, 1, 6
+	IF 現在設定メニュー:LOCAL
+		料理ランク一時保存 += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "料理ランク", 1)
+		料理属性一時保存:LOCAL = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "料理属性", 1) + 100
+	ENDIF
+NEXT
+食事回復量 += 料理ランク一時保存 * 10
+
+
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;知識系素質の取得処理
+	CALL 知識系素質の取得(LOCAL)
+	;体力の回復
+	;昼食
+	IF TIME > 720 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 0) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+			CASE 3
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+			CASE 4
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+			CASE 5
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+		ENDSELECT
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 0
+	ENDIF
+	;夕食
+	IF TIME > 1140 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 1) && !CFLAG:LOCAL:うふふ
+		;回復早い、回復遅い
+		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)))
+		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+			CASE 3
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+			CASE 4
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+			CASE 5
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+		ENDSELECT
+		SETBIT TCVAR:LOCAL:食事済みフラグ, 1
+	ENDIF
+NEXT
+
+モード中キャラカウント = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF BASE:(TARGET:LOCAL):体力 < 1 && TCVAR:(TARGET:LOCAL):食いしばりフラグ > 0
+		BASE:(TARGET:LOCAL):体力 = 1
+		TCVAR:(TARGET:LOCAL):食いしばりフラグ --
+	ELSEIF BASE:(TARGET:LOCAL):体力 < 1 && !CFLAG:(TARGET:LOCAL):体力限界
+		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
+		TRYCALLFORM KOJO_EVENT_マッサージ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		FORCEWAIT
+		CFLAG:(TARGET:LOCAL):体力限界 = 1
+		EXP:(TARGET:LOCAL):ダウン経験 += 1
+		;経験取得表示スキップ用
+		TCVAR:(TARGET:LOCAL):436 = EXP:(TARGET:LOCAL):ダウン経験
+		;モードもリセット
+		CALL 特定キャラモードリセット(TARGET:LOCAL)
+	ENDIF
+	SIF !CFLAG:(TARGET:LOCAL):体力限界
+		モード中キャラカウント += 1
+NEXT
+IF モード中キャラカウント == 0
+	CALL ゲームフェイズ変更("通常モード")
+ENDIF
+;非同室キャラのダウンを判定
+FOR LOCAL, 1, CHARANUM
+	SIF MATCH(TARGET, LOCAL) > 0
+		CONTINUE
+	SIF MATCH(飲み会TARGET, LOCAL) > 0
+		CONTINUE
+	SIF CFLAG:LOCAL:滞在期間 < 1
+		CONTINUE
+	IF BASE:LOCAL:体力 < 1 && TCVAR:LOCAL:食いしばりフラグ > 0
+		BASE:LOCAL:体力 = 1
+		TCVAR:LOCAL:食いしばりフラグ --
+	ELSEIF BASE:LOCAL:体力 < 1 && !CFLAG:LOCAL:体力限界
+		CFLAG:LOCAL:体力限界 = 1
+		IF CFLAG:LOCAL:うふふ == 0 && CFLAG:LOCAL:飲み会 == 0
+			CFLAG:LOCAL:一緒に遊ぶ = 0
+			CFLAG:LOCAL:同行 = 0
+			CFLAG:LOCAL:デート = 0
+			CFLAG:LOCAL:隠密 = 0
+		ENDIF
+		EXP:LOCAL:ダウン経験 += 1
+		CFLAG:LOCAL:うふふ開始時間記録 = 0
+		;経験取得表示スキップ用
+		TCVAR:LOCAL:436 = EXP:LOCAL:ダウン経験
+		SIF AUTOCOM_相手番号保存 == LOCAL
+			TFLAG:オートコマンドフラグ = 0
+		;モードもリセット
+		CALL 特定キャラモードリセット(LOCAL)
+	ENDIF
+NEXT
+
+;--------------------------------------------------
+;警戒度上昇によるマッサージ中断
+;--------------------------------------------------
+IF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
+	SETCOLOR カラーパレット("黄")
+	DRAWLINE
+	PRINTL 警戒度が上限に到達しました
+	PRINTFORML %CALLNAME:TARGET%の好感度が減少し、マッサージモードを終了します
+	DRAWLINE
+	RESETCOLOR
+	WAIT
+
+	;再実行不能フラグを立てる
+	TCVAR:TARGET:マッサージ禁止 = 1
+
+	;好感度レベルを下げる
+	IF CFLAG:TARGET:好感度レベル > 関係閾値:1
+		CFLAG:TARGET:好感度レベル -= 10
+		;顔見知り未満にはならない
+		CFLAG:TARGET:好感度レベル = MAX(CFLAG:TARGET:好感度レベル, 1 + 関係閾値:1)
+	ELSE
+		;他人は強制的に下限値
+		CFLAG:TARGET:好感度レベル = 1
+	ENDIF
+
+	;好感度をレベルに応じた値に減少
+	CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	CFLAG:TARGET:キャラ固有好感度 = MIN(CFLAG:TARGET:キャラ固有好感度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+
+	;恋慕レベルを下げる
+	CFLAG:TARGET:恋慕レベル -= 10
+	CFLAG:TARGET:恋慕レベル = MAX(CFLAG:TARGET:恋慕レベル, 0)
+	;恋慕度をレベルに応じた値に減少
+	CFLAG:TARGET:恋慕度 = MIN(CFLAG:TARGET:恋慕度, 経験値テーブル:(CFLAG:TARGET:恋慕レベル))
+
+	;通常モードに移行
+	CALL ゲームフェイズ変更("通常モード")
+ENDIF
+
+
+
+LOCAL = TIME - TIME:2
+IF LOCAL > 0
+	PRINTL
+	PRINTFORML \@ LOCAL / 60 > 0?{LOCAL / 60}時間# \@{LOCAL % 60}分 経過
+ENDIF
+TIME:2 = TIME > 1440 ? TIME - 1440 # TIME
+
+WAIT
+
+
+@警戒度初期値セット(対象キャラ)
+#DIM 対象キャラ
+
+;初期値1000
+BASE:対象キャラ:警戒 = 1000
+
+;とりあえず好感度でセット
+BASE:対象キャラ:警戒 -= CFLAG:対象キャラ:好感度レベル * 5
+
+TCVAR:対象キャラ:前ターン警戒度 = BASE:対象キャラ:警戒
+
+

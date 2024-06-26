@@ -1,0 +1,115 @@
+﻿;-------------------------------------------------
+;ふともも脚瘦せエステ
+;-------------------------------------------------
+@MASSAGE_COMNAME12
+#FUNCTIONS
+TSTR:コマンド名受渡 = ふともも脚瘦せエステ
+SIF TALENT:TARGET:性別 == 1
+	TSTR:コマンド名受渡 = 太腿マッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_12
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("微エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_12
+IF TALENT:TARGET:性別 == 2
+	LOCALS = <br>■太腿マッサージ<br>
+	LOCALS += "オイルを使って太腿をマッサージする。"
+	LOCALS += "<br>COMタイプ：微エロマッサージ<br>取得ソース：快Ｓ・接触・歓楽・露出"
+	LOCALS += "<br>固有の取得経験：なし<br>"
+	TSTR:ツールチップ受渡 = %LOCALS%
+ELSE
+	LOCALS = <br>■ふともも脚瘦せエステ<br>
+	LOCALS += "オイルを使ってふとももをマッサージする。"
+	LOCALS += "<br>保湿、美肌効果のほか、施術後はむくみが取れて美脚になると評判。"
+	LOCALS += "<br>COMタイプ：微エロマッサージ<br>取得ソース：快Ｓ・接触・歓楽・露出"
+	LOCALS += "<br>固有の取得経験：なし<br>"
+	TSTR:ツールチップ受渡 = %LOCALS%
+ENDIF
+@MASSAGE_COM12
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+IF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;……シヴァお前……
+	BASE:TARGET:理性 -= 50
+	BASE:TARGET:性欲 += 40
+	BASE:TARGET:警戒 -= 50
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 60)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 30)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 40)
+ELSE
+;ここらへんから警戒が下がりづらくなる。一応は真っ当な施術の範囲だし気持ちいいから理性は下がる。少しだけ性欲も煽られる。
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 60)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 30)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 40)
+	BASE:TARGET:理性 -= 50
+	BASE:TARGET:性欲 += 40
+	BASE:TARGET:警戒 -= 20
+ENDIF
+
+;血行促進で基礎体温が上がったりするらしいので、歓楽強め。リラックス効果も強め。
+;お尻近くまで見られるってことで一応露出も上げとく
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 75)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+
+;むっちりした太腿にはこうかがばつぐんだ！
+IF TALENT:TARGET:体型 >= 1
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE12
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;仰向けだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 0
+	RETURN 0
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM12
+IF TALENT:TARGET:性別 == 1
+	PRINTFORM %CALLNAME:PLAYER%はマッサージオイルをつけた手のひらで%CALLNAME:TARGET%の
+		IF TALENT:TARGET:体格 >= 1
+		;長身以上
+			PRINTFORM %TEXTR("みっちりと肉の張った/筋肉質な")%
+		ELSEIF TALENT:TARGET:体格 <= -1
+		;小柄以下
+			PRINTFORM 肉付きの薄い華奢な
+		ENDIF
+	PRINTFORML 太腿を丁寧に揉みほぐした。
+ELSE
+	PRINTFORM %CALLNAME:PLAYER%はマッサージオイルを垂らし、手のひら全体を使って%CALLNAME:TARGET%の
+		IF TALENT:TARGET:体型 >= 1
+		;肉感的以上
+			PRINTFORM %TEXTR("むっちりとした/もっちりとした/むっちりと肉の乗った/もっちりと肉感的な")%
+		ELSEIF TALENT:TARGET:体型 <= -2
+		;細身以下
+			PRINTFORM 肉付きの薄い華奢な
+		ENDIF
+	PRINTFORML ふとももを丁寧に揉みほぐした。
+ENDIF

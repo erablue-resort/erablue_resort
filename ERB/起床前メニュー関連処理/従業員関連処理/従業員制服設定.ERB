@@ -86,7 +86,8 @@ ENDSELECT
 LOOP 1
 
 
-@従業員制服設定_切り替え(ARG)
+@従業員制服設定_切り替え(対象キャラ)
+#DIM 対象キャラ
 #DIM ページ数
 #DIMS 制服一時配列, 100
 #DIMS 分割文字列配列, 2
@@ -99,12 +100,12 @@ PRINTL ※開発中のため、正しく挙動しないことがあります。
 DRAWLINE
 LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1937,2812'>"
-IF ARG != 9999
-	LOCALS += @"%CALLNAME:ARG, 16, LEFT%["
-	IF 現在制服:ARG:0 == ""
+IF 対象キャラ != 9999
+	LOCALS += @"%CALLNAME:対象キャラ, 16, LEFT%["
+	IF 現在制服:対象キャラ:0 == ""
 		LOCALS += "普段着]"
 	ELSE
-		LOCALS += @"%現在制服:ARG:0%]"
+		LOCALS += @"%現在制服:対象キャラ:0%]"
 	ENDIF
 ELSE
 	LOCALS += @"一括設定"
@@ -117,10 +118,10 @@ LOCALS += "</div>"
 
 LOCALS:1 = <div rect='2125,156,3675,2812'>
 LOCALS:1 += @"<button value='100'>[100] %"普段着", 18, LEFT%に変更</button>"
-IF ARG != 9999
-	SIF CSTR:ARG:画像フォルダ == ""
-		CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
-	IF EXISTFILE(@"resources\\%CSTR:ARG:画像フォルダ%/顔_デフォルト.png")
+IF 対象キャラ != 9999
+	SIF CSTR:対象キャラ:画像フォルダ == ""
+		CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+	IF EXISTFILE(@"resources\\%CSTR:対象キャラ:画像フォルダ%/顔_デフォルト.png")
 		LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
 	ENDIF
 ENDIF
@@ -137,8 +138,8 @@ FOR LOCAL, 0, 100
 	ENDIF
 	SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
 	LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 3, RIGHT}] %分割文字列配列:1, 18, LEFT%に変更</button>"
-	IF ARG != 9999
-		IF EXISTFILE(@"resources\\%CSTR:ARG:画像フォルダ%/顔_%分割文字列配列:1%.png") || EXISTFILE(@"resources\\%CSTR:ARG:画像フォルダ%/短冊_%分割文字列配列:1%.png")
+	IF 対象キャラ != 9999
+		IF EXISTFILE(@"resources\\%CSTR:対象キャラ:画像フォルダ%/顔_%分割文字列配列:1%.png") || EXISTFILE(@"resources\\%CSTR:対象キャラ:画像フォルダ%/短冊_%分割文字列配列:1%.png")
 			LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
 		ENDIF
 	ENDIF
@@ -166,34 +167,38 @@ SELECTCASE LOCAL
 	CASE 998
 		RETURN 0
 	CASE 997
-		IF ARG == 9999
+		IF 対象キャラ == 9999
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
 				現在制服:LOCAL:0 = 全裸
+				CALL CLOTHES_RESET(LOCAL)
 				CALL CLOTHES_RESET_TRAIN(LOCAL)
 			NEXT
 		ELSE
-			現在制服:ARG:0 = 全裸
-			CALL CLOTHES_RESET_TRAIN(ARG)
+			現在制服:対象キャラ:0 = 全裸
+			CALL CLOTHES_RESET(対象キャラ)
+			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
 		RETURN 0
 	CASE 100
-		IF ARG == 9999
+		IF 対象キャラ == 9999
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
 				現在制服:LOCAL:0 = 
+				CALL CLOTHES_RESET(LOCAL)
 				CALL CLOTHES_RESET_TRAIN(LOCAL)
 			NEXT
 		ELSE
-			現在制服:ARG:0 = 
-			CALL CLOTHES_RESET_TRAIN(ARG)
+			現在制服:対象キャラ:0 = 
+			CALL CLOTHES_RESET(対象キャラ)
+			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
 		RETURN 0
 	CASE 0 TO 99
 		SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
-		IF ARG == 9999
+		IF 対象キャラ == 9999
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
@@ -203,12 +208,12 @@ SELECTCASE LOCAL
 			NEXT
 		ELSE
 			IF STRCOUNT(制服一時配列:LOCAL, "キャラ専用")
-				現在制服:ARG:0 = %分割文字列配列:1%
+				現在制服:対象キャラ:0 = %分割文字列配列:1%
 			ELSE
-				現在制服:ARG:0 = %分割文字列配列:1%
+				現在制服:対象キャラ:0 = %分割文字列配列:1%
 			ENDIF
-			CALL CLOTHES_RESET(ARG)
-			CALL CLOTHES_RESET_TRAIN(ARG)
+			CALL CLOTHES_RESET(対象キャラ)
+			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
 		RETURN 0
 ENDSELECT

@@ -68,6 +68,17 @@ ELSE
 			LOCAL:1 ++
 		ENDIF
 	NEXT
+	;もし隠密うふふ中なら相手にTARGETを固定
+	IF CFLAG:PLAYER:隠密 && CFLAG:PLAYER:うふふ && (!CFLAG:TARGET:隠密 || !CFLAG:TARGET:うふふ)
+		FOR LOCAL,1,CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			IF CFLAG:(TARGET:LOCAL):隠密 && CFLAG:(TARGET:LOCAL):うふふ
+				TARGET = TARGET:LOCAL
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
 ENDIF
 SIF !LOCAL:1
 	TFLAG:TARGET変更用 = 0
@@ -199,7 +210,6 @@ FOR LOCAL,0,CHARANUM
 	ENDIF
 
 	CALL CLOTHES_CHECK(LOCAL)
-
 NEXT
 ;-------------------------------------------------
 ;連れ込まれ処理
@@ -580,19 +590,23 @@ PRINT 　　　　　　　　　　　
 CALL SHOW_EQUIP_2
 
 IF TARGET > 0
-	LOCAL = LIMIT(BASE:ムード / 300,0,5)
-	PRINT 　　　　　　　　　　　 
-	PRINTFORM ムード:
-	SIF BASE:ムード == MAXBASE:ムード
-		SETCOLOR 255,51,153
-	PRINTFORM %UNICODE(0x2665) * LOCAL,5,LEFT% 
-	RESETCOLOR
-	LOCAL = MAX(BASE:理性 / 200,1)
-	PRINT 理性:
-	SIF BASE:理性 < 100
-		SETCOLOR 255,255,0
-	PRINTFORM %"★" * LOCAL,10,LEFT% 
-	RESETCOLOR
+	IF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+		;本来関数化して汎用化するべきなんだろうけどめんどいのでとりあえず仮分岐
+	ELSE
+		LOCAL = LIMIT(BASE:ムード / 300,0,5)
+		PRINT 　　　　　　　　　　　 
+		PRINTFORM ムード:
+		SIF BASE:ムード == MAXBASE:ムード
+			SETCOLOR 255,51,153
+		PRINTFORM %UNICODE(0x2665) * LOCAL,5,LEFT% 
+		RESETCOLOR
+		LOCAL = MAX(BASE:理性 / 200,1)
+		PRINT 理性:
+		SIF BASE:理性 < 100
+			SETCOLOR 255,255,0
+		PRINTFORM %"★" * LOCAL,10,LEFT% 
+		RESETCOLOR
+	ENDIF
 	PRINTL 
 	; PRINT 　　　　　　　　　　　 
 	; PRINTFORM 満足:
@@ -654,8 +668,6 @@ IF TARGET > 0
 	ELSE
 		PRINTL 
 	ENDIF
-
-	DRAWLINE
 ELSEIF FLAG:モード管理 == 1 && TARGET == MASTER
 	PRINTL 
 	PRINTL 
@@ -703,90 +715,15 @@ ELSEIF FLAG:モード管理 == 1 && TARGET == MASTER
 	PRINTL 
 	PRINTL 
 	PRINTL 
-
-	DRAWLINE
 ENDIF
+DRAWLINE
 
 
+TRYCCALLFORM SHOW_INFO_%SAVESTR:ゲームフェイズ管理%
+CATCH
+	CALL SHOW_INFO_PALAM_PLAYER
+ENDCATCH
 
-IF BASE:PLAYER:酩酊 > 0
-	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
-		PRINT 　　　　　　　　　　　 
-	LOCALS = 酩酊(%CALLNAME:PLAYER%)
-	PRINTFORM %LOCALS,20,LEFT%
-	IF BASE:PLAYER:酩酊 < 500
-		CALL PRINT_COLORBAR, BASE:PLAYER:酩酊, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("青"), RESULT:1
-	ELSE
-		CALL PRINT_COLORBAR, BASE:PLAYER:酩酊, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("真っ赤"), RESULT:1
-	ENDIF
-	LOCALS = ({BASE:PLAYER:酩酊,4}/{MAXBASE:PLAYER:酩酊,4})
-	PRINTFORM %LOCALS,14,LEFT%
-	PRINTL 
-ELSEIF BASE:酩酊 < 0
-	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
-		PRINT 　　　　　　　　　　　 
-	LOCALS = 二日酔い(%CALLNAME:TARGET%)
-	PRINTFORM %LOCALS,20,LEFT%
-	CALL PRINT_COLORBAR, BASE:酩酊 * -1, MAXBASE:酩酊, 600, 100, BARCOLORSET("真っ赤"), RESULT:1
-	LOCALS = ({BASE:酩酊 * -1,4}/{MAXBASE:酩酊,4})
-	PRINTFORM %LOCALS,14,LEFT%
-	PRINTL 
-ENDIF
-
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
-	PRINT 　　　　　　　　　　　 
-IF TALENT:PLAYER:2 & 2
-	LOCALS = 勃起(%CALLNAME:PLAYER%)
-	PRINTFORM %LOCALS,20,LEFT%
-CALL PRINT_COLORBAR, BASE:PLAYER:勃起, MAXBASE:PLAYER:勃起, 600, 100, BARCOLORSET("紫"), RESULT:1
-	IF BASE:PLAYER:勃起 >= 1000
-		LOCALS = ({BASE:PLAYER:勃起})
-	ELSE
-		LOCALS = ({BASE:PLAYER:勃起,4}/{1000,4})
-	ENDIF
-	PRINTFORM %LOCALS,14,LEFT%　
-	PRINTBUTTON "[射精先設定]", 891
-	PRINT 　　
-ENDIF
-IF PLAYER == MASTER
-	IF あなた射精我慢フラグ
-		PRINT 絶頂我慢:
-		PRINTBUTTON "[ON]", 890
-	ELSE
-		PRINT 絶頂我慢:
-		PRINTBUTTON "[OFF]", 890
-	ENDIF
-ENDIF
-
-PRINTL
-CALL SHOW_INFO_PALAM_PLAYER
-
-PRINTL 
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
-	PRINT 　　　　　　　　　　　 
-PRINT 連れ込み禁止機能:
-IF 連れ込み制御OPTION
-	PRINTBUTTON "[ON]", 892
-ELSE
-	PRINTBUTTON "[OFF]", 892
-ENDIF
-PRINTL 
-SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
-	PRINT 　　　　　　　　　　　 
-IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-	SETBGCOLOR 0x101020
-	SETCOLOR カラーパレット("黄")
-	PRINTL ♨♨♨♨♨【入浴中】♨♨♨♨♨
-	RESETCOLOR
-ELSEIF SAUNAROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-	SETBGCOLOR 0x201010
-	SETCOLOR カラーパレット("真っ赤")
-	PRINTL ♨♨♨♨♨【サウナ中】♨♨♨♨♨
-	RESETCOLOR
-ELSE
-	RESETBGCOLOR
-	PRINTL
-ENDIF
 行数保存 = LINECOUNT - 行数保存
 IF 行数保存 < 21
 	FOR LOCAL, 行数保存, 21
@@ -845,8 +782,11 @@ PRINTL
 PRINTL
 VARSET LOCAL
 HTML表示文字列 = 
+LOCALS = 
+ゲージ表示文 = 
 IF INFO格納フィルタ:0
 	LOCALS = <div rect='3375,0,3750,3125'><font color='#666666'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------</font><br>
+	ゲージ表示文 = <div rect='3375,0,3750,3125'>
 ELSE
 	LOCALS = <div rect='3375,0,3750,3125'><button value='9100'> ▼PALAM_list[\@ INFO格納フィルタ:0 ? 閉 # 開 \@]</button>------<br>
 	ゲージ表示文 = <div rect='3375,0,3750,3125'><br>
@@ -861,10 +801,10 @@ ELSE
 		;ゲージ描画
 		ゲージ表示文 += "　　　　　"
 		IF PALAM:LOCAL && PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) > 0
-			ゲージ表示文 += @"<shape type='rect' param='0,70,{PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)},30' color='#%カラーパレット_HTML("PALAMゲージ有")%'>"
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{MIN(400, PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#%カラーパレット_HTML("PALAMゲージ有")%'>"
 		ENDIF
 		IF PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1) - PALAM:LOCAL && (400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))) > 0
-			ゲージ表示文 += @"<shape type='rect' param='0,70,{400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1))},30' color='#%カラーパレット_HTML("PALAMゲージ無")%'>"
+			ゲージ表示文 += @"<shape type='rect' param='0,70,{MAX(0, 400 - (PALAM:LOCAL * 400 / PALAMLV:(GETPALAMLV(PALAM:LOCAL,15) + 1)))},30' color='#%カラーパレット_HTML("PALAMゲージ無")%'>"
 		ENDIF
 		ゲージ表示文 += "<br>"
 		LOCAL:1 = PALAM:LOCAL
@@ -958,6 +898,58 @@ HTML_PRINT HTML表示文字列, 1
 #DIMS ゲージ数値
 #DIM 横位置
 
+
+IF BASE:PLAYER:酩酊 > 0
+	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+		PRINT 　　　　　　　　　　　 
+	LOCALS = 酩酊(%CALLNAME:PLAYER%)
+	PRINTFORM %LOCALS,20,LEFT%
+	IF BASE:PLAYER:酩酊 < 500
+		CALL PRINT_COLORBAR, BASE:PLAYER:酩酊, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("青"), RESULT:1
+	ELSE
+		CALL PRINT_COLORBAR, BASE:PLAYER:酩酊, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("真っ赤"), RESULT:1
+	ENDIF
+	LOCALS = ({BASE:PLAYER:酩酊,4}/{MAXBASE:PLAYER:酩酊,4})
+	PRINTFORM %LOCALS,14,LEFT%
+	PRINTL 
+ELSEIF BASE:PLAYER:酩酊 < 0
+	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+		PRINT 　　　　　　　　　　　 
+	LOCALS = 二日酔い(%CALLNAME:TARGET%)
+	PRINTFORM %LOCALS,20,LEFT%
+	CALL PRINT_COLORBAR, BASE:PLAYER:酩酊 * -1, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("真っ赤"), RESULT:1
+	LOCALS = ({BASE:PLAYER:酩酊 * -1,4}/{MAXBASE:酩酊,4})
+	PRINTFORM %LOCALS,14,LEFT%
+	PRINTL 
+ENDIF
+
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+IF TALENT:PLAYER:2 & 2
+	LOCALS = 勃起(%CALLNAME:PLAYER%)
+	PRINTFORM %LOCALS,20,LEFT%
+CALL PRINT_COLORBAR, BASE:PLAYER:勃起, MAXBASE:PLAYER:勃起, 600, 100, BARCOLORSET("紫"), RESULT:1
+	IF BASE:PLAYER:勃起 >= 1000
+		LOCALS = ({BASE:PLAYER:勃起})
+	ELSE
+		LOCALS = ({BASE:PLAYER:勃起,4}/{1000,4})
+	ENDIF
+	PRINTFORM %LOCALS,14,LEFT%　
+	PRINTBUTTON "[射精先設定]", 891
+	PRINT 　　
+ENDIF
+IF PLAYER == MASTER
+	IF あなた射精我慢フラグ
+		PRINT 絶頂我慢:
+		PRINTBUTTON "[ON]", 890
+	ELSE
+		PRINT 絶頂我慢:
+		PRINTBUTTON "[OFF]", 890
+	ENDIF
+ENDIF
+
+PRINTL
+
 VARSET LOCAL
 横位置 = 0
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
@@ -1018,6 +1010,33 @@ FOR LOCAL, 0, 5
 NEXT
 HTML文字列 = %ゲージ表示文%</div>%LOCALS%</div>
 HTML_PRINT HTML文字列
+
+PRINTL 
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+PRINT 連れ込み禁止機能:
+IF 連れ込み制御OPTION
+	PRINTBUTTON "[ON]", 892
+ELSE
+	PRINTBUTTON "[OFF]", 892
+ENDIF
+PRINTL 
+SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
+	PRINT 　　　　　　　　　　　 
+IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	SETBGCOLOR 0x101020
+	SETCOLOR カラーパレット("黄")
+	PRINTL ♨♨♨♨♨【入浴中】♨♨♨♨♨
+	RESETCOLOR
+ELSEIF SAUNAROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	SETBGCOLOR 0x201010
+	SETCOLOR カラーパレット("真っ赤")
+	PRINTL ♨♨♨♨♨【サウナ中】♨♨♨♨♨
+	RESETCOLOR
+ELSE
+	RESETBGCOLOR
+	PRINTL
+ENDIF
 
 ;-------------------------------------------------
 ;関数名:SORT_CFLAG
@@ -1246,7 +1265,7 @@ SELECTCASE FLAG:オートコマンド切り替えオプション
 			LOCAL:1 += 1
 		ENDIF
 		LOCALS += "禁止"
-		SIF LOCAL:1 == 3
+		SIF LOCAL:1 == 15
 			LOCALS = [AUTO設定:全禁止
 ENDSELECT
 

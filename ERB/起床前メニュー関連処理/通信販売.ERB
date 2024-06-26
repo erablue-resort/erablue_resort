@@ -1,0 +1,254 @@
+﻿@通信販売_BUY
+#DIM 右側表示モード
+#DIM 現在ページ
+#DIM 表示候補, 500
+#DIM 候補人数
+#DIM 販売フラグ
+
+DRAWLINE
+PRINTL 通信販売にてアイテムを購入します。
+PRINTL ※開発中のため、正しく挙動しないことがあります。
+DRAWLINE
+;上
+LOCALS = <div rect='81,31,1937,381' padding='50,25,50' border='31' bcolor='#C0C0C0'>
+LOCALS += @"所持ルピ：%NUM_FORMAT(MONEY)%<br>"
+LOCALS += @"所持ZP　：%ZP所持量全文字列()%"
+LOCALS += "</div>"
+
+;左側、アイテムの種類を羅列
+LOCALS += "<div rect='81,444,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+IF 右側表示モード == 0
+	LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-1] コマンド解放アイテム</font></nonbutton><br>"
+ELSE
+	LOCALS += "<button value='-1'>[-1] コマンド解放アイテム</button><br>"
+ENDIF
+IF 右側表示モード == 1
+	LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-2] 消費アイテム</font></nonbutton><br>"
+ELSE
+	LOCALS += "<button value='-2'>[-2] 消費アイテム</button><br>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<button value='-99'>[-99] 戻る</button><br>"
+LOCALS += "</div>"
+
+;右側
+LOCALS += "<div rect='2050,444,3875,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+CALL 通信販売_品揃え登録(LOCALS, 右側表示モード)
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 30
+	PRINTL
+NEXT
+
+$INPUT_LOOP
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE -10 TO -1
+		右側表示モード = ABS(LOCAL) - 1
+		販売フラグ = 0
+		現在ページ = 0
+		RESTART
+	CASE -99
+		RETURN 0
+ENDSELECT
+
+
+IF RESULT == 100
+	RETURN 0
+ELSEIF ITEMSTOCK(RESULT) == 1 || ITEMSTOCK(RESULT) == 4 || LOCAL < 0 || LOCAL > 2000
+	RESTART
+ELSEIF ITEMSTOCK(RESULT) == 2
+	PRINTW 売切です
+	RESTART
+ELSEIF ITEMSTOCK(RESULT) == 3
+	PRINTW 所持金が足りません
+	RESTART
+ELSEIF ITEMSTOCK(RESULT) == 5
+	PRINTW 既に十分持っています
+	RESTART
+ENDIF
+LOCAL = RESULT
+
+IF LOCAL == 70
+	現在ページ = 0
+	PRINTL 【元気になる薬】を購入しますか？
+	PRINTL ※３日間、使用したキャラの体力最大値が1000増加します。
+	PRINTBUTTON "[0] はい", 0
+	PRINTL
+	PRINTBUTTON "[1] いいえ", 1
+	PRINTL
+	BINPUT
+	SIF RESULT
+		RESTART
+	PRINTL 誰に使いますか？
+
+	VARSET 表示候補
+	候補人数 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF CFLAG:LOCAL:滞在期間 < 0
+			CONTINUE
+		表示候補:候補人数 = LOCAL
+		候補人数 += 1
+	NEXT
+
+	$INPUT_LOOP_70
+	VARSET LOCAL
+	;表示処理
+	FOR LOCAL, 現在ページ * 30, 候補人数
+		IF CFLAG:(表示候補:LOCAL):元気になる薬フラグ > 0
+			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'><nonbutton>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</nonbutton>"
+			LOCALS += @"　使用済み：残{CFLAG:(表示候補:LOCAL):元気になる薬フラグ, 2}日　</font>"
+		ELSE
+			LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+			IF CFLAG:(表示候補:LOCAL):滞在期間 == 1
+				LOCALS += @"　　　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
+			ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+				LOCALS += "　　　　　常時滞在　"
+			ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+				LOCALS += @"　　　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
+			ENDIF
+		ENDIF
+		LOCAL:1 += 1
+		IF LOCAL:1 % 2 == 0
+			HTML_PRINT LOCALS
+			LOCALS = 
+		ENDIF
+		SIF LOCAL:1 > 29
+			BREAK
+	NEXT
+	IF LOCALS != ""
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	PRINTL 
+	IF 現在ページ > 0
+		PRINTLC  [900]前のページへ
+	ELSE
+		PRINTLC  
+	ENDIF
+		PRINTLC  [999]戻る
+	IF 現在ページ < 候補人数 / 30
+		PRINTLC  [901]次のページへ
+	ENDIF
+	PRINTL
+	DRAWLINE
+
+	BINPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 999
+			RESTART
+		CASE 900
+			現在ページ -= 1
+			GOTO INPUT_LOOP_70
+		CASE 901
+			現在ページ += 1
+			GOTO INPUT_LOOP_70
+		CASEELSE
+			PRINTFORMW %NAME:LOCAL%の体力最大値が1000増加しました。
+			CFLAG:LOCAL:元気になる薬フラグ = 3
+			CALL 体力変動素質適用処理(LOCAL)
+			BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + 1000)
+	ENDSELECT
+	GOTO INPUT_LOOP_70
+ENDIF
+IF LOCAL == 41
+	MONEY -= ITEMPRICE:LOCAL
+	ITEM:LOCAL ++
+	PRINTW 媚薬を精製しました
+	RESTART
+ENDIF
+;複数所持アイテム
+SELECTCASE LOCAL
+	CASE 40 TO 60, 91, 92,
+		PRINTFORM %ITEMNAME:LOCAL%をいくつ購入しますか？
+		SIF LOCAL == 50
+			PRINTFORM (あと{ITEMSALES:LOCAL}個)
+		PRINTFORML 
+		;金欠、アイテム数の超過はあとで合わせる
+		PRINTL [0] - やめる
+		PRINT [1] - 1　
+		PRINT [5] - 5　
+		PRINT [10] - 10　
+		PRINT [20] - 20　
+		PRINT [50] - 50　
+		PRINT [99] - 買えるだけ
+		INPUT
+		SIF RESULT <= 0
+			RESTART
+		SIF RESULT * ITEMPRICE:LOCAL > MONEY
+			RESULT = MONEY / ITEMPRICE:LOCAL
+		;個数限定
+		IF ITEMSALES:LOCAL
+			IF RESULT >= ITEMSALES:LOCAL
+				RESULT = ITEMSALES:LOCAL
+				ITEMSALES:LOCAL = -1
+			ELSE
+				ITEMSALES:LOCAL -= RESULT
+			ENDIF
+		ELSE
+			ITEM:LOCAL += RESULT
+			IF ITEM:LOCAL > 99
+				RESULT = 99 - (ITEM:LOCAL - RESULT)
+				ITEM:LOCAL = 99
+			ENDIF
+		ENDIF
+		PRINTFORMW %ITEMNAME:LOCAL%を{RESULT}個、%NUM_FORMAT(RESULT * ITEMPRICE:LOCAL)%%MONEYLABEL%で購入しました
+		MONEY -= RESULT * ITEMPRICE:LOCAL
+		RESTART
+;単品アイテム
+	CASE 0 TO 39
+		PRINTFORML %ITEMNAME:LOCAL%を購入しますか？
+		PRINTL [0] - はい  [1] - いいえ
+		INPUT
+		SIF RESULT
+			RESTART
+		ITEM:LOCAL ++
+		ITEMSALES:LOCAL --
+		MONEY -= ITEMPRICE:LOCAL
+		RESTART
+	CASE 1000 TO 2000
+		PRINTFORML %ITEMNAME:LOCAL%を購入しますか？
+		PRINTL [0] - はい  [1] - いいえ
+		INPUT
+		SIF RESULT
+			RESTART
+		ITEM:LOCAL ++
+		ITEMSALES:LOCAL --
+		MONEY -= ITEMPRICE:LOCAL
+		RESTART
+ENDSELECT
+
+
+@通信販売_品揃え登録(HTML文字列, 表示モード)
+#DIMS REF HTML文字列
+#DIM 表示モード
+
+SELECTCASE 表示モード
+	CASE 0
+		;コマンド解放アイテム
+		;ITEMの0~39までが該当アイテム
+		;これこうやって指定するの後で面倒のもとだから変えたいな……
+		FOR LOCAL, 0, 40
+			SIF ITEMNAME:LOCAL == ""
+				CONTINUE
+			IF ITEM:LOCAL
+				HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% （購入済み）　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ</font></nonbutton>"
+			ELSE
+				HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ"
+			ENDIF
+			HTML文字列 += "<br>"
+		NEXT
+	CASE 1
+		;消費アイテム
+		FOR LOCAL, 40, 59
+			SIF ITEMNAME:LOCAL == ""
+				CONTINUE
+			HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ　　所持数：{ITEM:LOCAL}個"
+			HTML文字列 += "<br>"
+		NEXT
+ENDSELECT
+
+

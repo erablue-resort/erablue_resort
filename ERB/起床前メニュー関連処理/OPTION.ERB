@@ -76,6 +76,10 @@ RESTART
 
 ;文字列変数に保存してみた
 @OPTION_COMMAND_FILTER
+#DIMS フェイズ保存
+#DIM ループ用
+#DIM 改行用
+
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
 TOOLTIP_SETDURATION 100000
@@ -89,9 +93,10 @@ NEXT
 SIF SAVESTR:0 == ""
 	SAVESTR:0 = /
 DRAWLINE
-TFLAG:ゲームフェイズ管理 = 1
+フェイズ保存 = %SAVESTR:ゲームフェイズ管理%
+SAVESTR:ゲームフェイズ管理 = 通常モード
 LOCALS:1 = 
-LOCAL:2 = 0
+改行用 = 0
 
 FOR COUNT,0,500
 	SIF COUNT >= 370 && COUNT <= 390
@@ -119,21 +124,20 @@ FOR COUNT,0,500
 		SIF STRCOUNT(SAVESTR:0,LOCALS)
 			LOCALS:1 += "</font>"
 		;PRINTFORMC %TRAIN_COMNAME(COUNT)%[{COUNT,3}]
-		LOCAL:2 += 1
+		改行用 += 1
 	ENDIF
-	IF LOCAL:2 >= 4
-		LOCAL:2 = 0
+	IF 改行用 >= 4
+		改行用 = 0
 		HTML_PRINT LOCALS:1
 		LOCALS:1 = 
 	ENDIF
 NEXT
 IF LOCALS:1 != ""
-	LOCAL:2 = 0
+	改行用 = 0
 	HTML_PRINT LOCALS:1
 	LOCALS:1 = 
 ENDIF
 
-TFLAG:ゲームフェイズ管理 = 0
 PRINTL 
 DRAWLINE
 PRINTL [1000] - 決定　　　　　　　　　 [1001] - 通常コマンドフィルタリセット
@@ -144,8 +148,9 @@ RESETCOLOR
 PRINTL
 PRINTL [1020] - 固有コマンドフィルタへ
 PRINTL [1021] - 派生コマンドフィルタへ
-INPUT
+BINPUT
 IF RESULT == 1000
+	SAVESTR:ゲームフェイズ管理 = %フェイズ保存%
 	RETURN 0
 ELSEIF RESULT == 1001
 	SAVESTR:0 = 
@@ -153,10 +158,10 @@ ELSEIF RESULT == 1001
 ELSEIF RESULT == 1002
 	$INPUT_LOOP_SAVE
 	LOADGLOBAL
-	FOR LOCAL,0,3
-		PRINTFORM [{LOCAL}] - 
-		IF STRLENS(GLOBALS:(LOCAL * 2 + 1))
-			PRINTFORML [%GLOBALS:(LOCAL * 2 + 1)%]
+	FOR ループ用,0,3
+		PRINTFORM [{ループ用}] - 
+		IF STRLENS(GLOBALS:(ループ用 * 2 + 1))
+			PRINTFORML [%GLOBALS:(ループ用 * 2 + 1)%]
 		ELSE
 			PRINTL ----------
 		ENDIF
@@ -214,12 +219,12 @@ ELSEIF RESULT == 1003
 ;	NEXT
 ELSEIF RESULT == 1020
 	$固有
-	CALL OPTION_固有COMMAND_FILTER
+	CALL OPTION_固有COMMAND_FILTER(フェイズ保存)
 	SIF RESULT == 999
 		GOTO 派生
 ELSEIF RESULT == 1021
 	$派生
-	CALL OPTION_派生COMMAND_FILTER
+	CALL OPTION_派生COMMAND_FILTER(フェイズ保存)
 	SIF RESULT == 999
 		GOTO 固有
 ELSEIF STRLENS(TRAIN_COMNAME(RESULT))
@@ -232,18 +237,21 @@ FOR COUNT,0,500
 	SIF !LOCAL:COUNT
 		CONTINUE
 	LOCALS = /{COUNT}/
-	SIF !STRCOUNT(SAVESTR:0,LOCALS)
+	SIF STRFIND(SAVESTR:0, LOCALS) < 0
 		SAVESTR:0 = %SAVESTR:0%{COUNT}/
 NEXT
 RESTART
 
 
-@OPTION_固有COMMAND_FILTER
+@OPTION_固有COMMAND_FILTER(フェイズ保存)
 #DIM COM番号
+#DIMS フェイズ保存
 #DIM ターゲット保存
 #DIM ターゲット保存２
-#DIM フィルタ配列, 20, 2000
+#DIM フィルタ配列, 20, 500
+#DIM 場所フィルタ配列, 10, 20, 2000
 #DIMS RESULTS分割, 10
+#DIM 改行用
 
 VARSET LOCAL
 VARSET フィルタ配列
@@ -255,18 +263,22 @@ FOR COM番号, 370, 375
 	NEXT
 NEXT
 FOR COM番号, 380, 385
-	FOR COUNT, 0, 2000
-		LOCALS = /{COM番号}_{COUNT}/
-		SIF STRCOUNT(SAVESTR:1, LOCALS)
-			フィルタ配列:(COM番号 - 370):COUNT = 1
+	FOR COUNT, 0, 20
+		FOR COUNT:1, 0, 2000
+			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
+			SIF STRCOUNT(SAVESTR:1, LOCALS)
+				場所フィルタ配列:(COM番号 - 380):COUNT:(COUNT:1) = 1
+		NEXT
 	NEXT
 NEXT
 ;お祭りコマンドはフィルタ不可
 SIF SAVESTR:1 == ""
 	SAVESTR:1 = /
 DRAWLINE
-TFLAG:ゲームフェイズ管理 = 1
+SAVESTR:ゲームフェイズ管理 = 通常モード
 
+
+改行用 = 0
 ターゲット保存 = TARGET
 FOR COM番号, 370, 375
 	FOR COUNT, 1, CHARANUM
@@ -292,18 +304,18 @@ FOR COM番号, 370, 375
 			LOCALS:1 += @"%CALLNAME:COUNT,20,RIGHT% - %TRAIN_COMNAME(COM番号), 22%[{COM番号}_{COUNT,3}]</button>"
 			SIF STRCOUNT(SAVESTR:1,LOCALS)
 				LOCALS:1 += "</font>"
-			LOCAL:2 += 1
+			改行用 += 1
 		CATCH
 		ENDCATCH
-		IF LOCAL:2 >= 2
-			LOCAL:2 = 0
+		IF 改行用 >= 2
+			改行用 = 0
 			HTML_PRINT LOCALS:1
 			LOCALS:1 = 
 		ENDIF
 	NEXT
 NEXT
 IF LOCALS:1 != ""
-	LOCAL:2 = 0
+	改行用 = 0
 	HTML_PRINT LOCALS:1
 	LOCALS:1 = 
 ENDIF
@@ -313,22 +325,24 @@ DRAWLINE
 ターゲット保存 = CFLAG:MASTER:現在位置
 ターゲット保存２ = CFLAG:MASTER:現在マップ種別
 FOR COM番号, 380, 385
-	FOR LOCAL:5, 0, 1
-		CFLAG:MASTER:現在マップ種別 = LOCAL:5
-		FOR COUNT, 1, 2000
-			LOCALS = /{COM番号}_{LOCAL:5}_{COUNT}/
-			CFLAG:MASTER:現在位置 = COUNT
+	FOR COUNT, 0, 20
+		FOR COUNT:1, 1, 2000
+			SIF COUNT:1 % 100 > 20
+				CONTINUE
+			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
+			CFLAG:MASTER:現在マップ種別 = COUNT
+			CFLAG:MASTER:現在位置 = COUNT:1
 			;マップ種別とりあえず入れておくだけ
 			;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
-			TRYCCALLFORM COM_ABLE{COM番号}_{LOCAL:5}_{COUNT}
+			TRYCCALLFORM COM_ABLE{COM番号}
 				IF TRAIN_COMNAME(COM番号) != ""
 					TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
 					IF STRCOUNT(SAVESTR:1,LOCALS)
-						LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{LOCAL:5}_{COUNT}'"
+						LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{COUNT}_{COUNT:1}'"
 					ELSE
-						LOCALS:1 += @"<button value = '{COM番号}_{LOCAL:5}_{COUNT}'"
+						LOCALS:1 += @"<button value = '{COM番号}_{COUNT}_{COUNT:1}'"
 					ENDIF
-					TRYCCALLFORM COM_TOOLTIP_{COM番号}_{LOCAL:5}_{COUNT}
+					TRYCCALLFORM COM_TOOLTIP_{COM番号}_{COUNT}_{COUNT:1}
 						IF ツールチップ切り替えOPTION記憶 == 0
 							LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
 						ELSE
@@ -337,15 +351,15 @@ FOR COM番号, 380, 385
 					CATCH
 						LOCALS:1 += @">"
 					ENDCATCH
-					LOCALS:1 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置),20,RIGHT% - %TRAIN_COMNAME(COM番号),18,RIGHT%[{COM番号}_{LOCAL:5,2}_{COUNT,4}]</button>"
+					LOCALS:1 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置),20,RIGHT% - %TRAIN_COMNAME(COM番号),18,RIGHT%[{COM番号}_{COUNT}_{COUNT:1}]</button>"
 					SIF STRCOUNT(SAVESTR:1,LOCALS)
 						LOCALS:1 += "</font>"
-					LOCAL:2 += 1
+					改行用 += 1
 				ENDIF
 			CATCH
 			ENDCATCH
-			IF LOCAL:2 >= 2
-				LOCAL:2 = 0
+			IF 改行用 >= 2
+				改行用 = 0
 				HTML_PRINT LOCALS:1
 				LOCALS:1 = 
 			ENDIF
@@ -353,14 +367,13 @@ FOR COM番号, 380, 385
 	NEXT
 NEXT
 IF LOCALS:1 != ""
-	LOCAL:2 = 0
+	改行用 = 0
 	HTML_PRINT LOCALS:1
 	LOCALS:1 = 
 ENDIF
 CFLAG:MASTER:現在位置 = ターゲット保存
 CFLAG:MASTER:現在マップ種別 = ターゲット保存２
 
-TFLAG:ゲームフェイズ管理 = 0
 PRINTL 
 DRAWLINE
 
@@ -373,10 +386,11 @@ PRINTBUTTON "[1003] - 固有コマンドフィルタの保存　", TOSTR(1003)
 PRINTBUTTON "[1004] - 固有コマンドフィルタのロード", TOSTR(1004)
 PRINTL
 
-INPUTS
+BINPUTS
 
 SELECTCASE RESULTS
 	CASE "1000"
+		SAVESTR:ゲームフェイズ管理 = %フェイズ保存%
 		RETURN 0
 	CASE "1001"
 		RETURN 999
@@ -433,49 +447,50 @@ SELECTCASE RESULTS
 		SAVESTR:1 = %GLOBALS:(RESULT * 2)%
 		RESTART
 	CASEELSE
-		SPLIT RESULTS, "_", RESULTS分割
-		IF RESULT == 2
-			IF TOINT(RESULTS分割:0) >= 370 && TOINT(RESULTS分割:0) <= 374
-				フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1)) = !フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1))
-			ELSEIF TOINT(RESULTS分割:0) >= 380 && TOINT(RESULTS分割:0) <= 384
-				フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1)) = !フィルタ配列:(TOINT(RESULTS分割:0) - 370):(TOINT(RESULTS分割:1))
-			ENDIF
+		LOCALS = /%RESULTS%/
+		IF !STRCOUNT(SAVESTR:1,LOCALS)
+			SAVESTR:1 = %SAVESTR:1%%RESULTS%/
 		ELSE
-			RESTART
+			SAVESTR:1 = %REPLACE(SAVESTR:1, LOCALS, "/")%
 		ENDIF
 ENDSELECT
 
-SAVESTR:1 = /
-FOR COM番号, 370, 375
-	FOR COUNT, 1, CHARANUM
-		SIF !フィルタ配列:(COM番号 - 370):COUNT
-			CONTINUE
-		PRINTFORML {フィルタ配列:(COM番号 - 370):COUNT}
-		LOCALS = /{COM番号}_{COUNT}/
-		SIF !STRCOUNT(SAVESTR:1,LOCALS)
-			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
-	NEXT
-NEXT
-FOR COM番号, 380, 385
-	FOR COUNT, 1, 2000
-		SIF !フィルタ配列:(COM番号 - 370):COUNT
-			CONTINUE
-		LOCALS = /{COM番号}_{COUNT}/
-		SIF !STRCOUNT(SAVESTR:1,LOCALS)
-			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
-	NEXT
-NEXT
+; SAVESTR:1 = /
+; FOR COM番号, 370, 375
+; 	FOR COUNT, 1, CHARANUM
+; 		SIF !フィルタ配列:(COM番号 - 370):COUNT
+; 			CONTINUE
+; 		LOCALS = /{COM番号}_{COUNT}/
+; 		SIF !STRCOUNT(SAVESTR:1,LOCALS)
+; 			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
+; 	NEXT
+; NEXT
+; FOR COM番号, 380, 385
+; 	FOR COUNT, 1, 20
+; 		FOR COUNT:1, 1, 2000
+; 			SIF COUNT:1 % 100 > 20
+; 				CONTINUE
+; 			SIF !場所フィルタ配列:(COM番号 - 380):COUNT:(COUNT:1)
+; 				CONTINUE
+; 			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
+; 			SIF !STRCOUNT(SAVESTR:1,LOCALS)
+; 				SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}_{COUNT:1}/
+; 		NEXT
+; 	NEXT
+; NEXT
 
 RESTART
 
 $処理部分ラベル
 
 
-@OPTION_派生COMMAND_FILTER
+@OPTION_派生COMMAND_FILTER(フェイズ保存)
 #DIM COM番号
 #DIM ターゲット保存
+#DIMS フェイズ保存
 #DIM フィルタ配列, 500, 50
 #DIMS RESULTS分割, 10
+#DIM 改行用
 
 VARSET LOCAL
 VARSET フィルタ配列
@@ -489,8 +504,9 @@ NEXT
 SIF SAVESTR:2 == ""
 	SAVESTR:2 = /
 DRAWLINE
-TFLAG:ゲームフェイズ管理 = 1
+SAVESTR:ゲームフェイズ管理 = 通常モード
 
+改行用 = 0
 FOR COM番号, 0, 500
 	SIF COM番号 >= 370 && COM番号 <=390
 		CONTINUE
@@ -520,25 +536,24 @@ FOR COM番号, 0, 500
 				LOCALS:2 += @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]</button>"
 				SIF STRCOUNT(SAVESTR:2,LOCALS)
 					LOCALS:2 += "</font>"
-				LOCAL:2 += 1
+				改行用 += 1
 				;PRINTBUTTON @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]", @"%LOCALS:1%"
 			ENDIF
 		CATCH
 		ENDCATCH
-		IF LOCAL:2 >= 2
-			LOCAL:2 = 0
+		IF 改行用 >= 2
+			改行用 = 0
 			HTML_PRINT LOCALS:2
 			LOCALS:2 = 
 		ENDIF
 	NEXT
 NEXT
 IF LOCALS:2 != ""
-	LOCAL:2 = 0
+	改行用 = 0
 	HTML_PRINT LOCALS:2
 	LOCALS:2 = 
 ENDIF
 
-TFLAG:ゲームフェイズ管理 = 0
 PRINTL 
 DRAWLINE
 
@@ -555,6 +570,7 @@ INPUTS
 
 SELECTCASE RESULTS
 	CASE "1000"
+		SAVESTR:ゲームフェイズ管理 = %フェイズ保存%
 		RETURN 0
 	CASE "1001"
 		RETURN 999
@@ -1224,6 +1240,15 @@ SELECTCASE 画面表示用変数
 		ELSE
 			LOCALS += "OFF</button><br>"
 		ENDIF
+		LOCALS += "<br>"
+		LOCALS += "・男ドラフ発情期時・体質切り替え<br>"
+		LOCALS += "男ドラフが発情期になった時、母乳体質を適用するかどうかを切り替えます。<br>"
+		LOCALS += "<br>"
+		IF 男ドラフ母乳OPTION記憶
+			LOCALS += "　<button value='110'>[110] 母乳体質を適用する / <font color='#666666'>適用しない</font></button><br>"
+		ELSE
+			LOCALS += "　<button value='110'>[110] <font color='#666666'>母乳体質を適用する</font> / 適用しない</button><br>"
+		ENDIF
 	CASE 200
 		LOCALS += "・妊娠切り替え<br>"
 		LOCALS += "セックスによって妊娠する機能のON/OFFを切り替えます。<br>"
@@ -1272,19 +1297,19 @@ SELECTCASE 画面表示用変数
 		LOCALS += "<br>"
 		SELECTCASE 一日終了時オナニーOPTION:1
 			CASE 0
-				LOCALS += "女性　　：[通常実行] / <font color='#666666'><button value='422'>[実行するが報告非表示]</button></font> / <font color='#666666'><button value='423'>[実行しない]</button></font><br>"
+				LOCALS += "女性　　：[通常実行] / <font color='#666666'><button value='412'>[実行するが報告非表示]</button></font> / <font color='#666666'><button value='413'>[実行しない]</button></font><br>"
 			CASE 1
-				LOCALS += "女性　　：<font color='#666666'><button value='421'>[通常実行]</button></font> / [実行するが報告非表示] / <font color='#666666'><button value='423'>[実行しない]</button></font><br>"
+				LOCALS += "女性　　：<font color='#666666'><button value='411'>[通常実行]</button></font> / [実行するが報告非表示] / <font color='#666666'><button value='413'>[実行しない]</button></font><br>"
 			CASE 2
-				LOCALS += "女性　　：<font color='#666666'><button value='421'>[通常実行]</button></font> / <font color='#666666'><button value='422'>[実行するが報告非表示]</button></font> / [実行しない]<br>"
+				LOCALS += "女性　　：<font color='#666666'><button value='411'>[通常実行]</button></font> / <font color='#666666'><button value='412'>[実行するが報告非表示]</button></font> / [実行しない]<br>"
 		ENDSELECT
 		SELECTCASE 一日終了時オナニーOPTION:2
 			CASE 0
-				LOCALS += "男性　　：[通常実行] / <font color='#666666'><button value='412'>[実行するが報告非表示]</button></font> / <font color='#666666'><button value='413'>[実行しない]</button></font><br>"
+				LOCALS += "男性　　：[通常実行] / <font color='#666666'><button value='422'>[実行するが報告非表示]</button></font> / <font color='#666666'><button value='423'>[実行しない]</button></font><br>"
 			CASE 1
-				LOCALS += "男性　　：<font color='#666666'><button value='411'>[通常実行]</button></font> / [実行するが報告非表示] / <font color='#666666'><button value='413'>[実行しない]</button></font><br>"
+				LOCALS += "男性　　：<font color='#666666'><button value='421'>[通常実行]</button></font> / [実行するが報告非表示] / <font color='#666666'><button value='423'>[実行しない]</button></font><br>"
 			CASE 2
-				LOCALS += "男性　　：<font color='#666666'><button value='411'>[通常実行]</button></font> / <font color='#666666'><button value='412'>[実行するが報告非表示]</button></font> / [実行しない]<br>"
+				LOCALS += "男性　　：<font color='#666666'><button value='421'>[通常実行]</button></font> / <font color='#666666'><button value='422'>[実行するが報告非表示]</button></font> / [実行しない]<br>"
 		ENDSELECT
 		SELECTCASE 一日終了時オナニーOPTION:3
 			CASE 0
@@ -1386,6 +1411,8 @@ SELECTCASE 入力値
 		SETBIT 発情期切り替えOPTION記憶, 5
 	CASE 103 TO 108
 		INVERTBIT 発情期切り替えOPTION記憶, 入力値 - 103
+	CASE 110
+		INVERTBIT 男ドラフ母乳OPTION記憶, 0
 	CASE 201
 		INVERTBIT 妊娠切り替えOPTION記憶, 0
 	CASE 301
@@ -1987,7 +2014,7 @@ ENDSELECT
 
 @OPTION_命のリンク初期切り替え
 #DIM 命のリンクOPTION
-
+命のリンクフォロー = 1
 DRAWLINE
 PRINTL ルリアが誰と命のリンクをしているかを設定します。
 PRINTL ※この設定はゲームが始まってからは変更出来ません。
@@ -2026,7 +2053,6 @@ PRINTL
 BINPUT
 SELECTCASE RESULT
 	CASE 999
-		命のリンクフォロー = 1
 		;ジータ
 		LOCAL = FINDCHARA(NO, 27)
 		;グラン

@@ -1,4 +1,130 @@
-﻿@CALL_COM(ARG)
+﻿@CALL_COM振り分け()
+SELECTCASE SAVESTR:ゲームフェイズ管理
+	CASE "通常モード"
+		RESULT = 0
+		IF RFLAG:サイドボタン操作
+		ELSEIF TFLAG:オートコマンドフラグ >= 4000
+			SWAP TARGET, AUTOCOM_相手番号保存
+			IF AUTOCOM_派生保存 != ""
+				RSTR:SELECTCOM_S受け渡し = {TFLAG:オートコマンドフラグ - 4000}_%AUTOCOM_派生保存%
+				CALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+				IF オートコマンド許可 == 3
+					CALL オートコマンド許可取り(1)
+				ENDIF
+				IF RESULT > -1
+					IF STRFIND(AUTOCOM_派生保存, "9_") == 0
+						自慰ターゲット保存 = AUTOCOM_相手番号保存
+						CALL CALL_COM(自慰ターゲット保存)
+					ELSE
+						CALL CALL_COM(TARGET)
+					ENDIF
+				ENDIF
+			ELSE
+				SELECTCOM = TFLAG:オートコマンドフラグ - 4000
+				CALLFORMF COMTYPE_{SELECTCOM}
+				IF オートコマンド許可 == 3
+					CALL オートコマンド許可取り(1)
+				ENDIF
+				IF RESULT > -1
+					CALL CALL_COM(TARGET)
+				ENDIF
+			ENDIF
+			SWAP TARGET, AUTOCOM_相手番号保存
+		ELSEIF TFLAG:オートコマンドフラグ >= 3000
+			LOCAL = TARGET
+			TARGET = PLAYER
+			PLAYER = AUTOCOM_相手番号保存
+			IF AUTOCOM_派生保存 != ""
+				RSTR:SELECTCOM_S受け渡し = {TFLAG:オートコマンドフラグ - 3000}_%AUTOCOM_派生保存%
+				CALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+				IF オートコマンド許可 == 3
+					CALL オートコマンド許可取り()
+				ENDIF
+				IF RESULT > -1
+					IF STRFIND(AUTOCOM_派生保存, "9_") == 0
+						自慰ターゲット保存 = AUTOCOM_相手番号保存
+						CALL CALL_COM(自慰ターゲット保存)
+					ELSE
+						CALL CALL_COM(TARGET)
+					ENDIF
+				ENDIF
+			ELSE
+				SELECTCOM = TFLAG:オートコマンドフラグ - 3000
+				CALLFORMF COMTYPE_{SELECTCOM}
+				IF オートコマンド許可 == 3
+					CALL オートコマンド許可取り()
+				ENDIF
+				IF RESULT > -1
+					CALL CALL_COM(TARGET)
+				ENDIF
+			ENDIF
+			PLAYER = TARGET
+			TARGET = LOCAL
+		ELSEIF TFLAG:オートコマンドフラグ > 2000
+			TRYCALLFORM ALLAUTOCOM{TFLAG:オートコマンドフラグ - 2000}
+		ELSEIF TFLAG:オートコマンドフラグ > 1000
+			TRYCALLFORM AUTOCOM{TFLAG:オートコマンドフラグ - 1000}
+		ELSEIF TFLAG:オートコマンドフラグ > 0
+			TRYCALLFORM PRE_AUTOCOM{TFLAG:オートコマンドフラグ}
+		ELSEIF TFLAG:オートコマンドフラグ == -1
+			CALL 自室キャラ訪問処理
+		ELSE
+			;複数モード時か否か
+			IF FLAG:モード管理 == 2
+				LOCAL:10 = TARGET
+				;同時モード時は全員分回す
+				VARSET 体位モード例外配列
+				FOR LOCAL, 0, 同時モード_選択数
+					SIF 同時モード_選択キャラ:LOCAL < 0
+						BREAK
+					TARGET = 同時モード_選択キャラ:LOCAL
+					CALL CALL_COM(TARGET)
+					IF RESULT == -1
+						RETURN -1
+					ENDIF
+				NEXT
+				VARSET 体位モード例外配列
+				TARGET = LOCAL:10
+			ELSE
+				CALL CALL_COM(TARGET)
+			ENDIF
+		ENDIF
+		IF RESULT == -1
+			TFLAG:オートコマンドフラグ = 0
+
+			TFLAG:オートコマンド連続発動 = MAX(TFLAG:オートコマンド連続発動 - 1, 0)
+			IF TFLAG:オートコマンド連続発動
+				FLAG:オートコマンド判定中フラグ = 1
+				CALL BEFORE_AUTOCOM
+				TFLAG:オートコマンドフラグ = RESULT
+				FLAG:オートコマンド判定中フラグ = 0
+			ELSE
+				;オプションのフラグを全部リセット
+				IF TFLAG:オートコマンド連続発動_逆オナホ
+					CALL 逆オナホ解除()
+					TFLAG:オートコマンドフラグ = 0
+				ENDIF
+				TFLAG:オートコマンド連続発動_なすがまま = 0
+			ENDIF
+			
+			RETURN -1
+		ENDIF
+
+		RETURN RESULT
+	CASE "マッサージモード"
+		RESULT = 0
+		IF RFLAG:サイドボタン操作
+		ELSE
+			CALL MASSAGE_CALL_COM(TARGET)
+		ENDIF
+
+		RETURN RESULT
+ENDSELECT
+
+
+
+
+@CALL_COM(ARG)
 
 RESULT = 0
 TCVAR:ARG:弱点コマンドフラグ = 0
@@ -128,5 +254,3 @@ ELSE
 	ENDIF
 	RETURN LOCAL:1
 ENDIF
-
-

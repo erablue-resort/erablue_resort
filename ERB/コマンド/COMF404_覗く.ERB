@@ -85,6 +85,13 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 					CASE 14
 						LOCAL:2 = 13
 				ENDSELECT
+			CASE 3
+				SELECTCASE CFLAG:PLAYER:現在位置
+					CASE 4
+						LOCAL:2 = 5
+					CASE 5
+						LOCAL:2 = 4
+				ENDSELECT
 		ENDSELECT
 		;全員の居場所をチェック
 		FOR LOCAL, 1, CHARANUM
@@ -126,15 +133,24 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 		;隠れて覗く
 		;単純にターゲットの姿を見る、誰もいない時はそもそもコマンドが出ないはず
 		RFLAG:コマンド結果受渡し変数２ = TARGET
-		IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
-			;着替え覗きパターン
-			履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
-			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
-		ELSE
-			;入浴覗きパターン
-			履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
-			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
-		ENDIF
+		SELECTCASE CFLAG:PLAYER:現在マップ種別
+			CASE 0
+				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
+					;着替え覗きパターン
+					履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+				ELSE
+					;入浴覗きパターン
+					履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+				ENDIF
+			CASE 3
+				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 4, 5)
+					;着替え覗きパターン
+					履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+				ENDIF
+		ENDSELECT
 	CASE 3
 		;物陰で野外オナニーを見つける
 		RFLAG:コマンド結果受渡し変数２ = TARGET
@@ -189,7 +205,7 @@ ENDSELECT
 ;-------------------------------------------------
 @COM_ABLE404
 ;移動実行判定
-SIF !TFLAG:ゲームフェイズ管理
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(404) && GLOBAL_COMABLE_TYPE("隠密")
@@ -205,6 +221,11 @@ RETURN 1
 #FUNCTION
 
 LOCAL = 0
+
+;自分は隠密してないのにTARGETが隠密している時
+SIF !CFLAG:PLAYER:隠密 && CFLAG:TARGET:隠密
+	SETBIT LOCAL, 3
+
 SELECTCASE ARG:1
 	CASE 0
 		;普通に覗ける場所
@@ -215,12 +236,18 @@ SELECTCASE ARG:1
 		IF GROUPMATCH(ARG, 8, 11, 12, 14, 7, 9, 10, 13) && CFLAG:PLAYER:隠密 && !CFLAG:TARGET:隠密
 			SETBIT LOCAL, 2
 		ENDIF
-		;自分は隠密してないのにTARGETが隠密している時
-		SIF !CFLAG:PLAYER:隠密 && CFLAG:TARGET:隠密
-			SETBIT LOCAL, 3
 		;覗き専用の場所
 		SIF GROUPMATCH(ARG, 710, 810)
 			SETBIT LOCAL, 4
+	CASE 3
+		;普通に覗ける場所
+		IF GROUPMATCH(ARG, 4, 5) && !CFLAG:PLAYER:隠密
+			SETBIT LOCAL, 1
+		ENDIF
+		;隠密時に潜んで覗ける場所
+		IF GROUPMATCH(ARG, 4, 5) && CFLAG:PLAYER:隠密 && !CFLAG:TARGET:隠密
+			SETBIT LOCAL, 2
+		ENDIF
 ENDSELECT
 
 RETURNF LOCAL
@@ -230,6 +257,31 @@ RETURNF LOCAL
 ;-------------------------------------------------
 @MESSAGE_COM404
 ;RFLAG:コマンド結果受渡し変数２に対象が入っている
+
+IF RFLAG:コマンド結果受渡し変数 == 3
+	;物陰で野外オナニーを見つける
+	RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
+	PRINTFORM %CALLNAME:PLAYER%はこっそりと物陰を覗き込むと、そこでは%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
+	IF TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_絶頂
+		;絶頂シーン
+		PRINTFORML 指を激しく動かし、自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を責め立てていた
+		PRINTFORML そのまま%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は絶頂を迎え、快楽の波が収まるまで余韻に浸っていた…
+		CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_デフォルト_差分_絶頂")
+	ELSE
+		;オナニーシーン
+		PRINTFORML 物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄っている姿が見えた
+		IF ABL:(RFLAG:コマンド結果受渡し変数２):(TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位) > 4
+			PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は自慰の快楽に浸りきり、無意識に腰がかくかくと揺れている…
+		ELSEIF ABL:(RFLAG:コマンド結果受渡し変数２):(TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位) > 2
+			PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は強い快感を感じているようで、荒い呼吸を繰り返している…
+		ELSE
+			PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%はきょろきょろと周囲を確認しながら、しかし自慰を行う手は動き続けている…
+		ENDIF
+		CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_デフォルト_差分_欲情")
+	ENDIF
+	RETURN 0
+ENDIF
+
 SELECTCASE CFLAG:PLAYER:現在マップ種別
 	CASE 0
 		SELECTCASE RFLAG:コマンド結果受渡し変数
@@ -273,27 +325,6 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 							PRINTL 水着に着替えている姿をこっそり覗き見た…
 							CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_全裸")
 					ENDSELECT
-			CASE 3
-				;物陰で野外オナニーを見つける
-				RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
-				PRINTFORM %CALLNAME:PLAYER%はこっそりと物陰を覗き込むと、そこでは%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
-				IF TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_絶頂
-					;絶頂シーン
-					PRINTFORML 指を激しく動かし、自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を責め立てていた
-					PRINTFORML そのまま%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は絶頂を迎え、快楽の波が収まるまで余韻に浸っていた…
-					CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_デフォルト_差分_絶頂")
-				ELSE
-					;オナニーシーン
-					PRINTFORML 物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄っている姿が見えた
-					IF ABL:(RFLAG:コマンド結果受渡し変数２):(TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位) > 4
-						PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は自慰の快楽に浸りきり、無意識に腰がかくかくと揺れている…
-					ELSEIF ABL:(RFLAG:コマンド結果受渡し変数２):(TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位) > 2
-						PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%は強い快感を感じているようで、荒い呼吸を繰り返している…
-					ELSE
-						PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数２)%はきょろきょろと周囲を確認しながら、しかし自慰を行う手は動き続けている…
-					ENDIF
-					CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_デフォルト_差分_欲情")
-				ENDIF
 			CASE 4
 				;覗き専用場所から覗く
 				PRINTFORML %CALLNAME:PLAYER%は壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を覗き込んだ
@@ -319,6 +350,30 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 				ELSE
 					PRINTL しかし、向こう側には誰もいないようだ…
 				ENDIF
+		ENDSELECT
+	CASE 3
+		SELECTCASE RFLAG:コマンド結果受渡し変数
+			CASE 1
+				;反対側を覗く
+				PRINTFORML %CALLNAME:PLAYER%は壁の仕掛けを通じて反対側を覗き込んだ
+				IF RFLAG:コマンド結果受渡し変数２
+					PRINTFORM 向こう側では%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:PLAYER:現在位置
+						CASE 4, 5
+							PRINTL 水着に着替えている様子が見える…
+							CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_全裸")
+					ENDSELECT
+				ELSE
+					PRINTL しかし、向こう側には誰もいないようだ…
+				ENDIF
+			CASE 2
+				;隠れて覗く
+				PRINTFORM %CALLNAME:PLAYER%は物陰に隠れながら、%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%が
+					SELECTCASE CFLAG:PLAYER:現在位置
+						CASE 4, 5
+							PRINTL 水着に着替えている姿をこっそり覗き見た…
+							CALL 覗きアニメーション(RFLAG:コマンド結果受渡し変数２,"短冊_全裸")
+					ENDSELECT
 		ENDSELECT
 ENDSELECT
 
@@ -356,9 +411,9 @@ ENDIF
 		画像指定文字列 '= SUBSTRING(RESULTS:LOCAL, 1 +STRLENS(対象フォルダ), -1)
 	ENDIF
 	;画像はここで確定させて持ち込む　レイヤー番号 = 50
-    GDISPOSE 50
-    GCREATEFROMFILE 50, @"%CSTR:キャラ番号:画像フォルダ%/%画像指定文字列%"
- 
+	GDISPOSE 50
+	GCREATEFROMFILE 50, @"%CSTR:キャラ番号:画像フォルダ%/%画像指定文字列%"
+
 	CALL 覗き穴システム
 	RETURN
 

@@ -1,0 +1,87 @@
+﻿;-------------------------------------------------
+;腰の指圧マッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME6
+#FUNCTIONS
+TSTR:コマンド名受渡 = 腰の指圧マッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_6
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("通常マッサージ")
+
+@MASSAGE_COM_TOOLTIP_6
+LOCALS = <br>■腰の指圧マッサージ<br>
+LOCALS += "体重をかけた指圧で腰の筋肉を揉みほぐす。背骨の矯正や腰痛解消の効果がある。"
+LOCALS += "<br>COMタイプ：通常マッサージ<br>取得ソース：快Ｓ・接触・苦痛・歓楽"
+LOCALS += "<br>固有の取得経験：苦痛快楽経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM6
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;気持ちいいから理性、警戒ともに大きく削れる
+CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+BASE:TARGET:理性 -= 50
+BASE:TARGET:警戒 -= 60
+
+;足つぼほどじゃないけど痛い。でも気持ちいい
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 75)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 75)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 200)
+
+;年齢が中年以上だと効果が増す。星晶獣も腰痛くなるんかな……？種族で除外したほうがいい？era様はどう思う？
+IF TALENT:TARGET:年齢 >= 2
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 10)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 50)
+	BASE:TARGET:理性 -= 10
+	BASE:TARGET:警戒 -= 10
+ENDIF
+
+;苦痛コマンドフラグだと苦痛快楽じゃなくて苦痛絶頂ばっかり溜まりがちだから快楽固定でマゾ性感上げの緩和を図る
+EXP:TARGET:苦痛快楽経験 += 1
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE6
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;仰向けだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 0
+	RETURN 0
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM6
+PRINTFORM %CALLNAME:PLAYER%は、体重を乗せた指圧で%CALLNAME:TARGET%の
+	IF TALENT:TARGET:体型 >= 1
+	;肉感的以上
+		PRINTFORM むっちりとした
+	ELSEIF TALENT:TARGET:体型 <= -2
+	;細身以下
+		PRINTFORM 細く華奢な
+	ENDIF
+PRINTFORML 腰まわりの筋肉を丹念に揉みほぐした。
+

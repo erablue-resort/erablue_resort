@@ -184,6 +184,10 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 			RFLAG:コマンド結果受渡し変数３ = 1
 			CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"素質[浮気]を得た","うふふ実績")
 		ENDIF
+		;泥酔時かつ初うふふの場合、翌日釘刺しに来る
+		IF BASE:酩酊 >= 500 && 知識素質:TARGET:性知識 > -1
+			CSTR:TARGET:特殊起床パターン記録 = 初うふふ泥酔ックス後
+		ENDIF
 	ENDIF
 ELSE
 	RFLAG:コマンド結果受渡し変数 = 0
@@ -233,7 +237,7 @@ RETURN 1
 
 @COM_ABLE353
 ;お願いする実行判定
-SIF !TFLAG:ゲームフェイズ管理
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;一括管理
 SIF GLOBAL_COMABLE(353)
@@ -331,12 +335,12 @@ ELSE
 	ENDIF
 ENDIF
 
-IF CFLAG:TARGET:お願いックス回数 >= 4
+IF (CFLAG:TARGET:お願いックス回数 + CFLAG:TARGET:泥酔ックス回数 / 3) >= 4
 	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%と幾度か体を重ね、抵抗感が薄れてきたようだ…
 	PRINTFORML %CALLNAME:TARGET%は[セフレ]を得た
 	IF GETBIT(TALENT:TARGET:陥落不可, 0)
 		PRINTFORML %CALLNAME:TARGET%の[陥落不可]が[恋慕不可]に変化しました。
-	ELSE
+	ELSEIF GETBIT(TALENT:TARGET:陥落不可, 1)
 		PRINTFORML %CALLNAME:TARGET%の[セフレ不可]が消滅しました。
 	ENDIF
 ENDIF

@@ -24,6 +24,7 @@
 #DIMS CONST 同行確率一覧 = "-25","-5","+5","+25"
 #DIM ランダムキャラ経験, 80
 #DIM ランダムキャラ戦闘タイプ, 10
+#DIMS 固有素質一時保存, 10
 #DIMS ランダムキャラネーム
 #DIMS ランダムキャラ二つ名
 #DIMS ランダムキャラ出演作品
@@ -245,6 +246,8 @@ IF CSVエディタフラグ
 	LOCALS += "<br>"
 	LOCALS += "<button value='133'>[133] 性癖素質を設定する</button>"
 	LOCALS += "<br>"
+	LOCALS += "<button value='134'>[134] 固有素質を設定する</button>"
+	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='140'>[140] 能力を設定する</button>"
 LOCALS += "<br>"
@@ -428,6 +431,11 @@ SELECTCASE 表示モード
 			SIF 知識素質数値保存:LOCAL == 0
 				CONTINUE
 			LOCALS += @"[%ERDNAME(知識素質, LOCAL)%Lv{知識素質数値保存:LOCAL}]"
+		NEXT
+		FOR LOCAL, 0, 10
+			SIF 固有素質一時保存:LOCAL == ""
+				CONTINUE
+			LOCALS += @"[%固有素質一時保存:LOCAL%]"
 		NEXT
 		LOCALS += "<br>"
 		LOCALS += "<br>"
@@ -1061,6 +1069,14 @@ SELECTCASE 表示モード
 		LOCALS += "<div rect='2125,3006,3675,2812'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
+	CASE 134
+		FOR COUNT, 0, 10
+			LOCALS += @"<button value='{85000 + COUNT}'>固有素質{COUNT}：[%固有素質一時保存:COUNT%]</button><br>"
+		NEXT
+		LOCALS += "</div>"
+		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "　　　　　　"
+		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 140
 		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
 			SIF ABL一時保存:LOCAL == -1
@@ -1443,6 +1459,11 @@ SELECTCASE LOCAL
 ;性癖素質----------------------------------------------------
 	CASE 80000 TO 80209
 		性癖素質数値保存:((LOCAL - 80000) / 10) = LOCAL % 10
+;固有素質----------------------------------------------------
+	CASE 85000 TO 85010
+		PRINTL 固有素質名を入力してください。
+		INPUTS
+		固有素質一時保存:(LOCAL - 85000) = %RESULTS%
 ;同行者候補----------------------------------------------------
 	CASE 100000 TO 100000 + キャラクタ数上限
 		IF LOCAL % 10 == 0
@@ -1556,6 +1577,9 @@ SELECTCASE LOCAL
 	CASE 133
 		ページ数 = 0
 		表示モード = 133
+	CASE 134
+		ページ数 = 0
+		表示モード = 134
 	CASE 140
 		ページ数 = 0
 		表示モード = 140
@@ -1668,6 +1692,11 @@ SELECTCASE LOCAL
 				SIF TALENT数値保存:LOCAL == 5
 					CONTINUE
 				PRINTFORML 素質,%TALENTNAME:(TALENT一時保存:LOCAL)%,{TALENT数値保存:LOCAL - 5}
+			NEXT
+			FOR LOCAL, 0, 10
+				SIF 固有素質一時保存:LOCAL == ""
+					CONTINUE
+				PRINTFORML CSTR,固有素質{LOCAL},%固有素質一時保存:LOCAL%
 			NEXT
 			PRINTFORML 素質,体格,{ランダムキャラ素質:31}
 			PRINTFORML 素質,体型,{体型保存}
@@ -1850,6 +1879,7 @@ SELECTCASE LOCAL
 		
 		CFLAG:(LOCAL:1):滞在期間 = 999
 		CFLAG:(LOCAL:1):招待不可フラグ = 0
+		CFLAG:(LOCAL:1):探索参加許可フラグ = 1
 		CALL ステータス記録(LOCAL:1)
 
 		FOR LOCAL:2, 0, 従業員部屋数

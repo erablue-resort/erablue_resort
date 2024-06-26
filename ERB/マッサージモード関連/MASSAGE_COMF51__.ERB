@@ -1,0 +1,354 @@
+﻿; ;-------------------------------------------------
+; ;肉棒でおまんこマッサージ♡
+; ;-------------------------------------------------
+; @MASSAGE_COMNAME51
+; #FUNCTIONS
+; TSTR:コマンド名受渡 = 肉棒でおまんこマッサージ_H_
+
+
+; ;===================================================
+; ;コマンドタイプ
+; ;===================================================
+; @MASSAGE_COMTYPE_51
+; #FUNCTION
+; TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+
+; @MASSAGE_COM_TOOLTIP_51
+; LOCALS = <br>■肉棒でおまんこマッサージ_H_<br>
+; LOCALS += "とろとろにほぐれた_-_食べごろ_おまんこを、専用の『施術道具』を使ってマッサージする。"
+; LOCALS += "挿入するまでは<u>一兆歩譲って</u>エステだが、挿入してしまったらそれはもうセックスなので、うふふモードに突入する。"
+; LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｖ・露出・接触・苦痛・不潔(一定条件時)"
+; LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+; TSTR:ツールチップ受渡 = %LOCALS%
+
+
+; @MASSAGE_COM51
+; ;通常モードに移行はターンエンド時に行う
+; IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+; 	;うつ伏せだと後背位
+; 	CALL MASSAGE_COM51_1
+; ELSE
+; 	;仰向けだと正常位
+; 	CALL MASSAGE_COM51_0
+; ENDIF
+
+
+; @MASSAGE_COM51_0
+; ;引数は前から快楽量、露出量、接触量
+; CALL MASSAGE_体位COM(400, 50, 150)
+; RETURN RESULT
+
+; @MASSAGE_COM51_1
+; ;後背位
+; CALL MASSAGE_体位COM(400, 70, 100)
+; RETURN RESULT
+
+; @MASSAGE_体位COM(ARG, ARG:1, ARG:2)
+; ;-------------------------------------------------
+; ;ソース追加処理
+; ;-------------------------------------------------
+
+; ;基盤ができたあとで理性を削る処理を入れる
+
+; ;Ｖ挿入から持ってきた
+; CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, ARG)
+; CALL SOURCE_CALC_露出(TARGET, PLAYER, ARG:1)
+; CALL SOURCE_CALC_接触(TARGET, PLAYER, ARG:2)
+
+; IF MODE_確認_ターゲット側("ペニスバンド", PLAYER) < 0
+; 	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, ARG)
+; ELSE
+; 	CALL SOURCE_CALC_快Ｖ(PLAYER, TARGET, ARG / 3)
+; ENDIF
+
+; ;苦痛
+; LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+; CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+; ;貞操観念
+; IF !TALENT:恋慕
+; 	IF TALENT:貞操 == 1
+; 		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+; 	ELSEIF TALENT:貞操 == 0
+; 		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+; 	ENDIF
+; ENDIF
+; ;処女喪失
+; CALL LOST_VIRGIN(TARGET, PLAYER, 1)
+; CALL LOST_MAN_VIRGIN(PLAYER, TARGET, 1)
+
+; ;下半身下着がある場合は脱がす。
+; IF TEQUIP:下半身下着あり == 1
+; 	TEQUIP:下半身下着あり = 0
+; 	RFLAG:コマンド結果受渡し変数 = 1
+; ENDIF
+
+; ;-------------------------------------------------
+; ;経験の処理
+; ;-------------------------------------------------
+
+; EXP:Ｖ性交経験 ++
+; EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+
+; ;同性愛　レズなら戻り値1ゲイなら戻り値2
+; IF HETEROSEX(TARGET,PLAYER)
+; 	EXP:同性愛経験 += 4
+; 	EXP:PLAYER:同性愛経験 += 4
+; ENDIF
+
+; 	EXP:愛情経験 += TALENT:恋慕 * 2
+; 	;処女
+; 	SIF TALENT:処女 && TALENT:恋慕
+; 		EXP:愛情経験 += ARG:2 / 15
+
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行判定処理
+; ;-------------------------------------------------
+
+; ;Ｖ挿入の時みたく一度全部計算する。
+; ;計算後に達成値に到達しなかった(処女の-40とかがすごく重い)場合、媚薬オイルとかお香とかを参照して、それらがあるなら無理やり通す。
+
+; ;「ことここに至っても、%CALLNAME:TARGET%はまだわずかに抵抗している」
+; ;「だがここまでの『施術』の甲斐あって、%CALLNAME:PLAYER%を振りほどけるほどの力は残っていないようだ。」
+; ;「──今なら、無理やりにでも手籠めにしてしまうことができるだろう。」
+; ;BUTTON_[このまま犯す]_ 　_BUTTON_[やめておく]_
+; ;IF RESULTS == "[このまま犯す]"
+; ;	RETURN 1
+; ;ELSEIF RESULTS == "[やめておく]"
+; ;	RETURN 0
+; ;ENDIF
+; ;
+; ;みたいな感じ
+; @MASSAGE_CAN_COM51(ARG)
+; #DIM 実行値
+; #DIM ＋表示フラグ
+
+; SKIPDISP ARG
+; PRINTFORML おまんこマッサージ(%CALLNAME:TARGET%)
+
+; 実行値 = 0
+; ＋表示フラグ = 0
+; ;すべての命令に共通の要素を考慮
+
+; CALL COM_ORDER
+; 実行値 = RESULT
+; ＋表示フラグ = S
+
+; ;ABL:欲望
+; IF ABL:欲望
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += ABL:欲望 * 3
+; 	PRINT 欲望
+; 	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 3,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;ABL:Ｖ感覚
+; IF ABL:Ｖ感覚
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += ABL:Ｖ感覚 * 2
+; 	PRINT Ｖ感覚
+; 	PRINTV 'LV,ABL:Ｖ感覚,'(,ABL:Ｖ感覚 * 2,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;快楽刻印
+; IF MARK:快楽刻印
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += MARK:快楽刻印 * 3
+; 	PRINT 快楽刻印
+; 	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 3,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;PALAM:潤滑（の不足）
+; IF RFLAG:指示モード対象あなたフラグ
+; 	LOCAL = PALAM:MASTER:潤滑
+; ELSE
+; 	LOCAL = PALAM:潤滑
+; ENDIF
+; IF LOCAL < PALAMLV:3
+; 	PRINT  - 
+; 	実行値 -= 5
+; 	PRINT 潤滑不足
+; 	PRINTV '(,5,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;PALAM:欲情
+; IF GETPALAMLV(PALAM:欲情,5)
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += GETPALAMLV(PALAM:欲情,5) * 3
+; 	PRINT 欲情
+; 	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 3,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;恥じらい
+; IF TALENT:羞恥心 > 0
+; 	PRINT  - 
+; 	実行値 -= 2
+; 	PRINT 羞恥心
+; 	PRINTV '(,2,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;快感の否定
+; IF TALENT:快感応答 < 0 && !TALENT:恋慕
+; 	PRINT  - 
+; 	実行値 -= 5
+; 	PRINT 快感の否定
+; 	PRINTV '(,5,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;恋慕
+; IF TALENT:恋慕
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += 15
+; 	PRINT 恋慕
+; 	PRINTV '(,15,')
+; 	＋表示フラグ = 1
+; ELSE
+; 	;男嫌い（恋慕で無効）
+; 	IF TALENT:性別嗜好 & 1 && TALENT:PLAYER:性別 == 2 && TALENT:性別嗜好 > 0
+; 		PRINT  - 
+; 		実行値 -= 12
+; 		PRINT 男嫌い
+; 		PRINTV '(,12,')
+; 		＋表示フラグ = 1
+; 	ENDIF
+; 	;女嫌い（恋慕で無効）
+; 	IF TALENT:性別嗜好 & 2 && TALENT:PLAYER:性別 == 1 && TALENT:性別嗜好 > 0
+; 		PRINT  - 
+; 		実行値 -= 12
+; 		PRINT 女嫌い
+; 		PRINTV '(,12,')
+; 		＋表示フラグ = 1
+; 	ENDIF
+; ENDIF
+; ;セフレ
+; IF TALENT:セフレ
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += 10
+; 	PRINT セフレ
+; 	PRINTV '(,10,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;未陥落
+; IF TALENT:セフレ == 0 && TALENT:恋慕 == 0
+; 	SIF ＋表示フラグ
+; 		PRINT  - 
+; 	実行値 -= 10
+; 	PRINT 未陥落
+; 	PRINTV '(,-10,')
+; 	＋表示フラグ = 1
+; ENDIF
+; ;処女
+; LOCAL = MAX(10,40 - EXP:Ｖ経験)
+; IF TALENT:処女
+; 	PRINT  - 
+; 	実行値 -= LOCAL
+; 	PRINT 処女
+; 	PRINTV '(,LOCAL,')
+; 	＋表示フラグ = 1
+; ;V経験
+; ELSEIF EXP:Ｖ経験 < EXPLV:2
+; 	PRINT  - 
+; 	実行値 -= 15
+; 	PRINT Ｖ経験
+; 	PRINT 不足
+; 	PRINTV '(,15,')
+; 	＋表示フラグ = 1
+; ENDIF
+
+; ;調教者がふたなり
+; IF (TALENT:PLAYER:性別 & 3) == 3
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += 4
+; 	PRINT ふたなり
+; 	PRINTV '(,4,')
+; 	＋表示フラグ = 1
+; ENDIF
+
+; ;媚薬
+; IF TEQUIP:媚薬
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += 6
+; 	PRINT 媚薬
+; 	PRINTV '(,6,')
+; 	＋表示フラグ = 1
+; ENDIF
+
+; ;発情期
+; IF CFLAG:発情期フラグ < 0
+; 	SIF ＋表示フラグ
+; 		PRINT  + 
+; 	実行値 += 6
+; 	PRINT 発情中
+; 	PRINTV '(,6,')
+; 	＋表示フラグ = 1
+; ENDIF
+
+; ;合計を表示(20以上で実行)
+; PRINT  = 
+; PRINTV 実行値
+
+; SIF 実行値 < ARG
+; 	PRINT  < 
+; SIF 実行値 == ARG
+; 	PRINT  = 
+; SIF 実行値 > ARG
+; 	PRINT  > 
+; PRINT 実行値
+; PRINTV ARG
+
+; WAIT
+
+; ;実行できない
+; SIF 実行値 < ARG
+; 	RETURN 0
+	
+; RETURN 1
+
+
+
+; ;-------------------------------------------------
+; ;実行判定
+; ;-------------------------------------------------
+
+; @MASSAGE_COM_ABLE51
+; SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+; 	RETURN 0
+
+; ;Vがない場合駄目
+; SIF TALENT:TARGET:Ｖ感度 == -2
+; 	RETURN 0
+; ;バイブ挿入中はダメ
+; SIF TEQUIP:13
+; 	RETURN 0
+; ;オトコだとダメ
+; SIF !(TALENT:性別 & 1)
+; 	RETURN 0
+
+; ;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+; SIF !(TALENT:PLAYER:性別 & 2) && MODE_確認_ターゲット側("ペニスバンド", PLAYER) < 0
+; 	RETURN 0
+; ;処女かつ潤滑不足はだめ
+; SIF PALAM:潤滑 < PALAMLV:3 && TALENT:処女
+; 	RETURN 0
+; ;処女でなくとも潤滑不足はだめ
+; SIF PALAM:潤滑 < PALAMLV:2
+; 	RETURN 0
+
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行時メッセージ
+; ;-------------------------------------------------
+; @MASSAGE_MESSAGE_COM51
+
+; PRINTFORML 表示テスト用文章。
