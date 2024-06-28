@@ -1,0 +1,88 @@
+﻿
+@COMNAME_S60_5
+#FUNCTIONS
+TSTR:コマンド名受渡 = 尻尾ひっぱり後背位
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_60_5
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
+弱点コマンドカテゴリ = V
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S60_5
+LOCALS = <br>■尻尾ひっぱり後背位<br>
+LOCALS += "後ろから挿入する際、尻尾をを掴んで引っ張りながら強く責め立てるコマンド。<br>後背位、立ちバックモード時のみ実行可能。"
+LOCALS += "<br>COMタイプ：Ｖ系<br>取得ソース：快Ｖ・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S60_5
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 400)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 200)
+RCVAR:TARGET:苦痛コマンドフラグ = 1
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S60_5
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("60_5")
+	RETURN RESULT
+;尻尾必須
+SIF !TALENT:TARGET:尻尾あり
+	RETURN 0
+;後ろから系モードじゃない時はアウト
+SIF MODE_確認_完全一致("後背位", PLAYER, TARGET) < 0 && MODE_確認_完全一致("立ちバック", PLAYER, TARGET) < 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S60_5
+#DIM 同時キャラ番号
+PRINTFORM %CALLNAME:PLAYER%は
+PRINTFORML %CALLNAME:TARGET%の尻尾を掴み、手綱のように%TEXTR("扱い/引っぱり")%ながら強く腰を打ち付けた
+
+

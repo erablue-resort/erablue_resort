@@ -25,11 +25,11 @@ FOR 対象キャラ, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:対象キャラ:現在位置 == 999
 		CONTINUE
-	IF FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置) > -1
-		滞在者保存:(FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置)) += @"{対象キャラ}_"
+	IF FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置 + 1000) > -1
+		滞在者保存:(FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置 + 1000)) += @"{対象キャラ}_"
 	ELSE
 		滞在者保存:配列番号 = {対象キャラ}_
-		滞在部屋番号保存:配列番号 = CFLAG:対象キャラ:現在位置
+		滞在部屋番号保存:配列番号 = CFLAG:対象キャラ:現在位置 + 1000
 		配列番号 += 1
 	ENDIF
 NEXT
@@ -144,7 +144,7 @@ PRINTL
 DRAWLINE
 FOR LOCAL, 0, 500
 	;本来-1になることはないはずだけどなんかそのパターンが存在するのでとりあえず応急措置
-	SIF 滞在部屋番号保存:LOCAL == -1
+	SIF 滞在部屋番号保存:LOCAL == 999
 		CONTINUE
 	SIF 滞在部屋番号保存:LOCAL < 1
 		BREAK
@@ -154,9 +154,9 @@ FOR LOCAL, 0, 500
 	
 	;うふふ中・飲み会中は移動なし
 	IF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ
-		PRINTFORML ■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL)%
+		PRINTFORML ■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL - 1000)%
 	ELSE
-		PRINTBUTTON @"■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL)%", 滞在部屋番号保存:LOCAL
+		PRINTBUTTON @"■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL - 1000)%", 滞在部屋番号保存:LOCAL - 1000
 		PRINTL
 	ENDIF
 	VARSET RESULTS
@@ -232,15 +232,10 @@ IF ISNUMERIC(RESULTS) == 0
 		個別移動管理キャラ:対象キャラ = 0
 		GOTO 表示_LOOP
 	ELSEIF STRFIND(RESULTS, "リスト選択_") > -1
-		対象キャラ = TOINT(SUBSTRING(RESULTS, 11))
-		CALL 枠選択_リスト式(対象キャラ)
+		LOCAL = TOINT(REPLACE(RESULTS, "リスト選択_", ""))
+		CALL 枠選択_リスト式()
 		IF RESULT
-			FOR LOCAL, 0, 6
-				IF 個別移動管理キャラ:LOCAL < 1
-					個別移動管理キャラ:LOCAL = RESULT
-					BREAK
-				ENDIF
-			NEXT
+			個別移動管理キャラ:LOCAL = RESULT
 			PRINTFORMW 個別に居場所感知するキャラに%CALLNAME:RESULT%を追加しました。
 		ENDIF
 		GOTO 表示_LOOP
@@ -346,8 +341,7 @@ SELECTCASE LOCAL
 		ENDIF
 ENDSELECT
 
-@枠選択_リスト式(対象キャラ)
-#DIM 対象キャラ
+@枠選択_リスト式()
 #DIM 表示候補, 500
 #DIM 現在ページ
 #DIM 候補人数
