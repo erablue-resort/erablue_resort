@@ -1,5 +1,7 @@
 ﻿@EVENTTRAIN0
 #DIM 定住フラグ
+#DIM 同行配列番号
+#DIM 判定値
 
 VARSET TARGET
 DRAWLINE
@@ -11,37 +13,93 @@ DRAWLINE
 FOR LOCAL,0,CHARANUM
 	;危険日などを設定する
 	CALL SET_PREGNANCY_PALAM(LOCAL)
-	;一日期間を減らす
-	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999  && !CFLAG:LOCAL:長期雇用
-		CFLAG:LOCAL:滞在期間 -= 1
-		IF CFLAG:LOCAL:滞在期間 == 0
-			定住フラグ = 0
-			IF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0 && TALENT:LOCAL:常連 && TALENT:LOCAL:定住者 == 0 && 定住エリア満杯() == 0
-				;常連かつ定住者じゃない時、一定確率で定住を申し出る
+
+	;同棲処理
+	IF TALENT:LOCAL:定住者
+		;同棲を言い出す処理
+		;今現在同棲していないこと
+		IF キャラクター部屋検索(LOCAL) >= 1000 && STRCOUNT(定住者部屋割り配列:(キャラクター部屋検索(LOCAL) - 1000), "_") < 2
+			;同行確率を見て一定値以上の相手が定住しているかどうかを見る
+			FOR 同行配列番号, 0, 100
+				SIF 同行候補キャラ番号:LOCAL:同行配列番号 < 1
+					CONTINUE
+				;相手が定住してないならダメ
+				SIF TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):定住者 < 1
+					CONTINUE
+				;相手の部屋が既に５人いたらダメ
+				SIF STRCOUNT(定住者部屋割り配列:(キャラクター部屋検索(同行候補キャラ番号:LOCAL:同行配列番号) - 1000), "_") > 4
+					CONTINUE
+				;男女の組み合わせなら90以上、そうでないなら50以上が条件
+				IF TALENT:LOCAL:性別 == 2 && TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):性別 == 1 || TALENT:LOCAL:性別 == 1 && TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):性別 == 2
+					判定値 = 90
+				ELSE
+					判定値 = 50
+				ENDIF
+				SIF 同行候補キャラ確率:LOCAL:同行配列番号 < 判定値
+					CONTINUE
 				;素質とかで確率を変動させたいけど、とりあえずは25％くらいで
 				IF RAND:4 == 0
-					PRINTFORML %CALLNAME:LOCAL%はこのリゾート島に定住を希望しているようだ。
-					PRINTL 定住を許可しますか？
+					PRINTFORML %CALLNAME:LOCAL%は今の部屋を引き払い、%CALLNAME:(同行候補キャラ番号:LOCAL:同行配列番号)%と同じ部屋に移ることを希望しているようだ。
+					PRINTL 引っ越しを許可しますか？
 					PRINTBUTTON "[0] はい", 0
 					PRINTL
 					PRINTBUTTON "[1] いいえ", 1
 					PRINTL
 					BINPUT
 					IF RESULT == 0
-						PRINTFORML %CALLNAME:LOCAL%の定住を許可しました！
-						PRINTFORMW %CALLNAME:LOCAL%は居住区エリアの住宅街で暮らし始めました
-						TALENT:LOCAL:定住者 = 1
-						CFLAG:LOCAL:滞在期間 = 999
-						FOR LOCAL:1, 0, 50
-							IF 定住者部屋割り配列:(LOCAL:1) == ""
-								定住者部屋割り配列:(LOCAL:1) = {LOCAL}_
-								BREAK
-							ENDIF
-						NEXT
-						CALL 滞在者部屋割り配列削除処理(LOCAL)
-						定住フラグ = 1
+						PRINTFORML %CALLNAME:LOCAL%の引っ越しを許可しました！
+						PRINTFORMW %CALLNAME:LOCAL%は%CALLNAME:(同行候補キャラ番号:LOCAL:同行配列番号)%と同じ部屋で暮らし始めました
+						;部屋から削除
+						RESULT = キャラクター部屋検索(LOCAL)
+						IF STRFIND(定住者部屋割り配列:(RESULT - 1000), @"_{LOCAL}_") > -1
+							定住者部屋割り配列:(RESULT - 1000) = %REPLACE(定住者部屋割り配列:(RESULT - 1000), @"_{LOCAL}_", "_")%
+						ELSE
+							定住者部屋割り配列:(RESULT - 1000) = %SUBSTRING(定住者部屋割り配列:(RESULT - 1000), STRLENS(@"{LOCAL}_"), -1)%
+						ENDIF
+						;部屋に追加
+						RESULT = キャラクター部屋検索(同行候補キャラ番号:LOCAL:同行配列番号)
+						定住者部屋割り配列:(RESULT - 1000) += @"{LOCAL}_"
 					ELSE
-						PRINTFORMW %CALLNAME:LOCAL%の定住を断りました
+						PRINTFORMW %CALLNAME:LOCAL%の引っ越しを断りました
+					ENDIF
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+	;一日期間を減らす
+	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999  && !CFLAG:LOCAL:長期雇用
+		CFLAG:LOCAL:滞在期間 -= 1
+		IF CFLAG:LOCAL:滞在期間 == 0
+			定住フラグ = 0
+			IF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0
+				IF TALENT:LOCAL:常連 && TALENT:LOCAL:定住者 == 0 && 定住エリア満杯() == 0
+					;常連かつ定住者じゃない時、一定確率で定住を申し出る
+					;素質とかで確率を変動させたいけど、とりあえずは25％くらいで
+					IF RAND:4 == 0
+						PRINTFORML %CALLNAME:LOCAL%はこのリゾート島に定住を希望しているようだ。
+						PRINTL 定住を許可しますか？
+						PRINTBUTTON "[0] はい", 0
+						PRINTL
+						PRINTBUTTON "[1] いいえ", 1
+						PRINTL
+						BINPUT
+						IF RESULT == 0
+							PRINTFORML %CALLNAME:LOCAL%の定住を許可しました！
+							PRINTFORMW %CALLNAME:LOCAL%は居住区エリアの住宅街で暮らし始めました
+							TALENT:LOCAL:定住者 = 1
+							CFLAG:LOCAL:滞在期間 = 999
+							FOR LOCAL:1, 0, 50
+								IF 定住者部屋割り配列:(LOCAL:1) == ""
+									定住者部屋割り配列:(LOCAL:1) = {LOCAL}_
+									BREAK
+								ENDIF
+							NEXT
+							CALL 滞在者部屋割り配列削除処理(LOCAL)
+							定住フラグ = 1
+						ELSE
+							PRINTFORMW %CALLNAME:LOCAL%の定住を断りました
+						ENDIF
 					ENDIF
 				ENDIF
 			ENDIF

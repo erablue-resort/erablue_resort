@@ -22,20 +22,18 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM210
 #DIM 表示候補, 1000
 #DIM 現在ページ
-#DIM 呼び出し対象
+#DIM 呼び出し対象, 500
+#DIM 呼び出し人数
 
 VARSET 表示候補, -1
 現在ページ = 0
-呼び出し対象 = 0
-
-;広告対象の表示
-DRAWLINE
-PRINTL 誰を呼び出しますか？
-DRAWLINE
-
+VARSET 呼び出し対象
+呼び出し人数 = 0
 CALL 呼び出す候補キャラ登録(表示候補)
 
 $表示_LOOP
+DRAWLINE
+PRINTL 誰を呼び出しますか？
 DRAWLINE
 LOCAL:1 = 0
 ;キャラの表示（15人まで）
@@ -45,7 +43,10 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 		LOCAL:1 = 1
 		BREAK
 	ENDIF
+	SIF MATCH(呼び出し対象, 表示候補:LOCAL)
+		SETCOLOR カラーパレット("黄")
 	PRINTBUTTONLC @"[{LOCAL}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 41, LEFT%", LOCAL
+	RESETCOLOR
 	IF TALENT:(表示候補:LOCAL):恋慕
 		SETCOLOR カラーパレット("えっちな色")
 		PRINT 恋慕
@@ -60,20 +61,20 @@ DRAWLINE
 
 ;ページめくり表示
 IF 現在ページ > 0
-	PRINTBUTTONLC "[900]前ページへ", 900
+	PRINTBUTTONLC "[900] 前ページへ", 900
 ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
 IF LOCAL:1 == 0
-	PRINTBUTTONC "[901]次ページへ", 901
+	PRINTBUTTONC "[901] 次ページへ", 901
 ENDIF
 PRINTL 
-PRINTBUTTON "[999]やめる", 999
+PRINTBUTTON @"[998] 以上の{呼び出し人数}人を呼び出す", 998
+PRINTL 
+PRINTBUTTON "[999] やめる", 999
 
-$INPUT_LOOP
-INPUT
-
+BINPUT
 SELECTCASE RESULT
 	CASE 900
 		現在ページ = MAX(現在ページ - 1, 0)
@@ -84,26 +85,43 @@ SELECTCASE RESULT
 		GOTO 表示_LOOP
 	CASE 999
 		RETURN -1
-	CASE IS >= CHARANUM, IS < 0
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
+	CASE 998
+		FOR LOCAL, 0, 500
+			SIF 呼び出し対象:LOCAL < 1
+				CONTINUE
+			CFLAG:(呼び出し対象:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
+			CFLAG:(呼び出し対象:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+			CFLAG:(呼び出し対象:LOCAL):うふふ = 1
+			;先に同室フラグを建てることで発覚口上をスキップする
+			CFLAG:(呼び出し対象:LOCAL):同室 = 1
+			SIF RFLAG:コマンド結果受渡し変数 < 1
+				RFLAG:コマンド結果受渡し変数 = 呼び出し対象:LOCAL
+		NEXT
+		SIF 呼び出し人数 > 1
+			RFLAG:コマンド結果受渡し変数２ = 1
+		;モード管理フラグを初期化
+		FLAG:モード管理 = 0
+		RETURN 0
 	CASEELSE
-		IF 表示候補:RESULT < 0
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
+		IF MATCH(呼び出し対象, 表示候補:RESULT)
+			FOR LOCAL, 0, 500
+				IF 呼び出し対象:LOCAL == 表示候補:RESULT
+					呼び出し対象:LOCAL = 0
+					呼び出し人数 --
+					BREAK
+				ENDIF
+			NEXT
+		ELSE
+			FOR LOCAL, 0, 500
+				IF 呼び出し対象:LOCAL < 1
+					呼び出し対象:LOCAL = 表示候補:RESULT
+					呼び出し人数 ++
+					BREAK
+				ENDIF
+			NEXT
 		ENDIF
-		呼び出し対象 = 表示候補:RESULT
+		GOTO 表示_LOOP
 ENDSELECT
-
-CFLAG:呼び出し対象:現在位置 = CFLAG:PLAYER:現在位置
-CFLAG:呼び出し対象:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
-CFLAG:呼び出し対象:うふふ = 1
-;先に同室フラグを建てることで発覚口上をスキップする
-CFLAG:呼び出し対象:同室 = 1
-RFLAG:コマンド結果受渡し変数 = 呼び出し対象
-
-;モード管理フラグを初期化
-FLAG:モード管理 = 0
 
 
 @呼び出す候補キャラ登録(表示候補)
@@ -256,5 +274,8 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM210
 
-PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:(RFLAG:コマンド結果受渡し変数)%を呼び出した
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:(RFLAG:コマンド結果受渡し変数)%
+SIF RFLAG:コマンド結果受渡し変数２
+	PRINT たち
+PRINTL を呼び出した
 
