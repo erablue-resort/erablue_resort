@@ -1,0 +1,736 @@
+﻿@宿泊エリア処理
+#DIM 表示エリア種類
+#DIM ページ数
+#DIM ループ用
+#DIM 部屋主配列, 10
+
+IF 宿泊エリア表示種別
+	表示エリア種類 = 500
+ELSE
+	表示エリア種類 = 200
+ENDIF
+
+$RESTART_LABEL
+VARSET LOCAL
+VARSET LOCALS
+	
+DRAWLINE
+PRINTL 移動先を選んでください。
+DRAWLINE
+LOCALS = <div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='156,156,1187,2812'>"
+SELECTCASE 表示エリア種類
+	CASE 200
+		LOCALS += "<nonbutton><font color='#FFFF00'>[200] 宿泊者エリア</font></nonbutton>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='300'>[300] 従業員個室</button>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='400'>[400] スイートルーム</button>"
+		LOCALS += "<br>"
+	CASE 300
+		LOCALS += "<button value='200'>[200] 宿泊者エリア</button>"
+		LOCALS += "<br>"
+		LOCALS += "<nonbutton><font color='#FFFF00'>[300] 従業員個室</font></nonbutton>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='400'>[400] スイートルーム</button>"
+		LOCALS += "<br>"
+	CASE 400
+		LOCALS += "<button value='200'>[200] 宿泊者エリア</button>"
+		LOCALS += "<br>"
+		LOCALS += "<button value='300'>[300] 従業員個室</button>"
+		LOCALS += "<br>"
+		LOCALS += "<nonbutton><font color='#FFFF00'>[400] スイートルーム</font></nonbutton>"
+		LOCALS += "<br>"
+	CASE 500
+		LOCALS += "<nonbutton><font color='#FFFF00'>[500] 住宅街</font></nonbutton>"
+		LOCALS += "<br>"
+ENDSELECT
+LOCALS += "<br>"
+IF 宿泊エリア表示種別
+	LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
+ELSE
+	LOCALS += "<button value='999'>[999] 自室に戻る</button>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+SELECTCASE 表示エリア種類
+	CASE 200
+		CALL 宿泊エリア_客室_表示(ページ数)
+	CASE 300
+		CALL 宿泊エリア_従業員室_表示(ページ数)
+	CASE 400
+		CALL 宿泊エリア_スイートルーム_表示(ページ数)
+	CASE 500
+		CALL 居住区エリア_住宅街_表示(ページ数)
+ENDSELECT
+;RESULTにページ数上限が入っている
+LOCAL:10 = RESULT
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+$INPUT_LOOP
+BINPUT
+
+SELECTCASE RESULT
+	CASE IS < 滞在キャラ上限
+		IF 表示エリア種類 == 200
+			IF CFLAG:(滞在者部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:RESULT):睡眠 && CFLAG:(滞在者部屋割り配列:RESULT):現在位置 == RESULT && 陥落チェック(滞在者部屋割り配列:RESULT) == 0
+				PRINTL 部屋には鍵が掛かっている。
+				PRINTW どうやら眠っているようだ…
+				GOTO RESTART_LABEL
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 999
+			CFLAG:MASTER:現在位置 = RESULT
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ELSEIF 表示エリア種類 == 300
+			IF CFLAG:(従業員部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:RESULT):睡眠 && CFLAG:(従業員部屋割り配列:RESULT):現在位置 == RESULT + 1000 && 陥落チェック(従業員部屋割り配列:RESULT) == 0
+				PRINTL 部屋には鍵が掛かっている。
+				PRINTW どうやら眠っているようだ…
+				GOTO RESTART_LABEL
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 999
+			CFLAG:MASTER:現在位置 = RESULT + 1000
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ELSEIF 表示エリア種類 == 400
+			LOCAL:2 = 0
+			FOR ループ用,0,CHARANUM
+				SIF CFLAG:ループ用:滞在期間 < 1
+					CONTINUE
+				IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == RESULT + 2000
+					SIF CFLAG:ループ用:睡眠 && 陥落チェック(ループ用) == 0
+						LOCAL:2 = 1
+				ENDIF
+			NEXT
+			IF LOCAL:2
+				PRINTL 部屋には鍵が掛かっている。
+				PRINTW どうやら眠っているようだ…
+				GOTO RESTART_LABEL
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 999
+			CFLAG:MASTER:現在位置 = RESULT + 2000
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ELSEIF 表示エリア種類 == 500
+			LOCAL = RESULT
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
+							LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2
+					PRINTL 家には鍵が掛かっている。
+					PRINTW どうやら眠っているようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					PRINTL 家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 2
+			CFLAG:MASTER:現在位置 = LOCAL + 1000
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ENDIF
+	CASE 200
+		IF 表示エリア種類 == 200
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 200
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 300
+		IF 表示エリア種類 == 300
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 300
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 400
+		IF 表示エリア種類 == 400
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 400
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 1000
+		IF ページ数 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 -= 1
+		GOTO RESTART_LABEL
+	CASE 1001
+		IF ページ数 >= LOCAL:10
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 += 1
+		GOTO RESTART_LABEL
+	CASE 999
+		IF 宿泊エリア表示種別
+			CFLAG:PLAYER:現在マップ種別 = 宿泊エリア表示種別
+			CFLAG:MASTER:現在位置 = 1
+		ELSE
+			CFLAG:PLAYER:現在マップ種別 = 0
+			CFLAG:MASTER:現在位置 = 20
+		ENDIF
+		CALL 移動時モード消去
+ENDSELECT
+
+@宿泊エリア_客室_表示(ページ数)
+#DIM ページ数
+VARSET LOCAL
+
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前の客室エリアへ</button>　　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (滞在キャラ上限 - 1) / 16
+	LOCALS += "<button value='1001'>[1001]次の客室エリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 4
+	SIF LOCAL > 滞在キャラ上限 - 1
+		BREAK
+	IF 滞在者部屋割り配列:LOCAL > 0
+		IF CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999
+			LOCALS:1 = 在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 16)) * 1187},31,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (ページ数 * 16)) * 1187}' ypos='562' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 16)) * 1187},156,1000,362'>■滞在者<br>%CALLNAME:(滞在者部屋割り配列:LOCAL)%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 16)) * 1187},31,1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (ページ数 * 16)) * 1187}' ypos='562' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 16)) * 1187},156,1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 4, (ページ数 * 16) + 8
+	SIF LOCAL > 滞在キャラ上限 - 1
+		BREAK
+	IF 滞在者部屋割り配列:LOCAL > 0
+		IF CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999
+			LOCALS:1 = 在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (4 + ページ数 * 16)) * 1187},831,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (4 + ページ数 * 16)) * 1187}' ypos='769' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (4 + ページ数 * 16)) * 1187},987,1000,362'>■滞在者<br>%CALLNAME:(滞在者部屋割り配列:LOCAL)%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (4 + ページ数 * 16)) * 1187},831,1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (4 + ページ数 * 16)) * 1187}' ypos='769' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (4 + ページ数 * 16)) * 1187},987,1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 8, (ページ数 * 16) + 12
+	SIF LOCAL > 滞在キャラ上限 - 1
+		BREAK
+	IF 滞在者部屋割り配列:LOCAL > 0
+		IF CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999
+			LOCALS:1 = 在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (8 + ページ数 * 16)) * 1187},1456,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (8 + ページ数 * 16)) * 1187}' ypos='1987' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (8 + ページ数 * 16)) * 1187},1612,1000,362'>■滞在者<br>%CALLNAME:(滞在者部屋割り配列:LOCAL)%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (8 + ページ数 * 16)) * 1187},1456,1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (8 + ページ数 * 16)) * 1187}' ypos='1987' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (8 + ページ数 * 16)) * 1187},1612,1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 12, (ページ数 * 16) + 16
+	SIF LOCAL > 滞在キャラ上限 - 1
+		BREAK
+	IF 滞在者部屋割り配列:LOCAL > 0
+		IF CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999
+			LOCALS:1 = 在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (12 + ページ数 * 16)) * 1187},2256,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (12 + ページ数 * 16)) * 1187}' ypos='2194' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (12 + ページ数 * 16)) * 1187},2412,1000,362'>■滞在者<br>%CALLNAME:(滞在者部屋割り配列:LOCAL)%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (12 + ページ数 * 16)) * 1187},2256,1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (12 + ページ数 * 16)) * 1187}' ypos='2194' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (12 + ページ数 * 16)) * 1187},2412,1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (滞在キャラ上限 - 1) / 16
+
+@宿泊エリア_従業員室_表示(ページ数, 表示モード = "", 表示キー = 0)
+#DIM ページ数
+#DIM 表示キー
+#DIMS 表示モード
+VARSET LOCAL
+
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前の従業員室エリアへ</button>　　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (従業員部屋数 - 1) / 16
+	LOCALS += "<button value='1001'>[1001]次の従業員室エリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 4
+	SIF LOCAL > 従業員部屋数 - 1
+		BREAK
+	IF 従業員部屋割り配列:LOCAL > 0
+		IF 表示モード == "入れ替え時"
+			LOCALS:1 = 
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ELSE
+			IF CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL + 1000 && CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999
+				LOCALS:1 = （在室中）
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:1 = （不在）
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 16)) * 1187},31,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (ページ数 * 16)) * 1187}' ypos='562' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 16)) * 1187},156,1000,362'>■従業員<br>%CALLNAME:(従業員部屋割り配列:LOCAL)%<br>%LOCALS:1%</div>"
+	ELSE
+		IF 表示モード == "入れ替え時"
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #333333
+			ENDIF
+		ELSE
+			LOCALS:2 = #333333
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 16)) * 1187},31,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (ページ数 * 16)) * 1187}' ypos='562' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 16)) * 1187},156,1000,362'>■従業員<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 4, (ページ数 * 16) + 8
+	SIF LOCAL > 従業員部屋数 - 1
+		BREAK
+	IF 従業員部屋割り配列:LOCAL > 0
+		IF 表示モード == "入れ替え時"
+			LOCALS:1 = 
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ELSE
+			IF CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL + 1000 && CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999
+				LOCALS:1 = （在室中）
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:1 = （不在）
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (4 + ページ数 * 16)) * 1187},831,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (4 + ページ数 * 16)) * 1187}' ypos='769' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (4 + ページ数 * 16)) * 1187},987,1000,362'>■従業員<br>%CALLNAME:(従業員部屋割り配列:LOCAL)%<br>%LOCALS:1%</div>"
+	ELSE
+		IF 表示モード == "入れ替え時"
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #333333
+			ENDIF
+		ELSE
+			LOCALS:2 = #333333
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (4 + ページ数 * 16)) * 1187},831,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (4 + ページ数 * 16)) * 1187}' ypos='769' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (4 + ページ数 * 16)) * 1187},987,1000,362'>■従業員<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 8, (ページ数 * 16) + 12
+	SIF LOCAL > 従業員部屋数 - 1
+		BREAK
+	IF 従業員部屋割り配列:LOCAL > 0
+		IF 表示モード == "入れ替え時"
+			LOCALS:1 = 
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ELSE
+			IF CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL + 1000 && CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999
+				LOCALS:1 = （在室中）
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:1 = （不在）
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (8 + ページ数 * 16)) * 1187},1456,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (8 + ページ数 * 16)) * 1187}' ypos='1987' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (8 + ページ数 * 16)) * 1187},1612,1000,362'>■従業員<br>%CALLNAME:(従業員部屋割り配列:LOCAL)%<br>%LOCALS:1%</div>"
+	ELSE
+		IF 表示モード == "入れ替え時"
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #333333
+			ENDIF
+		ELSE
+			LOCALS:2 = #333333
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (8 + ページ数 * 16)) * 1187},1456,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (8 + ページ数 * 16)) * 1187}' ypos='1987' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (8 + ページ数 * 16)) * 1187},1612,1000,362'>■従業員<br>なし</div>"
+	ENDIF
+NEXT
+FOR LOCAL, (ページ数 * 16) + 12, (ページ数 * 16) + 16
+	SIF LOCAL > 従業員部屋数 - 1
+		BREAK
+	IF 従業員部屋割り配列:LOCAL > 0
+		IF 表示モード == "入れ替え時"
+			LOCALS:1 = 
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ELSE
+			IF CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL + 1000 && CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999
+				LOCALS:1 = （在室中）
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:1 = （不在）
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (12 + ページ数 * 16)) * 1187},2256,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (12 + ページ数 * 16)) * 1187}' ypos='2194' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (12 + ページ数 * 16)) * 1187},2412,1000,362'>■従業員<br>%CALLNAME:(従業員部屋割り配列:LOCAL)%<br>%LOCALS:1%</div>"
+	ELSE
+		IF 表示モード == "入れ替え時"
+			IF 表示キー == LOCAL
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:2 = #333333
+			ENDIF
+		ELSE
+			LOCALS:2 = #333333
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (12 + ページ数 * 16)) * 1187},2256,1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{1694 + (LOCAL - (12 + ページ数 * 16)) * 1187}' ypos='2194' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (12 + ページ数 * 16)) * 1187},2412,1000,362'>■従業員<br>なし</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (従業員部屋数 - 1) / 16
+
+
+
+@宿泊エリア_スイートルーム_表示(ページ数)
+#DIM ページ数
+#DIM ループ用
+#DIMS 配列分解文字列, 110
+VARSET LOCALS
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前のスイートエリアへ</button>　　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (スイートルーム部屋数 - 1) / 4
+	LOCALS += "<button value='1001'>[1001]次のスイートエリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 4), (ページ数 * 4) + 4
+	SIF LOCAL > スイートルーム部屋数 - 1
+		BREAK
+	IF スイートルーム部屋割り配列:LOCAL != ""
+		VARSET 配列分解文字列
+		SPLIT スイートルーム部屋割り配列:LOCAL, "_", 配列分解文字列
+		IF STRCOUNT(スイートルーム部屋割り配列:LOCAL, "_") > 2
+			LOCALS:10 = %CALLNAME:(TOINT(配列分解文字列:1))%他
+		ELSE
+			LOCALS:10 = %CALLNAME:(TOINT(配列分解文字列:1))%
+		ENDIF
+		LOCAL:10 = 0
+		FOR ループ用, 1, CHARANUM
+			SIF CFLAG:ループ用:滞在期間 < 1
+				CONTINUE
+			SIF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL + 2000
+			LOCAL:10 += 1
+		NEXT
+		IF LOCAL:10 > 0
+			LOCALS:1 = {LOCAL:10}名在室中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{31 + (LOCAL - (ページ数 * 4)) / 2 * 1456},2250,1174' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='1174' width='2250'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{2200 + (LOCAL - (ページ数 * 4)) % 2 * 2374}' ypos='{1124 + (LOCAL - (ページ数 * 4)) / 2 * 300}' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{156 + (LOCAL - (ページ数 * 4)) / 2 * 1456},1000,362'>■滞在者<br>%LOCALS:10%<br>（%LOCALS:1%）</div>"
+	ELSE
+		LOCALS += @"<div rect='{1375 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{31 + (LOCAL - (ページ数 * 4)) / 2 * 1456},2250,1174' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='1174' width='2250'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{2200 + (LOCAL - (ページ数 * 4)) % 2 * 2374}' ypos='{1124 + (LOCAL - (ページ数 * 4)) / 2 * 300}' color='#101010'></div>"
+		LOCALS += @"<div rect='{1450 + (LOCAL - (ページ数 * 4)) % 2 * 2374},{156 + (LOCAL - (ページ数 * 4)) / 2 * 1456},1000,362'>■滞在者<br>なし</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (スイートルーム部屋数 - 1) / 4
+
+@キャラクター部屋検索(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 部屋主配列, 10
+#DIM ループ用
+
+部屋検索_マップ種別 = 999
+IF TALENT:対象キャラ:定住者
+	;定住者は基本居住区エリア
+	部屋検索_マップ種別 = 2
+	;家の算出
+	FOR LOCAL, 0, 50
+		SIF 定住者部屋割り配列:LOCAL == ""
+			BREAK
+		;部屋の居住者を配列化
+		VARSET 部屋主配列
+		VARSET RESULTS
+		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+		FOR ループ用, 0, RESULT
+			SIF RESULTS:ループ用 == ""
+				BREAK
+			IF 対象キャラ == TOINT(RESULTS:ループ用)
+				RETURNF LOCAL + 1000
+			ENDIF
+		NEXT
+	NEXT
+ELSEIF TALENT:対象キャラ:従業員
+	FOR LOCAL, 0, 従業員部屋数
+		IF 従業員部屋割り配列:LOCAL == 対象キャラ
+			RETURNF LOCAL + 1000
+		ENDIF
+	NEXT
+ELSEIF CFLAG:対象キャラ:スイートルーム滞在フラグ
+	RETURNF CFLAG:対象キャラ:スイートルーム滞在フラグ - 100 + 2000
+ELSE
+	FOR LOCAL, 0, 100
+		IF 滞在者部屋割り配列:LOCAL == 対象キャラ
+			RETURNF LOCAL
+		ENDIF
+	NEXT
+ENDIF
+
+RETURNF -1
+
+@滞在者部屋割り配列挿入処理(ARG)
+
+FOR LOCAL, 0, 滞在キャラ上限
+	IF 滞在者部屋割り配列:LOCAL < 1
+		滞在者部屋割り配列:LOCAL = ARG
+		CFLAG:ARG:現在マップ種別 = 999
+		CFLAG:ARG:現在位置 = LOCAL
+		RETURN 1
+	ENDIF
+NEXT
+RETURN 0
+
+@滞在者部屋割り配列削除処理(ARG)
+
+IF CFLAG:ARG:スイートルーム滞在フラグ
+	REPLACE スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100), @"_{ARG}_", "_"
+	スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) = %RESULTS%
+	SIF スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) == "_"
+		スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) = 
+	CFLAG:ARG:スイートルーム滞在フラグ = 0
+	RETURN 1
+ELSE
+	FOR LOCAL, 0, 100
+		IF 滞在者部屋割り配列:LOCAL == ARG
+			滞在者部屋割り配列:LOCAL = 0
+			BREAK
+		ENDIF
+	NEXT
+	滞在キャラ数 -= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+
+
+@居住区エリア_住宅街_表示(ページ数)
+#DIM ページ数
+#DIM 家最大数
+#DIM ループ用
+#DIM 縦位置
+#DIM 横位置
+#DIM 縦位置２
+#DIM 位置基準
+#DIM 部屋主配列, 10
+
+VARSET LOCAL
+家最大数 = 50
+
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前の住宅街エリアへ</button>　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (家最大数 - 1) / 16
+	LOCALS += "<button value='1001'>[1001]次の住宅街エリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
+	SIF LOCAL >= 50
+		BREAK
+	;部屋の居住者を配列化
+	VARSET 部屋主配列
+	VARSET RESULTS
+	SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+	FOR ループ用, 0, RESULT
+		SIF RESULTS:ループ用 == ""
+			BREAK
+		部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+	NEXT
+
+	位置基準 = LOCAL - (ページ数 * 16)
+	縦位置 = 31 + (位置基準 / 4 * 625) + ((位置基準 / 4 + 1) / 2 * 175)
+	横位置 = 1375 + (位置基準 % 4) * 1187
+	縦位置２ = 562 + (位置基準 / 4 * 207) + ((位置基準 / 4) / 2 * 1011)
+	IF 部屋主配列:0 > 0
+		LOCAL:1 = 0
+		FOR ループ用, 0, 10
+			SIF 部屋主配列:ループ用 < 1
+				BREAK
+			IF CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000 && CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+		IF LOCAL:1
+			LOCALS:1 = 在宅中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 不在
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		IF 部屋主配列:1 > 0
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>■家主<br>%CALLNAME:(部屋主配列:0)%他{LOCAL:1 - 1}名<br>（%LOCALS:1%）</div>"
+		ELSE
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>■家主<br>%CALLNAME:(部屋主配列:0)%<br>（%LOCALS:1%）</div>"
+		ENDIF
+	ELSE
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>空き家</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (家最大数 - 1) / 16
