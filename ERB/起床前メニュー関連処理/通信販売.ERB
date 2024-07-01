@@ -1,9 +1,10 @@
 ﻿@通信販売_BUY
-#DIM 右側表示モード
+#DIMS 右側表示モード
 #DIM 現在ページ
 #DIM 表示候補, 500
 #DIM 候補人数
 #DIM 販売フラグ
+
 
 DRAWLINE
 PRINTL 通信販売にてアイテムを購入します。
@@ -17,12 +18,12 @@ LOCALS += "</div>"
 
 ;左側、アイテムの種類を羅列
 LOCALS += "<div rect='81,444,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
-IF 右側表示モード == 0
+IF 右側表示モード == "コマンド解放アイテム"
 	LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-1] コマンド解放アイテム</font></nonbutton><br>"
 ELSE
 	LOCALS += "<button value='-1'>[-1] コマンド解放アイテム</button><br>"
 ENDIF
-IF 右側表示モード == 1
+IF 右側表示モード == "消費アイテム"
 	LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-2] 消費アイテム</font></nonbutton><br>"
 ELSE
 	LOCALS += "<button value='-2'>[-2] 消費アイテム</button><br>"
@@ -46,9 +47,12 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE -10 TO -1
-		右側表示モード = ABS(LOCAL) - 1
+		右側表示モード = %表示モード配列:(ABS(LOCAL) - 1)%
 		販売フラグ = 0
 		現在ページ = 0
+		RESTART
+	CASE -98
+		INVERTBIT 購入済み非表示フラグ, 0
 		RESTART
 	CASE -99
 		RETURN 0
@@ -161,8 +165,8 @@ IF LOCAL == 41
 	RESTART
 ENDIF
 ;複数所持アイテム
-SELECTCASE LOCAL
-	CASE 40 TO 60, 91, 92,
+SELECTCASE ITEM種別(LOCAL)
+	CASE "消費アイテム"
 		PRINTFORM %ITEMNAME:LOCAL%をいくつ購入しますか？
 		SIF LOCAL == 50
 			PRINTFORM (あと{ITEMSALES:LOCAL}個)
@@ -198,18 +202,7 @@ SELECTCASE LOCAL
 		PRINTFORMW %ITEMNAME:LOCAL%を{RESULT}個、%NUM_FORMAT(RESULT * ITEMPRICE:LOCAL)%%MONEYLABEL%で購入しました
 		MONEY -= RESULT * ITEMPRICE:LOCAL
 		RESTART
-;単品アイテム
-	CASE 0 TO 39
-		PRINTFORML %ITEMNAME:LOCAL%を購入しますか？
-		PRINTL [0] - はい  [1] - いいえ
-		INPUT
-		SIF RESULT
-			RESTART
-		ITEM:LOCAL ++
-		ITEMSALES:LOCAL --
-		MONEY -= ITEMPRICE:LOCAL
-		RESTART
-	CASE 1000 TO 2000
+	CASE "コマンド解放アイテム"
 		PRINTFORML %ITEMNAME:LOCAL%を購入しますか？
 		PRINTL [0] - はい  [1] - いいえ
 		INPUT
@@ -222,33 +215,51 @@ SELECTCASE LOCAL
 ENDSELECT
 
 
-@通信販売_品揃え登録(HTML文字列, 表示モード)
+@通信販売_品揃え登録(HTML文字列, 右側表示モード)
 #DIMS REF HTML文字列
-#DIM 表示モード
+#DIMS 右側表示モード
 
-SELECTCASE 表示モード
-	CASE 0
-		;コマンド解放アイテム
-		;ITEMの0~39までが該当アイテム
-		;これこうやって指定するの後で面倒のもとだから変えたいな……
-		FOR LOCAL, 0, 40
+SELECTCASE 右側表示モード
+	CASE "コマンド解放アイテム"
+		FOR LOCAL, 0, 200
 			SIF ITEMNAME:LOCAL == ""
 				CONTINUE
+			SIF ITEM種別(LOCAL) != "コマンド解放アイテム"
+				CONTINUE
+			SIF ITEM:LOCAL && 購入済み非表示フラグ
+				CONTINUE
 			IF ITEM:LOCAL
-				HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% （購入済み）　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ</font></nonbutton>"
+				HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% （購入済み）　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ</font></nonbutton>"
 			ELSE
-				HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ"
+				HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ"
 			ENDIF
 			HTML文字列 += "<br>"
 		NEXT
-	CASE 1
-		;消費アイテム
-		FOR LOCAL, 40, 59
+		HTML文字列 += "</div>"
+		IF 購入済み非表示フラグ
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 <font color='#%カラーパレット_HTML("グレーアウト")%'>する</font> / しない</button>"
+		ELSE
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 する / <font color='#%カラーパレット_HTML("グレーアウト")%'>しない</font></button>"
+		ENDIF
+	CASE "消費アイテム"
+		FOR LOCAL, 0, 200
 			SIF ITEMNAME:LOCAL == ""
 				CONTINUE
-			HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL}] %ITEMNAME:LOCAL, 10, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL)%ルピ　　所持数：{ITEM:LOCAL}個"
+			SIF ITEM種別(LOCAL) != "消費アイテム"
+				CONTINUE
+			HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ　　所持数：{ITEM:LOCAL, 2}個"
 			HTML文字列 += "<br>"
 		NEXT
 ENDSELECT
 
 
+@ITEM種別(アイテム番号)
+#FUNCTIONS
+#DIM アイテム番号
+
+SELECTCASE アイテム番号
+	CASE 1 TO 20
+		RETURNF "コマンド解放アイテム"
+	CASE 40, 70, 91, 92
+		RETURNF "消費アイテム"
+ENDSELECT
