@@ -48,8 +48,36 @@ SIF GLOBAL_COMABLE(402)
 	RETURN RESULT
 ;私室設定
 IF CFLAG:MASTER:現在マップ種別 == 0
-	SIF CFLAG:MASTER:現在位置 != CFLAG:MASTER:自室位置
-		RETURN 0
+	IF TARGET > 0
+		;誰かがいる場合、部屋主がいれば寝れる
+		SELECTCASE CFLAG:MASTER:現在位置
+			CASE 2011, 2012
+				;誰かの部屋なら相手が居ないとダメ
+				SIF MATCH(TARGET, 同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011)) == 0
+					RETURN 0
+				;相手がいても陥落してないとダメ
+				SIF 陥落チェック(同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011)) < 1
+					RETURN 0
+			CASE CFLAG:MASTER:自室位置
+				;自分の部屋はOK
+			CASEELSE
+				;住宅以外はダメ
+				RETURN 0
+		ENDSELECT
+	ELSE
+		;誰もいないなら空き部屋と自室で眠れる
+		SELECTCASE CFLAG:MASTER:現在位置
+			CASE 2011, 2012
+				;誰かの部屋なら相手が居ないとダメ
+				SIF 同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011) != 0
+					RETURN 0
+			CASE CFLAG:MASTER:自室位置
+				;自分の部屋はOK
+			CASEELSE
+				;住宅以外はダメ
+				RETURN 0
+		ENDSELECT
+	ENDIF
 ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 999
 	;陥落状態のキャラの部屋なら添い寝可能
 	SIF 陥落チェック(TARGET) < 1
