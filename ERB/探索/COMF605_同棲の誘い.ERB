@@ -1,0 +1,141 @@
+﻿;-------------------------------------------------
+;定住の誘い
+;-------------------------------------------------
+@COMNAME605
+#FUNCTIONS
+TSTR:コマンド名受渡 = 同棲の誘い
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_605
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_605
+LOCALS = <br>■同棲の誘い<br>
+LOCALS += "相手を自宅で同棲しないかと誘うコマンド。<br>"
+LOCALS += @"成功時、%CALLNAME:MASTER%の自宅に定住するようになる。<br>"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM605
+DRAWLINE
+PRINTFORML %CALLNAME:TARGET%を%CALLNAME:MASTER%との同棲に誘いますか？
+
+
+
+PRINTBUTTON "[0]はい", 0
+PRINTL
+PRINTBUTTON "[1]いいえ", 1
+PRINTL
+$INPUT_LOOP
+BINPUT
+
+SELECTCASE RESULT
+	CASE 0
+		;恋慕度80必要
+		LOCAL = 1
+		IF TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別 != 2 && TALENT:TARGET:性別 != 0
+			SIF CFLAG:TARGET:恋慕レベル < 関係閾値:4
+				LOCAL = 0
+		ELSEIF TALENT:PLAYER:性別 != 2 && TALENT:TARGET:性別 == 2
+			SIF CFLAG:TARGET:恋慕レベル < 関係閾値:4
+				LOCAL = 0
+		ELSE
+			;同一性別なら好感度でOK
+			SIF CFLAG:TARGET:好感度レベル < 関係閾値:4
+				LOCAL = 0
+		ENDIF
+		IF LOCAL == 0
+			RFLAG:コマンド結果受渡し変数 = 0
+		ELSE
+			RFLAG:コマンド結果受渡し変数 = 1
+			CFLAG:TARGET:滞在期間 = 999
+			;部屋から削除
+			IF TALENT:TARGET:定住者 == 1
+				RESULT = キャラクター部屋検索(TARGET)
+				IF STRFIND(定住者部屋割り配列:(RESULT - 1000), @"_{TARGET}_") > -1
+					定住者部屋割り配列:(RESULT - 1000) = %REPLACE(定住者部屋割り配列:(RESULT - 1000), @"_{TARGET}_", "_")%
+				ELSE
+					定住者部屋割り配列:(RESULT - 1000) = %SUBSTRING(定住者部屋割り配列:(RESULT - 1000), STRLENS(@"{TARGET}_"), -1)%
+				ENDIF
+			ELSEIF TALENT:TARGET:従業員
+				FOR LOCAL, 0, 従業員部屋数
+					IF 従業員部屋割り配列:LOCAL == TARGET
+						従業員部屋割り配列:LOCAL = 0
+						BREAK
+					ENDIF
+				NEXT
+			ELSE
+				CALL 滞在者部屋割り配列削除処理(TARGET)
+			ENDIF
+			;個人部屋に登録
+			IF 同棲部屋割り配列:0 == 0
+				同棲部屋割り配列:0 = TARGET
+			ELSE
+				同棲部屋割り配列:1 = TARGET
+			ENDIF
+			TALENT:TARGET:定住者 = 2
+		ENDIF
+	CASE 1
+		RETURN -1
+ENDSELECT
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE605
+#DIM ループ用
+;移動実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(605)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;自宅がまだないと出ない
+SIF 施設改造度:20:0 < 1
+	RETURN 0
+;既に同棲だと無し
+SIF TALENT:TARGET:定住者 == 2
+	RETURN 0
+;成功するのは80以上だが、話題に出すのに陥落条件
+IF TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別 != 2 && TALENT:TARGET:性別 != 0
+	SIF GETBIT(陥落チェック(TARGET), 0) == 0
+		RETURN 0
+ELSEIF TALENT:PLAYER:性別 != 2 && TALENT:TARGET:性別 == 2
+	SIF GETBIT(陥落チェック(TARGET), 0) == 0
+		RETURN 0
+ELSE
+	;同一性別なら好感度でOK
+	SIF CFLAG:TARGET:好感度レベル < 関係閾値:3
+		RETURN 0
+ENDIF
+;部屋が一杯
+SIF 同棲部屋割り配列:0 && 同棲部屋割り配列:1
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM605
+
+IF RFLAG:コマンド結果受渡し変数
+	;成功
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%の誘いに応じ、%CALLNAME:MASTER%の自宅で同棲するようになった！
+ELSE
+	;失敗
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:MASTER%と同棲する気はないようだ……
+ENDIF
+
+
+

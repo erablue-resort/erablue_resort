@@ -1,9 +1,10 @@
-﻿@短冊グラ表示用文字列関数(ARG, g_loop = 0, size = 1125)
+﻿@短冊グラ表示用文字列関数(ARG, g_loop = 0, size = 1125, 文字列記録フラグ = 0)
 #FUNCTIONS
 #DIM g_loop
 #DIM size
 #DIMS グラ表示用一時文字列_短冊
 #DIMS グラ表示用一時文字列_顔
+#DIM 文字列記録フラグ
 
 ;リソース解放
 SPRITEDISPOSE @"短冊グラ{g_loop}"
@@ -18,15 +19,21 @@ SIF CSTR:ARG:画像フォルダ == ""
 IF グラ表示用一時文字列_短冊 == ""
 	RESULTS:(2 + g_loop) = 短冊_デフォルト.png
 	GCREATEFROMFILE 3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png"
+	SIF 文字列記録フラグ
+		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/短冊_デフォルト.png
 ELSE
 	RESULTS:(2 + g_loop) = %グラ表示用一時文字列_短冊%.png
 	GCREATEFROMFILE 3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%.png"
+	SIF 文字列記録フラグ
+		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%.png
 ENDIF
 IF RESULT == 0 && GCREATED(3000 + g_loop) == 0
 	;該当画像が無い場合
 	IF グラ表示用一時文字列_短冊 == ""
 		;そもそもデフォルト画像が無い場合はNoimage画像で返す
 		RESULTS:(2 + g_loop) = Noimage_短冊.png
+		SIF 文字列記録フラグ
+			RSTR:表示グラ記録 = 
 		RETURNF @"<img src='Noimage_短冊' width='{size}' height='{size * 2}'>"
 	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png")
 		;設定中の顔グラが存在すればそちらを拡縮で表示
@@ -36,21 +43,29 @@ IF RESULT == 0 && GCREATED(3000 + g_loop) == 0
 			LOCALS '= @"<img src='短冊グラ{g_loop}' width='{size}' height='{size * 2}'>"
 		画像サイズ切り替えOPTION記憶:1 = LOCAL
 		RESULTS:(2 + g_loop) = %グラ表示用一時文字列_顔%.png
+		SIF 文字列記録フラグ
+			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png
 	ELSEIF GCREATEFROMFILE(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/短冊_デフォルト.png")
 		;変更後画像も設定中の顔グラも無い場合はデフォルト短冊を表示させる
 		SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
 			LOCALS '= @"<img src='短冊グラ{g_loop}' width='{size}' height='{size * 2}'>"
 		RESULTS:(2 + g_loop) = 短冊_デフォルト.png
+		SIF 文字列記録フラグ
+			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/短冊_デフォルト.png
 	ELSE
 		IF CSTR:ARG:汎用立ち絵登録文字列 == "" || 汎用立ち絵制御OPTION == 0
 			;どれもない場合はNoimage画像で返す
 			RESULTS:(2 + g_loop) = Noimage_短冊.png
+			SIF 文字列記録フラグ
+				RSTR:表示グラ記録 = 
 			RETURNF @"<img src='Noimage_短冊' width='{size}' height='{size * 2}'>"
 		ELSEIF GCREATEFROMFILE(3000 + g_loop, @"汎用グラフィック/短冊_%CSTR:ARG:汎用立ち絵登録文字列%.png")
 			;汎用立ち絵登録されてる場合はそれを表示させる
 			SIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
 				LOCALS '= @"<img src='短冊グラ{g_loop}' width='{size}' height='{size * 2}'>"
 			RESULTS:(2 + g_loop) = 短冊_%CSTR:ARG:汎用立ち絵登録文字列%.png
+			SIF 文字列記録フラグ
+				RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/短冊_%CSTR:ARG:汎用立ち絵登録文字列%.png
 		ENDIF
 	ENDIF
 ELSEIF スプライト作成(@"短冊グラ{g_loop}", 3000 + g_loop, 1)
@@ -65,6 +80,11 @@ SIF 差分エフェクト != ""
 SIF  差分エフェクト:1 != ""
 	LOCAL = スプライト合成(@"短冊グラ{g_loop}", 3000 + g_loop, 差分エフェクト:1)
 ;	GDRAWSPRITE 3000 + g_loop, 差分エフェクト:1, 0, 0, SPRITEWIDTH(@"短冊グラ{g_loop}"), SPRITEHEIGHT(@"短冊グラ{g_loop}")
+
+IF 文字列記録フラグ
+	RSTR:表示グラ記録 += @"+++%差分エフェクト%"
+	RSTR:表示グラ記録 += @"+++%差分エフェクト:1%"
+ENDIF
 
 立ち絵リソース記録 = 短冊グラ{g_loop}
 RETURNF LOCALS
