@@ -371,6 +371,7 @@ CALL 覗き候補選定
 SELECTCASE RFLAG:コマンド結果受渡し変数
 	CASE 1
 		;反対側を覗く
+		RSTR:表示グラ記録 = 
 		RSTR:コマンド結果受渡し文字列 += "反対側を景切鏡で盗撮した<br>"
 		IF RFLAG:コマンド結果受渡し変数２
 			IF CFLAG:PLAYER:現在マップ種別 == 0
@@ -463,6 +464,7 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 		CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_野外オナニー")
 	CASE 4
 		;覗き専用場所から覗く
+		RSTR:表示グラ記録 = 
 		RSTR:コマンド結果受渡し文字列 += @"壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を盗撮した…<br>"
 		IF RFLAG:コマンド結果受渡し変数２
 			IF CFLAG:PLAYER:現在マップ種別 == 0
@@ -687,18 +689,26 @@ DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル�
 CALL 履歴登録チェック(TARGET, "被写体")
 
 @所持写真一覧表示
+
+IF 写真一覧表示OPTION	
+	;表示がややこしいので別関数に飛ばす
+	CALL アルバム式表示()
+ELSE
+	CALL 撮影順表示()
+ENDIF
+;表示方式切替時はRESULTに１が返ってくるのでリスタート
+SIF RESULT
+	RESTART
+
+
+@撮影順表示
 #DIM ページ数
 #DIM 表示数カウント
 #DIM ボタン記録
-#DIM DAY算出
-#DIM TIME算出
 #DIM 一括削除モード
 #DIM 一括削除件数
-#DIMS 画像リソース保存
 #DIMS 削除番号
 #DIMS 削除番号配列, 101
-#DIM CONST レイヤー番号 = 1500
-#DIM size
 
 DRAWLINE
 PRINTL 所持している写真の一覧です
@@ -727,6 +737,11 @@ IF ページ数 > 0
 ELSE
 	PRINTC  
 ENDIF
+IF DT_ROW_LENGTH("写真データベース") > ページ数 * 15 + 15
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
 PRINTBUTTONLC "[999] 戻る", 999
 IF 一括削除モード && 削除番号 != ""
 	PRINTBUTTONLC "[998] 削除する", 998
@@ -738,9 +753,7 @@ ELSEIF 一括削除モード
 ELSE
 	PRINTBUTTONLC "[998] 一括削除", 998
 ENDIF
-IF DT_ROW_LENGTH("写真データベース") > ページ数 * 15 + 15
-	PRINTBUTTONLC "[1001] 次のページ", 1001
-ENDIF
+PRINTBUTTONLC "[1002] 表示モード切り替え", 1002
 
 BINPUT
 ボタン記録 = RESULT
@@ -752,6 +765,7 @@ SELECTCASE ボタン記録
 			削除番号 = 
 			RESTART
 		ENDIF
+		ページ数 = 0
 		RETURN 0
 	CASE 998
 		;一括削除へ
@@ -777,6 +791,11 @@ SELECTCASE ボタン記録
 	CASE 1001
 		ページ数 += 1
 		RESTART
+	CASE 1002
+		INVERTBIT 写真一覧表示OPTION, 0
+		一括削除モード = 0
+		ページ数 = 0
+		RETURN 1
 	CASEELSE
 		IF 一括削除モード
 			SIF 一括削除件数 > 99
@@ -795,92 +814,362 @@ SELECTCASE ボタン記録
 				一括削除件数 -= 1
 			ENDIF
 		ELSE
-			;写真詳細表示
-			$写真表示
-			DRAWLINE
-			PRINTL
-			PRINTFORML ■%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%
-			PRINTL
-			
-			;グラフィック表示
-			SPRITEDISPOSE "写真グラ"
-			GDISPOSE レイヤー番号
-			;データベースに保存しといた文字列を引っ張ってくる
-			画像リソース保存 = %DT_CELL_GETS("写真データベース", ボタン記録,  "撮影対象画像リソース")%
-			VARSET RESULTS
-			;エフェクト保存分を分割
-			SPLIT 画像リソース保存, "+++", RESULTS
-			IF RESULTS:0 != ""
-				GCREATEFROMFILE レイヤー番号, RESULTS:0
-				;画像生成に成功したら次へ
-				IF RESULT
-					LOCAL = 0
-					IF STRFIND(RESULTS:0, "短冊_") > -1
-						LOCAL = スプライト作成("写真グラ", レイヤー番号, 1)
-						size = 2250
-					ELSE
-						LOCAL = スプライト作成("写真グラ", レイヤー番号, 0)
-						size = 1125
-					ENDIF
-					;スプライト生成に成功したら表示へ
-					IF LOCAL
-						SIF RESULTS:1 != ""
-							LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:1)
-						SIF RESULTS:2 != ""
-							LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:2)
-						HTML_PRINT @"　　<img src='写真グラ' width='1125' height='{size}'>"
-						FOR LOCAL, 0, size / 100
-							PRINTL
-						NEXT
-					ENDIF
-				ENDIF
+			DO
+			LOCAL = 0
+			SIF ボタン記録 < DT_ROW_LENGTH("写真データベース") - 1
+				LOCAL = 1
+			CALL 写真詳細表示(DT_CELL_GET("写真データベース", ボタン記録, "id"), ボタン記録, LOCAL)
+			IF RESULT == 0
+				RESTART
+			ELSE
+				ボタン記録 += RESULT
 			ENDIF
-
-			;フリー表示枠表示
-			IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１") != ""
-				;html形式で保存されているはず
-				HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１"), "<br>", "<br>　　")%"
-				PRINTL 
-			ENDIF
-			IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２") != ""
-				;html形式で保存されているはず
-				HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２"), "<br>", "<br>　　")%"	
-				PRINTL 
-			ENDIF
-			IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３") != ""
-				;html形式で保存されているはず
-				HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３"), "<br>", "<br>　　")%"
-				PRINTL 
-			ENDIF
-			IF DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上") != ""
-				;html形式で保存されているはず
-				HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上"), "<br>", "<br>　　")%"
-				PRINTL 
-			ENDIF
-
-			DAY算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時")) / 10000
-			TIME算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時")) % 10000
-			PRINTFORML 　　撮影日時：{DAY算出 / 120 + 1}年目　%月登録:((DAY算出 / 30) % 4)%　{DAY算出 % 30 + 1}日(%曜日登録:(DAY算出 % 7)%)　{TIME算出 / 60}時{TIME算出 % 60}分
-			PRINTFORML 　　撮影場所：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影場所名前")%
-			PRINTFORML 　　撮影対象：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影対象NAME")%
-			PRINTL
-			
-			PRINTBUTTONLC "[999] 戻る", 999
-			PRINTBUTTONLC "[1000] この写真を削除する", 1000
-			BINPUT
-			IF RESULT == 1000
-				DRAWLINE
-				PRINTFORML 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%』を削除してよろしいですか？
-				PRINTBUTTONLC "[0] はい", 0
-				PRINTBUTTONLC "[1] いいえ", 1
-				BINPUT
-				IF RESULT == 0
-					PRINTFORMW 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%』を削除しました。
-					DT_ROW_REMOVE "写真データベース", DT_CELL_GET("写真データベース", ボタン記録, "id")
-				ELSE
-					GOTO 写真表示
-				ENDIF
-			ENDIF
+			LOOP 1
 		ENDIF
 		RESTART
 ENDSELECT
+
+
+@アルバム式表示()
+#DIM ページ数
+#DIM キャラ番保存
+#DIM 表示数カウント
+#DIM 表示キャラ配列, 500
+#DIM 枚数登録配列, 500
+#DIM ボタン記録
+
+DRAWLINE
+PRINTL 所持している写真の一覧です
+PRINTL 選択するとキャラごとの写真の表示・削除が可能です
+
+;表示候補を整理
+VARSET 表示キャラ配列
+VARSET 枚数登録配列
+LOCAL = 0
+FOR 表示数カウント, 0, DT_ROW_LENGTH("写真データベース")
+	;NOと名前から現在のキャラ番号を出す
+	キャラ番保存 = 0
+	IF DT_CELL_GET("写真データベース", 表示数カウント, "撮影対象NO") == 999
+		キャラ番保存 = FINDCHARA(NAME, @"%DT_CELL_GETS("写真データベース", 表示数カウント, "撮影対象NAME")%")
+		IF キャラ番保存 == -1
+			キャラ番保存 = FINDCHARA(NAME, @"%REPLACE(DT_CELL_GETS("写真データベース", 表示数カウント, "撮影対象NAME"), "[一般人]", "")%")
+		ENDIF
+	ELSE
+		キャラ番保存 = FINDCHARA(NO, DT_CELL_GET("写真データベース", 表示数カウント, "撮影対象NO"))
+	ENDIF
+
+	IF キャラ番保存 > 0
+		IF MATCH(表示キャラ配列, キャラ番保存)
+			枚数登録配列:(FINDELEMENT(表示キャラ配列, キャラ番保存)) -= 1
+		ELSE
+			表示キャラ配列:LOCAL = キャラ番保存
+			枚数登録配列:LOCAL = -1
+			LOCAL ++
+		ENDIF
+	ENDIF
+NEXT
+;登録終わったら枚数で降順ソート
+ARRAYMSORT 枚数登録配列, 表示キャラ配列
+
+$表示処理
+DRAWLINE
+;リスト表示
+FOR LOCAL, ページ数 * 15, ページ数 * 15 + 15
+	IF 表示キャラ配列:LOCAL < 1
+		PRINTL
+		CONTINUE
+	ENDIF
+	PRINTBUTTON @"[{LOCAL, 2}] %NAME:(表示キャラ配列:LOCAL), 50%　枚数：{枚数登録配列:LOCAL * -1}枚", LOCAL
+	PRINTL
+NEXT
+
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページ", 1000
+ELSE
+	PRINTC  
+ENDIF
+IF 表示キャラ配列:(ページ数 * 15 + 15) > 0
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
+PRINTBUTTONLC "[999] 戻る", 999
+PRINTBUTTONLC "[1002] 表示モード切り替え", 1002
+
+BINPUT
+ボタン記録 = RESULT
+SELECTCASE ボタン記録
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASE 1000
+		ページ数 -= 1
+		GOTO 表示処理
+	CASE 1001
+		ページ数 += 1
+		GOTO 表示処理
+	CASE 1002
+		INVERTBIT 写真一覧表示OPTION, 0
+		ページ数 = 0
+		RETURN 1
+	CASEELSE
+		DO
+		CALL アルバム式個別表示(ボタン記録, 表示キャラ配列)
+		IF RESULT == 0
+			RESTART
+		ELSE
+			ボタン記録 += RESULT
+		ENDIF
+		LOOP 1
+ENDSELECT
+
+@アルバム式個別表示(選択キャラ, 表示キャラ配列)
+#DIM ボタン記録
+#DIM 選択キャラ
+#DIM REF 表示キャラ配列, 0
+#DIM 写真ID配列, 2000
+#DIM 表示数カウント
+#DIM ページ数
+#DIM 一括削除モード
+#DIM 一括削除件数
+#DIMS 削除番号
+#DIMS 削除番号配列, 101
+
+DRAWLINE
+VARSET 写真ID配列
+DT_SELECT "写真データベース", @"撮影対象NO = {NO:(表示キャラ配列:選択キャラ)} And 撮影対象NAME = '%NAME:(表示キャラ配列:選択キャラ)%'", , 写真ID配列
+
+FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
+	IF 写真ID配列:表示数カウント < 1
+		PRINTL
+		CONTINUE
+	ENDIF
+	SIF 一括削除モード && STRCOUNT(削除番号, @"_{写真ID配列:表示数カウント}_")
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[{表示数カウント, 3}] - 『%DT_CELL_GETS("写真データベース", 写真ID配列:表示数カウント, "写真タイトル", 1)%』", 表示数カウント
+	RESETCOLOR
+	PRINTL
+NEXT
+
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページ", 1000
+ELSE
+	PRINTC  
+ENDIF
+IF 写真ID配列:(ページ数 * 15 + 15) > 0
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
+PRINTBUTTONLC "[999] 戻る", 999
+IF 一括削除モード && 削除番号 != ""
+	PRINTBUTTONLC "[998] 削除する", 998
+ELSEIF 一括削除モード
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] 削除する
+	PRINT            
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[998] 一括削除", 998
+ENDIF
+PRINTL 
+IF 選択キャラ > 0
+	PRINTBUTTONLC "[1010] 前のキャラへ", 1010
+ELSE
+	PRINTC  
+ENDIF
+IF 表示キャラ配列:(選択キャラ + 1) > 0
+	PRINTBUTTONLC "[1011] 次のキャラへ", 1011
+ENDIF
+
+BINPUT
+ボタン記録 = RESULT
+SELECTCASE ボタン記録
+	CASE 999
+		IF 一括削除モード
+			一括削除件数 = 0
+			一括削除モード = 0
+			削除番号 = 
+			RESTART
+		ENDIF
+		ページ数 = 0
+		RETURN 0
+	CASE 998
+		;一括削除へ
+		IF 一括削除モード
+			VARSET 削除番号配列
+			SPLIT 削除番号, "_", 削除番号配列
+			FOR 表示数カウント, 1, 一括削除件数 + 1
+				DT_ROW_REMOVE "写真データベース", TOINT(削除番号配列:表示数カウント)
+			NEXT
+			PRINTFORMW {一括削除件数}枚の写真を削除しました
+			一括削除モード = 0
+			一括削除件数 = 0
+			削除番号 = 
+		ELSE
+			一括削除モード = 1
+			一括削除件数 = 0
+			削除番号 = 
+		ENDIF
+		RESTART
+	CASE 1000
+		ページ数 -= 1
+		RESTART
+	CASE 1001
+		ページ数 += 1
+		RESTART
+	CASE 1010
+		RETURN -1
+	CASE 1011
+		RETURN 1
+	CASEELSE
+		IF 一括削除モード
+			SIF 一括削除件数 > 99
+				RESTART
+			IF STRCOUNT(削除番号, @"_{写真ID配列:ボタン記録}_") == 0
+				IF 削除番号 != ""
+					削除番号 += @"{写真ID配列:ボタン記録}_"
+				ELSE
+					削除番号 += @"_{写真ID配列:ボタン記録}_"
+				ENDIF
+				一括削除件数 += 1
+			ELSE
+				VARSET 削除番号配列
+				SPLIT 削除番号, @"_{写真ID配列:ボタン記録}_", 削除番号配列
+				削除番号 = %削除番号配列:0%_%削除番号配列:1%
+				一括削除件数 -= 1
+			ENDIF
+		ELSE
+			DO
+			LOCAL = 0
+			SIF 写真ID配列:(ボタン記録 + 1) > 0
+				LOCAL = 1
+			CALL 写真詳細表示(写真ID配列:ボタン記録, ボタン記録, LOCAL)
+			IF RESULT == 0
+				RESTART
+			ELSE
+				ボタン記録 += RESULT
+			ENDIF
+			LOOP 1
+		ENDIF
+		RESTART
+ENDSELECT
+
+
+@写真詳細表示(ボタン記録, 前フラグ, 次フラグ)
+#DIM ボタン記録
+#DIM 前フラグ
+#DIM 次フラグ
+#DIM DAY算出
+#DIM TIME算出
+#DIM CONST レイヤー番号 = 1500
+#DIM size
+#DIMS 画像リソース保存
+
+;写真詳細表示
+$写真表示
+DRAWLINE
+PRINTL
+PRINTFORML ■%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%
+PRINTL
+
+;グラフィック表示
+SPRITEDISPOSE "写真グラ"
+GDISPOSE レイヤー番号
+;データベースに保存しといた文字列を引っ張ってくる
+画像リソース保存 = %DT_CELL_GETS("写真データベース", ボタン記録,  "撮影対象画像リソース", 1)%
+VARSET RESULTS
+;エフェクト保存分を分割
+SPLIT 画像リソース保存, "+++", RESULTS
+IF RESULTS:0 != ""
+	GCREATEFROMFILE レイヤー番号, RESULTS:0
+	;画像生成に成功したら次へ
+	IF RESULT
+		LOCAL = 0
+		IF STRFIND(RESULTS:0, "短冊_") > -1
+			LOCAL = スプライト作成("写真グラ", レイヤー番号, 1)
+			size = 2250
+		ELSE
+			LOCAL = スプライト作成("写真グラ", レイヤー番号, 0)
+			size = 1125
+		ENDIF
+		;スプライト生成に成功したら表示へ
+		IF LOCAL
+			SIF RESULTS:1 != ""
+				LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:1)
+			SIF RESULTS:2 != ""
+				LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:2)
+			HTML_PRINT @"　　<img src='写真グラ' width='1125' height='{size}'>"
+			FOR LOCAL, 0, size / 100
+				PRINTL
+			NEXT
+		ENDIF
+	ENDIF
+ENDIF
+
+;フリー表示枠表示
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２", 1), "<br>", "<br>　　")%"	
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+
+DAY算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時", 1)) / 10000
+TIME算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時", 1)) % 10000
+PRINTFORML 　　撮影日時：{DAY算出 / 120 + 1}年目　%月登録:((DAY算出 / 30) % 4)%　{DAY算出 % 30 + 1}日(%曜日登録:(DAY算出 % 7)%)　{TIME算出 / 60}時{TIME算出 % 60}分
+PRINTFORML 　　撮影場所：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影場所名前", 1)%
+PRINTFORML 　　撮影対象：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影対象NAME", 1)%
+PRINTL
+
+PRINTBUTTONLC "[999] 戻る", 999
+PRINTBUTTONLC "[1000] この写真を削除する", 1000
+PRINTL 
+IF 前フラグ
+	PRINTBUTTONLC "[4] 前の写真へ", 4
+ELSE
+	PRINTC 　
+ENDIF
+IF 次フラグ
+	PRINTBUTTONLC "[6] 次の写真へ", 6
+ENDIF
+
+BINPUT
+SELECTCASE RESULT
+	CASE 1000
+		DRAWLINE
+		PRINTFORML 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%』を削除してよろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			PRINTFORMW 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%』を削除しました。
+			DT_ROW_REMOVE "写真データベース", ボタン記録
+		ELSE
+			GOTO 写真表示
+		ENDIF
+	CASE 4
+		RETURN -1
+	CASE 6
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+
