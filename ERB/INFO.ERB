@@ -133,7 +133,7 @@ IF TFLAG:調教モード == 3
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(飲み会TARGET:LOCAL):態度保存 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
-		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
+		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:自室位置
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
@@ -148,7 +148,7 @@ ELSE
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):態度保存 , 1)
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
-		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:MASTER:311
+		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:MASTER:自室位置
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
@@ -435,7 +435,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		TARGET = PLAYER
 	ENDIF
 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
-		LOCALS:1 '= 短冊グラ表示用文字列関数(TARGET)
+		LOCALS:1 '= 短冊グラ表示用文字列関数(TARGET,,,1)
 		LOCALS '= @"<div rect='0, 0, 1125, 2475'><button value='889' title='表示方法変更:正方形(\@ LOCAL? 3P対応# 単独\@)&#13;&#10;%RESULTS:2%'>%LOCALS:1%"
 		LOCALS += @"%"<br>" * 20%[表示方法変更:\@ LOCAL? 3P対応# 正方形\@]</button>"
 		SIF LOCAL
@@ -443,7 +443,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		LOCALS += @"</div>"
 		HTML_PRINT LOCALS, 1
 	ELSEIF GETBIT(画像サイズ切り替えOPTION記憶, 4) && LOCAL
-		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET)
+		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET,,,,1)
 		LOCALS '= @"<div rect='0, 0, 1125, 2475'><button value='889' title='表示方法変更:正方形(単独)&#13;&#10;%RESULTS:2%'>%LOCALS:1%</button>"
 		LOCALS:2 '= 顔グラ表示用文字列関数(LOCAL, 1, 1012)
 		LOCALS += @"<br><button value='{LOCAL+2000}' title='%CALLNAME:LOCAL%をメインにする&#13;&#10;%RESULTS:3%'>%LOCALS:2%</button>"
@@ -452,7 +452,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		LOCALS += @"</div>"
 		HTML_PRINT LOCALS, 1
 	ELSE
-		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET)
+		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET,,,,1)
 		LOCALS '= @"<div rect='0, 0, 1125, 1350'><button value='889' title='表示方法変更:短冊&#13;&#10;%RESULTS:2%'>%LOCALS:1%"
 		LOCALS += @"%"<br>" * 10%[表示方法変更:短冊]</button>"
 		SIF LOCAL
@@ -1060,6 +1060,11 @@ ARRAYSHIFT CFLAG_SORTARRAY, 1, 0
 ;同室中のキャラをTARGETに代入
 ;-------------------------------------------------
 @TARGET_SET()
+#DIM TARGET保存
+;もとのTARGETを保存
+
+TARGET保存 = TARGET
+
 VARSET LOCAL
 VARSET TARGET
 VARSET 飲み会TARGET
@@ -1086,6 +1091,13 @@ ELSE
 		LOCAL:1 ++
 		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 	NEXT
+ENDIF
+
+IF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
+	;元のTARGETがいるならそれ
+	TARGET = TARGET保存
+ELSE
+	TARGET = TARGET:1
 ENDIF
 
 

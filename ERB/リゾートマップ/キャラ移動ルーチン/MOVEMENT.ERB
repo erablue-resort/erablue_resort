@@ -161,6 +161,8 @@ FOR LOCAL,0,CHARANUM
 		CONTINUE
 	SIF モード実行中フラグ && MODE_確認_ターゲット側("アイテム系", LOCAL) < 0
 		CONTINUE
+	SIF CFLAG:LOCAL:添い寝フラグ
+		CONTINUE
 	;部屋移動
 	CALL CHARA_MOVEMENT_T(LOCAL)
 NEXT
@@ -169,6 +171,8 @@ LOCAL:1 = 滞在キャラ数算出関数(2)
 
 FOR LOCAL, 1, マップ部屋番号上限
 	SIF LOCAL == 20
+		CONTINUE
+	SIF LOCAL > 2000
 		CONTINUE
 	IF 存在しない移動先(0, LOCAL) == 0
 		雑務ゲージ:LOCAL = MIN(雑務ゲージ:LOCAL + (TIME_PROGRESS(TFLAG:行動前時刻) * LOCAL:1 / 120), 10000)
@@ -236,7 +240,7 @@ SELECTCASE 移動先候補
 		ELSE
 			RETURN 0
 		ENDIF
-	CASE 20
+	CASE 20, 2000 TO 2020
 		;基本自室には来ない（後々恋慕状態だと来るように再設定すること）
 		RETURN 0
 	;ほかはまんべんなく移動する
@@ -307,9 +311,9 @@ IF !CFLAG:ARG:睡眠
 		;部屋へ戻る、分身は移動しない
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
 			;あなたがいる場合は部屋へと運ぶ
-				CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
-				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
-				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
+			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
+			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+			PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
 		ELSE
 			;同室じゃない場合は勝手に戻る
 			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
@@ -353,12 +357,15 @@ IF !CFLAG:ARG:睡眠
 		;もし同じ部屋にあなたがいるなら追い出される
 		IF 陥落チェック(ARG) == 0
 			PRINTFORMW %CALLNAME:MASTER%は追い出されてしまった……
-			LOCAL = キャラクター部屋検索(ARG)
 			IF CFLAG:ARG:現在位置 == 303
 				CFLAG:MASTER:現在位置 = 307
 			ELSEIF 部屋検索_マップ種別 == 999
 				CFLAG:PLAYER:現在マップ種別 = 0
-				CFLAG:MASTER:現在位置 = 20
+				IF 施設改造度:20:0
+					CFLAG:MASTER:現在位置 = 2001
+				ELSE
+					CFLAG:MASTER:現在位置 = 20
+				ENDIF
 				宿泊エリア表示種別 = 0
 				CALL 宿泊エリア処理
 			ELSEIF 部屋検索_マップ種別 == 2
@@ -396,9 +403,11 @@ TCVAR:ARG:初うふふフラグ = 0
 @CHARA_AWAKE, ARG
 
 
-IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置
+IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:ARG:現在マップ種別 == CFLAG:MASTER:現在マップ種別
 	SIF ARG > 0
 	PRINTFORMW %CALLNAME:ARG%が目を覚ました
+	;同じ場所で起きた時は３分のインターバル
+	TCVAR:ARG:移動インターバル時間 = 3
 	;おはよう口上
 	TRYCALLFORM KOJO_EVENT_おはよう_{NO:ARG}
 ENDIF
@@ -410,8 +419,10 @@ IF CFLAG:ARG:睡眠
 		CALL CHARA_SLEEP, ARG
 		RETURN 0
 	ENDIF
-	PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
-	CALL CHARA_ROUTINE_STATUS(ARG, "初期位置")
+	IF CFLAG:ARG:現在位置 != CFLAG:MASTER:現在位置 || CFLAG:ARG:現在マップ種別 != CFLAG:MASTER:現在マップ種別
+		PRINTFORML %CALLNAME:ARG%が目を覚ましたようだ。
+		CALL CHARA_ROUTINE_STATUS(ARG, "初期位置")
+	ENDIF
 	;起きても酩酊が残ってるなら二日酔い
 	SIF BASE:ARG:酩酊
 		CFLAG:ARG:酔いすぎ = 2

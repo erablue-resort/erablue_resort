@@ -1,0 +1,172 @@
+﻿
+@COMNAME332
+#FUNCTIONS
+TSTR:コマンド名受渡 = スカート潜り込み
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_332
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
+
+@COM_TOOLTIP_332
+LOCALS = <br>■スカート潜り込み<br>
+LOCALS += "相手のスカートに頭を突っ込むコマンド。<br>スカート状ではない服だと不可能<br>二人きりでないと不可能。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：接触・露出・不快・反感"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM332
+
+CALL セクハラ反応タイプ判定(TARGET)
+;RFLAG:コマンド結果受渡し変数
+;1:拒絶  2:受け入れ  3:喜び
+;RFLAG:コマンド結果受渡し変数２
+;1:無知  2:無反応  3:嫌悪  4:拒否  5:余裕  6:羞恥  7:愉悦  8:汎用
+
+;結果に関わりなく発生する快楽部分
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 200)
+;ノーパン時、露出が倍
+IF TEQUIP:TARGET:下半身下着あり == 0
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+ENDIF
+
+
+IF RFLAG:コマンド結果受渡し変数２ <= 2
+	;無知、あるいは無反応の場合不快反感発生無し
+	IF 陥落チェック(TARGET)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+	ENDIF
+ELSE
+	;二人きりの場合
+	IF 陥落チェック(TARGET)
+		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 50)
+	ELSE
+		CALL SOURCE_CALC_不快(TARGET, PLAYER, 100)
+		CALL SOURCE_CALC_反感(TARGET, PLAYER, 100)
+	ENDIF
+ENDIF	
+
+TIME += 3
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE332
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(332)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;二人きりのみ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;スカート着用必須
+SIF TEQUIP:TARGET:下半身服あり == 0
+	RETURN 0
+SIF TEQUIP:TARGET:スカートめくり可 == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM332
+
+PRINTFORML %CALLNAME:MASTER%は%CALLNAME:TARGET%にこっそりと近づき、服の裾に頭を突っ込んだ。
+
+
+
+@MESSAGE_COM332_非口上時
+
+PRINTFORM %CALLNAME:TARGET%は
+
+SELECTCASE RFLAG:コマンド結果受渡し変数２
+	CASE 1
+		;無知
+		PRINTFORM 何をしているのかわかっていない様子で、%CALLNAME:MASTER%のことを見ている。
+	CASE 2
+		;無反応
+		PRINTFORM 何も気にしないかのように無表情でされるがままになっている。
+	CASE 3
+		;嫌悪
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 慌てて服を抑え、ドン引きしたような目で%CALLNAME:MASTER%を見ている。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM 服を抑え、呆れたような目で%CALLNAME:MASTER%を見ている。
+		ELSE
+			;喜び
+			PRINTFORM 馬鹿なことをしてるな、と呆れたような目で%CALLNAME:MASTER%を見ている。
+		ENDIF
+	CASE 4
+		;拒否
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 慌てて服を抑え、厳しい口調で%CALLNAME:MASTER%を注意した。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM 服を抑え、やんわりと%CALLNAME:MASTER%を注意した。
+		ELSE
+			;喜び
+			PRINTFORM 他の人がいる時にはしないように、と%CALLNAME:MASTER%を注意した。
+		ENDIF
+	CASE 5
+		;余裕
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 静かに服を抑え、冷たい目で%CALLNAME:MASTER%を睨みつけた。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM 服を抑え、やんわりと%CALLNAME:MASTER%を注意した。
+		ELSE
+			;喜び
+			PRINTFORM 見たいなら遠慮することはない、と自分から服の裾をひらひらさせている。
+		ENDIF
+	CASE 6
+		;羞恥
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 慌てて服を抑え、真っ赤な顔で%CALLNAME:MASTER%から飛び退いた。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM 慌てて服を抑え、真っ赤な顔で%CALLNAME:MASTER%をぽかぽかと叩いてきた。
+		ELSE
+			;喜び
+			PRINTFORM 服を抑え、真っ赤な顔で%CALLNAME:MASTER%をじっと見つめている。
+		ENDIF
+	CASE 7
+		;愉悦
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 静かに服を抑え、冷たい目で%CALLNAME:MASTER%を睨みつけた。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM そんなに中が気になるのかと%CALLNAME:MASTER%をからかってきた。
+		ELSE
+			;喜び
+			PRINTFORM 見てるだけでいいのかと%CALLNAME:MASTER%をからかってきた。
+		ENDIF
+	CASEELSE
+		;汎用
+		IF RFLAG:コマンド結果受渡し変数 == 1
+			;拒絶
+			PRINTFORM 慌てて服を抑え、%CALLNAME:MASTER%を睨みつけた。
+		ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+			;受け入れ
+			PRINTFORM 服を抑え、困ったような顔で%CALLNAME:MASTER%を見ている。
+		ELSE
+			;喜び
+			PRINTFORM いたずらしては駄目だと、苦笑しながら%CALLNAME:MASTER%を注意した。
+		ENDIF
+ENDSELECT

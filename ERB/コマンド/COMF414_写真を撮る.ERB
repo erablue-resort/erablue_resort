@@ -99,6 +99,10 @@ HTML_PRINT RSTR:コマンド結果受渡し文字列
 #DIMS 体位モード一時保存
 #DIM 前ターン絶頂の強度
 #DIM 配列番号
+#DIM 実行者保存
+#DIM 対象者保存
+#DIMS 実行モード名
+#DIMS コマンド履歴保存
 ;パターンの優先度は絶頂後＞好感度分岐
 ;それにプラスしてハメ撮り（V・A）＞コスプレや全裸で分岐
 
@@ -140,11 +144,14 @@ IF TCVAR:TARGET:前ターン絶頂
 	ELSEIF TCVAR:TARGET:前ターンＢ絶頂 == 前ターン絶頂の強度
 		SIF TALENT:TARGET:Ｂ感度 > 0
 			写真タイトル一時記録 += "敏感な"
-		SIF TALENT:TARGET:バストサイズ > 1
-			写真タイトル一時記録 += "大きな"
-		SIF TALENT:TARGET:バストサイズ < 0
-			写真タイトル一時記録 += "小さな"
-		写真タイトル一時記録 += "乳で"
+		IF TALENT:TARGET:バストサイズ > 1
+			写真タイトル一時記録 += @"%TEXTR("巨乳/おっぱい/デカパイ")%"
+		ELSEIF TALENT:TARGET:バストサイズ < 0
+			写真タイトル一時記録 += @"%TEXTR("小さな胸/微乳/貧乳")%"
+		ELSE
+			写真タイトル一時記録 += @"%TEXTR("胸/おっぱい/乳房")%"
+		ENDIF
+		写真タイトル一時記録 += "で"
 	ELSEIF TCVAR:TARGET:前ターンＳ絶頂 == 前ターン絶頂の強度
 		SIF TALENT:TARGET:Ｓ感度 > 0
 			写真タイトル一時記録 += "敏感な"
@@ -193,15 +200,41 @@ ELSE
 			写真タイトル一時記録 += @"%体位モード一時保存%をする"
 		ENDIF
 	ELSE
-		STRDATA ランダム文字列
-			DATA 頬を赤く染めた
-			DATA 潤んだ瞳で見つめる
-			DATA どこか期待するような顔をする
-			DATA 少し恥ずかしそうに顔を伏せた
-			DATA 手で目元を隠す
-			DATA なんとなくピースをする
-		ENDDATA
-		写真タイトル一時記録 += @"%ランダム文字列%"
+		SIF TCVAR:TARGET:膣内精液量
+			写真タイトル一時記録 += @"%TEXTR("ナカダシされた精液/精液/たっぷり出されたザーメン")%を%TEXTR("膣/膣口/秘処")%から%TEXTR("こぼし/溢れさせ")%、"
+		SELECTCASE RAND:6
+		CASE 0
+			写真タイトル一時記録 += @"頬を%TEXTR("赤く染め/上気させ")%た"
+		CASE 1
+			IF TALENT:TARGET:応答 == 1
+			;生意気
+				写真タイトル一時記録 += @"ニヤニヤと挑発的に見つめる"
+			ELSE
+				写真タイトル一時記録 += @"潤んだ瞳で見つめる"
+			ENDIF
+		CASE 2
+			IF CFLAG:TARGET:発情期フラグ < 0
+				写真タイトル一時記録 += @"発情に蕩け快楽への期待に満ちた顔で見つめる"
+			ELSE
+				写真タイトル一時記録 += @"どこか期待するような顔をする"
+			ENDIF
+		CASE 3
+			写真タイトル一時記録 += @"少し%TEXTR("恥ずかしそう/恥じらうよう")%に顔を伏せた"
+		CASE 4
+			IF TALENT:TARGET:陽気／陰気 == -1
+			;陰気
+				写真タイトル一時記録 += @"恥ずかしがって腕で顔を隠す"
+			ELSE
+				写真タイトル一時記録 += @"手で目元を隠す"
+			ENDIF
+		CASE 5
+			IF TALENT:TARGET:陽気／陰気 == -1
+			;陰気
+				写真タイトル一時記録 += @"ぎこちなく%TEXTR("ピースをする/笑う")%"
+			ELSE
+				写真タイトル一時記録 += @"なんとなくピースをする"
+			ENDIF
+		ENDSELECT
 	ENDIF
 	写真タイトル一時記録 += @"%CALLNAME:TARGET%"
 ENDIF
@@ -209,8 +242,91 @@ ENDIF
 RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
 ;データベース登録
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
-DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 1
+;体位モードを全部記録
+体位モード一時保存 = 
+FOR 配列番号, 0, DT_ROW_LENGTH("体位モードデータベース")
+	IF DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ") == TARGET
+		実行者保存 = TARGET
+		対象者保存 = DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ")
+		実行モード名 = %DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名")%
+	ELSEIF DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ") == TARGET
+		実行者保存 = DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ")
+		対象者保存 = TARGET
+		実行モード名 = %DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名")%
+	ELSE
+		CONTINUE
+	ENDIF
+	IF 系統リスト_アイテム系(実行モード名)
+		体位モード一時保存 += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>[%CALLNAME:対象者保存%が%実行モード名%装着中"
+	ELSEIF 系統リスト_触手系(実行モード名)
+		体位モード一時保存 += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>[触手が%CALLNAME:対象者保存%に%実行モード名%中"
+	ELSEIF 系統リスト_自慰系(実行モード名)
+		体位モード一時保存 += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>[%CALLNAME:対象者保存%が%実行モード名%中"
+	ELSE
+		体位モード一時保存 += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>[%CALLNAME:実行者保存%が%CALLNAME:対象者保存%に%実行モード名%中"
+	ENDIF
+	体位モード一時保存 += "<img src='えっちハート'>"
+	体位モード一時保存 += "]</font><br>"
+NEXT
 
+;コマンド履歴添付
+;これいる？　まあとりあえずつけとく
+コマンド履歴保存 = 
+コマンド履歴保存 += "＜撮影時コマンド履歴:"
+FOR LOCAL, 0, 5
+	IF コマンド履歴:LOCAL >= 370 && コマンド履歴:LOCAL <= 374
+		SIF LOCAL > 0
+			コマンド履歴保存 += " - "
+		;現在位置が同じかつCOMABLEが通るならボタン化
+		IF TARGET == コマンド履歴:(LOCAL + 5)
+			コマンド履歴保存 += @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]"
+		ELSE
+			;一旦TARGETが違うなら一旦相手を保存してから固有コマンド表示
+			LOCAL:1 = TARGET
+			TARGET = コマンド履歴:(LOCAL + 5)
+			コマンド履歴保存 += @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]"
+			TARGET = LOCAL:1
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL >= 380 && コマンド履歴:LOCAL <= 384
+		SIF LOCAL > 0
+			コマンド履歴保存 += " - "
+		;現在位置が同じかつCOMABLEが通るならボタン化
+		IF CFLAG:MASTER:現在位置 == コマンド履歴:(LOCAL + 10) && CFLAG:MASTER:現在マップ種別 == コマンド履歴:(LOCAL + 15)
+			コマンド履歴保存 += @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]"
+		ELSE
+			;一旦現在位置が違うなら一旦位置を保存してから固有コマンド表示
+			LOCAL:1 = CFLAG:MASTER:現在位置
+			LOCAL:2 = CFLAG:MASTER:現在マップ種別
+			CFLAG:MASTER:現在位置 = コマンド履歴:(LOCAL + 10)
+			コマンド履歴保存 += @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]"
+			CFLAG:MASTER:現在位置 = LOCAL:1
+			CFLAG:MASTER:現在マップ種別 = LOCAL:2
+		ENDIF
+	ELSEIF コマンド履歴:LOCAL >= 0
+		SIF LOCAL > 0
+			コマンド履歴保存 += " - "
+		;COMABLEが通るならボタン化
+		コマンド履歴保存 += @"[%TRAIN_COMNAME(コマンド履歴:LOCAL)%]"
+	ELSEIF コマンド履歴:LOCAL == -1
+		SIF LOCAL > 0
+			コマンド履歴保存 += " - "
+		;COMABLEが通るならボタン化
+		コマンド履歴保存 += @"[%TRAIN_COMNAME_S(派生コマンド履歴:LOCAL)%]"
+	ENDIF
+NEXT
+コマンド履歴保存 += "＞"
+
+VARSET RESULTS
+TRYCALLFORM 写真添付口上_ハメ撮り系_{NO:TARGET}(TARGET, 写真タイトル一時記録)
+
+{
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, 
+	"撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, 
+	"撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), 
+	"撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 1, 
+	"撮影対象画像リソース", RSTR:表示グラ記録, "撮影時追加文字列１", 体位モード一時保存,
+	"撮影時追加文字列２", コマンド履歴保存, "写真添付口上", RESULTS
+}
 履歴用実績:TARGET:被写体回数 += 1
 CALL 履歴登録チェック(TARGET, "被写体")
 履歴用実績:TARGET:ハメ撮り回数 += 1
@@ -252,43 +368,13 @@ ENDIF
 ;RFLAG:コマンド結果受渡し変数２に覗き対象が入ってくる
 CALL 覗き候補選定
 
-SELECTCASE CFLAG:PLAYER:現在マップ種別
-	CASE 0
-		SELECTCASE RFLAG:コマンド結果受渡し変数
-			CASE 1
-				;反対側を覗く
-				RSTR:コマンド結果受渡し文字列 += "反対側を景切鏡で盗撮した<br>"
-				IF RFLAG:コマンド結果受渡し変数２
-					SELECTCASE CFLAG:PLAYER:現在位置
-						CASE 7, 8
-							写真タイトル一時記録 += "服を脱いでいる途中の"
-						CASE 9, 11
-							STRDATA ランダム文字列
-								DATA 裸で湯船に浸かっている
-								DATA 石鹸で体を洗っている
-							ENDDATA
-							写真タイトル一時記録 += @"%ランダム文字列%"
-						CASE 13, 14
-							写真タイトル一時記録 += "水着に着替えている途中の"
-					ENDSELECT
-				ELSE
-					RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
-					RETURN 0
-				ENDIF
-				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
-				;履歴用に回数登録
-				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
-					;着替え覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
-				ELSE
-					;入浴覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
-				ENDIF
-			CASE 2
-				;隠れて覗く
-				RSTR:コマンド結果受渡し文字列 += @"物陰に隠れながら、景切鏡でこっそり盗撮した…<br>"
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		;反対側を覗く
+		RSTR:表示グラ記録 = 
+		RSTR:コマンド結果受渡し文字列 += "反対側を景切鏡で盗撮した<br>"
+		IF RFLAG:コマンド結果受渡し変数２
+			IF CFLAG:PLAYER:現在マップ種別 == 0
 				SELECTCASE CFLAG:PLAYER:現在位置
 					CASE 7, 8
 						写真タイトル一時記録 += "服を脱いでいる途中の"
@@ -301,72 +387,135 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					CASE 13, 14
 						写真タイトル一時記録 += "水着に着替えている途中の"
 				ENDSELECT
-				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
-				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
-					;着替え覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
-				ELSE
-					;入浴覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
-				ENDIF
-			CASE 3
-				;物陰で野外オナニーを見つける
-				RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
-				RSTR:コマンド結果受渡し文字列 += @"こっそりと物陰を景切鏡で盗撮した…<br>"
-				IF TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_絶頂
-					;絶頂シーン
-					写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄り、絶頂する%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
-				ELSE
-					;オナニーシーン
-					写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄る%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
-				ENDIF
-				;履歴用に回数登録
-				履歴用実績:(RFLAG:コマンド結果受渡し変数２):野外オナニー覗かれ回数 += 1
-				CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_野外オナニー")
-			CASE 4
-				;覗き専用場所から覗く
-				RSTR:コマンド結果受渡し文字列 += @"壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を盗撮した…<br>"
-				IF RFLAG:コマンド結果受渡し変数２
-					SELECTCASE CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置
-						CASE 702, 802
-							写真タイトル一時記録 += "服を脱いでいる途中の"
-						CASE 703, 803
-							写真タイトル一時記録 += "石鹸で体を洗っている"
-						CASE 704, 804
-							写真タイトル一時記録 += "裸で湯船に浸かっている"
-						CASE 705, 805
-							写真タイトル一時記録 += "裸で変わり湯に浸かっている"
-						CASE 706, 806
-							写真タイトル一時記録 += "サウナで汗を流している"
-						CASE 707, 807
-							写真タイトル一時記録 += "裸で露天風呂に浸かっている"
-						CASE 708, 808
-							写真タイトル一時記録 += "裸で壺湯に浸かっている"
-					ENDSELECT
-				ELSE
-					RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
-					RETURN 0
-				ENDIF
-				写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
-				IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 702, 802)
-					;着替え覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
-				ELSE
-					;入浴覗きパターン
-					履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
-					CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
-				ENDIF
-		ENDSELECT
+			ENDIF
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
+			RETURN 0
+		ENDIF
+		写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		;履歴用に回数登録
+		IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
+			;着替え覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+		ELSE
+			;入浴覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+		ENDIF
+	CASE 2
+		;隠れて覗く
+		RSTR:コマンド結果受渡し文字列 += @"物陰に隠れながら、景切鏡でこっそり盗撮した…<br>"
+		IF CFLAG:PLAYER:現在マップ種別 == 0
+			SELECTCASE CFLAG:PLAYER:現在位置
+				CASE 7, 8, 2007, 702, 802
+					写真タイトル一時記録 += "服を脱いでいる途中の"
+				CASE 703, 803
+					写真タイトル一時記録 += "石鹸で体を洗っている"
+				CASE 704, 804
+					写真タイトル一時記録 += "裸で湯船に浸かっている"
+				CASE 705, 805
+					写真タイトル一時記録 += "裸で変わり湯に浸かっている"
+				CASE 706, 806
+					写真タイトル一時記録 += "サウナで汗を流している"
+				CASE 707, 807
+					写真タイトル一時記録 += "裸で露天風呂に浸かっている"
+				CASE 708, 808
+					写真タイトル一時記録 += "裸で壺湯に浸かっている"
+				CASE 9, 11, 2008
+					STRDATA ランダム文字列
+						DATA 裸で湯船に浸かっている
+						DATA 石鹸で体を洗っている
+					ENDDATA
+					写真タイトル一時記録 += @"%ランダム文字列%"
+				CASE 13, 14
+					写真タイトル一時記録 += "水着に着替えている途中の"
+			ENDSELECT
+		ELSEIF CFLAG:PLAYER:現在マップ種別 == 3
+			;海
+			SELECTCASE CFLAG:PLAYER:現在位置
+				CASE 4, 5
+					写真タイトル一時記録 += "水着に着替えている途中の"
+			ENDSELECT
+		ENDIF
+		写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 7, 8, 13, 14)
+			;着替え覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+		ELSE
+			;入浴覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+		ENDIF
+	CASE 3
+		;物陰で野外オナニーを見つける
+		RFLAG:コマンド結果受渡し変数４ = TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位
+		RSTR:コマンド結果受渡し文字列 += @"こっそりと物陰を景切鏡で盗撮した…<br>"
+		IF TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_絶頂
+			;絶頂シーン
+			写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄り、絶頂する%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		ELSE
+			;オナニーシーン
+			写真タイトル一時記録 += @"%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%の物陰で自身の%PART_DESCRIPTION(RFLAG:コマンド結果受渡し変数２, TCVAR:(RFLAG:コマンド結果受渡し変数２):野外オナニー_部位)%を弄る%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		ENDIF
+		;履歴用に回数登録
+		履歴用実績:(RFLAG:コマンド結果受渡し変数２):野外オナニー覗かれ回数 += 1
+		CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_野外オナニー")
+	CASE 4
+		;覗き専用場所から覗く
+		RSTR:表示グラ記録 = 
+		RSTR:コマンド結果受渡し文字列 += @"壁の仕掛けを通じて%GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置)%を盗撮した…<br>"
+		IF RFLAG:コマンド結果受渡し変数２
+			IF CFLAG:PLAYER:現在マップ種別 == 0
+				SELECTCASE CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置
+					CASE 702, 802
+						写真タイトル一時記録 += "服を脱いでいる途中の"
+					CASE 703, 803
+						写真タイトル一時記録 += "石鹸で体を洗っている"
+					CASE 704, 804
+						写真タイトル一時記録 += "裸で湯船に浸かっている"
+					CASE 705, 805
+						写真タイトル一時記録 += "裸で変わり湯に浸かっている"
+					CASE 706, 806
+						写真タイトル一時記録 += "サウナで汗を流している"
+					CASE 707, 807
+						写真タイトル一時記録 += "裸で露天風呂に浸かっている"
+					CASE 708, 808
+						写真タイトル一時記録 += "裸で壺湯に浸かっている"
+				ENDSELECT
+			ENDIF
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += "しかし、向こう側には誰もいないようだ…"
+			RETURN 0
+		ENDIF
+		写真タイトル一時記録 += @"%CALLNAME:(RFLAG:コマンド結果受渡し変数２)%"
+		IF GROUPMATCH(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 702, 802)
+			;着替え覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):着替え覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_着替え")
+		ELSE
+			;入浴覗きパターン
+			履歴用実績:(RFLAG:コマンド結果受渡し変数２):風呂覗かれ回数 += 1
+			CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "覗かれ_入浴")
+		ENDIF
 ENDSELECT
 
 RSTR:コマンド結果受渡し文字列 += @"写真を確認すると、『%写真タイトル一時記録%』の写真が撮れていた。"
 ;データベース登録
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
-DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, "撮影場所", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, "撮影場所名前", GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置), "撮影対象NAME", NAME:(RFLAG:コマンド結果受渡し変数２), "撮影対象NO", NO:(RFLAG:コマンド結果受渡し変数２), "撮影シチュカテゴリ", 2
 
+VARSET RESULTS
+TRYCALLFORM 写真添付口上_盗撮系_{NO:(RFLAG:コマンド結果受渡し変数２)}(RFLAG:コマンド結果受渡し変数２, 写真タイトル一時記録)
+
+{
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, 
+	"撮影マップ種別", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, 
+	"撮影場所", CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置, 
+	"撮影場所名前", GETPLACENAME(CFLAG:(RFLAG:コマンド結果受渡し変数２):現在マップ種別, CFLAG:(RFLAG:コマンド結果受渡し変数２):現在位置), 
+	"撮影対象NAME", NAME:(RFLAG:コマンド結果受渡し変数２), "撮影対象NO", NO:(RFLAG:コマンド結果受渡し変数２), 
+	"撮影シチュカテゴリ", 2, "撮影対象画像リソース", RSTR:表示グラ記録, "写真添付口上", RESULTS
+}
 履歴用実績:(RFLAG:コマンド結果受渡し変数２):被写体回数 += 1
 CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "被写体")
 
@@ -375,6 +524,7 @@ CALL 履歴登録チェック(RFLAG:コマンド結果受渡し変数２, "被�
 #DIMS 撮影日時一時記録
 #DIMS ランダム文字列
 #DIM 前ターン絶頂の強度
+#DIMS 画像リソース記録
 
 写真タイトル一時記録 = 
 ;実行時メッセージを同時に入れ込む
@@ -425,7 +575,17 @@ ENDIF
 RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
 ;データベース登録
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
-DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 3
+
+VARSET RESULTS
+TRYCALLFORM 写真添付口上_仕事中系_{NO:TARGET}(TARGET, 写真タイトル一時記録)
+
+{
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録,
+	"撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, 
+	"撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), 
+	"撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 3, 
+	"撮影対象画像リソース", RSTR:表示グラ記録, "写真添付口上", RESULTS
+}
 
 履歴用実績:TARGET:被写体回数 += 1
 CALL 履歴登録チェック(TARGET, "被写体")
@@ -437,6 +597,7 @@ CALL 履歴登録チェック(TARGET, "被写体")
 #DIMS ランダム文字列
 #DIMS 服装一時記録
 #DIM 前ターン絶頂の強度
+#DIMS 画像リソース記録
 
 写真タイトル一時記録 = 
 ;実行時メッセージを同時に入れ込む
@@ -513,17 +674,37 @@ ENDIF
 RSTR:コマンド結果受渡し文字列 += @"『%写真タイトル一時記録%』の写真を撮った。"
 ;データベース登録
 撮影日時一時記録 = %TOSTR(DAY, "00000")%%TOSTR(TIME, "0000")%
-DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, "撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, "撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), "撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 4
 
+VARSET RESULTS
+TRYCALLFORM 写真添付口上_その他系_{NO:TARGET}(TARGET, 写真タイトル一時記録)
+
+{
+DT_ROW_ADD "写真データベース", "写真タイトル", 写真タイトル一時記録, "撮影日時", 撮影日時一時記録, 
+	"撮影マップ種別", CFLAG:TARGET:現在マップ種別, "撮影場所", CFLAG:TARGET:現在位置, 
+	"撮影場所名前", GETPLACENAME(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置), 
+	"撮影対象NAME", NAME:TARGET, "撮影対象NO", NO:TARGET, "撮影シチュカテゴリ", 4,
+	"撮影対象画像リソース", RSTR:表示グラ記録, "写真添付口上", RESULTS
+}
 履歴用実績:TARGET:被写体回数 += 1
 CALL 履歴登録チェック(TARGET, "被写体")
 
 @所持写真一覧表示
+
+IF 写真一覧表示OPTION	
+	;表示がややこしいので別関数に飛ばす
+	CALL アルバム式表示()
+ELSE
+	CALL 撮影順表示()
+ENDIF
+;表示方式切替時はRESULTに１が返ってくるのでリスタート
+SIF RESULT
+	RESTART
+
+
+@撮影順表示
 #DIM ページ数
 #DIM 表示数カウント
 #DIM ボタン記録
-#DIM DAY算出
-#DIM TIME算出
 #DIM 一括削除モード
 #DIM 一括削除件数
 #DIMS 削除番号
@@ -556,6 +737,11 @@ IF ページ数 > 0
 ELSE
 	PRINTC  
 ENDIF
+IF DT_ROW_LENGTH("写真データベース") > ページ数 * 15 + 15
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
 PRINTBUTTONLC "[999] 戻る", 999
 IF 一括削除モード && 削除番号 != ""
 	PRINTBUTTONLC "[998] 削除する", 998
@@ -567,9 +753,7 @@ ELSEIF 一括削除モード
 ELSE
 	PRINTBUTTONLC "[998] 一括削除", 998
 ENDIF
-IF DT_ROW_LENGTH("写真データベース") > ページ数 * 15 + 15
-	PRINTBUTTONLC "[1001] 次のページ", 1001
-ENDIF
+PRINTBUTTONLC "[1002] 表示モード切り替え", 1002
 
 BINPUT
 ボタン記録 = RESULT
@@ -581,6 +765,7 @@ SELECTCASE ボタン記録
 			削除番号 = 
 			RESTART
 		ENDIF
+		ページ数 = 0
 		RETURN 0
 	CASE 998
 		;一括削除へ
@@ -606,6 +791,11 @@ SELECTCASE ボタン記録
 	CASE 1001
 		ページ数 += 1
 		RESTART
+	CASE 1002
+		INVERTBIT 写真一覧表示OPTION, 0
+		一括削除モード = 0
+		ページ数 = 0
+		RETURN 1
 	CASEELSE
 		IF 一括削除モード
 			SIF 一括削除件数 > 99
@@ -624,35 +814,362 @@ SELECTCASE ボタン記録
 				一括削除件数 -= 1
 			ENDIF
 		ELSE
-			;写真詳細表示
-			$写真表示
-			DRAWLINE
-			PRINTL
-			PRINTFORML ■%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%
-			PRINTL
-			DAY算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時")) / 10000
-			TIME算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時")) % 10000
-			PRINTFORML 　　撮影日時：{DAY算出 / 120 + 1}年目　%月登録:((DAY算出 / 30) % 4)%　{DAY算出 % 30 + 1}日(%曜日登録:(DAY算出 % 7)%)　{TIME算出 / 60}時{TIME算出 % 60}分
-			PRINTFORML 　　撮影場所：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影場所名前")%
-			PRINTFORML 　　撮影対象：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影対象NAME")%
-			PRINTL
-			
-			PRINTBUTTONLC "[999] 戻る", 999
-			PRINTBUTTONLC "[1000] この写真を削除する", 1000
-			BINPUT
-			IF RESULT == 1000
-				DRAWLINE
-				PRINTFORML 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%』を削除してよろしいですか？
-				PRINTBUTTONLC "[0] はい", 0
-				PRINTBUTTONLC "[1] いいえ", 1
-				BINPUT
-				IF RESULT == 0
-					PRINTFORMW 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル")%』を削除しました。
-					DT_ROW_REMOVE "写真データベース", DT_CELL_GET("写真データベース", ボタン記録, "id")
-				ELSE
-					GOTO 写真表示
-				ENDIF
+			DO
+			LOCAL = 0
+			SIF ボタン記録 < DT_ROW_LENGTH("写真データベース") - 1
+				LOCAL = 1
+			CALL 写真詳細表示(DT_CELL_GET("写真データベース", ボタン記録, "id"), ボタン記録, LOCAL)
+			IF RESULT == 0
+				RESTART
+			ELSE
+				ボタン記録 += RESULT
 			ENDIF
+			LOOP 1
 		ENDIF
 		RESTART
 ENDSELECT
+
+
+@アルバム式表示()
+#DIM ページ数
+#DIM キャラ番保存
+#DIM 表示数カウント
+#DIM 表示キャラ配列, 500
+#DIM 枚数登録配列, 500
+#DIM ボタン記録
+
+DRAWLINE
+PRINTL 所持している写真の一覧です
+PRINTL 選択するとキャラごとの写真の表示・削除が可能です
+
+;表示候補を整理
+VARSET 表示キャラ配列
+VARSET 枚数登録配列
+LOCAL = 0
+FOR 表示数カウント, 0, DT_ROW_LENGTH("写真データベース")
+	;NOと名前から現在のキャラ番号を出す
+	キャラ番保存 = 0
+	IF DT_CELL_GET("写真データベース", 表示数カウント, "撮影対象NO") == 999
+		キャラ番保存 = FINDCHARA(NAME, @"%DT_CELL_GETS("写真データベース", 表示数カウント, "撮影対象NAME")%")
+		IF キャラ番保存 == -1
+			キャラ番保存 = FINDCHARA(NAME, @"%REPLACE(DT_CELL_GETS("写真データベース", 表示数カウント, "撮影対象NAME"), "[一般人]", "")%")
+		ENDIF
+	ELSE
+		キャラ番保存 = FINDCHARA(NO, DT_CELL_GET("写真データベース", 表示数カウント, "撮影対象NO"))
+	ENDIF
+
+	IF キャラ番保存 > 0
+		IF MATCH(表示キャラ配列, キャラ番保存)
+			枚数登録配列:(FINDELEMENT(表示キャラ配列, キャラ番保存)) -= 1
+		ELSE
+			表示キャラ配列:LOCAL = キャラ番保存
+			枚数登録配列:LOCAL = -1
+			LOCAL ++
+		ENDIF
+	ENDIF
+NEXT
+;登録終わったら枚数で降順ソート
+ARRAYMSORT 枚数登録配列, 表示キャラ配列
+
+$表示処理
+DRAWLINE
+;リスト表示
+FOR LOCAL, ページ数 * 15, ページ数 * 15 + 15
+	IF 表示キャラ配列:LOCAL < 1
+		PRINTL
+		CONTINUE
+	ENDIF
+	PRINTBUTTON @"[{LOCAL, 2}] %NAME:(表示キャラ配列:LOCAL), 50%　枚数：{枚数登録配列:LOCAL * -1}枚", LOCAL
+	PRINTL
+NEXT
+
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページ", 1000
+ELSE
+	PRINTC  
+ENDIF
+IF 表示キャラ配列:(ページ数 * 15 + 15) > 0
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
+PRINTBUTTONLC "[999] 戻る", 999
+PRINTBUTTONLC "[1002] 表示モード切り替え", 1002
+
+BINPUT
+ボタン記録 = RESULT
+SELECTCASE ボタン記録
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASE 1000
+		ページ数 -= 1
+		GOTO 表示処理
+	CASE 1001
+		ページ数 += 1
+		GOTO 表示処理
+	CASE 1002
+		INVERTBIT 写真一覧表示OPTION, 0
+		ページ数 = 0
+		RETURN 1
+	CASEELSE
+		DO
+		CALL アルバム式個別表示(ボタン記録, 表示キャラ配列)
+		IF RESULT == 0
+			RESTART
+		ELSE
+			ボタン記録 += RESULT
+		ENDIF
+		LOOP 1
+ENDSELECT
+
+@アルバム式個別表示(選択キャラ, 表示キャラ配列)
+#DIM ボタン記録
+#DIM 選択キャラ
+#DIM REF 表示キャラ配列, 0
+#DIM 写真ID配列, 2000
+#DIM 表示数カウント
+#DIM ページ数
+#DIM 一括削除モード
+#DIM 一括削除件数
+#DIMS 削除番号
+#DIMS 削除番号配列, 101
+
+DRAWLINE
+VARSET 写真ID配列
+DT_SELECT "写真データベース", @"撮影対象NO = {NO:(表示キャラ配列:選択キャラ)} And 撮影対象NAME = '%NAME:(表示キャラ配列:選択キャラ)%'", , 写真ID配列
+
+FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
+	IF 写真ID配列:表示数カウント < 1
+		PRINTL
+		CONTINUE
+	ENDIF
+	SIF 一括削除モード && STRCOUNT(削除番号, @"_{写真ID配列:表示数カウント}_")
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[{表示数カウント, 3}] - 『%DT_CELL_GETS("写真データベース", 写真ID配列:表示数カウント, "写真タイトル", 1)%』", 表示数カウント
+	RESETCOLOR
+	PRINTL
+NEXT
+
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページ", 1000
+ELSE
+	PRINTC  
+ENDIF
+IF 写真ID配列:(ページ数 * 15 + 15) > 0
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
+PRINTBUTTONLC "[999] 戻る", 999
+IF 一括削除モード && 削除番号 != ""
+	PRINTBUTTONLC "[998] 削除する", 998
+ELSEIF 一括削除モード
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] 削除する
+	PRINT            
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[998] 一括削除", 998
+ENDIF
+PRINTL 
+IF 選択キャラ > 0
+	PRINTBUTTONLC "[1010] 前のキャラへ", 1010
+ELSE
+	PRINTC  
+ENDIF
+IF 表示キャラ配列:(選択キャラ + 1) > 0
+	PRINTBUTTONLC "[1011] 次のキャラへ", 1011
+ENDIF
+
+BINPUT
+ボタン記録 = RESULT
+SELECTCASE ボタン記録
+	CASE 999
+		IF 一括削除モード
+			一括削除件数 = 0
+			一括削除モード = 0
+			削除番号 = 
+			RESTART
+		ENDIF
+		ページ数 = 0
+		RETURN 0
+	CASE 998
+		;一括削除へ
+		IF 一括削除モード
+			VARSET 削除番号配列
+			SPLIT 削除番号, "_", 削除番号配列
+			FOR 表示数カウント, 1, 一括削除件数 + 1
+				DT_ROW_REMOVE "写真データベース", TOINT(削除番号配列:表示数カウント)
+			NEXT
+			PRINTFORMW {一括削除件数}枚の写真を削除しました
+			一括削除モード = 0
+			一括削除件数 = 0
+			削除番号 = 
+		ELSE
+			一括削除モード = 1
+			一括削除件数 = 0
+			削除番号 = 
+		ENDIF
+		RESTART
+	CASE 1000
+		ページ数 -= 1
+		RESTART
+	CASE 1001
+		ページ数 += 1
+		RESTART
+	CASE 1010
+		RETURN -1
+	CASE 1011
+		RETURN 1
+	CASEELSE
+		IF 一括削除モード
+			SIF 一括削除件数 > 99
+				RESTART
+			IF STRCOUNT(削除番号, @"_{写真ID配列:ボタン記録}_") == 0
+				IF 削除番号 != ""
+					削除番号 += @"{写真ID配列:ボタン記録}_"
+				ELSE
+					削除番号 += @"_{写真ID配列:ボタン記録}_"
+				ENDIF
+				一括削除件数 += 1
+			ELSE
+				VARSET 削除番号配列
+				SPLIT 削除番号, @"_{写真ID配列:ボタン記録}_", 削除番号配列
+				削除番号 = %削除番号配列:0%_%削除番号配列:1%
+				一括削除件数 -= 1
+			ENDIF
+		ELSE
+			DO
+			LOCAL = 0
+			SIF 写真ID配列:(ボタン記録 + 1) > 0
+				LOCAL = 1
+			CALL 写真詳細表示(写真ID配列:ボタン記録, ボタン記録, LOCAL)
+			IF RESULT == 0
+				RESTART
+			ELSE
+				ボタン記録 += RESULT
+			ENDIF
+			LOOP 1
+		ENDIF
+		RESTART
+ENDSELECT
+
+
+@写真詳細表示(ボタン記録, 前フラグ, 次フラグ)
+#DIM ボタン記録
+#DIM 前フラグ
+#DIM 次フラグ
+#DIM DAY算出
+#DIM TIME算出
+#DIM CONST レイヤー番号 = 1500
+#DIM size
+#DIMS 画像リソース保存
+
+;写真詳細表示
+$写真表示
+DRAWLINE
+PRINTL
+PRINTFORML ■%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%
+PRINTL
+
+;グラフィック表示
+SPRITEDISPOSE "写真グラ"
+GDISPOSE レイヤー番号
+;データベースに保存しといた文字列を引っ張ってくる
+画像リソース保存 = %DT_CELL_GETS("写真データベース", ボタン記録,  "撮影対象画像リソース", 1)%
+VARSET RESULTS
+;エフェクト保存分を分割
+SPLIT 画像リソース保存, "+++", RESULTS
+IF RESULTS:0 != ""
+	GCREATEFROMFILE レイヤー番号, RESULTS:0
+	;画像生成に成功したら次へ
+	IF RESULT
+		LOCAL = 0
+		IF STRFIND(RESULTS:0, "短冊_") > -1
+			LOCAL = スプライト作成("写真グラ", レイヤー番号, 1)
+			size = 2250
+		ELSE
+			LOCAL = スプライト作成("写真グラ", レイヤー番号, 0)
+			size = 1125
+		ENDIF
+		;スプライト生成に成功したら表示へ
+		IF LOCAL
+			SIF RESULTS:1 != ""
+				LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:1)
+			SIF RESULTS:2 != ""
+				LOCAL = スプライト合成("写真グラ", レイヤー番号, RESULTS:2)
+			HTML_PRINT @"　　<img src='写真グラ' width='1125' height='{size}'>"
+			FOR LOCAL, 0, size / 100
+				PRINTL
+			NEXT
+		ENDIF
+	ENDIF
+ENDIF
+
+;フリー表示枠表示
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列１", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列２", 1), "<br>", "<br>　　")%"	
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "撮影時追加文字列３", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+IF DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上", 1) != ""
+	;html形式で保存されているはず
+	HTML_PRINT @"　　%REPLACE(DT_CELL_GETS("写真データベース", ボタン記録, "写真添付口上", 1), "<br>", "<br>　　")%"
+	PRINTL 
+ENDIF
+
+DAY算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時", 1)) / 10000
+TIME算出 = TOINT(DT_CELL_GETS("写真データベース", ボタン記録, "撮影日時", 1)) % 10000
+PRINTFORML 　　撮影日時：{DAY算出 / 120 + 1}年目　%月登録:((DAY算出 / 30) % 4)%　{DAY算出 % 30 + 1}日(%曜日登録:(DAY算出 % 7)%)　{TIME算出 / 60}時{TIME算出 % 60}分
+PRINTFORML 　　撮影場所：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影場所名前", 1)%
+PRINTFORML 　　撮影対象：%DT_CELL_GETS("写真データベース", ボタン記録, "撮影対象NAME", 1)%
+PRINTL
+
+PRINTBUTTONLC "[999] 戻る", 999
+PRINTBUTTONLC "[1000] この写真を削除する", 1000
+PRINTL 
+IF 前フラグ
+	PRINTBUTTONLC "[4] 前の写真へ", 4
+ELSE
+	PRINTC 　
+ENDIF
+IF 次フラグ
+	PRINTBUTTONLC "[6] 次の写真へ", 6
+ENDIF
+
+BINPUT
+SELECTCASE RESULT
+	CASE 1000
+		DRAWLINE
+		PRINTFORML 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%』を削除してよろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			PRINTFORMW 『%DT_CELL_GETS("写真データベース", ボタン記録, "写真タイトル", 1)%』を削除しました。
+			DT_ROW_REMOVE "写真データベース", ボタン記録
+		ELSE
+			GOTO 写真表示
+		ENDIF
+	CASE 4
+		RETURN -1
+	CASE 6
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+

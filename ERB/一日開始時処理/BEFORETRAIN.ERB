@@ -1,5 +1,7 @@
 ﻿@EVENTTRAIN0
 #DIM 定住フラグ
+#DIM 同行配列番号
+#DIM 判定値
 
 VARSET TARGET
 DRAWLINE
@@ -11,37 +13,93 @@ DRAWLINE
 FOR LOCAL,0,CHARANUM
 	;危険日などを設定する
 	CALL SET_PREGNANCY_PALAM(LOCAL)
-	;一日期間を減らす
-	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999  && !CFLAG:LOCAL:長期雇用
-		CFLAG:LOCAL:滞在期間 -= 1
-		IF CFLAG:LOCAL:滞在期間 == 0
-			定住フラグ = 0
-			IF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0 && TALENT:LOCAL:常連 && TALENT:LOCAL:定住者 == 0 && 定住エリア満杯() == 0
-				;常連かつ定住者じゃない時、一定確率で定住を申し出る
+
+	;同棲処理
+	IF TALENT:LOCAL:定住者 == 1
+		;同棲を言い出す処理
+		;今現在同棲していないこと
+		IF キャラクター部屋検索(LOCAL) >= 1000 && STRCOUNT(定住者部屋割り配列:(キャラクター部屋検索(LOCAL) - 1000), "_") < 2
+			;同行確率を見て一定値以上の相手が定住しているかどうかを見る
+			FOR 同行配列番号, 0, 100
+				SIF 同行候補キャラ番号:LOCAL:同行配列番号 < 1
+					CONTINUE
+				;相手が定住してないならダメ
+				SIF TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):定住者 != 1
+					CONTINUE
+				;相手の部屋が既に５人いたらダメ
+				SIF STRCOUNT(定住者部屋割り配列:(キャラクター部屋検索(同行候補キャラ番号:LOCAL:同行配列番号) - 1000), "_") > 4
+					CONTINUE
+				;男女の組み合わせなら90以上、そうでないなら50以上が条件
+				IF TALENT:LOCAL:性別 == 2 && TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):性別 == 1 || TALENT:LOCAL:性別 == 1 && TALENT:(同行候補キャラ番号:LOCAL:同行配列番号):性別 == 2
+					判定値 = 90
+				ELSE
+					判定値 = 50
+				ENDIF
+				SIF 同行候補キャラ確率:LOCAL:同行配列番号 < 判定値
+					CONTINUE
 				;素質とかで確率を変動させたいけど、とりあえずは25％くらいで
 				IF RAND:4 == 0
-					PRINTFORML %CALLNAME:LOCAL%はこのリゾート島に定住を希望しているようだ。
-					PRINTL 定住を許可しますか？
+					PRINTFORML %CALLNAME:LOCAL%は今の部屋を引き払い、%CALLNAME:(同行候補キャラ番号:LOCAL:同行配列番号)%と同じ部屋に移ることを希望しているようだ。
+					PRINTL 引っ越しを許可しますか？
 					PRINTBUTTON "[0] はい", 0
 					PRINTL
 					PRINTBUTTON "[1] いいえ", 1
 					PRINTL
 					BINPUT
 					IF RESULT == 0
-						PRINTFORML %CALLNAME:LOCAL%の定住を許可しました！
-						PRINTFORMW %CALLNAME:LOCAL%は居住区エリアの住宅街で暮らし始めました
-						TALENT:LOCAL:定住者 = 1
-						CFLAG:LOCAL:滞在期間 = 999
-						FOR LOCAL:1, 0, 50
-							IF 定住者部屋割り配列:(LOCAL:1) == ""
-								定住者部屋割り配列:(LOCAL:1) = {LOCAL}_
-								BREAK
-							ENDIF
-						NEXT
-						CALL 滞在者部屋割り配列削除処理(LOCAL)
-						定住フラグ = 1
+						PRINTFORML %CALLNAME:LOCAL%の引っ越しを許可しました！
+						PRINTFORMW %CALLNAME:LOCAL%は%CALLNAME:(同行候補キャラ番号:LOCAL:同行配列番号)%と同じ部屋で暮らし始めました
+						;部屋から削除
+						RESULT = キャラクター部屋検索(LOCAL)
+						IF STRFIND(定住者部屋割り配列:(RESULT - 1000), @"_{LOCAL}_") > -1
+							定住者部屋割り配列:(RESULT - 1000) = %REPLACE(定住者部屋割り配列:(RESULT - 1000), @"_{LOCAL}_", "_")%
+						ELSE
+							定住者部屋割り配列:(RESULT - 1000) = %SUBSTRING(定住者部屋割り配列:(RESULT - 1000), STRLENS(@"{LOCAL}_"), -1)%
+						ENDIF
+						;部屋に追加
+						RESULT = キャラクター部屋検索(同行候補キャラ番号:LOCAL:同行配列番号)
+						定住者部屋割り配列:(RESULT - 1000) += @"{LOCAL}_"
 					ELSE
-						PRINTFORMW %CALLNAME:LOCAL%の定住を断りました
+						PRINTFORMW %CALLNAME:LOCAL%の引っ越しを断りました
+					ENDIF
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+	;一日期間を減らす
+	IF CFLAG:LOCAL:滞在期間 > 0 && CFLAG:LOCAL:滞在期間 < 999  && !CFLAG:LOCAL:長期雇用
+		CFLAG:LOCAL:滞在期間 -= 1
+		IF CFLAG:LOCAL:滞在期間 == 0
+			定住フラグ = 0
+			IF MATCH(開拓エリア開発番号, 大規模番号_居住区エリア) > 0
+				IF TALENT:LOCAL:常連 && TALENT:LOCAL:定住者 == 0 && 定住エリア満杯() == 0
+					;常連かつ定住者じゃない時、一定確率で定住を申し出る
+					;素質とかで確率を変動させたいけど、とりあえずは25％くらいで
+					IF RAND:4 == 0
+						PRINTFORML %CALLNAME:LOCAL%はこのリゾート島に定住を希望しているようだ。
+						PRINTL 定住を許可しますか？
+						PRINTBUTTON "[0] はい", 0
+						PRINTL
+						PRINTBUTTON "[1] いいえ", 1
+						PRINTL
+						BINPUT
+						IF RESULT == 0
+							PRINTFORML %CALLNAME:LOCAL%の定住を許可しました！
+							PRINTFORMW %CALLNAME:LOCAL%は居住区エリアの住宅街で暮らし始めました
+							TALENT:LOCAL:定住者 = 1
+							CFLAG:LOCAL:滞在期間 = 999
+							FOR LOCAL:1, 0, 50
+								IF 定住者部屋割り配列:(LOCAL:1) == ""
+									定住者部屋割り配列:(LOCAL:1) = {LOCAL}_
+									BREAK
+								ENDIF
+							NEXT
+							CALL 滞在者部屋割り配列削除処理(LOCAL)
+							定住フラグ = 1
+						ELSE
+							PRINTFORMW %CALLNAME:LOCAL%の定住を断りました
+						ENDIF
 					ENDIF
 				ENDIF
 			ENDIF
@@ -208,7 +266,115 @@ ELSEIF 秘書人数 > 0
 	TRYCCALLFORM KOJO_EVENT_秘書業務_朝起こし_{NO:起こしに来る秘書}(起こしに来る秘書)
 	CATCH
 		;朝起こしの口上が無い場合に汎用文章を出す
-		IF 陥落チェック(起こしに来る秘書) && EXP:起こしに来る秘書:精飲経験 > 10 && GETBIT(TALENT:MASTER:性別, 1) && RAND:3 == 0
+		IF 陥落チェック(起こしに来る秘書) && GETBIT(TALENT:起こしに来る秘書:性別, 0) && GETBIT(TALENT:MASTER:性別, 1) && EXP:起こしに来る秘書:膣内射精絶頂経験 && EXP:起こしに来る秘書:Ｖ性交経験 > 10 && RAND:3 == 0
+			PRINTFORMW %CALLNAME:MASTER%が眠っていると、なんだか腰の辺りに重みを感じた。
+			PRINTFORM 目を覚ますと、%CALLNAME:起こしに来る秘書%が\@ PREGNANCY_SIZE(起こしに来る秘書) > 2 && CFLAG:起こしに来る秘書:妊娠発覚 ? 膨らんだお腹を揺らしながら # \@膣で%CALLNAME:MASTER%の
+			SELECTCASE TALENT:MASTER:男性器サイズ
+				CASE IS <= -1
+					PRINT 小さな
+				CASE 0
+				CASEELSE
+					PRINT 大きな
+			ENDSELECT
+			PRINTW ペニスを咥え込んでいた…
+			SIF TALENT:起こしに来る秘書:母乳体質
+				PRINTFORMW そのさらけ出した%OPPAI_DESCRIPTION(起こしに来る秘書)%の先端からは、母乳がゆっくりと垂れ落ちている。
+			PRINTFORMW これも秘書の務めと、朝騎乗位で起こしにきてくれたようだ。
+			IF TALENT:起こしに来る秘書:妊娠 && CFLAG:起こしに来る秘書:妊娠発覚 && CFLAG:起こしに来る秘書:子の父親 == MASTER
+				PRINTFORMW 朝から盛り上がっている%CALLNAME:起こしに来る秘書%に、身重の体をいたわると言うと、
+				PRINTFORMW %CALLNAME:起こしに来る秘書%は\@ TALENT:起こしに来る秘書:恋慕 ? 嬉しそうに微笑ながら、赤ちゃんもパパの愛 # 、赤ちゃんもパパのミルク \@が欲しいと呟き、前よりも激しく腰を動かしてきた…
+			ENDIF
+			PRINTFORMW %CALLNAME:MASTER%がそのまま射精すると、\@ TALENT:起こしに来る秘書:性転換 == 2 && !キャラ一致チェック(起こしに来る秘書, "[開闢の錬金術師]カリオストロ") ? 女性の体にもすっかり慣れた # \@%CALLNAME:起こしに来る秘書%は腰をより強く押し付けて、うっとりとした顔でその瞬間を待っている。
+			PRINTFORMW 子宮で子種の熱を感じながら、絶頂の余韻に浸る%CALLNAME:起こしに来る秘書%は嬉しそうに目を細め、%CALLNAME:MASTER%と繋がったまま今日のスケジュールを喘ぎ声まじりで報告させた。
+			PRINTFORML Ｃ経験 + 10（%CALLNAME:MASTER%）
+			PRINTFORML 絶頂経験 + 3（%CALLNAME:MASTER%）
+			PRINTFORML Ｃ絶頂経験 + 3（%CALLNAME:MASTER%）
+			PRINTFORML 射精経験 + 3（%CALLNAME:MASTER%）
+			PRINTFORML Ｖ経験 + 5（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML Ｖ絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			IF TALENT:起こしに来る秘書:母乳体質
+				PRINTFORML 噴乳経験 + 3（%CALLNAME:起こしに来る秘書%）
+				EXP:起こしに来る秘書:噴乳経験 += 3
+			ENDIF
+			PRINTFORML 精液経験 + 3（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 膣内射精絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML Ｖ性交経験 + 5（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 奉仕快楽経験 + 3（%CALLNAME:起こしに来る秘書%）
+			WAIT
+			EXP:MASTER:Ｃ経験 += 5
+			EXP:MASTER:絶頂経験 += 3
+			EXP:MASTER:Ｃ絶頂経験 += 3
+			EXP:MASTER:射精経験 += 3
+			EXP:起こしに来る秘書:Ｖ経験 += 5
+			EXP:起こしに来る秘書:Ｖ絶頂経験 += 3
+			EXP:起こしに来る秘書:絶頂経験 += 3
+			EXP:起こしに来る秘書:精液経験 += 3
+			EXP:起こしに来る秘書:膣内射精絶頂経験 += 3
+			EXP:起こしに来る秘書:Ｖ性交経験 += 5
+			EXP:起こしに来る秘書:奉仕快楽経験 += 3
+			RFLAG:フィニッシュフラグ = 3
+			CALL TAKE_SPERM(起こしに来る秘書, MASTER)
+			RFLAG:フィニッシュフラグ = 0
+			CALL EXP変動記録処理(MASTER)
+			CALL EXP変動記録処理(起こしに来る秘書)
+		ELSEIF 陥落チェック(起こしに来る秘書) && GETBIT(TALENT:MASTER:性別, 1) && EXP:起こしに来る秘書:腸内射精絶頂経験 && EXP:起こしに来る秘書:Ａ性交経験 > 10 && RAND:3 == 0
+			PRINTFORMW %CALLNAME:MASTER%が眠っていると、なんだか腰の辺りに重みを感じた。
+			PRINTFORM 目を覚ますと、%CALLNAME:起こしに来る秘書%が尻穴で%CALLNAME:MASTER%の
+			SELECTCASE TALENT:MASTER:男性器サイズ
+				CASE IS <= -1
+					PRINT 小さな
+				CASE 0
+				CASEELSE
+					PRINT 大きな
+			ENDSELECT
+			PRINTW ペニスを咥え込んでいた…
+			SIF TALENT:起こしに来る秘書:母乳体質
+				PRINTFORMW そのさらけ出した%OPPAI_DESCRIPTION(起こしに来る秘書)%の先端からは、母乳がゆっくりと垂れ落ちている。
+			PRINTFORMW これも秘書の務めと、朝Ａ騎乗位で起こしにきてくれたようだ。
+			PRINTFORMW %CALLNAME:MASTER%がそのまま射精すると、%CALLNAME:起こしに来る秘書%は腰をより強く押し付けて、うっとりとした顔でその瞬間を待っている。
+			PRINTFORMW 腸内で子種の熱を感じながら、絶頂の余韻に浸る%CALLNAME:起こしに来る秘書%は嬉しそうに目を細め、%CALLNAME:MASTER%と繋がったまま今日のスケジュールを喘ぎ声まじりで報告させた。
+			PRINTFORML Ｃ経験 + 10（%CALLNAME:MASTER%）
+			PRINTFORML 絶頂経験 + 3（%CALLNAME:MASTER%）
+			PRINTFORML Ｃ絶頂経験 + 3（%CALLNAME:MASTER%）
+			PRINTFORML 射精経験 + 5（%CALLNAME:MASTER%）
+			PRINTFORML Ａ経験 + 5（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML Ａ絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			IF TALENT:起こしに来る秘書:母乳体質
+				PRINTFORML 噴乳経験 + 3（%CALLNAME:起こしに来る秘書%）
+				EXP:起こしに来る秘書:噴乳経験 += 3
+			ENDIF
+			PRINTFORML 精液経験 + 5（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 腸内射精絶頂経験 + 3（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML Ａ性交経験 + 5（%CALLNAME:起こしに来る秘書%）
+			PRINTFORML 奉仕快楽経験 + 3（%CALLNAME:起こしに来る秘書%）
+			WAIT
+			EXP:MASTER:Ｃ経験 += 5
+			EXP:MASTER:絶頂経験 += 3
+			EXP:MASTER:Ｃ絶頂経験 += 3
+			EXP:MASTER:射精経験 += 5
+			EXP:起こしに来る秘書:Ａ経験 += 5
+			EXP:起こしに来る秘書:Ａ絶頂経験 += 3
+			EXP:起こしに来る秘書:絶頂経験 += 3
+			EXP:起こしに来る秘書:精液経験 += 5
+			EXP:起こしに来る秘書:腸内射精絶頂経験 += 3
+			EXP:起こしに来る秘書:Ａ性交経験 += 5
+			EXP:起こしに来る秘書:奉仕快楽経験 += 3
+			CALL EXP変動記録処理(MASTER)
+			CALL EXP変動記録処理(起こしに来る秘書)
+		ELSEIF 陥落チェック(起こしに来る秘書) && TALENT:起こしに来る秘書:母乳体質 && EXP:起こしに来る秘書:噴乳経験 > 10 && RAND:3 == 0
+			PRINTFORMW %CALLNAME:MASTER%が眠っていると、なんだか口の中がミルクような味がした。
+			PRINTFORMW 目を開けてみると、%CALLNAME:起こしに来る秘書%が母乳の垂れる%OPPAI_DESCRIPTION(起こしに来る秘書)%の先端を%CALLNAME:MASTER%の口に押し付けていた。
+			PRINTFORMW これも秘書の務めと、朝授乳で起こしにきてくれたようだ。
+			PRINTFORMW %CALLNAME:MASTER%がそれに応えるように乳首を吸い上げると、%CALLNAME:起こしに来る秘書%は表情を蕩けさせ、母乳を飲む%CALLNAME:MASTER%の頭を優しく抱き締めた。
+			PRINTFORMW たっぷりと授乳プレイ後、%CALLNAME:起こしに来る秘書%は微笑んで仕事に戻っていった。
+			EXP:起こしに来る秘書:Ｂ経験 += 5
+			EXP:起こしに来る秘書:Ｂ絶頂経験 += 3
+			EXP:起こしに来る秘書:噴乳経験 += 3
+			EXP:起こしに来る秘書:搾乳快楽経験 += 3
+			CALL EXP変動記録処理(起こしに来る秘書)
+		ELSEIF 陥落チェック(起こしに来る秘書) && EXP:起こしに来る秘書:精飲経験 > 10 && GETBIT(TALENT:MASTER:性別, 1) && RAND:3 == 0
 			PRINTFORMW %CALLNAME:MASTER%が眠っていると、なんだか股間が温かいような気がした。
 			PRINTFORM 布団をめくってみると、%CALLNAME:起こしに来る秘書%が%CALLNAME:MASTER%の
 			SELECTCASE TALENT:MASTER:男性器サイズ
@@ -297,6 +463,8 @@ ENDIF
 
 ;起床後特殊イベ
 FOR 対象キャラ, 1, CHARANUM
+	;ついでにここで添い寝解除
+	CFLAG:対象キャラ:添い寝フラグ = 0
 	IF CFLAG:対象キャラ:滞在期間 < 0
 		CSTR:対象キャラ:特殊起床パターン記録 = 
 		CONTINUE
