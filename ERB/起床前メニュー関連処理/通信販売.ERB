@@ -28,6 +28,13 @@ IF 右側表示モード == "消費アイテム"
 ELSE
 	LOCALS += "<button value='-2'>[-2] 消費アイテム</button><br>"
 ENDIF
+IF 施設改造度:20:0
+	IF 右側表示モード == "自宅用アイテム"
+		LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-3] 自宅用アイテム</font></nonbutton><br>"
+	ELSE
+		LOCALS += "<button value='-3'>[-3] 自宅用アイテム</button><br>"
+	ENDIF
+ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='-99'>[-99] 戻る</button><br>"
 LOCALS += "</div>"
@@ -59,21 +66,20 @@ SELECTCASE LOCAL
 ENDSELECT
 
 
-IF RESULT == 100
-	RETURN 0
-ELSEIF ITEMSTOCK(RESULT) == 1 || ITEMSTOCK(RESULT) == 4 || LOCAL < 0 || LOCAL > 2000
-	RESTART
-ELSEIF ITEMSTOCK(RESULT) == 2
-	PRINTW 売切です
-	RESTART
-ELSEIF ITEMSTOCK(RESULT) == 3
-	PRINTW 所持金が足りません
-	RESTART
-ELSEIF ITEMSTOCK(RESULT) == 5
-	PRINTW 既に十分持っています
-	RESTART
-ENDIF
+; IF ITEMSTOCK(RESULT) == 1 || ITEMSTOCK(RESULT) == 4 || LOCAL < 0 || LOCAL > 2000
+; 	RESTART
+; ELSEIF ITEMSTOCK(RESULT) == 2
+; 	PRINTW 売切です
+; 	RESTART
+; ELSEIF ITEMSTOCK(RESULT) == 3
+; 	PRINTW 所持金が足りません
+; 	RESTART
+; ELSEIF ITEMSTOCK(RESULT) == 5
+; 	PRINTW 既に十分持っています
+; 	RESTART
+; ENDIF
 LOCAL = RESULT
+DRAWLINE
 
 IF LOCAL == 70
 	現在ページ = 0
@@ -209,6 +215,25 @@ SELECTCASE ITEM種別(LOCAL)
 		INPUT
 		SIF RESULT
 			RESTART
+		IF MONEY < ITEMPRICE:LOCAL
+			PRINTW ルピが足りません。
+			RESTART
+		ENDIF
+		ITEM:LOCAL ++
+		ITEMSALES:LOCAL --
+		MONEY -= ITEMPRICE:LOCAL
+		RESTART
+	CASE "自宅用アイテム"
+		CALL 通信販売_アイテム説明(ITEMNAME:LOCAL)
+		PRINTFORML %ITEMNAME:LOCAL%を購入しますか？
+		PRINTL [0] - はい  [1] - いいえ
+		INPUT
+		SIF RESULT
+			RESTART
+		IF MONEY < ITEMPRICE:LOCAL
+			PRINTW ルピが足りません。
+			RESTART
+		ENDIF
 		ITEM:LOCAL ++
 		ITEMSALES:LOCAL --
 		MONEY -= ITEMPRICE:LOCAL
@@ -222,6 +247,7 @@ ENDSELECT
 
 SELECTCASE 右側表示モード
 	CASE "コマンド解放アイテム"
+		HTML文字列 += "・性的なコマンドの使用条件として必要になるアダルトグッズカテゴリです。<br><br>"
 		FOR LOCAL, 0, 200
 			SIF ITEMNAME:LOCAL == ""
 				CONTINUE
@@ -243,6 +269,7 @@ SELECTCASE 右側表示モード
 			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 する / <font color='#%カラーパレット_HTML("グレーアウト")%'>しない</font></button>"
 		ENDIF
 	CASE "消費アイテム"
+		HTML文字列 += "・一度使うとなくなってしまう、あるいは使用時に対象を選ぶ必要のあるアイテムカテゴリです。<br><br>"
 		FOR LOCAL, 0, 200
 			SIF ITEMNAME:LOCAL == ""
 				CONTINUE
@@ -251,6 +278,28 @@ SELECTCASE 右側表示モード
 			HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% を購入する</button>　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ　　所持数：{ITEM:LOCAL, 2}個"
 			HTML文字列 += "<br>"
 		NEXT
+	CASE "自宅用アイテム"
+		HTML文字列 += "・自宅におけるコマンドの使用条件として必要になるアイテムカテゴリです。<br><br>"
+		FOR LOCAL, 0, 200
+			SIF ITEMNAME:LOCAL == ""
+				CONTINUE
+			SIF ITEM種別(LOCAL) != "自宅用アイテム"
+				CONTINUE
+			SIF ITEM:LOCAL && 購入済み非表示フラグ
+				CONTINUE
+			IF ITEM:LOCAL
+				HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% （購入済み）　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ</font></nonbutton>"
+			ELSE
+				HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL, 2}] %ITEMNAME:LOCAL, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(ITEMPRICE:LOCAL), 6%ルピ"
+			ENDIF
+			HTML文字列 += "<br>"
+		NEXT
+		HTML文字列 += "</div>"
+		IF 購入済み非表示フラグ
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 <font color='#%カラーパレット_HTML("グレーアウト")%'>する</font> / しない</button>"
+		ELSE
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 する / <font color='#%カラーパレット_HTML("グレーアウト")%'>しない</font></button>"
+		ENDIF
 ENDSELECT
 
 
@@ -263,4 +312,30 @@ SELECTCASE アイテム番号
 		RETURNF "コマンド解放アイテム"
 	CASE 40, 70, 91, 92
 		RETURNF "消費アイテム"
+	CASE 80 TO 82
+		RETURNF "自宅用アイテム"
 ENDSELECT
+
+
+@通信販売_アイテム説明(アイテム名)
+#DIMS アイテム名
+
+SELECTCASE アイテム名
+	CASE "トランプセット"
+		PRINTL 一般的なトランプセット。
+		PRINTL これ１セットで色んな遊び方が出来る。
+		PRINTL ※自宅リビングにて「カードで遊ぶ」コマンドを開放
+		PRINTL
+	CASE "ドリンクセラー"
+		PRINTL 飲み物を多く冷やすための魔道具。
+		PRINTL これがあれば大人数での宅飲みだって大丈夫。
+		PRINTL ※自宅リビングにて「飲み会を始める」コマンドを開放
+		PRINTL
+	CASE "マッサージマット"
+		PRINTL 自宅用のマッサージ用マット。
+		PRINTL やっぱり専用の道具は使い心地が違う。
+		PRINTFORML ※自宅%CALLNAME:MASTER%の部屋にて「マッサージを始める」コマンドを開放
+		PRINTL
+ENDSELECT
+
+
