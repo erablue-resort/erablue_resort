@@ -1,0 +1,133 @@
+﻿
+;-------------------------------------------------
+;ビーチフラッグで遊ぶ
+;-------------------------------------------------
+@COMNAME_PLACE_383_3_3
+#FUNCTION
+TSTR:コマンド名受渡 = ビーチフラッグで遊ぶ
+IF 施設改造度:15:0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_383_3_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_383_3_3
+LOCALS = <br>■ビーチフラッグで遊ぶ<br>
+LOCALS += "相手とビーチフラッグで一緒に遊ぶコマンド。ミニゲーム『ビーチフラッグ』が発生。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+		
+@COM383_3_3
+RFLAG:コマンド結果受渡し変数 = 0 ;勝敗
+RFLAG:コマンド結果受渡し変数２ = 0 ;難易度
+RFLAG:コマンド結果受渡し変数３ = 0
+
+SIF GETBIT(ミニゲーム初回説明フラグ, 1)
+	GOTO 初回説明スキップ
+SETBIT ミニゲーム初回説明フラグ, 1
+PRINTL 
+PRINTL ミニゲーム『ビーチフラッグ』
+PRINTL 
+PRINTW 
+PRINTL READYの表示が出たら入力してGOの合図を待ちます
+PRINTW 合図が出たら素早く入力をしてください
+PRINTL
+PRINTL 相手より早く入力できれば勝ちです
+PRINTW 合図が出る前に入力してしまうとフライングで負けになります
+PRINTL 
+PRINTL 
+PRINTL 
+$INPUT
+PRINTBUTTON "[0]遊ぶ ", 0
+PRINTBUTTON "[1]遊ばない ", 1
+BINPUT
+SELECTCASE RESULT 
+CASE 0
+CASE 1
+	PRINTFORML %CALLNAME:PLAYER%はその場から離れた・・・
+	RETURN
+ENDSELECT
+
+$初回説明スキップ
+
+;難易度を投入してゲームスタート
+RFLAG:コマンド結果受渡し変数２ = 2 ;難易度
+CALL ビーチフラッグ(RFLAG:コマンド結果受渡し変数２)
+RFLAG:コマンド結果受渡し変数 = RESULT;0=遊ばない 1=フライング 2=押し負け 3=勝ち 4=ズル
+
+CALL COM383_3_3_追加処理(TARGET)
+;全員が楽しむ
+LOCAL = 0
+RFLAG:コマンド結果受渡し変数 = -1 ;ギャラリー
+WHILE TARGET:LOCAL > 0
+	IF CFLAG:(TARGET:LOCAL):睡眠 || CFLAG:(TARGET:LOCAL):隠密
+	ELSE
+		CALL COM383_3_3_追加処理(TARGET:LOCAL)
+	ENDIF
+	LOCAL ++
+WEND
+
+TIME += 60
+RETURN 1
+
+@COM383_3_3_追加処理(ARG)
+LOCAL:0 = 0
+LOCAL:1 = 0
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE -1 ;ギャラリー
+		LOCAL:0 = 500
+	CASE 3
+		;勝ちは征服が上がる
+		;歓楽強度
+		LOCAL:0 = 500
+		;征服強度
+		LOCAL:1 = 100
+	CASEELSE
+		;勝ち以外
+		LOCAL:0 = 500
+ENDSELECT
+
+CALL SOURCE_CALC_歓楽(ARG, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(ARG, PLAYER, LOCAL:1)
+CALL SOURCE_CALC_好感度要素_友情度UP(ARG, PLAYER, LOCAL:0 / 2)
+
+LOCAL:2 = 1
+CALL 関係性一括上昇(ARG, 4, LOCAL:2)
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE383_3_3
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(383)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM383_3_3
+
+SIF !RFLAG:コマンド結果受渡し変数 ;遊べなかった
+	RETURN
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と
+PRINTW ビーチフラッグで盛り上がった
+

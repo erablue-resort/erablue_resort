@@ -195,6 +195,59 @@ SELECTCASE RESULT
 			;部屋の居住者を配列化
 			VARSET 部屋主配列
 			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
+							LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2
+					PRINTL 家には鍵が掛かっている。
+					PRINTW どうやら眠っているようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					PRINTL 家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 2
+			CFLAG:MASTER:現在位置 = LOCAL + 1000
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ELSEIF 表示エリア種類 == 600
+			LOCAL = RESULT
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
 			SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
 			FOR ループ用, 0, RESULT
 				SIF RESULTS:ループ用 == ""
