@@ -4,6 +4,7 @@
 #DIM 装備耳飾り
 #DIM 装備証
 #DIM ステータス一時計算
+#DIM 指輪基礎効果有効化フラグ
 VARSET LOCALS
 
 装備指輪 = 装備ステータス補正保存:対象キャラ:装備指輪番号
@@ -13,13 +14,21 @@ VARSET LOCALS
 VARSET 装備ステータス補正保存:対象キャラ:0
 
 装備ステータス補正保存:対象キャラ:装備指輪番号 = 装備指輪
-SPLIT DT_CELL_GETS("所持指輪データベース", 装備指輪, "基礎ステータス補正", 1), "_", LOCALS
-FOR LOCAL:1, 0, 30, 2
-	IF LOCALS:(LOCAL:1) == ""
-		BREAK
-	ENDIF
-	装備ステータス補正保存:対象キャラ:(LOCALS:(LOCAL:1)) += TOINT(LOCALS:(LOCAL:1 + 1))
-NEXT
+TRYCCALLFORM 指輪基礎効果適用判定_%DT_CELL_GETS("所持指輪データベース", 装備指輪, "指輪名", 1)%(対象キャラ)
+	指輪基礎効果有効化フラグ = RESULT
+CATCH
+	指輪基礎効果有効化フラグ = 1
+ENDCATCH
+IF 指輪基礎効果有効化フラグ
+	SPLIT DT_CELL_GETS("所持指輪データベース", 装備指輪, "基礎ステータス補正", 1), "_", LOCALS
+	FOR LOCAL:1, 0, 30, 2
+		IF LOCALS:(LOCAL:1) == ""
+			BREAK
+		ENDIF
+		装備ステータス補正保存:対象キャラ:(LOCALS:(LOCAL:1)) += TOINT(LOCALS:(LOCAL:1 + 1))
+	NEXT
+ENDIF
+;オプション効果は常に発揮される
 SPLIT DT_CELL_GETS("所持指輪データベース", 装備指輪, "オプションステータス補正", 1), "_", LOCALS
 FOR LOCAL:1, 0, 30, 2
 	IF LOCALS:(LOCAL:1) == ""
