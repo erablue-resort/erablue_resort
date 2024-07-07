@@ -5,10 +5,6 @@
 @COMNAME_PLACE_383_3_3
 #FUNCTION
 TSTR:コマンド名受渡 = ビーチフラッグで遊ぶ
-IF 施設改造度:15:0
-	TSTR:コマンド名受渡 = 
-	RETURNF 0
-ENDIF
 RETURNF 1
 
 ;===================================================
@@ -37,7 +33,7 @@ PRINTL
 PRINTL ミニゲーム『ビーチフラッグ』
 PRINTL 
 PRINTW 
-PRINTL READYの表示が出たら入力してGOの合図を待ちます
+PRINTL READYの表示が出たら狙うフラッグを選択してGOの合図を待ちます
 PRINTW 合図が出たら素早く入力をしてください
 PRINTL
 PRINTL 相手より早く入力できれば勝ちです
@@ -58,9 +54,8 @@ ENDSELECT
 
 $初回説明スキップ
 
-;難易度を投入してゲームスタート
-RFLAG:コマンド結果受渡し変数２ = 2 ;難易度
-CALL ビーチフラッグ(RFLAG:コマンド結果受渡し変数２)
+
+CALL ビーチフラッグ
 RFLAG:コマンド結果受渡し変数 = RESULT;0=遊ばない 1=フライング 2=押し負け 3=勝ち 4=ズル
 
 CALL COM383_3_3_追加処理(TARGET)
@@ -95,12 +90,33 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 		;勝ち以外
 		LOCAL:0 = 500
 ENDSELECT
+;関係性基本上昇量
+LOCAL:2 = 1
+
+;難易度一段上昇につき２割のボーナス
+IF RFLAG:コマンド結果受渡し変数２ > 0
+	FOR LOCAL:10, 0, 3
+		LOCAL:(LOCAL:10) = LOCAL:(LOCAL:10) * (5 + RFLAG:コマンド結果受渡し変数２) / 5
+	NEXT
+ENDIF
+
+;勝利でさらに２倍 ズルでも盛り上がる
+SELECTCASE RFLAG:コマンド結果受渡し変数 == 3
+CASE 3
+	FOR LOCAL:10, 0, 3
+		TIMES LOCAL:(LOCAL:10), 2
+	NEXT
+CASE 4
+	FOR LOCAL:10, 0, 3
+		TIMES LOCAL:(LOCAL:10), 1.5
+	NEXT
+ENDSELECT
+
 
 CALL SOURCE_CALC_歓楽(ARG, PLAYER, LOCAL:0)
 CALL SOURCE_CALC_征服(ARG, PLAYER, LOCAL:1)
 CALL SOURCE_CALC_好感度要素_友情度UP(ARG, PLAYER, LOCAL:0 / 2)
 
-LOCAL:2 = 1
 CALL 関係性一括上昇(ARG, 4, LOCAL:2)
 
 ;-------------------------------------------------
