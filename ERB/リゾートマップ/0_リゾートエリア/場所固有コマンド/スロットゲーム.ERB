@@ -9,13 +9,14 @@
 #DIMS キー文字列 ;画像の種類指定
 #DIM 画像表示サイズ,2
 #DIM パノラマサイズ,2
-#DIM CONST スクロール速度 = 20
+#DIM CONST スクロール基準速度 = 4
+#DIM スクロール速度
 #DIM 表示枚数
 #DIM スタートタイム
+#DIM ストップタイム
 #DIM 回転時間
-#DIM 回転量
-#DIM CONST アニメタイマー = 50
-#DIM CONST フレームレート = 50
+#DIM CONST アニメタイマー = 5
+#DIM CONST フレームレート = 10
 #DIM 選択リール
 #DIM リール状態,3 ;何番目の枠で止まっているか
 #DIM リザルト状態,3 ;何番目の有効キャラリストIDで止まっているか
@@ -24,6 +25,7 @@
 #DIM CONST 文字数 = 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3
 #DIMS リザルト
 #DIM 基準レート
+#DIM 投入レート
 #DIM レート
 #DIM リワード
 #DIM トータルリワード
@@ -66,6 +68,9 @@
 ;パノラマサイズ = 1600, 240
 
 スロット変更カウンタ = 3
+レート = 基準レート
+投入レート = 基準レート
+スクロール速度 = スクロール基準速度
 
 VARSET 有効カテゴリ
 VARSET 有効スケベカテゴリ
@@ -213,11 +218,11 @@ RFLAG:コマンド結果受渡し変数３ ++ ;実行回数カウンタ
 IF スロット変更カウンタ == 3 || !スロット変更カウンタ
 	スロット変更カウンタ = 3
 	IF !スケベスロットフラグ
-		レート = 基準レート
+		レート = 投入レート
 		SPLIT 有効カテゴリ:(RAND:有効カテゴリ数) , "_", LOCALS
 		キー文字列 '= "短冊_" + 衣装差分:TOINT(LOCALS) + 表情差分:TOINT(LOCALS:1)
 	ELSE
-		レート = 基準レート * 10
+		レート = 投入レート * 10
 		SPLIT 有効スケベカテゴリ:(RAND:有効スケベカテゴリ数) , "_", LOCALS
 		IF TOINT(LOCALS) < 100
 			キー文字列 '= "短冊_" + 衣装差分:TOINT(LOCALS) + スケベ表情差分:(TOINT(LOCALS:1) - 100)
@@ -298,8 +303,8 @@ GSETBRUSH レイヤー番号 + 2 , 0xFFC0C0C0
 GSETFONT レイヤー番号 + 2 , GETFONT(), 18
 GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
 GDRAWTEXT レイヤー番号 + 2 , "RATE:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3
-GGETTEXTSIZE TOSTR(レート), GETFONT(), 18
-GDRAWTEXT レイヤー番号 + 2 , TOSTR(レート), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3
+GGETTEXTSIZE TOSTR(投入レート), GETFONT(), 18
+GDRAWTEXT レイヤー番号 + 2 , TOSTR(投入レート), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3
 GDRAWTEXT レイヤー番号 + 2 , "REWARD:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3 + 20
 GGETTEXTSIZE TOSTR(トータルリワード), GETFONT(), 18
 GDRAWTEXT レイヤー番号 + 2 , TOSTR(トータルリワード), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3 + 20
@@ -336,7 +341,7 @@ GSETBRUSH レイヤー番号 + 3 , 0xFF000003
 GFILLRECTANGLE レイヤー番号 + 3 , 0, 900 - (CLIENTHEIGHT() - パノラマサイズ:1 * 1) / 2, パノラマサイズ:0, パノラマサイズ:1
 CBGSETBMAPG レイヤー番号 + 3 
 
-スタートタイム = GETTIME()
+スタートタイム = GETMILLISECOND()
 SETANIMETIMER アニメタイマー
 
 $INPUTLOOP
@@ -370,11 +375,12 @@ ELSEIF RESULT == 3
 ELSE
 	GOTO INPUTLOOP
 ENDIF
+ストップタイム = GETMILLISECOND()
+回転時間 = ((ストップタイム - スタートタイム) / フレームレート) % (表示枚数 * 画像表示サイズ:0 / スクロール速度)
 ;該当のリールが止まっていないとき
 SELECTCASE 選択リール
 CASE IS < 3
 	IF リール状態:選択リール < 0
-		回転時間 = ((GETTIME() - スタートタイム) / フレームレート) % (表示枚数 * 画像表示サイズ:0 / スクロール速度)
 		SPRITECREATE @"ストップ{選択リール}", レイヤー番号 + 0, スクロール速度 * 回転時間, パノラマサイズ:1 * 選択リール, パノラマサイズ:0, パノラマサイズ:1
 		CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
 		リール状態:選択リール = (スクロール速度 * 回転時間 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
@@ -384,11 +390,8 @@ CASE 10
 	FOR LOCAL, 0, 3
 		選択リール = LOCAL
 		IF リール状態:選択リール < 0
-			回転時間 = ((GETTIME() - スタートタイム) / フレームレート) % (表示枚数 * 画像表示サイズ:0 / スクロール速度)
-			回転量 = (スクロール速度 * (回転時間))
 			SPRITECREATE @"ストップ{選択リール}", レイヤー番号 + 0, スクロール速度 * 回転時間, パノラマサイズ:1 * 選択リール, パノラマサイズ:0, パノラマサイズ:1
 			CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
-			;回転量の補正　表示量最大の画像をとる
 			リール状態:選択リール = (スクロール速度 * 回転時間 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
 			CBGREMOVERANGE -2 - 選択リール, -2 - 選択リール
 		ENDIF
@@ -463,39 +466,44 @@ CASE "居る"
 	リワード = 8
 CASE "外れ"
 	GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 + 20, 120
-	リワード = -1
+	リワード = 0
 ENDSELECT
-
+MONEY -= 投入レート
 MONEY += レート * リワード
 
 GDRAWTEXT レイヤー番号 + 5 , "REWARD: " + TOSTR(レート * リワード), 画像表示サイズ:0 + 20, 300
+トータルリワード -= 投入レート
 トータルリワード += レート * リワード
 ;GDRAWTEXT レイヤー番号 + 5 , TOSTR(トータルリワード), 画像表示サイズ:0 + 200, 300
 GDRAWTEXT レイヤー番号 + 5 , "これは", 画像表示サイズ:0 + 20, 40
 GDRAWTEXT レイヤー番号 + 5 , "続けてプレイしますか？", 画像表示サイズ:0, パノラマサイズ:1 * 3 + 2
-CBGSETG レイヤー番号 + 5 ,  画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -6
+CBGSETG レイヤー番号 + 5 ,  画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -7
 
 LOCAL:1 = 2 ;枠線
 LOCAL:2 = 18 + 2 + LOCAL:1 * 4 ;ブロックサイズ
 LOCAL:3 = 200 ;横幅
 GDISPOSE レイヤー番号 + 6 
-GCREATE レイヤー番号 + 6 , 800, 80
+GCREATE レイヤー番号 + 6 , 800, 160
 GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
-GFILLRECTANGLE レイヤー番号 + 6 , 0, 0, LOCAL:3 * 2, LOCAL:2 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , 0, 0, LOCAL:3 * 2, LOCAL:2 * 4
 GSETBRUSH レイヤー番号 + 6 , 0xFF101010
-GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
-GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 0, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 1, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 2, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
+GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 3, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
 GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
 GSETFONT レイヤー番号 + 6 , GETFONT(), 18
 GSETPEN レイヤー番号 + 6 , 0xFFC0C0C0, 1
 GDRAWTEXT レイヤー番号 + 6 , "ＳＴＡＲＴ", LOCAL:1 * 2, LOCAL:1 * 2
 GDRAWTEXT レイヤー番号 + 6 , "ＥＸＩＴ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2
+GDRAWTEXT レイヤー番号 + 6 , "ＳＰＥＥＤ　ＵＰ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 2
+GDRAWTEXT レイヤー番号 + 6 , "ＳＰＥＥＤ　ＤＯＷＮ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 3
 カラーマトリクス:0:0 = 256,   0,   0,   0,   0
 カラーマトリクス:1:0 =   0, 256,   0,   0,   0
 カラーマトリクス:2:0 =   0,   0, 256,   0,   0
 カラーマトリクス:3:0 =   0,   0,   0, 256,   0
 カラーマトリクス:4:0 = 100, 100, 100,   0, 256
-GDRAWG レイヤー番号 + 6 , レイヤー番号 + 6 , LOCAL:3, 0, LOCAL:3, LOCAL:2 * 2, 0, 0, LOCAL:3, LOCAL:2 * 2, カラーマトリクス:0:0
+GDRAWG レイヤー番号 + 6 , レイヤー番号 + 6 , LOCAL:3, 0, LOCAL:3, LOCAL:2 * 4, 0, 0, LOCAL:3, LOCAL:2 * 4, カラーマトリクス:0:0
 SPRITEDISPOSE "ＳＴＡＲＴ0"
 SPRITEDISPOSE "ＳＴＡＲＴ1"
 SPRITECREATE "ＳＴＡＲＴ0", レイヤー番号 + 6 , 0, 0, LOCAL:3, LOCAL:2
@@ -506,15 +514,44 @@ SPRITEDISPOSE "ＥＸＩＴ1"
 SPRITECREATE "ＥＸＩＴ0", レイヤー番号 + 6 , 0, LOCAL:2, LOCAL:3, LOCAL:2
 SPRITECREATE "ＥＸＩＴ1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2, LOCAL:3, LOCAL:2
 CBGSETBUTTONSPRITE 0x000002, "ＥＸＩＴ0", "ＥＸＩＴ1", 400, (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
+SPRITEDISPOSE "ＳＰＥＥＤ　ＵＰ0"
+SPRITEDISPOSE "ＳＰＥＥＤ　ＵＰ1"
+SPRITECREATE "ＳＰＥＥＤ　ＵＰ0", レイヤー番号 + 6 , 0, LOCAL:2 * 2, LOCAL:3, LOCAL:2
+SPRITECREATE "ＳＰＥＥＤ　ＵＰ1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2 * 2, LOCAL:3, LOCAL:2
+CBGSETBUTTONSPRITE 0x000003, "ＳＰＥＥＤ　ＵＰ0", "ＳＰＥＥＤ　ＵＰ1", 700, 20 + (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
+SPRITEDISPOSE "ＳＰＥＥＤ　ＤＯＷＮ0"
+SPRITEDISPOSE "ＳＰＥＥＤ　ＤＯＷＮ1"
+SPRITECREATE "ＳＰＥＥＤ　ＤＯＷＮ0", レイヤー番号 + 6 , 0, LOCAL:2 * 3, LOCAL:3, LOCAL:2
+SPRITECREATE "ＳＰＥＥＤ　ＤＯＷＮ1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2 * 3, LOCAL:3, LOCAL:2
+CBGSETBUTTONSPRITE 0x000004, "ＳＰＥＥＤ　ＤＯＷＮ0", "ＳＰＥＥＤ　ＤＯＷＮ1", 700, 20 + LOCAL:2 + (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
 GDISPOSE レイヤー番号 + 3 
 GCREATE レイヤー番号 + 3 , 800, LOCAL:2 - (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2
 GSETBRUSH レイヤー番号 + 3 , 0xFF000001
 GFILLRECTANGLE レイヤー番号 + 3 , 200, 0, LOCAL:3, LOCAL:2
 GSETBRUSH レイヤー番号 + 3 , 0xFF000002
 GFILLRECTANGLE レイヤー番号 + 3 , 400, 0, LOCAL:3, LOCAL:2
+GSETBRUSH レイヤー番号 + 3 , 0xFF000003
+GFILLRECTANGLE レイヤー番号 + 3 , 700, 20, LOCAL:3, LOCAL:2
+GSETBRUSH レイヤー番号 + 3 , 0xFF000004
+GFILLRECTANGLE レイヤー番号 + 3 , 700, 20 + LOCAL:2, LOCAL:3, LOCAL:2
 CBGSETBMAPG レイヤー番号 + 3 
 
 $INPUTLOOP2
+CBGREMOVERANGE -1, -1
+GDISPOSE レイヤー番号 + 2 
+GCREATE レイヤー番号 + 2 , パノラマサイズ:0, パノラマサイズ:1 * 4
+GSETBRUSH レイヤー番号 + 2 , 0xFF101010
+GFILLRECTANGLE レイヤー番号 + 2 , 0, 0, パノラマサイズ:0, パノラマサイズ:1 * 4
+GSETBRUSH レイヤー番号 + 2 , 0xFFC0C0C0
+GSETFONT レイヤー番号 + 2 , GETFONT(), 18
+GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
+GDRAWTEXT レイヤー番号 + 2 , "RATE:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3
+GGETTEXTSIZE TOSTR(投入レート), GETFONT(), 18
+GDRAWTEXT レイヤー番号 + 2 , TOSTR(投入レート), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3
+GDRAWTEXT レイヤー番号 + 2 , "REWARD:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3 + 20
+GGETTEXTSIZE TOSTR(トータルリワード), GETFONT(), 18
+GDRAWTEXT レイヤー番号 + 2 , TOSTR(トータルリワード), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3 + 20
+CBGSETG レイヤー番号 + 2 , 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -1
 INPUTMOUSEKEY
 IF RESULT == 1
 	SELECTCASE RESULT:4
@@ -522,26 +559,34 @@ IF RESULT == 1
 		LOCAL = 0
 	CASE 0x000002
 		LOCAL = 1
+	CASE 0x000003
+		LOCAL = 2
+	CASE 0x000004
+		LOCAL = 3
 	CASEELSE
 		GOTO INPUTLOOP2
 	ENDSELECT
 ELSEIF RESULT == 3
 	SELECTCASE RESULT:2
-	CASE 49, 97 ;1 NUM1
+	CASE 37 ;←
 		LOCAL = 0
-	CASE 50, 98 ;2 NUM2
+	CASE 39 ;→
 		LOCAL = 1
+	CASE 38 ;↑
+		LOCAL = 2
+	CASE 40 ;↓
+		LOCAL = 3
 	CASEELSE
 		GOTO INPUTLOOP
 	ENDSELECT
 ELSE
 	GOTO INPUTLOOP2
 ENDIF
-IF LOCAL
-	;PRINTL 終了します
-ELSE
-	IF MONEY < レート
+SELECTCASE LOCAL
+CASE 0
+	IF MONEY < 投入レート
 		PRINTL ルピが足りない・・・
+		GOTO INPUTLOOP2
 	ELSE
 		IF !RAND:10
 			スロット変更カウンタ = 3
@@ -551,7 +596,19 @@ ELSE
 		CBGCLEAR
 		GOTO MAINLOOP
 	ENDIF
-ENDIF
+CASE 1
+	;PRINTL 終了します
+CASE 2
+	投入レート += 基準レート
+	スクロール速度 += 2
+	GOTO INPUTLOOP2
+CASE 3
+	IF 投入レート > 基準レート
+		投入レート -= 基準レート
+		スクロール速度 -= 2
+	ENDIF
+	GOTO INPUTLOOP2
+ENDSELECT
 
 
 GDISPOSE レイヤー番号 + 0 

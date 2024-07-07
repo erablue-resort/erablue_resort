@@ -1,0 +1,87 @@
+﻿
+@商業区店登録処理(対象キャラ, 登録店舗名, 登録店属性)
+#DIM 対象キャラ
+#DIMS 登録店舗名
+#DIM 定休日数
+#DIM 定休日セット
+#DIMS 登録店属性
+
+IF 対象キャラ < 0
+	定休日数 = 2
+ELSE
+	定休日数 = 3
+ENDIF
+定休日セット = 0
+
+;空き店舗を検索
+FOR LOCAL, 0, VARSIZE("商業区店割り配列", 0)
+	IF 商業区店割り配列:LOCAL:店舗名 == ""
+		商業区店割り配列:LOCAL:店員配列 = {対象キャラ}_
+		商業区店割り配列:LOCAL:店舗名 = %登録店舗名%
+		LOCAL:1 = 0
+		DO
+			LOCAL:2 = RAND:6
+			IF GETBIT(定休日セット, LOCAL:2) == 0
+				SETBIT 定休日セット, LOCAL:2
+				LOCAL:1 ++
+			ENDIF
+		LOOP LOCAL:1 < 定休日数
+		商業区店割り配列:LOCAL:定休日 = {定休日セット}
+		商業区店割り配列:LOCAL:店属性 = %登録店属性%
+		RETURN 1
+	ENDIF
+NEXT
+
+IF 対象キャラ > 0
+	;空いてるところがないならモブ店舗に上書き
+	FOR LOCAL, 0, VARSIZE("商業区店割り配列", 0)
+		IF 商業区店割り配列:LOCAL:店員配列 == "-1_"
+			商業区店割り配列:LOCAL:店員配列 = {対象キャラ}_
+			商業区店割り配列:LOCAL:店舗名 = %登録店舗名%
+			LOCAL:1 = 0
+			DO
+				LOCAL:2 = RAND:6
+				IF GETBIT(定休日セット, LOCAL:2) == 0
+					SETBIT 定休日セット, LOCAL:2
+					LOCAL:1 ++
+				ENDIF
+			LOOP LOCAL:1 < 定休日数
+			商業区店割り配列:LOCAL:定休日 = {定休日セット}
+			商業区店割り配列:LOCAL:店属性 = %登録店属性%
+			RETURN 1
+		ENDIF
+	NEXT
+ENDIF
+
+RETURN 0
+
+
+@定休日判定(店番号)
+#FUNCTION
+#DIM 店番号
+
+SIF 店番号 < 0
+	RETURNF 0
+
+;今日の曜日のビットが立ってると定休
+IF GETBIT(TOINT(商業区店割り配列:店番号:定休日), DAY % 7)
+	RETURNF 1
+ENDIF
+
+RETURNF 0
+
+
+@店持ちキャラ店検索(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+FOR LOCAL, 0, VARSIZE("商業区店割り配列", 0)
+	VARSET RESULTS
+	SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
+	FOR LOCAL:1, 0, RESULT
+		SIF TOINT(RESULTS:(LOCAL:1)) == 対象キャラ
+			RETURNF LOCAL
+	NEXT
+NEXT
+
+RETURNF -1

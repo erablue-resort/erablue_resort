@@ -6,10 +6,6 @@
 #DIM うふふ終了フラグ
 
 VARSET LOCAL
-;-------------------------------------------------
-;キャラの態度
-;-------------------------------------------------
-CALL CHARA_ATTITUDE
 
 ;-------------------------------------------------
 ;時間経過、キャラの移動
@@ -28,6 +24,11 @@ VARSET LOCAL
 
 TFLAG:行動前時刻 = TIME + 1440 * DAY
 CFLAG:MASTER:睡眠 = 0
+
+;-------------------------------------------------
+;キャラの態度
+;-------------------------------------------------
+CALL CHARA_ATTITUDE
 
 ;-------------------------------------------------
 ;TARGET選択
@@ -142,7 +143,7 @@ ELSE
 		SIF TARGET:LOCAL < 1
 			BREAK
 		;合意がないと2以上にならない
-		IF GETBIT(CFLAG:(TARGET:LOCAL):1,0)
+		IF 陥落チェック(TARGET:LOCAL)
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = CFLAG:(TARGET:LOCAL):態度保存
 		ELSE
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):態度保存 , 1)
@@ -915,7 +916,7 @@ IF BASE:PLAYER:酩酊 > 0
 ELSEIF BASE:PLAYER:酩酊 < 0
 	SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 		PRINT 　　　　　　　　　　　 
-	LOCALS = 二日酔い(%CALLNAME:TARGET%)
+	LOCALS = 二日酔い(%CALLNAME:PLAYER%)
 	PRINTFORM %LOCALS,20,LEFT%
 	CALL PRINT_COLORBAR, BASE:PLAYER:酩酊 * -1, MAXBASE:PLAYER:酩酊, 600, 100, BARCOLORSET("真っ赤"), RESULT:1
 	LOCALS = ({BASE:PLAYER:酩酊 * -1,4}/{MAXBASE:酩酊,4})
@@ -1114,6 +1115,14 @@ FOR LOCAL,1,CHARANUM
 		LOCAL:1 += 5
 	;欲情補正
 	LOCAL:1 = LOCAL:1 * (5000 + MAX(PALAM:LOCAL:欲情,5000)) / 10000
+	;恋愛対象時、性欲補正
+	IF 恋愛対象外チェック(LOCAL) == 0
+		IF 陥落チェック(LOCAL)
+			LOCAL:1 += BASE:LOCAL:性欲 / 100
+		ELSE
+			LOCAL:1 += BASE:LOCAL:性欲 / 200
+		ENDIF
+	ENDIF
 	SELECTCASE LOCAL:1
 		CASE IS >= 150
 			CFLAG:LOCAL:態度保存 = 3

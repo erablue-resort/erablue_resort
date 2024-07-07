@@ -4,7 +4,7 @@
 #DIM 子供人物番号
 
 LOCAL:1 = 0
-FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+FOR LOCAL, 50, VARSIZE("定住者部屋割り配列")
 	IF 定住者部屋割り配列:LOCAL == ""
 		LOCAL:1 = 1
 		BREAK
@@ -99,9 +99,13 @@ SELECTCASE 成長後年齢
 	CASE 1
 		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%はすっかり大人の姿に成長した！
 ENDSELECT
-PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は保育所を卒園し、居住区エリアの住宅街に引っ越したようだ。
-PRINTW 
 CALL 子供成長処理(子供人物番号, 成長後年齢)
+IF RESULT
+	PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は保育所を卒園し、%CALLNAME:RESULT%と同じ部屋に引っ越したようだ。
+ELSE
+	PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は保育所を卒園し、居住区エリアの住宅街に引っ越したようだ。
+ENDIF
+PRINTW 
 
 RETURN 0
 
@@ -119,6 +123,7 @@ RETURN 0
 #DIM 素質選択用, 10
 #DIM バスト種別
 #DIMS 汎用画像キー
+#DIM 部屋決定フラグ
 
 
 MOTHER = FIND_MOTHER_CHARA_FROM_PERSON_ID(子供人物番号)
@@ -364,15 +369,47 @@ CFLAG:招待不可フラグ = 0
 CSTR:汎用立ち絵登録文字列 = %汎用画像キー%
 CALL ステータス記録(TARGET)
 
-FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
-	IF 定住者部屋割り配列:LOCAL == ""
-		定住者部屋割り配列:LOCAL = {TARGET}_
-		BREAK
+部屋決定フラグ = 0
+IF 成長後年齢 < 1
+	;幼い～成人なら親と一緒に暮らす
+	IF MOTHER > 0 && TALENT:MOTHER:定住者
+		部屋決定フラグ = MOTHER
+	ELSEIF FATHER > 0 && TALENT:MOTHER:定住者
+		部屋決定フラグ = FATHER
 	ENDIF
-NEXT
+	IF 部屋決定フラグ
+		IF TALENT:部屋決定フラグ:定住者 == 2
+			IF 同棲部屋割り配列:0 < 1
+				TALENT:TARGET:定住者 = 2
+				同棲部屋割り配列:0 = TARGET
+			ELSEIF 同棲部屋割り配列:1 < 1
+				TALENT:TARGET:定住者 = 2
+				同棲部屋割り配列:1 = TARGET
+			ELSE
+				部屋決定フラグ = 0
+			ENDIF
+		ELSE
+			FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+				IF STRFIND(定住者部屋割り配列:LOCAL, @"_{部屋決定フラグ}_") > -1 || STRFIND(定住者部屋割り配列:LOCAL, @"{部屋決定フラグ}_") == 0
+					定住者部屋割り配列:LOCAL += @"{TARGET}_"
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+ENDIF
+
+IF 部屋決定フラグ == 0
+	FOR LOCAL, 50, VARSIZE("定住者部屋割り配列")
+		IF 定住者部屋割り配列:LOCAL == ""
+			定住者部屋割り配列:LOCAL = {TARGET}_
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
 
 TARGET = TARGET保存
-RETURN 0
+RETURN 部屋決定フラグ
 
 
 @遺伝元(PARENT:0, PARENT:1, ランダム性 = "両親のみ", ARGS:0 = "", ARGS:1 = "")

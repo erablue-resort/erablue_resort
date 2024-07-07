@@ -4,8 +4,10 @@
 #DIM ループ用
 #DIM 部屋主配列, 10
 
-IF 宿泊エリア表示種別
+IF 宿泊エリア表示種別 == 2
 	表示エリア種類 = 500
+ELSEIF 宿泊エリア表示種別 == 1
+	表示エリア種類 = 600
 ELSE
 	表示エリア種類 = 200
 ENDIF
@@ -44,10 +46,15 @@ SELECTCASE 表示エリア種類
 	CASE 500
 		LOCALS += "<nonbutton><font color='#FFFF00'>[500] 住宅街</font></nonbutton>"
 		LOCALS += "<br>"
+	CASE 600
+		LOCALS += "<nonbutton><font color='#FFFF00'>[600] 空艇港商業区</font></nonbutton>"
+		LOCALS += "<br>"
 ENDSELECT
 LOCALS += "<br>"
-IF 宿泊エリア表示種別
+IF 宿泊エリア表示種別 == 2
 	LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
+ELSEIF 宿泊エリア表示種別 == 1
+	LOCALS += "<button value='999'>[999] 空艇港に戻る</button>"
 ELSE
 	LOCALS += "<button value='999'>[999] 自室に戻る</button>"
 ENDIF
@@ -63,6 +70,8 @@ SELECTCASE 表示エリア種類
 		CALL 宿泊エリア_スイートルーム_表示(ページ数)
 	CASE 500
 		CALL 居住区エリア_住宅街_表示(ページ数)
+	CASE 600
+		CALL 空艇港エリア_商業区_表示(ページ数)
 ENDSELECT
 ;RESULTにページ数上限が入っている
 LOCAL:10 = RESULT
@@ -76,7 +85,57 @@ $INPUT_LOOP
 BINPUT
 
 SELECTCASE RESULT
-	CASE IS < 滞在キャラ上限
+	CASE 200
+		IF 表示エリア種類 == 200
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 200
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 300
+		IF 表示エリア種類 == 300
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 300
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 400
+		IF 表示エリア種類 == 400
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		表示エリア種類 = 400
+		ページ数 = 0
+		GOTO RESTART_LABEL
+	CASE 1000
+		IF ページ数 < 1
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 -= 1
+		GOTO RESTART_LABEL
+	CASE 1001
+		IF ページ数 >= LOCAL:10
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 += 1
+		GOTO RESTART_LABEL
+	CASE 999
+		IF 宿泊エリア表示種別 == 2
+			CFLAG:PLAYER:現在マップ種別 = 2
+			CFLAG:MASTER:現在位置 = 1
+		ELSEIF 宿泊エリア表示種別 == 1
+			CFLAG:PLAYER:現在マップ種別 = 1
+			CFLAG:MASTER:現在位置 = 2
+		ELSE
+			CFLAG:PLAYER:現在マップ種別 = 0
+			CFLAG:MASTER:現在位置 = 20
+		ENDIF
+		CALL 移動時モード消去
+	CASEELSE
 		IF 表示エリア種類 == 200
 			IF CFLAG:(滞在者部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:RESULT):睡眠 && CFLAG:(滞在者部屋割り配列:RESULT):現在位置 == RESULT && 陥落チェック(滞在者部屋割り配列:RESULT) == 0
 				PRINTL 部屋には鍵が掛かっている。
@@ -184,54 +243,51 @@ SELECTCASE RESULT
 					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
 				ENDIF
 			NEXT
+		ELSEIF 表示エリア種類 == 600
+			LOCAL = RESULT
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;不在時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 1 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					PRINTL 店には鍵が掛かっている。
+					PRINTW どうやら誰もいないようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+			ELSEIF 部屋主配列:0 < 0
+				IF TIME < 540 || TIME > 1200 || 定休日判定(LOCAL)
+					PRINTL 店には鍵が掛かっている。
+					PRINTW どうやら誰もいないようだ…
+					GOTO RESTART_LABEL
+				ENDIF
+			ENDIF
+			CFLAG:PLAYER:現在マップ種別 = 1
+			CFLAG:MASTER:現在位置 = LOCAL + 1000
+			CALL 移動時モード消去
+			FOR LOCAL,1,CHARANUM
+				IF CFLAG:LOCAL:同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, LOCAL) > -1
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
 		ENDIF
-	CASE 200
-		IF 表示エリア種類 == 200
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		表示エリア種類 = 200
-		ページ数 = 0
-		GOTO RESTART_LABEL
-	CASE 300
-		IF 表示エリア種類 == 300
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		表示エリア種類 = 300
-		ページ数 = 0
-		GOTO RESTART_LABEL
-	CASE 400
-		IF 表示エリア種類 == 400
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		表示エリア種類 = 400
-		ページ数 = 0
-		GOTO RESTART_LABEL
-	CASE 1000
-		IF ページ数 < 1
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		ページ数 -= 1
-		GOTO RESTART_LABEL
-	CASE 1001
-		IF ページ数 >= LOCAL:10
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
-		ページ数 += 1
-		GOTO RESTART_LABEL
-	CASE 999
-		IF 宿泊エリア表示種別
-			CFLAG:PLAYER:現在マップ種別 = 宿泊エリア表示種別
-			CFLAG:MASTER:現在位置 = 1
-		ELSE
-			CFLAG:PLAYER:現在マップ種別 = 0
-			CFLAG:MASTER:現在位置 = 20
-		ENDIF
-		CALL 移動時モード消去
 ENDSELECT
 
 @宿泊エリア_客室_表示(ページ数)
@@ -588,7 +644,7 @@ IF TALENT:対象キャラ:定住者 == 1
 	;定住者は基本居住区エリア
 	部屋検索_マップ種別 = 2
 	;家の算出
-	FOR LOCAL, 0, 50
+	FOR LOCAL, 0, 500
 		SIF 定住者部屋割り配列:LOCAL == ""
 			CONTINUE
 		;部屋の居住者を配列化
@@ -696,6 +752,12 @@ RETURN 0
 
 VARSET LOCAL
 家最大数 = 50
+FOR LOCAL, 499, 49, -1
+	IF 定住者部屋割り配列:LOCAL != ""
+		家最大数 = LOCAL + 1 
+		BREAK
+	ENDIF
+NEXT
 
 
 LOCALS = <div rect='1375,0,5000,125'>
@@ -713,7 +775,7 @@ HTML_PRINT LOCALS
 VARSET LOCALS
 
 FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
-	SIF LOCAL >= 50
+	SIF LOCAL >= 家最大数
 		BREAK
 	;部屋の居住者を配列化
 	VARSET 部屋主配列
@@ -768,6 +830,9 @@ RETURN (家最大数 - 1) / 16
 #DIM 対象キャラ
 #DIM 部屋セットチェック
 
+SIF TALENT:対象キャラ:分身
+	RETURN 0
+
 ;部屋の無いキャラがいないかチェック
 部屋セットチェック = 0
 IF キャラクター部屋検索(対象キャラ) == -1 && CFLAG:対象キャラ:スイートルーム滞在フラグ == 0
@@ -809,3 +874,105 @@ IF キャラクター部屋検索(対象キャラ) == -1 && CFLAG:対象キャ�
 		ENDIF
 	ENDIF
 ENDIF
+
+@空艇港エリア_商業区_表示(ページ数)
+#DIM ページ数
+#DIM ループ用
+#DIM 縦位置
+#DIM 横位置
+#DIM 縦位置２
+#DIM 位置基準
+#DIM 部屋主配列, 10
+#DIMS モブ店主名
+
+VARSET LOCAL
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前の商店街エリアへ</button>　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (VARSIZE("商業区店割り配列", 0) - 1) / 16
+	LOCALS += "<button value='1001'>[1001]次の商店街エリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
+	SIF LOCAL >= VARSIZE("商業区店割り配列", 0)
+		BREAK
+	;部屋の居住者を配列化
+	VARSET 部屋主配列
+	VARSET RESULTS
+	SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
+	FOR ループ用, 0, RESULT
+		SIF RESULTS:ループ用 == ""
+			BREAK
+		部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+	NEXT
+
+	位置基準 = LOCAL - (ページ数 * 16)
+	縦位置 = 31 + (位置基準 / 4 * 625) + ((位置基準 / 4 + 1) / 2 * 175)
+	横位置 = 1375 + (位置基準 % 4) * 1187
+	縦位置２ = 562 + (位置基準 / 4 * 207) + ((位置基準 / 4) / 2 * 1011)
+	IF 部屋主配列:0 != 0
+		LOCAL:1 = 0
+		FOR ループ用, 0, 10
+			SIF 部屋主配列:ループ用 < 1
+				BREAK
+			IF CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000 && CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+		IF LOCAL:1
+			LOCALS:1 = 開店中
+			LOCALS:2 = #C0C000
+		ELSE
+			LOCALS:1 = 閉店中
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		IF 部屋主配列:0 < 0
+			SELECTCASE 部屋主配列:0
+				CASE -1
+					モブ店主名 = モブおじ
+				CASE -2
+					モブ店主名 = モブおばさん
+				CASE -3
+					モブ店主名 = モブ青年
+				CASE -4
+					モブ店主名 = モブ女性
+			ENDSELECT
+			IF TIME >= 540 && TIME <= 1200
+				LOCALS:1 = 開店中
+				LOCALS:2 = #C0C000
+			ELSE
+				LOCALS:1 = 閉店中
+				LOCALS:2 = #C0C0C0
+			ENDIF
+		ENDIF
+		IF 定休日判定(LOCAL)
+			LOCALS:1 = 定休日
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		IF 部屋主配列:0 < 0
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>%モブ店主名%の%商業区店割り配列:LOCAL:店舗名%<br>（%LOCALS:1%）</div>"
+		ELSEIF 部屋主配列:1 > 0
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>%CALLNAME:(部屋主配列:0)%の%商業区店割り配列:LOCAL:店舗名%<br>■店員他{LOCAL:1 - 1}名<br>（%LOCALS:1%）</div>"
+		ELSE
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>%CALLNAME:(部屋主配列:0)%の%商業区店割り配列:LOCAL:店舗名%<br>（%LOCALS:1%）</div>"
+		ENDIF
+	ELSE
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='#333333'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>空き店舗</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (商業区店数 - 1) / 16

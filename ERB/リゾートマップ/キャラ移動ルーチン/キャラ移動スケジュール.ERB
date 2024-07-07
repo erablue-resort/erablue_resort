@@ -21,18 +21,41 @@ IF CFLAG:キャラ番号:現在マップ種別 == スケジュール状態:キ�
 		CFLAG:キャラ番号:現在マップ種別 = 0
 	ELSE
 		;いないならルーチン通りの場所へ向けて移動
-		CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(スケジュール状態:キャラ番号:目的地, キャラ番号)
-		CALL 汎用移動処理(キャラ番号, RESULT)
-		RETURN 1
+
+		;居住区や商業区の例外処理
+		IF スケジュール状態:キャラ番号:目的マップ == 2 && スケジュール状態:キャラ番号:目的地 >= 1000
+			CFLAG:キャラ番号:現在位置 = スケジュール状態:キャラ番号:目的地
+		ELSEIF スケジュール状態:キャラ番号:目的マップ == 1 && スケジュール状態:キャラ番号:目的地 >= 1000
+			CFLAG:キャラ番号:現在位置 = スケジュール状態:キャラ番号:目的地
+		ELSE
+			;現在地がエリア内なら一旦外に出してからスキップムーブ
+			IF CFLAG:キャラ番号:現在マップ種別 == 2 && CFLAG:キャラ番号:現在位置 >= 1000
+				CFLAG:キャラ番号:現在位置 = 1
+			ELSEIF CFLAG:キャラ番号:現在マップ種別 == 1 && CFLAG:キャラ番号:現在位置 >= 1000
+				CFLAG:キャラ番号:現在位置 = 2
+			ENDIF
+			SIF CFLAG:キャラ番号:現在位置 == スケジュール状態:キャラ番号:目的地
+				RETURN 1
+			CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(スケジュール状態:キャラ番号:目的地, キャラ番号)
+			CALL 汎用移動処理(キャラ番号, RESULT)
+			RETURN 1
+		ENDIF
 	ENDIF
 ELSE
 	CALLFORM エリア情報登録_{CFLAG:キャラ番号:現在マップ種別}("エリア移動可能場所")
-	IF CFLAG:キャラ番号:現在位置 == RESULT || CFLAG:キャラ番号:現在マップ種別 == 999
+	LOCAL = RESULT
+	IF CFLAG:キャラ番号:現在位置 == LOCAL || CFLAG:キャラ番号:現在マップ種別 == 999
 		;マップ種別から違う場合は目的のマップへ移動
 		CALL 汎用マップ間移動処理(キャラ番号)
+	ELSEIF CFLAG:キャラ番号:現在マップ種別 == 2 && CFLAG:キャラ番号:現在位置 >= 1000
+		;居住区や商業区の例外処理
+		CALL 汎用移動処理(キャラ番号, LOCAL)
+	ELSEIF CFLAG:キャラ番号:現在マップ種別 == 1 && CFLAG:キャラ番号:現在位置 >= 1000
+		;居住区や商業区の例外処理
+		CALL 汎用移動処理(キャラ番号, LOCAL)
 	ELSE
-		CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(RESULT, キャラ番号)
-		CALL 汎用移動処理(キャラ番号, RESULT)
+		CALLFORM SKIP_MOVE_{CFLAG:キャラ番号:現在マップ種別}(LOCAL, キャラ番号)
+		CALL 汎用移動処理(キャラ番号, LOCAL)
 	ENDIF
 	RETURN 1
 ENDIF
@@ -43,7 +66,7 @@ RETURN 0
 #DIM 移動先
 ;同じ部屋にいるなら移動先PRINT
 IF CFLAG:キャラ番号:同室 && !CFLAG:MASTER:睡眠
-	PRINTFORMW %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, RESULT)%】に移動した
+	PRINTFORML %CALLNAME:キャラ番号%は【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%】から【%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, RESULT)%】に移動した
 ENDIF
 
 ;移動処理
@@ -51,7 +74,7 @@ CFLAG:キャラ番号:現在位置 = 移動先
 
 ;同じ部屋に来たならPRINT
 SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && !CFLAG:MASTER:睡眠 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別 
-	PRINTFORMW %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
+	PRINTFORML %CALLNAME:キャラ番号%が【%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%】に来た
 
 
 @汎用マップ間移動処理(キャラ番号)
@@ -989,17 +1012,36 @@ SIF マップ種別取得フラグ
 SELECTCASE RAND:7
 	CASE 6
 		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 10
-		RETURNF 3
+		RETURNF 2003
 	CASE 5
 		RETURNF キャラクター部屋検索(キャラ番号)
 	CASE 4
-		RETURNF 9
+		RETURNF 2009
 	CASE 3
-		RETURNF 8
+		RETURNF 2008
 	CASE 2
-		RETURNF 6
+		RETURNF 2006
 	CASE 1
-		RETURNF 5
+		RETURNF 2005
 	CASE 0
-		RETURNF 4
+		RETURNF 2004
+ENDSELECT
+
+
+;------------------------------------------------------------------------------
+;商業区
+;------------------------------------------------------------------------------
+@SCHEDULE_商業区店番(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		スケジュール状態:キャラ番号:目的マップ = 2
+		スケジュール状態:キャラ番号:目的地 = 店持ちキャラ店検索(キャラ番号)
+		RETURN 1
+	CASE "経過処理"
+	CASE "終了処理"
+		RETURN 1
 ENDSELECT
