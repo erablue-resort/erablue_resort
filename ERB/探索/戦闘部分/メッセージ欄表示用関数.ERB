@@ -1,6 +1,6 @@
 ﻿
 
-@メッセージ欄表示用関数(画像リソース = "", 名前欄表示文字列 = "", 表示位置 = "下", WAITあり = 1, ログ保存しないフラグ = 0)
+@メッセージ欄表示用関数(画像リソース = "", 名前欄表示文字列 = "", 表示位置 = "下", WAITあり = 1, ログ保存しないフラグ = 0, ARG)
 #DIMS 画像リソース
 #DIMS 名前欄表示文字列
 #DIMS 表示位置
@@ -31,7 +31,7 @@ FOR LOCAL,0,1000
 		IF 表示文章種類保存 == 2
 			WAIT
 		ENDIF
-		CALL PRINT_STR_メッセージ用(WSTR:LOCAL)
+		CALL PRINT_STR_メッセージ用(WSTR:LOCAL, ARG)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%<br>"
 		ログ保存用文字列 += "<br>"
 		CALL メッセージ欄文字列受け渡し_下側_登録処理(名前欄表示文字列, 画像リソース)
@@ -43,7 +43,7 @@ FOR LOCAL,0,1000
 		IF 表示文章種類保存 == 2
 			WAIT
 		ENDIF
-		CALL PRINT_STR_メッセージ用(KSTR:LOCAL)
+		CALL PRINT_STR_メッセージ用(KSTR:LOCAL, ARG)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%<br>"
 		ログ保存用文字列 += "<br>"
 		表示文章種類保存 = 1
@@ -52,7 +52,7 @@ FOR LOCAL,0,1000
 		IF 表示文章種類保存 == 2
 			WAIT
 		ENDIF
-		CALL PRINT_STR_メッセージ用(WNSTR:LOCAL)
+		CALL PRINT_STR_メッセージ用(WNSTR:LOCAL, ARG)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%"
 		CALL メッセージ欄文字列受け渡し_下側_登録処理(名前欄表示文字列, 画像リソース)
 		CALL 画面再描画
@@ -70,7 +70,7 @@ FOR LOCAL,0,1000
 			メッセージ欄追加数カウント += 1
 			表示行数カウント = 0
 		ENDIF
-		CALL PRINT_STR_メッセージ用(NSTR:LOCAL)
+		CALL PRINT_STR_メッセージ用(NSTR:LOCAL, ARG)
 		複数メッセージ欄_メッセージ欄記録:メッセージ欄追加数カウント += @"%RESULTS%"
 		表示文章種類保存 = 1
 	ENDIF
@@ -108,15 +108,21 @@ ENDIF
 RETURN 1
 
 
-@PRINT_STR_メッセージ用(ARGS = "")
+@PRINT_STR_メッセージ用(ARGS = "", 対象キャラ=-1)
 #DIM LCOUNT
 #DIM 返し数
 #DIMS 返し文
 #DIMS 表示文
 #DIM 文字色
+#DIM 対象キャラ
 
 VARSET 表示文
 VARSET LOCALS
+
+SIF 対象キャラ == -1
+	対象キャラ = TARGET
+SIF !INRANGE(対象キャラ, 0, CHARANUM - 1)
+	対象キャラ = MASTER
 
 ;文字列を分解する
 SPLIT ARGS, "_", LOCALS
@@ -125,6 +131,30 @@ LOCAL:1 = 0
 FOR LCOUNT, 0, 100
 	;特殊な操作
 	SELECTCASE LOCALS:LCOUNT
+	CASE "CALLNAME:TARGET","調教対象","被調教者"
+		表示文 += @"%CALLNAME:TARGET%"
+		ログ保存用文字列 += @"%CALLNAME:TARGET%"
+		CONTINUE
+	CASE "CALLNAME:MASTER","主人","主人公"
+		表示文 += @"%CALLNAME:MASTER%"
+		ログ保存用文字列 += @"%CALLNAME:MASTER%"
+		CONTINUE
+	 CASE "一人称","1st"
+	 	表示文 += @"%CSTR:対象キャラ:一人称%"
+	 	ログ保存用文字列 += @"%CSTR:対象キャラ:一人称%"
+	 	CONTINUE
+	 CASE "二人称","2nd"
+	 	表示文 += @"%CSTR:対象キャラ:二人称%"
+	 	ログ保存用文字列 += @"%CSTR:対象キャラ:二人称%"
+	 	CONTINUE
+	CASE "呼び名","CALLNAME"
+		表示文 += @"%CALLNAME:対象キャラ%"
+		ログ保存用文字列 += @"%CALLNAME:対象キャラ%"
+		CONTINUE
+	CASE "名前","NAME"
+		表示文 += @"%NAME:対象キャラ%"
+		ログ保存用文字列 += @"%NAME:対象キャラ%"
+		CONTINUE
 	CASE "BUTTON"
 		;次の文字をボタンにする
 		LCOUNT += 1
