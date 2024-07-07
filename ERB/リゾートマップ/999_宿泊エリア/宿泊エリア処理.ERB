@@ -54,7 +54,7 @@ LOCALS += "<br>"
 IF 宿泊エリア表示種別 == 2
 	LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
 ELSEIF 宿泊エリア表示種別 == 1
-	LOCALS += "<button value='999'>[999] 空艇港エリアに戻る</button>"
+	LOCALS += "<button value='999'>[999] 空艇港に戻る</button>"
 ELSE
 	LOCALS += "<button value='999'>[999] 自室に戻る</button>"
 ENDIF
@@ -255,12 +255,14 @@ SELECTCASE RESULT
 				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
 			NEXT
 			IF 部屋主配列:0 > 0
-				;睡眠時
+				;不在時
 				LOCAL:2 = 0
 				FOR ループ用, 0, 10
 					SIF 部屋主配列:ループ用 < 1
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 1 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1
 						LOCAL:2 = 1
 					ENDIF
 				NEXT
@@ -270,7 +272,7 @@ SELECTCASE RESULT
 					GOTO RESTART_LABEL
 				ENDIF
 			ELSEIF 部屋主配列:0 < 0
-				IF TIME < 540 || TIME > 1200
+				IF TIME < 540 || TIME > 1200 || 定休日判定(LOCAL)
 					PRINTL 店には鍵が掛かっている。
 					PRINTW どうやら誰もいないようだ…
 					GOTO RESTART_LABEL
@@ -891,7 +893,7 @@ IF ページ数 > 0
 ELSE
 	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
 ENDIF
-IF ページ数 < (商業区店数 - 1) / 16
+IF ページ数 < (VARSIZE("商業区店割り配列", 0) - 1) / 16
 	LOCALS += "<button value='1001'>[1001]次の商店街エリアへ</button>"
 ENDIF
 LOCALS += "</div>"
@@ -900,7 +902,7 @@ HTML_PRINT LOCALS
 VARSET LOCALS
 
 FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
-	SIF LOCAL >= 50
+	SIF LOCAL >= VARSIZE("商業区店割り配列", 0)
 		BREAK
 	;部屋の居住者を配列化
 	VARSET 部屋主配列
@@ -916,7 +918,7 @@ FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
 	縦位置 = 31 + (位置基準 / 4 * 625) + ((位置基準 / 4 + 1) / 2 * 175)
 	横位置 = 1375 + (位置基準 % 4) * 1187
 	縦位置２ = 562 + (位置基準 / 4 * 207) + ((位置基準 / 4) / 2 * 1011)
-	IF 部屋主配列:0 > 0
+	IF 部屋主配列:0 != 0
 		LOCAL:1 = 0
 		FOR ループ用, 0, 10
 			SIF 部屋主配列:ループ用 < 1
@@ -932,8 +934,6 @@ FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
 			LOCALS:1 = 閉店中
 			LOCALS:2 = #C0C0C0
 		ENDIF
-		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
-		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
 		IF 部屋主配列:0 < 0
 			SELECTCASE 部屋主配列:0
 				CASE -1
@@ -952,6 +952,14 @@ FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
 				LOCALS:1 = 閉店中
 				LOCALS:2 = #C0C0C0
 			ENDIF
+		ENDIF
+		IF 定休日判定(LOCAL)
+			LOCALS:1 = 定休日
+			LOCALS:2 = #C0C0C0
+		ENDIF
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		IF 部屋主配列:0 < 0
 			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>%モブ店主名%の%商業区店割り配列:LOCAL:店舗名%<br>（%LOCALS:1%）</div>"
 		ELSEIF 部屋主配列:1 > 0
 			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>%CALLNAME:(部屋主配列:0)%の%商業区店割り配列:LOCAL:店舗名%<br>■店員他{LOCAL:1 - 1}名<br>（%LOCALS:1%）</div>"
