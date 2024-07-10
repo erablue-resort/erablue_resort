@@ -1,181 +1,4 @@
-﻿@キャラクター招待_旧版
-
-;一日開始時メニューから呼び出し
-
-;まずランダム広告かダイレクトメールかを選ぶ
-$広告_LOOP
-DRAWLINE
-PRINTL リゾート地の広告を出します
-PRINTL どのような広告を出しますか？
-PRINTFORML （現在の所持金：%NUM_FORMAT(MONEY)%ルピ）
-DRAWLINE
-IF 通常キャラ招待:0 || ＤＭキャラ招待
-	SETCOLOR 0x666666
-	PRINTPLAIN [1]通常の広告を打つ（本日分は既に実行済みです）
-	PRINTL
-	PRINTPLAIN [2]ＤＭを出す（本日分は既に実行済みです）
-	PRINTL
-ELSEIF 滞在キャラ数 >= 滞在キャラ上限
-	SETCOLOR 0x666666
-	PRINTPLAIN [1]通常の広告を打つ（滞在人数が上限に達しています）
-	PRINTL
-	PRINTPLAIN [2]ＤＭを出す（滞在人数が上限に達しています）
-	PRINTL
-ELSE
-	IF MONEY < 3000
-		SETCOLOR 0x666666
-		PRINTPLAIN [1]通常の広告を打つ(所持金が足りません)
-		RESETCOLOR
-	ELSE
-		PRINTBUTTON "[1]通常の広告を打つ(3000～10000ルピ必要です)", 1
-	ENDIF
-	PRINTL
-	IF MONEY < 5000
-		SETCOLOR 0x666666
-		PRINTPLAIN [2]ＤＭを出す(所持金が足りません)
-		RESETCOLOR
-	ELSE
-		PRINTBUTTON "[2]ＤＭを出す(5000ルピ必要です)", 2
-	ENDIF
-	PRINTL
-ENDIF
-RESETCOLOR
-;スイートに空きがあるかチェック
-LOCAL:1 = 0
-FOR LOCAL, 0, スイートルーム部屋数
-	SIF スイートルーム招待:LOCAL > 0
-		CONTINUE
-	SIF スイートルーム部屋割り配列:LOCAL != ""
-		CONTINUE
-	LOCAL:1 = 1
-NEXT
-IF LOCAL:1
-	IF MONEY < 20000
-		SETCOLOR 0x666666
-		PRINTPLAIN [10]スイートルームに無料招待する（所持金が足りません）
-		RESETCOLOR
-	ELSE
-		PRINTBUTTON "[10]スイートルームに無料招待する(20000ルピ必要です)", 10
-	ENDIF
-	PRINTL
-ELSE
-	SETCOLOR 0x666666
-	PRINTPLAIN [10]スイートルームに無料招待する（部屋に空きがありません）
-	PRINTL
-ENDIF
-RESETCOLOR
-IF !ITEM:サプチケ
-	SETCOLOR 0x666666
-	PRINTPLAIN [3]サプチケ（開発版）を使う（チケットが足りません）
-ELSEIF サプチケキャラ招待
-	SETCOLOR 0x666666
-	PRINTPLAIN [3]サプチケ（開発版）を使う（本日分は既に実行済みです）
-ELSEIF 滞在キャラ数 + 集客人数 >= 滞在キャラ上限
-	SETCOLOR 0x666666
-	PRINTPLAIN [3]サプチケ（開発版）を使う（滞在予定人数が上限に達しています）
-ELSE
-	PRINTBUTTON @"[3]サプチケ（開発版）を使う（所持数：{ITEM:サプチケ}枚）", 3
-ENDIF
-
-PRINTL
-PRINTL
-RESETCOLOR
-PRINTBUTTONLC "[999]やめる", 999
-PRINTBUTTON "[説明]", 998
-PRINTL
-PRINTBUTTONLC "[997] 性別制御オプション", 997
-PRINTL 
-DRAWLINE
-
-$INPUT_LOOP
-INPUT
-
-SELECTCASE RESULT
-	CASE 1
-		IF 通常キャラ招待:0 || ＤＭキャラ招待
-			GOTO INPUT_LOOP
-		ENDIF
-		IF 滞在キャラ数 >= 滞在キャラ上限
-			GOTO INPUT_LOOP
-		ENDIF
-		CALL 通常広告
-		SIF RESULT == -1
-			GOTO 広告_LOOP
-	CASE 2
-		IF 通常キャラ招待:0 || ＤＭキャラ招待
-			GOTO INPUT_LOOP
-		ENDIF
-		IF 滞在キャラ数 >= 滞在キャラ上限
-			GOTO INPUT_LOOP
-		ENDIF
-		IF MONEY < 5000
-			PRINTW お金が足りません。
-			GOTO 広告_LOOP
-		ENDIF
-		CALL ＤＭ広告
-		SIF RESULT == -1
-			GOTO 広告_LOOP
-	CASE 3
-		IF !ITEM:サプチケ
-			PRINTW チケットが足りません。
-			GOTO 広告_LOOP
-		ENDIF
-		IF 滞在キャラ数 >= 滞在キャラ上限
-			GOTO INPUT_LOOP
-		ENDIF
-		CALL サプチケ使用
-		SIF RESULT == -1
-			GOTO 広告_LOOP
-	CASE 10
-		IF MONEY < 20000
-			PRINTW お金が足りません。
-			GOTO 広告_LOOP
-		ENDIF
-		CALL スイートルーム招待処理
-		SIF RESULT == -1
-			GOTO 広告_LOOP
-	CASE 998
-		DRAWLINE
-		PRINTL 島外に広告を出し、キャラクターがリゾートを訪れてくれる機能です。
-		PRINTL リゾートの施設改造度に応じて滞在可能な上限人数が設定されており、
-		PRINTL 上限以上に新たなキャラは訪れることはありません。
-		PRINTW また、広告を出せるのは一日一回までです。
-		PRINTL
-		PRINTL ■「通常の広告を打つ」について
-		PRINTL 広く様々な地域に広告を出すコマンドです。
-		PRINTL いくらルピを使うかで訪れてくれるキャラの人数が変化します。
-		PRINTW 消費するルピに対して訪れるキャラが多くなりやすいですが、反面特定のキャラを狙うことは出来ません。
-		PRINTL
-		PRINTL ■「ＤＭを出す」について
-		PRINTL 一定以上の好感度があるキャラに対して、手紙形式の広告を送ります。5000ルピの費用が掛かります。
-		PRINTL 指定したキャラを狙うことが出来ますが、消費するルピは割高な上に必ず訪れてくれるとは限りません。
-		PRINTW また、訪問確率は好感度を上げることで上昇します。
-		PRINTL
-		PRINTL ■「スイートルームに無料招待する」について
-		PRINTL 任意のキャラに対して、無料招待券を送ります。20000ルピの費用が掛かります。
-		PRINTL 指定したキャラを狙うことが可能で、必ず訪問してくれます。
-		PRINTL 通常の滞在者とは別枠なので普通の部屋がいっぱいでも呼ぶことが出来ます。
-		PRINTL しかし無料招待のため、一日終了時の売上には貢献しません。
-		PRINTW また、スイートルームに空きがない場合は使用することが出来ません。
-		PRINTL
-		PRINTL ■「サプチケ（開発版）を使う」について
-		PRINTL 全てのキャラから選択して一人を選び、選択したキャラが必ずリゾートを訪れてくれます。
-		PRINTL キャラが多くなるにつれてお目当てのキャラの初来訪が狙いづらくなるため、そのフォローとして初期で１枚所持しています。
-		PRINTW 初期所持以外の入手法は検討中です。
-		GOTO 広告_LOOP
-	CASE 999
-		RETURN 0
-	CASE 997
-		CALL OPTION_招待切り替え
-		RESTART
-	CASEELSE
-		GOTO INPUT_LOOP
-ENDSELECT
-
-RETURN 1
-
-
-@通常広告
+﻿@通常広告
 #DIM 集客候補, 500
 #DIM 候補人数
 VARSET 集客候補
@@ -257,6 +80,7 @@ SELECTCASE RESULT
 ENDSELECT
 
 ;上限以下にする
+CALL ユニーク客人数チェック()
 集客人数 = MIN(集客人数, (滞在キャラ上限 - 滞在キャラ数))
 
 LOCAL:1 = 0
@@ -551,7 +375,7 @@ ITEM:サプチケ -= 1
 
 サプチケキャラ招待 = 広告対象
 ;他の招待と併用出来るので例外的にここで滞在キャラ数を+1する
-滞在キャラ数 += 1
+RFLAG:滞在キャラ枠先確保分 += 1
 
 ;通常招待とかぶる可能性があるため、被ってたら排除
 FOR LOCAL, 0, 10
