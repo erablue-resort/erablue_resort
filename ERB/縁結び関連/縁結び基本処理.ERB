@@ -3,38 +3,41 @@
 #DIM ページ数
 #DIMS 表示文字列１
 #DIMS 表示文字列２
-#DIM カップリング保存配列, 500, 4
+#DIM 縁結び保存配列, 500, 4
 #DIM ソート用配列, 500
 #DIM CONST 対象キャラ１ = 0
 #DIM CONST 対象キャラ２ = 1
 #DIM CONST 進展度 = 2
-#DIM CONST カップリング種別 = 3
+#DIM CONST 縁結び種別 = 3
+#DIM 表示進行度
 
-;起床前から飛んでくる場所、今のカップリングが一覧で見られる
+;起床前から飛んでくる場所、今の縁結びが一覧で見られる
 ;まずは一覧を登録
 VARSET ソート用配列
-VARSET カップリング保存配列
-DT_SELECT "カップリングデータベース", ,"進展度 DESC", ソート用配列
-FOR LOCAL, 1, DT_ROW_LENGTH("カップリングデータベース")
-	カップリング保存配列:LOCAL:対象キャラ１ = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "対象キャラ１", 1)
-	カップリング保存配列:LOCAL:対象キャラ２ = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "対象キャラ２", 1)
-	カップリング保存配列:LOCAL:進展度 = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "進展度", 1)
-	IF DT_CELL_GETS("カップリングデータベース", ソート用配列:LOCAL, "カップリング種別", 1) == "恋慕"
-		カップリング保存配列:LOCAL:カップリング種別 = 0
-	ELSEIF DT_CELL_GETS("カップリングデータベース", ソート用配列:LOCAL, "カップリング種別", 1) == "セフレ"
-		カップリング保存配列:LOCAL:カップリング種別 = 1
+VARSET 縁結び保存配列
+DT_SELECT "縁結びデータベース", ,"進展度 DESC", ソート用配列
+LOCAL:1 = 0
+FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
+	縁結び保存配列:(LOCAL:1):対象キャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", ソート用配列:LOCAL, "対象キャラ１", 1))
+	縁結び保存配列:(LOCAL:1):対象キャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", ソート用配列:LOCAL, "対象キャラ２", 1))
+	縁結び保存配列:(LOCAL:1):進展度 = DT_CELL_GET("縁結びデータベース", ソート用配列:LOCAL, "進展度", 1)
+	IF DT_CELL_GETS("縁結びデータベース", ソート用配列:LOCAL, "縁結び種別", 1) == "恋慕"
+		縁結び保存配列:(LOCAL:1):縁結び種別 = 0
+	ELSEIF DT_CELL_GETS("縁結びデータベース", ソート用配列:LOCAL, "縁結び種別", 1) == "セフレ"
+		縁結び保存配列:(LOCAL:1):縁結び種別 = 1
 	ENDIF
+	LOCAL:1 ++
 NEXT
 
 DRAWLINE
 PRINTL 任意のキャラクターが他のキャラクターと仲を深めるように誘導します。
 PRINTL 仲が十分深まった時に恋人同士、あるいはセフレとなります。
-PRINTL ※成立したキャラのカップリングは取り消すことが出来ません。
+PRINTL ※成立したキャラの縁結びは取り消すことが出来ません。
 DRAWLINE
 
 ;左側ウィンドウ
 LOCALS = <div rect='81,0,1937,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>
-LOCALS += "<button value='-1'>[-1] 新しいカップリングを設定する</button><br>"
+LOCALS += "<button value='-1'>[-1] 新しい縁結びを設定する</button><br>"
 LOCALS += "<br>"
 LOCALS += "<button value='1000'>[1000] ヘルプ</button><br>"
 LOCALS += "<button value='999'>[999] 戻る</button><br>"
@@ -42,15 +45,15 @@ LOCALS += "</div>"
 
 ;右側ウィンドウ
 LOCALS += "<div rect='2050,0,3875,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>"
-LOCALS += "■設定中カップリングリスト<br>"
-FOR LOCAL, 0, VARSIZE("カップリング保存配列", 0)
-	IF カップリング保存配列:LOCAL:対象キャラ１ < 1
+LOCALS += "■設定中縁結びリスト<br>"
+FOR LOCAL, 0, VARSIZE("縁結び保存配列", 0)
+	IF 縁結び保存配列:LOCAL:対象キャラ１ < 1
 		BREAK
 	ENDIF
 	SIF ページ数 != LOCAL / 20
 		CONTINUE
-	表示文字列１ = %CALLNAME:(カップリング保存配列:LOCAL:対象キャラ１)%
-	SELECTCASE TALENT:(カップリング保存配列:LOCAL:対象キャラ１):性別
+	表示文字列１ = %CALLNAME:(縁結び保存配列:LOCAL:対象キャラ１)%
+	SELECTCASE TALENT:(縁結び保存配列:LOCAL:対象キャラ１):性別
 		CASE 0
 			表示文字列１ += "(無)"
 		CASE 1
@@ -60,8 +63,8 @@ FOR LOCAL, 0, VARSIZE("カップリング保存配列", 0)
 		CASE 3
 			表示文字列１ += "(双)"
 	ENDSELECT
-	表示文字列２ = %CALLNAME:(カップリング保存配列:LOCAL:対象キャラ２)%
-	SELECTCASE TALENT:(カップリング保存配列:LOCAL:対象キャラ２):性別
+	表示文字列２ = %CALLNAME:(縁結び保存配列:LOCAL:対象キャラ２)%
+	SELECTCASE TALENT:(縁結び保存配列:LOCAL:対象キャラ２):性別
 		CASE 0
 			表示文字列２ += "(無)"
 		CASE 1
@@ -71,19 +74,27 @@ FOR LOCAL, 0, VARSIZE("カップリング保存配列", 0)
 		CASE 3
 			表示文字列２ += "(双)"
 	ENDSELECT
-	IF カップリング保存配列:LOCAL:カップリング種別 == 0
+	VARSET ソート用配列
+	表示進行度 = 縁結び保存配列:LOCAL:進展度
+	IF 縁結び保存配列:LOCAL:縁結び種別 == 0
 		;恋慕
-		IF カップリング保存配列:LOCAL:進展度 >= 100
+		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:(縁結び保存配列:LOCAL:対象キャラ２):人物番号} And 対象キャラ２ = {CFLAG:(縁結び保存配列:LOCAL:対象キャラ１):人物番号} And 縁結び種別 = '恋慕'", , ソート用配列)
+			表示進行度 = MAX(表示進行度, DT_CELL_GET("縁結びデータベース", ソート用配列:0, "進展度", 1))
+		ENDIF
+		IF 表示進行度 >= 100
 			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%✕%表示文字列２, 20, LEFT% <img src='えっちハート'><font color='#@%カラーパレット_HTML("ピンク")%'>恋慕関係</font><img src='えっちハート'></button><br>"
 		ELSE
-			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% 恋慕進行度：{カップリング保存配列:LOCAL:進展度}％</button><br>"
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% 恋慕進行度：{表示進行度}％</button><br>"
 		ENDIF
-	ELSEIF カップリング保存配列:LOCAL:カップリング種別 == 1
+	ELSEIF 縁結び保存配列:LOCAL:縁結び種別 == 1
 		;セフレ
-		IF カップリング保存配列:LOCAL:進展度 >= 100
+		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:(縁結び保存配列:LOCAL:対象キャラ２):人物番号} And 対象キャラ２ = {CFLAG:(縁結び保存配列:LOCAL:対象キャラ１):人物番号} And 縁結び種別 = 'セフレ'")
+			表示進行度 = MAX(表示進行度, DT_CELL_GET("縁結びデータベース", ソート用配列:0, "進展度", 1))
+		ENDIF
+		IF 表示進行度 >= 100
 			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%✕%表示文字列２, 20, LEFT% <font color='#@%カラーパレット_HTML("薄ピンク")%'>セフレ関係</font><img src='えっちハート'></button><br>"
 		ELSE
-			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% セフレ進行度：{カップリング保存配列:LOCAL:進展度}％</button><br>"
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% セフレ進行度：{表示進行度}％</button><br>"
 		ENDIF
 	ENDIF
 NEXT
@@ -110,13 +121,218 @@ ENDSELECT
 RESTART
 
 @縁結び左キャラセット()
+#DIM ページ数
 ;キャラ一覧を表示
 DRAWLINE
 PRINTL 誰の縁を結びますか？
 PRINTL ※現在リゾートにいるキャラが対象です
+PRINTL ※性別なし、性欲なし、性知識がマイナス、元が陥落不可のキャラについては選択出来ません
+PRINTL 　（特定のキャラについては選択出来ることがあります）
 DRAWLINE
 
+LOCAL:1 = 0
+LOCALS = 
 FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+	RESULT = 0
+	TRYCALLFORM 縁結び特殊条件_左キャラ時_{NO:LOCAL}(LOCAL)
+	IF RESULT == 0
+		SIF TALENT:LOCAL:性別 == 0
+			CONTINUE
+		SIF TALENT:LOCAL:性欲 == -2
+			CONTINUE
+		SIF 知識素質:LOCAL:性知識 < 0
+			CONTINUE
+		SIF GETBIT(CSVTALENT(NO:LOCAL, GETNUM(TALENT, "陥落不可")), 0) && GETBIT(TALENT:LOCAL:陥落不可, 1)
+			CONTINUE
+	ELSEIF RESULT == -1
+		CONTINUE
+	ENDIF
+	IF ページ数 == LOCAL:1 / 30
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME:LOCAL, "]", 1),41,LEFT%</button>　　　　　　　　"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
 NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページへ", 1000
+ELSE
+	PRINTC   
+ENDIF
+IF ページ数 < (LOCAL:1 + 1) / 30
+	PRINTBUTTONLC "[1001] 次のページへ", 1001
+ELSE
+	PRINTC   
+ENDIF
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASE 1000
+		ページ数 --
+	CASE 1001
+		ページ数 ++
+	CASEELSE
+		CALL 縁結び右キャラセット(LOCAL)
+ENDSELECT
+
+RESTART
+
+;恋愛対象外チェック()
+
+@縁結び右キャラセット(実行キャラ)
+#DIM 実行キャラ
+#DIM 対象キャラ
+#DIM ページ数
+#DIM 初期進行度
+#DIM セットモード
+
+;キャラ一覧を表示
+DRAWLINE
+PRINTFORML %NAME:実行キャラ%　と誰の縁を結びますか？
+PRINTL ※恋愛対象外のキャラについては選択出来ません。
+PRINTL 　（特定のキャラについては選択出来ることがあります）
+DRAWLINE
+IF セットモード == 0
+	HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='1011'>[セフレの縁]</button>"
+ELSE
+	HTML_PRINT @"　　<button value='1010'>[恋慕の縁]</button>　　<font color='#%カラーパレット_HTML("黄")%'>[セフレの縁]</font>"
+ENDIF
+DRAWLINE
+LOCAL:1 = 0
+LOCALS = 
+FOR 対象キャラ, 1, CHARANUM
+	;優先条件
+	;オプションによる制御
+	SIF 性別招待制御_実処理(対象キャラ)
+		CONTINUE
+	;招待可能フラグによる制御
+	SIF CFLAG:対象キャラ:招待不可フラグ
+		CONTINUE
+	;同じ相手はダメ
+	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:実行キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
+		CONTINUE
+
+	;口上側で設定可能な条件
+	RESULT = 0
+	IF セットモード
+		TRYCALLFORM 縁結び相手条件_セフレ_{NO:実行キャラ}(実行キャラ, 対象キャラ)
+	ELSE
+		;既に恋慕セットしてたらどんな条件だろうともアウト
+		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:実行キャラ:人物番号} And 縁結び種別 = '恋慕'")
+			CONTINUE
+		ENDIF
+		TRYCALLFORM 縁結び相手条件_恋慕_{NO:実行キャラ}(実行キャラ, 対象キャラ)
+	ENDIF
+	IF RESULT == 0
+		;基本的に無性別は対象にならない
+		SIF TALENT:対象キャラ:性別 == 0
+			CONTINUE
+		IF TALENT:実行キャラ:性別 == TALENT:対象キャラ:性別 && TALENT:実行キャラ:性別 != 3
+			;ただし同性愛系の性癖があれば対象になる
+			IF 性癖素質:実行キャラ:同性愛 == 0
+				CONTINUE
+			ENDIF
+		ENDIF
+		IF セットモード
+			;基本的に特別な条件が無い限り、セフレ陥落がないと選べない
+			SIF TALENT:実行キャラ:セフレ < 1 && TALENT:実行キャラ:恋人持ち != -2
+				CONTINUE
+			;セフレ不可はダメ
+			SIF GETBIT(TALENT:実行キャラ:陥落不可, 1)
+				CONTINUE
+		ELSE
+			;恋慕陥落状態の時は恋慕陥落は選べない
+			SIF TALENT:実行キャラ:恋慕 > 0
+				CONTINUE
+			;CSVで恋慕不可はダメ
+			SIF	GETBIT(CSVTALENT(NO:実行キャラ, GETNUM(TALENT, "陥落不可")), 0)
+				CONTINUE
+		ENDIF
+	ELSEIF RESULT == -1
+		CONTINUE
+	ENDIF
+	IF ページ数 == LOCAL:1 / 30
+		LOCALS += @"<button value='{対象キャラ}'>[{対象キャラ,3}] %ADD_STR_SPACE(NAME:対象キャラ, "]", 1),41,LEFT%</button>　　　　　　　　"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページへ", 1000
+ELSE
+	PRINTC   
+ENDIF
+IF ページ数 < (LOCAL:1 + 1) / 30
+	PRINTBUTTONLC "[1001] 次のページへ", 1001
+ELSE
+	PRINTC   
+ENDIF
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+
+BINPUT
+対象キャラ = RESULT
+SELECTCASE 対象キャラ
+	CASE 999
+		ページ数 = 0
+		セットモード = 0
+		RETURN 0
+	CASE 1000
+		ページ数 --
+	CASE 1001
+		ページ数 ++
+	CASE 1010
+		セットモード = 0
+	CASE 1011
+		セットモード = 1
+	CASEELSE
+		;データベースにセット
+		PRINTFORM %CALLNAME:実行キャラ%に%CALLNAME:対象キャラ%との
+		IF セットモード
+			PRINT 『セフレの縁』
+			LOCALS = セフレ
+		ELSE
+			PRINT 『恋慕の縁』
+			LOCALS = 恋慕
+		ENDIF
+		PRINTL を導きました。
+		PRINTW 今後のリゾート生活で縁が進行していきます。
+		初期進行度 = 0
+		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
+			IF 同行候補キャラ番号:対象キャラ:LOCAL == 実行キャラ
+				初期進行度 = MIN(同行候補キャラ確率:対象キャラ:LOCAL, 100) / 2
+				BREAK
+			ENDIF
+		NEXT
+		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:実行キャラ:人物番号, "対象キャラ２", CFLAG:対象キャラ:人物番号, "進展度", 初期進行度, "縁結び種別", LOCALS
+		IF セットモード == 0
+			ページ数 = 0
+			セットモード = 0
+			RETURN 0
+		ENDIF
+ENDSELECT
+
+RESTART
