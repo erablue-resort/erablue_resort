@@ -1,0 +1,122 @@
+﻿
+@縁結びメニュー
+#DIM ページ数
+#DIMS 表示文字列１
+#DIMS 表示文字列２
+#DIM カップリング保存配列, 500, 4
+#DIM ソート用配列, 500
+#DIM CONST 対象キャラ１ = 0
+#DIM CONST 対象キャラ２ = 1
+#DIM CONST 進展度 = 2
+#DIM CONST カップリング種別 = 3
+
+;起床前から飛んでくる場所、今のカップリングが一覧で見られる
+;まずは一覧を登録
+VARSET ソート用配列
+VARSET カップリング保存配列
+DT_SELECT "カップリングデータベース", ,"進展度 DESC", ソート用配列
+FOR LOCAL, 1, DT_ROW_LENGTH("カップリングデータベース")
+	カップリング保存配列:LOCAL:対象キャラ１ = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "対象キャラ１", 1)
+	カップリング保存配列:LOCAL:対象キャラ２ = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "対象キャラ２", 1)
+	カップリング保存配列:LOCAL:進展度 = DT_CELL_GET("カップリングデータベース", ソート用配列:LOCAL, "進展度", 1)
+	IF DT_CELL_GETS("カップリングデータベース", ソート用配列:LOCAL, "カップリング種別", 1) == "恋慕"
+		カップリング保存配列:LOCAL:カップリング種別 = 0
+	ELSEIF DT_CELL_GETS("カップリングデータベース", ソート用配列:LOCAL, "カップリング種別", 1) == "セフレ"
+		カップリング保存配列:LOCAL:カップリング種別 = 1
+	ENDIF
+NEXT
+
+DRAWLINE
+PRINTL 任意のキャラクターが他のキャラクターと仲を深めるように誘導します。
+PRINTL 仲が十分深まった時に恋人同士、あるいはセフレとなります。
+PRINTL ※成立したキャラのカップリングは取り消すことが出来ません。
+DRAWLINE
+
+;左側ウィンドウ
+LOCALS = <div rect='81,0,1937,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>
+LOCALS += "<button value='-1'>[-1] 新しいカップリングを設定する</button><br>"
+LOCALS += "<br>"
+LOCALS += "<button value='1000'>[1000] ヘルプ</button><br>"
+LOCALS += "<button value='999'>[999] 戻る</button><br>"
+LOCALS += "</div>"
+
+;右側ウィンドウ
+LOCALS += "<div rect='2050,0,3875,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>"
+LOCALS += "■設定中カップリングリスト<br>"
+FOR LOCAL, 0, VARSIZE("カップリング保存配列", 0)
+	IF カップリング保存配列:LOCAL:対象キャラ１ < 1
+		BREAK
+	ENDIF
+	SIF ページ数 != LOCAL / 20
+		CONTINUE
+	表示文字列１ = %CALLNAME:(カップリング保存配列:LOCAL:対象キャラ１)%
+	SELECTCASE TALENT:(カップリング保存配列:LOCAL:対象キャラ１):性別
+		CASE 0
+			表示文字列１ += "(無)"
+		CASE 1
+			表示文字列１ += "(♀)"
+		CASE 2
+			表示文字列１ += "(♂)"
+		CASE 3
+			表示文字列１ += "(双)"
+	ENDSELECT
+	表示文字列２ = %CALLNAME:(カップリング保存配列:LOCAL:対象キャラ２)%
+	SELECTCASE TALENT:(カップリング保存配列:LOCAL:対象キャラ２):性別
+		CASE 0
+			表示文字列２ += "(無)"
+		CASE 1
+			表示文字列２ += "(♀)"
+		CASE 2
+			表示文字列２ += "(♂)"
+		CASE 3
+			表示文字列２ += "(双)"
+	ENDSELECT
+	IF カップリング保存配列:LOCAL:カップリング種別 == 0
+		;恋慕
+		IF カップリング保存配列:LOCAL:進展度 >= 100
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%✕%表示文字列２, 20, LEFT% <img src='えっちハート'><font color='#@%カラーパレット_HTML("ピンク")%'>恋慕関係</font><img src='えっちハート'></button><br>"
+		ELSE
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% 恋慕進行度：{カップリング保存配列:LOCAL:進展度}％</button><br>"
+		ENDIF
+	ELSEIF カップリング保存配列:LOCAL:カップリング種別 == 1
+		;セフレ
+		IF カップリング保存配列:LOCAL:進展度 >= 100
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%✕%表示文字列２, 20, LEFT% <font color='#@%カラーパレット_HTML("薄ピンク")%'>セフレ関係</font><img src='えっちハート'></button><br>"
+		ELSE
+			LOCALS += @"　<button value='{LOCAL}'>[{LOCAL}] %表示文字列１, 20, LEFT%＞%表示文字列２, 20, LEFT% セフレ進行度：{カップリング保存配列:LOCAL:進展度}％</button><br>"
+		ENDIF
+	ENDIF
+NEXT
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 30
+	PRINTL
+NEXT
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE -1
+		CALL 縁結び左キャラセット()
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASE 1000
+	CASEELSE
+ENDSELECT
+
+RESTART
+
+@縁結び左キャラセット()
+;キャラ一覧を表示
+DRAWLINE
+PRINTL 誰の縁を結びますか？
+PRINTL ※現在リゾートにいるキャラが対象です
+DRAWLINE
+
+FOR LOCAL, 1, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+NEXT
