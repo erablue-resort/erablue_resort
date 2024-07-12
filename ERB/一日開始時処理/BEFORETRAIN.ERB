@@ -6,6 +6,9 @@
 #DIMS 属性登録
 #DIM 知識番号
 #DIM 候補配列, 50
+#DIM 対象キャラ１
+#DIM 対象キャラ２
+
 
 VARSET TARGET
 DRAWLINE
@@ -13,6 +16,30 @@ CALL 招待キャラ来訪処理
 CALL 常連キャラ来訪処理
 WAIT
 DRAWLINE
+;進行度が100以上になった縁結びを完了させる
+FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
+	SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ")
+		CONTINUE
+	SIF DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") < 100
+		CONTINUE
+
+	対象キャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１"))
+	対象キャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２"))
+
+	;関係性データベースに登録
+	IF DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別") == "恋慕"
+		DT_ROW_ADD "関係性データベース", "対象キャラ１", DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１"), "対象キャラ２", DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２"), "関係性種別", "恋慕"
+		PRINTFORML %CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%が『恋慕関係』になった！
+		CALL 履歴データベース登録(CFLAG:対象キャラ１:人物番号, @"%CALLNAME:対象キャラ２%と恋慕関係になった","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:対象キャラ２:人物番号, @"%CALLNAME:対象キャラ１%と恋慕関係になった","うふふ実績")
+	ELSEIF DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別") == "セフレ"
+		DT_ROW_ADD "関係性データベース", "対象キャラ１", DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１"), "対象キャラ２", DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２"), "関係性種別", "セフレ"
+		PRINTFORML %CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%が『セフレ関係』になった！
+		CALL 履歴データベース登録(CFLAG:対象キャラ１:人物番号, @"%CALLNAME:対象キャラ２%とセフレ関係になった","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:対象キャラ２:人物番号, @"%CALLNAME:対象キャラ１%とセフレ関係になった","うふふ実績")
+	ENDIF
+NEXT
+
 ;初期化・滞在期間処理
 FOR LOCAL,0,CHARANUM
 	;危険日などを設定する

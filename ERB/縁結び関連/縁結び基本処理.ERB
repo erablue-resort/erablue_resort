@@ -106,8 +106,12 @@ FOR LOCAL, 0, 30
 	PRINTL
 NEXT
 
-BINPUT
-LOCAL = RESULT
+IF チュートリアルフラグ:縁結び == 0
+	LOCAL = 1000
+ELSE
+	BINPUT
+	LOCAL = RESULT
+ENDIF
 SELECTCASE LOCAL
 	CASE -1
 		CALL 縁結び左キャラセット()
@@ -115,6 +119,8 @@ SELECTCASE LOCAL
 		ページ数 = 0
 		RETURN 0
 	CASE 1000
+		CALL 縁結びシステムチュートリアル
+		DRAWLINE
 	CASEELSE
 ENDSELECT
 
@@ -242,15 +248,26 @@ FOR 対象キャラ, 1, CHARANUM
 		;基本的に無性別は対象にならない
 		SIF TALENT:対象キャラ:性別 == 0
 			CONTINUE
+
+		;性知識がマイナスなら恋愛という概念がないので対象外
+		IF 知識素質:対象キャラ:性知識 < 0
+			;ただし、恋慕やセフレがあるなら対象になる
+			IF TALENT:対象キャラ:恋慕 || TALENT:対象キャラ:恋人持ち
+			ELSEIF TALENT:対象キャラ:セフレ || TALENT:対象キャラ:セフレあり
+			ELSE
+				CONTINUE
+			ENDIF
+		ENDIF
+
 		IF TALENT:実行キャラ:性別 == TALENT:対象キャラ:性別 && TALENT:実行キャラ:性別 != 3
-			;ただし同性愛系の性癖があれば対象になる
+			;同性は同性愛系の性癖があれば対象になる
 			IF 性癖素質:実行キャラ:同性愛 == 0
 				CONTINUE
 			ENDIF
 		ENDIF
 		IF セットモード
-			;基本的に特別な条件が無い限り、セフレ陥落がないと選べない
-			SIF TALENT:実行キャラ:セフレ < 1 && TALENT:実行キャラ:恋人持ち != -2
+			;基本的に特別な条件が無い限り、実行キャラにセフレ陥落がないと選べない
+			SIF TALENT:実行キャラ:セフレ < 1 && TALENT:実行キャラ:セフレあり == 0
 				CONTINUE
 			;セフレ不可はダメ
 			SIF GETBIT(TALENT:実行キャラ:陥落不可, 1)
@@ -336,3 +353,90 @@ SELECTCASE 対象キャラ
 ENDSELECT
 
 RESTART
+
+
+@縁結び進展しない判定(実行キャラ, 対象キャラ, 縁結び種別)
+#DIM 実行キャラ
+#DIM 対象キャラ
+#DIM 対象外フラグ
+#DIMS 縁結び種別
+対象外フラグ = 0
+
+RESULT = 0
+IF 縁結び種別 == "恋慕"
+	TRYCALLFORM 縁結び相手条件_恋慕_{NO:対象キャラ}(対象キャラ, 実行キャラ)
+ELSE
+	TRYCALLFORM 縁結び相手条件_セフレ_{NO:対象キャラ}(対象キャラ, 実行キャラ)
+ENDIF
+IF RESULT == 0
+	IF 縁結び種別 == "恋慕"
+		;既に恋慕の時、対象外
+		SIF TALENT:対象キャラ:恋慕
+			対象外フラグ = 1
+		;CSVで恋慕不可はダメ
+		SIF	GETBIT(CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "陥落不可")), 0)
+			対象外フラグ = 1
+
+		;性知識がマイナスなら恋愛という概念がないので対象外
+		IF 知識素質:対象キャラ:性知識 < 0
+			;ただし、セフレがあるなら対象になる
+			IF TALENT:対象キャラ:セフレ || TALENT:対象キャラ:セフレあり
+			ELSE
+				対象外フラグ = 1
+			ENDIF
+		ENDIF
+	ELSE
+		;セフレ不可はダメ
+		SIF GETBIT(TALENT:対象キャラ:陥落不可, 1)
+			対象外フラグ = 1
+		;セフレ時は性知識の条件なし
+	ENDIF
+
+	;性別が同じ、かつふたなりでないなら恋愛対象外
+	IF TALENT:実行キャラ:性別 == TALENT:対象キャラ:性別 && TALENT:対象キャラ:性別 != 3 && TALENT:対象キャラ:性別 != 0
+		;ただし同性愛系の性癖があれば対象になる
+		IF 性癖素質:対象キャラ:同性愛
+		ELSE
+			対象外フラグ = 1
+		ENDIF
+	ENDIF
+ELSEIF RESULT == -1
+	対象外フラグ = 1
+ELSEIF RESULT == 1
+	対象外フラグ = 0
+ENDIF
+
+RETURN 対象外フラグ
+
+@同室者縁結び進行処理(進行量)
+#DIM 進行量
+#DIM 実行TARGET
+#DIM 対象TARGET
+
+;同室してるTARGET全員の組み合わせについて縁結びを進展させる
+
+FOR 実行TARGET, 0, CHARANUM
+	SIF TARGET:実行TARGET < 0
+		BREAK
+	FOR 対象TARGET, 0, CHARANUM
+		SIF TARGET:対象TARGET < 0
+			BREAK
+		VARSET RESULT
+		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:(TARGET:実行TARGET):人物番号} And 対象キャラ２ = {CFLAG:(TARGET:対象TARGET):人物番号}")
+			LOCAL = RESULT:1
+			;完了してるならスキップ
+			SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ", 1)
+				CONTINUE
+			;判定をチェック
+			CALL 縁結び進展しない判定(TARGET:実行TARGET, TARGET:対象TARGET, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1))
+			SIF RESULT:0
+				CONTINUE
+
+			;同じ組み合わせは複数存在しないはずなのでそのまま進展
+			DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
+		ENDIF
+	NEXT
+NEXT
+
+
+

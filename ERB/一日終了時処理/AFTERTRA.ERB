@@ -13,6 +13,8 @@
 #DIM 食材ID
 #DIM 施設維持費
 #DIM 給料基礎値
+#DIM 対象キャラ１
+#DIM 対象キャラ２
 
 VARSET LOCAL
 VARSET 長期雇用者保存配列
@@ -601,6 +603,28 @@ FOR LOCAL, 0, CHARANUM
 		CFLAG:LOCAL:信頼度 += 500
 		CALL FAVOR_LvUPCheck(LOCAL)
 		SKIPDISP 0
+	ENDIF
+NEXT
+
+;--------------------------------------------------------------------------------
+;縁結び進展処理
+;--------------------------------------------------------------------------------
+FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
+	;成立済みはスキップ
+	SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ")
+		CONTINUE
+
+	対象キャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１"))
+	対象キャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２"))
+
+	;対象キャラ２の判定をチェック
+	CALL 縁結び進展しない判定(対象キャラ１, 対象キャラ２, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別"))
+	SIF RESULT
+		CONTINUE
+
+	IF CFLAG:対象キャラ１:滞在期間 > 0 && CFLAG:対象キャラ２:滞在期間
+		;ふたりともリゾートにいる時、微妙に進展する
+		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + RAND:3 + 1
 	ENDIF
 NEXT
 
