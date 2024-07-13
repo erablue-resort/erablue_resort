@@ -1761,22 +1761,76 @@ ENDIF
 PRINTFORM \@ !CFLAG:ARG:好感度レベル? 初対面#%CSTR:ARG:現在の好感度表示%\@
 
 @PRINT_恋慕レベル表示(ARG)
+#DIM 恋慕相手
 
-PRINTFORM 恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
-SELECTCASE CFLAG:ARG:恋慕レベル
-	CASE 0
-		PRINT 脈ナシ
-	CASE IS <= 関係閾値:1
-		PRINT ちょっと気になる
-	CASE IS <= 関係閾値:2
-		PRINT なんかいいかも
-	CASE IS <= 関係閾値:3
-		PRINT 好意を自覚
-	CASE IS <= 関係閾値:4
-		PRINT ラブラブ
-	CASEELSE
-		PRINT 最愛の人
-ENDSELECT
+PRINTL 
+IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = '恋慕'")
+	IF CFLAG:ARG:ゲージ起動分類 == 1
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTFORM 　恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
+		ENDIF
+		RESETCOLOR
+	ENDIF
+	IF CFLAG:ARG:人物番号 == DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1)
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ２", 1))
+	ELSE
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1))
+	ENDIF
+	PRINTFORML 　恋慕成立相手：%NAME:恋慕相手%
+ELSE
+	IF CFLAG:ARG:ゲージ起動分類 == 1
+		PRINTFORM 　恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
+		SELECTCASE CFLAG:ARG:恋慕レベル
+			CASE 0
+				PRINT 脈ナシ
+			CASE IS <= 関係閾値:1
+				PRINT ちょっと気になる
+			CASE IS <= 関係閾値:2
+				PRINT なんかいいかも
+			CASE IS <= 関係閾値:3
+				PRINT 好意を自覚
+			CASE IS <= 関係閾値:4
+				PRINT ラブラブ
+			CASEELSE
+				PRINT 最愛の人
+		ENDSELECT
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
+		ENDIF
+	ENDIF
+	IF TALENT:ARG:恋慕
+		PRINTFORML 　恋慕成立相手：%NAME:MASTER%
+	ENDIF
+ENDIF
+
+@PRINT_セフレ相手表示(ARG)
+#DIM 関係数
+#DIM セフレ相手
+
+IF TALENT:ARG:セフレ
+	PRINTL
+	PRINTFORML 　セフレ成立相手：%NAME:MASTER% 
+ENDIF
+
+VARSET RESULT
+関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = 'セフレ'")
+SIF 関係数 < 1
+	RETURN 0
+
+SIF TALENT:ARG:セフレ == 0
+	PRINTL
+FOR LOCAL, 1, 関係数 + 1
+	IF CFLAG:ARG:人物番号 == DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1)
+		セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ２", 1))
+	ELSE
+		セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1))
+	ENDIF
+	PRINTFORML 　セフレ成立相手：%NAME:セフレ相手%
+NEXT
 
 @PRINT_STATE_好感度詳細(ARG)
 IF ARG
@@ -1897,15 +1951,8 @@ IF ARG
 		ENDIF
 	ENDIF
 ENDIF
-IF 	CFLAG:ARG:ゲージ起動分類 == 1
-	PRINTL 
-	PRINT 　
-	CALL PRINT_恋慕レベル表示(ARG)
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
-	ENDIF
-ENDIF
+CALL PRINT_恋慕レベル表示(ARG)
+CALL PRINT_セフレ相手表示(ARG)
 PRINTL
 
 @PRINT_STATE_仕事レベル表示(ARG)

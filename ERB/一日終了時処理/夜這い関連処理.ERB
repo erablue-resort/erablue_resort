@@ -1,0 +1,88 @@
+﻿
+@一日終了時夜這い判定(対象キャラ)
+#DIM 対象キャラ
+#DIM 夜這い相手
+#DIM 対象配列, 500
+#DIM 候補配列, 500
+#DIM 候補数
+#DIM 関係数
+#DIMS 関係性種別
+
+;酔い潰れや体力０の時は夜這いしない
+IF CFLAG:対象キャラ:酔いすぎ
+	RETURN 0
+ENDIF
+IF CFLAG:対象キャラ:体力限界
+	RETURN 0
+ENDIF
+;性感帯無い場合も駄目
+SIF RANDOM_PART(対象キャラ) == -1
+	RETURN 0
+
+;相手の選定
+VARSET 候補配列, -1
+VARSET 対象配列
+候補数 = 0
+関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')", , 対象配列)
+IF 関係数 > 0
+	FOR LOCAL, 0, 関係数
+		IF DT_CELL_GETS("関係性データベース", 対象配列:LOCAL, "関係性種別", 1) == "恋慕"
+			;恋慕はセフレより確率が高いので２個入れる
+			LOCAL:1 = 関係性_相手人物番号取得(CFLAG:対象キャラ:人物番号, 対象配列:LOCAL)
+			IF LOCAL:1 > 0
+				候補配列:候補数 = LOCAL:1
+				候補数 ++
+				候補配列:候補数 = LOCAL:1
+				候補数 ++
+			ENDIF
+		ELSE
+			;セフレ
+			LOCAL:1 = 関係性_相手人物番号取得(CFLAG:対象キャラ:人物番号, 対象配列:LOCAL)
+			IF LOCAL:1 > 0
+				候補配列:候補数 = LOCAL:1
+				候補数 ++
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+IF TALENT:対象キャラ:恋慕
+	候補配列:候補数 = CFLAG:MASTER:人物番号
+	候補数 ++
+	候補配列:候補数 = CFLAG:MASTER:人物番号
+	候補数 ++
+ENDIF
+IF TALENT:対象キャラ:セフレ
+	候補配列:候補数 = CFLAG:MASTER:人物番号
+	候補数 ++
+ENDIF
+;ランダムに決定
+夜這い相手 = FIND_CHARA_FROM_PERSON_ID(候補配列:(RAND:候補数))
+IF 夜這い相手 == MASTER
+	IF TALENT:対象キャラ:恋慕
+		関係性種別 = 恋慕
+	ELSE
+		関係性種別 = セフレ
+	ENDIF
+ELSE
+	IF MATCH(候補配列, CFLAG:夜這い相手:人物番号) > 1
+		関係性種別 = 恋慕
+	ELSE
+		関係性種別 = セフレ
+	ENDIF
+ENDIF
+
+
+
+;セックス覚えたて
+;５０回以上EXPが蓄積したら覚えたてボーナスおしまい
+SIF CFLAG:対象キャラ:セックス覚えたて && EXP:対象キャラ:Ｖ性交経験 > 50
+	CFLAG:対象キャラ:セックス覚えたて = 0
+IF CFLAG:対象キャラ:セックス覚えたて
+
+	DRAWLINE
+	PRINTFORML %CALLNAME:対象キャラ%は今夜も%CALLNAME:夜這い相手%を夜這いした……。
+	PRINTL
+	PRINTFORM %CALLNAME:対象キャラ%は
+	PRINTW
+	RETURN 1
+ENDIF
