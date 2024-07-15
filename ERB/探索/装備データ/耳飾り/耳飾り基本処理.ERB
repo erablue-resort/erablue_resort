@@ -5,9 +5,9 @@
 #DIMS 耳飾り名
 #DIM ランダム性能固定フラグ
 
-;最大500個
-IF DT_ROW_LENGTH("所持指輪データベース") >= 500
-	PRINTW 指輪所持数が最大数（５００個）を越えました。
+;最大個数制限
+IF DT_ROW_LENGTH("所持指輪データベース") >= 耳飾り所持最大数
+	PRINTFORMW 指輪所持数が最大数（%TOFULL(TOSTR(耳飾り所持最大数))%個）を越えました。
 	RETURN -1
 ENDIF
 
@@ -35,6 +35,8 @@ ENDIF
 @耳飾り付け替え処理画面(キャラ番号)
 #DIM キャラ番号
 #DIM ページ番号
+#DIMS ソート条件
+
 ;表示部分
 ;装備中耳飾り表示
 DRAWLINE
@@ -50,7 +52,7 @@ ELSE
 ENDIF
 ;所持耳飾りリスト表示
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
-CALL 所持耳飾りリスト表示(キャラ番号, ページ番号)
+CALL 所持耳飾りリスト表示(キャラ番号, ページ番号, , ソート条件)
 
 ;戻るボタンと前次ページボタン
 LOCALS += "<div rect='262,4875,5537,3625'>"
@@ -82,6 +84,27 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE -1
+		IF ソート条件 == "耳飾り名 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 耳飾り名 ASC
+		ENDIF
+		RESTART
+	CASE -2
+		IF ソート条件 == "変更属性 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 変更属性 ASC
+		ENDIF
+		RESTART
+	CASE -3
+		IF ソート条件 == "奥義補正 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 奥義補正 ASC
+		ENDIF
+		RESTART
 	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
@@ -104,22 +127,22 @@ SELECTCASE LOCAL
 		IF 装備ステータス補正保存:キャラ番号:装備耳飾り番号 > 0
 			DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:キャラ番号:装備耳飾り番号, "装備キャラ番号", 0, 1
 		ENDIF
-		LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
+		LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1)
 		IF LOCAL:1 > 0
 			装備ステータス補正保存:(LOCAL:1):装備耳飾り番号 = 0
 			CALL 装備再計算処理(LOCAL:1)
 		ENDIF
-		装備ステータス補正保存:キャラ番号:装備耳飾り番号 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
-		DT_CELL_SET "所持耳飾りデータベース", LOCAL, "装備キャラ番号", キャラ番号
+		装備ステータス補正保存:キャラ番号:装備耳飾り番号 = 表示用ステータス格納配列:LOCAL:0
+		DT_CELL_SET "所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", キャラ番号, 1
 		CALL 装備再計算処理(キャラ番号)
-		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%を装備した。
+		PRINTFORMW %CALLNAME:キャラ番号%は%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%を装備した。
 		VARSET 表示用ステータス格納配列:0:0
 		ページ番号 = 0
 		RETURN 0
 	CASE IS < 1000
-		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%
+		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL - 500, "id"))
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%(表示用ステータス格納配列:(LOCAL - 500):0)
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
@@ -127,39 +150,46 @@ SELECTCASE LOCAL
 ENDSELECT
 LOOP 1
 
-@所持耳飾りリスト表示(キャラ番号, ページ番号, y軸位置 = 1375)
+@所持耳飾りリスト表示(キャラ番号, ページ番号, y軸位置 = 1375, ソート条件 = "")
 #DIM キャラ番号
 #DIM ページ番号
 #DIM y軸位置
+#DIMS ソート条件
 
 ;ページめくり用にステータス格納
-FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
-	表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
-NEXT
+IF ソート条件 != ""
+	FOR LOCAL, 0, DT_SELECT("所持耳飾りデータベース", , ソート条件)
+		表示用ステータス格納配列:LOCAL:0 = RESULT:(LOCAL + 1)
+	NEXT
+ELSE
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
+		表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
+	NEXT
+ENDIF
 
 LOCALS = <div rect='262,{y軸位置},5537,3625'><nobr>
-LOCALS += "　　　 耳飾り名　　　　　　　　　属性　奥義補正　　　　　　　　　　　　　　　　　　　　　　　　装備者<br>"
+LOCALS += "　　　<button value='-1'>[耳飾り名]</button> 　　　　　　　 <button value='-2'>[属性]</button><button value='-3'>[奥義補正]</button> 　　　　　　　　　　　　　　　　　　　　　　　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 IF キャラ番号 > 0
 	LOCAL:1 = 装備ステータス補正保存:キャラ番号:装備耳飾り番号
 	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
-		IF DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名") == ""
+		IF DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1) == ""
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
-		IF LOCAL:1 == DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
+		IF LOCAL:1 == 表示用ステータス格納配列:LOCAL:0
 			LOCALS += "<font color='#CCCC00'>"
 		ENDIF
 		LOCALS += @"<button value='{LOCAL}'>"
-		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
-		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1), 26, LEFT%"
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "変更属性", 1), 6, LEFT%"
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%(表示用ステータス格納配列:LOCAL:0)
 		LOCALS += @"%詳細文文字列受け渡し変数２, 56, LEFT%"
-		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
-			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号"))%"
+		IF DT_CELL_GET("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1)
+			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1))%"
 		ENDIF
 		LOCALS += "</button>"
-		IF LOCAL:1 == DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
+		IF LOCAL:1 == 表示用ステータス格納配列:LOCAL:0
 			LOCALS += "</font>"
 		ENDIF
 		LOCALS += "<br>"
@@ -167,7 +197,7 @@ IF キャラ番号 > 0
 ELSE
 	LOCAL:1 = 0
 	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
-		IF DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名") == ""
+		IF DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1) == ""
 			BREAK
 		ENDIF
 		IF MATCH(選択配列, 表示用ステータス格納配列:LOCAL:0)
@@ -175,12 +205,12 @@ ELSE
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
 		LOCALS += @"<button value='{LOCAL}'>"
-		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名"), 26, LEFT%"
-		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "変更属性"), 6, LEFT%"
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1), 26, LEFT%"
+		LOCALS += @"%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "変更属性", 1), 6, LEFT%"
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%(表示用ステータス格納配列:LOCAL:0)
 		LOCALS += @"%詳細文文字列受け渡し変数２, 56, LEFT%"
-		IF DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号")
-			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "装備キャラ番号"))%"
+		IF DT_CELL_GET("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1)
+			LOCALS += @"%CALLNAME:(DT_CELL_GET("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "装備キャラ番号", 1))%"
 		ENDIF
 		IF MATCH(選択配列, 表示用ステータス格納配列:LOCAL:0)
 			LOCALS += "</font>"
@@ -195,11 +225,12 @@ HTML_PRINT LOCALS, 1
 @所持耳飾りリスト表示_USERCOM(戻るボタンフラグ = 0)
 #DIM 戻るボタンフラグ
 #DIM ページ番号
+#DIMS ソート条件
 
 LOCALS = 
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
 HTML_PRINT LOCALS, 1
-CALL 所持耳飾りリスト表示(0, ページ番号)
+CALL 所持耳飾りリスト表示(0, ページ番号, , ソート条件)
 LOCALS = 
 ;戻るボタンと前次ページボタン
 LOCALS += "<div rect='262,4875,5537,3625'>"
@@ -231,6 +262,24 @@ IF ISNUMERIC(RESULTS) == 0
 ENDIF
 LOCAL = TOINT(RESULTS)
 SELECTCASE LOCAL
+	CASE -1
+		IF ソート条件 == "耳飾り名 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 耳飾り名 ASC
+		ENDIF
+	CASE -2
+		IF ソート条件 == "変更属性 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 変更属性 ASC
+		ENDIF
+	CASE -3
+		IF ソート条件 == "奥義補正 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 奥義補正 ASC
+		ENDIF
 	CASE 1000
 		ページ番号 -= 1
 	CASE 1001
@@ -240,16 +289,16 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		RETURN -1
 	CASE IS < 500
-		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%
+		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%(表示用ステータス格納配列:LOCAL:0)
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT
 	CASE IS < 1000
-		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%
+		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%
 		LOCALS = %詳細文文字列受け渡し変数%
-		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL - 500, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL - 500, "id"))
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%(表示用ステータス格納配列:(LOCAL - 500):0)
 		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		HTML_PRINT LOCALS
 		WAIT

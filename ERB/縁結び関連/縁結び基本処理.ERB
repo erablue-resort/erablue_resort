@@ -59,7 +59,7 @@ FOR LOCAL, 0, VARSIZE("縁結び保存配列", 0)
 	IF 縁結び保存配列:LOCAL:対象キャラ１ < 1
 		BREAK
 	ENDIF
-	SIF ページ数 != LOCAL / 20
+	SIF ページ数 != LOCAL / 21
 		CONTINUE
 	表示文字列１ = %CALLNAME:(縁結び保存配列:LOCAL:対象キャラ１)%
 	SELECTCASE TALENT:(縁結び保存配列:LOCAL:対象キャラ１):性別
@@ -124,6 +124,16 @@ FOR LOCAL, 0, VARSIZE("縁結び保存配列", 0)
 	ENDIF
 NEXT
 LOCALS += "</div>"
+LOCALS += "<div rect='2200,2650,3875,200'>"
+IF ページ数 > 0
+	LOCALS += "<button value='1002'>[前のページへ]</button>　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 縁結び保存配列:(ページ数 * 21 + 21):対象キャラ１ > 0
+	LOCALS += "<button value='1003'>[次のページへ]</button>　　　"
+ENDIF
+LOCALS += "</div>"
 
 HTML_PRINT LOCALS
 
@@ -148,8 +158,12 @@ SELECTCASE LOCAL
 		DRAWLINE
 	CASE 1001
 		CALL OPTION_機能切り替え(700)
+	CASE 1002
+		ページ数 --
+	CASE 1003
+		ページ数 ++
 	CASEELSE
-		CALL 縁結び詳細処理(DT_CELL_GET("縁結びデータベース", LOCAL, "id"))
+		CALL 縁結び詳細処理(ソート用配列:LOCAL)
 ENDSELECT
 
 RESTART
@@ -251,6 +265,8 @@ DRAWLINE
 LOCAL:1 = 0
 LOCALS = 
 FOR 対象キャラ, 1, CHARANUM
+	SIF 対象キャラ == 実行キャラ
+		CONTINUE
 	;優先条件
 	;オプションによる制御
 	SIF 性別招待制御_実処理(対象キャラ)
@@ -608,6 +624,7 @@ LOCAL:10 = 0
 ;進行度が100以上になった縁結びを完了させる
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 
+	LOCAL:10 = 0
 	;ここで同行確率を上げておく
 	IF DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") > 50
 		IF TALENT:対象キャラ１:性別 == TALENT:対象キャラ２:性別 && TALENT:対象キャラ１:性別 != 3 && TALENT:対象キャラ１:性別 != 0
