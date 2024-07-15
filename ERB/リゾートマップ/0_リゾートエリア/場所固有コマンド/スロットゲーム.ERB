@@ -15,7 +15,7 @@
 #DIM 停止済みスロット数
 #DIM スタートタイム
 #DIM ストップタイム,3
-#DIM 回転量,3
+#DIM 回転量
 #DIM CONST アニメタイマー = 5
 #DIM CONST フレームレート = 10
 #DIM リソース総フレーム数
@@ -36,7 +36,6 @@
 #DIM スケベスロット実行フラグ
 #DIM スケベスロット予約フラグ
 #DIM 加速モード
-#DIM 慣性モード
 {
 	#DIMS CONST 衣装差分 = 
 	"デフォルト", "水着", "浴衣", "部屋着", "おしゃれ着", 
@@ -75,8 +74,6 @@
 スロット変更カウンタ = 3
 レート = 基準レート
 投入レート = 基準レート * 3
-加速モード = 1
-慣性モード = 1
 
 スクロール速度:0 = スクロール基準速度 * 2
 
@@ -241,6 +238,7 @@ IF スロット変更カウンタ == 3 || !スロット変更カウンタ
 		SPLIT 有効カテゴリ:(RAND:有効カテゴリ数) , "_", LOCALS
 		キー文字列 '= "短冊_" + 衣装差分:TOINT(LOCALS) + 表情差分:TOINT(LOCALS:1)
 		スケベスロット実行フラグ = 0
+		加速モード = 0
 	ELSE
 		SPLIT 有効スケベカテゴリ:(RAND:有効スケベカテゴリ数) , "_", LOCALS
 		IF TOINT(LOCALS) < 100
@@ -251,6 +249,7 @@ IF スロット変更カウンタ == 3 || !スロット変更カウンタ
 			キー文字列 '= "短冊_" + スケベ衣装差分:(TOINT(LOCALS) - 100) + スケベ表情差分:(TOINT(LOCALS:1) - 100)
 		ENDIF
 		スケベスロット実行フラグ = 1
+		加速モード = 1
 	ENDIF
 ENDIF
 スロット変更カウンタ --
@@ -260,10 +259,6 @@ IF スケベスロット実行フラグ
 ELSE
 	レート = 投入レート
 ENDIF
-SIF 加速モード
-	レート = レート * 2
-SIF 慣性モード
-	レート = レート * 2
 
 IF 加速モード
 	スクロール速度:1 = スクロール速度:0 * 2
@@ -389,20 +384,16 @@ SETANIMETIMER アニメタイマー
 $INPUTLOOP
 INPUTMOUSEKEY
 IF RESULT == 1
-	IF RESULT:1 == 0x100000 ;左クリック
-		SELECTCASE RESULT:4
-		CASE 0x000001
-			選択リール = 0
-		CASE 0x000002
-			選択リール = 1
-		CASE 0x000003
-			選択リール = 2
-		CASEELSE
-			GOTO INPUTLOOP
-		ENDSELECT 
-	ELSE
-		選択リール = 10
-	ENDIF
+	SELECTCASE RESULT:4
+	CASE 0x000001
+		選択リール = 0
+	CASE 0x000002
+		選択リール = 1
+	CASE 0x000003
+		選択リール = 2
+	CASEELSE
+		GOTO INPUTLOOP
+	ENDSELECT 
 ELSEIF RESULT == 3
 	SELECTCASE RESULT:2
 	CASE 49, 97 ;1 NUM1
@@ -421,13 +412,7 @@ ENDIF
 IF 選択リール < 3 && リール状態:選択リール >= 0
 	GOTO INPUTLOOP
 ENDIF
-IF 慣性モード
-	GOTO 慣性スロット
-ELSE
-	GOTO ノーマルスロット
-ENDIF
 
-$慣性スロット
 SELECTCASE 停止済みスロット数
 CASE 0
 	ストップタイム:0 = GETMILLISECOND()
@@ -442,10 +427,9 @@ ENDSELECT
 SELECTCASE 選択リール
 CASE IS < 3
 	CALL ディレイストップリソース生成(選択リール, スクロール速度:(停止済みスロット数), パノラマサイズ, フレームレート, 回転量, 表示枚数 * 画像表示サイズ:0)
-	回転量 = (回転量 + RESULT) % (表示枚数 * 画像表示サイズ:0)
+	リール状態:選択リール = (RESULT + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
 	停止済みスロット数 ++
 	CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
-	リール状態:選択リール = (回転量 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
 	CBGREMOVERANGE -2 - 選択リール, -2 - 選択リール
 	FOR LOCAL, 0, 3
 		SIF リール状態:LOCAL >= 0
@@ -459,42 +443,7 @@ CASE IS < 3
 	SIF 停止済みスロット数 < 3
 		GOTO INPUTLOOP
 ENDSELECT
-GOTO 全スロット停止
 
-$ノーマルスロット
-SELECTCASE 停止済みスロット数
-CASE 0
-	ストップタイム:0 = GETMILLISECOND()
-	回転量 = ((ストップタイム:0 - スタートタイム) * スクロール速度:0 / フレームレート) % (表示枚数 * 画像表示サイズ:0)
-CASE 1
-	ストップタイム:1 = GETMILLISECOND()
-	回転量 = ((((ストップタイム:0 - スタートタイム) * スクロール速度:0) + ((ストップタイム:1 - ストップタイム:0) * スクロール速度:1)) / フレームレート) % (表示枚数 * 画像表示サイズ:0)
-CASE 2 
-	ストップタイム:2 = GETMILLISECOND()
-	回転量 = ((((ストップタイム:0 - スタートタイム) * スクロール速度:0) + ((ストップタイム:1 - ストップタイム:0) * スクロール速度:1) + ((ストップタイム:2 - ストップタイム:1) * スクロール速度:2)) / フレームレート) % (表示枚数 * 画像表示サイズ:0)
-ENDSELECT
-SELECTCASE 選択リール
-CASE IS < 3
-	停止済みスロット数 ++
-	SPRITECREATE @"ストップ{選択リール}", レイヤー番号 + 0, 回転量, パノラマサイズ:1 * 選択リール, パノラマサイズ:0, パノラマサイズ:1
-	CBGSETSPRITE @"ストップ{選択リール}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * 選択リール -1)) / 2, -5
-	リール状態:選択リール = (回転量 + 画像表示サイズ:0 / 2) / 画像表示サイズ:0
-	CBGREMOVERANGE -2 - 選択リール, -2 - 選択リール
-	FOR LOCAL, 0, 3
-		SIF リール状態:LOCAL >= 0
-			CONTINUE
-		リソース総フレーム数 = 表示枚数 * 画像表示サイズ:0 / スクロール速度:(停止済みスロット数)
-		CALL スロットリソース生成(LOCAL, スクロール速度:(停止済みスロット数), パノラマサイズ, フレームレート, リソース総フレーム数, 回転量)
-		CBGREMOVERANGE -2 - LOCAL, -2 - LOCAL
-		CBGSETSPRITE @"スロットリソース{LOCAL}", 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * -1) / 2 + (パノラマサイズ:1 * LOCAL), -2 - LOCAL
-	NEXT
-	;回転状態のリールがあればループ
-	SIF 停止済みスロット数 < 3
-		GOTO INPUTLOOP
-ENDSELECT
-GOTO 全スロット停止
-
-$全スロット停止
 ;SETANIMETIMER -1
 ;中央の表示画像で判定する
 FOR LOCAL, 0, 3
@@ -504,11 +453,6 @@ NEXT
 リザルト状態:0 = FINDELEMENT(スロットリールN, リール状態:0)
 リザルト状態:1 = FINDELEMENT(スロットリールC, リール状態:1)
 リザルト状態:2 = FINDELEMENT(スロットリールS, リール状態:2)
-FOR LOCAL, 0, 3
-	SPRITEDISPOSE @"リザルト{LOCAL}" 
-	SPRITECREATE @"リザルト{LOCAL}", レイヤー番号 + 0, リール状態:LOCAL * 画像表示サイズ:0, パノラマサイズ:1 * LOCAL, 画像表示サイズ:0, パノラマサイズ:1
-	CBGSETSPRITE @"リザルト{LOCAL}", 画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * (2 * LOCAL -1)) / 2, -8
-NEXT
 ;CALLNAME検証
 {   
 LOCALS '= SUBSTRINGU(CALLNAME:(有効キャラリスト:(リザルト状態:0)), 0, 文字数:STRLENSU(CALLNAME:(有効キャラリスト:(リザルト状態:0))))
@@ -518,11 +462,12 @@ LOCALS '= SUBSTRINGU(CALLNAME:(有効キャラリスト:(リザルト状態:0)),
 GDISPOSE レイヤー番号 + 5 
 GCREATE レイヤー番号 + 5 , パノラマサイズ:0, パノラマサイズ:1 * 4
 GSETBRUSH レイヤー番号 + 5 , 0x80101010
-GFILLRECTANGLE レイヤー番号 + 5 , 0, 0, パノラマサイズ:0, パノラマサイズ:1 * 3
+GFILLRECTANGLE レイヤー番号 + 5 , 0, 0, 画像表示サイズ:0 * 2, パノラマサイズ:1 * 3
+GFILLRECTANGLE レイヤー番号 + 5 , 画像表示サイズ:0 * 3, 0, 画像表示サイズ:0 * 2, パノラマサイズ:1 * 3
 GSETBRUSH レイヤー番号 + 5 , 0xFFC0C0C0
 GSETFONT レイヤー番号 + 5 , GETFONT(), 36
 GSETPEN レイヤー番号 + 5 , 0xFFC0C0C0, 0
-GDRAWTEXT レイヤー番号 + 5 , LOCALS, 画像表示サイズ:0 + 20, 80
+GDRAWTEXT レイヤー番号 + 5 , LOCALS, 画像表示サイズ:0 / 2 + 20, 80
 
 {
 	;リール変数可視化
@@ -549,17 +494,17 @@ ENDIF
 GSETFONT レイヤー番号 + 5 , GETFONT(), 18
 SELECTCASE リザルト
 CASE "当たり"
-	GDRAWTEXT レイヤー番号 + 5 , "あたり・・・", 画像表示サイズ:0 + 20, 120
+	GDRAWTEXT レイヤー番号 + 5 , "あたり・・・", 画像表示サイズ:0 / 2 + 20, 120
 	リワード = 2
 CASE "名前当たり"
-	GDRAWTEXT レイヤー番号 + 5 , "アタリ・・・", 画像表示サイズ:0 + 20, 120
+	GDRAWTEXT レイヤー番号 + 5 , "アタリ・・・", 画像表示サイズ:0 / 2 + 20, 120
 	リワード = 4
 CASE "居る"
-	GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 + 20, 120
-	GDRAWTEXT レイヤー番号 + 5 , "そういう人が居るの？しょうがないなあ", 画像表示サイズ:0 + 20, 160
+	GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 / 2 + 20, 120
+	GDRAWTEXT レイヤー番号 + 5 , "そういう人が居るの？しょうがないなあ", 画像表示サイズ:0 / 2 + 20, 160
 	リワード = 8
 CASE "外れ"
-	GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 + 20, 120
+	GDRAWTEXT レイヤー番号 + 5 , "はずれ・・・", 画像表示サイズ:0 / 2 + 20, 120
 	リワード = 0
 ENDSELECT
 MONEY -= 投入レート
@@ -568,7 +513,7 @@ MONEY += レート * リワード
 
 GDRAWTEXT レイヤー番号 + 5 , "REWARD: " + TOSTR(レート * リワード), 画像表示サイズ:0 + 20, 300
 ;GDRAWTEXT レイヤー番号 + 5 , TOSTR(トータルリワード), 画像表示サイズ:0 + 200, 300
-GDRAWTEXT レイヤー番号 + 5 , "これは", 画像表示サイズ:0 + 20, 40
+GDRAWTEXT レイヤー番号 + 5 , "これは", 画像表示サイズ:0 / 2 + 20, 40
 GDRAWTEXT レイヤー番号 + 5 , "続けてプレイしますか？", 画像表示サイズ:0, パノラマサイズ:1 * 3 + 2
 CBGSETG レイヤー番号 + 5 ,  画像表示サイズ:0 * 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -7
 
@@ -576,16 +521,14 @@ LOCAL:1 = 2 ;枠線
 LOCAL:2 = 18 + 2 + LOCAL:1 * 4 ;ブロックサイズ
 LOCAL:3 = 200 ;横幅
 GDISPOSE レイヤー番号 + 6 
-GCREATE レイヤー番号 + 6 , 800, 240
+GCREATE レイヤー番号 + 6 , 800, 160
 GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
-GFILLRECTANGLE レイヤー番号 + 6 , 0, 0, LOCAL:3 * 2, LOCAL:2 * 6
+GFILLRECTANGLE レイヤー番号 + 6 , 0, 0, LOCAL:3 * 2, LOCAL:2 * 4
 GSETBRUSH レイヤー番号 + 6 , 0xFF101010
 GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 0, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
 GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 1, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
 GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 2, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
 GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 3, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
-GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 4, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
-GFILLRECTANGLE レイヤー番号 + 6 , LOCAL:1, LOCAL:1 + LOCAL:2 * 5, LOCAL:3 - LOCAL:1 * 2, LOCAL:2 - LOCAL:1 * 2
 GSETBRUSH レイヤー番号 + 6 , 0xFFC0C0C0
 GSETFONT レイヤー番号 + 6 , GETFONT(), 18
 GSETPEN レイヤー番号 + 6 , 0xFFC0C0C0, 1
@@ -593,8 +536,6 @@ GDRAWTEXT レイヤー番号 + 6 , "ＳＴＡＲＴ", LOCAL:1 * 2, LOCAL:1 * 2
 GDRAWTEXT レイヤー番号 + 6 , "ＥＸＩＴ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2
 GDRAWTEXT レイヤー番号 + 6 , "ＳＰＥＥＤ　ＵＰ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 2
 GDRAWTEXT レイヤー番号 + 6 , "ＳＰＥＥＤ　ＤＯＷＮ", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 3
-GDRAWTEXT レイヤー番号 + 6 , "Ａcceleration mode", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 4
-GDRAWTEXT レイヤー番号 + 6 , "Ｉnertial mode", LOCAL:1 * 2, LOCAL:1 * 2 + LOCAL:2 * 5
 カラーマトリクス:0:0 = 256,   0,   0,   0,   0
 カラーマトリクス:1:0 =   0, 256,   0,   0,   0
 カラーマトリクス:2:0 =   0,   0, 256,   0,   0
@@ -621,16 +562,6 @@ SPRITEDISPOSE "ＳＰＥＥＤ　ＤＯＷＮ1"
 SPRITECREATE "ＳＰＥＥＤ　ＤＯＷＮ0", レイヤー番号 + 6 , 0, LOCAL:2 * 3, LOCAL:3, LOCAL:2
 SPRITECREATE "ＳＰＥＥＤ　ＤＯＷＮ1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2 * 3, LOCAL:3, LOCAL:2
 CBGSETBUTTONSPRITE 0x000004, "ＳＰＥＥＤ　ＤＯＷＮ0", "ＳＰＥＥＤ　ＤＯＷＮ1", 700, 20 + LOCAL:2 + (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
-SPRITEDISPOSE "acceleration mode0"
-SPRITEDISPOSE "acceleration mode1"
-SPRITECREATE "acceleration mode0", レイヤー番号 + 6 , 0, LOCAL:2 * 4, LOCAL:3, LOCAL:2
-SPRITECREATE "acceleration mode1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2 * 4, LOCAL:3, LOCAL:2
-CBGSETBUTTONSPRITE 0x000005, "acceleration mode0", "acceleration mode1", 700 + LOCAL:3, 20 + (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
-SPRITEDISPOSE "inertial mode0"
-SPRITEDISPOSE "inertial mode1"
-SPRITECREATE "inertial mode0", レイヤー番号 + 6 , 0, LOCAL:2 * 5, LOCAL:3, LOCAL:2
-SPRITECREATE "inertial mode1", レイヤー番号 + 6 , LOCAL:3, LOCAL:2 * 5, LOCAL:3, LOCAL:2
-CBGSETBUTTONSPRITE 0x000006, "inertial mode0", "inertial mode1", 700 + LOCAL:3, 20 + LOCAL:2 + (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2, -6
 GDISPOSE レイヤー番号 + 3 
 GCREATE レイヤー番号 + 3 , 1600, LOCAL:2 - (-CLIENTHEIGHT() + パノラマサイズ:1 * 4) / 2
 GSETBRUSH レイヤー番号 + 3 , 0xFF000001
@@ -641,18 +572,14 @@ GSETBRUSH レイヤー番号 + 3 , 0xFF000003
 GFILLRECTANGLE レイヤー番号 + 3 , 700, 20, LOCAL:3, LOCAL:2
 GSETBRUSH レイヤー番号 + 3 , 0xFF000004
 GFILLRECTANGLE レイヤー番号 + 3 , 700, 20 + LOCAL:2, LOCAL:3, LOCAL:2
-GSETBRUSH レイヤー番号 + 3 , 0xFF000005
-GFILLRECTANGLE レイヤー番号 + 3 , 700 + LOCAL:3, 20, LOCAL:3, LOCAL:2
-GSETBRUSH レイヤー番号 + 3 , 0xFF000006
-GFILLRECTANGLE レイヤー番号 + 3 , 700 + LOCAL:3, 20 + LOCAL:2, LOCAL:3, LOCAL:2
 CBGSETBMAPG レイヤー番号 + 3 
 
 $INPUTLOOP2
 CBGREMOVERANGE -1, -1
 GDISPOSE レイヤー番号 + 2 
-GCREATE レイヤー番号 + 2 , 1600, パノラマサイズ:1 * 4
+GCREATE レイヤー番号 + 2 , パノラマサイズ:0, パノラマサイズ:1 * 4
 GSETBRUSH レイヤー番号 + 2 , 0xFF101010
-GFILLRECTANGLE レイヤー番号 + 2 , 0, 0, 1600, パノラマサイズ:1 * 4
+GFILLRECTANGLE レイヤー番号 + 2 , 0, 0, パノラマサイズ:0, パノラマサイズ:1 * 4
 GSETBRUSH レイヤー番号 + 2 , 0xFFC0C0C0
 GSETFONT レイヤー番号 + 2 , GETFONT(), 18
 GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
@@ -662,16 +589,6 @@ GDRAWTEXT レイヤー番号 + 2 , TOSTR(投入レート), 画像表示サイズ
 GDRAWTEXT レイヤー番号 + 2 , "REWARD:", 画像表示サイズ:0 * 4, パノラマサイズ:1 * 3 + 20
 GGETTEXTSIZE TOSTR(トータルリワード), GETFONT(), 18
 GDRAWTEXT レイヤー番号 + 2 , TOSTR(トータルリワード), 画像表示サイズ:0 * 4 + 180 - RESULT, パノラマサイズ:1 * 3 + 20
-IF 加速モード
-GDRAWTEXT レイヤー番号 + 2 , "ＯＮ", 700 + LOCAL:3 * 2, パノラマサイズ:1 * 4 - LOCAL:2 * 2 - LOCAL:1 * 4
-ELSE
-GDRAWTEXT レイヤー番号 + 2 , "ＯＦＦ", 700 + LOCAL:3 * 2, パノラマサイズ:1 * 4 - LOCAL:2 * 2 - LOCAL:1 * 4
-ENDIF
-IF 慣性モード
-GDRAWTEXT レイヤー番号 + 2 , "ＯＮ", 700 + LOCAL:3 * 2, パノラマサイズ:1 * 4 - LOCAL:2 - LOCAL:1 * 4
-ELSE
-GDRAWTEXT レイヤー番号 + 2 , "ＯＦＦ", 700 + LOCAL:3 * 2, パノラマサイズ:1 * 4 - LOCAL:2 - LOCAL:1 * 4
-ENDIF
 CBGSETG レイヤー番号 + 2 , 0, (-CLIENTHEIGHT() + パノラマサイズ:1 * 5) / 2, -1
 INPUTMOUSEKEY
 IF RESULT == 1
@@ -684,10 +601,6 @@ IF RESULT == 1
 		LOCAL = 2
 	CASE 0x000004
 		LOCAL = 3
-	CASE 0x000005
-		LOCAL = 4
-	CASE 0x000006
-		LOCAL = 5
 	CASEELSE
 		GOTO INPUTLOOP2
 	ENDSELECT
@@ -701,10 +614,6 @@ ELSEIF RESULT == 3
 		LOCAL = 2
 	CASE 40 ;↓
 		LOCAL = 3
-	CASE 65 ;A
-		LOCAL = 4
-	CASE 73 ;I
-		LOCAL = 5
 	CASEELSE
 		GOTO INPUTLOOP2
 	ENDSELECT
@@ -736,20 +645,6 @@ CASE 3
 	IF 投入レート > 基準レート
 		投入レート -= 基準レート
 		スクロール速度:0 -= 2
-	ENDIF
-	GOTO INPUTLOOP2
-CASE 4
-	IF 加速モード
-		加速モード = 0
-	ELSE
-		加速モード = 1
-	ENDIF
-	GOTO INPUTLOOP2
-CASE 5
-	IF 慣性モード
-		慣性モード = 0
-	ELSE
-		慣性モード = 1
 	ENDIF
 	GOTO INPUTLOOP2
 ENDSELECT
@@ -790,19 +685,33 @@ NEXT
 #DIM スクロール速度
 #DIM REF リソースサイズ,0
 #DIM フレームレート
-#DIM リソース総フレーム数
 #DIM 開始位置
 #DIM スライド量
 #DIM リールサイズ
-スライド量 = 0
+#DIM 予備スライド
+#DIM 予定スライド量
+予定スライド量 = 開始位置
+スライド量 = 開始位置
 SPRITEDISPOSE @"ストップ{リソースID}"
 SPRITEANIMECREATE @"ストップ{リソースID}", リソースサイズ:0, リソースサイズ:1
+FOR LOCAL, スクロール速度 * 4, 0, -1
+	予定スライド量 += LOCAL / 4
+NEXT
+予定スライド量 = 予定スライド量 % リールサイズ
+予備スライド =  180 - ((予定スライド量) % 180)
+スライド量 += 予備スライド % スクロール速度
+スライド量 = スライド量 % リールサイズ
+SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, フレームレート
+FOR LOCAL, 0, 予備スライド / スクロール速度
+	スライド量 += スクロール速度
+	スライド量 = スライド量 % リールサイズ
+	SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, フレームレート
+NEXT
 スクロール速度 = スクロール速度 * 4
 FOR LOCAL, スクロール速度, 0, -1
 	スライド量 += LOCAL / 4
 	スライド量 = スライド量 % リールサイズ
-	SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , 開始位置 + スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, フレームレート
+	SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, フレームレート
 NEXT
-	SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , 開始位置 + スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, 10000000
-
+	SPRITEANIMEADDFRAME @"ストップ{リソースID}", レイヤー番号 + 0 , スライド量, リソースサイズ:1 * リソースID, リソースサイズ:0, リソースサイズ:1, 0, 0, 10000000
 RETURN スライド量
