@@ -1,0 +1,192 @@
+﻿;-------------------------------------------------
+;シナリオの進行具合を数値で返す
+;輸入品店や古ぼけた指輪など、ランダム抽選で装備を出す際に
+;シナリオ進行に沿った装備を出すために使う
+;
+;1 - ゲーム開始直後
+;2 - 「大拡張！空艇港」クリア
+;3 - 各施設改造完了＋リゾートランクＤ達成
+;4 - 
+;5 - 
+;6 - 
+;7 - 
+;8 - (メインシナリオ1章のラストダンジョン解放時想定)
+;9 - 
+;-------------------------------------------------
+@装備ランク開放度()
+#FUNCTION
+
+IF 0
+	RETURNF 9
+ELSEIF 0
+	RETURNF 8
+ELSEIF 0
+	RETURNF 7
+ELSEIF 0
+	RETURNF 6
+ELSEIF 0
+	RETURNF 5
+ELSEIF 0
+	RETURNF 4
+ELSEIF 0 && リゾートランク >= 2
+	RETURNF 3
+ELSEIF イベント完了フラグ確認("大拡張！空艇港") >= 1
+	RETURNF 2
+ELSE
+	RETURNF 1
+ENDIF
+
+
+;条件を満たした指輪からランダムで1つ選ぶ
+@ランダム指輪(入手タイプ, 装備ランク)
+#DIMS 入手タイプ
+#DIM 装備ランク
+#DIM 候補数
+#DIMS 出現率関数保存, 指輪品揃え最大数
+#DIM 装備出現率, 指輪品揃え最大数
+#DIM 総出現率
+#DIM 抽選結果
+
+VARSET RESULTS
+VARSET 出現率関数保存
+VARSET 装備出現率
+総出現率 = 0
+
+候補数 = ENUMFUNCBEGINSWITH("指輪出現率_")
+IF 候補数 > 指輪品揃え最大数
+	THROW 出現候補数が最大数（%TOFULL(TOSTR(指輪品揃え最大数))%個）を越えました。開発者に報告してください。
+ENDIF
+ARRAYCOPY "RESULTS", "出現率関数保存"
+
+FOR LOCAL, 0, 候補数
+	CALLFORM %出現率関数保存:LOCAL%(入手タイプ, 装備ランク)
+	IF RESULT > 0
+		装備出現率:LOCAL = RESULT
+		総出現率 += RESULT
+	ELSE
+		装備出現率:LOCAL = 0
+	ENDIF
+NEXT
+
+VARSET RESULTS
+SIF 総出現率 <= 0
+	RETURN 0
+
+抽選結果 = RAND:総出現率
+FOR LOCAL, 0, 候補数
+	IF 抽選結果 < 装備出現率:LOCAL
+		RESULTS '= SUBSTRINGU(出現率関数保存:LOCAL, STRLENSU("指輪出現率_"), -1)
+		RETURN 総出現率
+	ELSE
+		抽選結果 -= 装備出現率:LOCAL
+	ENDIF
+NEXT
+
+
+;条件を満たした耳飾りからランダムで1つ選ぶ
+@ランダム耳飾り(入手タイプ, 装備ランク)
+#DIMS 入手タイプ
+#DIM 装備ランク
+#DIM 候補数
+#DIMS 出現率関数保存, 耳飾り品揃え最大数
+#DIM 装備出現率, 耳飾り品揃え最大数
+#DIM 総出現率
+#DIM 抽選結果
+
+VARSET RESULTS
+VARSET 出現率関数保存
+VARSET 装備出現率
+総出現率 = 0
+
+候補数 = ENUMFUNCBEGINSWITH("耳飾り出現率_")
+IF 候補数 > 耳飾り品揃え最大数
+	THROW 出現候補数が最大数（%TOFULL(TOSTR(耳飾り品揃え最大数))%個）を越えました。開発者に報告してください。
+ENDIF
+ARRAYCOPY "RESULTS", "出現率関数保存"
+
+FOR LOCAL, 0, 候補数
+	CALLFORM %出現率関数保存:LOCAL%(入手タイプ, 装備ランク)
+	IF RESULT > 0
+		装備出現率:LOCAL = RESULT
+		総出現率 += RESULT
+	ELSE
+		装備出現率:LOCAL = 0
+	ENDIF
+NEXT
+
+VARSET RESULTS
+SIF 総出現率 <= 0
+	RETURN 0
+
+抽選結果 = RAND:総出現率
+FOR LOCAL, 0, 候補数
+	IF 抽選結果 < 装備出現率:LOCAL
+		RESULTS '= SUBSTRINGU(出現率関数保存:LOCAL, STRLENSU("耳飾り出現率_"), -1)
+		RETURN 総出現率
+	ELSE
+		抽選結果 -= 装備出現率:LOCAL
+	ENDIF
+NEXT
+
+
+;条件を満たした証からランダムで1つ選ぶ
+@ランダム証(入手タイプ, 装備ランク)
+#DIMS 入手タイプ
+#DIM 装備ランク
+#DIM 候補数
+#DIMS 出現率関数保存, 証品揃え最大数
+#DIM 装備出現率, 証品揃え最大数
+#DIM 総出現率
+#DIM 抽選結果
+#DIMS ジョブ証名, 証品揃え最大数
+#DIM データベース番号
+#DIM 証所持フラグ
+
+VARSET RESULTS
+VARSET 出現率関数保存
+VARSET 装備出現率
+総出現率 = 0
+
+候補数 = ENUMFUNCBEGINSWITH("証出現率_")
+IF 候補数 > 証品揃え最大数
+	THROW 出現候補数が最大数（%TOFULL(TOSTR(証品揃え最大数))%個）を越えました。開発者に報告してください。
+ENDIF
+ARRAYCOPY "RESULTS", "出現率関数保存"
+
+FOR LOCAL, 0, 候補数
+	ジョブ証名:LOCAL '= SUBSTRINGU(出現率関数保存:LOCAL, STRLENSU("証出現率_"), -1)
+	証所持フラグ = 0
+	FOR データベース番号, 1, DT_ROW_LENGTH("所持ジョブ証データベース")
+		IF DT_CELL_GETS("所持ジョブ証データベース", データベース番号, "ジョブ証名") == ジョブ証名:LOCAL
+			;すでに追加済みの場合は次へ
+			証所持フラグ = 1
+			BREAK
+		ENDIF
+	NEXT
+	IF 証所持フラグ
+		装備出現率:LOCAL = 0
+		CONTINUE
+	ENDIF
+
+	CALLFORM %出現率関数保存:LOCAL%(入手タイプ, 装備ランク)
+	IF RESULT > 0
+		装備出現率:LOCAL = RESULT
+		総出現率 += RESULT
+	ELSE
+		装備出現率:LOCAL = 0
+	ENDIF
+NEXT
+
+VARSET RESULTS
+SIF 総出現率 <= 0
+	RETURN 0
+
+抽選結果 = RAND:総出現率
+FOR LOCAL, 0, 候補数
+	IF 抽選結果 < 装備出現率:LOCAL
+		RESULTS '= ジョブ証名:LOCAL
+		RETURN 総出現率
+	ELSE
+		抽選結果 -= 装備出現率:LOCAL
+	ENDIF
+NEXT
