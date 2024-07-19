@@ -3,6 +3,7 @@
 ;────────────────────────────────────
 @EVENTEND0
 #DIM 長期雇用者保存配列, 200
+#DIM 順番シャッフル用配列, 5000
 #DIM ループ用
 #DIM 長期雇用者人数
 #DIM 雑務ゲージ減少量
@@ -13,6 +14,7 @@
 #DIM 食材ID
 #DIM 施設維持費
 #DIM 給料基礎値
+#DIM シャッフル数
 
 VARSET LOCAL
 VARSET 長期雇用者保存配列
@@ -26,60 +28,72 @@ SIF STRLENS(TSTR:1)
 ;睡眠フラグ
 CFLAG:MASTER:睡眠 = 1
 
-;何の珠を得られたか
-FOR LOCAL,0,CHARANUM
+VARSET 順番シャッフル用配列
+シャッフル数 = CHARANUM - 1
+FOR LOCAL, 1, CHARANUM
+	順番シャッフル用配列:(LOCAL - 1) = LOCAL
+NEXT
+FOR LOCAL, 0, シャッフル数
+	LOCAL:1 = RAND:(シャッフル数 - LOCAL)
+	SWAP 順番シャッフル用配列:(LOCAL:1), 順番シャッフル用配列:(シャッフル数 - LOCAL - 1)
+NEXT
+
+CALL JUEL_CHECK(MASTER)
+CALL DENIAL_CHECK(MASTER)
+
+;シャッフル配列で処理
+FOR LOCAL, 0, シャッフル数
+	DEBUGPRINTFORML {(順番シャッフル用配列:LOCAL)}：%CALLNAME:(順番シャッフル用配列:LOCAL)%
 	;滞在してないキャラはスルー
-	IF CFLAG:LOCAL:滞在期間 < 0
-		性癖素質:LOCAL:性癖開発用フラグ変数 = 0
+	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
 		CONTINUE
 	ENDIF
-	CALL JUEL_CHECK(LOCAL)
-	CALL DENIAL_CHECK(LOCAL)
-	;以下はマスターだと無視
-	SIF LOCAL == MASTER
-		CONTINUE
+	CALL JUEL_CHECK((順番シャッフル用配列:LOCAL))
+	CALL DENIAL_CHECK((順番シャッフル用配列:LOCAL))
+
 	;野外オナニー欲求不満
-	IF 性癖素質:LOCAL:野外オナニー > 2 && TCVAR:LOCAL:野外オナニー_実行回数 < 3
-		CALL 野外オナニー欲求不満処理(LOCAL)
+	IF 性癖素質:(順番シャッフル用配列:LOCAL):野外オナニー > 2 && TCVAR:(順番シャッフル用配列:LOCAL):野外オナニー_実行回数 < 3
+		CALL 野外オナニー欲求不満処理((順番シャッフル用配列:LOCAL))
 	ENDIF
-	IF LOCAL == FLAG:挿入睡眠相手記録
+	IF (順番シャッフル用配列:LOCAL) == FLAG:挿入睡眠相手記録
 		;挿入睡眠相手の時は性欲チャレンジもオナニーも発生しない
-	ELSEIF TCVAR:LOCAL:夜這い済み
+	ELSEIF TCVAR:(順番シャッフル用配列:LOCAL):夜這い済み
 		;夜這いされた側については性癖チャレンジもオナニーも発生しない
-	ELSEIF 性癖素質:LOCAL:性癖開発用フラグ変数
+	ELSEIF 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数
 		;性癖開発チャレンジ
 		;チャレンジ時はオナニー判定が出ない
 		CALL 口上変数初期化
 		DRAWLINE
-		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:LOCAL:性癖開発用フラグ変数)%(LOCAL)
-		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:LOCAL:性癖開発用フラグ変数)%_XXXX(LOCAL, RESULT)
+		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%((順番シャッフル用配列:LOCAL))
+		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%_XXXX((順番シャッフル用配列:LOCAL), RESULT)
 			CALL 口上変数初期化
 		CATCH
-			CALL 口上変数表示(LOCAL, 0)
+			CALL 口上変数表示((順番シャッフル用配列:LOCAL), 0)
 		ENDCATCH
-		性癖素質:LOCAL:性癖開発用フラグ変数 = 0
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
 	ELSE
 		;一日終了時自慰判定
 		;オプションによる制御
-		IF 一日終了時オナニーOPTION:(TALENT:LOCAL:性別) == 1
+		IF 一日終了時オナニーOPTION:(TALENT:(順番シャッフル用配列:LOCAL):性別) == 1
 			SKIPDISP 1
 		ENDIF
-		CALL 一日終了時夜這い判定(LOCAL)
+		CALL 一日終了時夜這い判定((順番シャッフル用配列:LOCAL))
 		IF RESULT == 0
-			CALL 一日終了時オナニー判定(LOCAL)
+			CALL 一日終了時オナニー判定((順番シャッフル用配列:LOCAL))
 			IF RESULT
-				TRYCALLFORM KOJO_一日終了時オナニー_{NO:LOCAL}(LOCAL)
+				TRYCALLFORM KOJO_一日終了時オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
 				CALL 口上変数初期化
 			ENDIF
 		ENDIF
 		SKIPDISP 0
 	ENDIF
 	;ついでに長期雇用者数カウント
-	IF CFLAG:LOCAL:長期雇用
-		長期雇用者保存配列:(長期雇用者人数) = LOCAL
+	IF CFLAG:(順番シャッフル用配列:LOCAL):長期雇用
+		長期雇用者保存配列:(長期雇用者人数) = (順番シャッフル用配列:LOCAL)
 		長期雇用者人数 += 1
 	ENDIF
-	CALL EXP変動記録処理(LOCAL)
+	CALL EXP変動記録処理((順番シャッフル用配列:LOCAL))
 NEXT
 FORCEWAIT
 ;妊娠判定
