@@ -192,18 +192,33 @@ FOR LOCAL:1 , 101, 106
 	ENDIF
 NEXT
 
-IF TALENT:対象キャラ:イキやすさ >= 2
-	PRINTPLAIN [241]イキやすさは既に[即イキ]です
+IF TALENT:対象キャラ:イキやすさ == 2
+	PRINTPLAIN 現在：[即イキ]取得済み
 	PRINTL
-ELSEIF TALENT:対象キャラ:イキやすさ == -1
-	PRINTBUTTON @"[241]イキやすさ:遅イキ > 通常", 241
+ELSE
+	PRINTBUTTON @"[241] [即イキ]を取得する", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}
+ENDIF
+IF TALENT:対象キャラ:イキやすさ == 1
+	PRINTPLAIN 現在：[早イキ]取得済み
+	PRINTL
+ELSE
+	PRINTBUTTON @"[242] [早イキ]を取得する", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_敏感}
+ENDIF
+IF TALENT:対象キャラ:イキやすさ == 0
+	PRINTPLAIN 現在：イキやすさ素質なし
+	PRINTL
+ELSE
+	PRINTBUTTON @"[243] イキやすさ素質を削除する", 241
+	PRINTFORML 　　　必要ZP:{COST_TO_通常}
+ENDIF
+IF TALENT:対象キャラ:イキやすさ == -1
+	PRINTPLAIN 現在：[遅イキ]取得済み
+	PRINTL
+ELSE
+	PRINTBUTTON @"[244] [遅イキ]を取得する", 241
 	PRINTFORML 　　　必要ZP:{COST_TO_通常 / 2}
-ELSEIF TALENT:対象キャラ:イキやすさ == 0
-	PRINTBUTTON @"[241]イキやすさ:通常 > 早イキ", 241
-	PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}
-ELSEIF TALENT:対象キャラ:イキやすさ == 1
-	PRINTBUTTON @"[241]イキやすさ:早イキ > 即イキ", 241
-	PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}
 ENDIF
 
 PRINTL
@@ -252,40 +267,75 @@ SELECTCASE RESULT
 		ENDIF
 		RETURN 0
 	CASE 241
-		;敏感なのに入ってきてない？
-		IF TALENT:対象キャラ:イキやすさ > 1
-			REUSELASTLINE 
-			GOTO INPUT_LOOP2
-		ENDIF
-		SELECTCASE TALENT:対象キャラ:イキやすさ
-			CASE -1
-				必要COST = COST_TO_通常 / 2
-			CASE 0
-				必要COST = COST_TO_敏感 * 2
-			CASE 1
-				必要COST = COST_TO_敏感 * 2
-		ENDSELECT
+		必要COST = COST_TO_敏感 * 2
 		;ZP足りる？
 		IF FLAG:ZP所持量 < 必要COST
 			PRINTW ZPが足りません
 			RESTART
 		ENDIF
-		PRINTFORML {必要COST}ZPを支払い、イキやすさを上昇させますか？
+		PRINTFORML {必要COST}ZPを支払い、［即イキ］を取得しますか？
 		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORM イキやすさが
-			IF TALENT:対象キャラ:イキやすさ == -1
-				PRINTFORMW [遅イキ]から通常に上昇しました。
-			ELSEIF TALENT:対象キャラ:イキやすさ == 0
-				PRINTFORMW 通常から[早イキ]に上昇しました。
-			ELSEIF TALENT:対象キャラ:イキやすさ == 1
-				PRINTFORMW [早イキ]から[即イキ]に上昇しました。
-			ENDIF
-			TALENT:対象キャラ:イキやすさ += 1
+			PRINTFORMW イキやすさが[即イキ]に変化しました。
+			TALENT:対象キャラ:イキやすさ = 2
+		ENDIF
+		RETURN 0
+	CASE 242
+		必要COST = COST_TO_敏感
+		;ZP足りる？
+		IF FLAG:ZP所持量 < 必要COST
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTFORML {必要COST}ZPを支払い、［早イキ］を取得しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW イキやすさが［早イキ］に変化しました。
+			TALENT:対象キャラ:イキやすさ = 1
+		ENDIF
+		RETURN 0
+	CASE 243
+		必要COST = COST_TO_通常
+		;ZP足りる？
+		IF FLAG:ZP所持量 < 必要COST
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTFORML {必要COST}ZPを支払い、イキやすさ素質を削除しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW イキやすさ素質を削除しました。
+			TALENT:対象キャラ:イキやすさ = 0
+		ENDIF
+		RETURN 0
+	CASE 244
+		必要COST = COST_TO_通常 / 2
+		;ZP足りる？
+		IF FLAG:ZP所持量 < 必要COST
+			PRINTW ZPが足りません
+			RESTART
+		ENDIF
+		PRINTFORML {必要COST}ZPを支払い、［遅イキ］を取得しますか？？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW イキやすさが［遅イキ］に変化しました。
+			TALENT:対象キャラ:イキやすさ = -1
 		ENDIF
 		RETURN 0
 	CASEELSE
