@@ -155,12 +155,24 @@ LOOP 1
 #DIM ページ番号
 #DIM y軸位置
 #DIMS ソート条件
+#DIMS ソート配列, 5000
 
 ;ページめくり用にステータス格納
 IF ソート条件 != ""
-	FOR LOCAL, 0, DT_SELECT("所持耳飾りデータベース", , ソート条件)
-		表示用ステータス格納配列:LOCAL:0 = RESULT:(LOCAL + 1)
-	NEXT
+	IF ソート条件 == "奥義補正 ASC"
+		VARSET ソート配列
+		ソート配列:0 = 0
+		FOR LOCAL, 1, DT_ROW_LENGTH("所持耳飾りデータベース")
+			表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
+			TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", LOCAL, "耳飾り名")%(DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id"))
+			ソート配列:LOCAL = %詳細文文字列受け渡し変数２%
+		NEXT
+		ARRAYMSORT ソート配列, 表示用ステータス格納配列
+	ELSE
+		FOR LOCAL, 0, DT_SELECT("所持耳飾りデータベース", , ソート条件)
+			表示用ステータス格納配列:LOCAL:0 = RESULT:(LOCAL + 1)
+		NEXT
+	ENDIF
 ELSE
 	FOR LOCAL, 0, DT_ROW_LENGTH("所持耳飾りデータベース")
 		表示用ステータス格納配列:LOCAL:0 = DT_CELL_GET("所持耳飾りデータベース", LOCAL, "id")
@@ -195,7 +207,6 @@ IF キャラ番号 > 0
 		LOCALS += "<br>"
 	NEXT
 ELSE
-	LOCAL:1 = 0
 	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
 		IF DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1) == ""
 			BREAK
