@@ -535,7 +535,7 @@ VARSET 相手ごとの射精量:ARG:0
 SIF !TALENT:ARG:妊娠 && CFLAG:ARG:子の父親 != -1
 	CFLAG:ARG:子の父親 = -1
 ;疲れる処理（臨月、産後）
-IF 妊娠時疲労(ARG) || (CFLAG:ARG:産後経過日 >= PREG_DAY(8) && CFLAG:ARG:妊娠前体力)
+IF 妊娠時疲労(ARG) || (CFLAG:ARG:産後経過日 > 0 && CFLAG:ARG:妊娠前体力)
 	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
 	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力  - 妊娠時疲労(ARG,1)
 	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
@@ -634,14 +634,22 @@ ENDIF
 #FUNCTION
 #DIM 倍率
 倍率 = 0
-IF INRANGE(CFLAG:(ARG:0):産後経過日, 1, PREG_DAY(3))
-	倍率 = 30
-ELSEIF PREGNANCY_PROGRESS(ARG:0) >= 5
-	倍率 = 20
-ELSEIF PREGNANCY_PROGRESS(ARG:0) == 4 || INRANGE(CFLAG:(ARG:0):産後経過日, PREG_DAY(4), PREG_DAY(7))
-	倍率 = 10
+IF CFLAG:(ARG:0):産後経過日 > 0
+	IF CFLAG:(ARG:0):産後経過日 < PREG_DAY(4)
+		倍率 = 30
+	ELSEIF CFLAG:(ARG:0):産後経過日 < PREG_DAY(8)
+		倍率 = 10
+	ELSE
+		倍率 = 0
+	ENDIF
 ELSE
-	倍率 = 0
+	IF PREGNANCY_PROGRESS(ARG:0) >= 5
+		倍率 = 20
+	ELSEIF PREGNANCY_PROGRESS(ARG:0) == 4
+		倍率 = 10
+	ELSE
+		倍率 = 0
+	ENDIF
 ENDIF
 SELECTCASE ARG:1
 	CASE 0
