@@ -1,0 +1,363 @@
+﻿
+@寝取らせ夜這い判定()
+#DIM ピックアップ配列, 500
+#DIM 島内配列, 500
+#DIM 島内数
+#DIM ピックアップ数
+#DIM カップリングキャラ１
+#DIM カップリングキャラ２
+#DIM 主導キャラ
+#DIM 献上品キャラ
+
+
+SIF CFLAG:PLAYER:現在位置 != CFLAG:PLAYER:自室位置
+	RETURN 0
+SIF CFLAG:PLAYER:現在マップ種別 != 0
+	RETURN 0
+SIF TARGET:1 > 0
+	RETURN 0
+SIF FLAG:挿入睡眠相手記録 > 0
+	RETURN 0
+
+
+VARSET ピックアップ配列
+;恋慕の組み合わせピックアップ処理
+;まず恋慕orセフレで、組み合わせにあなたが入っていないカップリングを割り出す
+ピックアップ数 = DT_SELECT("関係性データベース", @"対象キャラ１ <> {CFLAG:MASTER:人物番号} And 対象キャラ２ <> {CFLAG:MASTER:人物番号} And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')", ,ピックアップ配列)
+;この命令でピックアップ数には「該当するカップリングの数」が
+;ピックアップ配列には「該当するデータベースID」が順番に入っている
+
+;例外フォロー忘れずに
+SIF ピックアップ数 < 1
+    RETURN 0
+
+;組み合わせが島内にいるかどうかを見る
+VARSET 島内配列
+島内数 = 0
+FOR LOCAL, 0, ピックアップ数
+    カップリングキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", ピックアップ配列:LOCAL, "対象キャラ１", 1))
+    カップリングキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", ピックアップ配列:LOCAL, "対象キャラ２", 1))
+    ;どっちかいないならダメ
+    SIF CFLAG:カップリングキャラ１:滞在期間 < 1
+        CONTINUE
+    SIF CFLAG:カップリングキャラ２:滞在期間 < 1
+        CONTINUE
+    ;どっちかいればOK
+    SIF 性癖素質:カップリングキャラ１:寝取られ == 0 && 性癖素質:カップリングキャラ２:寝取られ == 0
+        CONTINUE
+	IF 性癖素質:カップリングキャラ１:寝取られ >= 1
+		IF HETEROSEX(カップリングキャラ２, PLAYER) && 性癖素質:カップリングキャラ２:同性愛 < 1
+			CONTINUE
+		ENDIF
+	ELSE
+		IF HETEROSEX(カップリングキャラ１, PLAYER) && 性癖素質:カップリングキャラ１:同性愛 < 1
+			CONTINUE
+		ENDIF
+	ENDIF
+    島内配列:島内数 = ピックアップ配列:LOCAL
+    島内数 ++
+NEXT
+
+;例外フォロー忘れずに
+SIF 島内数 < 1
+    RETURN 0
+
+;どのIDがいいかをランダムに決めてやる
+LOCAL = 島内配列:(RAND:島内数)
+;該当のIDから対象キャラを持ってきてキャラ番号を取る
+カップリングキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", LOCAL, "対象キャラ１", 1))
+カップリングキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", LOCAL, "対象キャラ２", 1))
+
+;現状だと「男あなたにスタンを差し出す寝取られ性癖持ちアリーザ」とかが爆誕してしまうけど、
+;あなたと同性を差し出しNGにするとそれはそれで「女あなたにソシエを差し出す寝取られ性癖持ちユエル」とかも発生しなくなるので……どうしたもんか……
+
+;寝取らせの主導側と差し出される側を決める
+;上の抽出でどっちかは寝取られ性癖持ちであることが確定してるので、持ってるほうを主導側に。
+;両方持ってる場合はキャラ1のほうを優先で主導に
+IF 性癖素質:カップリングキャラ１:寝取られ >= 1
+	主導キャラ = カップリングキャラ１
+	献上品キャラ = カップリングキャラ２
+ELSE
+	主導キャラ = カップリングキャラ２
+	献上品キャラ = カップリングキャラ１
+ENDIF
+
+;酔い潰れや体力０の時は発生しない
+;泥酔眠姦が実装されたら献上品の酔いすぎは条件から外してもいいと思う
+IF CFLAG:主導キャラ:酔いすぎ || CFLAG:献上品キャラ:酔いすぎ
+	RETURN 0
+ENDIF
+IF CFLAG:主導キャラ:体力限界 || CFLAG:献上品キャラ:体力限界
+	RETURN 0
+ENDIF
+;どちらかが「ＣもＶもないキャラ」だった場合発生しない
+IF TALENT:主導キャラ:Ｖ感度 == -2 && TALENT:主導キャラ:Ｃ感度 == -2
+	RETURN 0
+ENDIF
+IF TALENT:献上品キャラ:Ｖ感度 == -2 && TALENT:献上品キャラ:Ｃ感度 == -2
+	RETURN 0
+ENDIF
+;とりあえず主導キャラの信頼が親友以上から発生するようにしてみる。献上品の信頼は不問
+;IF CFLAG:主導キャラ:信頼度 < 経験値テーブル:(関係閾値:4)
+;	RETURN 0
+;ENDIF
+
+
+;夜這いは性欲条件だけど、寝取られは何を条件にするのが適切なのかわからない。
+;ので、普通に確率制御にしてみる。とりあえず性癖開拓のとこから処理持ってきていじってみる
+
+;基礎確率は寝取られ性癖ごとに2割。上の条件を潜り抜けるのがまずそこそこ面倒そうなのでとりあえずこの値。後追い調整はいくらでもできるし
+LOCAL = 性癖素質:主導キャラ:寝取られ * 4
+
+;ここから条件増やして確率を上げ下げする余地。
+
+;あなたへの信頼
+SELECTCASE CFLAG:主導キャラ:信頼度
+	CASE IS <= 経験値テーブル:(関係閾値:3)
+		;相棒で+5%
+		LOCAL += 1
+	CASE IS <= 経験値テーブル:(関係閾値:4)
+		;水魚の交わりで+15%
+		LOCAL += 3
+	CASEELSE
+		;その他は補正なし
+		LOCAL += 0
+ENDSELECT
+
+;あなたの遊び人素質
+;女の扱いがうまいと噂がたっていれば、性癖を満たすに丁度いい竿役と認識してもらえる可能性が高くなると思われるため
+LOCAL += あなた特殊能力:遊び人
+
+;最低確率は5%。一応設定だけしとく。
+LOCAL = MAX(LOCAL, 1)
+
+;補正確率より低ければ発生
+;IF RAND:20 > LOCAL
+;	RETURN 0
+;ENDIF
+
+;RETURN 1
+
+;イベント本文
+DRAWLINE
+PRINTFORMW ──深夜、%CALLNAME:PLAYER%の部屋のドアがノックされた。
+PRINTL
+PRINTFORML こんな時間に誰だろう……。
+PRINTFORML 予期せぬ来客に%CALLNAME:PLAYER%がドアを開けると、そこには%CALLNAME:主導キャラ%と%CALLNAME:献上品キャラ%の姿があった。
+PRINTL
+PRINTFORM 欲望の宿った%CALLNAME:主導キャラ%の瞳は廊下の夜闇に爛々と輝くようで、
+;訪問キャラふたりの間では事前に話がついているので、これからの事に対する反応
+IF EXP:献上品キャラ:貸出経験 >= 3
+	PRINTFORMW 連れだった%CALLNAME:献上品キャラ%も頬を染め、これから味わうだろう不貞快楽への期待に胸を高鳴らせている様子だ。
+ELSEIF TALENT:献上品キャラ:処女
+	PRINTFORMW それとは対照的に、連れだった%CALLNAME:献上品キャラ%は不安と恐怖でいっぱいの様子だ。
+ELSEIF TALENT:献上品キャラ:羞恥心 == 1 || TALENT:献上品キャラ:貞操 == 1
+	PRINTFORMW 連れだった%CALLNAME:献上品キャラ%は恥じらうように俯いている。
+ELSEIF TALENT:献上品キャラ:経験豊富
+	PRINTFORMW 連れだった%CALLNAME:献上品キャラ%もニヤニヤと艶の乗った笑みを浮かべている。
+ELSE
+	PRINTFORMW その反面、連れだった%CALLNAME:献上品キャラ%はうつむき加減で所在なさげに佇んでいる。
+ENDIF
+PRINTL
+PRINTFORML 要件が何であるにせよ、こんなところで話すのもなんだ。
+PRINTFORMW %CALLNAME:PLAYER%は二人を部屋の中へと招き入れた……
+PRINTL
+PRINTFORML ────────
+PRINTW
+PRINTFORM ……興奮した%CALLNAME:主導キャラ%の要件とはつまり、%CALLNAME:PLAYER%に
+IF EXP:主導キャラ:寝取られ経験 >= 5
+	PRINTFORM 、いつものように
+ELSEIF EXP:主導キャラ:寝取られ経験 >= 2
+	PRINTFORM 、また前回のように
+ENDIF
+PRINTFORMW %CALLNAME:献上品キャラ%%TEXTR("のことを抱いて/とセックスして")%ほしいということらしかった。
+PRINTL
+PRINTFORML こうして%CALLNAME:PLAYER%の部屋へと来る前に、二人のあいだで話は済ませてあるらしい。
+;寝取られ中毒彼氏クンの手によって、セクシーランジェリーで飾りたてられているかもしれない？
+IF 知識素質:主導キャラ:性知識 > 1 && 性癖素質:主導キャラ:寝取られ == 3
+		SIF CSTR:献上品キャラ:コスプレ前の服 == "" && CSTR:献上品キャラ:表示グラフィックカテゴリ != ""
+			CSTR:献上品キャラ:コスプレ前の服 '= CSTR:献上品キャラ:表示グラフィックカテゴリ
+	LOCALS '= CSTR:献上品キャラ:脱ぐ前の服
+	CALL CLOTHES_CHANGE(献上品キャラ, "セクシーランジェリー")
+	CSTR:献上品キャラ:脱ぐ前の服 '= LOCALS
+	PRINTFORMW %CALLNAME:PLAYER%の興奮をより煽るためか、%CALLNAME:主導キャラ%は%CALLNAME:献上品キャラ%にわざわざ情欲を煽る下着まで着させて来ている……。
+	PRINTL
+ENDIF
+IF EXP:献上品キャラ:貸出経験 >= 1
+	IF EXP:献上品キャラ:貸出経験 <= 2
+		;「今回が三回目」まで
+		PRINTFORM %CALLNAME:PLAYER%が「またよろしくね」と囁くと、
+		IF TALENT:献上品キャラ:経験豊富
+			PRINTFORML %CALLNAME:献上品キャラ%は妖艶に微笑み返してきた。
+		ELSE
+			PRINTFORML 前回のことを思い出したのか、頬を染めた%CALLNAME:献上品キャラ%は俯き加減に頷いた。
+		ENDIF
+	ELSEIF ABL:献上品キャラ:マゾ性感 >= 2
+		PRINTFORML %CALLNAME:PLAYER%が「何か言うことは？」と%TEXTR("告げる/高圧的に告げる/告げ、乳房を乱暴に掴む")%と、自らの立場を%TEXTR("わきまえた/思い出した")%%CALLNAME:献上品キャラ%はぞくぞくと身を震わせ、
+		IF ABL:献上品キャラ:マゾ性感 >= 3
+			IF 知識素質:献上品キャラ:高貴
+				;全裸土下座はこのあとの服の扱いが大変なのでパス。いや「全裸土下座フラグが1なら全裸スタート」とかできなくはないだろうけども……
+				;手の甲へのキスは「敬愛」「忠誠」、足の甲へのキスは「服従」の意味を持つ。高貴だから詳しいんだ！
+				PRINTFORM %TEXTR("その場に膝をつき美しい土下座を披露して/その場で三つ指をつき額を床に擦り付けて/その場に跪き%CALLNAME:PLAYER%の手の甲に口づけて/その場に跪き%CALLNAME:PLAYER%の足の甲に口づけて")%、
+			ELSE
+				;「深々と頭を下げる」は微妙に状況にそぐわない気がしたので、とりあえず男だけで
+				;土下座は……高貴ゆえに美しい土下座ができる方々と比べるとなんかこう、格が落ちるというか、下位互換的な被りかたっていうか……
+				IF TEQUIP:スカートめくり可 == 1
+					PRINTFORM スカートをたくし上げながら、
+				ELSEIF TALENT:献上品キャラ:性別 == 1
+					PRINTFORM %CALLNAME:PLAYER%の手を取って自らの胸を揉ませると、
+				ELSE
+					PRINTFORM 深々と頭を下げて、
+				ENDIF
+			ENDIF
+			IF RISKY_DAY(献上品キャラ) >= 1 && GETBIT(TALENT:PLAYER:性別, 1)
+				PRINTFORM 「今日は危険日なので、%TEXTR("どうか%CALLNAME:PLAYER%の子種を恵んでください/どうか%CALLNAME:主導キャラ%ではなく%CALLNAME:PLAYER%の子を産ませてください/どうか%CALLNAME:主導キャラ%と育てる%CALLNAME:PLAYER%の赤ちゃんを孕ませてください/存分に精液をコキ捨ててください/どうぞたくさん楽しんでください")%……_H_」
+				PRINTFORMW と種乞いした。
+			ELSE
+				;できるだけ男女兼用できる文面に
+				PRINTFORM 「また今夜も%TEXTR("躾けてください/%CALLNAME:主導キャラ%とじゃできない『本当のセックス』を教えてください/たくさん可愛がってください/、存分にオモチャにしてください/、%CALLNAME:主導キャラ%じゃなくて本当は%CALLNAME:PLAYER%のモノなんだって、わからせてください")%……_H_」
+				PRINTFORMW と懇願した。
+			ENDIF
+		ELSE
+			;「深々と頭を下げる」は微妙に状況にそぐわない気がしたので、とりあえず男だけで
+			;土下座は……高貴ゆえに美しい土下座ができる方々と比べるとなんかこう、格が落ちるというか、下位互換的な被りかたっていうか……
+			IF TEQUIP:スカートめくり可 == 1
+				PRINTFORM スカートをたくし上げながら、
+			ELSEIF TALENT:献上品キャラ:性別 == 1
+				PRINTFORM %CALLNAME:PLAYER%の手を取って自らの胸を揉ませると、
+			ELSE
+				PRINTFORM 深々と頭を下げて、
+			ENDIF
+			IF TALENT:献上品キャラ:プライド == 1
+				PRINTFORM 屈辱に震える声で
+			ELSEIF TALENT:献上品キャラ:羞恥心 == 1 || TALENT:献上品キャラ:貞操 == 1 || TALENT:献上品キャラ:陽気／陰気 == -1
+				PRINTFORM 躊躇いがちに震える声で
+			ENDIF
+			;マゾ性感3の時よりも語彙と丁寧さを落とした感じ
+			;できるだけ男女兼用できる文面に
+			PRINTFORM 「また今夜も%TEXTR("躾けてください/たくさん可愛がってください/たくさん犯してください/、%CALLNAME:主導キャラ%じゃなくて本当は%CALLNAME:PLAYER%のモノなんだって、わからせてください")%……_H_」
+			PRINTFORMW と懇願した。
+		ENDIF
+	ELSE
+	;マゾ性感１以下かつ４回目以降。慣れで雑な扱いされてもよくなってしまう態度の変化
+		PRINTFORM %CALLNAME:PLAYER%が「またよろしくね」と%TEXTR("挨拶がわりに胸を揉む/挨拶がわりに尻を揉む/挨拶がわりに乳首をつねる/挨拶がわりに乳首をひっぱる/肩を抱く/腰を抱き寄せる/肩に手をまわして胸をもむ/挨拶がわりに見せつけるように唇を奪う")%と、
+		PRINTFORMW %CALLNAME:献上品キャラ%は甘く吐息を漏らし、期待通りのその姿に%CALLNAME:主導キャラ%はごくりと喉を鳴らした。
+	ENDIF
+ELSE
+	;はじめて「貸し出される」場合
+	PRINTFORM %CALLNAME:PLAYER%が「本当にいいのか」と尋ねると
+	IF TALENT:献上品キャラ:処女 || TALENT:献上品キャラ:陽気／陰気 == -1
+		PRINTFORMW 、%CALLNAME:献上品キャラ%は声を震わせながらも、「%CALLNAME:主導キャラ%のためだから」と健気に頷いてみせた。
+	ELSEIF TALENT:献上品キャラ:羞恥心 == 1 || TALENT:献上品キャラ:貞操 == 1
+		PRINTFORMW 、%CALLNAME:献上品キャラ%は俯きながらも、「%CALLNAME:主導キャラ%のためだから」と健気に頷いてみせた。
+	ELSEIF TALENT:献上品キャラ:経験豊富
+		PRINTFORMW 、%CALLNAME:献上品キャラ%は%CALLNAME:PLAYER%の腕に胸を押し当てるように抱き着き、「%CALLNAME:主導キャラ%が悪いんだから」と%CALLNAME:主導キャラ%に流し目を送ってみせた。
+	ELSEIF TALENT:献上品キャラ:プライド == 1
+		PRINTFORMW %CALLNAME:献上品キャラ%は、%CALLNAME:主導キャラ%によって%CALLNAME:PLAYER%に差し出される屈辱に顔をゆがめながらも渋々といった感じで頷いてみせた。
+	ELSE
+		PRINTFORMW 、%CALLNAME:献上品キャラ%は俯きながらも、「%CALLNAME:主導キャラ%のためだから」と強がってぎこちなく笑ってみせた。
+	ENDIF
+ENDIF
+
+PRINTL
+PRINTFORML ────さて、どうしようか？
+DRAWLINE
+PRINTBUTTON "[0] 受け入れる", 0
+PRINTL
+PRINTBUTTON "[1] 断る", 1
+;PRINTL
+;PRINTBUTTON "[2] 受け入れる（簡易版）", 2
+;PRINTL
+;PRINTL
+;PRINTBUTTON "[100] 選択肢について説明", 100
+
+BINPUT
+;口上用に選択肢を記録
+RFLAG:コマンド結果受渡し変数２ = RESULT
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML %CALLNAME:主導キャラ%のたっての頼みだ。合意の上でのことであるなら、何を遠慮することもない。
+		PRINTFORML ……それに、%CALLNAME:献上品キャラ%と%CALLNAME:主導キャラ%が今の関係になれたのだって、%CALLNAME:PLAYER%の仲立ちあってこそだ。
+		PRINTFORMW %CALLNAME:PLAYER%にはこの、「正当な報酬」を受け取る権利があるだろう。
+		PRINTL
+		PRINTFORML ──今はただ、楽しめばいい。思う存分、欲望のままに。
+		PRINTFORMW 倒錯的な性癖に破壊された脳で%CALLNAME:献上品キャラ%を差し出してくれる%CALLNAME:主導キャラ%の姿に内心でほくそ笑みながら、%CALLNAME:PLAYER%は%CALLNAME:献上品キャラ%を抱き寄せた……
+
+		EXP:主導キャラ:寝取られ経験 += 1
+		EXP:献上品キャラ:貸出経験 += 1
+		CFLAG:献上品キャラ:うふふ = 1
+		CFLAG:MASTER:うふふ = 1
+		CFLAG:献上品キャラ:現在位置 = CFLAG:PLAYER:現在位置
+		CFLAG:献上品キャラ:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+		CFLAG:献上品キャラ:同室 = 1
+		CALL TRAIN_イベントうふふ_LOOP()
+
+	CASE 1
+		PRINTFORMW %CALLNAME:PLAYER%が今日は気分じゃないと伝えると、%CALLNAME:主導キャラ%は残念そうな顔で%CALLNAME:献上品キャラ%と一緒に帰っていった……
+;	CASE 2
+;			;要求される文章量が多く、男×男の情事描写は書ける気もしないので、「あまりにショボい文章とバランス取れてるかも怪しい数値で簡易やった気になるくらいならないほうがマシ」との判断で書きかけのまま凍結。
+;　　　　　　;必要に迫られてたら書く。迫られなければあとでまとめて消す。
+;			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:主導キャラ%の願いを聞き入れ、%CALLNAME:献上品キャラ%%TEXTR("を抱いてやる/をおいしくいただく/とセックスしてやる")%ことにした……
+;			;簡易描写のプレイ内容によって経験変化に差をつける？
+;			;技巧参照で快楽刻印相当の従順や親愛の変化を与えてもいいかも
+;			PRINTFORML ──
+;			PRINTFORML ────
+;			PRINTFORML ──────
+;			IF TALENT:献上品キャラ:Ｖ感度 != -2
+;				IF TALENT:PLAYER:Ｃ感度 != -2
+;				;相手にＶがあり、かつあなたにちんぽあり。つまり男or双女あなた×女キャラ
+;					IF TALENT:献上品キャラ:処女
+;					ELSE
+;					ENDIF
+;				ELSE
+;				;相手にＶがあり、あなたにちんぽがない。女あなた×女キャラ
+;				;相手が処女でない場合ペニバン使ってよい。処女は簡略の時は奪わないようにしたほうが無難かな
+;					IF TALENT:献上品キャラ:処女
+;					%CALLNAME:PLAYER%は%CALLNAME:献上品キャラ%の処女を傷つけないままに、たっぷりと時間をかけて手技と舌技だけで%CALLNAME:献上品キャラ%をかわいがってやった。
+;					数えきれないほど絶頂し、喉が枯れるほど嬌声をあげ続けた
+;					名残惜しそうに
+;					ELSE
+;					ENDIF
+;				ENDIF
+;			ELSE
+;				IF TALENT:PLAYER:Ｃ感度 != -2
+;				;相手にＶがなく、かつあなたにちんぽあり。つまり男or双女あなた×男キャラ
+;				;……兜合わせ？ケツ掘る？
+;				ELSE
+;				;相手にＶがなく、あなたにちんぽがない。女あなた×男キャラ
+;				;あなたが処女の場合、前戯だけ。あなたが処女でない場合は容赦なく膣を使う
+;				ENDIF
+;			ENDIF
+;　　　　　　;数値部分は夜這い実処理を持ってくるのがよさそう。
+;
+;			;仮置き
+;			;あなた側に非がなく、気持ちよくされるだけされてしまうと、感情が肉体に引きずられてちょっと好きになっちゃうと思う。
+;			;友情よりも恋心のほうがより上がる。床惚れってやつ。信頼は別に上がらない。友情も上がらなくていいかもしれないけど、一応ね。
+;			CALL SOURCE_CALC_好感度要素_友情度UP(献上品キャラ, PLAYER, 2000)
+;			CALL SOURCE_CALC_好感度要素_恋心度UP(献上品キャラ, PLAYER, 4000)
+;			CALL SOURCE_CALC_好感度要素_性愛度UP(献上品キャラ, PLAYER, 10000)
+;			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 10000)
+;			EXP:主導キャラ:寝取られ経験 += 1
+;			EXP:献上品キャラ:貸出経験 += 1
+;	CASE 100
+;訪問ラベルよくわかんないから、説明いる？って感じでコメントアウトしとく。
+;		DRAWLINE
+;		PRINTL 受け入れる：%CALLNAME:主導キャラ%の性癖を叶えるために、%CALLNAME:献上品キャラ%とうふふモードに突入します。
+;		PRINTL 　　　　　　%CALLNAME:主導キャラ%のためなので、実行不可を除く全てのコマンドに、%CALLNAME:献上品キャラ%は抵抗できません。
+;		PRINTL 　　　　　　ソースや好感度変化は通常通り行われるほか、%CALLNAME:主導キャラ%の寝取られ経験と%CALLNAME:献上品キャラ%の貸出経験がそれぞれ+１されます。
+;		PRINTL　　　　　　 なお、主導キャラはいないものとして扱います(自室か隠密状態で過酷なオナニーしてるイメージ)
+;		PRINTL
+;		PRINT 受け入れる（簡易版）：うふふモードやるのがめんどくさい時向け。
+;		PRINTL 　　　　　　　　　　 簡単な描写のうえで、一定の好感度、経験の変化が実行されます。
+;		PRINTL 
+;		PRINTL 断る：断ります。%CALLNAME:主導キャラ%はがっかりして帰り、寝取られ性癖が満たされ悪化することはありません。
+;		PRINTL 　　　%CALLNAME:献上品キャラ%はたぶんほっとしてます。
+;		WAIT
+;		GOTO 訪問ラベル
+ENDSELECT
+RETURN 1
+
+
+;主導キャラがシコってる描写とかそこから生み出されるZPとかに関してどこに入れるか
+
+
