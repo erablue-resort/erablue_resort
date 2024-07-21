@@ -783,3 +783,101 @@ SELECTCASE 性癖素質:キャラ番号:同性愛
 		;既に中毒ならスキップ
 		RETURN 0
 ENDSELECT
+
+@性癖開拓チャレンジ処理_寝取られ(ARG)
+;寝取られ
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく
+PRINTFORM 「大事な人が他人に抱かれるシチュ」のエロ本が渡るように小細工した…
+PRINTL
+
+;エロ本を読むかどうか
+IF 知識素質:ARG:性知識 < 0
+	;性知識が-1か-2だと本の内容を理解できない
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本をぱらぱらと開いてみたが、よく意味がわからなかったようだ…
+	RETURN -1
+ENDIF
+
+;基礎確率は2/10
+LOCAL = 2
+;自制心、プライド、性的興味、性欲が影響
+LOCAL -= TALENT:ARG:自制心
+LOCAL -= TALENT:ARG:プライド
+LOCAL += TALENT:ARG:性的興味 * 2
+LOCAL += TALENT:ARG:性欲
+SIF BASE:ARG:性欲 > 1500
+	LOCAL += 1
+
+;マゾ性感が影響
+LOCAL += ABL:ARG:マゾ性感
+
+;男性器サイズ
+;自分の「男としての才能/素養」にコンプレックスがあるほどこういうのに陥りやすいんじゃなかろうか、という発想
+IF TALENT:ARG:男性器サイズ == -2
+	LOCAL += 2
+ELSEIF TALENT:ARG:男性器サイズ == -1
+	LOCAL += 1
+ENDIF
+
+;最低確率1割は確保
+LOCAL = MAX(LOCAL, 1)
+;性欲無しだと読まない
+SIF TALENT:ARG:性欲 == -2
+	LOCAL = -1
+;補正確率より低ければ読む
+IF RAND:10 < LOCAL
+	;読むパターン
+	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
+	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
+	PRINTL
+	PRINTFORMW 自分の大事な人が他人に抱かれ、果てには奪われてしまうというこの本の内容に、%CALLNAME:ARG%は切なく苦しい心とは裏腹に鬱勃起が止まらない！
+	PRINTL
+	PRINTFORMW ……やがて、ひとつの物語に脳を灼かれた%CALLNAME:ARG%は、性癖素質[寝取られ(興味)]を取得してしまった！
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(興味)]を取得した</font>","うふふ")
+	性癖素質:ARG:寝取られ = 1
+	RETURN 1
+ELSE
+	;読まないパターン
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
+ENDIF
+
+RETURN 0
+
+@性癖段階成長_寝取られ(キャラ番号)
+#DIM キャラ番号
+
+SELECTCASE 性癖素質:キャラ番号:寝取られ
+	CASE 1
+		;経験が足りないとダメ
+		;いままで興味だったものが、実践を経て確信に変わり、自身の中に深く根付く。故に、愛好になるのは「最初の一歩を踏み出してしまったその直後」だと思う。異論は認める。
+		SIF EXP:キャラ番号:寝取られ経験 < 1
+			RETURN 0
+		性癖素質:キャラ番号:寝取られ = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の寝取られへの興味は、実際に抱かせてみたことで確たる性癖として%CALLNAME:キャラ番号%の中に根付いてしまったようだ……
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[寝取られ(興味)]は[寝取られ(愛好)]へと成長してしまった！
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(興味)]が[寝取られ(愛好)]に成長した</font>","うふふ")
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		;事が事だけに、5回もリピれば立派な中毒だと思う
+		SIF EXP:キャラ番号:寝取られ経験 < 5
+			RETURN 0
+		性癖素質:キャラ番号:寝取られ = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや%CALLNAME:PLAYER%に自分の女を差し出すことに、破滅的な魅力を感じてしまっている……
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[寝取られ(愛好)]は[寝取られ(中毒)]に成長してしまった！
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(愛好)]が[寝取られ(中毒)]に成長した</font>","うふふ")
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+

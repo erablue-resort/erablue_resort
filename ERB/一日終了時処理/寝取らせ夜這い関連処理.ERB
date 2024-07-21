@@ -38,6 +38,7 @@ VARSET 島内配列
 FOR LOCAL, 0, ピックアップ数
     カップリングキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", ピックアップ配列:LOCAL, "対象キャラ１", 1))
     カップリングキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", ピックアップ配列:LOCAL, "対象キャラ２", 1))
+
     ;どっちかいないならダメ
     SIF CFLAG:カップリングキャラ１:滞在期間 < 1
         CONTINUE
@@ -134,11 +135,10 @@ LOCAL += あなた特殊能力:遊び人
 LOCAL = MAX(LOCAL, 1)
 
 ;補正確率より低ければ発生
-;IF RAND:20 > LOCAL
-;	RETURN 0
-;ENDIF
+IF RAND:20 > LOCAL
+	RETURN 0
+ENDIF
 
-;RETURN 1
 
 ;イベント本文
 DRAWLINE
@@ -260,18 +260,16 @@ ELSE
 		PRINTFORMW 、%CALLNAME:献上品キャラ%は俯きながらも、「%CALLNAME:主導キャラ%のためだから」と強がってぎこちなく笑ってみせた。
 	ENDIF
 ENDIF
-
+$訪問ラベル
 PRINTL
 PRINTFORML ────さて、どうしようか？
 DRAWLINE
 PRINTBUTTON "[0] 受け入れる", 0
 PRINTL
 PRINTBUTTON "[1] 断る", 1
-;PRINTL
-;PRINTBUTTON "[2] 受け入れる（簡易版）", 2
-;PRINTL
-;PRINTL
-;PRINTBUTTON "[100] 選択肢について説明", 100
+PRINTL
+PRINTL
+PRINTBUTTON "[100] 選択肢について説明", 100
 
 BINPUT
 ;口上用に選択肢を記録
@@ -279,14 +277,70 @@ RFLAG:コマンド結果受渡し変数２ = RESULT
 SELECTCASE RESULT
 	CASE 0
 		PRINTFORML %CALLNAME:主導キャラ%のたっての頼みだ。合意の上でのことであるなら、何を遠慮することもない。
+		PRINTL
 		PRINTFORML ……それに、%CALLNAME:献上品キャラ%と%CALLNAME:主導キャラ%が今の関係になれたのだって、%CALLNAME:PLAYER%の仲立ちあってこそだ。
 		PRINTFORMW %CALLNAME:PLAYER%にはこの、「正当な報酬」を受け取る権利があるだろう。
 		PRINTL
 		PRINTFORML ──今はただ、楽しめばいい。思う存分、欲望のままに。
 		PRINTFORMW 倒錯的な性癖に破壊された脳で%CALLNAME:献上品キャラ%を差し出してくれる%CALLNAME:主導キャラ%の姿に内心でほくそ笑みながら、%CALLNAME:PLAYER%は%CALLNAME:献上品キャラ%を抱き寄せた……
-
+		IF カップリング関係性 != "セフレ"
+		;なんかあなたとの関係性も参照されちゃったっぽくて恋慕じゃ発生しなかったので
+			IF TALENT:献上品キャラ:浮気 == 0
+			;ふたりの関係が恋慕で、差し出される側が浮気を持っていない場合。必然、献上品にとってはこれが初めての貸出になるはず
+				TALENT:献上品キャラ:浮気 = 1
+				IF TALENT:献上品キャラ:処女
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:主導キャラ%の願いでまだ処女だった%CALLNAME:献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>まだ処女だったのに、恋人の%CALLNAME:主導キャラ%のお願いで%CALLNAME:PLAYER%と[浮気]させられてしまった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:献上品キャラ%の処女を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+					PRINTL
+					PRINTFORM 愛する%CALLNAME:主導キャラ%にまだ処女も捧げられていないのに、%CALLNAME:主導キャラ%が見守るその目の前で、%CALLNAME:献上品キャラ%は望まぬ
+					SETCOLOR カラーパレット("えっちな色")
+					PRINT [浮気]
+					RESETCOLOR
+					PRINTFORMW へと足を踏み入れさせられてしまった……
+				ELSE
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:主導キャラ%の願いで%CALLNAME:献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>恋人の%CALLNAME:主導キャラ%のお願いで%CALLNAME:PLAYER%と[浮気]させられてしまった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:献上品キャラ%を初めて差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+					PRINTL
+					PRINTFORM 愛する%CALLNAME:主導キャラ%が見守るその目の前で、%CALLNAME:献上品キャラ%は望まぬ
+					SETCOLOR カラーパレット("えっちな色")
+					PRINT [浮気]
+					RESETCOLOR
+					PRINTFORMW へと足を踏み入れさせられてしまった……
+				ENDIF
+			ELSE
+				PRINTL
+				PRINTFORM 愛する%CALLNAME:主導キャラ%が見守るその目の前でまた、%CALLNAME:献上品キャラ%の望まぬ
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT [浮気]
+				RESETCOLOR
+				PRINTFORMW の幕が上がる……
+			ENDIF
+		ELSEIF EXP:献上品キャラ:貸出経験 == 0
+			;はじめて貸し出される時
+			IF TALENT:献上品キャラ:処女
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:主導キャラ%の願いでまだ処女だった%CALLNAME:献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+				CALL 履歴データベース登録(CFLAG:献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>まだ処女だったのに、%CALLNAME:主導キャラ%のお願いで%CALLNAME:PLAYER%とセックスさせられてしまった</font><img src='えっちハート'>","うふふ")
+				CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に、%CALLNAME:献上品キャラ%の処女を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+			ELSE
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:主導キャラ%の願いで%CALLNAME:献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+				CALL 履歴データベース登録(CFLAG:献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:主導キャラ%のお願いで%CALLNAME:PLAYER%とセックスさせられてしまった</font><img src='えっちハート'>","うふふ")
+				CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:献上品キャラ%を初めて差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+			ENDIF
+		ENDIF
+		PRINTL
 		EXP:主導キャラ:寝取られ経験 += 1
 		EXP:献上品キャラ:貸出経験 += 1
+		TCVAR:献上品キャラ:言いなり = 1
+		PRINTFORM %CALLNAME:主導キャラ%の願いを叶えるために、%CALLNAME:献上品キャラ%はこの一晩%CALLNAME:PLAYER%の
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [言いなり]
+		RESETCOLOR
+		PRINTFORMW だ。望めばなんだってしてくれるだろう……
+		PRINTL
+		;これが事実上の夜這いなので、あなたへの夜這いを抑制
+		TCVAR:PLAYER:夜這い済み = 1
 		CFLAG:献上品キャラ:うふふ = 1
 		CFLAG:MASTER:うふふ = 1
 		CFLAG:献上品キャラ:現在位置 = CFLAG:PLAYER:現在位置
@@ -296,70 +350,115 @@ SELECTCASE RESULT
 
 	CASE 1
 		PRINTFORMW %CALLNAME:PLAYER%が今日は気分じゃないと伝えると、%CALLNAME:主導キャラ%は残念そうな顔で%CALLNAME:献上品キャラ%と一緒に帰っていった……
-;	CASE 2
-;			;要求される文章量が多く、男×男の情事描写は書ける気もしないので、「あまりにショボい文章とバランス取れてるかも怪しい数値で簡易やった気になるくらいならないほうがマシ」との判断で書きかけのまま凍結。
-;　　　　　　;必要に迫られてたら書く。迫られなければあとでまとめて消す。
-;			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:主導キャラ%の願いを聞き入れ、%CALLNAME:献上品キャラ%%TEXTR("を抱いてやる/をおいしくいただく/とセックスしてやる")%ことにした……
-;			;簡易描写のプレイ内容によって経験変化に差をつける？
-;			;技巧参照で快楽刻印相当の従順や親愛の変化を与えてもいいかも
-;			PRINTFORML ──
-;			PRINTFORML ────
-;			PRINTFORML ──────
-;			IF TALENT:献上品キャラ:Ｖ感度 != -2
-;				IF TALENT:PLAYER:Ｃ感度 != -2
-;				;相手にＶがあり、かつあなたにちんぽあり。つまり男or双女あなた×女キャラ
-;					IF TALENT:献上品キャラ:処女
-;					ELSE
-;					ENDIF
-;				ELSE
-;				;相手にＶがあり、あなたにちんぽがない。女あなた×女キャラ
-;				;相手が処女でない場合ペニバン使ってよい。処女は簡略の時は奪わないようにしたほうが無難かな
-;					IF TALENT:献上品キャラ:処女
-;					%CALLNAME:PLAYER%は%CALLNAME:献上品キャラ%の処女を傷つけないままに、たっぷりと時間をかけて手技と舌技だけで%CALLNAME:献上品キャラ%をかわいがってやった。
-;					数えきれないほど絶頂し、喉が枯れるほど嬌声をあげ続けた
-;					名残惜しそうに
-;					ELSE
-;					ENDIF
-;				ENDIF
-;			ELSE
-;				IF TALENT:PLAYER:Ｃ感度 != -2
-;				;相手にＶがなく、かつあなたにちんぽあり。つまり男or双女あなた×男キャラ
-;				;……兜合わせ？ケツ掘る？
-;				ELSE
-;				;相手にＶがなく、あなたにちんぽがない。女あなた×男キャラ
-;				;あなたが処女の場合、前戯だけ。あなたが処女でない場合は容赦なく膣を使う
-;				ENDIF
-;			ENDIF
-;　　　　　　;数値部分は夜這い実処理を持ってくるのがよさそう。
-;
-;			;仮置き
-;			;あなた側に非がなく、気持ちよくされるだけされてしまうと、感情が肉体に引きずられてちょっと好きになっちゃうと思う。
-;			;友情よりも恋心のほうがより上がる。床惚れってやつ。信頼は別に上がらない。友情も上がらなくていいかもしれないけど、一応ね。
-;			CALL SOURCE_CALC_好感度要素_友情度UP(献上品キャラ, PLAYER, 2000)
-;			CALL SOURCE_CALC_好感度要素_恋心度UP(献上品キャラ, PLAYER, 4000)
-;			CALL SOURCE_CALC_好感度要素_性愛度UP(献上品キャラ, PLAYER, 10000)
-;			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 10000)
-;			EXP:主導キャラ:寝取られ経験 += 1
-;			EXP:献上品キャラ:貸出経験 += 1
-;	CASE 100
-;訪問ラベルよくわかんないから、説明いる？って感じでコメントアウトしとく。
-;		DRAWLINE
-;		PRINTL 受け入れる：%CALLNAME:主導キャラ%の性癖を叶えるために、%CALLNAME:献上品キャラ%とうふふモードに突入します。
-;		PRINTL 　　　　　　%CALLNAME:主導キャラ%のためなので、実行不可を除く全てのコマンドに、%CALLNAME:献上品キャラ%は抵抗できません。
-;		PRINTL 　　　　　　ソースや好感度変化は通常通り行われるほか、%CALLNAME:主導キャラ%の寝取られ経験と%CALLNAME:献上品キャラ%の貸出経験がそれぞれ+１されます。
-;		PRINTL　　　　　　 なお、主導キャラはいないものとして扱います(自室か隠密状態で過酷なオナニーしてるイメージ)
-;		PRINTL
-;		PRINT 受け入れる（簡易版）：うふふモードやるのがめんどくさい時向け。
-;		PRINTL 　　　　　　　　　　 簡単な描写のうえで、一定の好感度、経験の変化が実行されます。
-;		PRINTL 
-;		PRINTL 断る：断ります。%CALLNAME:主導キャラ%はがっかりして帰り、寝取られ性癖が満たされ悪化することはありません。
-;		PRINTL 　　　%CALLNAME:献上品キャラ%はたぶんほっとしてます。
-;		WAIT
-;		GOTO 訪問ラベル
+	CASE 100
+		DRAWLINE
+		PRINTL 受け入れる：%CALLNAME:主導キャラ%の性癖を叶えるために、%CALLNAME:献上品キャラ%とうふふモードに突入します。
+		PRINTL 　　　　　　%CALLNAME:主導キャラ%のためなので、実行不可を除く全てのコマンドに、%CALLNAME:献上品キャラ%は抵抗できません。
+		PRINTL 　　　　　　ソースや好感度変化は通常通り行われるほか、%CALLNAME:主導キャラ%の寝取られ経験と%CALLNAME:献上品キャラ%の貸出経験がそれぞれ+１されます。
+		PRINTL　　　　　　 なお、主導キャラはいないものとして扱います(自室か隠密状態で過酷なオナニーしてるイメージ)
+		PRINTL
+		PRINT 受け入れる（簡易版）：うふふモードやるのがめんどくさい時向け。
+		PRINTL 　　　　　　　　　　 簡単な描写のうえで、一定の好感度、経験の変化が実行されます。
+		PRINTL 
+		PRINTL 断る：断ります。%CALLNAME:主導キャラ%はがっかりして帰り、寝取られ性癖が満たされ悪化することはありません。
+		PRINTL 　　　%CALLNAME:献上品キャラ%はたぶんほっとしてます。
+		WAIT
+		GOTO 訪問ラベル
 ENDSELECT
 RETURN 1
 
 
-;主導キャラがシコってる描写とかそこから生み出されるZPとかに関してどこに入れるか
+;主導キャラがシコってる描写とかそこから生み出されるZPとか
 
+PRINTFORM %CALLNAME:PLAYER%に抱かれて乱れ、
+IF EXP:献上品キャラ:貸出経験 >= 4
+	SELECTCASE RAND:3
+	CASE 0
+		PRINTFORM 嬌声に紛れて無意識に%CALLNAME:PLAYER%への好意を垂れ流してしまっている
+	CASE 1
+		PRINTFORM 犯されながら%CALLNAME:PLAYER%%TEXTR("への感謝を口にさせられている/に愛の告白をさせられている")%
+	CASE 2
+		PRINTFORM %CALLNAME:主導キャラ%と比較するよう言いつけられるとたいした葛藤もなく%CALLNAME:PLAYER%のほうを選ぶ
+	ENDSELECT
+ELSEIF ABL:PLAYER:技巧 >= 4
+	PRINTFORM 自分とのセックスでは聞いたことのないような%TEXTR("甘く蕩けた/甘く濁った/強すぎる快楽に濁った/だらしなく蕩けた")%嬌声をあげる
+ELSE
+	PRINTFORM すっかり%CALLNAME:PLAYER%の性技の虜にされてしまった
+ENDIF
+PRINTFORMW %CALLNAME:献上品キャラ%の姿を隠れて見ていた%CALLNAME:主導キャラ%は、寝取られオナニーがとてもはかどったようだ……
+PRINTL 
 
+IF TALENT:主導キャラ:性別 == 2
+;Ｖなしのオトコなら、絶頂は射精のみ
+;経験はなんとなくで決定したので、もっと説得力あるのがあればそっちに書き換えてください
+	IF TALENT:主導キャラ:男性器サイズ <= -1
+	;短小以下
+		SELECTCASE RAND:2
+		CASE 0
+			PRINTFORMW なんと、２回も%TEXTR("射精/ぴゅっぴゅ")%できたようだ！よかったね！
+			EXP:主導キャラ:自慰経験 += 5
+			EXP:主導キャラ:絶頂経験 += 2
+			EXP:主導キャラ:Ｃ絶頂経験 += 2
+			FLAG:ZP所持量 += 2
+		CASE 1
+			PRINTFORMW なんと、３回も%TEXTR("射精/ぴゅっぴゅ")%できたようだ！やったね！
+			EXP:主導キャラ:自慰経験 += 6
+			EXP:主導キャラ:絶頂経験 += 3
+			EXP:主導キャラ:Ｃ絶頂経験 += 3
+			FLAG:ZP所持量 += 3
+		ENDSELECT
+	ELSEIF TALENT:主導キャラ:男性器サイズ == 0
+	;普通
+		SELECTCASE RAND:2
+		CASE 0
+			PRINTFORMW なんと、３回も射精できたようだ！やったね！
+			EXP:主導キャラ:自慰経験 += 6
+			EXP:主導キャラ:絶頂経験 += 3
+			EXP:主導キャラ:Ｃ絶頂経験 += 3
+			FLAG:ZP所持量 += 3
+		CASE 1
+			PRINTFORMW なんと！４回も射精できたようだ！すごいね！！
+			EXP:主導キャラ:自慰経験 += 7
+			EXP:主導キャラ:絶頂経験 += 4
+			EXP:主導キャラ:Ｃ絶頂経験 += 4
+			FLAG:ZP所持量 += 4
+		ENDSELECT
+	ELSEIF TALENT:主導キャラ:男性器サイズ >= 1
+	;巨根以上
+	SELECTCASE RAND:2
+		CASE 0
+			PRINTFORMW なんと！４回も射精できたようだ！すごいね！！
+			EXP:主導キャラ:自慰経験 += 8
+			EXP:主導キャラ:絶頂経験 += 4
+			EXP:主導キャラ:Ｃ絶頂経験 += 4
+			FLAG:ZP所持量 += 4
+		CASE 1
+			PRINTFORMW なんと！５回も射精できたようだ！！がんばったね！！
+			EXP:主導キャラ:自慰経験 += 9
+			EXP:主導キャラ:絶頂経験 += 5
+			EXP:主導キャラ:Ｃ絶頂経験 += 5
+			FLAG:ZP所持量 += 5
+		ENDSELECT
+	ENDIF
+ELSE
+;Ｖありなら射精以外でも絶頂できるから回数いっぱい。でもあなたほどいっぱいイけるわけじゃない
+;10～15くらいのあいだでランダムがいいかな？
+;処理自信ないしとりあえず12で仮置き
+	PRINTFORMW %CALLNAME:主導キャラ%はオナニーで１２回も絶頂できたようだ……
+	EXP:主導キャラ:自慰経験 += 25
+	EXP:主導キャラ:絶頂経験 += 12
+	EXP:主導キャラ:Ｃ絶頂経験 += 5
+	EXP:主導キャラ:Ｖ絶頂経験 += 5
+	EXP:主導キャラ:Ｂ絶頂経験 += 2
+	FLAG:ZP所持量 += 12
+ENDIF
+IF CFLAG:主導キャラ:リゾート内オナニー回数 < 1
+	CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めてリゾート内で[オナニー]をした</font>","うふふ")
+ELSEIF CFLAG:主導キャラ:リゾート内オナニー回数 == 9
+	CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>リゾート内で[オナニー]をした回数が１０回に到達した</font>","うふふ")
+ELSEIF CFLAG:主導キャラ:リゾート内オナニー回数 == 49
+	CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>リゾート内で[オナニー]をした回数が５０回に到達した</font>","うふふ")
+ELSEIF CFLAG:主導キャラ:リゾート内オナニー回数 == 99
+	CALL 履歴データベース登録(CFLAG:主導キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>リゾート内で[オナニー]をした回数が１００回に到達した</font>","うふふ")
+ENDIF
+CFLAG:主導キャラ:リゾート内オナニー回数 ++
