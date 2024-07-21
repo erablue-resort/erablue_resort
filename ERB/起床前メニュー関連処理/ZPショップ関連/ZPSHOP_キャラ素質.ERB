@@ -115,7 +115,11 @@ IF TALENT:キャラ番号:妊娠不可 && GETBIT(TALENT:キャラ番号:性別, 
 	PRINTBUTTONLC "[6]妊娠を可能にさせる", 6
 	PRINTL
 ENDIF
-; PRINTBUTTONLC "[7]称号素質を設定する", 5
+IF !TALENT:キャラ番号:妊娠不可 && GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:Ｖ感度 > -2 && CFLAG:キャラ番号:特殊妊娠蓄積度 >= 2
+	PRINTBUTTONLC "[7]受胎体質を変化させる", 7
+	PRINTL
+ENDIF
+; PRINTBUTTONLC "[9]称号素質を設定する", 9
 ; PRINTL
 IF キャラ番号 == MASTER
 	PRINTBUTTONLC "[998]あなたの設定をやり直す", 998
@@ -146,6 +150,9 @@ SELECTCASE RESULT
 		CALL 妊娠不可素質変化(キャラ番号)
 		RESTART
 	CASE 7
+		CALL 受胎体質素質変化(キャラ番号)
+		RESTART
+	CASE 9
 		CALL 称号素質設定(キャラ番号)
 		RESTART
 	CASE 998
@@ -663,6 +670,78 @@ IF RESULT == 0
 	PRINTFORMW %CALLNAME:対象キャラ%が妊娠可能になりました。
 	TALENT:対象キャラ:妊娠不可 = 0
 ENDIF
+
+@受胎体質素質変化(対象キャラ)
+#DIM 対象キャラ
+#DIM CONST 必要COST = 100
+#DIM CONST 必要蓄積度 = 2, 2, 400, 1200
+
+DRAWLINE
+PRINTL ZPを消費してキャラの受胎体質を変化させることができます。
+PRINTL 任意の体質を選択してください
+PRINTL ※母体への負荷が高いため、特殊な状況での妊娠・出産の経験が必要です。
+PRINTL 　短い期間で出産をしたり、双子などの多胎児の出産を繰り返すことで解放されていきます。
+DRAWLINE
+FOR LOCAL:1 , 0, 4
+	IF TALENT:対象キャラ:受胎体質 == LOCAL:1
+		SETCOLOR 0x666666
+		PRINTPLAINFORM [{LOCAL:1}]%受胎体質素質名(LOCAL:1)%（現在の体質）
+		PRINTL
+		RESETCOLOR
+	ELSEIF CFLAG:対象キャラ:特殊妊娠蓄積度 < 必要蓄積度:(LOCAL:1)
+		SETCOLOR 0x666666
+		PRINTPLAINFORM [{LOCAL:1}]%受胎体質素質名(LOCAL:1)%（経験不足）
+		PRINTL
+		RESETCOLOR
+	ELSE
+		PRINTBUTTON @"[{LOCAL:1}]%受胎体質素質名(LOCAL:1)%（必要ZP:{必要COST}）", LOCAL:1
+		PRINTL
+	ENDIF
+NEXT
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP3
+BINPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 999
+		RETURN 0
+	CASE 0 TO 3
+		;蓄積度足りる？
+		IF CFLAG:対象キャラ:特殊妊娠蓄積度 < 必要蓄積度:(LOCAL:1)
+			PRINTL 特殊な妊娠の経験が足りず、母体が耐えられなさそうだ…
+			PRINTW （短い期間で出産をしたり、双子などの出産を繰り返すことで解放されます）
+			GOTO INPUT_LOOP3
+		ENDIF
+		;ZP足りる？
+		IF FLAG:ZP所持量 < 必要COST
+			PRINTW ZPが足りません
+			GOTO INPUT_LOOP3
+		ENDIF
+		PRINTFORML {必要COST}ZPを支払い、受胎体質を変化させますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW %CALLNAME:対象キャラ%の受胎体質が%受胎体質素質名(TALENT:対象キャラ:受胎体質)%から%受胎体質素質名(LOCAL:1)%に変化しました。
+			TALENT:対象キャラ:受胎体質 = LOCAL:1
+		ENDIF
+		RETURN 0
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP3
+ENDSELECT
+
+@受胎体質素質名(ARG)
+#FUNCTIONS
+
+IF ARG == 0
+	RETURNF "通常"
+ELSE
+	RETURNF GET_TALENTNAME(154, ARG, 0)
+ENDIF
+
 
 @ZP_SHOP_種族特徴変換(キャラ番号, 変更元種族, 変更先種族)
 #DIM キャラ番号
