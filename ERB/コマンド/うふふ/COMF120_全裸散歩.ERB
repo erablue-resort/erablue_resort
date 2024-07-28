@@ -1,0 +1,221 @@
+﻿;-------------------------------------------------
+;全裸散歩
+;-------------------------------------------------
+@COMNAME120
+#FUNCTIONS
+TSTR:コマンド名受渡 = 全裸散歩
+SIF MODE_確認_ターゲット側("全裸散歩", TARGET) > -1
+	TSTR:コマンド名受渡 = 散歩をやめて戻る
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_120
+#FUNCTION
+IF MODE_確認_ターゲット側("全裸散歩", TARGET) > -1
+	TFLAG:コマンドタイプ受渡 = COMTYPE("全裸散歩")
+ELSE
+	TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+	;特殊な条件が必要なコマンドなので、弱点コマンドのランダム対象からは外す
+	;弱点コマンドカテゴリ = S
+	同時モード許可 = 999
+ENDIF
+
+
+@COM_TOOLTIP_120
+LOCALS = <br>■全裸散歩<br>
+LOCALS += "キャラを全裸のまま、辺りを歩かせるコマンド。<br>モード中にユニークキャラと同じ場所に移動すると中断してもとの場所に戻る。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：露出"
+LOCALS += "<br>固有の取得経験：露出快楽経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM120
+
+IF MODE_確認_ターゲット側("全裸散歩", TARGET) > -1
+	;解除時
+	CALL 全裸散歩終了処理()
+	RETURN 1
+ELSE
+	TFLAG:全裸散歩場所記憶 = CFLAG:PLAYER:現在位置
+	TFLAG:全裸散歩マップ種別記憶 = CFLAG:PLAYER:現在マップ種別
+	CFLAG:TARGET:うふふ = 0
+	CFLAG:PLAYER:うふふ = 0
+	
+	CALL 特定キャラモードリセット(PLAYER)
+	;開始時
+	CALL MODE_CHANGE("全裸散歩", PLAYER, TARGET)
+	CALL CLOTHES_CHANGE(TARGET, "全裸")
+	TCVAR:TARGET:自動着替え禁止 = 1
+	;-------------------------------------------------
+	;ソース追加処理
+	;-------------------------------------------------
+	RCVAR:露出コマンドフラグ = 1
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 300)
+	EXP:TARGET:露出快楽経験 ++
+ENDIF
+RETURN 1
+
+
+@全裸散歩終了処理()
+CFLAG:PLAYER:現在位置 = TFLAG:全裸散歩場所記憶
+CFLAG:PLAYER:現在マップ種別 = TFLAG:全裸散歩マップ種別記憶
+FOR LOCAL, 0, CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF MODE_確認_ターゲット側("全裸散歩", TARGET:LOCAL) > -1
+		CFLAG:(TARGET:LOCAL):うふふ = 1
+		CFLAG:(TARGET:LOCAL):現在位置 = TFLAG:全裸散歩場所記憶
+		CFLAG:(TARGET:LOCAL):現在マップ種別 = TFLAG:全裸散歩マップ種別記憶
+		CALL MODE_DELETE_ターゲット側("全裸散歩", TARGET:LOCAL)
+		TCVAR:(TARGET:LOCAL):自動着替え禁止 = 1
+	ENDIF
+NEXT
+CFLAG:PLAYER:うふふ = 1
+TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+
+
+
+@CAN_COM120(ARG)
+SIF RFLAG:指示モード対象あなたフラグ
+	RETURN 1
+SIF MODE_確認_ターゲット側("全裸散歩", ARG) > -1
+	RETURN 1
+
+SKIPDISP ARG
+PRINTFORML 全裸散歩(%CALLNAME:TARGET%)
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+A = 0
+S = 0
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+;ABL:露出癖
+IF ABL:露出癖
+	SIF S
+		PRINT  + 
+	A += ABL:露出癖 * 10
+	PRINT 露出癖
+	PRINTV 'LV,ABL:露出癖,'(,ABL:露出癖 * 10,')
+	S = 1
+ENDIF
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 1
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 1,')
+	S = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,10)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:欲情,10) * 5
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,10),'(,GETPALAMLV(PALAM:欲情,10) * 5,')
+	S = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 10
+	PRINT 恥じらい
+	PRINTV '(,10,')
+	S = 10
+ENDIF
+;男嫌い（恋慕、親愛で無効）
+IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER) && TALENT:性別嗜好 > 0
+	PRINT  - 
+	A -= 5
+	PRINT 男嫌い
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF S
+		PRINT  + 
+	A += 5
+	PRINT 恋慕
+	PRINTV '(,5,')
+	S = 5
+ENDIF
+;セフレ
+IF TALENT:セフレ
+	SIF S
+		PRINT  + 
+	A += 3
+	PRINT セフレ
+	PRINTV '(,3,')
+	S = 3
+ENDIF
+;性知識不足
+IF 知識素質:TARGET:性知識 > -1
+	SIF S
+		PRINT  + 
+	A += 15
+	PRINT 性知識不足
+	PRINTV '(,15,')
+	S = 15
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	SIF S
+		PRINT  + 
+	A += 999
+	PRINT あなたの言いなり
+	PRINTV '(,999,')
+	S = 999
+ENDIF
+
+;合計を表示(50以上で実行)
+PRINT  = 
+PRINTV A
+
+V = 50
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE120
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(120)
+	RETURN RESULT
+;将来的には許可する予定だけど一旦あなた以外は封印
+SIF PLAYER != MASTER
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM120
+#DIM 同時キャラ番号
+PRINTFORM %CALLNAME:PLAYER%は
+PRINTFORML 全裸の%CALLNAME:TARGET%を連れ、辺りを散歩することにした…
+
+
