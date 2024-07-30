@@ -10,6 +10,7 @@ TSTR:コマンド名受渡 = 胸を揉む
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 弱点コマンドカテゴリ = B
+睡眠中許可 = 1
 
 @COM_TOOLTIP_321
 LOCALS = <br>■えっちな話<br>
@@ -21,6 +22,23 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM321
 ;尻を揉む
+
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:MASTER:同性愛経験 += 1
+ENDIF
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 80)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 40)
+
+TIME += 10
+
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
+
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+ENDIF
 
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
@@ -188,16 +206,7 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 				CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
 		ENDSELECT
 ENDSELECT
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 1
-	EXP:MASTER:同性愛経験 += 1
-ENDIF
-;発生する快楽は受け手の状態に依存しない
-CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 80)
-SIF TALENT:PLAYER:器用な指
-	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 40)
 
-TIME += 10
 RETURN 1
 
 ;-------------------------------------------------
@@ -210,9 +219,6 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 ;一括管理
 SIF GLOBAL_COMABLE(321) && !RFLAG:罰ゲーム中
 	RETURN RESULT
-;睡眠中
-SIF CFLAG:睡眠
-	RETURN 0
 SIF TEQUIP:上半身鎧あり
 	RETURN 0
 RETURN 1
@@ -222,7 +228,11 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM321
 
-PRINTFORM %CALLNAME:PLAYER%は正面から%CALLNAME:TARGET%の
+IF CFLAG:TARGET:睡眠
+	PRINTFORM %CALLNAME:PLAYER%はすやすやと眠る%CALLNAME:TARGET%の
+ELSE
+	PRINTFORM %CALLNAME:PLAYER%は正面から%CALLNAME:TARGET%の
+ENDIF
 SELECTCASE TALENT:TARGET:バストサイズ
 	CASE -2
 		PRINTL 殆ど膨らみがない、平らな胸に手を伸ばしてどうにか揉みしだいた
@@ -235,7 +245,7 @@ SELECTCASE TALENT:TARGET:バストサイズ
 	CASE 3
 		PRINTL 両手に余るほど豊満な胸に手を伸ばし、揉みしだいた
 ENDSELECT
-IF CUP:TARGET:快Ｂ > 1000
+IF CUP:TARGET:快Ｂ > 1000 && !CFLAG:TARGET:睡眠
 	;一定以上の快楽が発生した時にちょっと声が出る
 	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
 	PRINTL
@@ -243,6 +253,11 @@ ENDIF
 
 
 @MESSAGE_COM321_非口上時
+
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:TARGET%はすやすやと眠っている……
+	RETURN 0
+ENDIF
 
 SELECTCASE RFLAG:コマンド結果受渡し変数２
 	CASE 1
