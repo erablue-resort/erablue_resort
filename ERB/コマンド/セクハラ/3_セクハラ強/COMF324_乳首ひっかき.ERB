@@ -11,6 +11,7 @@ TSTR:コマンド名受渡 = 乳首ひっかき
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
 弱点コマンドカテゴリ = B
+睡眠中許可 = 1
 
 @COM_TOOLTIP_324
 LOCALS = <br>■乳首ひっかき<br>
@@ -20,7 +21,24 @@ LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM324
-;尻を揉む
+;乳首ひっかき
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:MASTER:同性愛経験 += 1
+ENDIF
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+
+RCVAR:乳首開発フラグ = 1
+
+TIME += 10
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
+
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+ENDIF
 
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
@@ -72,18 +90,6 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
 		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
 ENDSELECT
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 1
-	EXP:MASTER:同性愛経験 += 1
-ENDIF
-;発生する快楽は受け手の状態に依存しない
-CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
-SIF TALENT:PLAYER:器用な指
-	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
-
-RCVAR:乳首開発フラグ = 1
-
-TIME += 10
 RETURN 1
 
 ;-------------------------------------------------
@@ -101,9 +107,6 @@ SIF GLOBAL_COMABLE(324) && !RFLAG:罰ゲーム中
 	RETURN RESULT
 SIF TEQUIP:上半身鎧あり
 	RETURN 0
-;睡眠中
-SIF CFLAG:睡眠
-	RETURN 0
 RETURN 1
 
 ;-------------------------------------------------
@@ -112,7 +115,7 @@ RETURN 1
 @MESSAGE_COM324
 
 PRINTFORM %CALLNAME:PLAYER%は
-IF TALENT:TARGET:種族 == 4 && TALENT:MASTER:種族 != 4
+IF TALENT:TARGET:種族 == 4 && TALENT:MASTER:種族 != 4 && !CFLAG:睡眠
 	PRINT しゃがんで
 ENDIF
 PRINTFORM %CALLNAME:TARGET%の
@@ -131,15 +134,28 @@ ENDSELECT
 PRINTL 服の上から乳首をかりかりとひっかいた
 
 IF CUP:TARGET:快Ｂ > 3000
-	PRINTFORML %CALLNAME:TARGET%は嬌声を漏らし、乳首からの快楽に翻弄されている…
+	IF CFLAG:TARGET:睡眠
+		PRINTFORML %CALLNAME:TARGET%は眠ったままでも、明らかに乳首で強く感じているようだ…
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%は嬌声を漏らし、乳首からの快楽に翻弄されている…
+	ENDIF
 	PRINTL
 ELSEIF CUP:TARGET:快Ｂ > 1000
 	;一定以上の快楽が発生した時にちょっと声が出る
-	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	IF CFLAG:TARGET:睡眠
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は眠ったまま小さく喘いだ…
+	ELSE
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	ENDIF
 	PRINTL
 ENDIF
 
 @MESSAGE_COM324_非口上時
+
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:TARGET%はすやすやと眠っている……
+	RETURN 0
+ENDIF
 
 IF CUP:TARGET:快Ｂ <= 3000
 	SELECTCASE RFLAG:コマンド結果受渡し変数２
