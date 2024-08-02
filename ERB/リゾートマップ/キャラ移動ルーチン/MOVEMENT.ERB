@@ -161,7 +161,7 @@ FOR LOCAL,0,CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:一緒に遊ぶ
 		CONTINUE
-	SIF モード実行中フラグ
+	SIF モード実行中フラグ && !CFLAG:LOCAL:睡眠
 		CONTINUE
 	SIF CFLAG:LOCAL:添い寝フラグ
 		CONTINUE
@@ -305,17 +305,27 @@ IF !CFLAG:ARG:睡眠
 	IF CFLAG:ARG:酔いすぎ == 1
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
 			;あなたがいる場合は部屋へと運ぶ
-			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
-			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
-			PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+			LOCAL = キャラクター部屋検索(ARG)
+			IF CFLAG:ARG:現在位置 == LOCAL && CFLAG:ARG:現在マップ種別 == 部屋検索_マップ種別
+				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
+			ELSE
+				CFLAG:ARG:現在位置 = LOCAL
+				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+			ENDIF
 		ENDIF
 	ELSEIF CFLAG:ARG:体力限界 && TALENT:ARG:分身 == 0
 		;部屋へ戻る、分身は移動しない
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
 			;あなたがいる場合は部屋へと運ぶ
-			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
-			CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
-			PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
+			LOCAL = キャラクター部屋検索(ARG)
+			IF CFLAG:ARG:現在位置 == LOCAL && CFLAG:ARG:現在マップ種別 == 部屋検索_マップ種別
+				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
+			ELSE
+				CFLAG:ARG:現在位置 = LOCAL
+				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%を部屋へと運びました。
+			ENDIF
 		ELSE
 			;同室じゃない場合は勝手に戻る
 			CFLAG:ARG:現在位置 = キャラクター部屋検索(ARG)
@@ -386,9 +396,8 @@ IF !CFLAG:ARG:睡眠
 	CALL CLOTHES_RESET_TRAIN(ARG)
 	;二日酔い処理のため、酩酊が残ってたら絶対値を負に
 	BASE:ARG:酩酊 = BASE:ARG:酩酊 * -1
+	CALL 特定キャラモードリセット(ARG)
 ENDIF
-
-CALL 特定キャラモードリセット(ARG)
 
 CFLAG:ARG:同行 = 0
 CFLAG:ARG:デート = 0
@@ -408,12 +417,19 @@ TCVAR:ARG:初うふふフラグ = 0
 
 
 IF CFLAG:ARG:睡眠 && CFLAG:ARG:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:ARG:現在マップ種別 == CFLAG:MASTER:現在マップ種別
-	SIF ARG > 0
-	PRINTFORMW %CALLNAME:ARG%が目を覚ました
+	IF ARG > 0
+		IF MODE_確認_ターゲット側("ALL", ARG) > -1
+			PRINTFORML %CALLNAME:ARG%が目を覚ましそうだ……！
+			PRINTFORML %CALLNAME:PLAYER%は慌てて%CALLNAME:ARG%から離れた……
+		ENDIF
+		PRINTFORML %CALLNAME:ARG%が目を覚ました
+		WAIT
+	ENDIF
 	;同じ場所で起きた時は３分のインターバル
 	TCVAR:ARG:移動インターバル時間 = 3
 	;おはよう口上
 	TRYCALLFORM KOJO_EVENT_おはよう_{NO:ARG}
+	CALL 特定キャラモードリセット(ARG)
 ENDIF
 
 IF CFLAG:ARG:睡眠
@@ -430,6 +446,7 @@ IF CFLAG:ARG:睡眠
 	;起きても酩酊が残ってるなら二日酔い
 	SIF BASE:ARG:酩酊
 		CFLAG:ARG:酔いすぎ = 2
+	CALL 特定キャラモードリセット(ARG)
 ENDIF
 CFLAG:ARG:睡眠 = 0
 RETURN 1
