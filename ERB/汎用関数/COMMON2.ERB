@@ -603,6 +603,7 @@ FLAG:イベントうふふ終了 = 1
 ;オートコマンドもリセット
 TFLAG:オートコマンドフラグ = 0
 AUTOCOM_相手番号保存 = 0
+自慰ターゲット保存 = 0
 CALL TURN_RESET
 
 ;同時モードもリセット
@@ -629,6 +630,43 @@ VARSET 分身登録:0:0
 VARSET 分身EXP保存:0:0
 CALL SORT_CFLAG(21)
 CALL TARGET_SET()
+
+@分身指定削除(対象キャラ)
+#DIM 対象キャラ
+#DIM 分身番号
+#DIM EXP番号
+
+SIF TALENT:対象キャラ:分身 < 1
+	RETURN -1
+
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:0 == 対象キャラ
+		分身番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+FOR EXP番号, 0, 200
+	EXP:(分身登録:分身番号:1):EXP番号 += EXP:(分身登録:分身番号:0):EXP番号 - 分身EXP保存:分身番号:EXP番号
+NEXT
+DELCHARA 対象キャラ
+
+;キャラ番号をズラしておく
+FOR LOCAL, 0, 分身最大数
+	SIF 分身登録:LOCAL:0 > 対象キャラ
+		分身登録:LOCAL:0 -= 1
+NEXT
+FOR LOCAL, 分身番号, 分身最大数 - 1
+	分身登録:LOCAL:0 = 分身登録:(LOCAL + 1):0
+	分身登録:LOCAL:1 = 分身登録:(LOCAL + 1):1
+	FOR EXP番号, 0, 200
+		分身EXP保存:LOCAL:EXP番号 = 分身EXP保存:(LOCAL + 1):EXP番号
+	NEXT
+NEXT
+CALL SORT_CFLAG(21)
+CALL TARGET_SET()
+
+
 
 @飲み会終了処理
 

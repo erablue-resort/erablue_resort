@@ -43,7 +43,9 @@ ELSE
 	CFLAG:TARGET:うふふ = 0
 	CFLAG:PLAYER:うふふ = 0
 	
-	CALL 特定キャラモードリセット(PLAYER)
+	SIF MODE_確認_プレイヤー側("全裸散歩", PLAYER) < 0
+		CALL 特定キャラモードリセット(PLAYER)
+
 	;開始時
 	CALL MODE_CHANGE("全裸散歩", PLAYER, TARGET)
 	CALL CLOTHES_CHANGE(TARGET, "全裸")
@@ -53,6 +55,7 @@ ELSE
 	;-------------------------------------------------
 	RCVAR:露出コマンドフラグ = 1
 	CALL SOURCE_CALC_露出(TARGET, PLAYER, 300)
+	RFLAG:全裸散歩フラグ = 1
 	EXP:TARGET:露出快楽経験 ++
 ENDIF
 RETURN 1
@@ -69,7 +72,7 @@ FOR LOCAL, 0, CHARANUM
 		CFLAG:(TARGET:LOCAL):現在位置 = TFLAG:全裸散歩場所記憶
 		CFLAG:(TARGET:LOCAL):現在マップ種別 = TFLAG:全裸散歩マップ種別記憶
 		CALL MODE_DELETE_ターゲット側("全裸散歩", TARGET:LOCAL)
-		TCVAR:(TARGET:LOCAL):自動着替え禁止 = 1
+		TCVAR:(TARGET:LOCAL):自動着替え禁止 = 0
 	ENDIF
 NEXT
 CFLAG:PLAYER:うふふ = 1
@@ -80,7 +83,7 @@ TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ
 @CAN_COM120(ARG)
 SIF RFLAG:指示モード対象あなたフラグ
 	RETURN 1
-SIF MODE_確認_ターゲット側("全裸散歩", ARG) > -1
+SIF MODE_確認_ターゲット側("全裸散歩", TARGET) > -1
 	RETURN 1
 
 SKIPDISP ARG
@@ -207,6 +210,21 @@ SIF GLOBAL_COMABLE(120)
 ;将来的には許可する予定だけど一旦あなた以外は封印
 SIF PLAYER != MASTER
 	RETURN 0
+;分身のみはダメ（バグるので
+IF FLAG:モード管理 == 2
+	LOCAL:1 = 0
+	FOR LOCAL, 0, 同時モード_選択数
+		SIF 同時モード_選択キャラ:LOCAL < 0
+			BREAK
+		SIF TALENT:(同時モード_選択キャラ:LOCAL):分身 == 0
+			LOCAL:1 = 1
+	NEXT
+	SIF LOCAL:1 == 0
+		RETURN 0
+ELSE
+	SIF TALENT:TARGET:分身
+		RETURN 0
+ENDIF
 
 RETURN 1
 
@@ -216,6 +234,10 @@ RETURN 1
 @MESSAGE_COM120
 #DIM 同時キャラ番号
 PRINTFORM %CALLNAME:PLAYER%は
-PRINTFORML 全裸の%CALLNAME:TARGET%を連れ、辺りを散歩することにした…
+IF CFLAG:PLAYER:うふふ
+	PRINTFORML 散歩をやめ、元の場所へと戻った…
+ELSE
+	PRINTFORML 全裸の%CALLNAME:TARGET%を連れ、辺りを散歩することにした…
+ENDIF
 
 

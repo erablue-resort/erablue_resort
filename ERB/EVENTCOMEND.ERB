@@ -627,6 +627,39 @@ IF RFLAG:オートコマンド脱衣用フラグ == 0 && SAVESTR:ゲームフェ
 	ENDSELECT
 ENDIF
 
+;全裸散歩フラグ
+IF RFLAG:全裸散歩フラグ
+	FLAG:モード管理 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		IF MODE_確認_ターゲット側("全裸散歩", TARGET:LOCAL) < 0
+			CFLAG:(TARGET:LOCAL):うふふ = 0
+			CFLAG:(TARGET:LOCAL):うふふ開始時間記録 = 0
+			CALL 性欲ゲージ減少処理(TARGET:LOCAL)
+			TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
+			;モードもリセット
+			CALL 特定キャラモードリセット(TARGET:LOCAL)
+			IF CSTR:(TARGET:LOCAL):コスプレ前の服 != ""
+				CALL CLOTHES_RESET(TARGET:LOCAL)
+				CSTR:(TARGET:LOCAL):コスプレ前の服 '= ""
+			ENDIF
+			;体力限界時処理
+			IF CFLAG:(TARGET:LOCAL):体力限界
+				CALL CHARA_SLEEP, TARGET:LOCAL
+				CFLAG:(TARGET:LOCAL):飲み会 = 0
+			ENDIF
+			;散歩してない分身を消す
+			CALL 分身指定削除(TARGET:LOCAL)
+		ENDIF
+	NEXT
+	;オートコマンドもリセット
+	TFLAG:オートコマンドフラグ = 0
+	AUTOCOM_相手番号保存 = 0
+	自慰ターゲット保存 = 0
+	CALL SORT_CFLAG(21)
+	CALL TARGET_SET()
+ENDIF
 
 
 ;フラグのリセット
