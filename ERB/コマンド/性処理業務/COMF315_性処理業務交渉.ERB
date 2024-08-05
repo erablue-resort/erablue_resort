@@ -1,0 +1,190 @@
+﻿;-------------------------------------------------
+;定住の誘い
+;-------------------------------------------------
+@COMNAME315
+#FUNCTIONS
+TSTR:コマンド名受渡 = 性処理業務交渉
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_315
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_315
+LOCALS = <br>■性処理業務交渉<br>
+LOCALS += "従業員相手に、性処理業務をしてくれないか交渉するコマンド。<br>"
+LOCALS += "何をお願いするかによって成功率や支払う報酬が変化する。<br>"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：選択肢によって変動"
+LOCALS += "<br>固有の取得経験：選択肢によって変動<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM315
+#DIMS CONST 選択先順番制御 = "手コキ処理", "パイズリ処理", "フェラチオ処理", "手マン処理", "クンニ処理"
+#DIM 選択先保存
+#DIMS DYNAMIC 性処理選択肢, 100
+#DIM DYNAMIC 性処理数
+
+DRAWLINE
+PRINTFORML %CALLNAME:TARGET%にどの性処理を依頼しますか？
+PRINTL
+
+FOR LOCAL, 0, VARSIZE("選択先順番制御")
+	CALLFORM 性処理_ABLE_%選択先順番制御:LOCAL%
+	IF RESULT == -1
+		CALLFORMF 性処理NAME_%選択先順番制御:LOCAL%
+		IF ツールチップ切り替えOPTION記憶 == 0
+			TSTR:ツールチップ受渡 = 
+			TRYCALLFORM 性処理_TOOLTIP_%選択先順番制御:LOCAL%
+			HTML_PRINT @"<nonbutton title='%TSTR:ツールチップ受渡%'><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL}] %TSTR:コマンド名受渡%</font></nonbutton>"
+		ELSE
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTPLAINFORM [{LOCAL}] %TSTR:コマンド名受渡%
+			RESETCOLOR
+			PRINTL 
+		ENDIF
+	ELSEIF RESULT == 1
+		CALLFORMF 性処理NAME_%選択先順番制御:LOCAL%
+		IF ツールチップ切り替えOPTION記憶 == 0
+			TSTR:ツールチップ受渡 = 
+			TRYCALLFORM 性処理_TOOLTIP_%選択先順番制御:LOCAL%
+			HTML_PRINT @"<button value='{LOCAL}' title='%TSTR:ツールチップ受渡%'>[{LOCAL}] %TSTR:コマンド名受渡%</button>"
+		ELSE
+			PRINTBUTTON @"[{LOCAL}] %TSTR:コマンド名受渡%", LOCAL
+			PRINTL 
+		ENDIF
+	ENDIF
+NEXT
+
+VARSET RESULTS
+VARSET 性処理選択肢
+ENUMFUNCBEGINSWITH "性処理_ABLE_"
+性処理数 = RESULT
+ARRAYCOPY "RESULTS", "性処理選択肢"
+FOR LOCAL, 0, 性処理数
+	性処理選択肢:LOCAL = %REPLACE(RESULTS:LOCAL, "性処理_ABLE_", "")%
+	SIF MATCH(選択先順番制御, 性処理選択肢:LOCAL)
+		CONTINUE
+	CALLFORM %RESULTS:LOCAL%
+	IF RESULT == -1
+		CALLFORMF 性処理NAME_%性処理選択肢:LOCAL%
+		IF ツールチップ切り替えOPTION記憶 == 0
+			TSTR:ツールチップ受渡 = 
+			TRYCALLFORM 性処理_TOOLTIP_%性処理選択肢:LOCAL%
+			HTML_PRINT @"<nonbutton title='%TSTR:ツールチップ受渡%'><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</font></nonbutton>"
+		ELSE
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTPLAINFORM [{LOCAL + 100}] %TSTR:コマンド名受渡%
+			RESETCOLOR
+			PRINTL 
+		ENDIF
+	ELSEIF RESULT == 1
+		CALLFORMF 性処理NAME_%性処理選択肢:LOCAL%
+		IF ツールチップ切り替えOPTION記憶 == 0
+			TSTR:ツールチップ受渡 = 
+			TRYCALLFORM 性処理_TOOLTIP_%性処理選択肢:LOCAL%
+			HTML_PRINT @"<button value='{LOCAL + 100}' title='%TSTR:ツールチップ受渡%'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</button>"
+		ELSE
+			PRINTBUTTON @"[{LOCAL + 100}] %TSTR:コマンド名受渡%", LOCAL + 100
+			PRINTL 
+		ENDIF
+		PRINTBUTTON @"[{LOCAL + 100}] %TSTR:コマンド名受渡%", LOCAL + 100
+		PRINTL 
+	ENDIF
+NEXT
+
+
+; IF GETBIT(TALENT:PLAYER:性別, 1) && TALENT:PLAYER:Ｃ感度 != -2
+; 	PRINTBUTTON "[0] 手コキ処理", 0
+; 	PRINTL
+; 	PRINTBUTTON "[1] パイズリ処理", 1
+; 	PRINTL
+; 	PRINTBUTTON "[2] フェラチオ処理", 2
+; 	PRINTL
+; 	IF GETBIT(TALENT:TARGET:性別, 0) && TALENT:TARGET:Ｖ感度 != -2
+; 		PRINTBUTTON "[3] 挿入処理", 3
+; 		PRINTL
+; 	ENDIF
+; 	IF TALENT:TARGET:Ａ感度 != -2
+; 		PRINTBUTTON "[4] アナル挿入処理", 4
+; 		PRINTL
+; 	ENDIF
+; ENDIF
+; IF GETBIT(TALENT:PLAYER:性別, 0) && TALENT:PLAYER:Ｖ感度 != -2
+; 	PRINTBUTTON "[10] 手マン処理", 10
+; 	PRINTL
+; 	PRINTBUTTON "[11] クンニ処理", 11
+; 	PRINTL
+; 	IF GETBIT(TALENT:TARGET:性別, 1) && TALENT:TARGET:Ｃ感度 != -2
+; 		PRINTBUTTON "[12] 被挿入処理", 12
+; 		PRINTL
+; 	ENDIF
+; ENDIF
+; IF TALENT:PLAYER:Ａ感度 != -2 && GETBIT(TALENT:TARGET:性別, 1) && TALENT:TARGET:Ｃ感度 != -2
+; 	PRINTBUTTON "[13] 被アナル挿入処理", 13
+; 	PRINTL
+; ENDIF
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+
+DRAWLINE
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN -1
+	CASE IS < 100
+		CALL 性処理業務交渉処理(TARGET, 選択先順番制御:LOCAL)
+		SIF RESULT == -1
+			RESTART
+	CASEELSE
+		CALLFORM 性処理業務交渉処理(TARGET, 性処理選択肢:(LOCAL - 100))
+		SIF RESULT == -1
+			RESTART
+ENDSELECT
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE315
+#DIM ループ用
+;作成中封印
+RETURN 0
+
+;移動実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(315)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;従業員である
+SIF TALENT:従業員 == 0
+	RETURN 0
+;移動中でない
+
+RETURN 1
+
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_COM315
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に
+
+
+
+@性処理業務交渉処理(対象キャラ, 実行性処理)
+#DIM 対象キャラ
+#DIMS 実行性処理
+

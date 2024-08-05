@@ -5,11 +5,13 @@
 
 @EVENT_SHOOT_PLAYER
 #DIM 射精先キャラ, 射精先キャラ最大数
+#DIM ランダム対象キャラ, 射精先キャラ最大数
 #DIM 口上用キャラ番号
 #DIM 対象キャラ番号
 #DIM 選択中
 #DIM 選択キャラ
 #DIM 選択肢数
+#DIM オート可能フラグ
 VARSET LOCAL
 VARSET 射精先キャラ
 ;0では駄目なので初期化
@@ -153,6 +155,8 @@ FOR LOCAL, 0, 31
 	SIF オート射精先オプション:LOCAL == -1
 		BREAK
 
+	オート可能フラグ = 0
+	VARSET ランダム対象キャラ
 	FOR 対象キャラ番号, 0, CHARANUM
 		SIF 射精先キャラ:対象キャラ番号 < 1
 			BREAK
@@ -162,14 +166,19 @@ FOR LOCAL, 0, 31
 		TRYCALLFORM SHOOT_ABLE_{オート射精先オプション:LOCAL}(PLAYER, 射精先キャラ:対象キャラ番号)
 		;ABLEが通れば決定
 		IF RESULT
-			選択中 = オート射精先オプション:LOCAL
-			選択キャラ = 対象キャラ番号
-			LOCAL = 999
-			GOTO 射精実処理部分
+			ランダム対象キャラ:オート可能フラグ = 対象キャラ番号
+			オート可能フラグ ++
 		ENDIF
 		SIF 射精先キャラ:対象キャラ番号 == 0
 			射精先キャラ:対象キャラ番号 = 9999
 	NEXT
+
+	IF オート可能フラグ
+		選択中 = オート射精先オプション:LOCAL
+		選択キャラ = ランダム対象キャラ:(RAND:オート可能フラグ)
+		LOCAL = 999
+		GOTO 射精実処理部分
+	ENDIF
 NEXT
 
 $INPUT_LOOP
