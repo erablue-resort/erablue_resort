@@ -22,7 +22,8 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM315
-#DIMS CONST 選択先順番制御 = "手コキ処理", "パイズリ処理", "フェラチオ処理", "手マン処理", "クンニ処理"
+#DIMS CONST 選択先順番制御 = "手コキ処理"
+;, "パイズリ処理", "フェラチオ処理", "手マン処理", "クンニ処理"
 #DIM 選択先保存
 #DIMS DYNAMIC 性処理選択肢, 100
 #DIM DYNAMIC 性処理数
@@ -142,7 +143,7 @@ SELECTCASE LOCAL
 		SIF RESULT == -1
 			RESTART
 	CASEELSE
-		CALLFORM 性処理業務交渉処理(TARGET, 性処理選択肢:(LOCAL - 100))
+		CALL 性処理業務交渉処理(TARGET, 性処理選択肢:(LOCAL - 100))
 		SIF RESULT == -1
 			RESTART
 ENDSELECT
@@ -153,9 +154,6 @@ RETURN 1
 ;実行判定
 ;-------------------------------------------------
 @COM_ABLE315
-#DIM ループ用
-;作成中封印
-RETURN 0
 
 ;移動実行判定
 SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
@@ -180,11 +178,101 @@ RETURN 1
 
 @MESSAGE_COM315
 
-PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に%RSTR:コマンド結果受渡し文字列%をお願いした。
+CALLFORM MESSAGE_性処理_%RSTR:コマンド結果受渡し文字列%
+
 
 
 
 @性処理業務交渉処理(対象キャラ, 実行性処理)
 #DIM 対象キャラ
+#DIM 値段計算
 #DIMS 実行性処理
 
+CALLFORM CAN_性処理_%実行性処理%(対象キャラ)
+PRINTL
+
+IF RESULT == -1
+	値段計算 = 0
+	RFLAG:コマンド結果受渡し変数 = 1
+ELSE
+	値段計算 = RESULT
+ENDIF
+
+IF MONEY < 値段計算
+	PRINTW 所持ルピが足りません。
+	RETURN -1
+ENDIF
+
+PRINTFORML 所持ルピ：%NUM_FORMAT(MONEY)%ルピ
+PRINTL
+PRINTFORML %実行性処理%を%CALLNAME:対象キャラ%にお願いしますか？
+PRINTBUTTON "[0] はい", 0
+PRINTL
+PRINTBUTTON "[1] いいえ", 1
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		RSTR:コマンド結果受渡し文字列 = %実行性処理%
+		RFLAG:コマンド結果受渡し変数２ = 値段計算
+		MONEY -= 値段計算
+		CALLFORM 性処理_%実行性処理%()
+		RETURN RESULT
+	CASE 1
+		RETURN -1
+ENDSELECT
+
+
+@補正後好感度算出(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 補正後好感度
+
+補正後好感度 = CFLAG:対象キャラ:好感度レベル
+
+補正後好感度 += TALENT:対象キャラ:自制心 * 7
+補正後好感度 += TALENT:対象キャラ:一線越えない * 10
+補正後好感度 += TALENT:対象キャラ:貞操 * 10
+補正後好感度 += TALENT:対象キャラ:羞恥心 * 5
+補正後好感度 += TALENT:対象キャラ:抵抗 * 15
+補正後好感度 += TALENT:対象キャラ:態度 * 5
+
+IF HETEROSEX(対象キャラ, PLAYER)
+	SELECTCASE 性癖素質:対象キャラ:同性愛
+		CASE 1
+			;補正なし
+		CASE 2
+			補正後好感度 -= 5
+		CASE 3
+			補正後好感度 -= 15
+		CASEELSE
+			補正後好感度 += 15
+	ENDSELECT
+ENDIF
+
+SELECTCASE TALENT:対象キャラ:性別嗜好
+	CASE 1
+		SIF TALENT:PLAYER:性別 == 2
+			補正後好感度 += 20
+	CASE 2
+		SIF TALENT:PLAYER:性別 == 1
+			補正後好感度 += 20
+	CASE 3
+		補正後好感度 += 20
+ENDSELECT
+
+補正後好感度 -= TALENT:対象キャラ:性的興味 * 5
+補正後好感度 -= TALENT:対象キャラ:経験豊富 * 5
+補正後好感度 -= TALENT:対象キャラ:ギャル * 5
+補正後好感度 -= TALENT:対象キャラ:弱味 * 20
+SIF TALENT:対象キャラ:マイペース < 0
+	補正後好感度 -= 10
+SIF 初体験日:対象キャラ:初うふふ
+	補正後好感度 -= 10
+
+SIF TALENT:対象キャラ:セフレ
+	補正後好感度 = 0
+
+RETURNF 補正後好感度

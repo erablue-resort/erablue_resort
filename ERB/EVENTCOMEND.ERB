@@ -156,6 +156,11 @@ FOR LOCAL, 0, CHARANUM
 		;回復早い、回復遅い
 		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
 	ENDIF
+	;自動回復
+	IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0 && BASE:LOCAL:体力 > 0 && !(TCVAR:LOCAL:食いしばりフラグ)
+		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+	ENDIF
+
 NEXT
 
 IF CFLAG:MASTER:酔いすぎ == 1
@@ -790,6 +795,13 @@ FOR LOCAL,0,200
 	TCVAR:対象キャラ:(400 + LOCAL) = EXP:対象キャラ:(LOCAL)
 NEXT
 
-
-
+;自動回復の回復量を返す
+;最大値からあふれる場合はそのぶん減らす
+@REGENE_CALC(ARG)
+#FUNCTION
+#DIM 回復量
+回復量 = MAXBASE:ARG:体力 * (5 + TALENT:ARG:回復速度 * 2) / 100
+SIF 回復量 + BASE:ARG:体力 > MAXBASE:ARG:体力
+	回復量 = MAXBASE:ARG:体力 - BASE:ARG:体力
+RETURNF 回復量
 

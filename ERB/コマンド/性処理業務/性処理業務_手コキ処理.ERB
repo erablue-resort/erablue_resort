@@ -3,7 +3,7 @@
 ;-------------------------------------------------
 @性処理NAME_手コキ処理
 #FUNCTIONS
-TSTR:コマンド名受渡 = 性処理業務交渉
+TSTR:コマンド名受渡 = 手コキ処理
 
 @性処理_TOOLTIP_手コキ処理
 LOCALS = <br>■手コキ処理<br>
@@ -15,9 +15,14 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @性処理_手コキ処理
 
+;射精するまで刺激する
+DO
 CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 200)
 SIF TALENT:TARGET:器用な指
 	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 50)
+TIME += 10
+LOOP CUP:PLAYER:快Ｃ + PALAM:PLAYER:快Ｃ < 10000
+
 
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 20)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
@@ -43,6 +48,13 @@ ENDIF
 RETURN 1
 
 
+@性処理_射精時処理_手コキ処理
+;射精時にどこに出すかを呼び出す
+;とはいってもフィニッシュ場所の番号登録して関数呼ぶだけ
+RFLAG:フィニッシュ場所 = 30
+TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
+
+
 ;-------------------------------------------------
 ;値段設定
 ;-------------------------------------------------
@@ -50,18 +62,19 @@ RETURN 1
 #DIM 対象キャラ
 #DIM 値段計算
 
+PRINTFORML 手コキ処理計算(%CALLNAME:TARGET%)
+DRAWLINE
 ;恋慕は完全無料
 IF TALENT:対象キャラ:恋慕
-	PRINTL 恋慕：無料
+	PRINTFORML %"恋慕", 16, LEFT%：　　　　　無料
+	DRAWLINE
 	RETURN -1
 ENDIF
 
-PRINTFORML 手コキ(%CALLNAME:TARGET%)
 ;基礎値段
 値段計算 = 5000
-;-------------------------------------------------
-;実行判定処理
-;-------------------------------------------------
+PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(5000), 8%ルピ
+
 
 ;好感度
 LOCAL = (80 - CFLAG:好感度レベル) * -100
@@ -72,317 +85,131 @@ IF LOCAL < 0
 ELSE
 	PRINTFORML %"好感度補正", 16, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
 ENDIF
-値段計算 += LOCAL
+値段計算 -= LOCAL
 
 ;体力
 IF BASE:TARGET:体力 < MAXBASE:TARGET:体力 / 4
-	値段計算 += 5
+	値段計算 += 1500
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"体力低下", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	PRINTFORML %"体力低下", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;酩酊
-IF BASE:酩酊
-	値段計算 +=BASE:酩酊 / 100
-	PRINT 酩酊
-	PRINTV '(,BASE:酩酊 / 100,')
+IF BASE:酩酊 > MAXBASE:酩酊 / 2
+	値段計算 -= 500
+	PRINTFORML %"酩酊", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 ENDIF
 
-;レズ調教
+;同性愛
 IF HETEROSEX(TARGET,PLAYER) == 1
 	;性癖素質:同性愛
-	IF 性癖素質:同性愛
-		値段計算 +=性癖素質:同性愛 * 5
-		PRINT 同性愛
-		SELECTCASE 性癖素質:同性愛
-			CASE 1
-				PRINTFORM (興味)({性癖素質:同性愛 * 5})
-			CASE 2
-				PRINTFORM (愛好)({性癖素質:同性愛 * 5})
-			CASE 3
-				PRINTFORM (中毒)({性癖素質:同性愛 * 5})
-		ENDSELECT
-	ENDIF
-	;TALENT:両刀
-	IF TALENT:性別嗜好 == -1
-		値段計算 +=10
-		PRINT 両刀
-		PRINTV '(,10,')
-	ENDIF
-	;好奇心
-	IF TALENT:性的興味 > 0
-		値段計算 +=7
-		PRINT 好奇心
-		PRINTV '(,7,')
-	ENDIF
-	;保守的
-	IF TALENT:性的興味 < 0
-		値段計算 -= 13
-		PRINT 保守的
-		PRINTV '(,13,')
-	ENDIF
-;ゲイ調教
-ELSEIF HETEROSEX(TARGET,PLAYER) == 2
-	;性癖素質:同性愛
-	IF 性癖素質:同性愛
-		値段計算 +=性癖素質:同性愛 * 5
-		PRINT 同性愛
-		SELECTCASE 性癖素質:同性愛
-			CASE 1
-				PRINTFORM (興味)({性癖素質:同性愛 * 5})
-			CASE 2
-				PRINTFORM (愛好)({性癖素質:同性愛 * 5})
-			CASE 3
-				PRINTFORM (中毒)({性癖素質:同性愛 * 5})
-		ENDSELECT
-	ENDIF
-	;TALENT:両刀
-	IF TALENT:性別嗜好 == -1
-		値段計算 +=10
-		PRINT 両刀
-		PRINTV '(,10,')
-	ENDIF
-	;好奇心
-	IF TALENT:性的興味 > 0
-		値段計算 +=7
-		PRINT 好奇心
-		PRINTV '(,7,')
-	ENDIF
-	;保守的
-	IF TALENT:性的興味 < 0
-		値段計算 -= 13
-		PRINT 保守的
-		PRINTV '(,13,')
-	ENDIF
-ELSE
-	;好奇心
-	IF TALENT:性的興味 > 0
-		値段計算 +=5
-		PRINT 好奇心
-		PRINTV '(,5,')
-	ENDIF
-	;保守的
-	IF TALENT:性的興味 < 0
-		値段計算 -= 10
-		PRINT 保守的
-		PRINTV '(,10,')
-	ENDIF
+	SELECTCASE 性癖素質:同性愛
+		CASE 1
+			;補正なし
+		CASE 2
+			値段計算 -= 1000
+			PRINTFORML %"同性愛(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+		CASE 3
+			値段計算 -= 2500
+			PRINTFORML %"同性愛(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+		CASEELSE
+			;好奇心
+			IF TALENT:性的興味 > 0
+				値段計算 -= 500
+				PRINTFORML %"好奇心(同性愛)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+			ENDIF
+			;保守的
+			IF TALENT:性的興味 < 0
+				値段計算 += 1500
+				SETCOLOR カラーパレット("薄ピンク")
+				PRINTFORML %"保守的(同性愛)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+				RESETCOLOR
+			ENDIF
+	ENDSELECT
 ENDIF
 
-;反抗的
-IF TALENT:態度 > 0
-	値段計算 -= 5
-	PRINT 反抗的
-	PRINTV '(,5,')
-ENDIF
 ;気丈
 IF TALENT:度胸 > 0
-	値段計算 -= 5
-	PRINT 気丈
-	PRINTV '(,5,')
+	値段計算 += 500
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"気丈", 16, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
 ENDIF
-;素直
-IF TALENT:態度 < 0
-	値段計算 +=5
-	PRINT 素直
-	PRINTV '(,5,')
+;臆病
+IF TALENT:度胸 < 0
+	値段計算 -= 500
+	PRINTFORML %"臆病", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 ENDIF
 ;プライド高い
 IF TALENT:プライド > 0
-	値段計算 -= 15
-	PRINT プライド高い
-	PRINTV '(,15,')
+	値段計算 += 1500
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"プライド高い", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	RESETCOLOR
 ENDIF
 ;プライド低い
 IF TALENT:プライド < 0
-	値段計算 +=5
-	PRINT プライド低い
-	PRINTV '(,5,')
+	値段計算 -= 1000
+	PRINTFORML %"プライド低い", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
 ENDIF
 ;弱味
 IF TALENT:弱味
-	値段計算 +=12
-	PRINT 弱味
-	PRINTV '(,12,')
-ENDIF
-;即落ち
-IF TALENT:即落ち
-	値段計算 +=10
-	PRINT 即落ち
-	PRINTV '(,10,')
-ENDIF
-;妄信
-IF TALENT:妄信
-	値段計算 +=8
-	PRINT 妄信
-	PRINTV '(,8,')
+	値段計算 -= 2000
+	PRINTFORML %"弱味", 16, LEFT%：－%NUM_FORMAT(2000), 8%ルピ
 ENDIF
 
-
-;調教者の能力、素質
 ;謎の魅力
 IF TALENT:PLAYER:謎の魅力
-	値段計算 +=8
-	PRINT 調教者の謎の魅力
-	PRINTV '(,8,')
+	値段計算 -= 1000
+	PRINTFORML %"謎の魅力", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
 ENDIF
 
-;ABL:欲望
-IF ABL:欲望
-	A += ABL:欲望 * 1
-	PRINT 欲望
-	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 1,')
-ENDIF
 ;ABL:奉仕精神
 IF ABL:奉仕精神
-	SIF S
-		PRINT  + 
-	A += ABL:奉仕精神 * 4
-	PRINT 奉仕精神
-	PRINTV 'LV,ABL:奉仕精神,'(,ABL:奉仕精神 * 4,')
-	S = 1
-ENDIF
-;ABL:精液中毒
-IF ABL:精液中毒
-	SIF S
-		PRINT  + 
-	A += ABL:精液中毒 * 1
-	PRINT 精液中毒
-	PRINTV 'LV,ABL:精液中毒,'(,ABL:精液中毒 * 1,')
-	S = 1
-ENDIF
-
-IF MARK:快楽刻印
-	SIF S
-		PRINT  + 
-	A += MARK:快楽刻印 * 1
-	PRINT 快楽刻印
-	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 1,')
-	S = 1
-ENDIF
-;PALAM:欲情
-IF GETPALAMLV(PALAM:欲情,5)
-	SIF S
-		PRINT  + 
-	A += GETPALAMLV(PALAM:欲情,5) * 1
-	PRINT 欲情
-	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 1,')
-	S = 1
-ENDIF
-;恥じらい
-IF TALENT:羞恥心 > 0
-	PRINT  - 
-	A -= 1
-	PRINT 恥じらい
-	PRINTV '(,1,')
-	S = 1
+	値段計算 -= ABL:奉仕精神 * 200
+	PRINTFORML %"奉仕精神", 16, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 200), 8%ルピ
 ENDIF
 ;汚臭鈍感
 IF TALENT:汚臭耐性 > 0
-	SIF S
-		PRINT  + 
-	A += 1
-	PRINT 汚臭鈍感
-	PRINTV '(,1,')
-	S = 1
+	値段計算 -= TALENT:汚臭耐性 * 500
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
 ENDIF
 ;汚臭敏感
 IF TALENT:汚臭耐性 < 0
-	A -= 3
-	PRINT 汚臭敏感
-	PRINTV '(,3,')
-	S = 1
+	値段計算 += TALENT:汚臭耐性 * 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 1000), 8%ルピ
+	RESETCOLOR
 ENDIF
 ;献身的
 IF TALENT:献身的
-	SIF S
-		PRINT  + 
-	A += 6
-	PRINT 献身的
-	PRINTV '(,6,')
-	S = 1
+	値段計算 -= 500
+	PRINTFORML %"献身的", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 ENDIF
-;快感の否定（淫乱、娼婦で無効）
-IF TALENT:快感応答 < 0 && !TALENT:淫乱
-	PRINT  - 
-	A -= 1
-	PRINT 快感の否定
-	PRINTV '(,1,')
-	S = 1
+;男嫌い
+IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	値段計算 += 2000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"男嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	RESETCOLOR
 ENDIF
-;男嫌い（恋慕、親愛で無効）
-IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER) && TALENT:性別嗜好 > 0
-	PRINT  - 
-	A -= 5
-	PRINT 男嫌い
-	PRINTV '(,5,')
-	S = 5
-ENDIF
-;恋慕
-IF TALENT:恋慕
-	SIF S
-		PRINT  + 
-	A += 5
-	PRINT 恋慕
-	PRINTV '(,5,')
-	S = 5
-ENDIF
-;セフレ
-IF TALENT:セフレ
-	SIF S
-		PRINT  + 
-	A += 3
-	PRINT セフレ
-	PRINTV '(,3,')
-	S = 3
+DRAWLINE
+値段計算 = MAX(0, 値段計算)
+IF 値段計算 > 0
+	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSE
+	PRINTFORML %"合計値段", 16, LEFT%：　%"無料", 8%
 ENDIF
 
-;調教者がふたなり
-IF (TALENT:PLAYER:性別 & 3) == 3
-	SIF S
-		PRINT  + 
-	A += 8
-	PRINT ふたなり
-	PRINTV '(,8,')
-	S = 1
-ENDIF
-
-;言いなり
-IF TCVAR:言いなり
-	SIF S
-		PRINT  + 
-	A += 999
-	PRINT あなたの言いなり
-	PRINTV '(,999,')
-	S = 999
-ENDIF
-
-;合計を表示(14以上で実行)
-PRINT  = 
-PRINTV A
-
-V = 14
-SIF A < V
-	PRINT  < 
-SIF A == V
-	PRINT  = 
-SIF A > V
-	PRINT  > 
-PRINT 値段計算
-PRINTV V
-
-WAIT
-SKIPDISP 0
-;実行できない
-SIF A < V
-	RETURN 0
-RETURN 1
+RETURN 値段計算
 
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
 @性処理_ABLE_手コキ処理
 #DIM ループ用
+#DIM 許可好感度
+#DIM 補正後好感度
 
 ;RETURN 0は非表示
 SIF GETBIT(TALENT:PLAYER:性別, 1) == 0
@@ -391,6 +218,14 @@ SIF TALENT:PLAYER:Ｃ感度 == -2
 	RETURN 0
 
 ;RETURN -1は表示するが選択出来ない
+許可好感度 = 40
+補正後好感度 = 補正後好感度算出(TARGET)
+TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_手コキ処理(TARGET, 補正後好感度)
+	補正後好感度 = RESULT
+CATCH
+ENDCATCH
+SIF 許可好感度 > 補正後好感度
+	RETURN -1
 
 RETURN 1
 
@@ -400,7 +235,20 @@ RETURN 1
 
 @MESSAGE_性処理_手コキ処理
 
+PRINTFORM %CALLNAME:TARGET%は
+IF TALENT:TARGET:恋慕
+	PRINTFORM 愛おしそうに%CALLNAME:PLAYER%を見つめながら
+ELSEIF TALENT:TARGET:羞恥心
+	PRINTFORM 顔を真っ赤にしながら
+ELSEIF TALENT:TARGET:性的興味
+	PRINTFORM 興味しんしんな様子で
+ELSEIF TALENT:TARGET:セフレ
+	PRINTFORM %CALLNAME:PLAYER%の反応を面白がりながら
+ELSE
+	PRINT 事務的な手つきで
+ENDIF
 
-
-
+PRINTFORM %CALLNAME:PLAYER%のペニスを手でシゴき、射精まで導いた。
+PRINTL
+PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２)% - %NUM_FORMAT(RFLAG:コマンド結果受渡し変数２)% = %NUM_FORMAT(MONEY)%ルピ
 

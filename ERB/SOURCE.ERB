@@ -239,16 +239,29 @@ CALL SHOW_SOURCE(TARGET)
 ;数値変動の表示
 ;-------------------------------------------------
 LOCAL:1 = 0
-FOR LOCAL,0,CHARANUM
-	SIF CFLAG:LOCAL:滞在期間 < 0
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	SIF CFLAG:(TARGET:LOCAL):滞在期間 < 0
 		CONTINUE
-	IF DOWNBASE:LOCAL:体力
-		PRINTFORM 体力-{DOWNBASE:LOCAL:体力} 
+	IF DOWNBASE:(TARGET:LOCAL):体力
+		PRINTFORM 体力-{DOWNBASE:(TARGET:LOCAL):体力} 
+		LOCAL:1 ++
+	ENDIF
+	;該当する発情期オプションを持つかドラフかガレヲンなら体力を自動回復
+	;ただし、体力ゼロか食いしばりフラグ点灯していると発動しない
+	IF (TALENT:(TARGET:LOCAL):種族 == 3 || GETBIT(TALENT:(TARGET:LOCAL):発情期あり, 5) || キャラ一致チェック((TARGET:LOCAL), "[六竜の『金』]ガレヲン")) && CFLAG:(TARGET:LOCAL):発情期フラグ < 0 && BASE:(TARGET:LOCAL):体力 > DOWNBASE:(TARGET:LOCAL):体力 && BASE:(TARGET:LOCAL):体力 < MAXBASE:(TARGET:LOCAL):体力 && !(TCVAR:(TARGET:LOCAL):食いしばりフラグ)
+		SETCOLOR カラーパレット("緑")
+		PRINTFORM 体力+{REGENE_CALC((TARGET:LOCAL))} (発情期による自動回復)
+		RESETCOLOR
+
 		LOCAL:1 ++
 	ENDIF
 	SIF LOCAL:1
-		PRINTFORML (%CALLNAME:LOCAL%)
+		PRINTFORML (%CALLNAME:(TARGET:LOCAL)%)
 	LOCAL:1 = 0
+	
+
 NEXT
 PRINTL 
 ;-------------------------------------------------

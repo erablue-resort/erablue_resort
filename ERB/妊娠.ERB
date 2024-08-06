@@ -579,8 +579,13 @@ RETURN
 ;危険日がない場合セット
 
 IF RISKY_DAY(ARG) != -2 && !INRANGE(CFLAG:ARG:危険日,1,10)
-	CFLAG:ARG:危険日 = RAND:10 + 1
+	CFLAG:ARG:危険日 = RAND:PREG_CYCLE(ARG) + 1
 ENDIF
+;危険日がありえない数値なら再設定する
+SIF CFLAG:ARG:危険日 > PREG_CYCLE(ARG) || !CFLAG:ARG:危険日
+	CFLAG:ARG:危険日 = RAND:PREG_CYCLE(ARG) + 1
+
+
 ;性交相手のリセット
 VARSET 性交相手:ARG:0, -1
 VARSET 相手ごとの射精量:ARG:0
@@ -732,13 +737,13 @@ ENDIF
 SIF TALENT:ARG:妊娠不可
 	RETURNF -2
 
-C_危険日 = CFLAG:ARG:危険日 % 10
-C_安全日 = (CFLAG:ARG:危険日 + 4) % 10
-IF C_危険日 == DAY % 10
+C_危険日 = CFLAG:ARG:危険日 % PREG_CYCLE(ARG)
+C_安全日 = (CFLAG:ARG:危険日 + ((PREG_CYCLE(ARG) / 2) -1) % PREG_CYCLE(ARG))
+IF C_危険日 == DAY % PREG_CYCLE(ARG)
 	妊娠危険度 = 2
-ELSEIF (DAY-1) % 10 == C_危険日 || (DAY+1) % 10 == C_危険日
+ELSEIF (DAY-1) % PREG_CYCLE(ARG) == C_危険日 || (DAY+1) % PREG_CYCLE(ARG) == C_危険日
 	妊娠危険度 = 1
-ELSEIF DAY % 10 == C_安全日 || (DAY+1) % 10 == C_安全日 || (DAY+2) % 10 == C_安全日
+ELSEIF DAY % PREG_CYCLE(ARG) == C_安全日 || (DAY+1) % PREG_CYCLE(ARG) == C_安全日 || (DAY+2) % PREG_CYCLE(ARG) == C_安全日
 	妊娠危険度 = -1
 ELSE
 	妊娠危険度 = 0
@@ -916,3 +921,14 @@ NEXT
 @PREG_DAY(ARG)
 #FUNCTION
 RETURNF MAX(1,ARG * 妊娠期間 / 100)
+
+;指定Noのキャラの妊娠周期を返す
+@PREG_CYCLE(ARG)
+#FUNCTION
+#DIM 妊娠周期
+;デフォルトは10日
+妊娠周期 = 10
+;該当する発情期オプション素質がある、もしくはエルーン、ガレヲンなら8日
+SIF (TALENT:ARG:種族 == 2 || GETBIT(TALENT:ARG:発情期あり,4)) || キャラ一致チェック(ARG, "[六竜の『金』]ガレヲン")
+	妊娠周期 =8
+RETURNF 妊娠周期
