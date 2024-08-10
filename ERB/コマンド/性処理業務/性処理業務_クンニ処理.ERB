@@ -1,89 +1,75 @@
 ﻿;-------------------------------------------------
 ;定住の誘い
 ;-------------------------------------------------
-@性処理NAME_セックス処理
+@性処理NAME_クンニ処理
 #FUNCTIONS
-TSTR:コマンド名受渡 = セックス処理
+TSTR:コマンド名受渡 = クンニ処理
 
-@性処理_TOOLTIP_セックス処理
-LOCALS = <br>■セックス処理<br>
-LOCALS += @"%CALLNAME:PLAYER%のペニスをＶ挿入でしごいてもらう性処理。<br>"
-LOCALS += "要求好感度は高く、殆どのキャラは陥落が前提。<br>"
-LOCALS += "<br>COMタイプ：性処理<br>取得ソース：快Ｖ・露出・接触・奉仕・不潔"
-LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)<br>"
+@性処理_TOOLTIP_クンニ処理
+LOCALS = <br>■クンニ処理<br>
+LOCALS += @"%CALLNAME:PLAYER%の膣口やクリを舐めてもらう性処理。<br>"
+LOCALS += "汚臭敏感・潔癖症の場合、要求好感度・要求金額が大幅に上昇する。<br>"
+LOCALS += "<br>COMタイプ：性処理<br>取得ソース：露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：口淫経験(TARGET)<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-@性処理_セックス処理
+@性処理_クンニ処理
 
 ;射精するまで刺激する
 DO
-	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 350)
-	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
-	TIME += 10
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 300)
+SIF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+SIF TALENT:TARGET:猫舌
+	CALL SOURCE_CALC_苦痛(PLAYER, TARGET, 20)
+TIME += 10
 LOOP CUP:PLAYER:快Ｃ + PALAM:PLAYER:快Ｃ < 10000
 
-CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
-CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
-CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 500)
-
-;苦痛
-LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
-CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
-;貞操観念
-IF !TALENT:恋慕
-	IF TALENT:貞操 == 1
-		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
-	ELSEIF TALENT:貞操 == 0
-		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
-	ENDIF
-ENDIF
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 300)
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
 
 ;奉仕快楽
 RCVAR:TARGET:奉仕コマンドフラグ = 1
-
-;処女喪失
-CALL LOST_VIRGIN(TARGET, PLAYER, 1)
-CALL LOST_MAN_VIRGIN(PLAYER, TARGET, 1)
-
+RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
 
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
-EXP:Ｖ性交経験 ++
-EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+;手淫経験
+EXP:口淫経験 += 3
 
 ;同性愛　レズなら戻り値1ゲイなら戻り値2
 IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 12
-	EXP:PLAYER:同性愛経験 += 12
+	EXP:同性愛経験 += 8
+	EXP:PLAYER:同性愛経験 += 8
 ENDIF
 
-;愛情経験
-SIF TALENT:恋慕 == 1
-	EXP:愛情経験 ++
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	RFLAG:コマンド結果受渡し変数３ = 1
+	CFLAG:TARGET:ファーストキスフラグ = 10
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%の[クリトリス]にファーストキスを捧げた</font><img src='えっちハート'>","うふふ")
+ENDIF
 
 RETURN 1
 
 
-@性処理_射精時処理_セックス処理
+@性処理_射精時処理_クンニ処理
 ;射精時にどこに出すかを呼び出す
 ;とはいってもフィニッシュ場所の番号登録して関数呼ぶだけ
-IF 陥落チェック(TARGET)
-	RFLAG:フィニッシュ場所 = 0
-	TRYCALLFORM MESSAGE_SHOOT_0(PLAYER, TARGET)
-ELSE
-	RFLAG:フィニッシュ場所 = 6
-	TRYCALLFORM MESSAGE_SHOOT_6(PLAYER, TARGET)
-ENDIF
+RFLAG:フィニッシュ場所 = 5
+TRYCALLFORM MESSAGE_SHOOT_5(PLAYER, TARGET)
+
 
 ;-------------------------------------------------
 ;値段設定
 ;-------------------------------------------------
-@CAN_性処理_セックス処理(対象キャラ)
+@CAN_性処理_クンニ処理(対象キャラ)
 #DIM 対象キャラ
 #DIM 値段計算
 
-PRINTFORML セックス処理計算(%CALLNAME:TARGET%)
+PRINTFORML クンニ処理計算(%CALLNAME:TARGET%)
 DRAWLINE
 ;恋慕は完全無料
 IF TALENT:対象キャラ:恋慕
@@ -93,8 +79,8 @@ IF TALENT:対象キャラ:恋慕
 ENDIF
 
 ;基礎値段
-値段計算 = 50000
-PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(50000), 8%ルピ
+値段計算 = 30000
+PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(5000), 8%ルピ
 
 
 ;好感度
@@ -121,10 +107,10 @@ IF BASE:酩酊 > MAXBASE:酩酊 / 2
 	PRINTFORML %"酩酊", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 ENDIF
 
-IF TALENT:TARGET:処女
-	値段計算 += 50000
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	値段計算 += 30000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"処女", 16, LEFT%：＋%NUM_FORMAT(50000), 8%ルピ
+	PRINTFORML %"ファーストキス", 16, LEFT%：＋%NUM_FORMAT(30000), 8%ルピ
 	RESETCOLOR
 ENDIF
 
@@ -204,9 +190,9 @@ IF TALENT:汚臭耐性 > 0
 ENDIF
 ;汚臭敏感
 IF TALENT:汚臭耐性 < 0
-	値段計算 += TALENT:汚臭耐性 * 1000
+	値段計算 += TALENT:汚臭耐性 * 10000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 1000), 8%ルピ
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 10000), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;献身的
@@ -214,11 +200,11 @@ IF TALENT:献身的
 	値段計算 -= 500
 	PRINTFORML %"献身的", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 ENDIF
-;男嫌い
-IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+;女嫌い
+IF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
 	値段計算 += 2000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"男嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	PRINTFORML %"女嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
 	RESETCOLOR
 ENDIF
 DRAWLINE
@@ -234,27 +220,28 @@ RETURN 値段計算
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-@性処理_ABLE_セックス処理
+@性処理_ABLE_クンニ処理
 #DIM ループ用
 #DIM 許可好感度
 #DIM 補正後好感度
 
 ;RETURN 0は非表示
-SIF GETBIT(TALENT:PLAYER:性別, 1) == 0
-	RETURN 0
-SIF GETBIT(TALENT:TARGET:性別, 0) == 0
+SIF GETBIT(TALENT:PLAYER:性別, 0) == 0
 	RETURN 0
 SIF TALENT:PLAYER:Ｃ感度 == -2
 	RETURN 0
-SIF TALENT:TARGET:Ｖ感度 == -2
-	RETURN 0
 
 ;RETURN -1は表示するが選択出来ない
-許可好感度 = 115
+許可好感度 = 70
 補正後好感度 = 補正後好感度算出(TARGET)
-SIF TALENT:TARGET:処女
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	補正後好感度 += TALENT:汚臭耐性 * -10
+ENDIF
+IF CFLAG:TARGET:ファーストキスフラグ == 0
 	補正後好感度 += 20
-TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_セックス処理(TARGET, 補正後好感度)
+ENDIF
+TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_クンニ処理(TARGET, 補正後好感度)
 	補正後好感度 = RESULT
 CATCH
 ENDCATCH
@@ -267,7 +254,7 @@ RETURN 1
 ;メッセージ
 ;-------------------------------------------------
 
-@MESSAGE_性処理_セックス処理
+@MESSAGE_性処理_クンニ処理
 
 PRINTFORM %CALLNAME:TARGET%は
 IF TALENT:TARGET:恋慕
@@ -279,11 +266,12 @@ ELSEIF TALENT:TARGET:性的興味
 ELSEIF TALENT:TARGET:セフレ
 	PRINTFORM %CALLNAME:PLAYER%の反応を面白がりながら
 ELSE
-	PRINT 事務的な手つきで
+	PRINT 事務的な様子で
 ENDIF
+SIF RFLAG:コマンド結果受渡し変数３
+	PRINT キスも済ませていない唇を使い、
 
-PRINTFORM %CALLNAME:PLAYER%のペニスを自身の膣に挿入し、
-PRINTL 射精まで導いた。
+PRINTFORM %CALLNAME:PLAYER%のクリトリスを舐めほぐし、絶頂まで導いた。
 PRINTL
 PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２)% - %NUM_FORMAT(RFLAG:コマンド結果受渡し変数２)% = %NUM_FORMAT(MONEY)%ルピ
 
