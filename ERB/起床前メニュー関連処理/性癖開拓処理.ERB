@@ -1,13 +1,16 @@
 ﻿
 @性癖開拓処理
-#DIM 表示候補, 200
+#DIM DYNAMIC 表示候補, 200
 #DIM 現在ページ
 #DIM 開拓対象
 #DIM 複数名フラグ
 #DIM キャラ番号
 #DIM 性癖番号
+#DIM スキップフラグ
+#DIM 開拓性癖ループ
 #DIMS 複数登録キャラ
-#DIMS 複数登録配列, 100
+#DIMS DYNAMIC 複数登録配列, 100
+#DIM DYNAMIC 開拓性癖配列, 100
 
 VARSET 表示候補, -1
 現在ページ = 0
@@ -101,22 +104,34 @@ SELECTCASE RESULT
 ENDSELECT
 
 IF 複数名フラグ
+	VARSET 開拓性癖配列
 	$性癖表示LOOP
 	VARSET 表示候補, -1
 	現在ページ = 0
 	DRAWLINE
 	PRINTFORML 複数名の一括性癖開拓を行います
 	PRINTL どの性癖を開拓しますか？
+	PRINTL ※優先順位を付けて複数選択可能です。
+	PRINTL 　選んだキャラに対して、０の性癖を取得済みなら１を、１の性癖を取得済みなら２を、
+	PRINTL 　のように本が配られます。
 	DRAWLINE
 
 	FOR LOCAL, 1, 100
 		IF ERDNAME(性癖素質, LOCAL) != ""
 			IF ENUMFUNCBEGINSWITH(@"性癖開拓チャレンジ処理_%ERDNAME(性癖素質, LOCAL)%")
-				PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				IF MATCH(開拓性癖配列, LOCAL)
+					SETCOLOR カラーパレット("黄")
+					PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%：%TOFULL(TOSTR(FINDELEMENT(開拓性癖配列, LOCAL)))%", LOCAL
+					RESETCOLOR
+				ELSE
+					PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				ENDIF
 				PRINTL
 			ENDIF
 		ENDIF
 	NEXT
+	PRINTL
+	PRINTBUTTON "[998]この優先順位で開拓する", 998
 	PRINTL
 	PRINTBUTTON "[999]戻る", 999
 	PRINTL
@@ -124,17 +139,32 @@ IF 複数名フラグ
 	性癖番号 = RESULT
 	SELECTCASE 性癖番号
 		CASE 1 TO 100
+			IF MATCH(開拓性癖配列, 性癖番号)
+				ARRAYREMOVE 開拓性癖配列, FINDELEMENT(開拓性癖配列, 性癖番号), 1
+			ELSE
+				開拓性癖配列:(FINDELEMENT(開拓性癖配列, 0)) = 性癖番号
+			ENDIF
+			GOTO 性癖表示LOOP
+		CASE 998
 			;表示キャラを登録
 			LOCAL:1 = 0
 			FOR キャラ番号, 1, CHARANUM
 				;非滞在は出さない
 				SIF CFLAG:キャラ番号:滞在期間 < 0
 					CONTINUE
-				;すでに性癖持ってるならスキップ
-				SIF 性癖素質:キャラ番号:性癖番号
-					CONTINUE
-				;ふたなり・その他は同性愛取れない
-				SIF ERDNAME(性癖素質, LOCAL) == "同性愛" && (TALENT:キャラ番号:性別 == 3 || TALENT:キャラ番号:性別 == 0)
+				スキップフラグ = 1
+				FOR 開拓性癖ループ, 0, 100
+					SIF 開拓性癖配列:開拓性癖ループ == 0
+						BREAK
+					;すでに性癖持ってるならスキップ
+					SIF 性癖素質:キャラ番号:(開拓性癖配列:開拓性癖ループ)
+						CONTINUE
+					;ふたなり・その他は同性愛取れない
+					SIF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:キャラ番号:性別 == 3 || TALENT:キャラ番号:性別 == 0)
+						CONTINUE
+					スキップフラグ = 0
+				NEXT
+				SIF スキップフラグ
 					CONTINUE
 				表示候補:(LOCAL:1) = キャラ番号
 				LOCAL:1 += 1
@@ -144,9 +174,6 @@ IF 複数名フラグ
 			DRAWLINE
 			PRINTFORML 複数名の一括性癖開拓を行います
 			PRINTL どのキャラの性癖を開拓しますか？（100名まで）
-			DRAWLINE
-			PRINTBUTTON "[1000] これで確定する", 1000
-			PRINTL
 			DRAWLINE
 			PRINTBUTTON "[1001] 上から100名開拓候補に入れる", 1001
 			PRINTL
@@ -179,6 +206,9 @@ IF 複数名フラグ
 				PRINTBUTTONC "[901]次ページへ", 901
 			ENDIF
 			PRINTL 
+			DRAWLINE
+			PRINTBUTTON "[1000] これで確定する", 1000
+			PRINTL
 			PRINTBUTTON "[999]戻る", 999
 			BINPUT
 
@@ -201,8 +231,19 @@ IF 複数名フラグ
 							BREAK
 						REPLACE 複数登録配列:LOCAL, "_", ""
 						開拓対象 = TOINT(RESULTS)
-						性癖素質:開拓対象:性癖開発用フラグ変数 = 性癖番号
-						PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 性癖番号)%のエロ本が渡るように細工を行います
+						FOR 開拓性癖ループ, 0, 100
+							SIF 開拓性癖配列:開拓性癖ループ == 0
+								BREAK
+							;すでに性癖持ってるならスキップ
+							SIF 性癖素質:開拓対象:(開拓性癖配列:開拓性癖ループ)
+								CONTINUE
+							;ふたなり・その他は同性愛取れない
+							SIF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:開拓対象:性別 == 3 || TALENT:開拓対象:性別 == 0)
+								CONTINUE
+							性癖素質:開拓対象:性癖開発用フラグ変数 = 開拓性癖配列:開拓性癖ループ
+							PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ)%のエロ本が渡るように細工を行います
+							BREAK
+						NEXT
 					NEXT
 					PRINTW ※結果は一日の終了時に表示されます
 				CASE 1001
