@@ -259,3 +259,68 @@ SELECTCASE ARG
 		ENDIF
 		RETURNF "百戦錬磨"
 ENDSELECT
+
+
+@自動学習処理(対象キャラ)
+#DIM 対象キャラ
+#DIM DYNAMIC 学習対象
+#DIM DYNAMIC 経験値保存
+#DIM DYNAMIC ランダム配列, 100
+
+学習対象 = 0
+経験値保存 = 0
+;何を学習するかを決定
+FOR LOCAL, 1, 100
+	SIF ERDNAME(知識素質, LOCAL) == ""
+		BREAK
+	;まずはLv1の知識を優先
+	IF 知識素質:対象キャラ:LOCAL == 1 && 経験値保存 < 知識素質:対象キャラ:(LOCAL + 100)
+		学習対象 = LOCAL
+		経験値保存 = 知識素質:対象キャラ:(LOCAL + 100)
+	ENDIF
+NEXT
+IF 経験値保存 == 0
+	;Lv1がないならLv0を対象
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 経験値保存 < 知識素質:対象キャラ:(LOCAL + 100)
+			学習対象 = LOCAL
+			経験値保存 = 知識素質:対象キャラ:(LOCAL + 100)
+		ENDIF
+	NEXT
+ENDIF
+IF 経験値保存 == 0
+	;ここまで来ても０ということは全部の知識が同条件なのでランダムで算出
+	VARSET ランダム配列
+	LOCAL:1 = 0
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		;Lv2以上は対象にならない
+		IF 知識素質:対象キャラ:LOCAL < 2
+			ランダム配列:(LOCAL:1) = LOCAL
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	IF LOCAL:1 == 0
+		;それでも対象がないということは知識全部２以上なので戻す
+		RETURN 0
+	ELSE
+		学習対象 = ランダム配列:(RAND:(LOCAL:1))
+	ENDIF
+ENDIF
+
+;学習対象が決定したら入手経験値を決定
+;既存の知識が多いほど経験値が減る
+LOCAL:1 = 0
+FOR LOCAL, 1, 100
+	SIF ERDNAME(知識素質, LOCAL) == ""
+		BREAK
+	;Lv2以上は対象にならない
+	IF 知識素質:対象キャラ:LOCAL
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+知識素質:対象キャラ:(学習対象 + 100) = 27 - LOCAL:1
