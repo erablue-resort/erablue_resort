@@ -15,6 +15,7 @@
 #DIM 施設維持費
 #DIM 給料基礎値
 #DIM シャッフル数
+#DIM 表示フラグ
 
 VARSET LOCAL
 VARSET 長期雇用者保存配列
@@ -381,14 +382,23 @@ IF 滞在キャラ数算出関数() > 0
 	;商業区収入
 	IF 港改造度:0:0
 		LOCAL = 0
+		表示フラグ = 0
 		FOR LOCAL:2, 0, VARSIZE("商業区店割り配列", 0)
 			IF 商業区店割り配列:(LOCAL:2):店舗名 != ""
-				LOCAL ++
+				TRYCCALLFORM 商業区固有商店処理_一日終了時_%商業区店割り配列:(LOCAL:2):店舗名%
+					表示フラグ ++
+				CATCH
+					LOCAL ++
+				ENDCATCH
 			ENDIF
 		NEXT
 		IF LOCAL
 			LOCAL = 滞在キャラ数算出関数() * LOCAL * 5 * RAND(95, 106) / 100
-			PRINTFORML 商業区の店舗より、以下の場所代を得た。
+			IF 表示フラグ
+				PRINTFORML 商業区のその他店舗より、以下の場所代を得た。
+			ELSE
+				PRINTFORML 商業区の店舗より、以下の場所代を得た。
+			ENDIF
 			PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
 			MONEY += LOCAL
 			DRAWLINE
