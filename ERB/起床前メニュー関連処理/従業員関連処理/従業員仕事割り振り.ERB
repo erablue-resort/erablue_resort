@@ -143,6 +143,22 @@ SELECTCASE LOCAL
 		IF 現在仕事:ARG:0 == 2 && 現在仕事:ARG:1 == 0
 			現在仕事:ARG:0 = 0
 		ENDIF
+		IF 現在仕事:ARG:0 == 7
+			SIF 現在仕事:ARG:1 == 0
+				現在仕事:ARG:0 = 0
+			IF 知識素質:ARG:(現在仕事:ARG:1) > 1
+				現在仕事:ARG:0 = 0
+				現在仕事:ARG:1 = 0
+			ENDIF
+		ENDIF
+		IF 現在仕事:ARG:0 == 8
+			SIF 現在仕事:ARG:1 == 0
+				現在仕事:ARG:0 = 0
+			IF 知識素質:ARG:(現在仕事:ARG:1) < 2
+				現在仕事:ARG:0 = 0
+				現在仕事:ARG:1 = 0
+			ENDIF
+		ENDIF
 		RETURN 0
 	CASE 0 TO 7
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
@@ -239,7 +255,7 @@ SELECTCASE ARG
 			RETURNF ""
 		ENDIF
 		IF ARG:1
-			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。<br>　　　（全キャラ中最も高いレベルより上には成長しない）<br>　　　訓練場に常駐する。<br>　　　この業務に業務レベルは存在しない。"
+			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。<br>　　　（全キャラ中最も高いレベルより上には成長しない）<br>　　　訓練場に常駐する。"
 		ENDIF
 		RETURNF "訓練"
 	CASE 6
@@ -255,18 +271,18 @@ SELECTCASE ARG
 			RETURNF ""
 		ENDIF
 		IF ARG:1
-			LOCALS = 学校に赴き、指定された知識について学習する業務。<br>効果：午前と午後の学習終了時に知識経験値を得る。<br>　　　学校にいない時間帯は自室にいる。<br>　　　この業務に業務レベルは存在しない。
+			LOCALS = 学校に赴き、指定された知識について学習する業務。<br>効果：午前と午後の学習終了時に知識経験値を得る。<br>　　　学校にいない時間帯は自室にいる。<br>　　　Lv2に到達した知識は選択出来ない。
 			LOCALS += "<br><br>"
 			LOCAL:1 = 0
 			FOR LOCAL, 1, 100
 				SIF ERDNAME(知識素質, LOCAL) == ""
 					BREAK
-				SIF 知識素質:キャラ番号:LOCAL > 1
-					CONTINUE
-				IF 現在仕事:キャラ番号:1 == LOCAL
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ：選択中</font>　　　"
+				IF 知識素質:キャラ番号:LOCAL > 1
+					LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})</font>　　　"
+				ELSEIF 現在仕事:キャラ番号:1 == LOCAL
+					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})選択</font>　"
 				ELSE
-					LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ</button>　　　　　　　"
+					LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})</button>　　　"
 				ENDIF
 				LOCAL:1 ++
 				SIF LOCAL:1 % 2 == 0
@@ -275,6 +291,31 @@ SELECTCASE ARG
 			RETURNF LOCALS
 		ENDIF
 		RETURNF "知識習得"
+	CASE 8
+		IF 居住区改造度:0:0 == 0
+			RETURNF ""
+		ENDIF
+		IF ARG:1
+			LOCALS = 学校に赴き、指定された知識について講義を行う業務。<br>効果：学校で学ぶキャラの学習効率が上昇する。<br>　　　学校にいない時間帯は自室にいる。<br>　　　Lv2以上の知識のみ選択可能。
+			LOCALS += "<br><br>"
+			LOCAL:1 = 0
+			FOR LOCAL, 1, 100
+				SIF ERDNAME(知識素質, LOCAL) == ""
+					BREAK
+				IF 知識素質:キャラ番号:LOCAL < 2
+					LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})</font>　　　　"
+				ELSEIF 現在仕事:キャラ番号:1 == LOCAL
+					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})選択</font>　　"
+				ELSE
+					LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})</button>　　　　"
+				ENDIF
+				LOCAL:1 ++
+				SIF LOCAL:1 % 2 == 0
+					LOCALS += "<br>"
+			NEXT
+			RETURNF LOCALS
+		ENDIF
+		RETURNF "教師"
 ENDSELECT
 
 @仕事条件判定関数(キャラ番号, 仕事番号)
@@ -322,3 +363,14 @@ IF GROUPMATCH(チェック番号, 1, 2, 3, 4)
 ELSE
 	RETURNF 0
 ENDIF
+
+@従業員休暇判定(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+;ゲーム中に変動しない数値として、人物番号を使う
+IF DAY % 7 == CFLAG:対象キャラ:人物番号 % 7
+	RETURNF 1
+ENDIF
+
+RETURNF 0

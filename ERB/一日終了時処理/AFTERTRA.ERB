@@ -114,96 +114,120 @@ VARSET LOCALS
 売上分ルピ = 0
 最大レベル = 最大レベル算出()
 LOCAL:10 = 0
+;表示用に一旦人数再セット
+VARSET 仕事人数表示用
 FOR LOCAL, 0, CHARANUM
-	IF (TALENT:LOCAL:従業員 || LOCAL == PLAYER) && 現在仕事:LOCAL:0 == 1
-		雑務ゲージ減少量 += (仕事レベル:LOCAL:1 + 1) * (仕事レベル:LOCAL:1 + 1) * 100
-		;経験値取得とレベル上昇
-		仕事経験値:LOCAL:1 += 1
-		IF 仕事レベル:LOCAL:1 < 5
-			IF 仕事経験値:LOCAL:1 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:1 + 1)
-				仕事レベル:LOCAL:1 += 1
-				LOCALS:1 += @"%CALLNAME:LOCAL%の雑務レベルがLv{仕事レベル:LOCAL:1}に上昇した！<br>"
-				IF 仕事レベル:LOCAL:1 > 5
-					;仕事レベルは減少しないのでこれでいいはず
-					CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：雑務レベルがLv5になった","リゾート")
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-	IF (TALENT:LOCAL:従業員 || LOCAL == PLAYER) && 現在仕事:LOCAL:0 == 2
-		LOCALS = %MAP_GET("常駐業務名", GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000))%
-		IF LOCALS != ""
-			売上分ルピ += (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * 滞在キャラ数算出関数()
+	SIF TALENT:LOCAL:従業員 == 0 && LOCAL != MASTER
+		CONTINUE
+	SIF TCVAR:LOCAL:休暇中
+		CONTINUE
+	SELECTCASE 現在仕事:LOCAL:0
+		CASE 1
+			仕事人数表示用:雑務担当人数 ++
+			雑務ゲージ減少量 += (仕事レベル:LOCAL:1 + 1) * (仕事レベル:LOCAL:1 + 1) * 100
 			;経験値取得とレベル上昇
-			LOCAL:1 = GETNUM(常駐業務レベル, LOCALS)
-			常駐業務経験値:LOCAL:(LOCAL:1) += 1
-			IF 常駐業務レベル:LOCAL:LOCALS < 5
-				IF 常駐業務経験値:LOCAL:(LOCAL:1) >= 仕事レベル経験値テーブル:(常駐業務レベル:LOCAL:LOCALS + 1)
-					常駐業務レベル:LOCAL:LOCALS += 1
-					LOCALS:2 += @"%CALLNAME:LOCAL%の%LOCALS%レベルがLv{常駐業務レベル:LOCAL:LOCALS}に上昇した！<br>"
-					IF 常駐業務レベル:LOCAL:LOCALS > 5
+			仕事経験値:LOCAL:1 += 1
+			IF 仕事レベル:LOCAL:1 < 5
+				IF 仕事経験値:LOCAL:1 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:1 + 1)
+					仕事レベル:LOCAL:1 += 1
+					LOCALS:1 += @"%CALLNAME:LOCAL%の雑務レベルがLv{仕事レベル:LOCAL:1}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:1 >= 5
 						;仕事レベルは減少しないのでこれでいいはず
-						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：常駐業務：%LOCALS%レベルがLv5になった","リゾート")
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：雑務レベルがLv5になった","リゾート")
 					ENDIF
 				ENDIF
 			ENDIF
-		ENDIF
-	ENDIF
-	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 3
-		秘書担当キャラ保存:(LOCAL:10) = LOCAL
-		NOWEX:LOCAL:信頼度上昇格納 += (仕事レベル:LOCAL:3 + 1) * (仕事レベル:LOCAL:3 + 1) * 200
-		;経験値取得とレベル上昇
-		仕事経験値:LOCAL:3 += 1
-		IF 仕事レベル:LOCAL:3 < 5
-			IF 仕事経験値:LOCAL:3 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:3 + 1)
-				仕事レベル:LOCAL:3 += 1
-				LOCALS:3 += @"%CALLNAME:LOCAL%の秘書レベルがLv{仕事レベル:LOCAL:3}に上昇した！<br>"
-				IF 仕事レベル:LOCAL:3 > 5
-					;仕事レベルは減少しないのでこれでいいはず
-					CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：秘書レベルがLv5になった","リゾート")
+		CASE 2
+			仕事人数表示用:常駐業務担当人数 ++
+			LOCALS = %MAP_GET("常駐業務名", GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000))%
+			IF LOCALS != ""
+				売上分ルピ += (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * 滞在キャラ数算出関数()
+				;経験値取得とレベル上昇
+				LOCAL:1 = GETNUM(常駐業務レベル, LOCALS)
+				常駐業務経験値:LOCAL:(LOCAL:1) += 1
+				IF 常駐業務レベル:LOCAL:LOCALS < 5
+					IF 常駐業務経験値:LOCAL:(LOCAL:1) >= 仕事レベル経験値テーブル:(常駐業務レベル:LOCAL:LOCALS + 1)
+						常駐業務レベル:LOCAL:LOCALS += 1
+						LOCALS:2 += @"%CALLNAME:LOCAL%の%LOCALS%レベルがLv{常駐業務レベル:LOCAL:LOCALS}に上昇した！<br>"
+						IF 常駐業務レベル:LOCAL:LOCALS >= 5
+							;仕事レベルは減少しないのでこれでいいはず
+							CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：常駐業務：%LOCALS%レベルがLv5になった","リゾート")
+						ENDIF
+					ENDIF
 				ENDIF
 			ENDIF
-		ENDIF
-		LOCAL:10 += 1
-	ENDIF
-	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 4
-		SKIPDISP 1
-		CALL 人気上昇処理((仕事レベル:LOCAL:4 + 1) * (仕事レベル:LOCAL:4 + 1) * 1000)
-		SKIPDISP 0
-		人気度変動一時保存 = RESULT
-		;経験値取得とレベル上昇
-		仕事経験値:LOCAL:4 += 1
-		IF 仕事レベル:LOCAL:4 < 5
-			IF 仕事経験値:LOCAL:4 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:4 + 1)
-				仕事レベル:LOCAL:4 += 1
-				LOCALS:4 += @"%CALLNAME:LOCAL%の宣伝レベルがLv{仕事レベル:LOCAL:4}に上昇した！<br>"
-				IF 仕事レベル:LOCAL:4 > 5
-					;仕事レベルは減少しないのでこれでいいはず
-					CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：宣伝レベルがLv5になった","リゾート")
+		CASE 3
+			仕事人数表示用:秘書担当人数 ++
+			秘書担当キャラ保存:(LOCAL:10) = LOCAL
+			NOWEX:LOCAL:信頼度上昇格納 += (仕事レベル:LOCAL:3 + 1) * (仕事レベル:LOCAL:3 + 1) * 200
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:3 += 1
+			IF 仕事レベル:LOCAL:3 < 5
+				IF 仕事経験値:LOCAL:3 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:3 + 1)
+					仕事レベル:LOCAL:3 += 1
+					LOCALS:3 += @"%CALLNAME:LOCAL%の秘書レベルがLv{仕事レベル:LOCAL:3}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:3 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：秘書レベルがLv5になった","リゾート")
+					ENDIF
 				ENDIF
 			ENDIF
-		ENDIF
-	ENDIF
-	CALL 口上変数初期化
-	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 5
-		IF 基礎BATTLE_STATE:LOCAL:Lv < 最大レベル
-			IF 基礎BATTLE_STATE:LOCAL:蓄積EXP >  戦闘経験値テーブル:(MAX(最大レベル - 2, 0))
-				;最大Lv到達EXPより現在のEXPが高いならスキップ
-				CONTINUE
+			LOCAL:10 += 1
+		CASE 4
+			仕事人数表示用:宣伝担当人数 ++
+			SKIPDISP 1
+			CALL 人気上昇処理((仕事レベル:LOCAL:4 + 1) * (仕事レベル:LOCAL:4 + 1) * 1000)
+			SKIPDISP 0
+			人気度変動一時保存 = RESULT
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:4 += 1
+			IF 仕事レベル:LOCAL:4 < 5
+				IF 仕事経験値:LOCAL:4 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:4 + 1)
+					仕事レベル:LOCAL:4 += 1
+					LOCALS:4 += @"%CALLNAME:LOCAL%の宣伝レベルがLv{仕事レベル:LOCAL:4}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:4 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：宣伝レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
 			ENDIF
-			LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(最大レベル - 2, 0)) / 10, 500)
-			;EXPは最大レベル到達EXPより上には行かない
-			基礎BATTLE_STATE:LOCAL:蓄積EXP = MIN(基礎BATTLE_STATE:LOCAL:蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(最大レベル - 2, 0)))
-			CALL レベルアップ処理(LOCAL)
-		ENDIF
-	ENDIF
-	IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 7
-		IF 知識素質:LOCAL:(現在仕事:LOCAL:1) > 1
-			LOCALS:5 += @"%CALLNAME:LOCAL%の%ERDNAME(知識素質, 現在仕事:LOCAL:1)%はこれ以上学校で学ぶことは出来ないようだ。<br>"
-			現在仕事:LOCAL:0 = 0
-			現在仕事:LOCAL:1 = 0
-		ENDIF
-	ENDIF
+		CASE 5
+			仕事人数表示用:訓練担当人数 ++
+			CALL 口上変数初期化
+			IF 基礎BATTLE_STATE:LOCAL:Lv < 最大レベル
+				IF 基礎BATTLE_STATE:LOCAL:蓄積EXP >  戦闘経験値テーブル:(MAX(最大レベル - 2, 0))
+					;最大Lv到達EXPより現在のEXPが高いならスキップ
+					CONTINUE
+				ENDIF
+				LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(最大レベル - 2, 0)) / 10, 500)
+				;EXPは最大レベル到達EXPより上には行かない
+				基礎BATTLE_STATE:LOCAL:蓄積EXP = MIN(基礎BATTLE_STATE:LOCAL:蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(最大レベル - 2, 0)))
+				CALL レベルアップ処理(LOCAL)
+			ENDIF
+		CASE 6
+			仕事人数表示用:自動探索担当人数 ++
+		CASE 7
+			仕事人数表示用:知識習得担当人数 ++
+			IF 知識素質:LOCAL:(現在仕事:LOCAL:1) > 1
+				LOCALS:5 += @"%CALLNAME:LOCAL%の%ERDNAME(知識素質, 現在仕事:LOCAL:1)%はこれ以上学校で学ぶことは出来ないようだ。<br>"
+				現在仕事:LOCAL:0 = 0
+				現在仕事:LOCAL:1 = 0
+			ENDIF
+		CASE 8
+			仕事人数表示用:教師担当人数 ++
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:8 += 1
+			IF 仕事レベル:LOCAL:8 < 5
+				IF 仕事経験値:LOCAL:8 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:1 + 1)
+					仕事レベル:LOCAL:8 += 1
+					LOCALS:6 += @"%CALLNAME:LOCAL%の教師レベルがLv{仕事レベル:LOCAL:1}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:8 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：教師レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+	ENDSELECT
 NEXT
 
 FOR LOCAL, 1, マップ部屋番号上限
@@ -265,10 +289,19 @@ IF 仕事人数表示用:自動探索担当人数 > 0
 	DRAWLINE
 	WAIT
 ENDIF
-IF 仕事人数表示用:自動探索担当人数 > 0
+IF 仕事人数表示用:知識習得担当人数 > 0
 	PRINTFORML {仕事人数表示用:知識習得担当人数}名の従業員は、頑張って学習に励んでいる。
 	IF LOCALS:5 != ""
 		HTML_PRINT LOCALS:5
+		WAIT
+	ENDIF
+	DRAWLINE
+	WAIT
+ENDIF
+IF 仕事人数表示用:教師担当人数 > 0
+	PRINTFORML {仕事人数表示用:知識習得担当人数}名の従業員は、教師として講義を行っている。
+	IF LOCALS:6 != ""
+		HTML_PRINT LOCALS:6
 		WAIT
 	ENDIF
 	DRAWLINE
@@ -389,11 +422,15 @@ IF 滞在キャラ数算出関数() > 0
 		表示フラグ = 0
 		FOR LOCAL:2, 0, VARSIZE("商業区店割り配列", 0)
 			IF 商業区店割り配列:(LOCAL:2):店舗名 != ""
-				TRYCCALLFORM 特殊店舗_一日終了時処理_%商業区店割り配列:(LOCAL:2):店舗名%
-					表示フラグ ++
-				CATCH
-					LOCAL ++
-				ENDCATCH
+				IF GETBIT(TOINT(商業区店割り配列:(LOCAL:2):定休日), DAY % 7)
+					;店休日のビットが立ってると店休なので店効果スキップ
+				ELSE
+					TRYCCALLFORM 特殊店舗_一日終了時処理_%商業区店割り配列:(LOCAL:2):店舗名%
+						表示フラグ ++
+					CATCH
+						LOCAL ++
+					ENDCATCH
+				ENDIF
 			ENDIF
 		NEXT
 		IF LOCAL
@@ -433,6 +470,7 @@ IF 滞在キャラ数算出関数() > 0
 		PRINTL 露出フィールド維持のために5ZPを消費した。
 		IF FLAG:ZP所持量 < 5
 			FLAG:ZP所持量 = 0
+			ZP小数点以下所持量 = 0
 			PRINTL ZPが足りないため、露出フィールドを停止した。
 			フィールド展開:露出フィールド = 0
 			CALL 露出フィールド停止処理
@@ -480,32 +518,36 @@ IF 滞在キャラ数算出関数() > 0
 				給料基礎値 = 2000
 			ENDIF
 			PRINTFORM %CALLNAME:ループ用%は
-			PRINTDATAL LOCAL
-				DATA 頑張って働いている。
-				DATA 幾つか失敗してしまった……。
-				DATA とても良く働いている！
-				DATA 大きなミスをしてしまった！
-				DATA 素晴らしい働きをしている！
-			ENDDATA
-			SELECTCASE LOCAL
-				CASE 0
-					;給料変動なし
-				CASE 1
-					;１割引
-					給料基礎値 = 給料基礎値 * 9 / 10
-				CASE 2
-					;１割増
-					給料基礎値 = 給料基礎値 * 11 / 10
-				CASE 3
-					;２割引
-					給料基礎値 = 給料基礎値 * 8 / 10
-				CASE 4
-					;２割増
-					給料基礎値 = 給料基礎値 * 12 / 10
-			ENDSELECT
-			給料基礎値 = 給料基礎値 * RAND(95, 105) / 100
-			PRINTFORML 　　雇用費：%NUM_FORMAT(給料基礎値)%ルピ
-			MONEY -= 給料基礎値
+			IF TCVAR:ループ用:休暇中
+				PRINTL 休暇中だ。
+			ELSE
+				PRINTDATAL LOCAL
+					DATA 頑張って働いている。
+					DATA 幾つか失敗してしまった……。
+					DATA とても良く働いている！
+					DATA 大きなミスをしてしまった！
+					DATA 素晴らしい働きをしている！
+				ENDDATA
+				SELECTCASE LOCAL
+					CASE 0
+						;給料変動なし
+					CASE 1
+						;１割引
+						給料基礎値 = 給料基礎値 * 9 / 10
+					CASE 2
+						;１割増
+						給料基礎値 = 給料基礎値 * 11 / 10
+					CASE 3
+						;２割引
+						給料基礎値 = 給料基礎値 * 8 / 10
+					CASE 4
+						;２割増
+						給料基礎値 = 給料基礎値 * 12 / 10
+				ENDSELECT
+				給料基礎値 = 給料基礎値 * RAND(95, 105) / 100
+				PRINTFORML 　　雇用費：%NUM_FORMAT(給料基礎値)%ルピ
+				MONEY -= 給料基礎値
+			ENDIF
 		NEXT
 		DRAWLINE
 	ENDIF
