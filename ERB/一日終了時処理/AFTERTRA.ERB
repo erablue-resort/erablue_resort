@@ -3,6 +3,7 @@
 ;────────────────────────────────────
 @EVENTEND0
 #DIM 長期雇用者保存配列, 200
+#DIMS DYNAMIC 学校利用者配列, 2000
 #DIM 順番シャッフル用配列, 5000
 #DIM ループ用
 #DIM 長期雇用者人数
@@ -12,6 +13,7 @@
 #DIM 人気度変動一時保存
 #DIM 最大レベル
 #DIM 食材ID
+#DIM DYNAMIC LCOUNT
 #DIM 施設維持費
 #DIM 給料基礎値
 #DIM シャッフル数
@@ -299,13 +301,59 @@ IF 仕事人数表示用:知識習得担当人数 > 0
 	WAIT
 ENDIF
 IF 仕事人数表示用:教師担当人数 > 0
-	PRINTFORML {仕事人数表示用:知識習得担当人数}名の従業員は、教師として講義を行っている。
+	PRINTFORML {仕事人数表示用:教師担当人数}名の従業員は、教師として講義を行っている。
 	IF LOCALS:6 != ""
 		HTML_PRINT LOCALS:6
 		WAIT
 	ENDIF
 	DRAWLINE
 	WAIT
+ENDIF
+IF 学校利用者:0 != ""
+	PRINTL ■本日の学校利用状況
+	LOCAL:2 = 0
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 学校利用者:(LOCAL + 100) != ""
+			VARSET 学校利用者配列
+			PRINTFORM 　　%ERDNAME(知識素質, LOCAL), 9, LEFT%の教師：
+			SPLIT 学校利用者:(LOCAL + 100), "_", 学校利用者配列
+			LOCAL:1 = RESULT
+			FOR LCOUNT, 0, LOCAL:1 - 1
+				SIF ISNUMERIC(学校利用者配列:LCOUNT) == 0
+					CONTINUE
+				PRINTFORM %CALLNAME:TOINT(学校利用者配列:LCOUNT)%
+				SIF LCOUNT + 1 < LOCAL:1 - 1
+					PRINT 、
+			NEXT
+			PRINTL 
+			LOCAL:2 = 1
+		ENDIF
+	NEXT
+	SIF LOCAL:2
+		PRINTL 
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 学校利用者:LOCAL != ""
+			VARSET 学校利用者配列
+			PRINTFORM 　　%ERDNAME(知識素質, LOCAL), 9, LEFT%の生徒：
+			SPLIT 学校利用者:LOCAL, "_", 学校利用者配列
+			LOCAL:1 = RESULT
+			FOR LCOUNT, 0, LOCAL:1 - 1
+				SIF ISNUMERIC(学校利用者配列:LCOUNT) == 0
+					CONTINUE
+				PRINTFORM %CALLNAME:TOINT(学校利用者配列:LCOUNT)%
+				SIF LCOUNT + 1 < LOCAL:1 - 1
+					PRINT 、
+			NEXT
+			PRINTL 
+			LOCAL:2 = 1
+		ENDIF
+	NEXT
+	SIF LOCAL:2
+		DRAWLINE
 ENDIF
 ;人数再セット
 VARSET 仕事人数表示用
