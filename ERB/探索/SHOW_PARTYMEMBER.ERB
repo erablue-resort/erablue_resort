@@ -271,6 +271,7 @@ SELECTCASE LOCAL
 		表示切り替え文字列 = 探索集約_サブメンバー編成
 		RETURN 0
 	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
 		RETURN -1
 ENDSELECT
 
@@ -392,12 +393,17 @@ FOR 配列番号, 1, CHARANUM
 	ENDIF
 NEXT
 
+SIF 最大レベル保存_周回 > 最大レベル保存
+	最大レベル保存 = 最大レベル保存_周回
+
 @メンバー編成画面(メインサブ = 0, y軸位置 = 0)
 #DIM ページ番号
-#DIMS ソート法則
+#DIM ソート法則
 #DIM y軸位置
 #DIM メインサブ
 #DIM 番号管理
+#DIM 昇順降順
+#DIM リスト表示位置
 #DIM 入れ替え候補_メンバー = -1
 #DIM 入れ替え候補_リスト = -1
 #DIM ソート基準配列, 1000
@@ -433,7 +439,7 @@ HTML_PRINT LOCALS, 1
 ;入れ替え候補者表示
 LOCALS += @"<div rect='200,{y軸位置 - 20},3150,3750' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += @"<div rect='250,{y軸位置 + 30},3050,3650'>"
-LOCALS += @"名前　　　　　　　　　　　　　　　　　　　　<button value='50'>属性</button>　<button value='51'>Ｌｖ</button>　<button value='52'>固有</button><br>"
+LOCALS += @"名前　　　　　　　　　　　　　　　　　　　　<button value='50'>%メンバーリスト表示欄:1%</button>　<button value='51'>%メンバーリスト表示欄:2%</button>　<button value='52'>%メンバーリスト表示欄:3%</button><br>"
 LOCALS += @"-------------------------------------------------------------<br>"
 ;候補者のリスト化
 LOCAL:1 = 0
@@ -446,33 +452,118 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	IF メインサブ == 0
 		SIF GROUPMATCH(LOCAL, BATTLE_STATE:0:0, BATTLE_STATE:1:0, BATTLE_STATE:2:0, BATTLE_STATE:3:0)
-			CONTINUE
-	ELSE
+			表示用ステータス格納配列:(LOCAL:1):9 = 1
 		SIF GROUPMATCH(LOCAL, BATTLE_STATE:10:0, BATTLE_STATE:11:0, BATTLE_STATE:12:0, BATTLE_STATE:13:0)
-			CONTINUE
+			表示用ステータス格納配列:(LOCAL:1):9 = 2
+	ELSE
+		SIF GROUPMATCH(LOCAL, BATTLE_STATE:0:0, BATTLE_STATE:1:0, BATTLE_STATE:2:0, BATTLE_STATE:3:0)
+			表示用ステータス格納配列:(LOCAL:1):9 = 2
+		SIF GROUPMATCH(LOCAL, BATTLE_STATE:10:0, BATTLE_STATE:11:0, BATTLE_STATE:12:0, BATTLE_STATE:13:0)
+			表示用ステータス格納配列:(LOCAL:1):9 = 1
 	ENDIF
 	表示用ステータス格納配列:(LOCAL:1):0 = LOCAL
-	表示用ステータス格納配列:(LOCAL:1):1 = 基礎BATTLE_STATE:LOCAL:Lv
-	IF ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") || EXISTFUNCTION(@"固有奥義_{NO:LOCAL}")
-		表示用ステータス格納配列:(LOCAL:1):2 = 1
-	ELSE
-		表示用ステータス格納配列:(LOCAL:1):2 = 0
-	ENDIF
-	IF 装備ステータス補正保存:LOCAL:属性
-		;0を火属性にしちゃったので数値そのままだと属性変更してるかどうか判別がつかないため、装備による属性変更は属性番号+10で保存している
-		表示用ステータス格納配列:(LOCAL:1):9 = 装備ステータス補正保存:LOCAL:属性 - 10
-	ELSE
-		表示用ステータス格納配列:(LOCAL:1):9 = 基礎BATTLE_STATE:LOCAL:属性
-	ENDIF
+
+	SIF ソート法則 < 1 && ソート法則 > 3
+		ソート法則 = 1
+	昇順降順 = -1
+	FOR リスト表示位置, 1, 4
+		SELECTCASE メンバーリスト表示欄:リスト表示位置
+			CASE "属性"
+				IF 装備ステータス補正保存:LOCAL:属性
+					;0を火属性にしちゃったので数値そのままだと属性変更してるかどうか判別がつかないため、装備による属性変更は属性番号+10で保存している
+					表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 装備ステータス補正保存:LOCAL:属性 - 10
+				ELSE
+					表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:属性
+				ENDIF
+				SIF リスト表示位置 == ソート法則
+					昇順降順 = 1
+			CASE "Ｌｖ"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:Lv
+			CASE "固有"
+				IF ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") || EXISTFUNCTION(@"固有奥義_{NO:LOCAL}")
+					表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 1
+				ELSE
+					表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 0
+				ENDIF
+			CASE "ＨＰ"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:最大ＨＰ + 装備ステータス補正保存:LOCAL:最大ＨＰ
+			CASE "ＭＰ"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:最大ＭＰ + 装備ステータス補正保存:LOCAL:最大ＭＰ
+			CASE "攻撃"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:攻撃力 + 装備ステータス補正保存:LOCAL:攻撃力
+			CASE "防御"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:防御力 + 装備ステータス補正保存:LOCAL:防御力
+			CASE "回復"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:回復力 + 装備ステータス補正保存:LOCAL:回復力
+			CASE "速度"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:行動速度 + 装備ステータス補正保存:LOCAL:行動速度
+			CASE "DA率"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:DA率 + 装備ステータス補正保存:LOCAL:DA率
+			CASE "TA率"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:TA率 + 装備ステータス補正保存:LOCAL:TA率
+			CASE "命中"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:命中率 + 装備ステータス補正保存:LOCAL:命中率
+			CASE "回避"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:回避率 + 装備ステータス補正保存:LOCAL:回避率
+			CASE "火耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:火耐性 + 装備ステータス補正保存:LOCAL:火耐性
+			CASE "水耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:水耐性 + 装備ステータス補正保存:LOCAL:水耐性
+			CASE "風耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:風耐性 + 装備ステータス補正保存:LOCAL:風耐性
+			CASE "土耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:土耐性 + 装備ステータス補正保存:LOCAL:土耐性
+			CASE "光耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:光耐性 + 装備ステータス補正保存:LOCAL:光耐性
+			CASE "闇耐"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:闇耐性 + 装備ステータス補正保存:LOCAL:闇耐性
+			CASE "火強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:火強化 + 装備ステータス補正保存:LOCAL:火強化
+			CASE "水強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:水強化 + 装備ステータス補正保存:LOCAL:水強化
+			CASE "風強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:風強化 + 装備ステータス補正保存:LOCAL:風強化
+			CASE "土強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:土強化 + 装備ステータス補正保存:LOCAL:土強化
+			CASE "光強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:光強化 + 装備ステータス補正保存:LOCAL:光強化
+			CASE "闇強"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:闇強化 + 装備ステータス補正保存:LOCAL:闇強化
+			CASE "調合"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:調合知識
+			CASE "魔法"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:魔法知識
+			CASE "機械"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:機械知識
+			CASE "錬金"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:錬金知識
+			CASE "魔物"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:魔物知識
+			CASE "絵師"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:絵師
+			CASE "高貴"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:高貴
+			CASE "釣好"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:釣り好き
+			CASE "踊子"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:踊り子
+			CASE "歌唱"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:歌唱技能
+			CASE "料理"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:料理人
+			CASE "歴史"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:歴史知識
+			CASE "経営"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:経営知識
+			CASE "水泳"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:水泳技能
+			CASE "農業"
+				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 知識素質:LOCAL:農業知識
+		ENDSELECT
+	NEXT
+
 	;ソート用情報保存
-	SELECTCASE ソート法則
-		CASE "固有"
-			ソート基準配列:(LOCAL:1) = (表示用ステータス格納配列:(LOCAL:1):2 + 1) * -1
-		CASE "属性"
-			ソート基準配列:(LOCAL:1) = 表示用ステータス格納配列:(LOCAL:1):9 + 1
-		CASEELSE
-			ソート基準配列:(LOCAL:1) = 表示用ステータス格納配列:(LOCAL:1):1 * -1
-	ENDSELECT
+	ソート基準配列:(LOCAL:1) = (表示用ステータス格納配列:(LOCAL:1):ソート法則 + 1) * 昇順降順
 	LOCAL:1 += 1
 NEXT
 ARRAYMSORT ソート基準配列, 表示用ステータス格納配列
@@ -493,33 +584,46 @@ FOR LOCAL, ページ番号 * 28, ページ番号 * 28 + 28
 			LOCALS:1 = %NAME:(表示用ステータス格納配列:LOCAL:0)%
 		ENDIF
 	ENDIF
-	LOCALS += @"<button value='{LOCAL + 100}'>"
-	IF 入れ替え候補_リスト == 表示用ステータス格納配列:LOCAL:0
+	IF 表示用ステータス格納配列:LOCAL:9 == 1
+		LOCALS += @"<nonbutton>"
 		SIF STRLENS(LOCALS:1) > 42
 			LOCALS:1 = %SUBSTRING(LOCALS:1, 0, 42)%
-		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>　%LOCALS:1, 42, LEFT%</font>"
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>%LOCALS:1, 42, LEFT%</font>"
+		FOR リスト表示位置, 1, 4
+			CALL メンバー編成画面情報表示(LOCALS, LOCAL, リスト表示位置)
+		NEXT
+		LOCALS += "</nonbutton><br>"
 	ELSE
-		SIF STRLENS(LOCALS:1) > 44
-			LOCALS:1 = %SUBSTRING(LOCALS:1, 0, 44)%
-		LOCALS += @"%LOCALS:1, 44, LEFT%"
-	ENDIF
-	LOCALS += @"<font color='#%属性数値文字色変換_HTML(表示用ステータス格納配列:LOCAL:9)%'>"
-	LOCALS += @"%属性数値文字列変換(表示用ステータス格納配列:LOCAL:9), 4%</font>"
-	LOCALS += @"{表示用ステータス格納配列:LOCAL:1, 6}"
-	IF 表示用ステータス格納配列:LOCAL:2
-		LOCALS += "　あり</button><br>"
-	ELSE
-		LOCALS += @"　<font color='#%カラーパレット_HTML("グレーアウト")%'>なし</font></button><br>"
+		LOCALS += @"<button value='{LOCAL + 100}'>"
+		IF 入れ替え候補_リスト == 表示用ステータス格納配列:LOCAL:0
+			SIF STRLENS(LOCALS:1) > 40
+				LOCALS:1 = %SUBSTRING(LOCALS:1, 0, 40)%
+			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>　%LOCALS:1, 40, LEFT%</font>"
+		ELSE
+			SIF STRLENS(LOCALS:1) > 42
+				LOCALS:1 = %SUBSTRING(LOCALS:1, 0, 42)%
+			IF 表示用ステータス格納配列:LOCAL:9 == 2
+				LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS:1, 42, LEFT%</font>"
+			ELSE
+				LOCALS += @"%LOCALS:1, 42, LEFT%"
+			ENDIF
+		ENDIF
+		FOR リスト表示位置, 1, 4
+			CALL メンバー編成画面情報表示(LOCALS, LOCAL, リスト表示位置)
+		NEXT
+		LOCALS += "</button><br>"
 	ENDIF
 NEXT
 
 LOCALS += "</div>"
 
+LOCALS += @"<div rect='4700,{y軸位置 + 3262},2000,300'>"
 IF 入れ替え候補_メンバー > -1 && BATTLE_STATE:入れ替え候補_メンバー:0 > 0
-	LOCALS += @"<div rect='4700,{y軸位置 + 3262},2000,300'>"
 	LOCALS += "<button value='9010'>[9010] パーティから外す</button>"
-	LOCALS += "</div>"
 ENDIF
+LOCALS += "<br>"
+LOCALS += "<button value='9002'>[9002]表示情報変更</button>　"
+LOCALS += "</div>"
 
 LOCALS += @"<div rect='262,{y軸位置 + 3562},5537,300'>"
 IF ページ番号 > 0
@@ -555,6 +659,10 @@ SELECTCASE LOCAL
 		ページ番号 -= 1
 	CASE 9001
 		ページ番号 += 1
+	CASE 9002
+		CALL メンバー編成画面情報変更()
+		ソート法則 = 1
+		入れ替え候補_リスト = -1
 	CASE 9010
 		;隊列を詰める
 		FOR 番号管理, 入れ替え候補_メンバー, メインサブ * 10 + 4
@@ -585,18 +693,19 @@ SELECTCASE LOCAL
 			ENDIF
 		ENDIF
 	CASE 50
-		ソート法則 = 属性
+		ソート法則 = 1
 		入れ替え候補_リスト = -1
 	CASE 51
-		ソート法則 = 
+		ソート法則 = 2
 		入れ替え候補_リスト = -1
 	CASE 52
-		ソート法則 = 固有
+		ソート法則 = 3
 		入れ替え候補_リスト = -1
 	CASE 9999
 		入れ替え候補_メンバー = -1
 		入れ替え候補_リスト = -1
 		ページ番号 = 0
+		VARSET 表示用ステータス格納配列:0:0
 		RETURN -1
 	CASE IS >= 100
 		IF 入れ替え候補_メンバー > -1
@@ -619,6 +728,122 @@ SELECTCASE LOCAL
 			ELSE
 				入れ替え候補_リスト = 表示用ステータス格納配列:(LOCAL - 100):0
 			ENDIF
+		ENDIF
+ENDSELECT
+
+@メンバー編成画面情報変更()
+#DIM 選択位置記録, 2
+{
+#DIMS CONST 表示キー = "属性", "Ｌｖ", "固有", "ＨＰ", "ＭＰ", "攻撃", "防御", "回復", "速度", "DA率",
+					"TA率", "命中", "回避", "火耐", "水耐", "風耐", "土耐", "光耐", "闇耐", "火強",
+					"水強", "風強", "土強", "光強", "闇強", "調合", "魔法", "機械", "錬金", "魔物",
+					"絵師", "高貴", "釣好", "踊子", "歌唱", "料理", "歴史", "経営", "水泳", "農業"
+}
+{
+#DIMS CONST 表示名 = "属性", "Ｌｖ", "固有スキル・奥義", "最大ＨＰ", "最大ＭＰ", "攻撃力", "防御力", "回復力", "行動速度", "DA率",
+				"TA率", "命中率", "回避率", "火耐性", "水耐性", "風耐性", "土耐性", "光耐性", "闇耐性", "火強化",
+				"水強化", "風強化", "土強化", "光強化", "闇強化", "調合知識", "魔法知識", "機械知識", "錬金知識", "魔物知識",
+				"絵師", "高貴", "釣り好き", "踊り子", "歌唱技能", "料理人", "歴史知識", "経営知識", "水泳技能", "農業知識"
+}
+
+VARSET 選択位置記録, -1
+
+$ループ位置
+
+PRINTL
+PRINTL
+PRINTL
+DRAWLINE
+PRINTL メンバー入れ替え画面で表示する情報を切り替えます。
+DRAWLINE
+LOCALS = 
+SIF 選択位置記録:1 > -1
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>・入れ替える枠を選択してください。</font><br>"
+IF 選択位置記録:0 == 1
+	LOCALS += @"１：<font color='#%カラーパレット_HTML("黄")%'><button value='1'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:1)), 20, LEFT%</button></font><br>"
+ELSE
+	LOCALS += @"１：<button value='1'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:1)), 20, LEFT%</button><br>"
+ENDIF
+IF 選択位置記録:0 == 2
+	LOCALS += @"２：<font color='#%カラーパレット_HTML("黄")%'><button value='2'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:2)), 20, LEFT%</button></font><br>"
+ELSE
+	LOCALS += @"２：<button value='2'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:2)), 20, LEFT%</button><br>"
+ENDIF
+IF 選択位置記録:0 == 3
+	LOCALS += @"３：<font color='#%カラーパレット_HTML("黄")%'><button value='3'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:3)), 20, LEFT%</button></font><br>"
+ELSE
+	LOCALS += @"３：<button value='3'>%表示名:(FINDELEMENT(表示キー, メンバーリスト表示欄:3)), 20, LEFT%</button><br>"
+ENDIF
+HTML_PRINT LOCALS
+DRAWLINE
+LOCALS = <div rect='0,0,6000,2000'>
+SIF 選択位置記録:0 > -1
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>・入れ替える情報を選択してください。</font><br>"
+FOR LOCAL, 0, VARSIZE("表示名")
+	IF MATCH(メンバーリスト表示欄, 表示キー:LOCAL)
+		LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'><button value='{LOCAL + 10}'>[{LOCAL + 10}] %表示名:LOCAL, 20, LEFT%</button></font>"
+	ELSEIF 選択位置記録:1 == LOCAL
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL + 10}'>[{LOCAL + 10}] %表示名:LOCAL, 20, LEFT%</button></font>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL + 10}'>[{LOCAL + 10}] %表示名:LOCAL, 20, LEFT%</button>"
+	ENDIF
+	SIF LOCAL == 12 || LOCAL == 24
+		LOCALS += "<br><br>"
+NEXT
+LOCALS += "<br></div>"
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 14
+	PRINTL
+NEXT
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+PRINTL
+PRINTL
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE IS < 4
+		IF 選択位置記録:1 < 0
+			選択位置記録:0 = LOCAL
+		ELSE
+			メンバーリスト表示欄:LOCAL = %表示キー:(選択位置記録:1)%
+			VARSET 選択位置記録, -1
+		ENDIF
+		GOTO ループ位置
+	CASEELSE
+		IF 選択位置記録:0 < 0
+			選択位置記録:1 = LOCAL - 10
+			GOTO ループ位置
+		ELSE
+			メンバーリスト表示欄:(選択位置記録:0) = %表示キー:(LOCAL - 10)%
+			VARSET 選択位置記録, -1
+		ENDIF
+		GOTO ループ位置
+ENDSELECT
+
+@メンバー編成画面情報表示(HTML文字列, 対象配列, リスト表示位置)
+#DIMS REF HTML文字列
+#DIM 対象配列
+#DIM リスト表示位置
+
+SELECTCASE メンバーリスト表示欄:リスト表示位置
+	CASE "属性"
+		HTML文字列 += @"<font color='#%属性数値文字色変換_HTML(表示用ステータス格納配列:対象配列:リスト表示位置)%'>"
+		HTML文字列 += @"%属性数値文字列変換(表示用ステータス格納配列:対象配列:リスト表示位置), 6%</font>"
+	CASE "固有"
+		IF 表示用ステータス格納配列:対象配列:リスト表示位置
+			HTML文字列 += "　あり"
+		ELSE
+			HTML文字列 += @"　<font color='#%カラーパレット_HTML("グレーアウト")%'>なし</font>"
+		ENDIF
+	CASEELSE
+		IF メンバーリスト表示欄:リスト表示位置 == ""
+			HTML文字列 += "　　　"
+		ELSE
+			HTML文字列 += @"{表示用ステータス格納配列:対象配列:リスト表示位置, 6}"
 		ENDIF
 ENDSELECT
 

@@ -55,6 +55,7 @@ ELSE
 ENDIF
 
 ;リセット前に次ターン自動行動をするか判定、指示モードだと発動しない
+AUTOCOM_相手番号保存 = 0
 IF FLAG:モード管理 != 1
 	FLAG:オートコマンド判定中フラグ = 1
 	CALL BEFORE_AUTOCOM
@@ -155,6 +156,11 @@ FOR LOCAL, 0, CHARANUM
 		;回復早い、回復遅い
 		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
 	ENDIF
+	;自動回復
+	IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0 && BASE:LOCAL:体力 > 0 && !(TCVAR:LOCAL:食いしばりフラグ)
+		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+	ENDIF
+
 NEXT
 
 IF CFLAG:MASTER:酔いすぎ == 1
@@ -179,8 +185,11 @@ IF CFLAG:MASTER:酔いすぎ == 1
 ENDIF
 IF TARGET && RCVAR:不機嫌
 	PRINTFORMW %CALLNAME:TARGET%を怒らせてしまった…
-	SIF AUTOCOM_相手番号保存 == TARGET
+	IF AUTOCOM_相手番号保存 == TARGET
 		TFLAG:オートコマンドフラグ = 0
+		AUTOCOM_相手番号保存 = 0
+		自慰ターゲット保存 = 0
+	ENDIF
 	CALL うふふ終了処理
 	CALL 飲み会終了処理
 ENDIF
@@ -217,11 +226,14 @@ FOR LOCAL, 1, CHARANUM
 		;CFLAG:(TARGET:LOCAL):飲み会 = 0
 		;TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
 		;CALL 性欲ゲージ減少処理(TARGET:LOCAL)
-		SIF AUTOCOM_相手番号保存 == TARGET:LOCAL
+		IF AUTOCOM_相手番号保存 == TARGET:LOCAL
 			TFLAG:オートコマンドフラグ = 0
+			AUTOCOM_相手番号保存 = 0
+			自慰ターゲット保存 = 0
+		ENDIF
 		;オナホ時は自室に運ぶために現在地更新
-		IF CFLAG:(TARGET:LOCAL):同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET:LOCAL) > -1
-			CFLAG:(TARGET:LOCAL):現在位置 = CFLAG:MASTER:現在位置
+		IF CFLAG:(TARGET:LOCAL):同行 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET:LOCAL) > -1 || MODE_確認_完全一致("全裸散歩", PLAYER, TARGET:LOCAL) > -1
+			CFLAG:(TARGET:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
 			CFLAG:(TARGET:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
 		ENDIF
 		;モードもリセット
@@ -280,8 +292,11 @@ FOR LOCAL, 1, CHARANUM
 		CALL 性欲ゲージ減少処理(飲み会TARGET:LOCAL)
 		CFLAG:(飲み会TARGET:LOCAL):飲み会 = 0
 		TCVAR:(飲み会TARGET:LOCAL):初うふふフラグ = 0
-		SIF AUTOCOM_相手番号保存 == 飲み会TARGET:LOCAL
+		IF AUTOCOM_相手番号保存 == 飲み会TARGET:LOCAL
 			TFLAG:オートコマンドフラグ = 0
+			AUTOCOM_相手番号保存 = 0
+			自慰ターゲット保存 = 0
+		ENDIF
 		;モードもリセット
 		CALL 特定キャラモードリセット(飲み会TARGET:LOCAL)
 		FLAG:モード管理 = 0
@@ -318,8 +333,11 @@ FOR LOCAL, 1, CHARANUM
 		CFLAG:LOCAL:うふふ開始時間記録 = 0
 		;経験取得表示スキップ用
 		TCVAR:LOCAL:436 = EXP:LOCAL:ダウン経験
-		SIF AUTOCOM_相手番号保存 == LOCAL
+		IF AUTOCOM_相手番号保存 == LOCAL
 			TFLAG:オートコマンドフラグ = 0
+			AUTOCOM_相手番号保存 = 0
+			自慰ターゲット保存 = 0
+		ENDIF
 		;モードもリセット
 		CALL 特定キャラモードリセット(LOCAL)
 	ENDIF
@@ -353,8 +371,8 @@ FOR LOCAL,0,CHARANUM
 					LOCALS = 誰とも知らない相手のペニス
 				ELSE
 					LOCALS = %CALLNAME:(RCVAR:LOCAL:破瓜_相手番号)%のペニス
+					LOCALS:1 = ペニス
 				ENDIF
-				LOCALS:1 = ペニス
 			CASE 2
 				LOCALS = バイブ
 				LOCALS:1 = バイブ
@@ -365,6 +383,9 @@ FOR LOCAL,0,CHARANUM
 					LOCALS = %CALLNAME:(RCVAR:LOCAL:破瓜_相手番号)%の触手
 				ENDIF
 				LOCALS:1 = 触手
+			CASE 5
+				LOCALS = %CALLNAME:(RCVAR:LOCAL:破瓜_相手番号)%のペニスバンド
+				LOCALS:1 = ペニスバンド
 		ENDSELECT
 		IF RCVAR:LOCAL:破瓜_相手番号 > -1
 			CALL 履歴データベース登録(CFLAG:(RCVAR:LOCAL:破瓜_相手番号):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS:1%で%CALLNAME:LOCAL%のＶ処女を奪った</font><img src='えっちハート'>","うふふ実績")
@@ -485,8 +506,9 @@ FOR LOCAL,0,CHARANUM
 			ENDIF
 		ENDIF
 		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
+		;発情期に母乳体質化するオプションがあるキャラも処理する
 		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-			IF (TALENT:LOCAL:種族 == 3 || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || 男ドラフ母乳OPTION記憶)
+			IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 2) ||キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || 男ドラフ母乳OPTION記憶)
 				IF CFLAG:LOCAL:発情期フラグ < 0
 					SIF TALENT:LOCAL:母乳体質 == 0
 						TALENT:LOCAL:母乳体質 = 2
@@ -494,6 +516,16 @@ FOR LOCAL,0,CHARANUM
 					SIF TALENT:LOCAL:母乳体質 == 2
 						TALENT:LOCAL:母乳体質 = 0
 				ENDIF
+			ENDIF
+		ENDIF
+		;発情期にふたなり化するキャラを処理
+		IF GETBIT(TALENT:LOCAL:発情期あり, 3)
+			IF CFLAG:LOCAL:発情期フラグ < 0
+				SIF !GETBIT(TALENT:LOCAL:性別, 1)
+					SETBIT TALENT:LOCAL:性別, 1
+			ELSE
+				SIF GETBIT(TALENT:LOCAL:性別, 1)
+					CLEARBIT TALENT:LOCAL:性別, 1
 			ENDIF
 		ENDIF
 	ELSE
@@ -612,6 +644,39 @@ IF RFLAG:オートコマンド脱衣用フラグ == 0 && SAVESTR:ゲームフェ
 	ENDSELECT
 ENDIF
 
+;全裸散歩フラグ
+IF RFLAG:全裸散歩フラグ
+	FLAG:モード管理 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		IF MODE_確認_ターゲット側("全裸散歩", TARGET:LOCAL) < 0
+			CFLAG:(TARGET:LOCAL):うふふ = 0
+			CFLAG:(TARGET:LOCAL):うふふ開始時間記録 = 0
+			CALL 性欲ゲージ減少処理(TARGET:LOCAL)
+			TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
+			;モードもリセット
+			CALL 特定キャラモードリセット(TARGET:LOCAL)
+			IF CSTR:(TARGET:LOCAL):コスプレ前の服 != ""
+				CALL CLOTHES_RESET(TARGET:LOCAL)
+				CSTR:(TARGET:LOCAL):コスプレ前の服 '= ""
+			ENDIF
+			;体力限界時処理
+			IF CFLAG:(TARGET:LOCAL):体力限界
+				CALL CHARA_SLEEP, TARGET:LOCAL
+				CFLAG:(TARGET:LOCAL):飲み会 = 0
+			ENDIF
+			;散歩してない分身を消す
+			CALL 分身指定削除(TARGET:LOCAL)
+		ENDIF
+	NEXT
+	;オートコマンドもリセット
+	TFLAG:オートコマンドフラグ = 0
+	AUTOCOM_相手番号保存 = 0
+	自慰ターゲット保存 = 0
+	CALL SORT_CFLAG(21)
+	CALL TARGET_SET()
+ENDIF
 
 
 ;フラグのリセット
@@ -712,10 +777,31 @@ FOR LOCAL,0,200
 				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"魚を５００匹釣り上げた","リゾート")
 			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 999 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 999
 				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"魚を９９９匹釣り上げた","リゾート")
+		CASE GETNUM(EXP, "妊娠")
+			EXP一時保存 = 0
+			SIF EXP:対象キャラ:(LOCAL) > EXP一時保存 && TCVAR:対象キャラ:(400 + LOCAL) == EXP一時保存
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"初めて妊娠した","うふふ")
+			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 10 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 10
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"１０回妊娠した","うふふ")
+			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 50 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 50
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"５０回妊娠した","うふふ")
+			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 100 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 100
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"１００回妊娠した","うふふ")
+			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 500 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 500
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"５００回妊娠した","うふふ")
+			SIF EXP:対象キャラ:(LOCAL) >= EXP一時保存 + 999 && TCVAR:対象キャラ:(400 + LOCAL) < EXP一時保存 + 999
+				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"９９９回妊娠した","うふふ")
 	ENDSELECT
 	TCVAR:対象キャラ:(400 + LOCAL) = EXP:対象キャラ:(LOCAL)
 NEXT
 
-
-
+;自動回復の回復量を返す
+;最大値からあふれる場合はそのぶん減らす
+@REGENE_CALC(ARG)
+#FUNCTION
+#DIM 回復量
+回復量 = MAXBASE:ARG:体力 * (5 + TALENT:ARG:回復速度 * 2) / 100
+SIF 回復量 + BASE:ARG:体力 > MAXBASE:ARG:体力
+	回復量 = MAXBASE:ARG:体力 - BASE:ARG:体力
+RETURNF 回復量
 

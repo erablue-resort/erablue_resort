@@ -20,10 +20,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 ;告白する
 @COM352
-IF 告白成功判定(TARGET)
+IF 告白成功判定(TARGET) > 0
 	RFLAG:コマンド結果受渡し変数 = 1
 ELSE
-	RFLAG:コマンド結果受渡し変数 = 0
+	RFLAG:コマンド結果受渡し変数 = 告白成功判定(TARGET)
 	RETURN 1
 ENDIF
 
@@ -88,7 +88,7 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM352
-IF RFLAG:コマンド結果受渡し変数
+IF RFLAG:コマンド結果受渡し変数 > 0
 	PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%に恋情を伝えた…
 	PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%の想いを受け入れてくれた…
 	PRINTFORML %CALLNAME:TARGET%は［恋慕］を得ました。
@@ -105,9 +105,12 @@ IF RFLAG:コマンド結果受渡し変数
 		RESETCOLOR
 		PRINT を失った……
 	ENDIF
-ELSE
+ELSEIF RFLAG:コマンド結果受渡し変数 == 0
 	PRINTFORML まだ%CALLNAME:TARGET%に告白しても受け入れてはもらえないだろう…
 	PRINTL もう少し仲を深めてからにしよう。
+ELSE
+	PRINTFORML %CALLNAME:TARGET%には既に恋人がいる。
+	PRINTL 関係を乱すのはやめておこう。
 ENDIF
 
 
@@ -123,5 +126,12 @@ SIF CFLAG:対象キャラ:恋慕レベル <= 50
 	RETURNF 0
 SIF GETBIT(TALENT:対象キャラ:陥落不可, 0)
 	RETURNF 0
+SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And 関係性種別 = '恋慕'")
+	RETURNF -1
+
+TRYCALLFORMF 告白成功判定_キャラ個別条件_{NO:対象キャラ}(対象キャラ)
+SIF RESULT > 0
+	RETURNF 0
 
 RETURNF 1
+

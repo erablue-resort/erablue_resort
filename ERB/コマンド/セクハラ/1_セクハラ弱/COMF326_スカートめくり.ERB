@@ -9,6 +9,7 @@ TSTR:コマンド名受渡 = スカートめくり
 @COMTYPE_326
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ弱")
+睡眠中許可 = 1
 
 @COM_TOOLTIP_326
 LOCALS = <br>■スカートめくり<br>
@@ -19,6 +20,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM326
+
+TIME += 3
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
 
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
@@ -55,7 +60,6 @@ ELSE
 	ENDIF
 ENDIF	
 
-TIME += 3
 RETURN 1
 
 
@@ -69,9 +73,6 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 ;一括管理
 SIF GLOBAL_COMABLE(326)
 	RETURN RESULT
-;睡眠中
-SIF CFLAG:睡眠
-	RETURN 0
 ;スカート着用必須
 SIF TEQUIP:TARGET:下半身服あり == 0
 	RETURN 0
@@ -84,13 +85,26 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM326
 
-PRINTFORML %CALLNAME:MASTER%は%CALLNAME:TARGET%にこっそりと近づき、服の裾をまくり上げた。
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:MASTER%は眠っている%CALLNAME:TARGET%の服の裾をゆっくりとまくり上げた。
+ELSE
+	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:TARGET%にこっそりと近づき、服の裾をまくり上げた。
+ENDIF
 
-
+IF TEQUIP:TARGET:下半身下着あり == 0
+	LOCALS = 何も履いていない下半身
+ELSE
+	LOCALS = %今日の下着文字列生成(TARGET)%
+ENDIF
+PRINTFORML 服の奥に%LOCALS%が見える……
 
 @MESSAGE_COM326_非口上時
 
 PRINTFORM %CALLNAME:TARGET%は
+IF CFLAG:TARGET:睡眠
+	PRINTFORML すやすやと眠っている……
+	RETURN 0
+ENDIF
 
 SELECTCASE RFLAG:コマンド結果受渡し変数２
 	CASE 1

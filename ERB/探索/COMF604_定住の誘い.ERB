@@ -22,9 +22,17 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM604
+
+;定住エリアが一杯
+IF 定住エリア満杯()
+	PRINTW 居住区は現在満杯のようだ……
+	RETURN -1
+ENDIF
+
 DRAWLINE
 PRINTFORML %CALLNAME:TARGET%を居住区エリアへの定住に誘いますか？
-
+PRINTFORML 残り部屋数：{RFLAG:定住枠残りカウント, 3}部屋
+DRAWLINE
 
 
 PRINTBUTTON "[0]はい", 0
@@ -43,7 +51,7 @@ SELECTCASE RESULT
 			RFLAG:コマンド結果受渡し変数 = 1
 			TALENT:TARGET:定住者 = 1
 			CFLAG:TARGET:滞在期間 = 999
-			FOR LOCAL:1, 0, 50
+			FOR LOCAL:1, 0, 住宅街広さ()
 				IF 定住者部屋割り配列:(LOCAL:1) == ""
 					定住者部屋割り配列:(LOCAL:1) = {TARGET}_
 					BREAK
@@ -89,9 +97,6 @@ SIF TALENT:TARGET:定住者
 ;成功するのは80以上だが、話題に出すのに好感度レベル50以上
 SIF CFLAG:TARGET:好感度レベル < 関係閾値:3
 	RETURN 0
-;定住エリアが一杯
-SIF 定住エリア満杯()
-	RETURN 0
 RETURN 1
 
 ;-------------------------------------------------
@@ -114,9 +119,13 @@ ENDIF
 @定住エリア満杯()
 #FUNCTION
 
-FOR LOCAL, 0, 50
+RFLAG:定住枠残りカウント = 0
+FOR LOCAL, 0, 住宅街広さ()
 	SIF 定住者部屋割り配列:LOCAL == ""
-		RETURNF 0
+		RFLAG:定住枠残りカウント ++
 NEXT
+
+SIF RFLAG:定住枠残りカウント > 0
+	RETURNF 0
 
 RETURNF 1

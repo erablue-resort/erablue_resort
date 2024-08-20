@@ -26,11 +26,6 @@ LOCAL:1 = 0
 
 ダンジョン表示モード = 
 
-;旧セーブとの互換処理（キャラの作成前に必要）
-;0.038になる頃には不要なはず
-CALL 人物データベースセット
-CALL 履歴データベース作成
-
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
@@ -83,24 +78,22 @@ FOR LOCAL, 0, CHARANUM
 		ENDIF
 	ENDIF
 
-	;画像フォルダが空っぽならセット
-	SIF CSTR:LOCAL:画像フォルダ == ""
-		CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
-	;選択先の画像フォルダが有効かどうかをチェック
-	LOCALS '= "resources\\" + CSTR:LOCAL:画像フォルダ
-	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 0)
-	IF F_NUM < 1
-		;有効でない場合、有効なフォルダを探して来て入れ込む
-		LOCALS '= "resources\\" + TOSTR(NO:LOCAL) + CALLNAME:LOCAL
-		F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
-		IF F_NUM > 0
-			CSTR:LOCAL:画像フォルダ '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
-		ELSE
-			;有効なフォルダが一個も無いならCSTRをデフォ値にしておく
-			CSTR:LOCAL:画像フォルダ = {NO:LOCAL}%CALLNAME:LOCAL%
-		ENDIF
-	ENDIF
+	;固有素質変更対応
+	;今後固有素質変更イベが来た場合消すこと
+	CSTR:LOCAL:固有素質0 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質0"))%
+	CSTR:LOCAL:固有素質1 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質1"))%
+	CSTR:LOCAL:固有素質2 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質2"))%
+	CSTR:LOCAL:固有素質3 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質3"))%
+	CSTR:LOCAL:固有素質4 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質4"))%
+	CSTR:LOCAL:固有素質5 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質5"))%
+	CSTR:LOCAL:固有素質6 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質6"))%
+	CSTR:LOCAL:固有素質7 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質7"))%
+	CSTR:LOCAL:固有素質8 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質8"))%
+	CSTR:LOCAL:固有素質9 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質9"))%
+
+	MAXBASE:LOCAL:警戒 = 1001
 NEXT
+
 SIF !RELATION_VAL:0:0
 	RELATION_VAL:0:0 = 1
 CALL 戦闘用データベースセット
@@ -127,112 +120,56 @@ ENDIF
 
 ;追加TALENT、追加CSTRのチェック
 FOR LOCAL, 1, CHARANUM
-
-	;異常経験を殺す
-	EXP:LOCAL:53 = 0
-
-	;居住区がないのに定住したパターンのフォロー
-	IF MATCH(開拓エリア開発番号, 2) < 1 && TALENT:LOCAL:定住者 == 1
-		TALENT:LOCAL:定住者 = 0
-		CFLAG:LOCAL:滞在期間 = -1
-		CFLAG:LOCAL:長期雇用 = 0
-		CFLAG:LOCAL:現在位置 = 999
-		CFLAG:LOCAL:現在マップ種別 = 0
-		IF TALENT:LOCAL:従業員
-			SIF 従業員部屋数 < 40
-				従業員部屋数 += 1
-			CFLAG:LOCAL:滞在期間 = 999
-			LOCAL:1 = 0
-			FOR LOCAL:2, 0, 従業員部屋数
-				IF 従業員部屋割り配列:(LOCAL:2) < 1
-					従業員部屋割り配列:(LOCAL:2) = LOCAL
-					LOCAL:1 ++
-					BREAK
-				ENDIF
-			NEXT
-			IF LOCAL:1 == 0
-				;従業員部屋一杯なら従業員も消す
-				TALENT:LOCAL:従業員 = 0
-				CFLAG:LOCAL:滞在期間 = -1
-			ELSE
-				CFLAG:LOCAL:現在位置 = キャラクター部屋検索(LOCAL)
-				CFLAG:LOCAL:現在マップ種別 = 部屋検索_マップ種別
-			ENDIF
-			CALL 従業員人数チェック()
-		ENDIF
-	ENDIF
-	
-	BASE:LOCAL:警戒 = 0
-	MAXBASE:LOCAL:警戒 = 1001
-	
-	IF 命のリンクフォロー == 0
-		PRINTW ジータ・ルリア・グランについての命のリンク初期設定を開きます。
-		CALL OPTION_命のリンク初期切り替え
-	ENDIF
-
-	;ここまで0.040で消す
-	;ここまで0.041で消す
+	;ここまで0.042で消す
+	;ここまで0.043で消す
 NEXT
-IF MATCH(開拓エリア開発番号, 2) < 1
-	VARSET 定住者部屋割り配列
+
+IF ZPキャラ無料フォロー == 0
+	ZPキャラ無料回数 = 3
+	ZPキャラ無料フォロー = 1
 ENDIF
 
-IF 従業員部屋数 > 0
-	従業員フォロー = 1
-ENDIF
-IF 従業員フォロー == 0
-	従業員部屋数 = 従業員キャラ上限
-	従業員フォロー = 1
-ENDIF
-
-CALL 制服登録処理("リゾート従業員制服")
-CALL 制服登録処理("バニー服")
-CALL 制服登録処理("メイド服")
-CALL 制服登録処理("チャイナドレス")
-CALL 制服登録処理("ミニチャイナ")
-
-CALL エロ衣装登録処理("逆バニー")
-CALL エロ衣装登録処理("マイクロビキニ")
-CALL エロ衣装登録処理("セクシーランジェリー")
-
-IF ジョブ証フォロー == 0
-	CALL ジョブ証データベースセット
-	FOR LOCAL, 1, DT_ROW_LENGTH("所持衣装データベース")
-		DT_ROW_ADD "所持ジョブ証データベース", "ジョブ証名", REPLACE(DT_CELL_GETS("所持衣装データベース", LOCAL, "衣装名"), "服", "証"), "ジョブ証種別", "通常ジョブ"
-		FOR LOCAL:1, 1, CHARANUM
-			IF 装備ステータス補正保存:(LOCAL:1):装備証番号 == DT_CELL_GET("所持衣装データベース", LOCAL, "id")
-				装備ステータス補正保存:(LOCAL:1):装備証番号 = DT_CELL_GET("所持ジョブ証データベース", LOCAL, "id")
-			ENDIF
-		NEXT
+IF 乗機追加フォロー == 0
+	LOCAL:1 = 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持兵器データベース")
+		IF DT_CELL_GETS("所持兵器データベース", LOCAL, "兵器名") == "10mmバルカン砲" && DT_CELL_GET("所持兵器データベース", LOCAL, "設計状態フラグ")
+			LOCAL:1 = 1
+			BREAK
+		ENDIF
 	NEXT
-	ジョブ証フォロー = 1
+
+	IF 港改造度:11:0 > 0
+		CALL 乗機取得処理_設計図("サイドカー付ケッタギア")
+		CALL 乗機取得処理_設計図("バトルトラクター")
+		CALL 汎用搭載兵器取得処理_設計図("ダウジングパーツ")
+		CALL 汎用搭載兵器取得処理_設計図("近接用スピア")
+		CALL 汎用搭載兵器取得処理_設計図("近接用ヒートアクス")
+		CALL 汎用搭載兵器取得処理_設計図("9mm機関銃")
+		CALL 汎用搭載兵器取得処理_設計図("20mm擲弾砲")
+	ENDIF
+	IF LOCAL:1 == 1
+		CALL 汎用搭載兵器取得処理_設計図("19mm狙撃砲")
+		CALL 汎用搭載兵器取得処理_設計図("30mm榴弾砲")
+		CALL 汎用搭載兵器取得処理_設計図("38mmカノン砲")
+		CALL 汎用搭載兵器取得処理_設計図("25mmキャニスター砲")
+	ENDIF
+
+	乗機追加フォロー = 1
 ENDIF
 
-TALENT:(FINDCHARA(NO, 101)):死者 = 1
 
-
-SIF 居住区初来訪イベントフラグ
-	CALL 制服登録処理("スモック")
-
-IF TALENT:FINDCHARA(NO, 180):種族 == 種族_エルーン
-	TALENT:FINDCHARA(NO, 180):尻尾あり = 1
+IF メンバーリスト表示フォロー == 0
+	メンバーリスト表示欄:1 = 属性
+	メンバーリスト表示欄:2 = Ｌｖ
+	メンバーリスト表示欄:3 = 固有
+	メンバーリスト表示フォロー = 1
 ENDIF
 
-BASE:MASTER:警戒 = 0
-MAXBASE:MASTER:警戒 = 1001
+;ここまで0.042にしたとき消す、互換を40に
 
-;ここまで0.040にしたとき消す、互換を38に
 
-IF 写真データベースフォロー == 0
-	DT_COLUMN_ADD "写真データベース", "撮影対象画像リソース"
-	DT_COLUMN_ADD "写真データベース", "撮影時追加文字列１"
-	DT_COLUMN_ADD "写真データベース", "撮影時追加文字列２"
-	DT_COLUMN_ADD "写真データベース", "撮影時追加文字列３"
-	DT_COLUMN_ADD "写真データベース", "写真添付口上"
-	DT_COLUMN_ADD "写真データベース", "写真添付メモ"
-	写真データベースフォロー = 1
-ENDIF
-;ここまで0.041にしたとき消す、互換を39に
+
+;ここまで0.043にしたとき消す、互換を41に
 
 ;------------------------------------------------------------------------------------------
 ;ここまで互換のための処理
@@ -266,6 +203,10 @@ FOR LOCAL, 1, CHARANUM
 
 	;画像フォルダが有効かチェック
 	CALL 画像フォルダ有効チェック(LOCAL)
+
+	;定住者が帰ってないかチェック
+	SIF TALENT:LOCAL:定住者 && CFLAG:LOCAL:滞在期間 != 999
+		CFLAG:LOCAL:滞在期間 = 999
 
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -306,6 +247,18 @@ FOR LOCAL:1, 0, 従業員部屋数
 	ENDIF
 	IF 滞在者部屋割り配列:(LOCAL:1) >= CHARANUM
 		滞在者部屋割り配列:(LOCAL:1) = 0
+	ENDIF
+NEXT
+
+;ちゃんとPTメンバー全員いるかチェック
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	IF CFLAG:(BATTLE_STATE:LOCAL:0):滞在期間 < 0
+		BATTLE_STATE:LOCAL:0 = BATTLE_STATE:(LOCAL + 1):0
+		BATTLE_STATE:(LOCAL + 1):0 = BATTLE_STATE:(LOCAL + 2):0
+		BATTLE_STATE:(LOCAL + 2):0 = BATTLE_STATE:(LOCAL + 3):0
+		BATTLE_STATE:(LOCAL + 3):0 = BATTLE_STATE:(LOCAL + 4):0
 	ENDIF
 NEXT
 

@@ -13,6 +13,7 @@ DO
 CALL リゾートランク上昇チェック()
 CALL イベント発生条件チェック()
 CALL 従業員人数チェック()
+CALL ユニーク客人数チェック()
 
 DRAWLINE
 LOCALS = %月算出()%
@@ -108,6 +109,11 @@ ELSE
 ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='124'>[124] - 干渉力強化</button>　　　　　　　　　　　"
+IF チュートリアルフラグ:縁結び == 0
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='125'>[125] - 縁結び</button></font>　<font color='#%カラーパレット_HTML("真っ赤")%'>NEW!</font>　　　　　　"
+ELSE
+	LOCALS += "<button value='125'>[125] - 縁結び</button>　　　　　　　　　　　　　"
+ENDIF
 LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[ショップ類]-------------------------------------------------------------------------------------------</font><br>"
 LOCALS += "<button value='114'>[114] - 通信販売</button>　　　　　　　　　　　　"
@@ -152,6 +158,12 @@ FOR LOCAL, 3, 9
 		コマンド表示数 = 0
 	ENDIF
 NEXT
+IF 港改造度:11:0
+	SIF コマンド表示数
+		LOCALS += "<br>"
+	LOCALS += @"<button value='150'>[150] - 乗機作成</button>　　　　　　　　　　　　"
+	LOCALS += @"<button value='151'>[151] - 搭載兵器作成</button>　　　　　　　　　　"
+ENDIF
 LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[アイテム類]-------------------------------------------------------------------------------------------</font><br>"
 LOCALS += "<button value='135'>[135] - 写真一覧</button>　　　　　　　　　　　　"
@@ -221,6 +233,8 @@ SELECTCASE RESULT
 			CALL 性癖開拓処理
 	CASE 124
 		CALL 干渉強化メニュー
+	CASE 125
+		CALL 縁結びメニュー
 	CASE 135
 		CALL 所持写真一覧表示
 	CASE 143 TO 148
@@ -231,6 +245,10 @@ SELECTCASE RESULT
 		ELSEIF 空艇港店舗状況:(RESULT - 140):0 == 4
 			CALL 空艇港店舗用コマンド_COM_4
 		ENDIF
+	CASE 150
+		CALL 所持乗機リスト表示_作成時
+	CASE 151
+		CALL 所持兵器リスト表示_作成時
 	CASE 200
 		CALL OPTION
 	CASE 201
@@ -246,8 +264,7 @@ SELECTCASE RESULT
 				BEGIN FIRST
 		ENDIF
 	CASE 9999
-		;デバッグ用
-		CALL 通信販売_BUY
+		RESETBGCOLOR
 ENDSELECT
 
 LOOP 1
@@ -255,20 +272,42 @@ LOOP 1
 @USERSHOP
 
 @起床時処理
+IF モブ観光客数 > 0
+	DRAWLINE
+	PRINTFORMW 今日のモブ観光客数は{モブ観光客数, 4}人です。
+	DRAWLINE
+ENDIF
+
+LOCALS = 
+LOCAL:1 = 0
+VARSET 教師レベル保存
 FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+	IF TALENT:LOCAL:従業員
+		IF 従業員休暇判定(LOCAL)
+			TCVAR:LOCAL:休暇中 = 1
+			LOCALS += @"・%CALLNAME:LOCAL, 20, LEFT%"
+			LOCAL:1 ++
+			SIF LOCAL:1 % 3 == 0
+				LOCALS += "<br>"
+		ELSEIF 現在仕事:LOCAL:0 == 8
+			;教師数をチェックしておく
+			教師レベル保存:(現在仕事:LOCAL:1) += 知識素質:LOCAL:(現在仕事:LOCAL:1) * (仕事レベル:LOCAL:8 + 1) / 2
+			;表示用に保存
+			学校利用者:(現在仕事:LOCAL:1 + 100) += @"{LOCAL}_"
+			学校利用者:0 = 表示
+		ENDIF
+	ENDIF
 	CALL キャラ就寝場所セット(LOCAL)
-	;行動時間に±60分のゆらぎが発生する（大体は±15分に収まるはず）
-	;業務ルーチンでは無視される
-	TCVAR:LOCAL:行動時間ゆらぎ = (RAND:9 + RAND:9 + RAND:9) * 5 - 60
 	CALL 移動ルーチンセット決定(LOCAL)
 NEXT
 CALL 関係性同行決定()
 
-IF モブ観光客数 > 0
+IF LOCALS != ""
+	HTML_PRINT @"本日は以下の従業員が休暇中です。<br>%LOCALS%"
 	DRAWLINE
-	PRINTFORMW 今日のモブ観光客数は{モブ観光客数, 4}人です。
+	WAIT
 ENDIF
 
 ;クイック表示用に種別セット

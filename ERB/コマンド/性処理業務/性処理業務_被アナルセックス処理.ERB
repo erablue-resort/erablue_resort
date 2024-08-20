@@ -1,0 +1,291 @@
+﻿;-------------------------------------------------
+;定住の誘い
+;-------------------------------------------------
+@性処理NAME_被アナルセックス処理
+#FUNCTIONS
+TSTR:コマンド名受渡 = 被アナルセックス処理
+
+@性処理_TOOLTIP_被アナルセックス処理
+LOCALS = <br>■被アナルセックス処理<br>
+LOCALS += @"%CALLNAME:PLAYER%の膣に挿入してもらう性処理。<br>"
+LOCALS += "要求好感度は高く、殆どのキャラは陥落が前提。<br>"
+LOCALS += "<br>COMタイプ：性処理<br>取得ソース：快Ｃ・露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：Ｃ性交経験_Ａ挿入(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@性処理_被アナルセックス処理
+
+;射精するまで刺激する
+DO
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 350)
+	CALL SOURCE_CALC_快Ａ(PLAYER, TARGET, 400)
+	TIME += 10
+LOOP CUP:PLAYER:快Ａ + PALAM:PLAYER:快Ａ < 10000
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 500)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_A(PLAYER) / 1000
+CALL SOURCE_CALC_苦痛(PLAYER, TARGET, LOCAL)
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+;奉仕快楽
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+
+;処女喪失
+CALL LOST_MAN_VIRGIN(TARGET, PLAYER, 2)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:Ａ性交経験 ++
+EXP:Ｃ性交経験_Ａ挿入 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 12
+	EXP:PLAYER:同性愛経験 += 12
+ENDIF
+
+;愛情経験
+SIF TALENT:恋慕 == 1
+	EXP:愛情経験 ++
+
+RETURN 1
+
+
+@性処理_射精時処理_被アナルセックス処理
+;射精時にどこに出すかを呼び出す
+;とはいってもフィニッシュ場所の番号登録して関数呼ぶだけ
+RFLAG:フィニッシュ場所 = 30
+TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
+
+;-------------------------------------------------
+;値段設定
+;-------------------------------------------------
+@CAN_性処理_被アナルセックス処理(対象キャラ)
+#DIM 対象キャラ
+#DIM 値段計算
+
+PRINTFORML 被アナルセックス処理計算(%CALLNAME:TARGET%)
+DRAWLINE
+;恋慕は完全無料
+IF TALENT:対象キャラ:恋慕
+	PRINTFORML %"恋慕", 16, LEFT%：　　　　　無料
+	DRAWLINE
+	RETURN -1
+ENDIF
+
+;基礎値段
+値段計算 = 60000
+PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(60000), 8%ルピ
+
+
+;好感度
+LOCAL = (80 - CFLAG:好感度レベル) * -100
+IF LOCAL < 0
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"好感度補正", 16, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
+	RESETCOLOR
+ELSE
+	PRINTFORML %"好感度補正", 16, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+ENDIF
+値段計算 -= LOCAL
+
+;体力
+IF BASE:TARGET:体力 < MAXBASE:TARGET:体力 / 4
+	値段計算 += 1500
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"体力低下", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	RESETCOLOR
+ENDIF
+;酩酊
+IF BASE:酩酊 > MAXBASE:酩酊 / 2
+	値段計算 -= 500
+	PRINTFORML %"酩酊", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+ENDIF
+
+IF GETBIT(TALENT:TARGET:非童貞, 1) == 0
+	値段計算 += 20000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"童貞", 16, LEFT%：＋%NUM_FORMAT(20000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;同性愛
+IF HETEROSEX(TARGET,PLAYER) == 1
+	;性癖素質:同性愛
+	SELECTCASE 性癖素質:同性愛
+		CASE 1
+			;補正なし
+		CASE 2
+			値段計算 -= 1000
+			PRINTFORML %"同性愛(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+		CASE 3
+			値段計算 -= 2500
+			PRINTFORML %"同性愛(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+		CASEELSE
+			;好奇心
+			IF TALENT:性的興味 > 0
+				値段計算 -= 500
+				PRINTFORML %"好奇心(同性愛)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+			ENDIF
+			;保守的
+			IF TALENT:性的興味 < 0
+				値段計算 += 1500
+				SETCOLOR カラーパレット("薄ピンク")
+				PRINTFORML %"保守的(同性愛)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+				RESETCOLOR
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;気丈
+IF TALENT:度胸 > 0
+	値段計算 += 500
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"気丈", 16, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
+ENDIF
+;臆病
+IF TALENT:度胸 < 0
+	値段計算 -= 500
+	PRINTFORML %"臆病", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+ENDIF
+;プライド高い
+IF TALENT:プライド > 0
+	値段計算 += 1500
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"プライド高い", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	RESETCOLOR
+ENDIF
+;プライド低い
+IF TALENT:プライド < 0
+	値段計算 -= 1000
+	PRINTFORML %"プライド低い", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+ENDIF
+;弱味
+IF TALENT:弱味
+	値段計算 -= 2000
+	PRINTFORML %"弱味", 16, LEFT%：－%NUM_FORMAT(2000), 8%ルピ
+ENDIF
+
+;謎の魅力
+IF TALENT:PLAYER:謎の魅力
+	値段計算 -= 1000
+	PRINTFORML %"謎の魅力", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+ENDIF
+
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	値段計算 -= ABL:奉仕精神 * 200
+	PRINTFORML %"奉仕精神", 16, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 200), 8%ルピ
+ENDIF
+;汚臭鈍感
+IF TALENT:汚臭耐性 > 0
+	値段計算 -= TALENT:汚臭耐性 * 500
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	値段計算 += TALENT:汚臭耐性 * 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+;献身的
+IF TALENT:献身的
+	値段計算 -= 500
+	PRINTFORML %"献身的", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+ENDIF
+;女嫌い
+IF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
+	値段計算 += 2000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"女嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	RESETCOLOR
+ENDIF
+;男嫌い
+IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	値段計算 += 2000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"男嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	RESETCOLOR
+ENDIF
+DRAWLINE
+値段計算 = MAX(0, 値段計算)
+IF 値段計算 > 0
+	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSE
+	PRINTFORML %"合計値段", 16, LEFT%：　%"無料", 8%
+ENDIF
+
+RETURN 値段計算
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@性処理_ABLE_被アナルセックス処理
+#DIM ループ用
+#DIM 許可好感度
+#DIM 補正後好感度
+
+;RETURN 0は非表示
+SIF GETBIT(TALENT:TARGET:性別, 1) == 0
+	RETURN 0
+SIF GETBIT(TALENT:PLAYER:性別, 0) == 0
+	RETURN 0
+SIF TALENT:TARGET:Ｃ感度 == -2
+	RETURN 0
+SIF TALENT:PLAYER:Ｖ感度 == -2
+	RETURN 0
+
+;RETURN -1は表示するが選択出来ない
+許可好感度 = 120
+補正後好感度 = 補正後好感度算出(TARGET)
+SIF GETBIT(TALENT:TARGET:非童貞, 1) == 0
+	補正後好感度 -= 15
+
+TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_被アナルセックス処理(TARGET, 補正後好感度)
+	補正後好感度 = RESULT
+CATCH
+ENDCATCH
+SIF 許可好感度 > 補正後好感度
+	RETURN -1
+
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_性処理_被アナルセックス処理
+
+PRINTFORM %CALLNAME:TARGET%は
+IF TALENT:TARGET:恋慕
+	PRINTFORM 愛おしそうに%CALLNAME:PLAYER%を見つめながら
+ELSEIF TALENT:TARGET:羞恥心
+	PRINTFORM 顔を真っ赤にしながら
+ELSEIF TALENT:TARGET:性的興味
+	PRINTFORM 興味しんしんな様子で
+ELSEIF TALENT:TARGET:セフレ
+	PRINTFORM %CALLNAME:PLAYER%の反応を面白がりながら
+ELSE
+	PRINT 事務的な手つきで
+ENDIF
+
+PRINTFORM %CALLNAME:PLAYER%のアナルに挿入し、
+PRINTL 絶頂まで導いた。
+PRINTL
+PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２)% - %NUM_FORMAT(RFLAG:コマンド結果受渡し変数２)% = %NUM_FORMAT(MONEY)%ルピ
+

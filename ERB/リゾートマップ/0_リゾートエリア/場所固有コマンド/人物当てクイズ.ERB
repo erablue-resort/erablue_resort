@@ -3,10 +3,12 @@
 #DIM 入力アイコンID
 #DIM CONST レイヤー番号 = 50
 #DIMS キャラ名,10
-#DIM 有効キャラリスト,200
+#DIM DYNAMIC 有効キャラリスト, 2000
 #DIM 有効キャラ数
 #DIM カード枚数
+#DIM シャッフルモード
 
+VARSET シャッフルモード
 VARSET 有効キャラリスト
 FOR LOCAL, 0, CHARANUM
 	SIF CSTR:LOCAL:画像フォルダ == ""
@@ -15,7 +17,7 @@ FOR LOCAL, 0, CHARANUM
 		ARRAYSHIFT 有効キャラリスト, 1, LOCAL
 	ENDIF
 NEXT
-FOR LOCAL,0,200
+FOR LOCAL,0,2000
 	IF !有効キャラリスト:LOCAL
 		IF !LOCAL
 			RFLAG:コマンド結果受渡し変数 = RAND:2
@@ -39,7 +41,9 @@ VARSET RESULT
 FOR LOCAL, 0 , 有効キャラ数
 	SWAP 有効キャラリスト:(RAND:(有効キャラ数 - LOCAL)),有効キャラリスト:(有効キャラ数 - LOCAL - 1)
 NEXT
-LOCAL:1 = MIN(有効キャラ数, カード枚数) 
+SIF シャッフルモード == 1
+	SWAP 有効キャラリスト:FINDELEMENT(有効キャラリスト, TARGET), 有効キャラリスト:0
+	LOCAL:1 = MIN(有効キャラ数, カード枚数) 
 FOR LOCAL, 0, LOCAL:1
 	LOCALS:LOCAL '= CSTR:(有効キャラリスト:LOCAL):画像フォルダ
 	GDISPOSE レイヤー番号 + 10 + LOCAL
@@ -54,6 +58,15 @@ FOR LOCAL, 0, LOCAL:1
 	GSETBRUSH レイヤー番号 + 1 , 0xFF000000 + LOCAL * 0x00100000
 	GFILLRECTANGLE レイヤー番号 + 1 , LOCAL:2, 900 - GHEIGHT(レイヤー番号 + 10 + LOCAL) + LOCAL:3, GWIDTH(レイヤー番号 + 10 + LOCAL), GHEIGHT(レイヤー番号 + 10 + LOCAL)
 NEXT
+IF シャッフルモード > 1
+	AWAIT 1
+	シャッフルモード --
+	GOTO LOOP
+ELSEIF シャッフルモード == 1
+	シャッフルモード = 0
+	CBGREMOVERANGE -4, -4
+ELSE
+ENDIF
 CBGREMOVERANGE -3, -3
 GDISPOSE レイヤー番号 + 2 
 GCREATE レイヤー番号 + 2 , 1600, 900
@@ -62,7 +75,7 @@ GCREATE レイヤー番号 + 2 , 1600, 900
 GSETFONT レイヤー番号 + 2 , GETFONT(), 18, 0
 GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
 GDRAWTEXT レイヤー番号 + 2 , CALLNAME:(有効キャラリスト:0) + " を探してね", 20, 760
-GDRAWTEXT レイヤー番号 + 2 , "キャラ以外をクリックすることでシャッフルできます", 20, 780
+GDRAWTEXT レイヤー番号 + 2 , "キャラ以外をクリックすることでシャッフルできます（Aキーを押すとオートシャッフル）", 20, 780
 CBGSETG レイヤー番号 + 2 , 0, 0, -3
 
 CBGSETBMAPG レイヤー番号 + 1
@@ -97,15 +110,38 @@ IF RESULT == 1
 		CASE 0x900000
 			入力アイコンID = 9
 	ENDSELECT
-	ELSE
-		PRINTL リタイアしますか？
-		PRINTBUTTON "[0] はい",0
-		PRINTBUTTON "[1] いいえ",1
-		BINPUT
-		SIF RESULT
+ELSEIF RESULT == 3
+	SELECTCASE RESULT:2
+	CASE 65 ;A
+		SIF CSTR:TARGET:画像フォルダ == ""
+			CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
+		IF EXISTFILE("resources/" + CSTR:TARGET:画像フォルダ + "/顔_デフォルト.png")
+			シャッフルモード = RAND(5,10)
+			GDISPOSE レイヤー番号 + 3 
+			GCREATE レイヤー番号 + 3 , 900, 900
+			GSETBRUSH レイヤー番号 + 3 , 0x80101010
+			GFILLRECTANGLE レイヤー番号 + 3 , 0, 0, 900, 800
+			GSETBRUSH レイヤー番号 + 3 , 0xFFC0C0C0
+			GSETFONT レイヤー番号 + 3 , GETFONT(), 18, 0
+			GSETPEN レイヤー番号 + 3 , 0xFFC0C0C0, 0
+			GDRAWTEXT レイヤー番号 + 3 , "シャッフル中です", 20, 780
+			CBGSETG レイヤー番号 + 3 , 0, 0, -4
+			CBGREMOVERANGE -3, -3
 			GOTO LOOP
-		LOCAL:10 = 0
-		GOTO 終了処理
+			LOCAL = 0
+		ENDIF
+	CASEELSE
+		入力アイコンID = RAND:カード枚数
+	ENDSELECT
+ELSE
+	PRINTL リタイアしますか？
+	PRINTBUTTON "[0] はい",0
+	PRINTBUTTON "[1] いいえ",1
+	BINPUT
+	SIF RESULT
+		GOTO LOOP
+	LOCAL:10 = 0
+	GOTO 終了処理
 ENDIF
 
 SIF 入力アイコンID == 100
@@ -146,6 +182,7 @@ $終了処理
 GDISPOSE レイヤー番号 + 0 
 GDISPOSE レイヤー番号 + 1 
 GDISPOSE レイヤー番号 + 2 
+GDISPOSE レイヤー番号 + 3 
 FOR LOCAL, 0, LOCAL:1
 	GDISPOSE レイヤー番号 + 10 + LOCAL
 NEXT

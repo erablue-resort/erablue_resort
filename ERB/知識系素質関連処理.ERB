@@ -259,3 +259,95 @@ SELECTCASE ARG
 		ENDIF
 		RETURNF "百戦錬磨"
 ENDSELECT
+
+
+@自動学習処理(対象キャラ)
+#DIM 対象キャラ
+#DIM 入手経験値
+#DIM 学習対象
+#DIM 経験値保存
+#DIM DYNAMIC ランダム配列, 100
+
+学習対象 = 0
+経験値保存 = 0
+
+;業務の場合は指定されてるのでそれ読んで学習処理へ
+IF 現在仕事:対象キャラ:0 == 7 && TCVAR:対象キャラ:休暇中 == 0
+	学習対象 = 現在仕事:対象キャラ:1
+	GOTO 学習処理
+ENDIF
+
+;何を学習するかを決定
+FOR LOCAL, 1, 100
+	SIF ERDNAME(知識素質, LOCAL) == ""
+		BREAK
+	;まずはLv1の知識を優先
+	IF 知識素質:対象キャラ:LOCAL == 1 && 経験値保存 < 知識素質:対象キャラ:(LOCAL + 100)
+		学習対象 = LOCAL
+		経験値保存 = 知識素質:対象キャラ:(LOCAL + 100)
+	ENDIF
+NEXT
+IF 経験値保存 == 0
+	;Lv1がないならLv0を対象
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 経験値保存 < 知識素質:対象キャラ:(LOCAL + 100)
+			学習対象 = LOCAL
+			経験値保存 = 知識素質:対象キャラ:(LOCAL + 100)
+		ENDIF
+	NEXT
+ENDIF
+IF 経験値保存 == 0
+	;ここまで来ても０ということは全部の知識が同条件なのでランダムで算出
+	VARSET ランダム配列
+	LOCAL:1 = 0
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		;Lv2以上は対象にならない
+		IF 知識素質:対象キャラ:LOCAL < 2
+			ランダム配列:(LOCAL:1) = LOCAL
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	IF LOCAL:1 == 0
+		;それでも対象がないということは知識全部２以上なので戻す
+		RETURN 0
+	ELSE
+		学習対象 = ランダム配列:(RAND:(LOCAL:1))
+	ENDIF
+ENDIF
+
+$学習処理
+IF STRFIND(学校利用者:学習対象, @"_{対象キャラ}_") < 0 && STRFIND(学校利用者:学習対象, @"{対象キャラ}_") != 0
+	学校利用者:学習対象 += @"{対象キャラ}_"
+	学校利用者:0 = 表示
+ENDIF
+;学習対象が決定したら入手経験値を決定
+;既存の知識が多いほど経験値が減る
+LOCAL:1 = 0
+FOR LOCAL, 1, 100
+	SIF ERDNAME(知識素質, LOCAL) == ""
+		BREAK
+	;種類だけカウント
+	IF 知識素質:対象キャラ:LOCAL
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+入手経験値 = MAX(1, 27 - (LOCAL:1 * 3 / 2))
+SELECTCASE TALENT:対象キャラ:習得速度
+	CASE -1
+		入手経験値 -= 5
+	CASE 1
+		入手経験値 += 5
+	CASE 2
+		入手経験値 += 25
+ENDSELECT
+;教師がいる場合
+IF 教師レベル保存:学習対象 > 0
+	入手経験値 += 教師レベル保存:学習対象
+ENDIF
+
+知識素質:対象キャラ:(学習対象 + 100) += MAX(1, 入手経験値)

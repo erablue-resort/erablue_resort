@@ -1,25 +1,21 @@
 ﻿
 @性癖開拓処理
-#DIM 表示候補, 200
+#DIM DYNAMIC 表示候補, 200
 #DIM 現在ページ
 #DIM 開拓対象
 #DIM 複数名フラグ
 #DIM キャラ番号
 #DIM 性癖番号
+#DIM スキップフラグ
+#DIM 開拓性癖ループ
 #DIMS 複数登録キャラ
-#DIMS 複数登録配列, 100
+#DIMS DYNAMIC 複数登録配列, 100
+#DIM DYNAMIC 開拓性癖配列, 100
 
 VARSET 表示候補, -1
 現在ページ = 0
 複数名フラグ = 0
 複数登録キャラ = _
-
-DRAWLINE
-PRINTL 図書室の蔵書から該当するエロ本が任意のキャラに渡るよう細工し、キャラの性癖を開拓します
-PRINTL 誰の性癖を開拓しますか？
-DRAWLINE
-PRINTBUTTON "[1000] 複数名一括開拓", 1000
-PRINTL
 
 ;表示キャラを登録
 LOCAL:1 = 0
@@ -32,6 +28,13 @@ FOR LOCAL, 1, CHARANUM
 NEXT
 
 $表示_LOOP
+
+DRAWLINE
+PRINTL 図書室の蔵書から該当するエロ本が任意のキャラに渡るよう細工し、キャラの性癖を開拓します
+PRINTL 誰の性癖を開拓しますか？
+DRAWLINE
+PRINTBUTTON "[1000] 複数名一括開拓", 1000
+PRINTL
 DRAWLINE
 LOCAL:1 = 0
 ;キャラの表示（15人まで）
@@ -101,22 +104,34 @@ SELECTCASE RESULT
 ENDSELECT
 
 IF 複数名フラグ
+	VARSET 開拓性癖配列
 	$性癖表示LOOP
 	VARSET 表示候補, -1
 	現在ページ = 0
 	DRAWLINE
 	PRINTFORML 複数名の一括性癖開拓を行います
 	PRINTL どの性癖を開拓しますか？
+	PRINTL ※優先順位を付けて複数選択可能です。
+	PRINTL 　選んだキャラに対して、０の性癖を取得済みなら１を、１の性癖を取得済みなら２を、
+	PRINTL 　のように本が配られます。
 	DRAWLINE
 
 	FOR LOCAL, 1, 100
 		IF ERDNAME(性癖素質, LOCAL) != ""
 			IF ENUMFUNCBEGINSWITH(@"性癖開拓チャレンジ処理_%ERDNAME(性癖素質, LOCAL)%")
-				PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				IF MATCH(開拓性癖配列, LOCAL)
+					SETCOLOR カラーパレット("黄")
+					PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%：%TOFULL(TOSTR(FINDELEMENT(開拓性癖配列, LOCAL)))%", LOCAL
+					RESETCOLOR
+				ELSE
+					PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				ENDIF
 				PRINTL
 			ENDIF
 		ENDIF
 	NEXT
+	PRINTL
+	PRINTBUTTON "[998]この優先順位で開拓する", 998
 	PRINTL
 	PRINTBUTTON "[999]戻る", 999
 	PRINTL
@@ -124,17 +139,32 @@ IF 複数名フラグ
 	性癖番号 = RESULT
 	SELECTCASE 性癖番号
 		CASE 1 TO 100
+			IF MATCH(開拓性癖配列, 性癖番号)
+				ARRAYREMOVE 開拓性癖配列, FINDELEMENT(開拓性癖配列, 性癖番号), 1
+			ELSE
+				開拓性癖配列:(FINDELEMENT(開拓性癖配列, 0)) = 性癖番号
+			ENDIF
+			GOTO 性癖表示LOOP
+		CASE 998
 			;表示キャラを登録
 			LOCAL:1 = 0
 			FOR キャラ番号, 1, CHARANUM
 				;非滞在は出さない
 				SIF CFLAG:キャラ番号:滞在期間 < 0
 					CONTINUE
-				;すでに性癖持ってるならスキップ
-				SIF 性癖素質:キャラ番号:性癖番号
-					CONTINUE
-				;ふたなり・その他は同性愛取れない
-				SIF ERDNAME(性癖素質, LOCAL) == "同性愛" && (TALENT:キャラ番号:性別 == 3 || TALENT:キャラ番号:性別 == 0)
+				スキップフラグ = 1
+				FOR 開拓性癖ループ, 0, 100
+					SIF 開拓性癖配列:開拓性癖ループ == 0
+						BREAK
+					;すでに性癖持ってるならスキップ
+					SIF 性癖素質:キャラ番号:(開拓性癖配列:開拓性癖ループ)
+						CONTINUE
+					;ふたなり・その他は同性愛取れない
+					SIF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:キャラ番号:性別 == 3 || TALENT:キャラ番号:性別 == 0)
+						CONTINUE
+					スキップフラグ = 0
+				NEXT
+				SIF スキップフラグ
 					CONTINUE
 				表示候補:(LOCAL:1) = キャラ番号
 				LOCAL:1 += 1
@@ -144,9 +174,6 @@ IF 複数名フラグ
 			DRAWLINE
 			PRINTFORML 複数名の一括性癖開拓を行います
 			PRINTL どのキャラの性癖を開拓しますか？（100名まで）
-			DRAWLINE
-			PRINTBUTTON "[1000] これで確定する", 1000
-			PRINTL
 			DRAWLINE
 			PRINTBUTTON "[1001] 上から100名開拓候補に入れる", 1001
 			PRINTL
@@ -179,6 +206,9 @@ IF 複数名フラグ
 				PRINTBUTTONC "[901]次ページへ", 901
 			ENDIF
 			PRINTL 
+			DRAWLINE
+			PRINTBUTTON "[1000] これで確定する", 1000
+			PRINTL
 			PRINTBUTTON "[999]戻る", 999
 			BINPUT
 
@@ -201,8 +231,19 @@ IF 複数名フラグ
 							BREAK
 						REPLACE 複数登録配列:LOCAL, "_", ""
 						開拓対象 = TOINT(RESULTS)
-						性癖素質:開拓対象:性癖開発用フラグ変数 = 性癖番号
-						PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 性癖番号)%のエロ本が渡るように細工を行います
+						FOR 開拓性癖ループ, 0, 100
+							SIF 開拓性癖配列:開拓性癖ループ == 0
+								BREAK
+							;すでに性癖持ってるならスキップ
+							SIF 性癖素質:開拓対象:(開拓性癖配列:開拓性癖ループ)
+								CONTINUE
+							;ふたなり・その他は同性愛取れない
+							SIF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:開拓対象:性別 == 3 || TALENT:開拓対象:性別 == 0)
+								CONTINUE
+							性癖素質:開拓対象:性癖開発用フラグ変数 = 開拓性癖配列:開拓性癖ループ
+							PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ)%のエロ本が渡るように細工を行います
+							BREAK
+						NEXT
 					NEXT
 					PRINTW ※結果は一日の終了時に表示されます
 				CASE 1001
@@ -227,7 +268,7 @@ IF 複数名フラグ
 			ENDSELECT
 		CASE 999
 			複数登録キャラ = 
-			GOTO 表示_LOOP
+			RESTART
 	ENDSELECT
 ELSE
 	DRAWLINE
@@ -332,9 +373,6 @@ RETURN 0
 @性癖段階非同室成長_野外オナニー(キャラ番号)
 #DIM キャラ番号
 
-;既に中毒ならスキップ
-RETURN 0
-
 SELECTCASE 性癖素質:キャラ番号:野外オナニー
 	CASE 1
 		;経験が足りないとダメ
@@ -423,9 +461,6 @@ RETURN 0
 
 @性癖段階成長_逆アナル(キャラ番号)
 #DIM キャラ番号
-
-;既に中毒ならスキップ
-RETURN 0
 
 SELECTCASE 性癖素質:キャラ番号:逆アナル
 	CASE 1
@@ -542,9 +577,6 @@ RETURN 0
 @性癖段階成長_搾乳プレイ(キャラ番号)
 #DIM キャラ番号
 
-;既に中毒ならスキップ
-RETURN 0
-
 SELECTCASE 性癖素質:キャラ番号:搾乳プレイ
 	CASE 1
 		;経験が足りないとダメ
@@ -592,6 +624,9 @@ SIF GETBIT(TALENT:キャラ番号:性別, 0) == 0
 	RETURN 0
 ;搾乳機非所持なら戻す
 SIF ITEM:11 == 0 && NOITEM == 0
+	RETURN 0
+;ベッドルームでないとダメ
+SIF !BEDROOM(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)
 	RETURN 0
 
 RETURN 1
@@ -644,9 +679,6 @@ RETURN 0
 
 @性癖段階成長_触手プレイ(キャラ番号)
 #DIM キャラ番号
-
-;既に中毒ならスキップ
-RETURN 0
 
 SELECTCASE 性癖素質:キャラ番号:触手プレイ
 	CASE 1
@@ -762,9 +794,6 @@ RETURN 0
 @性癖段階成長_同性愛(キャラ番号)
 #DIM キャラ番号
 
-;既に中毒ならスキップ
-RETURN 0
-
 SELECTCASE 性癖素質:キャラ番号:同性愛
 	CASE 1
 		;経験が足りないとダメ
@@ -798,3 +827,129 @@ SELECTCASE 性癖素質:キャラ番号:同性愛
 		;既に中毒ならスキップ
 		RETURN 0
 ENDSELECT
+
+@性癖開拓チャレンジ処理_寝取られ(ARG)
+;寝取られ
+
+;気になってどういうものか見に来たあなたに向けて簡単な仕様説明
+;
+;・性癖開拓システムでリゾート客(仮にＡとする)にエロ本を押し付けてＡの脳を破壊し、性癖素質[寝取られ(興味)]を与えます。
+;・縁結びシステムを使って、Ａと他のキャラ(仮にＢとする)をくっつけます。関係性は恋慕でもセフレでもＯＫ。
+;・あなたとＡの「信頼度」を、一定以上にします。その際あなたが「遊び人」として極まってきているなら、このボーダーはちょっとだけ下がります。Ａが「従業員」であるなら、このボーダーは劇的に下がります。
+;上記のみっつの条件を、すべて満たせば準備完了！(別にＡもＢも両方寝取られ性癖持ってても大丈夫だよ！)
+;
+;「ＡとＢがどちらも島にいる」状態で、あなたが「自室」で「就寝」する際、「他に同衾するキャラがいなければ(一人寝であるなら)」確率でイベントが発生。
+;一日の終わりに、度し難い性癖に脳を破壊されたＡがあなたの部屋を訪ねてきて、「Ｂを抱いてくれ」とお願いされます。性癖名は「寝取られ」だけど、Ａがやる実際のプレイは「寝取らせ」が正しいわけですな。
+;いやぁ、頼まれちゃったからなぁ～！しょうがないなぁ～～～！！ほな、いただきま～～～っす！！
+;
+;毎日来られても困るし特別感もないので、発生確率は低め。「こんなもんかな～」で適当に決めてるので、低すぎる！と思ったら本スレとかDiscordで教えてください。調整します。
+;実際問題、発生に一人寝を要求すること自体がプレイに対する一つの縛りになっちゃってるから、もうちょい高くてもいいかもな～とは書いた本人も思ってます。
+;抽出処理とタイミングの関係で、条件を満たしたカップルが増えるほどに発生確率は平均化されちゃうし、狙った組み合わせも出づらくなるし。
+;あなたの「遊び人」が５とかだと確率がちょっと上がる。理由は確率処理んとこに書いた。
+;
+;さいごに
+;エロ本ばら撒きには要注意。みんながみんな性癖持ちだと、「男あなたにグラン(♂)を差し出してくるジータ(寝取られ性癖持ち)」とかそういう事故が起きます。
+;まぁ、意図して除外処理しなかったんですけども。だ、だってそういう需要もあるかもだし……。
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく
+PRINTFORM 「大事な人が他人に抱かれるシチュ」のエロ本が渡るように小細工した…
+PRINTL
+
+;エロ本を読むかどうか
+IF 知識素質:ARG:性知識 < 0
+	;性知識が-1か-2だと本の内容を理解できない
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本をぱらぱらと開いてみたが、よく意味がわからなかったようだ…
+	RETURN -1
+ENDIF
+
+;基礎確率は2/10
+LOCAL = 2
+;自制心、プライド、性的興味、性欲が影響
+LOCAL -= TALENT:ARG:自制心
+LOCAL -= TALENT:ARG:プライド
+LOCAL += TALENT:ARG:性的興味 * 2
+LOCAL += TALENT:ARG:性欲
+SIF BASE:ARG:性欲 > 1500
+	LOCAL += 1
+
+;マゾ性感が影響
+LOCAL += ABL:ARG:マゾ性感
+
+;男性器サイズ
+;自分の「男としての才能/素養」にコンプレックスがあるほどこういうのに陥りやすいんじゃなかろうか、という発想
+IF TALENT:ARG:男性器サイズ == -2
+	LOCAL += 2
+ELSEIF TALENT:ARG:男性器サイズ == -1
+	LOCAL += 1
+ENDIF
+
+;最低確率1割は確保
+LOCAL = MAX(LOCAL, 1)
+;性欲無しだと読まない
+SIF TALENT:ARG:性欲 == -2
+	LOCAL = -1
+;補正確率より低ければ読む
+IF RAND:10 < LOCAL
+	;読むパターン
+	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
+	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
+	PRINTL
+	PRINTFORM 自分の大事な人が他人に抱かれ、果てには奪われてしまうというこの本の内容に、%CALLNAME:ARG%はなぜか、切なく苦しい心とは裏腹に
+	IF GETBIT(TALENT:ARG:性別, 1)
+	;ちんちんあるなら 鬱勃起(七五調)(字余り)
+		PRINTFORM 鬱勃起
+	ELSE
+		PRINTFORM 興奮
+	ENDIF
+	PRINTFORMW が止まらない！
+	PRINTL
+	PRINTFORMW ……やがて、ひとつの物語に脳を灼かれた%CALLNAME:ARG%は、性癖素質[寝取られ(興味)]を取得してしまった！
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(興味)]を取得した</font>","うふふ")
+	性癖素質:ARG:寝取られ = 1
+	RETURN 1
+ELSE
+	;読まないパターン
+	PRINTFORMW %CALLNAME:ARG%はいつの間にか近くにあったエロ本に訝しげな顔をして、ゴミ箱へと投げ捨てた
+ENDIF
+
+RETURN 0
+
+@性癖段階成長_寝取られ(キャラ番号)
+#DIM キャラ番号
+
+SELECTCASE 性癖素質:キャラ番号:寝取られ
+	CASE 1
+		;経験が足りないとダメ
+		;いままで興味だったものが、実践を経て確信に変わり、自身の中に深く根付く。故に、愛好になるのは「最初の一歩を踏み出してしまったその直後」だと思う。異論は認める。
+		SIF EXP:キャラ番号:寝取られ経験 < 1
+			RETURN 0
+		性癖素質:キャラ番号:寝取られ = 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の寝取られへの興味は、実際に抱かせてみたことで確たる性癖として%CALLNAME:キャラ番号%の中に深く根付いてしまったようだ……
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[寝取られ(興味)]は[寝取られ(愛好)]へと成長してしまった！
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(興味)]が[寝取られ(愛好)]に成長した</font>","うふふ")
+		PRINTL
+
+		RETURN 1
+	CASE 2
+		;経験が足りないとダメ
+		;事が事だけに、5回もリピれば立派な中毒だと思う
+		SIF EXP:キャラ番号:寝取られ経験 < 5
+			RETURN 0
+		性癖素質:キャラ番号:寝取られ = 3
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや%CALLNAME:PLAYER%に自分の女を差し出すことに、破滅的な魅力を感じてしまっている……
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[寝取られ(愛好)]は[寝取られ(中毒)]に成長してしまった！
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[寝取られ(愛好)]が[寝取られ(中毒)]に成長した</font>","うふふ")
+		PRINTL
+
+		RETURN 1
+	CASE 3
+		;既に中毒ならスキップ
+		RETURN 0
+ENDSELECT
+

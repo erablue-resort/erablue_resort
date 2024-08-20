@@ -39,13 +39,35 @@ LOCAL:1 = 0
 FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	;登録が終わったら表示終了
 	IF 表示候補:LOCAL == -1
-		LOCAL:1 = 1
 		BREAK
 	ENDIF
 	SIF MATCH(呼び出し対象, 表示候補:LOCAL)
 		SETCOLOR カラーパレット("黄")
-	PRINTBUTTONLC @"[{LOCAL}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 41, LEFT%", LOCAL
+	PRINTBUTTONLC @"[{LOCAL, 2}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 41, LEFT%", LOCAL
 	RESETCOLOR
+	IF MAXBASE:(表示候補:LOCAL):体力 == BASE:(表示候補:LOCAL):体力
+		SETCOLOR 0x50B050
+	ELSEIF MAXBASE:(表示候補:LOCAL):体力 < BASE:(表示候補:LOCAL):体力 / 3
+		SETCOLOR カラーパレット("赤")
+	ENDIF
+	PRINTFORM 体力：{BASE:(表示候補:LOCAL):体力, 4} / {MAXBASE:(表示候補:LOCAL):体力, 4}　
+	RESETCOLOR
+	IF BASE:(表示候補:LOCAL):性欲 > 2000
+		SETCOLOR カラーパレット("ピンク")
+	ELSEIF BASE:(表示候補:LOCAL):性欲 > 1000
+		SETCOLOR カラーパレット("薄ピンク")
+	ENDIF
+	PRINTFORM 性欲：{BASE:(表示候補:LOCAL):性欲, 4}　
+	RESETCOLOR
+	IF CFLAG:(表示候補:LOCAL):発情期フラグ < 0
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT 発情期
+		PRINT_IMG "えっちハート"
+		PRINT 　
+		RESETCOLOR
+	ELSE
+		PRINT 　　　　　
+	ENDIF
 	IF TALENT:(表示候補:LOCAL):恋慕
 		SETCOLOR カラーパレット("えっちな色")
 		PRINT 恋慕
@@ -65,7 +87,7 @@ ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
-IF LOCAL:1 == 0
+IF 表示候補:((現在ページ * 15) + 15) > 0
 	PRINTBUTTONC "[901] 次ページへ", 901
 ENDIF
 PRINTL 
@@ -91,6 +113,9 @@ SELECTCASE RESULT
 			CFLAG:(呼び出し対象:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
 			CFLAG:(呼び出し対象:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
 			CFLAG:(呼び出し対象:LOCAL):うふふ = 1
+			;野外オナニー時に備えて隠密を消す
+			CALL 野外オナニー途中終了(呼び出し対象:LOCAL)
+			CFLAG:(呼び出し対象:LOCAL):隠密 = 0
 			;先に同室フラグを建てることで発覚口上をスキップする
 			CFLAG:(呼び出し対象:LOCAL):同室 = 1
 			SIF RFLAG:コマンド結果受渡し変数 < 1
@@ -263,6 +288,9 @@ SIF !TALENT:恋慕 && !TALENT:セフレ
 	RETURN 0
 ;指示モード時はだめ
 SIF PLAYER != MASTER
+	RETURN 0
+;寝取らせ夜這い中はダメ
+SIF TCVAR:言いなり
 	RETURN 0
 
 RETURN 1

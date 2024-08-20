@@ -10,6 +10,7 @@ TSTR:コマンド名受渡 = 尻尾の付け根を触る
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ強")
 弱点コマンドカテゴリ = A_尻尾
+睡眠中許可 = 1
 
 @COM_TOOLTIP_322
 LOCALS = <br>■尻尾の付け根を触る<br>
@@ -21,6 +22,24 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM322
 ;尻を揉む
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:MASTER:同性愛経験 += 1
+ENDIF
+
+RCVAR:TARGET:尻尾開発フラグ = 2
+
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 100)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 50)
+
+TIME += 10
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
+	
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 1
+ENDIF
 
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
@@ -72,19 +91,7 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 		CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
 		CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
 ENDSELECT
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 1
-	EXP:MASTER:同性愛経験 += 1
-ENDIF
 
-RCVAR:TARGET:尻尾開発フラグ = 2
-
-;発生する快楽は受け手の状態に依存しない
-CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 100)
-SIF TALENT:PLAYER:器用な指
-	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 50)
-
-TIME += 10
 RETURN 1
 
 ;-------------------------------------------------
@@ -97,9 +104,6 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 ;一括管理
 SIF GLOBAL_COMABLE(322) && !RFLAG:罰ゲーム中
 	RETURN RESULT
-;睡眠中
-SIF CFLAG:睡眠
-	RETURN 0
 ;尻尾のあるなし
 SIF !TALENT:TARGET:尻尾あり
 	RETURN 0
@@ -123,12 +127,21 @@ SELECTCASE ABL:MASTER:技巧
 ENDSELECT
 IF CUP:TARGET:快Ａ > 1000
 	;一定以上の快楽が発生した時にちょっと声が出る
-	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	IF CFLAG:TARGET:睡眠
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は眠ったまま小さく喘いだ…
+	ELSE
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	ENDIF
 	PRINTL
 ENDIF
 
 
 @MESSAGE_COM322_非口上時
+
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:TARGET%はすやすやと眠っている……
+	RETURN 0
+ENDIF
 
 ;基本喜びだけのはずなので一旦分類せずに直接喜びパターンの文章を書く
 

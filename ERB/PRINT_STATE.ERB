@@ -218,6 +218,9 @@ SELECTCASE RESULT
 	CASE 140
 		CALL 汎用喘ぎ個別設定(ARG)
 		RESTART
+	CASE 150
+		INVERTBIT EXP表示切替, 0
+		RESTART
 	CASE 200
 		INVERTBIT 全表示フラグ:0, 0
 		RESTART
@@ -414,26 +417,64 @@ ENDIF
 CALL 画像描画終了
 L_C = LINECOUNT
 
-
+;顔グラと経験の表示
 IF GETBIT(画像サイズ切り替えOPTION記憶, 3)
-	HTML_PRINT @"<div rect='4687, 237, 1125, 2250'>%短冊グラ表示用文字列関数(ARG)%</div>"
+	LOCALS = <div rect='4687, 237, 1125, 3000'>%短冊グラ表示用文字列関数(ARG)%<br>
+	LOCALS += @"<br><br><br><br><br><br><br><br><br><br>"
+	LOCALS += @"<br><br><br><br><br><br><br><br><br><br>"
+	LOCALS += @"　　　探索経験：{EXP:ARG:探索経験, 5}<br>"
+	LOCALS += @"　同行勝利経験：{EXP:ARG:同行勝利経験, 5}<br>"
+	LOCALS += "</div>"
+	HTML_PRINT LOCALS
 ELSE
-	HTML_PRINT @"<div rect='4687, 237, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>"
+	LOCALS = <div rect='4687, 237, 1125, 2000'>%顔グラ表示用文字列関数(ARG)%<br>
+	LOCALS += @"<br><br><br><br><br><br><br><br><br><br>"
+	LOCALS += @"　　　探索経験：{EXP:ARG:探索経験, 5}<br>"
+	LOCALS += @"　同行勝利経験：{EXP:ARG:同行勝利経験, 5}<br>"
+	LOCALS += "</div>"
+	HTML_PRINT LOCALS
 ENDIF
 
 PRINTFORM ■%NAME:ARG%
 PRINTL
 PRINTL
-LOCALS = <div rect='0,0,1125,1687'>□ ステータス □------<br>
+LOCALS = <div rect='0,0,1125,2387'>□ ステータス □------<br>
 LOCALS += @"Lv　　　　：{基礎BATTLE_STATE:ARG:Lv, 5}<br>"
 LOCALS += @"EXP 　　　：{基礎BATTLE_STATE:ARG:蓄積EXP, 5}<br>"
 LOCALS += @"　LvUPまで：{戦闘経験値テーブル:(基礎BATTLE_STATE:ARG:Lv - 1) - 基礎BATTLE_STATE:ARG:蓄積EXP, 5}<br>"
 IF 装備ステータス補正保存:ARG:属性
 	LOCALS:1 = %属性数値文字色変換_HTML(装備ステータス補正保存:ARG:属性 - 10)%
 	LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(装備ステータス補正保存:ARG:属性 - 10), 5%</font><br>"
+	IF 基礎BATTLE_STATE:ARG:属性 == 装備ステータス補正保存:ARG:属性 - 10
+		LOCAL = 40
+		LOCAL:1 = 25
+	ELSE
+		LOCAL = 30
+		LOCAL:1 = 30
+	ENDIF
+	IF 装備ステータス補正保存:ARG:属性 - 10 < 4
+		LOCALS:1 = %属性数値文字色変換_HTML(有利属性変換(装備ステータス補正保存:ARG:属性 - 10))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(有利属性変換(装備ステータス補正保存:ARG:属性 - 10))%</font>　　攻撃力＋{LOCAL}％<br>"
+		LOCALS:1 = %属性数値文字色変換_HTML(不利属性変換(装備ステータス補正保存:ARG:属性 - 10))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(不利属性変換(装備ステータス補正保存:ARG:属性 - 10))%</font>　　攻撃力－{LOCAL:1}％<br>"
+	ELSEIF 装備ステータス補正保存:ARG:属性 - 10 < 6
+		LOCALS:1 = %属性数値文字色変換_HTML(有利属性変換(装備ステータス補正保存:ARG:属性 - 10))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(有利属性変換(装備ステータス補正保存:ARG:属性 - 10))%</font>　　攻撃力＋{LOCAL}％<br>"
+	ENDIF
+	SIF 基礎BATTLE_STATE:ARG:属性 == 装備ステータス補正保存:ARG:属性 - 10
+		LOCALS += @"　その他　攻撃力＋5％<br>"
 ELSE
 	LOCALS:1 = %属性数値文字色変換_HTML(基礎BATTLE_STATE:ARG:属性)%
 	LOCALS += @"<font color='#%LOCALS:1%'>属性　　　：%属性数値文字列変換(基礎BATTLE_STATE:ARG:属性), 5%</font><br>"
+	IF 基礎BATTLE_STATE:ARG:属性 < 4
+		LOCALS:1 = %属性数値文字色変換_HTML(有利属性変換(基礎BATTLE_STATE:ARG:属性))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(有利属性変換(基礎BATTLE_STATE:ARG:属性))%</font>　　攻撃力＋30％<br>"
+		LOCALS:1 = %属性数値文字色変換_HTML(不利属性変換(基礎BATTLE_STATE:ARG:属性))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(不利属性変換(基礎BATTLE_STATE:ARG:属性))%</font>　　攻撃力－30％<br>"
+	ELSEIF 基礎BATTLE_STATE:ARG:属性 < 6
+		LOCALS:1 = %属性数値文字色変換_HTML(有利属性変換(基礎BATTLE_STATE:ARG:属性))%
+		LOCALS += @"<font color='#%LOCALS:1%'>　対%属性数値文字列変換(有利属性変換(基礎BATTLE_STATE:ARG:属性))%</font>　　攻撃力＋30％<br>"
+	ENDIF
 ENDIF
 LOCALS += @"得意武器　：%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器), 5%<br>"
 LOCALS += @"タイプ　　：%タイプ数値文字列変換(基礎BATTLE_STATE:ARG:ステータスタイプ保存), 5%<br>"
@@ -589,6 +630,7 @@ TRYCALLFORM 口上_ステータス画面_固有特性解説_{NO:ARG}(ARG)
 
 @性的能力表示画面(ARG)
 #DIM L_C
+
 ;ここで立ち絵表示
 CALL 画像描画終了
 L_C = LINECOUNT
@@ -668,9 +710,9 @@ IF あなた特殊能力:発情鑑定術 || あなた特殊能力:危険日感�
 	; ENDIF
 	IF あなた特殊能力:危険日感知
 		PRINT 　
-		LOCAL = CFLAG:ARG:危険日 - DAY % 10
+		LOCAL = CFLAG:ARG:危険日 - DAY % PREG_CYCLE(ARG)
 		SIF LOCAL < 0
-			LOCAL = 10 - ABS(LOCAL)
+			LOCAL = PREG_CYCLE(ARG) - ABS(LOCAL)
 		IF TALENT:ARG:妊娠
 			SETCOLOR カラーパレット("ピンク")
 			PRINT 妊娠中
@@ -830,11 +872,9 @@ ENDIF
 
 CALLFORM 口上_ステータス画面_キャラ解説_{NO:ARG}(ARG)
 
-IF K < 18
-	FOR LOCAL, 0, 18 - K
-		PRINTL
-	NEXT
-ENDIF
+FOR LOCAL, 0, RESULT
+	PRINTL
+NEXT
 
 
 @血縁関係表示画面(ARG)
@@ -1307,6 +1347,7 @@ SIF LOCAL:1 % 4
 #DIM ループ用
 #DIMS 名前格納
 #DIMS 性癖段階
+#DIM 予定時間
 
 LOCALS = □ 情報 □---------------------------------------------------------------------<br>
 LOCALS += @"　種族：%GET_TALENTNAME(200,TALENT:ARG:種族)%"
@@ -1325,8 +1366,13 @@ SIF TALENT:ARG:発情期あり > 0
 	LOCALS += "（発情期あり）"
 SIF TALENT:ARG:発情期あり < 0
 	LOCALS += "（発情期なし）"
-IF CFLAG:ARG:発情期フラグ < 0
-	LOCALS += @"<font color='#%カラーパレット_HTML("えっちなゲージ有")%'>（発情期<img src='えっちハート'>）</font>"
+IF 発情期判定(ARG)
+	SELECTCASE RISKY_DAY(ARG)
+		CASE 1
+			LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（発情中<img src='えっちハート'>）</font>"
+		CASE 2
+			LOCALS += @"<font color='#%カラーパレット_HTML("赤ピンク")%'>（<img src='えっちハート'>強発情中<img src='えっちハート'>）</font>"
+	ENDSELECT
 ENDIF
 IF TALENT:ARG:妊娠
 	LOCALS += @"<font color='#%カラーパレット_HTML("ピンク")%'>"
@@ -1413,6 +1459,18 @@ ENDIF
 IF あなた特殊能力:フレンドリーセンス
 	REPLACE CSTR:ARG:プレゼント好み, "_", "、"
 	LOCALS += @"　プレゼントの好み：%RESULTS%"
+	LOCALS += "<br>"
+ENDIF
+IF あなた特殊能力:睡眠診断 > 0
+	IF CFLAG:ARG:睡眠
+		CALL CHARA_ROUTINE_STATUS(ARG, "起床時刻")
+		予定時間 = RESULT + TCVAR:ARG:行動時間ゆらぎ
+		LOCALS += @"　起床予定時間：{予定時間 / 60}時 {予定時間 % 60}分"
+	ELSE
+		CALL CHARA_ROUTINE_STATUS(ARG, "就寝時刻")
+		予定時間 = RESULT + TCVAR:ARG:行動時間ゆらぎ
+		LOCALS += @"　就寝予定時間：{予定時間 / 60}時 {予定時間 % 60}分"
+	ENDIF
 	LOCALS += "<br>"
 ENDIF
 IF CFLAG:ARG:元気になる薬フラグ > 0
@@ -1665,7 +1723,18 @@ PRINTL
 
 @PRINT_STATE_EXP(ARG)
 PRINTL
-PRINTL □ 経験 □---------------------------------------------------------------------
+IF EXISTFUNCTION(@"経験文章表現_{NO:ARG}")
+	PRINT □ 経験 □--
+	PRINTBUTTON "[ 表示切替 ]", 150
+	PRINTL -------------------------------------------------------
+	IF EXP表示切替
+		CALLFORM 経験文章表現_{NO:ARG}(ARG)
+		PRINTL 
+		RETURN 0
+	ENDIF
+ELSE
+	PRINTL □ 経験 □---------------------------------------------------------------------
+ENDIF
 LOCAL:1 = 0
 FOR LOCAL, 0, 200
 	;EXP.CSVに登録されていなければCONTINUE
@@ -1746,22 +1815,98 @@ ENDIF
 PRINTFORM \@ !CFLAG:ARG:好感度レベル? 初対面#%CSTR:ARG:現在の好感度表示%\@
 
 @PRINT_恋慕レベル表示(ARG)
+#DIM 恋慕相手
 
-PRINTFORM 恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
-SELECTCASE CFLAG:ARG:恋慕レベル
-	CASE 0
-		PRINT 脈ナシ
-	CASE IS <= 関係閾値:1
-		PRINT ちょっと気になる
-	CASE IS <= 関係閾値:2
-		PRINT なんかいいかも
-	CASE IS <= 関係閾値:3
-		PRINT 好意を自覚
-	CASE IS <= 関係閾値:4
-		PRINT ラブラブ
-	CASEELSE
-		PRINT 最愛の人
-ENDSELECT
+PRINTL 
+IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = '恋慕'")
+	IF CFLAG:ARG:ゲージ起動分類 == 1
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTFORM 　恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
+		ENDIF
+		RESETCOLOR
+	ENDIF
+	IF CFLAG:ARG:人物番号 == DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1)
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ２", 1))
+	ELSE
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1))
+	ENDIF
+	PRINTFORML 　恋慕成立相手：%NAME:恋慕相手%
+ELSE
+	IF CFLAG:ARG:ゲージ起動分類 == 1
+		PRINTFORM 　恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
+		SELECTCASE CFLAG:ARG:恋慕レベル
+			CASE 0
+				PRINT 脈ナシ
+			CASE IS <= 関係閾値:1
+				PRINT ちょっと気になる
+			CASE IS <= 関係閾値:2
+				PRINT なんかいいかも
+			CASE IS <= 関係閾値:3
+				PRINT 好意を自覚
+			CASE IS <= 関係閾値:4
+				PRINT ラブラブ
+			CASEELSE
+				PRINT 最愛の人
+		ENDSELECT
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
+		ENDIF
+	ENDIF
+	IF TALENT:ARG:恋慕
+		PRINTFORML 　恋慕成立相手：%NAME:MASTER%
+	ENDIF
+ENDIF
+
+@INFO_恋慕レベル表示(対象キャラ)
+#DIM 対象キャラ
+
+IF CFLAG:対象キャラ:ゲージ起動分類 == 1
+	PRINTFORM 恋慕度:Lv{CFLAG:対象キャラ:恋慕レベル}　
+	SELECTCASE CFLAG:対象キャラ:恋慕レベル
+		CASE 0
+			PRINT 脈ナシ
+		CASE IS <= 関係閾値:1
+			PRINT ちょっと気になる
+		CASE IS <= 関係閾値:2
+			PRINT なんかいいかも
+		CASE IS <= 関係閾値:3
+			PRINT 好意を自覚
+		CASE IS <= 関係閾値:4
+			PRINT ラブラブ
+		CASEELSE
+			PRINT 最愛の人
+	ENDSELECT
+	PRINTL
+ENDIF
+
+@PRINT_セフレ相手表示(ARG)
+#DIM 関係数
+#DIM セフレ相手
+
+IF TALENT:ARG:セフレ
+	PRINTL
+	PRINTFORML 　セフレ成立相手：%NAME:MASTER% 
+ENDIF
+
+VARSET RESULT
+関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = 'セフレ'")
+SIF 関係数 < 1
+	RETURN 0
+
+SIF TALENT:ARG:セフレ == 0
+	PRINTL
+FOR LOCAL, 1, 関係数 + 1
+	IF CFLAG:ARG:人物番号 == DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1)
+		セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ２", 1))
+	ELSE
+		セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1))
+	ENDIF
+	PRINTFORML 　セフレ成立相手：%NAME:セフレ相手%
+NEXT
 
 @PRINT_STATE_好感度詳細(ARG)
 IF ARG
@@ -1882,15 +2027,8 @@ IF ARG
 		ENDIF
 	ENDIF
 ENDIF
-IF 	CFLAG:ARG:ゲージ起動分類 == 1
-	PRINTL 
-	PRINT 　
-	CALL PRINT_恋慕レベル表示(ARG)
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		TRYCALLFORM 口上_ステータス画面_恋慕コメント_{NO:ARG}(ARG)
-	ENDIF
-ENDIF
+CALL PRINT_恋慕レベル表示(ARG)
+CALL PRINT_セフレ相手表示(ARG)
 PRINTL
 
 @PRINT_STATE_仕事レベル表示(ARG)
@@ -2056,3 +2194,25 @@ FOR LOCAL, 0, VARSIZE("あなた特殊能力")
 		ENDIF
 	ENDIF
 NEXT
+
+@キャラ解説表示用(対象キャラ)
+#DIM 対象キャラ
+#DIM 解析行数
+#DIMS DYNAMIC HTML表示文
+
+FOR LOCAL,0,1000
+	SIF KCOLOR:LOCAL > -1
+		SETCOLOR KCOLOR:LOCAL
+	IF !(KSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(KSTR:LOCAL)
+		HTML表示文 += @"%RESULTS%<br>"
+	ELSEIF !(NSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(NSTR:LOCAL)
+		HTML表示文 += @"%RESULTS%"
+	ENDIF
+NEXT
+
+解析行数 = HTML_STRINGLINES(REPLACE(HTML表示文, "<img src='[^']*'>", "　"), 76)
+HTML_PRINT @"<div rect='0,0,3900,{解析行数 * 100 + 300}'>%HTML表示文%</div>"
+
+RETURN 解析行数

@@ -1,0 +1,151 @@
+﻿
+;-------------------------------------------------
+;05_503_01バーエリアでカードで遊ぶ
+;-------------------------------------------------
+
+@COMNAME_PLACE_380_0_503
+#FUNCTION
+IF 施設改造度:5:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+TSTR:コマンド名受渡 = カードで遊ぶ
+RETURNF 1
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_0_503
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_380_0_503
+LOCALS = <br>■カードで遊ぶ<br>
+LOCALS += "相手と簡易ポーカーで一緒に遊ぶコマンド。ミニゲーム『簡易ポーカー』が発生。<br>一定確率で罰ゲームやルピを賭けたギャンブルをすることが出来る。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服(一定条件時)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM380_0_503
+
+RFLAG:コマンド結果受渡し変数３ = 0
+
+;賭けるかの判定
+LOCAL = RAND:100
+IF TALENT:ギャンブラー < 0
+	;賭け事嫌いだと絶対にギャンブルしない
+	RFLAG:コマンド結果受渡し変数 = 0
+ELSEIF LOCAL < 25
+	;1/4で賭けに誘ってくる
+	RFLAG:コマンド結果受渡し変数 = 1
+ELSEIF TALENT:ギャンブラー || あなた特殊能力:ギャンブラー
+	;ギャンブラーだと確実に誘ってくる
+	RFLAG:コマンド結果受渡し変数 = 1
+ELSE
+	RFLAG:コマンド結果受渡し変数 = 0
+ENDIF
+
+;賭け内容の決定
+IF RFLAG:コマンド結果受渡し変数
+	PRINTFORML %CALLNAME:TARGET%が何か賭けないかと誘ってきた。
+	PRINTBUTTON "[0]1000ルピを賭ける", 0
+	PRINTL 
+	PRINTBUTTON "[1]罰ゲームを賭ける", 1
+	PRINTL 
+	PRINTBUTTON "[9]賭けない", 9
+	PRINTL 
+	INPUT
+
+	SELECTCASE RESULT
+		CASE 0
+			RFLAG:コマンド結果受渡し変数３ = 1
+			PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%はルピを賭けて勝負することにした。
+			EXP:PLAYER:ギャンブル経験 += 1
+		CASE 1
+			RFLAG:コマンド結果受渡し変数３ = 2
+			PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%は罰ゲームを賭けて勝負することにした。
+			EXP:PLAYER:ギャンブル経験 += 2
+		CASEELSE
+			RFLAG:コマンド結果受渡し変数３ = 0
+			RFLAG:コマンド結果受渡し変数 = 0
+			PRINTFORML %CALLNAME:TARGET%は少し残念そうな顔で賭けを取り下げた
+	ENDSELECT
+ENDIF
+
+
+
+;歓楽強度
+LOCAL:0 = 500
+;征服強度
+LOCAL:1 = 300
+;賭けてる時は歓楽・征服共に増加
+IF RFLAG:コマンド結果受渡し変数
+	LOCAL:0 += 500
+	LOCAL:1 += 300
+ENDIF
+
+;勝敗決定
+CALL 簡易ポーカー(TARGET)
+;あなた勝利ならRESULTに１が、敗北なら-１が返ってくる
+
+RFLAG:コマンド結果受渡し変数３ = RFLAG:コマンド結果受渡し変数３ * RESULT
+
+;基本歓楽のみで、相手が勝った時のみ征服が増加
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, LOCAL:0 / 2)
+SIF RESULT == -1
+	CALL SOURCE_CALC_征服(TARGET, PLAYER, LOCAL:1)
+
+
+TIME += 30
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE380_0_503
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_0_503
+
+PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%はカードで一勝負した。
+
+;賭け事処理
+;口上などの表示順のためここで処理
+;0:引き分け　1:ルピ賭け勝利　-1:ルピ賭け敗北　2:罰ゲーム賭け勝利　-2:罰ゲーム賭け敗北
+IF RFLAG:コマンド結果受渡し変数
+	SELECTCASE RFLAG:コマンド結果受渡し変数３
+		CASE 0
+			;引き分け時は何もなし
+			PRINTFORML 賭けは引き分けだった…
+		CASE 1
+			;ルピ増加
+			PRINTFORML 賭けに勝利し、%CALLNAME:TARGET%から1000ルピ貰った
+			MONEY += 1000
+		CASE -1
+			;ルピ減少
+			PRINTFORML 賭けに敗北し、%CALLNAME:TARGET%に1000ルピ支払った…
+			MONEY -= 1000
+		CASE 2
+			;罰ゲーム処理を呼ぶ
+			PRINTFORML 賭けに勝利し、%CALLNAME:TARGET%に罰ゲームを与えることになった
+			CALL 罰ゲーム(TARGET, "勝利")
+		CASE -2
+			;罰ゲーム処理を呼ぶ
+			PRINTFORML 賭けに敗北し、%CALLNAME:TARGET%から罰ゲームを受けることになった…
+			CALL 罰ゲーム(TARGET, "敗北")
+	ENDSELECT
+ENDIF

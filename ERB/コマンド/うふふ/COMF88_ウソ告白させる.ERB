@@ -1,0 +1,732 @@
+﻿;-------------------------------------------------
+;嘘告白させる
+;-------------------------------------------------
+@COMNAME88
+#FUNCTIONS
+TSTR:コマンド名受渡 = 嘘告白させる
+
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_88
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+
+@COM_TOOLTIP_88
+LOCALS = <br>■嘘告白させる<br>
+LOCALS += "相手に、「あなたへの愛の言葉」を強要する。<br>相手に「貸出経験」がある場合のみ可能。"
+LOCALS += "<br>心にもない言葉であっても何度も繰り返し言わせることで、相手はその言葉に慣れ、忌避感は薄れていく。"
+LOCALS += "<br>やがて慣れきる頃には、その『心にもない』はずの言葉を意識の奥深くに刷り込むことができるだろう。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：反感・屈従・愛情・恋心度・征服(PLAYER)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM88
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+#DIM 性愛レベル保存
+#DIM 恋心レベル保存
+
+;セクハラ胸揉みの拒絶が反感200なので、最初はその倍の反感400くらいを基準とする
+;話術5の口説くの愛情が600、恋心が200。「自分で言わせる」から「他人に言われる」よりも影響がデカいものとする。
+SELECTCASE CFLAG:TARGET:嘘告白カウント
+CASE 0 TO 5
+;最初は反感バチバチで愛情なんて上がるもんかっ！って感じ。屈辱なので屈従いっぱい
+;このほかにもなんらかをマイナスにしてもいい気がする。信頼度とか
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 250)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 400)
+	CALL SOURCE_CALC_屈従(TARGET, PLAYER, 400)
+	CALL SOURCE_CALC_愛情(TARGET, PLAYER, 3)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 1)
+CASE 6 TO 10
+;徐々に言わされ慣れてきた。最初ほどの屈辱感はないので反感と一緒に屈従も減る
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 250)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 300)
+	CALL SOURCE_CALC_屈従(TARGET, PLAYER, 300)
+	CALL SOURCE_CALC_愛情(TARGET, PLAYER, 60)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 20)
+CASE 11 TO 24
+;嫌だけどもう言わされ慣れた。刷り込みがこのあたりからぐっと進み始める。『言わされる』形式自体はそのままなので、以後屈従加算値はこれ以上下がらない
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 250)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 150)
+	CALL SOURCE_CALC_屈従(TARGET, PLAYER, 200)
+	CALL SOURCE_CALC_愛情(TARGET, PLAYER, 400)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 140)
+CASEELSE
+;言わされることが完全に定着した。もはや反感も浮かばないが屈服しきっている自覚はある。
+;本当に『心にもないこと』だって、自信をもって言えるかな？んん？
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 250)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 10)
+	CALL SOURCE_CALC_屈従(TARGET, PLAYER, 200)
+	CALL SOURCE_CALC_愛情(TARGET, PLAYER, 800)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 280)
+ENDSELECT
+
+FOR LOCAL, 0, 100
+    IF 経験値テーブル:LOCAL >= CFLAG:TARGET:性愛度
+        性愛レベル保存 = LOCAL / 2
+        BREAK
+    ENDIF
+NEXT
+FOR LOCAL, 0, 100
+    IF 経験値テーブル:LOCAL >= CFLAG:TARGET:恋心度
+        恋心レベル保存 = LOCAL
+        BREAK
+    ENDIF
+NEXT
+
+;性愛度の半分と恋心度の合計が80以上(性愛度100だと恋心30、性愛度80だと恋心40)だと特殊ギミックへ
+IF 性愛レベル保存 + 恋心レベル保存 >= 80
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;EXPにするかCFLAGにするか……
+;ステ画面に『嘘告白経験』って残らないほうが、ズブズブ感出るんじゃないか？ってことでCFLAGにしておく。
+
+CFLAG:TARGET:嘘告白カウント += 1
+
+RETURN 1
+
+@CAN_COM88(ARG)
+SKIPDISP ARG
+PRINTFORML 嘘告白させる(%CALLNAME:TARGET%)
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+A = 0
+S = 0
+
+;すべての命令に共通の要素を考慮
+
+CALL COM_ORDER
+
+;嘘告白回数
+IF CFLAG:嘘告白カウント
+	SIF S
+		PRINT  + 
+	A += CFLAG:嘘告白カウント * 1
+	PRINT 嘘告白
+	PRINTFORM {CFLAG:嘘告白カウント}回目({CFLAG:嘘告白カウント})
+	S = 1
+ENDIF
+
+;ABL:欲望
+IF ABL:欲望
+	SIF S
+		PRINT  + 
+	A += ABL:欲望 * 1
+	PRINT 欲望
+	PRINTV 'LV,ABL:欲望,'(,ABL:欲望 * 1,')
+	S = 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	SIF S
+		PRINT  + 
+	A += ABL:奉仕精神 * 4
+	PRINT 奉仕精神
+	PRINTV 'LV,ABL:奉仕精神,'(,ABL:奉仕精神 * 4,')
+	S = 1
+ENDIF
+;ABL:マゾ性感
+IF ABL:マゾ性感
+	SIF S
+		PRINT  + 
+	A += ABL:マゾ性感 * 2
+	PRINT マゾ性感
+	PRINTV 'LV,ABL:マゾ性感,'(,ABL:マゾ性感 * 2,')
+	S = 1
+ENDIF
+;ABL:精液中毒
+IF ABL:精液中毒
+	SIF S
+		PRINT  + 
+	A += ABL:精液中毒 * 3
+	PRINT 精液中毒
+	PRINTV 'LV,ABL:精液中毒,'(,ABL:精液中毒 * 3,')
+	S = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF S
+		PRINT  + 
+	A += MARK:快楽刻印 * 1
+	PRINT 快楽刻印
+	PRINTV 'LV,MARK:快楽刻印,'(,MARK:快楽刻印 * 1,')
+	S = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情,5)
+	SIF S
+		PRINT  + 
+	A += GETPALAMLV(PALAM:欲情,5) * 1
+	PRINT 欲情
+	PRINTV 'LV,GETPALAMLV(PALAM:欲情,5),'(,GETPALAMLV(PALAM:欲情,5) * 1,')
+	S = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	A -= 1
+	PRINT 恥じらい
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+
+;倒錯的
+IF TALENT:倒錯的
+	PRINT  + 
+	A += 10
+	PRINT 倒錯的
+	PRINTV '(,10,')
+	S = 1
+ENDIF
+
+;態度
+IF TALENT:態度 == -1
+	SIF S
+		PRINT  + 
+	A += 6
+	PRINT 素直
+	PRINTV '(,6,')
+	S = 1
+ELSEIF TALENT:態度 == 1
+	SIF S
+		PRINT  - 
+	A -= 4
+	PRINT 反抗的
+	PRINTV '(,4,')
+	S = 1
+ENDIF
+
+;プライド
+IF TALENT:プライド == -1
+	SIF S
+		PRINT  + 
+	A += 4
+	PRINT プライド低い
+	PRINTV '(,4,')
+	S = 1
+ELSEIF TALENT:プライド == 1
+	SIF S
+		PRINT  - 
+	A -= 6
+	PRINT プライド高い
+	PRINTV '(,6,')
+	S = 1
+ENDIF
+
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	PRINT  - 
+	A -= 1
+	PRINT 快感の否定
+	PRINTV '(,1,')
+	S = 1
+ENDIF
+;男嫌い（恋慕、親愛で無効）
+IF TALENT:性別嗜好 & 1 && !(TALENT:PLAYER:性別 & 1) && (!TALENT:恋慕 || PLAYER != MASTER) && TALENT:性別嗜好 > 0
+	PRINT  - 
+	A -= 12
+	PRINT 男嫌い
+	PRINTV '(,12,')
+	S = 1
+ENDIF
+
+;セフレ
+IF TALENT:セフレ
+	PRINT  + 
+	A += 10
+	PRINT セフレ
+	PRINTV '(,10,')
+	S = 1
+ENDIF
+
+;発情期
+IF CFLAG:発情期フラグ < 0
+	PRINT  + 
+	A += 6
+	PRINT 発情中
+	PRINTV '(,6,')
+	S = 1
+ENDIF
+
+;言いなり時のフレーバー
+IF TCVAR:言いなり
+	SIF S
+		PRINT  - 
+	A -= 100
+	PRINTFORM %CALLNAME:寝取らせ_主導キャラ%が見てる
+	PRINTV '(,100,')
+	S = 1
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	SIF S
+		PRINT  + 
+	A += 999
+	PRINT あなたの言いなり
+	PRINTV '(,999,')
+	S = 999
+ENDIF
+
+;合計を表示(24以上で実行)　暫定
+PRINT  = 
+PRINTV A
+
+V = 24
+SIF A < V
+	PRINT  < 
+SIF A == V
+	PRINT  = 
+SIF A > V
+	PRINT  > 
+PRINT 実行値
+PRINTV V
+
+WAIT
+SKIPDISP 0
+;実行できない
+SIF A < V
+	RETURN 0
+RETURN 1
+;-------------------------------------------------
+;嘘告白実行判定
+;-------------------------------------------------
+@COM_ABLE88
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+
+;一括管理
+SIF GLOBAL_COMABLE(0)
+	RETURN RESULT
+;相手に貸出経験がないなら無理
+SIF EXP:貸出経験 == 0
+	RETURN 0
+;口を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:口
+	RETURN 0
+SIF TEQUIP:TARGET:口
+	RETURN 0
+;恋慕がついていると嘘じゃなくなるので無理
+SIF TALENT:恋慕
+	RETURN 0
+;通常モード限定。「させるコマンド」だから指示っぽくはあるんだけど、タブ移動のひと手間がめんどくさい
+;同時モードではできないようにしたほうが分岐が楽なので
+SIF FLAG:モード管理 >= 1
+	RETURN 0
+;貸出経験なくても人妻とかには使えてもいい気がしないでもない
+
+RETURN 1
+
+;-------------------------------------------------
+;嘘告白時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM88
+#DIM 同時キャラ番号
+
+PRINTFORM %CALLNAME:PLAYER%は
+
+IF TCVAR:言いなり == 1
+	PRINTFORM %CALLNAME:寝取らせ_主導キャラ%%TEXTR("が見ている前で/に見せつけるように")%
+ENDIF
+
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0
+	;あなたがチンポ突っ込んでる
+		PRINTFORM %CALLNAME:TARGET%%TEXTR("の雌穴/のマンコ/")%を%TEXTR("我が物顔で/")%犯しながら、
+ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0
+	;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+		PRINTFORM %CALLNAME:TARGET%%TEXTR("を犯し/に自身を犯させ")%ながら、
+ELSEIF MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+	;あなたがチンポ突っ込んでる
+		PRINTFORM %CALLNAME:TARGET%の%TEXTR("尻穴/ケツ穴/ケツマンコ")%を%TEXTR("我が物顔で/")%犯しながら、
+ELSEIF MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+	;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+	PRINTFORM %CALLNAME:TARGET%%TEXTR("をケツ穴で犯し/に自身の尻穴を犯させ")%ながら、
+ELSE
+	PRINTFORM 、
+ENDIF
+;他にもパイズリさせながら、とかもできるはずだけど今回は省略
+
+PRINTFORM %CALLNAME:TARGET%に
+
+SELECTCASE CFLAG:TARGET:嘘告白カウント
+CASE 0 TO 5
+;最初のうちは言わせる内容はシンプルに。相手に「発言内容を選ぶ」及び「こちらの望まない発言をする」余地を与えない
+	IF  (MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0 && RAND:3 == 0)
+		PRINTFORM 嘘でもいいから%CALLNAME:PLAYER%に向けて感謝の言葉を言うように強要した。
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%に犯される嬌声を%TEXTR("必死に/がんばって")%%TEXTR("嚙み潰しながら/こらえながら")%、
+		PRINTFORML %TEXTR("心底嫌そうに/嫌悪感で震える声で/屈辱に震える声で")%、「%TEXTR("犯し/セックスし/抱い")%て%TEXTR("くれて/くださって")%、%TEXTR("嬉しいです/ありがとうございます")%」と口にした……
+	ELSE
+		PRINTFORM 嘘でもいいから%CALLNAME:PLAYER%に向けて愛の言葉を
+		PRINTFORML 言うように強要した。
+	;	PRINTFORML 言いながら%TEXTR("キスを捧げる/唇を捧げる/キスする")%よう強要した。
+	;	意図せずにファーストキス捧げるの嫌な人もいそうだけど、シチュとしては欲しい気もする。どうしたものか
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は
+		IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+		;あなたがチンポ突っ込んでる
+			PRINTFORM %CALLNAME:PLAYER%に犯される嬌声を%TEXTR("必死に/がんばって")%%TEXTR("嚙み潰しながら/こらえながら")%、
+		ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+			;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+			PRINTFORM %CALLNAME:PLAYER%と交わって漏れる喘ぎを%TEXTR("必死に/がんばって")%%TEXTR("嚙み潰しながら/こらえながら/押し殺しながら")%、
+		ENDIF
+		PRINTFORML %TEXTR("心底嫌そうに/嫌悪感で震える声で")%、「%CALLNAME:PLAYER%%TEXTR("のことが好き/を愛している")%」と口にした……
+	ENDIF
+CASE 6 TO 10
+;フェーズ自体は進行しているものの、いい感じの差分が思いつかない。
+;むしろ差がつくのはリアクションだとは思うものの、一応分けておく
+	IF  (MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0 && RAND:3 == 0) || (MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0 && RAND:3 == 0)
+		PRINTFORML 嘘でもいいから%CALLNAME:PLAYER%に向けて感謝の言葉を言うように強要した。
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%に犯される嬌声を%TEXTR("必死に/がんばって")%%TEXTR("嚙み潰しながら/こらえながら/押し殺しながら")%、
+		PRINTFORML %TEXTR("嫌そうに/嫌悪感を滲ませた声で/悔しそうに/屈辱を嚙み締めた声で")%、「%TEXTR("犯し/セックスし/抱い/使っ")%て%TEXTR("くれて/くださって")%、%TEXTR("嬉しいです/ありがとうございます")%」と口にした……
+	ELSE
+		PRINTFORM 嘘でもいいから%CALLNAME:PLAYER%に向けて愛の言葉を
+		PRINTFORML 言うように言いつけた。
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は
+		IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+		;あなたがチンポ突っ込んでる
+			PRINTFORM %CALLNAME:PLAYER%
+			SIF TALENT:PLAYER:性別 & 2
+				PRINTFORM の%TEXTR("ペニス/チンポ")%
+			PRINTFORM に犯され嬌声をあげながら、
+		ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+			;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+			PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
+		ENDIF
+		PRINTFORML %TEXTR("嫌そうに/渋々といった感じで/何度も言わされることに呆れたような声で")%、「%CALLNAME:PLAYER%%TEXTR("のことが好き/を愛している")%」と口にした……
+	ENDIF
+CASE 11 TO 24
+;このあたりから、「誰か」を選択式にして、対象にあなたを選ばせる。
+;繰り返しで慣れてきたのを見計らって、こっそり「嘘でもいいから」を取っ払う
+	IF  (MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 && RAND:4 == 0) || (MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 && RAND:4 == 0) || (MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0 && RAND:4 == 0) || (MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0 && RAND:4 == 0)
+		PRINTFORML %CALLNAME:PLAYER%に向けて感謝の言葉を言うように強要した。
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%に犯され嬌声をあげながら、
+		PRINTFORM %TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%TEXTR("犯し/セックスし/抱い/使っ")%て%TEXTR("くれて/くださって")%、%TEXTR("嬉しいです/ありがとうございます")%
+		CALL PRINT_STR("、っ_H_」")
+		PRINTFORML と%TEXTR("繰り返し/何度も")%口にした……
+	ELSEIF TCVAR:言いなり == 1
+	;寝取りっクス中。主導キャラが見てる
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORM %CALLNAME:PLAYER%に向けて愛の言葉を
+			PRINTFORML 言うように言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら、
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
+			ENDIF
+			PRINTFORML %TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%、「%CALLNAME:PLAYER%%TEXTR("のことが好き/のことが大好き/を愛している")%」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 1
+			PRINTFORML %CALLNAME:寝取らせ_主導キャラ%とのセックスとどちらが気持ちいいか%TEXTR("比べる/言う")%よう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながらも
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながらも
+			ENDIF
+			PRINTFORML %CALLNAME:PLAYER%の意図を理解し、%TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%CALLNAME:PLAYER%%TEXTR("とのセックス/と")%のほうが%TEXTR("いい/気持ちいい")%」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 2
+			PRINTFORML %CALLNAME:寝取らせ_主導キャラ%とどちらが好きか%TEXTR("比べる/言う")%よう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながらも
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながらも
+			ENDIF
+			PRINTFORML %CALLNAME:PLAYER%の意図を理解し、%TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%CALLNAME:PLAYER%のほうが好き」と%TEXTR("繰り返し/何度も")%口にした……
+		ENDSELECT
+	ELSE
+	;寝取りっクス中じゃない。主導キャラの見てないところでの、プライベートっクス。
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORM %CALLNAME:PLAYER%に向けて愛の言葉を
+			PRINTFORML 言うように言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら、
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
+			ENDIF
+			PRINTFORML %TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%、「%CALLNAME:PLAYER%%TEXTR("のことが好き/のことが大好き/を愛している")%」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 1
+			PRINTFORML 誰とのセックスが一番気持ちいいか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORML 、%TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%CALLNAME:PLAYER%」だと%TEXTR("繰り返し/何度も")%口にした……
+		CASE 2
+			PRINTFORML 誰のことが一番好きか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORML 、%TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%CALLNAME:PLAYER%が一番好き」だと%TEXTR("繰り返し/何度も")%口にした……
+		ENDSELECT
+	ENDIF
+CASEELSE
+;言わされることが完全に定着した。もはや反感も浮かばず屈服しきっている自覚がある。
+;これが本当に『嘘』告白なのかどうかは本人のみぞ知る……
+	IF  (MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 && RAND:5 == 0) || (MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 && RAND:5 == 0) || (MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0 && RAND:5 == 0) || (MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0 && RAND:5 == 0)
+		PRINTFORML %CALLNAME:PLAYER%に向けて感謝の言葉を言うように強要した。
+		PRINTL
+		PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%に犯され嬌声をあげながら、
+		PRINTFORM %TEXTR("躊躇いながらも/躊躇いながらも快楽の滲む声で/快楽に蕩けた声で悔しそうに")%「%TEXTR("犯し/セックスし/抱い/使っ")%て%TEXTR("くれて/くださって")%、%TEXTR("嬉しいです/ありがとうございます")%
+		CALL PRINT_STR("っ_H__H_」")
+		PRINTFORML と%TEXTR("繰り返し/何度も")%口にした……
+	ELSEIF TCVAR:言いなり == 1
+	;寝取りっクス中。主導キャラが見てる
+		SELECTCASE RAND:5
+		CASE 0
+			PRINTFORM %CALLNAME:PLAYER%に向けて愛の言葉を
+			PRINTFORML 言うように言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら、
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			IF RFLAG:コマンド結果受渡し変数 == 1 && TALENT:恋慕 < 1 && RAND:3 == 0
+			;性愛度の半分と恋心度の合計が80以上(性愛度100だと恋心30、性愛度80だと恋心40)かつ恋慕がない場合
+			;刷り込みが完了して、性愛快楽を恋慕感情と脳が勘違いしてしまった哀れな末路
+			;一度断るを選んでももう一度このイベントが発生するようにしたけど、毎回選択はそれはそれでダルいので確率ちょい落とす
+				PRINTFORMW %CALLNAME:寝取らせ_主導キャラ%が見ている前で「%TEXTR("大好きな/愛している")%ので%CALLNAME:PLAYER%のモノにしてください」と口にしてしまった。
+				PRINTL
+				PRINTFORML ──どうしようか？
+				PRINTL
+				PRINTBUTTON "[恋人として受け入れてやる]", 0
+				PRINTL 
+				PRINTBUTTON "[断る]", 1
+				PRINTL 
+				INPUT
+				SELECTCASE RESULT
+				CASE 0
+					PRINTFORML ──せっかく縁を結んでやったが、どうやら%CALLNAME:寝取らせ_主導キャラ%は%CALLNAME:TARGET%の運命の相手ではなかったようだ。
+					PRINTFORML 圧倒的な優越感を抱きながら、%CALLNAME:PLAYER%は%CALLNAME:TARGET%を%CALLNAME:寝取らせ_主導キャラ%から寝取り、自分のモノとした……。
+					PRINTL
+					PRINTFORM %CALLNAME:PLAYER%の与える快楽で高鳴った鼓動を『恋』と勘違いしてしまった哀れな%CALLNAME:TARGET%は、%CALLNAME:PLAYER%に［恋慕］陥落して
+					CALL PRINT_STRW("しまった……_H__H_")
+					TALENT:恋慕 = 1
+					初体験日:TARGET:恋慕 = DAY
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[恋慕]陥落させ、%CALLNAME:寝取らせ_主導キャラ%から寝取った</font><img src='えっちハート'>","うふふ実績")
+					CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%によって%CALLNAME:寝取らせ_主導キャラ%から寝取られ、陥落素質[恋慕]を得た</font><img src='えっちハート'>","うふふ実績")
+				CASEELSE
+					PRINTFORML せっかくの申し出だが、%CALLNAME:TARGET%にはまだ%CALLNAME:寝取らせ_主導キャラ%との関係を保っていてもらおう。
+					PRINTFORML %CALLNAME:PLAYER%はその申し出を一蹴し、再びプレイに戻った……
+				ENDSELECT
+			ELSE
+				PRINTFORML 「%CALLNAME:PLAYER%%TEXTR("のことが好き/のことが大好き/を愛している")%」と%TEXTR("繰り返し/何度も")%口にした……
+			ENDIF
+		CASE 1
+			PRINTFORML %CALLNAME:寝取らせ_主導キャラ%とのセックスとどちらが気持ちいいか%TEXTR("比べる/言う")%よう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%%TEXTR("とのセックス/と")%のほうが%TEXTR("いい/気持ちいい")%」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 2
+			PRINTFORML %CALLNAME:寝取らせ_主導キャラ%とどちらが好きか%TEXTR("比べる/言う")%よう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%のほうが好き」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 3
+			PRINTFORML 自分が誰のモノであるのか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%のモノ」だと%TEXTR("繰り返し/何度も")%口にした……
+		CASE 4
+			PRINTFORML 誰%TEXTR("の子供を産みたい/に子供を孕まされたい")%か答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%の%TEXTR("子供/赤ちゃん")%%TEXTR("がいい/が欲しい")%」と%TEXTR("繰り返し/何度も")%口にした……
+		ENDSELECT
+	ELSE
+	;寝取りっクス中じゃない。主導キャラの見てないところでの、プライベートっクス。
+		SELECTCASE RAND:5
+		CASE 0
+			PRINTFORM %CALLNAME:PLAYER%に向けて愛の言葉を
+			PRINTFORML 言うように言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら、
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%%TEXTR("のことが好き/のことが大好き/を愛している")%」と%TEXTR("繰り返し/何度も")%口にした……
+		CASE 1
+			PRINTFORML 誰とのセックスが一番気持ちいいか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM 、%TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%」だと%TEXTR("繰り返し/何度も")%口にした……
+		CASE 2
+			PRINTFORML 誰のことが一番好きか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM 、%TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%が一番好き」だと%TEXTR("繰り返し/何度も")%口にした……
+		CASE 3
+			PRINTFORML 自分が誰のモノであるのか答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%のモノ」だと%TEXTR("繰り返し/何度も")%口にした……
+		CASE 4
+			PRINTFORML 誰%TEXTR("の子供を産みたい/に子供を孕まされたい")%か答えるよう言いつけた。
+			PRINTL
+			PRINTFORM %CALLNAME:TARGET%は
+			IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) >= 0 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) >= 0
+			;あなたがチンポ突っ込んでる
+				PRINTFORM %CALLNAME:PLAYER%
+				SIF TALENT:PLAYER:性別 & 2
+					PRINTFORM の%TEXTR("ペニス/チンポ")%
+				PRINTFORM に犯され嬌声をあげながら
+			ELSEIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) >= 0 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) >= 0
+				;あなたがチンポ咥えこんでる。ペニバンの可能性もあるので詳細な描写は省く
+				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら
+			ENDIF
+			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
+			PRINTFORML 「%CALLNAME:PLAYER%の%TEXTR("子供/赤ちゃん")%%TEXTR("がいい/が欲しい")%」と%TEXTR("繰り返し/何度も")%口にした……
+		ENDSELECT
+	ENDIF
+ENDSELECT

@@ -1,7 +1,8 @@
 ﻿@キャラ履歴表示画面(ARG)
 #DIM イベント件数
 #DIM 人物ID
-#DIM 検索リザルトID, 10000
+#DIM 解析行数
+#DIM DYNAMIC 検索リザルトID, 100000
 #DIMS フィルタ
 #DIM 表示行数 = 20; 履歴の表示行数
 ;#DIM 履歴表示フィルタ
@@ -92,26 +93,27 @@ LOCAL = GET_PERSON_出会った周回(CFLAG:ARG:人物番号)
 イベント件数 = DT_SELECT("履歴データベース", @"(キャラID = {CFLAG:ARG:人物番号} OR キャラID = 0)%フィルタ% ", "LOOP ASC, DATE ASC", 検索リザルトID)
 
 LOCALS = 
+LOCALS:1 = 
+FOR LOCAL, 0 + (表示行数 * 能力表示現在ページ), MIN((表示行数 * (能力表示現在ページ + 1)), イベント件数)
+	LOCALS:1 += @"%DT_CELL_GETS("履歴データベース", 検索リザルトID:LOCAL, "NOTE", 1)%"
+	LOCALS:1 += @"<br>"
+NEXT
+解析行数 = HTML_STRINGLINES(REPLACE(LOCALS:1, "<img src='[^']*'>", "　"), 76)
+LOCALS += @"<div rect='0,0,3900,{解析行数 * 100 + 500}'>%LOCALS:1%"
+LOCALS += @"</div>"
+
 IF イベント件数 > 表示行数
 	SIF 能力表示現在ページ > 0
-		LOCALS += @"<div rect='0,2300,5000,200'><button value='900'>[900]前のページへ</button></div>"
-	SIF 能力表示現在ページ < イベント件数 / (表示行数 + 1)
-		LOCALS += @"<div rect='1000,2300,5000,200'><button value='901'>[901]次のページへ</button></div>"
+		LOCALS += @"<div rect='0,{解析行数 * 100 + 400},5000,200'><button value='900'>[900]前のページへ</button></div>"
+	SIF 能力表示現在ページ < イベント件数 / 表示行数
+		LOCALS += @"<div rect='1000,{解析行数 * 100 + 400},5000,200'><button value='901'>[901]次のページへ</button></div>"
 ELSE
 	能力表示現在ページ = 0
 ENDIF
 
-
-LOCALS += @"<div rect='0,0,5000,2500'>"
-FOR LOCAL, 0 + (表示行数 * 能力表示現在ページ), MIN((表示行数 * (能力表示現在ページ + 1)), イベント件数)
-	LOCALS += @"%DT_CELL_GETS("履歴データベース", 検索リザルトID:LOCAL, "NOTE", 1)%"
-    LOCALS += @"<br>"
-    NEXT
-LOCALS += @"</div>"
-
 $履歴取得スキップ
 
-LOCALS += @"<div rect='0,2500,5000,300'>履歴表示フィルタ："
+LOCALS += @"<div rect='0,{解析行数 * 100 + 600},5000,300'>履歴表示フィルタ："
 
 SELECTCASE GETBIT(履歴表示フィルタ, 0); 日常
 	CASE 0
@@ -179,10 +181,9 @@ LOCALS += "</div>"
 
 HTML_PRINT LOCALS, 1
 
-FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+FOR LOCAL, 0, MAX(29 - (LINECOUNT - L_C), 解析行数 + 3)
 	PRINTL
 NEXT
-
 
 @履歴データベース作成
 ;初期設定
@@ -238,16 +239,16 @@ SIF 日付 == 0
 
 IF 特殊履歴タイプ == -1; 日付の非表示ができるようにする
 ELSE
-    IF 周回 > 0
-        LOCALS += @"{周回 + 1}周目 "
-    ENDIF
+	IF 周回 > 0
+		LOCALS += @"{周回 + 1}周目 "
+	ENDIF
 
-    ;-2 空欄 -1 破線 (0 = DAY) 1以上で指定の日付
-    IF 日付 == -1
-        LOCALS += @"──────────"
-    ELSE
-        LOCALS += @"{日付 / 120 + 1}年目 %月登録:((日付 / 30) % 4)% {日付 % 30 + 1}日"
-    ENDIF
+	;-2 空欄 -1 破線 (0 = DAY) 1以上で指定の日付
+	IF 日付 == -1
+		LOCALS += @"──────────"
+	ELSE
+		LOCALS += @"{日付 / 120 + 1}年目 %月登録:((日付 / 30) % 4)% {日付 % 30 + 1}日"
+	ENDIF
 	STRLENS LOCALS
 	FOR LOCAL, 0, 20 - RESULT:0
 		LOCALS += @" "

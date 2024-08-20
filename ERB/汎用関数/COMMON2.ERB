@@ -114,6 +114,44 @@ ENDIF
 
 RETURNF LOCAL
 
+@恋慕ありチェック(ARG)
+#FUNCTION
+
+IF TALENT:ARG:恋慕
+	RETURNF 1
+ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = '恋慕'")
+	RETURNF 1
+ENDIF
+
+RETURNF 0
+
+@セフレありチェック(ARG)
+#FUNCTION
+
+IF TALENT:ARG:セフレ
+	RETURNF 1
+ELSEIF TALENT:ARG:セフレあり
+	RETURNF 1
+ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = 'セフレ'")
+	RETURNF 1
+ENDIF
+
+RETURNF 0
+
+@関係性_相手人物番号取得(対象人物番号, 対象ID)
+#FUNCTION
+#DIM 対象人物番号
+#DIM 対象ID
+
+IF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ１", 1) == 対象人物番号
+	RETURNF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ２", 1)
+ELSEIF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ２", 1) == 対象人物番号
+	RETURNF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ１", 1)
+ENDIF
+
+RETURNF 0
+
+
 @従業員人数チェック()
 
 従業員人数 = 0
@@ -124,6 +162,23 @@ FOR LOCAL,1,CHARANUM
 NEXT
 
 RETURN 従業員人数
+
+@ユニーク客人数チェック()
+
+滞在キャラ数 = 0
+FOR LOCAL,1,CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 1
+		CONTINUE
+	SIF TALENT:LOCAL:従業員
+		CONTINUE
+	SIF TALENT:LOCAL:定住者
+		CONTINUE
+	滞在キャラ数 += 1
+NEXT
+滞在キャラ数 += RFLAG:滞在キャラ枠先確保分
+
+RETURN 滞在キャラ数
+
 
 
 @ドロップ判定処理(ドロップ確率, 入手アイテム名)
@@ -505,7 +560,7 @@ RETURNF MAX(CFLAG:対象キャラ:恋慕レベル, 性愛_好感度レベル)
 #DIM 分身並べ替え基準, 5
 #DIM 時間保存
 
-FOR LOCAL, 0, CHARANUM
+FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	IF CFLAG:(TARGET:LOCAL):うふふ
@@ -542,11 +597,20 @@ FOR LOCAL, 0, CHARANUM
 	CSTR:(TARGET:LOCAL):オートコマンド履歴４ = 
 NEXT
 CFLAG:PLAYER:うふふ = 0
+CSTR:PLAYER:オートコマンド履歴０ = 
+CSTR:PLAYER:オートコマンド履歴１ = 
+CSTR:PLAYER:オートコマンド履歴２ = 
+CSTR:PLAYER:オートコマンド履歴３ = 
+CSTR:PLAYER:オートコマンド履歴４ = 
 連れ込みパターン = 
+FLAG:イベントうふふ終了 = 1
+
 ;オートコマンドもリセット
 TFLAG:オートコマンドフラグ = 0
 AUTOCOM_相手番号保存 = 0
+自慰ターゲット保存 = 0
 CALL TURN_RESET
+
 ;同時モードもリセット
 FLAG:モード管理 = 0
 同時モード_選択数 = 0
@@ -571,6 +635,43 @@ VARSET 分身登録:0:0
 VARSET 分身EXP保存:0:0
 CALL SORT_CFLAG(21)
 CALL TARGET_SET()
+
+@分身指定削除(対象キャラ)
+#DIM 対象キャラ
+#DIM 分身番号
+#DIM EXP番号
+
+SIF TALENT:対象キャラ:分身 < 1
+	RETURN -1
+
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:0 == 対象キャラ
+		分身番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+FOR EXP番号, 0, 200
+	EXP:(分身登録:分身番号:1):EXP番号 += EXP:(分身登録:分身番号:0):EXP番号 - 分身EXP保存:分身番号:EXP番号
+NEXT
+DELCHARA 対象キャラ
+
+;キャラ番号をズラしておく
+FOR LOCAL, 0, 分身最大数
+	SIF 分身登録:LOCAL:0 > 対象キャラ
+		分身登録:LOCAL:0 -= 1
+NEXT
+FOR LOCAL, 分身番号, 分身最大数 - 1
+	分身登録:LOCAL:0 = 分身登録:(LOCAL + 1):0
+	分身登録:LOCAL:1 = 分身登録:(LOCAL + 1):1
+	FOR EXP番号, 0, 200
+		分身EXP保存:LOCAL:EXP番号 = 分身EXP保存:(LOCAL + 1):EXP番号
+	NEXT
+NEXT
+CALL SORT_CFLAG(21)
+CALL TARGET_SET()
+
+
 
 @飲み会終了処理
 
@@ -744,3 +845,23 @@ LOCAL = 100501
 要素最大値 = MAXFIND(5, 友情度記録, 信頼度記録, 恋心度記録, 性愛度記録, キャラ固有好感度記録)
 
 RETURNF 要素最大値
+
+@同時モード組み合わせ選択(対象キャラ１ = -1, 対象キャラ２ = -1, 対象キャラ３ = -1)
+#FUNCTION
+#DIM 対象キャラ１
+#DIM 対象キャラ２
+#DIM 対象キャラ３
+
+
+LOCAL = 1
+
+SIF 対象キャラ１ > -1 && MATCH(同時モード_選択キャラ, 対象キャラ１) < 1
+	LOCAL = 0
+
+SIF 対象キャラ２ > -1 && MATCH(同時モード_選択キャラ, 対象キャラ２) < 1
+	LOCAL = 0
+
+SIF 対象キャラ３ > -1 && MATCH(同時モード_選択キャラ, 対象キャラ３) < 1
+	LOCAL = 0
+
+RETURNF LOCAL

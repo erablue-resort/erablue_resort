@@ -54,6 +54,24 @@ IF TFLAG:オートコマンドフラグ
 	TEQUIP:TARGET:上タイツ破れ = 0
 	TEQUIP:TARGET:下タイツ破れ = 0
 ENDIF
+;野外
+IF BEDROOM(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置) == 0 && GET_TARGETNUM() > 1
+	LOCAL:1 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF TARGET:LOCAL == TARGET
+			CONTINUE
+		IF CFLAG:LOCAL:うふふ == 0
+			LOCAL:1 = 1
+			BREAK
+		ENDIF
+	NEXT
+	IF LOCAL:1
+		RFLAG:コマンド結果受渡し変数 = 1
+		RCVAR:TARGET:露出コマンドフラグ = 1
+	ENDIF
+ENDIF
 
 RETURN 1
 
@@ -132,6 +150,37 @@ IF TALENT:セフレ
 	PRINTV '(,3,')
 	S = 3
 ENDIF
+;野外
+IF BEDROOM(CFLAG:現在マップ種別, CFLAG:現在位置) == 0 && GET_TARGETNUM() > 1
+	LOCAL:1 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF TARGET:LOCAL == TARGET
+			CONTINUE
+		IF CFLAG:LOCAL:うふふ == 0
+			LOCAL:1 = 1
+			BREAK
+		ENDIF
+	NEXT
+	IF LOCAL:1 
+		PRINT  - 
+		A -= 15
+		PRINT 野外露出
+		PRINTV '(,15,')
+		S = 15
+	ENDIF
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	SIF S
+		PRINT  + 
+	A += 999
+	PRINT あなたの言いなり
+	PRINTV '(,999,')
+	S = 999
+ENDIF
 
 ;合計を表示(20以上で実行)
 PRINT  = 
@@ -170,11 +219,27 @@ SIF TALENT:脱衣不可
 
 ;既に全裸だったらダメ
 LOCAL:1 = 0
-FOR LOCAL, 150, 172
-	SIF TEQUIP:LOCAL 
-		LOCAL:1 = 1
-NEXT
-SIF !LOCAL:1
+
+SIF TEQUIP:TARGET:上半身鎧あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:上半身服あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:上タイツあり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:上半身下着あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:下腹部後鎧あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:下腹部前鎧あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:下半身服あり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:下タイツあり != 0
+	LOCAL:1 = 1
+SIF TEQUIP:TARGET:下半身下着あり != 0
+	LOCAL:1 = 1
+
+SIF LOCAL:1 == 0
 	RETURN 0
 
 RETURN 1
@@ -195,5 +260,9 @@ IF FLAG:モード管理 == 2
 	PRINTL の衣服をすべて脱がせた…
 ELSE
 	PRINTFORML %CALLNAME:TARGET%の衣服をすべて脱がせた…
+ENDIF
+
+IF RFLAG:コマンド結果受渡し変数
+	PRINTFORML 人目のあるところで脱いだことで、%CALLNAME:TARGET%はどこか落ち着かないようだ…
 ENDIF
 

@@ -10,6 +10,7 @@ TSTR:コマンド名受渡 = 脇をくすぐる
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ弱")
 弱点コマンドカテゴリ = S
+睡眠中許可 = 1
 
 
 @COM_TOOLTIP_S306_9
@@ -21,6 +22,16 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM_S306_9
+
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 70)
+TIME += 10
+
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
+
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
 ;1:拒絶  2:受け入れ  3:喜び
@@ -114,12 +125,6 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 		ENDSELECT
 ENDSELECT
 
-;発生する快楽は受け手の状態に依存しない
-CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50)
-SIF TALENT:PLAYER:器用な指
-	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 70)
-TIME += 10
-
 ;成功度を判定して笑ったら歓楽に＋
 ;無反応時は絶対笑わない
 IF RFLAG:コマンド結果受渡し変数２ != 2
@@ -159,18 +164,30 @@ RETURN 9
 @MESSAGE_COM_S306_9
 
 PRINTFORML %CALLNAME:PLAYER%はこっそりと近づき、%CALLNAME:TARGET%の脇をくすぐった
-IF RFLAG:コマンド結果受渡し変数３
-	PRINTFORML %CALLNAME:TARGET%はくすぐりにこらえきれず、声を上げて笑っている
-ELSE
-	PRINTFORML %CALLNAME:TARGET%は笑わず、くすぐりに耐えたようだ…
+IF !CFLAG:TARGET:睡眠
+	IF RFLAG:コマンド結果受渡し変数３
+		PRINTFORML %CALLNAME:TARGET%はくすぐりにこらえきれず、声を上げて笑っている
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%は笑わず、くすぐりに耐えたようだ…
+	ENDIF
 ENDIF
 IF CUP:TARGET:快Ｓ > 1000
 	;一定以上の快楽が発生した時にちょっと声が出る
-	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず甘い声を漏らしてしまった…
+	IF CFLAG:TARGET:睡眠
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は眠ったまま小さく喘いだ…
+	ELSE
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	ENDIF
 	PRINTL
 ENDIF
 
 @MESSAGE_COM_S306_9_非口上時
+
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:TARGET%はすやすやと眠っている……
+	RETURN 0
+ENDIF
+
 SELECTCASE RFLAG:コマンド結果受渡し変数２
 	CASE 1
 		;無知

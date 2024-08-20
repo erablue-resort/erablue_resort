@@ -59,6 +59,46 @@ SELECTCASE ARG
 		RETURNF "無"
 ENDSELECT
 
+@有利属性変換(ARG)
+#FUNCTION
+
+SELECTCASE ARG
+	CASE 0
+		RETURNF 2
+	CASE 1
+		RETURNF 0
+	CASE 2
+		RETURNF 3
+	CASE 3
+		RETURNF 1
+	CASE 4
+		RETURNF 5
+	CASE 5
+		RETURNF 4
+	CASE 6
+		RETURNF 6
+ENDSELECT
+
+@不利属性変換(ARG)
+#FUNCTION
+
+SELECTCASE ARG
+	CASE 0
+		RETURNF 1
+	CASE 1
+		RETURNF 3
+	CASE 2
+		RETURNF 0
+	CASE 3
+		RETURNF 2
+	CASE 4
+		RETURNF 5
+	CASE 5
+		RETURNF 4
+	CASE 6
+		RETURNF 6
+ENDSELECT
+
 @得意武器文字列数値変換(ARGS)
 #FUNCTION
 
@@ -300,7 +340,7 @@ IF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0
 		;敵側
 		バフ・デバフ補正後数値 = (敵BATTLE_STATE:(ARG - 10):バフ・デバフ種類 * (100 + LOCAL) / 100) + LOCAL:1
 		;最低でも通常数値の半分まで
-		バフ・デバフ補正後数値 = MAX(BATTLE_STATE:(ARG - 10):バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
+		バフ・デバフ補正後数値 = MAX(敵BATTLE_STATE:(ARG - 10):バフ・デバフ種類 / 2, バフ・デバフ補正後数値)
 	ENDIF
 ELSEIF バフ・デバフ種類 == "連続攻撃率"
 	;連撃率はステータスになく、かつDA率TA率と基本的に加算するので基本値を無視して補正値のみ
@@ -415,6 +455,30 @@ ELSEIF バフ・デバフ種類 == "最大ＣＴ増加"
 ELSEIF バフ・デバフ種類 == "反射"
 	;仕様不明のためそのまま返す
 	バフ・デバフ補正後数値 = 補正前数値
+ELSEIF REGEXPMATCH(バフ・デバフ種類, "^状態異常耐性_.*$") > 0
+	;状態異常耐性はステータスになく、かつ弱体耐性と基本的に加算するので基本値を無視して補正値のみ
+	データベース行数 = DT_ROW_LENGTH(@"バフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"バフデータベース_{ARG}", ループ用, "バフ対象能力") == バフ・デバフ種類
+			LOCAL:1 += DT_CELL_GET(@"バフデータベース_{ARG}", ループ用, "バフ効果量_固定値")
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				CALL バフ回数経過処理(ARG, バフ・デバフ種類)
+			ENDIF
+		ENDIF
+	NEXT
+	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{ARG}")
+	FOR ループ用, 0, データベース行数
+		IF DT_CELL_GETS(@"デバフデータベース_{ARG}", ループ用, "デバフ対象能力") == バフ・デバフ種類
+			LOCAL:1 -= DT_CELL_GET(@"デバフデータベース_{ARG}", ループ用, "デバフ効果量_固定値")
+			IF 観測のみフラグ == 0
+				;回数持続の効果の回数を減少
+				CALL デバフ回数経過処理(ARG, バフ・デバフ種類)
+			ENDIF
+		ENDIF
+	NEXT
+	;処理の関係上、割合を無視して固定値のみ
+	バフ・デバフ補正後数値 = LOCAL:1
 ENDIF
 
 CALL バフ・デバフ測定_特殊補正処理(ARG, バフ・デバフ種類, バフ・デバフ補正後数値)

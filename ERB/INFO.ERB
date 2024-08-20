@@ -98,10 +98,14 @@ FOR LOCAL,1,CHARANUM
 		;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
 		IF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
-			SIF RESULT
+			SIF RESULT > 0
 				うふふ終了フラグ = 1
+			SIF RESULT < 0
+				RESTART
 		ELSEIF !TCVAR:(CFLAG_SORTARRAY:LOCAL):挨拶フラグ && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && PREVCOM == 841
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
+			SIF RESULT < 0
+				RESTART
 		ENDIF
 		CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 = 1
 	;覗きは一旦オミット
@@ -161,7 +165,8 @@ TCVAR:MASTER:馴れ合い強度 = TCVAR:TARGET:馴れ合い強度
 FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-	IF !CFLAG:LOCAL:うふふ || CFLAG:LOCAL:現在位置 != CFLAG:LOCAL:前ターン位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:LOCAL:前マップ種別
+	IF MODE_確認_ターゲット側("全裸散歩", LOCAL) > -1
+	ELSEIF !CFLAG:LOCAL:うふふ || CFLAG:LOCAL:現在位置 != CFLAG:LOCAL:前ターン位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:LOCAL:前マップ種別
 		IF CSTR:LOCAL:うふふ前の服 != ""
 			CALL CLOTHES_CHANGE(LOCAL, CSTR:LOCAL:うふふ前の服)
 ;			CSTR:LOCAL:着せ替え服 = %CSTR:LOCAL:うふふ前の服%
@@ -207,6 +212,10 @@ FOR LOCAL,0,CHARANUM
 	ENDIF
 	IF CFLAG:LOCAL:飲み会
 		;飲み会時は自動着替えは発動しない
+		CONTINUE
+	ENDIF
+	IF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+		;マッサージ中は自動着替えは発動しない
 		CONTINUE
 	ENDIF
 
@@ -557,7 +566,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		PRINTL 
 		IF CFLAG:PLAYER:ゲージ起動分類 == 1
 			PRINT 　　　　　　　　　　　 
-			CALL PRINT_恋慕レベル表示(PLAYER)
+			CALL INFO_恋慕レベル表示(PLAYER)
 			PRINTL
 		ENDIF
 	ELSE
@@ -566,7 +575,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		PRINTL 
 		IF CFLAG:TARGET:ゲージ起動分類 == 1
 			PRINT 　　　　　　　　　　　 
-			CALL PRINT_恋慕レベル表示(TARGET)
+			CALL INFO_恋慕レベル表示(TARGET)
 			PRINTL
 		ENDIF
 	ENDIF
@@ -1094,7 +1103,9 @@ ELSE
 	NEXT
 ENDIF
 
-IF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
+IF TARGET保存 >= CHARANUM
+	TARGET = TARGET:1
+ELSEIF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
 	;元のTARGETがいるならそれ
 	TARGET = TARGET保存
 ELSE
@@ -1151,7 +1162,13 @@ VARSET LOCAL
 LOCAL:1 = IN_ROOM("MAX", CFLAG:MASTER:現在位置, "CFLAG", GETNUM(CFLAG, "うふふ"))
 IF CFLAG:MASTER:隠密
 	;隠密だとそもそも遭遇しない
-ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0
+ELSEIF MODE_確認_プレイヤー側("全裸散歩", PLAYER) > -1 && MODE_確認_ターゲット側("全裸散歩", 対象キャラ) < 0
+	DRAWLINE
+	PRINTFORML %CALLNAME:対象キャラ%がこちらに近づいてくる……！
+	PRINTFORMW %CALLNAME:PLAYER%たちは見つかる前に急いでこの場から立ち去った……
+	CALL 全裸散歩終了処理()
+	RETURN -1
+ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0 && 対象キャラ != LOCAL:1
 	DRAWLINE
 	PRINTFORMW %CALLNAME:対象キャラ%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
 	IF 陥落チェック(対象キャラ)

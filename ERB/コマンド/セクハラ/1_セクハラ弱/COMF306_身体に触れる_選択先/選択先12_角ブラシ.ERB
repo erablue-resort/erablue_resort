@@ -9,6 +9,7 @@ TSTR:コマンド名受渡 = 角ブラシ
 @COMTYPE_S_306_12
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ弱")
+睡眠中許可 = 1
 
 
 @COM_TOOLTIP_S306_12
@@ -20,6 +21,22 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM_S306_12
+
+RCVAR:TARGET:角開発フラグ = 2
+
+;発生する快楽は受け手の状態に依存しない
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 20)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 30)
+TIME += 10
+
+SIF CFLAG:TARGET:睡眠
+	RETURN 1
+	
+;角開発時は露出追加
+SIF EXP:TARGET:角開発 >= 100 && GET_TARGETNUM() > 1 && !CFLAG:TARGET:うふふ
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
+
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
 ;1:拒絶  2:受け入れ  3:喜び
@@ -113,17 +130,6 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 		ENDSELECT
 ENDSELECT
 
-RCVAR:TARGET:角開発フラグ = 2
-;角開発時は露出追加
-SIF EXP:TARGET:角開発 >= 100 && GET_TARGETNUM() > 1 && !CFLAG:TARGET:うふふ
-	CALL SOURCE_CALC_露出(TARGET, PLAYER, 250)
-
-;発生する快楽は受け手の状態に依存しない
-CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 20)
-SIF TALENT:PLAYER:器用な指
-	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 30)
-TIME += 10
-
 RETURN 1
 
 
@@ -152,11 +158,21 @@ RETURN 12
 PRINTFORML %CALLNAME:PLAYER%はブラシを取り出し、%CALLNAME:TARGET%の角を磨いた。
 IF CUP:TARGET:快Ｓ > 1000
 	;一定以上の快楽が発生した時にちょっと声が出る
-	PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	IF CFLAG:TARGET:睡眠
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は眠ったまま小さく喘いだ…
+	ELSE
+		PRINTFORML 不意の快楽に、%CALLNAME:TARGET%は思わず少し声を漏らしてしまった…
+	ENDIF
 	PRINTL
 ENDIF
 
 @MESSAGE_COM_S306_12_非口上時
+
+IF CFLAG:TARGET:睡眠
+	PRINTFORML %CALLNAME:TARGET%はすやすやと眠っている……
+	RETURN 0
+ENDIF
+
 SELECTCASE RFLAG:コマンド結果受渡し変数２
 	CASE 1
 		;無知

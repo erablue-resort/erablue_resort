@@ -49,6 +49,9 @@ IF TFLAG:エリア切り替え時_目的地格納
 		RETURN 0
 	ELSE
 		TFLAG:長距離移動時_目的地格納 = RESULT
+		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:長距離移動時_目的地格納)
+		;現在位置を更新し、次も移動の扱いにする
+		CFLAG:PLAYER:現在位置 = RESULT
 	ENDIF
 ENDIF
 
@@ -57,10 +60,18 @@ IF TFLAG:長距離移動時_目的地格納
 	TIME += 1
 	IF TFLAG:長距離移動時_目的地格納 == CFLAG:MASTER:現在位置
 		TFLAG:長距離移動時_目的地格納 = 0
-		RETURN 0
+		IF !TFLAG:エリア切り替え時_目的地格納
+			RETURN 0
+		ELSE
+			RESTART
+		ENDIF
 	ELSEIF 同一場所判定(TFLAG:長距離移動時_目的地格納, CFLAG:MASTER:現在位置)
 		TFLAG:長距離移動時_目的地格納 = 0
-		RETURN 0
+		IF !TFLAG:エリア切り替え時_目的地格納
+			RETURN 0
+		ELSE
+			RESTART
+		ENDIF
 	ENDIF
 	CALL CHARA_MOVEMENT
 	TFLAG:行動前時刻 = TIME + 1440 * DAY
@@ -76,11 +87,26 @@ IF TFLAG:長距離移動時_目的地格納
 			CONTINUE
 		SIF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET:LOCAL) > -1
 			CONTINUE
+		SIF MODE_確認_完全一致("全裸散歩", PLAYER, TARGET:LOCAL) > -1
+			CONTINUE
 		SIF 出会ったキャラ記録 != ""
 			出会ったキャラ記録 += "、"
 		出会ったキャラ記録 += @"%CALLNAME:(TARGET:LOCAL)%"
 	NEXT
 	IF 出会ったキャラ記録 != ""
+		IF MODE_確認_プレイヤー側("全裸散歩", PLAYER) > -1
+			VARSET RESULTS
+			SPLIT 出会ったキャラ記録, "、", RESULTS
+			DRAWLINE
+			PRINTFORML %RESULTS:0%がこちらに近づいてくる……！
+			PRINTFORMW %CALLNAME:PLAYER%たちは見つかる前に急いでこの場から立ち去った……
+			CALL 全裸散歩終了処理()
+			TFLAG:長距離移動時_目的地格納 = 0
+			TFLAG:エリア切り替え時_目的地格納 = 0
+			;エリアまたぎ移動キャンセル用にフラグを突っ込む
+			RFLAG:立ち止まらないフラグ = -1
+			RETURN -1
+		ENDIF
 		PRINTFORML %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)%で%出会ったキャラ記録%と出会った
 		;パンツは一旦封印
 		; IF STRLENS(CSTR:MASTER:12) && RAND:2 && !CFLAG:(LOCAL:2):睡眠
@@ -292,7 +318,7 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
 						LOCAL:2 = 1
-					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1
+					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1 || MODE_確認_完全一致("全裸散歩", PLAYER, 部屋主配列:ループ用) > -1
 						LOCAL:2 = 1
 					ENDIF
 				NEXT
@@ -363,13 +389,26 @@ FOR LINENUM, 表示開始数_縦, VARSIZE("AA")
 			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
 			SIF TOINT(RESULTS) == 0
 				FOUND_INT = 0
-			IF 表示開始数_横 > 描画横幅カウント
-				;表示開始未満なら描画しない
-			ELSEIF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
-				表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
-			ELSE
-				表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
-			ENDIF
+			SELECTCASE CFLAG:PLAYER:現在マップ種別
+				CASE 1, 2
+					;空艇港
+					IF 表示開始数_横 > 描画横幅カウント
+						;表示開始未満なら描画しない
+					ELSEIF CFLAG:PLAYER:現在位置 < 1000 && TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+						表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+					ELSE
+						表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+					ENDIF
+				CASEELSE
+					;リゾート
+					IF 表示開始数_横 > 描画横幅カウント
+						;表示開始未満なら描画しない
+					ELSEIF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+						表示文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+					ELSE
+						表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+					ENDIF
+			ENDSELECT
 			X_POINT += 2
 		;ふつうの文字
 		ELSE
@@ -390,6 +429,38 @@ NEXT
 RESULTS = %表示文字列%
 サイド描画_クイック移動マップ縦幅保存 = 改行数
 RETURN 最大横サイズ
+
+@DRAW_簡易MAP()
+#DIMS 表示文字列
+
+表示文字列 = 
+LOCAL:1 = 0
+LOCAL:2 = 0
+FOR LOCAL, 0, マップ部屋番号上限
+	IF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, LOCAL) == 0
+		IF LOCAL:2 && LOCAL:1
+			表示文字列 += "<br>"
+			表示文字列 += "<br>"
+			LOCAL:1 = 0
+			LOCAL:2 = 0
+		ELSEIF LOCAL:2
+			表示文字列 += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+		;存在する場所を順番に並べる
+		表示文字列 += @"<button value='{LOCAL}'>[{LOCAL, 4}] %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL), 20, LEFT%</button>"
+		LOCAL:1 ++ 
+		IF LOCAL:1 % 3 == 0
+			表示文字列 += "<br>"
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+	SIF LOCAL % 100 == 0
+		LOCAL:2 ++
+NEXT
+
+RESULTS = %表示文字列%
+
 
 ;-------------------------------------------------
 ;実行判定

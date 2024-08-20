@@ -38,12 +38,26 @@ RCVAR:ARG:破瓜_相手番号 = ARG:1
 VARSET LOCAL
 ;SOURCE追加
 IF TALENT:ARG:処女 == 1
-	PRINT 処女喪失
+	PRINTFORM 処女喪失(%CALLNAME:ARG%)
 	;苦痛
 	;チンコ
 	IF ARG:2 == 1
 		LOCAL = 2000
-		PRINTW ：ペニス
+		IF ARG:1 < 0
+			IF GETBIT(ABS(ARG:1), 1)
+				PRINTW ：ペニス
+			ELSE
+				PRINTW ：ペニスバンド
+				RCVAR:ARG:破瓜 = 5
+			ENDIF
+		ELSE
+			IF GETBIT(TALENT:(ARG:1):性別, 1)
+				PRINTW ：ペニス
+			ELSE
+				PRINTW ：ペニスバンド
+				RCVAR:ARG:破瓜 = 5
+			ENDIF
+		ENDIF
 	;バイブ
 	ELSEIF ARG:2 == 2
 		LOCAL = 1500
@@ -86,7 +100,25 @@ IF TALENT:ARG:処女 == 1
 	ENDIF
 	;陥落素質による処理
 	;MASTERがTARGETの膣に挿入している
-	IF ARG:1 == PLAYER && ARG:2 == 1
+	IF ARG:1 == MASTER
+		IF TALENT:ARG:貞操 > 0
+			;非恋慕
+			IF !TALENT:ARG:恋慕
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			ENDIF
+		ELSEIF TALENT:ARG:貞操 == 0
+			;非恋慕
+			IF !TALENT:ARG:恋慕
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+			ENDIF
+		ENDIF
+		IF ARG:2 == 1
 		;親愛かつ相手が主人
 		IF TALENT:ARG:恋慕 > 1
 			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初めての相手である事にこの上ない幸せを感じているようだ……
@@ -95,6 +127,25 @@ IF TALENT:ARG:処女 == 1
 		ELSEIF TALENT:ARG:恋慕
 			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%に処女を捧げられた事に幸福を感じているようだ……
 			CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
+		ENDIF
+	ENDIF
+	ELSE
+		IF TALENT:ARG:貞操 > 0
+			;非恋慕
+			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			ENDIF
+		ELSEIF TALENT:ARG:貞操 == 0
+			;非恋慕
+			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+			ENDIF
 		ENDIF
 	ENDIF
 ENDIF
@@ -109,11 +160,17 @@ ENDIF
 ;非童貞はスルー
 SIF GETBIT(TALENT:ARG:非童貞, ARG:2 - 1)
 	RETURN 0
+;ちんこなし（＝ペニバン）はスルー
+SIF GETBIT(TALENT:ARG:性別, 1) == 0
+	RETURN 0
 RCVAR:ARG:童貞喪失 = ARG:2
 RCVAR:ARG:童貞喪失_相手番号 = ARG:1
 VARSET LOCAL
 ;SOURCE追加
 PRINTFORM 童貞喪失(%CALLNAME:ARG%)
+;陥落素質による処理
+;TARGETがMASTERの膣に挿入している
+IF ARG:1 == MASTER
 ;不潔
 ;貞操観念
 IF TALENT:ARG:貞操 > 0
@@ -127,9 +184,6 @@ ELSEIF TALENT:ARG:貞操 == 0
 		CALL SOURCE_CALC_不潔(ARG, ARG:1, 100)
 	ENDIF
 ENDIF
-;陥落素質による処理
-;MASTERがTARGETの膣に挿入している
-IF ARG:1 == PLAYER
 	;親愛
 	IF TALENT:ARG:恋慕 > 1
 		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初めての相手である事にこの上ない幸せを感じているようだ……
@@ -138,6 +192,20 @@ IF ARG:1 == PLAYER
 	ELSEIF TALENT:ARG:恋慕
 		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初体験の相手である事に幸福を感じているようだ……
 		CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
+	ENDIF
+ELSE
+	;不潔
+	;貞操観念
+	IF TALENT:ARG:貞操 > 0
+		;非恋慕
+		IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 300)
+		ENDIF
+	ELSEIF TALENT:ARG:貞操 == 0
+		;非恋慕
+		IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 100)
+		ENDIF
 	ENDIF
 ENDIF
 
@@ -199,10 +267,10 @@ IF DOWNBASE:ARG:体力 > 0 && BASE:ARG:体力 > 1 && BASE:ARG:体力 <= DOWNBASE
 		TFLAG:あなたターゲット用 = 0
 	ENDIF
 	TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
-	SIF 干渉強化変数:ARG:干渉種類 == 10
-		CALL 干渉強化関数_10("実補正処理", ARG)
 	SIF キャラ一致チェック(ARG, "[十天衆]サラーサ")
 		TCVAR:ARG:食いしばりフラグ += 3
+	SIF 干渉強化変数:ARG:干渉種類 == 10
+		CALL 干渉強化関数_10("実補正処理", ARG)
 	SIF ARG != MASTER && TCVAR:ARG:食いしばりフラグ
 		PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
 ENDIF
@@ -411,6 +479,7 @@ ENDIF
 ;奉仕系である、奉仕快楽のチェック
 LOCAL = CUP:ARG:快Ｃ + CUP:ARG:快Ｖ + CUP:ARG:快Ａ + CUP:ARG:快Ｂ
 LOCAL:1 = 0
+LOCAL:2 = MAX(CUP:ARG:快Ｃ, CUP:ARG:快Ｖ, CUP:ARG:快Ａ, CUP:ARG:快Ｂ, CUP:ARG:快Ｓ)
 
 IF CUP:ARG:欲情 < 100
 	LOCAL = 0
@@ -445,6 +514,23 @@ IF RCVAR:ARG:奉仕コマンドフラグ
 		TIMES CUP:ARG:反感 , 0.80
 	ENDIF
 	EXP:ARG:奉仕快楽経験 += LOCAL:1
+ENDIF
+
+IF RCVAR:ARG:露出コマンドフラグ
+	IF LOCAL:2 >= 12000
+		LOCAL:1 = 16
+	ELSEIF LOCAL:2 >= 8000
+		LOCAL:1 = 12
+	ELSEIF LOCAL:2 >= 5000
+		LOCAL:1 = 8
+	ELSEIF LOCAL:2 >= 3000
+		LOCAL:1 = 4
+	ELSEIF LOCAL:2 >= 2000
+		LOCAL:1 = 2
+	ELSEIF LOCAL:2 >= 1000
+		LOCAL:1 = 1
+	ENDIF
+	EXP:ARG:露出快楽経験 += LOCAL:1
 ENDIF
 
 ;触手快楽のチェック
@@ -799,7 +885,6 @@ NEXT
 IF 知識素質:キャラ番号:性知識 < 0
 	;ただし、あなたの手で絶頂したことがあるなら対象になる
 	IF 初体験日:キャラ番号:あなたの手で初絶頂
-		対象外フラグ = 0
 	ELSE
 		対象外フラグ = 1
 	ENDIF
@@ -809,7 +894,7 @@ ENDIF
 IF TALENT:PLAYER:性別 == TALENT:キャラ番号:性別 && TALENT:PLAYER:性別 != 3
 	;ただし同性愛系の性癖があれば対象になる
 	IF 性癖素質:キャラ番号:同性愛
-		対象外フラグ = 0
+	ELSEIF TALENT:キャラ番号:性別嗜好 == -1
 	ELSE
 		対象外フラグ = 1
 	ENDIF
@@ -818,8 +903,8 @@ ENDIF
 RETURNF 対象外フラグ
 
 
-
-@関係性ゲージUP用関数(ARG, ARG:1, ARGS)
+@関係性ゲージUP用関数(ARG, ARG:1, ARGS, 干渉なしフラグ)
+#DIM 干渉なしフラグ
 ;ARG：上昇対象キャラクター
 ;ARG:1：ゲージ上昇量
 ;ARGS：ゲージの種類
@@ -834,7 +919,7 @@ SELECTCASE ARGS
 			CFLAG:ARG:友情度 += NOWEX:ARG:友情度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:友情度上昇格納 >= 0) ? 好感度要素：友情＋{NOWEX:ARG:友情度上昇格納} # 好感度要素：友情－{-NOWEX:ARG:友情度上昇格納}\@
-			IF 干渉強化変数:ARG:干渉種類 == 1
+			IF 干渉強化変数:ARG:干渉種類 == 1 && 干渉なしフラグ == 0
 				SETCOLOR カラーパレット("黄")
 				PRINT 　干渉効果発動中！
 				RESETCOLOR
@@ -849,7 +934,7 @@ SELECTCASE ARGS
 			CFLAG:ARG:信頼度 += NOWEX:ARG:信頼度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:信頼度上昇格納 >= 0) ? 好感度要素：信頼＋{NOWEX:ARG:信頼度上昇格納} # 好感度要素：信頼－{-NOWEX:ARG:信頼度上昇格納}\@
-			IF 干渉強化変数:ARG:干渉種類 == 2
+			IF 干渉強化変数:ARG:干渉種類 == 2 && 干渉なしフラグ == 0
 				SETCOLOR カラーパレット("黄")
 				PRINT 　干渉効果発動中！
 				RESETCOLOR
@@ -865,7 +950,7 @@ SELECTCASE ARGS
 			CFLAG:ARG:恋慕度 = MAX(CFLAG:ARG:恋慕度, CFLAG:ARG:恋心度 / 3)
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:恋心度上昇格納 >= 0) ? 好感度要素：恋心＋{NOWEX:ARG:恋心度上昇格納} # 好感度要素：恋心－{-NOWEX:ARG:恋心度上昇格納}\@
-			IF 干渉強化変数:ARG:干渉種類 == 3
+			IF 干渉強化変数:ARG:干渉種類 == 3 && 干渉なしフラグ == 0
 				SETCOLOR カラーパレット("黄")
 				PRINT 　干渉効果発動中！
 				RESETCOLOR
@@ -880,7 +965,7 @@ SELECTCASE ARGS
 			CFLAG:ARG:性愛度 += NOWEX:ARG:性愛度上昇格納
 			PRINTFORM %CALLNAME:ARG%：
 			PRINTFORM \@(NOWEX:ARG:性愛度上昇格納 >= 0) ? 好感度要素：性愛＋{NOWEX:ARG:性愛度上昇格納} # 好感度要素：性愛－{-NOWEX:ARG:性愛度上昇格納}\@
-			IF 干渉強化変数:ARG:干渉種類 == 4
+			IF 干渉強化変数:ARG:干渉種類 == 4 && 干渉なしフラグ == 0
 				SETCOLOR カラーパレット("黄")
 				PRINT 　干渉効果発動中！
 				RESETCOLOR
@@ -906,6 +991,9 @@ SELECTCASE ARGS
 		ENDIF
 
 	CASE "恋慕度"
+		;他キャラと恋慕してる時、恋慕度は上がらない
+		SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = '恋慕'")
+			RETURN 0
 		IF ARG:1 > 0
 			CFLAG:ARG:恋慕度 += ARG:1
 			PRINTFORM %CALLNAME:ARG%：
