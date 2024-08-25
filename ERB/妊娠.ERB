@@ -178,14 +178,20 @@ ELSE
 	DOMINANT = FATHER
 ENDIF
 
-;子供の性別の決定:両親の性別に依存（父親不明の場合は男性扱いとする）
-子供性別候補:0 = TALENT:MOTHER:性別
-IF FATHER < 0
-	子供性別候補:1 = 2
+;子供の性別の決定
+IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血
+	;潜性のあなたの場合、常にもう片方の親と同じ性別
+	子供性別 = TALENT:DOMINANT:性別
 ELSE
-	子供性別候補:1 = TALENT:FATHER:性別
+	;両親の性別に依存（父親不明の場合は男性扱いとする）
+	子供性別候補:0 = TALENT:MOTHER:性別
+	IF FATHER < 0
+		子供性別候補:1 = 2
+	ELSE
+		子供性別候補:1 = TALENT:FATHER:性別
+	ENDIF
+	子供性別 = 子供性別候補:(RAND:2)
 ENDIF
-子供性別 = 子供性別候補:(RAND:2)
 ;男性が許可されてないならふたなり化
 SIF GETBIT(性別招待制御OPTION, 1) && 子供性別 == 2
 	子供性別 = 3
@@ -474,7 +480,11 @@ ENDSELECT
 CALL SET_PERSON_性別(子供ID, 子供性別)
 
 ;種族 親の種族が一致していればその種族、それ以外はその他
-IF FATHER < 0 || (TALENT:FATHER:種族 != TALENT:MOTHER:種族)
+IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血
+	;潜性のあなたの場合、混血を回避
+	子供種族 = TALENT:DOMINANT:種族
+	命名種族 = 子供種族
+ELSEIF FATHER < 0 || (TALENT:FATHER:種族 != TALENT:MOTHER:種族)
 	子供種族 = 6
 	命名種族 = TALENT:DOMINANT:種族
 ELSE
