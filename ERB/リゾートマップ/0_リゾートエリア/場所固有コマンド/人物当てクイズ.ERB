@@ -1,14 +1,20 @@
 
-@人物当てクイズ(ARG, カード枚数)
+@人物当てクイズ(ARG, 最大配置カード枚数)
 #DIM 入力アイコンID
 #DIM CONST レイヤー番号 = 50
 #DIMS キャラ名,10
-#DIM DYNAMIC 有効キャラリスト, 2000
+#DIM 有効キャラリスト,200
 #DIM 有効キャラ数
-#DIM カード枚数
-#DIM シャッフルモード
-
-VARSET シャッフルモード
+#DIM 最大配置カード枚数
+#DIM 実行配置カード枚数
+#DIM シャッフルカウンタ
+#DIM 本人当てモード
+#DIM カラーマトリクス,5,5
+#DIM 座標セット,2,20
+;-------------------------------
+;最大配置カード枚数 = 10
+;
+VARSET 本人当てモード
 VARSET 有効キャラリスト
 FOR LOCAL, 0, CHARANUM
 	SIF CSTR:LOCAL:画像フォルダ == ""
@@ -25,57 +31,113 @@ FOR LOCAL,0,2000
 			RETURN ;ゲームできないのでランダムの結果を与える
 		ENDIF
 		有効キャラ数 = LOCAL
-		PRINTFORML {LOCAL} 人から出題するよ
 		BREAK
 	ENDIF
 	RESULT:LOCAL = 有効キャラリスト:LOCAL
 NEXT
+;ゲームスタート
+実行配置カード枚数 = MIN(有効キャラ数, 最大配置カード枚数) 
+FOR LOCAL, 0, 20
+	座標セット:0:LOCAL = LOCAL * 30
+NEXT
+FOR LOCAL, 0, 15  
+	座標セット:1:LOCAL = (LOCAL + 5) * -30
+NEXT
+PRINTFORML {有効キャラ数} 人から出題するよ
 GDISPOSE レイヤー番号 + 0 
-GCREATE レイヤー番号 + 0 , 1600, 900
+GCREATE レイヤー番号 + 0 , CLIENTWIDTH(), CLIENTHEIGHT()
 GSETBRUSH レイヤー番号 + 0 , 0xFF004000
-GFILLRECTANGLE レイヤー番号 + 0 , 0, 0, 900, 800
+GFILLRECTANGLE レイヤー番号 + 0 , 0, 0, 900, CLIENTHEIGHT() - 100
 CBGSETG レイヤー番号 + 0 , 0, 0, -1
-$LOOP
-CBGREMOVERANGE -2, -2
+$SHUFFLE
+CBGREMOVERANGE -3 - 実行配置カード枚数, -3
+GDISPOSE レイヤー番号 + 3 
+GCREATE レイヤー番号 + 3 , CLIENTWIDTH(), CLIENTHEIGHT()
+GSETBRUSH レイヤー番号 + 3 , 0x80101010
+GFILLRECTANGLE レイヤー番号 + 3 , 0, 0, 900, CLIENTHEIGHT() - 100
+GSETBRUSH レイヤー番号 + 3 , 0xFFC0C0C0
+GSETFONT レイヤー番号 + 3 , GETFONT(), 18, 0
+GSETPEN レイヤー番号 + 3 , 0xFFC0C0C0, 0
+GDRAWTEXT レイヤー番号 + 3 , "シャッフル中です", 20, CLIENTHEIGHT() * 10 / 9 - 20
+CBGSETG レイヤー番号 + 3 , 0, 0, -4 - 実行配置カード枚数
+シャッフルカウンタ = RAND(5,10)
+WHILE シャッフルカウンタ > 0
+	CBGREMOVERANGE -2, -2
+	VARSET RESULT
+	FOR LOCAL, 0 , 有効キャラ数
+		SWAP 有効キャラリスト:(RAND:(有効キャラ数 - LOCAL)),有効キャラリスト:(有効キャラ数 - LOCAL - 1)
+	NEXT
+	FOR LOCAL, 0, 20
+		SWAP 座標セット:0:(RAND:(20 - LOCAL)), 座標セット:0:(20 - LOCAL - 1)
+	NEXT
+	FOR LOCAL, 0, 15
+		SWAP 座標セット:1:(RAND:(15 - LOCAL)), 座標セット:1:(15 - LOCAL - 1)
+	NEXT
+	FOR LOCAL, 0, 実行配置カード枚数
+		LOCALS:LOCAL '= CSTR:(有効キャラリスト:LOCAL):画像フォルダ
+		GDISPOSE レイヤー番号 + 10 + LOCAL
+		GCREATEFROMFILE レイヤー番号 + 10 + LOCAL, LOCALS:LOCAL + "/顔_デフォルト.png"
+	NEXT
+	GDISPOSE レイヤー番号 + 1
+	GCREATE レイヤー番号 + 1 , CLIENTWIDTH(), CLIENTHEIGHT()
+	FOR LOCAL, 0, 実行配置カード枚数
+		CBGSETG レイヤー番号 + 10 + LOCAL, 座標セット:0:LOCAL, 座標セット:1:LOCAL, -2
+	NEXT
+	AWAIT 1
+	シャッフルカウンタ --
+WEND
+CBGREMOVERANGE -4 - 実行配置カード枚数, -2
 VARSET RESULT
 FOR LOCAL, 0 , 有効キャラ数
 	SWAP 有効キャラリスト:(RAND:(有効キャラ数 - LOCAL)),有効キャラリスト:(有効キャラ数 - LOCAL - 1)
 NEXT
-SIF シャッフルモード == 1
+	FOR LOCAL, 0, 20
+		SWAP 座標セット:0:(RAND:(20 - LOCAL)), 座標セット:0:(20 - LOCAL - 1)
+	NEXT
+	FOR LOCAL, 0, 15
+		SWAP 座標セット:1:(RAND:(15 - LOCAL)), 座標セット:1:(15 - LOCAL - 1)
+	NEXT
+SIF 本人当てモード
 	SWAP 有効キャラリスト:FINDELEMENT(有効キャラリスト, TARGET), 有効キャラリスト:0
-	LOCAL:1 = MIN(有効キャラ数, カード枚数) 
-FOR LOCAL, 0, LOCAL:1
+GDISPOSE レイヤー番号 + 9 
+GCREATE レイヤー番号 + 9 , 180 * 2, 180 * 実行配置カード枚数 
+FOR LOCAL, 0, 実行配置カード枚数
 	LOCALS:LOCAL '= CSTR:(有効キャラリスト:LOCAL):画像フォルダ
 	GDISPOSE レイヤー番号 + 10 + LOCAL
 	GCREATEFROMFILE レイヤー番号 + 10 + LOCAL, LOCALS:LOCAL + "/顔_デフォルト.png"
+	IF GWIDTH(レイヤー番号 + 10 + LOCAL) > GHEIGHT(レイヤー番号 + 10 + LOCAL)
+		GDRAWG レイヤー番号 + 9 , レイヤー番号 + 10 + LOCAL, 0, 180 * LOCAL, 180, 180, 0, 0, GHEIGHT(レイヤー番号 + 10 ), GHEIGHT(レイヤー番号 + 10 ) 
+	ELSE
+		GDRAWG レイヤー番号 + 9 , レイヤー番号 + 10 + LOCAL, 0, 180 * LOCAL, 180, 180, 0, 0, GWIDTH(レイヤー番号 + 10 ), GWIDTH(レイヤー番号 + 10 )
+	ENDIF
 NEXT
+カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+カラーマトリクス:2:0 =   0,   0, 256,   0,   0
+カラーマトリクス:3:0 =   0,   0,   0, 256,   0
+カラーマトリクス:4:0 = 100, 100, 100,   0, 256
+GDRAWG レイヤー番号 + 9 , レイヤー番号 + 9 , 180, 0, 180, 180 * 実行配置カード枚数, 0, 0, 180, 180 * 実行配置カード枚数, カラーマトリクス:0:0
 GDISPOSE レイヤー番号 + 1
-GCREATE レイヤー番号 + 1 , 1600, 900
-FOR LOCAL, 0, LOCAL:1
-	LOCAL:2 = RAND(0, 600)
-	LOCAL:3 = RAND(-600, -200)
-	CBGSETG レイヤー番号 + 10 + LOCAL, LOCAL:2, LOCAL:3, -2
-	GSETBRUSH レイヤー番号 + 1 , 0xFF000000 + LOCAL * 0x00100000
-	GFILLRECTANGLE レイヤー番号 + 1 , LOCAL:2, 900 - GHEIGHT(レイヤー番号 + 10 + LOCAL) + LOCAL:3, GWIDTH(レイヤー番号 + 10 + LOCAL), GHEIGHT(レイヤー番号 + 10 + LOCAL)
+GCREATE レイヤー番号 + 1 , CLIENTWIDTH(), CLIENTHEIGHT()
+;CBGSETG レイヤー番号 + 9 , 1000, 0, -10
+;CBGSETG レイヤー番号 + 10 , 1360, 0, -10
+FOR LOCAL, 0, 実行配置カード枚数
+	SPRITEDISPOSE "カード番号" + TOSTR(LOCAL) 
+	SPRITEDISPOSE "Bカード番号" + TOSTR(LOCAL)
+	SPRITECREATE "カード番号" + TOSTR(LOCAL), レイヤー番号 + 9 , 0, 180 * LOCAL, 180, 180 
+	SPRITECREATE "Bカード番号" + TOSTR(LOCAL), レイヤー番号 + 9 , 180, 180 * LOCAL, 180, 180 
+	CBGSETBUTTONSPRITE LOCAL * 0x0000001, "カード番号" + TOSTR(LOCAL), "Bカード番号" + TOSTR(LOCAL), 座標セット:0:LOCAL, 座標セット:1:LOCAL, -2 - LOCAL
+	GSETBRUSH レイヤー番号 + 1 , 0xFF000000 + LOCAL * 0x0000001
+	GFILLRECTANGLE レイヤー番号 + 1 , 座標セット:0:LOCAL, CLIENTHEIGHT() - 180 + 座標セット:1:LOCAL, 180, 180
 NEXT
-IF シャッフルモード > 1
-	AWAIT 1
-	シャッフルモード --
-	GOTO LOOP
-ELSEIF シャッフルモード == 1
-	シャッフルモード = 0
-	CBGREMOVERANGE -4, -4
-ELSE
-ENDIF
-CBGREMOVERANGE -3, -3
 GDISPOSE レイヤー番号 + 2 
-GCREATE レイヤー番号 + 2 , 1600, 900
+GCREATE レイヤー番号 + 2 , CLIENTWIDTH(), CLIENTHEIGHT()
 ;正解を右に表示する
 ;GDRAWG レイヤー番号 + 2 , レイヤー番号 + 10, 800, 360, 360, 720, 0, 0, 180, 360
 GSETFONT レイヤー番号 + 2 , GETFONT(), 18, 0
 GSETPEN レイヤー番号 + 2 , 0xFFC0C0C0, 0
-GDRAWTEXT レイヤー番号 + 2 , CALLNAME:(有効キャラリスト:0) + " を探してね", 20, 760
-GDRAWTEXT レイヤー番号 + 2 , "キャラ以外をクリックすることでシャッフルできます（Aキーを押すとオートシャッフル）", 20, 780
+GDRAWTEXT レイヤー番号 + 2 , CALLNAME:(有効キャラリスト:0) + " を探してね", 20, CLIENTHEIGHT() - 140
+GDRAWTEXT レイヤー番号 + 2 , "キャラ以外をクリックすることでシャッフルできます（Aキーを押すと本人当てモードでシャッフル）", 20, CLIENTHEIGHT() - 120
 CBGSETG レイヤー番号 + 2 , 0, 0, -3
 
 CBGSETBMAPG レイヤー番号 + 1
@@ -91,47 +153,37 @@ IF RESULT == 1
 	SELECTCASE RESULT:4
 		CASE 0x000000
 			入力アイコンID = 0
-		CASE 0x100000
+		CASE 0x000001
 			入力アイコンID = 1
-		CASE 0x200000
+		CASE 0x000002
 			入力アイコンID = 2
-		CASE 0x300000
+		CASE 0x000003
 			入力アイコンID = 3
-		CASE 0x400000
+		CASE 0x000004
 			入力アイコンID = 4
-		CASE 0x500000
+		CASE 0x000005
 			入力アイコンID = 5
-		CASE 0x600000
+		CASE 0x000006
 			入力アイコンID = 6
-		CASE 0x700000
+		CASE 0x000007
 			入力アイコンID = 7
-		CASE 0x800000
+		CASE 0x000008
 			入力アイコンID = 8
-		CASE 0x900000
+		CASE 0x000009
 			入力アイコンID = 9
 	ENDSELECT
 ELSEIF RESULT == 3
 	SELECTCASE RESULT:2
-	CASE 65 ;A
+	CASE 65 ;A 本人当てモードでシャッフル
 		SIF CSTR:TARGET:画像フォルダ == ""
 			CSTR:TARGET:画像フォルダ = {NO:TARGET}%CALLNAME:TARGET%
 		IF EXISTFILE("resources/" + CSTR:TARGET:画像フォルダ + "/顔_デフォルト.png")
-			シャッフルモード = RAND(5,10)
-			GDISPOSE レイヤー番号 + 3 
-			GCREATE レイヤー番号 + 3 , 900, 900
-			GSETBRUSH レイヤー番号 + 3 , 0x80101010
-			GFILLRECTANGLE レイヤー番号 + 3 , 0, 0, 900, 800
-			GSETBRUSH レイヤー番号 + 3 , 0xFFC0C0C0
-			GSETFONT レイヤー番号 + 3 , GETFONT(), 18, 0
-			GSETPEN レイヤー番号 + 3 , 0xFFC0C0C0, 0
-			GDRAWTEXT レイヤー番号 + 3 , "シャッフル中です", 20, 780
-			CBGSETG レイヤー番号 + 3 , 0, 0, -4
-			CBGREMOVERANGE -3, -3
-			GOTO LOOP
+			本人当てモード = 1
+			GOTO SHUFFLE
 			LOCAL = 0
 		ENDIF
 	CASEELSE
-		入力アイコンID = RAND:カード枚数
+		入力アイコンID = RAND:最大配置カード枚数
 	ENDSELECT
 ELSE
 	PRINTL リタイアしますか？
@@ -139,13 +191,13 @@ ELSE
 	PRINTBUTTON "[1] いいえ",1
 	BINPUT
 	SIF RESULT
-		GOTO LOOP
+		GOTO SHUFFLE
 	LOCAL:10 = 0
 	GOTO 終了処理
 ENDIF
 
 SIF 入力アイコンID == 100
-	GOTO LOOP
+	GOTO SHUFFLE
 
 CBGREMOVERANGE -3, -3
 GDISPOSE レイヤー番号 + 2 
@@ -173,7 +225,7 @@ ELSE
 	CALL 履歴登録チェック(MASTER, "人物当て正解")
 ENDIF
 GDRAWTEXT レイヤー番号 + 2 , "私の名前は " + CALLNAME:(有効キャラリスト:入力アイコンID) + " です", 400, 540
-CBGSETG レイヤー番号 + 2 , 0, 0, -3
+CBGSETG レイヤー番号 + 2 , 0, 0, -2 - 実行配置カード枚数
 WAIT
 LOCAL:10 = 1
 
@@ -183,8 +235,11 @@ GDISPOSE レイヤー番号 + 0
 GDISPOSE レイヤー番号 + 1 
 GDISPOSE レイヤー番号 + 2 
 GDISPOSE レイヤー番号 + 3 
-FOR LOCAL, 0, LOCAL:1
+GDISPOSE レイヤー番号 + 9 
+FOR LOCAL, 0, 実行配置カード枚数
 	GDISPOSE レイヤー番号 + 10 + LOCAL
+	SPRITEDISPOSE "カード番号" + TOSTR(LOCAL) 
+	SPRITEDISPOSE "Bカード番号" + TOSTR(LOCAL)
 NEXT
 CBGCLEAR
 RETURN LOCAL:10
