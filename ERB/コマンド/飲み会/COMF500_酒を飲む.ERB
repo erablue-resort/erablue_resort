@@ -19,29 +19,36 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM500
 
-;歓楽の基礎値
-LOCAL:0 = 500
-
 FOR LOCAL, 1, CHARANUM
 	SIF 飲み会TARGET:LOCAL < 1
 		BREAK
-
-	IF !初体験日:(飲み会TARGET:LOCAL):初飲酒
-		初体験日:(飲み会TARGET:LOCAL):初飲酒 = DAY
-		TCVAR:(飲み会TARGET:LOCAL):初飲酒フラグ = 1
-		CALL 履歴データベース登録(CFLAG:(飲み会TARGET:LOCAL):人物番号, @"初めてリゾートでお酒を飲んだ","日常")
+	IF BASE:(飲み会TARGET:LOCAL):酩酊 < 0
+		BASE:(飲み会TARGET:LOCAL):酩酊 += RAND:100 + 10
+		IF TALENT:(飲み会TARGET:LOCAL):酒に強い == 2
+			BASE:(飲み会TARGET:LOCAL):酩酊 = 0
+		ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == 1
+			BASE:(飲み会TARGET:LOCAL):酩酊 += 40
+		ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == 0
+			BASE:(飲み会TARGET:LOCAL):酩酊 += 10
+		ENDIF
+	ELSE
+		IF !初体験日:(飲み会TARGET:LOCAL):初飲酒
+			初体験日:(飲み会TARGET:LOCAL):初飲酒 = DAY
+			TCVAR:(飲み会TARGET:LOCAL):初飲酒フラグ = 1
+			CALL 履歴データベース登録(CFLAG:(飲み会TARGET:LOCAL):人物番号, @"初めてリゾートでお酒を飲んだ","日常")
+		ENDIF
+		EXP:(飲み会TARGET:LOCAL):飲酒経験 += RAND:5 + 1
+		BASE:(飲み会TARGET:LOCAL):酩酊 += RAND:100 + RAND:100 + 100
+		IF TALENT:(飲み会TARGET:LOCAL):酒に強い == 2
+			BASE:(飲み会TARGET:LOCAL):酩酊 = MIN(700, BASE:(飲み会TARGET:LOCAL):酩酊 - 70)
+		ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == 1
+			BASE:(飲み会TARGET:LOCAL):酩酊 -= 40
+		ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == -1
+			BASE:(飲み会TARGET:LOCAL):酩酊 += 40
+		ENDIF
+		SIF BASE:(飲み会TARGET:LOCAL):酩酊 >= 1000
+			CFLAG:(飲み会TARGET:LOCAL):酔いすぎ = 1
 	ENDIF
-	EXP:(飲み会TARGET:LOCAL):飲酒経験 += RAND:5 + 1
-	BASE:(飲み会TARGET:LOCAL):酩酊 += RAND:100 + RAND:100 + 100
-	IF TALENT:(飲み会TARGET:LOCAL):酒に強い == 2
-		BASE:(飲み会TARGET:LOCAL):酩酊 = MIN(700, BASE:(飲み会TARGET:LOCAL):酩酊 - 70)
-	ELSEIF TALENT:(飲み会TARGET:LOCAL):酒に強い == 1
-		BASE:(飲み会TARGET:LOCAL):酩酊 -= 40
-	ELSEIF BASE:(飲み会TARGET:LOCAL):酩酊 == -1
-		BASE:(飲み会TARGET:LOCAL):酩酊 += 40
-	ENDIF
-	SIF BASE:(飲み会TARGET:LOCAL):酩酊 >= 1000
-		CFLAG:(飲み会TARGET:LOCAL):酔いすぎ = 1
 	CALL SOURCE_CALC_歓楽((飲み会TARGET:LOCAL), PLAYER, 300)
 	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 150)
 NEXT
