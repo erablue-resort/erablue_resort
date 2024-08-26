@@ -31,7 +31,7 @@ DRAWLINE
 PRINTL 誰に会おうか？
 PRINTL 
 
-CALL 子供一覧表示(ページ)
+CALL 子供一覧表示(TARGET, ページ)
 INPUT
 SELECTCASE RESULT
 	CASE -1
@@ -48,7 +48,7 @@ SELECTCASE RESULT
 	CASE IS > 0
 		RFLAG:コマンド結果受渡し変数２ = RESULT
 		CLEARLINE 1
-		SIF !EXIST_PERSON(RFLAG:コマンド結果受渡し変数２)
+		SIF !保育所子供_チェック(TARGET, RFLAG:コマンド結果受渡し変数２)
 			GOTO INPUT_LOOP
 	CASEELSE
 		GOTO INPUT_LOOP
@@ -115,8 +115,7 @@ SIF CFLAG:PLAYER:隠密
 SIF TIME < 420 || 1080 < TIME
 	RETURN 0
 ;子供がいないとダメ
-CALL 保育所子供
-SIF RESULT == 0
+SIF !保育所子供_チェック(TARGET)
 	RETURN 0
 RETURN 1
 
@@ -181,26 +180,44 @@ ELSE
 ENDIF
 
 
-@保育所子供
+@保育所子供_フィルタ(対象キャラ = -1, 対象ID = -1)
+#FUNCTIONS
+#DIM 対象キャラ
+#DIM 対象ID
 #DIMS FILTER
 
 ;呼び名付き、生年日がある、ナンバーのない人物（非キャラクタ）だけが保育所にいる
 FILTER '= "呼び名 Is Not Null And 生年日 Is Not Null And ナンバー Is Null"
 
-IF TARGET > 0
+SIF 対象ID > 0
+	FILTER '= @"id = {対象ID} And " + FILTER
+
+IF 対象キャラ > 0
 	;キャラと一緒ならその子供とだけ会える
-	FILTER += @" And (母親 = {CFLAG:TARGET:人物番号} Or 父親 = {CFLAG:TARGET:人物番号})"
+	FILTER += @" And (母親 = {CFLAG:対象キャラ:人物番号} Or 父親 = {CFLAG:対象キャラ:人物番号})"
 ELSE
 	;単独なら任意の子供と会える
 	FILTER += " And (母親 Is Not Null Or 父親 Is Not Null)"
 ENDIF
 
-DT_SELECT "人物データベース", FILTER, "出生順 DESC, 出会った周回 ASC, 生年日 ASC, 母親 ASC, 父親 ASC"
-RETURN RESULT
+RETURNF FILTER
+
+@保育所子供_チェック(対象キャラ = -1, 対象ID = -1)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 対象ID
+#DIM CHILD_COUNT
+#DIM TMP_CHILDREN, 1
+
+CHILD_COUNT = DT_SELECT("人物データベース", 保育所子供_フィルタ(対象キャラ, 対象ID), , TMP_CHILDREN)
+SIF CHILD_COUNT > 0
+	RETURNF 1
+RETURNF 0
 
 
-@子供一覧表示(ページ)
+@子供一覧表示(対象キャラ, ページ)
 #DIM CONST 子供表示人数 = 20
+#DIM 対象キャラ
 #DIM ページ
 #DIM CHILD_COUNT
 #DIM BIRTHDAY
@@ -208,7 +225,7 @@ RETURN RESULT
 #DIM MOTHER
 #DIM FATHER
 
-CALL 保育所子供
+DT_SELECT "人物データベース", 保育所子供_フィルタ(対象キャラ), "出生順 DESC, 出会った周回 ASC, 生年日 ASC, 母親 ASC, 父親 ASC"
 CHILD_COUNT = RESULT
 
 FOR LOCAL, (1 + 子供表示人数 * ページ), MIN(1 + CHILD_COUNT, 1 + 子供表示人数 * (ページ + 1))
