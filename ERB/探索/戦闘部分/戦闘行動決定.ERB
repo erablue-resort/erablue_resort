@@ -379,6 +379,7 @@ ENDSELECT
 #DIMS 効果種類
 #DIM 追撃効果量, 10
 #DIM 追撃効果割合, 10
+#DIM 確認スキップ
 
 CALL アビテンプレ変数リセット
 CALL 口上変数初期化
@@ -415,61 +416,68 @@ SELECTCASE 戦闘行動内容
 		アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
 		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		奥義威力保存 = RESULT
-		IF 奥義使用確認スキップフラグ == 0
-			;最後が改行だった場合、それは消しとく
-			IF STRFIND(詳細文文字列受け渡し変数, "<br>", STRLENS(詳細文文字列受け渡し変数) - 4) > -1
-				詳細文文字列受け渡し変数 = %SUBSTRING(詳細文文字列受け渡し変数, 0, STRLENS(詳細文文字列受け渡し変数) - 4)%
-			ENDIF
-			KSTR:(K++) = ■%口上用技名保存%　　%詳細文文字列受け渡し変数%
-			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
-			IF RESULT < 4
-				FOR LOCAL, 0, 4 - RESULT
-					KSTR:(K++) = 　
-				NEXT
-			ENDIF
-			KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
-			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
-			$INPUT_LOOP_奥義
-			BINPUTS
-			IF STRCOUNT(RESULTS, "サイド領域") > 0
-				CALL サイド領域_実行処理_戦闘中
-				CALL 画面再描画
-				GOTO INPUT_LOOP_奥義
-			ENDIF
-			RESULT = TOINT(RESULTS)
-			SELECTCASE RESULT
-				CASE 0
-					;使用する場合は下の処理へ移行
-					CALL 口上変数初期化
-				CASE 999
-					RETURN -1
-				CASEELSE
-					REUSELASTLINE 
-					GOTO INPUT_LOOP_奥義
-			ENDSELECT
+		;最後が改行だった場合、それは消しとく
+		IF STRFIND(詳細文文字列受け渡し変数, "<br>", STRLENS(詳細文文字列受け渡し変数) - 4) > -1
+			詳細文文字列受け渡し変数 = %SUBSTRING(詳細文文字列受け渡し変数, 0, STRLENS(詳細文文字列受け渡し変数) - 4)%
 		ENDIF
+		KSTR:(K++) = ■%口上用技名保存%　　%詳細文文字列受け渡し変数%
+		;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+		STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+		IF RESULT < 4
+			FOR LOCAL, 0, 4 - RESULT
+				KSTR:(K++) = 　
+			NEXT
+		ENDIF
+;		IF 奥義使用確認スキップフラグ == 0 || 奥義威力保存 < 1
+		;奥義使用確認ON、または威力0の奥義の場合使用確認が挟まる
+		確認スキップ = !(奥義使用確認スキップフラグ == 0 || 奥義威力保存 < 1)
+		エネミー画像ボタン化フラグ = 確認スキップ
+		KSTR:(K++) = \@ 確認スキップ? 攻撃対象を選んで下さい# <button value='0'>[0]使用する</button>\@　　　　　<button value='999'>[999]戻る</button>
+		CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
 		行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}
-		;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
-		IF 奥義威力保存 > 0
-			IF アビ汎用文字列:選択時メッセージ１ == ""
-				アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
-			ENDIF
-			;奥義仕様先登録のため、ダメージ種類設定
-			アビ汎用文字列:ダメージ種類 = 奥義ダメージ
-			CALL アビ対象選択テンプレート_敵単体
-			IF アビテンプレート用_キャンセルフラグ
-				アビテンプレート用_キャンセルフラグ = 0
-				RETURN -1
-			ENDIF
-
-			奥義再発動対象 = アビテンプレート用_対象保存:0
-
-			CALL 奥義前効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
-			アビ汎用変数:効果割合 = 奥義威力保存
-			アビ汎用文字列:ダメージ種類 = 奥義ダメージ
-			CALL アビテンプレート_ダメージ処理_自属性
+		IF 確認スキップ
+			GOTO 直接選択_奥義
 		ENDIF
+		$INPUT_LOOP_奥義
+		BINPUTS
+		IF STRCOUNT(RESULTS, "サイド領域") > 0
+			CALL サイド領域_実行処理_戦闘中
+			CALL 画面再描画
+			GOTO INPUT_LOOP_奥義
+		ENDIF
+		RESULT = TOINT(RESULTS)
+		SELECTCASE RESULT
+			CASE 0
+				;使用する場合は下の処理へ移行
+				CALL 口上変数初期化
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP_奥義
+		ENDSELECT
+;			行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}
+			;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
+			IF 奥義威力保存 > 0
+				IF アビ汎用文字列:選択時メッセージ１ == ""
+					アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+				ENDIF
+				;奥義仕様先登録のため、ダメージ種類設定
+				$直接選択_奥義
+				アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+				CALL アビ対象選択テンプレート_敵単体(確認スキップ)
+				IF アビテンプレート用_キャンセルフラグ
+					アビテンプレート用_キャンセルフラグ = 0
+					RETURN -1
+				ENDIF
+
+				奥義再発動対象 = アビテンプレート用_対象保存:0
+
+				CALL 奥義前効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+				アビ汎用変数:効果割合 = 奥義威力保存
+				アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+				CALL アビテンプレート_ダメージ処理_自属性
+			ENDIF
 		;奥義ゲージ増加の追加効果に備えてここでゲージを減らす
 		IF BATTLE_STATE:戦闘行動キャラ:キャラ番号 == 12
 			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ -= 200
