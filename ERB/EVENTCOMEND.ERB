@@ -73,6 +73,16 @@ IF フレーバー素質:TARGET:素質表示設定 == 3 && TCVAR:TARGET:初う�
 	CALL フレーバー素質個別設定画面(TARGET)
 ENDIF
 
+;リセット前に発情期回復処理
+FOR LOCAL, 1, CHARANUM
+	;絶頂時は回復しない
+	SIF NOWEX:LOCAL:多重絶頂
+		CONTINUE
+	IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0 && BASE:LOCAL:体力 > 0 && !(TCVAR:LOCAL:食いしばりフラグ)
+		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+	ENDIF
+NEXT
+
 ;諸々リセット
 CALL TURN_RESET
 COM_RAND = RAND:1000
@@ -156,11 +166,6 @@ FOR LOCAL, 0, CHARANUM
 		;回復早い、回復遅い
 		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
 	ENDIF
-	;自動回復
-	IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0 && BASE:LOCAL:体力 > 0 && !(TCVAR:LOCAL:食いしばりフラグ)
-		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
-	ENDIF
-
 NEXT
 
 IF CFLAG:MASTER:酔いすぎ == 1
@@ -519,7 +524,7 @@ FOR LOCAL,0,CHARANUM
 			ENDIF
 		ENDIF
 		;発情期にふたなり化するキャラを処理
-		IF GETBIT(TALENT:LOCAL:発情期あり, 3)
+		IF GETBIT(TALENT:LOCAL:発情期あり, 3) && 素質切り替えOPTION記憶:ふたなり_女性 == 0
 			IF CFLAG:LOCAL:発情期フラグ < 0
 				SIF !GETBIT(TALENT:LOCAL:性別, 1)
 					SETBIT TALENT:LOCAL:性別, 1
@@ -800,7 +805,7 @@ NEXT
 @REGENE_CALC(ARG)
 #FUNCTION
 #DIM 回復量
-回復量 = MAXBASE:ARG:体力 * (5 + TALENT:ARG:回復速度 * 2) / 100
+回復量 = MAXBASE:ARG:体力 * (3 + TALENT:ARG:回復速度 * 2) / 100
 SIF 回復量 + BASE:ARG:体力 > MAXBASE:ARG:体力
 	回復量 = MAXBASE:ARG:体力 - BASE:ARG:体力
 RETURNF 回復量
