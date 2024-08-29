@@ -1482,9 +1482,13 @@ RESULTS = %LOCALS%
 RETURN STRCOUNT(LOCALS, "<br>") - 2
 
 @PRINT_STATE_弱点コマンド(ARG)
+#DIM CONST 要求熟知 = 100, 120, 140, 170, 200, 240, 280, 340
 #DIMS 弱点コマンドSPLIT用配列, 10
+#DIM 要求熟知表示フラグ
+
 LOCALS = □ 弱点コマンド □---------------------<br>
 
+要求熟知表示フラグ = 0
 FOR LOCAL, 0, 8
 	SIF 弱点コマンド枠:ARG:LOCAL == ""
 		BREAK
@@ -1541,8 +1545,52 @@ FOR LOCAL, 0, 8
 				LOCALS += @"　[%TSTR:コマンド名受渡%]<br>"
 			ENDIF
 		ENDIF
+	ELSEIF あなた特殊能力:弱点洞察術
+		LOCALS += "<font color='#666666'>"
+		弱点コマンド欄表示名 = 
+		IF EXP:ARG:肉体熟知 < 要求熟知:LOCAL
+			IF !要求熟知表示フラグ
+				LOCALS += @"　[(肉体熟知が{要求熟知:LOCAL}必要です)]<br>"
+				要求熟知表示フラグ = 1
+			ELSE
+				LOCALS += @"　[？？？？？]<br>"
+			ENDIF
+		ELSEIF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
+			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
+			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
+				CASE 370 TO 374
+					LOCAL:1 = TARGET
+					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					LOCALS += @"　[キャラ固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+					TARGET = LOCAL:1
+				CASE 380 TO 384
+					LOCAL:1 = CFLAG:MASTER:現在位置
+					LOCAL:2 = CFLAG:MASTER:現在マップ種別
+					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
+					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					LOCALS += @"　[場所固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+					CFLAG:MASTER:現在位置 = LOCAL:1
+					CFLAG:MASTER:現在マップ種別 = LOCAL:2
+				CASE 385 TO 389
+					;お祭りコマンドは弱点にしない
+				CASEELSE
+					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+					LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
+					弱点コマンド欄表示名 = 
+					CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
+					LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+			ENDSELECT
+		ELSE
+			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
+			LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+		ENDIF
+		LOCALS += "</font>"
 	ELSE
-		LOCALS += @"　[？？？？？]<br>"
+		LOCALS += "<font color='#666666'>"
+		LOCALS += "　[？？？？？]<br>"
+		LOCALS += "</font>"
 	ENDIF
 NEXT
 LOCAL:1 = 0
@@ -1556,6 +1604,54 @@ IF LOCAL:1 > 0
 ENDIF
 RESULTS = %LOCALS%
 RETURN STRCOUNT(LOCALS, "<br>") - 2
+
+@マスク_弱点コマンド(対象キャラ, マスク元:1, マスク元:2)
+#FUNCTIONS
+#DIM 対象キャラ
+#DIMS マスク元, 3
+#DIM コマンド文字長さ
+#DIM HASH
+#DIM CHARPOS, 2
+#DIMS マスク結果
+
+IF マスク元:1 != ""
+	マスク元:0 '= マスク元:1
+ELSE
+	マスク元:0 '= マスク元:2
+ENDIF
+
+コマンド文字長さ = STRLENSU(マスク元:0)
+SIF コマンド文字長さ <= 0
+	RETURNF ""
+
+;乱数で文字が変わるとバレバレなので名前とコマンド文字からハッシュを作る
+HASH = 0
+FOR LOCAL, 0, STRLENSU(CALLNAME:対象キャラ)
+	HASH ^= ENCODETOUNI(CALLNAME:対象キャラ, LOCAL)
+NEXT
+FOR LOCAL, 0, コマンド文字長さ
+	HASH ^= ENCODETOUNI(マスク元:0, LOCAL)
+NEXT
+
+;1文字選ぶ
+CHARPOS:0 = HASH % コマンド文字長さ
+CHARPOS:1 = -1
+IF コマンド文字長さ >= 5
+	;コマンドが5文字以上の場合はもう1文字
+	CHARPOS:1 = (HASH / コマンド文字長さ) % (コマンド文字長さ - 1)
+	SIF CHARPOS:0 <= CHARPOS:1
+		CHARPOS:1 += 1
+ENDIF
+
+マスク結果 '= ""
+FOR LOCAL, 0, コマンド文字長さ
+	IF LOCAL == CHARPOS:0 || LOCAL == CHARPOS:1
+		マスク結果 += CHARATU(マスク元:0, LOCAL)
+	ELSE
+		マスク結果 += "？"
+	ENDIF
+NEXT
+RETURNF マスク結果
 
 @PRINT_STATE_TALENT(ARG)
 #DIM ループ用
