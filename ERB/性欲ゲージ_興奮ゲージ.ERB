@@ -117,10 +117,7 @@ CALL 精力ゲージ_最大値変動処理(キャラ番号)
 #DIM 変動前数値
 
 変動前数値 = MAXBASE:キャラ番号:精力
-IF GETBIT(TALENT:キャラ番号:性別, 1) == 0 || TALENT:キャラ番号:Ｃ感度 == -2
-	;男性器が無い場合は0
-	MAXBASE:キャラ番号:精力 = 0
-ELSEIF キャラ番号 == MASTER
+IF キャラ番号 == MASTER
 	MAXBASE:キャラ番号:精力 = 9999
 ELSEIF TALENT:キャラ番号:絶倫
 	;絶倫は3倍
@@ -141,9 +138,6 @@ ENDIF
 #DIM 精力回復量
 
 CALL 精力ゲージ_最大値変動処理(キャラ番号)
-SIF MAXBASE:キャラ番号:精力 == 0
-	RETURN
-
 IF キャラ番号 == MASTER || CFLAG:キャラ番号:発情期フラグ < 0
 	;あなたと発情期は全回復
 	BASE:キャラ番号:精力 = MAXBASE:キャラ番号:精力
@@ -157,6 +151,9 @@ ENDIF
 @精力ゲージ_日中回復処理()
 #DIM 経過時間
 #DIM 精力回復量
+
+SIF BASE:MASTER:精力 == MAXBASE:MASTER:精力
+	RETURN
 
 ;経過時間(分)
 経過時間 = TIME_PROGRESS(TFLAG:行動前時刻)
@@ -191,11 +188,16 @@ RETURNF 30 * 5 / (5 - TALENT:キャラ番号:男性器サイズ)
 #DIM 消費量
 #DIM 総消費量
 
+NOWEX:射精キャラ:射精 = 0
+RCVAR:射精キャラ:射精量 = 0
+RCVAR:射精キャラ:ドライオーガズムフラグ = 0
+
 SIF 絶頂強度 <= 0
+	RETURN
+SIF GETBIT(TALENT:射精キャラ:性別, 1) == 0 || TALENT:射精キャラ:Ｃ感度 == -2
 	RETURN
 
 総消費量 = 0
-NOWEX:射精キャラ:射精 = 0
 DO
 	SIF BASE:射精キャラ:精力 <= 0
 		BREAK
@@ -210,14 +212,9 @@ LOOP NOWEX:射精キャラ:射精 < 絶頂強度
 
 IF 総消費量 > 0
 	RCVAR:射精キャラ:射精量 = 総消費量
-	RCVAR:射精キャラ:ドライオーガズムフラグ = 0
 ELSEIF 前立腺フラグ
-	RCVAR:射精キャラ:射精量 = 0
 	RCVAR:射精キャラ:ドライオーガズムフラグ = 絶頂強度
 ELSE
-	RCVAR:射精キャラ:射精量 = 0
-	RCVAR:射精キャラ:ドライオーガズムフラグ = 0
-ENDIF
 RETURN
 
 
@@ -229,8 +226,12 @@ RETURN
 #DIM 射精回数
 #DIM 総消費量
 
+RESULT:1 = 0
+
 SIF 絶頂強度 <= 0
-	RETURN
+	RETURN 0
+SIF GETBIT(TALENT:射精キャラ:性別, 1) == 0 || TALENT:射精キャラ:Ｃ感度 == -2
+	RETURN 0
 
 総消費量 = 0
 射精回数 = 0
