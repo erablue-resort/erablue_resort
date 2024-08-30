@@ -47,7 +47,7 @@ IF 他人妊娠OPTION記憶
 ENDIF
 
 ;超危険日,20回膣内射精で6割、+好条件で確定くらい
-妊娠確率 = MIN(20, 種親精液量 / 2 + 10)
+妊娠確率 = MIN(20, 種親精液量 / 60 + 10)
 SIF CFLAG:ARG:発情期フラグ < 0
 	妊娠確率 += 5
 ;異種妊娠
@@ -82,9 +82,9 @@ DRAWLINE
 SETCOLOR カラーパレット("クリーム色")
 LOCALS = \@ INRANGE(種親, 0, CHARANUM - 1)? %CALLNAME:種親%# 得体のしれぬ者\@
 PRINTFORM %CALLNAME:ARG%の子宮の中
-IF TCVAR:ARG:膣内精液量 >= 20
+IF TCVAR:ARG:膣内精液量 >= 600
 	PRINTFORML は、注ぎこまれた%LOCALS%の精で満たされている……
-ELSEIF TCVAR:ARG:膣内精液量 >= 10
+ELSEIF TCVAR:ARG:膣内精液量 >= 300
 	PRINTFORML を、%LOCALS%の精が我が物顔で蹂躙している……
 ELSE
 	PRINTFORML では、%LOCALS%の精が卵子めがけて必死に泳いでいる……
@@ -98,7 +98,7 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 	ELSE
 		CFLAG:ARG:子の父親 = 種親
 	ENDIF
-	SIF TCVAR:ARG:膣内精液量 >= 15
+	SIF TCVAR:ARG:膣内精液量 >= 450
 		PRINT 精液をたっぷりと注がれた
 	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
 	;MASTERの子を妊娠した時だけ追加で表示
@@ -947,17 +947,19 @@ ENDIF
 
 
 ;膣内射精した相手の取得
-@TAKE_SPERM(ARG,射精した人)
+@TAKE_SPERM(ARG, 射精した人)
 #DIM 射精した人
-TCVAR:ARG:膣内精液量 += RFLAG:フィニッシュフラグ
-FOR LOCAL,0,19
-	SIF 性交相手:ARG:LOCAL == -1
-		性交相手:ARG:LOCAL = 射精した人
-	IF 性交相手:ARG:LOCAL == 射精した人
-		相手ごとの射精量:ARG:LOCAL += RFLAG:フィニッシュフラグ
-		BREAK
-	ENDIF
-NEXT
+IF RFLAG:フィニッシュフラグ
+	TCVAR:ARG:膣内精液量 += RCVAR:射精した人:射精量
+	FOR LOCAL, 0, 19
+		SIF 性交相手:ARG:LOCAL == -1
+			性交相手:ARG:LOCAL = 射精した人
+		IF 性交相手:ARG:LOCAL == 射精した人
+			相手ごとの射精量:ARG:LOCAL += RCVAR:射精した人:射精量
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
 
 ;妊娠の経過度を百分率で返す
 @PREG_DAY(ARG)
