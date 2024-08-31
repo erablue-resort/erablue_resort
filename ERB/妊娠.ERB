@@ -189,6 +189,7 @@ TCVAR:ARG:膣内精液量 = 0
 #DIM DOMINANT
 #DIM 子供性別候補, 2
 #DIM 子供性別
+#DIM 子供種族
 #DIM 子供人数
 
 FATHER = CFLAG:MOTHER:子の父親
@@ -199,12 +200,13 @@ ELSE
 	DOMINANT = FATHER
 ENDIF
 
-;子供の性別の決定
+;子供の性別・種族の決定
 IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血
-	;潜性のあなたの場合、常にもう片方の親と同じ性別
+	;潜性のあなたの場合、常にもう片方の親と同じ性別・種族
 	子供性別 = TALENT:DOMINANT:性別
+	子供種族 = TALENT:DOMINANT:種族
 ELSE
-	;両親の性別に依存（父親不明の場合は男性扱いとする）
+	;性別 両親の性別のどちらか（父親不明の場合は男性扱いとする）
 	子供性別候補:0 = TALENT:MOTHER:性別
 	IF FATHER < 0
 		子供性別候補:1 = 2
@@ -212,6 +214,13 @@ ELSE
 		子供性別候補:1 = TALENT:FATHER:性別
 	ENDIF
 	子供性別 = 子供性別候補:(RAND:2)
+
+	;種族 親の種族が一致していればその種族、それ以外はその他
+	IF FATHER < 0 || TALENT:MOTHER:種族 != TALENT:FATHER:種族 || (TALENT:MOTHER:種族 == 種族_その他 && CSTR:MOTHER:特殊種族 == CSTR:FATHER:特殊種族)
+		子供種族 = 6
+	ELSE
+		子供種族 = TALENT:MOTHER:種族
+	ENDIF
 ENDIF
 ;男性が許可されてないならふたなり化
 SIF GETBIT(性別招待制御OPTION, 1) && 子供性別 == 2
@@ -262,7 +271,7 @@ IF CFLAG:MOTHER:滞在期間 == -1 && MOTHER != MASTER
 	PRINTFORML %子供描写(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)%のようです…
 	PRINTL 
 
-	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 子供人数)
 	TRYCALLFORM KOJO_出産_リゾート外_{NO:MOTHER}(MOTHER)
 ELSE
 	SETCOLOR カラーパレット("ピンク")
@@ -300,7 +309,7 @@ ELSE
 	ENDIF
 	PRINTL 
 
-	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
+	CALL CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 子供人数)
 	TRYCALLFORM KOJO_出産_リゾート内_{NO:MOTHER}(MOTHER)
 ENDIF
 
@@ -398,12 +407,13 @@ RETURNF LOCALS
 
 
 ;子供たちのデータ作成
-@CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
+@CREATE_CHILDREN(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 子供人数)
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
 #DIM 子供人数
 #DIM 子供性別
+#DIM 子供種族
 #DIM 命名フラグ
 #DIM 子供ID
 
@@ -415,12 +425,12 @@ ENDIF
 
 IF 子供人数 >= 2
 	FOR LOCAL, 0, 子供人数
-		CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ, LOCAL + 1)
+		CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 命名フラグ, LOCAL + 1)
 		SIF LOCAL == 0
 			子供ID = RESULT
 	NEXT
 ELSE
-	CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ)
+	CALL CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 命名フラグ)
 	子供ID = RESULT
 ENDIF
 
@@ -481,7 +491,7 @@ ENDSELECT
 
 
 ;子供のデータ作成
-@CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 命名フラグ, 子供順番 = 0)
+@CREATE_CHILD(MOTHER, FATHER, DOMINANT, 子供性別, 子供種族, 命名フラグ, 子供順番 = 0)
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
@@ -491,33 +501,19 @@ ENDSELECT
 #DIMS 子供名前
 #DIM 子供性別
 #DIM 子供種族
-#DIM 命名種族
 #DIMS 子供プレゼント好み
 #DIMS 子供経歴
 
 子供ID = ADD_PERSON()
 
-;性別
+;性別/種族
 CALL SET_PERSON_性別(子供ID, 子供性別)
-
-;種族 親の種族が一致していればその種族、それ以外はその他
-IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血
-	;潜性のあなたの場合、混血を回避
-	子供種族 = TALENT:DOMINANT:種族
-	命名種族 = 子供種族
-ELSEIF FATHER < 0 || (TALENT:FATHER:種族 != TALENT:MOTHER:種族)
-	子供種族 = 6
-	命名種族 = TALENT:DOMINANT:種族
-ELSE
-	子供種族 = TALENT:MOTHER:種族
-	命名種族 = 子供種族
-ENDIF
 CALL SET_PERSON_種族(子供ID, 子供種族)
 
 ;名前/呼び名
 子供名前 '= ""
 IF 命名フラグ
-	CALL CHILD_NAMING(DOMINANT, 子供性別, 命名種族, 子供順番)
+	CALL CHILD_NAMING(DOMINANT, 子供性別, 子供順番)
 	子供名前 '= RESULTS
 	CALL SET_PERSON_名前(子供ID, @"[%CALLNAME:MOTHER%の子供]" + 子供名前)
 	CALL SET_PERSON_呼び名(子供ID, 子供名前)
@@ -556,12 +552,13 @@ CALL SET_PERSON_経歴(子供ID, 子供経歴)
 RETURN 子供ID
 
 
-@CHILD_NAMING(PARENT, 子供性別, 命名種族, 子供順番)
+@CHILD_NAMING(PARENT, 子供性別, 子供順番)
 #DIM PARENT
 #DIM 子供性別
-#DIM 命名種族
 #DIM 子供順番
 #DIMS 子供名前
+#DIM 命名者
+#DIM 命名者種族
 #DIM 案出し回数
 
 PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…
@@ -588,32 +585,34 @@ SELECTCASE RESULT
 		SIF RESULT == 1
 			RESTART
 	CASE 1
+		命名者 = PARENT
+		命名者種族 = TALENT:命名者:種族
 		案出し回数 = 0
 		WHILE 1
 			SIF 案出し回数 == __INT_MAX__
 				案出し回数 = 100
 			IF 案出し回数 < 100
-				TRYCCALLFORM 固有子供命名設定_{NO:PARENT}(PARENT, 子供性別, 子供順番, 案出し回数)
+				TRYCCALLFORM 固有子供命名設定_{NO:命名者}(命名者, 子供性別, 子供順番, 案出し回数)
 					;RESULTSに命名が返ってくる
 					子供名前 = %RESULTS%
 					IF 子供名前 == ""
 						;空の場合は汎用ランダム
-						子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+						子供名前 = %ランダムキャラ名前生成(命名者種族, 子供性別)%
 					ELSEIF 子供名前 == ";子供の名前"
 						;テンプレそのままの場合もランダム
-						子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+						子供名前 = %ランダムキャラ名前生成(命名者種族, 子供性別)%
 					ELSEIF 名前重複チェック(子供名前) || FIND_PERSON_FROM_CALLNAME(子供名前) > 0
 						案出し回数++
 						CONTINUE
 					ENDIF
 				CATCH
-					子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+					子供名前 = %ランダムキャラ名前生成(命名者種族, 子供性別)%
 				ENDCATCH
 			ELSE
-				子供名前 = %ランダムキャラ名前生成(命名種族, 子供性別)%
+				子供名前 = %ランダムキャラ名前生成(命名者種族, 子供性別)%
 			ENDIF
 
-			PRINTFORML %CALLNAME:PARENT%は%子供名前%と名付けたいようだ…
+			PRINTFORML %CALLNAME:命名者%は%子供名前%と名付けたいようだ…
 			PRINTBUTTONLC "[0]それにする", 0
 			PRINTBUTTONLC "[1]別の名前を考えてもらう", 1
 			PRINTBUTTONLC "[2]やっぱり自分で考えようかな", 2
