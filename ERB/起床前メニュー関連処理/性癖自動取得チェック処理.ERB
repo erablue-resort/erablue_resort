@@ -244,3 +244,71 @@ SIF TALENT:キャラ番号:Ａ感度 == -2
 	RETURN 0
 
 RETURN 1
+
+
+@自動取得性癖_同性愛(キャラ番号)
+#DIM キャラ番号
+
+;既に取得してるとダメ
+SIF 性癖素質:キャラ番号:同性愛
+	RETURN 0
+;経験が足りないとダメ
+SIF EXP:キャラ番号:同性愛経験 < 20
+	RETURN 0
+;性欲無しだとダメ
+SIF TALENT:キャラ番号:性欲 == -2
+	RETURN 0
+;勝手に目覚めさせるには特殊能力が必要
+SIF !あなた特殊能力:同性殺し
+	RETURN 0
+;あなたと性別が一致しないとダメ
+SIF HETEROSEX(キャラ番号, MASTER) == 0
+	RETURN 0
+;馴れ合い強度1
+SIF TCVAR:MASTER:馴れ合い強度 < 1 || TCVAR:キャラ番号:馴れ合い強度 < 1
+	RETURN 0
+
+;基礎確率は2/50 （本の1/5）
+LOCAL = 2
+;性的興味、性欲が影響
+;本とは異なり自制心、性知識は影響しない
+LOCAL += TALENT:キャラ番号:性的興味 * 2
+LOCAL += TALENT:キャラ番号:性欲
+SIF BASE:キャラ番号:性欲 > 1500
+	LOCAL += 1
+
+SELECTCASE TALENT:キャラ番号:性別嗜好
+	CASE -1
+		;両刀はもとから持ってるはずだが、一応確定補正つけておく
+		LOCAL = 10
+	CASE 1
+		;男の男嫌いパターン
+		SIF TALENT:キャラ番号:性別 == 2
+			LOCAL -= 5
+	CASE 2
+		;女の女嫌いパターン
+		SIF TALENT:キャラ番号:性別 == 1
+			LOCAL -= 5
+	CASE 3
+		;そもそも人間が嫌い
+		LOCAL -= 5
+ENDSELECT
+
+;最低確率1/50は確保
+SIF RAND:50 >= MAX(LOCAL, 1)
+	RETURN 0
+
+性癖素質:キャラ番号:同性愛 = 1
+
+;取得メッセージ
+DRAWLINE
+PRINTFORML %CALLNAME:キャラ番号%の様子がおかしい……
+PRINTFORML どうやら%CALLNAME:MASTER%のことを性的に捉え、\@ (TALENT:キャラ番号:性別 == 2) ? 男性 # 女性 \@同士で体を重ねることに興味を持ってしまったようだ。
+PRINTL 
+PRINTFORML %CALLNAME:キャラ番号%は性癖素質[同性愛(興味)]を取得した
+CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[同性愛(興味)]を取得した</font>","うふふ")
+PRINTL
+
+RETURN 1
+
+;同性愛性癖の他の処理は性癖開拓処理.ERBを参照
