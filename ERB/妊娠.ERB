@@ -48,7 +48,7 @@ IF 他人妊娠OPTION記憶
 ENDIF
 
 ;妊娠可能な種かどうかの判定
-IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 == CSTR:種親:特殊種族)
+IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 != CSTR:種親:特殊種族)
 	;同じ種族でない場合は条件がある
 	IF ARG == MASTER
 		;あなたが母親の場合 種親が恋慕・セフレでなく、あなたが特異胎質を持たない場合は不可
@@ -133,7 +133,7 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		ELSEIF 知識素質:ARG:性知識 == -2
 			PRINTFORML %CALLNAME:ARG%の無垢な卵子は、何が起こってるかも分からないままに受精させられてしまった…
 		ELSE
-			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@異種妊娠(ARG)?異種間#\@受精を許してしまった…
+			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@ 異種妊娠(ARG) ? 異種間 # \@受精を許してしまった…
 		ENDIF
 		CFLAG:ARG:MASTERの子供妊娠回数 ++
 	ENDIF
@@ -947,9 +947,14 @@ RETURNF 進行度
 
 @異種妊娠(ARG)
 #FUNCTION
-SIF CFLAG:ARG:子の父親 == -1
-	RETURNF 0
+;父親不明は問答無用で異種扱い
+SIF CFLAG:ARG:子の父親 < 0
+	RETURNF 1
+;両親の種族を比較
 SIF TALENT:ARG:種族 != TALENT:(CFLAG:ARG:子の父親):種族
+	RETURNF 1
+;その他種族同士の場合は特殊種族も確認する
+SIF TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 != CSTR:(CFLAG:ARG:子の父親):特殊種族
 	RETURNF 1
 RETURNF 0
 
