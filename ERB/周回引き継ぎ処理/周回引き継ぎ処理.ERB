@@ -114,6 +114,18 @@ ENDIF
 引き継ぎ枠 = MAX(引き継ぎ枠, 1)
 RETURNF 引き継ぎ枠
 
+@引き継ぎ不能キャラ(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+
+IF TALENT:キャラ番号:妊娠
+	RESULTS '= "妊娠中のキャラは引き継ぎできません"
+	RETURNF 1
+ENDIF
+
+RESULTS '= ""
+RETURNF 0
+
 @陥落キャラ選択
 #DIM 現在ページ
 #DIM 表示候補, 500
@@ -141,13 +153,25 @@ VARSET LOCAL
 VARSET LOCALS
 ;表示処理
 FOR LOCAL, 現在ページ * 30, 候補人数
-	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"),41,LEFT%</button>"
+	IF 引き継ぎ不能キャラ(表示候補:LOCAL)
+		LOCALS += @"<font color='#666666'><button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"),41,LEFT%</button>"
 
-	IF TALENT:(表示候補:LOCAL):恋慕
-		LOCALS += @"　　　<font color='#FF3399'>恋慕陥落</font>　"
+		IF TALENT:(表示候補:LOCAL):恋慕
+			LOCALS += "　　　恋慕陥落　"
+		ELSE
+			LOCALS += "　　セフレ陥落　"
+		ENDIF
+		LOCALS += "</font>"
 	ELSE
-		LOCALS += @"　　セフレ陥落　"
+		LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"),41,LEFT%</button>"
+
+		IF TALENT:(表示候補:LOCAL):恋慕
+			LOCALS += "　　　<font color='#FF3399'>恋慕陥落</font>　"
+		ELSE
+			LOCALS += "　　セフレ陥落　"
+		ENDIF
 	ENDIF
+
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
 		HTML_PRINT LOCALS
@@ -185,6 +209,10 @@ ELSEIF RESULT == 901
 	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
 	GOTO 表示処理_LOOP
 ELSE
+	IF 引き継ぎ不能キャラ(RESULT)
+		PRINTFORMW %RESULTS%
+		GOTO 表示処理_LOOP
+	ENDIF
 	RETURN RESULT
 ENDIF
 
