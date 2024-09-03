@@ -5,6 +5,7 @@
 #DIM 命中強度1
 #DIM 命中強度2
 #DIM 危険度
+#DIM 異種フラグ
 種親 = -1
 命中強度1 = 0
 命中強度2 = 0
@@ -24,6 +25,8 @@ SIF TALENT:ARG:妊娠不可 > 0
 ;条件を満たさない種も妊娠対象選びには参加する(完全な異種でも受精はするらしいので)
 FOR LOCAL,0,19
 	IF 性交相手:ARG:LOCAL == -1
+		CONTINUE
+	ELSEIF 相手ごとの射精量:ARG:LOCAL < 1
 		CONTINUE
 	ELSE
 		SIF 種親 == -1
@@ -47,26 +50,37 @@ IF 他人妊娠OPTION記憶
 		RETURN 0
 ENDIF
 
+異種フラグ = 0
 ;妊娠可能な種かどうかの判定
 IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 == CSTR:種親:特殊種族)
 	;同じ種族でない場合は条件がある
 	IF ARG == MASTER
 		;あなたが母親の場合 種親が恋慕・セフレでなく、あなたが特異胎質を持たない場合は不可
-		SIF !あなた特殊能力:特異胎質 && (種親 < 0 || !陥落チェック(種親))
-			RETURN 0
+		IF !あなた特殊能力:特異胎質 && (種親 < 0 || !陥落チェック(種親))
+			異種フラグ = 1
+		ELSE
+			異種フラグ = 2
+		ENDIF
 	ELSEIF 干渉強化変数:ARG:干渉種類 != 0
 		;era様が母体に干渉している場合は種側のコンディションに関わらず可
+		異種フラグ = 2
 	ELSEIF 種親 == MASTER
 		;あなたが種親の場合 母親が恋慕・セフレでなければ不可
-		SIF !陥落チェック(ARG)
-			RETURN 0
+		IF !陥落チェック(ARG)
+			異種フラグ = 1
+		ELSE
+			異種フラグ = 2
+		ENDIF
 	ELSEIF 種親 < 0
 		;種親が不明の場合 原則不可
-		RETURN 0
+		異種フラグ = 1
 	ELSE
 		;キャラ同士の場合 両者に恋慕・セフレの関係性が無い場合は不可
-		SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')") == 0
-			RETURN 0
+		IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')") == 0
+			異種フラグ = 1
+		ELSE
+			異種フラグ = 2
+		ENDIF
 	ENDIF
 ENDIF
 
@@ -96,6 +110,7 @@ SELECTCASE 危険度
 	CASE -1
 		TIMES 妊娠確率, 0.1
 ENDSELECT
+
 LOCAL:0 = RAND:100
 
 DRAWLINE
@@ -110,6 +125,16 @@ ELSE
 	PRINTFORML では、%LOCALS%の精が卵子めがけて必死に泳いでいる……
 ENDIF
 RESETCOLOR
+
+IF 異種フラグ == 1
+	;異種の時は妊娠させない
+	PRINTW しかし、異種族の間では妊娠には至らないようだ。
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN 0
+ELSEIF 異種フラグ == 2 && LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
+	PRINTL 星晶獣eraの影響を受けた母体が、異種の子種を受け入れようとしている……！
+ENDIF
+
 SIF FLAG_アニメーション
 	CALL 受精アニメ(0)
 ;妊娠した
