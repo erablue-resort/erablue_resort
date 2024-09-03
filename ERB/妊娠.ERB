@@ -5,13 +5,8 @@
 #DIM 命中強度1
 #DIM 命中強度2
 #DIM 危険度
-種親 = -1
-命中強度1 = 0
-命中強度2 = 0
 
 SIF 妊娠切り替えOPTION記憶
-	RETURN 0
-SIF TCVAR:ARG:膣内精液量 <= 0
 	RETURN 0
 SIF TCVAR:ARG:避妊薬
 	RETURN 0
@@ -22,25 +17,25 @@ SIF TALENT:ARG:妊娠不可 > 0
 
 ;種親の確定
 ;条件を満たさない種も妊娠対象選びには参加する(完全な異種でも受精はするらしいので)
+命中強度1 = 0
+命中強度2 = 0
+種親 = -1
+種親精液量 = 0
 FOR LOCAL,0,19
-	IF 性交相手:ARG:LOCAL == -1
+	SIF 性交相手:ARG:LOCAL == -1
 		CONTINUE
-	ELSE
-		SIF 種親 == -1
-			種親 = 性交相手:ARG:LOCAL
-		IF 命中強度1 == 0
-			命中強度1 = RAND:(相手ごとの射精量:ARG:LOCAL)
-			種親精液量 = 相手ごとの射精量:ARG:LOCAL
-		ELSE
-			命中強度2 = RAND:(相手ごとの射精量:ARG:LOCAL)
-			IF 命中強度2 > 命中強度1
-				命中強度1 = 命中強度2
-				種親 = 性交相手:ARG:LOCAL
-				種親精液量 = 相手ごとの射精量:ARG:LOCAL
-			ENDIF
-		ENDIF
+	SIF 相手ごとの射精量:ARG:LOCAL <= 0
+		CONTINUE
+
+	命中強度2 = 1 + RAND:(相手ごとの射精量:ARG:LOCAL)
+	IF 命中強度2 > 命中強度1
+		命中強度1 = 命中強度2
+		種親 = 性交相手:ARG:LOCAL
+		種親精液量 = 相手ごとの射精量:ARG:LOCAL
 	ENDIF
 NEXT
+SIF 種親精液量 <= 0
+	RETURN 0
 
 IF 他人妊娠OPTION記憶
 	SIF ARG != MASTER && 種親 != MASTER
@@ -114,11 +109,7 @@ SIF FLAG_アニメーション
 	CALL 受精アニメ(0)
 ;妊娠した
 IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
-	IF 種親 < 0
-		CFLAG:ARG:子の父親 = -1
-	ELSE
-		CFLAG:ARG:子の父親 = 種親
-	ENDIF
+	CFLAG:ARG:子の父親 = 種親
 	SIF TCVAR:ARG:膣内精液量 >= 450
 		PRINT 精液をたっぷりと注がれた
 	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
