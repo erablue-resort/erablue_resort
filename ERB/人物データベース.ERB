@@ -165,16 +165,16 @@ RETURNF FIND_CHARA_FROM_PERSON_ID(FATHER_ID)
 
 
 ;母親・父親・自身を母に持つ子のいずれかが人物データベースに登録されていれば1を返す
-;母親/父親はキャラである必要がある。子供はキャラである必要はない
+;母親・父親・子供のいずれもキャラである必要はない
 @EXIST_FAMILY(ID)
 #FUNCTION
 #DIM ID
 #DIM CHILD_COUNT
 #DIM TMP_CHILDREN, 1
 
-SIF FIND_MOTHER_CHARA_FROM_PERSON_ID(ID) >= 0
+SIF GET_PERSON_母親(ID) != 0
 	RETURNF 1
-SIF FIND_FATHER_CHARA_FROM_PERSON_ID(ID) >= 0
+SIF GET_PERSON_父親(ID) != 0
 	RETURNF 1
 
 CHILD_COUNT = DT_SELECT("人物データベース", @"母親 = {ID}", , TMP_CHILDREN)
@@ -223,6 +223,24 @@ RETURNF TMP_PERSONS:0
 #FUNCTION
 #DIM ID
 RETURNF DT_CELL_ISNULL("人物データベース", ID, "id", 1) == 0
+
+
+;人物に設定されている呼び名で最も適切なものを探す（見つからなければ適当な文字列）
+;キャラとしてのCALLNAME＞呼び名＞名前のヘッダ部分を除去したもの の順
+@GET_PERSON_呼び名_代替あり(ID)
+#FUNCTIONS
+#DIM ID
+#DIM C_ID
+C_ID = FIND_CHARA_FROM_PERSON_ID(ID)
+IF C_ID >= 0
+	RETURNF CALLNAME:C_ID
+ELSEIF DT_CELL_ISNULL("人物データベース", ID, "呼び名", 1) == 0
+	RETURNF DT_CELL_GETS("人物データベース", ID, "呼び名", 1)
+ELSEIF DT_CELL_ISNULL("人物データベース", ID, "名前", 1) == 0
+	RETURNF REPLACE(DT_CELL_GETS("人物データベース", ID, "名前", 1), "\[[^\]]*\]", "")
+ELSE
+	RETURNF "見知らぬ誰か"
+ENDIF
 
 
 ;各カラムのGET系
