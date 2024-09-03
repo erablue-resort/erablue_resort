@@ -12,8 +12,6 @@
 
 SIF 妊娠切り替えOPTION記憶
 	RETURN 0
-SIF TCVAR:ARG:膣内精液量 <= 0
-	RETURN 0
 SIF TCVAR:ARG:避妊薬
 	RETURN 0
 SIF TALENT:ARG:妊娠
@@ -23,9 +21,21 @@ SIF TALENT:ARG:妊娠不可 > 0
 
 ;種親の確定
 ;条件を満たさない種も妊娠対象選びには参加する(完全な異種でも受精はするらしいので)
+命中強度1 = 0
+命中強度2 = 0
+種親 = -1
+種親精液量 = 0
 FOR LOCAL,0,19
-	IF 性交相手:ARG:LOCAL == -1
+	SIF 性交相手:ARG:LOCAL == -1
 		CONTINUE
+	SIF 相手ごとの射精量:ARG:LOCAL <= 0
+		CONTINUE
+
+	命中強度2 = 1 + RAND:(相手ごとの射精量:ARG:LOCAL)
+	IF 命中強度2 > 命中強度1
+		命中強度1 = 命中強度2
+		種親 = 性交相手:ARG:LOCAL
+		種親精液量 = 相手ごとの射精量:ARG:LOCAL
 	ELSEIF 相手ごとの射精量:ARG:LOCAL < 1
 		CONTINUE
 	ELSE
@@ -44,6 +54,8 @@ FOR LOCAL,0,19
 		ENDIF
 	ENDIF
 NEXT
+SIF 種親精液量 <= 0
+	RETURN 0
 
 IF 他人妊娠OPTION記憶
 	SIF ARG != MASTER && 種親 != MASTER
@@ -52,7 +64,7 @@ ENDIF
 
 異種フラグ = 0
 ;妊娠可能な種かどうかの判定
-IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 == CSTR:種親:特殊種族)
+IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 != CSTR:種親:特殊種族)
 	;同じ種族でない場合は条件がある
 	IF ARG == MASTER
 		;あなたが母親の場合 種親が恋慕・セフレでなく、あなたが特異胎質を持たない場合は不可
@@ -139,11 +151,7 @@ SIF FLAG_アニメーション
 	CALL 受精アニメ(0)
 ;妊娠した
 IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
-	IF 種親 < 0
-		CFLAG:ARG:子の父親 = -1
-	ELSE
-		CFLAG:ARG:子の父親 = 種親
-	ENDIF
+	CFLAG:ARG:子の父親 = 種親
 	SIF TCVAR:ARG:膣内精液量 >= 450
 		PRINT 精液をたっぷりと注がれた
 	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
@@ -158,7 +166,7 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		ELSEIF 知識素質:ARG:性知識 == -2
 			PRINTFORML %CALLNAME:ARG%の無垢な卵子は、何が起こってるかも分からないままに受精させられてしまった…
 		ELSE
-			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@異種妊娠(ARG)?異種間#\@受精を許してしまった…
+			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@ 異種妊娠(ARG) ? 異種間 # \@受精を許してしまった…
 		ENDIF
 		CFLAG:ARG:MASTERの子供妊娠回数 ++
 	ENDIF
@@ -972,9 +980,14 @@ RETURNF 進行度
 
 @異種妊娠(ARG)
 #FUNCTION
-SIF CFLAG:ARG:子の父親 == -1
-	RETURNF 0
+;父親不明は問答無用で異種扱い
+SIF CFLAG:ARG:子の父親 < 0
+	RETURNF 1
+;両親の種族を比較
 SIF TALENT:ARG:種族 != TALENT:(CFLAG:ARG:子の父親):種族
+	RETURNF 1
+;その他種族同士の場合は特殊種族も確認する
+SIF TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 != CSTR:(CFLAG:ARG:子の父親):特殊種族
 	RETURNF 1
 RETURNF 0
 
@@ -1094,17 +1107,25 @@ ENDIF
 ;膣内射精した相手の取得
 @TAKE_SPERM(ARG, 射精した人)
 #DIM 射精した人
-IF RFLAG:フィニッシュフラグ
-	TCVAR:ARG:膣内精液量 += RCVAR:射精した人:射精量
-	FOR LOCAL, 0, 19
-		SIF 性交相手:ARG:LOCAL == -1
-			性交相手:ARG:LOCAL = 射精した人
-		IF 性交相手:ARG:LOCAL == 射精した人
-			相手ごとの射精量:ARG:LOCAL += RCVAR:射精した人:射精量
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
+
+SIF !RFLAG:フィニッシュフラグ
+	RETURN
+
+TCVAR:ARG:膣内精液量 += RCVAR:射精した人:射精量
+
+;分身の精液は妊娠能力を持たないものとする
+SIF TALENT:射精した人:分身
+	RETURN
+
+FOR LOCAL, 0, 19
+	SIF 性交相手:ARG:LOCAL == -1
+		性交相手:ARG:LOCAL = 射精した人
+	IF 性交相手:ARG:LOCAL == 射精した人
+		相手ごとの射精量:ARG:LOCAL += RCVAR:射精した人:射精量
+		BREAK
+	ENDIF
+NEXT
+
 
 ;妊娠の経過度を百分率で返す
 @PREG_DAY(ARG)
