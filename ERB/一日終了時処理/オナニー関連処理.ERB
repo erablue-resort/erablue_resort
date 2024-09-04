@@ -80,6 +80,9 @@ RETURN 1
 ;被発見や絶頂時などで終了する場合には0を返す
 ;-------------------------------------------------
 @野外オナニー継続判定(ARG)
+#DIM 同行者未陥落
+#DIM 同行者フラグ
+
 ;時間経過させる前に残時間が0になってる場合は異常事態なので途中終了させる
 IF TCVAR:ARG:野外オナニー_残時間 <= 0
 	CALL 野外オナニー途中終了(ARG)
@@ -88,12 +91,26 @@ IF TCVAR:ARG:野外オナニー_残時間 <= 0
 ENDIF
 ;オナニー中にあなたが物陰に入ってきたパターン
 IF CFLAG:PLAYER:隠密 && IS_SAME_ROOM(ARG)
-	IF 陥落チェック(ARG)
+	同行者未陥落 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		IF CFLAG:(TARGET:LOCAL):同行
+			同行者フラグ = 1
+			SIF !陥落チェック(TARGET:LOCAL)
+				同行者未陥落 = 1
+		ENDIF
+	NEXT
+	IF 陥落チェック(ARG) && 同行者未陥落 == 0
 		PRINTFORML %CALLNAME:PLAYER%が物陰に入ると、そこにいた%CALLNAME:ARG%はひどく慌てた様子を見せたが
 		PRINTFORMW 現れたのが%CALLNAME:PLAYER%だとわかると、ほっと安心したようだ
 		PRINTL
 		PRINTFORML %CALLNAME:ARG%の服装は乱れていて、頬を染めた姿はとても煽情的だ……
-		PRINTFORML %CALLNAME:ARG%を抱き寄せますか？
+		IF 同行者フラグ
+			PRINTFORML %CALLNAME:ARG%たちを抱き寄せますか？
+		ELSE
+			PRINTFORML %CALLNAME:ARG%を抱き寄せますか？
+		ENDIF
 		PRINTBUTTONLC "[0] はい", 0
 		PRINTBUTTONLC "[1] いいえ", 1
 		PRINTL
@@ -106,6 +123,14 @@ IF CFLAG:PLAYER:隠密 && IS_SAME_ROOM(ARG)
 			CFLAG:ARG:隠密 = 1
 			PALAM:ARG:欲情 = 30000
 			PALAM:ARG:潤滑 = 30000
+			FOR LOCAL, 1, CHARANUM
+				SIF TARGET:LOCAL < 1
+					BREAK
+				IF CFLAG:(TARGET:LOCAL):同行
+					CFLAG:(TARGET:LOCAL):隠密 = 1
+					CFLAG:(TARGET:LOCAL):うふふ = 1
+				ENDIF
+			NEXT
 			;処理の誤爆を防ぐためオートコマンド周りリセット
 			TFLAG:オートコマンドフラグ = 0
 			AUTOCOM_相手番号保存 = 0
@@ -115,6 +140,15 @@ IF CFLAG:PLAYER:隠密 && IS_SAME_ROOM(ARG)
 			PRINTFORML お楽しみの邪魔をしては申し訳ない。
 			PRINTFORMW %CALLNAME:PLAYER%は%CALLNAME:ARG%に軽く謝り、その場を離れた。
 			CFLAG:PLAYER:隠密 = 0
+			FOR LOCAL, 1, CHARANUM
+				SIF TARGET:LOCAL < 1
+					BREAK
+				SIF TARGET:LOCAL == ARG
+					CONTINUE
+				IF CFLAG:(TARGET:LOCAL):同行
+					CFLAG:(TARGET:LOCAL):隠密 = 0
+				ENDIF
+			NEXT
 			;下の処理へ進む
 		ENDIF
 	ELSE
