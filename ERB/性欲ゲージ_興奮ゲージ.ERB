@@ -148,25 +148,8 @@ ELSE
 ENDIF
 
 
-@精力ゲージ_日中回復処理()
-#DIM 経過時間
-#DIM 精力回復量
-
-SIF BASE:MASTER:精力 == MAXBASE:MASTER:精力
-	RETURN
-
-;経過時間(分)
-経過時間 = TIME_PROGRESS(TFLAG:行動前時刻)
-
-;半日(720分)で全回復するペース、精力が低いときほど大きく回復する
-;真・絶倫でさらに回復速度アップ
-精力回復量 = (10000 - BASE:MASTER:精力) * 経過時間 * (あなた特殊能力:真・絶倫 + 2) / 223
-
-BASE:MASTER:精力 = MIN(BASE:MASTER:精力 + 精力回復量, MAXBASE:MASTER:精力)
-
-
-@精力ゲージ_コマンド外回復処理(ZP獲得量)
-#DIM ZP獲得量
+@精力ゲージ_回復処理_共通(係数)
+#DIM 係数
 #DIM 精力回復量
 
 SIF BASE:MASTER:精力 == MAXBASE:MASTER:精力
@@ -174,9 +157,19 @@ SIF BASE:MASTER:精力 == MAXBASE:MASTER:精力
 
 ;精力が低いときほど大きく回復する
 ;真・絶倫でさらに回復速度アップ
-精力回復量 = (10000 - BASE:MASTER:精力) * ZP獲得量 * 5 * (あなた特殊能力:真・絶倫 + 2) / 223
+精力回復量 = (10000 - BASE:MASTER:精力) * 係数 * (あなた特殊能力:真・絶倫 + 2) / 223
 
 BASE:MASTER:精力 = MIN(BASE:MASTER:精力 + 精力回復量, MAXBASE:MASTER:精力)
+
+
+@精力ゲージ_日中回復処理()
+;経過時間(分)依存　半日(720分)で全回復するペース
+CALL 精力ゲージ_回復処理_共通(TIME_PROGRESS(TFLAG:行動前時刻))
+
+
+@精力ゲージ_コマンド外回復処理(ZP獲得量)
+;ZP回復量依存
+CALL 精力ゲージ_回復処理_共通(ZP獲得量 * 5)
 
 
 @最小射精量(キャラ番号, 前立腺フラグ = 0)
