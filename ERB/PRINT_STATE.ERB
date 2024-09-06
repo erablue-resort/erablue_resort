@@ -224,6 +224,10 @@ SELECTCASE RESULT
 	CASE 200
 		INVERTBIT 全表示フラグ:0, 0
 		RESTART
+	CASE 301 TO 399
+		;性癖素質の無効化
+		性癖素質:ARG:(RESULT - 300) = 性癖素質:ARG:(RESULT - 300) * -1
+		RESTART
 	CASE 900
 		能力表示現在ページ --
 		RESTART
@@ -1742,7 +1746,7 @@ RETURN 改行カウント - 2
 #DIMS 名前格納
 #DIMS 性癖段階
 
-PRINTL □ 性癖 □---------------------------------------------------------------------
+PRINTL □ 性癖 □--(クリックすることで無効化可能)-------------------------------------
 FOR LOCAL, 1, 100
 	IF 性癖素質:ARG:LOCAL
 		TSTR:ツールチップ受渡 = ERDNAME(性癖素質, LOCAL)
@@ -1754,6 +1758,8 @@ FOR LOCAL, 1, 100
 				性癖段階 = 愛好
 			CASE 3
 				性癖段階 = 中毒
+			CASE IS < 0
+				性癖段階 = 無効
 		ENDSELECT
 		IF STRLENS(名前格納) + STRLENS(@"[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]") > 70
 			名前格納 = 
@@ -1761,11 +1767,15 @@ FOR LOCAL, 1, 100
 			LOCALS = 
 		ENDIF
 		名前格納 += @"[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]"
+		SIF 性癖段階 == "無効"
+			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>"
 		IF ツールチップ切り替えOPTION記憶 == 0
-			LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</nonbutton>"
+			LOCALS += @"<button title='%TSTR:ツールチップ受渡%' value='{LOCAL + 300}'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</button>"
 		ELSE
-			LOCALS += @"<nonbutton>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</nonbutton>"
+			LOCALS += @"<button value='{LOCAL + 300}'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</button>"
 		ENDIF
+		SIF 性癖段階 == "無効"
+			LOCALS += "</font>"
 	ENDIF
 NEXT
 SIF 名前格納 != ""
