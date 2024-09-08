@@ -1,0 +1,136 @@
+﻿
+@CHARACOMNAME370_1042
+#FUNCTIONS
+TSTR:コマンド名受渡 = 『性教育』をはじめる
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_370_1042
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
+;TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_370_1042
+LOCALS = <br>■『性教育』をはじめる<br>
+LOCALS += "フリーレンからの頼みで、フェルンに実技で『性教育』を施してあげるコマンド。<br>フェルン以外の同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@CHARACOM370_1042
+;だいたいが「押し倒す」そのまま
+IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+	CFLAG:TARGET:うふふ = 1
+	IF 初体験日:TARGET:初うふふ == 0
+		初体験日:TARGET:初うふふ = DAY
+		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>『性教育』と称して%CALLNAME:TARGET%に初めて手を出した</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%からの『性教育』を受けた</font><img src='えっちハート'>","うふふ")
+		TCVAR:TARGET:初うふふフラグ = 1
+	ENDIF
+ELSE
+	FOR LOCAL,1,CHARANUM
+		SIF TARGET:LOCAL <= 0
+			BREAK
+		CFLAG:(TARGET:LOCAL):うふふ = 1
+		IF 初体験日:(TARGET:LOCAL):初うふふ == 0
+			初体験日:(TARGET:LOCAL):初うふふ = DAY
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>『性教育』と称して%CALLNAME:TARGET%に初めて手を出した</font><img src='えっちハート'>","うふふ")
+			CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%からの『性教育』を受けた</font><img src='えっちハート'>","うふふ")
+			TCVAR:(TARGET:LOCAL):初うふふフラグ = 1
+		ENDIF
+	NEXT
+ENDIF
+TCVAR:TARGET:言いなり = 1
+CFLAG:MASTER:うふふ = 1
+
+
+;3Pモード管理フラグを初期化
+FLAG:モード管理 = 0
+
+TIME += 5
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE370_1042
+;押し倒す実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(370)
+	RETURN RESULT
+;TARGETがフェルン
+LOCAL = FINDCHARA(NO, 1042)
+SIF TARGET != LOCAL
+	RETURN 0
+;飲み会時はだめ
+SIF TFLAG:調教モード == 3
+	RETURN 0
+;ハーヴィンオナホ中はだめ
+SIF MODE_確認_プレイヤー側("ハーヴィンオナホ系", PLAYER) > -1
+	RETURN 0
+;全裸散歩中はだめ
+SIF MODE_確認_プレイヤー側("全裸散歩", PLAYER) > -1
+	RETURN 0
+;フリーレンのキャライベを踏んでいないとダメ
+SIF フェルン性教育イベフラグ != 2
+	RETURN 0
+;SIF CSTR:TARGET:固有素質0 == "性の教え子"
+;	RETURN 0
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;隠密中は素通し
+IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+	RETURN 1
+ELSE
+	;非隠密時はフェルン以外全員陥落済みでないとだめ
+    FOR LOCAL,1,CHARANUM
+        SIF TARGET:LOCAL < 1
+            BREAK
+        SIF TARGET:LOCAL == FINDCHARA(NO, 1042)
+            CONTINUE
+        SIF 陥落チェック(TARGET:LOCAL) == 0
+            RETURN 0
+    NEXT
+ENDIF
+
+RETURN 1
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM370_1042
+IF GET_TARGETNUM() > 1
+	PRINTFORM %CALLNAME:PLAYER%は
+	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
+		PRINT あたりに人がいないことを確認すると
+	ENDIF
+	PRINTFORMW %CALLNAME:TARGET%達を抱き寄せた…
+ELSEIF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
+	PRINTFORMW %CALLNAME:PLAYER%は上手く物陰に隠れられていることを確認すると%CALLNAME:TARGET%を抱き寄せた…
+ELSE
+	PRINTFORM %CALLNAME:PLAYER%は
+	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
+		PRINT あたりに人がいないことを確認すると
+	ENDIF
+	IF TALENT:MASTER:性別 == 2
+		PRINTFORMW %CALLNAME:TARGET%を抱き寄せ、%TEXTR("男の喜ばせかたというもの/男に奉仕することの喜びを/オスに尽くすメスの作法を/女であることの喜びを/無知なフェルンにセックスについて/その体で気持ちよくなる方法を/セックスを求められた時の作法を")%をその体にたっぷりと教えてやることにした…
+	ELSE
+		PRINTFORMW %CALLNAME:TARGET%を抱き寄せ、%TEXTR("その体にたっぷりとえっちなことを/無知なフェルンにセックスについて/その体で気持ちよくなる方法を/セックスを求められた時の作法を")%教えてやることにした…
+	ENDIF
+ENDIF
+PRINTL
+SIF TCVAR:TARGET:初うふふフラグ
+	PRINTFORMW %CALLNAME:TARGET%は胸元で手を組み、未体験への不安と快楽への期待をないまぜにしたような表情で%CALLNAME:PLAYER%を見つめている…
+
+PRINTL
+PRINTFORM フリーレンからの言いつけで、%CALLNAME:TARGET%は%CALLNAME:PLAYER%の言うことには
+SETCOLOR カラーパレット("えっちな色")
+PRINT [なんでも]
+RESETCOLOR
+PRINTFORMW 従ってくれるだろう。
+
