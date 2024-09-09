@@ -1,0 +1,171 @@
+﻿@兵装開発
+#DIM 複雑さ
+#DIM 要求知識
+#DIM 進捗合計
+
+;開発中の兵装が無い場合は対象選定から
+IF 兵装開発_対象 == ""
+	CALL 兵装開発_対象選定
+
+	;対象がなかった場合は失敗
+	SIF 兵装開発_対象 == ""
+		RETURN -1
+ENDIF
+
+;複雑さを取得
+CALLFORM %兵装開発_対象%("複雑さ")
+複雑さ = RESULT
+
+;要求知識を取得
+CALLFORM %兵装開発_対象%("要求知識")
+要求知識 = RESULT
+
+;進捗の計算
+進捗合計 = 兵装開発_進捗度(PLAYER, 要求知識)
+IF TARGET > 0
+	FOR LOCAL, 1, VARSIZE("TARGET")
+		SIF TARGET:LOCAL <= 0
+			BREAK
+		SIF !COMABLEキャラ個別_382_1_11(TARGET:LOCAL)
+			CONTINUE
+
+		進捗合計 += 兵装開発_進捗度(TARGET:LOCAL, 要求知識)
+	NEXT
+ENDIF
+進捗合計 = 進捗合計 / MAX(1, 複雑さ)
+
+IF 進捗合計 <= 0
+	IF 兵装開発_進捗 == 0
+		進捗合計 = 1
+	ELSE
+		RETURN -1
+	ENDIF
+ENDIF
+
+;進捗の加算と結果の返却
+SELECTCASE 兵装開発_進捗
+	CASE 0
+		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_案出し - 1)
+		RETURN 1
+	CASE IS < 兵装開発_案出し
+		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_仕様決め - 1)
+		RETURN 1
+	CASE IS < 兵装開発_仕様決め
+		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_完了 - 1)
+		RETURN 1
+	CASEELSE
+		兵装開発_進捗 = 兵装開発_進捗 + 進捗合計
+		IF 兵装開発_進捗 < 兵装開発_完成
+			RETURN 1
+		ELSE
+			CALL 兵装開発_完成処理
+
+			兵装開発_対象 '= ""
+			兵装開発_進捗 = 0
+			RETURN 2
+		ENDIF
+ENDSELECT
+
+
+@兵装開発_進捗度(対象キャラ, 要求知識)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 要求知識
+
+SELECTCASE 兵装開発_進捗
+	CASE IS < 兵装開発_案出し
+		;案出しは知識が無くても失敗しない
+		;ただし高ければボーナス
+		RETURNF 500 * MAX(1, 知識素質:対象キャラ:要求知識)
+	CASE IS < 兵装開発_仕様決め
+		;仕様決め
+		IF 知識素質:対象キャラ:要求知識 >= 1
+			;知識が1以上あると失敗しない
+			;それより高ければ進捗ボーナス
+			RETURNF 500 * (知識素質:対象キャラ:要求知識 + 1) / 2
+		ELSEIF RAND(3 + 知識素質:対象キャラ:要求知識)
+			;0の場合は1/3で失敗
+			;マイナスだと失敗率が上がる
+			RETURNF 500
+		ELSE
+			RETURNF 0
+		ENDIF
+	CASEELSE
+		;製図作業
+		IF 知識素質:対象キャラ:要求知識 >= 2
+			;知識が2以上あると失敗しない
+			;それより高ければ進捗ボーナス
+			RETURNF 500 * 知識素質:対象キャラ:要求知識 / 2
+		ELSEIF RAND(4)
+			;不足している場合は1/4で失敗
+			;成功の場合も進捗ペナルティ
+			RETURNF 500 * 2 / (4 - 知識素質:対象キャラ:要求知識)
+		ELSE
+			RETURNF 0
+		ENDIF
+ENDSELECT
+
+
+@兵装開発_対象選定
+#DIM 開発種別
+#DIM 候補数
+#DIM 優先度, 2
+#DIM TMP_SELECT, 1
+#DIMS 開発対象関数保存, 兵装開発候補最大数
+#DIMS 兵装名一時保存
+
+VARSET RESULTS
+VARSET 開発対象関数保存
+
+開発種別 = RAND:2
+IF 開発種別 == 0
+	;乗機
+	候補数 = ENUMFUNCBEGINSWITH("乗機開発対象_")
+ELSE
+	;搭載兵器
+	候補数 = ENUMFUNCBEGINSWITH("兵器開発対象_")
+ENDIF
+ARRAYCOPY "RESULTS", "開発対象関数保存"
+
+SIF 候補数 == 0
+	RETURN
+
+優先度:0 = 0
+FOR LOCAL, 0, 候補数
+	CALLFORM %開発対象関数保存:LOCAL%("優先度")
+	優先度:1 = RESULT
+	SIF 優先度:0 >= 優先度:1
+		CONTINUE
+
+	兵装名一時保存 '= SUBSTRINGU(開発対象関数保存:LOCAL, 兵装開発関数ヘッダ長さ, -1)
+	IF 開発種別 == 0
+		;既に乗機・あるいは設計図を所持している場合は対象外
+		SIF DT_SELECT("所持乗機データベース", @"乗機名 = '%兵装名一時保存%'", , TMP_SELECT) > 0
+			CONTINUE
+	ELSE
+		;既に設計図を所持している場合は対象外
+		SIF DT_SELECT("所持兵器データベース", @"兵器名 = '%兵装名一時保存%' And 設計状態フラグ <> 0", , TMP_SELECT) > 0
+			CONTINUE
+	ENDIF
+
+	優先度:0 = 優先度:1
+	兵装開発_対象 '= 開発対象関数保存:LOCAL
+	兵装開発_進捗 = 0
+NEXT
+
+
+@兵装開発_完成処理
+#DIMS 開発種別
+#DIMS 兵装名
+
+開発種別 '= SUBSTRINGU(開発対象関数保存:LOCAL, 0, 兵装開発関数ヘッダ長さ)
+兵装名 '= SUBSTRINGU(開発対象関数保存:LOCAL, 兵装開発関数ヘッダ長さ, -1)
+
+IF 開発種別 == "乗機開発対象_"
+	;乗機
+	CALL 乗機取得処理_設計図(兵装名)
+ELSE
+	;搭載兵器
+	CALL 汎用搭載兵器取得処理_設計図(兵装名)
+ENDIF
+RESULTS '= 兵装名
