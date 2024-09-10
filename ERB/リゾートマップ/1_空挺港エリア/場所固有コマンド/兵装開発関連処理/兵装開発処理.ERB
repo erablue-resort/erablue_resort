@@ -51,7 +51,7 @@ SELECTCASE 兵装開発_進捗
 		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_仕様決め - 1)
 		RETURN 1
 	CASE IS < 兵装開発_仕様決め
-		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_完了 - 1)
+		兵装開発_進捗 = MIN(兵装開発_進捗 + 進捗合計, 兵装開発_完成 - 1)
 		RETURN 1
 	CASEELSE
 		兵装開発_進捗 = 兵装開発_進捗 + 進捗合計
@@ -117,40 +117,38 @@ ENDSELECT
 VARSET RESULTS
 VARSET 開発対象関数保存
 
-開発種別 = RAND:2
-IF 開発種別 == 0
-	;乗機
-	候補数 = ENUMFUNCBEGINSWITH("乗機開発対象_")
-ELSE
-	;搭載兵器
-	候補数 = ENUMFUNCBEGINSWITH("兵器開発対象_")
-ENDIF
-ARRAYCOPY "RESULTS", "開発対象関数保存"
-
-SIF 候補数 == 0
-	RETURN
-
 優先度:0 = 0
-FOR LOCAL, 0, 候補数
-	CALLFORM %開発対象関数保存:LOCAL%("優先度")
-	優先度:1 = RESULT
-	SIF 優先度:0 >= 優先度:1
-		CONTINUE
-
-	兵装名一時保存 '= SUBSTRINGU(開発対象関数保存:LOCAL, 兵装開発関数ヘッダ長さ, -1)
+FOR 開発種別, 0, 2
 	IF 開発種別 == 0
-		;既に乗機・あるいは設計図を所持している場合は対象外
-		SIF DT_SELECT("所持乗機データベース", @"乗機名 = '%兵装名一時保存%'", , TMP_SELECT) > 0
-			CONTINUE
+		;乗機
+		候補数 = ENUMFUNCBEGINSWITH("乗機開発対象_")
 	ELSE
-		;既に設計図を所持している場合は対象外
-		SIF DT_SELECT("所持兵器データベース", @"兵器名 = '%兵装名一時保存%' And 設計状態フラグ <> 0", , TMP_SELECT) > 0
-			CONTINUE
+		;搭載兵器
+		候補数 = ENUMFUNCBEGINSWITH("兵器開発対象_")
 	ENDIF
+	ARRAYCOPY "RESULTS", "開発対象関数保存"
 
-	優先度:0 = 優先度:1
-	兵装開発_対象 '= 開発対象関数保存:LOCAL
-	兵装開発_進捗 = 0
+	FOR LOCAL, 0, 候補数
+		CALLFORM %開発対象関数保存:LOCAL%("優先度")
+		優先度:1 = RESULT
+		SIF 優先度:0 >= 優先度:1
+			CONTINUE
+
+		兵装名一時保存 '= SUBSTRINGU(開発対象関数保存:LOCAL, 兵装開発関数ヘッダ長さ, -1)
+		IF 開発種別 == 0
+			;既に乗機・あるいは設計図を所持している場合は対象外
+			SIF DT_SELECT("所持乗機データベース", @"乗機名 = '%兵装名一時保存%'", , TMP_SELECT) > 0
+				CONTINUE
+		ELSE
+			;既に設計図を所持している場合は対象外
+			SIF DT_SELECT("所持兵器データベース", @"兵器名 = '%兵装名一時保存%' And 設計状態フラグ <> 0", , TMP_SELECT) > 0
+				CONTINUE
+		ENDIF
+
+		優先度:0 = 優先度:1
+		兵装開発_対象 '= 開発対象関数保存:LOCAL
+		兵装開発_進捗 = 0
+	NEXT
 NEXT
 
 
@@ -158,8 +156,8 @@ NEXT
 #DIMS 開発種別
 #DIMS 兵装名
 
-開発種別 '= SUBSTRINGU(開発対象関数保存:LOCAL, 0, 兵装開発関数ヘッダ長さ)
-兵装名 '= SUBSTRINGU(開発対象関数保存:LOCAL, 兵装開発関数ヘッダ長さ, -1)
+開発種別 '= SUBSTRINGU(兵装開発_対象, 0, 兵装開発関数ヘッダ長さ)
+兵装名 '= SUBSTRINGU(兵装開発_対象, 兵装開発関数ヘッダ長さ, -1)
 
 IF 開発種別 == "乗機開発対象_"
 	;乗機
