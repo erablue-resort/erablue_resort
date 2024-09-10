@@ -188,7 +188,6 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 	EXP:ARG:妊娠経験 ++
 	SIF 種親 >= 0
 		EXP:種親:孕ませ経験 ++
-	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力
 	CFLAG:ARG:産後経過日 = 0
 ELSE
 	PRINTL
@@ -768,14 +767,7 @@ VARSET 相手ごとの射精量:ARG:0
 SIF !TALENT:ARG:妊娠 && CFLAG:ARG:子の父親 != -1
 	CFLAG:ARG:子の父親 = -1
 ;疲れる処理（臨月、産後）
-IF 妊娠時疲労(ARG) || (CFLAG:ARG:産後経過日 > 0 && CFLAG:ARG:妊娠前体力)
-	消耗度_体力 = 100 * BASE:ARG:体力 / MAXBASE:ARG:体力
-	MAXBASE:ARG:体力 = CFLAG:ARG:妊娠前体力  - 妊娠時疲労(ARG,1)
-	BASE:ARG:体力 = MAXBASE:ARG:体力 * 消耗度_体力 / 100
-	IF !妊娠時疲労(ARG)
-		CFLAG:ARG:妊娠前体力 = 0
-	ENDIF
-ENDIF
+CALL 体力変動素質適用処理(ARG)
 
 
 ;妊娠の進行による諸々 一日の終わりに呼ばれる
@@ -786,9 +778,7 @@ ENDIF
 ;妊娠知覚イベント
 CALL DETECT_PREGNANCY(ARG)
 ;素の体力を更新
-IF 妊娠時疲労(ARG)
-	CFLAG:ARG:妊娠前体力 = MAXBASE:ARG:体力 + 妊娠時疲労(ARG,1)
-ENDIF
+CALL 体力変動素質適用処理(ARG)
 ;色々な経過日時のカウント
 ;妊娠経過日 妊娠後それなりに経つと母乳が出る
 IF TALENT:ARG:妊娠
@@ -834,7 +824,7 @@ IF TALENT:ARG:妊娠
 ;産後経過日 産後それなりに経つと母乳が止まる
 ELSEIF CFLAG:ARG:産後経過日
 	CFLAG:ARG:産後経過日 ++
-	IF CFLAG:ARG:妊娠時バストサイズ増加 && CFLAG:ARG:妊娠前体力 == 0 && CFLAG:ARG:産後経過日 > PREG_DAY(25 + (MAX(5,TALENT:ARG:バストサイズ * 10)))
+	IF CFLAG:ARG:妊娠時バストサイズ増加 && 妊娠時疲労(ARG) == 0 && CFLAG:ARG:産後経過日 > PREG_DAY(25 + (MAX(5,TALENT:ARG:バストサイズ * 10)))
 		IF CFLAG:ARG:妊娠時バストサイズ増加
 			;元が魔乳未満の場合、TALENTも小さくする（魔乳の場合は下駄履かせて計算させてるのでそのままでOK）
 			SIF CFLAG:ARG:妊娠時バストサイズ増加 == 1
@@ -890,7 +880,7 @@ SELECTCASE ARG:1
 			RETURNF 1
 		RETURNF 0
 	CASE 1
-		RETURNF CFLAG:(ARG:0):妊娠前体力 * 倍率 / 100
+		RETURNF MAXBASE:(ARG:0):体力 * 倍率 / 100
 	CASEELSE
 		RETURNF 0
 ENDSELECT
