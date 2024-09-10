@@ -1,0 +1,186 @@
+﻿
+;-------------------------------------------------
+;兵装開発
+;-------------------------------------------------
+@COMNAME_PLACE_382_1_11
+#FUNCTION
+TSTR:コマンド名受渡 = 兵装開発
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_382_1_11
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+@COM_TOOLTIP_382_1_11
+LOCALS = <br>■兵装開発<br>
+LOCALS += "新しい乗機または搭載兵器を設計するコマンド。その場にキャラがいれば全員と一緒に設計する。"
+LOCALS += "<br>十分な進捗とひらめきがあれば新しい設計図を獲得できる。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：歓楽・征服(一定条件時)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM382_1_11
+
+CALL 兵装開発
+;設計結果　0=未設計 1=設計中 2=完成 -1=うまくいかなかった
+RFLAG:コマンド結果受渡し変数 = RESULT
+SIF RFLAG:コマンド結果受渡し変数 == 2
+	RSTR:コマンド結果受渡し文字列 '= RESULTS
+
+SIF RFLAG:コマンド結果受渡し変数 == 0
+	RETURN 0
+
+;縁結びの進行
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		;設計中
+		CALL 同室者縁結び進行処理(1)
+	CASE 2
+		;完成
+		CALL 同室者縁結び進行処理(3)
+ENDSELECT
+
+;同室の全員にSOURCE
+IF TARGET > 0
+	FOR LOCAL, 1, VARSIZE("TARGET")
+		SIF TARGET:LOCAL <= 0
+			BREAK
+		SIF !COMABLEキャラ個別_382_1_11(TARGET:LOCAL)
+			CONTINUE
+
+		CALL COM382_1_11_追加処理(TARGET:LOCAL)
+	NEXT
+ENDIF
+
+TIME += 60
+RETURN 1
+
+@COM382_1_11_追加処理(ARG)
+#LOCALSIZE 3
+
+VARSET LOCAL, 0
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE -1
+		;うまくいかなかった
+		;歓楽
+		LOCAL:0 = 50
+		;関係性補正 半減
+		LOCAL:2 = -1
+	CASE 1
+		;設計中
+		;歓楽
+		LOCAL:0 = 500
+	CASE 2
+		;完成
+		;歓楽
+		LOCAL:0 = 1000
+		;征服
+		LOCAL:1 = 200
+		;関係性補正 2倍
+		LOCAL:2 = 2
+ENDSELECT
+
+CALL SOURCE_CALC_歓楽(ARG, PLAYER, LOCAL:0)
+CALL SOURCE_CALC_征服(ARG, PLAYER, LOCAL:1)
+CALL SOURCE_CALC_好感度要素_友情度UP(ARG, PLAYER, LOCAL:0 / 2)
+
+CALL 関係性一括上昇(ARG, 4, LOCAL:2)
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE382_1_11
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(382)
+	RETURN RESULT
+SIF TARGET > 0 && !COMABLEキャラ個別_382_1_11(TARGET)
+	RETURN 0
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;進捗などの計算で何度も使うので共通関数化
+@COMABLEキャラ個別_382_1_11(ARG)
+#FUNCTION
+
+;睡眠中
+SIF CFLAG:ARG:睡眠
+	RETURNF 0
+;隠密中はダメ
+SIF CFLAG:ARG:隠密
+	RETURNF 0
+RETURNF 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM382_1_11
+
+;設計してない
+SIF RFLAG:コマンド結果受渡し変数 == 0
+	RETURN
+
+IF TARGET > 0
+	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@と新兵装の開発をした
+
+	SELECTCASE RFLAG:コマンド結果受渡し変数
+		CASE -1
+			;うまくいかなかった
+			IF 兵装開発_進捗 > 0
+				PRINTL しかし、進捗は芳しくなかった
+				PRINTL もう少し機械に詳しい人物に手伝ってもらったほうが良いかもしれない…
+			ELSE
+				PRINTL しかし、良いアイデアが浮かばなかった
+				PRINTL 面白いアイデアがありそうな人物を探したほうが良いかもしれない…
+			ENDIF
+		CASE 1
+			;設計中
+			SELECTCASE 兵装開発_進捗
+				CASE IS < 兵装開発_案出し
+					PRINTFORML %CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@は、楽しそうにいろいろなアイデアを挙げている…
+				CASE IS < 兵装開発_仕様決め
+					PRINTFORML \@ GET_TARGETNUM() > 1 ? みんな # ふたり \@で出したアイデアをもとに、具体的な兵装案を固めた…
+				CASEELSE
+					PRINTFORML %CALLNAME:TARGET%\@ GET_TARGETNUM() > 1 ? 達 # \@は、真剣な表情で兵装案を設計図に落とし込んでいる…
+			ENDSELECT
+		CASE 2
+			;完成
+			PRINTFORML \@ GET_TARGETNUM() > 1 ? みんな # ふたり \@の力で、新しい兵装「%RSTR:コマンド結果受渡し文字列%」の設計図が完成した！
+	ENDSELECT
+ELSE
+	PRINTFORML %CALLNAME:PLAYER%は新兵装の開発をした
+
+	SELECTCASE RFLAG:コマンド結果受渡し変数
+		CASE -1
+			;うまくいかなかった
+			IF 兵装開発_進捗 > 0
+				PRINTL しかし、進捗は芳しくなかった
+				PRINTL もう少し機械に詳しい人物に手伝ってもらったほうが良いかもしれない…
+			ELSE
+				PRINTL しかし、良いアイデアが浮かばなかった
+				PRINTL 面白いアイデアがありそうな人物を探したほうが良いかもしれない…
+			ENDIF
+		CASE 1
+			;設計中
+			SELECTCASE 兵装開発_進捗
+				CASE IS < 兵装開発_案出し
+					PRINTL いろいろなアイデアが浮かんでは消えていった…
+				CASE IS < 兵装開発_仕様決め
+					PRINTL これだ、というアイデアをもとに、具体的な兵装案を固めていった…
+				CASEELSE
+					PRINTFORML %CALLNAME:PLAYER%は集中して兵装案の製図を進めた…
+			ENDSELECT
+		CASE 2
+			;完成
+			PRINTFORML 新しい兵装「%RSTR:コマンド結果受渡し文字列%」の設計図が完成した！
+	ENDSELECT
+ENDIF
+
+WAIT
