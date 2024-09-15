@@ -1745,11 +1745,21 @@ RETURN 改行カウント - 2
 #DIM ループ用
 #DIMS 名前格納
 #DIMS 性癖段階
+#DIMS 素質名
 
 PRINTL □ 性癖 □--(クリックすることで無効化可能)-------------------------------------
 FOR LOCAL, 1, 100
 	IF 性癖素質:ARG:LOCAL
-		TSTR:ツールチップ受渡 = ERDNAME(性癖素質, LOCAL)
+		素質名 = %ERDNAME(性癖素質, LOCAL)%
+		IF 素質名 == "同性愛"
+			IF TALENT:ARG:性別 == 3 || TALENT:ARG:性別 == 0
+				CONTINUE
+			ELSEIF TALENT:ARG:性愛傾向 == TALENT:ARG:性別
+				素質名 = 異性愛
+			ELSE
+				CONTINUE
+			ENDIF
+		ENDIF
 		TRYCALLFORM 性癖素質_TOOLTIP_%ERDNAME(性癖素質, LOCAL)%
 		SELECTCASE 性癖素質:ARG:LOCAL
 			CASE 1
@@ -1761,18 +1771,18 @@ FOR LOCAL, 1, 100
 			CASE IS < 0
 				性癖段階 = 無効
 		ENDSELECT
-		IF STRLENS(名前格納) + STRLENS(@"[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]") > 70
+		IF STRLENS(名前格納) + STRLENS(@"[%素質名%(%性癖段階%)]") > 70
 			名前格納 = 
 			HTML_PRINT @"　%LOCALS%"
 			LOCALS = 
 		ENDIF
-		名前格納 += @"[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]"
+		名前格納 += @"[%素質名%(%性癖段階%)]"
 		SIF 性癖段階 == "無効"
 			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>"
 		IF ツールチップ切り替えOPTION記憶 == 0
-			LOCALS += @"<button title='%TSTR:ツールチップ受渡%' value='{LOCAL + 300}'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</button>"
+			LOCALS += @"<button title='%TSTR:ツールチップ受渡%' value='{LOCAL + 300}'>[%素質名%(%性癖段階%)]</button>"
 		ELSE
-			LOCALS += @"<button value='{LOCAL + 300}'>[%ERDNAME(性癖素質, LOCAL)%(%性癖段階%)]</button>"
+			LOCALS += @"<button value='{LOCAL + 300}'>[%素質名%(%性癖段階%)]</button>"
 		ENDIF
 		SIF 性癖段階 == "無効"
 			LOCALS += "</font>"
@@ -1854,12 +1864,11 @@ FOR LOCAL, 0, 200
 	SIF LOCAL == 89
 		CONTINUE
 	;同性愛関係
-	IF !(TALENT:ARG:2 & 1) && LOCAL == 51
-		CONTINUE
-	ELSEIF TALENT:ARG:2 & 1 && LOCAL == 52
-		CONTINUE
+	IF EXPNAME:LOCAL == "同性愛経験" && (TALENT:LOCAL:性愛傾向 == 1 || TALENT:LOCAL:性愛傾向 == 2) && TALENT:LOCAL:性別 == TALENT:LOCAL:性愛傾向
+		PRINTFORM %"異性愛経験",18%:{EXP:ARG:LOCAL,5,LEFT}　
+	ELSE
+		PRINTFORM %EXPNAME:LOCAL,18%:{EXP:ARG:LOCAL,5,LEFT}　
 	ENDIF
-	PRINTFORM %EXPNAME:LOCAL,18%:{EXP:ARG:LOCAL,5,LEFT}　
 	LOCAL:1 += 1
 	SIF LOCAL:1 % 3 == 0
 		PRINTL 

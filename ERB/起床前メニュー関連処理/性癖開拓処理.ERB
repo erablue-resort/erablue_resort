@@ -241,7 +241,11 @@ IF 複数名フラグ
 							SIF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:開拓対象:性別 == 3 || TALENT:開拓対象:性別 == 0)
 								CONTINUE
 							性癖素質:開拓対象:性癖開発用フラグ変数 = 開拓性癖配列:開拓性癖ループ
-							PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ)%のエロ本が渡るように細工を行います
+							IF ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ) == "同性愛" && (TALENT:開拓対象:性別 == TALENT:開拓対象:性愛傾向) && TALENT:開拓対象:性別 != 0
+								PRINTFORML %CALLNAME:開拓対象%に異性愛のエロ本が渡るように細工を行います
+							ELSE
+								PRINTFORML %CALLNAME:開拓対象%に%ERDNAME(性癖素質, 開拓性癖配列:開拓性癖ループ)%のエロ本が渡るように細工を行います
+							ENDIF
 							BREAK
 						NEXT
 					NEXT
@@ -285,7 +289,11 @@ ELSE
 			SIF ERDNAME(性癖素質, LOCAL) == "同性愛" && TALENT:開拓対象:性別 == 3
 				CONTINUE
 			IF ENUMFUNCBEGINSWITH(@"性癖開拓チャレンジ処理_%ERDNAME(性癖素質, LOCAL)%")
-				PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				IF ERDNAME(性癖素質, LOCAL) == "同性愛" && (TALENT:開拓対象:性別 == TALENT:開拓対象:性愛傾向) && TALENT:開拓対象:性別 != 0
+					PRINTBUTTON @"[{LOCAL}]異性愛", LOCAL
+				ELSE
+					PRINTBUTTON @"[{LOCAL}]%ERDNAME(性癖素質, LOCAL)%", LOCAL
+				ENDIF
 				PRINTL
 			ENDIF
 		ENDIF
@@ -340,6 +348,9 @@ SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 ;露出癖が影響
 LOCAL += ABL:ARG:露出癖
+;野外オナニー経験が影響
+SIF EXP:ARG:野外オナニー経験 > 0
+	LOCAL += MAX(1, EXP:ARG:野外オナニー経験 / 5)
 
 ;自慰しやすいが影響
 LOCAL += TALENT:ARG:自慰しやすい * 2
@@ -727,12 +738,21 @@ SIF あなた特殊能力:触手変化術 == 0
 RETURN 1
 
 @性癖開拓チャレンジ処理_同性愛(ARG)
+#DIMS 素質名
+
+
 ;同性愛
 PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:ARG%にさりげなく
-IF TALENT:ARG:性別 == 1
-	PRINTL 「女性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
-ELSEIF TALENT:ARG:性別 == 2
-	PRINTL 「男性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
+IF TALENT:ARG:性別 == TALENT:ARG:性愛傾向 && TALENT:ARG:性別 != 0
+	PRINTL 「男女で体を重ねるシチュ」のエロ本が渡るように小細工した…
+	素質名 = 異性愛
+ELSE
+	IF TALENT:ARG:性別 == 1
+		PRINTL 「女性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
+	ELSEIF TALENT:ARG:性別 == 2
+		PRINTL 「男性同士で体を重ねるシチュ」のエロ本が渡るように小細工した…
+	ENDIF
+	素質名 = 同性愛
 ENDIF
 PRINTL
 
@@ -753,9 +773,6 @@ SIF BASE:ARG:性欲 > 1500
 	LOCAL += 1
 
 SELECTCASE TALENT:ARG:性別嗜好
-	CASE -1
-		;両刀はもとから持ってるはずだが、一応確定補正つけておく
-		LOCAL = 10
 	CASE 1
 		;男の男嫌いパターン
 		SIF TALENT:ARG:性別 == 2
@@ -780,8 +797,8 @@ IF RAND:10 < LOCAL
 	PRINTFORML …%CALLNAME:ARG%はいつの間にか近くにあったエロ本を見つけた。
 	PRINTFORMW 周りをきょろきょろと見回し自分ひとりであることを確認すると、%CALLNAME:ARG%はこっそりとその本を開いた……
 	PRINTL
-	PRINTFORMW %CALLNAME:ARG%は性癖素質[同性愛(興味)]を取得した
-	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[同性愛(興味)]を取得した</font>","うふふ")
+	PRINTFORMW %CALLNAME:ARG%は性癖素質[%素質名%(興味)]を取得した
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[%素質名%(興味)]を取得した</font>","うふふ")
 	性癖素質:ARG:同性愛 = 1
 	RETURN 1
 ELSE
@@ -793,6 +810,12 @@ RETURN 0
 
 @性癖段階成長_同性愛(キャラ番号)
 #DIM キャラ番号
+#DIMS 素質名
+IF TALENT:キャラ番号:性別 == TALENT:キャラ番号:性愛傾向 && TALENT:キャラ番号:性別 != 0
+	素質名 = 異性
+ELSE
+	素質名 = 同性
+ENDIF
 
 SELECTCASE 性癖素質:キャラ番号:同性愛
 	CASE 1
@@ -802,10 +825,10 @@ SELECTCASE 性癖素質:キャラ番号:同性愛
 		性癖素質:キャラ番号:同性愛 = 2
 		;取得メッセージ
 		DRAWLINE
-		PRINTFORML %CALLNAME:キャラ番号%の性癖は同性と肌を重ねる行為を繰り返したことでより強くなったようだ…
+		PRINTFORML %CALLNAME:キャラ番号%の性癖は%素質名%と肌を重ねる行為を繰り返したことでより強くなったようだ…
 		PRINTL 
-		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[同性愛(興味)]は[同性愛(愛好)]に成長した
-		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[同性愛(興味)]が[同性愛(愛好)]に成長した</font>","うふふ")
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[%素質名%愛(興味)]は[%素質名%愛(愛好)]に成長した
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[%素質名%愛(興味)]が[%素質名%愛(愛好)]に成長した</font>","うふふ")
 		PRINTL
 
 		RETURN 1
@@ -816,10 +839,10 @@ SELECTCASE 性癖素質:キャラ番号:同性愛
 		性癖素質:キャラ番号:同性愛 = 3
 		;取得メッセージ
 		DRAWLINE
-		PRINTFORML %CALLNAME:キャラ番号%は、もはや同性との情事に魅了されてしまっている…
+		PRINTFORML %CALLNAME:キャラ番号%は、もはや%素質名%との情事に魅了されてしまっている…
 		PRINTL 
-		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[同性愛(愛好)]は[同性愛(中毒)]に成長した
-		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[同性愛(愛好)]が[同性愛(中毒)]に成長した</font>","うふふ")
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[%素質名%愛(愛好)]は[%素質名%愛(中毒)]に成長した
+		CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[%素質名%愛(愛好)]が[%素質名%愛(中毒)]に成長した</font>","うふふ")
 		PRINTL
 
 		RETURN 1

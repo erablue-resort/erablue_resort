@@ -55,11 +55,11 @@ CALL LOST_MAN_VIRGIN(TARGET, PLAYER, 1)
 EXP:PLAYER:Ｖ性交経験 ++
 EXP:Ｃ性交経験_Ｖ挿入 ++
 
-;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 12
+;同性愛
+SIF 同性愛性癖判定(PLAYER,TARGET)
 	EXP:PLAYER:同性愛経験 += 12
-ENDIF
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 12
 
 ;愛情経験
 SIF TALENT:恋慕 == 1
@@ -80,6 +80,7 @@ TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
 @CAN_性処理_被セックス処理(対象キャラ)
 #DIM 対象キャラ
 #DIM 値段計算
+#DIMS 素質名
 
 PRINTFORML 被セックス処理計算(%CALLNAME:TARGET%)
 DRAWLINE
@@ -121,28 +122,33 @@ IF GETBIT(TALENT:TARGET:非童貞, 0) == 0
 ENDIF
 
 ;同性愛
-IF HETEROSEX(TARGET,PLAYER) == 1
+IF 同性愛性癖判定(TARGET,PLAYER) == 1
 	;性癖素質:同性愛
+	IF TALENT:TARGET:性愛傾向 == 1 ||TALENT:TARGET:性愛傾向 == 2
+		素質名 = 異性愛
+	ELSE
+		素質名 = 同性愛
+	ENDIF
 	SELECTCASE 性癖素質:同性愛
 		CASE 1
 			;補正なし
 		CASE 2
 			値段計算 -= 1000
-			PRINTFORML %"同性愛(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+			PRINTFORML %@"%素質名%(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
 		CASE 3
 			値段計算 -= 2500
-			PRINTFORML %"同性愛(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+			PRINTFORML %@"%素質名%(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
 		CASEELSE
 			;好奇心
 			IF TALENT:性的興味 > 0
 				値段計算 -= 500
-				PRINTFORML %"好奇心(同性愛)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+				PRINTFORML %@"好奇心(%素質名%)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
 			ENDIF
 			;保守的
 			IF TALENT:性的興味 < 0
 				値段計算 += 1500
 				SETCOLOR カラーパレット("薄ピンク")
-				PRINTFORML %"保守的(同性愛)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+				PRINTFORML %@"保守的(%素質名%)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
 				RESETCOLOR
 			ENDIF
 	ENDSELECT

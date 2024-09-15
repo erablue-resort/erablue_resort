@@ -45,11 +45,12 @@ RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
 ;手淫経験
 EXP:手淫経験 += 3
 
-;同性愛　レズなら戻り値1ゲイなら戻り値2
-IF HETEROSEX(TARGET,PLAYER)
-	EXP:同性愛経験 += 8
+;同性愛
+SIF 同性愛性癖判定(PLAYER,TARGET)
 	EXP:PLAYER:同性愛経験 += 8
-ENDIF
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 8
+
 
 RETURN 1
 
@@ -67,6 +68,7 @@ TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
 @CAN_性処理_手マン処理(対象キャラ)
 #DIM 対象キャラ
 #DIM 値段計算
+#DIMS 素質名
 
 PRINTFORML 手マン処理計算(%CALLNAME:TARGET%)
 DRAWLINE
@@ -231,28 +233,33 @@ IF TALENT:恋人持ち == -1
 ENDIF
 
 ;同性愛
-IF HETEROSEX(TARGET,PLAYER) == 1
+IF 同性愛性癖判定(TARGET,PLAYER) == 1
 	;性癖素質:同性愛
+	IF TALENT:TARGET:性愛傾向 == 1 ||TALENT:TARGET:性愛傾向 == 2
+		素質名 = 異性愛
+	ELSE
+		素質名 = 同性愛
+	ENDIF
 	SELECTCASE 性癖素質:同性愛
 		CASE 1
 			;補正なし
 		CASE 2
 			値段計算 -= 100
-			PRINTFORML %"同性愛(愛好)", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+			PRINTFORML %@"%素質名%(愛好)", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 		CASE 3
 			値段計算 -= 250
-			PRINTFORML %"同性愛(中毒)", 25, LEFT%：－%NUM_FORMAT(250), 8%ルピ
+			PRINTFORML %@"%素質名%(中毒)", 25, LEFT%：－%NUM_FORMAT(250), 8%ルピ
 		CASEELSE
 			;好奇心
 			IF TALENT:性的興味 > 0
 				値段計算 -= 50
-				PRINTFORML %"好奇心(同性愛)", 25, LEFT%：－%NUM_FORMAT(50), 8%ルピ
+				PRINTFORML %@"好奇心(%素質名%)", 25, LEFT%：－%NUM_FORMAT(50), 8%ルピ
 			ENDIF
 			;保守的
 			IF TALENT:性的興味 < 0
 				値段計算 += 150
 				SETCOLOR カラーパレット("薄ピンク")
-				PRINTFORML %"保守的(同性愛)", 25, LEFT%：＋%NUM_FORMAT(150), 8%ルピ
+				PRINTFORML %@"保守的(%素質名%)", 25, LEFT%：＋%NUM_FORMAT(150), 8%ルピ
 				RESETCOLOR
 			ENDIF
 	ENDSELECT
