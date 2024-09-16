@@ -4,7 +4,7 @@
 TSTR:コマンド名受渡 = 押し倒す
 SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	TSTR:コマンド名受渡 = 抱き寄せる
-SIF GET_TARGETNUM() > 1 && !CFLAG:MASTER:隠密
+SIF GET_TARGETNUM() > 1 && !CFLAG:MASTER:隠密 && フィールド展開:露出フィールド != 2
 	TSTR:コマンド名受渡 = まとめて%TSTR:コマンド名受渡%
 
 ;===================================================
@@ -16,14 +16,14 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 
 @COM_TOOLTIP_350
 LOCALS = <br>■押し倒す<br>
-LOCALS += "あるいは抱き寄せる。すでに合意を得ている相手と性交渉を行うコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時は同じ場所に非陥落キャラがいても可能。"
+LOCALS += "あるいは抱き寄せる。すでに合意を得ている相手と性交渉を行うコマンド。<br>同室者が全員陥落済みの時のみ可能だが、一緒に隠密時、あるいは強化露出フィールド展開時は同じ場所に非陥落キャラがいても可能。"
 LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM350
 ;押し倒す
-IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+IF (CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密) || フィールド展開:露出フィールド == 2
 	CFLAG:TARGET:うふふ = 1
 	IF 初体験日:TARGET:初うふふ == 0
 		初体験日:TARGET:初うふふ = DAY
@@ -77,21 +77,26 @@ SIF MODE_確認_プレイヤー側("全裸散歩", PLAYER) > -1
 SIF TCVAR:MASTER:馴れ合い強度 < 2
 	RETURN 0
 ;隠密中は一緒に隠密してるキャラを見る
-IF CFLAG:MASTER:隠密
-	FOR LOCAL, 1, CHARANUM
-		SIF TARGET:LOCAL < 1
-			BREAK
-		SIF CFLAG:(TARGET:LOCAL):隠密 && 陥落チェック(TARGET:LOCAL) == 0
-			RETURN 0
-	NEXT
+IF フィールド展開:露出フィールド != 2
+	IF CFLAG:MASTER:隠密
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):隠密 && 陥落チェック(TARGET:LOCAL) == 0
+				RETURN 0
+		NEXT
+	ELSE
+		;非隠密時は全員陥落済みでないとだめ
+		FOR LOCAL,1,CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF 陥落チェック(TARGET:LOCAL) == 0
+				RETURN 0
+		NEXT
+	ENDIF
 ELSE
-	;非隠密時は全員陥落済みでないとだめ
-	FOR LOCAL,1,CHARANUM
-		SIF TARGET:LOCAL < 1
-			BREAK
-		SIF 陥落チェック(TARGET:LOCAL) == 0
-			RETURN 0
-	NEXT
+	SIF 陥落チェック(TARGET) == 0
+		RETURN 0
 ENDIF
 ;睡眠中
 SIF CFLAG:睡眠
@@ -101,7 +106,7 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM350
-IF GET_TARGETNUM() > 1
+IF GET_TARGETNUM() > 1 && フィールド展開:露出フィールド != 2
 	PRINTFORM %CALLNAME:PLAYER%は
 	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
 		PRINT あたりに人がいないことを確認すると
@@ -111,7 +116,7 @@ ELSEIF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
 	PRINTFORML %CALLNAME:PLAYER%は上手く物陰に隠れられていることを確認すると%CALLNAME:TARGET%を抱き寄せた…
 ELSE
 	PRINTFORM %CALLNAME:PLAYER%は
-	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
+	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0 && フィールド展開:露出フィールド != 2
 		PRINT あたりに人がいないことを確認すると
 	ENDIF
 	PRINTFORML %CALLNAME:TARGET%を抱き寄せた…
