@@ -81,7 +81,12 @@ FOR LOCAL, 1, CHARANUM
 	ELSEIF BASE:LOCAL:体力 <= 1 || CFLAG:LOCAL:体力限界 || TCVAR:LOCAL:食いしばりフラグ
 		;体力限界時は回復しない
 	ELSEIF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0
-		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+		IF REGENE_CALC(LOCAL) > 0
+			;休ませての無限スコア稼ぎは美しくない
+			TCVAR:LOCAL:スコアペナルティ += EX:LOCAL:スコア * REGENE_CALC(LOCAL) / MAXBASE:LOCAL:体力
+
+			BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+		ENDIF
 	ENDIF
 NEXT
 
@@ -457,6 +462,8 @@ FOR LOCAL,0,CHARANUM
 		TCVAR:LOCAL:前ターンＳ絶頂 += NOWEX:LOCAL:Ｓ絶頂
 		SIF TCVAR:LOCAL:被射精位置 > 0
 			TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
+
+		TCVAR:LOCAL:ターンスコア += NOWEX:LOCAL:スコア
 	ELSE
 		;今回がオートコマンドでない
 		TCVAR:LOCAL:前ターン絶頂 = NOWEX:LOCAL:多重絶頂
@@ -466,6 +473,8 @@ FOR LOCAL,0,CHARANUM
 		TCVAR:LOCAL:前ターンＡ絶頂 = NOWEX:LOCAL:Ａ絶頂
 		TCVAR:LOCAL:前ターンＳ絶頂 = NOWEX:LOCAL:Ｓ絶頂
 		TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
+
+		TCVAR:LOCAL:ターンスコア = NOWEX:LOCAL:スコア
 	ENDIF
 
 	IF TFLAG:オートコマンドフラグ
@@ -473,6 +482,28 @@ FOR LOCAL,0,CHARANUM
 	ELSE
 		;次回がオートコマンドでない
 		TCVAR:LOCAL:被射精位置 = 0
+
+		;スコアペナルティによるスコアの減少
+		IF TCVAR:LOCAL:スコアペナルティ > TCVAR:LOCAL:ターンスコア
+			TCVAR:LOCAL:ターンスコア = 0
+			TCVAR:LOCAL:スコアペナルティ -= TCVAR:LOCAL:ターンスコア
+		ELSEIF TCVAR:LOCAL:スコアペナルティ > 0
+			TCVAR:LOCAL:ターンスコア -= TCVAR:LOCAL:スコアペナルティ
+			TCVAR:LOCAL:スコアペナルティ = 0
+		ENDIF
+		;連続絶頂ボーナスによるスコアの増加
+		IF TCVAR:LOCAL:連続絶頂記録 > 9
+			TCVAR:LOCAL:ターンスコア = TCVAR:LOCAL:ターンスコア * (19 + SQRT(TCVAR:LOCAL:連続絶頂記録 - 9)) / 10
+			EX:LOCAL:スコア += TCVAR:LOCAL:前ターンスコア / 2
+		ELSEIF TCVAR:LOCAL:連続絶頂記録 > 0
+			TCVAR:LOCAL:ターンスコア = TCVAR:LOCAL:ターンスコア * (10 + TCVAR:LOCAL:連続絶頂記録) / 10
+			EX:LOCAL:スコア += TCVAR:LOCAL:前ターンスコア / 2
+		ENDIF
+		;今日のスコアに加算
+		EX:LOCAL:スコア += TCVAR:LOCAL:ターンスコア
+		;リセット
+		TCVAR:LOCAL:前ターンスコア = TCVAR:LOCAL:ターンスコア
+		TCVAR:LOCAL:ターンスコア = 0
 	ENDIF
 
 	IF CFLAG:LOCAL:うふふ && LOCAL != PLAYER
