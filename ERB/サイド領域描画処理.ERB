@@ -304,7 +304,7 @@ VARSET 助手候補
 画像表示文字列 '= ""
 ;横に何人入るか
 表示可能人数 = ((1600 / GETCONFIG("フォントサイズ")) - 55 ) / 8
-IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用())
+IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用() || サイド領域_同室者表示フラグ)
 	;対象が一人、または複数プレイ時はなるべく大きく短冊を表示
 	VARSET LOCALS
 	;ターゲット
@@ -315,6 +315,7 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 	ELSEIF サイド領域_同室者表示フラグ
 		;最大２人しか並ばないモード
 		LOCAL:1 = 2
+		助手人数 = 二人目画像表示用(-1, 1)
 	ELSE
 		;助手も含めて全員横一列に表示
 		LOCAL:1 = 1 + MIN(助手人数, 表示可能人数)
@@ -322,10 +323,17 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 	横幅 =  LIMIT(800 * 表示可能人数 / LOCAL:1, 800, 2000)
 	助手候補:0 = TARGET
 	L_CNT = 1
-	WHILE L_CNT - 1 < 助手人数
-		助手候補:L_CNT = 二人目画像表示用(L_CNT)
-		L_CNT ++
-	WEND
+	IF サイド領域_同室者表示フラグ
+		WHILE L_CNT - 1 < 助手人数
+			助手候補:L_CNT = 二人目画像表示用(L_CNT, 1)
+			L_CNT ++
+		WEND
+	ELSE
+		WHILE L_CNT - 1 < 助手人数
+			助手候補:L_CNT = 二人目画像表示用(L_CNT)
+			L_CNT ++
+		WEND
+	ENDIF
 	; IF 表示可能人数 * 2 < 助手人数 + 1
 	; 	;2段使っても表示しきれない場合、表示キャラをランダムで抽出する
 	; 	FOR L_CNT, 助手人数, 1, -1
@@ -350,7 +358,11 @@ IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || 二人目画像表示用()
 				ボタン文字列 '= ""
 				画像表示文字列 '= ""
 			ENDIF
-			LOCAL = 助手候補:L_CNT
+			IF サイド領域_同室者表示フラグ && L_CNT > 0
+				LOCAL = 助手候補:((RAND:(助手人数 - 1)) + 1)
+			ELSE
+				LOCAL = 助手候補:L_CNT
+			ENDIF
 			CALL サイド領域_エロステータス把握(LOCAL)
 			LOCALS '= RESULTS
 			LOCALS:1 '= RESULTS:1
