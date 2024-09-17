@@ -56,6 +56,7 @@ ENDIF
 
 ;リセット前に次ターン自動行動をするか判定、指示モードだと発動しない
 AUTOCOM_相手番号保存 = 0
+TFLAG:前ターンオートフラグ = TFLAG:オートコマンドフラグ
 IF FLAG:モード管理 != 1
 	FLAG:オートコマンド判定中フラグ = 1
 	CALL BEFORE_AUTOCOM
@@ -435,22 +436,38 @@ FOR LOCAL,0,CHARANUM
 	;満腹残り時間の減少
 	TCVAR:LOCAL:満腹 = MAX(TCVAR:LOCAL:満腹 - TIME_PROGRESS(TFLAG:行動前時刻), 0)
 	
-	IF TCVAR:LOCAL:前ターン絶頂 && NOWEX:LOCAL:多重絶頂
-		TCVAR:LOCAL:連続絶頂記録 += 1
+	IF TFLAG:オートコマンドフラグ
+		;次回がオートコマンドである
 	ELSE
-		;オートコマンド時はリセットしない
-		SIF !TFLAG:オートコマンドフラグ
+		;次回がオートコマンドでない
+		IF TCVAR:LOCAL:前ターン絶頂 && NOWEX:LOCAL:多重絶頂
+			TCVAR:LOCAL:連続絶頂記録 += 1
+		ELSE
 			TCVAR:LOCAL:連続絶頂記録 = 0
-	ENDIF
-	TCVAR:LOCAL:前ターン絶頂 = NOWEX:LOCAL:多重絶頂
-	TCVAR:LOCAL:前ターンＣ絶頂 = NOWEX:LOCAL:Ｃ絶頂
-	TCVAR:LOCAL:前ターンＢ絶頂 = NOWEX:LOCAL:Ｂ絶頂
-	TCVAR:LOCAL:前ターンＶ絶頂 = NOWEX:LOCAL:Ｖ絶頂
-	TCVAR:LOCAL:前ターンＡ絶頂 = NOWEX:LOCAL:Ａ絶頂
-	TCVAR:LOCAL:前ターンＳ絶頂 = NOWEX:LOCAL:Ｓ絶頂
-	TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
-	SIF !TFLAG:オートコマンドフラグ
+		ENDIF
 		TCVAR:LOCAL:被射精位置 = 0
+	ENDIF
+
+	IF TFLAG:前ターンオートフラグ
+		;今回がオートコマンドである
+		TCVAR:LOCAL:前ターン絶頂 = MAX(TCVAR:LOCAL:前ターン絶頂, NOWEX:LOCAL:多重絶頂)
+		TCVAR:LOCAL:前ターンＣ絶頂 += NOWEX:LOCAL:Ｃ絶頂
+		TCVAR:LOCAL:前ターンＢ絶頂 += NOWEX:LOCAL:Ｂ絶頂
+		TCVAR:LOCAL:前ターンＶ絶頂 += NOWEX:LOCAL:Ｖ絶頂
+		TCVAR:LOCAL:前ターンＡ絶頂 += NOWEX:LOCAL:Ａ絶頂
+		TCVAR:LOCAL:前ターンＳ絶頂 += NOWEX:LOCAL:Ｓ絶頂
+		SIF TCVAR:LOCAL:被射精位置 > 0
+			TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
+	ELSE
+		;今回がオートコマンドでない
+		TCVAR:LOCAL:前ターン絶頂 = NOWEX:LOCAL:多重絶頂
+		TCVAR:LOCAL:前ターンＣ絶頂 = NOWEX:LOCAL:Ｃ絶頂
+		TCVAR:LOCAL:前ターンＢ絶頂 = NOWEX:LOCAL:Ｂ絶頂
+		TCVAR:LOCAL:前ターンＶ絶頂 = NOWEX:LOCAL:Ｖ絶頂
+		TCVAR:LOCAL:前ターンＡ絶頂 = NOWEX:LOCAL:Ａ絶頂
+		TCVAR:LOCAL:前ターンＳ絶頂 = NOWEX:LOCAL:Ｓ絶頂
+		TCVAR:LOCAL:前ターン被射精位置 = TCVAR:LOCAL:被射精位置
+	ENDIF
 
 	IF CFLAG:LOCAL:うふふ && LOCAL != PLAYER
 		;既成事実
