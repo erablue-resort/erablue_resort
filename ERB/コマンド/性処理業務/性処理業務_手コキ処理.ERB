@@ -51,11 +51,11 @@ SIF 同性愛性癖判定(TARGET,PLAYER)
 RETURN 1
 
 
-@性処理_射精時処理_手コキ処理
+;@性処理_射精時処理_手コキ処理
 ;射精時にどこに出すかを呼び出す
 ;とはいってもフィニッシュ場所の番号登録して関数呼ぶだけ
-RFLAG:フィニッシュ場所 = 30
-TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
+;RFLAG:フィニッシュ場所 = 30
+;TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
 
 
 ;-------------------------------------------------
@@ -68,41 +68,163 @@ TRYCALLFORM MESSAGE_SHOOT_30(PLAYER, TARGET)
 
 PRINTFORML 手コキ処理計算(%CALLNAME:TARGET%)
 DRAWLINE
-;恋慕は完全無料
-IF TALENT:対象キャラ:恋慕
-	PRINTFORML %"恋慕", 16, LEFT%：　　　　　無料
-	DRAWLINE
-	RETURN -1
-ENDIF
-
 ;基礎値段
-値段計算 = 5000
-PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
-
-
-;好感度
-LOCAL = (80 - CFLAG:好感度レベル) * -100
-IF LOCAL < 0
-	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"好感度補正", 16, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
-	RESETCOLOR
+;手マン処理と同等
+IF NO:TARGET > 1000
+;EXキャラ
+;元いた世界でのカラダの価値はわかっても、空の世界での売春相場を知らない。おまけにルピもたいして持ってないのでまとまったお金がありがたい。
+;現実の一般JKが空の世界に来て1万円のつもりで1000ルピでカラダを売るイメージ。総じてリゾート内の価格帯から見ると格安。
+;……グラブルキャラたちの基本料金が高いだけ？それはそう。
+	SELECTCASE RAND:2
+	CASE 0
+	;15000円のつもり。これでもちょっと吹っ掛けたつもりで強気の値段交渉してる。
+		値段計算 = 1000
+	CASE 1
+	;5000円のつもり。これでも相場よりちょい高めのつもりで値段交渉してる。
+		値段計算 = 500
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:幼稚
+	;幼稚
+	;性知識うんぬん以前に、そもそもお金の価値に対する理解が足りていない。
+	;自分のカラダの価値も理解していないので、「お菓子いっぱいあげるから」とかでも許しちゃったりするイメージ。でも値段表示する仕様上お菓子たくさんとかでは買えない。
+	;本人は精一杯吹っ掛けているつもりで「じゅーまんえんくれるならいいよ」って言っても、他キャラの相場から見れば格安だったりする。
+	;でもちょいちょい「ひゃくまんえん！」とか言いはじめる。
+	SELECTCASE RAND:10
+	;４割で超高額提示
+	CASE 0
+		PRINTFORML %"基本料金", 25, LEFT%：　じゅーまんルピ！
+		値段計算 = 100000
+	CASE 1 TO 3
+		PRINTFORML %"基本料金", 25, LEFT%：　いちまんルピ！
+		値段計算 = 10000
+	CASE 4 TO 6
+		PRINTFORML %"基本料金", 25, LEFT%：　せんルピ！
+		値段計算 = 1000
+	CASE 7 TO 9
+		PRINTFORML %"基本料金", 25, LEFT%：　ひゃくルピでいいよ！
+		値段計算 = 100
+	ENDSELECT
+ELSEIF 知識素質:高貴 > 0
+;高貴
+;基本的に実家が太い子らなので、そもそも目先の金銭のために体を売っているわけではない。
+;お金が欲しいからではなくあなたが頼むから、あなたに喜んでんでほしいから売ってくれているのである。つまり純愛。
+	IF 知識素質:性知識 < 0
+	;性知識がなくとも、自身のカラダは民草のそれよりも価値があるということを知っている。
+	;……のだが、相場知識がないため結局吹っ掛けたつもりでも高貴キャラとしてはお安めの価格設定
+		値段計算 = 1500
+	ELSE
+	;王侯貴族に連なるような高貴なおくちを10万円で堪能できると考えるとこれでも結構リーズナブル。良心的な価格設定でございます。
+		値段計算 = 3000
+	ENDIF
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF 知識素質:性知識 < 0
+;性知識マイナス勢
+;お金の価値が分からないわけではないが、カラダの価値の相場を知らないので直感的にいま欲しい金額を言ってくる。
+;幼稚ほどブッ飛んだ値段は提示してこないが結局値段はブレる。
+	SELECTCASE RAND:4
+	;４割で高額提示
+	CASE 0
+		値段計算 = 3000
+	CASE 1
+		値段計算 = 1500
+	CASE 2
+		値段計算 = 1000
+	CASE 3
+		値段計算 = 800
+	CASE 4
+		値段計算 = 500
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:非戦闘キャラ
+;非戦闘キャラは、「戦うことで稼げる」キャラより相対的に肉体の価値が安く、「カラダを売って稼ぐ」ことへの抵抗感が戦闘キャラより薄いイメージ
+	値段計算 = 800
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:性転換 == 2
+;元男だと嫌がって値段を高めに設定する(でも結局買われてしゃぶらされてしまう)
+	値段計算 = 2000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ELSE
-	PRINTFORML %"好感度補正", 16, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+;「基本的にみんな美女である」「普段売っていないので市場価値が高い」「戦闘能力のあるキャラは相応のプライドというものがある」などの理由から
+;補正抜きで3000ルピ≒3万円とする。ここに素質で補正がかかり、地の文や口上でのプレイ内容に応じてオプションが上乗せされていく。
+;さすがにフェラで30万円は高すぎるんよ……3万ですらかなり高いのに
+	値段計算 = 1000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ENDIF
-値段計算 -= LOCAL
+;好感度
+;好感度閾値の表現からして、親友あたりからお友達料金にしてくれるんじゃないかなと
+LOCAL = (50 - CFLAG:好感度レベル) * -2
+IF LOCAL < 0
+	IF CFLAG:好感度レベル <= 20
+	;友達未満だと大きく値上げ。初対面で4000円上乗せされるイメージ。普段身売りしてない美女に値段交渉するんだからそんくらい吹っ掛けてきてもおかしくないと思う。なお従業員採用に必要な好感度……
+		PRINTFORML %"まだ親しくない", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -4), 8%ルピ
+		値段計算 -= LOCAL * 4
+	ELSE
+	;ただの友達だと若干の値上げ。値上げっていうかここまで含めて基本料金みたいなとこがある
+		PRINTFORML %"ただの友達", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
+		値段計算 -= LOCAL
+	ENDIF
+ELSE
+	;親友以上で値下げしてくれる。基本料金1万円で、好感度100で100ルピ≒1000円引きならまぁ妥当っちゃ妥当か
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"お友達料金", 25, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+	RESETCOLOR
+	値段計算 -= LOCAL
+ENDIF
+
+;容姿
+IF TALENT:容姿 == -1
+;あなたがブサイクの場合。あえてつけてる素質のはずだけど、ストレートに「醜い」だの「ブサイク」だの書くとプレイヤーの心にトゲが刺さりそうなため表現はマイルドに
+;ブサイクに対する奉仕行為はプライドが傷つくだろうから値段高め
+	値段計算 += 300
+	PRINTFORML %"好みの顔じゃない", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 1
+;イケメン
+	値段計算 -= 50
+	PRINTFORML %"顔がいい", 25, LEFT%：－%NUM_FORMAT(50), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 2
+;絶世
+	値段計算 -= 100
+	PRINTFORML %"めっちゃ顔がいい！", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
 
 ;体力
+;疲れてる時に顎とか疲れそうな奉仕を頼まれたら当然吹っ掛ける
 IF BASE:TARGET:体力 < MAXBASE:TARGET:体力 / 4
-	値段計算 += 1500
+	値段計算 += 1000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"体力低下", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	PRINTFORML %"体力低下", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
 	RESETCOLOR
 ENDIF
-;酩酊
-IF BASE:酩酊 > MAXBASE:酩酊 / 2
-	値段計算 -= 500
-	PRINTFORML %"酩酊", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+
+;酩酊は値段ではなくむしろ実行判定にかかわったほうがいい気がするので移動。
+;「安く売ってしまう」よりも、「ね、いいでしょ？」ってあなたのお願いに頷いてしまうほうがイメージに近い。
+
+;恋人持ち
+IF TALENT:恋人持ち == 2
+	値段計算 += 500
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"他人妻の唇", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
 ENDIF
+IF TALENT:恋人持ち == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"恋人のための唇", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF TALENT:恋人持ち == -1
+;別に恋人になってるワケでもないのに「好きな人がいるから」ってだけで生意気にも値段を釣り上げてくるし、上昇幅は恋人持ちと同じ。
+;「ゆ、許せねぇよ……絶対買って俺のものにしてやる……！」
+;＊ あなたにケツイがみなぎった。
+	値段計算 += 300
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"好きな人がいる", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+
 
 ;同性愛
 IF 同性愛性癖判定(TARGET,PLAYER) == 1
@@ -116,102 +238,163 @@ IF 同性愛性癖判定(TARGET,PLAYER) == 1
 		CASE 1
 			;補正なし
 		CASE 2
-			値段計算 -= 1000
-			PRINTFORML %@"%素質名%(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+			値段計算 -= 100
+			PRINTFORML %@"%素質名%(愛好)", 16, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 		CASE 3
-			値段計算 -= 2500
-			PRINTFORML %@"%素質名%(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+			値段計算 -= 250
+			PRINTFORML %@"%素質名%(中毒)", 16, LEFT%：－%NUM_FORMAT(250), 8%ルピ
 		CASEELSE
 			;好奇心
 			IF TALENT:性的興味 > 0
-				値段計算 -= 500
-				PRINTFORML %@"好奇心(%素質名%)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+				値段計算 -= 50
+				PRINTFORML %@"好奇心(%素質名%)", 16, LEFT%：－%NUM_FORMAT(50), 8%ルピ
 			ENDIF
 			;保守的
 			IF TALENT:性的興味 < 0
-				値段計算 += 1500
+				値段計算 += 150
 				SETCOLOR カラーパレット("薄ピンク")
-				PRINTFORML %@"保守的(%素質名%)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+				PRINTFORML %@"保守的(%素質名%)", 16, LEFT%：＋%NUM_FORMAT(150), 8%ルピ
 				RESETCOLOR
 			ENDIF
 	ENDSELECT
 ENDIF
 
 ;気丈
+;「物怖じせず値段交渉に臨む」とするなら基本料金の一割増しくらいで吹っ掛けそう
 IF TALENT:度胸 > 0
-	値段計算 += 500
+	値段計算 += 100
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"気丈", 16, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	PRINTFORML %"気丈", 25, LEFT%：＋%NUM_FORMAT(100), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;臆病
+;気丈の逆で「高値を吹っ掛けて値段交渉するのが苦手」とするならば一割くらいまけてくれないかな……
 IF TALENT:度胸 < 0
-	値段計算 -= 500
-	PRINTFORML %"臆病", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+	値段計算 -= 100
+	PRINTFORML %"臆病", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
+
+;プライド
+;処女のとこでも参照しているが、こちらは基本料金にかかるので別枠。
 ;プライド高い
 IF TALENT:プライド > 0
-	値段計算 += 1500
+	値段計算 += 100
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"プライド高い", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	PRINTFORML %"プライド高い", 25, LEFT%：＋%NUM_FORMAT(100), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;プライド低い
 IF TALENT:プライド < 0
-	値段計算 -= 1000
-	PRINTFORML %"プライド低い", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
-ENDIF
-;弱味
-IF TALENT:弱味
-	値段計算 -= 2000
-	PRINTFORML %"弱味", 16, LEFT%：－%NUM_FORMAT(2000), 8%ルピ
+	値段計算 -= 100
+	PRINTFORML %"プライド低い", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
 
 ;謎の魅力
 IF TALENT:PLAYER:謎の魅力
-	値段計算 -= 1000
-	PRINTFORML %"謎の魅力", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+	値段計算 -= 100
+	PRINTFORML %"謎の魅力", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
 
 ;ABL:奉仕精神
+;行為が奉仕そのものであるため金額に対する奉仕精神の影響がでかい
 IF ABL:奉仕精神
-	値段計算 -= ABL:奉仕精神 * 200
-	PRINTFORML %"奉仕精神", 16, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 200), 8%ルピ
+	値段計算 -= ABL:奉仕精神 * 100
+	PRINTFORML %"奉仕精神", 25, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 100), 8%ルピ
 ENDIF
+
 ;汚臭鈍感
+;鈍感だろうと奉仕内容自体に変わりはないので大した値引きにはならない
 IF TALENT:汚臭耐性 > 0
-	値段計算 -= TALENT:汚臭耐性 * 500
-	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
+	値段計算 -= TALENT:汚臭耐性 * 50
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 25, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 50), 8%ルピ
 ENDIF
 ;汚臭敏感
 IF TALENT:汚臭耐性 < 0
-	値段計算 += TALENT:汚臭耐性 * 1000
-	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 1000), 8%ルピ
+	値段計算 += TALENT:汚臭耐性 * 100
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 100), 8%ルピ
 	RESETCOLOR
 ENDIF
+
 ;献身的
 IF TALENT:献身的
-	値段計算 -= 500
-	PRINTFORML %"献身的", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+	値段計算 -= 100
+	PRINTFORML %"献身的", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
+
+;貞操観念による売春への抵抗感。これは値段高めのほうが「らしさ」が出る
+IF TALENT:貞操 == 1
+	値段計算 += 500
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"貞操観念", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
+ENDIF
+
 ;男嫌い
 IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
-	値段計算 += 2000
+	値段計算 += 1000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"男嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	PRINTFORML %"女嫌い", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
 	RESETCOLOR
+ENDIF
+
+;この時点で値段がマイナスになっていた場合、強制的に0まで戻す。買ってるはずなのに買われてんじゃねぇ！
+SIF 値段計算 < 0
+	値段計算 = 0
+
+DRAWLINE
+;割引クーポンはひとつまでです！
+PRINTFORML 割引き
+IF TALENT:対象キャラ:恋慕
+;恋慕は完全無料
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 *= 0
+ELSEIF TALENT:対象キャラ:弱味
+;弱みを握ってはした金で体を売らせたい！という鉄の意志
+;せっかく値段が出るんだしタダで抱かせてもらうよりも「100円で買ってあげた」みたいののほうが尊厳を性的搾取できている感が出るので
+;本来は30,000ルピ……ですが！なんと！今回に限り！お客様だけに！99%オフの300ルピで！！のほうが絶対にシコれる。古事記にもそう書かれている。
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORM %"弱み", 25, LEFT%：　　　　　99％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 /= 100
+;ELSEIF TALENT:金欠 || TALENT:貧乏
+;お金に困っているときはちょっとお安くなるが、発情期のムラムラは値段に適用されなくなる。買っては欲しいがお金も欲しいため。
+;	SETCOLOR カラーパレット("薄ピンク")
+;	PRINTFORM %"金欠中", 25, LEFT%：　　　　　25％オフ
+;	CALL PRINT_STRL(@"_H_")
+;	RESETCOLOR
+;	値段計算 /= 4 *= 3
+ELSEIF CFLAG:TARGET:発情期フラグ < 0 && BASE:TARGET:性欲 >= 500
+;発情期
+	IF BASE:TARGET:性欲 >= 1000
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　30％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 7
+	ELSE
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　10％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 9
+	ENDIF
 ENDIF
 DRAWLINE
 値段計算 = MAX(0, 値段計算)
-IF TALENT:対象キャラ:恋慕
-	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ　＞　恋慕により無料
-	RETURN -1
-ELSEIF 値段計算 > 0
-	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+IF 値段計算 > 0
+	PRINTFORML %"合計値段", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ELSE
-	PRINTFORML %"合計値段", 16, LEFT%：　%"無料", 8%
+	PRINTFORM %"合計値段", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
 ENDIF
+
 
 RETURN 値段計算
 
@@ -232,6 +415,8 @@ SIF TALENT:PLAYER:Ｃ感度 == -2
 ;RETURN -1は表示するが選択出来ない
 許可好感度 = 40
 補正後好感度 = 補正後好感度算出(TARGET)
+SIF BASE:酩酊 > MAXBASE:酩酊 / 2
+	補正後好感度 -= 20
 TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_手コキ処理(TARGET, 補正後好感度)
 	補正後好感度 = RESULT
 CATCH
@@ -246,21 +431,849 @@ RETURN 1
 ;-------------------------------------------------
 
 @MESSAGE_性処理_手コキ処理
+#DIM 対象キャラ
+
+対象キャラ = TARGET
 
 PRINTFORM %CALLNAME:TARGET%は
 IF TALENT:TARGET:恋慕
-	PRINTFORM 愛おしそうに%CALLNAME:PLAYER%を見つめながら
+	PRINTFORM 求められるのが嬉しいのか笑顔で
+ELSEIF TALENT:TARGET:弱味 || (TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1)
+;これだけ露骨に浮かぶバリエーションが多い……なんでやろな？
+	PRINTFORM %TEXTR("渋々といった感じで/嫌そうに顔をしかめながらも渋々/不快そうに眉をひそめながらも渋々/嫌そうにこちらを睨みつけながらも渋々")%
+ELSEIF TALENT:TARGET:恋人持ち == 3
+	PRINTFORM 今は亡き伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 2
+	PRINTFORM 伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 1
+	PRINTFORM 恋人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == -1
+	PRINTFORM 想い人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:精神的余裕 == 2
+	PRINTFORM はしたないとため息をつきながらも
+ELSEIF TALENT:TARGET:ギャル
+	PRINTFORM あっけらかんと
 ELSEIF TALENT:TARGET:羞恥心
-	PRINTFORM 顔を真っ赤にしながら
+	PRINTFORM %TEXTR("顔を真っ赤にし/恥じらって俯き")%ながら
 ELSEIF TALENT:TARGET:性的興味
-	PRINTFORM 興味しんしんな様子で
+	PRINTFORM %TEXTR("興味しんしんな/期待に満ちた")%様子で
+ELSEIF TALENT:TARGET:性欲 <= -1
+	PRINTFORM あくまで事務的に
 ELSEIF TALENT:TARGET:セフレ
-	PRINTFORM %CALLNAME:PLAYER%の反応を面白がりながら
+	PRINTFORM ニヤニヤとからかうような笑みを浮かべて
 ELSE
-	PRINT 事務的な手つきで
+	PRINTFORM 恥じらいながらも
+ENDIF
+PRINTFORMW %TEXTR("了承/承諾")%し、%CALLNAME:PLAYER%%TEXTR("と手近な物陰へと隠れた/を近くの物陰へと導いた/に連れられて近くの物陰に隠れた")%……
+PRINTL
+PRINTFORMW ────
+PRINTL
+;履歴
+
+IF RFLAG:コマンド結果受渡し変数 == 1
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>仕事の体裁をとりながらも、結局無料で%CALLNAME:TARGET%に手コキしてもらった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>大好きな%CALLNAME:PLAYER%に、無料で手コキで性処理してあげた</font><img src='えっちハート'>","うふふ実績")
+ELSEIF TALENT:対象キャラ:弱味
+	;弱味想定。いつか必要になるかもしれないし……
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>弱みを握った%CALLNAME:TARGET%に{RFLAG:コマンド結果受渡し変数２}ルピで手コキしてもらった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に弱みを握られて、たった{RFLAG:コマンド結果受渡し変数２}ルピで手コキさせられた</font><img src='えっちハート'>","うふふ実績")
+ELSE
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>{RFLAG:コマンド結果受渡し変数２}ルピで手コキしてもらった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に{RFLAG:コマンド結果受渡し変数２}ルピで手コキしてあげた</font><img src='えっちハート'>","うふふ実績")
 ENDIF
 
-PRINTFORM %CALLNAME:PLAYER%のペニスを手でシゴき、射精まで導いた。
+@MESSAGE_性処理_クンニ処理_非口上時
+#DIM 対象キャラ
+#DIM 値段計算
+#DIM オプション込み最終価格
+#DIM イヤイヤ
+#DIM チン嗅ぎ
+#DIM 射精煽り
+#DIM チンポに頬擦り
+#DIM チンキス
+#DIM 顔にぶっかけ
+#DIM 舌の上にぶっかけ
+#DIM 下半身ぶっかけ
+#DIM ほっぺたティッシュ
+#DIM 精液ごっくん
+#DIM 精液お持ち帰り
+;本当はアナル舐め手コキも用意したかったけど、行為の流れの中にうまいこと挟みこめなかった。無念なり。
+;#DIM アナル舐め
+
+
+対象キャラ = TARGET
+
+IF TALENT:TARGET:弱味 || (TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別嗜好 == 1) || TALENT:TARGET:恋人持ち >= 1 || TALENT:TARGET:恋人持ち == -1
+	イヤイヤ = 1
+ENDIF
+
+PRINTFORML しゃがんだ%CALLNAME:TARGET%の目の前に、%CALLNAME:PLAYER%は勃起したチンポを突き付ける。
+SELECTCASE TALENT:PLAYER:男性器サイズ
+CASE -2 TO -1
+;こどもちんこ
+IF TALENT:TARGET:弱味 && 陥落チェック(TARGET) >= 1
+;弱みに付け込むと反撃にバカにされる。面倒なので陥落チェックだけ除外
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたかわいらしいサイズのペニスを見て、蔑むように%TEXTR("くすくすと/くすりと")%笑った。
+ELSE
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたかわいらしいサイズのペニスを見て、からかうように%TEXTR("くすくすと/くすりと/ニヤニヤと")%笑った。
+ENDIF
+CASE 0
+;普通
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたペニスにわずかにたじろいだ。
+CASE 1
+;巨根
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出された巨根に%TEXTR("息を呑んで/ごくりと生唾を飲み")%、震える喉から熱い吐息を漏らした。
+CASE 2
+;規格外
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出された規格外な巨根の威容に圧倒され、%TEXTR("震える喉から熱い吐息を漏らした/ごくりと生唾を飲んだ")%。
+ENDSELECT
 PRINTL
-PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２)% - %NUM_FORMAT(RFLAG:コマンド結果受渡し変数２)% = %NUM_FORMAT(MONEY)%ルピ
+
+IF RAND:2 == 0
+	;チン嗅ぎ
+	IF 陥落チェック(TARGET)
+		PRINTFORM 突き付けられたチンポを前に、%CALLNAME:TARGET%は%TEXTR("根元に顔をうずめ、/亀頭に顔を近づけて/竿に鼻を擦りつけるようにして")%
+		CALL PRINT_STR(@"すんすん_H_")
+		PRINTFORM と鼻を鳴らしてにおいを嗅ぎ、
+		IF CFLAG:TARGET:ファーストキスフラグ == 0
+			PRINTFORML %TEXTR("愛おしそうに/誘惑するよう上目遣いに目配せして")%チンポに頬擦りしてくれた。
+			チンポに頬擦り = 1
+		ELSE
+			CALL PRINT_STR(@"ちゅっ_H_")
+			PRINTFORML と小さく音を立てて亀頭にキスしてくれた。
+			チンキス = 1
+		ENDIF
+	ELSEIF TALENT:TARGET:弱味 || (TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別嗜好 == 1) || TALENT:TARGET:恋人持ち >= 1 || TALENT:TARGET:恋人持ち == -1
+		IF TALENT:種族 == 2 || TALENT:種族 == 3
+			PRINTFORML 手コキの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は嫌そうに顔を顰めたが、
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORM と鼻を鳴らしてにおいを嗅ぐうちに%CALLNAME:TARGET%はにおいに当てられてすっかり欲情し、%CALLNAME:PLAYER%の股間で深呼吸をくりかえしては目を
+			CALL PRINT_STR(@"とろん_H_")
+			PRINTFORML と蕩けさせて%CALLNAME:PLAYER%の股間で深呼吸を繰り返した……。
+			BASE:TARGET:性欲 += 400
+		ELSE
+			PRINTFORM 手コキの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は嫌そうに顔を顰めながらも
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORML と鼻を鳴らしてにおいを嗅いだ。
+		ENDIF
+	ELSE
+	IF TALENT:種族 == 2 || TALENT:種族 == 3
+			PRINTFORML 手コキの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は最初こそ躊躇っていたものの、
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORM と鼻を鳴らしてにおいを嗅ぐうちに%CALLNAME:TARGET%はにおいに当てられてすっかり欲情し、目を
+			CALL PRINT_STR(@"とろん_H_")
+			PRINTFORML と蕩けさせて%CALLNAME:PLAYER%の股間で深呼吸を繰り返した……。
+			BASE:TARGET:性欲 += 400
+		ELSE
+			PRINTFORM 手コキの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は躊躇いながらも
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORML と鼻を鳴らしてにおいを嗅いだ。
+		ENDIF
+	ENDIF
+	PRINTL
+	チン嗅ぎ = 1
+ENDIF
+
+IF ABL:TARGET:技巧 <= 1
+;相手が低技巧の場合ここにしか分岐しない
+	PRINTFORMW おそるおそる手を伸ばし、%CALLNAME:TARGET%は%CALLNAME:PLAYER%の%TEXTR("チンポ/ペニス")%に触れる。
+	PRINTL
+	PRINTFORML 確かめるように%CALLNAME:PLAYER%の顔色を伺いながらぎこちなく上下に手を動かすだけの%CALLNAME:TARGET%の手コキは、
+	PRINTFORML こういったことに不慣れな%CALLNAME:TARGET%を穢しているようでシチュエーション自体は興奮するものの、%TEXTR("あまりに拙すぎて/手に力が入りすぎていて/刺激が足りなさ過ぎて")%%TEXTR("全然気持ちよくない/絶頂までは程遠い")%。
+	PRINTL
+	PRINTFORML このままではいつまで経ってもイけそうにない。
+	PRINTFORMW 仕方がないので%CALLNAME:PLAYER%は%CALLNAME:PLAYER%の手コキを諦め、自分の手で気持ちよくなるかわりに任意の場所にぶっかけさせてもらうことにした。
+	PRINTL
+	PRINTFORML ────どこにぶっかけようか？
+	PRINTL
+	PRINTBUTTON "[0] 顔にぶっかける ", 0
+	PRINTL
+	PRINTBUTTON "[1] 舌にぶっかける", 1
+	PRINTL
+	IF TEQUIP:TARGET:下タイツあり
+		PRINTBUTTON "[2] タイツにぶっかける", 2
+	ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+		PRINTBUTTON "[2] 下着にぶっかける", 2
+	ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+		PRINTBUTTON "[2] 前貼りにぶっかける", 2
+	ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+		PRINTBUTTON "[2] ふんどしにぶっかける", 2
+	ELSE
+		PRINTBUTTON "[2] 股間にぶっかける", 2
+	ENDIF
+	PRINTL
+	BINPUT
+	SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW %CALLNAME:PLAYER%は自分の手でチンポをしごきながら%CALLNAME:TARGET%に目を閉じさせ、その端正な顔に狙いを定めた。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+		PRINTL
+		PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢していった……。
+		PRINTL 
+		PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が亀頭の残り汁を%CALLNAME:TARGET%の柔らかな%TEXTR("頬/ほっぺた")%で拭うと、
+		PRINTFORML 精液にまみれた%CALLNAME:TARGET%は目を開け、立ち込める精臭の中で精液を拭った……。
+		PRINTL
+		顔にぶっかけ = 1
+		ほっぺたティッシュ = 1
+		RFLAG:フィニッシュ場所 = 5
+		CALL SHOOT_PALAM_5(PLAYER, TARGET)
+	CASE 1
+		PRINTFORMW %CALLNAME:PLAYER%は自分の手でチンポをしごきながら%CALLNAME:TARGET%に口を開けさせ、付き出させた舌に狙いを定めた。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく、精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+		PRINTL
+		PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、迎えるように突き出された%CALLNAME:TARGET%の舌を白濁に穢していった……。
+		PRINTL 
+		PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、舌の上のものを飲むように言いつけると、
+		PRINTFORML 上手く手コキできなかった負い目からか、%CALLNAME:TARGET%は眉を顰めながらも%CALLNAME:PLAYER%の精液を懸命に飲み下した……。
+		PRINTL
+		舌の上にぶっかけ = 1
+		精液ごっくん = 1
+		RFLAG:フィニッシュ場所 = 2
+		CALL SHOOT_PALAM_2(PLAYER, TARGET)
+	CASE 2
+		PRINTFORM %CALLNAME:PLAYER%は自分の手でチンポをしごきながら、
+		IF TEQUIP:TARGET:下半身服あり
+			IF TEQUIP:TARGET:スカートめくり可
+				PRINTFORM %CALLNAME:TARGET%にスカートをたくし上げさせて
+			ELSE
+			;ずらし可じゃないズボンもずらす扱い。表現上では問題ないはず
+				PRINTFORM %CALLNAME:TARGET%に服をずらさせて
+			ENDIF
+		ELSE
+		;下半身服なし。全裸リゾートとか
+			PRINTFORM %CALLNAME:TARGET%の
+		ENDIF
+		IF TEQUIP:TARGET:下タイツあり
+			PRINTFORM タイツに
+			下半身ぶっかけ = 1
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+			PRINTFORM パンツに
+			下半身ぶっかけ = 2
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+			PRINTFORM 前貼りに
+			下半身ぶっかけ = 3
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+			PRINTFORM ふんどしに
+			下半身ぶっかけ = 4
+		ELSE
+			PRINTFORM 股間に
+			下半身ぶっかけ = 5
+		ENDIF
+		PRINTFORMW 狙いを定めた。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく放たれた精液が、%CALLNAME:TARGET%の下半身に降りかかる。
+		PRINTL
+		PRINTFORM べっとりとねばつく%CALLNAME:PLAYER%の欲望は
+		IF TEQUIP:TARGET:下タイツあり
+			PRINTFORMW %CALLNAME:TARGET%のタイツを白濁に汚し、じわりじわりとしみ込んでタイツに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 1
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+			PRINTFORMW %CALLNAME:TARGET%のパンツを白濁に汚し、じわりじわりとしみ込んでパンツに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 2
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+		;前貼りは撥水素材なんじゃないか？
+			PRINTFORMW %CALLNAME:TARGET%の前貼りを白濁に汚し、ぽたりぽたりと垂れ落ちて前貼りに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 3
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+			PRINTFORMW %CALLNAME:TARGET%のふんどしを白濁に汚し、じわりじわりとしみ込んでふんどしに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 4
+		ELSE
+		;女がやることしか想定してない
+			PRINTFORMW %CALLNAME:TARGET%の股間を白濁に汚し、肌を伝って垂れ落ちて性器を汚した……。
+			下半身ぶっかけ = 5
+		ENDIF
+		PRINTL 
+		PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、下半身はそのままで一日過ごしてほしいと伝えると、
+		PRINTFORML 上手く手コキできなかった負い目からか、%CALLNAME:TARGET%は渋々了承した……。
+		PRINTL
+		精液お持ち帰り = 1
+		RFLAG:フィニッシュ場所 = 6
+		CALL SHOOT_PALAM_6(PLAYER, TARGET)
+	ENDSELECT
+ELSE
+	PRINTL
+	PRINTFORML そろりと手を伸ばして%CALLNAME:TARGET%は%CALLNAME:PLAYER%の%TEXTR("チンポ/ペニス")%に触れ、ゆるゆると扱きはじめる。
+	PRINTL
+	IF TALENT:応答 == 1 && イヤイヤ != 1
+	;生意気
+		PRINTFORML とろりと唾液を垂らして滑りをよくしながら%TEXTR("手のひらで亀頭を捏ねるように愛撫される/指の輪っかで竿をしごかれる/指の輪っかでカリを重点的にしごかれる")%快感に%CALLNAME:PLAYER%が腰を震わせると、
+		PRINTFORM %CALLNAME:対象キャラ%はからかうように%TEXTR("くすくす/ニヤニヤ")%と笑い、
+		SELECTCASE RAND:3
+		CASE 0
+			CALL PRINT_STR(@"出せ_H_出せ_H_と囁いて")
+			PRINTFORMW %CALLNAME:PLAYER%の射精を煽った。
+		CASE 1
+			PRINTFORMW 舌を出してフェラの素振りで%CALLNAME:PLAYER%の射精を煽った。
+		CASE 2
+			CALL PRINT_STR(@"ふ～っ_H_と吐息を吹きかけて")
+			PRINTFORMW %CALLNAME:PLAYER%の射精を煽った。
+		ENDSELECT
+		PRINTL
+		射精煽り = 1
+	ELSE
+		PRINTFORMW とろりと唾液を垂らして滑りをよくしながら%TEXTR("手のひらで亀頭を捏ねるように愛撫される/指の輪っかで竿をしごかれる/指の輪っかでカリを重点的にしごかれる")%快感に、やがて%CALLNAME:PLAYER%の腹の奥から射精感がこみあがってくる。
+		PRINTL
+	ENDIF
+	IF 陥落チェック(TARGET)
+		IF 射精煽り == 1
+			PRINTFORM 煽られるままに精液を滾らせた%CALLNAME:TARGET%の様子に、%CALLNAME:TARGET%は
+		ELSE
+			PRINTFORM %CALLNAME:TARGET%の射精の予兆を感じ取った%CALLNAME:TARGET%は、
+		ENDIF
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW 扱く手の動きを速めながらチンポの前に顔を差し出し目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+			PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に恍惚とした吐息をついた……。
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORMW 扱く手の動きを速めながらチンポの前に顔を差し出し、口を開けて舌を突き出した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく、精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、迎えるように突き出された%CALLNAME:TARGET%の舌を白濁に穢していった……。
+			PRINTL 
+			PRINTFORMW %CALLNAME:PLAYER%がひとしきり精を放ち終えると、%CALLNAME:TARGET%は喉を鳴らして精液を飲み下して恍惚とした吐息をついた……。
+			PRINTL
+			舌の上にぶっかけ = 1
+			精液ごっくん = 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			PRINTFORM 手を動かしながら立ち上がり、
+			IF TEQUIP:TARGET:下半身服あり
+				IF TEQUIP:TARGET:スカートめくり可
+					PRINTFORM スカートをたくし上げて
+				ELSE
+				;ずらし可じゃないズボンもずらす扱い。表現上では問題ないはず
+					PRINTFORM 服をずらして
+				ENDIF
+			ELSE
+				;下半身服なし。全裸リゾートとか
+				PRINTFORM チンポの前に
+			ENDIF
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORMW タイツ
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORMW パンツ
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+				PRINTFORMW 前貼り
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORMW ふんどし
+				下半身ぶっかけ = 4
+			ELSE
+				PRINTFORM 股間
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTFORMW を晒した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく放たれた精液が、%CALLNAME:TARGET%の下半身に降りかかる。
+			PRINTL
+			PRINTFORM べっとりとねばつく%CALLNAME:PLAYER%の欲望は
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORMW %CALLNAME:TARGET%のタイツを白濁に汚し、じわりじわりとしみ込んで二人の情欲を煽った……。
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORMW %CALLNAME:TARGET%のパンツを白濁に汚し、じわりじわりとしみ込んで二人の情欲を煽った……。
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+			;前貼りは撥水素材なんじゃないか？
+				PRINTFORMW %CALLNAME:TARGET%の前貼りを白濁に汚し、ぽたりぽたりと垂れ落ちて二人の情欲を煽った……。
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORMW %CALLNAME:TARGET%のふんどしを白濁に汚し、じわりじわりとしみ込んで二人の情欲を煽った……。
+				下半身ぶっかけ = 4
+			ELSE
+			;女がやることしか想定してない
+				PRINTFORMW %CALLNAME:TARGET%の股間を白濁に汚し、肌を伝って垂れ落ちて欲情に火照った性器を汚した……。
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTL 
+			PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、下半身はそのままで一日過ごしてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%は呆れたように笑いながら了承してくれた……。
+			PRINTL
+			精液お持ち帰り = 1
+			RFLAG:フィニッシュ場所 = 6
+			CALL SHOOT_PALAM_6(PLAYER, TARGET)
+		ENDSELECT
+	ELSEIF (TALENT:種族 == 2 && チン嗅ぎ == 1) || (TALENT:種族 == 3 && チン嗅ぎ == 1)
+		SIF 射精煽り == 1
+			PRINTFORM %CALLNAME:TARGET%に煽られるままに精液を滾らせた
+		PRINTFORM %CALLNAME:PLAYER%が
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW 顔にぶっかけさせてほしいと伝えると、すっかり欲情した%CALLNAME:TARGET%は素直に受け入れて手の動きを速めながら目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+			PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に恍惚とした吐息をついた……。
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORMW 舌の上にぶっかけさせてほしいと伝えると、すっかり欲情した%CALLNAME:TARGET%は素直に受け入れて手の動きを速めながら目を閉じ、口を開けて舌を突き出した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく、精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、迎えるように突き出された%CALLNAME:TARGET%の舌を白濁に穢していった……。
+			PRINTL 
+			PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、舌の上のものを飲むように言いつけると、
+			PRINTFORMW %CALLNAME:TARGET%は喉を鳴らして精液を飲み下して、恍惚とした吐息をついた……。
+			PRINTL
+			舌の上にぶっかけ = 1
+			精液ごっくん = 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORM タイツに
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORM パンツに
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+				PRINTFORM 前貼りに
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORM ふんどしに
+				下半身ぶっかけ = 4
+			ELSE
+				PRINTFORM 股間に
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTFORM ぶっかけさせてほしいと伝えると、すっかり欲情した%CALLNAME:TARGET%は素直に受け入れて手を動かしながら立ち上がり、
+			IF TEQUIP:TARGET:下半身服あり
+				IF TEQUIP:TARGET:スカートめくり可
+					PRINTFORMW スカートをたくし上げた。
+				ELSE
+				;ずらし可じゃないズボンもずらす扱い。表現上では問題ないはず
+					PRINTFORMW 服をずらした。
+				ENDIF
+			ELSE
+				;下半身服なし。全裸リゾートとか
+				PRINTFORMW 股間を晒した。
+			ENDIF
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく放たれた精液が、%CALLNAME:TARGET%の下半身に降りかかる。
+			PRINTL
+			PRINTFORM べっとりとねばつく%CALLNAME:PLAYER%の欲望は
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORMW %CALLNAME:TARGET%のタイツを白濁に汚し、じわりじわりとしみ込んでタイツに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORMW %CALLNAME:TARGET%のパンツを白濁に汚し、じわりじわりとしみ込んでパンツに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+			;前貼りは撥水素材なんじゃないか？
+				PRINTFORMW %CALLNAME:TARGET%の前貼りを白濁に汚し、ぽたりぽたりと垂れ落ちて前貼りに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORMW %CALLNAME:TARGET%のふんどしを白濁に汚し、じわりじわりとしみ込んでふんどしに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 4
+			ELSE
+			;女がやることしか想定してない
+				PRINTFORMW %CALLNAME:TARGET%の股間を白濁に汚し、肌を伝って垂れ落ちて欲情に火照った性器を汚した……。
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTL 
+			PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、下半身はそのままで一日過ごしてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%は立ち込める精臭に呆けながら了承した……。
+			PRINTL
+			精液お持ち帰り = 1
+			RFLAG:フィニッシュ場所 = 6
+			CALL SHOOT_PALAM_6(PLAYER, TARGET)
+		ENDSELECT
+	ELSEIF TALENT:TARGET:弱味 || (TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別嗜好 == 1) || TALENT:TARGET:恋人持ち >= 1 || TALENT:TARGET:恋人持ち == -1
+		PRINTFORM %CALLNAME:PLAYER%が
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW 顔にぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は渋々受け入れて手の動きを速めながら目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢していった……。
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORMW 舌の上にぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は渋々受け入れて手の動きを速めながら目を閉じ、口を開けて舌を突き出した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく、精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、迎えるように突き出された%CALLNAME:TARGET%の舌を白濁に穢していった……。
+			PRINTL 
+			PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、舌の上のものを飲むように言いつけると、
+			PRINTFORMW %CALLNAME:TARGET%は眉を顰めながらも%CALLNAME:PLAYER%の精液を懸命に飲み下した……。
+			PRINTL
+			舌の上にぶっかけ = 1
+			精液ごっくん = 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORM タイツに
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORM パンツに
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+				PRINTFORM 前貼りに
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORM ふんどしに
+				下半身ぶっかけ = 4
+			ELSE
+				PRINTFORM 股間に
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTFORM ぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は渋々受け入れて手を動かしながら立ち上がり、
+			IF TEQUIP:TARGET:下半身服あり
+				IF TEQUIP:TARGET:スカートめくり可
+					PRINTFORMW スカートをたくし上げた。
+				ELSE
+				;ずらし可じゃないズボンもずらす扱い。表現上では問題ないはず
+					PRINTFORMW 服をずらした。
+				ENDIF
+			ELSE
+				;下半身服なし。全裸リゾートとか
+				PRINTFORMW 股間を晒した。
+			ENDIF
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく放たれた精液が、%CALLNAME:TARGET%の下半身に降りかかる。
+			PRINTL
+			PRINTFORM べっとりとねばつく%CALLNAME:PLAYER%の欲望は
+			IF TEQUIP:TARGET:下タイツあり
+				PRINTFORMW %CALLNAME:TARGET%のタイツを白濁に汚し、じわりじわりとしみ込んでタイツに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 1
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+				PRINTFORMW %CALLNAME:TARGET%のパンツを白濁に汚し、じわりじわりとしみ込んでパンツに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 2
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+			;前貼りは撥水素材なんじゃないか？
+				PRINTFORMW %CALLNAME:TARGET%の前貼りを白濁に汚し、ぽたりぽたりと垂れ落ちて前貼りに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 3
+			ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+				PRINTFORMW %CALLNAME:TARGET%のふんどしを白濁に汚し、じわりじわりとしみ込んでふんどしに覆われたその奥へと訴えかけた……。
+				下半身ぶっかけ = 4
+			ELSE
+			;女がやることしか想定してない
+				PRINTFORMW %CALLNAME:TARGET%の股間を白濁に汚し、肌を伝って垂れ落ちて性器を汚した……。
+				下半身ぶっかけ = 5
+			ENDIF
+			PRINTL 
+			PRINTFORMW ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、下半身はそのままで一日過ごしてほしいと伝えると、%CALLNAME:TARGET%は渋々了承した……。
+			PRINTL
+			精液お持ち帰り = 1
+			RFLAG:フィニッシュ場所 = 6
+			CALL SHOOT_PALAM_6(PLAYER, TARGET)
+		ENDSELECT
+	ENDIF
+	PRINTFORM %CALLNAME:PLAYER%が
+	SELECTCASE RAND:3
+	CASE 0
+		PRINTFORMW 顔にぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は手の動きを速めながら目を閉じた。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+		PRINTL
+		PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢していった……。
+		PRINTL 
+		顔にぶっかけ = 1
+		RFLAG:フィニッシュ場所 = 5
+		CALL SHOOT_PALAM_5(PLAYER, TARGET)
+	CASE 1
+		PRINTFORMW 舌の上にぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は手の動きを速めながら目を閉じ、口を開けて舌を突き出した。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく、精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+		PRINTL
+		PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、迎えるように突き出された%CALLNAME:TARGET%の舌を白濁に穢していった……。
+		PRINTL 
+		PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、舌の上のものを飲むように言いつけると、
+		PRINTFORMW %CALLNAME:TARGET%は眉を顰めながらも%CALLNAME:PLAYER%の精液を懸命に飲み下した……。
+		PRINTL
+		舌の上にぶっかけ = 1
+		精液ごっくん = 1
+		RFLAG:フィニッシュ場所 = 2
+		CALL SHOOT_PALAM_2(PLAYER, TARGET)
+	CASE 2
+		IF TEQUIP:TARGET:下タイツあり
+			PRINTFORM タイツに
+			下半身ぶっかけ = 1
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+			PRINTFORM パンツに
+			下半身ぶっかけ = 2
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+			PRINTFORM 前貼りに
+			下半身ぶっかけ = 3
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+			PRINTFORM ふんどしに
+			下半身ぶっかけ = 4
+		ELSE
+			PRINTFORM 股間に
+			下半身ぶっかけ = 5
+		ENDIF
+		PRINTFORM ぶっかけさせてほしいと伝えると、%CALLNAME:TARGET%は手を動かしながら立ち上がり、
+		IF TEQUIP:TARGET:下半身服あり
+			IF TEQUIP:TARGET:スカートめくり可
+				PRINTFORMW スカートをたくし上げた。
+			ELSE
+			;ずらし可じゃないズボンもずらす扱い。表現上では問題ないはず
+				PRINTFORMW 服をずらした。
+			ENDIF
+		ELSE
+			;下半身服なし。全裸リゾートとか
+			PRINTFORMW 股間を晒した。
+		ENDIF
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく放たれた精液が、%CALLNAME:TARGET%の下半身に降りかかる。
+		PRINTL
+		PRINTFORM べっとりとねばつく%CALLNAME:PLAYER%の欲望は
+		IF TEQUIP:TARGET:下タイツあり
+			PRINTFORMW %CALLNAME:TARGET%のタイツを白濁に汚し、じわりじわりとしみ込んでタイツに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 1
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 1
+			PRINTFORMW %CALLNAME:TARGET%のパンツを白濁に汚し、じわりじわりとしみ込んでパンツに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 2
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 2
+		;前貼りは撥水素材なんじゃないか？
+			PRINTFORMW %CALLNAME:TARGET%の前貼りを白濁に汚し、ぽたりぽたりと垂れ落ちて前貼りに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 3
+		ELSEIF TEQUIP:TARGET:下半身下着あり == 3
+			PRINTFORMW %CALLNAME:TARGET%のふんどしを白濁に汚し、じわりじわりとしみ込んでふんどしに覆われたその奥へと訴えかけた……。
+			下半身ぶっかけ = 4
+		ELSE
+		;女がやることしか想定してない
+			PRINTFORMW %CALLNAME:TARGET%の股間を白濁に汚し、肌を伝って垂れ落ちて性器を汚した……。
+			下半身ぶっかけ = 5
+		ENDIF
+		;前貼りぶっかけの場合しみ込んでないからお持ち帰りできない可能性がある。除外したほうがいいかも？
+		PRINTL 
+		PRINTFORMW ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、下半身はそのままで一日過ごしてほしいと伝えると、%CALLNAME:TARGET%は渋々了承した……。
+		PRINTL
+		精液お持ち帰り = 1
+		RFLAG:フィニッシュ場所 = 6
+		CALL SHOOT_PALAM_6(PLAYER, TARGET)
+	ENDSELECT
+ENDIF
+
+;書き終わってから「手に出させてもらう」と「ぶっかけなし」を書いてないことに気付いたけど……いまさらめんどくさい！！！！！
+
+DRAWLINE
+
+;最終的な料金　1ルピ＝10円程度という想定で書いてる
+
+値段計算 = RFLAG:コマンド結果受渡し変数２
+
+IF 値段計算 > 0
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(RFLAG:コマンド結果受渡し変数２), 8%ルピ
+ELSE
+	PRINTFORM %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
+ENDIF
+
+DRAWLINE
+
+PRINTFORML 追加オプション
+
+IF チン嗅ぎ == 1
+	IF TALENT:汚臭耐性 < 0
+	;汚臭敏感
+		値段計算 += TALENT:汚臭耐性 * 300
+		SETCOLOR カラーパレット("薄ピンク")
+		PRINTFORML %"チン嗅ぎ", 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 400), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 200
+		SETCOLOR カラーパレット("薄ピンク")
+		PRINTFORML %"チン嗅ぎ", 25, LEFT%：＋%NUM_FORMAT(200), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 射精煽り == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"射精煽り", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF チンポに頬擦り == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"チンポに頬擦り", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF チンキス == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"チンキス", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF 顔にぶっかけ == 1
+	値段計算 += 7500
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"顔にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(750), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF 舌の上にぶっかけ == 1
+	値段計算 += 1000
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"舌の上にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF 下半身ぶっかけ == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"タイツにぶっかけ", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ELSEIF 下半身ぶっかけ == 2
+	IF 知識素質:高貴 > 0
+	;高級品。これでもだいぶ負けてくれている
+		値段計算 += 1000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"高級下着にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+		RESETCOLOR
+	ELSEIF RAND:4 == 0
+	;運がいいのか悪いのか
+		値段計算 += 500
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"お気に入りのパンツにぶっかけ", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"パンツにぶっかけ", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ELSEIF 下半身ぶっかけ == 3
+;素肌に近いのでちょい高
+	値段計算 += 400
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"前貼りにぶっかけ", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ELSEIF 下半身ぶっかけ == 4
+;ふんどしは構造上ほかの下着に比べて不快感が少なそう
+	値段計算 += 200
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"ふんどしにぶっかけ", 25, LEFT%：＋%NUM_FORMAT(200), 8%ルピ
+	RESETCOLOR
+ELSEIF 下半身ぶっかけ == 5
+;素肌は高め
+	値段計算 += 500
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"股間にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+IF ほっぺたティッシュ == 1
+	IF TALENT:プライド > 0
+	;汚臭敏感
+		値段計算 += 500
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"ほっぺたティッシュ", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"ほっぺたティッシュ", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 精液ごっくん == 1
+	IF TALENT:汚臭耐性 < 0
+	;汚臭敏感
+		値段計算 += TALENT:汚臭耐性 * 500
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"精液ごっくん", 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"精液ごっくん", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 精液お持ち帰り == 1
+;下着ぐっしょりだしこぼれてきてそこそこ不快だろうから高め
+	値段計算 += 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"精液お持ち帰り", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+DRAWLINE
+;オプションは基本的に割引クーポン対象外となっております～
+PRINTFORML 割引き
+;恋慕は完全無料
+IF TALENT:対象キャラ:恋慕
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ
+	RESETCOLOR
+	CALL PRINT_STRL(@"_H_")
+	値段計算 *= 0
+ELSEIF TALENT:対象キャラ:弱味
+;二重にかかっちゃうけど……まあ誤差よ誤差
+	SETCOLOR カラーパレット("赤")
+	PRINTFORM %"弱み", 25, LEFT%：　　　　　99％オフ
+	RESETCOLOR
+	CALL PRINT_STRL(@"_H_")
+	値段計算 /= 100
+ENDIF
+DRAWLINE
+値段計算 = MAX(0, 値段計算)
+IF 値段計算 > 0
+	PRINTFORML %"オプション込み最終価格", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+	;オプション分のMONEY処理
+	MONEY -= 値段計算
+ELSE
+	PRINTFORM %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
+ENDIF
+DRAWLINE
+
+オプション込み最終価格 = 値段計算
+
+PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２ + 値段計算)% - %NUM_FORMAT(オプション込み最終価格)% = %NUM_FORMAT(MONEY)%ルピ
+
 

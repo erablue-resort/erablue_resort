@@ -122,11 +122,27 @@ NEXT
 PRINTL ＞
 
 @USERCOM
+#DIMS COM変換
+RFLAG:入替えコマンドフラグ = 0
 
 SIF SAVESTR:ゲームフェイズ管理 == ""
 	RETURN 0
 
+;逆奉仕時の処理を仕込む
+IF STRFIND(RSTR:SELECTCOM_S受け渡し, "R") == 0
+	COM変換 = %REPLACE(RSTR:SELECTCOM_S受け渡し, "R", "")%
+	IF ISNUMERIC(COM変換)
+		RESULT = TOINT(COM変換)
+		RSTR:SELECTCOM_S受け渡し = 
+	ELSE
+		RSTR:SELECTCOM_S受け渡し = %COM変換%
+	ENDIF
+	RFLAG:入替えコマンドフラグ = 1
+	SWAP TARGET, PLAYER
+ENDIF
+
 CALLFORM  USERCOM_%SAVESTR:ゲームフェイズ管理%
+
 RETURN RESULT
 
 @USERCOM_通常モード
@@ -587,11 +603,26 @@ CALL SHOW_MODE()
 
 IF TFLAG:調教モード == 2
 	SETCOLOR 0xC0C0C0
+	SIF 簡易コマンドフィルタ:0
+		SETCOLOR 0x666666
 	文字色保存 = GETCOLOR()
 	PRINT -----
-	PRINTPLAIN [通常]
+	PRINTBUTTON "[通常]", 9000
 	PRINTL -------------------------------------------------------------------------------------------------
-	CALL SHOW_COMMAND_実処理("その他")
+	SIF !簡易コマンドフィルタ:0
+		CALL SHOW_COMMAND_実処理("その他")
+PRINTL
+	SETCOLOR 0xC0C0C0
+	SIF 簡易コマンドフィルタ:17
+		SETCOLOR 0x666666
+	文字色保存 = GETCOLOR()
+	PRINT -----
+	PRINTBUTTON "[奉仕系]", 9017
+	PRINTL -----------------------------------------------------------------------------------------------
+	IF !簡易コマンドフィルタ:17
+		CALL SHOW_COMMAND_実処理("奉仕")
+		CALL SHOW_COMMAND_実処理("奉仕", 1)
+	ENDIF
 PRINTL
 	SETCOLOR 0xFF66CC
 	SIF 簡易コマンドフィルタ:6
@@ -614,14 +645,14 @@ PRINTL
 		CALL SHOW_COMMAND_実処理("Ａ系")
 PRINTL
 	SETCOLOR 0xD3DEF1
-	SIF 簡易コマンドフィルタ:9
+	SIF 簡易コマンドフィルタ:15
 		SETCOLOR 0x666666
 	文字色保存 = GETCOLOR()
 	PRINT -----
-	PRINTBUTTON "[道具系]", 9009
+	PRINTBUTTON "[触手系]", 9015
 	PRINTL -----------------------------------------------------------------------------------------------
-	SIF !簡易コマンドフィルタ:9
-		CALL SHOW_COMMAND_実処理("道具系")
+	SIF !簡易コマンドフィルタ:15
+		CALL SHOW_COMMAND_実処理("触手系")
 PRINTL
 	SETCOLOR 0xD3DEF1
 	SIF 簡易コマンドフィルタ:12
@@ -695,12 +726,16 @@ RESETCOLOR
 PRINTL
 文字色保存 = 0
 
-@SHOW_COMMAND_実処理(ARGS)
+@SHOW_COMMAND_実処理(ARGS, TARGET入替 = 0)
 #DIMS 複合条件保存, 10
 #DIM スキップフラグ
+#DIM TARGET入替
 #DIM 配列番号
 #DIMS コマンドキー
 #DIM 派生カテゴリ表示フラグ
+
+SIF TARGET入替
+	SWAP TARGET, PLAYER
 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
@@ -760,14 +795,17 @@ FOR LOCAL,0,700
 				IF 複合条件保存:(LOCAL:1) == "複数人プレイ"
 					TFLAG:コマンドタイプ受渡 = 12
 					BREAK
+				ELSEIF 複合条件保存:(LOCAL:1) == "触手系"
+					TFLAG:コマンドタイプ受渡 = 15
+					BREAK
 				ELSEIF 複合条件保存:(LOCAL:1) == "Ｖ系"
 					TFLAG:コマンドタイプ受渡 = 6
 					BREAK
 				ELSEIF 複合条件保存:(LOCAL:1) == "Ａ系"
 					TFLAG:コマンドタイプ受渡 = 7
 					BREAK
-				ELSEIF 複合条件保存:(LOCAL:1) == "道具系"
-					TFLAG:コマンドタイプ受渡 = 9
+				ELSEIF 複合条件保存:(LOCAL:1) == "奉仕"
+					TFLAG:コマンドタイプ受渡 = 17
 					BREAK
 				ENDIF
 			ELSEIF TFLAG:調教モード == 3
@@ -799,7 +837,7 @@ FOR LOCAL,0,700
 				CONTINUE
 			ENDIF
 		CASE 49
-			SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 9, 12)
+			SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 15, 12, 17)
 				CONTINUE
 			SIF 簡易コマンドフィルタ:49
 				CONTINUE
@@ -837,7 +875,11 @@ FOR LOCAL,0,700
 		LOCAL:4 = 1
 	ENDIF
 	IF STRLENS(TRAIN_COMNAME(LOCAL))
-		LOCALS += @"<button value = '{LOCAL}'"
+		IF TARGET入替
+			LOCALS += @"<button value = 'R{LOCAL}'"
+		ELSE
+			LOCALS += @"<button value = '{LOCAL}'"
+		ENDIF
 		TSTR:ツールチップ受渡 = 
 		TRYCCALLFORM COM_TOOLTIP_{LOCAL}
 			IF ツールチップ切り替えOPTION記憶 == 0
@@ -848,7 +890,11 @@ FOR LOCAL,0,700
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME(LOCAL), 22%[{LOCAL, 3}]</button>"
+		IF TARGET入替
+			LOCALS += @"%TRAIN_COMNAME(LOCAL) + "する", 22%[%@"R{LOCAL}", 3%]</button>"
+		ELSE
+			LOCALS += @"%TRAIN_COMNAME(LOCAL), 22%[{LOCAL, 3}]</button>"
+		ENDIF
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
@@ -895,14 +941,17 @@ FOR LOCAL, 0, 500
 					IF 複合条件保存:(LOCAL:10) == "複数人プレイ"
 						TFLAG:コマンドタイプ受渡 = 12
 						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "触手系"
+						TFLAG:コマンドタイプ受渡 = 15
+						BREAK
 					ELSEIF 複合条件保存:(LOCAL:10) == "Ｖ系"
 						TFLAG:コマンドタイプ受渡 = 6
 						BREAK
 					ELSEIF 複合条件保存:(LOCAL:10) == "Ａ系"
 						TFLAG:コマンドタイプ受渡 = 7
 						BREAK
-					ELSEIF 複合条件保存:(LOCAL:10) == "道具系"
-						TFLAG:コマンドタイプ受渡 = 9
+					ELSEIF 複合条件保存:(LOCAL:10) == "奉仕"
+						TFLAG:コマンドタイプ受渡 = 17
 						BREAK
 					ENDIF
 				ELSE
@@ -929,7 +978,7 @@ FOR LOCAL, 0, 500
 					CONTINUE
 				ENDIF
 			CASE 49
-				SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 9, 12)
+				SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 15, 12, 17)
 					CONTINUE
 				SIF 簡易コマンドフィルタ:49
 					CONTINUE
@@ -964,7 +1013,11 @@ FOR LOCAL, 0, 500
 			LOCALS += @"<font color='#%TSTR:コマンドカラー受渡%'>"
 			LOCAL:4 = 1
 		ENDIF
-		LOCALS += @"<button value = '%コマンドキー%'"
+		IF TARGET入替
+			LOCALS += @"<button value = 'R%コマンドキー%'"
+		ELSE
+			LOCALS += @"<button value = '%コマンドキー%'"
+		ENDIF
 		TRYCCALLFORM COM_TOOLTIP_S%コマンドキー%
 			IF ツールチップ切り替えOPTION記憶 == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
@@ -974,7 +1027,11 @@ FOR LOCAL, 0, 500
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME_S(コマンドキー), 25%[%コマンドキー,5%]</button>"
+		IF TARGET入替
+			LOCALS += @"%TRAIN_COMNAME_S(コマンドキー) + "する", 25%[%"R" + コマンドキー,5%]</button>"
+		ELSE
+			LOCALS += @"%TRAIN_COMNAME_S(コマンドキー), 25%[%コマンドキー,5%]</button>"
+		ENDIF
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
@@ -1018,14 +1075,14 @@ FOR LOCAL, 0, 500
 					IF 複合条件保存:(LOCAL:10) == "複数人プレイ"
 						TFLAG:コマンドタイプ受渡 = 12
 						BREAK
+					ELSEIF 複合条件保存:(LOCAL:10) == "触手系"
+						TFLAG:コマンドタイプ受渡 = 15
+						BREAK
 					ELSEIF 複合条件保存:(LOCAL:10) == "Ｖ系"
 						TFLAG:コマンドタイプ受渡 = 6
 						BREAK
 					ELSEIF 複合条件保存:(LOCAL:10) == "Ａ系"
 						TFLAG:コマンドタイプ受渡 = 7
-						BREAK
-					ELSEIF 複合条件保存:(LOCAL:10) == "道具系"
-						TFLAG:コマンドタイプ受渡 = 9
 						BREAK
 					ENDIF
 				ELSE
@@ -1052,7 +1109,7 @@ FOR LOCAL, 0, 500
 					CONTINUE
 				ENDIF
 			CASE 49
-				SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 9, 12)
+				SIF GROUPMATCH(TFLAG:コマンドタイプ受渡, 0, 1, 2, 3, 4, 6, 7, 15, 12, 17)
 					CONTINUE
 				SIF 簡易コマンドフィルタ:49
 					CONTINUE
@@ -1085,7 +1142,11 @@ FOR LOCAL, 0, 500
 			LOCALS += @"<font color='#%TSTR:コマンドカラー受渡%'>"
 			LOCAL:4 = 1
 		ENDIF
-		LOCALS += @"<button value = '%コマンドキー%'"
+		IF TARGET入替
+			LOCALS += @"<button value = 'R%コマンドキー%'"
+		ELSE
+			LOCALS += @"<button value = '%コマンドキー%'"
+		ENDIF
 		TRYCCALLFORM COM_TOOLTIP_%コマンドキー%
 			IF ツールチップ切り替えOPTION記憶 == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
@@ -1095,7 +1156,11 @@ FOR LOCAL, 0, 500
 		CATCH
 			LOCALS += @">"
 		ENDCATCH
-		LOCALS += @"%TRAIN_COMNAME(TOINT(コマンドキー)), 25%[%コマンドキー,5%]</button>"
+		IF TARGET入替
+			LOCALS += @"%TRAIN_COMNAME(TOINT(コマンドキー)) + "する", 25%[%"R" + コマンドキー,5%]</button>"
+		ELSE
+			LOCALS += @"%TRAIN_COMNAME(TOINT(コマンドキー)), 25%[%コマンドキー,5%]</button>"
+		ENDIF
 		IF LOCAL:4
 			LOCALS += "</font>"
 			LOCAL:4 = 0
@@ -1116,7 +1181,8 @@ FOR LOCAL, 0, 500
 	ENDIF
 NEXT
 
-
+SIF TARGET入替
+	SWAP TARGET, PLAYER
 
 @ITEM_PROTO(対象キャラ)
 #DIM 対象キャラ
