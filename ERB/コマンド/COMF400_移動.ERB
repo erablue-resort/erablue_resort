@@ -45,11 +45,15 @@ IF TFLAG:エリア切り替え時_目的地格納
 		TFLAG:エリア切り替え時_目的地格納 = 0
 		TRYCALLFORM エリア来訪時イベント_{CFLAG:PLAYER:現在マップ種別}
 		TFLAG:長距離移動時_目的地格納 = 0
-		TIME += 15
+		IF あなた特殊能力:縦横無尽 && あなた単独()
+			TIME += 4
+		ELSE
+			TIME += 15
+		ENDIF
 		RETURN 0
 	ELSE
 		TFLAG:長距離移動時_目的地格納 = RESULT
-		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:長距離移動時_目的地格納)
+		CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, TFLAG:長距離移動時_目的地格納)
 		;現在位置を更新し、次も移動の扱いにする
 		CFLAG:PLAYER:現在位置 = RESULT
 	ENDIF
@@ -83,11 +87,7 @@ IF TFLAG:長距離移動時_目的地格納
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
 			BREAK
-		SIF CFLAG:(TARGET:LOCAL):同行
-			CONTINUE
-		SIF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, TARGET:LOCAL) > -1
-			CONTINUE
-		SIF MODE_確認_完全一致("全裸散歩", PLAYER, TARGET:LOCAL) > -1
+		SIF 追従中キャラ(TARGET:LOCAL)
 			CONTINUE
 		SIF 出会ったキャラ記録 != ""
 			出会ったキャラ記録 += "、"
@@ -164,7 +164,7 @@ IF TFLAG:長距離移動時_目的地格納
 		; 		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
 		; NEXT
 	ELSE
-		CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(TFLAG:長距離移動時_目的地格納)
+		CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, TFLAG:長距離移動時_目的地格納)
 		;現在位置を更新し、次も移動の扱いにする
 		CFLAG:MASTER:現在位置 = RESULT
 		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
@@ -252,7 +252,7 @@ ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, LOCAL:10)
 ELSE
 	;目的地が離れているので、最終目的地として設定
 	TFLAG:長距離移動時_目的地格納 = LOCAL:10
-	CALLFORM SKIP_MOVE_{CFLAG:PLAYER:現在マップ種別}(LOCAL:10)
+	CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, LOCAL:10)
 	;現在位置を更新し、次も移動の扱いにする
 	CFLAG:MASTER:現在位置 = RESULT
 	TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
@@ -318,7 +318,7 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
 						LOCAL:2 = 1
-					ELSEIF CFLAG:(部屋主配列:ループ用):同行 > 0 || MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, 部屋主配列:ループ用) > -1 || MODE_確認_完全一致("全裸散歩", PLAYER, 部屋主配列:ループ用) > -1
+					ELSEIF 追従中キャラ(部屋主配列:ループ用)
 						LOCAL:2 = 1
 					ENDIF
 				NEXT
@@ -574,3 +574,33 @@ SELECTCASE LOCAL
 ENDSELECT
 
 RETURN 1
+
+
+;-------------------------------------------------
+;その他移動関連補助関数
+;-------------------------------------------------
+;キャラがPLAYERと一緒に移動している場合は1を返す
+@追従中キャラ(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+
+SIF CFLAG:キャラ番号:同行
+	RETURNF 1
+SIF MODE_確認_完全一致("ハーヴィンオナホ系", PLAYER, キャラ番号) > -1
+	RETURNF 1
+SIF MODE_確認_完全一致("全裸散歩", PLAYER, キャラ番号) > -1
+	RETURNF 1
+
+RETURNF 0
+
+;あなたと一緒に移動しているキャラがいなければ1を返す
+@あなた単独()
+#FUNCTION
+
+FOR LOCAL, 1, VARSIZE("TARGET")
+	SIF TARGET:LOCAL <= 0
+		BREAK
+	SIF 追従中キャラ(TARGET:LOCAL)
+		RETURNF 0
+NEXT
+RETURNF 1
