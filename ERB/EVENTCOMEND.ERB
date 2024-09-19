@@ -76,12 +76,12 @@ ENDIF
 
 ;リセット前に発情期回復処理
 FOR LOCAL, 1, CHARANUM
-	;絶頂時は回復しない
-	SIF NOWEX:LOCAL:多重絶頂
-		CONTINUE
-	IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0 && BASE:LOCAL:体力 > 0 && !(TCVAR:LOCAL:食いしばりフラグ)
-		SIF !CFLAG:LOCAL:体力限界
-			BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
+	IF NOWEX:LOCAL:多重絶頂
+		;絶頂時は回復しない
+	ELSEIF BASE:LOCAL:体力 <= 1 || CFLAG:LOCAL:体力限界 || TCVAR:LOCAL:食いしばりフラグ
+		;体力限界時は回復しない
+	ELSEIF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0
+		BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
 	ENDIF
 NEXT
 
@@ -837,7 +837,5 @@ NEXT
 #FUNCTION
 #DIM 回復量
 回復量 = MAXBASE:ARG:体力 * (3 + TALENT:ARG:回復速度 * 2) / 100
-SIF 回復量 + BASE:ARG:体力 > MAXBASE:ARG:体力
-	回復量 = MAXBASE:ARG:体力 - BASE:ARG:体力
+回復量 = MIN(MAXBASE:ARG:体力 - BASE:ARG:体力, 回復量)
 RETURNF 回復量
-
