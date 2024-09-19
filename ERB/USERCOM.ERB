@@ -52,7 +52,13 @@ SIF TARGET
 PRINTL
 PRINTC 写真一覧[856]
 PRINTC OPTION[809]
-PRINTL
+IF 連れ込み制御OPTION
+	SETCOLOR カラーパレット("黄")
+	PRINTBUTTONC "連れ込み禁止:ON[892]", 892
+	RESETCOLOR
+ELSE
+	PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
+ENDIF
 SIF あなた特殊能力:居場所感知
 	PRINTC キャラ居場所感知[860]
 RESETCOLOR
@@ -354,17 +360,21 @@ ELSEIF RESULT == 2000
 	RETURN 1
 ELSEIF RESULT > 2000
 ;2000番以降は相手変えのショートカットに使う
-	IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+	数値変換用 = RESULT - 2000
+	SIF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
+		RETURN 1
+
+	IF CFLAG:MASTER:隠密 && CFLAG:数値変換用:隠密
+		;隠密同士なら変更可能
+	ELSEIF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
 		PRINTW 一緒に隠密中は相手を変更出来ません
 		RETURN 1
 	ELSEIF FLAG:モード管理 == 1 && CFLAG:MASTER:隠密 && CFLAG:PLAYER:隠密
 		PRINTW 一緒に隠密中は相手を変更出来ません
 		RETURN 1
 	ENDIF
-	数値変換用 = RESULT - 2000
-	IF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
-		RETURN 1
-	ELSEIF CFLAG:数値変換用:同室
+
+	IF CFLAG:数値変換用:同室
 		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 数値変換用)
 			FLAG:モード管理 = 0
 			VARSET 同時モード_選択キャラ, -1
@@ -531,8 +541,12 @@ ELSEIF RESULT == 841
 		CALL KOJO_EVENT, 13, TARGET, 1
 	ELSE
 		CFLAG:MASTER:隠密 = 0
-		SIF CFLAG:TARGET:同行
-			CFLAG:TARGET:隠密 = 0
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):同行
+				CFLAG:(TARGET:LOCAL):隠密 = 0
+		NEXT
 		PREVCOM = 841
 	ENDIF
 	RETURN 1

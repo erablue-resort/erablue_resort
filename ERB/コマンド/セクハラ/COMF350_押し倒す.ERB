@@ -1,11 +1,25 @@
 ﻿
 @COMNAME350
 #FUNCTIONS
+#DIM 隠密数
+
+隠密数 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	SIF CFLAG:(TARGET:LOCAL):隠密
+		隠密数 ++
+NEXT
+
 TSTR:コマンド名受渡 = 押し倒す
 SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	TSTR:コマンド名受渡 = 抱き寄せる
-SIF GET_TARGETNUM() > 1 && !CFLAG:MASTER:隠密 && フィールド展開:露出フィールド != 2
+
+IF GET_TARGETNUM() > 1 && !CFLAG:MASTER:隠密 && フィールド展開:露出フィールド != 2
 	TSTR:コマンド名受渡 = まとめて%TSTR:コマンド名受渡%
+ELSEIF CFLAG:MASTER:隠密 && 隠密数 > 2
+	TSTR:コマンド名受渡 = まとめて%TSTR:コマンド名受渡%
+ENDIF
 
 ;===================================================
 ;コマンドタイプ
@@ -106,14 +120,29 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM350
-IF GET_TARGETNUM() > 1 && フィールド展開:露出フィールド != 2
+#DIM 隠密数
+
+
+IF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
+	PRINTFORM %CALLNAME:PLAYER%は上手く物陰に隠れられていることを確認すると
+	隠密数 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF CFLAG:(TARGET:LOCAL):隠密
+			隠密数 ++
+	NEXT
+	IF 隠密数 > 1
+		PRINTFORML %CALLNAME:TARGET%達を抱き寄せた…
+	ELSE
+		PRINTFORML %CALLNAME:TARGET%を抱き寄せた…
+	ENDIF
+ELSEIF GET_TARGETNUM() > 1 && フィールド展開:露出フィールド != 2
 	PRINTFORM %CALLNAME:PLAYER%は
 	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
 		PRINT あたりに人がいないことを確認すると
 	ENDIF
 	PRINTFORML %CALLNAME:TARGET%達を抱き寄せた…
-ELSEIF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
-	PRINTFORML %CALLNAME:PLAYER%は上手く物陰に隠れられていることを確認すると%CALLNAME:TARGET%を抱き寄せた…
 ELSE
 	PRINTFORM %CALLNAME:PLAYER%は
 	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0 && フィールド展開:露出フィールド != 2
