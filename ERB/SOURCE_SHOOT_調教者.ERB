@@ -1,7 +1,7 @@
 ﻿;-------------------------------------------------------------------------------------------
 ;射精先の選択肢関連の処理
 ;-------------------------------------------------------------------------------------------
-@EVENT_SHOOT_PLAYER
+@EVENT_SHOOT_MASTER
 #DIM 射精先キャラ, 射精先キャラ最大数
 #DIM 未使用１, 1
 #DIMS 未使用２, 1
@@ -17,17 +17,17 @@ VARSET 射精先キャラ, -1
 ;0では駄目なので初期化
 
 ;射精キャラを登録
-RFLAG:口上用射精キャラ番号 = PLAYER
+RFLAG:口上用射精キャラ番号 = MASTER
 
 ;どこに射精するかを決定する
 
 ;選択なしでそのまま出すもの
-CALL 確定射精先判定(PLAYER)
+CALL 確定射精先判定(MASTER)
 SIF RESULT
 	RETURN 0
 
 ;まずTARGETのうちうふふ状態の相手を探す
-CALL キャラ番号配列_初期化_フィルタソート(射精先キャラ, "キャラソート_射精先_PLAYER", 未使用１, 未使用２, 1)
+CALL キャラ番号配列_初期化_フィルタソート(射精先キャラ, "キャラソート_射精先_MASTER", 未使用１, 未使用２, 1)
 対象キャラ数 = RESULT
 
 ;候補がいない＝非うふふ時の射精
@@ -40,18 +40,18 @@ IF 対象キャラ数 == 0
 		CATCH
 		ENDCATCH
 		;コマンドが特に指定しなかった場合は30番
-		JUMP 射精実処理(PLAYER, TARGET, 30)
+		JUMP 射精実処理(MASTER, TARGET, 30)
 	ELSE
 		;オートコマンドのみのはずなので、オートコマンド相手で呼び出す
-		JUMP 射精実処理(PLAYER, AUTOCOM_相手番号保存, 30)
+		JUMP 射精実処理(MASTER, AUTOCOM_相手番号保存, 30)
 	ENDIF
 ENDIF
 
-CALL SHOOT予告口上(PLAYER)
+CALL SHOOT予告口上(MASTER)
 PRINTL 
 
 ;オート射精設定があればそれに従う
-CALL オート射精先判定_PLAYER(PLAYER, 射精先キャラ, 対象キャラ数)
+CALL オート射精先判定_MASTER(MASTER, 射精先キャラ, 対象キャラ数)
 SIF RESULT
 	RETURN 0
 
@@ -64,7 +64,7 @@ $INPUT_LOOP
 選択肢数 = 0
 FOR 対象キャラカウンタ, 0, 対象キャラ数
 	FOR 射精場所カウンタ, 0, 31
-		TRYCCALLFORM SHOOT_ABLE_{射精場所カウンタ}(PLAYER, 射精先キャラ:対象キャラカウンタ)
+		TRYCCALLFORM SHOOT_ABLE_{射精場所カウンタ}(MASTER, 射精先キャラ:対象キャラカウンタ)
 			;ABLEが通れば決定
 			IF RESULT
 				CALLFORM SHOOT_NAME_{射精場所カウンタ}(射精先キャラ:対象キャラカウンタ)
@@ -85,10 +85,10 @@ NEXT
 
 IF 選択肢数 == 0
 	;選択肢がないなら30番確定
-	JUMP 射精実処理(PLAYER, -1, 30)
+	JUMP 射精実処理(MASTER, -1, 30)
 ELSEIF 選択肢数 == 1
 	;射精先が一択の場合
-	JUMP 射精実処理(PLAYER, 射精先キャラ:(選択番号 / 100), 選択番号 % 100)
+	JUMP 射精実処理(MASTER, 射精先キャラ:(選択番号 / 100), 選択番号 % 100)
 ENDIF
 
 DRAWLINE
@@ -110,7 +110,7 @@ BINPUT
 
 SELECTCASE 選択番号
 	CASE -1
-		JUMP 射精実処理(PLAYER, 射精先キャラ:選択キャラ, 選択射精場所)
+		JUMP 射精実処理(MASTER, 射精先キャラ:選択キャラ, 選択射精場所)
 	CASEELSE
 		選択射精場所 = 選択番号 % 100
 		選択キャラ = 選択番号 / 100
@@ -119,7 +119,7 @@ SELECTCASE 選択番号
 ENDSELECT
 
 
-@オート射精先判定_PLAYER(射精キャラ, 射精先キャラ, 対象キャラ数)
+@オート射精先判定_MASTER(射精キャラ, 射精先キャラ, 対象キャラ数)
 #DIM 射精キャラ
 #DIM REF 射精先キャラ, 0
 #DIM 対象キャラ数
@@ -215,7 +215,7 @@ LOOP CUP:ARG:快Ｓ + PALAM:ARG:快Ｓ - CDOWN:ARG:快Ｓ >= PALAMLV:4
 ;絶頂時の追加処理
 ;-------------------------------------------------
 RCVAR:ARG:被射精絶頂の強度 = C + V + A + B + S
-IF	ARG == PLAYER
+IF	ARG == MASTER
 	TFLAG:調教者被射精絶頂強度 = C + V + A + B + S
 ENDIF
 IF ARG == TARGET
@@ -520,33 +520,21 @@ ENDIF
 WAIT
 
 
-@キャラソート_射精先_PLAYER(キャラ番号, オプション変数, オプション文字列)
+@キャラソート_射精先_MASTER(キャラ番号, オプション変数, オプション文字列)
 #DIM キャラ番号
 #DIM REF オプション変数, 0
 #DIMS REF オプション文字列, 0
 
-IF キャラ番号 == 0
-	SIF PLAYER == 0
-		RETURN 0
-	SIF FINDELEMENT(TARGET, PLAYER, 1) == -1
-		RETURN 0
-
-	SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, キャラ番号) > -1
-		RETURN -2
-	SIF MODE_確認_完全一致("Ａ挿入系", PLAYER, キャラ番号) > -1
-		RETURN -2
-
-	RETURN -1
-ELSE
-	SIF FINDELEMENT(TARGET, キャラ番号, 1) == -1
-		RETURN 0
-
-	SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, キャラ番号) > -1
-		RETURN -2
-	SIF MODE_確認_完全一致("Ａ挿入系", PLAYER, キャラ番号) > -1
-		RETURN -2
-	SIF CFLAG:キャラ番号:うふふ
-		RETURN -1
-
+SIF キャラ番号 == 0
 	RETURN 0
-ENDIF
+SIF FINDELEMENT(TARGET, キャラ番号, 1) == -1
+	RETURN 0
+
+SIF MODE_確認_完全一致("Ｖ挿入系", MASTER, キャラ番号) > -1
+	RETURN -2
+SIF MODE_確認_完全一致("Ａ挿入系", MASTER, キャラ番号) > -1
+	RETURN -2
+SIF CFLAG:キャラ番号:うふふ
+	RETURN -1
+
+RETURN 0
