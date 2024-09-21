@@ -178,21 +178,38 @@ ELSEIF MOTHER == MASTER && あなた特殊能力:潜性の血 && FATHER >= 0
 ENDIF
 
 ;発情期あり
-IF TALENT:種族 == 種族_その他
+IF TALENT:種族 != 種族_その他
+	PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
+	IF PARENT >= 0
+		TALENT:発情期あり = TALENT:PARENT:発情期あり
+	ENDIF
+ELSEIF キャラ一致チェック(MOTHER, "[六竜の『金』]ガレヲン") || (FATHER >= 0 && キャラ一致チェック(FATHER, "[六竜の『金』]ガレヲン"))
+	TALENT:発情期あり = 0b0110111
+ELSE
 	TALENT:発情期あり = 0
-	IF GROUPMATCH(ベース種族, 種族_エルーン, 種族_ドラフ)
-		TALENT:発情期あり = 1
-	ELSE
-		PARENT = 遺伝元(DOMINANT, RECESSIVE, "両親のみ")
-		IF PARENT > 0
-			IF GROUPMATCH(ベース種族検索(CFLAG:PARENT:人物番号), 種族_エルーン, 種族_ドラフ)
-				TALENT:発情期あり = 1
-			ELSEIF キャラ一致チェック(PARENT, "[六竜の『金』]ガレヲン")
-				TALENT:発情期あり = 1
-			ELSEIF TALENT:PARENT:発情期あり > 0
-				TALENT:発情期あり = 1
-			ENDIF
-		ENDIF
+	SELECTCASE ベース種族
+		CASE 種族_エルーン
+			TALENT:発情期あり |= 0b0010011
+		CASE 種族_ドラフ
+			TALENT:発情期あり |= 0b0100101
+	ENDSELECT
+
+	TALENT:発情期あり |= TALENT:MOTHER:発情期あり
+	SELECTCASE ベース種族検索(CFLAG:MOTHER:人物番号)
+		CASE 種族_エルーン
+			TALENT:発情期あり |= 0b0010011
+		CASE 種族_ドラフ
+			TALENT:発情期あり |= 0b0100101
+	ENDSELECT
+
+	IF FATHER >= 0
+		TALENT:発情期あり |= TALENT:FATHER:発情期あり
+		SELECTCASE ベース種族検索(CFLAG:FATHER:人物番号)
+			CASE 種族_エルーン
+				TALENT:発情期あり |= 0b0010011
+			CASE 種族_ドラフ
+				TALENT:発情期あり |= 0b0100101
+		ENDSELECT
 	ENDIF
 ENDIF
 
