@@ -1,0 +1,124 @@
+@おさわりメイン画像(メイン画像更新タイプ, 表示レイヤー層モード, おさわりフォルダ, 表示対象ファイル名, 画像サイズ, 画像位置, 表示レイヤー層)
+#DIM レイヤー番号 = 50
+#DIMS REF メイン画像更新タイプ
+#DIM 表示レイヤー層モード
+#DIM 表示レイヤー層
+#DIMS おさわりフォルダ
+#DIMS 表示対象ファイル名
+#DIM REF 画像サイズ,0
+#DIM REF 画像位置,0
+
+;レイヤーメモ
+; -4  ログ表示モード用スクリーン
+; -3  
+; -2  絶頂演出用スクリーン
+; -1  画像切り替え前回画像
+; 0   メイン
+
+
+SELECTCASE メイン画像更新タイプ
+CASE "初期化"
+CASE "更新"
+    GOTO 更新
+CASE "描画" ;描画のみで画像の切り替えは行わない
+    GOTO 描画
+CASE "絶頂"
+    LOCAL:99 = 1
+    GOTO 更新
+ENDSELECT
+
+GDISPOSE レイヤー番号 + 5
+GCREATE レイヤー番号 + 5, 画像サイズ:0, 画像サイズ:1
+GSETBRUSH レイヤー番号 + 5, 0x80101010
+GFILLRECTANGLE レイヤー番号 + 5, 0, 0, 画像サイズ:0, 画像サイズ:1
+
+$更新
+
+;リソース
+GDISPOSE レイヤー番号 + 0 
+GCREATEFROMFILE レイヤー番号 + 0 , @"%CSTR:TARGET:画像フォルダ%/%表示対象ファイル名%"
+;当たり判定の読み込み
+GDISPOSE レイヤー番号 + 20
+GCREATEFROMFILE レイヤー番号 + 20, @"%CSTR:TARGET:画像フォルダ%/%おさわりフォルダ%/%表示対象ファイル名%"
+;今回の画像
+GDISPOSE レイヤー番号 + 1 
+GCREATE レイヤー番号 + 1 , 画像サイズ:0, 画像サイズ:1
+GDRAWG レイヤー番号 + 1 , レイヤー番号 + 0 , 0, 0, 画像サイズ:0, 画像サイズ:1, 0, 0, GWIDTH(レイヤー番号 + 0 ), GHEIGHT(レイヤー番号 + 0 )
+
+IF LOCAL:99 == 1
+    ;新しい画像を後ろに置く
+    CBGSETG レイヤー番号 + 1 , 画像位置:0, GHEIGHT(レイヤー番号 + 1 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層
+    ;古い画像を前に置く
+    CBGSETG レイヤー番号 + 2 , 画像位置:0, GHEIGHT(レイヤー番号 + 1 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 1
+
+    GDISPOSE レイヤー番号 + 4 
+    GCREATE レイヤー番号 + 4 , 画像サイズ:0, 画像サイズ:1
+    GSETBRUSH レイヤー番号 + 4 , 0xC0FFFFFF
+    GFILLRECTANGLE レイヤー番号 + 4 , 0, 0, 画像サイズ:0, 画像サイズ:1
+    CBGSETG レイヤー番号 + 4 , 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 2
+    AWAIT 50
+    CBGREMOVERANGE 表示レイヤー層 - 2, 表示レイヤー層 - 2
+    AWAIT 50
+    CBGSETG レイヤー番号 + 4 , 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 2
+    AWAIT 50
+    CBGREMOVERANGE 表示レイヤー層 - 2, 表示レイヤー層 - 2
+    AWAIT 50
+    ;前回の画像を徐々に透過させる
+    FOR LOCAL, 0, 10
+        GDISPOSE レイヤー番号 + 3 
+        GCREATE レイヤー番号 + 3 , 画像サイズ:0, 画像サイズ:1
+        CALL カットイン用カラーマトリクス取得(LOCAL * 10)
+        GDRAWG レイヤー番号 + 3 , レイヤー番号 + 2 , 0, 0, 画像サイズ:0, 画像サイズ:1, 0, 0, GWIDTH(レイヤー番号 + 2 ), GHEIGHT(レイヤー番号 + 2 ), カットイン用カラーマトリクス:0:0
+        CBGSETG レイヤー番号 + 3 , 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 1
+        GDISPOSE レイヤー番号 + 4 
+        GCREATE レイヤー番号 + 4 , 画像サイズ:0, 画像サイズ:1
+        GSETBRUSH レイヤー番号 + 4 , 0xC0FFFFFF - 0x10000000 * LOCAL
+        GFILLRECTANGLE レイヤー番号 + 4 , 0, 0, 画像サイズ:0, 画像サイズ:1
+        CBGSETG レイヤー番号 + 4 , 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 2
+        AWAIT 25
+        CBGREMOVERANGE 表示レイヤー層 - 2, 表示レイヤー層 - 2
+        CBGREMOVERANGE 表示レイヤー層 - 1, 表示レイヤー層 - 1
+    NEXT
+    LOCAL:99 = 0
+ELSE
+    ;新しい画像を後ろに置く
+    CBGSETG レイヤー番号 + 1 , 画像位置:0, GHEIGHT(レイヤー番号 + 1 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層
+    ;前回の画像を徐々に透過させる
+    FOR LOCAL, 0, 10
+        GDISPOSE レイヤー番号 + 3 
+        GCREATE レイヤー番号 + 3 , 画像サイズ:0, 画像サイズ:1
+        CALL カットイン用カラーマトリクス取得(LOCAL * 10)
+        GDRAWG レイヤー番号 + 3 , レイヤー番号 + 2 , 0, 0, 画像サイズ:0, 画像サイズ:1, 0, 0, GWIDTH(レイヤー番号 + 2 ), GHEIGHT(レイヤー番号 + 2 ), カットイン用カラーマトリクス:0:0
+        CBGSETG レイヤー番号 + 3 , 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 1
+        AWAIT 25
+        CBGREMOVERANGE 表示レイヤー層 - 1, 表示レイヤー層 - 1
+    NEXT
+ENDIF
+;前回の画像として使う画像をここで作って次回に持ち越す　
+GDISPOSE レイヤー番号 + 2 
+GCREATE レイヤー番号 + 2 , 画像サイズ:0, 画像サイズ:1
+GDRAWG レイヤー番号 + 2 , レイヤー番号 + 0 , 0, 0, 画像サイズ:0, 画像サイズ:1, 0, 0, GWIDTH(レイヤー番号 + 0 ), GHEIGHT(レイヤー番号 + 0 )
+
+$描画
+
+;1=ログ優先表示
+CBGREMOVERANGE 表示レイヤー層 - 4, 表示レイヤー層 - 4
+IF 表示レイヤー層モード
+    CBGSETG レイヤー番号 + 5, 画像位置:0, GHEIGHT(レイヤー番号 + 3 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 4
+ENDIF
+
+CBGREMOVERANGE 表示レイヤー層, 表示レイヤー層
+CBGSETG レイヤー番号 + 1 , 画像位置:0, GHEIGHT(レイヤー番号 + 1 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層
+
+メイン画像更新タイプ '= "描画"
+
+RETURN
+
+;デバッグ　当たり判定の可視化コード
+CBGREMOVERANGE 表示レイヤー層 - 2, 表示レイヤー層 - 2
+GDISPOSE レイヤー番号 + 21 
+GCREATE レイヤー番号 + 21 , GWIDTH(レイヤー番号 + 20 ), GHEIGHT(レイヤー番号 + 20 )
+CALL カットイン用カラーマトリクス取得(50)
+GDRAWG レイヤー番号 + 21 , レイヤー番号 + 20 , 0, 0, GWIDTH (レイヤー番号 + 20 ), GHEIGHT(レイヤー番号 + 20 ), 0, 0, GWIDTH (レイヤー番号 + 20 ), GHEIGHT(レイヤー番号 + 20 ), カットイン用カラーマトリクス:0:0
+CBGSETG レイヤー番号 + 21 , 画像位置:0, GHEIGHT(レイヤー番号 + 21 ) - CLIENTHEIGHT() + 画像位置:1, 表示レイヤー層 - 2
+

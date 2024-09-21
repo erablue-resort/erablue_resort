@@ -1,0 +1,95 @@
+@おさわりファイルアーカイブ作成(フォルダ, ファイルアーカイブ, ファイル数, 衣装種類, 差分種類)
+#DIMS フォルダ
+#DIMS REF ファイルアーカイブ,0,0,0
+#DIM REF ファイル数,0,0
+#DIMS REF 衣装種類,0
+#DIMS REF 差分種類,0
+#DIM 衣装種類数
+#DIM 差分種類数
+
+衣装種類数 = VARSIZE("衣装種類")
+差分種類数 = VARSIZE("差分種類")
+
+VARSET ファイルアーカイブ
+VARSET ファイル数
+FOR LOCAL, 0, 衣装種類数
+    FOR LOCAL:1, 0, 差分種類数
+        ファイル数:LOCAL:(LOCAL:1) = ENUMFILES(フォルダ, 衣装種類:LOCAL + "_差分_" + 差分種類:(LOCAL:1) + "*.png")
+        FOR LOCAL:2, 0, ファイル数:LOCAL:(LOCAL:1)
+            ファイルアーカイブ:LOCAL:(LOCAL:1):(LOCAL:2) '= SUBSTRING(RESULTS:(LOCAL:2), STRLENS(フォルダ), -1)
+        NEXT
+    NEXT
+    VARSET RESULTS
+    RESULT = ENUMFILES(フォルダ, 衣装種類:LOCAL + ".png")
+    ファイルアーカイブ:LOCAL:0:(ファイル数:LOCAL:0) '= SUBSTRING(RESULTS:0, STRLENS(フォルダ), -1)
+    ファイル数:LOCAL:0 += RESULT
+NEXT
+
+RETURN
+
+
+@おさわりファイル差分選出(ファイル数, 画像サイズ, 衣装種類, 適正衣装種類ID, 適正差分種類ID, 対象衣装種類ID, 対象差分種類ID, 対象ファイルID)
+;同属性のファイルを抽選する
+;欲情などの状態を監視して差分選出をする
+#DIM REF ファイル数,0,0
+#DIM REF 画像サイズ,0
+#DIMS REF 衣装種類,0
+#DIM REF 適正衣装種類ID
+#DIM REF 適正差分種類ID
+#DIM REF 対象衣装種類ID
+#DIM REF 対象差分種類ID
+#DIM REF 対象ファイルID
+
+;対象属性の画像が複数枚あるときは、現在と違う画像を選出する
+;対象差分がないときは適正衣装、デフォルトの順に差分をチェックして代わりに表示する
+
+SELECTCASE ファイル数:適正衣装種類ID:適正差分種類ID
+    CASE 0
+        IF ファイル数:適正衣装種類ID:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
+            対象衣装種類ID = 適正衣装種類ID
+            対象差分種類ID = 1
+        ELSEIF ファイル数:適正衣装種類ID:0
+            対象衣装種類ID = 適正衣装種類ID
+            対象差分種類ID = 0
+        ELSEIF ファイル数:0:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
+            対象衣装種類ID = 0
+            対象差分種類ID = 1
+        ELSEIF ファイル数:0:0
+            対象衣装種類ID = 0
+            対象差分種類ID = 0
+        ELSE
+        ENDIF
+        IF ファイル数:対象衣装種類ID:対象差分種類ID > 1
+            FOR LOCAL, 0, 10
+                LOCAL:1 = RAND:(ファイル数:対象衣装種類ID:対象差分種類ID)
+                SIF 対象ファイルID == LOCAL:1
+                    CONTINUE
+                対象ファイルID = LOCAL:1
+                BREAK
+            NEXT
+        ELSE
+            対象ファイルID = 0
+        ENDIF
+    CASE 1
+        対象衣装種類ID = 適正衣装種類ID
+        対象差分種類ID = 適正差分種類ID
+        対象ファイルID = 0
+    CASEELSE
+        対象衣装種類ID = 適正衣装種類ID
+        対象差分種類ID = 適正差分種類ID
+        FOR LOCAL, 0, 10
+            LOCAL:1 = RAND:(ファイル数:対象衣装種類ID:対象差分種類ID)
+            SIF 対象ファイルID == LOCAL:1
+                CONTINUE
+            対象ファイルID = LOCAL:1
+            BREAK
+        NEXT
+ENDSELECT
+
+IF 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ")
+    画像サイズ = CLIENTHEIGHT(), CLIENTHEIGHT()
+ELSE
+    画像サイズ = 360, 720
+ENDIF
+
+RETURN
