@@ -313,14 +313,11 @@ FOR LOCAL, 0, 500
 NEXT
 
 @USERCOM_マッサージモード
-#DIM ページ番号
+;#DIM ページ番号
 #DIM 数値変換用
-#DIM 実行キャラ番号
-#DIM 対象キャラ番号
 #DIM TARGET何人目？
-#DIM 口上無しフラグ
 
-ページ番号 = 0
+;ページ番号 = 0
 ;RETURN 0でSOURCE_CHECK以降に進む
 ;NEXTCOMを仕込む
 IF NEXTCOM >= 0
@@ -328,48 +325,13 @@ IF NEXTCOM >= 0
 	NEXTCOM = -1
 ENDIF
 
-IF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "MODE詳細設定処理") > 0
-	;モードの強さや速さを変動させるボタン
-	;_でSPLITすればRESULTS:1に変動種類、2にキャラ番号、3に変動内容が入る
-	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
-	IF ISNUMERIC(RESULTS:3)
-		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", TOINT(RESULTS:3)
-	ELSEIF RESULTS:3 == "上昇"
-		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MIN(5, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") + 1)
-	ELSEIF RESULTS:3 == "下降"
-		SETVAR @"%RESULTS:1%:{TOINT(RESULTS:2)}:0", MAX(0, GETVAR(@"%RESULTS:1%:{TOINT(RESULTS:2)}:0") - 1)
-	ENDIF
-	RETURN 1
-ELSEIF STRCOUNT(RSTR:SELECTCOM_S受け渡し, "モード中断_") > 0
-	;モードを中止させるボタン
-	;_でSPLITすればRESULTS:1に中止させるモードの配列が入る
-	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
-	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "実行キャラ")
-	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(RESULTS:1), "対象キャラ")
-	TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除(実行キャラ番号, 対象キャラ番号)
-	PRINTL
-	IF 実行キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
-			PRINTL 
-			口上無しフラグ = 0
-		CATCH
-			口上無しフラグ = 1
-		ENDCATCH
-	ENDIF
-	IF 対象キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
-			PRINTL 
-			口上無しフラグ = 0
-		CATCH
-			口上無しフラグ = 1
-		ENDCATCH
-	ENDIF
-	SIF 口上無しフラグ
-		TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(RESULTS:1), "モード名")%解除_非口上時(実行キャラ番号, 対象キャラ番号)
-	WAIT
-	CALL MODE_DELETE_配列詰め(TOINT(RESULTS:1))
-ELSEIF RSTR:SELECTCOM_S受け渡し != ""
-	;受け渡しがある場合はRSTR:SELECTCOM_S受け渡しに派生コマンドが入っているはず
+IF RSTR:SELECTCOM_S受け渡し != ""
+	;受け渡しがある場合はMODE設定の変更かどうか確認
+	CALL MODE設定変更処理(RSTR:SELECTCOM_S受け渡し)
+	SIF RESULT
+		RETURN 1
+
+	;それ以外の場合はRSTR:SELECTCOM_S受け渡しに派生コマンドが入っているはず
 	SELECTCOM = -1
 	SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
 	SIF TRAIN_COMNAME_S(SELECTCOM_S) == ""

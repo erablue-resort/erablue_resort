@@ -1,0 +1,46 @@
+@おさわり可否判定(コマンド文字列)
+#DIMS コマンド文字列
+
+;受け取ったコマンド文字列に変換してABLE CANの両面から判定を行う
+;可能なら0以外を返す（CAN ABLEの値を渡す）
+
+;ゲームフェイズとコマンドのモードを合わせるのを忘れずに
+
+VARSET LOCALS
+SPLIT コマンド文字列, "_", LOCALS
+SELECTCOM = TOINT(LOCALS)
+IF LOCALS:1 == ""
+    RSTR:SELECTCOM_S受け渡し =
+ELSE
+    RSTR:SELECTCOM_S受け渡し '= コマンド文字列
+ENDIF
+IF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+    IF RSTR:SELECTCOM_S受け渡し == ""
+        TRYCALLFORM MASSAGE_CAN_COM{SELECTCOM}(1)
+        IF RESULT
+            CALLFORMF MASSAGE_COMNAME{SELECTCOM}
+            TRYCALLFORM MASSAGE_COM_ABLE{SELECTCOM}
+        ENDIF
+    ELSE
+        TRYCALLFORM MASSAGE_CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
+        IF RESULT
+            CALLFORMF MASSAGE_COMNAME_S%RSTR:SELECTCOM_S受け渡し%
+        ENDIF
+    ENDIF
+ELSE
+    IF RSTR:SELECTCOM_S受け渡し == ""
+        TRYCALLFORM CAN_COM{SELECTCOM}(1)
+        IF RESULT
+            CALLFORMF COMNAME{SELECTCOM}
+            CALLFORM COM_ABLE{SELECTCOM}
+        ENDIF
+    ELSE
+        TRYCALLFORM CAN_COM_S%RSTR:SELECTCOM_S受け渡し%(1)
+        IF RESULT
+            CALLFORMF COMNAME_S%RSTR:SELECTCOM_S受け渡し%
+            CALLFORM 身体に触れる_ABLE_%TSTR:コマンド名受渡%
+        ENDIF
+    ENDIF
+ENDIF
+
+RETURN RESULT
