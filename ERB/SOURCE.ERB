@@ -113,34 +113,7 @@ CALL 挿入アニメ表示(TARGET, "_挿入", FLAG_挿入アニメフィルタ)
 ;-------------------------------------------------
 ;EXP取得表示
 ;-------------------------------------------------
-LOCAL:2 = 0
-LOCAL:3 = 0
-FOR LOCAL,0,CHARANUM
-	SIF CFLAG:LOCAL:滞在期間 < 0
-		CONTINUE
-	FOR LOCAL:1, 0, 200
-		SIF RCVAR:LOCAL:表示カット
-			CONTINUE
-		IF EXP_UP(LOCAL:1,LOCAL)
-			LOCAL:2 ++
-			LOCAL:3 ++
-			SIF LOCAL:2 == 1
-			PRINTL
-			LOCALS = %GET_EXPNAME(LOCAL:1, LOCAL)%
-			PRINTFORM %LOCALS,15,LEFT%
-			IF LOCAL:1 == 89
-				LOCALS = +{EXP_UP(LOCAL:1,LOCAL)}
-				PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:PLAYER% > %CALLNAME:LOCAL%)
-			ELSE
-				LOCALS = +{EXP_UP(LOCAL:1,LOCAL)}
-				PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:LOCAL%)
-			ENDIF
-		ENDIF
-	NEXT
-	LOCAL:2 = 0
-NEXT
-SIF LOCAL:3
-	WAIT
+CALL EXP取得表示_全キャラ()
 ;-------------------------------------------------
 ;ABLUP
 ;-------------------------------------------------
@@ -479,3 +452,50 @@ CALL EXP_GOT_CHECK(対象キャラ)
 SIF CFLAG:対象キャラ:うふふ && 対象キャラ != MASTER
 	CALL SOURCE_CALC_好感度要素_性愛度UP(対象キャラ, PLAYER, RCVAR:対象キャラ:絶頂の強度 * 100)
 
+
+
+;-------------------------------------------------
+;EXP取得表示
+;-------------------------------------------------
+@EXP取得表示_全キャラ()
+#DIM 対象キャラ
+
+LOCAL = 0
+FOR 対象キャラ,0,CHARANUM
+	SIF CFLAG:対象キャラ:滞在期間 < 0
+		CONTINUE
+	CALL EXP取得表示_指定キャラ(対象キャラ)
+	LOCAL += RESULT
+NEXT
+SIF LOCAL
+	WAIT
+
+@EXP取得表示_指定キャラ(対象キャラ)
+#DIM 対象キャラ
+#DIM 改行フラグ
+#DIM 表示フラグ
+#DIM 経験番号
+
+改行フラグ = 0
+表示フラグ = 0
+FOR 経験番号, 0, 200
+	SIF RCVAR:対象キャラ:表示カット
+		CONTINUE
+	IF EXP_UP(経験番号,対象キャラ)
+		改行フラグ ++
+		表示フラグ ++
+		SIF 改行フラグ == 1
+			PRINTL
+		LOCALS = %GET_EXPNAME(経験番号, 対象キャラ)%
+		PRINTFORM %LOCALS,15,LEFT%
+		IF 経験番号 == 89
+			LOCALS = +{EXP_UP(経験番号,対象キャラ)}
+			PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:PLAYER% > %CALLNAME:対象キャラ%)
+		ELSE
+			LOCALS = +{EXP_UP(経験番号,対象キャラ)}
+			PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:対象キャラ%)
+		ENDIF
+	ENDIF
+NEXT
+
+RETURN 表示フラグ
