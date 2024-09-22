@@ -28,7 +28,9 @@ SIF BASE:性欲 > 1000
 	LOCAL += 10
 SIF BASE:酩酊 > 0
 	LOCAL += 5
-SIF BASE:酩酊 > 500
+SIF BASE:酩酊 >= 500
+	LOCAL += 10
+SIF TCVAR:トランス残り時間 > 0
 	LOCAL += 10
 SIF TALENT:処女
 	LOCAL -= 20
@@ -155,7 +157,7 @@ IF 知識素質:TARGET:性知識 < -1 && CFLAG:好感度レベル > 関係閾値
 ENDIF
 
 ;セフレ不可の場合、問答無用でゼロにする
-IF GETBIT(TALENT:TARGET:陥落不可, 1) && BASE:酩酊 < 500
+IF GETBIT(TALENT:TARGET:陥落不可, 1) && BASE:酩酊 < 500 && TCVAR:トランス残り時間 <= 0
 	RFLAG:コマンド結果受渡し変数２ = 0
 	CFLAG:TARGET:お願いックス蓄積値 = 0
 ENDIF
@@ -166,16 +168,21 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 	;うふふへ移行
 	CFLAG:TARGET:うふふ = 1
 	CFLAG:MASTER:うふふ = 1
-	IF BASE:酩酊 < 500
-		SIF TCVAR:TARGET:性交渉成功フラグ == 0
-			CFLAG:TARGET:お願いックス回数 += 1
-		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%に頼み込んでえっちをした</font><img src='えっちハート'>","うふふ")
-		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に頼み込まれて身体を許してしまった</font><img src='えっちハート'>","うふふ")
-	ELSE
+	IF BASE:酩酊 >= 500
 		SIF TCVAR:TARGET:性交渉成功フラグ == 0
 			CFLAG:TARGET:泥酔ックス回数 += 1
 		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>酔った%CALLNAME:TARGET%を手籠めにした</font><img src='えっちハート'>","うふふ")
 		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>酔って%CALLNAME:MASTER%と一線を越えてしまった</font><img src='えっちハート'>","うふふ")
+	ELSEIF TCVAR:トランス残り時間 > 0
+		SIF TCVAR:TARGET:性交渉成功フラグ == 0
+			CFLAG:TARGET:お願いックス回数 += 1
+		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の判断力を奪って手籠めにした</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>一時の気の迷いで%CALLNAME:MASTER%と一線を越えてしまった</font><img src='えっちハート'>","うふふ")
+	ELSE
+		SIF TCVAR:TARGET:性交渉成功フラグ == 0
+			CFLAG:TARGET:お願いックス回数 += 1
+		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%に頼み込んでえっちをした</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に頼み込まれて身体を許してしまった</font><img src='えっちハート'>","うふふ")
 	ENDIF
 	IF 初体験日:TARGET:初うふふ == 0
 		初体験日:TARGET:初うふふ = DAY
@@ -190,6 +197,8 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 		;泥酔時かつ初うふふの場合、翌日釘刺しに来る
 		IF BASE:酩酊 >= 500 && 知識素質:TARGET:性知識 > -1
 			CSTR:TARGET:特殊起床パターン記録 = 初うふふ泥酔ックス後
+		ELSEIF TCVAR:トランス残り時間 > 0 && 知識素質:TARGET:性知識 > -1
+			CSTR:TARGET:特殊起床パターン記録 = 初うふふ気の迷いックス後
 		ENDIF
 	ENDIF
 	TCVAR:TARGET:性交渉成功フラグ = 1
