@@ -213,6 +213,8 @@ ENDIF
 @MODE設定変更処理(入力値)
 #DIMS 入力値
 #DIMS 分割文字列, 4
+#DIM モードID
+#DIMS モード名
 #DIM 実行キャラ番号
 #DIM 対象キャラ番号
 #DIM 口上無しフラグ
@@ -233,29 +235,32 @@ ELSEIF STRCOUNT(入力値, "モード中断_") > 0
 	;モードを中止させるボタン
 	;_でSPLITすれば分割文字列:1に中止させるモードの配列が入る
 	SPLIT 入力値, "_", 分割文字列
-	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(分割文字列:1), "実行キャラ")
-	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", TOINT(分割文字列:1), "対象キャラ")
-	TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(分割文字列:1), "モード名")%解除(実行キャラ番号, 対象キャラ番号)
+	;削除で行番号がズレることを考慮し先にIDを取得しておく
+	モードID = DT_CELL_GET("体位モードデータベース", TOINT(分割文字列:1), "id")
+	モード名 '= DT_CELL_GETS("体位モードデータベース", モードID, "モード名", 1)
+	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", モードID, "実行キャラ", 1)
+	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", モードID, "対象キャラ", 1)
+	TRYCALLFORM MESSAGE_MODE_%モード名%解除(実行キャラ番号, 対象キャラ番号)
 	PRINTL
 	口上無しフラグ = 1
 	IF 実行キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(分割文字列:1), "モード名")%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
+		TRYCCALLFORM KOJO_MODE_%モード名%プレイヤー側解除_{NO:実行キャラ番号}(実行キャラ番号, 対象キャラ番号)
 			PRINTL 
 			口上無しフラグ = 0
 		CATCH
 		ENDCATCH
 	ENDIF
 	IF 対象キャラ番号 != MASTER
-		TRYCCALLFORM KOJO_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(分割文字列:1), "モード名")%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
+		TRYCCALLFORM KOJO_MODE_%モード名%ターゲット側解除_{NO:対象キャラ番号}(実行キャラ番号, 対象キャラ番号)
 			PRINTL 
 			口上無しフラグ = 0
 		CATCH
 		ENDCATCH
 	ENDIF
 	SIF 口上無しフラグ
-		TRYCALLFORM MESSAGE_MODE_%DT_CELL_GETS("体位モードデータベース", TOINT(分割文字列:1), "モード名")%解除_非口上時(実行キャラ番号, 対象キャラ番号)
+		TRYCALLFORM MESSAGE_MODE_%モード名%解除_非口上時(実行キャラ番号, 対象キャラ番号)
 	WAIT
-	CALL MODE_DELETE_配列詰め(TOINT(分割文字列:1))
+	CALL MODE_DELETE_FROM_ID(モードID)
 	RETURN 1
 ELSEIF STRCOUNT(入力値, "モード全表示") > 0
 	INVERTBIT MODE全表示フラグ, 0
