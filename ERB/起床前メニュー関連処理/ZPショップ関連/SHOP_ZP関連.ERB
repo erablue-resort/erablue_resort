@@ -372,13 +372,14 @@ PRINTL 　　　　　値段：（変動させる日数×1）ZP
 PRINTL 　　　　　…リゾート内において、子供を出産するまでにかかる時間を変動させます。
 PRINTL
 RESETCOLOR
-PRINTBUTTON "[1]リゾートに欲情フィールドを展開する", 1
 IF フィールド展開:欲情フィールド
-	PRINTFORM 　　現在：展開済み（残り{フィールド展開:欲情フィールド}日）
+	PRINTBUTTON "[1]欲情フィールドの展開をやめる", 1
+	PRINTFORML 　　現在：展開済み（消費ZP 1日 / 2ZP）
 ELSE
-	PRINTFORM 　　現在：非展開
+	PRINTBUTTON "[1]リゾートに欲情フィールドを展開する", 1
+	PRINTFORML 　　現在：非展開
 ENDIF
-PRINTL 　　　　　値段：（展開する日数×2）ZP
+PRINTL 　　　　　消費ZP：（展開する日数×2）ZP
 PRINTL 　　　　　…リゾート内にいるキャラクターを欲情させるフィールドを展開します。
 PRINTL 　　　　　　時間経過による性欲上昇量が倍になります。
 PRINTL 　　　　　　コマンド「性交渉をお願いする」の効果が大きく上昇します。
@@ -491,71 +492,94 @@ SELECTCASE RESULT
 			ENDSELECT
 		ENDIF
 	CASE 1
-		フィールド期間変化値 = 1
-		$INPUT_BEFORE3
-		PRINTFORML フィールドを展開する日数を入力してください。（現在の展開期間：{フィールド展開:欲情フィールド}日）
-		PRINTBUTTON "[<< -10] ",-999
-		PRINTBUTTON "[< -1] ",-998
-		PRINTBUTTON @" [{フィールド期間変化値}日] 決定  ", 1
-		PRINTBUTTON "[+1 >] ",-997
-		PRINTBUTTON "[+10 >>] " ,-996
-		PRINTBUTTON "      [0]戻る", 0
-		PRINTL
-		$INPUT_LOOP3
-		INPUT
-		消費ZP = フィールド期間変化値 * 2
-		IF RESULT == 0
-			RESTART
-		ELSEIF INRANGE(RESULT,-999,-996)
-			SELECTCASE RESULT
-				CASE -996
-					フィールド期間変化値 = フィールド期間変化値 + 10
-				CASE -997
-					フィールド期間変化値 = フィールド期間変化値 + 1
-				CASE -998
-					フィールド期間変化値 = MAX(フィールド期間変化値 - 1, 1)
-				CASE -999
-					フィールド期間変化値 = MAX(フィールド期間変化値 - 10, 1)
-			ENDSELECT
-			CLEARLINE 3
-			REUSELASTLINE 
-			GOTO INPUT_BEFORE3
-		ELSEIF 消費ZP > FLAG:ZP所持量
-			CLEARLINE 1
-			REUSELASTLINE ZPが足りません
-			GOTO INPUT_LOOP3
+		; フィールド期間変化値 = 1
+		; $INPUT_BEFORE3
+		; PRINTFORML フィールドを展開する日数を入力してください。（現在の展開期間：{フィールド展開:欲情フィールド}日）
+		; PRINTBUTTON "[<< -10] ",-999
+		; PRINTBUTTON "[< -1] ",-998
+		; PRINTBUTTON @" [{フィールド期間変化値}日] 決定  ", 1
+		; PRINTBUTTON "[+1 >] ",-997
+		; PRINTBUTTON "[+10 >>] " ,-996
+		; PRINTBUTTON "      [0]戻る", 0
+		; PRINTL
+		; $INPUT_LOOP3
+		; INPUT
+		; 消費ZP = フィールド期間変化値 * 2
+		; IF RESULT == 0
+		; 	RESTART
+		; ELSEIF INRANGE(RESULT,-999,-996)
+		; 	SELECTCASE RESULT
+		; 		CASE -996
+		; 			フィールド期間変化値 = フィールド期間変化値 + 10
+		; 		CASE -997
+		; 			フィールド期間変化値 = フィールド期間変化値 + 1
+		; 		CASE -998
+		; 			フィールド期間変化値 = MAX(フィールド期間変化値 - 1, 1)
+		; 		CASE -999
+		; 			フィールド期間変化値 = MAX(フィールド期間変化値 - 10, 1)
+		; 	ENDSELECT
+		; 	CLEARLINE 3
+		; 	REUSELASTLINE 
+		; 	GOTO INPUT_BEFORE3
+		; ELSEIF 消費ZP > FLAG:ZP所持量
+		; 	CLEARLINE 1
+		; 	REUSELASTLINE ZPが足りません
+		; 	GOTO INPUT_LOOP3
+		; ELSE
+		; 	IF フィールド展開:欲情フィールド
+		; 		PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日延長します。よろしいですか？
+		; 	ELSE
+		; 		PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日展開します。よろしいですか？
+		; 	ENDIF
+		; 	PRINTBUTTONLC "[0]はい", 0
+		; 	PRINTBUTTONLC "[1]いいえ", 1
+		; 	$INPUT_LOOP3_3
+		; 	INPUT
+		; 	SELECTCASE RESULT
+		; 		CASE 0
+		; 			FLAG:ZP所持量 -= 消費ZP
+		; 			IF フィールド展開:欲情フィールド
+		; 				PRINTFORMW 欲情フィールドを{フィールド期間変化値}日延長しました。
+		; 			ELSE
+		; 				PRINTFORMW 欲情フィールドを{フィールド期間変化値}日展開しました。
+		; 			ENDIF
+		; 			フィールド展開:欲情フィールド += フィールド期間変化値
+		; 			RESTART
+		; 		CASE 1
+		; 			GOTO INPUT_BEFORE3
+		; 		CASEELSE
+		; 			REUSELASTLINE 
+		; 			GOTO INPUT_LOOP3_3
+		; 	ENDSELECT
+		; ENDIF
+		IF フィールド展開:欲情フィールド
+			PRINTFORML 欲情フィールドの展開を止めますか？
 		ELSE
-			IF フィールド展開:欲情フィールド
-				PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日延長します。よろしいですか？
-			ELSE
-				PRINTFORML {消費ZP}ZPを支払い、欲情フィールドを{フィールド期間変化値}日展開します。よろしいですか？
-			ENDIF
-			PRINTBUTTONLC "[0]はい", 0
-			PRINTBUTTONLC "[1]いいえ", 1
-			$INPUT_LOOP3_3
-			INPUT
-			SELECTCASE RESULT
-				CASE 0
-					FLAG:ZP所持量 -= 消費ZP
-					IF フィールド展開:欲情フィールド
-						PRINTFORMW 欲情フィールドを{フィールド期間変化値}日延長しました。
-					ELSE
-						PRINTFORMW 欲情フィールドを{フィールド期間変化値}日展開しました。
-					ENDIF
-					フィールド展開:欲情フィールド += フィールド期間変化値
-					RESTART
-				CASE 1
-					GOTO INPUT_BEFORE3
-				CASEELSE
-					REUSELASTLINE 
-					GOTO INPUT_LOOP3_3
-			ENDSELECT
+			PRINTFORML 欲情フィールドを展開しますか？　毎日2ZPを消費し続けます。
 		ENDIF
+		PRINTBUTTON "[0] はい", 0
+		PRINTL
+		PRINTBUTTON "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		$INPUT_LOOP3
+		SELECTCASE RESULT
+			CASE 0
+				IF フィールド展開:欲情フィールド
+					PRINTFORMW 欲情フィールドの展開を止めました。
+				ELSE
+					PRINTFORMW 欲情フィールドを展開しました。
+				ENDIF
+				INVERTBIT フィールド展開:欲情フィールド, 0
+				RESTART
+			CASE 1
+				RESTART
+		ENDSELECT
 	CASE 2
 		IF フィールド展開:露出フィールド
-			PRINTFORML フィールドの展開を止めますか？
+			PRINTFORML 露出フィールドの展開を止めますか？
 		ELSE
-			PRINTFORML フィールドを展開しますか？　毎日5ZPを消費し続けます。
+			PRINTFORML 露出フィールドを展開しますか？　毎日5ZPを消費し続けます。
 		ENDIF
 		PRINTBUTTON "[0] はい", 0
 		PRINTL
