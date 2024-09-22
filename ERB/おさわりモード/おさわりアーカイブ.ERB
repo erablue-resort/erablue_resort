@@ -28,21 +28,58 @@ NEXT
 RETURN
 
 
-@おさわりファイル差分選出(ファイル数, 画像サイズ, 衣装種類, 適正衣装種類ID, 適正差分種類ID, 対象衣装種類ID, 対象差分種類ID, 対象ファイルID)
+@おさわりファイル差分選出(ファイル数, 画像サイズ, 衣装種類, 現在衣装種類ID, 適正衣装種類ID, 適正差分種類ID, 対象衣装種類ID, 対象差分種類ID, 対象ファイルID, マッサージ画像優先フラグ)
 ;同属性のファイルを抽選する
 ;欲情などの状態を監視して差分選出をする
+;マッサージ画像などの画像規格を返す 1=マッサージ
 #DIM REF ファイル数,0,0
 #DIM REF 画像サイズ,0
 #DIMS REF 衣装種類,0
+#DIM 現在衣装種類ID
 #DIM REF 適正衣装種類ID
 #DIM REF 適正差分種類ID
 #DIM REF 対象衣装種類ID
 #DIM REF 対象差分種類ID
 #DIM REF 対象ファイルID
+#DIM マッサージ画像優先フラグ
 
+SELECTCASE SAVESTR:ゲームフェイズ管理
+CASE "マッサージモード"
+    GOTO マッサージモード
+CASEELSE
+    GOTO 通常モード
+ENDSELECT
 ;対象属性の画像が複数枚あるときは、現在と違う画像を選出する
 ;対象差分がないときは適正衣装、デフォルトの順に差分をチェックして代わりに表示する
 
+$マッサージモード
+;マッサージ画像を優先して出す
+;表裏どちらかがあれば出す
+適正衣装種類ID = 現在衣装種類ID
+IF マッサージ画像優先フラグ
+    IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+        ELSE
+            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
+                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
+            ELSE
+            ENDIF
+        ENDIF
+    ELSE
+        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
+        ELSE
+            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
+                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+            ELSE
+            ENDIF
+        ENDIF
+    ENDIF
+ENDIF
+
+
+$通常モード
 SELECTCASE ファイル数:適正衣装種類ID:適正差分種類ID
     CASE 0
         IF ファイル数:適正衣装種類ID:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
@@ -86,10 +123,8 @@ SELECTCASE ファイル数:適正衣装種類ID:適正差分種類ID
         NEXT
 ENDSELECT
 
-IF 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ")
-    画像サイズ = CLIENTHEIGHT(), CLIENTHEIGHT()
+IF 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ開始") || 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+    RETURN 1
 ELSE
-    画像サイズ = 360, 720
+    RETURN 0
 ENDIF
-
-RETURN
