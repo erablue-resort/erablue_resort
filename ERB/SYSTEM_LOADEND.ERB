@@ -9,7 +9,6 @@
 #DIM 部屋セットチェック
 #DIM 追加キャラ保存, 100
 #DIM 互換維持用変数, 100
-#DIMS 弱点一時保存, 50
 #DIM 同行配列番号
 #DIM L_C
 #DIM F_NUM
@@ -163,56 +162,7 @@ FOR LOCAL, 1, CHARANUM
 	CALL 体力変動素質適用処理(LOCAL)
 
 	;弱点コマンドの設定がされているかどうかチェック
-	VARSET 弱点一時保存
-	IF EXISTFUNCTION(@"弱点コマンド変更_{NO:LOCAL}")
-		FOR LOCAL:1, 0, 50
-			弱点一時保存:(LOCAL:1) = %弱点コマンド枠:LOCAL:(LOCAL:1)%
-		NEXT
-		VARSET 弱点コマンド枠:LOCAL:0
-		TRYCALLFORM 弱点コマンド変更_{NO:LOCAL}
-		FOR LOCAL:1, 0, 50
-			IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
-				;口上で指定されてないのを入れ込む場合、有効な弱点かどうか見る
-				IF EXISTFUNCTION(@"COMTYPE_S_%弱点一時保存:(LOCAL:1)%")
-					SIF 弱点コマンド候補判定(LOCAL, @"COMTYPE_S_%弱点一時保存:(LOCAL:1)%")
-						弱点コマンド枠:LOCAL:(LOCAL:1) = %弱点一時保存:(LOCAL:1)%
-				ELSEIF EXISTFUNCTION(@"COMTYPE_%弱点一時保存:(LOCAL:1)%")
-					SIF 弱点コマンド候補判定(LOCAL, @"COMTYPE_%弱点一時保存:(LOCAL:1)%")
-						弱点コマンド枠:LOCAL:(LOCAL:1) = %弱点一時保存:(LOCAL:1)%
-				ELSE
-					弱点コマンド枠:LOCAL:(LOCAL:1) = 
-				ENDIF
-				;上を通って空っぽ、あるいはランダム指定ならランダムに入れ込む
-				IF 弱点コマンド枠:LOCAL:(LOCAL:1) == "-1" || (弱点コマンド枠:LOCAL:(LOCAL:1) == "" && LOCAL:1 <= 5)
-					RESULTS = 
-					CALL 弱点コマンドランダム選出(LOCAL)
-					弱点コマンド枠:LOCAL:(LOCAL:1) = %RESULTS%
-				ENDIF
-			ENDIF
-		NEXT
-	ELSE
-		;弱点の口上設定がない場合、有効な弱点かどうかだけ見る
-		FOR LOCAL:1, 0, 50
-			;今現在設定されてない弱点枠には触らない
-			SIF 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
-				BREAK
-			IF EXISTFUNCTION(@"COMTYPE_S_%弱点コマンド枠:LOCAL:(LOCAL:1)%")
-				SIF 弱点コマンド候補判定(LOCAL, @"COMTYPE_S_%弱点コマンド枠:LOCAL:(LOCAL:1)%") == 0
-					弱点コマンド枠:LOCAL:(LOCAL:1) = 
-			ELSEIF EXISTFUNCTION(@"COMTYPE_%弱点コマンド枠:LOCAL:(LOCAL:1)%")
-				SIF 弱点コマンド候補判定(LOCAL, @"COMTYPE_%弱点コマンド枠:LOCAL:(LOCAL:1)%") == 0
-					弱点コマンド枠:LOCAL:(LOCAL:1) = 
-			ELSE
-				弱点コマンド枠:LOCAL:(LOCAL:1) = 
-			ENDIF
-			;上を通って空っぽならランダムに入れ込む
-			IF 弱点コマンド枠:LOCAL:(LOCAL:1) == ""
-				RESULTS = 
-				CALL 弱点コマンドランダム選出(LOCAL)
-				弱点コマンド枠:LOCAL:(LOCAL:1) = %RESULTS%
-			ENDIF
-		NEXT
-	ENDIF
+	CALL 弱点妥当性チェック(LOCAL)
 
 	;画像フォルダが有効かチェック
 	CALL 画像フォルダ有効チェック(LOCAL)
@@ -298,3 +248,62 @@ IF (REAL_TIME < LOCAL:1)
 	REAL_TIME = LOCAL:1
 	CALL ログインボーナス処理
 ENDIF
+
+
+@弱点妥当性チェック(対象キャラ)
+#DIM 対象キャラ
+#DIMS 弱点一時保存, 50
+#DIM 弱点番号
+
+VARSET 弱点一時保存
+IF EXISTFUNCTION(@"弱点コマンド変更_{NO:対象キャラ}")
+	FOR 弱点番号, 0, 50
+		弱点一時保存:弱点番号 = %弱点コマンド枠:対象キャラ:弱点番号%
+	NEXT
+	VARSET 弱点コマンド枠:対象キャラ:0
+	TRYCALLFORM 弱点コマンド変更_{NO:対象キャラ}
+	FOR 弱点番号, 0, 50
+		IF 弱点コマンド枠:対象キャラ:弱点番号 == "-1" || 弱点コマンド枠:対象キャラ:弱点番号 == ""
+			;口上で指定されてないのを入れ込む場合、有効な弱点かどうか見る
+			IF EXISTFUNCTION(@"COMTYPE_S_%弱点一時保存:弱点番号%")
+				SIF 弱点コマンド候補判定(対象キャラ, @"COMTYPE_S_%弱点一時保存:弱点番号%")
+					弱点コマンド枠:対象キャラ:弱点番号 = %弱点一時保存:弱点番号%
+			ELSEIF EXISTFUNCTION(@"COMTYPE_%弱点一時保存:弱点番号%")
+				SIF 弱点コマンド候補判定(対象キャラ, @"COMTYPE_%弱点一時保存:弱点番号%")
+					弱点コマンド枠:対象キャラ:弱点番号 = %弱点一時保存:弱点番号%
+			ELSE
+				弱点コマンド枠:対象キャラ:弱点番号 = 
+			ENDIF
+			;上を通って空っぽ、あるいはランダム指定ならランダムに入れ込む
+			IF 弱点コマンド枠:対象キャラ:弱点番号 == "-1" || (弱点コマンド枠:対象キャラ:弱点番号 == "" && 弱点番号 <= 5)
+				RESULTS = 
+				CALL 弱点コマンドランダム選出(対象キャラ)
+				弱点コマンド枠:対象キャラ:弱点番号 = %RESULTS%
+			ENDIF
+		ENDIF
+	NEXT
+ELSE
+	;弱点の口上設定がない場合、有効な弱点かどうかだけ見る
+	FOR 弱点番号, 0, 50
+		;今現在設定されてない弱点枠には触らない
+		SIF 弱点コマンド枠:対象キャラ:弱点番号 == ""
+			BREAK
+		IF EXISTFUNCTION(@"COMTYPE_S_%弱点コマンド枠:対象キャラ:弱点番号%")
+			SIF 弱点コマンド候補判定(対象キャラ, @"COMTYPE_S_%弱点コマンド枠:対象キャラ:弱点番号%") == 0
+				弱点コマンド枠:対象キャラ:弱点番号 = 
+		ELSEIF EXISTFUNCTION(@"COMTYPE_%弱点コマンド枠:対象キャラ:弱点番号%")
+			SIF 弱点コマンド候補判定(対象キャラ, @"COMTYPE_%弱点コマンド枠:対象キャラ:弱点番号%") == 0
+				弱点コマンド枠:対象キャラ:弱点番号 = 
+		ELSE
+			弱点コマンド枠:対象キャラ:弱点番号 = 
+		ENDIF
+		;上を通って空っぽならランダムに入れ込む
+		IF 弱点コマンド枠:対象キャラ:弱点番号 == ""
+			RESULTS = 
+			CALL 弱点コマンドランダム選出(対象キャラ)
+			弱点コマンド枠:対象キャラ:弱点番号 = %RESULTS%
+		ENDIF
+	NEXT
+ENDIF
+
+

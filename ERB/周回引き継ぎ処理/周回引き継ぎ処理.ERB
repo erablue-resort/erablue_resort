@@ -30,6 +30,7 @@ ELSE
 ENDIF
 PRINT 　　
 PRINTBUTTON "[説明]", 101
+PRINTL
 IF あなた引き継ぎフラグ
 	HTML_PRINT @"<button value='102'>[102] %CALLNAME:MASTER%の能力・履歴を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
 ELSE
@@ -37,6 +38,14 @@ ELSE
 ENDIF
 PRINT 　　
 PRINTBUTTON "[説明]", 103
+PRINTL
+IF キャラ弱点引き継ぎフラグ
+	HTML_PRINT @"<button value='104'>[104] キャラの弱点判明状態・ランダム弱点を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
+ELSE
+	HTML_PRINT @"<button value='104'>[104] キャラの弱点判明状態・ランダム弱点を<font color='#%カラーパレット_HTML("グレーアウト")%'>引き継ぐ</font> / 引き継がない</button>", 1
+ENDIF
+PRINT 　　
+PRINTBUTTON "[説明]", 105
 PRINTL
 PRINTL
 PRINTBUTTON "[998] これで新しいゲームを開始する", 998
@@ -64,6 +73,16 @@ SELECTCASE LOCAL
 		PRINTFORML %CALLNAME:MASTER%のステータス、獲得した特殊能力、および履歴を引き継ぎます。
 		PRINTFORML 引き継いだ場合、%CALLNAME:MASTER%の履歴と引き継いでいないキャラクターの履歴の整合性が取れなくなります。
 		PRINTL 引き継ぎキャラとの履歴の整合性は保たれます。
+		WAIT
+		RESTART
+	CASE 104
+		INVERTBIT キャラ弱点引き継ぎフラグ, 0
+		RESTART
+	CASE 105
+		DRAWLINE
+		PRINTFORML キャラクターの弱点判明状況、及びランダムで割り振られた弱点枠を引き継ぎます。
+		PRINTFORML 引き継いだ場合、すでに判明している弱点はゲーム開始時に判明済みとなり、キャラクターの弱点は今期と同じになります。
+		PRINTL 引き継がない場合、全ての弱点は未判明状態に戻り、口上で設定してある弱点を除きランダムに変更されます。
 		WAIT
 		RESTART
 	CASE 999
@@ -265,6 +284,7 @@ SAVETEXT RESULTS:1, "dat/履歴DT_schema.txt"
 制服引き継ぎ = %所持制服文字列%
 エロ衣装引き継ぎ = %所持エロ衣装文字列%
 所持ルピ引き継ぎ = MONEY
+
 LOCAL:1 = 0
 FOR LOCAL, 1, CHARANUM
 	キャラ変数引き継ぎ:(LOCAL):キャラ番号 = NO:LOCAL
@@ -272,11 +292,14 @@ FOR LOCAL, 1, CHARANUM
 		キャラ変数引き継ぎ:(LOCAL):キャラ番号 = ランダムキャラ記録位置判別(LOCAL) * -1
 	ENDIF
 	キャラ変数引き継ぎ:(LOCAL):肉体熟知 = EXP:LOCAL:肉体熟知
-	FOR 弱点配列, 0, 50
-		キャラ変数引き継ぎ:(LOCAL):(弱点配列 + 2) = 弱点看破:LOCAL:弱点配列
-		キャラ文字列引き継ぎ:(LOCAL):弱点配列 = %弱点コマンド枠:LOCAL:弱点配列%
-	NEXT
+	IF キャラ弱点引き継ぎフラグ
+		FOR 弱点配列, 0, 50
+			キャラ変数引き継ぎ:(LOCAL):(弱点配列 + 2) = 弱点看破:LOCAL:弱点配列
+			キャラ文字列引き継ぎ:(LOCAL):弱点配列 = %弱点コマンド枠:LOCAL:弱点配列%
+		NEXT
+	ENDIF
 NEXT
+
 ARRAYCOPY "オート射精先オプション", "オート射精設定引き継ぎ"
 
 VARSET あなた特殊能力引き継ぎ
