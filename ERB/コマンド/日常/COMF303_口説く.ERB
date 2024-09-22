@@ -19,6 +19,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM303
+#DIM トランス判定フラグ
 ;会話
 
 ;会話累積値が閾値を超えると失敗
@@ -38,13 +39,17 @@ SIF LOCAL:1 > 99
 IF LOCAL <= 9
 	;10％で大成功
 	RFLAG:コマンド結果受渡し変数 = 1
+	トランス判定フラグ = 1
 	EXP:MASTER:会話経験 ++
 ELSEIF LOCAL >= LOCAL:1
 	;10～1％で失敗
 	RFLAG:コマンド結果受渡し変数 = -1
+	トランス判定フラグ = 0
 ELSE
 	;残りは成功
 	RFLAG:コマンド結果受渡し変数 = 0
+	;1/3～2/3（会話技能による）の確率でトランス状態が発生
+	トランス判定フラグ = (LOCAL <= LOCAL:1 * (10 + ABL:MASTER:話術技能) / 30)
 ENDIF
 
 ;愛情強度
@@ -93,6 +98,12 @@ CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, LOCAL:1)
 LOCAL = 200 - (TALENT:TARGET:会話資質 * 50) - (TALENT:PLAYER:会話資質 * 50)
 TCVAR:会話累積値 += LOCAL / (3 + ABL:MASTER:話術技能 + TALENT:TARGET:陽気／陰気)
 
+;トランス状態の追加
+IF トランス判定フラグ && あなた特殊能力:遊び人 >= 5 && !CFLAG:怒り && !TALENT:恋慕
+	RFLAG:コマンド結果受渡し変数 = 2
+	TCVAR:トランス残り時間 += 45
+ENDIF
+
 TIME += 15
 EXP:MASTER:会話経験 ++
 RETURN 1
@@ -124,20 +135,25 @@ RETURN 1
 PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%
 IF TALENT:恋慕
 	PRINTDATA
-		DATAFORM へ、愛を伝える言葉を囁いた
-		DATAFORM へ、とろけるような甘い言葉を送った
+		DATA へ、愛を伝える言葉を囁いた
+		DATA へ、とろけるような甘い言葉を送った
 	ENDDATA
 ELSE
 	PRINTDATA
-		DATAFORM の美しさを褒めたたえた
-		DATAFORM の心が清らかだと誉めそやした
-		DATAFORM がとてもセクシーだと囁いた
-		DATAFORM ともっと親しくなりたいと距離を詰めた
+		DATA の美しさを褒めたたえた
+		DATA の心が清らかだと誉めそやした
+		DATA がとてもセクシーだと囁いた
+		DATA ともっと親しくなりたいと距離を詰めた
 	ENDDATA
 ENDIF
 PRINTL 
-IF 知識素質:性知識 < 1
-		PRINTFORML %CALLNAME:TARGET%はよく意味がわかっていないようだ…
+IF RFLAG:コマンド結果受渡し変数 == 2
+	PRINTFORM 妖しく情熱的な%CALLNAME:PLAYER%の口説き文句に、%CALLNAME:TARGET%は
+	SIF 知識素質:性知識 < 1
+		PRINT 意味はわからないながらも
+	PRINTL すっかり酔っているようだ…
+ELSEIF 知識素質:性知識 < 1
+	PRINTFORML %CALLNAME:TARGET%はよく意味がわかっていないようだ…
 ELSEIF RFLAG:コマンド結果受渡し変数 == 1
 	IF TALENT:恋慕
 		PRINTFORML %CALLNAME:TARGET%は喜んで、同じく愛の言葉を返してくれた
