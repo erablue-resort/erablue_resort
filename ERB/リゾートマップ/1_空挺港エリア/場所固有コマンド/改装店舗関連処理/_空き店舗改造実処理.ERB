@@ -4,6 +4,10 @@
 #DIM 画面表示用変数
 VARSET LOCALS
 
+IF 空艇港店舗屋号記録:店番号 == ""
+	空艇港店舗屋号記録:店番号 = %空艇港_店舗屋号ランダム決定()%
+ENDIF
+
 DRAWLINE
 PRINTL 空艇港エリアの店舗を改装します。
 PRINTL どのような店舗にしますか？
@@ -12,7 +16,7 @@ LOCALS = <div rect='81,0,1912,344' border='31' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='156,62,1912,281'>所持ルピ：%NUM_FORMAT(MONEY)%<br>所持ZP　：%ZP所持量全文字列()%</div>"
 LOCALS += "<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='156,500,1937,2812'>"
-CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:店番号:0}
+CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:店番号:0}(店番号)
 LOCALS += @"<button value='99'>[99] 現在の店舗：%TSTR:場所名受渡%</button>"
 LOCALS += "<br>"
 IF 空艇港店舗状況:店番号:0 != 0
@@ -66,7 +70,7 @@ SELECTCASE LOCAL
 	CASE 999
 		RETURN -1
 	CASE 0
-		CALLFORM 空艇港店舗解説文_{画面表示用変数 - 100}(LOCALS:1)
+		CALLFORM 空艇港店舗解説文_{画面表示用変数 - 100}(LOCALS:1, 店番号)
 		LOCAL:1 = RESULT
 		IF MONEY < LOCAL:1
 			DRAWLINE
@@ -74,7 +78,7 @@ SELECTCASE LOCAL
 			画面表示用変数 = 0
 			RESTART
 		ENDIF
-		CALLFORMF 空艇港店舗名表示_{画面表示用変数 - 100}
+		CALLFORMF 空艇港店舗名表示_{画面表示用変数 - 100}(店番号)
 		DRAWLINE
 		PRINTFORMW %NUM_FORMAT(LOCAL:1)%ルピ消費し、店舗を%TSTR:場所名受渡%に改装しました。
 		空艇港店舗状況:店番号:0 = 画面表示用変数 - 100
@@ -83,6 +87,28 @@ SELECTCASE LOCAL
 		RESTART
 	CASE 1
 		画面表示用変数 = 0
+		RESTART
+	CASE 10
+		PRINTL 
+		PRINTL 
+		DRAWLINE
+		PRINTL 屋号を入力してください。
+		DRAWLINE
+		INPUTS
+		IF RESULTS == ""
+			PRINTL 
+			PRINTL 
+			PRINTFORMW 入力が空欄だったため、屋号をランダムに変更しました。
+			空艇港店舗屋号記録:店番号 = %空艇港_店舗屋号ランダム決定()%
+		ELSE
+			空艇港店舗屋号記録:店番号 = %RESULTS%
+			PRINTL 
+			PRINTL 
+			PRINTFORMW 屋号を%空艇港店舗屋号記録:店番号%に変更しました。
+		ENDIF
+		RESTART
+	CASE 11
+		空艇港店舗屋号記録:店番号 = %空艇港_店舗屋号ランダム決定()%
 		RESTART
 ENDSELECT
 
@@ -94,15 +120,26 @@ ENDSELECT
 
 SELECTCASE 画面表示用変数
 	CASE 0
-		LOCALS = <div rect='2125,500,3675,2812'>
-		CALLFORM 空艇港店舗解説文_{空艇港店舗状況:店番号:0}(建物文章受け渡し文字列)
+		LOCALS = <div rect='2125,500,3775,2812'>
+		CALLFORM 空艇港店舗解説文_{空艇港店舗状況:店番号:0}(建物文章受け渡し文字列, 店番号)
 		LOCALS += 建物文章受け渡し文字列
+		IF 空艇港店舗状況:店番号:0 != 0
+			LOCALS += "<br>"
+			LOCALS += "<button value='10'>[10] 屋号を入力する</button><br>"
+			LOCALS += "<button value='11'>[11] 屋号をランダムに変更する</button><br>"
+			LOCALS += "<br>"
+		ENDIF
 		LOCALS += "</div>"
 	CASE 100 TO 104
-		LOCALS = <div rect='2125,500,3675,2812'>
-		CALLFORM 空艇港店舗解説文_{画面表示用変数 - 100}(建物文章受け渡し文字列)
+		LOCALS = <div rect='2125,500,3775,2812'>
+		CALLFORM 空艇港店舗解説文_{画面表示用変数 - 100}(建物文章受け渡し文字列, 店番号)
 		LOCALS += 建物文章受け渡し文字列
 		LOCALS += "<br>"
+		IF 画面表示用変数 != 100
+			LOCALS += "<button value='10'>[10] 屋号を入力する</button><br>"
+			LOCALS += "<button value='11'>[11] 屋号をランダムに変更する</button><br>"
+			LOCALS += "<br>"
+		ENDIF
 		LOCALS += "この状態に改装しますか？<br>"
 		LOCALS += @"必要ルピ：%NUM_FORMAT(RESULT), 7%"
 		LOCALS += "<br>"
@@ -112,3 +149,153 @@ SELECTCASE 画面表示用変数
 ENDSELECT
 
 HTML_PRINT LOCALS, 1
+
+
+@空艇港_店舗屋号ランダム決定()
+#FUNCTIONS
+#DIMS 屋号_上
+#DIMS 屋号_下
+
+
+STRDATA 屋号_上
+	DATA era
+	DATAFORM %CALLNAME:MASTER%
+	DATA 火炎
+	DATA 流水
+	DATA そよ風
+	DATA 大地
+	DATA 栄光
+	DATA 夜闇
+	DATA 夢想
+	DATA 魔法
+	DATA 魔術
+	DATA 秘密
+	DATA 神秘
+	DATA 実り
+	DATA 星々
+	DATA 恵み
+	DATA 恋愛
+	DATA 戦車
+	DATA 勝利
+	DATA 剛力
+	DATA 勇気
+	DATA 隠者
+	DATA 賢者
+	DATA 運命
+	DATA 幸運
+	DATA 時代
+	DATA 正義
+	DATA 平等
+	DATA 叡智
+	DATA 節制
+	DATA 悪魔
+	DATA 宿命
+	DATA 塔
+	DATA 星
+	DATA 希望
+	DATA 月
+	DATA 幻想
+	DATA 太陽
+	DATA 青春
+	DATA 双子
+	DATA 審判
+	DATA 復活
+	DATA 世界
+	DATA 宇宙
+	DATA 真実
+	DATA 剣
+	DATA 探検
+	DATA 短剣
+	DATA 剛斧
+	DATA 鋭槍
+	DATA 魔杖
+	DATA 強弓
+	DATA 大銃
+	DATA 楽琴
+	DATA 鉄拳
+	DATA 名刀
+	DATA 追憶
+	DATA 闊達
+	DATA 剛健
+	DATA 豪放
+	DATA 大志
+	DATA 天稟
+	DATA 熱血
+	DATA 熱烈
+	DATA 飛翔
+	DATA 不屈
+	DATA 伏龍
+	DATA 鳳梨
+	DATA 不敗
+	DATA 奮迅
+	DATA 無敵
+	DATA 一心
+	DATA 威風
+	DATA 英雄
+	DATA 果断
+	DATA 矜持
+	DATA 調和
+	DATA 闘魂
+	DATA 邁進
+	DATA 友情
+	DATA 勝利
+	DATA 努力
+	DATA 団結
+	DATA 挑戦
+	DATA 疾風
+	DATA 勇猛
+	DATA 朝霧
+	DATA 稲妻
+	DATA 永遠
+	DATA 桜花
+	DATA 風花
+	DATA 月下
+	DATA 紫苑
+	DATA 月華
+	DATA 東雲
+	DATA 秋水
+	DATA 青雲
+	DATA 蒼穹
+	DATA 玉響
+	DATA 薄氷
+	DATA 翡翠
+	DATA 白夜
+	DATA 名月
+	DATA 謳歌
+	DATA 残響
+	DATA 万雷
+	DATA 珊瑚
+	DATA 真珠
+	DATA 藍玉
+	DATA 黄玉
+	DATA 柘榴
+	DATA 水晶
+	DATA 玉髄
+	DATA 孔雀
+	DATA 月長
+	DATA 紅玉
+	DATA 黒玉
+	DATA 黒曜
+	DATA 金剛
+	DATA 琥珀
+	DATA 虎目
+	DATA 越後
+ENDDATA
+
+STRDATA 屋号_下
+	DATA 屋
+	DATA 商店
+	DATA 堂
+	DATA 本舗
+	DATA ストア
+	DATA ショップ
+	DATA 舎
+	DATA 企画
+	DATA 工房
+	DATA マーケット
+	DATA 市場
+	DATA 倉庫
+ENDDATA
+
+RETURNF 屋号_上 + 屋号_下
+
