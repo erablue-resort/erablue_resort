@@ -28,58 +28,21 @@ NEXT
 RETURN
 
 
-@おさわりファイル差分選出(ファイル数, 画像サイズ, 衣装種類, 現在衣装種類ID, 適正衣装種類ID, 適正差分種類ID, 対象衣装種類ID, 対象差分種類ID, 対象ファイルID, マッサージ画像優先フラグ)
+@おさわりファイル差分選出(ファイル数, 画像サイズ, 衣装種類, 適正衣装種類ID, 適正差分種類ID, 対象衣装種類ID, 対象差分種類ID, 対象ファイルID)
 ;同属性のファイルを抽選する
 ;欲情などの状態を監視して差分選出をする
 ;マッサージ画像などの画像規格を返す 1=マッサージ
 #DIM REF ファイル数,0,0
 #DIM REF 画像サイズ,0
 #DIMS REF 衣装種類,0
-#DIM 現在衣装種類ID
 #DIM REF 適正衣装種類ID
 #DIM REF 適正差分種類ID
 #DIM REF 対象衣装種類ID
 #DIM REF 対象差分種類ID
 #DIM REF 対象ファイルID
-#DIM マッサージ画像優先フラグ
 
-SELECTCASE SAVESTR:ゲームフェイズ管理
-CASE "マッサージモード"
-    GOTO マッサージモード
-CASEELSE
-    GOTO 通常モード
-ENDSELECT
 ;対象属性の画像が複数枚あるときは、現在と違う画像を選出する
 ;対象差分がないときは適正衣装、デフォルトの順に差分をチェックして代わりに表示する
-
-$マッサージモード
-;マッサージ画像を優先して出す
-;表裏どちらかがあれば出す
-適正衣装種類ID = 現在衣装種類ID
-IF マッサージ画像優先フラグ
-    IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
-        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
-            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
-        ELSE
-            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
-                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
-            ELSE
-            ENDIF
-        ENDIF
-    ELSE
-        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
-            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
-        ELSE
-            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
-                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
-            ELSE
-            ENDIF
-        ENDIF
-    ENDIF
-ENDIF
-
-
-$通常モード
 SELECTCASE ファイル数:適正衣装種類ID:適正差分種類ID
     CASE 0
         IF ファイル数:適正衣装種類ID:1 && (PALAM:TARGET:欲情 >= PALAMLV:4 || CFLAG:TARGET:発情期フラグ < 0)
@@ -123,8 +86,109 @@ SELECTCASE ファイル数:適正衣装種類ID:適正差分種類ID
         NEXT
 ENDSELECT
 
-IF 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ開始") || 対象衣装種類ID == FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+;画像サイズはこの時点で確定したので分類をRETURNする
+;1=CLIENTHEIGHT()*CLIENTHEIGHT()　2=360*720サイズ
+IF STRFIND(衣装種類:対象衣装種類ID, "マッサージ") >= 0
     RETURN 1
 ELSE
     RETURN 0
 ENDIF
+
+@おさわりファイル適正選出(ファイル数, 衣装種類, 現在衣装種類ID, 適正衣装種類ID, 差分種類, 適正差分種類ID, マッサージ画像優先フラグ, 画像切り替えカウンタ)
+#DIM REF ファイル数,0,0
+#DIMS REF 衣装種類,0
+#DIMS REF 差分種類,0
+#DIM 現在衣装種類ID
+#DIM REF 適正衣装種類ID
+#DIM REF 適正差分種類ID
+#DIM 前回欲情
+#DIM マッサージ画像優先フラグ
+#DIM 更新フラグ
+#DIM REF 画像切り替えカウンタ
+
+更新フラグ = 0
+
+;マッサージモードの時
+;マッサージの種類を判定して衣装種類を設定する
+;フラグを持っていればマッサージモードかつフラグONになる
+IF マッサージ画像優先フラグ
+    ;指定マッサージ画像を適正衣装にセットする
+    IF CUP:TARGET:快Ｂ ;胸マッサージのとき
+        適正衣装種類ID = FINDELEMENT(衣装種類, "Ｂマッサージ")
+        画像切り替えカウンタ = 3
+        更新フラグ = 1
+    ELSEIF CUP:TARGET:快Ａ ;尻マッサージのとき
+        適正衣装種類ID = FINDELEMENT(衣装種類, "Ａマッサージ")
+        画像切り替えカウンタ = 3
+        更新フラグ = 1
+    ELSEIF CUP:TARGET:快Ｖ ;Ｖマッサージのとき
+        適正衣装種類ID = FINDELEMENT(衣装種類, "Ｖマッサージ")
+        画像切り替えカウンタ = 3
+        更新フラグ = 1
+    ELSEIF CUP:TARGET:快Ｃ ;Ｃマッサージのとき
+        適正衣装種類ID = FINDELEMENT(衣装種類, "Ｃマッサージ")
+        画像切り替えカウンタ = 3
+        更新フラグ = 1
+    ENDIF
+
+    ;自然画像切り替え時に標準マッサージ画像をセットする
+    IF 画像切り替えカウンタ == 5
+        IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+        ELSE
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
+        ENDIF
+    ENDIF
+
+    ;ここからは適正衣装が存在するかしないかで振り分けるブロック------------------------
+    ;指定マッサージかチェック
+    IF STRFIND(衣装種類:適正衣装種類ID, "マッサージ") > 1 
+        ;先頭文字が"マ"でないマッサージ画像
+        ;該当のマッサージ画像があるかチェック
+        IF ファイル数:適正衣装種類ID:0
+            ;適正衣装種類ID = 適正衣装種類ID のままパスする
+            GOTO 差分
+        ENDIF
+    ENDIF
+    ;表裏でチェックして、あればその画像でなければ着せ替え服
+    適正衣装種類ID = 現在衣装種類ID
+    IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+        ELSE
+            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
+                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
+            ELSE
+            ENDIF
+        ENDIF
+    ELSE
+        IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始"):0
+            適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始")
+        ELSE
+            IF ファイル数:FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ"):0
+                適正衣装種類ID = FINDELEMENT(衣装種類, "マッサージ開始うつ伏せ")
+            ELSE
+            ENDIF
+        ENDIF
+    ENDIF
+ELSE
+    ;マッサージ優先でないときは着せ替え服
+    適正衣装種類ID = 現在衣装種類ID
+ENDIF
+
+$差分
+;今回初めて欲情になったとき、欲情画像を優先表示候補にする
+IF PALAM:TARGET:欲情 >= PALAMLV:4 && 前回欲情 < PALAMLV:4
+    適正差分種類ID = 1
+    更新フラグ = 1
+ENDIF
+前回欲情 = PALAM:TARGET:欲情
+
+;絶頂差分から復帰するために表示候補を変える
+IF PALAM:TARGET:欲情 >= PALAMLV:4
+    適正差分種類ID = 1
+ELSE
+    適正差分種類ID = 0
+ENDIF
+
+RETURN 更新フラグ
