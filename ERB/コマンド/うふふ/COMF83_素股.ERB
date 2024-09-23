@@ -19,12 +19,16 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ&奉仕")
 
 @COM_TOOLTIP_83
 LOCALS = <br>■素股<br>
-LOCALS += "相手の股間にペニスを挟み、前後して刺激を与えるコマンド。<br>※モード化検討中。現状は単発コマンド。"
+LOCALS += "相手の股間でペニスを挟み、前後して刺激を与えてもらうコマンド。<br>素股モードとなり、モードを変更するか性行為を終了するまで持続的に特定のソースが発生する。"
 LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・露出・接触・奉仕・不潔"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM83
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("素股", TARGET, PLAYER)
 ;-------------------------------------------------
 ;COM別FLAGの設定
 ;-------------------------------------------------
@@ -223,20 +227,23 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 SIF GLOBAL_COMABLE(83)
 	RETURN RESULT
 ;ちんこがない場合駄目
-SIF TALENT:PLAYER:Ｃ感度 == -2
+SIF !GETBIT(TALENT:PLAYER:性別, 1) || TALENT:PLAYER:Ｃ感度 == -2
 	RETURN 0
 ;潤滑が高くないとダメ
 SIF PALAM:潤滑 < 2000
 	RETURN 0
-;調教者がオトコか半人半妖かふたなりじゃないとダメ
-SIF !(TALENT:PLAYER:性別 & 2)
-	RETURN 0
 
-;下半身着衣
-;鎧、めくれない服、タイツ、前張りがあると無理
-SIF TEQUIP:下腹部前鎧あり
+;下半身着衣（挟まれる側）
+;前鎧、タイツ、前張りがあると無理
+SIF TEQUIP:PLAYER:下腹部前鎧あり
 	RETURN 0
-SIF TEQUIP:下腹部後鎧あり
+SIF TEQUIP:PLAYER:下タイツあり && !TEQUIP:PLAYER:下タイツ破れ
+	RETURN 0
+SIF TEQUIP:PLAYER:下半身下着あり == 2
+	RETURN 0
+;下半身着衣（実行者側）
+;前鎧、めくれない服、タイツ、下着があると無理
+SIF TEQUIP:下腹部前鎧あり
 	RETURN 0
 SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
 	RETURN 0
@@ -250,8 +257,10 @@ IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	SIF ITEM:20 == 0 && NOITEM == 0
 		RETURN 0
 ENDIF
-;膣、ペニスを何かに使ってる・届かないなら無理
+;膣＆クリトリス、ペニスを何かに使ってる・届かないなら無理
 SIF TEQUIP:PLAYER:ペニス
+	RETURN 0
+SIF TEQUIP:TARGET:クリトリス
 	RETURN 0
 SIF TEQUIP:TARGET:膣
 	RETURN 0
