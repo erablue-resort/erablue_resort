@@ -21,7 +21,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM325
 
 ;乳首当てゲーム
-LOCAL = RAND:10
+LOCAL = 乳首当て結果判定(TARGET)
 SELECTCASE LOCAL
 	CASE 0 TO 4
 		RFLAG:コマンド結果受渡し変数４ = 1
@@ -35,6 +35,7 @@ SELECTCASE LOCAL
 		RFLAG:コマンド結果受渡し変数４ = 2
 		TFLAG:乳首当て連続記録 += 1
 		RCVAR:乳首開発フラグ = 2
+		SIF TALENT:陥没乳首
 		CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
 ENDSELECT
 
@@ -251,15 +252,66 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 ENDSELECT
 
 PRINTFORMW %CALLNAME:TARGET%の胸に、乳首めがけて指を前に出した。
+
+CALL 乳首当てゲーム結果メッセージ(TARGET)
+
+
+
+@乳首当てゲーム結果メッセージ(対象キャラ)
+#DIM 対象キャラ
+
 SELECTCASE RFLAG:コマンド結果受渡し変数４
 	CASE 1
 		PRINTW 【的中！】
-		PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:TARGET%の乳首を突くことに成功した！
+		IF TEQUIP:対象キャラ:上半身鎧あり
+			PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:対象キャラ%の乳首の位置を当てることに成功したが、鎧に阻まれ乳首に触れることはできなかった…
+		ELSE
+			PRINTFORM %CALLNAME:MASTER%は見事%CALLNAME:対象キャラ%の
+			IF TCVAR:対象キャラ:陥没乳首露出フラグ || (!TALENT:対象キャラ:陥没乳首 && (PALAM:対象キャラ:欲情 >= PALAMLV:3 || (発情期判定(対象キャラ) && RISKY_DAY(対象キャラ) > 0)))
+				PRINTFORM 屹立した
+			ELSEIF TALENT:対象キャラ:陥没乳首
+				PRINTFORM 陥没した
+			ENDIF
+			PRINTFORML 乳首を突くことに成功した！
+		ENDIF
 	CASE -1
 		PRINTW 【ハズレ…】
-		PRINTFORML %CALLNAME:MASTER%は乳首の位置を見誤ってしまったようだ…
+		IF RAND:2 && !TEQUIP:対象キャラ:上半身鎧あり && TALENT:対象キャラ:恋慕 && (TCVAR:対象キャラ:陥没乳首露出フラグ || PALAM:対象キャラ:欲情 >= PALAMLV:3 || (発情期判定(対象キャラ) && RISKY_DAY(対象キャラ) > 0))
+			PRINTFORML どうやら、%CALLNAME:MASTER%は乳首の位置を見誤ってしまったようだ…
+			;男性にもできるから「乳肉」はどうかな……
+			SELECTCASE RAND:3
+				CASE 2
+				PRINTFORML 勝手に負けを認め胸を突き出す%CALLNAME:対象キャラ%の乳突起を外し、乳肉を楽しんだ…
+				CASE 1
+				PRINTFORML 突いて欲しがるように屹立した乳首を外すと、%CALLNAME:対象キャラ%は残念そうな声を出した…
+				CASE 0
+				PRINTFORML 膨らんだ乳輪を指先でなぞると、%CALLNAME:対象キャラ%は乳首の屹立を強くした…
+			ENDSELECT
+		ELSE
+			PRINTFORML %CALLNAME:MASTER%は乳首の位置を見誤ってしまったようだ…
+		ENDIF
 	CASE 2
 		PRINTW 【的中！　…しかし】
-		PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:TARGET%の乳首に的中させたが、%CALLNAME:TARGET%は外れたと言い張っている。
-		PRINTFORML 突いた指をぐりぐりと動かしてやると、%CALLNAME:TARGET%はたまらず負けを認めた。
+		IF TEQUIP:対象キャラ:上半身鎧あり
+			PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:対象キャラ%の乳首の位置を当てることに成功したが、鎧に阻まれ乳首に触れることはできなかった…
+			PRINTFORML %CALLNAME:対象キャラ%は乳首に触れられていないのをいいことに、ハズレと言い張っている。
+			PRINTFORML %CALLNAME:MASTER%は鎧の隙間から指を入れて無理やり乳首を当てた…
+		;乳首が陥没している＋その乳首が勃起している
+		ELSEIF TALENT:対象キャラ:陥没乳首 && TCVAR:対象キャラ:陥没乳首露出フラグ
+			PRINTFORML %CALLNAME:MASTER%は見事%CALLNAME:対象キャラ%の勃起し顔を出した乳首を突き当てたが、%CALLNAME:対象キャラ%は外れたと言い張っている。
+			PRINTFORML じゃあこれはなんだと勃起した乳首をつまむと、%CALLNAME:対象キャラ%はたまらず負けを認めた。
+		;おちくびが陥没しているor通常乳首
+		ELSE
+			PRINTFORM %CALLNAME:MASTER%は見事%CALLNAME:対象キャラ%の
+			SIF TALENT:対象キャラ:陥没乳首
+				PRINTFORM 陥没した
+			PRINTFORML 乳首に的中させたが、%CALLNAME:対象キャラ%は外れたと言い張っている。
+			PRINTFORM 突いた指をぐりぐりと動かし
+			IF TALENT:対象キャラ:陥没乳首
+				PRINTFORM 陥没した乳首をほじくり返してやると、
+			ELSE
+				PRINTFORM てやると、
+			ENDIF
+			PRINTFORML %CALLNAME:対象キャラ%はたまらず負けを認めた。
+		ENDIF
 ENDSELECT
