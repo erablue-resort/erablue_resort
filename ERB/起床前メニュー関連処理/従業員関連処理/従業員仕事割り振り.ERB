@@ -19,7 +19,8 @@ FOR LOCAL, 1, CHARANUM
 	SIF TALENT:LOCAL:従業員 == 0
 		CONTINUE
 	従業員一覧:(LOCAL:1) = LOCAL
-	仕事人数表示用:(現在仕事:(従業員一覧:(LOCAL:1)):0) += 1
+	SIF 現在仕事:LOCAL:0 >= 0
+		仕事人数表示用:(現在仕事:(従業員一覧:(LOCAL:1)):0) += 1
 	LOCAL:1 += 1
 NEXT
 LOCALS += "<div rect='156,156,1737,2812'><nobr>"
@@ -28,17 +29,21 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 		LOCALS += "<br>"
 		CONTINUE
 	ENDIF
-	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0)%"
-	IF 現在仕事:(従業員一覧:LOCAL):0 == 2
-		LOCALS = %SUBSTRING(LOCALS, 0, STRLENS(LOCALS) - 4)%
-		IF 現在仕事:(従業員一覧:LOCAL):1 >= 10003 && 現在仕事:(従業員一覧:LOCAL):1 <= 10010
-			屋号保存 = %空艇港店舗屋号記録:(現在仕事:(従業員一覧:LOCAL):1 % 10000)%
-		ELSE
-			屋号保存 = 
+	IF 現在仕事:LOCAL:0 == -1
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'><nonbutton>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[商店経営]</nonbutton></font>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0)%"
+		IF 現在仕事:(従業員一覧:LOCAL):0 == 2
+			LOCALS = %SUBSTRING(LOCALS, 0, STRLENS(LOCALS) - 4)%
+			IF 現在仕事:(従業員一覧:LOCAL):1 >= 10003 && 現在仕事:(従業員一覧:LOCAL):1 <= 10010
+				屋号保存 = %空艇港店舗屋号記録:(現在仕事:(従業員一覧:LOCAL):1 % 10000)%
+			ELSE
+				屋号保存 = 
+			ENDIF
+			LOCALS += @"：%MAP_GET("常駐業務名", REPLACE(GETPLACENAME(現在仕事:(従業員一覧:LOCAL):1 / 10000, 現在仕事:(従業員一覧:LOCAL):1 % 10000), "『.*』", ""))%『%屋号保存%』"
 		ENDIF
-		LOCALS += @"：%MAP_GET("常駐業務名", REPLACE(GETPLACENAME(現在仕事:(従業員一覧:LOCAL):1 / 10000, 現在仕事:(従業員一覧:LOCAL):1 % 10000), "『.*』", ""))%『%屋号保存%』"
+		LOCALS += "]</button>"
 	ENDIF
-	LOCALS += "]</button>"
 	LOCALS += "<br>"
 NEXT
 IF ページ数 > 0
@@ -92,6 +97,7 @@ SELECTCASE LOCAL
 ENDSELECT
 
 @従業員仕事割り振り_切り替え(ARG)
+#DIM 空き店舗あり
 
 DRAWLINE
 PRINTL 従業員が行う仕事の設定を行います。
@@ -112,6 +118,22 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 LOCALS += "<br>"
+
+RESULT = 0
+RESULTS = 
+空き店舗あり = 0
+;空き店舗を検索
+FOR LOCAL, 0, VARSIZE("商業区店割り配列", 0)
+	IF 商業区店割り配列:LOCAL:店舗名 == "" || 商業区店割り配列:LOCAL:店員配列 == "-1_"
+		空き店舗あり = 1
+		BREAK
+	ENDIF
+NEXT
+IF 空き店舗あり && 港改造度:0:0 && TALENT:ARG:定住者 && EXISTFUNCTION(@"特殊店舗_建設条件_{NO:ARG}")
+	LOCALS += "<button value='998'>[998] 商店を開かせる</button><br>"
+	LOCALS += "<br>"
+ENDIF
+
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
@@ -166,6 +188,29 @@ SELECTCASE LOCAL
 			ENDIF
 		ENDIF
 		RETURN 0
+	CASE 998
+		PRINTL
+		PRINTL
+		DRAWLINE
+		PRINTL ※※※※※注意※※※※※
+		PRINTFORML %CALLNAME:ARG%が商業区に店舗を開くようになります。
+		PRINTL 今後、通常の業務に就くことは出来なくなります。
+		PRINTL 特殊店舗が用意されているキャラのみこの選択肢が出ますが、
+		PRINTL 店舗を開く条件が整っているかどうかは別なのでご注意ください。
+		DRAWLINE
+		PRINTL
+		PRINTFORML %NAME:ARG%に商店を開くよう促しますか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			PRINTFORMW %NAME:ARG%に商店を開く業務を命じました。
+			現在仕事:ARG:0 = -1
+			RETURN 0
+		ELSE
+			RESTART
+		ENDIF
 	CASE 0 TO 8
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
 			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
@@ -185,6 +230,11 @@ ENDSELECT
 #DIM キャラ番号
 
 SELECTCASE ARG
+	CASE -1
+		IF ARG:1
+			RETURNF "港エリアにて、商店を経営してもらっている状態。<br>効果：特になし<br>　　　通常の店舗持ちキャラと同じように行動する。"
+		ENDIF
+		RETURNF "商店経営"
 	CASE 0
 		IF ARG:1
 			RETURNF "特に仕事を申し付けず、待機している状態。<br>効果：特になし<br>　　　通常の客と同じように行動する。"
