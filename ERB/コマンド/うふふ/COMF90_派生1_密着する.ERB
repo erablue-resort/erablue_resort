@@ -1,0 +1,149 @@
+﻿;===================================================
+;密着する
+;===================================================
+@COMNAME_S90_1
+#FUNCTIONS
+TSTR:コマンド名受渡 = 密着する
+SIF PLAYER == MASTER && あなた特殊能力:サキュバスボディ > 0
+	TSTR:コマンド名受渡 = エースオブスペード
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_90_1
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+弱点コマンドカテゴリ = C_女_同性
+オートコマンド許可 = 1
+
+
+;===================================================
+;ツールチップ文章
+;===================================================
+@COM_TOOLTIP_S90_1
+CALLF COMNAME_S90_1()
+TSTR:ツールチップ受渡 '= @"<br>■%TSTR:コマンド名受渡%<br>"
+TSTR:ツールチップ受渡 += "貝合わせをしたまま、互いの身体を密着させ全身を一つにするコマンド。"
+TSTR:ツールチップ受渡 += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・快Ｂ・快Ｓ・露出・接触・不潔"
+TSTR:ツールチップ受渡 += "<br>固有の取得経験：乳首開発(PLAYER＆TARGET・一定条件時)<br>"
+
+
+;===================================================
+;コマンド実行処理
+;===================================================
+@COM_S90_1
+#DIM 乳首合わせ
+#DIM 快楽補正力
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+IF (!TALENT:TARGET:陥没乳首 || TCVAR:TARGET:陥没乳首露出フラグ) && (!TALENT:PLAYER:陥没乳首 || TCVAR:PLAYER:陥没乳首露出フラグ)
+	RCVAR:PLAYER:乳首開発フラグ = 1
+	RCVAR:TARGET:乳首開発フラグ = 1
+	乳首合わせ = 1
+ELSE
+	乳首合わせ = 0
+ENDIF
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+IF PLAYER == MASTER && あなた特殊能力:サキュバスボディ > 0
+	快楽補正力 = POWER(あなた特殊能力:サキュバスボディ, 2) * 10
+ELSE
+	快楽補正力 = 0
+ENDIF
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 600 + 快楽補正力 * 10)
+IF 乳首合わせ
+	CALL SOURCE_CALC_快Ｂ(PLAYER, TARGET, 160)
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 200 + 快楽補正力 * 4)
+ELSE
+	CALL SOURCE_CALC_快Ｂ(PLAYER, TARGET, 80)
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 80 + 快楽補正力)
+ENDIF
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 20)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 20 + 快楽補正力)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
+
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 150)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛
+SIF 同性愛性癖判定(TARGET, PLAYER)
+	EXP:TARGET:同性愛経験 += 10
+SIF 同性愛性癖判定(PLAYER, TARGET)
+	EXP:PLAYER:同性愛経験 += 10
+
+RETURN 1
+
+
+;===================================================
+;実行可能判定
+;===================================================
+@COM_ABLE_S90_1
+;密着する実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("90_1")
+	RETURN RESULT
+;貝合わせモードじゃない時はアウト
+SIF !MODE_存在判定_順不同("貝合わせ", PLAYER, TARGET)
+	RETURN 0
+
+;PLAYER側の判定
+;上半身着衣
+;鎧、はだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:PLAYER:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:PLAYER:上半身服あり && !TEQUIP:PLAYER:はだけ可
+	RETURN 0
+SIF TEQUIP:PLAYER:上タイツあり && !TEQUIP:PLAYER:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:PLAYER:上半身下着あり
+	RETURN 0
+
+;TARGET側の判定
+;上半身着衣
+;鎧、はだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:TARGET:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:TARGET:上半身服あり && !TEQUIP:TARGET:はだけ可
+	RETURN 0
+SIF TEQUIP:TARGET:上タイツあり && !TEQUIP:TARGET:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:TARGET:上半身下着あり
+	RETURN 0
+
+RETURN 1
+
+
+;===================================================
+;実行時メッセージ
+;===================================================
+@MESSAGE_COM_S90_1
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%に覆いかぶさり、全身を密着させ
+IF (!TALENT:TARGET:陥没乳首 || TCVAR:TARGET:陥没乳首露出フラグ) && (!TALENT:PLAYER:陥没乳首 || TCVAR:PLAYER:陥没乳首露出フラグ)
+	SIF PALAM:PLAYER:欲情 >= PALAMLV:3 || PALAM:TARGET:欲情 >= PALAMLV:3
+		PRINT すっかり硬くなった
+	PRINT 乳首と乳首、
+ENDIF
+SIF PALAM:PLAYER:潤滑 >= PALAMLV:4 || PALAM:TARGET:潤滑 >= PALAMLV:4
+	PRINT ぐしょぐしょに濡れた
+PRINTL 陰唇と陰唇をぴったりと重ねあわせた
+SELECTCASE RAND:4
+	CASE 0
+		PRINTFORML ひとつの生物であったかのように%CALLNAME:TARGET%と交じり合った%CALLNAME:PLAYER%は、そのまま腰を揺すって互いの身体をむさぼりはじめた…
+	CASE 1
+		PRINTFORML 重く粘着質な音と共にもたらされる快感に、%CALLNAME:PLAYER%と%CALLNAME:TARGET%はの腰の動きは徐々に激しさを増していく…
+	CASE 2
+		PRINTFORML 融けて境界がなくなりそうな快楽に、%CALLNAME:PLAYER%と%CALLNAME:TARGET%は夢中で睦みあっている…
+	CASE 3
+		PRINTFORML そのまま%CALLNAME:PLAYER%が腰を動かしはじめると、押し付けた陰唇はぐにゅぐにゅと形を変え、%CALLNAME:TARGET%の女性器をくまなく刺激した…
+ENDSELECT
