@@ -170,10 +170,14 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	FOR COM番号, 0, 500
 		SIF COM番号 >= 370 && COM番号 <= 390
 			CONTINUE
+		;順転オート判定
 		FOR 派生番号, 1, 50
 			オートコマンド許可 = 0
 			連続オート許可 = 0
 			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
+			;オートなしならダメ
+			SIF オートコマンド許可 == 0
+				CONTINUE
 			;履歴にあるならダメ
 			IF 連続オート許可 == 0
 				SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}_{派生番号}"
@@ -203,19 +207,17 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			;なすがままの時は自慰しない
 			SIF オートコマンド許可 == 2 && TFLAG:オートコマンド連続発動
 				CONTINUE
-			IF オートコマンド許可
-				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
-				IF RESULT
-					行動候補文字列:(LOCAL:1) = {COM番号 + 3000}_{派生番号}
-					LOCAL:1 += 1
-				ENDIF
+
+			TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
+			IF RESULT
+				行動候補文字列:(LOCAL:1) = {COM番号 + 3000}_{派生番号}
+				LOCAL:1 += 1
 			ENDIF
 		NEXT
 		;反転オート判定
 		FOR 派生番号, 1, 50
-			オートコマンド許可 = 0
-			連続オート許可 = 0
 			反転オート許可 = 0
+			連続オート許可 = 0
 			TRYCALLFORMF COMTYPE_S_{COM番号}_{派生番号}
 			;反転なしならダメ
 			SIF 反転オート許可 == 0
@@ -237,35 +239,37 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ:PLAYER:0, @"-{COM番号}_{派生番号}-") < 0
 				CONTINUE
 			;オプションによる制御
-			SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+			SIF 反転オート許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 				CONTINUE
-			SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+			SIF 反転オート許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
 				CONTINUE
-			SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
+			SIF 反転オート許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
 				CONTINUE
 			;自慰中は自慰しない
-			SIF オートコマンド許可 == 2 && MODE_存在判定_ターゲット側("自慰系", PLAYER)
+			SIF 反転オート許可 == 2 && MODE_存在判定_ターゲット側("自慰系", PLAYER)
 				CONTINUE
 			;なすがままの時は自慰しない
-			SIF オートコマンド許可 == 2 && TFLAG:オートコマンド連続発動
+			SIF 反転オート許可 == 2 && TFLAG:オートコマンド連続発動
 				CONTINUE
-			IF オートコマンド許可
-				SWAP PLAYER, TARGET
-				TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
-				IF RESULT
-					行動候補文字列:(LOCAL:1) = {COM番号 + 4000}_{派生番号}
-					LOCAL:1 += 1
-				ENDIF
-				SWAP PLAYER, TARGET
+
+			SWAP PLAYER, TARGET
+			TRYCALLFORM COM_ABLE_S{COM番号}_{派生番号}
+			IF RESULT
+				行動候補文字列:(LOCAL:1) = {COM番号 + 4000}_{派生番号}
+				LOCAL:1 += 1
 			ENDIF
+			SWAP PLAYER, TARGET
 		NEXT
 	NEXT
 
+	;順転オート判定
 	FOR COM番号, 0, 700
 		オートコマンド許可 = 0
 		連続オート許可 = 0
-		反転オート許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
+		;オートなしならダメ
+		SIF オートコマンド許可 == 0
+			CONTINUE
 		;履歴にあるならダメ
 		IF 連続オート許可 == 0
 			SIF CSTR:PLAYER:オートコマンド履歴０ == @"{COM番号 + 3000}"
@@ -289,19 +293,17 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			CONTINUE
 		SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
 			CONTINUE
-		IF オートコマンド許可
-			TRYCALLFORM COM_ABLE{COM番号}
-			IF RESULT
-				行動候補文字列:(LOCAL:1) = {COM番号 + 3000}
-				LOCAL:1 += 1
-			ENDIF
+
+		TRYCALLFORM COM_ABLE{COM番号}
+		IF RESULT
+			行動候補文字列:(LOCAL:1) = {COM番号 + 3000}
+			LOCAL:1 += 1
 		ENDIF
 	NEXT
 	;反転モード判定
 	FOR COM番号, 0, 700
-		オートコマンド許可 = 0
-		連続オート許可 = 0
 		反転オート許可 = 0
+		連続オート許可 = 0
 		TRYCALLFORMF COMTYPE_{COM番号}
 		;反転なしならダメ
 		SIF 反転オート許可 == 0
@@ -323,21 +325,20 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		SIF 知識素質:PLAYER:性知識 == -2 && STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-{COM番号}-") < 0
 			CONTINUE
 		;オプションによる制御
-		SIF オートコマンド許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
+		SIF 反転オート許可 == 1 && GETBIT(FLAG:オートコマンド切り替えオプション, 1)
 			CONTINUE
-		SIF オートコマンド許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
+		SIF 反転オート許可 == 2 && GETBIT(FLAG:オートコマンド切り替えオプション, 2)
 			CONTINUE
-		SIF オートコマンド許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
+		SIF 反転オート許可 == 3 && GETBIT(FLAG:オートコマンド切り替えオプション, 3)
 			CONTINUE
-		IF オートコマンド許可
-			SWAP PLAYER, TARGET
-			TRYCALLFORM COM_ABLE{COM番号}
-			IF RESULT
-				行動候補文字列:(LOCAL:1) = {COM番号 + 4000}
-				LOCAL:1 += 1
-			ENDIF
-			SWAP PLAYER, TARGET
+
+		SWAP PLAYER, TARGET
+		TRYCALLFORM COM_ABLE{COM番号}
+		IF RESULT
+			行動候補文字列:(LOCAL:1) = {COM番号 + 4000}
+			LOCAL:1 += 1
 		ENDIF
+		SWAP PLAYER, TARGET
 	NEXT
 	TARGET = TARGET保存
 	PLAYER = PLAYER保存
