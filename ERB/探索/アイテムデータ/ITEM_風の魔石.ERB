@@ -1,0 +1,49 @@
+﻿
+@アイテム個別文章表示_風の魔石(ARGS)
+VARSET LOCALS
+CALL 口上変数初期化
+
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 2000
+ENDIF
+
+
+LOCALS += @"■風の魔石　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "風の魔石")}<br>"
+;LOCALS +="－－－－－－－－－－－－－－－－－－－－－－－－－－－－<br>" 改行目安
+LOCALS += "風の魔力を多く含んだ魔石。<br>"
+LOCALS += "起動すると付近の魔力に応じた突風を噴出させる。<br>"
+LOCALS += "威力は低いが効果範囲が広く、多数を相手にする際に有用な攻<br>"
+LOCALS += "撃道具である。<br>"
+LOCALS += "<br>"
+LOCALS:1 += "【効果】<br>"
+LOCALS:1 += "敵全体へ[ＰＴの最大レベル✕２０]のダメージを与える。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%%LOCALS:1%
+KSTR:(K++) = %LOCALS:1%
+
+@アイテム使用先表示_風の魔石
+CALL 汎用使用先表示("敵全体")
+
+@アイテム効果処理_風の魔石(ARG)
+#DIM レベル記録
+;ARG = エネミーが何番目か、10からカウント
+CALL 口上変数初期化
+
+レベル記録 = 0
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:0 < 1
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:Lv > レベル記録
+		レベル記録 = BATTLE_STATE:LOCAL:Lv
+NEXT
+
+アビ汎用変数:効果量 = レベル記録 * 20
+CALL アビテンプレート_ダメージ処理_風属性
+
+SIF アビテンプレート用_キャンセルフラグ
+	RETURN -1
+
+RETURN 1

@@ -134,7 +134,12 @@ IF TALENT:キャラ番号:性欲 != -2
 		PRINTL
 	ENDIF
 ENDIF
-; PRINTBUTTONLC "[9]称号素質を設定する", 9
+IF フレーバー素質:キャラ番号:0 == 0 || フレーバー素質:キャラ番号:0 == 1
+	PRINTBUTTONLC "[9]フレーバー素質を再設定する", 9
+	PRINTL
+ENDIF
+
+; PRINTBUTTONLC "[10]称号素質を設定する", 10
 ; PRINTL
 IF キャラ番号 == MASTER
 	PRINTBUTTONLC "[998]あなたの設定をやり直す", 998
@@ -171,6 +176,9 @@ SELECTCASE RESULT
 		CALL 発情期素質設定(キャラ番号)
 		RESTART
 	CASE 9
+		CALL フレーバー素質再設定(キャラ番号)
+		RESTART
+	CASE 10
 		CALL 称号素質設定(キャラ番号)
 		RESTART
 	CASE 998
@@ -382,6 +390,15 @@ FOR LOCAL:1 , -2, 4
 		PRINTL
 	ENDIF
 NEXT
+IF 素質切り替えOPTION記憶:陥没乳首_なし == 0
+	IF TALENT:対象キャラ:陥没乳首
+		PRINTBUTTON @"[10] 陥没乳首素質を削除する（{COST_胸定数}）", 10
+	ELSE
+		PRINTBUTTON @"[10] 陥没乳首素質を付与する（{COST_胸定数}）", 10
+	ENDIF
+	PRINTL
+ENDIF
+PRINTL
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP3
 INPUT
@@ -392,11 +409,36 @@ SELECTCASE LOCAL:1
 	CASE TALENT:対象キャラ:バストサイズ
 		REUSELASTLINE 
 		GOTO INPUT_LOOP3
+	CASE 10
+		IF FLAG:ZP所持量 < COST_胸定数
+			PRINTW ZPが足りません
+			GOTO INPUT_LOOP3
+		ENDIF
+		IF TALENT:対象キャラ:陥没乳首
+			PRINTFORML {COST_胸定数}ZPを支払い、陥没乳首素質を削除しますか？
+		ELSE
+			PRINTFORML {COST_胸定数}ZPを支払い、陥没乳首素質を付与しますか？
+		ENDIF
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= COST_胸定数
+			IF TALENT:対象キャラ:陥没乳首
+				PRINTFORMW %CALLNAME:対象キャラ%の陥没乳首素質が消滅しました。
+				TALENT:対象キャラ:陥没乳首 = 0
+			ELSE
+				PRINTFORMW %CALLNAME:対象キャラ%が陥没乳首になりました。
+				TALENT:対象キャラ:陥没乳首 = 1
+			ENDIF
+		ENDIF
+		RETURN 0
 	CASE -2 TO 3
 		;ZP足りる？
 		IF FLAG:ZP所持量 < ABS(TALENT:対象キャラ:バストサイズ - LOCAL:1) * COST_胸定数
 			PRINTW ZPが足りません
-		GOTO INPUT_LOOP3
+			GOTO INPUT_LOOP3
 		ENDIF
 		PRINTFORM {ABS(TALENT:対象キャラ:バストサイズ - LOCAL:1) * COST_胸定数}
 		PRINTFORML ZPを支払い、バストサイズを変化させますか？
@@ -867,6 +909,9 @@ IF 発情期判定(対象キャラ)
 	IF GETBIT(TALENT:対象キャラ:発情期あり, 6)
 		LOCALS:(表示番号++) = ├過敏体質（快楽と苦痛にボーナス）
 	ENDIF
+	IF GETBIT(TALENT:対象キャラ:発情期あり, 7) && 素質切り替えOPTION記憶:陥没乳首_なし == 0
+		LOCALS:(表示番号++) = ├陥没乳首常時勃起
+	ENDIF
 
 	;最後の├だけ置き換える
 	IF 表示番号 > 0
@@ -971,6 +1016,19 @@ IF 発情期判定(対象キャラ)
 		PRINTBUTTON "　[6] 過敏体質（快楽・苦痛＋）を あり に変更する", 6
 		PRINTFORML  … {必要COST}ZP
 	ENDIF
+	IF 素質切り替えOPTION記憶:陥没乳首_なし == 0
+		IF FLAG:ZP所持量 < 必要COST
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTL 　ZP不足につき 陥没乳首常時勃起 変更不可
+			RESETCOLOR
+		ELSEIF GETBIT(TALENT:対象キャラ:発情期あり, 7)
+			PRINTBUTTON "　[7] 陥没乳首常時勃起を なし に変更する", 7
+			PRINTFORML  　　　　… {必要COST}ZP
+		ELSE
+			PRINTBUTTON "　[7] 陥没乳首常時勃起を あり に変更する", 7
+			PRINTFORML  　　　　… {必要COST}ZP
+		ENDIF
+	ENDIF
 ELSE
 	PRINTL ■ 発情期なし
 	DRAWLINE
@@ -1028,6 +1086,8 @@ SELECTCASE LOCAL
 				PRINT 体力自動回復
 			CASE 6
 				PRINT 過敏体質（快楽・苦痛＋）
+			CASE 7
+				PRINT 陥没乳首常時勃起
 		ENDSELECT
 		IF GETBIT(TALENT:対象キャラ:発情期あり, LOCAL)
 			PRINTL を なし に変更します。よろしいですか？
@@ -1039,7 +1099,7 @@ SELECTCASE LOCAL
 		PRINTBUTTONLC "[1] いいえ", 1
 		BINPUT
 		IF RESULT == 0
-			SETBIT TALENT:対象キャラ:発情期あり, LOCAL
+			INVERTBIT TALENT:対象キャラ:発情期あり, LOCAL
 			FLAG:ZP所持量 -= 必要COST
 		ENDIF
 ENDSELECT
@@ -1049,6 +1109,35 @@ RESTART
 @称号素質設定(対象キャラ)
 #DIM 対象キャラ
 
+
+@フレーバー素質再設定(対象キャラ)
+#DIM 対象キャラ
+#DIM CONST 必要COST = 30
+
+DRAWLINE
+PRINTFORML ZPを消費して%NAME:対象キャラ%のフレーバー素質設定をやり直すことができます。
+PRINTFORML 現在の性別によっては表示されない項目が存在する場合があるので注意してください。
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+
+;ZP足りる？
+IF FLAG:ZP所持量 < 必要COST
+	PRINTW ZPが足りません
+	RETURN 0
+ENDIF
+
+PRINTFORML {必要COST}ZPを支払い、ステータス設定をやり直しますか？
+PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+
+IF RESULT == 0
+	FLAG:ZP所持量 -= 必要COST
+	CALL フレーバー素質個別設定画面(対象キャラ)
+	RETURN 1
+ENDIF
+RETURN 0
 
 @キャラメイク設定
 #DIM CONST 必要COST = 300

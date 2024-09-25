@@ -185,12 +185,7 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 	ENDIF
 	PRINTFORMW 妊娠したようです
 	RESETCOLOR
-	IF 種親 == MASTER
-		SELECTCASE CFLAG:ARG:MASTERの子供妊娠回数
-			
-		ENDSELECT
-	ENDIF
-	PRINTW
+	PRINTL
 	TALENT:ARG:妊娠 = 1
 	EXP:ARG:妊娠経験 ++
 	SIF 種親 >= 0
@@ -955,6 +950,26 @@ SIF 異種妊娠(ARG) && (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:
 	進行度 ++
 RETURNF 進行度
 
+@補正込みウエストサイズ(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 補正後数値
+
+補正後数値 = BASE:対象キャラ:ウエスト
+
+SELECTCASE PREGNANCY_PROGRESS(対象キャラ)
+	CASE 2
+		補正後数値 = (補正後数値 * 105 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
+	CASE 3
+		補正後数値 = (補正後数値 * 115 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
+	CASE 4
+		補正後数値 = (補正後数値 * 140 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
+	CASE 5
+		補正後数値 = (補正後数値 * 165 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
+ENDSELECT
+
+RETURNF 補正後数値
+
 
 @異種妊娠(ARG)
 #FUNCTION
@@ -989,7 +1004,10 @@ ELSEIF PREGNANCY_SIZE(ARG) >= 2 && CFLAG:ARG:妊娠発覚 == 0
 		IF RESULT == 0
 			PRINTFORML %CALLNAME:MASTER%は%CALLNAME:ARG%に、そのお腹の中には%CALLNAME:ARG%の赤ちゃんが居ると教えた
 			PRINTFORML %CALLNAME:ARG%は自分が既に母となりつつある事にとても驚いているようだ…
-			TRYCALLFORM KOJO_無知_妊娠発覚_2_{NO:ARG}(ARG)
+			TRYCCALLFORM KOJO_無知_妊娠発覚_2_{NO:ARG}(ARG)
+			CATCH
+				CALL 汎用妊娠反応(ARG)
+			ENDCATCH
 			SETCOLOR 0xffd900
 			PRINTFORML %CALLNAME:ARG%は最低限の性知識を身に着けた！
 			RESETCOLOR
@@ -1008,14 +1026,20 @@ ELSEIF PREGNANCY_SIZE(ARG) >= 2 && CFLAG:ARG:妊娠発覚 == 0
 		PRINTFORML %CALLNAME:ARG%が%CALLNAME:MASTER%に話しかけてきた…
 		PRINTFORML %CALLNAME:ARG%はふっくらと膨らみつつある自身のお腹を愛おしそうに撫でている…
 		PRINTFORML 腹部はささやかながら明確に膨らんでおり、新たな生命がその奥で芽吹いているのは明らかだ
-		TRYCALLFORM KOJO_恋慕_妊娠発覚_{NO:ARG}(ARG)
+		TRYCCALLFORM KOJO_恋慕_妊娠発覚_{NO:ARG}(ARG)
+		CATCH
+			CALL 汎用妊娠反応(ARG)
+		ENDCATCH
 	ELSE
 		;その他時
 		DRAWLINE
 		PRINTFORML %CALLNAME:ARG%が%CALLNAME:MASTER%に話しかけてきた…
 		PRINTFORML %CALLNAME:ARG%はふっくらと膨らみつつある自身のお腹を抱えている…
 		PRINTFORML 腹部はささやかながら明確に膨らんでおり、新たな生命がその奥で芽吹いているのは明らかだ
-		TRYCALLFORM KOJO_その他_妊娠発覚_{NO:ARG}(ARG)
+		TRYCCALLFORM KOJO_その他_妊娠発覚_{NO:ARG}(ARG)
+		CATCH
+			CALL 汎用妊娠反応(ARG)
+		ENDCATCH
 	ENDIF
 	PRINTW
 	CFLAG:ARG:妊娠発覚 = 1
@@ -1068,6 +1092,7 @@ IF ARG:1 == 1
 			TRYCCALLFORM KOJO_来島時_妊娠発覚_{NO:(MEMBER:NUM)}(MEMBER:NUM)
 				DRAWLINE
 			CATCH
+				CALL 汎用妊娠反応(ARG)
 			ENDCATCH
 		NEXT
 	ENDIF
@@ -1081,6 +1106,29 @@ ELSE
 	ENDIF
 ENDIF
 
+@汎用妊娠反応(対象キャラ)
+#DIM 対象キャラ
+
+IF CFLAG:対象キャラ:子の父親 == MASTER
+	SELECTCASE CFLAG:対象キャラ:MASTERの子供妊娠回数
+		CASE 1
+			IF TALENT:対象キャラ:恋慕
+				PRINTFORMW %CALLNAME:対象キャラ%は初めて%CALLNAME:MASTER%との子供を授かり、とても喜んでいる
+			ELSEIF TALENT:対象キャラ:セフレ
+				PRINTFORMW %CALLNAME:対象キャラ%は初めての%CALLNAME:MASTER%との子供に、まんざらでもない顔をしている
+			ELSE
+				PRINTFORMW %CALLNAME:対象キャラ%は初めての%CALLNAME:MASTER%との子供に、複雑な顔をしている
+			ENDIF
+		CASE 10
+			IF TALENT:対象キャラ:恋慕
+				PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:MASTER%との子供がニ桁の大台に乗ったことに、誇らしげな顔をしている
+			ELSEIF TALENT:対象キャラ:セフレ
+				PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:MASTER%との子供がニ桁に届いたことで、何人作るつもりなのかと笑っている
+			ELSE
+				PRINTFORMW %CALLNAME:対象キャラ%は%CALLNAME:MASTER%との子供が二桁を数えたことで、諦めたような顔をしている
+			ENDIF
+	ENDSELECT
+ENDIF
 
 ;膣内射精した相手の取得
 @TAKE_SPERM(対象キャラ, 射精した人, 精液量)
