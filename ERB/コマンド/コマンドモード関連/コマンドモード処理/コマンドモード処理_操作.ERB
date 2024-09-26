@@ -96,6 +96,7 @@ NEXT
 #DIM 指競合フラグ_プレイヤー
 #DIM 指競合フラグ_ターゲット
 #DIM 消去フラグ
+#DIM 文字列表示フラグ
 #DIM スキップフラグ
 #DIM モードID
 
@@ -122,6 +123,7 @@ ENDIF
 ;現在のモードとの比較・消去
 指競合フラグ_プレイヤー = 0
 指競合フラグ_ターゲット = 0
+文字列表示フラグ = 0
 FOR 配列番号, 0, DT_ROW_LENGTH("体位モードデータベース")
 	消去フラグ = 0
 	SIF DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名") == ""
@@ -140,10 +142,27 @@ FOR 配列番号, 0, DT_ROW_LENGTH("体位モードデータベース")
 	ENDIF
 	;競合するならモード消去
 	IF 消去フラグ
+		;初回のみ定型文表示
+		IF 文字列表示フラグ == 0
+			DRAWLINE
+			IF 実行キャラ番号 >= 0
+				PRINTFORM %CALLNAME:実行キャラ番号%が%CALLNAME:対象キャラ番号%に
+			ELSE
+				PRINTFORM %CALLNAME:対象キャラ番号%が
+			ENDIF
+			PRINTFORML %実行モード名%をするために、以下のモードを止めました。
+		ENDIF
+		PRINTFORM [%DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名")%] 
+		SIF DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ") >= 0
+			PRINTFORM 実行者：%CALLNAME:DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ"), 16, LEFT% 
+		PRINTFORML 対象者：%CALLNAME:DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ"), 16, LEFT%
 		CALL MODE_DELETE_配列詰め(配列番号)
 		配列番号 -= 1
+		文字列表示フラグ = 1
 	ENDIF
 NEXT
+SIF 文字列表示フラグ
+	PRINTW
 
 ;モード格納
 DT_ROW_ADD "体位モードデータベース", "モード名", 実行モード名, "実行キャラ", 実行キャラ番号, "対象キャラ", 対象キャラ番号, "フリー変数", フリー変数, "フリー文字列", フリー文字列
