@@ -6,8 +6,13 @@
 #DIM 身長保存
 #DIM 体型保存
 #DIM バスト保存
+#DIM ウエスト保存
+#DIM ヒップ保存
+#DIM 下半身保存
 #DIM 身長数値設定フラグ
 #DIM バスト数値設定フラグ
+#DIM ウエスト数値設定フラグ
+#DIM ヒップ数値設定フラグ
 #DIM フレーバー素質数値保存, 10
 #DIM 知識素質数値保存, 100
 #DIM 性癖素質数値保存, 20
@@ -27,6 +32,7 @@
 #DIM ランダムキャラ戦闘タイプ, 10
 #DIMS 固有素質一時保存, 10
 #DIMS ランダムキャラネーム
+#DIMS ランダムキャラCALLネーム
 #DIMS ランダムキャラ二つ名
 #DIMS ランダムキャラ出演作品
 #DIM ランダムキャラ招待不可フラグ
@@ -45,12 +51,16 @@
 ページ数 = 0
 表示数カウント = 0
 ランダムキャラネーム = 
+ランダムキャラCALLネーム = 
 ランダムキャラ二つ名 = （未定）
 ランダムキャラ服装名 = （未定）
 ランダムキャラ出演作品 = 
 汎用画像キー = 
 SIF CSVエディタフラグ
 	汎用立ち絵制御OPTION = 0
+ウエスト保存 = 0
+ヒップ保存 = 0
+下半身保存 = 0
 VARSET ランダムキャラ素質:0
 VARSET ランダムキャラ経験:0
 VARSET TALENT一時保存:0
@@ -230,13 +240,15 @@ LOCALS += "<br>"
 IF CSVエディタフラグ
 	LOCALS += "<button value='101'>[101] 二つ名を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='102'>[102] 出演作品を設定する</button>"
+	LOCALS += "<button value='102'>[102] 呼び名を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='103'>[103] プレゼントの好みを設定する</button>"
+	LOCALS += "<button value='103'>[103] 出演作品を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='104'>[104] 同行者候補を設定する</button>"
+	LOCALS += "<button value='104'>[104] プレゼントの好みを設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='105'>[105] 招待可能・不可能を設定する</button>"
+	LOCALS += "<button value='105'>[105] 同行者候補を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='106'>[106] 招待可能・不可能を設定する</button>"
 	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='110'>[110] 戦闘タイプを設定する</button>"
@@ -304,6 +316,13 @@ SELECTCASE 表示モード
 		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+		IF CSVエディタフラグ
+			IF ランダムキャラCALLネーム != ""
+				LOCALS += @"<br>呼び名：%ランダムキャラCALLネーム%"
+			ELSE
+				LOCALS += @"<br>呼び名：（名前と共通）"
+			ENDIF
+		ENDIF
 		IF ランダムキャラ出演作品 != ""
 			LOCALS += @"<br>出演作品：%ランダムキャラ出演作品%"
 		ENDIF
@@ -342,7 +361,6 @@ SELECTCASE 表示モード
 		ENDIF
 		LOCALS += "<br>"
 		LOCALS += @"　身長：%DECIMAL_STRING(身長保存, 1)%cm"
-		LOCALS += "<br>"
 		LOCALS += "　性別："
 		SELECTCASE ランダムキャラ素質:1
 			CASE 1
@@ -373,12 +391,21 @@ SELECTCASE 表示モード
 				ENDIF
 		ENDSELECT
 		IF GETBIT(ランダムキャラ素質:1, 0)
-			LOCALS += @"バストサイズ："
+			LOCALS += "<br>"
+			LOCALS += @"　バストサイズ："
 			IF バスト数値設定フラグ
 				LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
 				LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
 			ELSE
 				LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
+			ENDIF
+			IF ウエスト数値設定フラグ
+				LOCALS += @"　ウエスト："
+				LOCALS += @"%DECIMAL_STRING(ウエスト保存, 1)%cm"
+			ENDIF
+			IF ヒップ数値設定フラグ
+				LOCALS += @"　ヒップ："
+				LOCALS += @"%DECIMAL_STRING(ヒップ保存, 1)%cm"
 			ENDIF
 		ENDIF
 		LOCALS += "<br>"
@@ -409,6 +436,12 @@ SELECTCASE 表示モード
 			LOCALS += "普通"
 		ELSE
 			LOCALS += @"%GET_TALENTNAME(163,体型保存)%"
+		ENDIF
+		LOCALS += "　　下半身："
+		IF 下半身保存 == 0
+			LOCALS += "普通"
+		ELSE
+			LOCALS += @"%GET_TALENTNAME(210,下半身保存)%"
 		ENDIF
 		IF CSVエディタフラグ == 0
 			LOCALS += "　　　容姿："
@@ -883,6 +916,36 @@ SELECTCASE 表示モード
 				NEXT
 				LOCALS += @"　　　<button value='{12999}'>[数値で指定する]</button>"
 			ENDIF
+			LOCALS += "<br>"
+			LOCALS += "ウエストサイズ："
+			IF ウエスト数値設定フラグ
+				IF ウエスト保存
+					LOCALS:1 = %DECIMAL_STRING(ウエスト保存, 1)%cm
+				ELSE
+					LOCALS:1 = 未設定
+				ENDIF
+				LOCALS += @"<button value='{12990}'>[%LOCALS:1%]</button>"
+				LOCALS += @"　　　<button value='{12992}'>[指定しない]</button>"
+				LOCALS += @"　<button value='{12994}'>[リロール]</button>"
+			ELSE
+				LOCALS += @"体格・体型により自動算出"
+				LOCALS += @"　　　<button value='{12992}'>[数値で指定する]</button>"
+			ENDIF
+			LOCALS += "<br>"
+			LOCALS += "ヒップサイズ："
+			IF ヒップ数値設定フラグ
+				IF ヒップ保存
+					LOCALS:1 = %DECIMAL_STRING(ヒップ保存, 1)%cm
+				ELSE
+					LOCALS:1 = 未設定
+				ENDIF
+				LOCALS += @"<button value='{12991}'>[%LOCALS:1%]</button>"
+				LOCALS += @"　　　<button value='{12993}'>[指定しない]</button>"
+				LOCALS += @"　<button value='{12995}'>[リロール]</button>"
+			ELSE
+				LOCALS += @"体格・体型により自動算出"
+				LOCALS += @"　　　<button value='{12993}'>[数値で指定する]</button>"
+			ENDIF
 		ENDIF
 		LOCALS += "<br>"
 		IF CSVエディタフラグ == 0
@@ -928,6 +991,20 @@ SELECTCASE 表示モード
 				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[普通]</button></font>"
 			ELSE
 				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[%GET_TALENTNAME(163, LOCAL)%]</button></font>"
+			ENDIF
+		NEXT
+		LOCALS += "<br>"
+		LOCALS += "下半身："
+		FOR LOCAL, -1, 2
+			IF 下半身保存 == LOCAL
+				LOCALS:1 = C0C0C0
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			IF LOCAL == 0
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12090 + LOCAL}'>[普通]</button></font>"
+			ELSE
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12090 + LOCAL}'>[%GET_TALENTNAME(210, LOCAL)%]</button></font>"
 			ENDIF
 		NEXT
 		LOCALS += "<br>"
@@ -1163,7 +1240,7 @@ SELECTCASE 表示モード
 		LOCALS += "<div rect='2125,3006,3675,2812'>"
 		LOCALS += @"服装名：<button value='71000'>%ランダムキャラ服装名, 30, LEFT%</button>"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>　　　　"
-	CASE 104
+	CASE 105
 		IF !DT_EXIST("DT_CHARA")
 			DT_CREATE "DT_CHARA"
 			DT_COLUMN_ADD "DT_CHARA", "NO", 2
@@ -1436,6 +1513,26 @@ SELECTCASE LOCAL
 		INVERTBIT 肉体特徴数値保存:(LOCAL - 12070), 0
 	CASE 12077 TO 12083
 		体型保存 = LOCAL - 12080
+	CASE 12089 TO 12091
+		下半身保存 = LOCAL - 12090
+	CASE 12990
+		DRAWLINE
+		PRINTL ウエストサイズをmm単位で入力してください。
+		INPUT
+		ウエスト保存 = RESULT
+	CASE 12991
+		DRAWLINE
+		PRINTL ヒップサイズをmm単位で入力してください。
+		INPUT
+		ヒップ保存 = RESULT
+	CASE 12992
+		INVERTBIT ウエスト数値設定フラグ, 0
+	CASE 12993
+		INVERTBIT ヒップ数値設定フラグ, 0
+	CASE 12994
+		ウエスト保存 = EDIT用ウエスト算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存)
+	CASE 12995
+		ヒップ保存 = EDIT用ヒップ算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存, )
 	CASE 12996
 		身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
 		ランダムキャラ素質:3 = EDIT用バストTALENT算出(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
@@ -1524,10 +1621,14 @@ SELECTCASE LOCAL
 		INPUTS
 		ランダムキャラ二つ名 = %SUBSTRING(RESULTS, 0, 24)%
 	CASE 102
+		PRINTL 呼び名を入力してください。（１２文字まで）
+		INPUTS
+		ランダムキャラCALLネーム = %SUBSTRING(RESULTS, 0, 24)%
+	CASE 103
 		PRINTL 出演作品を入力してください。（１２文字まで）
 		INPUTS
 		ランダムキャラ出演作品 = %SUBSTRING(RESULTS, 0, 24)%
-	CASE 103
+	CASE 104
 		$好物_LOOP
 		DRAWLINE
 		PRINTL プレゼントの好みを設定してください。
@@ -1554,7 +1655,7 @@ SELECTCASE LOCAL
 			好物一時保存 += @"%好物一覧:RESULT%_"
 		ENDIF
 		GOTO 好物_LOOP
-	CASE 105
+	CASE 106
 		PRINTL ゲームを始めた直後の状態で、招待対象にならないキャラを設定します
 		PRINTL 
 		PRINTL 招待不可フラグ=0　初期から招待対象となる
@@ -1617,9 +1718,9 @@ SELECTCASE LOCAL
 	CASE 160
 		ページ数 = 0
 		表示モード = 160
-	CASE 104
+	CASE 105
 		ページ数 = 0
-		表示モード = 104
+		表示モード = 105
 	CASE 161
 		IF ランダムキャラ素質:1 == 2
 			PRINTFORML [0] %男水着一覧:0%  [1] %男水着一覧:1%
@@ -1647,7 +1748,11 @@ SELECTCASE LOCAL
 			NEXT
 			PRINTFORML 番号,{登録番号}
 			PRINTFORML 名前,[%ランダムキャラ二つ名%]%ランダムキャラネーム%
-			PRINTFORML 呼び名,%ランダムキャラネーム%
+			IF ランダムキャラCALLネーム != ""
+				PRINTFORML 呼び名,%ランダムキャラCALLネーム%
+			ELSE
+				PRINTFORML 呼び名,%ランダムキャラネーム%
+			ENDIF
 			PRINTL 基礎,体力,1200
 			PRINTL 基礎,勃起,1500
 			PRINTL 基礎,ムード,1500
@@ -1675,8 +1780,12 @@ SELECTCASE LOCAL
 			ENDIF
 			PRINTL 
 			PRINTFORML 基礎,身長,{身長保存}
-			SIF バスト数値設定フラグ
+			SIF バスト数値設定フラグ && ランダムキャラ素質:1 != 2
 				PRINTFORML 基礎,バスト,{バスト保存}
+			SIF ウエスト数値設定フラグ && ウエスト保存 && ランダムキャラ素質:1 != 2
+				PRINTFORML 基礎,ウエスト,{ウエスト保存}
+			SIF ヒップ数値設定フラグ && ヒップ保存 && ランダムキャラ素質:1 != 2
+				PRINTFORML 基礎,ヒップ,{ヒップ保存}
 			PRINTL 
 			PRINTL {
 			PRINTL CSTR,知識素質設定,
@@ -1733,6 +1842,7 @@ SELECTCASE LOCAL
 			PRINTFORML 素質,体格,{ランダムキャラ素質:31}
 			PRINTFORML 素質,体型,{体型保存}
 			PRINTFORML 素質,男性器サイズ,{ランダムキャラ素質:32}
+			PRINTFORML 素質,下半身,{下半身保存}
 			PRINTL 
 
 			FOR LOCAL, 0, 50
@@ -2156,6 +2266,110 @@ RETURNF 基礎値
 ;ENDIF
 
 RETURNF 基礎値
+
+@EDIT用ウエスト算出(性別, 身長, 体格, 体型)
+#FUNCTION
+#DIM 性別
+#DIM 体格
+#DIM 体型
+#DIM 身長
+#DIM 基礎値
+
+基礎値 = 身長 * (性別 == 2 ? 43 # 38) / 100
+
+SELECTCASE 体格
+	CASE 体格_ハーヴィン並
+		TIMES 基礎値, 1.22
+	CASE 体格_子供
+		TIMES 基礎値, 1.07
+	CASE 体格_小柄
+		TIMES 基礎値, 1.03
+	CASE 体格_普通
+	CASE 体格_長身
+		TIMES 基礎値, 0.98
+	CASE 体格_男ドラフ並
+		TIMES 基礎値, 0.97
+ENDSELECT
+
+SELECTCASE 体型
+	CASE 体型_痩せすぎ
+		TIMES 基礎値, 0.85
+	CASE 体型_細身
+		TIMES 基礎値, 0.9
+	CASE 体型_スレンダー
+		TIMES 基礎値, 0.95
+	CASE 体型_グラマー
+		TIMES 基礎値, 1.02
+	CASE 体型_豊満
+		TIMES 基礎値, 1.06
+	CASE 体型_肥満
+		TIMES 基礎値, 1.10
+ENDSELECT
+
+基礎値 = 基礎値 * RAND(9700, 10301) / 10000
+
+RETURNF 基礎値
+
+@EDIT用ヒップ算出(性別, 身長, 体格, 体型, 下半身)
+#FUNCTION
+#DIM 性別
+#DIM 体格
+#DIM 体型
+#DIM 身長
+#DIM 下半身
+#DIM 基礎値
+#DIM 補正値
+
+基礎値 = 身長 * (性別 == 2 ? 47 # 54) / 100
+
+SELECTCASE 体格
+	CASE 体格_ハーヴィン並
+		TIMES 基礎値, 1.2
+	CASE 体格_子供
+		TIMES 基礎値, 1.05
+	CASE 体格_小柄
+		TIMES 基礎値, 1.02
+	CASE 体格_普通
+	CASE 体格_長身
+		TIMES 基礎値, 0.99
+	CASE 体格_男ドラフ並
+		TIMES 基礎値, 0.98
+ENDSELECT
+
+SELECTCASE 体型
+	CASE 体型_痩せすぎ
+		TIMES 基礎値, 0.92
+	CASE 体型_細身
+		TIMES 基礎値, 0.95
+	CASE 体型_スレンダー
+		TIMES 基礎値, 0.98
+	CASE 体型_グラマー
+		TIMES 基礎値, 1.04
+	CASE 体型_豊満
+		TIMES 基礎値, 1.08
+	CASE 体型_肥満
+		TIMES 基礎値, 1.12
+ENDSELECT
+
+IF 性別 == 2
+	補正値 = 100
+ELSE
+	SELECTCASE 下半身
+		CASE -1
+			補正値 = 93
+		CASE 0
+			補正値 = 100
+		CASE 1
+			補正値 = 108
+	ENDSELECT
+ENDIF
+
+基礎値 = 基礎値 * 補正値 / 100
+
+基礎値 = 基礎値 * RAND(9600, 10401) / 10000
+
+RETURNF 基礎値
+
 
 @EDIT用体格算出(性別, 身長)
 #FUNCTION
