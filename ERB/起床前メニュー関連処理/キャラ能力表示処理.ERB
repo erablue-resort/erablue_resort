@@ -66,6 +66,12 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
 		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:LOCAL:恋慕
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:LOCAL:セフレ
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:LOCAL:セフレ && !TALENT:LOCAL:恋慕
+		CONTINUE
 	;条件を満たす場合はLOCAL:3に１以上が入る
 	LOCAL:3 = 1
 	FOR LOCAL:2, 0, 99
@@ -138,6 +144,11 @@ IF キャラ一覧ソート:0 != ""
 			ソート基準値:LOCAL = (CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録 * 1000 * LOCAL:1) + LOCAL + 1
 		NEXT
 		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
 			FOR LOCAL, 0, 候補人数
 				ソート基準値:LOCAL = (COM353_SUB(表示候補:LOCAL) * 1000 * LOCAL:1) + LOCAL + 1
@@ -174,6 +185,17 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 		LOCALS += @"Lv：{基礎BATTLE_STATE:(表示候補:LOCAL):Lv, 3}　 "
 	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
 		LOCALS += @"%キャラ一覧ソート:0, 8%：{知識素質:(表示候補:LOCAL):(キャラ一覧ソート:0)}　 "
+	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) >= 0
+		SELECTCASE 性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0)
+			CASE 0
+				LOCALS += @"%キャラ一覧ソート:0, 8%：なし　 "
+			CASE 1
+				LOCALS += @"%キャラ一覧ソート:0, 8%：興味　 "
+			CASE 2
+				LOCALS += @"%キャラ一覧ソート:0, 8%：愛好　 "
+			CASE 3
+				LOCALS += @"%キャラ一覧ソート:0, 8%：中毒　 "
+		ENDSELECT
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
 		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 3}　 "
 	ELSE
@@ -341,6 +363,27 @@ PRINTL 暗い色で表示されている条件が非表示設定になってい�
 DRAWLINE
 
 IF 表示フィルタ種類 == ""
+	PRINTL ■ 陥落
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：恋慕")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[恋慕]", "陥落：恋慕"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：セフレ")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[セフレ]", "陥落：セフレ"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[なし]", "陥落：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "陥落：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "陥落：全て非表示"
+	PRINTL
+	DRAWLINE
 	PRINTL ■ 種族
 	FOR LOCAL, 1, 7
 		SIF STRCOUNT(キャラ一覧フィルタ:種族, GET_TALENTNAME(200, LOCAL))
@@ -588,6 +631,8 @@ IF RESULTS != ""
 		LOCAL = 4
 	ELSEIF STRCOUNT(LOCALS, "男性器サイズ")
 		LOCAL = 5
+	ELSEIF STRCOUNT(LOCALS, "陥落")
+		LOCAL = 6
 	ELSEIF STRCOUNT(LOCALS, "属性")
 		LOCAL = 10
 	ELSEIF STRCOUNT(LOCALS, "得意武器")
@@ -617,6 +662,8 @@ IF RESULTS != ""
 				キャラ一覧フィルタ:妊娠 = "妊娠フラグ：妊娠中_妊娠フラグ：妊娠していない_"
 			CASE 5
 				キャラ一覧フィルタ:男性器サイズ = "男性器サイズ：こどもちんこ_男性器サイズ：短小_男性器サイズ：平凡_男性器サイズ：巨根_男性器サイズ：規格外_男性器サイズ：なし_"
+			CASE 6
+				キャラ一覧フィルタ:陥落 = "陥落：恋慕_陥落：セフレ_陥落：なし"
 			CASE 10
 				キャラ一覧フィルタ:属性 = "属性：火_属性：水_属性：風_属性：土_属性：光_属性：闇_"
 			CASE 11
@@ -698,6 +745,13 @@ FOR LOCAL, 1, 100
 NEXT
 PRINTL
 DRAWLINE
+FOR LOCAL, 1, 100
+	SIF ERDNAME(性癖素質, LOCAL) == ""
+		BREAK
+	PRINTBUTTONLC @"[%ERDNAME(性癖素質, LOCAL)%]", @"%ERDNAME(性癖素質, LOCAL)%"
+NEXT
+PRINTL
+DRAWLINE
 
 PRINTBUTTON "[999]戻る", 999
 PRINTL
@@ -725,7 +779,7 @@ SELECTCASE LOCALS
 		ENDIF
 		RETURN 0
 	CASEELSE
-		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 || GETNUM(装備ステータス補正保存, LOCALS) >= 0 || LOCALS == "Lv" || GETNUM(知識素質, LOCALS) >= 0 || LOCALS == "コマンド回数"
+		IF LOCALS == "好感度レベル" || LOCALS == "恋慕レベル" || GETNUM(ABL, LOCALS) >= 0 || GETNUM(装備ステータス補正保存, LOCALS) >= 0 || LOCALS == "Lv" || GETNUM(知識素質, LOCALS) >= 0 || LOCALS == "コマンド回数" || GETNUM(性癖素質, LOCALS) > 0
 			キャラ一覧ソート:0 = %LOCALS%
 			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
 				キャラ一覧ソート:1 = 昇順
