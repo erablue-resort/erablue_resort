@@ -7,12 +7,15 @@ DRAWLINE
 PRINTL CSVを適用したいキャラを選択してください。
 DRAWLINE
 
-
-FOR 対象キャラ, 現在ページ * 30 + 1, 現在ページ * 30 + 31
-	SIF 対象キャラ >= CHARANUM
+LOCAL:1 = 0
+FOR 対象キャラ, 現在ページ * 30 + 1, CHARANUM
+	SIF LOCAL:1 >= 30
 		BREAK
+	SIF NO:対象キャラ == 999
+		CONTINUE
 	PRINTBUTTON @"[{対象キャラ, 3}] %NAME:対象キャラ, 41, LEFT%", 対象キャラ
-	SIF 対象キャラ % 2
+	LOCAL:1 ++
+	SIF LOCAL:1 % 2 == 0
 		PRINTL 
 NEXT
 PRINTL
@@ -22,7 +25,7 @@ IF 現在ページ > 0
 ELSE
 	PRINTLC 　
 ENDIF
-IF CHARANUM > 現在ページ * 30 + 31
+IF CHARANUM > 対象キャラ
 	PRINTBUTTONLC "[9998] 次ページへ", 9998
 ENDIF
 PRINTL
@@ -203,6 +206,9 @@ FOR LOCAL, 0, VARSIZE("EQUIP")
 NEXT
 SIF RESULT == 0 && CSTR:対象キャラ:服名称 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))
 	RESULT = 1
+SIF RESULT == 0 && CSTR:対象キャラ:普段着解説 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))
+	RESULT = 1
+
 IF RESULT
 	PRINTBUTTON "[11] 初期服装の変更を適用する", 11
 	PRINTL 　　※成長もリセットされます。
@@ -225,25 +231,72 @@ IF RESULT == 9999
 ENDIF
 
 ボタン結果 = RESULT
-; DRAWLINE
-; SELECTCASE ボタン結果
-; 	CASE 0
-; 	CASE 1
-; 	CASE 2
-; 	CASE 3
-; 	CASE 4
-; 	CASE 5
-; 	CASE 6
-; 	CASE 7
-; 	CASE 8
-; 	CASE 9
-; 	CASE 10
-; 	CASE 11
-; ENDSELECT
+PRINTL
+PRINTL
+PRINTL
+DRAWLINE
+PRINTL ・変更点
+SELECTCASE ボタン結果
+	CASE 0
+		IF CSVNAME(NO:対象キャラ) != NAME:対象キャラ
+			PRINTL 名前：
+			PRINTFORML %NAME:対象キャラ% > %CSVNAME(NO:対象キャラ)%
+		ENDIF
+		IF CSVCALLNAME(NO:対象キャラ) != CALLNAME:対象キャラ
+			PRINTL 呼び名：
+			PRINTFORML %CALLNAME:対象キャラ% > %CSVCALLNAME(NO:対象キャラ)%
+		ENDIF
+	CASE 1
+		PRINTL 出演作品：
+		PRINTFORML %CSTR:対象キャラ:出演作品% > %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
+	CASE 2
+		PRINTL プレゼント好み：
+		PRINTFORML %CSTR:対象キャラ:プレゼント好み% > %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "プレゼント好み"))%
+	CASE 3
+		PRINTL 戦闘タイプ：
+		PRINTFORML %CSTR:対象キャラ:戦闘基礎ステータス設定% > %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "戦闘基礎ステータス設定"))%
+	CASE 4
+		CALL 肉体情報比較処理(対象キャラ, -1)
+	CASE 5
+		CALL 素質比較処理(対象キャラ, -1)
+	CASE 6
+		CALL 知識素質比較処理(対象キャラ, -1)
+	CASE 7
+		CALL 性癖素質比較処理(対象キャラ, -1)
+	CASE 8
+		FOR LOCAL, 0, 10
+			IF CSTR:対象キャラ:(LOCAL + 80) != CSVCSTR(NO:対象キャラ, LOCAL + 80)
+				PRINTFORML [%CSTR:対象キャラ:(LOCAL + 80)%] > [%CSVCSTR(NO:対象キャラ, LOCAL + 80)%]
+			ENDIF
+		NEXT
+	CASE 9
+		FOR LOCAL, 0, VARSIZE("ABL")
+			IF ABL:対象キャラ:LOCAL != CSVABL(NO:対象キャラ, LOCAL)
+				PRINTFORML %ABLNAME:LOCAL%：{ABL:対象キャラ:LOCAL} > {CSVABL(NO:対象キャラ, LOCAL)}
+			ENDIF
+		NEXT
+	CASE 10
+		FOR LOCAL, 0, VARSIZE("EXP")
+			IF EXP:対象キャラ:LOCAL != CSVEXP(NO:対象キャラ, LOCAL)
+				PRINTFORML %EXPNAME:LOCAL%：{EXP:対象キャラ:LOCAL} > {CSVEXP(NO:対象キャラ, LOCAL)}
+			ENDIF
+		NEXT
+	CASE 11
+		SIF CSTR:対象キャラ:服名称 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))
+			PRINTFORML %CSTR:対象キャラ:服名称% > %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))%
+		SIF CSTR:対象キャラ:普段着解説 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))
+			PRINTFORML %CSTR:対象キャラ:普段着解説% > %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))%
+		FOR LOCAL, 0, VARSIZE("EQUIP")
+			IF EQUIP:対象キャラ:LOCAL != CSVEQUIP(NO:対象キャラ, LOCAL)
+				PRINTFORML %EQUIPNAME:LOCAL%：{EQUIP:対象キャラ:LOCAL} > {CSVEQUIP(NO:対象キャラ, LOCAL)}
+			ENDIF
+		NEXT
+ENDSELECT
 DRAWLINE
 PRINTFORML %カテゴリ一覧:ボタン結果%にCSV設定を適用してよろしいですか？
 PRINTL ※成長・ZPによる変動なども全てリセットされます
 PRINTL ※子持ち、恋人持ちなどの素質も初期化されます。不具合の原因になる可能性があるので注意してください。
+PRINTL ※体格、体型についてはCSV適用後に種族補正などを掛けるため、表示と異なる値になることがあります。
 DRAWLINE
 PRINTBUTTONLC "[0] はい", 0
 PRINTBUTTONLC "[1] いいえ", 1
@@ -305,6 +358,7 @@ SELECTCASE ボタン結果
 			EQUIP:対象キャラ:LOCAL = CSVEQUIP(NO:対象キャラ, LOCAL)
 		NEXT
 		CSTR:対象キャラ:服名称 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))%
+		CSTR:対象キャラ:普段着解説 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))%
 ENDSELECT 
 PRINTFORMW %カテゴリ一覧:ボタン結果%にCSV設定を適用しました
 RESTART
@@ -357,6 +411,48 @@ IF 動作モード == 0
 		RETURN 1
 	SIF TALENT:対象キャラ:非童貞 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "非童貞"))
 		RETURN 1
+ELSEIF 動作モード == -1
+	;差異の表示
+	SIF TALENT:対象キャラ:種族 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "種族"))
+		PRINTFORML 種族：%GET_TALENTNAME(GETNUM(TALENT, "種族"), TALENT:対象キャラ:種族)% > %GET_TALENTNAME(GETNUM(TALENT, "種族"), CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "種族")))%
+	SIF TALENT:対象キャラ:角あり != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "角あり"))
+		PRINTFORML 角あり：{TALENT:対象キャラ:角あり} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "角あり"))}
+	SIF TALENT:対象キャラ:尻尾あり != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "尻尾あり"))
+		PRINTFORML 尻尾あり：{TALENT:対象キャラ:尻尾あり} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "尻尾あり"))}
+	SIF TALENT:対象キャラ:エルーン耳 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "エルーン耳"))
+		PRINTFORML エルーン耳：{TALENT:対象キャラ:エルーン耳} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "エルーン耳"))}
+	SIF TALENT:対象キャラ:ハーヴィン耳 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "ハーヴィン耳"))
+		PRINTFORML ハーヴィン耳：{TALENT:対象キャラ:ハーヴィン耳} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "ハーヴィン耳"))}
+	IF BASE:対象キャラ:バスト != CSVBASE(NO:対象キャラ, GETNUM(BASE, "バスト")) && CSVBASE(NO:対象キャラ, GETNUM(BASE, "バスト"))
+		PRINTFORML バスト：{BASE:対象キャラ:バスト} > {CSVBASE(NO:対象キャラ, GETNUM(BASE, "バスト"))}
+	ELSE
+		SIF TALENT:対象キャラ:バストサイズ != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "バストサイズ"))
+			PRINTFORML バストサイズ：{TALENT:対象キャラ:バストサイズ} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "バストサイズ"))}
+	ENDIF
+	IF BASE:対象キャラ:ウエスト != CSVBASE(NO:対象キャラ, GETNUM(BASE, "ウエスト")) && CSVBASE(NO:対象キャラ, GETNUM(BASE, "ウエスト"))
+		PRINTFORML ウエスト：{BASE:対象キャラ:ウエスト} > {CSVBASE(NO:対象キャラ, GETNUM(BASE, "ウエスト"))}
+	ENDIF
+	IF BASE:対象キャラ:ヒップ != CSVBASE(NO:対象キャラ, GETNUM(BASE, "ヒップ")) && CSVBASE(NO:対象キャラ, GETNUM(BASE, "ヒップ"))
+		PRINTFORML ヒップ：{BASE:対象キャラ:ヒップ} > {CSVBASE(NO:対象キャラ, GETNUM(BASE, "ヒップ"))}
+	ELSE
+		SIF TALENT:対象キャラ:下半身 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "下半身"))
+			PRINTFORML 下半身：{TALENT:対象キャラ:下半身} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "下半身"))}
+	ENDIF
+	IF BASE:対象キャラ:身長 != CSVBASE(NO:対象キャラ, GETNUM(BASE, "身長")) && CSVBASE(NO:対象キャラ, GETNUM(BASE, "身長"))
+		PRINTFORML 身長：{BASE:対象キャラ:身長} > {CSVBASE(NO:対象キャラ, GETNUM(BASE, "身長"))}
+	ENDIF
+	SIF TALENT:対象キャラ:体格 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "体格"))
+		PRINTFORML 体格：{TALENT:対象キャラ:体格} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "体格"))}
+	SIF TALENT:対象キャラ:体型 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "体型"))
+		PRINTFORML 体型：{TALENT:対象キャラ:体型} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "体型"))}
+	SIF TALENT:対象キャラ:男性器サイズ != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "男性器サイズ"))
+		PRINTFORML 男性器サイズ：{TALENT:対象キャラ:男性器サイズ} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "男性器サイズ"))}
+	SIF TALENT:対象キャラ:性別 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別"))
+		PRINTFORML 性別：{TALENT:対象キャラ:性別} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "性別"))}
+	SIF TALENT:対象キャラ:処女 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "処女"))
+		PRINTFORML 処女：{TALENT:対象キャラ:処女} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "処女"))}
+	SIF TALENT:対象キャラ:非童貞 != CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "非童貞"))
+		PRINTFORML 非童貞：{TALENT:対象キャラ:非童貞} > {CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "非童貞"))}
 ELSE
 	;書き換える
 	TALENT:対象キャラ:種族 = CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "種族"))
@@ -404,6 +500,18 @@ IF 動作モード == 0
 		SIF TALENT:対象キャラ:素質番号 != CSVTALENT(NO:対象キャラ, 素質番号)
 			RETURN 1
 	NEXT
+ELSEIF 動作モード == -1
+	;表示
+	FOR 素質番号, 10, 155
+		SIF GROUPMATCH(素質番号, 34, 73, 74, 75, 76, 133, 134, 135, 136, 138, 153)
+			CONTINUE
+		SIF TALENT:対象キャラ:素質番号 != CSVTALENT(NO:対象キャラ, 素質番号)
+			PRINTFORML [%GET_TALENTNAME(素質番号, TALENT:対象キャラ:素質番号)%] > [%GET_TALENTNAME(素質番号, CSVTALENT(NO:対象キャラ, 素質番号))%]
+	NEXT
+	FOR 素質番号, 220, VARSIZE("TALENT")
+		SIF TALENT:対象キャラ:素質番号 != CSVTALENT(NO:対象キャラ, 素質番号)
+			PRINTFORML [%GET_TALENTNAME(素質番号, TALENT:対象キャラ:素質番号)%] > [%GET_TALENTNAME(素質番号, CSVTALENT(NO:対象キャラ, 素質番号))%]
+	NEXT
 ELSE
 	;書き換える
 	FOR 素質番号, 10, 155
@@ -446,6 +554,12 @@ IF 動作モード == 0
 		SIF 知識素質:対象キャラ:素質番号 != 素質記録:素質番号
 			RETURN 1
 	NEXT
+ELSEIF 動作モード == -1
+	;表示
+	FOR 素質番号, 0, 100
+		SIF 知識素質:対象キャラ:素質番号 != 素質記録:素質番号
+			PRINTFORML %ERDNAME(知識素質, 素質番号)%：Lv{知識素質:対象キャラ:素質番号} > Lv{素質記録:素質番号}
+	NEXT
 ELSE
 	;書き換える
 	FOR 素質番号, 0, 100
@@ -465,6 +579,7 @@ RETURN 0
 #DIM 素質番号
 #DIM 素質記録, 100
 #DIMS CSTR切り分け文字列格納, 2
+#DIMS CONST 強度表示 = "なし", "興味", "愛好", "中毒"
 
 VARSET LOCALS
 VARSET RESULTS
@@ -485,6 +600,12 @@ IF 動作モード == 0
 	FOR 素質番号, 0, 100
 		SIF 性癖素質:対象キャラ:素質番号 != 素質記録:素質番号
 			RETURN 1
+	NEXT
+ELSEIF 動作モード == -1
+	;表示
+	FOR 素質番号, 0, 100
+		SIF 性癖素質:対象キャラ:素質番号 != 素質記録:素質番号
+			PRINTFORML %ERDNAME(性癖素質, 素質番号)%：%強度表示:(性癖素質:対象キャラ:素質番号)% > %強度表示:(素質記録:素質番号)%
 	NEXT
 ELSE
 	;書き換える

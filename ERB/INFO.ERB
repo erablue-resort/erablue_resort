@@ -6,6 +6,11 @@
 #DIM 文字数カウント
 #DIM うふふ終了フラグ
 #DIM 改行フラグ
+#DIM ツールチップフラグ
+
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
 
 VARSET LOCAL
 
@@ -643,17 +648,36 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 	ENDIF
 	RESETCOLOR
 	PRINT 　　　　　　　 　　　　　服装:
+	LOCALS = 
 	IF CSTR:TARGET:着せ替え服 != ""
+		VARSET RESULTS
+		ツールチップフラグ = 0
+		TRYCALLFORM CLOTHES_販売説明_%CSTR:TARGET:着せ替え服%
+		IF ツールチップ切り替えOPTION記憶 == 0 && RESULTS != ""
+			LOCALS += @"<nonbutton title = '%RESULTS%"
+			SIF RESULTS:1 != ""
+				LOCALS += @"<br>出典元：%RESULTS:1%'>"
+			ツールチップフラグ = 1
+		ENDIF
 		IF CSTR:TARGET:着せ替え服 == "浴衣"
-			PRINT ユカタヴィラ
+			LOCALS += "ユカタヴィラ"
 		ELSE
-			PRINTFORM %CSTR:TARGET:着せ替え服%
+			LOCALS += @"%CSTR:TARGET:着せ替え服%"
 		ENDIF
 		SIF CSTR:TARGET:着せ替え服追加名 != ""
-			PRINTFORM （%CSTR:TARGET:着せ替え服追加名%）
+			LOCALS += @"（%CSTR:TARGET:着せ替え服追加名%）"
+		SIF ツールチップフラグ
+			LOCALS += "</nonbutton>"
 	ELSE
-		PRINT 普段着
+		IF ツールチップ切り替えOPTION記憶 == 0 && CSTR:TARGET:普段着解説 != ""
+			LOCALS += @"<nonbutton title = '■%CSTR:TARGET:服名称%%REPLACE(CSTR:TARGET:普段着解説, " ", "<br>")%'>"
+		ENDIF
+		LOCALS += "普段着"
+		IF ツールチップ切り替えOPTION記憶 == 0 && CSTR:TARGET:普段着解説 != ""
+			LOCALS += @"</nonbutton>"
+		ENDIF
 	ENDIF
+	HTML_PRINT LOCALS, 1
 	PRINTL
 ELSE
 	TFLAG:調教モード = 0
