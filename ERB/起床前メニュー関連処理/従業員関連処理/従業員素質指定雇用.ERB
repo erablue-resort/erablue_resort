@@ -46,6 +46,7 @@
 #DIMS 汎用画像キー
 #DIMS CONST 表示切替 = "情報・素質","能力・経験","服装","同行者"
 #DIM 部屋使用数
+#DIM CSV番号
 
 表示モード = 0
 ページ数 = 0
@@ -291,6 +292,10 @@ ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='200'>[200] これで決定する</button>"
 LOCALS += "<br>"
+; IF CSVエディタフラグ
+; 	LOCALS += "<button value='998'>[998] 既存キャラをコピーする</button>"
+; 	LOCALS += "<br>"
+; ENDIF
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
@@ -2041,6 +2046,13 @@ SELECTCASE LOCAL
 	CASE 3
 		ページ数 = 0
 		表示モード = 3
+	CASE 998
+		CALL CSVコピー処理
+		CSV番号 = RESULT
+		IF EXISTCSV(CSV番号)
+			;コピー処理
+			PRINTFORMW %CSVNAME(CSV番号)%のデータをコピーしました。
+		ENDIF
 	CASE 999
 		IF CSVエディタフラグ
 			CALL CHOICE("CSVエディタを終了しますか？（セーブは自動では行われません）", "はい", "いいえ")
@@ -2495,3 +2507,78 @@ SELECTCASE RESULT
 		PRINTFORMW %汎用画像キー%を選択しました。
 		RETURN 0
 ENDSELECT
+
+@CSVコピー処理()
+#DIM CSV番号
+#DIM 配列番号
+#DIM 表示数
+#DIM CSVページ数
+#DIM 次ページフラグ
+#DIM 表示配列, 3000
+
+VARSET 表示配列
+表示数 = 0
+FOR CSV番号, 1, 3000
+	SIF EXISTCSV(CSV番号) == 0
+		CONTINUE
+	SIF CSV番号 == 999
+		CONTINUE
+	表示配列:表示数 = CSV番号
+	表示数 ++
+NEXT
+
+$処理部分
+
+DRAWLINE
+PRINTL 既存のCSVから設定をコピーします。コピー対象を選択してください
+DRAWLINE
+
+表示数 = 0
+次ページフラグ = 0
+FOR 配列番号, CSVページ数 * 30, CSVページ数 * 30 + 30
+	SIF 表示配列:配列番号 < 1
+		CONTINUE
+	PRINTBUTTON @"[{表示配列:配列番号, 4}] %CSVNAME(表示配列:配列番号),41,LEFT%", 表示配列:配列番号
+	表示数 ++
+	SIF 表示数 % 2 == 0
+		PRINTL
+NEXT
+SIF 表示数 % 2
+	PRINTL
+DRAWLINE
+IF CSVページ数 > 0
+	PRINTBUTTONLC "[9997] 前ページへ", 9997
+ELSE
+	PRINTLC 　
+ENDIF
+IF CSVページ数 * 30 + 30 < 3000 && 表示配列:(CSVページ数 * 30 + 30) > 0
+	PRINTBUTTONLC "[9998] 次ページへ", 9998
+ENDIF
+PRINTL
+PRINTBUTTONLC "[9999] 戻る", 9999
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 9997
+		CSVページ数 --
+		GOTO 処理部分
+	CASE 9998
+		CSVページ数 ++
+		GOTO 処理部分
+	CASE 9999
+		RETURN -1
+	CASEELSE
+		CSV番号 = RESULT
+		PRINTFORML %CSVNAME(CSV番号)%のデータをコピーします。よろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			RETURN CSV番号
+		ELSE
+			RESTART
+		ENDIF
+ENDSELECT
+
