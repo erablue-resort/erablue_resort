@@ -424,7 +424,7 @@ SELECTCASE 基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存
 		ENDIF
 ENDSELECT
 
-@敵レベルアップ_テンプレート適用(エネミー番号, エネミーレベル, 敵成長タイプ = "ランダム")
+@敵レベルアップ_テンプレート適用(エネミー番号, エネミーレベル)
 #DIMS 敵成長タイプ
 #DIM エネミー番号
 #DIM 上昇レベル
@@ -432,6 +432,14 @@ ENDSELECT
 #DIM エネミーレベル
 #DIM レベルアップ後所持EXP
 #DIM レベルアップ後所持ルピ
+
+IF 敵BATTLE_STATE_STR:エネミー番号:ステータスタイプ指定 != ""
+	敵成長タイプ '= 敵BATTLE_STATE_STR:エネミー番号:ステータスタイプ指定
+ELSEIF 敵BATTLE_STATE:エネミー番号:ボスフラグ
+	敵成長タイプ '= "ボス"
+ELSE
+	敵成長タイプ '= 成長タイプ:(RAND:8)
+ENDIF
 
 SIF 敵BATTLE_STATE_STR:エネミー番号:エネミー関数キー == ""
 	敵BATTLE_STATE_STR:エネミー番号:エネミー関数キー '= 敵BATTLE_STATE_STR:エネミー番号:エネミー名
@@ -533,8 +541,11 @@ SELECTCASE 敵成長タイプ
 		敵BATTLE_STATE:エネミー番号:命中率 += 10 * 上昇ステップ / 2
 		敵BATTLE_STATE:エネミー番号:回避率 += 5 * 上昇ステップ / 2
 	CASEELSE
-		敵成長タイプ '= 成長タイプ:(RAND:8)
-		RESTART
+		TRYCCALLFORM 敵レベルアップ_固有_%敵BATTLE_STATE_STR:エネミー番号:エネミー関数キー%(エネミー番号, 上昇レベル, 上昇ステップ)
+		CATCH
+			敵BATTLE_STATE_STR:エネミー番号:ステータスタイプ指定 '= ""
+			RESTART
+		ENDCATCH
 ENDSELECT
 
 レベルアップ後所持EXP = ランダム経験値目安:MIN(79, エネミーレベル)
