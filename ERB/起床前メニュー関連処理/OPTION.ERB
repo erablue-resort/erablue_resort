@@ -1375,8 +1375,9 @@ SELECTCASE 画面表示用変数
 	CASE 200
 		LOCALS += "・妊娠切り替え<br>"
 		LOCALS += "セックスによって妊娠する機能のON/OFFを切り替えます。<br>"
+		LOCALS += "特定キャラのON/OFFを切り替える場合は能力表示画面から設定してください。<br>"
 		LOCALS += "<br>"
-		LOCALS += "・全体制御（他のオプションに関係なく一切妊娠が発生しなくなる）<br>"
+		LOCALS += "・全体制御（下のオプションを無視して妊娠を発生させない）<br>"
 		IF 妊娠切り替えOPTION記憶 == 0
 			LOCALS += "　<button value='201'>[201] 妊娠機能をOFFにする（現在ON）</button>"
 		ELSEIF 妊娠切り替えOPTION記憶
@@ -2086,6 +2087,90 @@ SELECTCASE RESULT
 		RESTART
 ENDSELECT
 
+
+@妊娠個別設定(対象キャラ)
+#DIM 対象キャラ
+
+DRAWLINE
+PRINTL 妊娠するか否かを個別に設定出来ます。
+PRINTL
+PRINTL ・現在の全体設定
+IF 妊娠切り替えOPTION記憶 == 0
+	PRINTL 妊娠させる
+	IF 他人妊娠OPTION記憶
+		PRINTL （あなたが関わらない時の妊娠を禁止）
+	ENDIF
+	IF 夜這い時妊娠OPTION記憶
+		PRINTL （夜這い時の妊娠を禁止）
+	ENDIF
+ELSEIF 妊娠切り替えOPTION記憶
+	PRINTL 妊娠させない
+ENDIF
+DRAWLINE
+PRINTFORML ・現在の%NAME:対象キャラ%個別設定：
+IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 0) == 0
+	PRINTL 全体設定に従う
+	DRAWLINE
+
+	PRINTL
+	PRINTBUTTON "[0] 個別設定を行う", 0
+	PRINTL
+ELSE
+	IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 1)
+		PRINTL 妊娠させない
+	ELSE
+		PRINTL 妊娠させる
+		IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 2)
+			PRINTL （あなたが関わらない時の妊娠を禁止）
+		ELSE
+			PRINTL （あなたが関わらない時の妊娠を許可）
+		ENDIF
+		IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 3)
+			PRINTL （夜這い時の妊娠を禁止）
+		ELSE
+			PRINTL （夜這い時の妊娠を許可）
+		ENDIF
+	ENDIF
+	DRAWLINE
+	PRINTL
+	PRINTBUTTON "[0] 全体設定に従う", 0
+	PRINTL
+	IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 1)
+		PRINTBUTTON "[1] 全体設定に関わらず妊娠させる", 1
+		PRINTL
+	ELSE
+		PRINTBUTTON "[1] 全体設定に関わらず妊娠させない", 1
+		PRINTL
+		IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 2)
+			PRINTBUTTON "[2] あなたが関わらない時の妊娠を許可する", 2
+			PRINTL
+		ELSE
+			PRINTBUTTON "[2] あなたが関わらない時の妊娠を許可しない", 2
+			PRINTL
+		ENDIF
+		IF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 3)
+			PRINTBUTTON "[3] 夜這い時の妊娠を許可する", 3
+			PRINTL
+		ELSE
+			PRINTBUTTON "[3] 夜這い時の妊娠を許可しない", 3
+			PRINTL
+		ENDIF
+	ENDIF
+ENDIF
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		RETURN 0
+	CASEELSE
+		INVERTBIT CFLAG:対象キャラ:妊娠個別設定フラグ, RESULT
+		SIF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 0) == 0
+			CFLAG:対象キャラ:妊娠個別設定フラグ = 0
+		RESTART
+ENDSELECT
 
 @OPTION_招待切り替え
 
