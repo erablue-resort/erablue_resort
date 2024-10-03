@@ -19,10 +19,14 @@
 #DIM シャッフル数
 #DIM 表示フラグ
 #DIM 結果保存
+#DIM 料理ZP補正保存
+#DIM 料理ルピ補正保存
 
 VARSET LOCAL
 VARSET 長期雇用者保存配列
 長期雇用者人数 = 0
+料理ZP補正保存 = 0
+料理ルピ補正保存 = 0
 PRINTL 一日が終わりました
 探索フラグ = 0
 CALL 口上変数初期化
@@ -228,6 +232,31 @@ FOR LOCAL, 0, CHARANUM
 					ENDIF
 				ENDIF
 			ENDIF
+		CASE 9
+			仕事人数表示用:調理師担当人数 ++
+			;経験値取得とレベル上昇
+			IF 知識素質:LOCAL:料理人 >= 0
+				知識素質:LOCAL:料理人経験値 += 1
+				IF 知識素質:LOCAL:料理人 < 3
+					CALL 知識系素質の取得(LOCAL)
+				ENDIF
+				料理ZP補正保存 += (知識素質:LOCAL:料理人 + 1) * 5
+			ENDIF
+		CASE 10
+			仕事人数表示用:給仕担当人数 ++
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:10 += 1
+			IF 仕事レベル:LOCAL:10 < 5
+				IF 仕事経験値:LOCAL:10 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:10 + 1)
+					仕事レベル:LOCAL:10 += 1
+					LOCALS:8 += @"%CALLNAME:LOCAL%の給仕レベルがLv{仕事レベル:LOCAL:10}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:10 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：給仕レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+			料理ルピ補正保存 += (仕事レベル:LOCAL:10 + 1) * 5
 	ENDSELECT
 NEXT
 
@@ -354,6 +383,20 @@ IF 学校利用者:0 != ""
 	SIF LOCAL:2
 		DRAWLINE
 ENDIF
+IF 仕事人数表示用:調理師担当人数 > 0
+	PRINTFORML {仕事人数表示用:調理師担当人数}名の従業員は、頑張って料理を作っている。
+	DRAWLINE
+	WAIT
+ENDIF
+IF 仕事人数表示用:給仕担当人数 > 0
+	PRINTFORML {仕事人数表示用:給仕担当人数}名の従業員は、愛想よく給仕を行っている。
+	IF LOCALS:8 != ""
+		HTML_PRINT LOCALS:8
+		WAIT
+	ENDIF
+	DRAWLINE
+	WAIT
+ENDIF
 ;人数再セット
 VARSET 仕事人数表示用
 LOCAL:1 = 1
@@ -427,6 +470,9 @@ IF 滞在キャラ数算出関数() > 0
 			LOCAL = LOCAL / 2
 			PRINTFORML 『失敗料理』の効果でルピ収入DOWN…
 		ENDIF
+		;従業員の効果
+		LOCAL = LOCAL * (MIN(滞在キャラ数算出関数(1) / 10, 料理ルピ補正保存) + 100) / 100
+		LOCAL:1 = LOCAL:1 * (MIN(滞在キャラ数算出関数(1) / 10, 料理ZP補正保存) + 100) / 100
 		PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
 		PRINTFORML ＺＰ利益：{LOCAL:1 / 1000}.{(LOCAL:1 % 1000) / 100}{(LOCAL:1 % 100) / 10}{(LOCAL:1 % 10)}
 		MONEY += LOCAL

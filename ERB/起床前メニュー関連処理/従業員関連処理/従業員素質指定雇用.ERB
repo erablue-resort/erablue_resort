@@ -25,8 +25,8 @@
 #DIM EXP数値保存, 100
 #DIMS CONST 好物一覧 = "食べ物","酒","宝石","アクセサリ","実用品","本","花","その他"
 #DIMS 好物一時保存
-#DIM 同行者一時保存, 100
-#DIM 同行確率一時保存, 100
+#DIM 同行者一時保存, 3000
+#DIM 同行確率一時保存, 3000
 #DIMS CONST 同行確率一覧 = "-25","-5","+5","+25"
 #DIM ランダムキャラ経験, 80
 #DIM ランダムキャラ戦闘タイプ, 10
@@ -47,6 +47,7 @@
 #DIMS CONST 表示切替 = "情報・素質","能力・経験","服装","同行者"
 #DIM 部屋使用数
 #DIM CSV番号
+#DIMS CSTR切り分け文字列格納, 2
 
 表示モード = 0
 ページ数 = 0
@@ -292,10 +293,10 @@ ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='200'>[200] これで決定する</button>"
 LOCALS += "<br>"
-; IF CSVエディタフラグ
-; 	LOCALS += "<button value='998'>[998] 既存キャラをコピーする</button>"
-; 	LOCALS += "<br>"
-; ENDIF
+IF CSVエディタフラグ
+	LOCALS += "<button value='998'>[998] 既存キャラをコピーする</button>"
+	LOCALS += "<br>"
+ENDIF
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
@@ -715,7 +716,7 @@ SELECTCASE 表示モード
 				同行者一時保存:(LOCAL:1) = LOCAL
 				同行確率一時保存:(LOCAL:1) = DT_CELL_GET("DT_CHARA", LOCAL, "VALUE")
 				LOCAL:1 ++
-				SIF LOCAL:1 >= 100
+				SIF LOCAL:1 >= VARSIZE("同行者一時保存")
 					BREAK
 			NEXT
 			LOCALS += @"(現在{LOCAL:1, 3, RIGHT}人)■<br>"
@@ -1595,7 +1596,7 @@ SELECTCASE LOCAL
 		INPUTS
 		固有素質一時保存:(LOCAL - 85000) = %RESULTS%
 ;同行者候補----------------------------------------------------
-	CASE 100000 TO 100000 + キャラクタ数上限
+	CASE 100000 TO 100000 + キャラクタ数上限 * 10
 		IF LOCAL % 10 == 0
 			PRINTL 同行確率を％で入力してください。（０～１００の間）
 			INPUT
@@ -2052,6 +2053,141 @@ SELECTCASE LOCAL
 		IF EXISTCSV(CSV番号)
 			;コピー処理
 			PRINTFORMW %CSVNAME(CSV番号)%のデータをコピーしました。
+			VARSET RESULTS
+			SPLIT CSVNAME(CSV番号), "]", RESULTS
+			ランダムキャラ二つ名 = %SUBSTRING(RESULTS:0, 1, -1)%
+			ランダムキャラネーム = %REPLACE(CSVNAME(CSV番号), ".*\]", "")%
+			ランダムキャラCALLネーム = %CSVCALLNAME(CSV番号)%
+
+			LOCALS = %CSVCSTR(CSV番号, GETNUM(CSTR, "戦闘基礎ステータス設定"))%
+			VARSET RESULTS
+
+			SUBSTRING LOCALS, 1, -1
+			SPLIT RESULTS, " ", LOCALS
+			;属性
+			SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
+			ランダムキャラ戦闘タイプ:0 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
+			;得意武器
+			SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
+			ランダムキャラ戦闘タイプ:1 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
+			;初期ステータス
+			SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
+			ランダムキャラ戦闘タイプ:2 = タイプ文字列数値変換(CSTR切り分け文字列格納:1)
+
+			ランダムキャラ出演作品 = %CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品"))%
+			ランダムキャラ招待不可フラグ = CSVCFLAG(CSV番号, GETNUM(CFLAG, "招待不可フラグ"))
+
+			ランダムキャラ素質:0 = CSVTALENT(CSV番号, GETNUM(TALENT, "種族"))
+			ランダムキャラ素質:1 = CSVTALENT(CSV番号, GETNUM(TALENT, "性別"))
+			ランダムキャラ素質:2 = 0
+			SIF CSVTALENT(CSV番号, GETNUM(TALENT, "処女")) == 0
+				SETBIT ランダムキャラ素質:2, 0
+			SIF CSVTALENT(CSV番号, GETNUM(TALENT, "非童貞"))
+				SETBIT ランダムキャラ素質:2, 1
+			肉体特徴数値保存:0 = CSVTALENT(CSV番号, GETNUM(TALENT, "角あり"))
+			肉体特徴数値保存:1 = CSVTALENT(CSV番号, GETNUM(TALENT, "尻尾あり"))
+			肉体特徴数値保存:2 = CSVTALENT(CSV番号, GETNUM(TALENT, "エルーン耳"))
+			肉体特徴数値保存:3 = CSVTALENT(CSV番号, GETNUM(TALENT, "ハーヴィン耳"))
+
+			身長保存 = CSVBASE(CSV番号, GETNUM(BASE, "身長"))
+			IF GETBIT(ランダムキャラ素質:1, 0)
+				バスト保存 = CSVBASE(CSV番号, GETNUM(BASE, "バスト"))
+				ランダムキャラ素質:3 = CSVTALENT(CSV番号, GETNUM(TALENT, "バストサイズ"))
+				ウエスト保存 = CSVBASE(CSV番号, GETNUM(BASE, "ウエスト"))
+				ヒップ保存 = CSVBASE(CSV番号, GETNUM(BASE, "ヒップ"))
+			ENDIF
+			ランダムキャラ素質:31 = CSVTALENT(CSV番号, GETNUM(TALENT, "体格"))
+			体型保存 = CSVTALENT(CSV番号, GETNUM(TALENT, "体型"))
+			下半身保存 = CSVTALENT(CSV番号, GETNUM(TALENT, "下半身"))
+			IF GETBIT(ランダムキャラ素質:1, 1)
+				ランダムキャラ素質:32 = CSVTALENT(CSV番号, GETNUM(TALENT, "男性器サイズ"))
+			ENDIF
+			好物一時保存 = %CSVCSTR(CSV番号, GETNUM(CSTR, "プレゼント好み"))%_
+
+			;素質
+			FOR LOCAL, 0, 300
+				SIF TALENT一時保存:LOCAL < 1
+					CONTINUE
+				TALENT数値保存:LOCAL = CSVTALENT(CSV番号, TALENT一時保存:LOCAL) + 5
+			NEXT
+
+			;知識素質
+			VARSET LOCALS
+			SUBSTRING CSVCSTR(CSV番号, GETNUM(CSTR, "知識素質設定")), 1, -1
+			SPLIT RESULTS, " ", LOCALS
+			LOCAL:2 = RESULT - 1
+			;性知識
+			SPLIT LOCALS:0, "Lv", CSTR切り分け文字列格納
+			ランダムキャラ素質:6 = TOINT(CSTR切り分け文字列格納:1)
+			FOR LOCAL, 1, LOCAL:2
+				SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+				;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+				知識素質数値保存:(GETNUM(知識素質, CSTR切り分け文字列格納:0)) = TOINT(CSTR切り分け文字列格納:1)
+			NEXT
+
+			FOR LOCAL, 0, 10
+				固有素質一時保存:LOCAL = %CSVCSTR(CSV番号, LOCAL + 80)%
+			NEXT
+
+			;性癖素質
+			VARSET LOCALS
+			SUBSTRING CSVCSTR(CSV番号, GETNUM(CSTR, "性癖素質設定")), 1, -1
+			SPLIT RESULTS, " ", LOCALS
+			LOCAL:2 = RESULT - 1
+			FOR LOCAL, 0, LOCAL:2
+				SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+				;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+				性癖素質数値保存:(GETNUM(性癖素質, CSTR切り分け文字列格納:0)) = TOINT(CSTR切り分け文字列格納:1)
+			NEXT
+
+			;能力
+			FOR LOCAL, 0, 50
+				SIF ABL一時保存:LOCAL < 0
+					BREAK
+				ABL数値保存:LOCAL = CSVABL(CSV番号, ABL一時保存:LOCAL)
+			NEXT
+
+			;経験
+			FOR LOCAL, 0, 100
+				SIF EXP一時保存:LOCAL < 0
+					BREAK
+				EXP数値保存:LOCAL = CSVEXP(CSV番号, EXP一時保存:LOCAL)
+			NEXT
+
+			;服装
+			ランダムキャラ服装名 = %CSVCSTR(CSV番号, GETNUM(CSTR, "服名称"))%
+			FOR LOCAL, 1, 23
+				服装数値保存:LOCAL = CSVEQUIP(CSV番号, LOCAL)
+			NEXT
+			服装数値保存:30 = CSVCFLAG(CSV番号, GETNUM(CFLAG, "水着"))
+
+			;同行者
+			SIF DT_EXIST("DT_CHARA")
+				DT_RELEASE "DT_CHARA"
+
+			DT_CREATE "DT_CHARA"
+			DT_COLUMN_ADD "DT_CHARA", "NO", 2
+			DT_COLUMN_ADD "DT_CHARA", "NAME"
+			DT_COLUMN_ADD "DT_CHARA", "VALUE", 1
+
+			VARSET LOCALS
+			REPLACE CSVCSTR(CSV番号, GETNUM(CSTR, "同行キャラ")), " ", ""
+			SPLIT RESULTS, "%", LOCALS
+			LOCAL:2 = RESULT - 1
+			FOR LOCAL, 1, キャラクタ数上限
+				SIF !EXISTCSV(LOCAL)
+					CONTINUE
+				;ランダムキャラ排除
+				SIF LOCAL == 999
+					CONTINUE
+				DT_ROW_ADD "DT_CHARA", "NO", LOCAL, "NAME", CSVNAME(LOCAL), "VALUE", 0
+			NEXT
+			FOR LOCAL, 0, LOCAL:2
+				SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+				;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+				DT_SELECT "DT_CHARA", @"NAME = '%CSTR切り分け文字列格納:0%'"
+				DT_CELL_SET "DT_CHARA", RESULT:1, "VALUE", TOINT(CSTR切り分け文字列格納:1), 1
+			NEXT
 		ENDIF
 	CASE 999
 		IF CSVエディタフラグ
