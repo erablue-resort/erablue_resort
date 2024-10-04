@@ -180,7 +180,7 @@ FOR LOCAL, 0, 4
 		CONTINUE
 	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
-	SIF !BATTLE_STATE:LOCAL:行動済みフラグ
+	SIF BATTLE_STATE:LOCAL:行動済みフラグ <= 0
 		LOCAL:3 = 1
 	LOCAL:1 = 1
 NEXT
@@ -190,7 +190,7 @@ FOR LOCAL, 0, 10
 		CONTINUE
 	SIF 敵BATTLE_STATE:LOCAL:ＨＰ < 1
 		CONTINUE
-	SIF !敵BATTLE_STATE:LOCAL:行動済みフラグ
+	SIF 敵BATTLE_STATE:LOCAL:行動済みフラグ <= 0
 		LOCAL:3 = 1
 	LOCAL:2 = 1
 NEXT
@@ -314,37 +314,38 @@ TSTR:メッセージ欄文字列受け渡し_上側 = <div rect='281,62,5662,168
 
 @行動順決定
 #DIM ループ用
-#DIM データベース行数
+#DIM 行動速度保存
+#DIM バフ込み行動速度
 ;全員の比較
-LOCAL:1 = 0
+行動速度保存 = 0
 
-FOR LOCAL, 0, 4
-	SIF BATTLE_STATE:LOCAL:キャラ番号 < 1
+FOR ループ用, 0, 4
+	SIF BATTLE_STATE:ループ用:キャラ番号 < 1
 		CONTINUE
-	SIF BATTLE_STATE:LOCAL:行動済みフラグ > 0
+	SIF BATTLE_STATE:ループ用:行動済みフラグ > 0
 		CONTINUE
-	SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+	SIF BATTLE_STATE:ループ用:ＨＰ < 1
 		CONTINUE
-	CALL バフ・デバフ測定(LOCAL, "行動速度")
-	LOCAL:2 = RESULT
-	IF LOCAL:2 > LOCAL:1
-		LOCAL:1 = LOCAL:2
-		戦闘行動キャラ = LOCAL
+	CALL バフ・デバフ測定(ループ用, "行動速度")
+	バフ込み行動速度 = RESULT
+	IF バフ込み行動速度 > 行動速度保存
+		行動速度保存 = バフ込み行動速度
+		戦闘行動キャラ = ループ用
 	ENDIF
 NEXT
 
-FOR LOCAL, 0, 10
-	SIF 敵BATTLE_STATE_STR:LOCAL:エネミー名 == ""
+FOR ループ用, 0, 10
+	SIF 敵BATTLE_STATE_STR:ループ用:エネミー名 == ""
 		CONTINUE
-	SIF 敵BATTLE_STATE:LOCAL:行動済みフラグ
+	SIF 敵BATTLE_STATE:ループ用:行動済みフラグ > 0
 		CONTINUE
-	SIF 敵BATTLE_STATE:LOCAL:ＨＰ < 1
+	SIF 敵BATTLE_STATE:ループ用:ＨＰ < 1
 		CONTINUE
-	CALL バフ・デバフ測定(LOCAL + 10, "行動速度")
-	LOCAL:2 = RESULT
-	IF LOCAL:2 > LOCAL:1
-		LOCAL:1 = 敵BATTLE_STATE:LOCAL:行動速度
-		戦闘行動キャラ = LOCAL + 10
+	CALL バフ・デバフ測定(ループ用 + 10, "行動速度")
+	バフ込み行動速度 = RESULT
+	IF バフ込み行動速度 > 行動速度保存
+		行動速度保存 = バフ込み行動速度
+		戦闘行動キャラ = ループ用 + 10
 	ENDIF
 NEXT
 
@@ -679,6 +680,35 @@ SIF RESULT
 	RETURN 1
 
 
+@全滅チェック
+#DIM 生存チェック_味方
+#DIM 生存チェック_敵
+#DIM ループ用
+
+生存チェック_味方 = 0
+生存チェック_敵 = 0
+
+FOR ループ用, 0, 4
+	SIF BATTLE_STATE:ループ用:キャラ番号 < 1
+		CONTINUE
+	SIF BATTLE_STATE:ループ用:ＨＰ < 1
+		CONTINUE
+	生存チェック_味方 = 1
+NEXT
+SIF 生存チェック_味方 == 0
+	アビテンプレート用_味方全滅フラグ = 1
+
+FOR ループ用, 0, 10
+	SIF 敵BATTLE_STATE_STR:ループ用:エネミー名 == ""
+		CONTINUE
+	SIF 敵BATTLE_STATE:ループ用:ＨＰ < 1
+		CONTINUE
+	生存チェック_敵 = 1
+NEXT
+SIF 生存チェック_敵 == 0
+	アビテンプレート用_敵全滅フラグ = 1
+
+
 @行動後発動効果処理
 #DIMS 効果種類
 #DIM 効果量
@@ -712,7 +742,7 @@ IF 戦闘行動キャラ < 10
 			SIF ループ終了
 				BREAK
 		ENDIF
-		IF 効果種類 == "ＭＰ自傷"
+		IF 効果種類 == "消耗" || 効果種類 == "ＭＰ自傷"
 			;ダメージ量決定
 			効果量 = DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_固定値") + (BATTLE_STATE:戦闘行動キャラ:最大ＭＰ * DT_CELL_GET(@"デバフデータベース_{戦闘行動キャラ}", LOCAL:1, "デバフ効果量_割合") / 100)
 			効果量 = 効果量 * RAND(95, 105) / 100
@@ -728,6 +758,7 @@ IF 戦闘行動キャラ < 10
 	CALL デバフ回数経過処理(戦闘行動キャラ, "火傷")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "氷結")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "自傷")
+	CALL デバフ回数経過処理(戦闘行動キャラ, "消耗")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "ＭＰ自傷")
 ELSE
 	データベース行数 = DT_ROW_LENGTH(@"デバフデータベース_{戦闘行動キャラ}")
@@ -756,6 +787,7 @@ ELSE
 	CALL デバフ回数経過処理(戦闘行動キャラ, "火傷")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "氷結")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "自傷")
+	CALL デバフ回数経過処理(戦闘行動キャラ, "消耗")
 	CALL デバフ回数経過処理(戦闘行動キャラ, "ＭＰ自傷")
 ENDIF
 ループ終了 = 0
