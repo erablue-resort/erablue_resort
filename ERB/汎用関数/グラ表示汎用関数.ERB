@@ -8,6 +8,7 @@
 ;@スプライト作成(ARGS, ARG, mode = 0)
 ;  グラフィックID(ARG)からARGSという名前のスプライトを、アスペクト比不適な画像処理の設定に応じた方法で作成する
 ;  mode 0：正方形 1；縦長
+;  ※ グラフィックID(ARG)にはTEMP_gID以外の値を指定すること
 ;********************************************************************************************
 
 @スプライト作成(ARGS, ARG, mode = 0)
@@ -21,6 +22,10 @@ SIF ARGS == ""
 	THROW スプライト名が指定されていません
 SIF !GCREATED(ARG)
 	THROW グラフィックID{ARG}は作成されていません
+; グラフィックID(ARG) == TEMP_gIDの場合、拡大縮小処理が誤動作するのでエラー通知
+; 切り抜き処理の場合は問題なく動作するが、設定で使用可能なグラフィックIDが変わるのもおかしいので設定に関わらず通知する
+SIF ARG == TEMP_gID
+	THROW グラフィックIDにはTEMP_gID({TEMP_gID})以外の数値を指定してください
 
 横幅 = GWIDTH(ARG)
 縦幅 = GHEIGHT(ARG)
@@ -206,95 +211,72 @@ RETURNF RESULTS
 #DIM G_NUM
 #DIM C_NUM
 #DIM F_NUM
+#DIM T_REDRAW
 #DIMS G_NAME
 #DIMS FOLDER, 10
+#DIM CONST FOLDER_NUM_MAX = 10
 
 LNCOUNT = LINECOUNT
 VARSET LOCAL
-VARSET LOCALS
 VARSET FOLDER
-SPRITEDISPOSEALL 0
+T_REDRAW = CURRENTREDRAW()
+REDRAW 0
 
-IF 対象キャラ == MASTER
-	LOCALS '= "resources\\0あなた"
-ELSE
-	LOCALS '= "resources\\" + TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ
-ENDIF
-F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
-IF F_NUM < 2
-	PRINTL 有効な画像フォルダは1つ以下しかありません
-	PRINTW 該当のフォルダを有効化します
-	CSTR:対象キャラ:画像フォルダ '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
-	RETURN
-ELSEIF F_NUM > 10
-	PRINTL 有効な画像フォルダが多すぎます。最初に見つかった10個のみが有効となります。
-	F_NUM = 10
-ENDIF
-
-FOR L_CNT, 0, F_NUM
-	FOLDER:L_CNT '= SUBSTRING(RESULTS:L_CNT, 10, STRLENS(RESULTS:L_CNT)-28)
+; 画像フォルダ数を取得
+F_NUM = GET_ALL_RESOURCES_FOLDERS(対象キャラ)
+; 取得した結果を退避
+FOR L_CNT, 0, MIN(F_NUM, FOLDER_NUM_MAX)
+	FOLDER:L_CNT '= RESULTS:L_CNT
 NEXT
 
+SELECTCASE F_NUM
+	CASE IS < 1
+		PRINTL 有効な画像フォルダがありません
+		; 画像フォルダ設定の修正
+		CALL FIX_RESOURCES_FOLDER(対象キャラ)
+		SIF RESULT
+			PRINTFORMW 画像フォルダの設定を%CSTR:対象キャラ:画像フォルダ%に変更しました
+		; 表示するものがないので終了
+		RETURN
+	CASE 1
+		; 画像フォルダ設定の修正
+		CALL FIX_RESOURCES_FOLDER(対象キャラ)
+		IF RESULT
+			PRINTL 現在設定されている画像フォルダが無効なため、
+			PRINTFORMW 画像フォルダの設定を%CSTR:対象キャラ:画像フォルダ%に変更しました
+		ENDIF
+	CASE 2 TO FOLDER_NUM_MAX
+		; 処理なし
+	CASE IS > FOLDER_NUM_MAX
+		; 画像フォルダが多すぎるので一部のみ表示
+		PRINTFORML 有効な画像フォルダが多すぎます。最初に見つかった{FOLDER_NUM_MAX}個のみが有効となります。
+		F_NUM = FOLDER_NUM_MAX
+ENDSELECT
+
+PRINTL
 DRAWLINE
 PRINTL 使用する画像フォルダを選択してください
-PRINTL ※例としてランダムな画像を５つ表示中
+PRINTL ※例としてデフォルト画像＋ランダムな画像を４つ表示中
 DRAWLINE
-TEMP_HTML = 
+CALL ランダム画像表示(FOLDER, F_NUM)
+G_NUM = RESULT
 
-FOR L_CNT, 0, F_NUM
-	PRINTFORML [{L_CNT}] %FOLDER:L_CNT%
-	G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, "*.png")
-	PRINTFORM 総画像数：{G_NUM, 3}枚
-	C_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, "*カットイン.png")
-	IF C_NUM
-		PRINTL 　　カットインあり
-	ELSE
-		PRINTL 　　カットインなし
-	ENDIF
-	LOCALS = 短冊_
-	VARSET RESULTS
-	G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, LOCALS + "*.png")
-	IF G_NUM
-		TEMP_HTML_MAX_HEIGHT = 1500
-		短冊フラグ = 1
-	ELSE
-		LOCALS = 顔_
-		VARSET RESULTS
-		G_NUM = ENUMFILES("resources\\" + FOLDER:L_CNT, LOCALS + "*.png")
-		TEMP_HTML_MAX_HEIGHT = 750
-		短冊フラグ = 0
-	ENDIF
-	FOR L_CNT:1, 0, 5
-		G_NAME '= SUBSTRING(RESULTS:(RAND:G_NUM), 10, -1)
-		LOCAL = TEMP_gID + L_CNT * 10 + L_CNT:1
-		GCREATEFROMFILE LOCAL, G_NAME
-		SIF スプライト作成(TOSTR(LOCAL), LOCAL, 短冊フラグ) == 0
-			CONTINUE
-		TEMP_HTML_MAX_HEIGHT = 1500
-		LOCALS = {(L_CNT:1 % 8) * 750}, 0, 750, {TEMP_HTML_MAX_HEIGHT}
-		TEMP_HTML += @"<div rect='%LOCALS%'><button value='{L_CNT}' title='%ESCAPE(G_NAME)%'><img src='{LOCAL}' width='750' height='{TEMP_HTML_MAX_HEIGHT}'></button></div>"
-		TEMP_HTML_MAX_HEIGHT = 240
-	NEXT
-	描画開始行数 = LINECOUNT
-	CALL 画像一斉表示("左", 0, 1)
-NEXT
-
-
-PRINTL [200] 画像のランダム表示をリロール
+; 5枚以上画像がある場合はリロールボタンを表示
+SIF G_NUM > 5
+	PRINTL [200] 画像のランダム表示をリロール
 PRINTL [100] 戻る
-
 BINPUT
 LOCAL = RESULT
-IF INRANGE(RESULT, 0, F_NUM)
-	CSTR:対象キャラ:画像フォルダ '= FOLDER:RESULT
+IF INRANGE(LOCAL, 0, F_NUM)
+	CSTR:対象キャラ:画像フォルダ '= FOLDER:LOCAL
 	PRINTFORMW 画像フォルダを%CSTR:対象キャラ:画像フォルダ%に変更しました
 	SUBSTRING CSTR:対象キャラ:画像フォルダ, STRLENS(TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ), -1
 ENDIF
 
-FOR L_CNT, 0, (F_NUM+1)*2000
-	GDISPOSE TEMP_gID + L_CNT
-NEXT
+CALL ランダム画像表示_リソース解放(F_NUM)
+
 CLEARLINE LINECOUNT - LNCOUNT
+REDRAW T_REDRAW
 SIF LOCAL == 200
 	RESTART
 PRINTFORML 現在の画像フォルダは%CSTR:対象キャラ:画像フォルダ%です

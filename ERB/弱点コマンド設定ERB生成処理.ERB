@@ -1,0 +1,216 @@
+﻿;弱点コマンド口上設定を作るための処理
+;コマンド番号とにらめっこするのがめんどいので作成
+
+@弱点コマンド設定ERB生成処理()
+#DIM CSV番号
+#DIM 配列番号
+#DIM 表示数
+#DIM CSVページ数
+#DIM 次ページフラグ
+#DIM 表示配列, 3000
+
+VARSET 表示配列
+表示数 = 0
+FOR CSV番号, 1, 3000
+	SIF EXISTCSV(CSV番号) == 0
+		CONTINUE
+	SIF CSV番号 == 999
+		CONTINUE
+	表示配列:表示数 = CSV番号
+	表示数 ++
+NEXT
+
+$処理部分
+
+DRAWLINE
+PRINTL 弱点コマンド設定ERBを作成するエディタです。
+PRINTL 対象のキャラを選んでください。
+DRAWLINE
+
+表示数 = 0
+次ページフラグ = 0
+FOR 配列番号, CSVページ数 * 30, CSVページ数 * 30 + 30
+	SIF 表示配列:配列番号 < 1
+		CONTINUE
+	PRINTBUTTON @"[{表示配列:配列番号, 4}] %CSVNAME(表示配列:配列番号),41,LEFT%", 表示配列:配列番号
+	表示数 ++
+	SIF 表示数 % 2 == 0
+		PRINTL
+NEXT
+SIF 表示数 % 2
+	PRINTL
+DRAWLINE
+IF CSVページ数 > 0
+	PRINTBUTTONLC "[9997] 前ページへ", 9997
+ELSE
+	PRINTLC 　
+ENDIF
+IF CSVページ数 * 30 + 30 < 3000 && 表示配列:(CSVページ数 * 30 + 30) > 0
+	PRINTBUTTONLC "[9998] 次ページへ", 9998
+ENDIF
+PRINTL
+PRINTBUTTONLC "[9999] 戻る", 9999
+PRINTL
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE RESULT
+	CASE 9997
+		CSVページ数 --
+		GOTO 処理部分
+	CASE 9998
+		CSVページ数 ++
+		GOTO 処理部分
+	CASE 9999
+		RETURN -1
+	CASEELSE
+		ADDCHARA 0
+		ADDCHARA LOCAL
+		CALL 弱点ERB生成_実処理(1)
+		DELALLCHARA
+		RESTART
+ENDSELECT
+
+
+@弱点ERB生成_実処理(対象キャラ)
+#DIM 対象キャラ
+#DIM コマンド番号
+#DIM 派生番号
+#DIM ページ数
+#DIMS 表示配列, 3000
+#DIMS 弱点配列, 50
+#DIM 表示数
+
+VARSET 表示配列
+VARSET 弱点配列
+表示数 = 0
+FOR コマンド番号, 1, 3000
+	SIF EXISTFUNCTION(@"COMTYPE_{コマンド番号}") <= 0
+		CONTINUE
+	TFLAG:コマンドタイプ受渡 = 0
+	CALLFORMF COMTYPE_{コマンド番号}
+	SELECTCASE TFLAG:コマンドタイプ受渡
+		CASE 1, 2, 3, 5, 6, 7, 8, 9, 12, 15, 16, 17
+			表示配列:表示数 = {コマンド番号}
+			表示数 ++
+		CASE 100, 101
+			IF STRFIND(TSTR:複合コマンドタイプ受け渡し, "セクハラ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "うふふ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "Ｖ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し,"Ａ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "道具系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "複数人プレイ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "触手系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "全裸散歩") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "奉仕") >= 0
+				表示配列:表示数 = {コマンド番号}
+				表示数 ++
+			ENDIF
+	ENDSELECT
+	FOR 派生番号, 1, 50
+		SIF EXISTFUNCTION(@"COMTYPE_S_{コマンド番号}_{派生番号}") <= 0
+			CONTINUE
+		TFLAG:コマンドタイプ受渡 = 0
+		CALLFORMF COMTYPE_S_{コマンド番号}_{派生番号}
+		SELECTCASE TFLAG:コマンドタイプ受渡
+			CASE 1, 2, 3, 5, 6, 7, 8, 9, 12, 15, 16, 17
+				表示配列:表示数 = {コマンド番号}_{派生番号}
+				表示数 ++
+			CASE 100, 101
+				IF STRFIND(TSTR:複合コマンドタイプ受け渡し, "セクハラ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "うふふ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "Ｖ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し,"Ａ系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "道具系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "複数人プレイ") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "触手系") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "全裸散歩") >= 0 || STRFIND(TSTR:複合コマンドタイプ受け渡し, "奉仕") >= 0
+					表示配列:表示数 = {コマンド番号}_{派生番号}
+					表示数 ++
+				ENDIF
+		ENDSELECT
+	NEXT
+NEXT
+
+$表示処理
+
+DRAWLINE
+PRINTFORML %NAME:対象キャラ%の弱体設定ERBを作成します。
+PRINTL 弱点にしたいコマンドを選んでください。
+DRAWLINE
+
+表示数 = 0
+FOR コマンド番号, ページ数 * 80, ページ数 * 80 + 80
+	SIF 表示配列:コマンド番号 == ""
+		CONTINUE
+	TSTR:コマンド名受渡 = 
+	IF ISNUMERIC(表示配列:コマンド番号)
+		CALLFORMF COMNAME%表示配列:コマンド番号%
+	ELSE
+		CALLFORMF COMNAME_S%表示配列:コマンド番号%
+	ENDIF
+	IF TSTR:コマンド名受渡 != ""
+		SIF MATCH(弱点配列, 表示配列:コマンド番号)
+			SETCOLOR カラーパレット("黄")
+		PRINTBUTTONLC @"[%表示配列:コマンド番号, 5%] %TSTR:コマンド名受渡%", 表示配列:コマンド番号
+		RESETCOLOR
+		表示数 ++
+		SIF 表示数 % 4 == 0
+			PRINTL
+	ENDIF
+NEXT
+SIF 表示数 % 4
+	PRINTL
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[9997] 前ページへ", 9997
+ELSE
+	PRINTLC 　
+ENDIF
+IF 表示配列:(ページ数 * 80 + 80) != ""
+	PRINTBUTTONLC "[9998] 次ページへ", 9998
+ENDIF
+PRINTL 
+PRINTL 
+PRINTBUTTONLC "[9999] 戻る", 9999
+PRINTBUTTONLC "[9996] この設定でERBを生成する", 9996
+
+
+BINPUTS
+LOCALS = %RESULTS%
+SELECTCASE LOCALS
+	CASE "9997"
+		ページ数 --
+	CASE "9998"
+		ページ数 ++
+	CASE "9999"
+		RETURN 0
+	CASE "9996"
+		;ERBファイル生成
+		CLEARLINE LINECOUNT
+		;記述データPRINT
+		PRINTFORML @弱点コマンド変更_{NO:対象キャラ}
+		PRINTL ;各変数にコマンド番号を入れること
+		PRINTL ;派生コマンドや専用コマンドは「370_1」のように記述すること
+		PRINTL 
+		PRINTL ;ここで指定しなかった枠はランダムで埋められる
+		PRINTL ;ランダムで埋める場合、枠０・１はセクハラコマンド、２・３はうふふコマンド、４は完全ランダムに選択される
+		PRINTFORML LOCAL = FINDCHARA(NO, {NO:対象キャラ})
+		PRINTL 
+		FOR LOCAL, 0, 50
+			IF 弱点配列:LOCAL != ""
+				PRINTFORML 弱点コマンド枠:LOCAL:{LOCAL} = %弱点配列:LOCAL%
+			ENDIF
+		NEXT
+		PRINTL
+
+		OUTPUTLOG @"ERB_EDITFILE/%CALLNAME:対象キャラ%_パラメータ設定.ERB"
+		CLEARLINE LINECOUNT
+
+		PRINTL ERB_EDITFILEに弱点設定用ERBを書き出しました。ERBフォルダに移動して再起動してください。
+		PRINTW 既存の弱点設定口上がある場合、うまく動かない場合があるので注意してください。
+		RETURN 0
+	CASEELSE
+		IF MATCH(弱点配列, LOCALS)
+			ARRAYREMOVE 弱点配列, FINDELEMENT(弱点配列, LOCALS, , , 1), 1
+		ELSE
+			LOCAL:1 = 0
+			FOR LOCAL, 0, VARSIZE("弱点配列")
+				IF 弱点配列:LOCAL == ""
+					弱点配列:LOCAL = %LOCALS%
+					LOCAL:1 = 1
+					BREAK
+				ENDIF
+			NEXT
+			IF LOCAL:1 == 0
+				PRINTW 弱点枠に空きがありません
+			ENDIF
+		ENDIF
+ENDSELECT
+
+GOTO 表示処理

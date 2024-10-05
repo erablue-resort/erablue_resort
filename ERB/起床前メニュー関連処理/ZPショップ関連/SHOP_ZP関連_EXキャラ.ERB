@@ -1,0 +1,905 @@
+﻿;-------------------------------------------------
+;ZPショップ：EXキャラの招待
+;-------------------------------------------------
+@ZP_SHOP_EXキャラ()
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 表示候補, 5000
+#DIM 現在ページ
+#DIM ページ判定
+#DIM 表示数
+#DIM 候補番号
+#DIM 入力番号
+#DIM 描画開始行
+#DIM 対象キャラ
+#DIM 候補キャラ数
+#DIM 候補キャラ数_シリーズ
+#DIM 最終ページフラグ
+#DIM START_NO
+#DIM END_NO
+#DIM NO_LEN
+#DIM REDRAW_TEMP
+#DIM L_CNT
+#DIM リスタートフラグ
+#DIMS BUTTON_TEXT
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM CONST 表示人数 = 15
+#DIMS 出展作品配列, 500
+#DIM 出展情報配列, 500
+#DIM 出展表示候補, 500
+#DIM 出典番号
+#DIM 配列番号
+#DIM 表示用番号
+#DIM 値段保存
+#DIM 選択シリーズ
+#DIM 選択モード
+#DIM ソートモード
+#DIMS ソートキー = "出展情報配列", "出展作品配列"
+
+VARSET 出展作品配列
+VARSET 出展情報配列
+
+VARSET 表示候補, -1
+; RESTART時に現在ページをリセットしない
+IF 初回実行フラグ
+	選択シリーズ = -1
+	初回実行フラグ = 0
+	現在ページ = 0
+	描画開始行 = LINECOUNT
+	REDRAW_TEMP = CURRENTREDRAW()
+	ソートモード = 0
+	REDRAW 0
+ENDIF
+
+;広告対象の表示
+DRAWLINE
+PRINTL ZPを消費し、本来ならばリゾートを訪れることが出来ないキャラを導きます。
+PRINTL どのキャラを導きますか？
+IF ZPキャラ無料回数
+	SETCOLOR カラーパレット("黄")
+	PRINTFORML 残り{ZPキャラ無料回数, 2}回無料！
+	RESETCOLOR
+ENDIF
+PRINTFORML 所持ZP:%ZP所持量全文字列()%
+
+;表示キャラを登録
+候補キャラ数 = 0
+出典番号 = 1
+出展作品配列:0 = グランブルーファンタジー
+FOR 対象キャラ, 1, CHARANUM
+	; 招待不可フラグのチェック
+	SELECTCASE CFLAG:対象キャラ:招待不可フラグ
+		; 招待可能キャラ
+		CASE 0
+			CONTINUE
+		; 招待不可キャラ
+		CASE 1
+			; 処理なし
+		; 招待不可キャラ (ZPショップ対象外)
+		CASE 2
+			CONTINUE
+		; 招待不可キャラ (他作品キャラ)
+		CASE 3
+			; 前提イベントをクリアしていない場合は不可
+			SIF イベント完了フラグ確認("「平行世界」という場所") < 1
+				CONTINUE
+	ENDSELECT
+	; キャラ固有の条件がある場合、その達成していない場合は不可
+	TRYCCALLFORM EXキャラ_表示条件_{NO:対象キャラ}
+		SIF RESULT == 0
+			CONTINUE
+	CATCH
+	ENDCATCH
+
+	表示候補:候補キャラ数 = 対象キャラ
+	候補キャラ数 += 1
+
+	;出典記録
+	IF CSTR:対象キャラ:出演作品 == ""
+		;出典なし＝グラブルキャラとする
+		出展情報配列:0 ++
+	ELSEIF MATCH(出展作品配列, CSTR:対象キャラ:出演作品)
+		配列番号 = FINDELEMENT(出展作品配列, CSTR:対象キャラ:出演作品, , , 1)
+		出展情報配列:配列番号 ++
+	ELSE
+		出展作品配列:出典番号 = %CSTR:対象キャラ:出演作品%
+		出展情報配列:出典番号 ++
+		出典番号 ++
+	ENDIF
+NEXT
+
+SELECTCASE ソートモード
+	CASE 0
+		;人数順
+		ARRAYMSORTEX "出展情報配列", ソートキー, 0
+	CASE 1
+		;シリーズ名順
+		ARRAYMSORT 出展作品配列, 出展情報配列
+ENDSELECT
+
+DRAWLINE
+IF 選択モード
+	PRINTBUTTON "[シリーズ選択]", 1000
+	PRINT / 
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [個別選択]
+	RESETCOLOR
+	PRINTL
+	DRAWLINE
+	;- キャラの表示
+	; 現在のページで表示する番号を計算
+	START_NO = (現在ページ * 表示人数)
+	END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+
+	; 番号の最大桁数を取得
+	SELECTCASE END_NO
+		CASE IS >= 100
+			NO_LEN = 3
+		CASE IS >= 10
+			NO_LEN = 2
+		CASEELSE
+			NO_LEN = 1
+	ENDSELECT
+
+	; キャラ表示ループ
+	最終ページフラグ = 0
+	FOR L_CNT, START_NO, END_NO + 1
+		対象キャラ = 表示候補:L_CNT
+		; 表示するキャラがいなくなったら表示終了
+		IF 対象キャラ == -1
+			最終ページフラグ = 1
+			BREAK
+		ENDIF
+		; ZPショップ値段の設定がないキャラは50に設定
+		SIF CFLAG:対象キャラ:ZPショップ値段 == 0
+			CFLAG:対象キャラ:ZPショップ値段 = 50
+		; ボタン表示
+		BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME:対象キャラ, "]"), 41, LEFT%"
+		BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
+		SIF ZPキャラ無料回数
+			BUTTON_TEXT += " → 0"
+		PRINTBUTTON BUTTON_TEXT, L_CNT
+		PRINTL
+	NEXT
+ELSE
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [シリーズ選択
+	IF 選択シリーズ >= 0
+		PRINTFORM ：%出展作品配列:選択シリーズ%
+	ENDIF
+	PRINT ]
+	RESETCOLOR
+	PRINT / 
+	PRINTBUTTON "[個別選択]", 1000
+	PRINTL
+	DRAWLINE
+	IF 選択シリーズ >= 0
+		;- キャラの表示
+		; 現在のページで表示する番号を計算
+		START_NO = (現在ページ * 表示人数)
+		END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+
+		; 番号の最大桁数を取得
+		SELECTCASE END_NO
+			CASE IS >= 100
+				NO_LEN = 3
+			CASE IS >= 10
+				NO_LEN = 2
+			CASEELSE
+				NO_LEN = 1
+		ENDSELECT
+
+		; キャラ表示ループ
+		最終ページフラグ = 0
+		FOR L_CNT, START_NO, END_NO + 1
+			対象キャラ = 出展表示候補:L_CNT
+			; 表示するキャラがいなくなったら表示終了
+			IF 対象キャラ == -1
+				最終ページフラグ = 1
+				BREAK
+			ENDIF
+			; ZPショップ値段の設定がないキャラは50に設定
+			SIF CFLAG:対象キャラ:ZPショップ値段 == 0
+				CFLAG:対象キャラ:ZPショップ値段 = 50
+			; ボタン表示
+			BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME:対象キャラ, "]"), 41, LEFT%"
+			BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
+			SIF ZPキャラ無料回数
+				BUTTON_TEXT += " → 0"
+			PRINTBUTTON BUTTON_TEXT, L_CNT
+			PRINTL
+		NEXT
+	ELSE
+		最終ページフラグ = 1
+		表示数 = 0
+		;シリーズの表示（15作品まで）
+		FOR LOCAL, 0, VARSIZE("出展情報配列")
+			IF 表示数 < 現在ページ * 15
+				SKIPDISP 1
+			ELSEIF 表示数 == 現在ページ * 15 + 15
+				SKIPDISP 1
+			ELSEIF 表示数 > 現在ページ * 15 + 15
+				SKIPDISP 0
+				最終ページフラグ = 0
+				BREAK
+			ELSE
+				SKIPDISP 0
+			ENDIF
+			IF 出展作品配列:LOCAL == ""
+				;登録が終わったら表示終了
+				BREAK
+			ENDIF
+			PRINTBUTTON @"[{LOCAL, 3}] %出展作品配列:LOCAL, 41, LEFT%：残{出展情報配列:LOCAL, 3}名", LOCAL
+			PRINTL 
+			表示数 ++
+		NEXT
+	ENDIF
+ENDIF
+
+
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900]前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF 選択モード && 表示候補:(END_NO + 1) > -1
+	PRINTBUTTONC "[901]次ページへ", 901
+ELSEIF 選択モード == 0
+	SIF 最終ページフラグ == 0
+		PRINTBUTTONC "[901]次ページへ", 901
+	IF 選択シリーズ >= 0
+		PRINTL 
+		PRINTL 
+		PRINTBUTTON "[997] シリーズ選択を解除", 997
+		PRINT 　　　
+		PRINTBUTTON "[998] このシリーズのキャラを全員呼ぶ", 998
+	ENDIF
+ENDIF
+PRINTL 
+IF 選択シリーズ < 0
+	PRINTBUTTONLC "[999] 戻る", 999
+	IF 選択モード == 0
+		SELECTCASE ソートモード
+			CASE 0
+				PRINTBUTTONLC "[996] シリーズ名順にする", 996
+			CASE 1
+				PRINTBUTTONLC "[996] 登録キャラ数順にする", 996
+		ENDSELECT
+	ENDIF
+ENDIF
+
+WHILE 1
+	BINPUT
+
+	入力番号 = RESULT
+	SELECTCASE 入力番号
+		CASE 1000
+			INVERTBIT 選択モード, 0
+			選択シリーズ = -1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 900
+			;- 前ページへ
+			; ページ番号を更新後、リスタートしてリスト表示へ戻る
+			現在ページ = MAX(現在ページ - 1, 0)
+			リスタートフラグ = 1
+			BREAK
+		CASE 901
+			;- 次ページへ
+			; ページ番号を更新後、リスタートしてリスト表示へ戻る
+			SIF !最終ページフラグ
+				現在ページ += 1
+			リスタートフラグ = 1
+			BREAK
+		CASE 999
+			;- 戻る
+			; リスタートせずにZPショップメニューへ戻る
+			リスタートフラグ = 0
+			BREAK
+		CASE 997
+			選択シリーズ = -1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 996
+			INVERTBIT ソートモード, 0
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 998
+			PRINTFORML %出展作品配列:選択シリーズ%のキャラクター{出展情報配列:選択シリーズ}名を導きます。
+			PRINTL よろしいですか？
+			PRINTBUTTONLC "[0]はい", 0 
+			PRINTBUTTONLC "[1]いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				PRINTL 
+				PRINTL 
+				FOR 対象キャラ, 0, CHARANUM
+					SIF 出展表示候補:対象キャラ == -1
+						BREAK
+
+					IF CFLAG:(出展表示候補:対象キャラ):ZPショップ値段 > FLAG:ZP所持量 && ZPキャラ無料回数 < 1
+						PRINTW ZPが足りないので停止します
+						RESTART
+					ENDIF
+
+					PRINTFORM %NAME:(出展表示候補:対象キャラ), 41, LEFT%が導かれました。
+					IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 - FLAG:滞在キャラ枠先確保分 > 0
+						PRINTL 起床後にリゾートを訪れます。
+						解放キャラ招待:(FINDELEMENT(解放キャラ招待, 0)) = 出展表示候補:対象キャラ
+						FLAG:滞在キャラ枠先確保分 += 1
+					ELSE
+						PRINTL 滞在人数がいっぱいのため、今後の招待対象に追加します。
+					ENDIF
+					CFLAG:(出展表示候補:対象キャラ):招待不可フラグ = 0
+					IF ZPキャラ無料回数
+						ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
+					ELSE
+						FLAG:ZP所持量 -= CFLAG:(出展表示候補:対象キャラ):ZPショップ値段
+					ENDIF
+				NEXT
+				PRINTL 
+				PRINTL 
+				PRINTW
+				選択シリーズ = -1
+				現在ページ = 0
+				VARSET 出展表示候補, -1
+				候補キャラ数_シリーズ = 0
+				リスタートフラグ = 1
+				BREAK
+			ELSE
+				リスタートフラグ = 1
+				BREAK
+			ENDIF
+		CASEELSE
+			IF 選択モード || 選択シリーズ >= 0
+				;- キャラ選択時
+				候補番号 = 入力番号
+				IF 選択モード
+					表示用番号 = 候補キャラ数
+				ELSE
+					表示用番号 = 候補キャラ数_シリーズ
+				ENDIF
+				;- キャラ招待ループ
+				WHILE 1
+					IF 選択モード
+						対象キャラ = 表示候補:候補番号
+					ELSE
+						対象キャラ = 出展表示候補:候補番号
+					ENDIF
+					CALL ZP_SHOP_EXキャラ_招待確認(対象キャラ)
+					SELECTCASE RESULT
+						CASE -1
+							;- キャンセル
+							; リスタートしてリスト表示へ戻る
+							リスタートフラグ = 1
+							BREAK
+						CASE 1
+							;- キャラ招待実行後
+							; リスタートしてリスト表示へ戻る
+							IF 選択モード == 0
+								;シリーズ表示中なら配列から抜いておく
+								ARRAYREMOVE 出展表示候補, 候補番号, 1
+							ENDIF
+							リスタートフラグ = 1
+							BREAK
+						CASE 2
+							;- 前のキャラ
+							; 候補番号を更新、ループして前のキャラを表示
+							候補番号 -=  1
+							SIF 候補番号 < 0
+								候補番号 = 表示用番号 - 1
+						CASE 3
+							;- 次のキャラ
+							; 候補番号を更新、ループして次のキャラを表示
+							候補番号 +=  1
+							SIF 候補番号 >= 表示用番号
+								候補番号 = 0
+					ENDSELECT
+				WEND
+				; 表示していたキャラにあわせてページ位置を更新
+				現在ページ = 候補番号 / 表示人数
+				BREAK
+			ELSE
+				選択シリーズ = 入力番号
+				現在ページ = 0
+				リスタートフラグ = 1
+				VARSET 出展表示候補, -1
+				候補キャラ数_シリーズ = 0
+				FOR 対象キャラ, 0, CHARANUM
+					SIF 表示候補:対象キャラ == -1
+						BREAK
+					IF CSTR:(表示候補:対象キャラ):出演作品 == 出展作品配列:選択シリーズ
+						出展表示候補:候補キャラ数_シリーズ = 表示候補:対象キャラ
+						候補キャラ数_シリーズ ++
+					ENDIF
+				NEXT
+				BREAK
+			ENDIF
+	ENDSELECT
+WEND
+IF リスタートフラグ
+	CLEARLINE LINECOUNT - 描画開始行
+	RESTART
+ENDIF
+REDRAW REDRAW_TEMP
+RETURN -1
+
+;-------------------------------------------------
+;EXキャラの招待確認
+;-------------------------------------------------
+@ZP_SHOP_EXキャラ_招待確認(対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 対象キャラ
+#DIM 入力番号
+#DIM 描画開始行
+#DIM 対象画像数
+#DIM リロールボタン有効
+#DIM 実行結果
+#DIM リスタートフラグ
+#DIM DYNAMIC 初回フラグ = 1
+
+IF 初回フラグ
+	初回フラグ = 0
+	; 番号の範囲チェック
+	SIF !INRANGE(対象キャラ, 0, CHARANUM - 1)
+		RETURN -1
+	; 所持ZPチェック
+	; ・ZPが足りなくても簡易紹介を表示したいのでZPの確認は後に移動
+;	IF CFLAG:対象キャラ:ZPショップ値段 > FLAG:ZP所持量
+;		PRINTW ZPが足りません
+;		RETURN
+;	ENDIF
+	描画開始行 = LINECOUNT
+ENDIF
+
+PRINTL
+; キャラ確認用の簡易紹介
+CALL キャラ簡易紹介(対象キャラ)
+対象画像数 = RESULT
+リロールボタン有効 = 対象画像数 > 5
+PRINTL
+; 確認メッセージ
+PRINTFORML %NAME:対象キャラ%を導きます。
+PRINTL よろしいですか？
+; ボタン表示
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+PRINTL
+PRINTBUTTONLC "[2]前のキャラ", 2
+PRINTBUTTONLC "[3]次のキャラ", 3
+SIF リロールボタン有効
+	PRINTBUTTONLC "[4]画像のランダム表示をリロール", 4
+PRINTL
+
+; 入力ループ
+WHILE 1
+	INPUT
+	入力番号 = RESULT
+	SELECTCASE 入力番号
+		CASE 0
+			;- [0]はい
+			; ZPが足りるかチェックしてキャラ開放
+			IF ZPキャラ無料回数 || FLAG:ZP所持量 >= CFLAG:対象キャラ:ZPショップ値段
+				; キャラ開放して処理終了
+				CALL EXキャラ開放(対象キャラ)
+				実行結果 = 1
+				リスタートフラグ = 0
+			ELSE
+				; エラー表示
+				PRINTW ZPが足りません
+			ENDIF
+			BREAK
+		CASE 1
+			;- [1]いいえ
+			; 何もせず処理終了
+			実行結果 = -1
+			リスタートフラグ = 0
+			BREAK
+		CASE 4
+			;- [4]画像のランダム表示をリロール
+			; リスタートして再表示
+			IF リロールボタン有効
+				実行結果 = 0
+				リスタートフラグ = 1
+				BREAK
+			ENDIF
+		CASE 2
+			;- [2]前のキャラ
+			; 何もせず処理終了(キャラ変更処理は関数外で実行)
+			実行結果 = 2
+			リスタートフラグ = 0
+			BREAK
+		CASE 3
+			;- [3]次のキャラ
+			; 何もせず処理終了(キャラ変更処理は関数外で実行)
+			実行結果 = 3
+			リスタートフラグ = 0
+			BREAK
+		CASEELSE
+			; 入力エラー
+	ENDSELECT
+	; 入力エラー時は消してやり直し
+	CLEARLINE 1
+	REUSELASTLINE 
+WEND
+
+; 表示した内容を消去
+CLEARLINE LINECOUNT - 描画開始行
+
+; リスタート or 終了
+SIF リスタートフラグ
+	RESTART
+
+; 簡易紹介で使用したリソースを解放
+CALL ランダム画像表示_リソース解放(1)
+RETURN 実行結果
+
+;-------------------------------------------------
+;EXキャラの開放
+;-------------------------------------------------
+@EXキャラ開放(対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 対象キャラ
+#DIM L_CNT
+
+PRINTFORML %NAME:対象キャラ%が導かれました。
+
+;- 招待したEXキャラを今日の招待枠に追加
+;・既に上限まで滞在/招待している場合は不可
+IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 > 0
+	PRINTW 起床後にリゾートを訪れます。
+	FOR L_CNT, 0, 100
+		IF 解放キャラ招待:L_CNT == 0
+			解放キャラ招待:L_CNT = 対象キャラ
+			FLAG:滞在キャラ枠先確保分 += 1
+			BREAK
+		ENDIF
+	NEXT
+ELSE
+	PRINTW 滞在人数がいっぱいのため、今後の招待対象に追加します。
+ENDIF
+; 招待不可状態の解除
+CFLAG:対象キャラ:招待不可フラグ = 0
+; ZPの支払い
+IF !ZPキャラ無料回数
+	FLAG:ZP所持量 -= CFLAG:対象キャラ:ZPショップ値段
+ELSE
+	; 無料招待回数を減らす
+	ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
+ENDIF
+
+;-------------------------------------------------
+;キャラの簡易紹介
+;-------------------------------------------------
+@キャラ簡易紹介(対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM  対象キャラ
+#DIMS 画像フォルダ名
+#DIM  画像フォルダ数
+#DIMS 顔グラ表示文字列
+#DIMS 種族テキスト, 2
+#DIMS 性別テキスト, 2
+#DIMS 身長テキスト, 2
+#DIMS Ｂテキスト, 2
+#DIMS Ｗテキスト, 2
+#DIMS Ｈテキスト, 2
+#DIMS 口上テキスト, 2
+#DIMS 固有アビテキスト, 2
+#DIM  対象画像数
+#DIM  解説行数
+#DIM  スリーサイズ表示
+#DIM  L_CNT
+#DIMS 見出し
+#DIM  CONST LINE_LEN = 80
+#DIM  LEN1, 2
+#DIM  LEN2, 2
+#DIM  LEN3, 2
+
+;- 表示用情報の取得
+CALL GET_TEXT_種族(種族テキスト, 対象キャラ)
+CALL GET_TEXT_性別(性別テキスト, 対象キャラ)
+CALL GET_TEXT_身長(身長テキスト, 対象キャラ)
+; スリーサイズは基本女性のみ表示。設定次第で男性も表示する
+スリーサイズ表示 = TALENT:対象キャラ:性別 != 2 || GETBIT(身体項目表示切り替えOPTION, 4)
+CALL GET_TEXT_バスト  (Ｂテキスト, 対象キャラ)
+CALL GET_TEXT_ウエスト(Ｗテキスト, 対象キャラ)
+CALL GET_TEXT_ヒップ  (Ｈテキスト, 対象キャラ)
+口上テキスト:0 '= "口上"
+IF HAS_KOJO(対象キャラ)
+	口上テキスト:1 '= "あり"
+	口上テキスト:1 += " (交流:"       + \@ HAS_KOJO(対象キャラ, 1) ? ○ # × \@
+	口上テキスト:1 += ", ダンジョン:" + \@ HAS_KOJO(対象キャラ, 2) ? ○ # × \@ + ")"
+ELSE
+	口上テキスト:1 '= "なし"
+ENDIF
+
+固有アビテキスト:0 '= "固有アビ・奥義"
+固有アビテキスト:1 '= \@ HAS_SKILLS(対象キャラ) + HAS_CHARGE_ATTACK(対象キャラ) ? あり # なし \@
+
+; 列ごとのテキスト長取得
+LEN1:0 = MAX(    STRLENS(性別テキスト:0), STRLENS(Ｂテキスト:0)) + 0
+LEN2:0 = MAX(    STRLENS(身長テキスト:0), STRLENS(Ｗテキスト:0)) + 0
+LEN3:0 = MAX(                             STRLENS(Ｈテキスト:0)) + 0
+LEN1:1 = MAX(15, STRLENS(性別テキスト:1), STRLENS(Ｂテキスト:1)) + 2
+LEN2:1 = MAX(15, STRLENS(身長テキスト:1), STRLENS(Ｗテキスト:1)) + 2
+LEN3:1 = MAX(15,                          STRLENS(Ｈテキスト:1)) + 2
+
+;- 基本情報
+PRINTS "-" * LINE_LEN
+PRINTL
+
+; 名前
+PRINTFORM ■%NAME:対象キャラ%
+PRINTL
+
+; デバッグ用追加情報：各種番号
+[IF_DEBUG]
+PRINTPLAINFORM 　%"[DEBUG]", 8%：登録番号[{対象キャラ}] / CSV番号[{NO:対象キャラ}]
+PRINTL
+[ENDIF]
+
+; 出演作品
+IF CSTR:対象キャラ:出演作品 != ""
+	PRINTFORML 　出演作品：%CSTR:対象キャラ:出演作品%
+ELSE
+	PRINTL
+ENDIF
+PRINTL
+
+;- キャラ解説
+IF HAS_INTRODUCTION(対象キャラ)
+	見出し = □ 解説 □
+	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+	CALLFORM 口上_ステータス画面_キャラ解説_{NO:対象キャラ}(対象キャラ)
+	解説行数 = RESULT
+	; 余白追加
+	; ・解説の行数だけ余白を開けないと表示が被る
+	FOR L_CNT, 0, 解説行数
+		PRINTL
+	NEXT
+ENDIF
+
+;- 身体情報
+見出し = □ プロフィール □
+PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+
+; 1行目：種族
+PRINT 　
+PRINTFORM %種族テキスト:0, LEN1:0%：%種族テキスト:1, LEN1:1, LEFT%
+PRINTL
+
+; 2行目：性別、身長/体格
+PRINT 　
+PRINTFORM %性別テキスト:0, LEN1:0%：%性別テキスト:1, LEN1:1, LEFT%
+PRINTFORM %身長テキスト:0, LEN2:0%：%身長テキスト:1, LEN2:1, LEFT%
+PRINTL
+
+; 3行目：スリーサイズ
+IF スリーサイズ表示
+	PRINT 　
+	PRINTFORM %Ｂテキスト:0, LEN1:0%：%Ｂテキスト:1, LEN1:1, LEFT%
+	PRINTFORM %Ｗテキスト:0, LEN2:0%：%Ｗテキスト:1, LEN2:1, LEFT%
+	PRINTFORM %Ｈテキスト:0, LEN3:0%：%Ｈテキスト:1, LEN3:1, LEFT%
+	PRINTL
+ELSE
+	PRINTL
+ENDIF
+PRINTL
+
+;- 個別ファイル情報
+見出し = □ 個別ファイル □
+PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+; 固有アビ/奥義有無
+PRINT 　
+PRINTFORM %固有アビテキスト:0%：%固有アビテキスト:1%
+
+; 口上有無
+PRINT 　　
+PRINTFORM %口上テキスト:0%：%口上テキスト:1%
+PRINTL
+
+PRINTL
+
+;- 画像
+IF HAS_RESOURCES(対象キャラ)
+	見出し = □ 画像 □
+	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+	PRINT 　
+	画像フォルダ名 '= CSTR:対象キャラ:画像フォルダ
+	画像フォルダ数  = 1
+	CALL ランダム画像表示(画像フォルダ名, 画像フォルダ数, 0)
+	対象画像数 = RESULT
+	IF 対象画像数 > 5
+		PRINTL ※サンプルとしてデフォルト画像＋ランダムな画像を４つ表示中
+	ELSE
+		PRINTL
+	ENDIF
+ELSE
+	見出し = □ 画像 □
+	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+	PRINTL 　画像数：顔  0枚 / 短冊  0枚 / その他  0枚
+	; 画像分の余白
+	FOR L_CNT, 0, 14
+		PRINTL
+	NEXT
+	PRINTL
+ENDIF
+
+PRINTSL "-" * LINE_LEN
+RETURN 対象画像数
+
+;-------------------------------------------------
+;表示用テキストの取得：種族
+;-------------------------------------------------
+@GET_TEXT_種族(結果格納先, 対象キャラ, オプション表示 = 1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+#DIM      オプション表示
+#DIMS 種族テキスト
+
+種族テキスト '= @"%GET_TALENTNAME(200, TALENT:対象キャラ:種族)%"
+IF CSTR:対象キャラ:特殊種族 != ""
+	種族テキスト += @" [%CSTR:対象キャラ:特殊種族%]"
+ENDIF
+IF オプション表示
+	SIF TALENT:対象キャラ:角あり
+		種族テキスト += "（角あり）"
+	SIF TALENT:対象キャラ:尻尾あり
+		種族テキスト += "（尻尾）"
+	SIF TALENT:対象キャラ:エルーン耳
+		種族テキスト += "（エルーン耳）"
+	SIF TALENT:対象キャラ:ハーヴィン耳
+		種族テキスト += "（ハーヴィン耳）"
+	SIF TALENT:対象キャラ:発情期あり > 0
+		種族テキスト += "（発情期あり）"
+	SIF TALENT:対象キャラ:発情期あり < 0
+		種族テキスト += "（発情期なし）"
+ENDIF
+結果格納先:0 '= "種族"
+結果格納先:1 '= 種族テキスト
+
+;-------------------------------------------------
+;表示用テキストの取得：性別
+;-------------------------------------------------
+@GET_TEXT_性別(結果格納先, 対象キャラ, 追加表記 = 1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+#DIM      追加表記
+#DIM  L_CNT
+#DIMS 性別テキスト
+#DIMS 追加テキスト, 4 ; 0:まとめ, 1:性転換, 2:童貞, 3:処女
+
+VARSET 性別テキスト
+VARSET 追加テキスト
+IF CSTR:対象キャラ:性別表記 != ""
+	; 性別表記指定あり
+	性別テキスト += CSTR:対象キャラ:性別表記
+	SIF TALENT:対象キャラ:非童貞 == 0 && CFLAG:対象キャラ:童貞表示
+		追加テキスト:2 = 童貞
+	SIF TALENT:対象キャラ:処女 && CFLAG:対象キャラ:処女表示
+		追加テキスト:3 = 処女
+ELSE
+	性別テキスト += GET_TALENTNAME(GETNUM(TALENT, "性別"), TALENT:対象キャラ:性別)
+	SELECTCASE TALENT:対象キャラ:性別
+		CASE 1
+			; 女性
+			SIF TALENT:対象キャラ:処女
+				追加テキスト:3 = 処女
+		CASE 2
+			; 男性
+			SIF TALENT:対象キャラ:非童貞 == 0
+				追加テキスト:2 = 童貞
+		CASE 3
+			; ふたなり
+			SIF TALENT:対象キャラ:非童貞 == 0
+				追加テキスト:2 = 童貞
+			SIF TALENT:対象キャラ:処女
+				追加テキスト:3 = 処女
+		CASEELSE
+			; その他
+	ENDSELECT
+ENDIF
+; 性転換情報(元男、元女)
+追加テキスト:1 '= GET_TALENTNAME(GETNUM(TALENT, "性転換"), TALENT:対象キャラ:性転換)
+
+; 追加表記の追加
+IF 追加表記
+	FOR L_CNT, 1, 3 + 1
+		SIF 追加テキスト:L_CNT == ""
+			CONTINUE
+		SIF 追加テキスト != ""
+			追加テキスト += ","
+		追加テキスト += 追加テキスト:L_CNT
+	NEXT
+	SIF 追加テキスト != ""
+		性別テキスト += @"（%追加テキスト%）"
+ENDIF
+結果格納先:0 '= "性別"
+結果格納先:1 '= 性別テキスト
+
+;-------------------------------------------------
+;表示用テキストの取得：身長
+;-------------------------------------------------
+@GET_TEXT_身長(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(身体項目表示切り替えOPTION, 0)
+	結果格納先:0 '=  "身長"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:身長, 1)%cm"
+ELSE
+	結果格納先:0 '=  "体格"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体格"), TALENT:対象キャラ:体格)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：バスト
+;-------------------------------------------------
+@GET_TEXT_バスト(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(身体項目表示切り替えOPTION, 1)
+	結果格納先:0 '=  "バスト"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm%GET_CUPSIZE(対象キャラ)%"
+ELSE
+	結果格納先:0 '=  "バスト"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "バストサイズ"), TALENT:対象キャラ:バストサイズ)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：ウエスト
+;-------------------------------------------------
+@GET_TEXT_ウエスト(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(身体項目表示切り替えOPTION, 2)
+	結果格納先:0 '=  "ウエスト"
+	結果格納先:1 '= @"%DECIMAL_STRING(補正込みウエストサイズ(対象キャラ), 1)%cm"
+ELSE
+	結果格納先:0 '=  "体型"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体型"), TALENT:対象キャラ:体型)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：ヒップ
+;-------------------------------------------------
+@GET_TEXT_ヒップ(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(身体項目表示切り替えOPTION, 3)
+	結果格納先:0 '=  "ヒップ"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:ヒップ, 1)%cm"
+ELSE
+	結果格納先:0 '=  "下半身"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "下半身"),TALENT:対象キャラ:下半身)%"
+ENDIF

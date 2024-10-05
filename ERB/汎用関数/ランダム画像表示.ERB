@@ -1,0 +1,211 @@
+﻿@ランダム画像表示(FOLDER_LIST, FOLDER_NUM, USE_BUTTON = 1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+; 引数
+#DIMS REF FOLDER_LIST ; フォルダリスト
+#DIM      FOLDER_NUM  ; フォルダ数
+#DIM      USE_BUTTON  ; 画像をボタン化するかどうか
+; 内部変数 (画像ファイル情報)
+#DIMS FOLDER_NAME  ; フォルダ名
+#DIMS FILE_NAME    ; ファイル名
+#DIMS DEFAULT_FILE ; ファイル名(デフォルト)
+#DIM  G_NUM        ; 画像枚数
+#DIM  G_NUM_ALL    ; 画像枚数(総数)
+#DIM  G_NUM_L      ; 画像枚数(L:短冊)
+#DIM  G_NUM_S      ; 画像枚数(S:顔)
+#DIM  G_NUM_C      ; 画像枚数(C:カットイン)
+#DIM  G_NUM_O      ; 画像枚数(O:その他)
+#DIM  G_NUM_MAX    ; 画像枚数(全フォルダ中の最大値)
+; 内部変数 (表示画像情報)
+#DIMS FILE_LIST, 5 ; 表示するファイルリスト
+#DIM  FILE_NUM     ; ファイル数
+#DIM  LIST_NO      ; リスト番号
+#DIM  DEFAULT_NO   ; リスト番号(デフォルト画像番号)
+#DIM  LAST_NO      ; リスト番号(終端)
+; 内部変数 (HTML/リソース関連)
+#DIM  G_ID         ; グラフィックID
+#DIMS S_NAME       ; スプライト名
+#DIMS G_PATH       ; 画像パス
+#DIM  IMG_WIDTH    ; 画像サイズ(横)
+#DIM  IMG_HEIGHT   ; 画像サイズ(縦)
+#DIM  IMG_X        ; 画像位置(X)
+#DIM  IMG_Y        ; 画像位置(Y)
+#DIMS G_RECT       ; div用rect属性情報
+#DIM  G_CREATE     ; 実行結果退避
+; 内部変数 (カウンタ)
+#DIM  L_CNT        ; ループカウンタ
+#DIM  FOLDER_CNT   ; ループカウンタ(フォルダ)
+#DIM  FILE_CNT     ; ループカウンタ(ファイル)
+; 定数
+#DIM  CONST FILE_NUM_MAX  =   5 ; 画像表示数
+#DIM  CONST IMG_SIZE_BASE = 750 ; 表示する画像のサイズ基準値
+
+; 使用前にスプライトをまとめて開放 (個別に開放すると表示がおかしくなるケースがある)
+SPRITEDISPOSEALL 0
+; 引数のフォルダ分繰り返して表示
+G_NUM_MAX = 0
+FOR FOLDER_CNT, 0, FOLDER_NUM
+	;--------------------
+	;- 表示用情報の取得
+	;--------------------
+	;- 対象フォルダパスの取得
+	FOLDER_NAME '= FOLDER_LIST:FOLDER_CNT
+	;- 画像枚数の取得
+	FILE_NAME '= "*.png"
+	G_NUM_ALL = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+	;- カットイン画像の有無の確認
+	FILE_NAME '= "*カットイン.png"
+	G_NUM_C = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+	;- 短冊/顔画像枚数を取得
+	FILE_NAME = 短冊_*.png
+	G_NUM_L = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+	FILE_NAME = 顔_*.png
+	G_NUM_S = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+	;- その他(短冊/顔以外)の枚数を取得
+	G_NUM_O = G_NUM_ALL - (G_NUM_L + G_NUM_S)
+	
+	;- 表示する画像の種類を決定(短冊を優先して表示)
+	IF G_NUM_L
+		FILE_NAME = 短冊_*.png
+		DEFAULT_FILE = 短冊_デフォルト.png
+		G_NUM = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+		短冊フラグ = 1
+	ELSE
+		FILE_NAME = 顔_*.png
+		DEFAULT_FILE = 顔_デフォルト.png
+		G_NUM = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+		短冊フラグ = 0
+	ENDIF
+	;- 確認したフォルダ内の最大枚数を記憶
+	G_NUM_MAX = MAX(G_NUM, G_NUM_MAX)
+	
+	;--------------------
+	;- 表示画像の決定
+	;--------------------
+	;- 画像数が表示枚数より多い場合はランダム選出
+	IF G_NUM > FILE_NUM_MAX
+		;- ランダムで画像を選出
+		;・1枚目はデフォルト画像固定(ない場合はランダム)
+		;・同じ画像が選出されないようにする
+		FILE_NUM = FILE_NUM_MAX
+		FOR FILE_CNT, 0, FILE_NUM
+			; リストの最終番号の計算(ループごとに使用するリスト範囲が1個づつ減る)
+			LAST_NO = G_NUM - FILE_CNT - 1
+			LIST_NO = RAND:(LAST_NO + 1)
+			; 1枚目はデフォルト優先
+			IF FILE_CNT == 0
+				; デフォルト画像を探して見つかった場合は乱数を上書き
+				FINDELEMENT RESULTS, DEFAULT_FILE
+				DEFAULT_NO = RESULT
+				SIF DEFAULT_NO != -1
+					LIST_NO = DEFAULT_NO
+			ENDIF
+			FILE_LIST:FILE_CNT '= RESULTS:LIST_NO
+			; 選出した画像を最後尾と入れ替えて選出されないようにする
+			SWAP RESULTS:LIST_NO, RESULTS:LAST_NO
+		NEXT
+	;- 画像数が表示枚数以下の場合は全部表示
+	ELSE
+		FILE_NUM = MIN(FILE_NUM_MAX, G_NUM)
+		LIST_NO = 0
+		; 1枚目はデフォルト優先
+		FINDELEMENT RESULTS, DEFAULT_FILE
+		DEFAULT_NO = RESULT
+		IF DEFAULT_NO != -1
+			FILE_LIST:LIST_NO '= RESULTS:DEFAULT_NO
+			LIST_NO += 1
+		ENDIF
+		
+		FOR FILE_CNT, 0, FILE_NUM
+			; デフォルト画像は格納済みなので飛ばす
+			SIF FILE_CNT == DEFAULT_NO
+				CONTINUE
+			FILE_LIST:LIST_NO '= RESULTS:FILE_CNT
+			LIST_NO += 1
+		NEXT
+	ENDIF
+	
+	;------------
+	;- 表示処理
+	;------------
+	;- 情報表示
+	; フォルダ名表示
+	SIF USE_BUTTON
+		PRINTFORML [{FOLDER_CNT}] %FOLDER_NAME%
+	; 枚数表示
+	PRINTFORM 画像数：顔{G_NUM_S, 3}枚 / 短冊{G_NUM_L, 3}枚 / 
+	IF G_NUM_O >= 0
+		PRINTFORM その他{G_NUM_O, 3}枚 
+	ELSE
+		;- 「その他の画像」の枚数がマイナス
+		; フォルダ内の画像の枚数が1100(RESULTSの配列数上限)を超えていて枚数が正しく取得できなかったケース
+		; 作成時点ではカリオストロ(1403枚)が該当
+		; 正確な数が把握できないので「???」表記にしておく
+		PRINTFORM その他???枚 
+	ENDIF
+	SIF G_NUM_O
+		PRINTFORM (カットイン\@ G_NUM_C ? あり # なし \@)
+	PRINTL
+	
+	;- 画像表示
+	VARSET TEMP_HTML
+	IF 短冊フラグ
+		IMG_WIDTH  = IMG_SIZE_BASE
+		IMG_HEIGHT = IMG_SIZE_BASE * 2
+	ELSE
+		IMG_WIDTH  = IMG_SIZE_BASE
+		IMG_HEIGHT = IMG_SIZE_BASE
+	ENDIF
+	; ファイル数分繰り返し
+	FOR FILE_CNT, 0, FILE_NUM
+		;- リソース作成
+		G_PATH '= FOLDER_NAME + "\\" + FILE_LIST:FILE_CNT
+		G_ID    = TEMP_gID + FOLDER_CNT * 10 + FILE_CNT + 1
+		S_NAME '= TOSTR(G_ID)
+		; リソースが使用中なら解放
+		SIF GCREATED(G_ID)
+			GDISPOSE G_ID
+		; リソース(Graphicsとスプライト)を作成
+		GCREATEFROMFILE G_ID, G_PATH
+		G_CREATE = スプライト作成(S_NAME, G_ID, 短冊フラグ)
+		SIF G_CREATE == 0
+			CONTINUE
+		;- HTML文作成
+		IMG_X = FILE_CNT * IMG_WIDTH
+		IMG_Y = 0
+		G_RECT = {IMG_X}, {IMG_Y}, {IMG_WIDTH}, {IMG_HEIGHT}
+		TEMP_HTML += @"<div rect='%G_RECT%'>"
+		IF USE_BUTTON
+			TEMP_HTML += @"<button value='{FOLDER_CNT}' title='%ESCAPE(G_PATH)%'>"
+		ELSE
+			TEMP_HTML += @"<button title='%ESCAPE(G_PATH)%'>"
+		ENDIF
+		TEMP_HTML += @"<img src='%S_NAME%' width='{IMG_WIDTH}' height='{IMG_HEIGHT}'>"
+		TEMP_HTML += @"</button>"
+		TEMP_HTML += @"</div>"
+	NEXT
+	描画開始行数 = LINECOUNT
+	TEMP_HTML_MAX_HEIGHT = 240
+	; 画像一斉表示(表示位置:左 0px, 自動改行:あり)
+	CALL 画像一斉表示("左", 0, 1)
+NEXT
+RETURN G_NUM_MAX
+
+@ランダム画像表示_リソース解放(FOLDER_NUM)
+#DIM  FOLDER_NUM
+#DIM  FOLDER_CNT
+#DIM  FILE_CNT
+#DIM  G_ID
+#DIMS S_NAME
+#DIM  CONST FILE_NUM_MAX = 5
+
+SPRITEDISPOSEALL 0
+FOR FOLDER_CNT, 0, FOLDER_NUM
+	FOR FILE_CNT, 0, FILE_NUM_MAX
+		G_ID    = TEMP_gID + FOLDER_CNT * 10 + FILE_CNT + 1
+		S_NAME '= TOSTR(G_ID)
+		; リソースが使用中なら解放
+		SIF GCREATED(G_ID)
+			GDISPOSE G_ID
+	NEXT
+NEXT

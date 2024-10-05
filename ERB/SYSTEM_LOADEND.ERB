@@ -7,11 +7,10 @@
 
 @SYSTEM_LOADEND
 #DIM 部屋セットチェック
-#DIM 追加キャラ保存, 100
-#DIM 互換維持用変数, 100
-#DIM 同行配列番号
+#DIM 追加キャラ保存, 1000
 #DIM L_C
 #DIM F_NUM
+#DIM 追加前キャラ数保存
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -36,10 +35,17 @@ FOR LOCAL, 0, CHARANUM
 			BREAK
 		ENDIF
 	ENDIF
+	IF NAME:LOCAL == "[Der kleine Rückschläger]未来"
+		NAME:LOCAL = "[Der-kleine-Rückschläger]未来"
+	ENDIF
+	IF NAME:LOCAL == "[camminatore del buio]雅緋"
+		NAME:LOCAL = "[camminatore-del-buio]雅緋"
+	ENDIF
 NEXT
 LOCAL:1 = 0
 ;ここまで
 
+追加前キャラ数保存 = CHARANUM
 
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
@@ -49,17 +55,15 @@ FOR LOCAL, 1, キャラクタ数上限
 		CONTINUE
 	SIF GETCHARA(LOCAL) >= 0
 		CONTINUE
-	追加キャラ保存:(LOCAL:1) = CHARANUM
 	ADDCHARA LOCAL
-	CALL ADD_PERSON_FROM_CHARA(追加キャラ保存:(LOCAL:1))
-	LOCAL:1 += 1
+	CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
 NEXT
 
-SIF LOCAL:1
+SIF 追加前キャラ数保存 != CHARANUM
 	CALL コマンド存在チェック
 
-FOR LOCAL, 0, LOCAL:1
-	CALL キャラクター初期化(追加キャラ保存:LOCAL)
+FOR LOCAL, 追加前キャラ数保存, CHARANUM
+	CALL キャラクター初期化(LOCAL)
 NEXT
 
 
@@ -68,7 +72,7 @@ FOR LOCAL, 0, CHARANUM
 	TRYCALLFORM 口上側LOADENDパラメータ変更_{NO:LOCAL}
 	SIF !BASE:LOCAL:身長
 		CALL INIT_BODYSIZE(LOCAL)
-	IF !RELATION_VAL:0:0 && FINDELEMENT(追加キャラ保存, LOCAL) < 0
+	IF !RELATION_VAL:0:0 && LOCAL < 追加前キャラ数保存
 		CALL INIT_RELATION(LOCAL)
 	ENDIF
 
