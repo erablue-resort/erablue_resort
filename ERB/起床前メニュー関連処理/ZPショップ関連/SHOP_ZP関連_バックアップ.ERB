@@ -1,0 +1,316 @@
+﻿
+
+; @ZP_SHOP_EXキャラ
+; ;現在招待不可フラグが１なキャラ一覧
+; #DIM 表示候補, 2000
+; #DIM 現在ページ
+; #DIM 広告対象
+; #DIM 選択モード
+; #DIM 対象キャラ
+; #DIMS 出展作品配列, 500
+; #DIM 出展情報配列, 500
+; #DIM 出典番号
+; #DIM 配列番号
+; #DIM 値段保存
+; #DIM 選択シリーズ
+
+; VARSET 出展作品配列
+; VARSET 出展情報配列
+; VARSET 表示候補, -1
+; 現在ページ = 0
+; 選択シリーズ = -1
+; 出典番号 = 1
+
+; ;表示キャラを登録
+; LOCAL:1 = 0
+; 出展作品配列:0 = グランブルーファンタジー
+; FOR LOCAL, 1, CHARANUM
+; 	;フラグがないキャラは出さない
+; 	SIF CFLAG:LOCAL:招待不可フラグ == 0
+; 		CONTINUE
+; 	SIF CFLAG:LOCAL:招待不可フラグ == 2
+; 		CONTINUE
+; 	;該当イベをクリアしてない場合出さない
+; 	SIF CFLAG:LOCAL:招待不可フラグ == 3 && イベント完了フラグ確認("「平行世界」という場所") < 1
+; 		CONTINUE
+; 	;特殊条件がある、かつ条件未達成のキャラは出さない
+; 	TRYCCALLFORM EXキャラ_表示条件_{NO:LOCAL}
+; 		SIF RESULT == 0
+; 			CONTINUE
+; 	CATCH
+; 	ENDCATCH
+
+; 	SIF CFLAG:LOCAL:ZPショップ値段 == 0
+; 		CFLAG:LOCAL:ZPショップ値段 = 50
+
+; 	表示候補:(LOCAL:1) = LOCAL
+; 	LOCAL:1 += 1
+	
+; 	;出典記録
+; 	IF CSTR:LOCAL:出演作品 == ""
+; 		;出典なし＝グラブルキャラとする
+; 		出展情報配列:0 ++
+; 		DEBUGPRINTFORML %NAME:LOCAL%
+; 	ELSEIF MATCH(出展作品配列, CSTR:LOCAL:出演作品)
+; 		配列番号 = FINDELEMENT(出展作品配列, CSTR:LOCAL:出演作品, , , 1)
+; 		出展情報配列:配列番号 ++
+; 	ELSE
+; 		出展作品配列:出典番号 = %CSTR:LOCAL:出演作品%
+; 		出展情報配列:出典番号 ++
+; 		出典番号 ++
+; 	ENDIF
+; NEXT
+
+; $表示_LOOP
+; PRINTL 
+; PRINTL 
+; PRINTL 
+; PRINTL 
+
+; CALL ユニーク客人数チェック()
+
+; ;広告対象の表示
+; DRAWLINE
+; PRINTL ZPを消費し、本来ならばリゾートを訪れることが出来ないキャラを導きます。
+; PRINTL どのキャラを導きますか？
+; IF ZPキャラ無料回数
+; 	SETCOLOR カラーパレット("黄")
+; 	PRINTFORML 残り{ZPキャラ無料回数, 2}回無料！
+; 	RESETCOLOR
+; ENDIF
+; DRAWLINE
+; IF 選択モード == 0
+; 	SETCOLOR カラーパレット("黄")
+; 	PRINTPLAIN [個別選択]
+; 	RESETCOLOR
+; 	PRINT / 
+; 	PRINTBUTTON "[シリーズ選択]", 1000
+; 	PRINTL
+; 	DRAWLINE
+; 	;キャラの表示（15人まで）
+; 	FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+; 		;登録が終わったら表示終了
+; 		IF 表示候補:LOCAL == -1
+; 			BREAK
+; 		ENDIF
+; 		値段保存 = CFLAG:(表示候補:LOCAL):ZPショップ値段
+; 		SIF ZPキャラ無料回数
+; 			値段保存 = 0
+; 		PRINTBUTTON @"[{LOCAL, 3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 41, LEFT%：消費ZP{値段保存, 4, RIGHT}", LOCAL
+; 		PRINTL 
+; 	NEXT
+; ELSE
+; 	PRINTBUTTON "[個別選択]", 1000
+; 	PRINT / 
+; 	SETCOLOR カラーパレット("黄")
+; 	PRINTPLAIN [シリーズ選択
+; 	IF 選択シリーズ >= 0
+; 		PRINTFORM ：%出展作品配列:選択シリーズ%
+; 	ENDIF
+; 	PRINT ]
+; 	RESETCOLOR
+; 	PRINTL
+; 	DRAWLINE
+; 	IF 選択シリーズ >= 0
+; 	;キャラの表示（15人まで）
+; 		LOCAL:1 = 0
+; 		LOCAL:2 = 0
+; 		FOR LOCAL, 0, VARSIZE("表示候補")
+; 			IF LOCAL:2 < 現在ページ * 15
+; 				SKIPDISP 1
+; 			ELSEIF LOCAL:2 == 現在ページ * 15 + 15
+; 				SKIPDISP 1
+; 			ELSEIF LOCAL:2 > 現在ページ * 15 + 15
+; 				SKIPDISP 0
+; 				LOCAL:1 = 1
+; 				BREAK
+; 			ELSE
+; 				SKIPDISP 0
+; 			ENDIF
+; 			;登録が終わったら表示終了
+; 			IF 表示候補:LOCAL == -1
+; 				BREAK
+; 			ENDIF
+; 			SIF 出展作品配列:選択シリーズ != CSTR:(表示候補:LOCAL):出演作品 && 選択シリーズ > 0
+; 				CONTINUE
+; 			SIF 選択シリーズ == 0 && CSTR:(表示候補:LOCAL):出演作品 != ""
+; 				CONTINUE
+; 			値段保存 = CFLAG:(表示候補:LOCAL):ZPショップ値段
+; 			SIF ZPキャラ無料回数
+; 				値段保存 = 0
+; 			PRINTBUTTON @"[{LOCAL, 3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 41, LEFT%：消費ZP{値段保存, 4, RIGHT}", LOCAL
+; 			PRINTL 
+; 			LOCAL:2 ++
+; 		NEXT
+; 	ELSE
+; 		LOCAL:1 = 0
+; 		LOCAL:2 = 0
+; 		;シリーズの表示（15作品まで）
+; 		FOR LOCAL, 0, VARSIZE("出展情報配列")
+; 			IF LOCAL:2 < 現在ページ * 15
+; 				SKIPDISP 1
+; 			ELSEIF LOCAL:2 == 現在ページ * 15 + 15
+; 				SKIPDISP 1
+; 			ELSEIF LOCAL:2 > 現在ページ * 15 + 15
+; 				SKIPDISP 0
+; 				LOCAL:1 = 1
+; 				BREAK
+; 			ELSE
+; 				SKIPDISP 0
+; 			ENDIF
+; 			IF LOCAL == 0
+; 				PRINTBUTTON @"[{LOCAL, 3}] %"グランブルーファンタジー", 41, LEFT%：残{出展情報配列:0, 3}名", LOCAL
+; 				PRINTL 
+; 				LOCAL:2 ++
+; 				CONTINUE
+; 			ELSEIF 出展作品配列:LOCAL == ""
+; 				;登録が終わったら表示終了
+; 				BREAK
+; 			ENDIF
+; 			PRINTBUTTON @"[{LOCAL, 3}] %出展作品配列:LOCAL, 41, LEFT%：残{出展情報配列:LOCAL, 3}名", LOCAL
+; 			PRINTL 
+; 			LOCAL:2 ++
+; 		NEXT
+; 	ENDIF
+; ENDIF
+
+; DRAWLINE
+
+; ;ページめくり表示
+; IF 現在ページ > 0
+; 	PRINTBUTTONLC "[900] 前ページへ", 900
+; ELSE
+; 	PRINTLC 　
+; ENDIF
+; PRINTFORM - {現在ページ + 1} -
+; IF 選択モード == 0
+; 	IF 表示候補:((現在ページ * 15) + 15) > -1
+; 		PRINTBUTTONC "[901] 次ページへ", 901
+; 	ENDIF
+; ELSE
+; 	IF LOCAL:1
+; 		PRINTBUTTONC "[901] 次ページへ", 901
+; 	ENDIF
+; 	IF 選択シリーズ >= 0
+; 		PRINTL 
+; 		PRINTL 
+; 		PRINTBUTTON "[997] シリーズ選択を解除", 997
+; 		PRINT 　　　
+; 		PRINTBUTTON "[998] このシリーズのキャラを全員呼ぶ", 998
+; 	ENDIF
+; ENDIF
+; PRINTL 
+; IF 選択シリーズ < 0
+; 	PRINTBUTTON "[999] 戻る", 999
+; ENDIF
+
+; $INPUT_LOOP
+; BINPUT
+
+; LOCAL = RESULT
+; SELECTCASE LOCAL
+; 	CASE 1000
+; 		INVERTBIT 選択モード, 0
+; 		選択シリーズ = -1
+; 		現在ページ = 0
+; 		GOTO 表示_LOOP
+; 	CASE 900
+; 		現在ページ = MAX(現在ページ - 1, 0)
+; 		GOTO 表示_LOOP
+; 	CASE 901
+; 		現在ページ += 1
+; 		GOTO 表示_LOOP
+; 	CASE 999
+; 		RETURN -1
+; 	CASE 997
+; 		選択シリーズ = -1
+; 		現在ページ = 0
+; 		GOTO 表示_LOOP
+; 	CASE 998
+; 		PRINTFORML %出展作品配列:選択シリーズ%のキャラクター{出展情報配列:選択シリーズ}名を導きます。
+; 		PRINTL よろしいですか？
+; 		PRINTBUTTONLC "[0]はい", 0 
+; 		PRINTBUTTONLC "[1]いいえ", 1
+; 		PRINTL
+; 		BINPUT
+; 		IF RESULT == 0
+; 			PRINTL 
+; 			PRINTL 
+; 			FOR 対象キャラ, 0, CHARANUM
+; 				IF CFLAG:(表示候補:対象キャラ):ZPショップ値段 > FLAG:ZP所持量 && ZPキャラ無料回数 < 1
+; 					PRINTW ZPが足りないので停止します
+; 					RESTART
+; 				ENDIF
+; 				SIF 表示候補:対象キャラ == -1
+; 					BREAK
+; 				IF CSTR:(表示候補:対象キャラ):出演作品 == 出展作品配列:選択シリーズ
+; 					PRINTFORM %NAME:(表示候補:対象キャラ), 41, LEFT%が導かれました。
+; 					IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 - FLAG:滞在キャラ枠先確保分 > 0
+; 						PRINTL 起床後にリゾートを訪れます。
+; 						FOR LOCAL:1, 0, 100
+; 							IF 解放キャラ招待:(LOCAL:1) == 0
+; 								解放キャラ招待:(LOCAL:1) = 表示候補:対象キャラ
+; 								FLAG:滞在キャラ枠先確保分 += 1
+; 								BREAK
+; 							ENDIF
+; 						NEXT
+; 					ELSE
+; 						PRINTL 滞在人数がいっぱいのため、今後の招待対象に追加します。
+; 					ENDIF
+; 					CFLAG:(表示候補:対象キャラ):招待不可フラグ = 0
+; 					IF ZPキャラ無料回数
+; 						ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
+; 					ELSE
+; 						FLAG:ZP所持量 -= CFLAG:(表示候補:対象キャラ):ZPショップ値段
+; 					ENDIF
+; 				ENDIF
+; 			NEXT
+; 			PRINTL 
+; 			PRINTL 
+; 			PRINTW
+; 			RESTART
+; 		ELSE
+; 			RESTART
+; 		ENDIF
+; 	CASEELSE
+; 		IF 選択モード == 0 || 選択シリーズ >= 0
+; 			IF CFLAG:(表示候補:LOCAL):ZPショップ値段 > FLAG:ZP所持量 && ZPキャラ無料回数 < 1
+; 				PRINTW ZPが足りません
+; 				RESTART
+; 			ENDIF
+; 			PRINTFORML %NAME:(表示候補:LOCAL)%を導きます。
+; 			PRINTL よろしいですか？
+; 			PRINTBUTTONLC "[0]はい", 0 
+; 			PRINTBUTTONLC "[1]いいえ", 1
+; 			PRINTL
+; 			BINPUT
+; 			IF RESULT == 0
+; 				PRINTFORML %NAME:(表示候補:LOCAL)%が導かれました。
+; 				IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 - FLAG:滞在キャラ枠先確保分 > 0
+; 					PRINTW 起床後にリゾートを訪れます。
+; 					FOR LOCAL:1, 0, 100
+; 						IF 解放キャラ招待:(LOCAL:1) == 0
+; 							解放キャラ招待:(LOCAL:1) = 表示候補:LOCAL
+; 							FLAG:滞在キャラ枠先確保分 += 1
+; 							BREAK
+; 						ENDIF
+; 					NEXT
+; 				ELSE
+; 					PRINTW 滞在人数がいっぱいのため、今後の招待対象に追加します。
+; 				ENDIF
+; 				CFLAG:(表示候補:LOCAL):招待不可フラグ = 0
+; 				IF ZPキャラ無料回数
+; 					ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
+; 				ELSE
+; 					FLAG:ZP所持量 -= CFLAG:(表示候補:LOCAL):ZPショップ値段
+; 				ENDIF
+; 				RESTART
+; 			ELSE
+; 				RESTART
+; 			ENDIF
+; 		ELSE
+; 			選択シリーズ = LOCAL
+; 			現在ページ = 0
+; 			GOTO 表示_LOOP
+; 		ENDIF
+; ENDSELECT

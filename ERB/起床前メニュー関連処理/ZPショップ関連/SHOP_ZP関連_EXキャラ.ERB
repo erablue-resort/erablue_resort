@@ -4,13 +4,16 @@
 @ZP_SHOP_EXキャラ()
 #LOCALSIZE 1
 #LOCALSSIZE 1
-#DIM 表示候補, 500
+#DIM 表示候補, 5000
 #DIM 現在ページ
+#DIM ページ判定
+#DIM 表示数
 #DIM 候補番号
 #DIM 入力番号
 #DIM 描画開始行
 #DIM 対象キャラ
 #DIM 候補キャラ数
+#DIM 候補キャラ数_シリーズ
 #DIM 最終ページフラグ
 #DIM START_NO
 #DIM END_NO
@@ -21,14 +24,30 @@
 #DIMS BUTTON_TEXT
 #DIM DYNAMIC 初回実行フラグ = 1
 #DIM CONST 表示人数 = 15
+#DIMS 出展作品配列, 500
+#DIM 出展情報配列, 500
+#DIM 出展表示候補, 500
+#DIM 出典番号
+#DIM 配列番号
+#DIM 表示用番号
+#DIM 値段保存
+#DIM 選択シリーズ
+#DIM 選択モード
+#DIM ソートモード
+#DIMS ソートキー = "出展情報配列", "出展作品配列"
+
+VARSET 出展作品配列
+VARSET 出展情報配列
 
 VARSET 表示候補, -1
 ; RESTART時に現在ページをリセットしない
 IF 初回実行フラグ
+	選択シリーズ = -1
 	初回実行フラグ = 0
 	現在ページ = 0
 	描画開始行 = LINECOUNT
 	REDRAW_TEMP = CURRENTREDRAW()
+	ソートモード = 0
 	REDRAW 0
 ENDIF
 
@@ -45,6 +64,8 @@ PRINTFORML 所持ZP:%ZP所持量全文字列()%
 
 ;表示キャラを登録
 候補キャラ数 = 0
+出典番号 = 1
+出展作品配列:0 = グランブルーファンタジー
 FOR 対象キャラ, 1, CHARANUM
 	; 招待不可フラグのチェック
 	SELECTCASE CFLAG:対象キャラ:招待不可フラグ
@@ -72,46 +93,149 @@ FOR 対象キャラ, 1, CHARANUM
 
 	表示候補:候補キャラ数 = 対象キャラ
 	候補キャラ数 += 1
+
+	;出典記録
+	IF CSTR:対象キャラ:出演作品 == ""
+		;出典なし＝グラブルキャラとする
+		出展情報配列:0 ++
+	ELSEIF MATCH(出展作品配列, CSTR:対象キャラ:出演作品)
+		配列番号 = FINDELEMENT(出展作品配列, CSTR:対象キャラ:出演作品, , , 1)
+		出展情報配列:配列番号 ++
+	ELSE
+		出展作品配列:出典番号 = %CSTR:対象キャラ:出演作品%
+		出展情報配列:出典番号 ++
+		出典番号 ++
+	ENDIF
 NEXT
 
-;CALL ユニーク客人数チェック()
-DRAWLINE
-
-;- キャラの表示
-; 現在のページで表示する番号を計算
-START_NO = (現在ページ * 表示人数)
-END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
-
-; 番号の最大桁数を取得
-SELECTCASE END_NO
-	CASE IS >= 100
-		NO_LEN = 3
-	CASE IS >= 10
-		NO_LEN = 2
-	CASEELSE
-		NO_LEN = 1
+SELECTCASE ソートモード
+	CASE 0
+		;人数順
+		ARRAYMSORTEX "出展情報配列", ソートキー, 0
+	CASE 1
+		;シリーズ名順
+		ARRAYMSORT 出展作品配列, 出展情報配列
 ENDSELECT
 
-; キャラ表示ループ
-最終ページフラグ = 0
-FOR L_CNT, START_NO, END_NO + 1
-	対象キャラ = 表示候補:L_CNT
-	; 表示するキャラがいなくなったら表示終了
-	IF 対象キャラ == -1
-		最終ページフラグ = 1
-		BREAK
-	ENDIF
-	; ZPショップ値段の設定がないキャラは50に設定
-	SIF CFLAG:対象キャラ:ZPショップ値段 == 0
-		CFLAG:対象キャラ:ZPショップ値段 = 50
-	; ボタン表示
-	BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME:対象キャラ, "]"), 41, LEFT%"
-	BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
-	SIF ZPキャラ無料回数
-		BUTTON_TEXT += " → 0"
-	PRINTBUTTON BUTTON_TEXT, L_CNT
+DRAWLINE
+IF 選択モード
+	PRINTBUTTON "[シリーズ選択]", 1000
+	PRINT / 
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [個別選択]
+	RESETCOLOR
 	PRINTL
-NEXT
+	DRAWLINE
+	;- キャラの表示
+	; 現在のページで表示する番号を計算
+	START_NO = (現在ページ * 表示人数)
+	END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+
+	; 番号の最大桁数を取得
+	SELECTCASE END_NO
+		CASE IS >= 100
+			NO_LEN = 3
+		CASE IS >= 10
+			NO_LEN = 2
+		CASEELSE
+			NO_LEN = 1
+	ENDSELECT
+
+	; キャラ表示ループ
+	最終ページフラグ = 0
+	FOR L_CNT, START_NO, END_NO + 1
+		対象キャラ = 表示候補:L_CNT
+		; 表示するキャラがいなくなったら表示終了
+		IF 対象キャラ == -1
+			最終ページフラグ = 1
+			BREAK
+		ENDIF
+		; ZPショップ値段の設定がないキャラは50に設定
+		SIF CFLAG:対象キャラ:ZPショップ値段 == 0
+			CFLAG:対象キャラ:ZPショップ値段 = 50
+		; ボタン表示
+		BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME:対象キャラ, "]"), 41, LEFT%"
+		BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
+		SIF ZPキャラ無料回数
+			BUTTON_TEXT += " → 0"
+		PRINTBUTTON BUTTON_TEXT, L_CNT
+		PRINTL
+	NEXT
+ELSE
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [シリーズ選択
+	IF 選択シリーズ >= 0
+		PRINTFORM ：%出展作品配列:選択シリーズ%
+	ENDIF
+	PRINT ]
+	RESETCOLOR
+	PRINT / 
+	PRINTBUTTON "[個別選択]", 1000
+	PRINTL
+	DRAWLINE
+	IF 選択シリーズ >= 0
+		;- キャラの表示
+		; 現在のページで表示する番号を計算
+		START_NO = (現在ページ * 表示人数)
+		END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+
+		; 番号の最大桁数を取得
+		SELECTCASE END_NO
+			CASE IS >= 100
+				NO_LEN = 3
+			CASE IS >= 10
+				NO_LEN = 2
+			CASEELSE
+				NO_LEN = 1
+		ENDSELECT
+
+		; キャラ表示ループ
+		最終ページフラグ = 0
+		FOR L_CNT, START_NO, END_NO + 1
+			対象キャラ = 出展表示候補:L_CNT
+			; 表示するキャラがいなくなったら表示終了
+			IF 対象キャラ == -1
+				最終ページフラグ = 1
+				BREAK
+			ENDIF
+			; ZPショップ値段の設定がないキャラは50に設定
+			SIF CFLAG:対象キャラ:ZPショップ値段 == 0
+				CFLAG:対象キャラ:ZPショップ値段 = 50
+			; ボタン表示
+			BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME:対象キャラ, "]"), 41, LEFT%"
+			BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
+			SIF ZPキャラ無料回数
+				BUTTON_TEXT += " → 0"
+			PRINTBUTTON BUTTON_TEXT, L_CNT
+			PRINTL
+		NEXT
+	ELSE
+		最終ページフラグ = 1
+		表示数 = 0
+		;シリーズの表示（15作品まで）
+		FOR LOCAL, 0, VARSIZE("出展情報配列")
+			IF 表示数 < 現在ページ * 15
+				SKIPDISP 1
+			ELSEIF 表示数 == 現在ページ * 15 + 15
+				SKIPDISP 1
+			ELSEIF 表示数 > 現在ページ * 15 + 15
+				SKIPDISP 0
+				最終ページフラグ = 0
+				BREAK
+			ELSE
+				SKIPDISP 0
+			ENDIF
+			IF 出展作品配列:LOCAL == ""
+				;登録が終わったら表示終了
+				BREAK
+			ENDIF
+			PRINTBUTTON @"[{LOCAL, 3}] %出展作品配列:LOCAL, 41, LEFT%：残{出展情報配列:LOCAL, 3}名", LOCAL
+			PRINTL 
+			表示数 ++
+		NEXT
+	ENDIF
+ENDIF
+
 
 DRAWLINE
 
@@ -122,17 +246,43 @@ ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
-IF 表示候補:(END_NO + 1) > -1
+IF 選択モード && 表示候補:(END_NO + 1) > -1
 	PRINTBUTTONC "[901]次ページへ", 901
+ELSEIF 選択モード == 0
+	SIF 最終ページフラグ == 0
+		PRINTBUTTONC "[901]次ページへ", 901
+	IF 選択シリーズ >= 0
+		PRINTL 
+		PRINTL 
+		PRINTBUTTON "[997] シリーズ選択を解除", 997
+		PRINT 　　　
+		PRINTBUTTON "[998] このシリーズのキャラを全員呼ぶ", 998
+	ENDIF
 ENDIF
 PRINTL 
-PRINTBUTTON "[999]戻る", 999
+IF 選択シリーズ < 0
+	PRINTBUTTONLC "[999] 戻る", 999
+	IF 選択モード == 0
+		SELECTCASE ソートモード
+			CASE 0
+				PRINTBUTTONLC "[996] シリーズ名順にする", 996
+			CASE 1
+				PRINTBUTTONLC "[996] 登録キャラ数順にする", 996
+		ENDSELECT
+	ENDIF
+ENDIF
 
 WHILE 1
-	INPUT
+	BINPUT
 
 	入力番号 = RESULT
 	SELECTCASE 入力番号
+		CASE 1000
+			INVERTBIT 選択モード, 0
+			選択シリーズ = -1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
 		CASE 900
 			;- 前ページへ
 			; ページ番号を更新後、リスタートしてリスト表示へ戻る
@@ -151,41 +301,120 @@ WHILE 1
 			; リスタートせずにZPショップメニューへ戻る
 			リスタートフラグ = 0
 			BREAK
-		CASEELSE
-			;- キャラ選択時
-			候補番号 = 入力番号
-			;- キャラ招待ループ
-			WHILE 1
-				対象キャラ = 表示候補:候補番号
-				CALL ZP_SHOP_EXキャラ_招待確認(対象キャラ)
-				SELECTCASE RESULT
-					CASE -1
-						;- キャンセル
-						; リスタートしてリスト表示へ戻る
-						リスタートフラグ = 1
-						BREAK
-					CASE 1
-						;- キャラ招待実行後
-						; リスタートしてリスト表示へ戻る
-						リスタートフラグ = 1
-						BREAK
-					CASE 2
-						;- 前のキャラ
-						; 候補番号を更新、ループして前のキャラを表示
-						候補番号 -=  1
-						SIF 候補番号 < 0
-							候補番号 = 候補キャラ数 - 1
-					CASE 3
-						;- 次のキャラ
-						; 候補番号を更新、ループして次のキャラを表示
-						候補番号 +=  1
-						SIF 候補番号 >= 候補キャラ数
-							候補番号 = 0
-				ENDSELECT
-			WEND
-			; 表示していたキャラにあわせてページ位置を更新
-			現在ページ = 候補番号 / 表示人数
+		CASE 997
+			選択シリーズ = -1
+			現在ページ = 0
+			リスタートフラグ = 1
 			BREAK
+		CASE 996
+			INVERTBIT ソートモード, 0
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 998
+			PRINTFORML %出展作品配列:選択シリーズ%のキャラクター{出展情報配列:選択シリーズ}名を導きます。
+			PRINTL よろしいですか？
+			PRINTBUTTONLC "[0]はい", 0 
+			PRINTBUTTONLC "[1]いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				PRINTL 
+				PRINTL 
+				FOR 対象キャラ, 0, CHARANUM
+					SIF 出展表示候補:対象キャラ == -1
+						BREAK
+
+					IF CFLAG:(出展表示候補:対象キャラ):ZPショップ値段 > FLAG:ZP所持量 && ZPキャラ無料回数 < 1
+						PRINTW ZPが足りないので停止します
+						RESTART
+					ENDIF
+
+					PRINTFORM %NAME:(出展表示候補:対象キャラ), 41, LEFT%が導かれました。
+					IF 滞在キャラ上限 - 滞在キャラ数 - 集客人数 - FLAG:滞在キャラ枠先確保分 > 0
+						PRINTL 起床後にリゾートを訪れます。
+						解放キャラ招待:(FINDELEMENT(解放キャラ招待, 0)) = 出展表示候補:対象キャラ
+						FLAG:滞在キャラ枠先確保分 += 1
+					ELSE
+						PRINTL 滞在人数がいっぱいのため、今後の招待対象に追加します。
+					ENDIF
+					CFLAG:(出展表示候補:対象キャラ):招待不可フラグ = 0
+					IF ZPキャラ無料回数
+						ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
+					ELSE
+						FLAG:ZP所持量 -= CFLAG:(出展表示候補:対象キャラ):ZPショップ値段
+					ENDIF
+				NEXT
+				PRINTL 
+				PRINTL 
+				PRINTW
+				リスタートフラグ = 1
+				BREAK
+			ELSE
+				リスタートフラグ = 1
+				BREAK
+			ENDIF
+		CASEELSE
+			IF 選択モード || 選択シリーズ >= 0
+				;- キャラ選択時
+				候補番号 = 入力番号
+				IF 選択モード
+					表示用番号 = 候補キャラ数
+				ELSE
+					表示用番号 = 候補キャラ数_シリーズ
+				ENDIF
+				;- キャラ招待ループ
+				WHILE 1
+					IF 選択モード
+						対象キャラ = 表示候補:候補番号
+					ELSE
+						対象キャラ = 出展表示候補:候補番号
+					ENDIF
+					CALL ZP_SHOP_EXキャラ_招待確認(対象キャラ)
+					SELECTCASE RESULT
+						CASE -1
+							;- キャンセル
+							; リスタートしてリスト表示へ戻る
+							リスタートフラグ = 1
+							BREAK
+						CASE 1
+							;- キャラ招待実行後
+							; リスタートしてリスト表示へ戻る
+							リスタートフラグ = 1
+							BREAK
+						CASE 2
+							;- 前のキャラ
+							; 候補番号を更新、ループして前のキャラを表示
+							候補番号 -=  1
+							SIF 候補番号 < 0
+								候補番号 = 表示用番号 - 1
+						CASE 3
+							;- 次のキャラ
+							; 候補番号を更新、ループして次のキャラを表示
+							候補番号 +=  1
+							SIF 候補番号 >= 表示用番号
+								候補番号 = 0
+					ENDSELECT
+				WEND
+				; 表示していたキャラにあわせてページ位置を更新
+				現在ページ = 候補番号 / 表示人数
+				BREAK
+			ELSE
+				選択シリーズ = 入力番号
+				現在ページ = 0
+				リスタートフラグ = 1
+				VARSET 出展表示候補, -1
+				候補キャラ数_シリーズ = 0
+				FOR 対象キャラ, 0, CHARANUM
+					SIF 表示候補:対象キャラ == -1
+						BREAK
+					IF CSTR:(表示候補:対象キャラ):出演作品 == 出展作品配列:選択シリーズ
+						出展表示候補:候補キャラ数_シリーズ = 表示候補:対象キャラ
+						候補キャラ数_シリーズ ++
+					ENDIF
+				NEXT
+				BREAK
+			ENDIF
 	ENDSELECT
 WEND
 IF リスタートフラグ
