@@ -8,6 +8,7 @@
 ;@スプライト作成(ARGS, ARG, mode = 0)
 ;  グラフィックID(ARG)からARGSという名前のスプライトを、アスペクト比不適な画像処理の設定に応じた方法で作成する
 ;  mode 0：正方形 1；縦長
+;  ※ グラフィックID(ARG)にはTEMP_gID以外の値を指定すること
 ;********************************************************************************************
 
 @スプライト作成(ARGS, ARG, mode = 0)
@@ -21,6 +22,10 @@ SIF ARGS == ""
 	THROW スプライト名が指定されていません
 SIF !GCREATED(ARG)
 	THROW グラフィックID{ARG}は作成されていません
+; グラフィックID(ARG) == TEMP_gIDの場合、拡大縮小処理が誤動作するのでエラー通知
+; 切り抜き処理の場合は問題なく動作するが、設定で使用可能なグラフィックIDが変わるのもおかしいので設定に関わらず通知する
+SIF ARG == TEMP_gID
+	THROW グラフィックIDにはTEMP_gID({TEMP_gID})以外の数値を指定してください
 
 横幅 = GWIDTH(ARG)
 縦幅 = GHEIGHT(ARG)
@@ -213,9 +218,7 @@ RETURNF RESULTS
 
 LNCOUNT = LINECOUNT
 VARSET LOCAL
-VARSET LOCALS
 VARSET FOLDER
-SPRITEDISPOSEALL 0
 T_REDRAW = CURRENTREDRAW()
 REDRAW 0
 
@@ -270,7 +273,7 @@ IF INRANGE(LOCAL, 0, F_NUM)
 	SUBSTRING CSTR:対象キャラ:画像フォルダ, STRLENS(TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ), -1
 ENDIF
 
-CALL ランダム画像表示_リソース開放(F_NUM)
+CALL ランダム画像表示_リソース解放(F_NUM)
 
 CLEARLINE LINECOUNT - LNCOUNT
 REDRAW T_REDRAW
