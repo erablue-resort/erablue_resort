@@ -4,13 +4,19 @@
 ;-------------------------------------------------
 @COMNAME1
 #FUNCTIONS
-IF MODE_存在判定_完全一致("フェラチオ系", TARGET, PLAYER)
+IF MODE_存在判定_完全一致("シックスナイン可能", TARGET, PLAYER)
 	TSTR:コマンド名受渡 = シックスナイン
 ELSE
 	TSTR:コマンド名受渡 = クンニ
 ENDIF
 
-
+;許可時の特別文章はここに記入
+IF TFLAG:オートコマンドフラグ >= 4000
+	;反転時、つまりあなたが舐める方
+	許可取り文章 = %CALLNAME:TARGET%が%CALLNAME:PLAYER%に[%TSTR:コマンド名受渡%]を要求しているようだ。
+ELSE
+	許可取り文章 = %CALLNAME:PLAYER%が%CALLNAME:TARGET%に[%TSTR:コマンド名受渡%]を実行しようとしているようだ。
+ENDIF
 
 
 ;===================================================
@@ -20,13 +26,14 @@ ENDIF
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
 弱点コマンドカテゴリ = C_女
-オートコマンド許可 = 1
+オートコマンド許可 = 3
 連続オート許可 = 1
 
 
 @COM_TOOLTIP_1
 LOCALS = <br>■クンニ<br>
-LOCALS += "相手のクリトリスを中心に舌で愛撫を行うコマンド。<br>フェラチオ系のモード継続時、「シックスナイン」に変化する。<br>実行者が[舌使い][猫舌]を持っている場合、効果が増減する。"
+LOCALS += "相手のクリトリスを中心に舌で愛撫を行うコマンド。<br>クンニモードとなり、モードを変更するか性行為を終了するまで持続的に特定のソースが発生する。"
+LOCALS += "<br>実行者が[舌使い][猫舌]を持っている場合、効果が増減する。"
 LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・露出・接触・液体"
 LOCALS += "<br>固有の取得経験：口淫経験(PLAYER)<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
@@ -35,10 +42,16 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;-------------------------------------------------
 ;モードの設定
 ;-------------------------------------------------
-IF MODE_存在判定_完全一致("フェラチオ系", TARGET, PLAYER)
-	CALL MODE_CHANGE("シックスナイン", TARGET, PLAYER)
-	RFLAG:同時モード体位変化フラグ = 1
-ENDIF
+SIF !MODE_シックスナイン中_完全一致(TARGET, PLAYER) && MODE_存在判定_完全一致("シックスナイン可能", TARGET, PLAYER)
+	RFLAG:コマンド結果受渡し変数 = 1
+CALL MODE_CHANGE("クンニ", PLAYER, TARGET)
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+
+;奉仕快楽
+RCVAR:PLAYER:奉仕コマンドフラグ = 1
+RCVAR:PLAYER:汎用喘ぎ_文節低減フラグ = 1
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
@@ -112,12 +125,6 @@ SIF TEQUIP:PLAYER:口
 ;クリを何かに使ってるなら無理
 SIF TEQUIP:TARGET:クリトリス
 	RETURN 0
-IF !MODE_存在判定_完全一致("フェラチオ系", TARGET, PLAYER)
-	;クリに届かないなら無理（フェラチオ中は許可）
-	CALL MODE_部位届く判定(部位_クリトリス, PLAYER, TARGET)
-	SIF RESULT == 0
-		RETURN 0
-ENDIF
 ;挿入系・素股系時は個別にOFF
 SIF MODE_存在判定_順不同("ＶＡ挿入系", PLAYER, TARGET)
 	RETURN 0
@@ -141,7 +148,7 @@ PRINTFORM %CALLNAME:PLAYER%は
 IF RFLAG:コマンド結果受渡し変数
 	PRINTFORML %CALLNAME:TARGET%と頭の位置が互い違いになるように体勢を変えて、
 	PRINTFORM %CALLNAME:TARGET%の
-ELSEIF MODE_存在判定_順不同("シックスナイン", TARGET, PLAYER)
+ELSEIF MODE_シックスナイン中_完全一致(TARGET, PLAYER)
 	PRINTFORM 眼の前にある%CALLNAME:TARGET%の
 ELSEIF !TEQUIP:下半身服あり && TEQUIP:下半身下着あり
 	IF TALENT:恋慕 && PLAYER == MASTER
