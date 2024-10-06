@@ -30,6 +30,20 @@ ENDSELECT
 ;ARG:2	処女喪失手段(=1 チンコ	=2 バイブ	=3 指	=4 触手)
 ;-------------------------------------------------
 @LOST_VIRGIN(ARG, ARG:1, ARG:2)
+
+;処女以外の初挿入処理
+IF ARG:2 == 1
+	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験, "_-1_") < 0
+		経験相手:ARG:Ｖ挿入初体験 += "_-1_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手からＶ挿入された</font>","うふふ")
+	ELSEIF STRFIND(経験相手:ARG:Ｖ挿入初体験, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+		SIF 初体験日:ARG:Ｖ挿入初体験 == 0 && ARG:1 == MASTER
+			初体験日:ARG:Ｖ挿入初体験 = DAY
+		経験相手:ARG:Ｖ挿入初体験 += @"_{CFLAG:(ARG:1):人物番号}_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%からＶ挿入された</font>","うふふ")
+	ENDIF
+ENDIF
+
 ;非処女はスルー
 SIF !TALENT:ARG:処女
 	RETURN 0
@@ -157,12 +171,180 @@ IF TALENT:ARG:処女 == 1
 ENDIF
 
 ;-------------------------------------------------
+;A処女喪失時の処理
+;ARG		処女喪失対象
+;ARG:1	処女喪失させる人
+;ARG:2	処女喪失手段(=1 チンコ	=4 触手)
+;-------------------------------------------------
+@LOST_A_VIRGIN(ARG, ARG:1, ARG:2)
+
+;処女以外の初挿入処理
+IF ARG:2 == 1
+	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験, @"_-1_") < 0
+		経験相手:ARG:Ａ挿入初体験 += "_-1_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手からＡ挿入された</font>","うふふ")
+	ELSEIF STRFIND(経験相手:ARG:Ａ挿入初体験, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+		IF 初体験日:ARG:Ａ挿入初体験 == 0 && ARG:1 == MASTER
+			初体験日:ARG:Ａ挿入初体験 = DAY
+		ENDIF
+		経験相手:ARG:Ａ挿入初体験 += @"_{CFLAG:(ARG:1):人物番号}_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%からＡ挿入された</font>","うふふ")
+	ENDIF
+ENDIF
+
+;非処女はスルー
+SIF !TALENT:ARG:Ａ処女
+	RETURN 0
+RCVAR:ARG:Ａ破瓜 = ARG:2
+RCVAR:ARG:Ａ破瓜_相手番号 = ARG:1
+VARSET LOCAL
+;SOURCE追加
+IF TALENT:ARG:Ａ処女 == 1
+	PRINTFORM Ａ処女喪失(%CALLNAME:ARG%)
+	IF ARG:1 < 0
+		CFLAG:LOCAL:Ａ処女相手番号 = ARG:1
+	ELSE
+		CFLAG:LOCAL:Ａ処女相手番号 = CFLAG:(ARG:1):人物番号
+	ENDIF
+	CFLAG:LOCAL:Ａ処女道具記録 = ARG:2
+	;苦痛
+	;チンコ
+	IF ARG:2 == 1
+		LOCAL = 2000
+		IF ARG:1 < 0
+			IF GETBIT(ABS(ARG:1), 1)
+				PRINTW ：ペニス
+			ELSE
+				PRINTW ：ペニスバンド
+				RCVAR:ARG:Ａ破瓜 = 5
+			ENDIF
+		ELSE
+			IF GETBIT(TALENT:(ARG:1):性別, 1)
+				PRINTW ：ペニス
+			ELSE
+				PRINTW ：ペニスバンド
+				RCVAR:ARG:Ａ破瓜 = 5
+			ENDIF
+		ENDIF
+	;触手
+	ELSEIF ARG:2 == 4
+		LOCAL = 2000
+		PRINTW ：触手
+	ENDIF
+	LOCAL = LOCAL * PAIN_CHECK_V(ARG) / 1000
+	CALL SOURCE_CALC_苦痛(ARG, ARG:1, LOCAL)
+	;不潔
+	;Aなのでそもそもの基礎値が存在
+	CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+	;貞操観念
+	IF TALENT:ARG:貞操 > 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+		;恋愛対象以外の相手
+		ELSEIF ARG:1 != PLAYER
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 2000)
+		;チンコじゃない
+		ELSEIF ARG:2 != 1
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+		ENDIF
+	ELSEIF TALENT:ARG:貞操 == 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+		;恋愛対象以外の相手
+		ELSEIF ARG:1 != PLAYER
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+		;チンコじゃない
+		ELSEIF ARG:2 != 1
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+		ENDIF
+	ENDIF
+	;陥落素質による処理
+	;MASTERがTARGETのＡに挿入している
+	IF ARG:1 == MASTER
+		IF TALENT:ARG:貞操 > 0
+			;非恋慕
+			IF !TALENT:ARG:恋慕
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			ENDIF
+		ELSEIF TALENT:ARG:貞操 == 0
+			;非恋慕
+			IF !TALENT:ARG:恋慕
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+			ENDIF
+		ENDIF
+		IF ARG:2 == 1
+		;親愛かつ相手が主人
+		IF TALENT:ARG:恋慕 > 1
+			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が後ろの初めての相手である事にこの上ない幸せを感じているようだ……
+			CALL SOURCE_CALC_歓楽(ARG, PLAYER, 5000)
+		;恋慕かつ相手が主人
+		ELSEIF TALENT:ARG:恋慕
+			PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%にＡ処女を捧げられた事に幸福を感じているようだ……
+			CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
+		ENDIF
+	ENDIF
+	ELSE
+		IF TALENT:ARG:貞操 > 0
+			;非恋慕
+			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 1000)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			ENDIF
+		ELSEIF TALENT:ARG:貞操 == 0
+			;非恋慕
+			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 500)
+			;チンコじゃない
+			ELSEIF ARG:2 != 1
+				CALL SOURCE_CALC_不潔(ARG, ARG:1, 250)
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
 ;童貞喪失時の処理
 ;ARG		童貞喪失した人
 ;ARG:1	童貞喪失させる人
 ;ARG:2		童貞喪失対象（V：１　A：２）
 ;-------------------------------------------------
 @LOST_MAN_VIRGIN(ARG, ARG:1, ARG:2)
+
+;非童貞の初挿入処理
+IF ARG:2 == 1
+	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_-1_") < 0
+		経験相手:ARG:Ｖ挿入初体験_男側 += "_-1_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＶ挿入した</font>","うふふ")
+	ELSEIF STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+		IF 初体験日:ARG:Ｖ挿入初体験_男側 == 0 && ARG:1 == MASTER
+			初体験日:ARG:Ｖ挿入初体験_男側 = DAY
+		ENDIF
+		経験相手:ARG:Ｖ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
+		CALL 履歴データベース登録(CFLAG:(ARG:1):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:ARG%にＶ挿入した</font>","うふふ")
+	ENDIF
+ELSEIF ARG:2 == 2
+	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_-1_") < 0
+		経験相手:ARG:Ａ挿入初体験_男側 += "_-1_"
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＡ挿入した</font>","うふふ")
+	ELSEIF STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+		IF 初体験日:ARG:Ａ挿入初体験_男側 == 0 && ARG:1 == MASTER
+			初体験日:ARG:Ａ挿入初体験_男側 = DAY
+		ENDIF
+		経験相手:ARG:Ａ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
+		CALL 履歴データベース登録(CFLAG:(ARG:1):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:ARG%にＡ挿入した</font>","うふふ")
+	ENDIF
+ENDIF
+
 ;非童貞はスルー
 SIF GETBIT(TALENT:ARG:非童貞, ARG:2 - 1)
 	RETURN 0
@@ -180,7 +362,11 @@ IF ARG:2 == 1
 ENDIF
 VARSET LOCAL
 ;SOURCE追加
-PRINTFORML 童貞喪失(%CALLNAME:ARG%)
+IF ARG:2 == 1
+	PRINTFORML Ｖ童貞喪失(%CALLNAME:ARG%)
+ELSEIF ARG:2 == 2
+	PRINTFORML Ａ童貞喪失(%CALLNAME:ARG%)
+ENDIF
 ;陥落素質による処理
 ;TARGETがMASTERの膣に挿入している
 IF ARG:1 == MASTER

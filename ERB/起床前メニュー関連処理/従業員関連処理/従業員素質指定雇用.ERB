@@ -9,6 +9,7 @@
 #DIM ウエスト保存
 #DIM ヒップ保存
 #DIM 下半身保存
+#DIM Ａ処女保存
 #DIM 身長数値設定フラグ
 #DIM バスト数値設定フラグ
 #DIM ウエスト数値設定フラグ
@@ -372,28 +373,29 @@ SELECTCASE 表示モード
 			CASE 1
 				LOCALS += "女性"
 				IF GETBIT(ランダムキャラ素質:2, 0) == 0
-					LOCALS += "（処女）　　　　　"
-				ELSE
-					LOCALS += "　　　　　　　　　"
+					LOCALS += "（処女）"
+				ENDIF
+				IF Ａ処女保存 == 0
+					LOCALS += "（Ａ処女）"
 				ENDIF
 			CASE 2
 				LOCALS += "男性"
 				IF GETBIT(ランダムキャラ素質:2, 1) == 0
-					LOCALS += "（童貞）　　　　　"
-				ELSE
-					LOCALS += "　　　　　　　　　"
+					LOCALS += "（童貞）"
+				ENDIF
+				IF Ａ処女保存 == 0
+					LOCALS += "（Ａ処女）"
 				ENDIF
 			CASE 3
 				LOCALS += "ふたなり"
 				IF GETBIT(ランダムキャラ素質:2, 0) == 0
 					LOCALS += "（処女）"
-				ELSE
-					LOCALS += "　　　　"
 				ENDIF
 				IF GETBIT(ランダムキャラ素質:2, 1) == 0
-					LOCALS += "（童貞）　"
-				ELSE
-					LOCALS += "　　　　　"
+					LOCALS += "（童貞）"
+				ENDIF
+				IF Ａ処女保存 == 0
+					LOCALS += "（Ａ処女）"
 				ENDIF
 		ENDSELECT
 		IF GETBIT(ランダムキャラ素質:1, 0)
@@ -871,6 +873,17 @@ SELECTCASE 表示モード
 				LOCALS:1 = C0C0C0
 				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12013}'>[非童貞]</button></font>"
 			ENDIF
+		ENDIF
+		IF Ａ処女保存 == 0
+			LOCALS:1 = C0C0C0
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12014}'>[Ａ処女]</button></font>"
+			LOCALS:1 = 333333
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12015}'>[非Ａ処女]</button></font>"
+		ELSE
+			LOCALS:1 = 333333
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12014}'>[Ａ処女]</button></font>"
+			LOCALS:1 = C0C0C0
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12015}'>[非Ａ処女]</button></font>"
 		ENDIF
 		LOCALS += "<br>"
 		LOCALS += "性知識レベル："
@@ -1473,6 +1486,10 @@ SELECTCASE LOCAL
 		CLEARBIT ランダムキャラ素質:2, 1
 	CASE 12013
 		SETBIT ランダムキャラ素質:2, 1
+	CASE 12014
+		CLEARBIT Ａ処女保存, 1
+	CASE 12015
+		SETBIT Ａ処女保存, 1
 	CASE 12018 TO 12023
 		IF ランダムキャラ素質:0 == 3
 			ランダムキャラ素質:3 = MAX(LOCAL - 12020, 2)
@@ -1824,6 +1841,11 @@ SELECTCASE LOCAL
 			ELSE
 				PRINTL 素質,非童貞,0
 			ENDIF
+			IF Ａ処女保存
+				PRINTL 素質,Ａ処女,0
+			ELSE
+				PRINTL 素質,Ａ処女,1
+			ENDIF
 			PRINTFORML 素質,バストサイズ,{ランダムキャラ素質:3}
 			SIF 肉体特徴数値保存:0
 				PRINTFORML 素質,角あり,1
@@ -1944,6 +1966,12 @@ SELECTCASE LOCAL
 		CALLNAME:(LOCAL:1) = %ランダムキャラネーム%
 		TALENT:(LOCAL:1):200 = ランダムキャラ素質:0
 		TALENT:(LOCAL:1):2 = ランダムキャラ素質:1
+		
+		IF Ａ処女保存
+			TALENT:(LOCAL:1):Ａ処女 = 0
+		ELSE
+			TALENT:(LOCAL:1):Ａ処女 = 1
+		ENDIF
 		IF GETBIT(ランダムキャラ素質:2, 0)
 			TALENT:(LOCAL:1):0 = 0
 		ELSE
@@ -2084,6 +2112,11 @@ SELECTCASE LOCAL
 				SETBIT ランダムキャラ素質:2, 0
 			SIF CSVTALENT(CSV番号, GETNUM(TALENT, "非童貞"))
 				SETBIT ランダムキャラ素質:2, 1
+			IF CSVTALENT(CSV番号, GETNUM(TALENT, "Ａ処女"))
+				Ａ処女保存 = 0
+			ELSE
+				Ａ処女保存 = 1
+			ENDIF
 			肉体特徴数値保存:0 = CSVTALENT(CSV番号, GETNUM(TALENT, "角あり"))
 			肉体特徴数値保存:1 = CSVTALENT(CSV番号, GETNUM(TALENT, "尻尾あり"))
 			肉体特徴数値保存:2 = CSVTALENT(CSV番号, GETNUM(TALENT, "エルーン耳"))
