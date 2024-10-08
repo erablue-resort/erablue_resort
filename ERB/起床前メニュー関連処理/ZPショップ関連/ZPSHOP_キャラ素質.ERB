@@ -3,19 +3,20 @@
 #DIM 表示候補, 200
 #DIM 現在ページ
 #DIM 広告対象
+#DIM 表示最大数
 
 VARSET 表示候補, -1
 現在ページ = 0
 
 
 ;表示キャラを登録
-LOCAL:1 = 0
+表示最大数 = 0
 FOR LOCAL, 1, CHARANUM
 	;滞在してないキャラは出さない
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-	表示候補:(LOCAL:1) = LOCAL
-	LOCAL:1 += 1
+	表示候補:表示最大数 = LOCAL
+	表示最大数 ++
 NEXT
 
 $表示_LOOP
@@ -28,19 +29,15 @@ DRAWLINE
 PRINTBUTTON @"[998] %NAME:MASTER%", 998
 PRINTL
 DRAWLINE
-LOCAL:1 = 0
 ;キャラの表示（15人まで）
 FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	;登録が終わったら表示終了
 	IF 表示候補:LOCAL == -1
-		LOCAL:1 = 1
 		BREAK
 	ENDIF
 	PRINTBUTTON @"[{LOCAL}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]")%", LOCAL
 	PRINTL 
 NEXT
-SIF 表示候補:LOCAL == -1
-	LOCAL:1 = 1
 
 DRAWLINE
 
@@ -58,16 +55,15 @@ PRINTL
 PRINTBUTTON "[999]戻る", 999
 
 $INPUT_LOOP
-INPUT
+BINPUT
 
-LOCAL = 0
-SELECTCASE RESULT
+LOCAL = RESULT
+SELECTCASE LOCAL
 	CASE 900
 		現在ページ = MAX(現在ページ - 1, 0)
 		GOTO 表示_LOOP
 	CASE 901
-		SIF LOCAL:1 == 0
-			現在ページ += 1
+		現在ページ += 1
 		GOTO 表示_LOOP
 	CASE 999
 		RETURN -1
@@ -76,26 +72,36 @@ SELECTCASE RESULT
 		SIF RESULT == -1
 			RESTART
 	CASEELSE
-		IF 表示候補:RESULT >= CHARANUM
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ELSEIF 表示候補:RESULT < 0
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
+		DO
+		CALL ZP_素質変化(表示候補:LOCAL)
+		IF RESULT == 1
+			LOCAL --
+			SIF LOCAL < 0
+				LOCAL = 表示最大数 - 1
+		ELSEIF RESULT == 2
+			LOCAL ++
+			SIF 表示最大数 <= LOCAL
+				LOCAL = 0
 		ENDIF
-		CALL ZP_素質変化(表示候補:RESULT)
 		SIF RESULT == -1
 			RESTART
+		LOOP 1
 ENDSELECT
 
 @ZP_素質変化(キャラ番号)
 #DIM キャラ番号
+#DIM 対象画像数
+#DIM リロールボタン有効
 
 TRYCALLFORM ZP_素質変化_固有処理_{NO:キャラ番号}(キャラ番号)
 SIF RESULT == -1
 	RETURN -1
 
-DRAWLINE
+; キャラ確認用の簡易紹介
+CALL キャラ簡易紹介(キャラ番号)
+対象画像数 = RESULT
+リロールボタン有効 = 対象画像数 > 5
+
 PRINTL ZPを消費してキャラの素質を変化させることが出来ます。
 PRINTL どの素質を変化させますか？
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
@@ -140,10 +146,17 @@ IF フレーバー素質:キャラ番号:0 == 0 || フレーバー素質:キャ�
 	PRINTL
 ENDIF
 
+PRINTL
 ; PRINTBUTTONLC "[10]称号素質を設定する", 10
 ; PRINTL
 IF キャラ番号 == MASTER
 	PRINTBUTTONLC "[998]あなたの設定をやり直す", 998
+	PRINTL
+ELSE
+	PRINTBUTTONLC "[996] 前のキャラへ", 996
+	PRINTBUTTONLC "[997] 次のキャラへ", 997
+	SIF リロールボタン有効
+		PRINTBUTTONLC "[995]画像のランダム表示をリロール", 995
 	PRINTL
 ENDIF
 PRINTBUTTONLC "[999]戻る", 999
@@ -182,6 +195,12 @@ SELECTCASE RESULT
 	CASE 10
 		CALL 称号素質設定(キャラ番号)
 		RESTART
+	CASE 995
+		RESTART
+	CASE 996
+		RETURN 1
+	CASE 997
+		RETURN 2
 	CASE 998
 		CALL キャラメイク設定
 		RESTART

@@ -278,11 +278,80 @@ RETURN 0
 
 @入室不可処理
 #DIM ループ用
-#DIM 部屋主配列, 10
+#DIM 部屋人数
+#DIM 部屋主配列, 100
 
 SELECTCASE CFLAG:PLAYER:現在マップ種別
+	CASE 999
+		IF CFLAG:PLAYER:現在位置 < 1000
+			LOCAL = CFLAG:PLAYER:現在位置
+			IF 滞在者部屋割り配列:LOCAL > 0
+				;睡眠時
+				IF CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL
+					IF CFLAG:(滞在者部屋割り配列:LOCAL):睡眠 && 陥落チェック(滞在者部屋割り配列:LOCAL) == 0
+						PRINTFORML %CALLNAME:(滞在者部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						PRINTW どうやら眠っているようだ…
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+						あなた追跡キャラ = 0
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF CFLAG:PLAYER:現在位置 >= 1000 && CFLAG:PLAYER:現在位置 < 2000
+			LOCAL = CFLAG:PLAYER:現在位置 - 1000
+			IF 従業員部屋割り配列:LOCAL > 0
+				;睡眠時
+				IF CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL
+					IF CFLAG:(従業員部屋割り配列:LOCAL):睡眠 && 陥落チェック(従業員部屋割り配列:LOCAL) == 0
+						PRINTFORML %CALLNAME:(従業員部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						PRINTW どうやら眠っているようだ…
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+						あなた追跡キャラ = 0
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF CFLAG:PLAYER:現在位置 >= 2000 && CFLAG:PLAYER:現在位置 < 3000
+			LOCAL = CFLAG:PLAYER:現在位置 - 2000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT スイートルーム部屋割り配列:LOCAL, "_", RESULTS
+			部屋人数 = 0
+			FOR ループ用, 1, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:部屋人数 = TOINT(RESULTS:ループ用)
+				部屋人数 ++
+			NEXT
+			IF 部屋人数 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 部屋人数
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 999 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 2000
+						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
+							LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2
+					IF 部屋人数 > 1
+						PRINTFORML %NAME:(部屋主配列:0)%たちの部屋には鍵が掛かっている。
+					ELSE
+						PRINTFORML %NAME:(部屋主配列:0)%の部屋には鍵が掛かっている。
+					ENDIF
+					PRINTW どうやら眠っているようだ…
+					CFLAG:PLAYER:現在マップ種別 = 2
+					CFLAG:PLAYER:現在位置 = 1
+					あなた追跡キャラ = 0
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE 1
+		;店は誰かがいるのに入れないパターンはないので割愛
 	CASE 2
-		IF CFLAG:PLAYER:現在位置 >= 1000 && CFLAG:PLAYER:現在位置 <= 1049
+		IF CFLAG:PLAYER:現在位置 >= 1000 && CFLAG:PLAYER:現在位置 <= 6000
 			LOCAL = CFLAG:PLAYER:現在位置 - 1000
 			;部屋の居住者を配列化
 			VARSET 部屋主配列
@@ -310,6 +379,7 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					PRINTW どうやら眠っているようだ…
 					CFLAG:PLAYER:現在マップ種別 = 2
 					CFLAG:PLAYER:現在位置 = 1
+					あなた追跡キャラ = 0
 				ENDIF
 				;全員外出時
 				LOCAL:2 = 0
@@ -328,6 +398,7 @@ SELECTCASE CFLAG:PLAYER:現在マップ種別
 					PRINTW どうやら家に誰もいないようだ…
 					CFLAG:PLAYER:現在マップ種別 = 2
 					CFLAG:PLAYER:現在位置 = 1
+					あなた追跡キャラ = 0
 				ENDIF
 			ENDIF
 		ENDIF
@@ -604,3 +675,54 @@ FOR LOCAL, 1, VARSIZE("TARGET")
 		RETURNF 0
 NEXT
 RETURNF 1
+
+;追跡設定されている時、追跡を行う
+@追跡処理()
+
+IF あなた追跡キャラ
+	IF IS_SAME_ROOM(MASTER, あなた追跡キャラ) == 0
+		;コマンド入力をスキップし移動処理を入れる
+		RFLAG:追跡フラグ = あなた追跡キャラ
+		RSTR:追跡時サイド記録 = %サイド描画表示種類%
+		サイド描画表示種類 = クイック移動
+		IF CFLAG:MASTER:現在マップ種別 == 999
+			IF CFLAG:MASTER:現在マップ種別 == CFLAG:あなた追跡キャラ:現在マップ種別
+				CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+			ELSE
+				CFLAG:MASTER:現在マップ種別 = CFLAG:あなた追跡キャラ:現在マップ種別
+				CALLFORM エリア情報登録_{CFLAG:MASTER:現在マップ種別}("エリア移動可能場所")
+				CFLAG:MASTER:現在位置 = RESULT
+			ENDIF
+			サイド描画表示種類 = %RSTR:追跡時サイド記録%
+			RETURN 1
+		ELSEIF CFLAG:あなた追跡キャラ:現在マップ種別 == 999
+			CALLFORM エリア情報登録_{CFLAG:MASTER:現在マップ種別}("エリア移動可能場所")
+			IF CFLAG:MASTER:現在位置 != RESULT
+				RESULTS = サイド領域_{CFLAG:あなた追跡キャラ:現在位置}
+			ELSE
+				CFLAG:MASTER:現在マップ種別 = CFLAG:あなた追跡キャラ:現在マップ種別
+				CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+				CALL 入室不可処理
+			ENDIF
+			サイド描画表示種類 = %RSTR:追跡時サイド記録%
+			RETURN 1
+		ELSE
+			IF CFLAG:MASTER:現在マップ種別 == CFLAG:あなた追跡キャラ:現在マップ種別
+				IF CFLAG:あなた追跡キャラ:現在位置 >= 1000
+					;店舗か居住区なので直接移動
+					CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+					CALL 入室不可処理
+					サイド描画表示種類 = %RSTR:追跡時サイド記録%
+					RETURN 1
+				ELSE
+					RESULTS = サイド領域_{CFLAG:あなた追跡キャラ:現在位置}
+				ENDIF
+			ELSE
+				TFLAG:エリア切り替え時_目的地格納 = CFLAG:あなた追跡キャラ:現在マップ種別 + 100
+				RESULTS = サイド領域_99
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURN 0
