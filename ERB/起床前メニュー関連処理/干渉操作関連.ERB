@@ -1,27 +1,21 @@
 ﻿@干渉強化メニュー
 
-#DIM 表示候補, 200
+#DIM 表示候補, 2000
 #DIM 現在ページ
 #DIM 選択キャラ番号
 #DIM 詳細表示変数
 #DIM 干渉変更費用
 #DIM 干渉関数数
+#DIM 干渉強化値段
 #DIMS 干渉関数配列, 50
 
 VARSET 表示候補, -1
 現在ページ = 0
-詳細表示変数 = 0
 VARSET RESULTS
 VARSET 干渉関数配列
 干渉関数数 = ENUMFUNCBEGINSWITH("干渉強化関数_")
 ARRAYCOPY "RESULTS", "干渉関数配列"
 詳細表示変数 = -1
-
-
-;広告対象の表示
-DRAWLINE
-PRINTL 誰への干渉を強化しますか？
-DRAWLINE
 
 ;表示キャラを登録
 LOCAL:1 = 0
@@ -34,6 +28,12 @@ FOR LOCAL, 1, CHARANUM
 NEXT
 
 $表示_LOOP
+
+;広告対象の表示
+DRAWLINE
+PRINTL 誰への干渉を強化しますか？
+DRAWLINE
+
 LOCAL:1 = 0
 ;キャラの表示（15人まで）
 FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
@@ -61,19 +61,21 @@ DRAWLINE
 
 ;ページめくり表示
 IF 現在ページ > 0
-	PRINTBUTTONLC "[900]前ページへ", 900
+	PRINTBUTTONLC "[900] 前ページへ", 900
 ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
 IF LOCAL:1 == 0
-	PRINTBUTTONC "[901]次ページへ", 901
+	PRINTBUTTONC "[901] 次ページへ", 901
 ENDIF
 PRINTL 
-PRINTBUTTON "[999]戻る", 999
+PRINTL 
+PRINTBUTTON "[998] まとめて付与画面へ", 998
+PRINTL 
+PRINTBUTTON "[999] 戻る", 999
 
-$INPUT_LOOP
-INPUT
+BINPUT
 
 ;対象のINPUT
 SELECTCASE RESULT
@@ -84,16 +86,12 @@ SELECTCASE RESULT
 		SIF LOCAL:1 == 0
 			現在ページ += 1
 		GOTO 表示_LOOP
+	CASE 998
+		CALL まとめて干渉処理(表示候補, 干渉関数配列, 干渉関数数)
+		GOTO 表示_LOOP
 	CASE 999
 		RETURN -1
-	CASE IS >= CHARANUM, IS < 0
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
 	CASEELSE
-		IF 表示候補:RESULT < 0
-			REUSELASTLINE 
-			GOTO INPUT_LOOP
-		ENDIF
 		選択キャラ番号 = 表示候補:RESULT
 ENDSELECT
 
@@ -108,6 +106,7 @@ LOCALS = <div rect='81,0,1912,344' border='31' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='156,62,1912,281'>所持ルピ：%NUM_FORMAT(MONEY)%<br>所持ZP　：%ZP所持量全文字列()%</div>"
 LOCALS += "<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='2125,500,3762,2812'>"
+;右側表示
 IF 詳細表示変数 == -1
 	;現在の干渉詳細を表示
 	IF 干渉強化変数:選択キャラ番号:干渉種類 == 0
@@ -117,10 +116,21 @@ IF 詳細表示変数 == -1
 		CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("詳細文章")
 		LOCALS += @"%TSTR:コマンド名受渡%<br><br>"
 		LOCALS += @"<button value='0'>[0] 現在の干渉を解除する</button><br>"
+		IF 干渉強化変数:選択キャラ番号:干渉ランク < 5
+			干渉強化値段 = 干渉経験値テーブル:(干渉強化変数:選択キャラ番号:干渉ランク) - 干渉強化変数:選択キャラ番号:干渉経験値
+			CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("値段")
+			干渉強化値段 = MAX(干渉強化値段 * RESULT / 5, 1)
+			LOCALS += @"<br>干渉ランクを上げる 必要ＺＰ：{干渉強化値段}<br>"
+			IF 干渉経験値テーブル:(干渉強化変数:選択キャラ番号:干渉ランク) / 10 > FLAG:ZP所持量
+				LOCALS += @"ZPが不足しています<br>"
+			ELSE
+				LOCALS += @"<button value='1'>[1] 現在の干渉を強化する</button><br>"
+			ENDIF
+		ENDIF
 	ENDIF
 ELSE
 	CALLFORM %干渉関数配列:詳細表示変数%("名前")
-	LOCALS += @"現在の干渉：%TSTR:コマンド名受渡%<br><br>"
+	LOCALS += @"■%TSTR:コマンド名受渡%<br><br>"
 	CALLFORM %干渉関数配列:詳細表示変数%("詳細文章")
 	LOCALS += @"%TSTR:コマンド名受渡%<br><br>"
 	CALLFORM %干渉関数配列:詳細表示変数%("値段")
@@ -133,12 +143,14 @@ ELSE
 	ENDIF
 ENDIF
 LOCALS += "</div>"
+
+;左側表示
 LOCALS += "<div rect='156,500,1937,2812'>"
 IF 干渉強化変数:選択キャラ番号:干渉種類 == 0
 	LOCALS += @"現在の干渉：なし"
 ELSE
 	CALLFORM 干渉強化関数_{干渉強化変数:選択キャラ番号:干渉種類}("名前")
-	LOCALS += @"　現在の干渉：%TSTR:コマンド名受渡%"
+	LOCALS += @"　現在の干渉：<button value='998'>[%TSTR:コマンド名受渡%]</button>"
 	LOCALS += @"<br>　干渉ランク：%TOFULL(TOSTR(干渉強化変数:選択キャラ番号:干渉ランク))%"
 ENDIF
 LOCALS += "<br>----------<br>"
@@ -182,10 +194,29 @@ IF 詳細表示変数 == -1
 				CASE 1
 					GOTO 干渉表示_LOOP
 			ENDSELECT
+		CASE 1
+			PRINTL 干渉を強化してよろしいですか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			BINPUT
+			SELECTCASE RESULT
+				CASE 0
+					PRINTW 干渉を強化しました。
+					FLAG:ZP所持量 -= 干渉強化値段
+					干渉強化変数:選択キャラ番号:干渉ランク ++
+					干渉強化変数:選択キャラ番号:干渉経験値 = 干渉経験値テーブル:(干渉強化変数:選択キャラ番号:干渉ランク - 1)
+					GOTO 干渉表示_LOOP
+				CASE 1
+					GOTO 干渉表示_LOOP
+			ENDSELECT
 		CASE 100 TO 149
 			詳細表示変数 = RESULT - 100
 			GOTO 干渉表示_LOOP
+		CASE 998
+			詳細表示変数 = -1
+			GOTO 干渉表示_LOOP
 		CASE 999
+			詳細表示変数 = -1
 			GOTO 表示_LOOP
 	ENDSELECT
 ELSE
@@ -221,7 +252,11 @@ ELSE
 		CASE 100 TO 149
 			詳細表示変数 = RESULT - 100
 			GOTO 干渉表示_LOOP
+		CASE 998
+			詳細表示変数 = -1
+			GOTO 干渉表示_LOOP
 		CASE 999
+			詳細表示変数 = -1
 			GOTO 表示_LOOP
 	ENDSELECT
 ENDIF
@@ -241,3 +276,399 @@ SELECTCASE ARGS
 			CALLFORM 干渉強化関数_{干渉強化変数:キャラ番号:干渉種類}("実補正処理", キャラ番号)
 		ENDIF
 ENDSELECT
+
+
+@まとめて干渉処理(表示候補, 干渉関数配列, 干渉関数数)
+#DIM REF 表示候補
+#DIM 詳細表示変数
+#DIMS REF 干渉関数配列
+#DIM 干渉関数数
+#DIM 干渉番号
+#DIM 適用キャラ数
+#DIM 干渉変更費用
+#DIM 現在ページ
+
+現在ページ = 0
+詳細表示変数 = -1
+
+$干渉表示_LOOP
+PRINTL
+PRINTL
+PRINTL
+DRAWLINE
+PRINTL 任意の干渉強化を複数のキャラクターに適用します。
+PRINTL 干渉の種類を選択してください。
+DRAWLINE
+LOCALS = <div rect='81,0,1912,344' border='31' bcolor='#C0C0C0'></div>
+LOCALS += @"<div rect='156,62,1912,281'>所持ルピ：%NUM_FORMAT(MONEY)%<br>所持ZP　：%ZP所持量全文字列()%</div>"
+LOCALS += "<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='2125,500,3762,2812'>"
+IF 詳細表示変数 == -1
+	;現在の干渉詳細を表示
+	LOCALS += @"特定の干渉を複数キャラにまとめて行うことが出来ます。<br>"
+	LOCALS += @"干渉を選択した後に以下のパターンが実行可能です。<br>"
+	LOCALS += @"<br>"
+	LOCALS += @"　・任意のキャラを選んで干渉強化<br>"
+	LOCALS += @"　・現在の干渉が「なし」のキャラに一括で干渉強化<br>"
+	LOCALS += @"　・全てのキャラに一括で干渉強化<br>"
+	LOCALS += @"<br>"
+	LOCALS += @"また、左の「ランダムに干渉する」を選ぶと以下の３つが実行出来ます。<br>"
+	LOCALS += @"<br>"
+	LOCALS += @"　・任意のキャラを選んでランダムな干渉強化<br>"
+	LOCALS += @"　・現在の干渉が「なし」のキャラに一括でランダムな干渉強化<br>"
+	LOCALS += @"　・全てのキャラに一括でランダムな干渉強化<br>"
+	LOCALS += @"<br>"
+	LOCALS += @"（全てのパターンにおいて、ZPが不足した時に付与を停止します）<br>"
+ELSEIF 詳細表示変数 == 998
+	LOCALS += @"■ランダム干渉強化<br><br>"
+	LOCALS += @"現在付与可能な全ての干渉から、ランダムに適用します。<br><br>"
+	LOCALS += @"一人当たり必要ＺＰ：干渉種類により変動<br>"
+	LOCALS += @"<button value='0'>[0] 適用キャラを選択する</button><br>"
+	LOCALS += @"<button value='1'>[1] 干渉「なし」のキャラに一括適用</button><br>"
+	LOCALS += @"<button value='2'>[2] 全てのキャラに一括適用</button><br>"
+ELSE
+	CALLFORM %干渉関数配列:詳細表示変数%("名前")
+	LOCALS += @"■%TSTR:コマンド名受渡%<br><br>"
+	CALLFORM %干渉関数配列:詳細表示変数%("詳細文章")
+	LOCALS += @"%TSTR:コマンド名受渡%<br><br>"
+	CALLFORM %干渉関数配列:詳細表示変数%("値段")
+	干渉変更費用 = RESULT
+	LOCALS += @"一人当たり必要ＺＰ：{干渉変更費用}<br>"
+	LOCALS += @"<button value='0'>[0] 適用キャラを選択する</button><br>"
+	LOCALS += @"<button value='1'>[1] 干渉「なし」のキャラに一括適用</button><br>"
+	LOCALS += @"<button value='2'>[2] 全てのキャラに一括適用</button><br>"
+ENDIF
+LOCALS += "</div>"
+LOCALS += "<div rect='156,500,1937,2812'>"
+FOR LOCAL, 0, 干渉関数数
+	IF 干渉強化変数:LOCAL:干渉種類 == TOINT(REPLACE(干渉関数配列:LOCAL, "干渉強化関数_", ""))
+		CONTINUE
+	ENDIF
+	CALLFORM %干渉関数配列:LOCAL%("名前")
+	LOCALS += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</button>"
+	LOCALS += "<br>"
+NEXT
+LOCALS += "<br>"
+LOCALS += "<button value='998'>[998] ランダムに干渉する</button>"
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 29
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		;キャラ選択へ
+		CALL まとめて干渉処理_キャラ選択(表示候補, 詳細表示変数, 干渉関数配列, 干渉関数数)
+		GOTO 干渉表示_LOOP
+	CASE 1
+		PRINTL
+		PRINTL
+		IF 詳細表示変数 == 998
+			PRINTFORML 現在の干渉強化が「なし」のキャラ全員にランダムな干渉強化を適用します。
+		ELSE
+			CALLFORM %干渉関数配列:詳細表示変数%("名前")
+			PRINTFORML 現在の干渉強化が「なし」のキャラ全員に%TSTR:コマンド名受渡%を適用します。
+		ENDIF
+		PRINTL よろしいですか？
+		PRINTL
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			PRINTL
+			PRINTL
+			適用キャラ数 = 0
+			IF 詳細表示変数 == 998
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 表示候補:LOCAL == -1
+						BREAK
+					干渉番号 = RAND:干渉関数数
+					CALLFORM %干渉関数配列:干渉番号%("値段")
+					干渉変更費用 = RESULT
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(表示候補:LOCAL):干渉種類 == 0
+						干渉強化変数:(表示候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:干渉番号, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(表示候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+						適用キャラ数 ++
+					ENDIF
+				NEXT
+				PRINTFORMW {適用キャラ数}名のキャラへランダムな干渉強化の適用を完了しました。
+			ELSE
+				CALLFORM %干渉関数配列:詳細表示変数%("値段")
+				干渉変更費用 = RESULT
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 表示候補:LOCAL == -1
+						BREAK
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(表示候補:LOCAL):干渉種類 == 0
+						干渉強化変数:(表示候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(表示候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+						適用キャラ数 ++
+					ENDIF
+				NEXT
+				PRINTFORMW {適用キャラ数}名のキャラへ%TSTR:コマンド名受渡%の適用を完了しました。
+			ENDIF
+			RETURN 0
+		ELSE
+			GOTO 干渉表示_LOOP
+		ENDIF
+	CASE 2
+		PRINTL
+		PRINTL
+		IF 詳細表示変数 == 998
+			PRINTFORML 干渉強化を変更出来るキャラ全員にランダムな干渉強化を適用します。
+		ELSE
+			CALLFORM %干渉関数配列:詳細表示変数%("名前")
+			PRINTFORML 干渉強化を変更出来るキャラ全員に%TSTR:コマンド名受渡%を適用します。
+		ENDIF
+		PRINTL よろしいですか？
+		PRINTL ※干渉強化を変更すると、干渉ランクが０に戻ります。
+		PRINTL ※元の干渉に変更しても干渉ランクは０になるので注意してください。
+		PRINTL
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			PRINTL
+			PRINTL
+			適用キャラ数 = 0
+			IF 詳細表示変数 == 998
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 表示候補:LOCAL == -1
+						BREAK
+					干渉番号 = RAND:干渉関数数
+					CALLFORM %干渉関数配列:干渉番号%("値段")
+					干渉変更費用 = RESULT
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(表示候補:LOCAL):干渉種類 != TOINT(REPLACE(干渉関数配列:干渉番号, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:干渉番号, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(表示候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+						適用キャラ数 ++
+					ENDIF
+				NEXT
+				PRINTFORMW {適用キャラ数}名のキャラへランダムな干渉強化の適用を完了しました。
+			ELSE
+				CALLFORM %干渉関数配列:詳細表示変数%("値段")
+				干渉変更費用 = RESULT
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 表示候補:LOCAL == -1
+						BREAK
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(表示候補:LOCAL):干渉種類 != TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+						干渉強化変数:(表示候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(表示候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+						適用キャラ数 ++
+					ENDIF
+				NEXT
+				PRINTFORMW {適用キャラ数}名のキャラへ%TSTR:コマンド名受渡%の適用を完了しました。
+			ENDIF
+			RETURN 0
+		ELSE
+			GOTO 干渉表示_LOOP
+		ENDIF
+	CASE 100 TO 149
+		詳細表示変数 = RESULT - 100
+		GOTO 干渉表示_LOOP
+	CASE 998
+		詳細表示変数 = 998
+		GOTO 干渉表示_LOOP
+	CASE 999
+		詳細表示変数 = -1
+		RETURN 0
+ENDSELECT
+
+
+@まとめて干渉処理_キャラ選択(表示候補, 詳細表示変数, 干渉関数配列, 干渉関数数)
+#DIM REF 表示候補
+#DIM 詳細表示変数
+#DIM 現在ページ
+#DIM 選択候補, 2000
+#DIM 選択キャラ数
+#DIMS REF 干渉関数配列
+#DIM 干渉変更費用
+#DIM 干渉関数数
+#DIM 干渉番号
+
+VARSET 選択候補, -1
+現在ページ = 0
+
+$表示_LOOP
+;広告対象の表示
+DRAWLINE
+PRINTL 干渉強化するキャラクターを選択してください。
+DRAWLINE
+
+;キャラの表示（15人まで）
+FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		BREAK
+	ENDIF
+	LOCALS = 
+	IF MATCH(選択候補, 表示候補:LOCAL)
+		SETCOLOR カラーパレット("黄")
+	ELSEIF 詳細表示変数 < 50 && 干渉強化変数:(表示候補:LOCAL):干渉種類 == TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+		SETCOLOR カラーパレット("グレーアウト")
+	ENDIF
+	LOCALS += @"[{LOCAL,3,RIGHT}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 40, LEFT%"
+	IF 干渉強化変数:(表示候補:LOCAL):干渉種類 == 0
+		LOCALS += "現在の干渉：なし"
+	ELSE
+		CALLFORM 干渉強化関数_{干渉強化変数:(表示候補:LOCAL):干渉種類}("名前")
+		LOCALS += @"現在の干渉：%TSTR:コマンド名受渡%　　"
+		LOCALS += @"ランク：%TOFULL(TOSTR(干渉強化変数:(表示候補:LOCAL):干渉ランク))%"
+	ENDIF
+	PRINTBUTTON @"%LOCALS%", LOCAL
+	RESETCOLOR
+	PRINTL 
+NEXT
+PRINTL
+DRAWLINE
+
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900] 前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF 表示候補:(現在ページ * 30) + 30 > -1
+	PRINTBUTTONC "[901] 次ページへ", 901
+ENDIF
+PRINTL 
+PRINTL 
+IF 詳細表示変数 == 998
+	PRINTBUTTON @"[998] 選択キャラへランダムな干渉強化を適用する", 998
+ELSE
+	CALLFORM %干渉関数配列:詳細表示変数%("名前")
+	PRINTBUTTON @"[998] 選択キャラへ%TSTR:コマンド名受渡%を適用する", 998
+ENDIF
+PRINTL 
+PRINTBUTTON "[999] 戻る", 999
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		GOTO 表示_LOOP
+	CASE 901
+		現在ページ += 1
+		GOTO 表示_LOOP
+	CASE 998
+		選択キャラ数 = 0
+		FOR LOCAL, 0, 2000
+			IF 選択候補:LOCAL > -1
+				選択キャラ数 ++
+			ELSE
+				BREAK
+			ENDIF
+		NEXT
+		PRINTFORM 以上の{選択キャラ数, 3}名のキャラクターに
+		IF 詳細表示変数 == 998
+			PRINT ランダム干渉強化
+		ELSE
+			CALLFORM %干渉関数配列:詳細表示変数%("名前")
+			PRINTFORM %TSTR:コマンド名受渡%
+		ENDIF
+		PRINTL を適用してよろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			選択キャラ数 = 0
+			IF 詳細表示変数 == 998
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 選択候補:LOCAL == -1
+						BREAK
+					干渉番号 = RAND:干渉関数数
+					CALLFORM %干渉関数配列:干渉番号%("値段")
+					干渉変更費用 = RESULT
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(選択候補:LOCAL):干渉種類 != TOINT(REPLACE(干渉関数配列:干渉番号, "干渉強化関数_", ""))
+						干渉強化変数:(選択候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:干渉番号, "干渉強化関数_", ""))
+						干渉強化変数:(選択候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(選択候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+					ENDIF
+					選択キャラ数 ++
+				NEXT
+				PRINTFORMW {選択キャラ数}名のキャラへランダムな干渉強化の適用を完了しました。
+			ELSE
+				CALLFORM %干渉関数配列:詳細表示変数%("値段")
+				干渉変更費用 = RESULT
+				FOR LOCAL, 0, 2000
+					;登録が終わったら表示終了
+					SIF 選択候補:LOCAL == -1
+						BREAK
+					IF 干渉変更費用 > FLAG:ZP所持量
+						PRINTW ZP不足のため途中で適用を終了します。
+						BREAK
+					ENDIF
+					IF 干渉強化変数:(選択候補:LOCAL):干渉種類 != TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+						干渉強化変数:(選択候補:LOCAL):干渉種類 = TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+						干渉強化変数:(選択候補:LOCAL):干渉ランク = 0
+						干渉強化変数:(選択候補:LOCAL):干渉経験値 = 0
+						FLAG:ZP所持量 -= 干渉変更費用
+						選択キャラ数 ++
+					ENDIF
+				NEXT
+				PRINTFORMW {選択キャラ数}名のキャラへ%TSTR:コマンド名受渡%の適用を完了しました。
+			ENDIF
+			RETURN 0
+		ELSE
+			GOTO 表示_LOOP
+		ENDIF
+	CASE 999
+		RETURN -1
+	CASEELSE
+		SIF 詳細表示変数 < 50 && 干渉強化変数:(表示候補:LOCAL):干渉種類 == TOINT(REPLACE(干渉関数配列:詳細表示変数, "干渉強化関数_", ""))
+			GOTO 表示_LOOP
+		IF MATCH(選択候補, 表示候補:LOCAL)
+			ARRAYSHIFT 選択候補, -1, -1, FINDELEMENT(選択候補, 表示候補:LOCAL)
+		ELSE
+			選択候補:(FINDELEMENT(選択候補, -1)) = 表示候補:LOCAL
+		ENDIF
+		GOTO 表示_LOOP
+ENDSELECT
+
+
+

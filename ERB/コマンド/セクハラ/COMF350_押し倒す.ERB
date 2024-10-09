@@ -15,9 +15,9 @@ TSTR:コマンド名受渡 = 押し倒す
 SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	TSTR:コマンド名受渡 = 抱き寄せる
 
-IF GET_TARGETNUM() > 1 && !CFLAG:MASTER:隠密 && フィールド展開:露出フィールド != 2
+IF GET_TARGETNUM() > 1 && !CFLAG:PLAYER:隠密 && フィールド展開:露出フィールド != 2
 	TSTR:コマンド名受渡 = まとめて%TSTR:コマンド名受渡%
-ELSEIF CFLAG:MASTER:隠密 && 隠密数 > 2
+ELSEIF CFLAG:PLAYER:隠密 && 隠密数 > 2
 	TSTR:コマンド名受渡 = まとめて%TSTR:コマンド名受渡%
 ENDIF
 
@@ -37,28 +37,16 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM350
 ;押し倒す
-IF (CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密) || フィールド展開:露出フィールド == 2
-	CFLAG:TARGET:うふふ = 1
-	IF 初体験日:TARGET:初うふふ == 0
-		初体験日:TARGET:初うふふ = DAY
-		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:TARGET%とえっちをした</font><img src='えっちハート'>","うふふ")
-		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%とえっちをした</font><img src='えっちハート'>","うふふ")
-		TCVAR:TARGET:初うふふフラグ = 1
-	ENDIF
+IF (CFLAG:PLAYER:隠密 && CFLAG:TARGET:隠密) || フィールド展開:露出フィールド == 2
+	CALL うふふ開始キャラ処理(TARGET)
 ELSE
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
 			BREAK
-		CFLAG:(TARGET:LOCAL):うふふ = 1
-		IF 初体験日:(TARGET:LOCAL):初うふふ == 0
-			初体験日:(TARGET:LOCAL):初うふふ = DAY
-			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(TARGET:LOCAL)%とえっちをした</font><img src='えっちハート'>","うふふ")
-			CALL 履歴データベース登録(CFLAG:(TARGET:LOCAL):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%とえっちをした</font><img src='えっちハート'>","うふふ")
-			TCVAR:(TARGET:LOCAL):初うふふフラグ = 1
-		ENDIF
+		CALL うふふ開始キャラ処理(TARGET:LOCAL)
 	NEXT
 ENDIF
-CFLAG:MASTER:うふふ = 1
+CFLAG:PLAYER:うふふ = 1
 
 
 ;3Pモード管理フラグを初期化
@@ -88,11 +76,11 @@ SIF MODE_存在判定_プレイヤー側("ハーヴィンオナホ系", PLAYER)
 SIF MODE_存在判定_プレイヤー側("全裸散歩", PLAYER)
 	RETURN 0
 ;馴れ合い強度2
-SIF TCVAR:MASTER:馴れ合い強度 < 2
+SIF TCVAR:PLAYER:馴れ合い強度 < 2
 	RETURN 0
 ;隠密中は一緒に隠密してるキャラを見る
 IF フィールド展開:露出フィールド != 2
-	IF CFLAG:MASTER:隠密
+	IF CFLAG:PLAYER:隠密
 		FOR LOCAL, 1, CHARANUM
 			SIF TARGET:LOCAL < 1
 				BREAK
@@ -123,7 +111,7 @@ RETURN 1
 #DIM 隠密数
 
 
-IF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
+IF CFLAG:TARGET:隠密 && CFLAG:PLAYER:隠密
 	PRINTFORM %CALLNAME:PLAYER%は上手く物陰に隠れられていることを確認すると
 	隠密数 = 0
 	FOR LOCAL, 1, CHARANUM
@@ -139,13 +127,13 @@ IF CFLAG:TARGET:隠密 && CFLAG:MASTER:隠密
 	ENDIF
 ELSEIF GET_TARGETNUM() > 1 && フィールド展開:露出フィールド != 2
 	PRINTFORM %CALLNAME:PLAYER%は
-	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
+	IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == 0
 		PRINT あたりに人がいないことを確認すると
 	ENDIF
 	PRINTFORML %CALLNAME:TARGET%達を抱き寄せた…
 ELSE
 	PRINTFORM %CALLNAME:PLAYER%は
-	IF BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0 && フィールド展開:露出フィールド != 2
+	IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == 0 && フィールド展開:露出フィールド != 2
 		PRINT あたりに人がいないことを確認すると
 	ENDIF
 	PRINTFORML %CALLNAME:TARGET%を抱き寄せた…

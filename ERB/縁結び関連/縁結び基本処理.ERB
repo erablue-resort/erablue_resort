@@ -244,8 +244,8 @@ RESTART
 
 ;恋愛対象外チェック()
 
-@縁結び右キャラセット(実行キャラ)
-#DIM 実行キャラ
+@縁結び右キャラセット(左キャラ)
+#DIM 左キャラ
 #DIM 対象キャラ
 #DIM ページ数
 #DIM 初期進展度
@@ -254,7 +254,7 @@ RESTART
 
 ;キャラ一覧を表示
 DRAWLINE
-PRINTFORML %NAME:実行キャラ%　と誰の縁を結びますか？
+PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
 PRINTL ※リゾートにいないキャラも選択出来ます。
 PRINTL ※恋愛対象外のキャラについては選択出来ません。
 PRINTL 　（特定のキャラについては選択出来ることがあります）
@@ -269,7 +269,7 @@ LOCAL:1 = 0
 LOCALS = 
 既に恋慕フラグ = 0
 FOR 対象キャラ, 1, CHARANUM
-	SIF 対象キャラ == 実行キャラ
+	SIF 対象キャラ == 左キャラ
 		CONTINUE
 	;優先条件
 	;オプションによる制御
@@ -279,15 +279,15 @@ FOR 対象キャラ, 1, CHARANUM
 	SIF CFLAG:対象キャラ:招待不可フラグ
 		CONTINUE
 	;同じ相手はダメ
-	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:実行キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
+	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
 		CONTINUE
 
 	;口上側で設定可能な条件
 	RESULT = 0
 	IF セットモード
-		TRYCALLFORM 縁結び相手条件_セフレ_{NO:実行キャラ}(実行キャラ, 対象キャラ)
+		TRYCALLFORM 縁結び相手条件_セフレ_{NO:左キャラ}(左キャラ, 対象キャラ)
 	ELSE
-		TRYCALLFORM 縁結び相手条件_恋慕_{NO:実行キャラ}(実行キャラ, 対象キャラ)
+		TRYCALLFORM 縁結び相手条件_恋慕_{NO:左キャラ}(左キャラ, 対象キャラ)
 	ENDIF
 	IF RESULT == 0
 		;基本的に無性別は対象にならない
@@ -305,37 +305,37 @@ FOR 対象キャラ, 1, CHARANUM
 		ENDIF
 
 		IF 縁結び同性愛オプション == 0
-			IF 同性愛性癖判定(実行キャラ, 対象キャラ)
+			IF 同性愛性癖判定(左キャラ, 対象キャラ)
 				;同性は同性愛系の性癖があれば対象になる
-				IF 性癖素質:実行キャラ:同性愛 <= 0
+				IF 性癖素質:左キャラ:同性愛 <= 0
 					CONTINUE
 				ENDIF
 			ENDIF
 		ENDIF
 		IF セットモード
-			;基本的に特別な条件が無い限り、実行キャラにセフレ陥落がないと選べない
-			SIF セフレありチェック(実行キャラ) == 0
+			;基本的に特別な条件が無い限り、左キャラにセフレ陥落がないと選べない
+			SIF セフレありチェック(左キャラ) == 0
 				CONTINUE
 			;セフレ不可はダメ
-			SIF GETBIT(TALENT:実行キャラ:陥落不可, 1)
+			SIF GETBIT(TALENT:左キャラ:陥落不可, 1)
 				CONTINUE
 		ELSE
 			;恋慕陥落状態の時は恋慕陥落は選べない
-			IF TALENT:実行キャラ:恋慕 > 0
+			IF TALENT:左キャラ:恋慕 > 0
 				既に恋慕フラグ = 1
 				CONTINUE
 			ENDIF
-			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:実行キャラ:人物番号} Or 対象キャラ２ = {CFLAG:実行キャラ:人物番号}) And 関係性種別 = '恋慕'")
+			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:左キャラ:人物番号} Or 対象キャラ２ = {CFLAG:左キャラ:人物番号}) And 関係性種別 = '恋慕'")
 				既に恋慕フラグ = 1
 				CONTINUE
 			ENDIF
 			;既に恋慕セットしてたらアウト
-			IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:実行キャラ:人物番号} And 縁結び種別 = '恋慕'")
+			IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 縁結び種別 = '恋慕'")
 				既に恋慕フラグ = 2
 				CONTINUE
 			ENDIF
 			;CSVで恋慕不可はダメ
-			SIF	GETBIT(CSVTALENT(NO:実行キャラ, GETNUM(TALENT, "陥落不可")), 0)
+			SIF	GETBIT(CSVTALENT(NO:左キャラ, GETNUM(TALENT, "陥落不可")), 0)
 				CONTINUE
 		ENDIF
 	ELSEIF RESULT == -1
@@ -392,7 +392,7 @@ SELECTCASE 対象キャラ
 		セットモード = 1
 	CASEELSE
 		;データベースにセット
-		PRINTFORM %CALLNAME:実行キャラ%に%CALLNAME:対象キャラ%との
+		PRINTFORM %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%との
 		IF セットモード
 			PRINT 『セフレの縁』
 			LOCALS = セフレ
@@ -404,12 +404,12 @@ SELECTCASE 対象キャラ
 		PRINTW 今後のリゾート生活で縁が進行していきます。
 		初期進展度 = 0
 		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
-			IF 同行候補キャラ番号:対象キャラ:LOCAL == 実行キャラ
+			IF 同行候補キャラ番号:対象キャラ:LOCAL == 左キャラ
 				初期進展度 = MIN(同行候補キャラ確率:対象キャラ:LOCAL, 100) / 2
 				BREAK
 			ENDIF
 		NEXT
-		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:実行キャラ:人物番号, "対象キャラ２", CFLAG:対象キャラ:人物番号, "進展度", 初期進展度, "縁結び種別", LOCALS
+		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:左キャラ:人物番号, "対象キャラ２", CFLAG:対象キャラ:人物番号, "進展度", 初期進展度, "縁結び種別", LOCALS
 		IF セットモード == 0
 			ページ数 = 0
 			セットモード = 0

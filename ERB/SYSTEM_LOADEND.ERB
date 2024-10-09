@@ -11,6 +11,7 @@
 #DIM L_C
 #DIM F_NUM
 #DIM 追加前キャラ数保存
+#DIM CSV番号
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -44,6 +45,35 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 LOCAL:1 = 0
 ;ここまで
+
+
+;CSVが存在しない場合のフォロー
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL >= CHARANUM
+		BREAK
+	IF !EXISTCSV(NO:LOCAL)
+		FOR CSV番号, 1, キャラクタ数上限
+			SIF !EXISTCSV(CSV番号)
+				CONTINUE
+			SIF CSV番号 == 999
+				CONTINUE
+			IF NAME:LOCAL == CSVNAME(CSV番号)
+				;全く同じ名前のCSVがある場合
+				IF GETCHARA(CSV番号) >= 0
+					;流れとしては「CSVが存在しないキャラが先にいて、後からCSVのNOが変更されて
+					;変更された後のNOのキャラが追加された」のはずなのでこっちを削除する
+					DELCHARA GETCHARA(CSV番号)
+				ENDIF
+				NO:LOCAL = CSV番号
+				BREAK
+			ENDIF
+		NEXT
+		IF !EXISTCSV(NO:LOCAL)
+			;ここまでCSVがないなら起動させない
+			THROW %NAME:LOCAL%のCSVが存在しません。ゲームを終了します。
+		ENDIF
+	ENDIF
+NEXT
 
 追加前キャラ数保存 = CHARANUM
 
@@ -97,19 +127,6 @@ FOR LOCAL, 0, CHARANUM
 			CALL 口上変数初期化
 		ENDIF
 	ENDIF
-
-	;固有素質変更対応
-	;今後固有素質変更イベが来た場合消すこと
-	CSTR:LOCAL:固有素質0 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質0"))%
-	CSTR:LOCAL:固有素質1 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質1"))%
-	CSTR:LOCAL:固有素質2 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質2"))%
-	CSTR:LOCAL:固有素質3 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質3"))%
-	CSTR:LOCAL:固有素質4 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質4"))%
-	CSTR:LOCAL:固有素質5 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質5"))%
-	CSTR:LOCAL:固有素質6 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質6"))%
-	CSTR:LOCAL:固有素質7 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質7"))%
-	CSTR:LOCAL:固有素質8 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質8"))%
-	CSTR:LOCAL:固有素質9 = %CSVCSTR(NO:LOCAL, GETNUM(CSTR, "固有素質9"))%
 
 	MAXBASE:LOCAL:警戒 = 1001
 NEXT

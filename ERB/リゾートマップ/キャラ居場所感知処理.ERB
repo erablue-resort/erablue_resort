@@ -5,8 +5,12 @@
 #DIM 配列番号
 #DIM ページ数
 #DIM 対象キャラ
+#DIM 表示キャラ
 #DIM 入室禁止フラグ
 #DIM TARGET登録
+#DIMS フォント格納用
+#DIMS ボタン表示格納用
+#DIM 文字数カウント
 
 表示マップ種別 = CFLAG:MASTER:現在マップ種別
 入室禁止フラグ = 0
@@ -161,16 +165,72 @@ FOR LOCAL, 0, 500
 	ENDIF
 	VARSET RESULTS
 	SPLIT 滞在者保存:LOCAL, "_", RESULTS
+	文字数カウント = 0
 	FOR 配列番号, 0, CHARANUM
 		SIF RESULTS:配列番号 == ""
 			BREAK
 		SIF 配列番号 > 0
 			PRINT 、
-		IF MATCH(個別移動管理キャラ, TOINT(RESULTS:配列番号))
-			PRINTFORM %CALLNAME:TOINT(RESULTS:配列番号)%
-			;（{TCVAR:TOINT(RESULTS:配列番号):行動時間ゆらぎ}）
+		表示キャラ = TOINT(RESULTS:配列番号)
+		フォント格納用 = 
+		ボタン表示格納用 = %CALLNAME:表示キャラ%
+		IF CFLAG:表示キャラ:体力限界
+			RESETCOLOR
+			ボタン表示格納用 += "(ダウン)"
 		ELSE
-			PRINTBUTTON @"%CALLNAME:TOINT(RESULTS:配列番号)%", @"追跡_%RESULTS:配列番号%"
+			IF TALENT:表示キャラ:恋慕
+				フォント格納用 = %カラーパレット_HTML("えっちな色")%
+				ボタン表示格納用 += "(恋<img src='えっちハート'>)"
+			ELSEIF CFLAG:表示キャラ:ゲージ起動分類 == 1
+				フォント格納用 = %カラーパレット_HTML("薄ピンク")%
+				ボタン表示格納用 += "(恋)"
+			ENDIF
+			IF TALENT:表示キャラ:セフレ
+				SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+					フォント格納用 = %カラーパレット_HTML("ピンク")%
+				ボタン表示格納用 += "(セ)"
+			ENDIF
+			IF TALENT:表示キャラ:妊娠
+				IF PREGNANCY_PROGRESS(表示キャラ) == 5
+					ボタン表示格納用 += "(臨)"
+				ELSE
+					ボタン表示格納用 += "(妊)"
+				ENDIF
+				SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+					フォント格納用 = %カラーパレット_HTML("ピンク")%
+			ELSEIF CFLAG:表示キャラ:発情期フラグ < 0
+				SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+					フォント格納用 = %カラーパレット_HTML("ピンク")%
+				ボタン表示格納用 += "(発)"
+			ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:表示キャラ:性別, 0) && TALENT:表示キャラ:Ｖ感度 > -2
+				IF RISKY_DAY(表示キャラ) == 2
+					ボタン表示格納用 += "(危)"
+					SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+						フォント格納用 = %カラーパレット_HTML("ピンク")%
+				ELSEIF RISKY_DAY(表示キャラ) == 1
+					ボタン表示格納用 += "(危)"
+					SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+						フォント格納用 = %カラーパレット_HTML("薄ピンク")%
+				ENDIF
+			ENDIF
+		ENDIF
+		文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
+		IF 文字数カウント > 90
+			PRINTL
+			文字数カウント = 0
+		ENDIF
+		IF フォント格納用 != ""
+			IF MATCH(個別移動管理キャラ, TOINT(RESULTS:配列番号))
+				HTML_PRINT @"<font color='#%フォント格納用%'>%ボタン表示格納用%</font>", 1
+			ELSE
+				HTML_PRINT @"<font color='#%フォント格納用%'><button value='追跡_%RESULTS:配列番号%'>%ボタン表示格納用%</button></font>", 1
+			ENDIF
+		ELSE
+			IF MATCH(個別移動管理キャラ, TOINT(RESULTS:配列番号))
+				HTML_PRINT @"%ボタン表示格納用%", 1
+			ELSE
+				HTML_PRINT @"<button value='追跡_%RESULTS:配列番号%'>%ボタン表示格納用%</button>", 1
+			ENDIF
 		ENDIF
 	NEXT
 	PRINTL

@@ -93,6 +93,9 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	FOR COM番号, 1, 100
 		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
 			IF RESULT
+				;既に現在のサイクルが優先オートコマンドだった場合、連続で同じものは発動しない
+				SIF TFLAG:オートコマンドフラグ == COM番号
+					CONTINUE
 				行動候補:(LOCAL:1) = COM番号
 				LOCAL:1 += 1
 			ENDIF
@@ -605,6 +608,37 @@ ENDIF
 #DIMS COM番号
 
 SELECTCASE COM番号
+	CASE "24"
+		;首絞めされる側
+		IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:首絞め >= 2
+			PRINTFORML %CALLNAME:判定キャラ%はもう一度要求してきた…
+			PRINTL 許可しますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL 
+			PRINTBUTTON "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				RETURN 1
+			ELSE
+				IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:首絞め >= 3
+					PRINTFORML %CALLNAME:判定キャラ%はどうしてもやりたいようだ…
+					PRINTL 許可しますか？
+					PRINTBUTTON "[0] はい", 0
+					PRINTL 
+					PRINTBUTTON "[1] いいえ", 1
+					PRINTL
+					BINPUT
+					IF RESULT == 0
+						RETURN 1
+					ELSE
+						RETURN 0
+					ENDIF
+				ELSE
+					RETURN 0
+				ENDIF
+			ENDIF
+		ENDIF
 	CASE "60"
 		;V挿入される側
 		IF TFLAG:オートコマンドフラグ >= 4000 && 性癖素質:判定キャラ:膣内射精 >= 2
