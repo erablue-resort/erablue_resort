@@ -49,15 +49,26 @@ RETURNF TSTR:コマンド名受渡
 @同時モード設定()
 #DIM 同室番号
 #DIM 選択キャラカウント
+#DIM ページ数
+#DIM 次ページフラグ
 #DIM 選択キャラ一時保存, 10
 ;同室者から、同時コマンドのターゲットを指定する
 ;まず候補を並べる
 
 選択キャラカウント = 0
+次ページフラグ = 0
 DRAWLINE
 FOR 同室番号, 1, CHARANUM
 	SIF TARGET:同室番号 < 1
 		BREAK
+	SIF 同室番号 < ページ数 * 30
+		CONTINUE
+	SIF 同室番号 == ページ数 * 30 + 30
+		CONTINUE
+	IF 同室番号 > ページ数 * 30 + 30
+		次ページフラグ = 1
+		BREAK
+	ENDIF
 	SIF CFLAG:(TARGET:同室番号):うふふ == 0
 		CONTINUE
 	;うふふ同室者は全部並べる
@@ -83,6 +94,15 @@ ELSE
 	PRINTBUTTON "[998] これで決定", 998
 ENDIF
 PRINTL
+PRINTL
+IF ページ数 > 0
+	PRINTBUTTONLC "[996] 前ページへ", 996
+ELSE
+	PRINTLC 　
+ENDIF
+IF 次ページフラグ
+	PRINTBUTTONLC "[997] 次ページへ", 997
+ENDIF
 PRINTBUTTON "[999] 戻る", 999
 PRINTL
 DRAWLINE
@@ -107,6 +127,12 @@ SELECTCASE RESULT
 		TFLAG:TARGET変更用 = 同時モード_選択キャラ:0
 		VARSET 選択キャラ一時保存
 		RETURN 1
+	CASE 996
+		ページ数 --
+		RESTART
+	CASE 997
+		ページ数 ++
+		RESTART
 	CASEELSE
 		INVERTBIT 選択キャラ一時保存:(RESULT / 64), RESULT % 64
 		RESTART
