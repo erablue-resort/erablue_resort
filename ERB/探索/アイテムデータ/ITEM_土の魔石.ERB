@@ -1,0 +1,49 @@
+﻿
+@アイテム個別文章表示_土の魔石(ARGS)
+VARSET LOCALS
+CALL 口上変数初期化
+
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 2000
+ENDIF
+
+
+LOCALS += @"■土の魔石　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "土の魔石")}<br>"
+;LOCALS +="－－－－－－－－－－－－－－－－－－－－－－－－－－－－<br>" 改行目安
+LOCALS += "土の魔力を多く含んだ魔石。<br>"
+LOCALS += "起動すると付近の魔力に応じた石礫を噴出させる。<br>"
+LOCALS += "効果範囲と威力をそれなりのレベルで両立できる有用な攻撃道<br>"
+LOCALS += "具である。<br>"
+LOCALS += "<br>"
+LOCALS:1 += "【効果】<br>"
+LOCALS:1 += "敵縦列へ[ＰＴの最大レベル✕２５]のダメージを与える。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%%LOCALS:1%
+KSTR:(K++) = %LOCALS:1%
+
+@アイテム使用先表示_土の魔石
+CALL 汎用使用先表示("敵縦列")
+
+@アイテム効果処理_土の魔石(ARG)
+#DIM レベル記録
+;ARG = エネミーが何番目か、10からカウント
+CALL 口上変数初期化
+
+レベル記録 = 0
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:0 < 1
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:Lv > レベル記録
+		レベル記録 = BATTLE_STATE:LOCAL:Lv
+NEXT
+
+アビ汎用変数:効果量 = レベル記録 * 25
+CALL アビテンプレート_ダメージ処理_土属性
+
+SIF アビテンプレート用_キャンセルフラグ
+	RETURN -1
+
+RETURN 1
