@@ -61,17 +61,16 @@ RETURN 1
 #DIM 子供人物番号
 #DIM CONST COST_BASE = 450
 #DIM CONST COST_PER_AGE = 50
-#DIM CONST 年齢_幼児 = -3
 #DIM 必要COST
-#DIM 成長後年齢
+#DIM 成長後年齢層
 
 DRAWLINE
 PRINTFORML ZPを消費して%GET_PERSON_呼び名(子供人物番号)%を成長させることが出来ます。
 PRINTL どこまで成長させますか？
 DRAWLINE
-FOR LOCAL, -2, 2
+FOR LOCAL, 年齢層_幼い, 年齢層_壮年
 	PRINTBUTTON @"[{LOCAL, 2}]%GET_TALENTNAME(164, LOCAL, 0)%", LOCAL
-	PRINTFORML 　　　必要ZP:{COST_BASE + COST_PER_AGE * (LOCAL - 年齢_幼児)}
+	PRINTFORML 　　　必要ZP:{COST_BASE + COST_PER_AGE * (LOCAL - 年齢層_乳幼児)}
 NEXT
 PRINTBUTTON "[999]戻る", 999
 PRINTL
@@ -80,8 +79,8 @@ BINPUT
 SIF RESULT == 999
 	RETURN -1
 
-成長後年齢 = RESULT
-必要COST = COST_BASE + COST_PER_AGE * (成長後年齢 - 年齢_幼児)
+成長後年齢層 = RESULT
+必要COST = COST_BASE + COST_PER_AGE * (成長後年齢層 - 年齢層_乳幼児)
 
 IF FLAG:ZP所持量 < 必要COST
 	PRINTW ZPが足りません
@@ -96,17 +95,17 @@ SIF RESULT == 1
 	RESTART
 
 FLAG:ZP所持量 -= 必要COST
-SELECTCASE 成長後年齢
-	CASE -2
+SELECTCASE 成長後年齢層
+	CASE 年齢層_幼い
 		PRINTFORML まだまだ幼いが、%GET_PERSON_呼び名(子供人物番号)%は少し成長した！
-	CASE -1
+	CASE 年齢層_若い
 		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は\@ (GET_PERSON_性別(子供人物番号) == 2) ? 少年 # 少女 \@と呼べるまでに成長した！
-	CASE 0
+	CASE 年齢層_成人
 		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は成人と呼べるまでに成長した！
-	CASE 1
+	CASE 年齢層_大人
 		PRINTFORML %GET_PERSON_呼び名(子供人物番号)%はすっかり大人の姿に成長した！
 ENDSELECT
-CALL 子供成長処理(子供人物番号, 成長後年齢)
+CALL 子供成長処理(子供人物番号, 成長後年齢層)
 IF RESULT
 	PRINTFORML %GET_PERSON_呼び名(子供人物番号)%は保育所を卒園し、%CALLNAME:RESULT%と同じ部屋に引っ越したようだ。
 ELSE
@@ -117,9 +116,9 @@ PRINTW
 RETURN 0
 
 
-@子供成長処理(子供人物番号, 成長後年齢)
+@子供成長処理(子供人物番号, 成長後年齢層)
 #DIM 子供人物番号
-#DIM 成長後年齢
+#DIM 成長後年齢層
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
@@ -221,13 +220,14 @@ TALENT:処女 = 1
 TALENT:非童貞 = 0
 CSTR:知識素質設定 '= " 性知識Lv-2 "
 
-;年齢
-TALENT:年齢 = 成長後年齢
+;年齢層・長命者
+TALENT:年齢層 = 成長後年齢層
+TALENT:長命者 = 0
 
 ;バストサイズ 母親優先
 IF GETBIT(TALENT:性別, 0)
 	PARENT = 遺伝元(MOTHER, FATHER, "両親のみ", "女性器あり")
-	TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢)
+	TALENT:バストサイズ = ランダムバストサイズ(ベース種族, 成長後年齢層)
 	IF PARENT >= 0
 		;因子により補正
 		TALENT:バストサイズ = LIMIT(TALENT:バストサイズ + 因子取得_バストサイズ(PARENT), -2, 3)
@@ -237,7 +237,7 @@ ENDIF
 ;男性器サイズ 父親優先
 IF GETBIT(TALENT:性別, 1)
 	PARENT = 遺伝元(FATHER, MOTHER, "両親のみ", "男性器あり")
-	TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢)
+	TALENT:男性器サイズ = ランダム男性器サイズ(ベース種族, TALENT:性別, 成長後年齢層)
 	IF PARENT >= 0
 		;因子により補正
 		TALENT:男性器サイズ = LIMIT(TALENT:男性器サイズ + 因子取得_男性器サイズ(PARENT), -2, 2)
@@ -284,7 +284,7 @@ IF TALENT:性別 != 2
 ELSE
 	PARENT = 遺伝元(FATHER, MOTHER, "両親のみ")
 ENDIF
-TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢, TALENT:バストサイズ)
+TALENT:体格 = ランダム体格(ベース種族, TALENT:性別, 成長後年齢層, TALENT:バストサイズ, 0)
 IF PARENT >= 0
 	;因子により補正
 	TALENT:体格 = LIMIT(TALENT:体格 + 因子取得_体格(PARENT), -3, 2)
@@ -418,7 +418,7 @@ CSTR:汎用立ち絵登録文字列 = %汎用画像キー%
 CALL ステータス記録(TARGET)
 
 部屋決定フラグ = 0
-IF 成長後年齢 < 1
+IF 成長後年齢層 <= 年齢層_成人
 	;幼い～成人なら親と一緒に暮らす
 	IF MOTHER > 0 && TALENT:MOTHER:定住者
 		部屋決定フラグ = MOTHER
@@ -640,17 +640,6 @@ WHILE LOCAL > 0
 WEND
 
 
-@親年齢(PARENT)
-#FUNCTION
-#DIM PARENT
-IF NO:PARENT == 0 || NO:PARENT == 999
-	;あなたとランダムキャラは設定されているものを使う
-	RETURNF TALENT:PARENT:年齢
-ELSE
-	;名有りキャラは大人として扱う
-	RETURNF 1
-ENDIF
-
 @親容姿(PARENT)
 #FUNCTION
 #DIM PARENT
@@ -665,7 +654,7 @@ ENDIF
 @因子取得_体格(PARENT)
 #FUNCTION
 #DIM PARENT
-RETURNF TALENT:PARENT:体格 - 体格_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, 親年齢(PARENT), TALENT:PARENT:バストサイズ)
+RETURNF TALENT:PARENT:体格 - 体格_平均(ベース種族検索(CFLAG:PARENT:人物番号), TALENT:PARENT:性別, キャラ見た目年齢(PARENT), TALENT:PARENT:バストサイズ, TALENT:PARENT:長命者)
 
 @因子取得_体型(PARENT)
 #FUNCTION
@@ -681,9 +670,9 @@ RETURNF TALENT:PARENT:体型 - 体型_平均(ベース種族検索(CFLAG:PARENT:
 IF GETBIT(TALENT:PARENT:性別, 0)
 	バストサイズ格納 = TALENT:PARENT:バストサイズ
 ELSE
-	バストサイズ格納 = ランダムバストサイズ(ベース種族, 親年齢(PARENT))
+	バストサイズ格納 = ランダムバストサイズ(ベース種族, TALENT:PARENT:年齢層)
 ENDIF
-RETURNF バストサイズ格納 - バストサイズ_平均(ベース種族, 親年齢(PARENT))
+RETURNF バストサイズ格納 - バストサイズ_平均(ベース種族, TALENT:PARENT:年齢層)
 
 @因子取得_男性器サイズ(PARENT)
 #FUNCTION
@@ -694,9 +683,9 @@ RETURNF バストサイズ格納 - バストサイズ_平均(ベース種族, �
 IF GETBIT(TALENT:PARENT:性別, 1)
 	男性器サイズ格納 = TALENT:PARENT:男性器サイズ
 ELSE
-	男性器サイズ格納 = ランダム男性器サイズ(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
+	男性器サイズ格納 = ランダム男性器サイズ(ベース種族, TALENT:PARENT:性別, TALENT:PARENT:年齢層)
 ENDIF
-RETURNF 男性器サイズ格納 - 男性器サイズ_平均(ベース種族, TALENT:PARENT:性別, 親年齢(PARENT))
+RETURNF 男性器サイズ格納 - 男性器サイズ_平均(ベース種族, TALENT:PARENT:性別, TALENT:PARENT:年齢層)
 
 
 @子供相性初期化(CHILD)
