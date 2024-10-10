@@ -198,6 +198,10 @@ ELSE
 	必要ルピ += ABS(ランダムキャラ素質:6) * 300
 	必要ルピ += ABS(ランダムキャラ素質:30) * 500
 	必要ルピ += ABS(ランダムキャラ素質:32) * 200
+	SIF INRANGE(ランダムキャラ素質:33, 年齢層_幼い, 年齢層_老年)
+		必要ルピ += ABS(ランダムキャラ素質:33 - 年齢層_成人) * 200
+	SIF ランダムキャラ素質:34
+		必要ルピ += 1000
 	LOCAL:1 = 0
 	FOR LOCAL, 0, 300
 		SIF TALENT数値保存:LOCAL == 0
@@ -432,6 +436,18 @@ SELECTCASE 表示モード
 			CASE 3
 				LOCALS += "百戦錬磨"
 		ENDSELECT
+		IF CSVエディタフラグ == 0
+			LOCALS += "　　　容姿："
+			IF ランダムキャラ素質:30 == 0
+				LOCALS += "モブ顔　　　"
+			ELSE
+				LOCALS += @"%GET_TALENTNAME(160,ランダムキャラ素質:30), 12, LEFT%"
+			ENDIF
+		ENDIF
+		SIF ランダムキャラ素質:33 == 0
+			ランダムキャラ素質:33 = 年齢層_大人
+		LOCALS += "　　　年齢："
+		LOCALS += @"%GET_年齢文字列(ランダムキャラ素質:1, ランダムキャラ素質:33, ランダムキャラ素質:34), 12, LEFT%"
 		LOCALS += "<br>"
 		LOCALS += "　体格："
 		IF ランダムキャラ素質:31 == 0
@@ -450,14 +466,6 @@ SELECTCASE 表示モード
 			LOCALS += "普通"
 		ELSE
 			LOCALS += @"%GET_TALENTNAME(210,下半身保存)%"
-		ENDIF
-		IF CSVエディタフラグ == 0
-			LOCALS += "　　　容姿："
-			IF ランダムキャラ素質:30 == 0
-				LOCALS += "モブ顔　　　"
-			ELSE
-				LOCALS += @"%GET_TALENTNAME(160,ランダムキャラ素質:30), 12, LEFT%"
-			ENDIF
 		ENDIF
 		IF GETBIT(ランダムキャラ素質:1, 1)
 			LOCALS += "<br>　男性器サイズ："
@@ -981,6 +989,46 @@ SELECTCASE 表示モード
 					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12040 + LOCAL}'>[%GET_TALENTNAME(160, LOCAL)%]</button></font>"
 				ENDIF
 			NEXT
+		ENDIF
+		LOCALS += "<br>"
+		IF ランダムキャラ素質:34 == 0
+			LOCALS += "年齢："
+			FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
+				SIF LOCAL == 年齢層_年齢不詳 || !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
+					CONTINUE
+				IF ランダムキャラ素質:33 == LOCAL
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
+			NEXT
+			LOCALS += @"　　　<button value='{12120}'>[長命者をONにする]</button>"
+		ELSE
+			LOCALS += "実年齢："
+			FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
+				SIF LOCAL == 年齢層_年齢不詳 || !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
+					CONTINUE
+				IF ランダムキャラ素質:33 == LOCAL
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
+			NEXT
+			LOCALS += "<br>"
+			LOCALS += "見た目年齢："
+			FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
+				SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
+					CONTINUE
+				IF ランダムキャラ素質:34 == LOCAL
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12120 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
+			NEXT
+			LOCALS += @"　　　<button value='{12120}'>[長命者をOFFにする]</button>"
 		ENDIF
 		LOCALS += "<br>"
 		IF !身長数値設定フラグ
@@ -1538,6 +1586,20 @@ SELECTCASE LOCAL
 		体型保存 = LOCAL - 12080
 	CASE 12089 TO 12091
 		下半身保存 = LOCAL - 12090
+	CASE 12099 TO 12116
+		ランダムキャラ素質:33 = LOCAL - 12100
+	CASE 12120
+		IF ランダムキャラ素質:34 == 0 && INRANGE(ランダムキャラ素質:33, 年齢層_幼い, 年齢層_老年)
+			ランダムキャラ素質:34 = ランダムキャラ素質:33
+			ランダムキャラ素質:33 = 年齢層_老年
+		ELSEIF ランダムキャラ素質:34 == 0
+			ランダムキャラ素質:34 = 年齢層_大人
+		ELSE
+			ランダムキャラ素質:33 = ランダムキャラ素質:34
+			ランダムキャラ素質:34 = 0
+		ENDIF
+	CASE 12130 TO 12136
+		ランダムキャラ素質:34 = LOCAL - 12120
 	CASE 12990
 		DRAWLINE
 		PRINTL ウエストサイズをmm単位で入力してください。
@@ -1867,6 +1929,8 @@ SELECTCASE LOCAL
 					CONTINUE
 				PRINTFORML CSTR,固有素質{LOCAL},%固有素質一時保存:LOCAL%
 			NEXT
+			PRINTFORML 素質,年齢層,{ランダムキャラ素質:33}
+			PRINTFORML 素質,長命者,{ランダムキャラ素質:34}
 			PRINTFORML 素質,体格,{ランダムキャラ素質:31}
 			PRINTFORML 素質,体型,{体型保存}
 			PRINTFORML 素質,男性器サイズ,{ランダムキャラ素質:32}
@@ -2008,6 +2072,8 @@ SELECTCASE LOCAL
 			TALENT:(LOCAL:1):(TALENT一時保存:LOCAL) = TALENT数値保存:LOCAL - 5
 		NEXT
 		TALENT:(LOCAL:1):容姿 = ランダムキャラ素質:30
+		TALENT:(LOCAL:1):年齢層 = ランダムキャラ素質:33
+		TALENT:(LOCAL:1):長命者 = ランダムキャラ素質:34
 		TALENT:(LOCAL:1):体格 = ランダムキャラ素質:31
 		TALENT:(LOCAL:1):体型 = 体型保存
 		TALENT:(LOCAL:1):男性器サイズ = ランダムキャラ素質:32
@@ -2129,6 +2195,8 @@ SELECTCASE LOCAL
 				ウエスト保存 = CSVBASE(CSV番号, GETNUM(BASE, "ウエスト"))
 				ヒップ保存 = CSVBASE(CSV番号, GETNUM(BASE, "ヒップ"))
 			ENDIF
+			ランダムキャラ素質:33 = CSVTALENT(CSV番号, GETNUM(TALENT, "年齢層"))
+			ランダムキャラ素質:34 = CSVTALENT(CSV番号, GETNUM(TALENT, "長命者"))
 			ランダムキャラ素質:31 = CSVTALENT(CSV番号, GETNUM(TALENT, "体格"))
 			体型保存 = CSVTALENT(CSV番号, GETNUM(TALENT, "体型"))
 			下半身保存 = CSVTALENT(CSV番号, GETNUM(TALENT, "下半身"))
