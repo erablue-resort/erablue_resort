@@ -53,83 +53,127 @@ SIF NOSAMES(重複チェック用:0, 重複チェック用:1, 重複チェック
 RETURN
 
 
-@ランダム年齢(性別)
+@ランダム年齢()
 #FUNCTION
-#DIM 性別
 
-SELECTCASE RAND:100
-	CASE 0 TO 4
-		RETURNF -2
-	CASE 5 TO 24
-		RETURNF -1
-	CASE 25 TO 68
-		RETURNF 0
-	CASE 69 TO 88
-		RETURNF 1
-	CASE 89 TO 98
-		RETURNF 2
-	CASE 99
-		IF 性別 == 2 || RAND:2
-			RETURNF 3
-		ELSE
-			RETURNF 4
-		ENDIF
+SELECTCASE RAND:200
+	CASE 0 TO 9
+		RETURNF 年齢層_幼い
+	CASE 10 TO 49
+		RETURNF 年齢層_若い
+	CASE 50 TO 137
+		RETURNF 年齢層_成人
+	CASE 138 TO 177
+		RETURNF 年齢層_大人
+	CASE 178 TO 197
+		RETURNF 年齢層_壮年
+	CASE 198
+		;長命者
+		RETURNF 年齢層_大人 + 10000
+	CASE 199
+		;ロリババア/ショタジジイ
+		RETURNF 年齢層_幼い + 10000
 ENDSELECT
 
+@ランダムキャラ年齢層(ARG)
+#FUNCTION
+IF ARG > 10000
+	RETURNF 年齢層_老年
+ELSE
+	RETURNF ARG % 10000
+ENDIF
 
-@ランダム交際経験(未経験, 年齢)
+@ランダムキャラ長命者(ARG)
+#FUNCTION
+IF ARG > 10000
+	RETURNF ARG % 10000
+ELSE
+	RETURNF 0
+ENDIF
+
+@ランダムキャラ見た目年齢(ARG)
+#FUNCTION
+RETURNF ARG % 10000
+
+
+@ランダム交際経験(未経験, 見た目年齢, 長命者フラグ)
 #FUNCTION
 #DIM 未経験
-#DIM 年齢
+#DIM 見た目年齢
+#DIM 長命者フラグ
 #DIM 恋人持ち
 
 IF !未経験
 	;非処女の場合
-	SELECTCASE 年齢
-		CASE -1, 0
-			;若い～成人 想い人あり、恋人持ち、セフレありが各20%ずつ
-			IF RAND:5
-				恋人持ち = RAND:4 - 2
-			ELSE
-				恋人持ち = 0
-			ENDIF
-		CASE 1
-			;大人 想い人あり、恋人持ちが各20%ずつ、セフレあり、人妻が各10%ずつ
-			IF RAND:5
-				恋人持ち = RAND:4 - 2
-				SIF 恋人持ち == -2 && RAND:2
+	IF 長命者フラグ
+		;長命者の場合
+		SELECTCASE 見た目年齢
+			CASE 年齢層_中年, 年齢層_老年
+				;中年～老年 50%で未亡人
+				IF RAND:2
+					恋人持ち = 3
+				ELSE
+					恋人持ち = 0
+				ENDIF
+			CASEELSE
+				;幼い～壮年 50%で未亡人、25%でセフレあり
+				IF RAND:2
+					恋人持ち = 3
+				ELSEIF RAND:2
+					恋人持ち = -2
+				ELSE
+					恋人持ち = 0
+				ENDIF
+		ENDSELECT
+	ELSE
+		;通常の場合
+		SELECTCASE 見た目年齢
+			CASE 年齢層_幼い
+				;幼い 50%でセフレあり、25%で恋人持ち
+				IF RAND:2
+					恋人持ち = -2
+				ELSEIF RAND:2
+					恋人持ち = 1
+				ELSE
+					恋人持ち = 0
+				ENDIF
+			CASE 年齢層_若い, 年齢層_成人
+				;若い～成人 想い人あり、恋人持ち、セフレありが各20%ずつ
+				IF RAND:5
+					恋人持ち = RAND:4 - 2
+				ELSE
+					恋人持ち = 0
+				ENDIF
+			CASE 年齢層_壮年
+				;壮年 恋人持ち、人妻が各20%ずつ、想い人あり、セフレありが各10%ずつ
+				IF RAND:5
+					恋人持ち = RAND:4 - 1
+					SIF 恋人持ち == -1 && RAND:2
+						恋人持ち = -2
+				ELSE
+					恋人持ち = 0
+				ENDIF
+			CASE 年齢層_中年, 年齢層_老年
+				;中年～老年 50%で人妻、25%で未亡人
+				IF RAND:2
 					恋人持ち = 2
-			ELSE
-				恋人持ち = 0
-			ENDIF
-		CASE 2
-			;中年 50%で人妻、25%で未亡人
-			IF RAND:2
-				恋人持ち = 2
-			ELSEIF RAND:2
-				恋人持ち = 3
-			ELSE
-				恋人持ち = 0
-			ENDIF
-		CASE 3, 4
-			;長命者 50%で未亡人、25%でセフレあり
-			IF RAND:2
-				恋人持ち = 3
-			ELSEIF RAND:2
-				恋人持ち = -2
-			ELSE
-				恋人持ち = 0
-			ENDIF
-		CASEELSE
-			;幼い 50%でセフレあり、25%で恋人持ち
-			IF RAND:2
-				恋人持ち = -2
-			ELSEIF RAND:2
-				恋人持ち = 1
-			ELSE
-				恋人持ち = 0
-			ENDIF
-	ENDSELECT
+				ELSEIF RAND:2
+					恋人持ち = 3
+				ELSE
+					恋人持ち = 0
+				ENDIF
+			CASEELSE
+				;大人 想い人あり、恋人持ちが各20%ずつ、セフレあり、人妻が各10%ずつ
+				IF RAND:5
+					恋人持ち = RAND:4 - 2
+					SIF 恋人持ち == -2 && RAND:2
+						恋人持ち = 2
+				ELSE
+					恋人持ち = 0
+				ENDIF
+		ENDSELECT
+	ENDIF
+
 	;出産経験
 	IF 恋人持ち == 2 || 恋人持ち == 3
 		;人妻or未亡人に+0～3
@@ -140,33 +184,53 @@ IF !未経験
 	ENDIF
 ELSE
 	;処女の場合
-	SELECTCASE 年齢
-		CASE -1
-			;若い 10%で想い人あり、2.5%で恋人持ち
-			IF RAND:8
+	IF 長命者フラグ
+		;長命者の場合
+		SELECTCASE 見た目年齢
+			CASE 年齢層_中年, 年齢層_老年
+				;中年～老年 なし
 				恋人持ち = 0
-			ELSEIF RAND:5
-				恋人持ち = -1
-			ELSE
-				恋人持ち = 1
-			ENDIF
-		CASE 0 TO 2
-			;成人～中年 10%で恋人持ち、2.5%で想い人あり
-			IF RAND:8
+			CASEELSE
+				;幼い～壮年 10%で想い人あり
+				IF RAND:10
+					恋人持ち = 0
+				ELSE
+					恋人持ち = -1
+				ENDIF
+		ENDSELECT
+	ELSE
+		;通常の場合
+		SELECTCASE 見た目年齢
+			CASE 年齢層_幼い
+				;幼い 5%で想い人あり
+				IF RAND:20
+					恋人持ち = 0
+				ELSE
+					恋人持ち = -1
+				ENDIF
+			CASE 年齢層_若い
+				;若い 10%で想い人あり、2.5%で恋人持ち
+				IF RAND:8
+					恋人持ち = 0
+				ELSEIF RAND:5
+					恋人持ち = -1
+				ELSE
+					恋人持ち = 1
+				ENDIF
+			CASE 年齢層_中年, 年齢層_老年
+				;中年～老年 なし
 				恋人持ち = 0
-			ELSEIF RAND:5
-				恋人持ち = 1
-			ELSE
-				恋人持ち = -1
-			ENDIF
-		CASEELSE
-			;幼いor長命者 5%で想い人あり
-			IF RAND:20
-				恋人持ち = 0
-			ELSE
-				恋人持ち = -1
-			ENDIF
-	ENDSELECT
+			CASEELSE
+				;成人～壮年 10%で恋人持ち、2.5%で想い人あり
+				IF RAND:8
+					恋人持ち = 0
+				ELSEIF RAND:5
+					恋人持ち = 1
+				ELSE
+					恋人持ち = -1
+				ENDIF
+		ENDSELECT
+	ENDIF
 ENDIF
 RETURNF 恋人持ち
 
@@ -176,13 +240,29 @@ RETURNF ABS(ARG) / 10000
 
 @ランダムキャラ恋人持ち(ARG)
 #FUNCTION
-RETURNF SIGN(ARG) * (ABS(ARG) % 10000)
+#DIM 素質値
+素質値 = SIGN(ARG) * (ABS(ARG) % 10000)
+IF 素質値 == -2
+	RETURNF 0
+ELSE
+	RETURNF 素質値
+ENDIF
+
+@ランダムキャラセフレあり(ARG)
+#FUNCTION
+#DIM 素質値
+素質値 = SIGN(ARG) * (ABS(ARG) % 10000)
+IF 素質値 == -2
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
 
 
-@ランダム性知識(未経験, 年齢, エルーンフラグ)
+@ランダム性知識(未経験, 年齢層, エルーンフラグ)
 #FUNCTION
 #DIM 未経験
-#DIM 年齢
+#DIM 年齢層
 #DIM エルーンフラグ
 
 IF !未経験
@@ -204,7 +284,23 @@ IF !未経験
 			;有識者
 			RETURNF 3
 	ENDSELECT
-ELSEIF 年齢 >= 0
+ELSEIF 年齢層 == 年齢層_幼い || 年齢層 == 年齢層_若い
+	;子供処女の場合
+	SELECTCASE RAND:20
+		CASE 0
+			;無知
+			RETURNF -2
+		CASE 1 TO 3
+			;獣並み(エルーン)/無知(それ以外)
+			RETURNF エルーンフラグ ? -1 # -2
+		CASE 4 TO 15
+			;疎い
+			RETURNF 0
+		CASE 16 TO 19
+			;耳年増
+			RETURNF 1
+	ENDSELECT
+ELSE
 	;大人処女の場合
 	SELECTCASE RAND:20
 		CASE 0
@@ -222,22 +318,6 @@ ELSEIF 年齢 >= 0
 		CASE 19
 			;有識者
 			RETURNF 3
-	ENDSELECT
-ELSE
-	;子供処女の場合
-	SELECTCASE RAND:20
-		CASE 0
-			;無知
-			RETURNF -2
-		CASE 1 TO 3
-			;獣並み(エルーン)/無知(それ以外)
-			RETURNF エルーンフラグ ? -1 # -2
-		CASE 4 TO 15
-			;疎い
-			RETURNF 0
-		CASE 16 TO 19
-			;耳年増
-			RETURNF 1
 	ENDSELECT
 ENDIF
 
@@ -257,81 +337,73 @@ SELECTCASE RAND:100
 ENDSELECT
 
 
-@ランダム体格(種族, 性別, 年齢, バストサイズ)
+@ランダム体格(種族, 性別, 見た目年齢, バストサイズ, 長命者フラグ)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 年齢
+#DIM 見た目年齢
 #DIM バストサイズ
+#DIM 長命者フラグ
 #DIM 体格
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
-		IF 性別 != 2
+		IF 見た目年齢 == 年齢層_幼い && 長命者フラグ
+			;ロリババア/ショタジジイ
+			体格 = -2
+		ELSEIF 性別 != 2
 			;女性
-			SELECTCASE 年齢
-				CASE 4
-					;ロリババア
-					体格 = -2
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					IF バストサイズ >= 3 && RAND:5
 						体格 = -1
 					ELSE
 						体格 = -2
 					ENDIF
 				CASEELSE
-					;それ以外
 					体格 = -1
 			ENDSELECT
 		ELSE
 			;男性
-			SELECTCASE 年齢
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					体格 = RAND:5 - 2
 					SIF 体格 == 1 || 体格 == 2
 						体格 = -1
-				CASE 0
-					;成人
+				CASE 年齢層_成人
 					体格 = RAND:5 - 2
 					SIF 体格 == -2 || 体格 == -1
 						体格 = 1
 				CASEELSE
-					;それ以外
 					体格 = 2 + MIN(RAND:5 - 1, 0)
 			ENDSELECT
 		ENDIF
 	CASE 種族_ハーヴィン
 		体格 = -3 + MAX(RAND:5 - 3, 0)
 	CASEELSE
-		IF 性別 != 2
+		IF 見た目年齢 == 年齢層_幼い && 長命者フラグ
+			;ロリババア/ショタジジイ
+			体格 = -2
+		ELSEIF 性別 != 2
 			;女性
-			SELECTCASE 年齢
-				CASE 4
-					;ロリババア
-					体格 = -2
-				CASE -2
-					;幼い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い
 					体格 = RAND:5 - 2
 					SIF 体格 == 1 || 体格 == 2
 						体格 = -1
 				CASEELSE
-					;それ以外
 					体格 = RAND:5 - 2
 					SIF 体格 == -2 || 体格 == 2
 						体格 = 0
 			ENDSELECT
 		ELSE
 			;男性
-			SELECTCASE 年齢
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					体格 = RAND:5 - 2
 					SIF 体格 == 1 || 体格 == 2
 						体格 = -1
 				CASEELSE
-					;それ以外
 					体格 = RAND:5 - 2
 					SIF 体格 == -2 || 体格 == 2
 						体格 = 0
@@ -340,70 +412,62 @@ SELECTCASE 種族
 ENDSELECT
 RETURNF 体格
 
-@体格_平均(種族, 性別, 年齢, バストサイズ)
+@体格_平均(種族, 性別, 見た目年齢, バストサイズ, 長命者フラグ)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 年齢
+#DIM 見た目年齢
 #DIM バストサイズ
+#DIM 長命者フラグ
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
-		IF 性別 != 2
+		IF 見た目年齢 == 年齢層_幼い && 長命者フラグ
+			;ロリババア/ショタジジイ
+			RETURNF -2
+		ELSEIF 性別 != 2
 			;女性
-			SELECTCASE 年齢
-				CASE 4
-					;ロリババア
-					RETURNF -2
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					IF バストサイズ >= 3
 						RETURNF -1
 					ELSE
 						RETURNF -2
 					ENDIF
 				CASEELSE
-					;それ以外
 					RETURNF -1
 			ENDSELECT
 		ELSE
 			;男性
-			SELECTCASE 年齢
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					RETURNF -1
-				CASE 0
-					;成人
+				CASE 年齢層_成人
 					RETURNF 1
 				CASEELSE
-					;それ以外
 					RETURNF 2
 			ENDSELECT
 		ENDIF
 	CASE 種族_ハーヴィン
 		RETURNF -3
 	CASEELSE
-		IF 性別 != 2
+		IF 見た目年齢 == 年齢層_幼い && 長命者フラグ
+			;ロリババア/ショタジジイ
+			RETURNF -2
+		ELSEIF 性別 != 2
 			;女性
-			SELECTCASE 年齢
-				CASE 4
-					;ロリババア
-					RETURNF -2
-				CASE -2
-					;幼い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い
 					RETURNF -1
 				CASEELSE
-					;それ以外
 					RETURNF 0
 			ENDSELECT
 		ELSE
 			;男性
-			SELECTCASE 年齢
-				CASE -2, -1
-					;幼い/若い
+			SELECTCASE 見た目年齢
+				CASE 年齢層_幼い, 年齢層_若い
 					RETURNF -1
 				CASEELSE
-					;それ以外
 					RETURNF 0
 			ENDSELECT
 		ENDIF
@@ -437,19 +501,19 @@ SELECTCASE 種族
 ENDSELECT
 
 
-@ランダムバストサイズ(種族, 年齢)
+@ランダムバストサイズ(種族, 年齢層)
 #FUNCTION
 #DIM 種族
-#DIM 年齢
+#DIM 年齢層
 #DIM 成熟度
 
 成熟度 = RAND:5 - 2
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
-		IF 年齢 == -2 && 成熟度 < 2
+		IF 年齢層 == 年齢層_幼い && 成熟度 < 2
 			RETURNF 2
-		ELSEIF 年齢 == -1 && 成熟度 < 0
+		ELSEIF 年齢層 == 年齢層_若い && 成熟度 < 0
 			RETURNF 2
 		ELSE
 			RETURNF 3
@@ -464,14 +528,14 @@ SELECTCASE 種族
 		RETURNF 成熟度
 ENDSELECT
 
-@バストサイズ_平均(種族, 年齢)
+@バストサイズ_平均(種族, 年齢層)
 #FUNCTION
 #DIM 種族
-#DIM 年齢
+#DIM 年齢層
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
-		IF 年齢 == -2
+		IF 年齢層 == 年齢層_幼い
 			RETURNF 2
 		ELSE
 			RETURNF 3
@@ -483,17 +547,16 @@ SELECTCASE 種族
 ENDSELECT
 
 
-@ランダム男性器サイズ(種族, 性別, 年齢)
+@ランダム男性器サイズ(種族, 性別, 年齢層)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 年齢
+#DIM 年齢層
 
 IF 種族 == 種族_ハーヴィン
 	;ハーヴィン
-	SELECTCASE 年齢
-		CASE -2
-			;幼い
+	SELECTCASE 年齢層
+		CASE 年齢層_幼い
 			SELECTCASE RAND:100
 				CASE 0 TO 54
 					RETURNF -2
@@ -502,8 +565,7 @@ IF 種族 == 種族_ハーヴィン
 				CASE 95 TO 99
 					RETURNF 0
 			ENDSELECT
-		CASE -1
-			;若い
+		CASE 年齢層_若い
 			SELECTCASE RAND:100
 				CASE 0 TO 9
 					RETURNF -2
@@ -513,7 +575,6 @@ IF 種族 == 種族_ハーヴィン
 					RETURNF 0
 			ENDSELECT
 		CASEELSE
-			;それ以外
 			SELECTCASE RAND:100
 				CASE 0 TO 4
 					RETURNF -2
@@ -523,10 +584,10 @@ IF 種族 == 種族_ハーヴィン
 					RETURNF 0
 			ENDSELECT
 	ENDSELECT
-ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && 年齢 >= 0
-	;成人以降のドラフ男
-	SELECTCASE 年齢
-		CASE 0
+ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && (年齢層 >= 年齢層_成人 || 年齢層 < 年齢層_幼い)
+	;成人以降（不詳含む）のドラフ男
+	SELECTCASE 年齢層
+		CASE 年齢層_成人
 			;成人
 			SELECTCASE RAND:100
 				CASE 0 TO 9
@@ -551,8 +612,8 @@ ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && 年齢 >= 0
 	ENDSELECT
 ELSE
 	;それ以外
-	SELECTCASE 年齢
-		CASE -2
+	SELECTCASE 年齢層
+		CASE 年齢層_幼い
 			;幼い
 			SELECTCASE RAND:100
 				CASE 0 TO 54
@@ -566,7 +627,7 @@ ELSE
 				CASE 95 TO 99
 					RETURNF 2
 			ENDSELECT
-		CASE -1
+		CASE 年齢層_若い
 			;若い
 			SELECTCASE RAND:100
 				CASE 0 TO 9
@@ -597,26 +658,24 @@ ELSE
 	ENDSELECT
 ENDIF
 
-@男性器サイズ_平均(種族, 性別, 年齢)
+@男性器サイズ_平均(種族, 性別, 年齢層)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 年齢
+#DIM 年齢層
 
 IF 種族 == 種族_ハーヴィン
 	;ハーヴィン
-	SELECTCASE 年齢
-		CASE -2
-			;幼い
+	SELECTCASE 年齢層
+		CASE 年齢層_幼い
 			RETURNF -2
 		CASEELSE
-			;それ以外
 			RETURNF -1
 	ENDSELECT
-ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && 年齢 >= 0
-	;成人以降のドラフ男
-	SELECTCASE 年齢
-		CASE 0
+ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && (年齢層 >= 年齢層_成人 || 年齢層 < 年齢層_幼い)
+	;成人以降（不詳含む）のドラフ男
+	SELECTCASE 年齢層
+		CASE 年齢層_成人
 			;成人
 			RETURNF 1
 		CASEELSE
@@ -625,8 +684,8 @@ ELSEIF 種族 == 種族_ドラフ && 性別 == 2 && 年齢 >= 0
 	ENDSELECT
 ELSE
 	;それ以外
-	SELECTCASE 年齢
-		CASE -2
+	SELECTCASE 年齢層
+		CASE 年齢層_幼い
 			;幼い
 			RETURNF -2
 		CASEELSE

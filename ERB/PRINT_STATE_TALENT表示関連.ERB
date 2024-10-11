@@ -940,22 +940,29 @@ SELECTCASE ARG
 		ELSEIF ARG:1 == 3
 			RETURNF "肥満"
 		ENDIF
-	;年齢（あなたとランダムキャラのみ）
+	;年齢層
 	CASE 164
-		IF ARG:1 == -2
+		IF ARG:1 == 年齢層_幼い
 			RETURNF "幼い"
-		ELSEIF ARG:1 == -1
+		ELSEIF ARG:1 == 年齢層_若い
 			RETURNF "若い"
-		ELSEIF ARG:1 == 0
+		ELSEIF ARG:1 == 年齢層_成人
 			RETURNF "成人"
-		ELSEIF ARG:1 == 1
+		ELSEIF ARG:1 == 年齢層_大人
 			RETURNF "大人"
-		ELSEIF ARG:1 == 2
+		ELSEIF ARG:1 == 年齢層_壮年
+			RETURNF "壮年"
+		ELSEIF ARG:1 == 年齢層_中年
 			RETURNF "中年"
-		ELSEIF ARG:1 == 3
+		ELSEIF ARG:1 == 年齢層_老年
+			RETURNF "老年"
+		ELSEIF ARG:1 != 0
+			RETURNF "年齢不詳"
+		ENDIF
+	;年齢層
+	CASE 165
+		IF ARG:1 != 0
 			RETURNF "長命者"
-		ELSEIF ARG:1 == 4
-			RETURNF "ロリババア"
 		ENDIF
 	;種族
 	CASE 200
@@ -1323,6 +1330,49 @@ SELECTCASE ARG
 		SIF ARG:1 == 1
 			RETURNF @"%TALENTNAME:ARG%"
 ENDSELECT
+
+
+@GET_年齢文字列(性別, 年齢層, 長命者, 詳細表示フラグ = 0)
+#FUNCTIONS
+#DIM 性別
+#DIM 年齢層
+#DIM 長命者
+#DIM 詳細表示フラグ
+
+IF 長命者
+	IF 長命者 == 年齢層_幼い && 性別 == 2
+		RETURNF "ショタジジイ"
+	ELSEIF 長命者 == 年齢層_幼い && GETBIT(性別, 0)
+		RETURNF "ロリババア"
+	ELSEIF 詳細表示フラグ
+		RETURNF "長命者(" + GET_TALENTNAME(164, 長命者) + ")"
+	ELSE
+		RETURNF "長命者"
+	ENDIF
+ELSE
+	RETURNF GET_TALENTNAME(164, 年齢層)
+ENDIF
+
+
+@キャラ見た目年齢(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+IF INRANGE(TALENT:対象キャラ:長命者, 年齢層_幼い, 年齢層_老年)
+	;長命者の見た目年齢は[長命者]の値を使う
+	RETURNF TALENT:対象キャラ:長命者
+ELSEIF TALENT:対象キャラ:長命者
+	;[長命者]の値がおかしい場合は見た目大人として扱う
+	RETURNF 年齢層_大人
+ELSEIF INRANGE(TALENT:対象キャラ:年齢層, 年齢層_幼い, 年齢層_老年)
+	;年齢層が設定されている場合はそれを使う
+	RETURNF TALENT:対象キャラ:年齢層
+ELSE
+	;年齢不詳や未設定は大人として扱う
+	RETURNF 年齢層_大人
+ENDIF
+
+
 
 @GET_フレーバー素質NAME(ARG, ARG:1)
 #FUNCTIONS
