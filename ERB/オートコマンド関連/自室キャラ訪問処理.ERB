@@ -2,7 +2,15 @@
 #DIM 訪問候補者, 1000
 #DIM キャラ番号
 #DIM 候補番号
+#DIMS 場所候補, 10
+#DIM 目的候補, 10
+#DIM 候補数
+#DIM 飲み会人数
 ;休憩時、キャラが自室に遊びに来る処理
+
+;OPTION制御
+SIF 休憩制御OPTION
+	RETURN 0
 
 ;休憩時に誰か来るのは1/2の確率
 SIF RAND:2
@@ -53,32 +61,54 @@ AUTOCOM_相手番号保存 = 訪問候補者:(RAND:候補番号)
 TCVAR:AUTOCOM_相手番号保存:自室訪問フラグ = 1
 
 ;訪問目的決定
+VARSET 目的候補
+候補番号 = 0
 ;0:遊びに誘いに来る、1:自室で遊ぶ、2:仕事の用事で来る 3:うふふお誘い
-訪問目的 = RAND:3
-IF 訪問目的 == 2 && !TALENT:AUTOCOM_相手番号保存:従業員
-	;従業員でないなら仕事の用事はない
-	訪問目的 -= 1
+;遊びは無条件
+目的候補:(候補番号++) = 0
+;自室は仲良いor同性
+SIF CFLAG:AUTOCOM_相手番号保存:好感度レベル >= 関係閾値:3 || 同性愛性癖判定(AUTOCOM_相手番号保存, PLAYER)
+	目的候補:(候補番号++) = 1
+;仕事は従業員のみ
+SIF TALENT:AUTOCOM_相手番号保存:従業員
+	目的候補:(候補番号++) = 2
+;飲み会は酒好きor飲酒経験一定以上（対応場所がない場合はなし）
+IF 施設改造度:5:0 || 施設改造度:3:0 || 施設改造度:20:0
+	SIF TALENT:AUTOCOM_相手番号保存:飲兵衛 > 0 || (TALENT:AUTOCOM_相手番号保存:飲兵衛 == 0 && EXP:AUTOCOM_相手番号保存:飲酒経験 >= 50)
+		目的候補:(候補番号++) = 4
 ENDIF
-IF 訪問目的 == 1
-	IF CFLAG:AUTOCOM_相手番号保存:好感度レベル < 関係閾値:3 && !同性愛性癖判定(AUTOCOM_相手番号保存, PLAYER)
-		;好感度レベルが50に達していない、かつ同性でないなら部屋には入らない
-		IF TALENT:AUTOCOM_相手番号保存:従業員
-			IF RAND:2
-				訪問目的 += 1
-			ELSE
-				訪問目的 -= 1
-			ENDIF
-		ELSE
-			訪問目的 -= 1
-		ENDIF
-	ENDIF
-ENDIF
+
+訪問目的 = 目的候補:(RAND:候補番号)
 ;陥落済み、かつ性欲が溜まっているとうふふお誘い。他すべてに優先する
 IF 陥落チェック(AUTOCOM_相手番号保存) && BASE:AUTOCOM_相手番号保存:性欲 > 1500 && 初体験日:AUTOCOM_相手番号保存:初うふふ
 	訪問目的 = 3
 ENDIF
 ;口上用に目的を保存
 RFLAG:コマンド結果受渡し変数 = 訪問目的
+
+;遊ぶ場所の決定
+IF 訪問目的 == 0
+	VARSET 場所候補
+	候補番号 = 0
+	場所候補:(候補番号++) = 遊戯室
+	場所候補:(候補番号++) = プール
+	SIF 施設改造度:3:0
+		場所候補:(候補番号++) = キャンプ場
+	SIF MATCH(開拓エリア開発番号, 大規模番号_海エリア) > 0
+		場所候補:(候補番号++) = 海
+	RSTR:コマンド結果受渡し文字列 = %場所候補:(RAND:候補番号)%
+ELSEIF 訪問目的 == 4
+	VARSET 場所候補
+	候補番号 = 0
+	SIF 施設改造度:5:0
+		場所候補:(候補番号++) = バーエリア
+	SIF 施設改造度:3:0
+		場所候補:(候補番号++) = バーベキューエリア
+	SIF 施設改造度:20:0
+		場所候補:(候補番号++) = %CALLNAME:MASTER%の自宅
+
+	RSTR:コマンド結果受渡し文字列 = %場所候補:(RAND:候補番号)%
+ENDIF
 
 ;訪問処理
 $訪問ラベル
@@ -87,9 +117,7 @@ PRINTFORML %CALLNAME:PLAYER%が自室で休んでいると、%CALLNAME:AUTOCOM_�
 TCVAR:AUTOCOM_相手番号保存:挨拶フラグ = 1
 SELECTCASE 訪問目的
 	CASE 0
-		;本来ならどこで遊ぶかとかを決定する処理を入れたいが未実装
-		;とりあえずは遊戯室のみ
-		PRINTFORML 遊戯室で遊ばないかという誘いのようだが……どうしようか？
+		PRINTFORML %RSTR:コマンド結果受渡し文字列%で遊ばないかという誘いのようだが……どうしようか？
 		DRAWLINE
 		PRINTBUTTON "[0] 遊びに行く", 0
 		PRINTL
@@ -129,99 +157,260 @@ SELECTCASE 訪問目的
 		PRINTL
 		PRINTL
 		PRINTBUTTON "[100] 選択肢について説明", 100
+	CASE 4
+		PRINTFORML %RSTR:コマンド結果受渡し文字列%で飲み会しないかという誘いのようだが……どうしようか？
+		DRAWLINE
+		PRINTBUTTON "[0] 飲み会をする", 0
+		PRINTL
+		PRINTBUTTON "[1] 飲み会をする（簡易版）", 1
+		PRINTL
+		PRINTBUTTON "[2] 断る", 2
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[100] 選択肢について説明", 100
 ENDSELECT
 
 BINPUT
 ;口上用に選択肢を記録
 RFLAG:コマンド結果受渡し変数２ = RESULT
-SELECTCASE RESULT
+
+SELECTCASE 訪問目的
 	CASE 0
-		CFLAG:PLAYER:現在マップ種別 = 0
-		CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
-		CFLAG:AUTOCOM_相手番号保存:同室 = 1
-		IF 訪問目的 == 0
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で遊ぶことにした。
-			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
-			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
-			TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
-			IF 施設改造度:5:6 == 1
-				LOCAL = RAND(503, 505)
-				訪問先場所番号 = LOCAL
-				CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
-			ELSE
-				訪問先場所番号 = 5
-				CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
-			ENDIF
-		ELSEIF 訪問目的 == 1
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で遊ぶことにした。
-			;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
-			TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
-			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
-			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
-		ELSEIF 訪問目的 == 3
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%を部屋に招き入れ、優しく抱きしめた。
-			TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
-			TARGET:(GET_TARGETNUM() + 1) = AUTOCOM_相手番号保存
-			CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
-			CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
-			IF 知識素質:AUTOCOM_相手番号保存:性知識 > 1
-				PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はあなたを喜ばせようと、情欲を煽る下着を着けて来ている…
-				SIF CSTR:AUTOCOM_相手番号保存:コスプレ前の服 == "" && CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ != ""
-					CSTR:AUTOCOM_相手番号保存:コスプレ前の服 '= CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ
-				LOCALS '= CSTR:AUTOCOM_相手番号保存:脱ぐ前の服
-				CALL CLOTHES_CHANGE(AUTOCOM_相手番号保存, "セクシーランジェリー")
-				CSTR:AUTOCOM_相手番号保存:脱ぐ前の服 '= LOCALS
-			ENDIF
-			;3Pモード管理フラグを初期化
-			FLAG:モード管理 = 0
-			CALL うふふ開始キャラ処理(AUTOCOM_相手番号保存)
-			CFLAG:MASTER:うふふ = 1
-		ENDIF
-		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:AUTOCOM_相手番号保存:現在マップ種別, CFLAG:AUTOCOM_相手番号保存:現在位置)
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE 0
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:同室 = 1
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に%RSTR:コマンド結果受渡し文字列%で遊ぶことにした。
+				;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+				CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				SELECTCASE RSTR:コマンド結果受渡し文字列
+					CASE "遊戯室"
+						IF 施設改造度:5:0 == 1
+							LOCAL = RAND(503, 505)
+							訪問先場所番号 = LOCAL
+							CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+						ELSE
+							訪問先場所番号 = 5
+							CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+						ENDIF
+					CASE "キャンプ場"
+						LOCAL = RAND(303, 307)
+						訪問先場所番号 = LOCAL
+						CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+					CASE "プール"
+						IF 施設改造度:15:0 == 1
+							LOCAL = RAND(1503, 1506)
+							訪問先場所番号 = LOCAL
+							CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+						ELSE
+							訪問先場所番号 = 15
+							CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+						ENDIF
+					CASE "海"
+						LOCAL = RAND(2, 3)
+						CFLAG:PLAYER:現在マップ種別 = 3
+						CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 3
+						訪問先場所番号 = LOCAL
+						CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+				ENDSELECT
+				TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:AUTOCOM_相手番号保存:現在マップ種別, CFLAG:AUTOCOM_相手番号保存:現在位置)
+			CASE 1
+				TIME += 60
+				TARGET = AUTOCOM_相手番号保存
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に%RSTR:コマンド結果受渡し文字列%で楽しく遊んだ。
+				PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%と別れ、%CALLNAME:PLAYER%は自室に戻ってきた。
+
+				CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+				CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+			CASE 2
+				PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+				RETURN 1
+			CASE 100
+				DRAWLINE
+				PRINTL 遊びに行く：誘いに来たキャラクターと一緒に場所を移動します。
+				PRINTL 　　　　　　その後の行動について制限はありません。
+				PRINTL
+				PRINT 遊びに行く（簡易版）：
+				PRINTL 簡単な描写と一定の好感度変化が実行されます。
+				PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+				PRINTL 
+				PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
+				PRINTL 
+				WAIT
+				GOTO 訪問ラベル
+		ENDSELECT
 	CASE 1
-		TIME += 60
-		TARGET = AUTOCOM_相手番号保存
-		IF 訪問目的 == 0
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に遊戯室で楽しく遊んだ。
-			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%と別れ、%CALLNAME:PLAYER%は自室に戻ってきた。
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE 0
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:同室 = 1
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で遊ぶことにした。
+				;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:同室 = 1
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%を部屋に招き入れ、優しく抱きしめた。
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				TARGET:(GET_TARGETNUM() + 1) = AUTOCOM_相手番号保存
+				CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+				IF 知識素質:AUTOCOM_相手番号保存:性知識 > 1
+					PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はあなたを喜ばせようと、情欲を煽る下着を着けて来ている…
+					SIF CSTR:AUTOCOM_相手番号保存:コスプレ前の服 == "" && CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ != ""
+						CSTR:AUTOCOM_相手番号保存:コスプレ前の服 '= CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ
+					LOCALS '= CSTR:AUTOCOM_相手番号保存:脱ぐ前の服
+					CALL CLOTHES_CHANGE(AUTOCOM_相手番号保存, "セクシーランジェリー")
+					CSTR:AUTOCOM_相手番号保存:脱ぐ前の服 '= LOCALS
+				ENDIF
+				;3Pモード管理フラグを初期化
+				FLAG:モード管理 = 0
+				CALL うふふ開始キャラ処理(AUTOCOM_相手番号保存)
+				CFLAG:MASTER:うふふ = 1
+				TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:AUTOCOM_相手番号保存:現在マップ種別, CFLAG:AUTOCOM_相手番号保存:現在位置)
+			CASE 1
+				TIME += 60
+				TARGET = AUTOCOM_相手番号保存
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で楽しく遊んだ。
+				PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%はリゾートへと戻っていった。
 
-			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
-			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
-		ELSE
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に自室で楽しく遊んだ。
-			PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%はリゾートへと戻っていった。
-
-			CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
-			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
-		ENDIF
+				CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+				CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+			CASE 2
+				PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+				RETURN 1
+			CASE 100
+				DRAWLINE
+				PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れます。
+				PRINTL 　　　　　　この時、雰囲気に補正が掛かり一部のコマンドの発生条件が緩くなります。
+				PRINTL 　　　　　　その後の行動について制限はありません。
+				PRINTL
+				PRINT 部屋に招く（簡易版）：
+				PRINTL 簡単な描写と一定の好感度変化が実行されます。
+				PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+				PRINTL 
+				PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
+				PRINTL 
+				WAIT
+				GOTO 訪問ラベル
+		ENDSELECT
 	CASE 2
-		PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
-		RETURN 1
-	CASE 100
-		DRAWLINE
-		IF 訪問目的 == 0
-			PRINTL 遊びに行く：誘いに来たキャラクターと一緒に場所を移動します。
-			PRINTL 　　　　　　その後の行動について制限はありません。
-			PRINTL
-			PRINT 遊びに行く（簡易版）：
-			PRINTL 簡単な描写と一定の好感度変化が実行されます。
-			PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
-			PRINTL 
-		ELSEIF 訪問目的 == 1
-			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れます。
-			PRINTL 　　　　　　この時、雰囲気に補正が掛かり一部のコマンドの発生条件が緩くなります。
-			PRINTL 　　　　　　その後の行動について制限はありません。
-			PRINTL
-			PRINT 部屋に招く（簡易版）：
-			PRINTL 簡単な描写と一定の好感度変化が実行されます。
-			PRINTL 　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
-			PRINTL 
-		ELSEIF 訪問目的 == 3
-			PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れ、押し倒します。
-			PRINTL
-		ENDIF
-		PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
-		PRINTL 
-		WAIT
-		GOTO 訪問ラベル
+		;選択肢なし
+	CASE 3
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE 0
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:同室 = 1
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%を部屋に招き入れ、優しく抱きしめた。
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				TARGET:(GET_TARGETNUM() + 1) = AUTOCOM_相手番号保存
+				CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+				CFLAG:AUTOCOM_相手番号保存:現在位置 = CFLAG:PLAYER:現在位置
+				IF 知識素質:AUTOCOM_相手番号保存:性知識 > 1
+					PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%はあなたを喜ばせようと、情欲を煽る下着を着けて来ている…
+					SIF CSTR:AUTOCOM_相手番号保存:コスプレ前の服 == "" && CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ != ""
+						CSTR:AUTOCOM_相手番号保存:コスプレ前の服 '= CSTR:AUTOCOM_相手番号保存:表示グラフィックカテゴリ
+					LOCALS '= CSTR:AUTOCOM_相手番号保存:脱ぐ前の服
+					CALL CLOTHES_CHANGE(AUTOCOM_相手番号保存, "セクシーランジェリー")
+					CSTR:AUTOCOM_相手番号保存:脱ぐ前の服 '= LOCALS
+				ENDIF
+				;3Pモード管理フラグを初期化
+				FLAG:モード管理 = 0
+				CALL うふふ開始キャラ処理(AUTOCOM_相手番号保存)
+				CFLAG:MASTER:うふふ = 1
+				TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:AUTOCOM_相手番号保存:現在マップ種別, CFLAG:AUTOCOM_相手番号保存:現在位置)
+			CASE 2
+				PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+				RETURN 1
+			CASE 100
+				DRAWLINE
+				PRINTL 部屋に招く：訪れたキャラクターを自室に招き入れ、押し倒します。
+				PRINTL
+				PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
+				PRINTL 
+				WAIT
+				GOTO 訪問ラベル
+		ENDSELECT
+	CASE 4
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE 0
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_相手番号保存:同室 = 1
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に%RSTR:コマンド結果受渡し文字列%で飲み会をすることにした。
+				;一時間持続だが、休憩段階で60分経つのでその分を加算して代入
+				CFLAG:AUTOCOM_相手番号保存:一緒に遊ぶ = 120
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				SELECTCASE RSTR:コマンド結果受渡し文字列
+					CASE "バーエリア"
+						訪問先場所番号 = 503
+						CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+					CASE "バーベキューエリア"
+						訪問先場所番号 = 304
+						CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+					CASE @"%CALLNAME:MASTER%の自宅"
+						訪問先場所番号 = 2005
+						CFLAG:AUTOCOM_相手番号保存:現在位置 = 訪問先場所番号
+				ENDSELECT
+				TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:AUTOCOM_相手番号保存:現在マップ種別, CFLAG:AUTOCOM_相手番号保存:現在位置)
+				
+				;先にここでモードを変えておかないとTARGETが上手く格納されない
+				TFLAG:調教モード = 3
+				CFLAG:MASTER:飲み会 = 1
+				あなた追跡キャラ = 0
+				CFLAG:AUTOCOM_相手番号保存:飲み会 = 1
+				TFLAG:TARGET変更用 = AUTOCOM_相手番号保存
+				オートコマンド_飲み会開始フラグ = 1
+
+			CASE 1
+				TIME += 60
+				TARGET = AUTOCOM_相手番号保存
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%と一緒に%RSTR:コマンド結果受渡し文字列%で楽しく飲み会をした。
+				PRINTFORMW 満足した%CALLNAME:AUTOCOM_相手番号保存%と別れ、%CALLNAME:PLAYER%は自室に戻ってきた。
+
+				
+				IF TALENT:AUTOCOM_相手番号保存:酒に強い == 2
+					BASE:AUTOCOM_相手番号保存:酩酊 = 100
+				ELSEIF TALENT:AUTOCOM_相手番号保存:酒に強い == 1
+					BASE:AUTOCOM_相手番号保存:酩酊 = 300
+				ELSEIF TALENT:AUTOCOM_相手番号保存:酒に強い == 0
+					BASE:AUTOCOM_相手番号保存:酩酊 = 600
+				ELSEIF TALENT:AUTOCOM_相手番号保存:酒に強い == -1
+					BASE:AUTOCOM_相手番号保存:酩酊 = 900
+				ENDIF
+				IF TALENT:PLAYER:酒に強い == 2
+					BASE:PLAYER:酩酊 = 100
+				ELSEIF TALENT:PLAYER:酒に強い == 1
+					BASE:PLAYER:酩酊 = 300
+				ELSEIF TALENT:PLAYER:酒に強い == 0
+					BASE:PLAYER:酩酊 = 600
+				ELSEIF TALENT:PLAYER:酒に強い == -1
+					BASE:PLAYER:酩酊 = 900
+				ENDIF
+				CALL SOURCE_CALC_歓楽(AUTOCOM_相手番号保存, PLAYER, 500)
+				CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_相手番号保存, PLAYER, 250)
+			CASE 2
+				PRINTFORMW 予定があると言って、%CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_相手番号保存%の誘いを断った……
+				RETURN 1
+			CASE 100
+				DRAWLINE
+				PRINTL 飲み会をする：誘いに来たキャラクターと一緒に場所を移動し、飲み会モードに移行します。
+				PRINTL 　　　　　　　その後の行動について制限はありません。
+				PRINTL
+				PRINT 飲み会をする（簡易版）：
+				PRINTL 簡単な描写と一定の好感度変化が実行されます。
+				PRINTL 　　　　　　　　　　　　場所移動などは起こらず、キャラクターは訪問前にいた場所に戻ります。
+				PRINTL 
+				PRINTL 断る：断ります。キャラクターは訪問前にいた場所に戻り、好感度変化は起こりません。
+				PRINTL 
+				WAIT
+				GOTO 訪問ラベル
+		ENDSELECT
 ENDSELECT
+

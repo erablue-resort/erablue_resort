@@ -2,6 +2,8 @@
 #DIM イベント件数
 #DIM 人物ID
 #DIM 解析行数
+#DIM ページ番号
+#DIM 開始ページ
 #DIM DYNAMIC 検索リザルトID, 100000
 #DIMS フィルタ
 #DIM 表示行数 = 20; 履歴の表示行数
@@ -103,10 +105,32 @@ LOCALS += @"<div rect='0,0,3900,{解析行数 * 100 + 500}'>%LOCALS:1%"
 LOCALS += @"</div>"
 
 IF イベント件数 > 表示行数
-	SIF 能力表示現在ページ > 0
-		LOCALS += @"<div rect='0,{解析行数 * 100 + 300},5000,200'><button value='900'>[900]前のページへ</button></div>"
-	SIF 能力表示現在ページ < イベント件数 / 表示行数
-		LOCALS += @"<div rect='1000,{解析行数 * 100 + 300},5000,200'><button value='901'>[901]次のページへ</button></div>"
+	; SIF 能力表示現在ページ > 0
+	; 	LOCALS += @"<div rect='0,{解析行数 * 100 + 300},5000,200'><button value='900'>[900]前のページへ</button></div>"
+	; SIF 能力表示現在ページ < イベント件数 / 表示行数
+	; 	LOCALS += @"<div rect='1000,{解析行数 * 100 + 300},5000,200'><button value='901'>[901]次のページへ</button></div>"
+
+	LOCALS += @"<div rect='0,{解析行数 * 100 + 300},5000,200'>"
+	IF 能力表示現在ページ > 5
+		LOCALS += @"<button value='-1'>[0]</button>..."
+		開始ページ = 能力表示現在ページ - 5
+	ELSE
+		LOCALS += @"　　　"
+		開始ページ = 0
+	ENDIF
+	FOR ページ番号, 0, 11
+		IF イベント件数 > (ページ番号 + 開始ページ) * 表示行数
+			SIF 能力表示現在ページ == ページ番号 + 開始ページ
+				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>"
+			LOCALS += @"<button value='{(ページ番号 + 開始ページ) * -1 - 1}'>[{ページ番号 + 開始ページ}]</button> "
+			SIF 能力表示現在ページ == ページ番号 + 開始ページ
+				LOCALS += @"</font>"
+		ENDIF
+	NEXT
+	IF イベント件数 > (MAX(能力表示現在ページ, 5) + 5) * 表示行数
+		LOCALS += @"<button value='{(イベント件数 / 表示行数 + 1) * -1}'>...[{イベント件数 / 表示行数}]</button> "
+	ENDIF
+	LOCALS += @"</div>"
 ELSE
 	能力表示現在ページ = 0
 ENDIF
@@ -184,6 +208,8 @@ HTML_PRINT LOCALS, 1
 FOR LOCAL, 0, MAX(29 - (LINECOUNT - L_C), 解析行数 + 3)
 	PRINTL
 NEXT
+
+RETURN イベント件数
 
 @履歴データベース作成
 ;初期設定

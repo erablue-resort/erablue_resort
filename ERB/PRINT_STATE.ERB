@@ -1,6 +1,8 @@
 ﻿@PRINT_STATE(ARG, ページめくりフラグ)
 #DIM ページめくりフラグ
 #DIM 能力表示
+#DIM イベント件数
+#DIM 表示行数 = 20; 履歴の表示行数
 
 $STATE_START
 ;ツールチップ設定
@@ -39,6 +41,7 @@ ELSEIF 能力表示 == 4
 	CALL 血縁関係表示画面(ARG)
 ELSEIF 能力表示 == 5
 	CALL キャラ履歴表示画面(ARG)
+	イベント件数 = RESULT
 ENDIF
 
 
@@ -117,6 +120,13 @@ IF TFLAG:調教モード == -1
 ENDIF
 PRINTBUTTONLC "[140]汎用喘ぎ個別設定", 140
 PRINTBUTTONLC "[141]妊娠個別設定", 141
+IF CFLAG:ARG:同室文字色 == 0
+	PRINTBUTTONLC "[142]同室画面文字色設定", 142
+ELSE
+	SETCOLOR CFLAG:ARG:同室文字色
+	PRINTBUTTONLC "[142]同室画面文字色設定", 142
+	RESETCOLOR
+ENDIF
 
 IF ARG != MASTER
 	PRINTL
@@ -158,6 +168,9 @@ PRINTL
 DO
 BINPUT
 SELECTCASE RESULT
+	CASE IS < 0
+		能力表示現在ページ = ABS(RESULT) - 1
+		RESTART
 	CASE 100
 		能力表示現在ページ = 0
 		RETURN 100
@@ -228,11 +241,17 @@ SELECTCASE RESULT
 	CASE 135
 		INVERTBIT 身体項目表示切り替えOPTION, 3
 		RESTART
+	CASE 136
+		INVERTBIT 身体項目表示切り替えOPTION, 5
+		RESTART
 	CASE 140
 		CALL 汎用喘ぎ個別設定(ARG)
 		RESTART
 	CASE 141
 		CALL 妊娠個別設定(ARG)
+		RESTART
+	CASE 142
+		CALL 同室画面文字色設定(ARG)
 		RESTART
 	CASE 150
 		INVERTBIT EXP表示切替, 0
@@ -248,10 +267,10 @@ SELECTCASE RESULT
 		性癖素質:ARG:(RESULT - 300) = 性癖素質:ARG:(RESULT - 300) * -1
 		RESTART
 	CASE 900
-		能力表示現在ページ --
+		能力表示現在ページ = 0
 		RESTART
 	CASE 901
-		能力表示現在ページ ++
+		能力表示現在ページ = イベント件数 / 表示行数
 		RESTART
 	CASE 998
 		CALL 弱点コマンド全表示(ARG)
@@ -1548,9 +1567,22 @@ ENDIF
 IF ARG == MASTER || TALENT:ARG:ランダムキャラ
 	LOCALS += "　容姿："
 	LOCALS += @"%GET_TALENTNAME(160,TALENT:ARG:容姿), 17, LEFT%"
-	LOCALS += "年齢："
-	LOCALS += @"%GET_TALENTNAME(164,TALENT:ARG:年齢), 17, LEFT%"
-	LOCALS += "<br>"
+	LOCALS += "<button value='136'>年齢："
+	LOCALS += @"%GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者, GETBIT(身体項目表示切り替えOPTION, 5)), 17, LEFT%"
+	LOCALS += "</button><br>"
+ELSEIF TALENT:ARG:年齢層
+	LOCALS += "<button value='136'>　年齢："
+	IF BASE:ARG:年齢 > 0
+		IF GETBIT(身体項目表示切り替えOPTION, 5)
+			LOCALS:1 = {BASE:ARG:年齢}歳
+			LOCALS += @"%LOCALS:1, 17, LEFT%"
+		ELSE
+			LOCALS += @"%GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者), 17, LEFT%"
+		ENDIF
+	ELSE
+		LOCALS += @"%GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者, GETBIT(身体項目表示切り替えOPTION, 5)), 17, LEFT%"
+	ENDIF
+	LOCALS += "</button><br>"
 ENDIF
 IF TALENT:ARG:性別 & 2
 	LOCALS += @"　男性器サイズ：%GET_TALENTNAME(162,TALENT:ARG:男性器サイズ)%"
@@ -2438,3 +2470,7 @@ NEXT
 HTML_PRINT @"<div rect='0,0,3900,{解析行数 * 100 + 300}'>%HTML表示文%</div>"
 
 RETURN 解析行数
+
+
+
+

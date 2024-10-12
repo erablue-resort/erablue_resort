@@ -42,6 +42,17 @@ CALL CHARA_ATTITUDE
 ;-------------------------------------------------
 CALL TARGET_SET()
 
+IF オートコマンド_飲み会開始フラグ
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF 飲み会参加判定(TARGET:LOCAL) == 1
+			CFLAG:(TARGET:LOCAL):飲み会 = 1
+	NEXT
+	CALL TARGET_SET()
+	オートコマンド_飲み会開始フラグ = 0
+ENDIF
+
 ;TFLAG:TARGET変更用が設定されているときその番号のターゲットが存在するならTARGETに代入、いなければTFLAG:TARGET変更用をリセット
 LOCAL:1 = 0
 IF TFLAG:調教モード == 3
@@ -256,7 +267,7 @@ LOCALS = %月算出()%
 PRINTFORM {RESULT}年目 %LOCALS% {DAY % 30 + 1}日(%GET_DAY()%){TIME / 60}時{TIME % 60}分 
 IF DAY * 1440 + TIME - CFLAG:MASTER:314 >= 960
 	PRINT [要睡眠]
-ELSEIF DAY * 1440 + TIME - CFLAG:MASTER:314 >= 720
+ELSEIF DAY * 1440 + TIME - CFLAG:MASTER:314 >= 720 || あなた特殊能力:無間睡眠
 	PRINT [睡眠可]
 ENDIF
 PRINT  
@@ -417,11 +428,15 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 				PRINTL
 				文字数カウント = 0
 			ENDIF
-			IF TFLAG:調教モード == 3
+			IF TFLAG:調教モード == 3 && CFLAG:(TARGET:LOCAL):同室文字色 == 0 && 文字色グループ取得(TARGET:LOCAL) < 0
 				HTML_PRINT @"%ボタン表示格納用%", 1
 				;PRINTPLAINFORM %ボタン表示格納用%
 			ELSE
-				IF フォント格納用 != ""
+				IF 文字色グループ取得(TARGET:LOCAL) >= 0
+					HTML_PRINT @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(TARGET:LOCAL)))%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+				ELSEIF CFLAG:(TARGET:LOCAL):同室文字色
+					HTML_PRINT @"<font color='#%十六進数文字列化(CFLAG:(TARGET:LOCAL):同室文字色)%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+				ELSEIF フォント格納用 != ""
 					HTML_PRINT @"<font color='#%フォント格納用%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
 				ELSE
 					HTML_PRINT @"<button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>", 1
@@ -480,7 +495,11 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 					ENDIF
 				ENDIF
 				ボタン表示格納用 += "]"
-				IF フォント格納用 != ""
+				IF 文字色グループ取得(飲み会TARGET:LOCAL) >= 0
+					HTML_PRINT @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(飲み会TARGET:LOCAL)))%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+				ELSEIF CFLAG:(飲み会TARGET:LOCAL):同室文字色
+					HTML_PRINT @"<font color='#%十六進数文字列化(CFLAG:(飲み会TARGET:LOCAL):同室文字色)%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+				ELSEIF フォント格納用 != ""
 					HTML_PRINT @"<font color='#%フォント格納用%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
 				ELSE
 					HTML_PRINT @"<button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>", 1
