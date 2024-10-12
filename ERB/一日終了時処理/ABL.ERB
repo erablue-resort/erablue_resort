@@ -1,89 +1,78 @@
 ﻿@SHOW_JUEL
 
 @SHOW_ABLUP_SELECT
+;多くの要素が必要な能力から上げてゆく
+{
+#DIM CONST ソート済ABL番号格納 =
+	GETNUM(ABL, "露出癖"),
+	GETNUM(ABL, "奉仕精神"),
+	GETNUM(ABL, "マゾ性感"),
+	GETNUM(ABL, "サド性感"),
+	GETNUM(ABL, "玩具嗜好"),
+	GETNUM(ABL, "技巧"),
+	GETNUM(ABL, "欲望"),
+	GETNUM(ABL, "Ｓ感覚"),
+	GETNUM(ABL, "Ｂ感覚"),
+	GETNUM(ABL, "Ａ感覚"),
+	GETNUM(ABL, "Ｖ感覚"),
+	GETNUM(ABL, "Ｃ感覚")
+}
 #DIM キャラ番号ループ
-#DIM ABL番号格納
+#DIM ABLループ
+#DIM パターン
+#DIM 必要JUEL, VARSIZE("JUEL")
+#DIM 必要EXP, VARSIZE("EXP")
+#DIM PALAM番号
+#DIM EXP番号
+#DIM 条件未達
 
 DRAWLINE
-FOR キャラ番号ループ,0,CHARANUM
-	FOR LOCAL:11,0,30
-		SELECTCASE LOCAL:11
-			;多くの要素が必要な能力から上げてゆく
-			;露出癖
-			CASE 0
-				ABL番号格納= 10
-			;奉仕精神
-			CASE 1
-				ABL番号格納= 11
-			;マゾ性感
-			CASE 2
-				ABL番号格納= 12
-			;サド性感
-			CASE 3
-				ABL番号格納= 13
-			CASE 4
-				CONTINUE
-			;玩具嗜好
-			CASE 5
-				ABL番号格納= 15
-			;技巧
-			CASE 6
-				ABL番号格納= 20
-			;欲望
-			CASE 7
-				ABL番号格納= 5
-			;Ｓ感覚
-			CASE 8
-				ABL番号格納= 4
-			;Ｂ感覚
-			CASE 9
-				ABL番号格納= 3
-			;Ａ感覚
-			CASE 10
-				ABL番号格納= 2
-			;Ｖ感覚
-			CASE 11
-				ABL番号格納= 1
-			;Ｃ感覚
-			CASE 12
-				ABL番号格納= 0
-			CASEELSE
-				CONTINUE
-		ENDSELECT
-		FOR LOCAL,0,4
-			LOCAL:3 = 0
-			LOCAL:4 = 0
-			SIF JUEL_DEMAND(ABL番号格納,LOCAL,0,キャラ番号ループ) == -2
-				BREAK
-			SIF JUEL_DEMAND(ABL番号格納,LOCAL,0,キャラ番号ループ) < 0
-				CONTINUE
-			;必要な宝珠を探す
-			FOR LOCAL:1,0,100
-				IF JUEL_DEMAND(ABL番号格納,LOCAL,LOCAL:1,キャラ番号ループ) > 0
-					IF JUEL:(キャラ番号ループ):(LOCAL:1) < JUEL_DEMAND(ABL番号格納,LOCAL,LOCAL:1,キャラ番号ループ)
-						LOCAL:3 ++
-						BREAK
+FOR キャラ番号ループ, 0, CHARANUM
+	FOR ABLループ, 0, VARSIZE("ソート済ABL番号格納")
+		FOR パターン, 0, 4
+			;必要な宝珠を取得
+			VARSET 必要JUEL, 0
+			SELECTCASE JUEL_DEMAND(必要JUEL, ソート済ABL番号格納:ABLループ, パターン, キャラ番号ループ)
+				CASE -2, 0
+					BREAK
+				CASE -1
+					CONTINUE
+				CASEELSE
+					条件未達 = 0
+					FOR PALAM番号, 0, VARSIZE("JUEL")
+						IF 必要JUEL:PALAM番号 > 0
+							IF JUEL:キャラ番号ループ:PALAM番号 < 必要JUEL:PALAM番号
+								条件未達 = 1
+								BREAK
+							ENDIF
+						ENDIF
+					NEXT
+					SIF 条件未達
+						CONTINUE
+			ENDSELECT
+
+			;必要な経験を取得
+			VARSET 必要EXP, 0
+			IF EXP_DEMAND(必要EXP, ソート済ABL番号格納:ABLループ, パターン, キャラ番号ループ) == 1
+				条件未達 = 0
+				FOR EXP番号, 0, VARSIZE("EXP")
+					IF 必要EXP:EXP番号 > 0
+						IF EXP:キャラ番号ループ:EXP番号 < 必要EXP:EXP番号
+							条件未達 = 1
+							BREAK
+						ENDIF
 					ENDIF
-				ENDIF
+				NEXT
+				SIF 条件未達
+					CONTINUE
+			ENDIF
+
+			;宝珠の消費とABL上昇の実処理
+			FOR PALAM番号, 0, VARSIZE("JUEL")
+				JUEL:キャラ番号ループ:PALAM番号 -= 必要JUEL:PALAM番号
 			NEXT
-			SIF LOCAL:3
-				CONTINUE
-			;必要な経験を探す
-			FOR LOCAL:1,0,100
-				IF EXP_DEMAND(ABL番号格納,LOCAL,LOCAL:1,キャラ番号ループ) > 0
-					IF  EXP:(キャラ番号ループ):(LOCAL:1) < EXP_DEMAND(ABL番号格納,LOCAL,LOCAL:1,キャラ番号ループ)
-						LOCAL:4 ++
-						BREAK
-					ENDIF
-				ENDIF
-			NEXT
-			SIF LOCAL:4
-				CONTINUE
-			FOR LOCAL:1,0,40
-				JUEL:(キャラ番号ループ):(LOCAL:1) -= JUEL_DEMAND(ABL番号格納,LOCAL,LOCAL:1,キャラ番号ループ)
-			NEXT
-			ABL:(キャラ番号ループ):(ABL番号格納) += 1
-			PRINTFORML %ABLNAME:(ABL番号格納)%LVUP (%CALLNAME:(キャラ番号ループ)%)
+			ABL:キャラ番号ループ:(ソート済ABL番号格納:ABLループ) += 1
+			PRINTFORML %ABLNAME:(ソート済ABL番号格納:ABLループ)%LVUP (%CALLNAME:キャラ番号ループ%)
 			BREAK
 		NEXT
 	NEXT
