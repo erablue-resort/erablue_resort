@@ -51,6 +51,7 @@
 #DIM 部屋使用数
 #DIM CSV番号
 #DIMS CSTR切り分け文字列格納, 2
+#DIMS ランダムキャラ奥義名, 6
 
 表示モード = 0
 ページ数 = 0
@@ -79,6 +80,7 @@ VARSET ABL数値保存:0
 VARSET EXP一時保存:0, -1
 VARSET EXP数値保存:0
 VARSET ランダムキャラ戦闘タイプ:0
+VARSET ランダムキャラ奥義名
 VARSET LOCAL
 ランダムキャラ素質:0 = 1
 ランダムキャラ素質:1 = 1
@@ -552,13 +554,43 @@ SELECTCASE 表示モード
 			ENDIF
 		ENDIF
 		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+		LOCAL = 0
+		DO
+			IF LOCAL % 3 == 0
+				LOCALS += @"<br>　\@ LOCAL == 0? 通常# 陥落\@時奥義名："
+				IF ランダムキャラ奥義名:((LOCAL/3)*3) == "" && ランダムキャラ奥義名:0 == ""
+					LOCALS += @"<font color='#888888'>（汎用\@ LOCAL == 0? # 陥落時\@奥義）</font>"
+					LOCAL += 3
+					CONTINUE
+				ENDIF
+			ELSE
+				LOCALS += " / "
+			ENDIF
+			IF ランダムキャラ奥義名:LOCAL != "" 
+				LOCALS += @"%ランダムキャラ奥義名:LOCAL%"
+			ELSE
+				LOCALS += @"<font color='#888888'>"
+				IF LOCAL < 3 || ランダムキャラ奥義名:3 != ""
+					LOCALS += @"%ランダムキャラ奥義名:((LOCAL/3)*3) + "＋" * (LOCAL%3)%"
+				ELSEIF ランダムキャラ奥義名:(LOCAL-3) != ""
+					LOCALS += @"%ランダムキャラ奥義名:(LOCAL-3) + UNICODE(0x2661)%"
+				ELSEIF LOCAL > 3
+					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2665) * (LOCAL%3)%"
+				ELSE
+					;ここにはこないはず
+					LOCALS += @"分岐式おかしいよ"
+				ENDIF
+				LOCALS += @"</font>"
+			ENDIF
+			LOCAL ++
+		LOOP LOCAL < 6
 		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>出演作品：%ランダムキャラ出演作品%"
+			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
 		ENDIF
 		IF CSVエディタフラグ
-			LOCALS += @"<br>招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
 		ENDIF
 		LOCALS += "<br><br>"
 		LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
@@ -806,6 +838,39 @@ SELECTCASE 表示モード
 			ENDIF
 			LOCALS += @"<font color='#%LOCALS:1%'><button value='{11020 + LOCAL}'>[%成長タイプ:LOCAL%]</button></font>"
 		NEXT
+		LOCALS += "<br>"
+		LOCAL = 0
+		DO
+			IF LOCAL % 3 == 0
+				LOCALS += @"<br>\@ LOCAL == 0? 通常# 陥落\@時奥義名："
+				IF ランダムキャラ奥義名:((LOCAL/3)*3) == "" && ランダムキャラ奥義名:0 == ""
+					LOCALS += @"<font color='#888888'><button value='{11040 + LOCAL}'>（汎用\@ LOCAL == 0? # 陥落時\@奥義）</button></font>"
+					LOCAL += 3
+					CONTINUE
+				ENDIF
+			ELSE
+				LOCALS += " / "
+			ENDIF
+			LOCALS += @"<button value='{11040 + LOCAL}'>"
+			IF ランダムキャラ奥義名:LOCAL != "" 
+				LOCALS += @"%ランダムキャラ奥義名:LOCAL%"
+			ELSE
+				LOCALS += @"<font color='#888888'>"
+				IF LOCAL < 3 || ランダムキャラ奥義名:3 != ""
+					LOCALS += @"%ランダムキャラ奥義名:((LOCAL/3)*3) + "＋" * (LOCAL%3)%"
+				ELSEIF ランダムキャラ奥義名:(LOCAL-3) != ""
+					LOCALS += @"%ランダムキャラ奥義名:(LOCAL-3) + UNICODE(0x2661)%"
+				ELSEIF LOCAL > 3
+					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2665) * (LOCAL%3)%"
+				ELSE
+					;ここにはこないはず
+					LOCALS += @"分岐式おかしいよ"
+				ENDIF
+				LOCALS += @"</font>"
+			ENDIF
+			LOCALS += @"</button>"
+			LOCAL ++
+		LOOP LOCAL < 6
 		LOCALS += "<br>"
 		LOCALS += "<br>"
 		LOCALS += "<button value='11100'>[ステータス画面に戻る]</button>"
@@ -1455,6 +1520,13 @@ SELECTCASE LOCAL
 		ランダムキャラ戦闘タイプ:1 = LOCAL - 11010
 	CASE 11020 TO 11027
 		ランダムキャラ戦闘タイプ:2 = LOCAL - 11020
+	CASE 11040 TO 11045
+		LOCAL:1 = LOCAL - 11040
+		PRINTFORM \@ LOCAL:1 / 3? 陥落# 通常\@時、第%TOFULL(TOSTR(1 + LOCAL:1 % 3))%段階での
+		PRINTL 奥義名を入力してください。（２０文字まで）
+		PRINTL （通常・陥落時各々の第１段階の奥義名が未設定の場合、それ以降の段階の設定は無視されます）
+		INPUTS
+		ランダムキャラ奥義名:(LOCAL:1) = %SUBSTRING(RESULTS, 0, 40)%
 	CASE 11100
 		表示モード = 0
 ;肉体情報--------------------------------------------------------
@@ -2052,7 +2124,7 @@ SELECTCASE LOCAL
 			ENDIF
 			PRINTL 
 
-			PRINTL ;-------------------------------------------------------------------------------------------
+;-------------------------------------------------------------------------------------------
 			PRINTL ;戦闘ステータス設定
 			PRINTL ;初期値や成長タイプは基本的に用意したテンプレートを選択する仕様。
 			PRINTL ;細かく設定したい場合は「キャラ名_パラメータ設定」の「@口上側初期パラメータ変更_XXXX」で行うこと
@@ -2064,7 +2136,32 @@ SELECTCASE LOCAL
 			PRINTFORML 初期ステータスタイプ_%成長タイプ:(ランダムキャラ戦闘タイプ:2)%
 			PRINTL }
 			PRINTL 
-
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL ;表示奥義設定
+			PRINTL ;設定すると固有奥義を口上で設定しなくても、汎用奥義の表示名のみを変更する
+			PRINTL ;陥落奥義設定に記述しておくと、陥落時に表示名を変更できる
+			PRINTL ; _で区切ることで＋/＋＋とランクアップするときに表示名を変更できる。
+			PRINTL ;ただし、ランクアップ後のみを設定することはできない。
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINT CSTR,表示奥義設定,
+			IF ランダムキャラ奥義名:0 != ""
+				PRINTFORM %ランダムキャラ奥義名:0%
+				SIF ランダムキャラ奥義名:1 != "" || ランダムキャラ奥義名:2 != ""
+					PRINTFORM _%ランダムキャラ奥義名:1%_%ランダムキャラ奥義名:2%
+				PRINTL
+			ELSE
+				PRINTL
+			ENDIF
+			PRINT CSTR,陥落奥義設定,
+			IF ランダムキャラ奥義名:3 != ""
+				PRINTFORM %ランダムキャラ奥義名:3%
+				SIF ランダムキャラ奥義名:4 != "" || ランダムキャラ奥義名:5 != ""
+					PRINTFORM _%ランダムキャラ奥義名:4%_%ランダムキャラ奥義名:5%
+				PRINTL
+			ELSE
+				PRINTL
+			ENDIF
+			PRINTL 
 			OUTPUTLOG @"CSV_EDITFILE/Chara{登録番号} %ランダムキャラネーム%.csv"
 			PRINTW CSV_EDITFILEフォルダに出力しました。CSV/キャラデータフォルダに移動して再起動してください
 			DT_RELEASE "DT_CHARA"
@@ -2185,6 +2282,17 @@ SELECTCASE LOCAL
 		;戦闘関連設定
 		CSTR:(LOCAL:1):戦闘基礎ステータス設定 =  属性_%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)% 得意武器_%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)% 初期ステータスタイプ_%成長タイプ:(ランダムキャラ戦闘タイプ:2)%
 
+		IF ランダムキャラ奥義名:0 != ""
+			表示奥義:(LOCAL:1):0 '= ランダムキャラ奥義名:0
+			表示奥義:(LOCAL:1):1 '= ランダムキャラ奥義名:1
+			表示奥義:(LOCAL:1):2 '= ランダムキャラ奥義名:2
+		ENDIF
+		IF ランダムキャラ奥義名:3 != ""
+			陥落奥義:(LOCAL:1):0 '= ランダムキャラ奥義名:3
+			陥落奥義:(LOCAL:1):1 '= ランダムキャラ奥義名:4
+			陥落奥義:(LOCAL:1):2 '= ランダムキャラ奥義名:5
+		ENDIF
+
 		CALL ADD_PERSON_FROM_CHARA(LOCAL:1)
 		CALL コマンド存在チェック
 		従業員追加中フラグ = 1
@@ -2241,6 +2349,25 @@ SELECTCASE LOCAL
 			;初期ステータス
 			SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
 			ランダムキャラ戦闘タイプ:2 = タイプ文字列数値変換(CSTR切り分け文字列格納:1)
+
+			;表示奥義設定
+			VARSET LOCALS
+			VARSET ランダムキャラ奥義名
+			SUBSTRING CSVCSTR(CSV番号, GETNUM(CSTR, "表示奥義設定")), 0, -1
+			IF RESULTS != ""
+				SPLIT RESULTS, "_", LOCALS
+				ランダムキャラ奥義名:0 '= LOCALS:0
+				ランダムキャラ奥義名:1 '= LOCALS:1
+				ランダムキャラ奥義名:2 '= LOCALS:2
+			ENDIF
+			VARSET LOCALS
+			SUBSTRING CSVCSTR(CSV番号, GETNUM(CSTR, "陥落奥義設定")), 0, -1
+			IF RESULTS != ""
+				SPLIT RESULTS, "_", LOCALS
+				ランダムキャラ奥義名:3 '= LOCALS:0
+				ランダムキャラ奥義名:4 '= LOCALS:1
+				ランダムキャラ奥義名:5 '= LOCALS:2
+			ENDIF
 
 			ランダムキャラ出演作品 = %CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品"))%
 			ランダムキャラ招待不可フラグ = CSVCFLAG(CSV番号, GETNUM(CFLAG, "招待不可フラグ"))
