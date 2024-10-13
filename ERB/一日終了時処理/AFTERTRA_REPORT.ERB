@@ -1,0 +1,890 @@
+﻿;────────────────────────────────────
+;調教終了の処理
+;────────────────────────────────────
+@EVENTEND0作成中につき関数名変更
+#DIM 長期雇用者保存配列, 200
+#DIMS DYNAMIC 学校利用者配列, 2000
+#DIM 順番シャッフル用配列, キャラクタ数上限
+#DIM ループ用
+#DIM 長期雇用者人数
+#DIM 雑務ゲージ減少量
+#DIM 売上分ルピ
+#DIM 秘書担当キャラ保存, 50
+#DIM 人気度変動一時保存
+#DIM 最大レベル
+#DIM 食材ID
+#DIM DYNAMIC LCOUNT
+#DIM 施設維持費
+#DIM 給料基礎値
+#DIM シャッフル数
+#DIM 表示フラグ
+#DIM 結果保存
+#DIM 料理ZP補正保存
+#DIM 料理ルピ補正保存
+
+VARSET LOCAL
+VARSET 長期雇用者保存配列
+長期雇用者人数 = 0
+料理ZP補正保存 = 0
+料理ルピ補正保存 = 0
+PRINTL 一日が終わりました
+探索フラグ = 0
+CALL 口上変数初期化
+SIF STRLENS(TSTR:1)
+	CALL SELL_VIDEO
+
+;睡眠フラグ
+CFLAG:MASTER:睡眠 = 1
+
+;精力の回復(あなた)
+CALL 精力ゲージ_一日終了時回復処理(MASTER)
+
+CALL 寝取らせ夜這い判定()
+
+CALL キャラ番号配列_初期化_シャッフル(順番シャッフル用配列, 0)
+シャッフル数 = RESULT
+
+CALL JUEL_CHECK(MASTER)
+CALL DENIAL_CHECK(MASTER)
+
+;シャッフル配列で処理
+FOR LOCAL, 0, シャッフル数
+	;滞在してないキャラはスルー
+	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
+		CONTINUE
+	ENDIF
+	CALL JUEL_CHECK((順番シャッフル用配列:LOCAL))
+	CALL DENIAL_CHECK((順番シャッフル用配列:LOCAL))
+
+	;野外オナニー欲求不満
+	IF 性癖素質:(順番シャッフル用配列:LOCAL):野外オナニー > 2 && TCVAR:(順番シャッフル用配列:LOCAL):野外オナニー_実行回数 < 3
+		CALL 野外オナニー欲求不満処理((順番シャッフル用配列:LOCAL))
+	ENDIF
+	IF (順番シャッフル用配列:LOCAL) == FLAG:挿入睡眠相手記録
+		;挿入睡眠相手の時は性欲チャレンジもオナニーも発生しない
+	ELSEIF TCVAR:(順番シャッフル用配列:LOCAL):夜這い済み
+		;夜這いされた側については性癖チャレンジもオナニーも発生しない
+	ELSEIF 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数
+		;性癖開発チャレンジ
+		;チャレンジ時はオナニー判定が出ない
+		CALL 口上変数初期化
+		DRAWLINE
+		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%((順番シャッフル用配列:LOCAL))
+		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL), RESULT)
+			CALL 口上変数初期化
+		CATCH
+			CALL 口上変数表示((順番シャッフル用配列:LOCAL), 0)
+		ENDCATCH
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
+	ELSE
+		;一日終了時
+		;夜這い判定
+		CALL 一日終了時夜這い判定((順番シャッフル用配列:LOCAL))
+		結果保存 = RESULT
+		;自慰判定
+		;オプションによる制御
+		IF 一日終了時オナニーOPTION:(TALENT:(順番シャッフル用配列:LOCAL):性別) == 1
+			SKIPDISP 1
+		ENDIF
+		IF 結果保存 == 0
+			CALL 一日終了時オナニー判定((順番シャッフル用配列:LOCAL))
+			IF RESULT
+				TRYCALLFORM KOJO_一日終了時オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
+				CALL 口上変数初期化
+			ENDIF
+		ENDIF
+		SKIPDISP 0
+	ENDIF
+	;ついでに長期雇用者数カウント
+	IF CFLAG:(順番シャッフル用配列:LOCAL):長期雇用
+		長期雇用者保存配列:(長期雇用者人数) = (順番シャッフル用配列:LOCAL)
+		長期雇用者人数 += 1
+	ENDIF
+	CALL EXP変動記録処理((順番シャッフル用配列:LOCAL))
+NEXT
+FORCEWAIT
+;妊娠判定
+FOR LOCAL,0,CHARANUM
+	CALL PREGNANCY_CHECK(LOCAL)
+	CALL PREGNANCY_COUNTUP(LOCAL)
+NEXT
+FORCEWAIT
+;--------------------------------------------------------------------------------
+;従業員の仕事処理
+;--------------------------------------------------------------------------------
+VARSET LOCALS
+雑務ゲージ減少量 = 0
+売上分ルピ = 0
+最大レベル = 最大レベル算出()
+LOCAL:10 = 0
+人気度変動一時保存 = 0
+;表示用に一旦人数再セット
+VARSET 仕事人数表示用
+CALL 口上変数初期化
+FOR LOCAL, 0, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0 && LOCAL != MASTER
+		CONTINUE
+	SIF TCVAR:LOCAL:休暇中
+		CONTINUE
+	SELECTCASE 現在仕事:LOCAL:0
+		CASE 1
+			仕事人数表示用:雑務担当人数 ++
+			雑務ゲージ減少量 += (仕事レベル:LOCAL:1 + 1) * (仕事レベル:LOCAL:1 + 1) * 100
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:1 += 1
+			IF 仕事レベル:LOCAL:1 < 5
+				IF 仕事経験値:LOCAL:1 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:1 + 1)
+					仕事レベル:LOCAL:1 += 1
+					LOCALS:1 += @"%CALLNAME:LOCAL%の雑務レベルがLv{仕事レベル:LOCAL:1}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:1 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：雑務レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+		CASE 2
+			仕事人数表示用:常駐業務担当人数 ++
+			LOCALS = %MAP_GET("常駐業務名", GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000))%
+			IF LOCALS != ""
+				売上分ルピ += (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * 滞在キャラ数算出関数()
+				;経験値取得とレベル上昇
+				LOCAL:1 = GETNUM(常駐業務レベル, LOCALS)
+				常駐業務経験値:LOCAL:(LOCAL:1) += 1
+				IF 常駐業務レベル:LOCAL:LOCALS < 5
+					IF 常駐業務経験値:LOCAL:(LOCAL:1) >= 仕事レベル経験値テーブル:(常駐業務レベル:LOCAL:LOCALS + 1)
+						常駐業務レベル:LOCAL:LOCALS += 1
+						LOCALS:2 += @"%CALLNAME:LOCAL%の%LOCALS%レベルがLv{常駐業務レベル:LOCAL:LOCALS}に上昇した！<br>"
+						IF 常駐業務レベル:LOCAL:LOCALS >= 5
+							;仕事レベルは減少しないのでこれでいいはず
+							CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：常駐業務：%LOCALS%レベルがLv5になった","リゾート")
+						ENDIF
+					ENDIF
+				ENDIF
+			ENDIF
+		CASE 3
+			仕事人数表示用:秘書担当人数 ++
+			秘書担当キャラ保存:(LOCAL:10) = LOCAL
+			NOWEX:LOCAL:信頼度上昇格納 += (仕事レベル:LOCAL:3 + 1) * (仕事レベル:LOCAL:3 + 1) * 200
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:3 += 1
+			IF 仕事レベル:LOCAL:3 < 5
+				IF 仕事経験値:LOCAL:3 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:3 + 1)
+					仕事レベル:LOCAL:3 += 1
+					LOCALS:3 += @"%CALLNAME:LOCAL%の秘書レベルがLv{仕事レベル:LOCAL:3}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:3 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：秘書レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+			LOCAL:10 += 1
+		CASE 4
+			仕事人数表示用:宣伝担当人数 ++
+			SKIPDISP 1
+			CALL 人気上昇処理((仕事レベル:LOCAL:4 + 1) * (仕事レベル:LOCAL:4 + 1) * 1000)
+			人気度変動一時保存 += RESULT
+			SKIPDISP 0
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:4 += 1
+			IF 仕事レベル:LOCAL:4 < 5
+				IF 仕事経験値:LOCAL:4 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:4 + 1)
+					仕事レベル:LOCAL:4 += 1
+					LOCALS:4 += @"%CALLNAME:LOCAL%の宣伝レベルがLv{仕事レベル:LOCAL:4}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:4 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：宣伝レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+		CASE 5
+			仕事人数表示用:訓練担当人数 ++
+			IF 基礎BATTLE_STATE:LOCAL:Lv < 最大レベル
+				IF 基礎BATTLE_STATE:LOCAL:蓄積EXP >  戦闘経験値テーブル:(MAX(最大レベル - 2, 0))
+					;最大Lv到達EXPより現在のEXPが高いならスキップ
+					CONTINUE
+				ENDIF
+				LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(最大レベル - 2, 0)) / 10, 500)
+				;EXPは最大レベル到達EXPより上には行かない
+				基礎BATTLE_STATE:LOCAL:蓄積EXP = MIN(基礎BATTLE_STATE:LOCAL:蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(最大レベル - 2, 0)))
+				CALL レベルアップ処理(LOCAL)
+			ENDIF
+		CASE 6
+			仕事人数表示用:自動探索担当人数 ++
+		CASE 7
+			仕事人数表示用:知識習得担当人数 ++
+			IF 知識素質:LOCAL:(現在仕事:LOCAL:1) > 1
+				LOCALS:5 += @"%CALLNAME:LOCAL%の%ERDNAME(知識素質, 現在仕事:LOCAL:1)%はこれ以上学校で学ぶことは出来ないようだ。<br>"
+				現在仕事:LOCAL:0 = 0
+				現在仕事:LOCAL:1 = 0
+			ENDIF
+		CASE 8
+			仕事人数表示用:教師担当人数 ++
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:8 += 1
+			IF 仕事レベル:LOCAL:8 < 5
+				IF 仕事経験値:LOCAL:8 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:8 + 1)
+					仕事レベル:LOCAL:8 += 1
+					LOCALS:6 += @"%CALLNAME:LOCAL%の教師レベルがLv{仕事レベル:LOCAL:8}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:8 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：教師レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+		CASE 9
+			仕事人数表示用:調理師担当人数 ++
+			;経験値取得とレベル上昇
+			IF 知識素質:LOCAL:料理人 >= 0
+				知識素質:LOCAL:料理人経験値 += 1
+				IF 知識素質:LOCAL:料理人 < 3
+					CALL 知識系素質の取得(LOCAL)
+				ENDIF
+				料理ZP補正保存 += (知識素質:LOCAL:料理人 + 1) * 5
+			ENDIF
+		CASE 10
+			仕事人数表示用:給仕担当人数 ++
+			;経験値取得とレベル上昇
+			仕事経験値:LOCAL:10 += 1
+			IF 仕事レベル:LOCAL:10 < 5
+				IF 仕事経験値:LOCAL:10 >= 仕事レベル経験値テーブル:(仕事レベル:LOCAL:10 + 1)
+					仕事レベル:LOCAL:10 += 1
+					LOCALS:8 += @"%CALLNAME:LOCAL%の給仕レベルがLv{仕事レベル:LOCAL:10}に上昇した！<br>"
+					IF 仕事レベル:LOCAL:10 >= 5
+						;仕事レベルは減少しないのでこれでいいはず
+						CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：給仕レベルがLv5になった","リゾート")
+					ENDIF
+				ENDIF
+			ENDIF
+			料理ルピ補正保存 += (仕事レベル:LOCAL:10 + 1) * 5
+	ENDSELECT
+NEXT
+
+FOR LOCAL, 1, マップ部屋番号上限
+	IF 存在しない移動先(0, LOCAL) == 0
+		雑務ゲージ:LOCAL = MAX(雑務ゲージ:LOCAL - 雑務ゲージ減少量, 0)
+	ENDIF
+NEXT
+
+MONEY += 売上分ルピ
+
+DRAWLINE
+IF 仕事人数表示用:雑務担当人数 > 0
+	PRINTFORMW {仕事人数表示用:雑務担当人数}名の従業員の働きにより、各場所の雑務ゲージが{雑務ゲージ減少量}減少しました。
+	IF LOCALS:1 != ""
+		HTML_PRINT LOCALS:1
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:雑務担当人数 > 0
+	PRINTFORMW {仕事人数表示用:常駐業務担当人数}名の従業員の働きにより、%NUM_FORMAT(売上分ルピ)%ルピの利益が上がりました。
+	IF LOCALS:2 != ""
+		HTML_PRINT LOCALS:2
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:秘書担当人数 > 0
+	PRINTFORMW {仕事人数表示用:秘書担当人数}名の従業員は、秘書業務を通じて%CALLNAME:PLAYER%への信頼を高めました。
+	FOR LOCAL, 0, 仕事人数表示用:秘書担当人数
+		NOWEX:(秘書担当キャラ保存:LOCAL):信頼度上昇格納 = 0
+	NEXT
+	CALL FAVOR_CALC(秘書担当キャラ保存:0)
+	WAIT
+	IF LOCALS:3 != ""
+		HTML_PRINT LOCALS:3
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:宣伝担当人数 > 0
+	PRINTFORMW {仕事人数表示用:宣伝担当人数}名の従業員は、宣伝業務を通じてリゾートの人気度を{人気度変動一時保存}高めました。
+	IF LOCALS:4 != ""
+		HTML_PRINT LOCALS:4
+		WAIT
+	ENDIF
+	DRAWLINE
+ENDIF
+IF 仕事人数表示用:訓練担当人数 > 0
+	PRINTFORML {仕事人数表示用:訓練担当人数}名の従業員は、訓練業務を通じて経験値を得た。
+	CALL 口上変数表示(0, 0)
+	DRAWLINE
+	CALL 口上変数初期化
+	WAIT
+ENDIF
+IF 仕事人数表示用:自動探索担当人数 > 0
+	PRINTFORML {仕事人数表示用:自動探索担当人数}名の従業員は、各ダンジョンを探索した。
+	CALL ダンジョン自動探索処理
+	DRAWLINE
+	WAIT
+ENDIF
+IF 仕事人数表示用:知識習得担当人数 > 0
+	PRINTFORML {仕事人数表示用:知識習得担当人数}名の従業員は、頑張って学習に励んでいる。
+	IF LOCALS:5 != ""
+		HTML_PRINT LOCALS:5
+		WAIT
+	ENDIF
+	DRAWLINE
+	WAIT
+ENDIF
+IF 仕事人数表示用:教師担当人数 > 0
+	PRINTFORML {仕事人数表示用:教師担当人数}名の従業員は、教師として講義を行っている。
+	IF LOCALS:6 != ""
+		HTML_PRINT LOCALS:6
+		WAIT
+	ENDIF
+	DRAWLINE
+	WAIT
+ENDIF
+IF 学校利用者:0 != ""
+	PRINTL ■本日の学校利用状況
+	LOCAL:2 = 0
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 学校利用者:(LOCAL + 100) != ""
+			VARSET 学校利用者配列
+			PRINTFORM 　　%ERDNAME(知識素質, LOCAL), 9, LEFT%の教師：
+			SPLIT 学校利用者:(LOCAL + 100), "_", 学校利用者配列
+			LOCAL:1 = RESULT
+			FOR LCOUNT, 0, LOCAL:1 - 1
+				SIF ISNUMERIC(学校利用者配列:LCOUNT) == 0
+					CONTINUE
+				PRINTFORM %CALLNAME:TOINT(学校利用者配列:LCOUNT)%
+				SIF LCOUNT + 1 < LOCAL:1 - 1
+					PRINT 、
+			NEXT
+			PRINTL 
+			LOCAL:2 = 1
+		ENDIF
+	NEXT
+	SIF LOCAL:2
+		PRINTL 
+	FOR LOCAL, 1, 100
+		SIF ERDNAME(知識素質, LOCAL) == ""
+			BREAK
+		IF 学校利用者:LOCAL != ""
+			VARSET 学校利用者配列
+			PRINTFORM 　　%ERDNAME(知識素質, LOCAL), 9, LEFT%の生徒：
+			SPLIT 学校利用者:LOCAL, "_", 学校利用者配列
+			LOCAL:1 = RESULT
+			FOR LCOUNT, 0, LOCAL:1 - 1
+				SIF ISNUMERIC(学校利用者配列:LCOUNT) == 0
+					CONTINUE
+				PRINTFORM %CALLNAME:TOINT(学校利用者配列:LCOUNT)%
+				SIF LCOUNT + 1 < LOCAL:1 - 1
+					PRINT 、
+			NEXT
+			PRINTL 
+			LOCAL:2 = 1
+		ENDIF
+	NEXT
+	SIF LOCAL:2
+		DRAWLINE
+ENDIF
+IF 仕事人数表示用:調理師担当人数 > 0
+	PRINTFORML {仕事人数表示用:調理師担当人数}名の従業員は、頑張って料理を作っている。
+	DRAWLINE
+	WAIT
+ENDIF
+IF 仕事人数表示用:給仕担当人数 > 0
+	PRINTFORML {仕事人数表示用:給仕担当人数}名の従業員は、愛想よく給仕を行っている。
+	IF LOCALS:8 != ""
+		HTML_PRINT LOCALS:8
+		WAIT
+	ENDIF
+	DRAWLINE
+	WAIT
+ENDIF
+;人数再セット
+VARSET 仕事人数表示用
+LOCAL:1 = 1
+仕事人数表示用:(現在仕事:0:0) += 1
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	SIF 現在仕事:LOCAL:0 < 0
+		CONTINUE
+	仕事人数表示用:(現在仕事:LOCAL:0) += 1
+	LOCAL:1 += 1
+NEXT
+FORCEWAIT
+
+;--------------------------------------------------------------------------------
+;リゾート収入計算
+;--------------------------------------------------------------------------------
+IF 滞在キャラ数算出関数() > 0
+	PRINTFORML {滞在キャラ数算出関数()}人の観光客により、以下の利益を得た。
+	;金払っているキャラのみ算出
+	LOCAL = 滞在キャラ数算出関数() * 300 * RAND(95,106) * RAND(95, 106) / 10000
+	MONEY += LOCAL
+	PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
+	;リゾートにいるキャラ全員算出
+	LOCAL = 滞在キャラ数算出関数(1)
+	PRINTFORML {LOCAL}人の滞在者により、以下のＺＰを得た。
+	LOCAL = LOCAL * 5 * RAND(95,106) * RAND(95, 106) / 10000
+	ZP小数点以下所持量 += LOCAL
+	PRINTFORML 発生ＺＰ：{LOCAL / 1000}.{(LOCAL % 1000) / 100}{(LOCAL % 100) / 10}{(LOCAL % 10)}
+	IF ZP小数点以下所持量 > 999
+		FLAG:ZP所持量 += ZP小数点以下所持量 / 1000
+		ZP小数点以下所持量 = ZP小数点以下所持量 % 1000
+	ENDIF
+	DRAWLINE
+
+	LOCAL = 0
+	LOCAL:1 = 0
+	FOR LOCAL:2, 1, 6
+		IF 現在設定メニュー:(LOCAL:2)
+			LOCAL += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "ルピ収入補正", 1) * 滞在キャラ数算出関数() / 5
+			食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "メイン食材ID", 1)
+			LOCAL -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+			食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "追加食材１ID", 1)
+			SIF 食材ID
+				LOCAL -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+			食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "追加食材２ID", 1)
+			SIF 食材ID
+				LOCAL -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+			食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "追加食材３ID", 1)
+			SIF 食材ID
+				LOCAL -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+			LOCAL:1 += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:(LOCAL:2), "ZP収入補正", 1) * 滞在キャラ数算出関数() / 5
+		ENDIF
+	NEXT
+	IF LOCAL || LOCAL:1
+		PRINTFORML リゾートの料理メニューの効果により、以下の利益を得た。
+		;乱数
+		LOCAL = LOCAL * RAND(95,106) * RAND(95, 106) / 10000
+		LOCAL:1 = LOCAL:1 * RAND(95,106) * RAND(95, 106) / 10000
+		;補正による増加
+		IF GROUPMATCH(発動中コンボ名, "バランスの良い食事処", "新鮮海鮮レストラン", "肉食べ放題レストラン", "健康野菜レストラン", "満腹穀物レストラン")
+			LOCAL = LOCAL * 11 / 10
+			PRINTFORML 『%発動中コンボ名%』の効果でルピ収入UP！
+		ENDIF
+		IF 料理セット判定("寿司盛り合わせ")
+			LOCAL:1 = LOCAL:1 * 11 / 10
+			PRINTFORML 『寿司盛り合わせ』の効果でZP収入UP！
+		ENDIF
+		;補正による減少
+		IF 料理セット判定("失敗料理")
+			LOCAL = LOCAL / 2
+			PRINTFORML 『失敗料理』の効果でルピ収入DOWN…
+		ENDIF
+		;従業員の効果
+		LOCAL = LOCAL * (MIN(滞在キャラ数算出関数(1) / 10, 料理ルピ補正保存) + 100) / 100
+		LOCAL:1 = LOCAL:1 * (MIN(滞在キャラ数算出関数(1) / 10, 料理ZP補正保存) + 100) / 100
+		PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
+		PRINTFORML ＺＰ利益：{LOCAL:1 / 1000}.{(LOCAL:1 % 1000) / 100}{(LOCAL:1 % 100) / 10}{(LOCAL:1 % 10)}
+		MONEY += LOCAL
+		ZP小数点以下所持量 += LOCAL:1
+		IF ZP小数点以下所持量 > 999
+			FLAG:ZP所持量 += ZP小数点以下所持量 / 1000
+			ZP小数点以下所持量 = ZP小数点以下所持量 % 1000
+		ENDIF
+		DRAWLINE
+	ENDIF
+
+	LOCAL = 0
+	FOR LOCAL:2, 3, 9
+		TRYCALLFORM 空艇港店舗効果_{空艇港店舗状況:(LOCAL:2):0}("一日終了時のルピ収入")
+		LOCAL += RESULT
+	NEXT
+	IF LOCAL
+		PRINTFORML 施設の効果により、以下の利益を得た。
+		PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
+		MONEY += LOCAL
+		DRAWLINE
+	ENDIF
+	LOCAL = 0
+	FOR LOCAL:2, 3, 9
+		TRYCALLFORM 空艇港店舗効果_{空艇港店舗状況:(LOCAL:2):0}("一日終了時のZP発生")
+		LOCAL += RESULT
+	NEXT
+	IF LOCAL
+		PRINTFORML 施設の効果により、以下のZPを得た。
+		PRINTFORML 発生ＺＰ：{LOCAL / 1000}.{(LOCAL % 1000) / 100}{(LOCAL % 100) / 10}{(LOCAL % 10)}
+		ZP小数点以下所持量 += LOCAL
+		IF ZP小数点以下所持量 > 999
+			FLAG:ZP所持量 += ZP小数点以下所持量 / 1000
+			ZP小数点以下所持量 = ZP小数点以下所持量 % 1000
+		ENDIF
+		DRAWLINE
+	ENDIF
+	
+	;商業区収入
+	IF 港改造度:0:0
+		LOCAL = 0
+		表示フラグ = 0
+		FOR LOCAL:2, 0, VARSIZE("商業区店割り配列", 0)
+			IF 商業区店割り配列:(LOCAL:2):店舗名 != ""
+				IF GETBIT(TOINT(商業区店割り配列:(LOCAL:2):定休日), DAY % 7)
+					;店休日のビットが立ってると店休なので店効果スキップ
+				ELSE
+					TRYCCALLFORM 特殊店舗_一日終了時処理_%商業区店割り配列:(LOCAL:2):店舗名%
+						表示フラグ ++
+					CATCH
+						LOCAL ++
+					ENDCATCH
+				ENDIF
+			ENDIF
+		NEXT
+		IF LOCAL
+			LOCAL = 滞在キャラ数算出関数() * LOCAL * 5 * RAND(95, 106) / 100
+			IF 表示フラグ
+				PRINTFORML 商業区のその他店舗より、以下の場所代を得た。
+			ELSE
+				PRINTFORML 商業区の店舗より、以下の場所代を得た。
+			ENDIF
+			PRINTFORML ルピ利益：%NUM_FORMAT(LOCAL)%
+			MONEY += LOCAL
+			DRAWLINE
+		ENDIF
+	ENDIF
+
+	施設維持費 = 0
+	IF 施設改造度:7:0 > 0
+		施設維持費 += 5000
+	ENDIF
+	IF 施設改造度:7:1 > 0
+		施設維持費 += 2000
+	ENDIF
+	IF 施設改造度:7:2 > 0
+		施設維持費 += 10000
+	ENDIF
+	IF 施設改造度:7:3 > 0
+		施設維持費 += 1000
+	ENDIF
+	IF 施設維持費
+		PRINTFORML 施設維持費として以下のルピを消費した。
+		PRINTFORML 維持費合計：%NUM_FORMAT(施設維持費)%
+		MONEY -= 施設維持費
+		DRAWLINE
+	ENDIF
+
+	IF フィールド展開:欲情フィールド == 1
+		PRINTL 欲情フィールド維持のために2ZPを消費した。
+		IF FLAG:ZP所持量 < 2
+			FLAG:ZP所持量 = 0
+			ZP小数点以下所持量 = 0
+			PRINTL ZPが足りないため、欲情フィールドを停止した。
+			フィールド展開:欲情フィールド = 0
+		ELSE
+			FLAG:ZP所持量 -= 2
+		ENDIF
+	ENDIF
+
+	IF フィールド展開:露出フィールド == 1
+		PRINTL 露出フィールド維持のために5ZPを消費した。
+		IF FLAG:ZP所持量 < 5
+			FLAG:ZP所持量 = 0
+			ZP小数点以下所持量 = 0
+			PRINTL ZPが足りないため、露出フィールドを停止した。
+			フィールド展開:露出フィールド = 0
+			CALL 露出フィールド停止処理
+		ELSE
+			FLAG:ZP所持量 -= 5
+		ENDIF
+	ELSEIF フィールド展開:露出フィールド == 2
+		PRINTL 露出フィールド維持のために50ZPを消費した。
+		IF FLAG:ZP所持量 < 50
+			FLAG:ZP所持量 = 0
+			ZP小数点以下所持量 = 0
+			PRINTL ZPが足りないため、露出フィールドを停止した。
+			フィールド展開:露出フィールド = 0
+			CALL 露出フィールド停止処理
+		ELSE
+			FLAG:ZP所持量 -= 50
+		ENDIF
+	ENDIF
+
+	IF 長期雇用者人数 > 0
+		PRINTFORML {長期雇用者人数}人の長期雇用により、以下のルピを消費した。
+		FOR ループ用, 0, 長期雇用者人数
+			SIF 長期雇用者保存配列:ループ用 > 0
+				PRINTFORML %CALLNAME:(長期雇用者保存配列:ループ用)%雇用費：1000ルピ
+		NEXT
+		MONEY -= 長期雇用者人数 * 1000
+		DRAWLINE
+		IF 施設改造度:3:8 > 0
+			LOCAL = 最大レベル算出()
+			CALL 口上変数初期化
+			PRINTL 訓練室の効果により、長期雇用者の経験値が上昇した。
+			FOR ループ用, 0, 長期雇用者人数
+				IF 長期雇用者保存配列:ループ用 > 0 && 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):Lv < LOCAL
+					IF 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP >  戦闘経験値テーブル:(MAX(LOCAL - 2, 0))
+						;最大Lv到達EXPより現在のEXPが高いならスキップ
+						CONTINUE
+					ENDIF
+					LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(LOCAL - 2, 0)) / 10, 500)
+					;EXPは最大レベル到達EXPより上には行かない
+					基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP = MIN(基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP + LOCAL:1, 戦闘経験値テーブル:(MAX(LOCAL - 2, 0)))
+					CALL レベルアップ処理(長期雇用者保存配列:ループ用)
+				ENDIF
+			NEXT
+			CALL 口上変数表示(長期雇用者保存配列:ループ用, 0)
+			DRAWLINE
+		ENDIF
+	ENDIF
+	IF 従業員人数 > 0
+		PRINTFORML {従業員人数}人の従業員により、以下のルピを消費した。
+		FOR ループ用, 1, CHARANUM
+			SIF TALENT:ループ用:従業員 == 0
+				CONTINUE
+			IF TALENT:ループ用:恋慕
+				給料基礎値 = 1000
+			ELSE
+				給料基礎値 = 2000
+			ENDIF
+			PRINTFORM %CALLNAME:ループ用%は
+			IF TCVAR:ループ用:休暇中
+				PRINTL 休暇中だ。
+			ELSE
+				PRINTDATAL LOCAL
+					DATA 頑張って働いている。
+					DATA 幾つか失敗してしまった……。
+					DATA とても良く働いている！
+					DATA 大きなミスをしてしまった！
+					DATA 素晴らしい働きをしている！
+				ENDDATA
+				SELECTCASE LOCAL
+					CASE 0
+						;給料変動なし
+					CASE 1
+						;１割引
+						給料基礎値 = 給料基礎値 * 9 / 10
+					CASE 2
+						;１割増
+						給料基礎値 = 給料基礎値 * 11 / 10
+					CASE 3
+						;２割引
+						給料基礎値 = 給料基礎値 * 8 / 10
+					CASE 4
+						;２割増
+						給料基礎値 = 給料基礎値 * 12 / 10
+				ENDSELECT
+				給料基礎値 = 給料基礎値 * RAND(95, 105) / 100
+				PRINTFORML 　　雇用費：%NUM_FORMAT(給料基礎値)%ルピ
+				MONEY -= 給料基礎値
+			ENDIF
+		NEXT
+		DRAWLINE
+	ENDIF
+	FORCEWAIT
+ENDIF
+
+;--------------------------------------------------------------------------------
+;依頼受注者登録・依頼結果報告
+;--------------------------------------------------------------------------------
+LOCAL:1 = 0
+FOR LOCAL, 0, 10
+	IF 遂行中依頼:LOCAL == ""
+		CONTINUE
+	ENDIF
+	IF 依頼受注者名:LOCAL == ""
+		;未受注なので受注者をランダムで決定
+		CALL 依頼受注者決定(LOCAL)
+		SIF LOCAL:1
+			PRINTL
+		PRINTFORML %遂行中依頼:LOCAL% の依頼を %依頼受注者名:LOCAL% が受注したようだ。
+		LOCAL:1 = 1
+	ELSE
+		;受注済みなので依頼の終了判定
+		;依頼残り期間が存在する場合はその間絶対に終了しない
+		IF 依頼残り期間:LOCAL > 0
+			依頼残り期間:LOCAL -= 1
+		ELSE
+			LOCAL:10 = RAND:100
+			IF LOCAL:10 < 依頼完了確率_初期値:LOCAL
+				;依頼完了
+				SIF LOCAL:1
+					PRINTL
+				PRINTFORML %依頼受注者名:LOCAL% が %遂行中依頼:LOCAL% の依頼を達成したようだ！
+				CALLFORM 依頼完了時処理_%遂行中依頼:LOCAL%(LOCAL)
+				;登録情報をリセット
+				遂行中依頼:LOCAL = 
+				遂行中依頼_対象名:LOCAL = 
+				依頼受注者名:LOCAL = 
+				依頼残り期間:LOCAL = 0
+				依頼完了確率_初期値:LOCAL = 0
+				依頼完了確率_進数:LOCAL = 0
+				LOCAL:1 = 1
+			ELSE
+				;まだ完了しないので確率を上昇させておしまい
+				依頼完了確率_初期値:LOCAL += 依頼完了確率_進数:LOCAL
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+IF LOCAL:1
+	DRAWLINE
+	FORCEWAIT
+ENDIF
+
+;--------------------------------------------------------------------------------
+;リゾート人気度変動
+;--------------------------------------------------------------------------------
+LOCALS:1 = 
+LOCALS:2 = <br>
+人気度変動一時保存 = 0
+IF モブ観光客数 > 0
+	LOCALS:1 +=  "■本日のリゾート人気度変動<br>"
+	IF 人気度別施設充足度() > 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が十分あって楽しい！」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 人気度別施設充足度() * 1000
+	ELSEIF 人気度別施設充足度() < 0
+		LOCALS:1 += "モブ観光客「遊ぶ場所が足りないよ……」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 人気度別施設充足度() * 500
+	ENDIF
+
+	VARSET LOCAL
+	;雑務ゲージ平均値算出
+	FOR LOCAL, 1, マップ部屋番号上限
+		SIF LOCAL == 20
+			CONTINUE
+		SIF LOCAL > 2000
+			CONTINUE
+		IF 存在しない移動先(0, LOCAL) == 0
+			LOCAL:1 += 雑務ゲージ:LOCAL
+			LOCAL:2 += 1
+		ENDIF
+	NEXT
+	LOCAL:1 = LOCAL:1 / LOCAL:2
+	IF LOCAL:1 < 500
+		LOCALS:1 += "モブ観光客「雑務の対応が早くて快適だね」<br>"
+		LOCALS:2 += "人気度UP！<br>"
+		人気度変動一時保存 += 1000
+	ELSEIF LOCAL:1 < 2000
+	ELSEIF LOCAL:1 < 4000
+		LOCALS:1 += "モブ観光客「ちょっと雑務が溜まってるかな」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 1000
+	ELSEIF LOCAL:1 < 6000
+		LOCALS:1 += "モブ観光客「雑務が遅いのが気になるかも」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 3000
+	ELSEIF LOCAL:1 < 8000
+		LOCALS:1 += "モブ観光客「雑務、溜まりすぎじゃない？」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 5000
+	ELSE
+		LOCALS:1 += "モブ観光客「雑務が何も対応されてない！」<br>"
+		LOCALS:2 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 10000
+	ENDIF
+	
+	VARSET LOCAL
+	;魔物襲撃が残ってるかどうか
+	LOCAL:1 = DT_ROW_LENGTH("各イベント用変数配列")
+	FOR LOCAL, 0, LOCAL:1
+		IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "魔物襲撃"
+			IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+				;出現しているかつクリアしてない
+				LOCALS:1 += "モブ観光客「魔物が出てきて危ないぞ！！」<br>"
+				LOCALS:2 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				;再発生中
+				LOCALS:1 += "モブ観光客「魔物が出てきて危ないぞ！！」<br>"
+				LOCALS:2 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ENDIF
+		ENDIF
+	NEXT
+
+	LOCALS = <div width='4500' height='{STRCOUNT(LOCALS:1, "<br>") * 112 + 437}' border='31' bcolor='#C0C0C0'></div><div rect='94, 94, 3875, {STRCOUNT(LOCALS:1, "<br>") * 112}'>%LOCALS:1%</div><div rect='3750, 94, 700, {STRCOUNT(LOCALS:1, "<br>") * 112}'>%LOCALS:2%</div>
+	LOCALS += @"<div rect='94, {STRCOUNT(LOCALS:1, "<br>") * 112 + 125}, 4500, 250'>--------------------------------------------------------------------------------------<br>"
+	SKIPDISP 1
+	CALL 人気上昇処理(人気度変動一時保存)
+	SKIPDISP 0
+	LOCALS += @"リゾート人気度　　%リゾート人気度全文字列()%"
+	CALL 人気度上限算出()
+	IF リゾート人気度 >= RESULT / 1000
+		LOCALS += "　　　<font color='#C0C070'>上限到達</font>"
+	ENDIF
+	LOCALS += "</div>"
+	HTML_PRINT LOCALS, 1
+	FOR LOCAL, 0, STRCOUNT(LOCALS:1, "<br>") + 5
+		PRINTL
+	NEXT
+	FORCEWAIT
+ENDIF
+
+;--------------------------------------------------------------------------------
+;キャラ個別処理
+;--------------------------------------------------------------------------------
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	TRYCALLFORM DAYEND_CHARAEVENT_{NO:LOCAL}
+	;滞在中は信頼度がじわじわ上昇（初対面だと上昇しない）
+	IF 初体験日:LOCAL:初対面 > 0
+		SKIPDISP 1
+		CFLAG:LOCAL:信頼度 += 500
+		CALL FAVOR_LvUPCheck(LOCAL)
+		SKIPDISP 0
+	ENDIF
+NEXT
+
+;--------------------------------------------------------------------------------
+;縁結びの一日進行
+;--------------------------------------------------------------------------------
+CALL 縁結び進展処理()
+
+;--------------------------------------------------------------------------------
+;突発イベント再発生CT減少＆再発生判定
+;--------------------------------------------------------------------------------
+ループ用 = DT_ROW_LENGTH("各イベント用変数配列")
+
+FOR LOCAL, 0, ループ用
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率")
+	LOCAL:3 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
+	IF LOCAL:1 > 0
+		;CTが残ってる場合は１減らす
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+	ELSEIF LOCAL:3 == -2
+		;消失状態、かつ発生条件を満たす場合はRANDで再発生させる
+		RESULT = 0
+		TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		IF RESULT
+			LOCAL:10 = RAND:100
+			IF LOCAL:2 > LOCAL:10
+				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+			ENDIF
+		ENDIF
+	ENDIF
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅確率")
+	IF LOCAL:1 > 0
+		;CTが残ってる場合は１減らす
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", LOCAL:1 - 1
+	ELSEIF LOCAL:2 > 0
+		;現在出現中のものだけ消滅判定
+		IF (DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0) || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+			;消失確率がある場合はRANDで消失させる
+			LOCAL:10 = RAND:100
+			IF LOCAL:2 > LOCAL:10
+				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -1
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+
+
+
+;--------------------------------------------------------------------------------
+;輸入品店品揃え変動
+;--------------------------------------------------------------------------------
+CALL 輸入品店品揃え変動処理
+
+;変数初期化
+VARSET 解放キャラ招待
+モブ観光客数 = 0
+集客人数 = 0
+
+BEGIN ABLUP
+
+

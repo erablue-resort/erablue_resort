@@ -449,18 +449,14 @@ IF MOTHER == MASTER || FATHER == MASTER
 	CALL CHILDREN_NAMING_CHECK(DOMINANT, -1, 子供人数)
 	命名フラグ = RESULT
 ELSE
-	;あなたが親に含まれない場合は仲人か確認
-	;(汎用でアウトなら0が、口上でアウトなら-1が、許可なら1が帰って来る)
-	CALL IS_MATCHMAKER(MOTHER, FATHER)
-	;姓名診断士なら汎用条件はスキップして名付けに関われる
-	SIF あなた特殊能力:姓名診断士 && RESULT == 0
-		RESULT = 1
-	IF RESULT > 0
-		;仲人であればあなたも名付けに参加できる
+	;あなたが親に含まれない場合は名付け出来るか確認
+	CALL IS_NAMING(MOTHER, FATHER)
+	IF RESULT
+		;あなたも名付けに参加できる
 		CALL CHILDREN_NAMING_CHECK(MOTHER, FATHER, 子供人数)
 		命名フラグ = RESULT
 	ELSE
-		;仲人でなければあなたに名付け権利なし
+		;あなたに名付け権利なし
 		命名フラグ = 0
 	ENDIF
 ENDIF
@@ -552,15 +548,15 @@ SELECTCASE RESULT
 ENDSELECT
 
 
-;あなたが母親・父親の仲人であれば1を返す
-@IS_MATCHMAKER(PARENT:0, PARENT:1)
+;あなたが名付け権利を持つなら1を返す
+@IS_NAMING(PARENT:0, PARENT:1)
 #DIM PARENT, 2
 #DIM 口上判定, 2
 #DIM TMP_SELECT, 1
 
 ;異なる二人のキャラでなければならない
 SIF PARENT:0 < 0 || PARENT:1 < 0 || PARENT:0 == PARENT:1
-	RETURN -1
+	RETURN 0
 
 ;口上個別の条件を参照
 ; -1：他の条件を無視して仲人判定を失敗させる（最優先）
@@ -577,12 +573,16 @@ CATCH
 	口上判定:1 = 0
 ENDCATCH
 IF 口上判定:0 < 0 || 口上判定:1 < 0
-	RETURN -1
+	RETURN 0
 ELSEIF 口上判定:0 > 0 || 口上判定:1 > 0
 	RETURN 1
 ENDIF
 
 ;汎用条件
+;姓名診断士なら汎用条件はスキップして名付けに関われる
+SIF あなた特殊能力:姓名診断士
+	RETURN 1
+
 ;あなたが恋慕の縁結びをしたペアでなければダメ（関係性データベースではなく縁結びデータベースを見る）
 SIF DT_SELECT("縁結びデータベース", @"((対象キャラ１ = {CFLAG:(PARENT:0):人物番号} And 対象キャラ２ = {CFLAG:(PARENT:1):人物番号}) Or (対象キャラ１ = {CFLAG:(PARENT:1):人物番号} And 対象キャラ２ = {CFLAG:(PARENT:0):人物番号})) And 完遂フラグ = 1 And 縁結び種別 = '恋慕'", , TMP_SELECT) == 0
 	RETURN 0
