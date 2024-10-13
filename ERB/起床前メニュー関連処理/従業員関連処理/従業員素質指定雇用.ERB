@@ -556,27 +556,41 @@ SELECTCASE 表示モード
 		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
-		LOCALS += @"<br>　通常時奥義名："
-		IF ランダムキャラ奥義名:0 != ""
-			LOCALS += @"%ランダムキャラ奥義名:0% / \@ ランダムキャラ奥義名:1 != ""? %ランダムキャラ奥義名:1%# <font color='#888888'>%ランダムキャラ奥義名:0%＋</font> \@ / \@ ランダムキャラ奥義名:2 != ""? %ランダムキャラ奥義名:2%# <font color='#888888'>%ランダムキャラ奥義名:0%＋＋</font> \@"
-		ELSE
-			LOCALS += "<font color='#888888'>(汎用奥義)</font>"
-		ENDIF
-		LOCALS += @"<br>　陥落時奥義名："
-		IF ランダムキャラ奥義名:3 != ""
-			LOCALS += @"%ランダムキャラ奥義名:3% / \@ ランダムキャラ奥義名:4 != ""? %ランダムキャラ奥義名:4%# <font color='#888888'>%ランダムキャラ奥義名:3%＋</font> \@ / \@ ランダムキャラ奥義名:5 != ""? %ランダムキャラ奥義名:5%# <font color='#888888'>%ランダムキャラ奥義名:3%＋＋</font> \@"
-		ELSEIF ランダムキャラ奥義名:0 != ""
-			LOCALS += "<font color='#888888'>"
-			LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2661)% / \@ ランダムキャラ奥義名:1 != ""? %ランダムキャラ奥義名:1 + UNICODE(0x2661)%# %ランダムキャラ奥義名:0 + UNICODE(0x2665)% \@ / \@ ランダムキャラ奥義名:2 != ""? %ランダムキャラ奥義名:2 + UNICODE(0x2661)%# %ランダムキャラ奥義名:0 + UNICODE(0x2665)*2% \@"
-			LOCALS += "</font>"
-		ELSE
-			LOCALS += "<font color='#888888'>(陥落時汎用奥義)</font>"
-		ENDIF
+		LOCAL = 0
+		DO
+			IF LOCAL % 3 == 0
+				LOCALS += @"<br>　\@ LOCAL == 0? 通常# 陥落\@時奥義名："
+				IF ランダムキャラ奥義名:((LOCAL/3)*3) == "" && ランダムキャラ奥義名:0 == ""
+					LOCALS += @"<font color='#888888'>（汎用\@ LOCAL == 0? # 陥落時\@奥義）</font>"
+					LOCAL += 3
+					CONTINUE
+				ENDIF
+			ELSE
+				LOCALS += " / "
+			ENDIF
+			IF ランダムキャラ奥義名:LOCAL != "" 
+				LOCALS += @"%ランダムキャラ奥義名:LOCAL%"
+			ELSE
+				LOCALS += @"<font color='#888888'>"
+				IF LOCAL < 3 || ランダムキャラ奥義名:3 != ""
+					LOCALS += @"%ランダムキャラ奥義名:((LOCAL/3)*3) + "＋" * (LOCAL%3)%"
+				ELSEIF ランダムキャラ奥義名:(LOCAL-3) != ""
+					LOCALS += @"%ランダムキャラ奥義名:(LOCAL-3) + UNICODE(0x2661)%"
+				ELSEIF LOCAL > 3
+					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2665) * (LOCAL%3)%"
+				ELSE
+					;ここにはこないはず
+					LOCALS += @"分岐式おかしいよ"
+				ENDIF
+				LOCALS += @"</font>"
+			ENDIF
+			LOCAL ++
+		LOOP LOCAL < 6
 		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>出演作品：%ランダムキャラ出演作品%"
+			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
 		ENDIF
 		IF CSVエディタフラグ
-			LOCALS += @"<br>招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
 		ENDIF
 		LOCALS += "<br><br>"
 		LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
@@ -829,7 +843,7 @@ SELECTCASE 表示モード
 		DO
 			IF LOCAL % 3 == 0
 				LOCALS += @"<br>\@ LOCAL == 0? 通常# 陥落\@時奥義名："
-				IF ランダムキャラ奥義名:((LOCAL/3)*3) == ""
+				IF ランダムキャラ奥義名:((LOCAL/3)*3) == "" && ランダムキャラ奥義名:0 == ""
 					LOCALS += @"<font color='#888888'><button value='{11040 + LOCAL}'>（汎用\@ LOCAL == 0? # 陥落時\@奥義）</button></font>"
 					LOCAL += 3
 					CONTINUE
@@ -842,12 +856,15 @@ SELECTCASE 表示モード
 				LOCALS += @"%ランダムキャラ奥義名:LOCAL%"
 			ELSE
 				LOCALS += @"<font color='#888888'>"
-				IF LOCAL == 3  && ランダムキャラ奥義名:3 == ""
-					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2661)%"
-				ELSEIF LOCAL > 3 && ランダムキャラ奥義名:3 == ""
-					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2663) * (LOCAL%3)%"
-				ELSE
+				IF LOCAL < 3 || ランダムキャラ奥義名:3 != ""
 					LOCALS += @"%ランダムキャラ奥義名:((LOCAL/3)*3) + "＋" * (LOCAL%3)%"
+				ELSEIF ランダムキャラ奥義名:(LOCAL-3) != ""
+					LOCALS += @"%ランダムキャラ奥義名:(LOCAL-3) + UNICODE(0x2661)%"
+				ELSEIF LOCAL > 3
+					LOCALS += @"%ランダムキャラ奥義名:0 + UNICODE(0x2665) * (LOCAL%3)%"
+				ELSE
+					;ここにはこないはず
+					LOCALS += @"分岐式おかしいよ"
 				ENDIF
 				LOCALS += @"</font>"
 			ENDIF
