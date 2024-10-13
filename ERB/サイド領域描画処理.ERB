@@ -138,6 +138,36 @@ SELECTCASE サイド描画表示種類
 		;飲み会中は移動なし
 		SIF CFLAG:PLAYER:飲み会
 			RETURN 1
+		IF RESULTS == "サイド領域_自室に戻る"
+			;クイック移動処理
+			SIF CFLAG:MASTER:現在マップ種別 == 0 && CFLAG:MASTER:現在位置 == CFLAG:MASTER:自室位置
+				RETURN 1
+			IF CFLAG:PLAYER:現在マップ種別 == 0
+				RESULTS = サイド領域_{CFLAG:PLAYER:自室位置}
+			ELSE
+				;まずエリア移動
+				TFLAG:SELECTCOM受け渡し = 400
+				SELECTCOM = 400
+				IF CFLAG:MASTER:現在マップ種別 == 999
+					CFLAG:MASTER:現在マップ種別 = 0
+					IF 施設改造度:20:0
+						CFLAG:MASTER:現在位置 = 2001
+					ELSE
+						CFLAG:MASTER:現在位置 = 20
+					ENDIF
+				ELSE
+					TFLAG:エリア切り替え時_目的地格納 = 100
+					CALL COM400
+				ENDIF
+				;どっかで立ち止まったなら以降の処理キャンセル
+				SIF RFLAG:立ち止まらないフラグ < 0
+					RETURN 1
+				;次にエリア内移動
+				IF CFLAG:MASTER:自室位置 != CFLAG:MASTER:現在位置
+					RESULTS = サイド領域_{CFLAG:PLAYER:自室位置}
+				ENDIF
+			ENDIF
+		ENDIF
 		入力数値 = 0
 		入力数値 = TOINT(REPLACE(RESULTS, "サイド領域_", ""))
 		SIF 入力数値 == 0
@@ -245,13 +275,7 @@ ELSE
 			追加表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'>NEW！</font>"
 		ENDIF
 		追加表示文字列 += "</button>"
-		IF CFLAG:MASTER:現在マップ種別 == 0
-			IF 施設改造度:20:0
-				追加表示文字列 += "　　　<button value='サイド領域_2020'>[自室へ移動]</button>"
-			ELSE
-				追加表示文字列 += "　　　<button value='サイド領域_20'>[自室へ移動]</button>"
-			ENDIF
-		ENDIF
+		追加表示文字列 += "　　　<button value='サイド領域_自室に戻る'>[自室へ移動]</button>"
 		IF 簡易クイック表示
 			追加表示文字列 += "　　　<button value='サイド領域_簡易クイック表示'>[マップ表示へ]</button>"
 		ELSE
