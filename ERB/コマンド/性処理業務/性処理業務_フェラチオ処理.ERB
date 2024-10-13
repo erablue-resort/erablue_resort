@@ -1,5 +1,5 @@
 ﻿;-------------------------------------------------
-;定住の誘い
+;フェラチオ処理
 ;-------------------------------------------------
 @性処理NAME_フェラチオ処理
 #FUNCTIONS
@@ -49,10 +49,10 @@ SIF 同性愛性癖判定(PLAYER,TARGET)
 SIF 同性愛性癖判定(TARGET,PLAYER)
 	EXP:TARGET:同性愛経験 += 8
 
+;履歴登録はMESSAGEに移動
 IF CFLAG:TARGET:ファーストキスフラグ == 0
 	CFLAG:TARGET:ファーストキスフラグ = 11
 	RFLAG:コマンド結果受渡し変数３ = 1
-	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%の[陰茎]にファーストキスを捧げた</font><img src='えっちハート'>","うふふ")
 ENDIF
 
 ;売春経験がない相手に交渉を成立させた場合、あなたの買春カウントが進む
@@ -63,14 +63,13 @@ SIF EXP:TARGET:売春経験 == 0
 
 EXP:TARGET:売春経験 += 1
 
-
 RETURN 1
 
 
 @性処理_射精時処理_フェラチオ処理
 ;射精時にどこに出すかを呼び出す
 ;とはいってもフィニッシュ場所を入れて関数呼ぶだけ
-CALL 射精実処理(PLAYER, TARGET, 2)
+;CALL 射精実処理(PLAYER, TARGET, 2)
 RETURN 1
 
 
@@ -85,39 +84,203 @@ RETURN 1
 PRINTFORML フェラチオ処理計算(%CALLNAME:TARGET%)
 DRAWLINE
 
+;価格設定は基本的にクンニと同じ
+
 ;基礎値段
 値段計算 = 30000
 PRINTFORML %"基礎値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
-
+;基礎値段
+IF NO:TARGET > 1000
+;EXキャラ
+;元いた世界でのカラダの価値はわかっても、空の世界での売春相場を知らない。おまけにルピもたいして持ってないのでまとまったお金がありがたい。
+;現実の一般JKが空の世界に来て1万円のつもりで1000ルピでカラダを売るイメージ。総じてリゾート内の価格帯から見ると格安。
+;……グラブルキャラたちの基本料金が高いだけ？それはそう。
+	SELECTCASE RAND:2
+	CASE 0
+	;15000円のつもり。これでもちょっと吹っ掛けたつもりで強気の値段交渉してる。
+		値段計算 = 1500
+	CASE 1
+	;5000円のつもり。これでも相場よりちょい高めのつもりで値段交渉してる。
+		値段計算 = 1000
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:幼稚
+	;幼稚
+	;性知識うんぬん以前に、そもそもお金の価値に対する理解が足りていない。
+	;自分のカラダの価値も理解していないので、「お菓子いっぱいあげるから」とかでも許しちゃったりするイメージ。でも値段表示する仕様上お菓子たくさんとかでは買えない。
+	;本人は精一杯吹っ掛けているつもりで「じゅーまんえんくれるならいいよ」って言っても、他キャラの相場から見れば格安だったりする。
+	;でもちょいちょい「ひゃくまんえん！」とか言いはじめる。
+	SELECTCASE RAND:10
+	;４割で超高額提示
+	CASE 0
+		PRINTFORML %"基本料金", 25, LEFT%：　じゅーまんルピ！
+		値段計算 = 100000
+	CASE 1 TO 3
+		PRINTFORML %"基本料金", 25, LEFT%：　いちまんルピ！
+		値段計算 = 10000
+	CASE 4 TO 8
+		PRINTFORML %"基本料金", 25, LEFT%：　せんルピ！
+		値段計算 = 1000
+	CASE 9
+		PRINTFORML %"基本料金", 25, LEFT%：　ひゃくルピでいいよ！
+		値段計算 = 100
+	ENDSELECT
+ELSEIF 知識素質:高貴 > 0
+;高貴
+;基本的に実家が太い子らなので、そもそも目先の金銭のために体を売っているわけではない。
+;お金が欲しいからではなくあなたが頼むから、あなたに喜んでんでほしいから売ってくれているのである。つまり純愛。
+	IF 知識素質:性知識 < 0
+	;性知識がなくとも、自身のカラダは民草のそれよりも価値があるということを知っている。
+	;……のだが、相場知識がないため結局吹っ掛けたつもりでも高貴キャラとしてはお安めの価格設定
+		値段計算 = 5000
+	ELSE
+	;王侯貴族に連なるような高貴なおくちを10万円で堪能できると考えるとこれでも結構リーズナブル。良心的な価格設定でございます。
+		値段計算 = 10000
+	ENDIF
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF 知識素質:性知識 < 0
+;性知識マイナス勢
+;お金の価値が分からないわけではないが、カラダの価値の相場を知らないので直感的にいま欲しい金額を言ってくる。
+;幼稚ほどブッ飛んだ値段は提示してこないが結局値段はブレる。
+	SELECTCASE RAND:4
+	;４割で高額提示
+	CASE 0
+		値段計算 = 10000
+	CASE 1
+		値段計算 = 5000
+	CASE 2
+		値段計算 = 3000
+	CASE 3
+		値段計算 = 2000
+	CASE 4
+		値段計算 = 1000
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:非戦闘キャラ
+;非戦闘キャラは、「戦うことで稼げる」キャラより相対的に肉体の価値が安く、「カラダを売って稼ぐ」ことへの抵抗感が戦闘キャラより薄いイメージ
+	値段計算 = 2000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:性転換 == 2
+;元男だと嫌がって値段を高めに設定する(でも結局買われてしゃぶらされてしまう)
+	値段計算 = 5000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSE
+;「基本的にみんな美女である」「普段売っていないので市場価値が高い」「戦闘能力のあるキャラは相応のプライドというものがある」などの理由から
+;補正抜きで3000ルピ≒3万円とする。ここに素質で補正がかかり、地の文や口上でのプレイ内容に応じてオプションが上乗せされていく。
+;さすがにフェラで30万円は高すぎるんよ……3万ですらかなり高いのに
+	値段計算 = 3000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ENDIF
 
 ;好感度
-LOCAL = (80 - CFLAG:好感度レベル) * -100
+;好感度閾値の表現からして、親友あたりからお友達料金にしてくれるんじゃないかなと
+LOCAL = (50 - CFLAG:好感度レベル) * -10
 IF LOCAL < 0
-	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"好感度補正", 16, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
-	RESETCOLOR
+	IF CFLAG:好感度レベル <= 20
+	;友達未満だと大きく値上げ。初対面で2万円上乗せされるイメージ。普段身売りしてない美女に値段交渉するんだからそんくらい吹っ掛けてきてもおかしくないと思う。なお従業員採用に必要な好感度……
+		PRINTFORML %"まだ親しくない", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -4), 8%ルピ
+		値段計算 -= LOCAL * 4
+	ELSE
+	;ただの友達だと若干の値上げ。値上げっていうかここまで含めて基本料金みたいなとこがある
+		PRINTFORML %"ただの友達", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
+		値段計算 -= LOCAL
+	ENDIF
 ELSE
-	PRINTFORML %"好感度補正", 16, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+	;親友以上で値下げしてくれる。基本料金3万円で、好感度100で500ルピ≒5000円引きならまぁ妥当っちゃ妥当か
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"お友達料金", 25, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+	RESETCOLOR
+	値段計算 -= LOCAL
 ENDIF
-値段計算 -= LOCAL
+
+;容姿
+IF TALENT:容姿 == -1
+;あなたがブサイクの場合。あえてつけてる素質のはずだけど、ストレートに「醜い」だの「ブサイク」だの書くとプレイヤーの心にトゲが刺さりそうなため表現はマイルドに
+;ブサイクに対する奉仕行為はプライドが傷つくだろうから値段高め
+	値段計算 += 1000
+	PRINTFORML %"好みの顔じゃない", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 1
+;イケメン
+	値段計算 -= 100
+	PRINTFORML %"顔がいい", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 2
+;絶世。
+	値段計算 -= 200
+	PRINTFORML %"めっちゃ顔がいい！", 25, LEFT%：－%NUM_FORMAT(200), 8%ルピ
+ENDIF
 
 ;体力
+;疲れてる時に顎とか疲れそうな奉仕を頼まれたら当然吹っ掛ける
 IF BASE:TARGET:体力 < MAXBASE:TARGET:体力 / 4
-	値段計算 += 1500
+	値段計算 += 3000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"体力低下", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	PRINTFORML %"体力低下", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
 	RESETCOLOR
 ENDIF
-;酩酊
-IF BASE:酩酊 > MAXBASE:酩酊 / 2
-	値段計算 -= 500
-	PRINTFORML %"酩酊", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+
+;酩酊は値段ではなくむしろ実行判定にかかわったほうがいい気がするので移動。
+;「安く売ってしまう」よりも、「ね、いいでしょ？」ってあなたのお願いに頷いてしまうほうがイメージに近い。
+
+;ファーストキス
+;使い切りの付加価値なので基本料金よりも値が張る
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	IF NO:TARGET > 1000
+	;空の相場を知らずに安売りしてしまう哀れなEX娘たち。鮫トレ最高！
+		値段計算 += 1000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"ファーストキス", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+		RESETCOLOR
+	ELSEIF 知識素質:高貴 > 0
+	;高貴
+	;ロイヤルキッス100まんえん
+		値段計算 += 100000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"高貴な唇の純潔", 25, LEFT%：＋%NUM_FORMAT(100000), 8%ルピ
+		RESETCOLOR
+	ELSEIF TALENT:プライド > 0
+	;プライド高い
+	;基本料金と合わせて10万円になる計算
+		値段計算 += 7000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"ファーストキス", 25, LEFT%：＋%NUM_FORMAT(7000), 8%ルピ
+		RESETCOLOR
+	ELSEIF TALENT:プライド < 0
+	;プライド低い
+	;自己評価が低いため、基本料金の倍額貰えればいいやと思っている
+		値段計算 += 3000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"ファーストキス", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 4000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"ファーストキス", 25, LEFT%：＋%NUM_FORMAT(4000), 8%ルピ
+		RESETCOLOR
+	ENDIF
 ENDIF
 
-IF CFLAG:TARGET:ファーストキスフラグ == 0
-	値段計算 += 30000
-	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"ファーストキス", 16, LEFT%：＋%NUM_FORMAT(30000), 8%ルピ
+;恋人持ち
+IF TALENT:恋人持ち == 2
+	値段計算 += 1500
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"伴侶がいる", 25, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF TALENT:恋人持ち == 1
+	値段計算 += 1000
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"恋人がいる", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF TALENT:恋人持ち == -1
+;別に恋人になってるワケでもないのに「好きな人がいるから」ってだけで生意気にも値段を釣り上げてくるし、上昇幅は恋人持ちと同じ。
+;「ゆ、許せねぇよ……絶対買って俺のものにしてやる……！」
+;＊ あなたにケツイがみなぎった。
+	値段計算 += 1000
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"好きな人がいる", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
 	RESETCOLOR
 ENDIF
 
@@ -133,101 +296,162 @@ IF 同性愛性癖判定(TARGET,PLAYER) == 1
 		CASE 1
 			;補正なし
 		CASE 2
-			値段計算 -= 1000
-			PRINTFORML %@"%素質名%(愛好)", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+			値段計算 -= 100
+			PRINTFORML %@"%素質名%(愛好)", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 		CASE 3
-			値段計算 -= 2500
-			PRINTFORML %@"%素質名%(中毒)", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+			値段計算 -= 250
+			PRINTFORML %@"%素質名%(中毒)", 25, LEFT%：－%NUM_FORMAT(250), 8%ルピ
 		CASEELSE
 			;好奇心
 			IF TALENT:性的興味 > 0
-				値段計算 -= 500
-				PRINTFORML %@"好奇心(%素質名%)", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+				値段計算 -= 50
+				PRINTFORML %@"好奇心(%素質名%)", 25, LEFT%：－%NUM_FORMAT(50), 8%ルピ
 			ENDIF
 			;保守的
 			IF TALENT:性的興味 < 0
-				値段計算 += 1500
+				値段計算 += 150
 				SETCOLOR カラーパレット("薄ピンク")
-				PRINTFORML %@"保守的(%素質名%)", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+				PRINTFORML %@"保守的(%素質名%)", 25, LEFT%：＋%NUM_FORMAT(150), 8%ルピ
 				RESETCOLOR
 			ENDIF
 	ENDSELECT
 ENDIF
 
+
 ;気丈
+;「物怖じせず値段交渉に臨む」とするなら基本料金の一割増しくらいで吹っ掛けそう
 IF TALENT:度胸 > 0
-	値段計算 += 500
+	値段計算 += 300
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"気丈", 16, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	PRINTFORML %"気丈", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;臆病
+;気丈の逆で「高値を吹っ掛けて値段交渉するのが苦手」とするならば一割くらいまけてくれないかな……
 IF TALENT:度胸 < 0
-	値段計算 -= 500
-	PRINTFORML %"臆病", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+	値段計算 -= 300
+	PRINTFORML %"臆病", 25, LEFT%：－%NUM_FORMAT(300), 8%ルピ
 ENDIF
+
+;プライド
+;処女のとこでも参照しているが、こちらは基本料金にかかるので別枠。
 ;プライド高い
 IF TALENT:プライド > 0
-	値段計算 += 1500
+	値段計算 += 300
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"プライド高い", 16, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	PRINTFORML %"プライド高い", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
 	RESETCOLOR
 ENDIF
 ;プライド低い
 IF TALENT:プライド < 0
-	値段計算 -= 1000
-	PRINTFORML %"プライド低い", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
-ENDIF
-;弱味
-IF TALENT:弱味
-	値段計算 -= 2000
-	PRINTFORML %"弱味", 16, LEFT%：－%NUM_FORMAT(2000), 8%ルピ
+	値段計算 -= 150
+	PRINTFORML %"プライド低い", 25, LEFT%：－%NUM_FORMAT(150), 8%ルピ
 ENDIF
 
 ;謎の魅力
 IF TALENT:PLAYER:謎の魅力
-	値段計算 -= 1000
-	PRINTFORML %"謎の魅力", 16, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
+	値段計算 -= 100
+	PRINTFORML %"謎の魅力", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
 
 ;ABL:奉仕精神
+;行為が奉仕そのものであるため金額に対する奉仕精神の影響がでかい
 IF ABL:奉仕精神
 	値段計算 -= ABL:奉仕精神 * 200
-	PRINTFORML %"奉仕精神", 16, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 200), 8%ルピ
+	PRINTFORML %"奉仕精神", 25, LEFT%：－%NUM_FORMAT(ABL:奉仕精神 * 200), 8%ルピ
 ENDIF
+
 ;汚臭鈍感
+;鈍感だろうと奉仕内容自体に変わりはないので大した値引きにはならない
 IF TALENT:汚臭耐性 > 0
-	値段計算 -= TALENT:汚臭耐性 * 500
-	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
+	値段計算 -= TALENT:汚臭耐性 * 50
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 25, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 50), 8%ルピ
 ENDIF
 ;汚臭敏感
 IF TALENT:汚臭耐性 < 0
-	値段計算 += TALENT:汚臭耐性 * 10000
-	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 16, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 10000), 8%ルピ
+	値段計算 += TALENT:汚臭耐性 * 200
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性), 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 200), 8%ルピ
 	RESETCOLOR
 ENDIF
+
 ;献身的
 IF TALENT:献身的
-	値段計算 -= 500
-	PRINTFORML %"献身的", 16, LEFT%：－%NUM_FORMAT(500), 8%ルピ
+	値段計算 -= 1000
+	PRINTFORML %"献身的", 25, LEFT%：－%NUM_FORMAT(1000), 8%ルピ
 ENDIF
-;男嫌い
-IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+
+;貞操観念による売春への抵抗感。これは値段高めのほうが「らしさ」が出る
+IF TALENT:貞操 == 1
+	値段計算 += 3000
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"貞操観念", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;女嫌い
+IF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
 	値段計算 += 2000
 	SETCOLOR カラーパレット("薄ピンク")
-	PRINTFORML %"男嫌い", 16, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+	PRINTFORML %"女嫌い", 25, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
 	RESETCOLOR
+ENDIF
+
+;この時点で値段がマイナスになっていた場合、強制的に0まで戻す。買ってるはずなのに買われてんじゃねぇ！
+SIF 値段計算 < 0
+	値段計算 = 0
+
+DRAWLINE
+;割引クーポンはひとつまでです！
+PRINTFORML 割引き
+IF TALENT:対象キャラ:恋慕
+;恋慕は完全無料
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 *= 0
+ELSEIF TALENT:対象キャラ:弱味
+;弱みを握ってはした金で体を売らせたい！という鉄の意志
+;せっかく値段が出るんだしタダで抱かせてもらうよりも「100円で買ってあげた」みたいののほうが尊厳を性的搾取できている感が出るので
+;本来は30,000ルピ……ですが！なんと！今回に限り！お客様だけに！99%オフの300ルピで！！のほうが絶対にシコれる。古事記にもそう書かれている。
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORM %"弱み", 25, LEFT%：　　　　　99％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 /= 100
+;ELSEIF TALENT:金欠 || TALENT:貧乏
+;お金に困っているときはちょっとお安くなるが、発情期のムラムラは値段に適用されなくなる。買っては欲しいがお金も欲しいため。
+;	SETCOLOR カラーパレット("薄ピンク")
+;	PRINTFORM %"金欠中", 25, LEFT%：　　　　　25％オフ
+;	CALL PRINT_STRL(@"_H_")
+;	RESETCOLOR
+;	値段計算 /= 4 *= 3
+ELSEIF CFLAG:TARGET:発情期フラグ < 0 && BASE:TARGET:性欲 >= 500
+;発情期
+	IF BASE:TARGET:性欲 >= 1000
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　30％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 7
+	ELSE
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　10％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 9
+	ENDIF
 ENDIF
 DRAWLINE
 値段計算 = MAX(0, 値段計算)
-IF TALENT:対象キャラ:恋慕
-	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ　＞　恋慕により無料
-	RETURN -1
-ELSEIF 値段計算 > 0
-	PRINTFORML %"合計値段", 16, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+IF 値段計算 > 0
+	PRINTFORML %"合計値段", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ELSE
-	PRINTFORML %"合計値段", 16, LEFT%：　%"無料", 8%
+	PRINTFORM %"合計値段", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
 ENDIF
 
 RETURN 値段計算
@@ -256,6 +480,15 @@ ENDIF
 IF CFLAG:TARGET:ファーストキスフラグ == 0
 	補正後好感度 -= 20
 ENDIF
+;経験があなたを強くする
+LOCAL = EXP:PLAYER:買春経験
+補正後好感度 += LOCAL
+IF あなた特殊能力:ルピえっち交渉術
+;口がうまくなったことで未陥落の一般客に通りやすくなった、ということで補正をかけておく。習得にかかった労力ぶんのリワード。
+;だ、だって……パパ活って一期一会みたいなイメージだし……好感度高くなくても通るイメージだし……
+;かわりに低好感度だと補正によってルピ消費ががっつり増える。
+	補正後好感度 += 50
+ENDIF
 TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_フェラチオ処理(TARGET, 補正後好感度)
 	補正後好感度 = RESULT
 CATCH
@@ -270,23 +503,1025 @@ RETURN 1
 ;-------------------------------------------------
 
 @MESSAGE_性処理_フェラチオ処理
+#DIM 対象キャラ
+
+対象キャラ = TARGET
 
 PRINTFORM %CALLNAME:TARGET%は
 IF TALENT:TARGET:恋慕
-	PRINTFORM 愛おしそうに%CALLNAME:PLAYER%を見つめながら
+	PRINTFORM 求められるのが嬉しいのか笑顔で
+ELSEIF TALENT:TARGET:弱味 || (TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1)
+;これだけ露骨に浮かぶバリエーションが多い……なんでやろな？
+	PRINTFORM %TEXTR("渋々といった感じで/嫌そうに顔をしかめながらも渋々/不快そうに眉をひそめながらも渋々/嫌そうにこちらを睨みつけながらも渋々")%
+ELSEIF TALENT:TARGET:恋人持ち == 3
+	PRINTFORM 今は亡き伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 2
+	PRINTFORM 伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 1
+	PRINTFORM 恋人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == -1
+	PRINTFORM 想い人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:精神的余裕 == 2
+	PRINTFORM はしたないとため息をつきながらも
+ELSEIF TALENT:TARGET:ギャル
+	PRINTFORM あっけらかんと
 ELSEIF TALENT:TARGET:羞恥心
-	PRINTFORM 顔を真っ赤にしながら
+	PRINTFORM %TEXTR("顔を真っ赤にし/恥じらって俯き")%ながら
 ELSEIF TALENT:TARGET:性的興味
-	PRINTFORM 興味しんしんな様子で
+	PRINTFORM %TEXTR("興味しんしんな/期待に満ちた")%様子で
+ELSEIF TALENT:TARGET:性欲 <= -1
+	PRINTFORM あくまで事務的に
 ELSEIF TALENT:TARGET:セフレ
-	PRINTFORM %CALLNAME:PLAYER%の反応を面白がりながら
+	PRINTFORM ニヤニヤとからかうような笑みを浮かべて
 ELSE
-	PRINT 事務的な様子で
+	PRINTFORM 恥じらいながらも
 ENDIF
-SIF RFLAG:コマンド結果受渡し変数３
-	PRINT キスも済ませていない唇を使い、
-
-PRINTFORM %CALLNAME:PLAYER%のペニスを咥え、射精まで導いた。
+PRINTFORMW %TEXTR("了承/承諾")%し、%CALLNAME:PLAYER%%TEXTR("と手近な物陰へと隠れた/を近くの物陰へと導いた/に連れられて近くの物陰に隠れた")%……
 PRINTL
-PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２)% - %NUM_FORMAT(RFLAG:コマンド結果受渡し変数２)% = %NUM_FORMAT(MONEY)%ルピ
+PRINTFORMW ────
+PRINTL
+;履歴
 
+IF RFLAG:コマンド結果受渡し変数３ == 1
+	;ファーストキス
+	IF RFLAG:コマンド結果受渡し変数 == 1
+	;うまいこと思いつかないので完成度が低い
+		CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>キスもまだだった%CALLNAME:TARGET%に、本人の好意で無料でその唇を%CALLNAME:PLAYER%の[ペニス]に捧げてもらった</font><img src='えっちハート'>","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>初めてのキスを%CALLNAME:PLAYER%の[ペニス]に捧げた</font><img src='えっちハート'>","うふふ実績")
+	ELSEIF TALENT:対象キャラ:弱味
+	;弱味想定。いつか必要になるかもしれないし……
+		CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>弱みを握った%CALLNAME:TARGET%のキスもまだだった唇を{RFLAG:コマンド結果受渡し変数２}ルピも出して買ってやり、その純潔を%CALLNAME:PLAYER%の[ペニス]で穢してやった</font><img src='えっちハート'>","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に弱みを握られてたった{RFLAG:コマンド結果受渡し変数２}ルピでクンニさせられ、初めてのキスを%CALLNAME:PLAYER%の[ペニス]に捧げさせられてしまった</font><img src='えっちハート'>","うふふ実績")
+	ELSE
+		CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>キスもまだしたことがなかった%CALLNAME:TARGET%に、{RFLAG:コマンド結果受渡し変数２}ルピでフェラしてもらった</font><img src='えっちハート'>","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>キスもまだしたことがなかったのに、%CALLNAME:PLAYER%に{RFLAG:コマンド結果受渡し変数２}ルピでフェラさせられて初めてのキスを%CALLNAME:PLAYER%の[ペニス]に捧げた</font><img src='えっちハート'>","うふふ実績")
+	ENDIF
+ELSEIF RFLAG:コマンド結果受渡し変数 == 1
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>仕事の体裁をとりながらも、結局無料で%CALLNAME:TARGET%にフェラしてもらった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>大好きな%CALLNAME:PLAYER%に、無料でフェラチオしてあげた</font><img src='えっちハート'>","うふふ実績")
+ELSEIF TALENT:対象キャラ:弱味
+	;弱味想定。いつか必要になるかもしれないし……
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>弱みを握った%CALLNAME:TARGET%の唇を{RFLAG:コマンド結果受渡し変数２}ルピも出して買って、チンポをしゃぶらせてやった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に弱みを握られて、たった{RFLAG:コマンド結果受渡し変数２}ルピでフェラさせられてしまった</font><img src='えっちハート'>","うふふ実績")
+ELSE
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%の唇を{RFLAG:コマンド結果受渡し変数２}ルピで買い、フェラしてもらった</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に{RFLAG:コマンド結果受渡し変数２}ルピでフェラしてあげた</font><img src='えっちハート'>","うふふ実績")
+ENDIF
+
+@MESSAGE_性処理_フェラチオ処理_非口上時
+#DIM 対象キャラ
+#DIM 値段計算
+#DIM オプション込み最終価格
+#DIM イヤイヤ
+#DIM チン嗅ぎ
+#DIM チンポに頬擦り
+#DIM チンキス
+#DIM 射精煽り
+#DIM 顔にぶっかけ
+#DIM ほっぺたティッシュ
+#DIM 精液ごっくん
+#DIM 口内射精
+#DIM 喉奥イラマ射精
+#DIM 床掃除
+#DIM ザーメンゲップ
+
+対象キャラ = TARGET
+
+イヤイヤ = 0
+チン嗅ぎ = 0
+チンポに頬擦り = 0
+チンキス = 0
+射精煽り = 0
+顔にぶっかけ = 0
+ほっぺたティッシュ = 0
+精液ごっくん = 0
+口内射精 = 0
+喉奥イラマ射精 = 0
+床掃除 = 0
+ザーメンゲップ = 0
+
+IF TALENT:TARGET:弱味 || (TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別嗜好 == 1) || TALENT:TARGET:恋人持ち >= 1 || TALENT:TARGET:恋人持ち == -1
+	イヤイヤ = 1
+ENDIF
+
+
+PRINTFORML 物陰でしゃがんだ%CALLNAME:TARGET%の目の前に、%CALLNAME:PLAYER%は勃起したチンポを突き付ける。
+SELECTCASE TALENT:PLAYER:男性器サイズ
+CASE -2 TO -1
+;こどもちんこ
+IF TALENT:TARGET:弱味 && 陥落チェック(TARGET) >= 1
+;弱みに付け込むと反撃にバカにされる。面倒なので陥落チェックだけ除外
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたかわいらしいサイズのペニスを見て、蔑むように%TEXTR("くすくすと/くすりと")%笑った。
+ELSE
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたかわいらしいサイズのペニスを見て、からかうように%TEXTR("くすくすと/くすりと/ニヤニヤと")%笑った。
+ENDIF
+CASE 0
+;普通
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出されたペニスにわずかにたじろいだ。
+CASE 1
+;巨根
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出された巨根に%TEXTR("息を呑んで/ごくりと生唾を飲み")%、震える喉から熱い吐息を漏らした。
+CASE 2
+;規格外
+	PRINTFORML %CALLNAME:TARGET%は目の前に突き出された規格外な巨根の威容に圧倒され、%TEXTR("震える喉から熱い吐息を漏らした/ごくりと生唾を飲んだ")%。
+ENDSELECT
+PRINTL
+
+IF RAND:2 == 0
+	;チン嗅ぎ
+	IF 陥落チェック(TARGET)
+		PRINTFORM 突き付けられたチンポを前に、%CALLNAME:TARGET%は%TEXTR("根元に顔をうずめ、/亀頭に顔を近づけて/竿に鼻を擦りつけるようにして")%
+		CALL PRINT_STR(@"すんすん_H_")
+		PRINTFORM と鼻を鳴らしてにおいを嗅ぐと、
+		IF RAND:2 == 0
+			PRINTFORML %TEXTR("愛おしそうに/誘惑するよう上目遣いに目配せして")%チンポに頬擦りした。
+			チンポに頬擦り = 1
+		ELSE
+			CALL PRINT_STR(@"ちゅっ_H_")
+			PRINTFORML と小さく音を立てて亀頭にキスしてくれた。
+			チンキス = 1
+		ENDIF
+	ELSEIF TALENT:TARGET:弱味 || (TALENT:PLAYER:性別 == 2 && TALENT:TARGET:性別嗜好 == 1) || TALENT:TARGET:恋人持ち >= 1 || TALENT:TARGET:恋人持ち == -1
+		IF TALENT:種族 == 2 || TALENT:種族 == 3
+			PRINTFORML フェラの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は嫌そうに顔を顰めたが、
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORM と鼻を鳴らしてにおいを嗅ぐうちに%CALLNAME:TARGET%はにおいに当てられてすっかり欲情し、目を
+			CALL PRINT_STR(@"とろん_H_")
+			PRINTFORML と蕩けさせて%CALLNAME:PLAYER%の股間で深呼吸を繰り返した……。
+			BASE:TARGET:性欲 += 400
+		ELSE
+			PRINTFORM フェラの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は嫌そうに顔を顰めながらも
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORML と鼻を鳴らしてにおいを嗅いだ。
+		ENDIF
+	ELSE
+		IF TALENT:種族 == 2 || TALENT:種族 == 3
+			PRINTFORML フェラの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は最初こそ躊躇っていたものの、
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORM と鼻を鳴らしてにおいを嗅ぐうちに%CALLNAME:TARGET%はにおいに当てられてすっかり欲情し、目を
+			CALL PRINT_STR(@"とろん_H_")
+			PRINTFORML と蕩けさせて%CALLNAME:PLAYER%の股間で深呼吸を繰り返した……。
+			BASE:TARGET:性欲 += 400
+		ELSE
+			PRINTFORM フェラの前に突き付けたチンポをよく嗅ぐよう言いつけると、%CALLNAME:TARGET%は躊躇いながらも
+			CALL PRINT_STR(@"すんすん_H_")
+			PRINTFORML と鼻を鳴らしてにおいを嗅いだ。
+		ENDIF
+	ENDIF
+	チン嗅ぎ = 1
+ENDIF
+PRINTW
+IF ABL:TARGET:技巧 <= 1
+;相手が低技巧の場合ここにしか分岐しない
+	PRINTFORML %CALLNAME:PLAYER%が促すと、躊躇いがちに口を開けた%CALLNAME:TARGET%の舌が亀頭に触れ、小さく水音をたててフェラチオが開始される。
+	PRINTL
+	IF RAND:2 == 0
+		PRINTFORM 亀頭を浅く咥えてくぐもった声を漏らしながら、確かめるように上目遣いでぎこちなく前後に顔を動かすだけの
+	ELSE
+		PRINTFORM 上目遣いに%CALLNAME:PLAYER%の顔を伺いながら、ちろちろと舌で舐めちゅぱちゅぱと亀頭に吸い付くばかりの
+	ENDIF
+	PRINTFORML %CALLNAME:TARGET%のフェラチオは、
+	PRINTFORML こういったことに不慣れな%CALLNAME:TARGET%を穢しているようでシチュエーション自体は興奮するものの、%TEXTR("あまりに拙すぎて/刺激が足りなさ過ぎて")%%TEXTR("全然気持ちよくない/絶頂までは程遠い/射精するには程遠い")%。
+	PRINTL
+	PRINTFORML このままではいつまで経ってもイけそうにない。
+	PRINTFORM 仕方がないので%CALLNAME:PLAYER%は%CALLNAME:TARGET%の
+	IF TALENT:角あり 
+		PRINTFORM 角
+	ELSE
+		PRINTFORM 頭
+	ENDIF
+	PRINTFORMW を掴み、自分勝手に気持ちよくなるためにその口を使わせてもらうことにした。
+	PRINTL
+	PRINTFORML 唾液のぬめりに任せて腰を振り温かな口腔を蹂躙すると、えずくような苦しげな呻き声がチンポに響いて腹の底から射精感を押し上げてくる。
+	PRINTFORML ────どこに射精しようか？
+	PRINTL
+	PRINTBUTTON "[0] 顔にぶっかける", 0
+	PRINTL
+	PRINTBUTTON "[1] 口の中にぶちまける", 1
+	PRINTL
+	PRINTBUTTON "[2] 喉奥に注ぎこむ", 2
+	PRINTL
+	BINPUT
+	SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 射精の間際、%CALLNAME:PLAYER%は%CALLNAME:TARGET%の口からチンポを引き抜き、その端正な顔に狙いを定めた。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+		IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+			PRINTW
+			PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+			PRINTFORMW ファンの誰もが求めただろう彼女の閉じたまぶたを、髪を、唇を。べっとりとねばつく%CALLNAME:PLAYER%の欲望がどろどろに穢していった……。
+		ELSE
+			PRINTL
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢していった……。
+		ENDIF
+		PRINTL 
+		PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が亀頭の残り汁を%CALLNAME:TARGET%の柔らかな%TEXTR("頬/ほっぺた")%で拭い終えると、
+		PRINTFORML 精液にまみれた%CALLNAME:TARGET%は目を開け、立ち込める精臭の中で精液を拭った……。
+		PRINTL
+		顔にぶっかけ = 1
+		ほっぺたティッシュ = 1
+		RFLAG:フィニッシュ場所 = 5
+		CALL SHOOT_PALAM_5(PLAYER, TARGET)
+	CASE 1
+		PRINTFORMW %CALLNAME:PLAYER%はがっちりと%CALLNAME:TARGET%の頭を掴んだまま、その口の中に精液をコキ捨てることにした。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORML 温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+		IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+			PRINTW
+			PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+			PRINTL
+			PRINTFORML ファンの誰もが求めただろう彼女の、愛や友情を歌うその清らかな口を、今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めて。
+			PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%のザーメンが、%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、彼女の歌を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%のニオイに染めていった……。
+		ELSE
+			PRINTL
+			PRINTFORMW べっとりとねばつくザーメンが%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、味覚を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%の味に染めていった……。
+		ENDIF
+		PRINTL 
+		PRINTFORM %CALLNAME:TARGET%の頭を掴んだまま尿道に残った最後の一滴まで吸い出すよう言いつけると、%CALLNAME:TARGET%は
+		PRINTFORML 懸命に%CALLNAME:PLAYER%のペニスを吸い上げ、
+		CALL PRINT_STR(@"ちゅぽっ_H_")
+		SELECTCASE RAND:8
+		CASE 0 TO 1
+			IF ABL:PLAYER:サド性感 >= 2
+				PRINTFORML と吸いついた唇を離すと、げほげほとむせながら口の中に溜まったものを床に吐き出した。
+				PRINTL
+				PRINTFORML 苦しかったのだろう。目尻に涙を浮かべ荒く息をついている%CALLNAME:TARGET%には悪いが……当リゾートの床を汚した責任は取ってもらわねばならない。
+				PRINTFORML %CALLNAME:PLAYER%が%CALLNAME:TARGET%を𠮟りつけ、吐き出した精液をきちんと%TEXTR("『飲み干す』/舌で綺麗に『掃除』する")%よう言いつけると、
+				PRINTFORM %CALLNAME:TARGET%は
+				IF ABL:マゾ性感 >= 2
+					PRINTFORM 屈辱に続々と身を震わせながら媚びた目で%CALLNAME:PLAYER%を見上げ、その場に身をかがめ
+				ELSEIF TALENT:プライド >= 1 || 知識素質:高貴 > 0 || TALENT:度胸 >= 1 || TALENT:態度 >= 1 || TALENT:弱味 || TALENT:汚臭耐性 <= -1
+					PRINTFORM 屈辱に%CALLNAME:PLAYER%を睨みつけながらも渋々その身をかがめ、
+				ELSE
+					PRINTFORM 屈辱に涙をこぼしながらその身をかがめ、
+				ENDIF
+				IF RAND:2 == 0
+					PRINTFORML 床の精液だまりに舌を伸ばして、
+					CALL PRINT_STR(@"ぴちゃ……_H_ぴちゅ……_H_")
+					PRINTFORML と小さく水音を立てながら%CALLNAME:PLAYER%の精液を懸命に舐めとった……。
+				ELSE
+					PRINTFORML 床の精液だまりに唇をつけ、
+					CALL PRINT_STR(@"じゅぞぞぞっ_H__H_")
+					PRINTFORML といやらしい音を立てて%CALLNAME:PLAYER%の精液をすすり上げ、懸命に飲み下した……。
+					PRINTL
+				ENDIF
+				床掃除 = 1
+			ELSE
+				PRINTFORML と吸いついた唇を離すと、口の中に溜まったものを床に吐き出した。
+				PRINTL
+			ENDIF
+				口内射精 = 1
+				RFLAG:フィニッシュ場所 = 2
+				CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2 TO 4
+			PRINTFORML と吸いついた唇を離すと、口の中に溜まったものを手のひらに吐き出した……。
+			PRINTL
+			口内射精 = 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASEELSE
+			PRINTFORML と吸いついた唇を離すと、口の中に溜まったものを手のひらに吐き出した。
+			PRINTL
+			PRINTFORML %CALLNAME:PLAYER%が%CALLNAME:TARGET%に、手のひらの上に吐き出した精液を飲むように言いつけると、
+			PRINTFORM %CALLNAME:TARGET%は眉を顰めながらも渋々手のひらに口をつけ、
+			CALL PRINT_STR(@"じゅぞぞぞっ_H__H_")
+			PRINTFORML といやらしい音を立てて%CALLNAME:PLAYER%の精液をすすり上げ、懸命に飲み下した……。
+			PRINTL
+			口内射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		ENDSELECT
+	CASE 2
+		PRINTFORMW %CALLNAME:PLAYER%はがっちりと%CALLNAME:TARGET%の頭を掴んで腰を押しつけ、喉奥に精液をコキ捨てることにした。
+		PRINTL
+		CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+		PRINTL
+		PRINTFORMW 苦しがってもがく%CALLNAME:TARGET%の頭を押さえつけ、温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の喉の奥へと吐き出されていく。
+		PRINTL
+		IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+			PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+			PRINTL
+			PRINTFORML ファンの誰もが求めただろう彼女の、歌声を響かせるその神聖な喉を、
+			PRINTFORMW たったの{RFLAG:コマンド結果受渡し変数２}ルピで今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めている%TEXTR("実感/愉悦")%が快楽の奔流となって脳を痺れさせ、どくんどくんとペニスを強く脈打たせる……。
+			PRINTL
+		ENDIF
+		PRINTFORM 喉へと流れ込むべっとりとねばつくザーメンに、逃れるすべのない哀れな%CALLNAME:TARGET%は
+		CALL PRINT_STR(@"ごくっ_H_ごきゅっ_H_")
+		PRINTFORMW と喉を鳴らして必死にそれを飲み干していく……。
+		PRINTL 
+		PRINTFORML やがてひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%の頭から手を離してやると、
+		PRINTFORML 逃げるように%CALLNAME:PLAYER%から身を離した%CALLNAME:TARGET%はげほげほとむせ返り、荒く呼吸を繰り返した……。
+		喉奥イラマ射精 = 1
+		精液ごっくん = 1
+		EXP:精飲経験 += 1
+		RFLAG:フィニッシュ場所 = 2
+		CALL SHOOT_PALAM_2(PLAYER, TARGET)
+	ENDSELECT
+ELSE
+	PRINTFORM %CALLNAME:PLAYER%が促すと、%CALLNAME:TARGET%は
+	SIF イヤイヤ == 1
+		PRINTFORM %TEXTR("渋々/眉を顰めながらも/ため息をつきながらも")%
+	PRINTFORM %TEXTR("チンポ/ペニス")%の先に
+	CALL PRINT_STR(@"ちゅっ_H_")
+	PRINTFORML と口付けて、唇と舌での奉仕をはじめる。
+	PRINTL
+	PRINTFORM 唾液をたっぷりと舌で%TEXTR("塗りつけ/塗り広げ/擦りこみ")%、
+	SELECTCASE RAND:4
+	CASE 0
+		PRINTFORM %TEXTR("指の輪っかで竿をしごかれながら/ぐちゅぐちゅと手のひらで亀頭を捏ねられながら")%舌全体を使って裏筋をねっとりと舐めあげられる
+	CASE 1
+		CALL PRINT_STR(@"くぽ_H_くぽっ_H_")
+		PRINTFORM と浅く亀頭をしゃぶりながら指の輪っかで竿をしごかれる
+	CASE 2
+		CALL PRINT_STR(@"ちゅ_H_ちゅ、ちゅっ_H_")
+		PRINTFORM と亀頭や裏筋にキスを浴びながら竿をしこしこと手でしごかれる
+	CASE 3
+		CALL PRINT_STR(@"ペニスを咥えて大きく頭を前後に動かし、ぐっぽ_H_ぶっぽっ_H_")
+		PRINTFORM と%TEXTR("下品な音をたてながら/")%激しいストロークで責め立てられる
+	ENDSELECT
+	IF TALENT:応答 == 1 && イヤイヤ != 1
+	;生意気
+		PRINTFORML 快感に%CALLNAME:PLAYER%が腰を震わせると、
+		PRINTFORM %CALLNAME:対象キャラ%は%TEXTR("挑発的に/からかうように")%%TEXTR("くすくす/ニヤニヤ")%と笑い、
+		SELECTCASE RAND:2
+		CASE 0
+			CALL PRINT_STR(@"出せ_H_出せ_H_と囁きながら舌先ででぐりぐりと亀頭を刺激して")
+			PRINTFORMW %CALLNAME:PLAYER%の射精を煽った。
+		CASE 1
+			PRINTFORMW わざとらしく%TEXTR("動きを速め/刺激を強め")%て射精を煽ってはぴたっと動きを止めて%CALLNAME:PLAYER%をからかった。
+		ENDSELECT
+		PRINTL
+		射精煽り = 1
+	ELSE
+		PRINTFORMW 快感は%CALLNAME:PLAYER%の腰を震えさせ、腹の奥からぐつぐつと射精感がこみあがってくる。
+		PRINTL
+	ENDIF
+	IF 陥落チェック(TARGET)
+		IF 射精煽り == 1
+			PRINTFORM 煽られるままに精液を滾らせた%CALLNAME:PLAYER%の様子に、%CALLNAME:TARGET%は
+		ELSE
+			PRINTFORM %CALLNAME:PLAYER%の射精の予兆を感じ取った%CALLNAME:TARGET%は、
+		ENDIF
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW チンポへの刺激を強め、射精の間際に亀頭から唇を離すと顔を差し出して目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTFORMW ファンの誰もが求めただろう彼女の閉じたまぶたを、髪を、唇を。べっとりとねばつく%CALLNAME:PLAYER%の欲望がどろどろに穢していった……。
+			ELSE
+				PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+				PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に恍惚とした吐息をついた……。
+			ENDIF
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORMW 浅くチンポを咥えしゃぶりながら竿の根元をぎゅっと揉むようにしごいてこらえていた射精感にトドメを刺した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、愛や友情を歌うその清らかな口を、今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めて。
+				PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%のザーメンが、%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、彼女の歌を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%のニオイに染めていった……。
+			ELSE
+				PRINTL
+				PRINTFORMW べっとりとねばつくザーメンが%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、味覚を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%の味に染めていった……。
+			ENDIF
+			PRINTL 
+			PRINTFORML %CALLNAME:PLAYER%の射精の脈動が落ち着いたのを見計らった%CALLNAME:TARGET%は、少し硬さの抜けたチンポを一度根元まで咥え、
+			PRINTL
+			CALL PRINT_STRL(@"ちゅうぅぅぅ～～～～っっ…………ぽっ_H__H__H_")
+			PRINTL
+			PRINTFORMW とゆっくりと顔を引きながら、尿道に残った精液のその最後の一滴までを優しく丁寧に吸い出す。
+			PRINTL
+			IF RAND:2 == 0
+				PRINTFORM 喜ぶ%CALLNAME:PLAYER%の表情を見上げて
+			ELSE
+				PRINTFORM 丁寧な奉仕に頭を撫でる%CALLNAME:PLAYER%の手に
+			ENDIF
+			PRINTFORML %CALLNAME:TARGET%は満足げに微笑むと、最後に%CALLNAME:PLAYER%に向けて口を開け白濁で染まった口腔を見せつけ、
+			PRINTL
+			CALL PRINT_STRL(@"ごっ、きゅ……_H__H_")
+			PRINTL
+			IF RAND:5 == 0
+			;レア分岐
+				IF 知識素質:性知識 > 3 && ABL:奉仕精神 >= 3
+				;性知識一定以上かつ奉仕精神一定以上であれば、あなたを喜ばせるために恥ずかしいのをこらえてやってくれる
+					PRINTFORML と喉を鳴らして口に溜まった精液を飲み干し、頬を染めながらも
+					PRINTL
+					CALL PRINT_STRL(@"「げえぇぇ、っぷ_H__H_」")
+					PRINTL
+					PRINTFORML とみっともなく精臭のこもったゲップをしてみせた……。
+				ELSE
+				;基本みんな恥じらう。高貴とか恥じらいで絞ろうかとも思ったけど、そのへんなんもついてないナルメアも恥じらうでしょと思い至ってカーズは考えるのをやめた。
+					PRINTFORML と喉を鳴らして口に溜まった精液を飲み干すと、恥ずかしそうに口元に手を当て頬を染めて
+					PRINTL
+					CALL PRINT_STRL(@"「けぷ、っ……_H_」")
+					PRINTL
+					PRINTFORML と小さくおくびを漏らした……。
+				ENDIF
+				ザーメンゲップ = 1
+			ELSE
+				PRINTFORML と喉を鳴らして口に溜まった精液を飲み干し、
+				PRINTL
+				CALL PRINT_STRL(@"「んはぁ……_H_」")
+				PRINTL
+				PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			ENDIF
+			口内射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			PRINTFORMW %CALLNAME:PLAYER%の腰にぎゅっと抱きつくようにして、チンポを喉奥まで迎え入れた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML くぐもった声をあげながらも%CALLNAME:PLAYER%のチンポから離れようとしない%CALLNAME:TARGET%の喉奥に、脈打つペニスから精液が吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、歌声を響かせるその神聖な喉が、
+				PRINTFORMW たったの{RFLAG:コマンド結果受渡し変数２}ルピで今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/性処理穴")%になっている%TEXTR("実感/愉悦")%が快楽の奔流となって脳を痺れさせ、どくんどくんとペニスを強く脈打たせる……。
+				PRINTL
+			ENDIF
+			PRINTFORM 喉へと流れ込むべっとりとねばつくザーメンを、%CALLNAME:TARGET%はその勢いのままに、
+			CALL PRINT_STR(@"ごくっ_H_ごきゅっ_H_")
+			PRINTFORML と喉を鳴らして飲み干していく……。
+			PRINTL 
+			PRINTFORM やがて%CALLNAME:PLAYER%が精を放ち終えると、%CALLNAME:TARGET%は腰にしがみついていた手の力を緩めて%CALLNAME:PLAYER%のチンポを離す
+			IF RAND:3 == 0
+			;喉に注ぎこまれるため普通に飲むよりも食道に空気が入りやすい。よって確率ちょい高め
+				IF 知識素質:性知識 > 3 && ABL:奉仕精神 >= 3
+				;性知識一定以上かつ奉仕精神一定以上であれば、あなたを喜ばせるために恥ずかしいのをこらえてやってくれる
+					PRINTFORML と、頬を染めながらも
+					PRINTL
+					CALL PRINT_STRL(@"「げえぇぇ、っぷ_H__H_」")
+					PRINTL
+					PRINTFORML とみっともなく精臭のこもったゲップをしてみせた……。
+				ELSE
+				;基本みんな恥じらう。高貴とか恥じらいで絞ろうかとも思ったけど、そのへんなんもついてないナルメアも恥じらうでしょと思い至ってカーズは考えるのをやめた。
+					PRINTFORML と、恥ずかしそうに口元に手を当て頬を染めて
+					PRINTL
+					CALL PRINT_STRL(@"「けぷ、っ……_H_」")
+					PRINTL
+					PRINTFORML と小さくおくびを漏らした……。
+				ENDIF
+				ザーメンゲップ = 1
+			ELSE
+				PRINTFORML と、
+				PRINTL
+				CALL PRINT_STRL(@"「んはぁ……_H_」")
+				PRINTL
+				PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			ENDIF
+			喉奥イラマ射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		ENDSELECT
+	ELSEIF (TALENT:種族 == 2 && チン嗅ぎ == 1) || (TALENT:種族 == 3 && チン嗅ぎ == 1)		
+		IF TALENT:性別 == 1 && RAND:3 == 0
+		;ふたなりオーナーが男に舐めさせる場合を考えて相手が女の場合のみに絞る
+			PRINTFORM 手を伸ばして無造作に%CALLNAME:TARGET%の胸を%TEXTR("揉みながら/触りながら/まさぐりながら")%、
+		ELSEIF RAND:2 == 0
+			IF TALENT:角あり
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%の角を%TEXTR("撫でながら/撫でさすりながら/掴んで支配者気分を味わいながら/掴んで上位者気分を味わいながら")%、
+			ELSEIF TALENT:エルーン耳
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%のエルーン耳を%TEXTR("揉みながら/触りながら")%、
+			ELSE
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%の頭を撫でながら、
+			ENDIF
+		ELSE
+			PRINTFORM しゃがんで奉仕を続ける%CALLNAME:TARGET%の股間を足の爪先でぐりぐりといたずらに刺激しながら、
+		ENDIF
+		SIF 射精煽り == 1
+			PRINTFORM 煽られるままに精液を滾らせた
+		PRINTFORM %CALLNAME:PLAYER%
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML が顔にぶっかけさせてほしいと伝えると、
+			PRINTFORMW すっかり欲情した%CALLNAME:TARGET%は素直に受け入れてチンポへの刺激を強め、射精の間際に亀頭から唇を離すと顔を差し出して目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTFORMW ファンの誰もが求めただろう彼女の閉じたまぶたを、髪を、唇を。べっとりとねばつく%CALLNAME:PLAYER%の欲望がどろどろに穢していった……。
+			ELSE
+				PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+				PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に恍惚とした吐息をついた……。
+			ENDIF
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORML がこのまま口の中に出させてほしいと伝えると、
+			PRINTFORMW すっかり欲情した%CALLNAME:TARGET%は素直に受け入れ、浅くチンポを咥えしゃぶりながら竿の根元をぎゅっと揉むようにしごいてこらえていた射精感にトドメを刺した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、愛や友情を歌うその清らかな口を、今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めて。
+				PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%のザーメンが、%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、彼女の歌を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%のニオイに染めていった……。
+			ELSE
+				PRINTL
+				PRINTFORMW べっとりとねばつくザーメンが%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、味覚を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%の味に染めていった……。
+			ENDIF
+			PRINTL 
+			PRINTFORML %CALLNAME:PLAYER%の射精の脈動が落ち着いたのを見計らった%CALLNAME:TARGET%は、少し硬さの抜けたチンポを一度根元まで咥え、
+			PRINTL
+			CALL PRINT_STRL(@"ちゅうぅぅぅ～～～～っっ…………ぽっ_H__H__H_")
+			PRINTL
+			PRINTFORMW とゆっくりと顔を引きながら、尿道に残った精液のその最後の一滴までを優しく丁寧に吸い出す。
+			PRINTL
+			IF RAND:2 == 0
+				PRINTFORM 喜ぶ%CALLNAME:PLAYER%の表情を見上げて
+			ELSE
+				PRINTFORM 丁寧な奉仕に頭を撫でる%CALLNAME:PLAYER%の手に
+			ENDIF
+			PRINTFORML %CALLNAME:TARGET%は満足げに微笑むと、最後に%CALLNAME:PLAYER%に向けて口を開け白濁で染まった口腔を見せつけ、
+			PRINTL
+			CALL PRINT_STRL(@"ごっ、きゅ……_H__H_")
+			PRINTL
+			PRINTFORML と喉を鳴らして口に溜まった精液を飲み干し、
+			PRINTL
+			CALL PRINT_STRL(@"「んはぁ……_H_」")
+			PRINTL
+			PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			口内射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			PRINTFORML がもっと喉の奥まで咥えて欲しいとお願いすると、
+			PRINTFORMW すっかり欲情した%CALLNAME:TARGET%は素直に受け入れ、%CALLNAME:PLAYER%の腰にぎゅっと抱きつくようにして、チンポを喉奥まで迎え入れた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML くぐもった声をあげながらも%CALLNAME:PLAYER%のチンポから離れようとしない%CALLNAME:TARGET%の喉奥に、脈打つペニスから精液が吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、歌声を響かせるその神聖な喉が、
+				PRINTFORMW たったの{RFLAG:コマンド結果受渡し変数２}ルピで今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/性処理穴")%になっている%TEXTR("実感/愉悦")%が快楽の奔流となって脳を痺れさせ、どくんどくんとペニスを強く脈打たせる……。
+				PRINTL
+			ENDIF
+			PRINTFORM 喉へと流れ込むべっとりとねばつくザーメンを、%CALLNAME:TARGET%はその勢いのままに、
+			CALL PRINT_STR(@"ごくっ_H_ごきゅっ_H_")
+			PRINTFORML と喉を鳴らして飲み干していく……。
+			PRINTL 
+			PRINTFORML やがて%CALLNAME:PLAYER%が精を放ち終えると、%CALLNAME:TARGET%は腰にしがみついていた手の力を緩めて%CALLNAME:PLAYER%のチンポを離すと、
+			PRINTL
+			CALL PRINT_STRL(@"「んはぁ……_H_」")
+			PRINTL
+			PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			喉奥イラマ射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		ENDSELECT
+	ELSEIF イヤイヤ == 1
+		PRINTFORM %CALLNAME:PLAYER%
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML が顔にぶっかけさせてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%は渋々受け入れてチンポへの刺激を強め、射精の間際に亀頭から唇を離すと顔を差し出して目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTFORMW ファンの誰もが求めただろう彼女の閉じたまぶたを、髪を、唇を。べっとりとねばつく%CALLNAME:PLAYER%の欲望がどろどろに穢していった……。
+			ELSE
+				PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+				PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に不快そうに吐息をついた……。
+			ENDIF
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORML がこのまま口の中に出させてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%は渋々受け入れ、浅くチンポを咥えしゃぶりながら竿の根元をぎゅっと揉むようにしごいてこらえていた射精感にトドメを刺した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、愛や友情を歌うその清らかな口を、今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めて。
+				PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%のザーメンが、%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、彼女の歌を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%のニオイに染めていった……。
+			ELSE
+				PRINTL
+				PRINTFORMW べっとりとねばつくザーメンが%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、味覚を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%の味に染めていった……。
+			ENDIF
+			PRINTL 
+			PRINTFORML ひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%に、ちゃんと最後まで精液を吸い出すよう言いつけると、
+			PRINTFORML %CALLNAME:TARGET%は不快そうに眉を顰めながらも少し硬さの抜けたチンポを一度根元まで咥え、
+			PRINTL
+			CALL PRINT_STRL(@"ちゅうぅぅぅ～～～～っっ…………ぽっ_H__H__H_")
+			PRINTL
+			PRINTFORMW とゆっくりと顔を引きながら、尿道に残った精液のその最後の一滴までを優しく丁寧に吸い出した。
+			PRINTL
+			PRINTFORML 言いつけ通りに仕事をこなした%CALLNAME:TARGET%の頭を優しく撫で、最後に仕事の締めくくり方を教えてやると、
+			PRINTFORML %CALLNAME:TARGET%は嫌々ながらも、%CALLNAME:PLAYER%に向けて口を開け白濁で染まった口腔を見せつけ、
+			PRINTL
+			CALL PRINT_STRL(@"ごっ、きゅ……_H__H_")
+			PRINTL
+			PRINTFORML と喉を鳴らして口に溜まった精液を飲み干し、
+			PRINTL
+			CALL PRINT_STRL(@"「んはぁ……_H_」")
+			PRINTL
+			PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			口内射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			PRINTFORML は、このまま一番奥に出すぞと一方的に伝えると
+			PRINTFORMW がっちりと%CALLNAME:TARGET%の頭を掴んで腰を押しつけ、喉奥に精液をコキ捨てる体勢をとった。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORMW 苦しがってもがく%CALLNAME:TARGET%の頭を押さえつけ、温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の喉の奥へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、歌声を響かせるその神聖な喉を、
+				PRINTFORMW たったの{RFLAG:コマンド結果受渡し変数２}ルピで今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めている%TEXTR("実感/愉悦")%が快楽の奔流となって脳を痺れさせ、どくんどくんとペニスを強く脈打たせる……。
+				PRINTL
+			ENDIF
+			PRINTFORM 喉へと流れ込むべっとりとねばつくザーメンに、逃れるすべのない哀れな%CALLNAME:TARGET%は
+			CALL PRINT_STR(@"ごくっ_H_ごきゅっ_H_")
+			PRINTFORMW と喉を鳴らして必死にそれを飲み干していく……。
+			PRINTL 
+			PRINTFORML やがてひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%の頭から手を離してやると、
+			PRINTFORML 逃げるように%CALLNAME:PLAYER%から身を離した%CALLNAME:TARGET%はげほげほとむせ返り、荒く呼吸を繰り返した……。
+			喉奥イラマ射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		ENDSELECT
+	ELSE
+		IF TALENT:性別 == 1 && RAND:3 == 0
+		;ふたなりオーナーが男に舐めさせる場合を考えて相手が女の場合のみに絞る
+			PRINTFORM 手を伸ばして無造作に%CALLNAME:TARGET%の胸を%TEXTR("揉みながら/触りながら/まさぐりながら")%、
+		ELSEIF RAND:2 == 0
+			IF TALENT:角あり
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%の角を%TEXTR("撫でながら/撫でさすりながら/掴んで支配者気分を味わいながら/掴んで上位者気分を味わいながら")%、
+			ELSEIF TALENT:エルーン耳
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%のエルーン耳を%TEXTR("揉みながら/触りながら")%、
+			ELSE
+				PRINTFORM 従順に奉仕する%CALLNAME:TARGET%の頭を撫でながら、
+			ENDIF
+		ELSE
+			PRINTFORM しゃがんで奉仕を続ける%CALLNAME:TARGET%の股間を足の爪先でぐりぐりといたずらに刺激しながら、
+		ENDIF
+		SIF 射精煽り == 1
+			PRINTFORM 煽られるままに精液を滾らせた
+		PRINTFORM %CALLNAME:PLAYER%
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML が顔にぶっかけさせてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%はチンポへの刺激を強め、射精の間際に亀頭から唇を離すと顔を差し出して目を閉じた。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 脈打つペニスから勢いよく吐き出された精液が、%CALLNAME:TARGET%の顔に降りかかる。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTFORMW ファンの誰もが求めただろう彼女の閉じたまぶたを、髪を、唇を。べっとりとねばつく%CALLNAME:PLAYER%の欲望がどろどろに穢していった……。
+			ELSE
+				PRINTFORML べっとりとねばつく%CALLNAME:PLAYER%の欲望が、%CALLNAME:TARGET%の閉じたまぶたを、髪を、唇を白濁に穢す。
+				PRINTFORMW 顔じゅうを%CALLNAME:PLAYER%の精臭にまみれさせた%CALLNAME:TARGET%は、%TEXTR("顔を濡らす/頬を伝う")%精液に恍惚とした吐息をついた……。
+			ENDIF
+			PRINTL 
+			顔にぶっかけ = 1
+			RFLAG:フィニッシュ場所 = 5
+			CALL SHOOT_PALAM_5(PLAYER, TARGET)
+		CASE 1
+			PRINTFORML がこのまま口の中に出させてほしいと伝えると、
+			PRINTFORMW %CALLNAME:TARGET%は浅くチンポを咥えしゃぶりながら竿の根元をぎゅっと揉むようにしごいて、こらえていた射精感にトドメを刺した。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORML 温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の舌の上へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTW
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、愛や友情を歌うその清らかな口を、今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めて。
+				PRINTFORMW べっとりとねばつく%CALLNAME:PLAYER%のザーメンが、%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、彼女の歌を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%のニオイに染めていった……。
+			ELSE
+				PRINTL
+				PRINTFORMW べっとりとねばつくザーメンが%CALLNAME:TARGET%の%TEXTR("舌/口内")%を穢し、味覚を%CALLNAME:PLAYER%の%TEXTR("欲望/性欲")%の味に染めていった……。
+			ENDIF
+			PRINTL 
+			PRINTFORML %CALLNAME:PLAYER%の射精の脈動が落ち着いたのを見計らった%CALLNAME:TARGET%は、少し硬さの抜けたチンポを一度根元まで咥え、
+			PRINTL
+			CALL PRINT_STRL(@"ちゅうぅぅぅ～～～～っっ…………ぽっ_H__H__H_")
+			PRINTL
+			PRINTFORMW とゆっくりと顔を引きながら、尿道に残った精液のその最後の一滴までを優しく丁寧に吸い出す。
+			PRINTL
+			IF RAND:2 == 0
+				PRINTFORM 喜ぶ%CALLNAME:PLAYER%の表情を見上げて
+			ELSE
+				PRINTFORM 丁寧な奉仕に頭を撫でる%CALLNAME:PLAYER%の手に
+			ENDIF
+			PRINTFORML %CALLNAME:TARGET%は満足げに微笑むと、最後に%CALLNAME:PLAYER%に向けて口を開け白濁で染まった口腔を見せつけ、
+			PRINTL
+			CALL PRINT_STRL(@"ごっ、きゅ……_H__H_")
+			PRINTL
+			PRINTFORML と喉を鳴らして口に溜まった精液を飲み干し、
+			PRINTL
+			CALL PRINT_STRL(@"「んはぁ……_H_」")
+			PRINTL
+			PRINTFORMW とからっぽになった口の中を示して%CALLNAME:PLAYER%の精臭に染まった吐息をこぼした……。
+			口内射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		CASE 2
+			PRINTFORML は、このまま一番奥に出すぞと一方的に伝えると
+			PRINTFORMW がっちりと%CALLNAME:TARGET%の頭を掴んで腰を押しつけ、喉奥に精液をコキ捨てる体勢をとった。
+			PRINTL
+			CALL PRINT_STRL(@"────どくんっ_H__H__H_どぷっ_H__H__H_びゅるるるぅ～～……っ_H__H__H__H_")
+			PRINTL
+			PRINTFORMW 苦しがってもがく%CALLNAME:TARGET%の頭を押さえつけ、温かな口腔粘膜に包まれながら、脈打つペニスから精液が%CALLNAME:TARGET%の喉の奥へと吐き出されていく。
+			PRINTL
+			IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTFORML 元いた世界ではアイドルとして人々を魅了し、多くの人に愛されていただろう%CALLNAME:対象キャラ%。
+				PRINTL
+				PRINTFORML ファンの誰もが求めただろう彼女の、歌声を響かせるその神聖な喉を、
+				PRINTFORMW たったの{RFLAG:コマンド結果受渡し変数２}ルピで今は%CALLNAME:PLAYER%%TEXTR("専用/")%の%TEXTR("精液便所/精液コキ捨て穴/オナホール/性処理穴")%に貶めている%TEXTR("実感/愉悦")%が快楽の奔流となって脳を痺れさせ、どくんどくんとペニスを強く脈打たせる……。
+				PRINTL
+			ENDIF
+			PRINTFORM 喉へと流れ込むべっとりとねばつくザーメンに、逃れるすべのない哀れな%CALLNAME:TARGET%は
+			CALL PRINT_STR(@"ごくっ_H_ごきゅっ_H_")
+			PRINTFORMW と喉を鳴らして必死にそれを飲み干していく……。
+			PRINTL 
+			PRINTFORML やがてひとしきり精を放ち終えた%CALLNAME:PLAYER%が%CALLNAME:TARGET%の頭から手を離してやると、
+			PRINTFORML 逃げるように%CALLNAME:PLAYER%から身を離した%CALLNAME:TARGET%はげほげほとむせ返り、荒く呼吸を繰り返した……。
+			喉奥イラマ射精 = 1
+			精液ごっくん = 1
+			EXP:精飲経験 += 1
+			RFLAG:フィニッシュ場所 = 2
+			CALL SHOOT_PALAM_2(PLAYER, TARGET)
+		ENDSELECT
+	ENDIF
+ENDIF
+PRINTW
+
+DRAWLINE
+
+;最終的な料金　1ルピ＝10円程度という想定で書いてる
+
+値段計算 = RFLAG:コマンド結果受渡し変数２
+
+IF 値段計算 > 0
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(RFLAG:コマンド結果受渡し変数２), 8%ルピ
+ELSE
+	PRINTFORM %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
+ENDIF
+
+DRAWLINE
+
+PRINTFORML 追加オプション
+;ある程度は手コキと同じレート
+
+IF チン嗅ぎ == 1
+	IF TALENT:汚臭耐性 < 0
+	;汚臭敏感
+		値段計算 += TALENT:汚臭耐性 * 300
+		SETCOLOR カラーパレット("薄ピンク")
+		PRINTFORML %"チン嗅ぎ", 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 400), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 200
+		SETCOLOR カラーパレット("薄ピンク")
+		PRINTFORML %"チン嗅ぎ", 25, LEFT%：＋%NUM_FORMAT(200), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 射精煽り == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"射精煽り", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF チンポに頬擦り == 1
+	値段計算 += 300
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"チンポに頬擦り", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF チンキス == 1
+;そのまま持ってきたけど、フェラでチンキスに追加料金かかるのどうなのよ感はある
+	IF 知識素質:高貴 > 0
+	;高貴
+	;性知識ありだとこのくらい値が張ってもおかしくない
+		IF 知識素質:性知識 < 0
+			値段計算 += 1000
+			SETCOLOR カラーパレット("赤ピンク")
+			PRINTFORML %"貴唇のチンキス", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+			RESETCOLOR
+		ELSE
+			値段計算 += 2000
+			SETCOLOR カラーパレット("赤ピンク")
+			PRINTFORML %"貴唇のチンキス", 25, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+			RESETCOLOR
+		ENDIF
+	ELSEIF TALENT:恋人持ち == 1 ||TALENT:恋人持ち == 2
+		値段計算 += 500
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"浮気チンキス", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+		RESETCOLOR
+	ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+		値段計算 += 300
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"アイドルのチンポキス", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"チンキス", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 顔にぶっかけ == 1
+	IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+	;買い叩かれるアイマス勢……かわいそうでかわいいね
+		値段計算 += 750
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"アイドルの顔にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 750
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"顔にぶっかけ", 25, LEFT%：＋%NUM_FORMAT(750), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 口内射精 == 1
+	IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+	;あんまりいい感じのワードが浮かばなかった。代替案求む
+		値段計算 += 750
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"アイドルおくち射精", 25, LEFT%：＋%NUM_FORMAT(750), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 1000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"口内射精", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 喉奥イラマ射精 == 1
+	IF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+		値段計算 += 1000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"アイドル喉オナホ射精", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 1000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"喉奥イラマ射精", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+
+IF ほっぺたティッシュ == 1
+	IF TALENT:プライド > 0
+	;汚臭敏感
+		値段計算 += 500
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"ほっぺたティッシュ", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"ほっぺたティッシュ", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+IF 精液ごっくん == 1
+	IF TALENT:汚臭耐性 < 0
+	;汚臭敏感
+		値段計算 += TALENT:汚臭耐性 * 500
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"精液ごっくん", 25, LEFT%：＋%NUM_FORMAT(TALENT:汚臭耐性 * 500), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 300
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"精液ごっくん", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+
+IF 床掃除 == 1
+;屈辱的な行いのためお高い。なんならもうちょい値段上げてもいい気もする
+	IF TALENT:プライド >= 1 || 知識素質:高貴 > 0 || TALENT:度胸 >= 1 || TALENT:態度 >= 1 || TALENT:弱味 || TALENT:汚臭耐性 <= -1
+		値段計算 += 3000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"床掃除", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		RESETCOLOR
+	ELSE
+		値段計算 += 2000
+		SETCOLOR カラーパレット("赤ピンク")
+		PRINTFORML %"床掃除", 25, LEFT%：＋%NUM_FORMAT(2000), 8%ルピ
+		RESETCOLOR
+	ENDIF
+ENDIF
+
+IF ザーメンゲップ == 1
+;女の子には恥じらいってものがあるのでこれまたお高め
+;男については知らんが……それはそれで嫌がるだろうな……
+	値段計算 += 1000
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"ザーメンゲップ", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+DRAWLINE
+;オプションは基本的に割引クーポン対象外となっております～
+PRINTFORML 割引き
+;恋慕は完全無料
+IF TALENT:対象キャラ:恋慕
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ
+	RESETCOLOR
+	CALL PRINT_STRL(@"_H_")
+	値段計算 *= 0
+ELSEIF TALENT:対象キャラ:弱味
+;二重にかかっちゃうけど……まあ誤差よ誤差
+	SETCOLOR カラーパレット("赤")
+	PRINTFORM %"弱み", 25, LEFT%：　　　　　99％オフ
+	RESETCOLOR
+	CALL PRINT_STRL(@"_H_")
+	値段計算 /= 100
+ENDIF
+DRAWLINE
+値段計算 = MAX(0, 値段計算)
+IF 値段計算 > 0
+	PRINTFORML %"オプション込み最終価格", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+	;オプション分のMONEY処理
+	MONEY -= 値段計算
+ELSE
+	PRINTFORM %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
+ENDIF
+DRAWLINE
+
+オプション込み最終価格 = 値段計算
+
+PRINTFORML %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２ + 値段計算)% - %NUM_FORMAT(オプション込み最終価格)% = %NUM_FORMAT(MONEY)%ルピ

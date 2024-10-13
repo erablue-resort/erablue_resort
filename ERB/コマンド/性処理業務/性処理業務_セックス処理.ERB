@@ -73,7 +73,6 @@ SIF EXP:TARGET:売春経験 == 0
 
 EXP:TARGET:売春経験 += 1
 
-
 RETURN 1
 
 
@@ -514,12 +513,21 @@ SIF TALENT:TARGET:Ｖ感度 == -2
 
 ;RETURN -1は表示するが選択出来ない
 ;泥酔はここに移動
-許可好感度 = 115
+許可好感度 = 100
 補正後好感度 = 補正後好感度算出(TARGET)
 SIF TALENT:TARGET:処女
 	補正後好感度 -= 20
 SIF BASE:酩酊 > MAXBASE:酩酊 / 2
-	補正後好感度 += 20
+	補正後好感度 += 30
+;経験があなたを強くする
+LOCAL = EXP:PLAYER:買春経験
+補正後好感度 += LOCAL
+IF あなた特殊能力:ルピえっち交渉術
+;口がうまくなったことで未陥落の一般客に通りやすくなった、ということで補正をかけておく。習得にかかった労力ぶんのリワード。
+;だ、だって……パパ活って一期一会みたいなイメージだし……好感度高くなくても通るイメージだし……
+;かわりに低好感度だと補正によってルピ消費ががっつり増える。
+	補正後好感度 += 50
+ENDIF
 TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_セックス処理(TARGET, 補正後好感度)
 	補正後好感度 = RESULT
 CATCH
@@ -656,9 +664,17 @@ IF (RFLAG:フィニッシュ場所 == 0 && RAND:2 == 0) || RFLAG:フィニッシ
 	PRINTL
 	IF RCVAR:対象キャラ:破瓜 == 1
 		PRINTFORM つい先ほど%TEXTR("まで純潔を保っていた/まで未開通だった/まで未使用だった/女にしてやったばかりの")%%CALLNAME:対象キャラ%の
-		SIF 知識素質:高貴 > 0
+		IF 知識素質:高貴 > 0
 			PRINTFORM %TEXTR("血統書付きの/ロイヤル/高貴な/貴い")%
-		PRINTFORML %TEXTR("処女膣/処女まんこ")%は%CALLNAME:PLAYER%の%TEXTR("ペニス/チンポ")%を%TEXTR("痛いほど/きつく")%締めつけていたが、
+		ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+			PRINTFORM %TEXTR("異世界アイドルのプレミア/、ファンの誰も手にすることができなかった異世界アイドルの")%
+		ENDIF
+		PRINTFORM %TEXTR("処女膣/処女まんこ")%は
+		;買い叩かれたEXキャラ
+		SIF NO:TARGET > 1000
+			PRINTFORM たった
+		PRINTFORM {RFLAG:コマンド結果受渡し変数２}ルピで%CALLNAME:PLAYER%にその純潔を捧げ渡し、
+		PRINTFORML %TEXTR("ハジメテの侵入者となった/その最初の主人となった/")%%CALLNAME:PLAYER%の%TEXTR("ペニス/チンポ")%を%TEXTR("痛いほど/きつく")%締めつけていたが、
 		PRINTFORM %CALLNAME:PLAYER%の%TEXTR("ねっとりとした/淫猥な")%手管によって%CALLNAME:対象キャラ%の%TEXTR("女/雌/雌としての才能")%は半ば無理やり開花させられ、抽挿にあわせて
 		CALL PRINT_STR(@"ぱちゅっ_H_ ぷちゅっ_H_")
 		PRINTFORMW と響く水音は%CALLNAME:対象キャラ%が早くも快楽を感じつつあることを%TEXTR("如実に示して/赤裸々に物語って")%いた。
@@ -872,9 +888,17 @@ ELSE
 	PRINTL
 		IF RCVAR:対象キャラ:破瓜 == 1
 			PRINTFORM つい先ほど%TEXTR("まで純潔を保っていた/まで未開通だった/まで未使用だった/女にしてやったばかりの")%%CALLNAME:対象キャラ%の
-			SIF 知識素質:高貴 > 0
+			IF 知識素質:高貴 > 0
 				PRINTFORM %TEXTR("血統書付きの/ロイヤル/高貴な/貴い")%
-			PRINTFORML %TEXTR("処女膣/処女まんこ")%は%CALLNAME:PLAYER%の%TEXTR("ペニス/チンポ")%を%TEXTR("痛いほど/きつく")%締めつけていたが、
+			ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+				PRINTFORM %TEXTR("異世界アイドルのプレミア/、ファンの誰も手にすることができなかった異世界アイドルの")%
+			ENDIF
+			PRINTFORM %TEXTR("処女膣/処女まんこ")%は
+			;買い叩かれたEXキャラ
+			SIF NO:TARGET > 1000
+				PRINTFORM たった
+			PRINTFORM {RFLAG:コマンド結果受渡し変数２}ルピで%CALLNAME:PLAYER%にその純潔を捧げ渡し、
+			PRINTFORML %TEXTR("ハジメテの侵入者となった/その最初の主人となった/")%%CALLNAME:PLAYER%の%TEXTR("ペニス/チンポ")%を%TEXTR("痛いほど/きつく")%締めつけていたが、
 			PRINTFORM %CALLNAME:PLAYER%の%TEXTR("ねっとりとした/淫猥な")%手管によって%CALLNAME:対象キャラ%の%TEXTR("女/雌/雌としての才能")%は半ば無理やり開花させられ、抽挿にあわせて
 			CALL PRINT_STR(@"ぱちゅっ_H_ ぷちゅっ_H_")
 			PRINTFORMW と響く水音は%CALLNAME:対象キャラ%が早くも快楽を感じつつあることを%TEXTR("如実に示して/赤裸々に物語って")%いた。
@@ -1110,6 +1134,11 @@ IF キス == 1
 			SETCOLOR カラーパレット("赤ピンク")
 			PRINTFORML %"高貴な唇の純潔", 25, LEFT%：＋%NUM_FORMAT(100000), 8%ルピ
 			RESETCOLOR
+		ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+			値段計算 += 10000
+			SETCOLOR カラーパレット("赤ピンク")
+			PRINTFORML %"アイドルのファーストキス", 25, LEFT%：＋%NUM_FORMAT(10000), 8%ルピ
+			RESETCOLOR	
 		ELSEIF TALENT:恋人持ち == 2
 		;人妻なのにファーストキス？妙だな……
 			値段計算 += 10000
@@ -1137,6 +1166,11 @@ IF キス == 1
 		値段計算 += 10
 		SETCOLOR カラーパレット("ピンク")
 		PRINTFORML %"らぶらぶべろちゅー", 25, LEFT%：＋%NUM_FORMAT(10), 8%ルピ
+		RESETCOLOR
+	ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+		値段計算 += 1000
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORML %"異世界アイドルの唇", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
 		RESETCOLOR
 	ELSE
 		値段計算 += 200
@@ -1185,6 +1219,18 @@ IF 合意中出し == 1
 		値段計算 += 3000
 		SETCOLOR カラーパレット("赤ピンク")
 		PRINTFORML %"托卵ナマ中出し", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		RESETCOLOR
+	ELSEIF CSTR:出演作品 == "アイドルマスターシンデレラガールズ"
+		値段計算 += 3000
+		SETCOLOR カラーパレット("ピンク")
+		SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML %"アイドルにナマ中出し", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		CASE 1
+			PRINTFORML %"アイドルに孕ませ射精", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		CASE 2
+			PRINTFORML %"アイドルとの子作りえっち", 25, LEFT%：＋%NUM_FORMAT(3000), 8%ルピ
+		ENDSELECT
 		RESETCOLOR
 	ELSE
 		値段計算 += 1500
