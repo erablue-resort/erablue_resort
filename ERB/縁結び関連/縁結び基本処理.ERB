@@ -645,6 +645,9 @@ FOR 実行TARGET, 0, CHARANUM
 			SIF RESULT:0
 				CONTINUE
 
+			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_実行側_{NO:(TARGET:実行TARGET)}(TARGET:実行TARGET, TARGET:対象TARGET, 進行量)
+			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_対象側_{NO:(TARGET:対象TARGET)}(TARGET:対象TARGET, TARGET:実行TARGET, 進行量)
+
 			;同じ組み合わせは複数存在しないはずなのでそのまま進展
 			DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
 		ENDIF
@@ -785,6 +788,7 @@ NEXT
 @縁結び進展処理()
 #DIM 対象キャラ１
 #DIM 対象キャラ２
+#DIM 進行量
 
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 	;成立済みはスキップ
@@ -801,7 +805,12 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 
 	IF CFLAG:対象キャラ１:滞在期間 > 0 && CFLAG:対象キャラ２:滞在期間
 		;ふたりともリゾートにいる時、微妙に進展する
-		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + RAND:3 + 1
+		進行量 = RAND:3 + 1
+
+		TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別")%_実行側_{NO:対象キャラ１}(対象キャラ１, 対象キャラ２, 進行量)
+		TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別")%_対象側_{NO:対象キャラ２}(対象キャラ２, 対象キャラ１, 進行量)
+
+		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + 進行量
 	ENDIF
 NEXT
 
