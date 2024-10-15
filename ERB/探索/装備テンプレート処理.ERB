@@ -1,36 +1,113 @@
 ﻿@装備テンプレート処理()
-#DIM 編成番号
+#DIM テンプレ番号
+#DIM 対象キャラ
+
+;まず設定中の装備が存在するかどうかを判定
+;なかったらテンプレから消去
+FOR テンプレ番号, 0, 装備テンプレ最大数
+	FOR LOCAL, 0, 14
+		SIF LOCAL > 3 && LOCAL < 10
+			CONTINUE
+		IF DT_CELL_GETS("所持指輪データベース", 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10), "指輪名", 1) == ""
+			;名前が空っぽ＝登録されてる指輪が存在しない場合、登録を消す
+			装備テンプレ記録配列:テンプレ番号:(LOCAL * 10) = 0
+		ENDIF
+		IF DT_CELL_GETS("所持耳飾りデータベース", 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 1), "耳飾り名", 1) == ""
+			;名前が空っぽ＝登録されてる耳飾りが存在しない場合、登録を消す
+			装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 1) = 0
+		ENDIF
+		IF DT_CELL_GETS("所持ジョブ証データベース", 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 2), "ジョブ証名", 1) == ""
+			;名前が空っぽ＝登録されてるジョブ証が存在しない場合、登録を消す
+			装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 2) = 0
+		ENDIF
+	NEXT
+NEXT
 
 LOCALS = <div rect='200,0,5662,500' border='31' bcolor='#C0C0C0' padding='50,25,50'>
 LOCALS += "適用テンプレートを選んでください。<br>"
 LOCALS += "※現在の編成にキャラがいない枠、及び未設定の装備枠は変更されません。<br>"
-LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　<button value='998'>[998] 別のテンプレートをコピー</button>　　<button value='999'>[999] 戻る</button>"
+LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　　　<button value='998'>[998] このテンプレートを適用</button>　　<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 HTML_PRINT LOCALS, 1
-CALL 編成セットボタン表示(編成番号, 200, 450)
+CALL 編成セットボタン表示(テンプレ番号, 200, 450)
 FOR LOCAL, 0, 6
 	PRINTL
 NEXT
 DRAWLINE
 
-CALL 装備テンプレート表示(編成番号)
+CALL 装備テンプレート表示(テンプレ番号)
 FOR LOCAL, 0, 20
 	PRINTL
 NEXT
 
 DRAWLINE
 BINPUT
-SELECTCASE RESULT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 100 TO 232
+		SELECTCASE LOCAL % 10
+			CASE 0
+				CALL 装備テンプレ変更_指輪(テンプレ番号, LOCAL - 100)
+			CASE 1
+				CALL 装備テンプレ変更_耳飾り(テンプレ番号, LOCAL - 100)
+			CASE 2
+				CALL 装備テンプレ変更_ジョブ証(テンプレ番号, LOCAL - 100)
+		ENDSELECT
 	CASE 999
+		RETURN 0
 	CASE 998
+		PRINTFORMW 現在の編成に装備テンプレート{テンプレ番号}番を適用しました。
+		FOR LOCAL, 0, 14
+			SIF LOCAL > 3 && LOCAL < 10
+				CONTINUE
+			対象キャラ = BATTLE_STATE:LOCAL:0
+			SIF 対象キャラ <= 0
+				CONTINUE
+	
+			;指輪
+			IF 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10) > 0
+				IF 装備ステータス補正保存:対象キャラ:装備指輪番号 > 0
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:対象キャラ:装備指輪番号, "装備キャラ番号", 0, 1
+				ENDIF
+				LOCAL:1 = DT_CELL_GET("所持指輪データベース", 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10), "装備キャラ番号", 1)
+				IF LOCAL:1 > 0
+					装備ステータス補正保存:(LOCAL:1):装備指輪番号 = 0
+					CALL 装備再計算処理(LOCAL:1)
+				ENDIF
+				装備ステータス補正保存:対象キャラ:装備指輪番号 = 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10)
+				DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:対象キャラ:装備指輪番号, "装備キャラ番号", 対象キャラ, 1
+			ENDIF
+
+			;耳飾り
+			IF 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 1) > 0
+				IF 装備ステータス補正保存:対象キャラ:装備耳飾り番号 > 0
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:対象キャラ:装備耳飾り番号, "装備キャラ番号", 0, 1
+				ENDIF
+				LOCAL:1 = DT_CELL_GET("所持耳飾りデータベース", 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 1), "装備キャラ番号", 1)
+				IF LOCAL:1 > 0
+					装備ステータス補正保存:(LOCAL:1):装備耳飾り番号 = 0
+					CALL 装備再計算処理(LOCAL:1)
+				ENDIF
+				装備ステータス補正保存:対象キャラ:装備耳飾り番号 = 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 1)
+				DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:対象キャラ:装備耳飾り番号, "装備キャラ番号", 対象キャラ, 1
+			ENDIF
+			
+			;ジョブ証
+			IF 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 2) > 0
+				装備ステータス補正保存:対象キャラ:装備証番号 = 装備テンプレ記録配列:テンプレ番号:(LOCAL * 10 + 2)
+			ENDIF
+			
+			;再計算
+			CALL 装備再計算処理(対象キャラ)
+		NEXT
 	CASEELSE
-		編成番号 = RESULT
+		テンプレ番号 = LOCAL
 ENDSELECT
 RESTART
 
 
-@装備テンプレート表示(編成番号 = 0)
-#DIM 編成番号
+@装備テンプレート表示(テンプレ番号 = 0)
+#DIM テンプレ番号
 #DIM キャラ順番
 #DIMS 指輪名保存
 #DIMS 耳飾り名保存
@@ -46,29 +123,306 @@ FOR キャラ順番, 0, 14
 	指輪名保存 = 
 	耳飾り名保存 = 
 	証名保存 = 
-	SIF 装備テンプレ記録配列:編成番号:(キャラ順番 * 10)
-		指輪名保存 = %DT_CELL_GETS("所持指輪データベース", 装備テンプレ記録配列:編成番号:(キャラ順番 * 10), "指輪名", 1)%
-	SIF 装備テンプレ記録配列:編成番号:(キャラ順番 * 10 + 1)
-		耳飾り名保存 = %DT_CELL_GETS("所持耳飾りデータベース", 装備テンプレ記録配列:編成番号:(キャラ順番 * 10 + 1), "耳飾り名", 1)%
-	SIF 装備テンプレ記録配列:編成番号:(キャラ順番 * 10 + 2)
-		証名保存 = %DT_CELL_GETS("所持ジョブ証データベース", 装備テンプレ記録配列:編成番号:(キャラ順番 * 10 + 2), "ジョブ証名", 1)%
+	SIF 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10)
+		指輪名保存 = %DT_CELL_GETS("所持指輪データベース", 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10), "指輪名", 1)%
+	SIF 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10 + 1)
+		耳飾り名保存 = %DT_CELL_GETS("所持耳飾りデータベース", 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10 + 1), "耳飾り名", 1)%
+	SIF 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10 + 2)
+		証名保存 = %DT_CELL_GETS("所持ジョブ証データベース", 装備テンプレ記録配列:テンプレ番号:(キャラ順番 * 10 + 2), "ジョブ証名", 1)%
 
 	IF 指輪名保存 != ""
-		LOCALS += @"<button value='{キャラ順番 * 10}'>[指輪　　：%指輪名保存%]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 100}'>[指輪　　：%指輪名保存%]</button><br>"
 	ELSE
-		LOCALS += @"<button value='{キャラ順番 * 10}'>[指輪　　：未設定]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 100}'>[指輪　　：未設定]</button><br>"
 	ENDIF
 	IF 耳飾り名保存 != ""
-		LOCALS += @"<button value='{キャラ順番 * 10 + 1}'>[耳飾り　：%耳飾り名保存%]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 101}'>[耳飾り　：%耳飾り名保存%]</button><br>"
 	ELSE
-		LOCALS += @"<button value='{キャラ順番 * 10 + 1}'>[耳飾り　：未設定]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 101}'>[耳飾り　：未設定]</button><br>"
 	ENDIF
 	IF 証名保存 != ""
-		LOCALS += @"<button value='{キャラ順番 * 10 + 2}'>[ジョブ証：%証名保存%]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 102}'>[ジョブ証：%証名保存%]</button><br>"
 	ELSE
-		LOCALS += @"<button value='{キャラ順番 * 10 + 2}'>[ジョブ証：未設定]</button><br>"
+		LOCALS += @"<button value='{キャラ順番 * 10 + 102}'>[ジョブ証：未設定]</button><br>"
 	ENDIF
 	LOCALS += @"</div>"
 NEXT
 HTML_PRINT LOCALS, 1
 
+
+
+@装備テンプレ変更_指輪(テンプレ番号, 枠番号)
+#DIM テンプレ番号
+#DIM 枠番号
+#DIM ページ番号
+#DIM ソート番号
+#DIM DB行数
+#DIM 編成枠番号
+
+;表示部分
+;所持指輪リスト表示
+LOCALS += "<div rect='200,0,5662,3750' border='31' bcolor='#C0C0C0'></div>"
+CALL 所持指輪リスト表示(装備テンプレ記録配列:テンプレ番号:枠番号, ページ番号, ソート番号, 60, テンプレ番号)
+
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3560,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += @"- PAGE {ページ番号 + 1, 2, LEFT} -　　"
+IF 表示用ステータス格納配列:(30 + (ページ番号 * 29)):0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 装備テンプレ記録配列:テンプレ番号:枠番号 > 0
+	LOCALS += "　　　　　　<button value='1002'>[1002]設定を外す</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　"
+ENDIF
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+DO
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 1000
+		ページ番号 -= 1
+		RESTART
+	CASE 1001
+		ページ番号 += 1
+		RESTART
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ソート番号 = 0
+		ページ番号 = 0
+		RETURN 0
+	CASE 1002
+		装備テンプレ記録配列:テンプレ番号:枠番号 = 0
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}の指輪設定を外した。
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		ソート番号 = 0
+		RETURN 0
+	CASE 2001 TO 2008
+		ページ番号 = 0
+		ソート番号 = LOCAL - 2000
+		VARSET 表示用ステータス格納配列:0:0
+		RESTART
+	CASE IS < 500
+		FOR 編成枠番号, 0, 14
+			SIF 編成枠番号 > 3 && 編成枠番号 < 10
+				CONTINUE
+			IF 装備テンプレ記録配列:テンプレ番号:(編成枠番号 * 10) == 表示用ステータス格納配列:LOCAL:0
+				装備テンプレ記録配列:テンプレ番号:(編成枠番号 * 10) = 0
+			ENDIF
+		NEXT
+		装備テンプレ記録配列:テンプレ番号:枠番号 = 表示用ステータス格納配列:LOCAL:0
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}に%DT_CELL_GETS("所持指輪データベース", 表示用ステータス格納配列:LOCAL:0, "指輪名", 1)%を設定した。
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		ソート番号 = 0
+		RETURN 0
+	CASE IS < 1000
+		CALL 指輪ステータス表示処理(LOCAL - 500)
+		RESTART
+ENDSELECT
+LOOP 1
+
+
+@装備テンプレ変更_耳飾り(テンプレ番号, 枠番号)
+#DIM テンプレ番号
+#DIM 枠番号
+#DIM ページ番号
+#DIMS ソート条件
+#DIM DB行数
+#DIM 編成枠番号
+
+;表示部分
+;所持指輪リスト表示
+LOCALS += "<div rect='200,0,5662,3750' border='31' bcolor='#C0C0C0'></div>"
+CALL 所持耳飾りリスト表示(装備テンプレ記録配列:テンプレ番号:枠番号, ページ番号, 60, ソート条件, テンプレ番号)
+
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3560,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+LOCALS += @"- PAGE {ページ番号 + 1, 2, LEFT} -　　"
+IF 表示用ステータス格納配列:(30 + (ページ番号 * 29)):0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 装備テンプレ記録配列:テンプレ番号:枠番号 > 0
+	LOCALS += "　　　　　　<button value='1002'>[1002]設定を外す</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　"
+ENDIF
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+DO
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE -1
+		IF ソート条件 == "耳飾り名 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 耳飾り名 ASC
+		ENDIF
+		RESTART
+	CASE -2
+		IF ソート条件 == "変更属性 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 変更属性 ASC
+		ENDIF
+		RESTART
+	CASE -3
+		IF ソート条件 == "奥義補正 ASC"
+			ソート条件 = 
+		ELSE
+			ソート条件 = 奥義補正 ASC
+		ENDIF
+		RESTART
+	CASE 1000
+		ページ番号 -= 1
+		RESTART
+	CASE 1001
+		ページ番号 += 1
+		RESTART
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		ソート条件 = 
+		RETURN 0
+	CASE 1002
+		装備テンプレ記録配列:テンプレ番号:枠番号 = 0
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}の耳飾り設定を外した。
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		ソート条件 = 
+		RETURN 0
+	CASE IS < 500
+		FOR 編成枠番号, 0, 14
+			SIF 編成枠番号 > 3 && 編成枠番号 < 10
+				CONTINUE
+			IF 装備テンプレ記録配列:テンプレ番号:(編成枠番号 * 10 + 1) == 表示用ステータス格納配列:LOCAL:0
+				装備テンプレ記録配列:テンプレ番号:(編成枠番号 * 10 + 1) = 0
+			ENDIF
+		NEXT
+		装備テンプレ記録配列:テンプレ番号:枠番号 = 表示用ステータス格納配列:LOCAL:0
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}に%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:LOCAL:0, "耳飾り名", 1)%を設定した。
+		VARSET 表示用ステータス格納配列:0:0
+		ページ番号 = 0
+		ソート条件 = 
+		RETURN 0
+	CASE IS < 1000
+		TRYCALLFORM 耳飾り個別文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%
+		LOCALS = %詳細文文字列受け渡し変数%
+		TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 表示用ステータス格納配列:(LOCAL - 500):0, "耳飾り名", 1)%(表示用ステータス格納配列:(LOCAL - 500):0)
+		LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		HTML_PRINT LOCALS
+		WAIT
+		RESTART
+ENDSELECT
+LOOP 1
+
+
+
+
+@装備テンプレ変更_ジョブ証(テンプレ番号, 枠番号)
+#DIM テンプレ番号
+#DIM 枠番号
+#DIM ページ番号
+#DIMS 表示証種別
+#DIM 表示アビ番号
+#DIM 関数総数
+
+IF 表示証種別 == ""
+	表示証種別 = 通常ジョブ
+ENDIF
+
+;表示部分
+;所持証リスト表示
+LOCALS += "<div rect='200,0,5662,3750' border='31' bcolor='#C0C0C0'></div>"
+CALL 所持証リスト表示(装備テンプレ記録配列:テンプレ番号:枠番号, ページ番号, 表示証種別, 60)
+
+;戻るボタンと前次ページボタン
+LOCALS += "<div rect='262,3560,5537,3625'>"
+IF ページ番号 > 0
+	LOCALS += "<button value='1000'>[1000]前のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 表示用ステータス格納配列:30:0 > 0
+	LOCALS += "<button value='1001'>[1001]次のページ</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　"
+ENDIF
+IF 装備テンプレ記録配列:テンプレ番号:枠番号 > 0
+	LOCALS += "　　　　　　　　　　　　　<button value='1002'>[1002]設定を外す</button>　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+LOCALS += "　　<button value='9999'>[9999]戻る</button></div>"
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+DO
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 9999
+		ページ番号 = 0
+		表示証種別 = 通常ジョブ
+		RETURN 0
+	CASE 1002
+		装備テンプレ記録配列:テンプレ番号:枠番号 = 0
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}のジョブ証設定を外した。
+		ページ番号 = 0
+		RETURN 0
+	CASE IS < 500
+		装備テンプレ記録配列:テンプレ番号:枠番号 = DT_CELL_GET("所持ジョブ証データベース", LOCAL, "id")
+		PRINTFORMW 装備テンプレート{テンプレ番号}：編成番号{枠番号 / 10}に%DT_CELL_GETS("所持ジョブ証データベース", LOCAL, "ジョブ証名")%を設定した。
+		表示証種別 = 通常ジョブ
+		ページ番号 = 0
+		RETURN 0
+	CASE IS < 1000
+		TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", LOCAL - 500, "ジョブ証名")%("フレーバー")
+		LOCALS = %詳細文文字列受け渡し変数%<br>
+		LOCALS += @"・追加アビ<br>"
+		VARSET RESULTS
+		関数総数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%DT_CELL_GETS("所持ジョブ証データベース", LOCAL - 500, "ジョブ証名")%_")
+		FOR 表示アビ番号, 0, 関数総数
+			詳細文文字列受け渡し変数 = 
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
+			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+		NEXT
+		LOCALS += "<br>"
+		HTML_PRINT LOCALS
+		WAIT
+		RESTART
+ENDSELECT
+LOOP 1
