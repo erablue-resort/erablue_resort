@@ -460,30 +460,27 @@ SIF RCVAR:ARG:尻尾開発フラグ
 	EXP:ARG:尻尾開発 = MIN(EXP:ARG:尻尾開発 + RCVAR:ARG:尻尾開発フラグ, 1000)
 
 ;-------------------------------------------------
-;体力減少
+;食いしばり発動のチェック
 ;-------------------------------------------------
-@SOURCE_DOWNBASE(ARG)
-IF DOWNBASE:ARG:体力 > 0 && BASE:ARG:体力 > 1 && BASE:ARG:体力 <= DOWNBASE:ARG:体力
+@食いしばり発動処理(対象キャラ)
+#DIM 対象キャラ
+
+IF DOWNBASE:対象キャラ:体力 > 0 && BASE:対象キャラ:体力 > 1 && (BASE:対象キャラ:体力 - DOWNBASE:対象キャラ:体力) <= 1
 	;指示モード解除
-	IF PLAYER == ARG && FLAG:モード管理 == 1
+	IF PLAYER == 対象キャラ && FLAG:モード管理 == 1
 		FLAG:モード管理 = 0
 		TFLAG:あなたターゲット用 = 0
 	ENDIF
-	IF !MODE_存在判定_ターゲット側("首絞め", ARG)
-		TCVAR:ARG:食いしばりフラグ = (MAXBASE:ARG:体力 - 1000) / 1000
-		SIF キャラ一致チェック(ARG, "[十天衆]サラーサ")
-			TCVAR:ARG:食いしばりフラグ += 3
-		SIF 干渉強化変数:ARG:干渉種類 == 10
-			CALL 干渉強化関数_10("実補正処理", ARG)
-		SIF ARG != MASTER && TCVAR:ARG:食いしばりフラグ
-			PRINTFORMW %CALLNAME:ARG%は絶頂を繰り返し、一時的に抵抗する気力がなくなったようだ…
+	IF !MODE_存在判定_ターゲット側("首絞め", 対象キャラ)
+		TCVAR:対象キャラ:食いしばりフラグ = (MAXBASE:対象キャラ:体力 - 1000) / 1000
+		SIF キャラ一致チェック(対象キャラ, "[十天衆]サラーサ")
+			TCVAR:対象キャラ:食いしばりフラグ += 3
+		SIF 干渉強化変数:対象キャラ:干渉種類 == 10
+			CALL 干渉強化関数_10("実補正処理", 対象キャラ)
+		RETURN 1
 	ENDIF
 ENDIF
-;履歴登録
-RESULT = MIN(BASE:ARG:体力, DOWNBASE:ARG:体力)
-CALL 履歴登録チェック(ARG, "体力減少")
-履歴用実績:ARG:体力減少量累積 += MIN(BASE:ARG:体力, DOWNBASE:ARG:体力)
-BASE:ARG:体力 = MAX(0, BASE:ARG:体力 - DOWNBASE:ARG:体力)
+RETURN 0
 
 ;-------------------------------------------------
 ;刻印取得のチェック
@@ -1600,6 +1597,10 @@ RETURN 0
 #DIM 対象キャラ
 #DIM CONST 係数 = 0, 1, 2, 10
 #DIM CONST 反射キャップ = 0, 2000, 5000, 10000
+
+;自分自身に反射しない
+SIF 対象キャラ == MASTER
+	RETURN
 
 ;そもそもあなたに快楽を与えていないなら処理無し
 SIF TCVAR:対象キャラ:あなた快楽上昇 <= 0
