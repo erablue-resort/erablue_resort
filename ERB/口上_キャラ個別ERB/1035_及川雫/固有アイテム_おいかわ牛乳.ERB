@@ -1,31 +1,69 @@
 ﻿
 @アイテム個別文章表示_おいかわ牛乳(ARGS)
 ;おいかわ牛乳
+#DIM 雫番号
+雫番号 = FINDCHARA(NO, 1035)
+
 IF ARGS == "値段"
 	詳細文文字列受け渡し変数 = ルピ
 	RETURN 800
 ENDIF
 
-LOCALS = 
-LOCALS += @"■おいかわ牛乳　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "おいかわ牛乳")}<br>"
-LOCALS += "及川雫の実家であるおいかわ牧場特製の牛乳<br>"
-LOCALS += "<br>"
-LOCALS += "保存料の類は使っていないしぼりたてで、あまり日持ちしないようだ。<br>"
-LOCALS += "どうやって持ち込んできたんだろう……<br>"
-LOCALS += "<br>"
-LOCALS += "【効果】<br>"
-LOCALS += "味方単体のＨＰを[５０％]回復する。<br>"
-LOCALS += "戦闘中に及川雫に対して使用した場合、さらに奥義ゲージが[３０％]アップする。<br>"
-LOCALS += "このアイテムは探索が終了するとすべて消滅する。"
 
-詳細文文字列受け渡し変数 = %LOCALS%
+IF 陥落チェック(雫番号)
+	;LOCALS +=-------------------------------------------------|←文字横幅ここまで
+	LOCALS += @"■おいかわ牛乳　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "おいかわ牛乳")}<br>"
+	LOCALS += "及川雫の実家であるおいかわ牧場特製の牛乳<br>"
+	LOCALS += "<br>"
+	LOCALS += "保存料の類は使っていないしぼりたてで、<br>"
+	LOCALS += "あまり日持ちしないようだ。<br>"
+	LOCALS += "以前よりも味もコクも濃くなっているようだが、<br>"
+	LOCALS += "ますますどうやって持ち込んできたんだろう……？<br>"
+	LOCALS += "<br>"
+	LOCALS:1 += "【効果】<br>"
+	LOCALS:1 += "味方単体のＨＰを[７０％]回復する。<br>"
+	LOCALS:1 += "さらにＭＰを[３０％]回復する。<br>"
+	LOCALS:1 += "戦闘中に及川雫に対して使用した場合、さらに奥義ゲージが[５０％]アップする。<br>"
+	LOCALS:1 += "このアイテムは探索が終了するとすべて消滅する。<br>"
+
+ELSE
+	LOCALS += @"■おいかわ牛乳　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "おいかわ牛乳")}<br>"
+	LOCALS += "及川雫の実家であるおいかわ牧場特製の牛乳<br>"
+	LOCALS += "<br>"
+	LOCALS += "保存料の類は使っていないしぼりたてで、<br>"
+	LOCALS += "あまり日持ちしないようだ。<br>"
+	LOCALS += "どうやって持ち込んできたんだろう……<br>"
+	LOCALS += "<br>"
+	LOCALS += "及川雫が陥落するとさらに効果が追加されるかもしれない……<br>"
+	LOCALS += "<br>"
+	LOCALS:1 += "【効果】<br>"
+	LOCALS:1 += "味方単体のＨＰを[５０％]回復する。<br>"
+	LOCALS:1 += "戦闘中に及川雫に対して使用した場合、<br>"
+	LOCALS:1 += "さらに奥義ゲージが[３０％]アップする。<br>"
+	LOCALS:1 += "このアイテムは探索が終了するとすべて消滅する。<br>"
+ENDIF
+詳細文文字列受け渡し変数 = %LOCALS%%LOCALS:1%
+KSTR:(K++) = %LOCALS:1%
 
 @アイテム使用先表示_おいかわ牛乳
 CALL 汎用使用先表示("味方単体")
 
 @アイテム効果処理_おいかわ牛乳(ARG)
-#DIM 回復量
+#DIM ＨＰ回復量
+#DIM ＭＰ回復量
+#DIM ゲージ増加量
+#DIM 雫番号
+雫番号 = FINDCHARA(NO, 1035)
 ;ARG = 隊列の何番目か
+IF 陥落チェック(雫番号)
+	ＨＰ回復量 = MIN(BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ, BATTLE_STATE:ARG:最大ＨＰ * 7 / 10)
+	ＭＰ回復量 = MIN(BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ, BATTLE_STATE:ARG:最大ＭＰ * 3 / 10)
+	ゲージ増加量 = MIN(BATTLE_STATE:ARG:ゲージ最大値 - BATTLE_STATE:ARG:奥義ゲージ, 50)
+ELSE
+	ＨＰ回復量 = MIN(BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ, BATTLE_STATE:ARG:最大ＨＰ * 5 / 10)
+	ＭＰ回復量 = 0
+	ゲージ増加量 = MIN(BATTLE_STATE:ARG:ゲージ最大値 - BATTLE_STATE:ARG:奥義ゲージ, 30)
+ENDIF
 
 IF !BATTLE_STATE:ARG:0
 	RETURN 0
@@ -36,23 +74,36 @@ IF DT_CELL_GET("所持アイテムデータベース", 0, "おいかわ牛乳") 
 	RETURN 0
 ENDIF
 
-IF BATTLE_STATE:ARG:最大ＨＰ == BATTLE_STATE:ARG:ＨＰ && !(BATTLE_STATE:ARG:キャラ番号 == 1035 && BATTLE_STATE:ARG:奥義ゲージ < BATTLE_STATE:ARG:ゲージ最大値)
-	PRINTW ＨＰが最大です
-	RETURN 0
+
+IF 陥落チェック(雫番号)
+	IF BATTLE_STATE:ARG:最大ＨＰ == BATTLE_STATE:ARG:ＨＰ && !(BATTLE_STATE:ARG:キャラ番号 == 1035 && BATTLE_STATE:ARG:奥義ゲージ < BATTLE_STATE:ARG:ゲージ最大値) && BATTLE_STATE:ARG:最大ＭＰ == BATTLE_STATE:ARG:ＭＰ
+		PRINTW ＨＰとＭＰが最大です
+		RETURN 0
+	ENDIF
+ELSE
+	IF BATTLE_STATE:ARG:最大ＨＰ == BATTLE_STATE:ARG:ＨＰ && !(BATTLE_STATE:ARG:キャラ番号 == 1035 && BATTLE_STATE:ARG:奥義ゲージ < BATTLE_STATE:ARG:ゲージ最大値)
+		PRINTW ＨＰが最大です
+		RETURN 0
+	ENDIF
 ENDIF
+
+
 
 IF BATTLE_STATE:ARG:ＨＰ < 1
 	PRINTW 戦闘不能は治療出来ません
 	RETURN 0
 ENDIF
 
-回復量 = MIN(BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ, BATTLE_STATE:ARG:最大ＨＰ / 2)
-PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを{回復量}回復しました
-BATTLE_STATE:ARG:ＨＰ += 回復量
+SIF ＨＰ回復量 > 0
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＨＰを{ＨＰ回復量}回復しました
+SIF ＭＰ回復量 > 0
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%のＭＰを{ＭＰ回復量}回復しました
+BATTLE_STATE:ARG:ＨＰ += ＨＰ回復量
+BATTLE_STATE:ARG:ＨＰ += ＭＰ回復量
 
-IF BATTLE_STATE:ARG:キャラ番号 == 1035
-	回復量 = MIN(BATTLE_STATE:ARG:ゲージ最大値 - BATTLE_STATE:ARG:奥義ゲージ, 30)
-	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%の奥義ゲージが{回復量}増加しました
-	BATTLE_STATE:ARG:奥義ゲージ += 回復量
+
+IF BATTLE_STATE:ARG:キャラ番号 == 1035 && ゲージ増加量 > 0
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:0)%の奥義ゲージが{ゲージ増加量}増加しました
+	BATTLE_STATE:ARG:奥義ゲージ += ゲージ増加量
 ENDIF
 RETURN 1
