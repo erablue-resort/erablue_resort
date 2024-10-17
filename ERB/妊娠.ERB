@@ -203,6 +203,27 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 	SIF 種親 >= 0
 		EXP:種親:孕ませ経験 ++
 	CFLAG:ARG:産後経過日 = 0
+	;今回受胎人数の決定
+	CFLAG:ARG:今回受胎人数 = 1
+	SELECTCASE TALENT:ARG:受胎体質
+		CASE 1
+			;双子胎
+			SIF RAND:2
+				CFLAG:ARG:今回受胎人数 = 2
+			SIF RAND:16 == 0
+				CFLAG:ARG:今回受胎人数 = 3
+		CASE 2
+			;多産
+			CFLAG:ARG:今回受胎人数 = 5 - SQRT(RAND:16)
+		CASE 3
+			;畜生胎
+			CFLAG:ARG:今回受胎人数 = 12 - SQRT(RAND:49)
+		CASEELSE
+			SIF RAND:80 == 0
+				CFLAG:ARG:今回受胎人数 = 2
+			SIF RAND:6400 == 0
+				CFLAG:ARG:今回受胎人数 = 3
+	ENDSELECT
 ELSE
 	PRINTL
 ENDIF
@@ -267,26 +288,10 @@ IF GETBIT(性別招待制御OPTION, 0) && 子供性別 == 1
 	ENDIF
 ENDIF
 
-;子供の人数の決定
-SELECTCASE TALENT:MOTHER:受胎体質
-	CASE 1
-		;双子胎
-		子供人数 = 1
-		SIF RAND:2
-			子供人数 = 2
-		SIF RAND:16 == 0
-			子供人数 = 3
-	CASE 2
-		;多産
-		子供人数 = 5 - SQRT(RAND:16)
-	CASE 3
-		;畜生胎
-		子供人数 = 12 - SQRT(RAND:49)
-	CASEELSE
-		子供人数 = 1
-		SIF RAND:100 == 0
-			子供人数 = 2
-ENDSELECT
+;受胎人数判定を妊娠した時に移す対応
+SIF CFLAG:MOTHER:今回受胎人数 == 0
+	CFLAG:MOTHER:今回受胎人数 = 1
+子供人数 = CFLAG:MOTHER:今回受胎人数
 
 DRAWLINE
 IF CFLAG:MOTHER:滞在期間 == -1 && MOTHER != MASTER
@@ -312,8 +317,10 @@ ELSE
 	PRINTL …
 	PRINTL 
 	SETCOLOR カラーパレット("ピンク")
+	SIF MOTHER != MASTER && TALENT:MOTHER:恋慕 && CFLAG:MOTHER:子の父親 == MASTER
+		PRINTFORML %CALLNAME:MASTER%と指を絡ませ苦痛に耐えながら、
 	PRINTFORM %CALLNAME:MOTHER%は
-	IF (TALENT:MOTHER:種族 == 種族_ハーヴィン || TALENT:MOTHER:体格 == -2) && 異種妊娠(MOTHER)
+	IF 子供人数 > 2 || (TALENT:MOTHER:種族 == 種族_ハーヴィン || TALENT:MOTHER:体格 <= -2) && (異種妊娠(MOTHER) || 子供人数 > 1)
 		PRINTL 大変な苦労の末、なんとか出産を終えました
 	ELSE
 		PRINTFORML \@ 知識素質:MOTHER:性知識 == -2 ? 大変な混乱と痛みの中で、なんとか # 苦労の末、\@出産を終えました
@@ -365,6 +372,7 @@ TALENT:MOTHER:妊娠 = 0
 CFLAG:MOTHER:妊娠経過日 = 0
 CFLAG:MOTHER:子の父親 = -1
 CFLAG:MOTHER:妊娠発覚 = 0
+CFLAG:MOTHER:今回受胎人数 = 0
 EXP:MOTHER:出産経験 += 子供人数
 CFLAG:MOTHER:産後経過日 = 1
 
@@ -969,13 +977,15 @@ RETURNF 進行度
 #FUNCTION
 #DIM 進行度
 進行度 = PREGNANCY_PROGRESS(ARG)
-;異種妊娠したハーヴィンの場合、お腹が一段階大きくなる
-SIF 異種妊娠(ARG) && (TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 <= -2) && CFLAG:ARG:妊娠経過日 > PREG_DAY(10)
+;異種妊娠や多胎妊娠したハーヴィンの場合、お腹が一段階大きくなる
+IF (異種妊娠(ARG) || CFLAG:ARG:今回受胎人数 > 1) && TALENT:ARG:種族 == 種族_ハーヴィン && CFLAG:ARG:妊娠経過日 > PREG_DAY(10)
 	進行度 ++
-;体格が子供並以下の場合、異種と同じようにお腹が大きくなる、ハーヴィンは例外
-IF 異種妊娠(ARG) == 0 && CFLAG:ARG:妊娠経過日 > PREG_DAY(10) && TALENT:ARG:種族 != 種族_ハーヴィン
-	SIF TALENT:ARG:体格 <= 体格_子供
-		進行度 ++
+;ハーヴィン以外体格が子供並以下の場合、異種と同じようにお腹が大きくなる
+ELSEIF TALENT:ARG:種族 != 種族_ハーヴィン && TALENT:ARG:体格 <= 体格_子供 && CFLAG:ARG:妊娠経過日 > PREG_DAY(10)
+	進行度 ++
+;三つ子以上もお腹が大きくなる
+ELSEIF CFLAG:ARG:今回受胎人数 > 3
+	進行度 ++
 ENDIF
 RETURNF 進行度
 
@@ -986,7 +996,7 @@ RETURNF 進行度
 
 補正後数値 = BASE:対象キャラ:ウエスト
 
-SELECTCASE PREGNANCY_PROGRESS(対象キャラ)
+SELECTCASE PREGNANCY_SIZE(対象キャラ)
 	CASE 2
 		補正後数値 = (補正後数値 * 105 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
 	CASE 3
@@ -995,6 +1005,8 @@ SELECTCASE PREGNANCY_PROGRESS(対象キャラ)
 		補正後数値 = (補正後数値 * 140 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
 	CASE 5
 		補正後数値 = (補正後数値 * 165 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
+	CASE 6
+		補正後数値 = (補正後数値 * 180 / 100) * (102 - (CFLAG:対象キャラ:人物番号 % 5)) / 100
 ENDSELECT
 
 RETURNF 補正後数値
