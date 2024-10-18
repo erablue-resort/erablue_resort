@@ -122,6 +122,44 @@ NEXT
 RETURN 1
 
 
+@MODE_絶頂相手(キャラ番号, 絶頂部位)
+#FUNCTION
+#DIM キャラ番号
+#DIM 絶頂部位
+#DIM 判定結果
+#DIM 自分フラグ
+#DIM 配列番号
+
+自分フラグ = 0
+FOR 配列番号, 0, DT_ROW_LENGTH("体位モードデータベース")
+	IF DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ") == キャラ番号
+		判定結果 = 絶頂相手_指定なし
+		TRYCALLFORMF MODE_絶頂相手_%DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名")%(絶頂部位, "プレイヤー", 判定結果)
+		SELECTCASE 判定結果
+			CASE 絶頂相手_モード相手
+				RETURNF DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ")
+			CASE 絶頂相手_自分
+				自分フラグ = 1
+		ENDSELECT
+	ENDIF
+
+	IF DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ") == キャラ番号
+		判定結果 = 絶頂相手_指定なし
+		TRYCALLFORMF MODE_絶頂相手_%DT_CELL_GETS("体位モードデータベース", 配列番号, "モード名")%(絶頂部位, "ターゲット", 判定結果)
+		SELECTCASE 判定結果
+			CASE 絶頂相手_モード相手
+				RETURNF DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ")
+			CASE 絶頂相手_自分
+				自分フラグ = 1
+		ENDSELECT
+	ENDIF
+NEXT
+
+SIF 自分フラグ
+	RETURNF キャラ番号
+RETURNF -1
+
+
 @MODE_競合判定_プレイヤー(判定モード名, 判定配列番号, 実行キャラ番号, 対象キャラ番号, 指競合フラグ)
 #DIMS 判定モード名
 #DIM 判定配列番号
