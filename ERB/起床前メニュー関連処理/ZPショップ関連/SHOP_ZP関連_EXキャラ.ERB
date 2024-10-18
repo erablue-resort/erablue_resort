@@ -6,6 +6,7 @@
 #LOCALSSIZE 1
 #DIM 表示候補, 5000
 #DIM 現在ページ
+#DIM ページ数記憶
 #DIM ページ判定
 #DIM 表示数
 #DIM 候補番号
@@ -47,6 +48,7 @@ IF 初回実行フラグ
 	選択シリーズ = -1
 	初回実行フラグ = 0
 	現在ページ = 0
+	ページ数記憶 = 0
 	描画開始行 = LINECOUNT
 	REDRAW_TEMP = CURRENTREDRAW()
 	ソートモード = 0
@@ -97,14 +99,14 @@ FOR 対象キャラ, 1, CHARANUM
 	候補キャラ数 += 1
 
 	;出典記録
-	IF CSTR:対象キャラ:出演作品 == ""
+	IF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")) == ""
 		;出典なし＝グラブルキャラとする
 		出展情報配列:0 ++
-	ELSEIF MATCH(出展作品配列, CSTR:対象キャラ:出演作品)
-		配列番号 = FINDELEMENT(出展作品配列, CSTR:対象キャラ:出演作品, , , 1)
+	ELSEIF MATCH(出展作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
+		配列番号 = FINDELEMENT(出展作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")), , , 1)
 		出展情報配列:配列番号 ++
 	ELSE
-		出展作品配列:出典番号 = %CSTR:対象キャラ:出演作品%
+		出展作品配列:出典番号 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
 		出展情報配列:出典番号 ++
 		出典番号 ++
 	ENDIF
@@ -306,7 +308,8 @@ WHILE 1
 			BREAK
 		CASE 997
 			選択シリーズ = -1
-			現在ページ = 0
+			現在ページ = ページ数記憶
+			ページ数記憶 = 0
 			リスタートフラグ = 1
 			BREAK
 		CASE 996
@@ -412,6 +415,7 @@ WHILE 1
 				BREAK
 			ELSE
 				選択シリーズ = 入力番号
+				ページ数記憶 = 現在ページ
 				現在ページ = 0
 				リスタートフラグ = 1
 				VARSET 出展表示候補, -1
@@ -419,7 +423,7 @@ WHILE 1
 				FOR 対象キャラ, 0, CHARANUM
 					SIF 表示候補:対象キャラ == -1
 						BREAK
-					IF CSTR:(表示候補:対象キャラ):出演作品 == 出展作品配列:選択シリーズ
+					IF CSVCSTR(NO:(表示候補:対象キャラ), GETNUM(CSTR, "出演作品")) == 出展作品配列:選択シリーズ
 						出展表示候補:候補キャラ数_シリーズ = 表示候補:対象キャラ
 						候補キャラ数_シリーズ ++
 					ENDIF
@@ -654,7 +658,7 @@ PRINTL
 
 ; 出演作品
 IF CSTR:対象キャラ:出演作品 != ""
-	PRINTFORML 　出演作品：%CSTR:対象キャラ:出演作品%
+	PRINTFORML 　出演作品：%CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
 ELSE
 	PRINTL
 ENDIF
