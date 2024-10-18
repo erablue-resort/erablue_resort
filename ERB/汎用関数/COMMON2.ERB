@@ -106,11 +106,10 @@ ENDSELECT
 #FUNCTION
 LOCAL = 0
 
-IF TALENT:ARG:恋慕
+SIF TALENT:ARG:恋慕
 	SETBIT LOCAL, 0
-ELSEIF TALENT:ARG:セフレ
+SIF TALENT:ARG:セフレ
 	SETBIT LOCAL, 1
-ENDIF
 
 RETURNF LOCAL
 
@@ -572,18 +571,19 @@ ENDIF
 あなた追跡キャラ = 0
 
 
-@うふふ終了処理
+@うふふ終了処理(終了原因 = "")
 #DIM EXP番号
 #DIM TALENT番号
 #DIM 分身並べ替え基準, 5
 #DIM 時間保存
+#DIMS 終了原因
 
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	IF CFLAG:(TARGET:LOCAL):うふふ
 		;うふふ終了口上
-		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL, 終了原因)
 
 		;うふふ時間で履歴登録
 		時間保存 = (TIME + 1440 * DAY) - CFLAG:(TARGET:LOCAL):うふふ開始時間記録
@@ -1165,3 +1165,39 @@ IF CSTR:対象キャラ:画像フォルダ != 修正候補フォルダ
 	RETURN 1
 ENDIF
 RETURN 0
+
+
+;-------------------------------------------------
+;対象キャラの現在の状態を取得
+;-------------------------------------------------
+@NOW_SITUATION(対象キャラ)
+#FUNCTIONS
+#DIM 対象キャラ
+
+IF RFLAG:おさわりモード中
+	SIF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+		RETURNF マッサージ中_おさわりモード
+
+	SIF CFLAG:対象キャラ:うふふ
+		RETURNF うふふ中_おさわりモード
+	
+	RETURNF 通常_おさわりモード
+ENDIF
+
+SIF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+	RETURNF マッサージ中
+
+SIF ダンジョン名 != ""
+	RETURNF ダンジョンモード
+
+SIF RFLAG:夜這い処理中フラグ
+	RETURNF 夜這い中
+
+SIF CFLAG:対象キャラ:うふふ
+	RETURNF うふふ中
+
+SIF CFLAG:対象キャラ:飲み会
+	RETURNF 飲み会中
+
+RETURNF 通常
+
