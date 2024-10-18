@@ -108,12 +108,12 @@ PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 10
 DRAWLINE
 PRINTBUTTONLC "[1]感覚系素質を強化する", 1
 PRINTL
-IF GETBIT(TALENT:キャラ番号:性別, 0)
-	PRINTBUTTONLC "[2]乳の大きさを変化させる", 2
+IF GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:Ｂ感度 > -2
+	PRINTBUTTONLC "[2]乳を変化させる", 2
 	PRINTL
 ENDIF
-IF GETBIT(TALENT:キャラ番号:性別, 1)
-	PRINTBUTTONLC "[3]男性器の大きさを変化させる", 3
+IF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:Ｃ感度 > -2
+	PRINTBUTTONLC "[3]男性器を変化させる", 3
 	PRINTL
 ENDIF
 PRINTBUTTONLC "[4]性別を変化させる", 4
@@ -395,7 +395,7 @@ ENDSELECT
 #DIM 必要COST
 
 DRAWLINE
-PRINTL ZPを消費してキャラの乳の大きさを変化させることができます。
+PRINTL ZPを消費してキャラの乳の大きさなどを変化させることができます。
 PRINTL 任意の大きさを選択してください
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
@@ -481,10 +481,11 @@ ENDSELECT
 @男性器素質変化(対象キャラ)
 #DIM 対象キャラ
 #DIM CONST COST_男性器定数 = 20
+#DIM CONST COST_TO_射精可能 = 300
 #DIM 必要COST
 
 DRAWLINE
-PRINTL ZPを消費してキャラの男性器の大きさを変化させることができます。
+PRINTL ZPを消費してキャラの男性器の大きさなどを変化させることができます。
 PRINTL 任意の大きさを選択してください
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
@@ -499,6 +500,11 @@ FOR LOCAL:1 , -2, 3
 		PRINTL
 	ENDIF
 NEXT
+IF TALENT:対象キャラ:射精不可
+	PRINTBUTTON @"[10] 射精を可能にさせる（{COST_TO_射精可能}）", 10
+	PRINTL
+ENDIF
+PRINTL 
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP3
 INPUT
@@ -525,6 +531,27 @@ SELECTCASE LOCAL:1
 			FLAG:ZP所持量 -= ABS(TALENT:対象キャラ:男性器サイズ - LOCAL:1) * COST_男性器定数
 			PRINTFORMW %CALLNAME:対象キャラ%の男性器サイズが%GET_TALENTNAME(162, TALENT:対象キャラ:男性器サイズ)%から%GET_TALENTNAME(162, LOCAL:1)%に変化しました。
 			TALENT:対象キャラ:男性器サイズ = LOCAL:1
+		ENDIF
+		RETURN 0
+	CASE 10
+		;ZP足りる？
+		IF FLAG:ZP所持量 < COST_TO_射精可能
+			PRINTW ZPが足りません
+		GOTO INPUT_LOOP3
+		ENDIF
+		IF TALENT:対象キャラ:射精不可 == 2
+			PRINTFORML {COST_TO_射精可能}ZPを支払い、%CALLNAME:対象キャラ%を精通させますか？
+		ELSE
+			PRINTFORML {COST_TO_射精可能}ZPを支払い、［射精不可］を削除しますか？
+		ENDIF
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= COST_TO_射精可能
+			PRINTFORMW %CALLNAME:対象キャラ%が射精可能になりました。
+			TALENT:対象キャラ:射精不可 = 0
 		ENDIF
 		RETURN 0
 	CASEELSE
@@ -745,7 +772,11 @@ IF FLAG:ZP所持量 < COST_TO_妊娠可能
 	PRINTW ZPが足りません
 	RETURN 0
 ENDIF
-PRINTFORML {COST_TO_妊娠可能}ZPを支払い、［妊娠不可］を削除しますか？
+IF TALENT:対象キャラ:妊娠不可 == 2
+	PRINTFORML {COST_TO_妊娠可能}ZPを支払い、%CALLNAME:対象キャラ%に初潮を迎えさせますか？
+ELSE
+	PRINTFORML {COST_TO_妊娠可能}ZPを支払い、［妊娠不可］を削除しますか？
+ENDIF
 PRINTFORML （所持ZP：{FLAG:ZP所持量}）
 PRINTBUTTONLC "[0]はい", 0
 PRINTBUTTONLC "[1]いいえ", 1

@@ -17,6 +17,21 @@ LOCAL = (10 + ABL:キャラ番号:欲望) * TIME_PROGRESS(TFLAG:行動前時刻)
 ;性欲素質 1=+20% -1=-20%
 LOCAL = LOCAL * (10 + TALENT:キャラ番号:性欲 * 2) / 10
 
+;未精通・初潮前は1/10
+SELECTCASE TALENT:キャラ番号:性別
+	CASE 0
+		LOCAL /= 10
+	CASE 1
+		SIF TALENT:キャラ番号:妊娠不可 == 2
+			LOCAL /= 10
+	CASE 2
+		SIF TALENT:キャラ番号:射精不可 == 2
+			LOCAL /= 10
+	CASE 3
+		SIF TALENT:キャラ番号:妊娠不可 == 2 && TALENT:キャラ番号:射精不可 == 2
+			LOCAL /= 10
+ENDSELECT
+
 ;乱数で-20%～+20%まで上下
 LOCAL = LOCAL * (100 + RAND:40 - 19) / 100
 
@@ -256,6 +271,14 @@ ENDSELECT
 RETURNF 適用前強度
 
 
+@射精可能(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+
+;射精できるなら1、できないなら0を返す
+RETURNF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:Ｃ感度 != -2 && !TALENT:キャラ番号:射精不可
+
+
 ;RESULT       射精回数(射精経験に加算する数)
 ;結果受渡し:0 射精量
 ;結果受渡し:1 空打ちフラグ
@@ -277,6 +300,13 @@ SIF 絶頂強度 <= 0
 	RETURN 0
 SIF GETBIT(TALENT:射精キャラ:性別, 1) == 0 || TALENT:射精キャラ:Ｃ感度 == -2
 	RETURN 0
+IF TALENT:射精キャラ:射精不可 == 2
+	;未精通は空打ち扱い
+	SETBIT 結果受渡し:1, 0
+	RETURN 0
+ELSEIF TALENT:射精キャラ:射精不可
+	RETURN 0
+ENDIF
 
 絶頂強度 = 射精量強化適用(射精キャラ, 絶頂強度)
 
@@ -321,7 +351,7 @@ IF 射精回数 > 0
 	EXP:射精キャラ:射精経験 += 射精回数
 	EXP:射精キャラ:精液経験 += 射精回数 - 1
 	NOWEX:射精キャラ:スコア += 射精回数
-ELSE
+ELSEIF 結果受渡し:1
 	EXP:射精キャラ:空打ち絶頂経験 += 絶頂強度
 ENDIF
 RCVAR:射精キャラ:射精量 = 結果受渡し:0
