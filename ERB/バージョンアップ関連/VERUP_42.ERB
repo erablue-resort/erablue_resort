@@ -4,7 +4,7 @@
 ;追加TALENT、追加CSTRのチェック
 @VERUP_42_CHARA(ARG)
 
-IF 下半身フォロー == 0
+IF 下半身フォロー == 0 || (下半身フォロー == 1 && ARG == 0)
 	SIF CSVBASE(NO:ARG, 22)
 		CFLAG:ARG:ウエスト初期値 = CSVBASE(NO:ARG, 22)
 		BASE:ARG:ウエスト = CFLAG:ARG:ウエスト初期値
@@ -36,7 +36,7 @@ IF 下半身フォロー == 0
 		CALL SET_BODYSIZE(ARG, SETBIT_PI(ARG))
 ENDIF
 
-IF Ａ処女フォロー == 0
+IF Ａ処女フォロー == 0 || (Ａ処女フォロー == 1 && ARG == 0)
 	SIF 初体験日:ARG:Ａ挿入初体験 <= 0
 		TALENT:ARG:Ａ処女 = CSVTALENT(NO:ARG, GETNUM(TALENT, "Ａ処女"))
 ENDIF
@@ -88,6 +88,43 @@ IF 年齢フォロー == 0
 		ENDIF
 		TALENT:ARG:長命者 = CSVTALENT(NO:ARG, 165)
 	ENDIF
+ELSEIF 年齢フォロー == 1 && ARG == 0
+	SELECTCASE TALENT:ARG:年齢層
+		CASE -2
+			;旧幼い
+			TALENT:ARG:年齢層 = 年齢層_幼い
+			TALENT:ARG:長命者 = 0
+		CASE -1
+			;旧若い
+			TALENT:ARG:年齢層 = 年齢層_若い
+			TALENT:ARG:長命者 = 0
+		CASE 0
+			;旧成人
+			TALENT:ARG:年齢層 = 年齢層_成人
+			TALENT:ARG:長命者 = 0
+		CASE 1
+			;旧大人
+			TALENT:ARG:年齢層 = 年齢層_大人
+			TALENT:ARG:長命者 = 0
+		CASE 2
+			;旧中年
+			TALENT:ARG:年齢層 = 年齢層_壮年
+			TALENT:ARG:長命者 = 0
+		CASE 3
+			;旧長命者
+			TALENT:ARG:年齢層 = 年齢層_老年
+			TALENT:ARG:長命者 = 年齢層_大人
+		CASE 4
+			;旧ロリババア
+			TALENT:ARG:年齢層 = 年齢層_老年
+			TALENT:ARG:長命者 = 年齢層_幼い
+		CASE 年齢層_幼い TO 年齢層_老年
+			;新バージョン対応なら変換不要
+		CASEELSE
+			;それ以外は年齢不詳とする
+			TALENT:ARG:年齢層 = 年齢層_年齢不詳
+			TALENT:ARG:長命者 = 0
+	ENDSELECT
 ENDIF
 
 ;表示奥義設定
@@ -118,13 +155,8 @@ ENDIF
 ;その他広域変数の書き換えなど
 @VERUP_42()
 
-下半身フォロー = 1
-Ａ処女フォロー = 1
-年齢フォロー = 1
-
 IF あなた画像フォロー == 0
 	CSTR:MASTER:画像フォルダ = 0あなた
-	あなた画像フォロー = 1
 ENDIF
 
 CALLNAME:(キャラ検索("[撃槍・ガングニール]立花響")) = 立花響
@@ -136,7 +168,6 @@ IF 空艇港店舗屋号フォロー == 0
 			空艇港店舗屋号記録:LOCAL = %空艇港_店舗屋号ランダム決定()%
 		ENDIF
 	NEXT
-	空艇港店舗屋号フォロー = 1
 	DRAWLINE
 	PRINTL 屋号を実装したため、現在存在する空艇港の店舗にランダムで屋号を付与しました。
 	PRINTL 屋号を変更したい場合は、変更したい店舗に赴いて「店舗を改装する」から変更してください。
@@ -151,5 +182,13 @@ SIF フィールド展開:欲情フィールド
 ; IF 乗機属性フォロー == 0
 ; 	DT_COLUMN_ADD "所持乗機データベース", "乗機属性", 1
 ; 	DT_COLUMN_ADD "所持乗機データベース", "乗機属性_強化後", 1
-; 	乗機属性フォロー = 1
 ; ENDIF
+
+;対応処理用フラグを対応済状態にセット
+@VERUP_42_FINISH()
+下半身フォロー = 2
+Ａ処女フォロー = 2
+年齢フォロー = 2
+あなた画像フォロー = 1
+空艇港店舗屋号フォロー = 1
+; 乗機属性フォロー = 1
