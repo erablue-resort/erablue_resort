@@ -19,6 +19,7 @@
 #DIM シャッフル数
 #DIM 表示フラグ
 #DIM 結果保存
+#DIM 消費ZP
 #DIM 料理ZP補正保存
 #DIM 料理ルピ補正保存
 
@@ -562,40 +563,27 @@ IF 滞在キャラ数算出関数() > 0
 		DRAWLINE
 	ENDIF
 
-	IF フィールド展開:欲情フィールド == 1
-		PRINTL 欲情フィールド維持のために2ZPを消費した。
-		IF FLAG:ZP所持量 < 2
+	消費ZP = 0
+	FOR LOCAL, 0, 50
+		SIF ERDNAME(フィールド展開, LOCAL) == ""
+			BREAK
+		SIF フィールド展開:LOCAL <= 0
+			CONTINUE
+		CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+		消費ZP += RESULT
+		IF 消費ZP > FLAG:ZP所持量
+			PRINTFORML ZPが足りないため、%ERDNAME(フィールド展開, LOCAL)%効果を停止しました。
+			フィールド展開:LOCAL = 0
+		ENDIF
+	NEXT
+	IF 消費ZP
+		IF 消費ZP > FLAG:ZP所持量
 			FLAG:ZP所持量 = 0
 			ZP小数点以下所持量 = 0
-			PRINTL ZPが足りないため、欲情フィールドを停止した。
-			フィールド展開:欲情フィールド = 0
 		ELSE
-			FLAG:ZP所持量 -= 2
+			FLAG:ZP所持量 -= 消費ZP
 		ENDIF
-	ENDIF
-
-	IF フィールド展開:露出フィールド == 1
-		PRINTL 露出フィールド維持のために5ZPを消費した。
-		IF FLAG:ZP所持量 < 5
-			FLAG:ZP所持量 = 0
-			ZP小数点以下所持量 = 0
-			PRINTL ZPが足りないため、露出フィールドを停止した。
-			フィールド展開:露出フィールド = 0
-			CALL 露出フィールド停止処理
-		ELSE
-			FLAG:ZP所持量 -= 5
-		ENDIF
-	ELSEIF フィールド展開:露出フィールド == 2
-		PRINTL 露出フィールド維持のために50ZPを消費した。
-		IF FLAG:ZP所持量 < 50
-			FLAG:ZP所持量 = 0
-			ZP小数点以下所持量 = 0
-			PRINTL ZPが足りないため、露出フィールドを停止した。
-			フィールド展開:露出フィールド = 0
-			CALL 露出フィールド停止処理
-		ELSE
-			FLAG:ZP所持量 -= 50
-		ENDIF
+		PRINTFORML フィールド維持のために{MIN(消費ZP, FLAG:ZP所持量), 3}ZPを消費した。
 	ENDIF
 
 	IF 長期雇用者人数 > 0

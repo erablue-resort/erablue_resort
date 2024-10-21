@@ -1,5 +1,6 @@
 ﻿@SHOW_SHOP
 #DIM コマンド表示数
+#DIM 消費ZP
 ;奴隷購入ページフラグ
 SAVESTR:ゲームフェイズ管理 = 
 TOOLTIP_CUSTOM 1
@@ -28,20 +29,35 @@ IF リゾート人気度 >= RESULT / 1000
 ENDIF
 PRINTL
 PRINTFORML リゾートランク：%リゾートランク文字列:リゾートランク%
-IF フィールド展開:欲情フィールド
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：欲情フィールド　　消費ZP 1日 / 2ZP
-	RESETCOLOR
+SETCOLOR カラーパレット("えっちな色")
+PRINT フィールド効果：
+RESETCOLOR
+LOCALS = <font color='#%カラーパレット_HTML("えっちな色")%'>
+LOCAL:1 = 0
+消費ZP = 0
+FOR LOCAL, 0, 50
+	SIF ERDNAME(フィールド展開, LOCAL) == ""
+		BREAK
+	SIF フィールド展開:LOCAL <= 0
+		CONTINUE
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	IF ツールチップ切り替えOPTION記憶 == 0
+		LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%RESULTS%]</nonbutton>"
+	ELSE
+		LOCALS += @"<nonbutton>[%RESULTS%]</nonbutton>"
+	ENDIF
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	消費ZP += RESULT
+	LOCAL:1 ++
+NEXT
+IF LOCAL:1 == 0
+	LOCALS = なし
+ELSE
+	LOCALS += @"　消費ZP/1日：{消費ZP, 3}ZP"
+	LOCALS += "</font>"
 ENDIF
-IF フィールド展開:露出フィールド == 1
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：露出フィールド　　消費ZP 1日 / 5ZP
-	RESETCOLOR
-ELSEIF フィールド展開:露出フィールド == 2
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：強化露出フィールド　　消費ZP 1日 / 50ZP
-	RESETCOLOR
-ENDIF
+HTML_PRINT LOCALS, 1
+PRINTL
 DRAWLINE
 LOCAL:1 = 0
 FOR LOCAL, 1, CHARANUM
