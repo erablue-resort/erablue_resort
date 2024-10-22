@@ -1220,3 +1220,115 @@ RETURNF MAX(1,ARG * 妊娠期間 / 100)
 SIF (TALENT:ARG:種族 == 2 || GETBIT(TALENT:ARG:発情期あり,4)) || キャラ一致チェック(ARG, "[六竜の『金』]ガレヲン")
 	妊娠周期 =8
 RETURNF 妊娠周期
+
+
+;口上用。あなたを父親とする子から最初の1人の呼び名を取り出す
+;多胎フラグ 0:そのうち1人だけにする 1:接尾辞を付け足す 2:全部列挙する
+;詳細フラグ 0以外にすると、RESULT:1に子供のIDを返す
+@あなたの子_呼び名_長(キャラ番号, 多胎フラグ = 1, 連結文字 = "たち", 詳細フラグ = 0)
+#FUNCTIONS
+#DIM TMP_SELECT, 12
+#DIM キャラ番号
+#DIM 多胎フラグ
+#DIMS 連結文字
+#DIM 詳細フラグ
+#DIMS FILTER
+#DIM 件数
+#DIM ループ用
+#DIMS 返却文字列
+
+;最初の子供の人物番号を取得するため、昇順ソートでSELECTし1件目を使う
+FILTER '= @"母親 = {CFLAG:キャラ番号:人物番号} And 父親 = {CFLAG:MASTER:人物番号}"
+件数 = DT_SELECT("人物データベース", FILTER, "出生順 DESC, 出会った周回 ASC, 生年日 ASC", TMP_SELECT)
+SIF 件数 <= 0
+	RETURNF ""
+
+;候補の取得
+FILTER += @" And 呼び名 Is Not Null And 出会った周回 = {GET_PERSON_出会った周回(TMP_SELECT:0)} And 生年日 = {GET_PERSON_生年日(TMP_SELECT:0)} And 出生順 Is Null"
+件数 = DT_SELECT("人物データベース", FILTER, , TMP_SELECT)
+SIF 件数 <= 0
+	RETURNF ""
+
+;多胎児の一部だけに名前を付けることはできないので最初に空文字チェック
+返却文字列 '= GET_PERSON_呼び名(TMP_SELECT:0)
+SIF 返却文字列 == ""
+	RETURNF ""
+SIF 詳細フラグ
+	RESULT:1 = TMP_SELECT:0
+
+;多胎児の場合の処理
+IF 件数 > 1
+	SELECTCASE 多胎フラグ
+		CASE 0
+			IF 詳細フラグ
+				RESULT:1 = TMP_SELECT:RAND(件数)
+				返却文字列 '= GET_PERSON_呼び名(RESULT:1)
+			ELSE
+				返却文字列 '= GET_PERSON_呼び名(TMP_SELECT:RAND(件数))
+			ENDIF
+		CASE 1
+			返却文字列 += 連結文字
+		CASE 2
+			FOR ループ用, 1, 件数
+				返却文字列 += 連結文字 + GET_PERSON_呼び名(TMP_SELECT:ループ用)
+			NEXT
+	ENDSELECT
+ENDIF
+
+RETURNF 返却文字列
+
+
+;口上用。あなたを父親とする子から最新の1人の呼び名を取り出す
+;多胎フラグ 0:そのうち1人だけにする 1:接尾辞を付け足す 2:全部列挙する
+;詳細フラグ 0以外にすると、RESULT:1に子供のIDを返す
+@あなたの子_呼び名_末(キャラ番号, 多胎フラグ = 1, 連結文字 = "たち", 詳細フラグ = 0)
+#FUNCTIONS
+#DIM TMP_SELECT, 12
+#DIM キャラ番号
+#DIM 多胎フラグ
+#DIMS 連結文字
+#DIM 詳細フラグ
+#DIMS FILTER
+#DIM 件数
+#DIM ループ用
+#DIMS 返却文字列
+
+;最後の子供の人物番号を取得するため、降順ソートでSELECTし1件目を使う
+FILTER '= @"母親 = {CFLAG:キャラ番号:人物番号} And 父親 = {CFLAG:MASTER:人物番号}"
+件数 = DT_SELECT("人物データベース", FILTER, "出生順 ASC, 出会った周回 DESC, 生年日 DESC", TMP_SELECT)
+SIF 件数 <= 0
+	RETURNF ""
+
+;候補の取得
+FILTER += @" And 呼び名 Is Not Null And 出会った周回 = {GET_PERSON_出会った周回(TMP_SELECT:0)} And 生年日 = {GET_PERSON_生年日(TMP_SELECT:0)} And 出生順 Is Null"
+件数 = DT_SELECT("人物データベース", FILTER, , TMP_SELECT)
+SIF 件数 <= 0
+	RETURNF ""
+
+;多胎児の一部だけに名前を付けることはできないので最初に空文字チェック
+返却文字列 '= GET_PERSON_呼び名(TMP_SELECT:0)
+SIF 返却文字列 == ""
+	RETURNF ""
+SIF 詳細フラグ
+	RESULT:1 = TMP_SELECT:0
+
+;多胎児の場合の処理
+IF 件数 > 1
+	SELECTCASE 多胎フラグ
+		CASE 0
+			IF 詳細フラグ
+				RESULT:1 = TMP_SELECT:RAND(件数)
+				返却文字列 '= GET_PERSON_呼び名(RESULT:1)
+			ELSE
+				返却文字列 '= GET_PERSON_呼び名(TMP_SELECT:RAND(件数))
+			ENDIF
+		CASE 1
+			返却文字列 += 連結文字
+		CASE 2
+			FOR ループ用, 1, 件数
+				返却文字列 += 連結文字 + GET_PERSON_呼び名(TMP_SELECT:ループ用)
+			NEXT
+	ENDSELECT
+ENDIF
+
+RETURNF 返却文字列
