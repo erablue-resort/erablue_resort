@@ -128,6 +128,95 @@ SELECTCASE ARG:1
 		RETURNF 1
 ENDSELECT
 
+;その部屋のキャラが陥落しているかorあなたが自由に使えるかを示す
+@自由利用BEDROOM(判定マップ種, 判定位置)
+#FUNCTION
+#DIM 判定マップ種
+#DIM 判定位置
+#DIM 部屋番号
+
+SELECTCASE 判定マップ種
+	CASE 0
+		;だいたい自室のはず
+		SELECTCASE 判定位置
+			CASE 20
+				RETURNF 1
+			CASE 2020
+				RETURNF 1
+			CASE 2011
+				IF 同棲部屋割り配列:0 > 0
+					RETURNF SIGN(陥落チェック(同棲部屋割り配列:0))
+				ELSE
+					RETURNF 1
+				ENDIF
+			CASE 2012
+				IF 同棲部屋割り配列:1 > 0
+					RETURNF SIGN(陥落チェック(同棲部屋割り配列:1))
+				ELSE
+					RETURNF 1
+				ENDIF
+		ENDSELECT
+	CASE 2
+		IF 判定位置 >= 1000
+			;居住区
+			部屋番号 = 判定位置 - 1000
+			SIF 定住者部屋割り配列:部屋番号 == ""
+				RETURNF 1
+			;部屋の居住者を見る
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:部屋番号, "_", RESULTS
+			FOR LOCAL, 0, RESULT
+				;未陥落でのRETURNF 0を通らずに全部読んだならOK
+				SIF RESULTS:LOCAL == ""
+					RETURNF 1
+				IF ISNUMERIC(RESULTS:LOCAL)
+					IF 陥落チェック(TOINT(RESULTS:LOCAL)) == 0
+						;一人でも未陥落がいるならアウト
+						RETURNF 0
+					ENDIF
+				ENDIF
+			NEXT
+		ENDIF
+	CASE 999
+		SELECTCASE 判定位置
+			CASE IS < 1000
+				;滞在者部屋
+				IF 滞在者部屋割り配列:判定位置 > 0
+					RETURNF SIGN(陥落チェック(滞在者部屋割り配列:判定位置))
+				ELSE
+					RETURNF 1
+				ENDIF
+			CASE IS < 2000
+				;従業員部屋
+				部屋番号 = 判定位置 - 1000
+				IF 従業員部屋割り配列:部屋番号 > 0
+					RETURNF SIGN(陥落チェック(従業員部屋割り配列:部屋番号))
+				ELSE
+					RETURNF 1
+				ENDIF
+			CASEELSE
+				;スイートルーム
+				部屋番号 = 判定位置 - 2000
+				SIF スイートルーム部屋割り配列:部屋番号 == ""
+					RETURNF 1
+				;部屋の居住者を見る
+				VARSET RESULTS
+				SPLIT スイートルーム部屋割り配列:部屋番号, "_", RESULTS
+				;スイートルームは文字列的に1から読む
+				FOR LOCAL, 1, RESULT
+					;未陥落でのRETURNF 0を通らずに全部読んだならOK
+					SIF RESULTS:LOCAL == ""
+						RETURNF 1
+					IF ISNUMERIC(RESULTS:LOCAL)
+						IF 陥落チェック(TOINT(RESULTS:LOCAL)) == 0
+							;一人でも未陥落がいるならアウト
+							RETURNF 0
+						ENDIF
+					ENDIF
+				NEXT
+		ENDSELECT
+ENDSELECT
+
 
 ;お風呂がある部屋
 @BATHROOM(ARG:1, ARG)
