@@ -53,6 +53,11 @@ ENDSELECT
 LOCALS += "<br>"
 IF 宿泊エリア表示種別 == 2
 	LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += @"<button value='998'><font color='#%カラーパレット_HTML("赤")%'>[998] 立ち退かせる</font></button>"
 ELSEIF 宿泊エリア表示種別 == 1
 	LOCALS += "<button value='999'>[999] 空艇港に戻る</button>"
 ELSE
@@ -135,6 +140,9 @@ SELECTCASE RESULT
 			CFLAG:MASTER:現在位置 = CFLAG:MASTER:自室位置
 		ENDIF
 		CALL 移動時モード消去(PLAYER)
+	CASE 998
+		CALL 立ち退き処理()
+		GOTO RESTART_LABEL
 	CASEELSE
 		IF 表示エリア種類 == 200
 			IF CFLAG:(滞在者部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:RESULT):睡眠 && CFLAG:(滞在者部屋割り配列:RESULT):現在位置 == RESULT && 陥落チェック(滞在者部屋割り配列:RESULT) == 0
@@ -731,6 +739,17 @@ IF CFLAG:ARG:スイートルーム滞在フラグ
 		スイートルーム部屋割り配列:(CFLAG:ARG:スイートルーム滞在フラグ - 100) = 
 	CFLAG:ARG:スイートルーム滞在フラグ = 0
 	RETURN 1
+ELSEIF TALENT:ARG:定住者 == 1
+	FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+		SIF 定住者部屋割り配列:LOCAL == ""
+			CONTINUE
+		;部屋の居住者を見る
+		IF STRFIND(定住者部屋割り配列:LOCAL, @"_{ARG}_") > -1
+			定住者部屋割り配列:LOCAL = %REPLACE(定住者部屋割り配列:LOCAL, @"_{ARG}_", "_")%
+		ELSEIF STRFIND(定住者部屋割り配列:LOCAL, @"{ARG}_") == 0
+			定住者部屋割り配列:LOCAL = %SUBSTRING(定住者部屋割り配列:LOCAL, STRLENS(@"{ARG}_"), -1)%
+		ENDIF
+	NEXT
 ELSE
 	FOR LOCAL, 0, 100
 		IF 滞在者部屋割り配列:LOCAL == ARG
