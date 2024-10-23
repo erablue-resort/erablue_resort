@@ -33,7 +33,21 @@ FOR LOCAL,0,19
 	SIF 相手ごとの射精量:ARG:LOCAL <= 0
 		CONTINUE
 
-	命中強度2 = 1 + RAND:(相手ごとの射精量:ARG:LOCAL)
+	RESULT = 0
+	TRYCALLFORM 個別妊娠処理_種親制御_{NO:ARG}(ARG, 種親)
+	IF RESULT == 1
+		;この種親で妊娠させる
+		種親 = 性交相手:ARG:LOCAL
+		種親精液量 = 相手ごとの射精量:ARG:LOCAL
+		BREAK
+	ELSEIF RESULT == -1
+		;この種親では絶対妊娠させない
+		命中強度2 = -1
+	ELSE
+		;通常処理
+		命中強度2 = 1 + RAND:(相手ごとの射精量:ARG:LOCAL)
+	ENDIF
+
 	IF 命中強度2 > 命中強度1
 		命中強度1 = 命中強度2
 		種親 = 性交相手:ARG:LOCAL
@@ -131,19 +145,30 @@ ELSE
 ENDIF
 RESETCOLOR
 
-IF 異種フラグ == 1
-	;異種の時は妊娠させない
-	PRINTW しかし、異種族の間では妊娠には至らないようだ。
-	TCVAR:ARG:膣内精液量 = 0
-	RETURN 0
-ELSEIF 異種フラグ == 2 && LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
-	PRINTL 星晶獣eraの影響を受けた母体が、異種の子種を受け入れようとしている……！
+RESULT = 0
+TRYCALLFORM 個別妊娠処理_妊娠率制御_{NO:ARG}(ARG, 種親)
+IF RESULT == 1
+	;絶対に妊娠させる
+	妊娠確率 = 100
+ELSEIF RESULT == -1
+	;絶対に妊娠させない
+	妊娠確率 = -1
+ELSE
+	;通常処理
+	IF 異種フラグ == 1
+		;異種の時は妊娠させない
+		PRINTW しかし、異種族の間では妊娠には至らないようだ。
+		TCVAR:ARG:膣内精液量 = 0
+		RETURN 0
+	ELSEIF 異種フラグ == 2 && LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
+		PRINTL 星晶獣eraの影響を受けた母体が、異種の子種を受け入れようとしている……！
+	ENDIF
 ENDIF
 
-SIF FLAG_アニメーション
-	CALL 受精アニメ(0)
 ;妊娠した
 IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
+	SIF FLAG_アニメーション
+		CALL 受精アニメ(0)
 	CFLAG:ARG:子の父親 = 種親
 	SIF TCVAR:ARG:膣内精液量 >= 450
 		PRINT 精液をたっぷりと注がれた
