@@ -401,8 +401,17 @@ CALL フレーバー素質初期設定
 PRINTL
 
 IF SAVESTR:あなたスタイル == "グランくんスタイル"
-	CALL グランくんスタイルセット()
-	CALL シナリオ_OP_グランくんスタイル
+	CALL グランくんスタイルセット(0)
+	CALL シナリオ_OP_グランくんスタイル(0)
+ELSEIF SAVESTR:あなたスタイル == "ジータちゃんスタイル"
+	CALL グランくんスタイルセット(1)
+	CALL シナリオ_OP_グランくんスタイル(1)
+ELSEIF SAVESTR:あなたスタイル == "スタートダッシュモード"
+	従業員部屋数 = 4
+	PRINTW 初期追加する従業員を設定します。
+	CALL 初期従業員選択(4)
+	CALL シナリオ_OP
+	SAVESTR:あなたスタイル = 
 ELSE
 	CALL シナリオ_OP
 ENDIF
@@ -1969,3 +1978,230 @@ ELSEIF RESULT == 101
 ENDIF
 
 GOTO 最初から
+
+
+@初期従業員選択(追加人数)
+#DIM 追加人数
+#DIM 追加候補, 10
+#DIM 表示候補, 5000
+#DIM 配列番号
+#DIM 表示最大数
+#DIM 現在ページ
+#DIM 対象キャラ
+
+VARSET 追加候補, -1
+VARSET 表示候補
+
+表示最大数 = 0
+FOR 配列番号, 1, CHARANUM
+	SIF CFLAG:配列番号:招待不可フラグ == 2
+		CONTINUE
+	表示候補:表示最大数 = 配列番号
+	表示最大数 ++
+NEXT
+
+$表示LOOP
+DRAWLINE
+PRINTL 初期追加する従業員を選択してください。
+DRAWLINE
+
+FOR 配列番号, 現在ページ * 30, 現在ページ * 30 + 30
+	SIF 表示候補:配列番号 <= 0
+		BREAK
+	SIF MATCH(追加候補, 表示候補:配列番号)
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[{配列番号}]%NAME:(表示候補:配列番号), 41, LEFT%", 配列番号
+	RESETCOLOR
+	SIF 配列番号 % 2
+		PRINTL 
+NEXT
+PRINTL
+PRINTL 
+IF 現在ページ > 0
+	PRINTBUTTONLC "[-1] 前ページへ", -1
+ELSE
+	PRINTLC  
+ENDIF
+IF 表示候補:(現在ページ * 30 + 30) > 0
+	PRINTBUTTONLC "[-2] 次ページへ", -2
+ENDIF
+PRINTL 
+DRAWLINE
+PRINTL ・現在の選択キャラ
+FOR LOCAL, 0, 追加人数
+	IF 追加候補:LOCAL < 0
+		PRINTL 未選択
+	ELSE
+		PRINTFORML %NAME:(追加候補:LOCAL)%
+	ENDIF
+NEXT
+PRINTL 
+IF 10 - MATCH(追加候補, -1) == 追加人数
+	PRINTBUTTON "[9999] これで決定する", 9999
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [9999] これで決定する
+	RESETCOLOR
+ENDIF
+PRINTL 
+DRAWLINE
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE -1
+		現在ページ --
+	CASE -2
+		現在ページ ++
+	CASE 9999
+		IF 10 - MATCH(追加候補, -1) != 追加人数
+			PRINTL 設定人数が合っていません
+			GOTO 表示LOOP
+		ENDIF
+		FOR 配列番号, 0, 追加人数
+			対象キャラ = 追加候補:配列番号
+			SIF 対象キャラ < 1
+				CONTINUE
+			CFLAG:対象キャラ:信頼度 = 5000
+			CFLAG:対象キャラ:招待不可フラグ = 0
+			TALENT:対象キャラ:従業員 = 1
+			CFLAG:対象キャラ:滞在期間 = 999
+			CFLAG:対象キャラ:探索参加許可フラグ = 1
+			FOR LOCAL, 0, 従業員部屋数
+				IF 従業員部屋割り配列:LOCAL < 1
+					従業員部屋割り配列:LOCAL = 対象キャラ
+					BREAK
+				ENDIF
+			NEXT
+			初体験日:対象キャラ:初対面 = 999
+			CFLAG:対象キャラ:現在位置 = キャラクター部屋検索(対象キャラ)
+			CFLAG:対象キャラ:現在マップ種別 = 0
+			;初期状態雑務
+			現在仕事:対象キャラ:0 = 1
+		NEXT
+		PRINTW 初期従業員キャラを設定しました。
+		RETURN 0
+	CASEELSE
+		
+		;- キャラ招待ループ
+		WHILE 1
+			CALL 初期従業員セット確認(表示候補:LOCAL, MATCH(追加候補, 表示候補:LOCAL))
+			SELECTCASE RESULT
+				CASE 0
+					;- キャンセル
+					; リスタートしてリスト表示へ戻る
+					BREAK
+				CASE 1
+					;- キャラ追加後
+					; リスタートしてリスト表示へ戻る
+					IF MATCH(追加候補, 表示候補:LOCAL)
+						追加候補:(FINDELEMENT(追加候補, 表示候補:LOCAL)) = -1
+					ELSE
+						IF 10 - MATCH(追加候補, -1) < 追加人数
+							追加候補:(FINDELEMENT(追加候補, -1)) = 表示候補:LOCAL
+						ELSE
+							PRINTW 追加枠が一杯です。
+						ENDIF
+					ENDIF
+					BREAK
+				CASE 10
+					;- 前のキャラ
+					; 候補番号を更新、ループして前のキャラを表示
+					LOCAL -=  1
+					SIF LOCAL < 0
+						LOCAL = 表示最大数 - 1
+				CASE 11
+					;- 次のキャラ
+					; 候補番号を更新、ループして次のキャラを表示
+					LOCAL +=  1
+					SIF LOCAL >= 表示最大数
+						LOCAL = 0
+			ENDSELECT
+		WEND
+ENDSELECT
+
+GOTO 表示LOOP
+
+@初期従業員セット確認(対象キャラ, セットフラグ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 対象キャラ
+#DIM 返り値
+#DIM 描画開始行
+#DIM 対象画像数
+#DIM リロールボタン有効
+#DIM 実行結果
+#DIM セットフラグ
+#DIM リスタートフラグ
+#DIM DYNAMIC 初回フラグ = 1
+
+IF 初回フラグ
+	初回フラグ = 0
+	; 番号の範囲チェック
+	SIF !INRANGE(対象キャラ, 0, CHARANUM - 1)
+		RETURN -1
+	; 所持ZPチェック
+	; ・ZPが足りなくても簡易紹介を表示したいのでZPの確認は後に移動
+;	IF CFLAG:対象キャラ:ZPショップ値段 > FLAG:ZP所持量
+;		PRINTW ZPが足りません
+;		RETURN
+;	ENDIF
+	描画開始行 = LINECOUNT
+ENDIF
+
+PRINTL
+; キャラ確認用の簡易紹介
+CALL キャラ簡易紹介(対象キャラ)
+対象画像数 = RESULT
+リロールボタン有効 = 対象画像数 > 5
+PRINTL
+; 確認メッセージ
+IF セットフラグ
+	PRINTFORML %NAME:対象キャラ%を初期従業員から外しますか？
+ELSE
+	PRINTFORML %NAME:対象キャラ%を初期従業員にセットしますか？
+ENDIF
+; ボタン表示
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+PRINTL
+PRINTBUTTONLC "[2]前のキャラ", 2
+PRINTBUTTONLC "[3]次のキャラ", 3
+SIF リロールボタン有効
+	PRINTBUTTONLC "[4]画像のランダム表示をリロール", 4
+PRINTL
+
+; 入力ループ
+WHILE 1
+	BINPUT
+	SELECTCASE RESULT
+		CASE 0
+			返り値 = 1
+			BREAK
+		CASE 1
+			返り値 = 0
+			BREAK
+		CASE 4
+			RESTART
+		CASE 2
+			;- [2]前のキャラ
+			返り値 = 10
+			BREAK
+		CASE 3
+			;- [3]次のキャラ
+			返り値 = 11
+			BREAK
+		CASEELSE
+			; 入力エラー
+	ENDSELECT
+	; 入力エラー時は消してやり直し
+	CLEARLINE 1
+	REUSELASTLINE 
+WEND
+
+; 表示した内容を消去
+CLEARLINE LINECOUNT - 描画開始行
+
+; 簡易紹介で使用したリソースを解放
+CALL ランダム画像表示_リソース解放(1)
+
+RETURN 返り値
