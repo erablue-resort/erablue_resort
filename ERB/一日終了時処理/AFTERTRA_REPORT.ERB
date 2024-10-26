@@ -841,32 +841,61 @@ FOR LOCAL, 0, ループ用
 	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT")
 	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率")
 	LOCAL:3 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
-	IF LOCAL:1 > 0
-		;CTが残ってる場合は１減らす
+	
+	RESULT = 0
+	;再発生確率は消失時にしか入らないはずなので、そこで条件を読むか見る
+	SIF LOCAL:2 > 0
+		TRYCALLFORM イベント時限消失_再発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF RESULT == -1
+		;即座に再発生させる
 		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
-	ELSEIF LOCAL:3 == -2
-		;消失状態、かつ発生条件を満たす場合はRANDで再発生させる
-		RESULT = 0
-		TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
-		IF RESULT
-			LOCAL:10 = RAND:100
-			IF LOCAL:2 > LOCAL:10
-				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+	ELSEIF RESULT == 1
+		;絶対再発生させない
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", 999
+	ELSE
+		;以降通常処理
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+		ELSEIF LOCAL:3 == -2
+			;消失状態、かつ発生条件を満たす場合はRANDで再発生させる
+			RESULT = 0
+			TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			IF RESULT
+				LOCAL:10 = RAND:100
+				IF LOCAL:2 > LOCAL:10
+					DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+				ENDIF
 			ENDIF
 		ENDIF
 	ENDIF
+
 	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
 	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅確率")
-	IF LOCAL:1 > 0
-		;CTが残ってる場合は１減らす
-		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", LOCAL:1 - 1
-	ELSEIF LOCAL:2 > 0
-		;現在出現中のものだけ消滅判定
-		IF (DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0) || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
-			;消失確率がある場合はRANDで消失させる
-			LOCAL:10 = RAND:100
-			IF LOCAL:2 > LOCAL:10
-				DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -1
+
+	RESULT = 0
+	;消滅確率は消失時にしか入らないはずなので、そこで条件を読むか見る
+	SIF LOCAL:2 > 0
+		TRYCALLFORM イベント時限消失_消失条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF RESULT == -1
+		;即座に再発生させる
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+	ELSEIF RESULT == 1
+		;絶対再発生させない
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", 999
+	ELSE
+		;以降通常処理
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", LOCAL:1 - 1
+		ELSEIF LOCAL:2 > 0
+			;現在出現中のものだけ消滅判定
+			IF (DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0) || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				;消失確率がある場合はRANDで消失させる
+				LOCAL:10 = RAND:100
+				IF LOCAL:2 > LOCAL:10
+					DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -1
+				ENDIF
 			ENDIF
 		ENDIF
 	ENDIF
