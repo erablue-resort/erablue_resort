@@ -394,6 +394,9 @@ CALL MESSAGE_PALAMCNG_絶頂強度表示(ARG)
 IF NOWEX:ARG:多重絶頂
 	CALL KOJO_ORGASM_絶頂(ARG)
 	PRINTL
+ELSEIF NOWEX:ARG:噴乳
+	PRINTFORML %CALLNAME:ARG%は乳首から\@ NOWEX:ARG:噴乳 > 1 ? 大量の # \@母乳を噴出した
+	PRINTL 
 ENDIF
 ;-------------------------------------------------
 ;奴隷射精時の口上
@@ -443,6 +446,8 @@ CALL FAVOR_CALC(ARG)
 VARSET LOCAL
 
 LOCAL:3 = 0
+CALL 干渉強化関数_12("適用条件", ARG)
+LOCAL:4 = RESULT
 FOR LOCAL,0,100
 	;コマンド入力前のCUPを追加
 	CUP:ARG:LOCAL += TCVAR:ARG:(600 + LOCAL)
@@ -457,7 +462,11 @@ FOR LOCAL,0,100
 	LOCAL:3 ++
 	LOCAL:2 = CUP:ARG:LOCAL - CDOWN:ARG:LOCAL + TCVAR:ARG:(600 + LOCAL)
 	PRINTFORM %PALAMNAME:LOCAL,8,LEFT% {PALAM:ARG:LOCAL,10,LEFT} + {CUP:ARG:LOCAL,10,LEFT} =   {PALAM:ARG:LOCAL + CUP:ARG:LOCAL,10,LEFT}
-	IF 干渉強化変数:ARG:干渉種類 - 5 == LOCAL
+	IF 干渉強化変数:ARG:干渉種類 - 5 == LOCAL && LOCAL < 5
+		SETCOLOR カラーパレット("黄")
+		PRINT 　干渉効果発動中！
+		RESETCOLOR
+	ELSEIF LOCAL:4 && LOCAL < 5
 		SETCOLOR カラーパレット("黄")
 		PRINT 　干渉効果発動中！
 		RESETCOLOR
@@ -514,6 +523,7 @@ WAIT
 #DIM 選定用配列, 10
 
 VARSET LOCAL
+VARSET 選定用配列
 ;知識所持キャラ
 FOR LOCAL, 0, 14
 	IF LOCAL > 3 && LOCAL < 10
@@ -544,6 +554,34 @@ ELSE
 	LOCAL = RAND:(LOCAL:1)
 	RETURN 選定用配列:LOCAL
 ENDIF
+
+@得意武器所持者検索(検索武器種)
+#DIMS 検索武器種
+#DIM 選定用配列, 10
+
+VARSET LOCAL
+VARSET 選定用配列
+;得意武器所持キャラ
+FOR LOCAL, 0, 14
+	IF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	ENDIF
+	IF BATTLE_STATE:LOCAL:0 < 1
+		CONTINUE
+	ENDIF
+	IF 基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:0):得意武器 == 得意武器文字列数値変換(検索武器種)
+		選定用配列:(LOCAL:1) = BATTLE_STATE:LOCAL:0
+		LOCAL:1 += 1
+	ENDIF
+NEXT
+
+IF LOCAL:1 == 0
+	RETURN -1
+ELSE
+	LOCAL = RAND:(LOCAL:1)
+	RETURN 選定用配列:LOCAL
+ENDIF
+
 
 @汎用口上_仲間と会話(ARG)
 CALL 口上変数初期化
@@ -610,7 +648,7 @@ NEXT
 IF ENUMFILES("resources\\" + フォルダ名, @"顔_%画像種別%.png") < 1
 	;無いならダンジョン衣装を見る
 	IF ENUMFILES("resources\\" + フォルダ名, @"顔_ダンジョン衣装.png") < 1
-		;無いならダデフォルトを見る
+		;無いならデフォルトを見る
 		IF ENUMFILES("resources\\" + フォルダ名, @"顔_デフォルト.png") < 1
 			;顔_デフォルトがないならキーなし
 			探索中顔グラ保存:対象隊列:通常時 = 
@@ -714,6 +752,15 @@ VARSET ダンジョン内一時変数
 
 VARSET 探索中カウント:0:0
 VARSET 探索中全体カウント
+
+FOR ループ用, 0, 14
+	SIF ループ用 > 3 && ループ用 < 10
+		CONTINUE
+	IF BATTLE_STATE:ループ用:0
+		;NOWEXのリセット
+		VARSET NOWEX:(BATTLE_STATE:ループ用:0):0, 0
+	ENDIF
+NEXT
 
 ダンジョン表示モード = 
 ダンジョン階層記録 = 0

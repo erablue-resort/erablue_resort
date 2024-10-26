@@ -225,7 +225,7 @@ PRINTL ZPを消費し、リゾート内の滞在者全員に特殊な影響を�
 PRINTL どの機能を導入しますか？
 PRINTFORML 所持ZP:{FLAG:ZP所持量}
 DRAWLINE
-IF !妊娠切り替えOPTION記憶
+IF !OPTION変数:妊娠切り替え
 	PRINTBUTTON "[0]妊娠期間を変動させる", 0
 ELSE
 	SETCOLOR 0x666666
@@ -235,58 +235,36 @@ PRINTL 　　　　　値段：（変動させる日数×1）ZP
 PRINTL 　　　　　…リゾート内において、子供を出産するまでにかかる時間を変動させます。
 PRINTL
 RESETCOLOR
-IF フィールド展開:欲情フィールド
-	PRINTBUTTON "[1]欲情フィールドの展開をやめる", 1
-	PRINTFORML 　　現在：展開済み（消費ZP 1日 / 2ZP）
-ELSE
-	PRINTBUTTON "[1]リゾートに欲情フィールドを展開する", 1
-	PRINTFORML 　　現在：非展開
-ENDIF
-PRINTL 　　　　　消費ZP：（展開する日数×2）ZP
-PRINTL 　　　　　…リゾート内にいるキャラクターを欲情させるフィールドを展開します。
-PRINTL 　　　　　　時間経過による性欲上昇量が倍になります。
-PRINTL 　　　　　　コマンド「性交渉をお願いする」の効果が大きく上昇します。
-PRINTFORML 　　　　　　特定の素質を持ったキャラ、及びモブ観光客が%CALLNAME:PLAYER%にセクハラをすることがあります。
+
+;フィールド効果のONOFFを並べて表示
+DRAWLINE
+PRINTL フィールド効果一覧：
+LOCALS =
+消費ZP = 0
+FOR LOCAL, 0, 50
+	SIF ERDNAME(フィールド展開, LOCAL) == ""
+		BREAK
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	IF フィールド展開:LOCAL <= 0
+		LOCALS += @"<button value='{LOCAL + 10}'>[{LOCAL + 10}] %ERDNAME(フィールド展開, LOCAL), 30, LEFT%："
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+	ELSE
+		LOCALS += @"<font color='#%カラーパレット_HTML("えっちな色")%'>"
+		LOCALS += @"<button value='{LOCAL + 10}'>[{LOCAL + 10}] %ERDNAME(フィールド展開, LOCAL), 30, LEFT%</font>："
+		LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+		消費ZP += RESULT
+	ENDIF
+	LOCALS += "<br>"
+	LOCALS += @"　　　%REPLACE(TSTR:ツールチップ受渡, "<br>", "<br>　　　")%<br><br>"
+	LOCALS += "</button>"
+NEXT
+HTML_PRINT LOCALS
+PRINTFORML 現在の消費ZP / 1日 = {消費ZP, 3}ZP
 PRINTL
-RESETCOLOR
-IF フィールド展開:露出フィールド == 1
-	PRINTBUTTON "[2]露出フィールドの展開をやめる", 2
-	PRINTL
-	PRINTBUTTON "[3]リゾートに露出フィールド：強化を展開する", 3
-	PRINTL
-	PRINTFORM 　　現在：通常版展開済み（消費ZP 1日 / 5ZP）
-	PRINTL
-ELSEIF フィールド展開:露出フィールド == 2
-	PRINTBUTTON "[2]露出フィールド：強化の展開をやめる", 2
-	PRINTL
-	PRINTBUTTON "[3]リゾートに通常の露出フィールドを展開する", 3
-	PRINTL
-	PRINTFORM 　　現在：強化版展開済み（消費ZP 1日 / 50ZP）
-	PRINTL
-ELSE
-	PRINTBUTTON "[2]リゾートに露出フィールドを展開する", 2
-	PRINTL
-	PRINTBUTTON "[3]リゾートに露出フィールド：強化を展開する", 3
-	PRINTL
-	PRINTFORM 　　現在：非展開
-	PRINTL
-ENDIF
-PRINTL
-PRINTL 　　　　　通常消費ZP 1日 / 5ZP（維持している限り永続）
-PRINTL 　　　　　強化時 1日 / 50ZP（維持している限り永続）
-PRINTL 　　　　　…リゾート内にいるキャラクターに、露出の認識をごまかすフィールドを展開します。
-PRINTL 　　　　　　従業員の制服にエロ衣装、全裸を設定出来るようになります。
-PRINTL 　　　　　　水着を着る場所でキャラクターが着る衣装が全裸になります。
-PRINTL
-PRINTL 　　　　　（強化時）
-PRINTL 　　　　　…すべてのキャラクターが常時全裸になります。（制服設定を無視します）
-PRINTL 　　　　　　同じ場所に陥落していないキャラクターがいても、そのままうふふに突入出来るようになります。
-PRINTL 　　　　　　従業員でない相手にも性処理業務をお願いすることが出来るようになります。
-PRINTL
-RESETCOLOR
+PRINTL 
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP
-INPUT
+BINPUT
 
 SELECTCASE RESULT
 	CASE 0
@@ -355,84 +333,11 @@ SELECTCASE RESULT
 					GOTO INPUT_LOOP2_2
 			ENDSELECT
 		ENDIF
-	CASE 1
-		IF フィールド展開:欲情フィールド
-			PRINTFORML 欲情フィールドの展開を止めますか？
-		ELSE
-			PRINTFORML 欲情フィールドを展開しますか？　毎日2ZPを消費し続けます。
-		ENDIF
-		PRINTBUTTON "[0] はい", 0
-		PRINTL
-		PRINTBUTTON "[1] いいえ", 1
-		PRINTL
-		BINPUT
-		$INPUT_LOOP3
-		SELECTCASE RESULT
-			CASE 0
-				IF フィールド展開:欲情フィールド
-					PRINTFORMW 欲情フィールドの展開を止めました。
-				ELSE
-					PRINTFORMW 欲情フィールドを展開しました。
-				ENDIF
-				INVERTBIT フィールド展開:欲情フィールド, 0
-				RESTART
-			CASE 1
-				RESTART
-		ENDSELECT
-	CASE 2
-		IF フィールド展開:露出フィールド
-			PRINTFORML 露出フィールドの展開を止めますか？
-		ELSE
-			PRINTFORML 露出フィールドを展開しますか？　毎日5ZPを消費し続けます。
-		ENDIF
-		PRINTBUTTON "[0] はい", 0
-		PRINTL
-		PRINTBUTTON "[1] いいえ", 1
-		PRINTL
-		BINPUT
-		$INPUT_LOOP4
-		SELECTCASE RESULT
-			CASE 0
-				IF フィールド展開:露出フィールド
-					PRINTFORMW 露出フィールドの展開を止めました。
-					CALL 露出フィールド停止処理
-				ELSE
-					PRINTFORMW 通常の露出フィールドを展開しました。
-				ENDIF
-				INVERTBIT フィールド展開:露出フィールド, 0
-				RESTART
-			CASE 1
-				RESTART
-		ENDSELECT
-	CASE 3
-		IF フィールド展開:露出フィールド == 2
-			PRINTFORML 通常版の露出フィールドを展開しますか？　毎日5ZPを消費し続けます。
-		ELSE
-			PRINTFORML 強化状態の露出フィールドを展開しますか？　毎日50ZPを消費し続けます。
-		ENDIF
-		PRINTBUTTON "[0] はい", 0
-		PRINTL
-		PRINTBUTTON "[1] いいえ", 1
-		PRINTL
-		BINPUT
-		SELECTCASE RESULT
-			CASE 0
-				IF フィールド展開:露出フィールド == 2
-					PRINTFORMW 通常の露出フィールドを展開しました。
-					フィールド展開:露出フィールド = 1
-				ELSE
-					PRINTFORMW 強化状態の露出フィールドを展開しました。
-					フィールド展開:露出フィールド = 2
-				ENDIF
-				RESTART
-			CASE 1
-				RESTART
-		ENDSELECT
 	CASE 999
 		RETURN 0
 	CASEELSE
-		REUSELASTLINE 
-		GOTO INPUT_LOOP
+		INVERTBIT フィールド展開:(RESULT - 10), 0
+		RESTART
 ENDSELECT
 
 @露出フィールド停止処理

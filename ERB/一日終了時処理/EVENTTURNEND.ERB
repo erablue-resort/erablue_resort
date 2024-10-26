@@ -8,6 +8,10 @@ FOR LOCAL,1,CHARANUM
 		ダウン状態フラグ = 1
 	CFLAG:LOCAL:体力限界 = 0
 
+	;一日のコマンド初回フラグをリセット
+	コマンド初回フラグ:LOCAL:通常コマンド_一日単位 = 
+	コマンド初回フラグ_PLAYER:LOCAL:通常コマンド_一日単位 = 
+
 	;滞在してないキャラは専用処理へ
 	IF CFLAG:LOCAL:滞在期間 == -1
 		CALL 一日終了時_非滞在キャラ処理(LOCAL)
@@ -48,6 +52,15 @@ FOR LOCAL,1,CHARANUM
 	;中毒があるなら欲求不満を加算
 	SIF MAXARRAY(性癖素質:LOCAL:0, 1) >= 3
 		CFLAG:LOCAL:中毒欲求不満フラグ += 1
+
+	;定住追い出し処理
+	
+	IF TCVAR:LOCAL:定住追い出しフラグ
+		;追い出すために滞在期間をセット
+		CFLAG:LOCAL:滞在期間 = 1
+		CALL 滞在者部屋割り配列削除処理(LOCAL)
+		TALENT:LOCAL:定住者 = 0
+	ENDIF
 NEXT
 
 ;モードもリセット
@@ -65,8 +78,11 @@ IF CFLAG:MASTER:就寝時刻 % (DAY * 1440) > CFLAG:MASTER:起床予定時刻
 	TIME -= 1440
 ENDIF
 
+SAVESTR:前日お祭り記録 = 
 ;お祭り終了
 IF 開催予定日取り < DAY
+	;イベント用に記録
+	SAVESTR:前日お祭り記録 = %開催予定祭り名%
 	開催予定日取り = 0
 	開催予定祭り名 = 
 ENDIF

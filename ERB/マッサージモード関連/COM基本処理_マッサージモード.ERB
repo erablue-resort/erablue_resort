@@ -64,7 +64,7 @@ VARSET LOCAL
 
 ;コマンド表示
 CALL SHOW_COMMAND_マッサージモード
-IF サイド領域非表示オプション == 0
+IF OPTION変数:サイド領域非表示 == 0
 	CALL サイド領域_改行処理
 ENDIF
 DRAWLINE
@@ -200,7 +200,7 @@ FOR LOCAL, 0, 700
 	IF STRLENS(TRAIN_COMNAME(LOCAL))
 		LOCALS += @"<button value = '{LOCAL}'"
 		TRYCCALLFORM MASSAGE_COM_TOOLTIP_{LOCAL}
-			IF ツールチップ切り替えOPTION記憶 == 0
+			IF OPTION変数:ツールチップ切り替え == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
 			ELSE
 				LOCALS += @">"
@@ -281,7 +281,7 @@ FOR LOCAL, 0, 500
 		ENDIF
 		LOCALS += @"<button value = '%コマンドキー%'"
 		TRYCCALLFORM MASSAGE_COM_TOOLTIP_S%コマンドキー%
-			IF ツールチップ切り替えOPTION記憶 == 0
+			IF OPTION変数:ツールチップ切り替え == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
 			ELSE
 				LOCALS += @">"
@@ -460,7 +460,7 @@ ELSEIF RESULT == 891
 	CALL オート射精先設定
 	RETURN 1
 ELSEIF RESULT == 892
-	INVERTBIT 連れ込み制御OPTION, 0
+	INVERTBIT OPTION変数:連れ込み制御, 0
 	RETURN 1
 ELSEIF RESULT == 999
 	CALL ゲームフェイズ変更("通常モード")
@@ -568,10 +568,10 @@ ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
 	;禁止時はなにもしない
 ELSE
 	IF TALENT:対象キャラ:性別 == 2
-		SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1)
+		SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1)
 			CALL 汎用喘ぎ処理(対象キャラ)
 	ELSE
-		SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1)
+		SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1)
 			CALL 汎用喘ぎ処理(対象キャラ)
 	ENDIF
 ENDIF
@@ -608,10 +608,10 @@ IF K < 1 && LOCAL:1 == 1
 		;禁止時はなにもしない
 	ELSEIF TFLAG:オートコマンドフラグ == 0
 		IF TALENT:対象キャラ:性別 == 2
-			SIF GETBIT(汎用喘ぎ使用OPTION_男, 0) && GETBIT(汎用喘ぎ使用OPTION_男, 1) == 0
+			SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1) == 0
 				CALL 汎用喘ぎ処理(対象キャラ)
 		ELSE
-			SIF GETBIT(汎用喘ぎ使用OPTION, 0) && GETBIT(汎用喘ぎ使用OPTION, 1) == 0
+			SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1) == 0
 				CALL 汎用喘ぎ処理(対象キャラ)
 		ENDIF
 	ENDIF
@@ -751,13 +751,14 @@ NEXT
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
-	IF BASE:(TARGET:LOCAL):体力 < 1 && TCVAR:(TARGET:LOCAL):食いしばりフラグ > 0
+	IF BASE:(TARGET:LOCAL):体力 < 1 && TCVAR:(TARGET:LOCAL):食いしばりフラグ > 1
 		BASE:(TARGET:LOCAL):体力 = 1
 		TCVAR:(TARGET:LOCAL):食いしばりフラグ --
 	ELSEIF BASE:(TARGET:LOCAL):体力 < 1 && !CFLAG:(TARGET:LOCAL):体力限界
 		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
 		TRYCALLFORM KOJO_EVENT_マッサージ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
 		FORCEWAIT
+		TCVAR:(TARGET:LOCAL):食いしばりフラグ = 0
 		CFLAG:(TARGET:LOCAL):体力限界 = 1
 		EXP:(TARGET:LOCAL):ダウン経験 += 1
 		;経験取得表示スキップ用
@@ -779,10 +780,11 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:滞在期間 < 1
 		CONTINUE
-	IF BASE:LOCAL:体力 < 1 && TCVAR:LOCAL:食いしばりフラグ > 0
+	IF BASE:LOCAL:体力 < 1 && TCVAR:LOCAL:食いしばりフラグ > 1
 		BASE:LOCAL:体力 = 1
 		TCVAR:LOCAL:食いしばりフラグ --
 	ELSEIF BASE:LOCAL:体力 < 1 && !CFLAG:LOCAL:体力限界
+		TCVAR:LOCAL:食いしばりフラグ = 0
 		CFLAG:LOCAL:体力限界 = 1
 		IF CFLAG:LOCAL:うふふ == 0 && CFLAG:LOCAL:飲み会 == 0
 			CFLAG:LOCAL:一緒に遊ぶ = 0
@@ -831,7 +833,6 @@ IF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
 	CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
 	CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
 	CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
-	CFLAG:TARGET:キャラ固有好感度 = MIN(CFLAG:TARGET:キャラ固有好感度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
 
 	;恋慕レベルを下げる
 	CFLAG:TARGET:恋慕レベル -= 10

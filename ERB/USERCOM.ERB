@@ -14,7 +14,7 @@ VARSET LOCAL
 
 ;コマンド表示
 CALL SHOW_COMMAND
-IF サイド領域非表示オプション == 0
+IF OPTION変数:サイド領域非表示 == 0
 	CALL サイド領域_改行処理
 ENDIF
 DRAWLINE
@@ -53,14 +53,14 @@ SIF TARGET
 PRINTL
 PRINTC 写真一覧[856]
 PRINTC OPTION[809]
-IF 連れ込み制御OPTION
+IF OPTION変数:連れ込み制御
 	SETCOLOR カラーパレット("黄")
 	PRINTBUTTONC "連れ込み禁止:ON[892]", 892
 	RESETCOLOR
 ELSE
 	PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
 ENDIF
-IF 休憩制御OPTION
+IF OPTION変数:休憩制御
 	SETCOLOR カラーパレット("黄")
 	PRINTBUTTONC "休憩時訪問禁止:ON[893]", 893
 	RESETCOLOR
@@ -318,11 +318,6 @@ ELSEIF RESULT >=9000
 ELSEIF RESULT == 2000
 	IF FLAG:モード管理 == 1
 		;指示モード時のみ、あなたをターゲットに出来る
-		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 0)
-			FLAG:モード管理 = 1
-			VARSET 同時モード_選択キャラ, -1
-			同時モード_選択数 = 0
-		ENDIF
 		TFLAG:あなたターゲット用 = 1
 	ENDIF
 	RETURN 1
@@ -560,10 +555,10 @@ ELSEIF RESULT == 891
 	CALL オート射精先設定
 	RETURN 1
 ELSEIF RESULT == 892
-	INVERTBIT 連れ込み制御OPTION, 0
+	INVERTBIT OPTION変数:連れ込み制御, 0
 	RETURN 1
 ELSEIF RESULT == 893
-	INVERTBIT 休憩制御OPTION, 0
+	INVERTBIT OPTION変数:休憩制御, 0
 	RETURN 1
 ELSEIF RESULT == 999 && CFLAG:うふふ
 	IF 連れ込みパターン != ""
@@ -571,7 +566,7 @@ ELSEIF RESULT == 999 && CFLAG:うふふ
 		CALL KOJO_EVENT, 13, TARGET, 1
 		RETURN 1
 	ELSE
-		CALL うふふ終了処理
+		CALL うふふ終了処理("通常終了")
 		RETURN 1
 	ENDIF
 ELSEIF RESULT == 998 && CFLAG:飲み会
@@ -879,7 +874,7 @@ FOR LOCAL,0,700
 		ENDIF
 		TSTR:ツールチップ受渡 = 
 		TRYCCALLFORM COM_TOOLTIP_{LOCAL}
-			IF ツールチップ切り替えOPTION記憶 == 0
+			IF OPTION変数:ツールチップ切り替え == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
 			ELSE
 				LOCALS += @">"
@@ -900,15 +895,14 @@ FOR LOCAL,0,700
 	ENDIF
 	IF LOCAL:2 >= 4
 		LOCAL:2 = 0
-		HTML_PRINT LOCALS
-		LOCALS = 
+		LOCALS += "<br>" 
 	ENDIF
 NEXT
-IF LOCALS != ""
+IF LOCAL:2
 	LOCAL:2 = 0
-	HTML_PRINT LOCALS
-	LOCALS = 
+	LOCALS += "<br>" 
 ENDIF
+LOCALS += "<br>" 
 
 FOR LOCAL, 0, 500
 	LOCAL:2 = 0
@@ -981,9 +975,8 @@ FOR LOCAL, 0, 500
 					CONTINUE
 		ENDSELECT
 		IF 派生カテゴリ表示フラグ == 0
-			PRINTL
 			派生名フラグ = 1
-			PRINTFORML ▼%TRAIN_COMNAME(LOCAL)%派生
+			LOCALS += @"▼%TRAIN_COMNAME(LOCAL)%派生<br>"
 			派生名フラグ = 0
 			派生カテゴリ表示フラグ = 1
 		ENDIF
@@ -1016,7 +1009,7 @@ FOR LOCAL, 0, 500
 			LOCALS += @"<button value = '%コマンドキー%'"
 		ENDIF
 		TRYCCALLFORM COM_TOOLTIP_S%コマンドキー%
-			IF ツールチップ切り替えOPTION記憶 == 0
+			IF OPTION変数:ツールチップ切り替え == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
 			ELSE
 				LOCALS += @">"
@@ -1037,8 +1030,7 @@ FOR LOCAL, 0, 500
 		SETCOLOR 文字色保存
 		IF LOCAL:2 >= 4
 			LOCAL:2 = 0
-			HTML_PRINT LOCALS
-			LOCALS = 
+			LOCALS += "<br>"
 		ENDIF
 		; PRINTBUTTONC @"%TRAIN_COMNAME_S(LOCALS)%[%LOCALS,5%]", @"%LOCALS%"
 		; SETCOLOR 文字色保存
@@ -1112,9 +1104,8 @@ FOR LOCAL, 0, 500
 					CONTINUE
 		ENDSELECT
 		IF 派生カテゴリ表示フラグ == 0
-			PRINTL
 			派生名フラグ = 1
-			PRINTFORML ▼%TRAIN_COMNAME(LOCAL)%派生
+			LOCALS += @"▼%TRAIN_COMNAME(LOCAL)%派生<br>"
 			派生名フラグ = 0
 			派生カテゴリ表示フラグ = 1
 		ENDIF
@@ -1145,7 +1136,7 @@ FOR LOCAL, 0, 500
 			LOCALS += @"<button value = '%コマンドキー%'"
 		ENDIF
 		TRYCCALLFORM COM_TOOLTIP_%コマンドキー%
-			IF ツールチップ切り替えOPTION記憶 == 0
+			IF OPTION変数:ツールチップ切り替え == 0
 				LOCALS += @" title = '%TSTR:ツールチップ受渡%'>"
 			ELSE
 				LOCALS += @">"
@@ -1166,17 +1157,19 @@ FOR LOCAL, 0, 500
 		SETCOLOR 文字色保存
 		IF LOCAL:2 >= 4
 			LOCAL:2 = 0
-			HTML_PRINT LOCALS
-			LOCALS = 
+			LOCALS += "<br>"
 		ENDIF
 	NEXT
 
-	IF LOCALS != ""
+	IF LOCAL:2
 		LOCAL:2 = 0
-		HTML_PRINT LOCALS
-		LOCALS = 
+		LOCALS += "<br>"
 	ENDIF
+	SIF 派生カテゴリ表示フラグ
+		LOCALS += "<br>"
 NEXT
+
+HTML_PRINT LOCALS, 1
 
 SIF TARGET入替
 	SWAP TARGET, PLAYER

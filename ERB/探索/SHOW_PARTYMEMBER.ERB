@@ -68,13 +68,23 @@ ENDIF
 LOCALS += "<br>"
 LOCALS += "</div>"
 LOCALS += ""
-LOCALS += "<div rect='2200, 1000, 3700, 200'>"
-LOCALS += "　　　　　　　　　　　　　　　　　　<button value='set'>[set]編成セット切替</button>　　<button value='9999'>[9999]戻る</button>"
+LOCALS += "<div rect='2200, 900, 3700, 300'>"
+IF 表示切り替え文字列 == "探索集約_探索メンバー" || 表示切り替え文字列 == ""
+	LOCALS += "　　　　　　　　　　　　　　　　　　 　　　<button value='9998'>[9998]メンバーの装備全解除</button><br>"
+ELSE
+	LOCALS += "<br>"
+ENDIF
+;LOCALS += "　　　　　　　　　　　　　　　　　　<button value='set'>[set]編成セット切替</button>　　<button value='9999'>[9999]戻る</button>"
+LOCALS += "　　　　　<button value='temp'>[temp]装備テンプレート</button>　　<button value='set'>[set]編成セット切替</button>　　<button value='9999'>[9999]戻る</button>"
 LOCALS += "</div>"
 
 SELECTCASE 表示切り替え文字列
 	CASE "set"
 		CALL 編成セット切替()
+		表示切り替え文字列 = 
+		RESTART
+	CASE "temp"
+		CALL 装備テンプレート処理()
 		表示切り替え文字列 = 
 		RESTART
 ENDSELECT
@@ -280,6 +290,98 @@ SELECTCASE LOCAL
 		VARSET 表示用ステータス格納配列:0:0
 		表示切り替え文字列 = 探索集約_サブメンバー編成
 		RETURN 0
+	CASE 9998
+		PRINTL 
+		PRINTL 
+		PRINTL 
+		DRAWLINE
+		PRINTL 編成メンバーの装備を一括で解除します。
+		DRAWLINE
+		PRINTBUTTON "[ 0] 全メンバーの装備全解除", 0
+		PRINT 　　　　
+		PRINTBUTTON "[ 1] 全メンバーの指輪・耳飾り全解除", 1
+		PRINTL
+		PRINTBUTTON "[10] メインメンバーの装備全解除", 10
+		PRINT 　　
+		PRINTBUTTON "[11] メインメンバーの指輪・耳飾り全解除", 11
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[999] 戻る", 999
+		BINPUT
+		SELECTCASE RESULT
+			CASE 999
+				RETURN 0
+			CASE 0
+				PRINTW 全メンバーの装備を全て解除しました。
+				FOR LOCAL, 0, 14
+					SIF LOCAL > 3 && LOCAL < 10
+						CONTINUE
+					SIF BATTLE_STATE:LOCAL:0 < 1
+						CONTINUE
+					;装備解除
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備証番号 = 0
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+						DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+					ENDIF
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+						DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+					ENDIF
+					CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+				NEXT
+			CASE 1
+				PRINTW 全メンバーの指輪・耳飾りを全て解除しました。
+				FOR LOCAL, 0, 14
+					SIF LOCAL > 3 && LOCAL < 10
+						CONTINUE
+					SIF BATTLE_STATE:LOCAL:0 < 1
+						CONTINUE
+					;装備解除
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+						DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+					ENDIF
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+						DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+					ENDIF
+					CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+				NEXT
+			CASE 10
+				PRINTW メインメンバーの装備を全て解除しました。
+				FOR LOCAL, 0, 4
+					SIF BATTLE_STATE:LOCAL:0 < 1
+						CONTINUE
+					;装備解除
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備証番号 = 0
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+						DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+					ENDIF
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+						DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+					ENDIF
+					CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+				NEXT
+			CASE 11
+				PRINTW メインメンバーの指輪・耳飾りを全て解除しました。
+				FOR LOCAL, 0, 4
+					SIF BATTLE_STATE:LOCAL:0 < 1
+						CONTINUE
+					;装備解除
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+						DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+					ENDIF
+					IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+						DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+					ENDIF
+					CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+				NEXT
+		ENDSELECT
 	CASE 9999
 		VARSET 表示用ステータス格納配列:0:0
 		RETURN -1
@@ -361,6 +463,19 @@ SELECTCASE RESULT
 
 		SELECTCASE RESULT
 			CASE 0
+				IF OPTION変数:編成解除時の装備解除
+					;装備解除
+					装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備証番号 = 0
+					IF 装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備指輪番号
+						DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備指輪番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備指輪番号 = 0
+					ENDIF
+					IF 装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備耳飾り番号
+						DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+						装備ステータス補正保存:(BATTLE_STATE:ARG:0):装備耳飾り番号 = 0
+					ENDIF
+					CALL 装備再計算処理(BATTLE_STATE:ARG:0)
+				ENDIF
 				LOCAL = BATTLE_STATE:ARG:0
 				BATTLE_STATE:ARG:0 = BATTLE_STATE:(ARG + 1):0
 				BATTLE_STATE:(ARG + 1):0 = BATTLE_STATE:(ARG + 2):0
@@ -627,12 +742,24 @@ NEXT
 
 LOCALS += "</div>"
 
-LOCALS += @"<div rect='4700,{y軸位置 + 3262},2000,300'>"
+LOCALS += @"<div rect='4000,{y軸位置 + 3262},3000,600'>"
 IF 入れ替え候補_メンバー > -1 && BATTLE_STATE:入れ替え候補_メンバー:0 > 0
 	LOCALS += "<button value='9010'>[9010] パーティから外す</button>"
 ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='9002'>[9002]表示情報変更</button>　"
+LOCALS += "<br>"
+IF OPTION変数:編成解除時の装備解除
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='9003'>[9003]編成解除時に装備解除：ON</button></font>"
+ELSE
+	LOCALS += "<button value='9003'>[9003]編成解除時に装備解除：OFF</button>"
+ENDIF
+LOCALS += "<br>"
+IF OPTION変数:編成枠に装備紐づけ
+	LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='9004'>[9004]入替時に装備を継承：ON</button></font>"
+ELSE
+	LOCALS += "<button value='9004'>[9004]入替時に装備を継承：OFF</button>"
+ENDIF
 LOCALS += "</div>"
 
 LOCALS += @"<div rect='262,{y軸位置 + 3562},5537,300'>"
@@ -673,7 +800,28 @@ SELECTCASE LOCAL
 		CALL メンバー編成画面情報変更()
 		ソート法則 = 1
 		入れ替え候補_リスト = -1
+	CASE 9003
+		INVERTBIT OPTION変数:編成解除時の装備解除, 0
+		SIF OPTION変数:編成解除時の装備解除
+			OPTION変数:編成枠に装備紐づけ = 0
+	CASE 9004
+		INVERTBIT OPTION変数:編成枠に装備紐づけ, 0
+		SIF OPTION変数:編成枠に装備紐づけ
+			OPTION変数:編成解除時の装備解除 = 0
 	CASE 9010
+		IF OPTION変数:編成解除時の装備解除
+			;装備解除
+			装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備証番号 = 0
+			IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号
+				DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号, "装備キャラ番号", 0, 1
+				装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号 = 0
+			ENDIF
+			IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号
+				DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+				装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号 = 0
+			ENDIF
+			CALL 装備再計算処理(BATTLE_STATE:入れ替え候補_メンバー:0)
+		ENDIF
 		;隊列を詰める
 		FOR 番号管理, 入れ替え候補_メンバー, メインサブ * 10 + 4
 			BATTLE_STATE:番号管理:0 = BATTLE_STATE:(番号管理 + 1):0
@@ -682,6 +830,43 @@ SELECTCASE LOCAL
 		入れ替え候補_リスト = -1
 	CASE 0 TO 13
 		IF 入れ替え候補_リスト > 0
+			IF OPTION変数:編成解除時の装備解除
+				;装備解除
+				装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備証番号 = 0
+				IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+				ENDIF
+				CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+			ELSEIF OPTION変数:編成枠に装備紐づけ
+				;装備入れ替え
+				装備ステータス補正保存:入れ替え候補_リスト:装備証番号 = 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備証番号
+				装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備証番号 = 0
+				IF 装備ステータス補正保存:入れ替え候補_リスト:装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:入れ替え候補_リスト:装備指輪番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:入れ替え候補_リスト:装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号, "装備キャラ番号", 入れ替え候補_リスト, 1
+					装備ステータス補正保存:入れ替え候補_リスト:装備指輪番号 = 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:入れ替え候補_リスト:装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:入れ替え候補_リスト:装備耳飾り番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:入れ替え候補_リスト:装備耳飾り番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号, "装備キャラ番号", 入れ替え候補_リスト, 1
+					装備ステータス補正保存:入れ替え候補_リスト:装備耳飾り番号 = 装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号
+					装備ステータス補正保存:(BATTLE_STATE:LOCAL:0):装備耳飾り番号 = 0
+				ENDIF
+				CALL 装備再計算処理(入れ替え候補_リスト)
+				CALL 装備再計算処理(BATTLE_STATE:LOCAL:0)
+			ENDIF
 			BATTLE_STATE:LOCAL:0 = 入れ替え候補_リスト
 			;メイン/サブの方をチェック
 			FOR 番号管理, !メインサブ * 10, !メインサブ * 10 + 4
@@ -719,6 +904,43 @@ SELECTCASE LOCAL
 		RETURN -1
 	CASE IS >= 100
 		IF 入れ替え候補_メンバー > -1
+			IF OPTION変数:編成解除時の装備解除
+				;装備解除
+				装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備証番号 = 0
+				IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号 = 0
+				ENDIF
+				CALL 装備再計算処理(BATTLE_STATE:入れ替え候補_メンバー:0)
+			ELSEIF OPTION変数:編成枠に装備紐づけ
+				;装備入れ替え
+				装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備証番号 = 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備証番号
+				装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備証番号 = 0
+				IF 装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備指輪番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号
+					DT_CELL_SET "所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号, "装備キャラ番号", (表示用ステータス格納配列:(LOCAL - 100):0), 1
+					装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備指輪番号 = 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号
+					装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備指輪番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備耳飾り番号, "装備キャラ番号", 0, 1
+					装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備耳飾り番号 = 0
+				ENDIF
+				IF 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号
+					DT_CELL_SET "所持耳飾りデータベース", 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号, "装備キャラ番号", (表示用ステータス格納配列:(LOCAL - 100):0), 1
+					装備ステータス補正保存:(表示用ステータス格納配列:(LOCAL - 100):0):装備耳飾り番号 = 装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号
+					装備ステータス補正保存:(BATTLE_STATE:入れ替え候補_メンバー:0):装備耳飾り番号 = 0
+				ENDIF
+				CALL 装備再計算処理(表示用ステータス格納配列:(LOCAL - 100):0)
+				CALL 装備再計算処理(BATTLE_STATE:入れ替え候補_メンバー:0)
+			ENDIF
 			BATTLE_STATE:入れ替え候補_メンバー:0 = 表示用ステータス格納配列:(LOCAL - 100):0
 			;メイン/サブの方をチェック
 			FOR 番号管理, !メインサブ * 10, !メインサブ * 10 + 4

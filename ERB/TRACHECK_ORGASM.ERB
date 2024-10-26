@@ -110,7 +110,6 @@ IF ARG == PLAYER
 	TFLAG:調教者絶頂強度 = C + V + A + B + S
 ENDIF
 IF ARG == TARGET
-	RCVAR:ARG:絶頂の強度 = C + V + A + B + S
 	;快楽刻印の処理
 	IF RCVAR:ARG:絶頂の強度 > 3 && MARK:ARG:1 < 3
 		RCVAR:ARG:快楽強度 = 3
@@ -290,18 +289,18 @@ ENDIF
 SIF 知識素質:ARG:性知識 > -1
 	性知識経験値:ARG:0 += RCVAR:ARG:絶頂の強度
 
-;絶頂による欲望ＬＶアップ
-IF ARG == TARGET && ARG
-	;自制心があると１下がる
-	SIF TALENT:ARG:自制心
-		L -= 1
-	IF ABL:ARG:欲望 < L
-		ABL:ARG:欲望 = L
-		PRINT そして欲望がLV
-		PRINTV L
-		PRINTL になった
-	ENDIF
-ENDIF
+; ;絶頂による欲望ＬＶアップ
+; IF ARG == TARGET && ARG
+; 	;自制心があると１下がる
+; 	SIF TALENT:ARG:自制心
+; 		L -= 1
+; 	IF ABL:ARG:欲望 < L
+; 		ABL:ARG:欲望 = L
+; 		PRINT そして欲望がLV
+; 		PRINTV L
+; 		PRINTL になった
+; 	ENDIF
+; ENDIF
 
 ;-------------------------------------------------
 ;絶頂時の追加処理
@@ -383,6 +382,12 @@ ELSEIF NOWEX:対象キャラ:多重絶頂 > 1
 ELSEIF NOWEX:対象キャラ:多重絶頂 >= 1
 	DRAWLINE
 	PRINTFORML 絶頂(%CALLNAME:対象キャラ%)
+ELSEIF NOWEX:対象キャラ:噴乳 > 1
+	DRAWLINE
+	PRINTFORML 大量噴乳(%CALLNAME:対象キャラ%)
+ELSEIF NOWEX:対象キャラ:噴乳 > 0
+	DRAWLINE
+	PRINTFORML 噴乳(%CALLNAME:対象キャラ%)
 ENDIF
 
 SIF 対象キャラ == MASTER
@@ -479,7 +484,7 @@ ELSE
 	SOURCE:ARG:露出 += 250 * LOCAL
 	SOURCE:ARG:屈従 += 150 * LOCAL
 ENDIF
-	PRINTFORML %CALLNAME:ARG%は乳首から\@ LOCAL == 2 ? 大量の # \@母乳を噴出した
+; PRINTFORML %CALLNAME:ARG%は乳首から\@ LOCAL == 2 ? 大量の # \@母乳を噴出した
 EXP:ARG:噴乳経験 += LOCAL
 ;Ｂに母乳汚れ
 SIF BASE:ARG:母乳 >= MAXBASE:ARG:母乳
@@ -518,6 +523,7 @@ SIF 確保精力 <= BASE:射精キャラ:精力
 
 DOWNBASE:射精キャラ:体力 += (確保精力 - BASE:射精キャラ:精力) * 5
 BASE:射精キャラ:精力 = 確保精力
+EXP:射精キャラ:空打ち絶頂経験 ++
 
 
 @絶頂体力減少処理(キャラ番号, Ｃ絶頂強度, Ｖ絶頂強度, Ａ絶頂強度, Ｂ絶頂強度, Ｓ絶頂強度)
@@ -637,14 +643,15 @@ ENDIF
 体力減少量計算値 = 首絞め補正_消費体力(キャラ番号, 体力減少量計算値)
 
 DOWNBASE:キャラ番号:体力 += 体力減少量計算値
-CALL SOURCE_DOWNBASE(キャラ番号)
 TCVAR:キャラ番号:うふふ中消費体力累積 += 体力減少量計算値
 CALL 満足ゲージ上昇処理(キャラ番号)
+
 
 @絶頂相手算出(ARG)
 #FUNCTION
 #DIM 絶頂部位
 #DIM 最大絶頂強度
+#DIM モード絶頂相手
 ;あなた以外も色々動くようになったので、状況に合わせて口上用に絶頂相手を決定する
 
 絶頂部位 = -1
@@ -656,109 +663,27 @@ FOR LOCAL, 0, 5
 	ENDIF
 NEXT
 
-IF MODE_存在判定_ターゲット側("Ｖ挿入系", ARG) && 絶頂部位 == 部位_Ｖ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
+モード絶頂相手 = MODE_絶頂相手(ARG, 絶頂部位)
+IF モード絶頂相手 < 0
+	;モードから絶頂相手が決まらない場合
+	IF PLAYER == ARG && TARGET == MASTER
+		;コマンド実行者が自分、かつ対象がMASTERの場合
+		;自慰・奉仕をMASTERが指示したケース
+		RETURNF MASTER
+	ELSE
+		;それ以外はコマンド実行者(PLAYER)
+		RETURNF PLAYER
+	ENDIF
+ELSE
+	IF モード絶頂相手 == ARG && (PLAYER == MASTER || (PLAYER == ARG && TARGET == MASTER))
+		;絶頂が自分自身によるもの、かつコマンド実行にMASTERが絡む場合
+		;自慰・奉仕をMASTERが指示したケース
+		RETURNF MASTER
+	ELSE
+		;それ以外はモードから求めた絶頂相手
+		RETURNF モード絶頂相手
+	ENDIF
 ENDIF
-IF MODE_存在判定_ターゲット側("ハーヴィンオナホＶ", ARG) && 絶頂部位 == 部位_Ｖ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("挿入歩きＶ", ARG) && 絶頂部位 == 部位_Ｖ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_プレイヤー側("ハーヴィンディルドＶ", ARG) && 絶頂部位 == 部位_Ｖ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("Ａ挿入系", ARG) && 絶頂部位 == 部位_Ａ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("ハーヴィンオナホＡ", ARG) && 絶頂部位 == 部位_Ａ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("挿入歩きＡ", ARG) && 絶頂部位 == 部位_Ａ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_プレイヤー側("ハーヴィンディルドＡ", ARG) && 絶頂部位 == 部位_Ａ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("触手挿入", ARG) && 絶頂部位 == 部位_Ｖ
-	RETURNF MASTER
-ENDIF
-IF MODE_存在判定_ターゲット側("触手アナル挿入", ARG) && 絶頂部位 == 部位_Ａ
-	RETURNF MASTER
-ENDIF
-
-IF MODE_存在判定_プレイヤー側("Ｖ挿入系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("Ａ挿入系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("ハーヴィンオナホＶ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("挿入歩きＶ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("ハーヴィンオナホＡ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("挿入歩きＡ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ELSEIF MODE_存在判定_ターゲット側("ハーヴィンディルドＶ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ELSEIF MODE_存在判定_ターゲット側("ハーヴィンディルドＡ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("触手クリ責め", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF MASTER
-ENDIF
-IF MODE_存在判定_ターゲット側("触手ペニス責め", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF MASTER
-ENDIF
-IF MODE_存在判定_ターゲット側("パイズリ系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("手コキ系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("口戯系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("素股系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("素股系", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("足コキ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("ボテ腹ズリ", ARG) && 絶頂部位 == 部位_Ｃ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("触手乳首責め", ARG) && 絶頂部位 == 部位_Ｂ
-	RETURNF MASTER
-ENDIF
-IF MODE_存在判定_ターゲット側("乳首吸い系", ARG) && 絶頂部位 == 部位_Ｂ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("触手口辱", ARG) && 絶頂部位 == 部位_Ｓ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ENDIF
-IF MODE_存在判定_ターゲット側("キス系", ARG) && 絶頂部位 == 部位_Ｓ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
-ELSEIF MODE_存在判定_プレイヤー側("キス系", ARG) && 絶頂部位 == 部位_Ｓ
-	RETURNF DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
-ENDIF
-
-IF MODE_存在判定_ターゲット側("アイテム系", ARG)
-	RETURNF MASTER
-ENDIF
-
-IF FLAG:モード管理 == 1
-	RETURNF PLAYER
-ENDIF
-
-RETURNF MASTER
 
 
 @絶頂残値算出処理(対象キャラ)

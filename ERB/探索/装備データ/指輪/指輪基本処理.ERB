@@ -53,7 +53,7 @@ ELSE
 ENDIF
 ;所持指輪リスト表示
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
-CALL 所持指輪リスト表示(キャラ番号, ページ番号, ソート番号)
+CALL 所持指輪リスト表示(装備ステータス補正保存:キャラ番号:装備指輪番号, ページ番号, ソート番号)
 
 ;戻るボタンと前次ページボタン
 LOCALS += "<div rect='262,4875,5537,3625'>"
@@ -133,11 +133,13 @@ SELECTCASE LOCAL
 ENDSELECT
 LOOP 1
 
-@所持指輪リスト表示(キャラ番号, ページ番号, ソート番号, y軸位置 = 1375)
-#DIM キャラ番号
+@所持指輪リスト表示(選択中指輪id, ページ番号, ソート番号, y軸位置 = 1375, テンプレフラグ = -1)
+#DIM 選択中指輪id
 #DIM ページ番号
 #DIM ソート番号
+#DIM 編成枠番号
 #DIM y軸位置
+#DIM テンプレフラグ
 #DIM ソート基準配列, 500
 
 IF ソート番号
@@ -179,27 +181,27 @@ IF 表示用ステータス格納配列:1:0 == 0
 		NEXT
 		VARSET LOCALS
 		SPLIT DT_CELL_GETS("所持指輪データベース", LOCAL, "オプションステータス補正"), "_", LOCALS
-		FOR LOCAL:1, 0, 20
-			IF LOCALS:(LOCAL:1 * 2) != ""
-				SELECTCASE LOCALS:(LOCAL:1 * 2)
-					CASE "最大ＨＰ"
-						表示用ステータス格納配列:LOCAL:1 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "最大ＭＰ"
-						表示用ステータス格納配列:LOCAL:2 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "攻撃力"
-						表示用ステータス格納配列:LOCAL:3 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "防御力"
-						表示用ステータス格納配列:LOCAL:4 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "回復力"
-						表示用ステータス格納配列:LOCAL:5 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "行動速度"
-						表示用ステータス格納配列:LOCAL:6 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "DA率"
-						表示用ステータス格納配列:LOCAL:7 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-					CASE "TA率"
-						表示用ステータス格納配列:LOCAL:8 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
-				ENDSELECT
-			ENDIF
+		FOR LOCAL:1, 0, 指輪オプション最大数
+			SIF LOCALS:(LOCAL:1 * 2) == ""
+				BREAK
+			SELECTCASE LOCALS:(LOCAL:1 * 2)
+				CASE "最大ＨＰ"
+					表示用ステータス格納配列:LOCAL:1 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "最大ＭＰ"
+					表示用ステータス格納配列:LOCAL:2 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "攻撃力"
+					表示用ステータス格納配列:LOCAL:3 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "防御力"
+					表示用ステータス格納配列:LOCAL:4 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "回復力"
+					表示用ステータス格納配列:LOCAL:5 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "行動速度"
+					表示用ステータス格納配列:LOCAL:6 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "DA率"
+					表示用ステータス格納配列:LOCAL:7 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+				CASE "TA率"
+					表示用ステータス格納配列:LOCAL:8 += TOINT(LOCALS:(LOCAL:1 * 2 + 1))
+			ENDSELECT
 		NEXT
 		表示用ステータス格納配列:LOCAL:9 = DT_CELL_GET("所持指輪データベース", LOCAL, "装備キャラ番号")
 		;０で処理を止めないために＋１を入れて、降順にするためマイナスを掛ける
@@ -216,25 +218,22 @@ VARSET LOCALS
 LOCALS = <div rect='262,{y軸位置},5537,3625'><nobr>
 LOCALS += "　　　 指輪名　　　　　　　　　　<button value='2001'>ＨＰ</button>　　<button value='2002'>ＭＰ</button>　　<button value='2003'>攻撃力</button>　<button value='2004'>防御力</button>　<button value='2005'>回復力</button>　<button value='2006'>行動速度</button>　<button value='2007'>DA率</button>　<button value='2008'>TA率</button>　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
-IF キャラ番号 > 0
+IF 選択中指輪id > 0
 	;まずキャラが装備している指輪の本来の行数を取る
-	IF 装備ステータス補正保存:キャラ番号:装備指輪番号
-		FOR LOCAL, 1, 500
-			IF 装備ステータス補正保存:キャラ番号:装備指輪番号 == 表示用ステータス格納配列:LOCAL:0
-				LOCAL:10 = LOCAL
-				BREAK
-			ENDIF
-		NEXT
-	ELSE
-		LOCAL:10 = 0
-	ENDIF
+	LOCAL:10 = 0
+	FOR LOCAL, 1, 500
+		IF 選択中指輪id == 表示用ステータス格納配列:LOCAL:0
+			LOCAL:10 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
 	;文字色付きで表示
 	FOR LOCAL, 1 + (ページ番号 * 29), 30 + (ページ番号 * 29)
 		IF 表示用ステータス格納配列:LOCAL:0 == 0
 			BREAK
 		ENDIF
 		LOCALS += @"<button value='{LOCAL + 500}'>[詳細]</button> "
-		IF 装備ステータス補正保存:キャラ番号:装備指輪番号 == 表示用ステータス格納配列:LOCAL:0
+		IF 選択中指輪id == 表示用ステータス格納配列:LOCAL:0
 			LOCALS += "<font color='#CCCC00'>"
 		ENDIF
 		LOCALS += @"<button value='{LOCAL}'>"
@@ -275,11 +274,21 @@ IF キャラ番号 > 0
 				ENDSELECT
 			ENDIF
 		NEXT
-		IF 表示用ステータス格納配列:LOCAL:9 > 0
-			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		IF テンプレフラグ >= 0
+			FOR 編成枠番号, 0, 14
+				SIF 編成枠番号 > 3 && 編成枠番号 < 10
+					CONTINUE
+				IF 装備テンプレ記録配列:テンプレフラグ:(編成枠番号 * 10) == 表示用ステータス格納配列:LOCAL:0
+					LOCALS += @"編成{編成枠番号}"
+				ENDIF
+			NEXT
+		ELSE
+			IF 表示用ステータス格納配列:LOCAL:9 > 0
+				LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+			ENDIF
 		ENDIF
 		LOCALS += "</button>"
-		IF 装備ステータス補正保存:キャラ番号:装備指輪番号 == 表示用ステータス格納配列:LOCAL:0
+		IF 選択中指輪id == 表示用ステータス格納配列:LOCAL:0
 			LOCALS += "</font>"
 		ENDIF
 		LOCALS += "<br>"
@@ -304,8 +313,18 @@ ELSE
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:6, 8}　"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:7, 4}　"
 		LOCALS += @"{表示用ステータス格納配列:LOCAL:8, 4}　"
-		IF 表示用ステータス格納配列:LOCAL:9 > 0
-			LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+		IF テンプレフラグ >= 0
+			FOR 編成枠番号, 0, 14
+				SIF 編成枠番号 > 3 && 編成枠番号 < 10
+					CONTINUE
+				IF 装備テンプレ記録配列:テンプレフラグ:(編成枠番号 * 10) == 表示用ステータス格納配列:LOCAL:0
+					LOCALS += @"編成{編成枠番号}"
+				ENDIF
+			NEXT
+		ELSE
+			IF 表示用ステータス格納配列:LOCAL:9 > 0
+				LOCALS += @"%CALLNAME:(表示用ステータス格納配列:LOCAL:9)%"
+			ENDIF
 		ENDIF
 		IF MATCH(選択配列, 表示用ステータス格納配列:LOCAL:0)
 			LOCALS += "</font>"

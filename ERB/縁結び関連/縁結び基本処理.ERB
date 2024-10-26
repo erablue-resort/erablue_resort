@@ -57,7 +57,7 @@ LOCALS += "</div>"
 ;右側ウィンドウ
 LOCALS += "<div rect='2050,0,3875,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>"
 LOCALS += "■設定中縁結びリスト<br>"
-FOR LOCAL, 0, VARSIZE("縁結び保存配列", 0)
+FOR LOCAL, 0, VARSIZE("縁結び保存配列", 1)
 	IF 縁結び保存配列:LOCAL:対象キャラ１ < 1
 		BREAK
 	ENDIF
@@ -304,7 +304,7 @@ FOR 対象キャラ, 1, CHARANUM
 			ENDIF
 		ENDIF
 
-		IF 縁結び同性愛オプション == 0
+		IF OPTION変数:縁結び同性愛 == 0
 			IF 同性愛性癖判定(左キャラ, 対象キャラ)
 				;同性は同性愛系の性癖があれば対象になる
 				IF 性癖素質:左キャラ:同性愛 <= 0
@@ -314,7 +314,7 @@ FOR 対象キャラ, 1, CHARANUM
 		ENDIF
 		IF セットモード
 			;基本的に特別な条件が無い限り、左キャラにセフレ陥落がないと選べない
-			SIF セフレありチェック(左キャラ) == 0
+			SIF セフレありチェック(左キャラ) == 0 && フィールド展開:セフレ縁結び緩和 == 0
 				CONTINUE
 			;セフレ不可はダメ
 			SIF GETBIT(TALENT:左キャラ:陥落不可, 1)
@@ -473,7 +473,7 @@ PRINTL
 IF GETBIT(TALENT:対象キャラ１:性別, 1) == GETBIT(TALENT:対象キャラ２:性別, 1)
 	IF DT_CELL_GET("縁結びデータベース", 表示id, "完遂フラグ", 1)
 		SETCOLOR カラーパレット("グレーアウト")
-		PRINTBUTTON "[0] 受けと攻めを設定する", 0
+		PRINTPLAIN [0] 受けと攻めを設定する
 		PRINTL
 		RESETCOLOR
 		PRINTL ※関係成立済みの縁結びは受け攻めの変更が出来ません。
@@ -489,7 +489,7 @@ IF DT_CELL_GET("縁結びデータベース", 表示id, "完遂フラグ", 1)
 	PRINTL
 	PRINTL
 	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAIN "[10] この縁結びを解除する", 10
+	PRINTPLAIN [10] この縁結びを解除する
 	PRINTL
 	RESETCOLOR
 	PRINTL ※関係成立済みの縁結びは解除することが出来ません。
@@ -600,10 +600,13 @@ IF RESULT == 0
 		;セフレ不可はダメ
 		SIF GETBIT(TALENT:対象キャラ:陥落不可, 1)
 			対象外フラグ = 1
+		;フィールドない＆セフレ持ってない場合は進展しない
+		SIF セフレありチェック(実行キャラ) == 0 && フィールド展開:セフレ縁結び緩和 == 0
+			対象外フラグ = 1
 		;セフレ時は性知識の条件なし
 	ENDIF
 
-	IF 縁結び同性愛オプション == 0
+	IF OPTION変数:縁結び同性愛 == 0
 		;性別が同じ、かつふたなりでないなら恋愛対象外
 		IF 同性愛性癖判定(対象キャラ, 実行キャラ)
 			;ただし同性愛系の性癖があれば対象になる
@@ -644,6 +647,9 @@ FOR 実行TARGET, 0, CHARANUM
 			CALL 縁結び進展しない判定(TARGET:実行TARGET, TARGET:対象TARGET, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1))
 			SIF RESULT:0
 				CONTINUE
+
+			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_実行側_{NO:(TARGET:実行TARGET)}(TARGET:実行TARGET, TARGET:対象TARGET, 進行量)
+			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_対象側_{NO:(TARGET:対象TARGET)}(TARGET:対象TARGET, TARGET:実行TARGET, 進行量)
 
 			;同じ組み合わせは複数存在しないはずなのでそのまま進展
 			DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
@@ -785,6 +791,7 @@ NEXT
 @縁結び進展処理()
 #DIM 対象キャラ１
 #DIM 対象キャラ２
+#DIM 進行量
 
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 	;成立済みはスキップ
@@ -801,7 +808,12 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 
 	IF CFLAG:対象キャラ１:滞在期間 > 0 && CFLAG:対象キャラ２:滞在期間
 		;ふたりともリゾートにいる時、微妙に進展する
-		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + RAND:3 + 1
+		進行量 = RAND:3 + 1
+
+		TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別")%_実行側_{NO:対象キャラ１}(対象キャラ１, 対象キャラ２, 進行量)
+		TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別")%_対象側_{NO:対象キャラ２}(対象キャラ２, 対象キャラ１, 進行量)
+
+		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + 進行量
 	ENDIF
 NEXT
 

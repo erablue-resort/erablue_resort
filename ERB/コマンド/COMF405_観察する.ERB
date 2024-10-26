@@ -1,0 +1,131 @@
+﻿
+@COMNAME405
+#FUNCTIONS
+TSTR:コマンド名受渡 = 観察する
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_405
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+@COM_TOOLTIP_405
+LOCALS = <br>■観察する<br>
+LOCALS += "周囲やキャラをよく観察するコマンド。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+;-------------------------------------------------
+;観察する
+;-------------------------------------------------
+@COM405
+#DIM ループ用
+
+;RFLAG:コマンド結果受渡し変数
+;  0 =人の気配はない
+;  1 =人の気配がある
+; 10 =眠っているキャラの観察
+; 11 =ダウンしているキャラの観察
+
+RFLAG:コマンド結果受渡し変数 = 0
+FOR ループ用, 1, VARSIZE("TARGET")
+	SIF TARGET:ループ用 <= 0
+		BREAK
+	IF CFLAG:(TARGET:ループ用):隠密
+		RFLAG:コマンド結果受渡し変数 = 1
+		BREAK
+	ENDIF
+NEXT
+
+IF TARGET > 0 && CFLAG:睡眠
+	;眠った対象がいるとき
+	IF CFLAG:体力限界
+		;対象がダウンしているとき、気絶キャラの観察になる
+		RFLAG:コマンド結果受渡し変数 = 11
+		;RFLAG:コマンド結果受渡し変数２にスコア（体力により補正）
+		RFLAG:コマンド結果受渡し変数２ = EX:スコア * 9999 / MAXBASE:体力
+	ELSE
+		RFLAG:コマンド結果受渡し変数 = 10
+		;RFLAG:コマンド結果受渡し変数２に起床までの残り時間
+		CALL CHARA_ROUTINE_STATUS(TARGET, "起床時刻")
+		RFLAG:コマンド結果受渡し変数２ = MAX(RESULT + TCVAR:行動時間ゆらぎ - TIME, 0)
+	ENDIF
+ENDIF
+
+TIME += 3
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE405
+;観察実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(405) && GLOBAL_COMABLE_TYPE("隠密")
+	RETURN RESULT
+SIF CFLAG:PLAYER:うふふ
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM405
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 0
+		PRINTFORML %CALLNAME:PLAYER%は周囲を見渡した
+		IF TARGET <= 0
+			PRINTL ……人の気配はなさそうだ
+		ELSE
+			PRINTL ……いつものにぎやかなリゾートの光景だ
+		ENDIF
+	CASE 1
+		PRINTFORML %CALLNAME:PLAYER%は周囲を見渡した
+		PRINTL ……？
+		PRINTL 物陰に何かが隠れているようだ
+	CASE 10
+		PRINTFORML %CALLNAME:PLAYER%は眠っている%CALLNAME:TARGET%の様子を観察した
+		;起床までの残り時間
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE IS > 180
+				PRINTFORML %CALLNAME:TARGET%はぐっすり眠っている。しばらく目覚めることはなさそうだ…
+			CASE IS > 90
+				PRINTFORML %CALLNAME:TARGET%はぐっすり眠っている。目覚めるにはもう少しかかりそうだ…
+			CASE IS > 30
+				PRINTFORML %CALLNAME:TARGET%が%CALLNAME:PLAYER%の立てたかすかな物音に反応した。そろそろ目を覚ましそうだ…
+			CASEELSE
+				PRINTFORML %CALLNAME:TARGET%%TEXTR("は寝返りを打っている/は寝言を言っている/の身体はしきりに動いている/の呼吸は浅い")%。じきに目覚めそうだ…
+		ENDSELECT
+	CASE 11
+		PRINTFORML %CALLNAME:PLAYER%は眠っている%CALLNAME:TARGET%の様子を観察した
+		;スコアの多さ
+		SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE IS >= 400
+				PRINTFORM %CALLNAME:TARGET%の身体は叩き込まれた快楽の深さを物語るように、眠りながらも痙攣し
+				IF GETBIT(TALENT:性別, 0)
+					IF TEQUIP:下半身服あり
+						PRINT 、陰唇から噴き出した潮で寝巻に染みを作り
+					ELSEIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+						PRINT 、陰唇から噴き出した潮でタイツに染みを作り
+					ELSEIF TEQUIP:下半身下着あり
+						PRINT 、陰唇から噴き出した潮で下着に染みを作り
+					ELSE
+						PRINT 、陰唇から潮を噴き出し
+					ENDIF
+				ENDIF
+				PRINTL 続けている…
+			CASE IS >= 20
+				PRINTFORML %CALLNAME:TARGET%の身体は与えられた快楽の余韻で、眠りながらも時折痙攣している…
+			CASEELSE
+				PRINTFORML %CALLNAME:TARGET%はすやすや寝息を立てている…
+		ENDSELECT
+ENDSELECT

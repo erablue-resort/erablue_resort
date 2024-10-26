@@ -99,6 +99,12 @@ NEXT
 
 ;ロード時処理
 FOR LOCAL, 0, CHARANUM
+	;初期加入状態なら加入させる
+	SIF (CFLAG:LOCAL:招待不可フラグ == 1 || CFLAG:LOCAL:招待不可フラグ == 3) && GETBIT(OPTION変数:キャラ制限初期, 0)
+		CFLAG:LOCAL:招待不可フラグ = 0
+	SIF CFLAG:LOCAL:招待不可フラグ == 2 && GETBIT(OPTION変数:キャラ制限初期, 1)
+		CFLAG:LOCAL:招待不可フラグ = 0
+
 	TRYCALLFORM 口上側LOADENDパラメータ変更_{NO:LOCAL}
 	SIF !BASE:LOCAL:身長
 		CALL INIT_BODYSIZE(LOCAL)
@@ -156,15 +162,17 @@ ENDIF
 ;------------------------------------------------------------------------------------------
 
 ;追加TALENT、追加CSTRのチェック
-FOR LOCAL, 1, CHARANUM
+FOR LOCAL, 0, CHARANUM
 	FOR LOCAL:1, GAMEBASE_ALLOWVERSION, GAMEBASE_VERSION + 1
 		CALLFORM VERUP_{LOCAL:1}_CHARA(LOCAL)
 	NEXT
 NEXT
 
-;その他広域変数の書き換えなど
 FOR LOCAL:1, GAMEBASE_ALLOWVERSION, GAMEBASE_VERSION + 1
+	;その他広域変数の書き換えなど
 	CALLFORM VERUP_{LOCAL:1}()
+	;対応処理用フラグを対応済状態にセット
+	CALLFORM VERUP_{LOCAL:1}_FINISH()
 NEXT
 
 ;------------------------------------------------------------------------------------------
@@ -215,26 +223,28 @@ FOR LOCAL, 1, CHARANUM
 
 	;複数の部屋に入っちゃってないかチェック
 	LOCAL:2 = 0
-	IF TALENT:LOCAL:従業員
-		FOR LOCAL:1, 0, 従業員部屋数
-			IF 従業員部屋割り配列:(LOCAL:1) == LOCAL
-				IF LOCAL:2
-					従業員部屋割り配列:(LOCAL:1) = 0
-				ELSE
-					LOCAL:2 = 1
+	IF TALENT:LOCAL:定住者 == 0
+		IF TALENT:LOCAL:従業員
+			FOR LOCAL:1, 0, 従業員部屋数
+				IF 従業員部屋割り配列:(LOCAL:1) == LOCAL
+					IF LOCAL:2
+						従業員部屋割り配列:(LOCAL:1) = 0
+					ELSE
+						LOCAL:2 = 1
+					ENDIF
 				ENDIF
-			ENDIF
-		NEXT
-	ELSE
-		FOR LOCAL:1, 0, 100
-			IF 滞在者部屋割り配列:(LOCAL:1) == LOCAL
-				IF LOCAL:2
-					滞在者部屋割り配列:(LOCAL:1) = 0
-				ELSE
-					LOCAL:2 = 1
+			NEXT
+		ELSE
+			FOR LOCAL:1, 0, 100
+				IF 滞在者部屋割り配列:(LOCAL:1) == LOCAL
+					IF LOCAL:2
+						滞在者部屋割り配列:(LOCAL:1) = 0
+					ELSE
+						LOCAL:2 = 1
+					ENDIF
 				ENDIF
-			ENDIF
-		NEXT
+			NEXT
+		ENDIF
 	ENDIF
 NEXT
 

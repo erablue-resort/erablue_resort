@@ -24,6 +24,8 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM402
 CFLAG:MASTER:睡眠 = 1
 CFLAG:MASTER:就寝時刻 = DAY * 1440 + TIME
+SIF CFLAG:MASTER:起床予定時刻 == CFLAG:MASTER:就寝時刻 % (DAY * 1440)
+	CFLAG:MASTER:就寝時刻 = DAY * 1440 + TIME + 1
 IF MODE_存在判定_プレイヤー側("ハーヴィンオナホ系", PLAYER)
 	FLAG:挿入睡眠相手記録 = DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
 	SAVESTR:挿入睡眠モード記録 = %DT_CELL_GETS("体位モードデータベース", モードID受渡し, "モード名", 1)%
@@ -47,86 +49,8 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 SIF GLOBAL_COMABLE(402)
 	RETURN RESULT
 ;私室設定
-IF CFLAG:MASTER:現在マップ種別 == 0
-	IF TARGET > 0
-		;誰かがいる場合、部屋主がいれば寝れる
-		SELECTCASE CFLAG:MASTER:現在位置
-			CASE 2011, 2012
-				;誰かの部屋なら相手が居ないとダメ
-				SIF MATCH(TARGET, 同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011)) == 0
-					RETURN 0
-				;相手がいても陥落してないとダメ
-				SIF 陥落チェック(同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011)) < 1
-					RETURN 0
-			CASE CFLAG:MASTER:自室位置
-				;自分の部屋はOK
-			CASEELSE
-				;住宅以外はダメ
-				RETURN 0
-		ENDSELECT
-	ELSE
-		;誰もいないなら空き部屋と自室で眠れる
-		SELECTCASE CFLAG:MASTER:現在位置
-			CASE 2011, 2012
-				;誰かの部屋なら相手が居ないとダメ
-				SIF 同棲部屋割り配列:(CFLAG:MASTER:現在位置 - 2011) != 0
-					RETURN 0
-			CASE CFLAG:MASTER:自室位置
-				;自分の部屋はOK
-			CASEELSE
-				;住宅以外はダメ
-				RETURN 0
-		ENDSELECT
-	ENDIF
-ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 999
-	;陥落状態のキャラの部屋なら添い寝可能
-	SIF 陥落チェック(TARGET) < 1
-		RETURN 0
-	SELECTCASE CFLAG:MASTER:現在位置
-		CASE IS >= 2000
-			;スイートルームに複数人泊まってたらアウト
-			SIF STRCOUNT(スイートルーム部屋割り配列:(CFLAG:MASTER:現在位置 - 2000), "_") > 2
-				RETURN 0
-			;そもそも部屋じゃないならアウト
-			SIF STRCOUNT(スイートルーム部屋割り配列:(CFLAG:MASTER:現在位置 - 2000), @"_{TARGET}_") < 1
-				RETURN 0
-		CASE IS >= 1000
-			SIF TARGET != 従業員部屋割り配列:(CFLAG:MASTER:現在位置 - 1000)
-				RETURN 0
-		CASEELSE
-			SIF TARGET != 滞在者部屋割り配列:(CFLAG:MASTER:現在位置)
-				RETURN 0
-	ENDSELECT
-ELSEIF TARGET > 0 && CFLAG:TARGET:現在マップ種別 == 2
-	;陥落状態のキャラの部屋なら添い寝可能
-	SIF 陥落チェック(TARGET) < 1
-		RETURN 0
-	SELECTCASE CFLAG:MASTER:現在位置
-		CASE IS >= 1000
-			;そもそも部屋じゃないならアウト
-			SIF STRCOUNT(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), @"_{TARGET}_") < 1 && STRFIND(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), @"{TARGET}_") != 0
-				RETURN 0
-			;複数人住んでたら全員陥落してないとアウト
-			IF STRCOUNT(定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), "_") > 1
-				VARSET RESULTS
-				SPLIT 定住者部屋割り配列:(CFLAG:MASTER:現在位置 - 1000), "_", RESULTS
-				最大人数 = RESULT
-				FOR LOCAL, 0, 最大人数
-					SIF ISNUMERIC(RESULTS:LOCAL) == 0
-						CONTINUE
-					IF 陥落チェック(TOINT(RESULTS:LOCAL)) < 1
-						RETURN 0
-					ENDIF
-				NEXT
-				RETURN 0
-			ENDIF
-		CASEELSE
-			;住宅以外はダメ
-			RETURN 0
-	ENDSELECT
-ELSE
+SIF !自由利用BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
 	RETURN 0
-ENDIF
 ;起床後12時間以上経過してないとダメ（[無間睡眠]なら無視）
 SIF TIME_PROGRESS(CFLAG:MASTER:314) < 720 && !あなた特殊能力:無間睡眠
 	RETURN 0

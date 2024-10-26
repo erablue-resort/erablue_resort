@@ -137,7 +137,7 @@ FOR LOCAL,1,CHARANUM
 	ENDIF
 NEXT
 SIF うふふ終了フラグ
-	CALL うふふ終了処理
+	CALL うふふ終了処理("目撃される")
 SIF LOCALS != ""
 	PRINTFORMW %LOCALS%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に居た
 SIF LOCALS:1 != ""
@@ -160,6 +160,9 @@ IF TFLAG:調教モード == 3
 		;自室で遊ぶ場合は１以上保証
 		IF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:自室位置
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 , 1)
+		ELSEIF フィールド展開:セクハラ緩和
+			;セクハラ緩和時も１以上保証
+			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
 ELSE
@@ -174,6 +177,9 @@ ELSE
 		ENDIF
 		;自室で遊ぶ場合は１以上保証
 		IF CFLAG:(TARGET:LOCAL):一緒に遊ぶ && CFLAG:(TARGET:LOCAL):現在位置 == CFLAG:MASTER:自室位置
+			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(TARGET:LOCAL):馴れ合い強度 , 1)
+		ELSEIF フィールド展開:セクハラ緩和
+			;セクハラ緩和時も１以上保証
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(TARGET:LOCAL):馴れ合い強度 , 1)
 		ENDIF
 	NEXT
@@ -254,7 +260,7 @@ CALL KOJO_遭遇時EVENT
 ;情報表示
 ;-------------------------------------------------
 DRAWLINE
-IF サイド領域非表示オプション == 0
+IF OPTION変数:サイド領域非表示 == 0
 	CALL サイド領域描画
 ENDIF
 ;時計画像表示
@@ -322,26 +328,27 @@ ENDIF
 ;-------------------------------------------------
 改行フラグ = 0
 SETCOLOR カラーパレット("えっちな色")
-IF フィールド展開:欲情フィールド
-	SIF 改行フラグ == 0
-		PRINT 展開中フィールド：
-	PRINT [欲情フィールド] 
-	改行フラグ = 1
-ENDIF
-IF フィールド展開:露出フィールド == 1
-	SIF 改行フラグ == 0
-		PRINT 展開中フィールド：
-	PRINT [露出フィールド] 
-	改行フラグ = 1
-ENDIF
-IF フィールド展開:露出フィールド == 2
-	SIF 改行フラグ == 0
-		PRINT 展開中フィールド：
-	PRINT [露出フィールド：強化] 
-	改行フラグ = 1
-ENDIF
-SIF 改行フラグ
-	PRINTL 
+PRINT フィールド効果：
+RESETCOLOR
+LOCALS = <font color='#%カラーパレット_HTML("えっちな色")%'>
+LOCAL:1 = 0
+FOR LOCAL, 0, 50
+	SIF ERDNAME(フィールド展開, LOCAL) == ""
+		BREAK
+	SIF フィールド展開:LOCAL <= 0
+		CONTINUE
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	IF OPTION変数:ツールチップ切り替え == 0
+		LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%RESULTS%]</nonbutton>"
+	ELSE
+		LOCALS += @"<nonbutton>[%RESULTS%]</nonbutton>"
+	ENDIF
+	LOCAL:1 ++
+NEXT
+LOCALS += "</font>"
+SIF LOCAL:1 == 0
+	LOCALS = なし
+HTML_PRINT LOCALS
 RESETCOLOR
 ;DRAWLINE
 PRINTL ------------------------------------------------------------------------------------------------------------
@@ -624,11 +631,8 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 	ELSEIF BASE:TARGET:酩酊 < 1000
 		PRINT （酩酊）
 	ENDIF
-	IF CFLAG:TARGET:睡眠
-		PRINT （睡眠）
-	ELSEIF TCVAR:TARGET:トランス残り時間 > 0
-		PRINT （トランス）
-	ENDIF
+	; 意識状態(睡眠/トランス)
+	CALL 意識状態表示(TARGET)
 	IF CFLAG:TARGET:体力限界
 		PRINT （ダウン）
 	ENDIF
@@ -677,7 +681,7 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		VARSET RESULTS
 		ツールチップフラグ = 0
 		TRYCALLFORM CLOTHES_販売説明_%CSTR:TARGET:着せ替え服%
-		IF ツールチップ切り替えOPTION記憶 == 0 && RESULTS != ""
+		IF OPTION変数:ツールチップ切り替え == 0 && RESULTS != ""
 			LOCALS += @"<nonbutton title = '%RESULTS%"
 			SIF RESULTS:1 != ""
 				LOCALS += @"<br>出典元：%RESULTS:1%'>"
@@ -693,11 +697,11 @@ IF TARGET || (FLAG:モード管理 == 1 && PLAYER != MASTER)
 		SIF ツールチップフラグ
 			LOCALS += "</nonbutton>"
 	ELSE
-		IF ツールチップ切り替えOPTION記憶 == 0 && CSTR:TARGET:普段着解説 != ""
+		IF OPTION変数:ツールチップ切り替え == 0 && CSTR:TARGET:普段着解説 != ""
 			LOCALS += @"<nonbutton title = '■%CSTR:TARGET:服名称%%REPLACE(CSTR:TARGET:普段着解説, " ", "<br>")%'>"
 		ENDIF
 		LOCALS += "普段着"
-		IF ツールチップ切り替えOPTION記憶 == 0 && CSTR:TARGET:普段着解説 != ""
+		IF OPTION変数:ツールチップ切り替え == 0 && CSTR:TARGET:普段着解説 != ""
 			LOCALS += @"</nonbutton>"
 		ENDIF
 	ENDIF
@@ -754,7 +758,7 @@ IF TARGET > 0
 	PRINT 　　　　　　　　　　　 
 	SETCOLOR 0xffd900
 	PRINTBUTTONLC "[能力表示]", 803
-	IF TFLAG:調教モード == 1
+	IF CFLAG:PLAYER:うふふ == 0
 		PRINT 　　　
 		IF あなた追跡キャラ
 			PRINTBUTTON @"[追跡中：%CALLNAME:あなた追跡キャラ%]", 805
@@ -811,7 +815,7 @@ ELSEIF FLAG:モード管理 == 1 && TARGET == MASTER
 	ENDIF
 	PRINTL 
 	PRINT 　　　　　　　　　　　 
-	IF TALENT:TARGET:性別 & 2
+	IF 射精可能(TARGET)
 		LOCALS = 精力:
 		PRINTFORM %LOCALS%
 		CALL PRINT_COLORBAR, BASE:精力, MAXBASE:精力, 600, 100, BARCOLORSET("青緑"), RESULT:1
@@ -1034,7 +1038,7 @@ IF TALENT:TARGET:2 & 2
 	ENDIF
 	LOCALS += "<br>"
 ENDIF
-IF TALENT:TARGET:性別 & 2
+IF 射精可能(TARGET)
 	LOCALS += "精力:"
 	CALL PRINT_COLORBAR_HTML, BASE:精力, MAXBASE:精力, 600, 100, BARCOLORSET_HTML("青緑"), RESULTS:1
 	LOCALS += @"%RESULTS%"
@@ -1054,7 +1058,7 @@ HTML_PRINT LOCALS, 1
 #DIM 横位置
 
 
-IF PLAYER画像オフOPTION
+IF OPTION変数:PLAYER画像オフ
 ELSE
 	HTML文字列 = %顔グラ表示用文字列関数(PLAYER, 1000)%
 	IF STRFIND(HTML文字列, "Noimage_顔") < 0
@@ -1109,7 +1113,7 @@ ENDIF
 PRINTL
 
 PRINT 　　　　　　　　　　　 
-IF TALENT:PLAYER:性別 & 2
+IF 射精可能(PLAYER)
 	LOCALS = 精力(%CALLNAME:PLAYER%)
 	PRINTFORM %LOCALS,20,LEFT%
 	CALL PRINT_COLORBAR, BASE:PLAYER:精力, MAXBASE:PLAYER:精力, 600, 100, BARCOLORSET("青緑"), RESULT:1
@@ -1302,7 +1306,7 @@ ELSEIF MODE_存在判定_プレイヤー側("全裸散歩", PLAYER) && !MODE_存
 	PRINTFORMW %CALLNAME:PLAYER%たちは見つかる前に急いでこの場から立ち去った……
 	CALL 全裸散歩終了処理()
 	RETURN -1
-ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0 && 対象キャラ != LOCAL:1 && フィールド展開:露出フィールド != 2
+ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0 && 対象キャラ != LOCAL:1 && フィールド展開:うふふ目撃スルー == 0
 	DRAWLINE
 	PRINTFORMW %CALLNAME:対象キャラ%に%CALLNAME:(LOCAL:1)%との情事を見られてしまった！
 	IF 陥落チェック(対象キャラ) && 初体験日:対象キャラ:初うふふ
@@ -1346,7 +1350,7 @@ ELSE
 	LOCAL:3 = 1
 ENDIF
 IF LOCAL:3
-	IF CFLAG:対象キャラ:情事目撃 && CFLAG:(CFLAG:対象キャラ:情事目撃):現在位置 != CFLAG:対象キャラ:現在位置 && フィールド展開:露出フィールド != 2
+	IF CFLAG:対象キャラ:情事目撃 && CFLAG:(CFLAG:対象キャラ:情事目撃):現在位置 != CFLAG:対象キャラ:現在位置 && フィールド展開:うふふ目撃スルー == 0
 		PRINTFORMW %CALLNAME:対象キャラ%に先の%CALLNAME:(CFLAG:対象キャラ:情事目撃)%との一件について問い詰められた…
 		TRYCALLFORM KOJO_EVENT_情事目撃_{NO:対象キャラ}(対象キャラ)
 		CFLAG:対象キャラ:情事目撃 = 0
@@ -1565,3 +1569,75 @@ ENDIF
 
 LOCALS += @"%ゲージ表示文%<div rect='62,0,3125,250'>%LOCALS:1, ゲージ幅 / 50%</div>"
 HTML_PRINT LOCALS, 1
+
+;-------------------------------------------------
+; 意識状態の表示
+;-------------------------------------------------
+@意識状態表示(対象キャラ)
+#DIM  対象キャラ
+#DIM  起床予定時刻
+#DIM  残り時間
+#DIM  時間表示判定
+#DIMS 意識状態
+#DIMS 表示テキスト
+
+#DIM CONST 表示開始時刻 = 300 ; 残り時間の表示を開始する時刻(300分 = 5:00)
+
+;- 意識状態の判定
+IF CFLAG:対象キャラ:睡眠
+	意識状態 '= "睡眠"
+ELSEIF TCVAR:TARGET:トランス残り時間 > 0
+	意識状態 '= "トランス"
+ELSE
+	; 意識状態が通常の場合は表示なしで終了
+	RETURN
+ENDIF
+
+;- 残り時間の計算と表示判定
+時間表示判定 = 0
+残り時間     = 0
+SELECTCASE 意識状態
+	CASE "睡眠"
+		;- 睡眠残り時間計算(要:睡眠診断)
+		IF あなた特殊能力:睡眠診断
+			;- 起床までの残り時間を算出
+			CALL CHARA_ROUTINE_STATUS(対象キャラ, "起床時刻")
+			起床予定時刻 = RESULT + TCVAR:対象キャラ:行動時間ゆらぎ
+			残り時間 = MAX(起床予定時刻 - TIME, 0)
+			
+			;- 時間帯による表示判定
+			; ・就寝後は起きないのが明確なので残り時間を表示しない
+			; ・徹夜して起床時間が近づいた場合は表示を再開する
+			SELECTCASE TIME
+				; 0時～早朝
+				CASE 0 TO 表示開始時刻 - 1
+					時間表示判定 = 0
+				; 早朝～起床
+				CASE 表示開始時刻 TO 起床予定時刻
+					時間表示判定 = 1
+				; 起床～就寝
+				; ・睡眠状態にならないので省略
+				; 就寝～0時
+				CASEELSE
+					時間表示判定 = 0
+			ENDSELECT
+		ENDIF
+
+	CASE "トランス"
+		;- トランス(残り時間表示なし)
+		時間表示判定 = 0
+		残り時間 = TCVAR:TARGET:トランス残り時間
+ENDSELECT
+
+IF 時間表示判定
+	; 残り時間表示あり
+	表示テキスト '= 意識状態
+	表示テキスト += "/あと"
+	SIF 残り時間 / 60
+		表示テキスト += @"{残り時間 / 60}時間"
+	表示テキスト += @"{残り時間 % 60}分"
+ELSE
+	; 残り時間表示なし
+	表示テキスト '= 意識状態
+ENDIF
+PRINTFORM （%表示テキスト%）

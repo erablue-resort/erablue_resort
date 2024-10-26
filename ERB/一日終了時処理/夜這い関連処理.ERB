@@ -167,7 +167,9 @@ ENDIF
 PRINTL
 ;受け攻め設定を取り出す
 DT_SELECT "関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:夜這い相手:人物番号} Or 対象キャラ２ = {CFLAG:夜這い相手:人物番号})"
+RFLAG:夜這い処理中フラグ = 1
 CALL 夜這い実処理(対象キャラ, 夜這い相手, RESULT:1)
+RFLAG:夜這い処理中フラグ = 0
 ;実行処理の後に口上表示
 PRINTW
 RETURN 1
@@ -445,13 +447,13 @@ ENDIF
 
 
 ;V快楽算出処理
-IF 夜這い処女・童貞オプション
+IF OPTION変数:夜這い処女・童貞 && HETEROSEX(実行キャラ, 夜這い相手) == 0
 	SIF TALENT:対象キャラ:処女
 		GOTO A挿入フェイズ
 	SIF GETBIT(TALENT:相手キャラ:非童貞, 0) == 0
 		GOTO A挿入フェイズ
 ENDIF
-IF 同性愛処女・童貞オプション
+IF OPTION変数:同性愛処女・童貞
 	IF HETEROSEX(実行キャラ, 夜這い相手) == 1
 		;V同性愛は女女しか発生しないので男男については記述しない
 		SIF TALENT:対象キャラ:処女
@@ -511,7 +513,7 @@ IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 
 				SIF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 3) == 0
 					CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
 			ELSE
-				SIF 夜這い時妊娠OPTION記憶 == 0
+				SIF OPTION変数:夜這い時妊娠 == 0
 					CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
 			ENDIF
 
@@ -549,13 +551,13 @@ ENDIF
 
 $A挿入フェイズ
 ;A快楽算出処理
-IF 夜這い処女・童貞オプション
+IF OPTION変数:夜這い処女・童貞 && HETEROSEX(実行キャラ, 夜這い相手) == 0
 	SIF TALENT:対象キャラ:Ａ処女
 		GOTO 結果フェイズ
 	SIF GETBIT(TALENT:相手キャラ:非童貞, 1) == 0
 		GOTO 結果フェイズ
 ENDIF
-IF 同性愛処女・童貞オプション
+IF OPTION変数:同性愛処女・童貞
 	IF HETEROSEX(実行キャラ, 夜這い相手) == 2
 		SIF TALENT:対象キャラ:Ａ処女
 			GOTO 結果フェイズ
@@ -602,6 +604,7 @@ IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験
 
 		CALL コマンド外精力消費処理(相手キャラ, 絶頂保存)
 		絶頂保存 = RESULT
+		精液量保存 = RESULT:1
 		IF 絶頂保存 > 0
 			EXP:相手キャラ:射精経験 += 絶頂保存
 			EXP:対象キャラ:精液経験 += 絶頂保存
@@ -610,6 +613,9 @@ IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験
 			RFLAG:履歴用数値保存 = 絶頂保存
 			CALL 履歴登録チェック(対象キャラ, "腸内射精回数")
 			履歴用実績:対象キャラ:腸内射精回数 += 絶頂保存
+			
+			;腸内射精された精液を計上
+			CALL TAKE_SPERM_A(対象キャラ, 相手キャラ, 精液量保存)
 
 			EXP:対象キャラ:腸内射精絶頂経験 += 絶頂保存 / (4 - MAX(0, 性癖素質:対象キャラ:腸内射精))
 			IF 性癖素質:対象キャラ:腸内射精 > 0

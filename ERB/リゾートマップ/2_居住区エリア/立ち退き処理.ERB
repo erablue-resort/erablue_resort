@@ -1,0 +1,345 @@
+﻿@立ち退き処理
+#DIM ループ用
+#DIM 定住者一覧, 500
+#DIM ページ数
+#DIM 配列番号
+#DIM 選択定住者番号
+#DIM 降順ソート用配列, 200
+#DIM 降順ソート用番号配列, 200
+#DIMS Arrays = "降順ソート用配列", "降順ソート用番号配列"
+
+VARSET 定住者一覧
+
+DRAWLINE
+PRINTL 定住者を立ち退かせます。
+PRINTL 立ち退かせたキャラは好感度要素：友情度と信頼度が大きく下がりますので注意してください。
+PRINTL
+DRAWLINE
+
+;現在いる定住者を一覧表示
+LOCAL:1 = 0
+
+FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+	SIF 定住者部屋割り配列:LOCAL == ""
+		CONTINUE
+	;部屋の居住者を配列へ
+	VARSET RESULTS
+	SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+	FOR 配列番号, 0, RESULT
+		IF ISNUMERIC(RESULTS:配列番号)
+			定住者一覧:(LOCAL:1) = TOINT(RESULTS:配列番号)
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+NEXT
+
+LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='156,156,1937,2812'>"
+FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
+	IF 定住者一覧:LOCAL < 1
+		LOCALS += "<br>"
+		CONTINUE
+	ENDIF
+	IF TCVAR:(定住者一覧:LOCAL):定住追い出しフラグ
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>%CALLNAME:(定住者一覧:LOCAL), 16, LEFT%　好感度Lv:{CFLAG:(定住者一覧:LOCAL):好感度レベル, 3}　"
+		IF TALENT:(定住者一覧:LOCAL):恋慕
+			LOCALS += @"<font color='#%カラーパレット_HTML("えっちな色")%'>恋</font>"
+		ELSEIF TALENT:(定住者一覧:LOCAL):セフレ
+			LOCALS += @"<font color='#%カラーパレット_HTML("ピンク")%'>セ</font>"
+		ENDIF
+		LOCALS += "</font>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(定住者一覧:LOCAL), 16, LEFT%　好感度Lv:{CFLAG:(定住者一覧:LOCAL):好感度レベル, 3}　"
+		IF TALENT:(定住者一覧:LOCAL):恋慕
+			LOCALS += @"<font color='#%カラーパレット_HTML("えっちな色")%'>恋</font>"
+		ELSEIF TALENT:(定住者一覧:LOCAL):セフレ
+			LOCALS += @"<font color='#%カラーパレット_HTML("ピンク")%'>セ</font>"
+		ENDIF
+		LOCALS += "</button>"
+	ENDIF
+	LOCALS += "<br>"
+NEXT
+IF ページ数 > 0
+	LOCALS += "<button value='1001'>　＜ 前ページ</button>"
+ELSE
+	LOCALS += "　　　　　　　 "
+ENDIF
+LOCALS += "　　　　"
+IF 定住者一覧:(ページ数 * 17 + 17) > 0
+	LOCALS += "<button value='1002'>次ページ ＞</button>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+
+LOCALS += "<div rect='2125,156,3675,2812'>"
+IF 選択定住者番号 > -1
+	LOCALS += @"■%NAME:(定住者一覧:選択定住者番号), 26, LEFT%"
+	LOCALS:1 = %属性数値文字色変換_HTML(基礎BATTLE_STATE:(定住者一覧:選択定住者番号):属性)%
+	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(基礎BATTLE_STATE:(定住者一覧:選択定住者番号):属性)%</font>"
+	LOCALS += @"　得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:(定住者一覧:選択定住者番号):得意武器)%"
+	SIF 基礎BATTLE_STATE:(定住者一覧:選択定住者番号):ステータスタイプ保存 > -1
+		LOCALS += @"　タイプ：%成長タイプ:(基礎BATTLE_STATE:(定住者一覧:選択定住者番号):ステータスタイプ保存)%"
+	LOCALS += "<br><br>"
+	LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
+	LOCALS += @"　種族：%GET_TALENTNAME(200, TALENT:(定住者一覧:選択定住者番号):種族)%"
+	IF TALENT:(定住者一覧:選択定住者番号):エルーン耳
+		LOCALS += "（エルーン耳）"
+	ENDIF
+	IF TALENT:(定住者一覧:選択定住者番号):尻尾あり
+		LOCALS += "（尻尾）"
+	ENDIF
+	IF TALENT:(定住者一覧:選択定住者番号):角あり
+		LOCALS += "（角あり）"
+	ENDIF
+	IF TALENT:(定住者一覧:選択定住者番号):ハーヴィン耳
+		LOCALS += "（ハーヴィン耳）"
+	ENDIF
+	LOCALS += "<br>"
+	LOCALS += "　性別："
+	SELECTCASE TALENT:(定住者一覧:選択定住者番号):性別
+		CASE 1
+			LOCALS += "女性"
+			IF TALENT:(定住者一覧:選択定住者番号):処女 == 0
+				LOCALS += "　　　　　　　　　"
+			ELSE
+				LOCALS += "（処女）　　　　　"
+			ENDIF
+		CASE 3
+			LOCALS += "ふたなり"
+			IF TALENT:(定住者一覧:選択定住者番号):処女 == 0
+				LOCALS += "　　　　"
+			ELSE
+				LOCALS += "（処女）"
+			ENDIF
+			IF TALENT:(定住者一覧:選択定住者番号):非童貞 == 1
+				LOCALS += "　　　　　"
+			ELSE
+				LOCALS += "（童貞）　"
+			ENDIF
+	ENDSELECT
+	LOCALS += @"バストサイズ：%GET_TALENTNAME(205, TALENT:(定住者一覧:選択定住者番号):バストサイズ)%"
+	LOCALS += "<br>"
+	LOCALS += @"　性知識レベル：%性知識段階表示(知識素質:(定住者一覧:選択定住者番号):性知識, 定住者一覧:選択定住者番号)%"
+	IF TALENT:(定住者一覧:選択定住者番号):ランダムキャラ
+		LOCALS += @"<br>　容姿：%GET_TALENTNAME(160, TALENT:(定住者一覧:選択定住者番号):容姿)%　　"
+		LOCALS += @"体格：%GET_TALENTNAME(161,TALENT:(定住者一覧:選択定住者番号):体格)%"
+		IF TALENT:(定住者一覧:選択定住者番号):性別 == 3
+			LOCALS += @"<br>　男性器サイズ：%GET_TALENTNAME(162, TALENT:(定住者一覧:選択定住者番号):男性器サイズ)%"
+		ENDIF
+	ENDIF
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
+	
+	FOR ループ用,8,160
+		IF STRLENS(GET_TALENTNAME(ループ用,TALENT:(定住者一覧:選択定住者番号):ループ用, 0))
+			LOCALS += @"[%GET_TALENTNAME(ループ用,TALENT:(定住者一覧:選択定住者番号):ループ用, 0)%]"
+		ENDIF
+	NEXT
+	FOR ループ用,220,300
+		IF STRLENS(GET_TALENTNAME(ループ用,TALENT:(定住者一覧:選択定住者番号):ループ用))
+			LOCALS += @"[%GET_TALENTNAME(ループ用,TALENT:(定住者一覧:選択定住者番号):ループ用)%]"
+		ENDIF
+	NEXT
+	FOR ループ用,1,100
+		IF 知識素質:(定住者一覧:選択定住者番号):ループ用
+			LOCALS += @"[%ERDNAME(知識素質,ループ用)%Lv{知識素質:(定住者一覧:選択定住者番号):ループ用}]"
+		ENDIF
+	NEXT
+
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
+	LOCAL:1 = 0
+	LOCAL:2 = 0
+	VARSET 降順ソート用配列
+	VARSET 降順ソート用番号配列
+	FOR LOCAL, 0, 40
+		SIF LOCAL >= 21 && LOCAL <= 27
+			CONTINUE
+		IF ABL:(定住者一覧:選択定住者番号):LOCAL > 0
+			降順ソート用配列:(LOCAL:1) = ABL:(定住者一覧:選択定住者番号):LOCAL
+			降順ソート用番号配列:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	ARRAYMSORTEX 降順ソート用配列, Arrays, 0
+	
+	FOR LOCAL, 0, 6
+		IF 降順ソート用配列:LOCAL < 1
+			SIF LOCAL:2
+				LOCALS += "<br>"
+			BREAK
+		ENDIF
+		LOCALS += @"%ABLNAME:(降順ソート用番号配列:LOCAL), 16%:{ABL:(定住者一覧:選択定住者番号):(降順ソート用番号配列:LOCAL), 2}   "
+		LOCAL:2 += 1
+		IF LOCAL == 5
+			LOCALS += "他<br>"
+		ELSEIF LOCAL:2 == 3
+			LOCALS += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+	NEXT
+	LOCALS += "<br>"
+	LOCALS += "□ 経験 □---------------------------------------------------------------<br>"
+	LOCAL:1 = 0
+	LOCAL:2 = 0
+	VARSET 降順ソート用配列
+	VARSET 降順ソート用番号配列
+	FOR LOCAL, 0, 95
+		SIF LOCAL == 89
+			CONTINUE
+		IF EXP:(定住者一覧:選択定住者番号):LOCAL > 0
+			降順ソート用配列:(LOCAL:1) = EXP:(定住者一覧:選択定住者番号):LOCAL
+			降順ソート用番号配列:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		ENDIF
+	NEXT
+	ARRAYMSORTEX 降順ソート用配列, Arrays, 0
+	
+	FOR LOCAL, 0, 6
+		IF 降順ソート用配列:LOCAL < 1
+			SIF LOCAL:2
+				LOCALS += "<br>"
+			BREAK
+		ENDIF
+		LOCALS += @"%GET_EXPNAME(降順ソート用番号配列:LOCAL, 定住者一覧:選択定住者番号), 16%:{EXP:(定住者一覧:選択定住者番号):(降順ソート用番号配列:LOCAL), 3}   "
+		LOCAL:2 += 1
+		IF LOCAL == 5
+			LOCALS += "他<br>"
+		ELSEIF LOCAL:2 == 3
+			LOCALS += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+	NEXT
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='1000'>[1000]このキャラを立ち退かせる</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 499
+		選択定住者番号 = LOCAL
+		RESTART
+	CASE 999
+		選択定住者番号 = -1
+		ページ数 = 0
+		RETURN 0
+	CASE 1001
+		ページ数 -= 1
+		RESTART
+	CASE 1002
+		ページ数 += 1
+		RESTART
+	CASE 1000
+		PRINTL
+		PRINTFORML 本当に%NAME:(定住者一覧:選択定住者番号)%を立ち退かせますか？
+		PRINTBUTTON "[0]はい", 0
+		PRINTL
+		PRINTBUTTON "[1]いいえ", 1
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				CALL 立ち退き実処理(定住者一覧:選択定住者番号)
+				選択定住者番号 = -1
+				RESTART
+			CASE 1
+				RESTART
+		ENDSELECT
+ENDSELECT
+
+
+@立ち退き実処理(キャラ番号)
+#DIM キャラ番号
+#DIM ループ用
+#DIM 要素最大値
+#DIM 計算後レベル
+#DIM 部屋割り成功フラグ
+
+IF TALENT:キャラ番号:定住者 != 1
+	PRINTFORMW %CALLNAME:キャラ番号%は定住者ではありません。
+	RETURN -1
+ENDIF
+
+; IF なんか立ち退き不可の条件があったら後からここに付け足す
+; 	PRINTFORMW %CALLNAME:キャラ番号%は立ち退きできません。
+; 	RETURN 0
+; ENDIF
+
+PRINTFORML %NAME:キャラ番号%を立ち退かせました。
+TRYCALLFORM KOJO_EVENT_立ち退き_{NO:キャラ番号}(キャラ番号)
+
+IF TALENT:キャラ番号:従業員
+	部屋割り成功フラグ = 0
+	FOR LOCAL, 0, 従業員部屋数
+		IF 従業員部屋割り配列:LOCAL < 1
+			CALL 滞在者部屋割り配列削除処理(キャラ番号)
+			TALENT:キャラ番号:定住者 = 0
+			従業員部屋割り配列:LOCAL = キャラ番号
+			部屋割り成功フラグ = 1
+			PRINTL 従業員部屋に移動します。
+			PRINTL
+			BREAK
+		ENDIF
+	NEXT
+	IF 部屋割り成功フラグ == 0
+		;追い出しフラグを建てて翌日に出ていく
+		IF STRFIND(NAME:キャラ番号, "[従業員]") > -1
+			NAME:キャラ番号 = [一般人]%CALLNAME:キャラ番号%
+		ENDIF
+		現在仕事:キャラ番号:0 = 0
+		現在仕事:キャラ番号:1 = 0
+		現在制服:キャラ番号:0 = 0
+		CFLAG:キャラ番号:招待不可フラグ = 0
+		CALL 従業員人数チェック()
+		PRINTL 従業員部屋が一杯だったので解雇しました。
+		PRINTL 翌日に部屋から出ていきます。
+		PRINTL
+		TCVAR:キャラ番号:定住追い出しフラグ = 1
+	ENDIF
+ELSE
+	;追い出しフラグを建てて翌日に出ていく
+	PRINTL 翌日に部屋から出ていきます。
+	PRINTL
+	TCVAR:キャラ番号:定住追い出しフラグ = 1
+ENDIF
+
+;信頼度低下30000
+CFLAG:キャラ番号:信頼度 = MAX(CFLAG:キャラ番号:信頼度 - 30000, 0)
+CFLAG:キャラ番号:友情度 = MAX(CFLAG:キャラ番号:友情度 - 30000, 0)
+PRINTFORML %CALLNAME:キャラ番号%の友情度・信頼度がダウンしました…
+;好感度レベルの再計算
+
+要素最大値 = MAX(CFLAG:キャラ番号:友情度, CFLAG:キャラ番号:信頼度, CFLAG:キャラ番号:恋心度, CFLAG:キャラ番号:性愛度)
+FOR ループ用, 0, 100
+	IF 経験値テーブル:ループ用 >= 要素最大値
+		BREAK
+	ENDIF
+NEXT
+計算後レベル = ループ用
+
+IF CFLAG:キャラ番号:好感度レベル > 計算後レベル
+	IF あなた特殊能力:フレンドリーセンス
+		PRINTFORML %CALLNAME:キャラ番号%の好感度レベルが{CFLAG:キャラ番号:好感度レベル - 計算後レベル}ダウンしました…
+	ELSE
+		PRINTFORML %CALLNAME:キャラ番号%の好感度レベルが下がりました…
+	ENDIF
+	CFLAG:キャラ番号:好感度レベル = 計算後レベル
+ENDIF
+
+CALL ユニーク客人数チェック()
+
+WAIT
+RETURN 1

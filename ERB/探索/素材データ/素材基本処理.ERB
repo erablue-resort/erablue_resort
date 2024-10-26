@@ -72,12 +72,13 @@ NEXT
 RETURN -1
 
 
-@素材アイテム一覧表示(表示条件 = "所持素材数 > 0", ボタン化フラグ = 0, 選択解除フラグ = 0)
+@素材アイテム一覧表示(表示条件 = "所持素材数 > 0", ボタン化フラグ = 0, 選択解除フラグ = 0, 追加表示情報 = "")
 #DIMS 表示条件
 #DIM ページ番号
 #DIM ページ登録
 #DIM ボタン化フラグ
 #DIM 選択解除フラグ
+#DIMS 追加表示情報
 #DIM ソート後素材順, 1000
 #DIM ソート後ページ登録, 1000
 #DIM 行数カウント
@@ -124,6 +125,9 @@ DO
 	VARSET LOCALS
 	LOCALS = <div rect='200,0,5537,3625' border='31' bcolor='#C0C0C0'></div>
 	LOCALS += "<div rect='262,75,5537,3625'><nobr>"
+
+	SIF 追加表示情報 != ""
+		LOCALS += @"%追加表示情報%<br>"
 
 	現在表示ランク = -1
 	FOR COUNT, 0, 1000
@@ -532,7 +536,8 @@ ELSE
 	ENDIF
 
 
-	LOCALS += "<div rect='1900,3881,4025,125'>"
+	LOCALS += "<div rect='1100,3881,5025,125'>"
+	LOCALS += "<button value='998'>[998] 選択を解除</button>　　　"
 	IF ページ番号 > 0
 		LOCALS += "<button value='1101'>[1101] 前のページへ</button>　　　"
 	ELSE
@@ -565,6 +570,12 @@ SELECTCASE RESULT
 		選択アイテム番号 = -1
 		VARSET 汎用アイテム購入用_品揃え登録
 		RETURN 0
+	CASE 998
+		選択アイテム番号 = -1
+	CASE 1101
+		ページ番号 --
+	CASE 1102
+		ページ番号 ++
 	CASE 1011
 		IF 売却モード == 0
 			購入個数 = MIN(購入個数 + 10, 99) 
@@ -619,7 +630,13 @@ SELECTCASE RESULT
 			購入個数 = 1
 		ELSE
 			CALL 素材入手処理(DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1), 購入個数 * -1, 1)
-			PRINTFORMW %表示アイテム名:選択アイテム番号%を%TOFULL(TOSTR(購入個数)), 4%個売却しました。
+
+			SETCOLOR 属性数値文字色変換(DT_CELL_GET("所持素材データベース", ソート後素材順:選択アイテム番号, "素材属性", 1))
+			LOCALS:11 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "プレゼントカテゴリ", 1)%
+			PRINTFORM %LOCALS:11%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)%
+			RESETCOLOR
+			PRINTFORMW を%TOFULL(TOSTR(購入個数)), 4%個売却しました。
+
 			TRYCALLFORM 素材性能記述_%DT_CELL_GETS("所持素材データベース", ソート後素材順:選択アイテム番号, "素材アイテム名", 1)%
 			売価 = ((素材性能_素材ランク) * (素材性能_素材ランク) * 500 + 300) / 2
 			MONEY += 売価 * 購入個数

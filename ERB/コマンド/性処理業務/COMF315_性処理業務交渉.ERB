@@ -44,7 +44,7 @@ FOR LOCAL, 0, VARSIZE("選択先順番制御")
 	CALLFORM 性処理_ABLE_%選択先順番制御:LOCAL%
 	IF RESULT == -1
 		CALLFORMF 性処理NAME_%選択先順番制御:LOCAL%
-		IF ツールチップ切り替えOPTION記憶 == 0
+		IF OPTION変数:ツールチップ切り替え == 0
 			TSTR:ツールチップ受渡 = 
 			TRYCALLFORM 性処理_TOOLTIP_%選択先順番制御:LOCAL%
 			HTML_PRINT @"<nonbutton title='%TSTR:ツールチップ受渡%'><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL}] %TSTR:コマンド名受渡%</font></nonbutton>"
@@ -56,7 +56,7 @@ FOR LOCAL, 0, VARSIZE("選択先順番制御")
 		ENDIF
 	ELSEIF RESULT == 1
 		CALLFORMF 性処理NAME_%選択先順番制御:LOCAL%
-		IF ツールチップ切り替えOPTION記憶 == 0
+		IF OPTION変数:ツールチップ切り替え == 0
 			TSTR:ツールチップ受渡 = 
 			TRYCALLFORM 性処理_TOOLTIP_%選択先順番制御:LOCAL%
 			HTML_PRINT @"<button value='{LOCAL}' title='%TSTR:ツールチップ受渡%'>[{LOCAL}] %TSTR:コマンド名受渡%</button>"
@@ -79,7 +79,7 @@ FOR LOCAL, 0, 性処理数
 	CALLFORM %RESULTS:LOCAL%
 	IF RESULT == -1
 		CALLFORMF 性処理NAME_%性処理選択肢:LOCAL%
-		IF ツールチップ切り替えOPTION記憶 == 0
+		IF OPTION変数:ツールチップ切り替え == 0
 			TSTR:ツールチップ受渡 = 
 			TRYCALLFORM 性処理_TOOLTIP_%性処理選択肢:LOCAL%
 			HTML_PRINT @"<nonbutton title='%TSTR:ツールチップ受渡%'><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</font></nonbutton>"
@@ -91,7 +91,7 @@ FOR LOCAL, 0, 性処理数
 		ENDIF
 	ELSEIF RESULT == 1
 		CALLFORMF 性処理NAME_%性処理選択肢:LOCAL%
-		IF ツールチップ切り替えOPTION記憶 == 0
+		IF OPTION変数:ツールチップ切り替え == 0
 			TSTR:ツールチップ受渡 = 
 			TRYCALLFORM 性処理_TOOLTIP_%性処理選択肢:LOCAL%
 			HTML_PRINT @"<button value='{LOCAL + 100}' title='%TSTR:ツールチップ受渡%'>[{LOCAL + 100}] %TSTR:コマンド名受渡%</button>"
@@ -246,6 +246,10 @@ ENDSELECT
 補正後好感度 -= TALENT:対象キャラ:羞恥心 * 5
 補正後好感度 -= TALENT:対象キャラ:抵抗 * 15
 補正後好感度 -= TALENT:対象キャラ:態度 * 5
+SIF GETBIT(TALENT:対象キャラ:陥落不可, 1)
+	補正後好感度 -= 20
+SIF (TALENT:対象キャラ:恋人持ち == 1 || TALENT:対象キャラ:恋人持ち == 2) && EXP:対象キャラ:売春経験 < 10
+	補正後好感度 -= 15
 
 IF 同性愛性癖判定(対象キャラ, PLAYER)
 	SELECTCASE 性癖素質:対象キャラ:同性愛
@@ -275,9 +279,12 @@ ENDSELECT
 補正後好感度 += TALENT:対象キャラ:経験豊富 * 5
 補正後好感度 += TALENT:対象キャラ:ギャル * 5
 補正後好感度 += TALENT:対象キャラ:弱味 * 20
+補正後好感度 += EXP:対象キャラ:売春経験 / 10 * 5
 SIF TALENT:対象キャラ:マイペース < 0
 	補正後好感度 += 10
-SIF 初体験日:対象キャラ:初うふふ || フィールド展開:露出フィールド == 2
+SIF 初体験日:対象キャラ:初うふふ || フィールド展開:うふふ目撃スルー
+	補正後好感度 += 10
+SIF TALENT:対象キャラ:恋人持ち == 3 && TALENT:対象キャラ:子持ち
 	補正後好感度 += 10
 
 SIF TALENT:対象キャラ:セフレ

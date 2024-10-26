@@ -76,6 +76,8 @@ ELSEIF TALENT:性別嗜好 == 3
 ENDIF
 IF TALENT:恋人持ち == 1
 	LOCAL -= 20
+ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:TARGET:人物番号} Or 対象キャラ２ = {CFLAG:TARGET:人物番号}) And 関係性種別 = '恋慕'")
+	LOCAL -= 20
 ELSEIF TALENT:恋人持ち == 2
 	LOCAL -= 30
 ELSEIF TALENT:恋人持ち == 3
@@ -95,6 +97,8 @@ RETURNF LOCAL
 
 ;性交渉をお願いする
 @COM353
+#DIM 下降基準値
+
 ;まず成功度の蓄積量を判定、蓄積100で成功
 ;想定としては有利素質を盛りに盛って２回目（つまり上限は99）
 ;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
@@ -106,7 +110,7 @@ ELSE
 	LOCAL += 恋慕_性愛比較(TARGET) / 2
 ENDIF
 LOCAL += COM353_SUB(TARGET)
-SIF フィールド展開:欲情フィールド && LOCAL > 0
+SIF フィールド展開:欲情強化 && LOCAL > 0
 	LOCAL = LOCAL * 3 / 2
 LOCAL += (ABL:PLAYER:話術技能 - 3) * 5
 LOCAL += CFLAG:TARGET:お願いックス回数 * 30
@@ -147,6 +151,7 @@ SELECTCASE CFLAG:好感度レベル
 			LOCAL /= 2
 		LOCAL:1 /= 2
 ENDSELECT
+
 ;二回目以降は一発OKもアリ
 RFLAG:コマンド結果受渡し変数２ = MIN(LOCAL, 99 + CFLAG:TARGET:お願いックス回数)
 RFLAG:コマンド結果受渡し変数２ = MAX(RFLAG:コマンド結果受渡し変数２, 1 + LOCAL:1)
@@ -204,22 +209,38 @@ ELSE
 
 	;好感度レベルを下げる。拒否度が高いと更に下がる
 	IF CFLAG:TARGET:好感度レベル > 関係閾値:1
-		CFLAG:TARGET:好感度レベル -= 20
+		下降基準値 = 20
 		SIF RFLAG:コマンド結果受渡し変数２ < 16
-			CFLAG:TARGET:好感度レベル -= 10
-		;顔見知り未満にはならない
-		CFLAG:TARGET:好感度レベル = MAX(CFLAG:TARGET:好感度レベル, 1 + 関係閾値:1)
+			下降基準値 += 10
+
+		;好感度を下降基準値に応じてそれぞれ下降
+		;友情信頼は下降基準値通りに低下
+		CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:MAX(0, CFLAG:TARGET:好感度レベル - 下降基準値))
+		CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:MAX(0, CFLAG:TARGET:好感度レベル - 下降基準値))
+		;恋心は１．５倍
+		CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:MAX(0, CFLAG:TARGET:好感度レベル - (下降基準値 * 3 / 2)))
+		;性愛は半分
+		CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:MAX(0, CFLAG:TARGET:好感度レベル - (下降基準値  / 2)))
+		;固有好感度は変化させない（好感度レベルに関係ないため）
+
+		;好感度レベルの調整
+		FOR LOCAL, 0, 100
+			IF 経験値テーブル:LOCAL >= MAX(CFLAG:TARGET:友情度, CFLAG:TARGET:信頼度, CFLAG:TARGET:恋心度, CFLAG:TARGET:性愛度)
+				;顔見知り未満にはならない
+				CFLAG:TARGET:好感度レベル = MAX(LOCAL, 1 + 関係閾値:1)
+				BREAK
+			ENDIF
+		NEXT
 	ELSE
 		;他人は強制的に下限値
 		CFLAG:TARGET:好感度レベル = 1
-	ENDIF
 
-	;好感度をレベルに応じた値に減少
-	CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
-	CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
-	CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
-	CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
-	CFLAG:TARGET:キャラ固有好感度 = MIN(CFLAG:TARGET:キャラ固有好感度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+		;好感度をレベルに応じた値に減少
+		CFLAG:TARGET:友情度 = MIN(CFLAG:TARGET:友情度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+		CFLAG:TARGET:信頼度 = MIN(CFLAG:TARGET:信頼度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+		CFLAG:TARGET:恋心度 = MIN(CFLAG:TARGET:恋心度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+		CFLAG:TARGET:性愛度 = MIN(CFLAG:TARGET:性愛度, 経験値テーブル:(CFLAG:TARGET:好感度レベル))
+	ENDIF
 
 	;恋慕レベルを下げる。拒否度が高いと更に下がる
 	CFLAG:TARGET:恋慕レベル -= 20
@@ -263,7 +284,7 @@ SIF MODE_存在判定_プレイヤー側("ハーヴィンオナホ系", PLAYER)
 SIF MODE_存在判定_プレイヤー側("全裸散歩", PLAYER)
 	RETURN 0
 ;二人きりでないとだめ
-SIF GET_TARGETNUM() > 1 && フィールド展開:露出フィールド != 2
+SIF GET_TARGETNUM() > 1 && フィールド展開:うふふ目撃スルー == 0
 	RETURN 0
 ;友人以上(遊び人素質を持っていれば可能)
 SIF !あなた特殊能力:遊び人 && CFLAG:好感度レベル < 1 + 関係閾値:2

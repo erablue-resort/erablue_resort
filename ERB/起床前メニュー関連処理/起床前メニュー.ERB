@@ -1,5 +1,6 @@
 ﻿@SHOW_SHOP
 #DIM コマンド表示数
+#DIM 消費ZP
 ;奴隷購入ページフラグ
 SAVESTR:ゲームフェイズ管理 = 
 TOOLTIP_CUSTOM 1
@@ -23,25 +24,40 @@ PRINTFORM リゾート人気度：%リゾート人気度全文字列()%
 CALL 人気度上限算出()
 IF リゾート人気度 >= RESULT / 1000
 	SETCOLOR 0xC0C070
-	PRINT　　　上限到達
+	PRINT 　　　上限到達
 	RESETCOLOR
 ENDIF
 PRINTL
 PRINTFORML リゾートランク：%リゾートランク文字列:リゾートランク%
-IF フィールド展開:欲情フィールド
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：欲情フィールド　　消費ZP 1日 / 2ZP
-	RESETCOLOR
+SETCOLOR カラーパレット("えっちな色")
+PRINT フィールド効果：
+RESETCOLOR
+LOCALS = <font color='#%カラーパレット_HTML("えっちな色")%'>
+LOCAL:1 = 0
+消費ZP = 0
+FOR LOCAL, 0, 50
+	SIF ERDNAME(フィールド展開, LOCAL) == ""
+		BREAK
+	SIF フィールド展開:LOCAL <= 0
+		CONTINUE
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	IF OPTION変数:ツールチップ切り替え == 0
+		LOCALS += @"<nonbutton title='%TSTR:ツールチップ受渡%'>[%RESULTS%]</nonbutton>"
+	ELSE
+		LOCALS += @"<nonbutton>[%RESULTS%]</nonbutton>"
+	ENDIF
+	CALLFORM フィールド効果解説_%ERDNAME(フィールド展開, LOCAL)%
+	消費ZP += RESULT
+	LOCAL:1 ++
+NEXT
+IF LOCAL:1 == 0
+	LOCALS = なし
+ELSE
+	LOCALS += @"　消費ZP/1日：{消費ZP, 3}ZP"
+	LOCALS += "</font>"
 ENDIF
-IF フィールド展開:露出フィールド == 1
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：露出フィールド　　消費ZP 1日 / 5ZP
-	RESETCOLOR
-ELSEIF フィールド展開:露出フィールド == 2
-	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORML 展開中フィールド：強化露出フィールド　　消費ZP 1日 / 50ZP
-	RESETCOLOR
-ENDIF
+HTML_PRINT LOCALS, 1
+PRINTL
 DRAWLINE
 LOCAL:1 = 0
 FOR LOCAL, 1, CHARANUM
@@ -56,9 +72,7 @@ PRINTFORML 雇用中従業員キャラ人数：%NUM_FORMAT(従業員人数), 3%�
 DRAWLINE
 LOCALS = <div rect='94, 0, 5937, 1062' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156, 94, 5812, 937'>"
-起床前メニュー上部分表示文字列 = 
-CALL 起床前メニュー上部分表示文章
-LOCALS += @"%起床前メニュー上部分表示文字列%"
+LOCALS += 起床前メニュー上部分表示文章()
 LOCALS += "</div>"
 HTML_PRINT LOCALS, 1
 FOR LOCAL, 0, 10
@@ -75,7 +89,7 @@ LOCALS += "<button value='101'>[101] - 探索へ出かける</button>　　　�
 LOCALS += "<br><br>"
 LOCALS += "<font color='#f39800'>-----[リゾート]---------------------------------------------------------------------------------------------</font><br>"
 IF 滞在キャラ数 >= 滞在キャラ上限
-	IF ツールチップ切り替えOPTION記憶 == 0
+	IF OPTION変数:ツールチップ切り替え == 0
 		LOCALS += "<font color='#666666'><nonbutton title='<br>滞在人数上限<br>'>[110] - リゾートの広告を出す</nonbutton></font>　　　　　　"
 	ELSE
 		LOCALS += "<font color='#666666'><nonbutton>[110] - リゾートの広告を出す</nonbutton></font>　　　　　　"
@@ -89,7 +103,7 @@ LOCALS += "<button value='111'>[111] - 経営計画</button>　　　　　　�
 IF ダンジョンクリアフラグ_沿岸部の森
 	LOCALS += "<button value='113'>[113] - 従業員設定</button>　　　　　　　　　　　"
 ELSE
-	IF ツールチップ切り替えOPTION記憶 == 0
+	IF OPTION変数:ツールチップ切り替え == 0
 		LOCALS += "<font color='#666666'><nonbutton title='<br>未開放機能<br>ダンジョン「沿岸部の森」クリアで解放<br>'>[113] - 従業員設定</nonbutton></font>　　　　　　　　　　　"
 	ELSE
 		LOCALS += "<font color='#666666'><nonbutton>[113] - 従業員設定</nonbutton></font>　　　　　　　　　　　"
@@ -111,7 +125,7 @@ IF 施設改造度:5:6
 		LOCALS += "<button value='123'>[123] - 性癖開拓</button>　　　　　　　　　　　　"
 	ENDIF
 ELSE
-	IF ツールチップ切り替えOPTION記憶 == 0
+	IF OPTION変数:ツールチップ切り替え == 0
 		LOCALS += "<font color='#666666'><nonbutton title='<br>未開放機能<br>施設改造「遊戯室系列：図書室」達成で解放<br>'>[123] - 性癖開拓</nonbutton></font>　　　　　　　　　　　　"
 	ELSE
 		LOCALS += "<font color='#666666'><nonbutton>[123] - 性癖開拓</nonbutton></font>　　　　　　　　　　　　"
@@ -280,9 +294,7 @@ SELECTCASE RESULT
 				BEGIN FIRST
 		ENDIF
 	CASE 9999
-		FOR LOCAL, 1, CHARANUM
-			EXP:LOCAL:飲酒経験 = 100
-		NEXT
+		;CALL EVENTEND0作成中につき関数名変更()
 ENDSELECT
 
 LOOP 1
@@ -334,124 +346,3 @@ ENDIF
 
 ;クイック表示用に種別セット
 TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-
-@起床前メニュー上部分表示文章
-
-IF 起床前メニュー上部分表示フラグ
-	CALL TIPSランダム表示
-ELSE
-	CALL かんたんチュートリアル
-ENDIF
-
-
-@起床前メニュー上部分文章切り替え(入力番号)
-#DIM 入力番号
-
-IF 起床前メニュー上部分表示フラグ
-	SELECTCASE 入力番号
-		CASE 810 
-			起床前メニュー上部分表示フラグ = 0
-		CASE 811
-			RETURN -1
-	ENDSELECT
-ELSE
-	SELECTCASE 入力番号
-		CASE 800 TO 802
-			チュートリアル番号 = 入力番号
-		CASE 809
-			チュートリアル番号 = 0
-			起床前メニュー上部分表示フラグ = 1
-		CASE 810 
-			チュートリアル番号 = 0
-	ENDSELECT
-ENDIF
-
-@かんたんチュートリアル
-
-SELECTCASE チュートリアル番号
-	CASE 0
-		LOCALS = ■かんたんチュートリアル<br>
-		LOCALS += "　簡易的なチュートリアルが表示されます。項目を選んでください。<br>"
-		LOCALS += "<br>"
-		LOCALS += "　<button value='800'>[800] まず何すりゃいいの？</button><br>"
-		LOCALS += "　<button value='801'>[801] さっさとスケベしたいんだけど</button><br>"
-		LOCALS += "　<button value='802'>[802] このキャラに口上付いてる？</button><br>"
-		LOCALS += "<br>"
-		LOCALS += "　<button value='809'>[809] かんたんチュートリアルを表示しない</button><br>"
-	CASE 800
-		LOCALS = ■まず何すりゃいいの？<br>
-		LOCALS += "　最初に[110] - リゾートの広告を出す を選び、[1]通常の広告を打つ を選んでください。<br>"
-		LOCALS += "　広告を打つことで初めてキャラがリゾートに訪れるようになります。<br>"
-		LOCALS += "　その後は[100] - 起床 を選択することでリゾート内に移行し、キャラたちと触れ合うことが出来ます。<br>"
-		LOCALS += "<br>"
-		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
-	CASE 801
-		LOCALS = ■さっさとスケベしたいんだけど<br>
-		LOCALS += "　このバリアントは、セックスまでが少々遠いバリアントになっています。<br>"
-		LOCALS += "　最も簡単な方法は[121] - 能力表示 から、あるいはキャラと同室した状態で能力表示を選び、<br>"
-		LOCALS += "　[110]恋慕対象に選ぶ を選択。それから行動を共にすることで恋慕レベルを上げ、告白する[352] を成功させることです。<br>"
-		LOCALS += "　告白成功後に二人きりになれば、押し倒す[350] でセックスに持ち込むことが出来ます。<br>"
-		LOCALS += "<br>"
-		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
-	CASE 802
-		LOCALS = ■このキャラに口上付いてる？<br>
-		LOCALS += "　[121] - 能力表示 から[2000]フィルタ機能 を選び、[口上なし] を非表示にすると口上ファイルがあるキャラのみ一覧で表示されます。<br>"
-		LOCALS += "　ただしこれはファイルがあるかどうかしか見ていないので、中身を保証するものではありません。<br>"
-		LOCALS += "　口上の充実度に関してはERBファイルを直接閲覧してください。<br>"
-		LOCALS += "<br>"
-		LOCALS += "　<button value='810'>[810] かんたんチュートリアルに戻る</button><br>"
-ENDSELECT
-
-起床前メニュー上部分表示文字列 = %LOCALS%
-
-
-@TIPSランダム表示
-
-LOCALS = ■TIPS!<br>
-SELECTCASE RAND:5
-	CASE 0
-		LOCALS += "　探索は現在表示されている起床前メニューからと、起床後に玄関まで移動してから行う方法があります。<br>"
-		LOCALS += "　内容に違いはありませんが、玄関から出発すると時間を消費します。<br>"
-		LOCALS += "　起床前メニューから行う方がお得です。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-	CASE 1
-		LOCALS += "　バリアントの開発は主にDiscordで行われています。<br>"
-		LOCALS += "　雑談だけ参加やROM専などでも歓迎です。お気軽に参加ください。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-	CASE 2
-		LOCALS += "　沿岸部の森の奥にいるストーンイーターは、一度討伐した後も繰り返し戦うことが出来ます。<br>"
-		LOCALS += "　ランダムな下級の指輪や火の耳飾りを入手出来るので、装備が整うまで毎日殴っておくといいでしょう。<br>"
-		LOCALS += "　他のダンジョンボスも、再討伐によってアイテムが手に入ることが多いです。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-	CASE 3
-		LOCALS += "　リゾートの人気は日々の収入に直結する重要ステータスです。<br>"
-		LOCALS += "　広告を積極的に出したり、雑務ゲージを貯めないよう多めに従業員を割り振るといいでしょう。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-	CASE 4
-		LOCALS += "　人気度はリゾートの充実度によって上限が定められています。<br>"
-		LOCALS += "　広告出しても人気度上がらないな？　と思ったら施設の開発を進めてみてください。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-	CASE 5
-		LOCALS += "　射精先の選択が煩わしい時はオート射精先設定をどうぞ。<br>"
-		LOCALS += "　・OPTION > 機能切り替え > その他機能切り替え > オート射精設定<br>"
-		LOCALS += "　・日中行動画面で[射精先設定]<br>"
-		LOCALS += "　のどちらかから設定に入ることが可能です。<br>"
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-ENDSELECT
-LOCALS += "　<button value='810'>[810] かんたんチュートリアルを表示する</button>　　<button value='811'>[811] TIPSリロール</button><br>"
-
-起床前メニュー上部分表示文字列 = %LOCALS%

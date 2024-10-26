@@ -106,11 +106,10 @@ ENDSELECT
 #FUNCTION
 LOCAL = 0
 
-IF TALENT:ARG:恋慕
+SIF TALENT:ARG:恋慕
 	SETBIT LOCAL, 0
-ELSEIF TALENT:ARG:セフレ
+SIF TALENT:ARG:セフレ
 	SETBIT LOCAL, 1
-ENDIF
 
 RETURNF LOCAL
 
@@ -134,19 +133,6 @@ ELSEIF TALENT:ARG:セフレあり
 	RETURNF 1
 ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And 関係性種別 = 'セフレ'")
 	RETURNF 1
-ENDIF
-
-RETURNF 0
-
-@関係性_相手人物番号取得(対象人物番号, 対象ID)
-#FUNCTION
-#DIM 対象人物番号
-#DIM 対象ID
-
-IF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ１", 1) == 対象人物番号
-	RETURNF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ２", 1)
-ELSEIF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ２", 1) == 対象人物番号
-	RETURNF DT_CELL_GET("関係性データベース", 対象ID, "対象キャラ１", 1)
 ENDIF
 
 RETURNF 0
@@ -419,6 +405,30 @@ SIF ARG:1 == -1
 RETURNF CFLAG:ARG:現在位置 == CFLAG:(ARG:1):現在位置 && CFLAG:ARG:現在マップ種別 == CFLAG:(ARG:1):現在マップ種別
 
 ;-------------------------------------------------
+;判定キャラたちがPLAYERと同じ空間にいて、かつうふふ状態の人数を返す
+;-------------------------------------------------
+@GROUPうふふMATCH_SAMEROOM(対象キャラ:0 = -1, 対象キャラ:1 = -1, 対象キャラ:2 = -1, 対象キャラ:3 = -1, 対象キャラ:4 = -1, 対象キャラ:5 = -1, 対象キャラ:6 = -1, 対象キャラ:7 = -1, 対象キャラ:8 = -1, 対象キャラ:9 = -1)
+#FUNCTION
+#DIM 対象キャラ, 10
+#DIM 人数記録
+
+人数記録 = 0
+FOR LOCAL, 0, 10
+	SIF 対象キャラ:LOCAL < 0
+		CONTINUE
+	SIF CFLAG:(対象キャラ:LOCAL):現在位置 != CFLAG:PLAYER:現在位置
+		CONTINUE
+	SIF CFLAG:(対象キャラ:LOCAL):現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+		CONTINUE
+	SIF !CFLAG:(対象キャラ:LOCAL):うふふ
+		CONTINUE
+	人数記録 ++
+NEXT
+
+RETURNF 人数記録
+
+
+;-------------------------------------------------
 ;部位をARG番のキャラの感度と敏感で重み付けてランダムに返す関数
 ;現状では使いづらいので部位_Ｓは返さない
 ;IS_MALE(ARG)の時は部位_Ｖと部位_Ｂは返さない
@@ -572,18 +582,19 @@ ENDIF
 あなた追跡キャラ = 0
 
 
-@うふふ終了処理
+@うふふ終了処理(終了原因 = "")
 #DIM EXP番号
 #DIM TALENT番号
 #DIM 分身並べ替え基準, 5
 #DIM 時間保存
+#DIMS 終了原因
 
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	IF CFLAG:(TARGET:LOCAL):うふふ
 		;うふふ終了口上
-		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL, 終了原因)
 
 		;うふふ時間で履歴登録
 		時間保存 = (TIME + 1440 * DAY) - CFLAG:(TARGET:LOCAL):うふふ開始時間記録
@@ -786,6 +797,7 @@ RETURNF -1
 #DIM 除外キャラ
 
 番号記録 = 0
+VARSET LOCAL
 FOR 対象キャラ, 1, CHARANUM
 	SIF 対象キャラ == 除外キャラ
 		CONTINUE
@@ -793,6 +805,28 @@ FOR 対象キャラ, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:対象キャラ:睡眠
         CONTINUE
+	LOCAL:番号記録 = 対象キャラ
+	番号記録 ++
+NEXT
+IF 番号記録 > 0
+	RETURNF LOCAL:(RAND:番号記録)
+ENDIF
+
+@同室ランダム選出(除外キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 番号記録
+#DIM 除外キャラ
+
+番号記録 = 0
+VARSET LOCAL
+FOR 対象キャラ, 1, CHARANUM
+	SIF 対象キャラ == 除外キャラ
+		CONTINUE
+    SIF CFLAG:対象キャラ:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+		CONTINUE
+    SIF CFLAG:対象キャラ:現在位置 != CFLAG:PLAYER:現在位置
+		CONTINUE
 	LOCAL:番号記録 = 対象キャラ
 	番号記録 ++
 NEXT
@@ -824,7 +858,6 @@ ENDIF
 #DIM 信頼度記録
 #DIM 恋心度記録
 #DIM 性愛度記録
-#DIM キャラ固有好感度記録
 
 LOCAL = 100501
 SIF 干渉強化変数:対象キャラ:干渉種類 == 1
@@ -862,10 +895,7 @@ SIF TALENT:MASTER:印象 == 4
 SIF 性愛度記録 >= 100500
 	性愛度記録 = LOCAL
 
-LOCAL = 100501
-キャラ固有好感度記録 = MIN(LOCAL, CFLAG:対象キャラ:キャラ固有好感度)
-
-要素最大値 = MAXFIND(5, 友情度記録, 信頼度記録, 恋心度記録, 性愛度記録, キャラ固有好感度記録)
+要素最大値 = MAXFIND(4, 友情度記録, 信頼度記録, 恋心度記録, 性愛度記録)
 
 RETURNF 要素最大値
 
@@ -1044,8 +1074,15 @@ ENDIF
 #DIM  対象キャラ
 
 ; 「あなた」だけ特殊
-SIF 対象キャラ == MASTER
-	RETURNF "0あなた"
+IF 対象キャラ == MASTER
+	IF SAVESTR:あなたスタイル == "グランくんスタイル"
+		RETURNF "146グラン"
+	ELSEIF SAVESTR:あなたスタイル == "ジータちゃんスタイル"
+		RETURNF "27ジータ"
+	ELSE
+		RETURNF "0あなた"
+	ENDIF
+ENDIF
 
 ; CSV番号＋名前
 RETURNF TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ
@@ -1142,3 +1179,57 @@ IF CSTR:対象キャラ:画像フォルダ != 修正候補フォルダ
 	RETURN 1
 ENDIF
 RETURN 0
+
+
+;-------------------------------------------------
+;対象キャラの現在の状態を取得
+;-------------------------------------------------
+@NOW_SITUATION(対象キャラ)
+#FUNCTIONS
+#DIM 対象キャラ
+
+IF RFLAG:おさわりモード中
+	SIF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+		RETURNF "マッサージ中_おさわりモード"
+
+	SIF CFLAG:対象キャラ:うふふ
+		RETURNF "うふふ中_おさわりモード"
+	
+	RETURNF "通常_おさわりモード"
+ENDIF
+
+SIF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+	RETURNF "マッサージ中"
+
+SIF ダンジョン名 != ""
+	RETURNF "ダンジョンモード"
+
+SIF RFLAG:夜這い処理中フラグ
+	RETURNF "夜這い中"
+
+SIF CFLAG:対象キャラ:うふふ
+	RETURNF "うふふ中"
+
+SIF CFLAG:対象キャラ:飲み会
+	RETURNF "飲み会中"
+
+RETURNF "通常"
+
+
+;-------------------------------------------------
+;任意の固有素質を持ってるかどうかチェック
+;複数設定時はどれか一個引っかかれば１を返す
+;-------------------------------------------------
+@固有素質チェック(対象キャラ, 判定素質名:0 = "", 判定素質名:1 = "", 判定素質名:2 = "", 判定素質名:3 = "", 判定素質名:4 = "", 判定素質名:5 = "", 判定素質名:6 = "", 判定素質名:7 = "", 判定素質名:8 = "", 判定素質名:9 = "")
+#FUNCTION
+#DIM 対象キャラ
+#DIMS 判定素質名, 10
+
+FOR LOCAL, 0, 10
+	SIF 判定素質名:LOCAL == ""
+		CONTINUE
+	SIF MATCH(CSTR:対象キャラ:0, 判定素質名:LOCAL, 80, 90)
+		RETURNF 1
+NEXT
+
+RETURNF 0

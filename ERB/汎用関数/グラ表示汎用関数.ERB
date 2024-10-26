@@ -294,6 +294,7 @@ RETURN
 @グラ表示用文字列算出(ARG, TYPE="顔_")
 #FUNCTIONS
 #DIMS TYPE
+#DIMS 文字列記憶
 #DIMS CONST V_FRONT = "正常位","対面座位", "側位","屈曲位", "駅弁", "対面立位", "騎乗位", "同時挿入"
 #DIMS CONST V_BACK = "後背位","寝バック", "側位", "背面座位", "背面駅弁", "立ちバック", "同時挿入"
 #DIMS CONST A_FRONT = "Ａ正常位","Ａ対面座位", "Ａ側位","Ａ屈曲位", "Ａ駅弁", "Ａ対面立位", "Ａ騎乗位", "Ａ同時挿入"
@@ -320,20 +321,30 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", ARG)
 	FOR LOCAL, 0, VARSIZE("V_FRONT")
 		IF MODE_存在判定_ターゲット側(V_FRONT:LOCAL, ARG)
 			LOCAL:1 ++
-			IF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精") && D_NAME == ""
-				IF 射精後の挿入系立ち絵制御OPTION
-					IF RAND:2
-						D_NAME '= RESULTS
-					ELSE
-						IF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL, "挿入")
-							D_NAME '= RESULTS
-						ELSE
-							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-							D_NAME '= RESULTS
-						ENDIF
-					ENDIF
+			IF TCVAR:ARG:前ターン被射精位置 == 1 && D_NAME == ""
+				文字列記憶 = 
+				IF 差分抽出(ARG, TYPE, LOCALS, @"%V_FRONT:LOCAL%膣内射精", "膣内射精")
+					文字列記憶 '= RESULTS
 				ELSE
-					D_NAME '= RESULTS
+					IF 差分抽出(ARG, TYPE, LOCALS, @"膣内射精", "膣内射精")
+						文字列記憶 '= RESULTS
+					ENDIF
+				ENDIF
+				IF 文字列記憶 != ""
+					IF OPTION変数:射精後の挿入系立ち絵制御
+						IF RAND:2
+							D_NAME '= 文字列記憶
+						ELSE
+							IF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL, "挿入")
+								D_NAME '= RESULTS
+							ELSE
+								LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
+								D_NAME '= RESULTS
+							ENDIF
+						ENDIF
+					ELSE
+						D_NAME '= 文字列記憶
+					ENDIF
 				ENDIF
 			ENDIF
 			SIF 差分抽出(ARG, TYPE, LOCALS, V_FRONT:LOCAL, "挿入") && D_NAME == ""
@@ -343,20 +354,30 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", ARG)
 	FOR LOCAL, 0, VARSIZE("V_BACK")
 		IF MODE_存在判定_ターゲット側(V_BACK:LOCAL, ARG)
 			LOCAL:2 ++
-			IF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精") && D_NAME == ""
-				IF 射精後の挿入系立ち絵制御OPTION
-					IF RAND:2
-						D_NAME '= RESULTS
-					ELSE
-						IF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL, "挿入")
-							D_NAME '= RESULTS
-						ELSE
-							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-							D_NAME '= RESULTS
-						ENDIF
-					ENDIF
+			IF TCVAR:ARG:前ターン被射精位置 == 1 && D_NAME == ""
+				文字列記憶 = 
+				IF 差分抽出(ARG, TYPE, LOCALS, @"%V_BACK:LOCAL%膣内射精", "膣内射精")
+					文字列記憶 '= RESULTS
 				ELSE
-					D_NAME '= RESULTS
+					IF 差分抽出(ARG, TYPE, LOCALS, @"膣内射精", "膣内射精")
+						文字列記憶 '= RESULTS
+					ENDIF
+				ENDIF
+				IF 文字列記憶 != ""
+					IF OPTION変数:射精後の挿入系立ち絵制御
+						IF RAND:2
+							D_NAME '= 文字列記憶
+						ELSE
+							IF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL, "挿入")
+								D_NAME '= RESULTS
+							ELSE
+								LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
+								D_NAME '= RESULTS
+							ENDIF
+						ENDIF
+					ELSE
+						D_NAME '= 文字列記憶
+					ENDIF
 				ENDIF
 			ENDIF
 			SIF 差分抽出(ARG, TYPE, LOCALS, V_BACK:LOCAL, "挿入") && D_NAME == ""
@@ -366,42 +387,64 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", ARG)
 	;なければ正面体位は正常位を、背面体位は後背位を表示する
 	IF LOCAL:1 && D_NAME == ""
 		VARSET 差分エフェクト
-		IF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-			IF 射精後の挿入系立ち絵制御OPTION
-				IF RAND:2
-					D_NAME '= RESULTS
-				ELSE
-					IF 差分抽出(ARG, TYPE, LOCALS, "正常位", "挿入")
-						D_NAME '= RESULTS
-					ELSE
-						LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-						D_NAME '= RESULTS
-					ENDIF
-				ENDIF
+		IF TCVAR:ARG:前ターン被射精位置 == 1
+			文字列記憶 = 
+			IF 差分抽出(ARG, TYPE, LOCALS, @"正常位膣内射精", "膣内射精")
+				文字列記憶 '= RESULTS
 			ELSE
-				D_NAME '= RESULTS
+				IF 差分抽出(ARG, TYPE, LOCALS, @"膣内射精", "膣内射精")
+					文字列記憶 '= RESULTS
+				ENDIF
 			ENDIF
-		ELSEIF 差分抽出(ARG, TYPE, LOCALS, "正常位", "挿入")
+			IF 文字列記憶 != ""
+				IF OPTION変数:射精後の挿入系立ち絵制御
+					IF RAND:2
+						D_NAME '= 文字列記憶
+					ELSE
+						IF 差分抽出(ARG, TYPE, LOCALS, "正常位", "挿入")
+							D_NAME '= RESULTS
+						ELSE
+							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
+							D_NAME '= RESULTS
+						ENDIF
+					ENDIF
+				ELSE
+					D_NAME '= 文字列記憶
+				ENDIF
+			ENDIF
+		ENDIF
+		IF 差分抽出(ARG, TYPE, LOCALS, "正常位", "挿入") && D_NAME == ""
 			D_NAME '= RESULTS
 		ENDIF
 	ELSEIF LOCAL:2 && D_NAME == ""
 		VARSET 差分エフェクト
-		IF TCVAR:ARG:前ターン被射精位置 == 1 && 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-			IF 射精後の挿入系立ち絵制御OPTION
-				IF RAND:2
-					D_NAME '= RESULTS
-				ELSE
-					IF 差分抽出(ARG, TYPE, LOCALS, "後背位", "挿入")
-						D_NAME '= RESULTS
-					ELSE
-						LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
-						D_NAME '= RESULTS
-					ENDIF
-				ENDIF
+		IF TCVAR:ARG:前ターン被射精位置 == 1
+			文字列記憶 = 
+			IF 差分抽出(ARG, TYPE, LOCALS, @"後背位膣内射精", "膣内射精")
+				文字列記憶 '= RESULTS
 			ELSE
-				D_NAME '= RESULTS
+				IF 差分抽出(ARG, TYPE, LOCALS, @"膣内射精", "膣内射精")
+					文字列記憶 '= RESULTS
+				ENDIF
 			ENDIF
-		ELSEIF 差分抽出(ARG, TYPE, LOCALS, "後背位", "挿入")
+			IF 文字列記憶 != ""
+				IF OPTION変数:射精後の挿入系立ち絵制御
+					IF RAND:2
+						D_NAME '= 文字列記憶
+					ELSE
+						IF 差分抽出(ARG, TYPE, LOCALS, "後背位", "挿入")
+							D_NAME '= RESULTS
+						ELSE
+							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
+							D_NAME '= RESULTS
+						ENDIF
+					ENDIF
+				ELSE
+					D_NAME '= 文字列記憶
+				ENDIF
+			ENDIF
+		ENDIF
+		IF 差分抽出(ARG, TYPE, LOCALS, "後背位", "挿入") && D_NAME == ""
 			D_NAME '= RESULTS
 		ENDIF
 	ENDIF
@@ -411,20 +454,30 @@ IF MODE_存在判定_ターゲット側("Ａ挿入系", ARG)
 	FOR LOCAL, 0, VARSIZE("A_FRONT")
 		IF MODE_存在判定_ターゲット側(A_FRONT:LOCAL, ARG)
 			LOCAL:1 ++
-			IF TCVAR:ARG:前ターン被射精位置 == 2 && 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "") && D_NAME == ""
-				IF 射精後の挿入系立ち絵制御OPTION
-					IF RAND:2
-						D_NAME '= RESULTS
-					ELSE
-						IF 差分抽出(ARG, TYPE, LOCALS, A_FRONT:LOCAL, "Ａ挿入")
-							D_NAME '= RESULTS
-						ELSE
-							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "腸内射精")
-							D_NAME '= RESULTS
-						ENDIF
-					ENDIF
+			IF TCVAR:ARG:前ターン被射精位置 == 2 && D_NAME == ""
+				文字列記憶 = 
+				IF 差分抽出(ARG, TYPE, LOCALS, @"%A_FRONT:LOCAL%腸内射精", "")
+					文字列記憶 '= RESULTS
 				ELSE
-					D_NAME '= RESULTS
+					IF 差分抽出(ARG, TYPE, LOCALS, @"腸内射精", "")
+						文字列記憶 '= RESULTS
+					ENDIF
+				ENDIF
+				IF 文字列記憶 != ""
+					IF OPTION変数:射精後の挿入系立ち絵制御
+						IF RAND:2
+							D_NAME '= 文字列記憶
+						ELSE
+							IF 差分抽出(ARG, TYPE, LOCALS, A_FRONT:LOCAL, "Ａ挿入")
+								D_NAME '= RESULTS
+							ELSE
+								LOCAL = 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "腸内射精")
+								D_NAME '= RESULTS
+							ENDIF
+						ENDIF
+					ELSE
+						D_NAME '= 文字列記憶
+					ENDIF
 				ENDIF
 			ENDIF
 			SIF 差分抽出(ARG, TYPE, LOCALS, A_FRONT:LOCAL, "Ａ挿入") && D_NAME == ""
@@ -434,20 +487,30 @@ IF MODE_存在判定_ターゲット側("Ａ挿入系", ARG)
 	FOR LOCAL, 0, VARSIZE("A_BACK")
 		IF MODE_存在判定_ターゲット側(A_BACK:LOCAL, ARG)
 			LOCAL:2 ++
-			IF TCVAR:ARG:前ターン被射精位置 == 2 && 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "") && D_NAME == ""
-				IF 射精後の挿入系立ち絵制御OPTION
-					IF RAND:2
-						D_NAME '= RESULTS
-					ELSE
-						IF 差分抽出(ARG, TYPE, LOCALS, A_BACK:LOCAL, "Ａ挿入")
-							D_NAME '= RESULTS
-						ELSE
-							LOCAL = 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "腸内射精")
-							D_NAME '= RESULTS
-						ENDIF
-					ENDIF
+			IF TCVAR:ARG:前ターン被射精位置 == 2 && D_NAME == ""
+				文字列記憶 = 
+				IF 差分抽出(ARG, TYPE, LOCALS, @"%A_BACK:LOCAL%腸内射精", "")
+					文字列記憶 '= RESULTS
 				ELSE
-					D_NAME '= RESULTS
+					IF 差分抽出(ARG, TYPE, LOCALS, @"腸内射精", "")
+						文字列記憶 '= RESULTS
+					ENDIF
+				ENDIF
+				IF 文字列記憶 != ""
+					IF OPTION変数:射精後の挿入系立ち絵制御
+						IF RAND:2
+							D_NAME '= 文字列記憶
+						ELSE
+							IF 差分抽出(ARG, TYPE, LOCALS, A_BACK:LOCAL, "Ａ挿入")
+								D_NAME '= RESULTS
+							ELSE
+								LOCAL = 差分抽出(ARG, TYPE, LOCALS, "腸内射精", "腸内射精")
+								D_NAME '= RESULTS
+							ENDIF
+						ENDIF
+					ELSE
+						D_NAME '= 文字列記憶
+					ENDIF
 				ENDIF
 			ENDIF
 			SIF 差分抽出(ARG, TYPE, LOCALS, A_BACK:LOCAL, "Ａ挿入") && D_NAME == ""
@@ -462,7 +525,7 @@ IF MODE_存在判定_ターゲット側("Ａ挿入系", ARG)
 ENDIF
 IF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) || MODE_存在判定_プレイヤー側("パイズリ系", ARG)
 	IF TCVAR:ARG:前ターン被射精位置 == 3 && 差分抽出(ARG, TYPE, LOCALS, "口内射精", "口内射精") && D_NAME == ""
-		IF 射精後のモード時立ち絵制御OPTION
+		IF OPTION変数:射精後のモード時立ち絵制御
 			IF RAND:2
 				D_NAME '= RESULTS
 			ELSE
@@ -476,7 +539,7 @@ IF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) || MODE_存�
 		ENDIF
 	ENDIF
 	IF TCVAR:ARG:前ターン被射精位置 == 4 && 差分抽出(ARG, TYPE, LOCALS, "乳内射精", @"乳内射精{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}") && D_NAME == ""
-		IF 射精後のモード時立ち絵制御OPTION
+		IF OPTION変数:射精後のモード時立ち絵制御
 			IF RAND:2
 				D_NAME '= RESULTS
 			ELSE
@@ -490,7 +553,7 @@ IF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) || MODE_存�
 		ENDIF
 	ENDIF
 	IF TCVAR:ARG:前ターン被射精位置 == 5 && 差分抽出(ARG, TYPE, LOCALS, "顔射") && D_NAME == ""
-		IF 射精後のモード時立ち絵制御OPTION
+		IF OPTION変数:射精後のモード時立ち絵制御
 			IF RAND:2
 				D_NAME '= RESULTS
 			ELSE

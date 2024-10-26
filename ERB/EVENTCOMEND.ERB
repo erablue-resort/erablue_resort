@@ -100,22 +100,6 @@ IF フレーバー素質:TARGET:素質表示設定 == 3 && TCVAR:TARGET:初う�
 	CALL フレーバー素質個別設定画面(TARGET)
 ENDIF
 
-;リセット前に発情期回復処理
-FOR LOCAL, 1, CHARANUM
-	IF NOWEX:LOCAL:多重絶頂
-		;絶頂時は回復しない
-	ELSEIF BASE:LOCAL:体力 <= 1 || CFLAG:LOCAL:体力限界 || TCVAR:LOCAL:食いしばりフラグ
-		;体力限界時は回復しない
-	ELSEIF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 5) || キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && CFLAG:LOCAL:発情期フラグ < 0
-		IF REGENE_CALC(LOCAL) > 0
-			;休ませての無限スコア稼ぎは美しくない
-			TCVAR:LOCAL:スコアペナルティ += EX:LOCAL:スコア * REGENE_CALC(LOCAL) / MAXBASE:LOCAL:体力
-
-			BASE:LOCAL:体力 += REGENE_CALC(LOCAL)
-		ENDIF
-	ENDIF
-NEXT
-
 ;諸々リセット
 CALL TURN_RESET
 COM_RAND = RAND:1000
@@ -217,7 +201,7 @@ IF CFLAG:MASTER:酔いすぎ == 1
 		CFLAG:現在位置 = CFLAG:MASTER:自室位置
 		CFLAG:現在マップ種別 = 0
 	ENDIF
-	CALL うふふ終了処理
+	CALL うふふ終了処理("あなた泥酔")
 	CALL 飲み会終了処理
 	FLAG:一日終了 = 1
 ENDIF
@@ -228,20 +212,21 @@ IF TARGET && RCVAR:不機嫌
 		AUTOCOM_相手番号保存 = 0
 		自慰ターゲット保存 = 0
 	ENDIF
-	CALL うふふ終了処理
+	CALL うふふ終了処理("不機嫌")
 	CALL 飲み会終了処理
 ENDIF
 モード中キャラカウント = 0
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
-	IF BASE:(TARGET:LOCAL):体力 < 1 && TCVAR:(TARGET:LOCAL):食いしばりフラグ > 0
+	IF BASE:(TARGET:LOCAL):体力 < 1 && TCVAR:(TARGET:LOCAL):食いしばりフラグ > 1
 		BASE:(TARGET:LOCAL):体力 = 1
 		TCVAR:(TARGET:LOCAL):食いしばりフラグ --
 	ELSEIF BASE:(TARGET:LOCAL):体力 < 1 && !CFLAG:(TARGET:LOCAL):体力限界
 		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
 		TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
 		FORCEWAIT
+		TCVAR:(TARGET:LOCAL):食いしばりフラグ = 0
 		CFLAG:(TARGET:LOCAL):体力限界 = 1
 		IF CFLAG:(TARGET:LOCAL):うふふ == 0 && CFLAG:(TARGET:LOCAL):飲み会 == 0
 			CFLAG:(TARGET:LOCAL):一緒に遊ぶ = 0
@@ -299,28 +284,29 @@ IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
 		IF RESULT == 0
 			CALL COM210
 			IF RESULT == -1
-				CALL うふふ終了処理
+				CALL うふふ終了処理("全員ダウン")
 			ELSE
 				;呼び出した相手をTARGETに
 				TFLAG:TARGET変更用 = RFLAG:コマンド結果受渡し変数
 			ENDIF
 		ELSE
-			CALL うふふ終了処理
+			CALL うふふ終了処理("全員ダウン")
 		ENDIF
 	ELSE
-		CALL うふふ終了処理
+		CALL うふふ終了処理("全員ダウン")
 	ENDIF
 ENDIF
 モード中キャラカウント = 0
 FOR LOCAL, 1, CHARANUM
 	SIF 飲み会TARGET:LOCAL < 1
 		BREAK
-	IF BASE:(飲み会TARGET:LOCAL):体力 < 1 && TCVAR:(飲み会TARGET:LOCAL):食いしばりフラグ > 0
+	IF BASE:(飲み会TARGET:LOCAL):体力 < 1 && TCVAR:(飲み会TARGET:LOCAL):食いしばりフラグ > 1
 		BASE:(飲み会TARGET:LOCAL):体力 = 1
 		TCVAR:(飲み会TARGET:LOCAL):食いしばりフラグ --
 	ELSEIF BASE:(飲み会TARGET:LOCAL):体力 < 1
 		PRINTFORML （%CALLNAME:(飲み会TARGET:LOCAL)%の体力が限界に来ています）
 		FORCEWAIT
+		TCVAR:(飲み会TARGET:LOCAL):食いしばりフラグ = 0
 		CFLAG:(飲み会TARGET:LOCAL):体力限界 = 1
 		EXP:(飲み会TARGET:LOCAL):ダウン経験 += 1
 		;経験取得表示スキップ用
@@ -356,10 +342,11 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:滞在期間 < 1
 		CONTINUE
-	IF BASE:LOCAL:体力 < 1 && TCVAR:LOCAL:食いしばりフラグ > 0
+	IF BASE:LOCAL:体力 < 1 && TCVAR:LOCAL:食いしばりフラグ > 1
 		BASE:LOCAL:体力 = 1
 		TCVAR:LOCAL:食いしばりフラグ --
 	ELSEIF BASE:LOCAL:体力 < 1 && !CFLAG:LOCAL:体力限界
+		TCVAR:LOCAL:食いしばりフラグ = 0
 		CFLAG:LOCAL:体力限界 = 1
 		IF CFLAG:LOCAL:うふふ == 0 && CFLAG:LOCAL:飲み会 == 0
 			CFLAG:LOCAL:一緒に遊ぶ = 0
@@ -395,6 +382,7 @@ WAIT
 
 @TURN_RESET
 #DIM 同室番号
+#DIM 登録番号
 
 SIF !TFLAG:オートコマンドフラグ
 	自慰ターゲット保存 = -1
@@ -412,11 +400,36 @@ FOR LOCAL,0,CHARANUM
 		CONTINUE
 
 	;コマンド初回フラグの保存
-	コマンド初回フラグ:LOCAL:0 += コマンド初回フラグ_一時保存:LOCAL:0
+	コマンド初回フラグ:LOCAL:通常コマンド += コマンド初回フラグ_一時保存:LOCAL:0
+	コマンド初回フラグ:LOCAL:通常コマンド_一日単位 += コマンド初回フラグ_一時保存:LOCAL:0
 	コマンド初回フラグ_一時保存:LOCAL:0 = 
-	コマンド初回フラグ_PLAYER:LOCAL:0 += コマンド初回フラグ_PLAYER_一時保存:LOCAL:0
+	コマンド初回フラグ_PLAYER:LOCAL:通常コマンド += コマンド初回フラグ_PLAYER_一時保存:LOCAL:0
+	コマンド初回フラグ_PLAYER:LOCAL:通常コマンド_一日単位 += コマンド初回フラグ_PLAYER_一時保存:LOCAL:0
 	コマンド初回フラグ_PLAYER_一時保存:LOCAL:0 = 
-
+	IF モード初回フラグ_一時保存:LOCAL:0 != ""
+		VARSET RESULTS
+		SPLIT モード初回フラグ_一時保存:LOCAL:0, "_", RESULTS
+		FOR 登録番号, 0, RESULT
+			SIF RESULTS:登録番号 == ""
+				BREAK
+			LOCALS = %GETVARS(@"コマンド初回フラグ:LOCAL:%RESULTS:登録番号%")%
+			SETVAR @"コマンド初回フラグ:LOCAL:%RESULTS:登録番号%", @"%LOCALS%-%RESULTS:(登録番号 + 1)%-"
+			登録番号 ++
+		NEXT
+	ENDIF
+	モード初回フラグ_一時保存:LOCAL:0 = 
+	IF モード初回フラグ_PLAYER_一時保存:LOCAL:0 != ""
+		VARSET RESULTS
+		SPLIT モード初回フラグ_PLAYER_一時保存:LOCAL:0, "_", RESULTS
+		FOR 登録番号, 0, RESULT
+			SIF RESULTS:登録番号 == ""
+				BREAK
+			LOCALS = %GETVARS(@"コマンド初回フラグ_PLAYER:LOCAL:%RESULTS:登録番号%")%
+			SETVAR @"コマンド初回フラグ_PLAYER:LOCAL:%RESULTS:登録番号%", @"%LOCALS%-%RESULTS:(登録番号 + 1)%-"
+			登録番号 ++
+		NEXT
+	ENDIF
+	モード初回フラグ_PLAYER_一時保存:LOCAL:0 = 
 
 	;満腹残り時間の減少
 	TCVAR:LOCAL:満腹 = MAX(TCVAR:LOCAL:満腹 - TIME_PROGRESS(TFLAG:行動前時刻), 0)
@@ -512,6 +525,13 @@ FOR LOCAL,0,CHARANUM
 
 			CALL ADD_RELATION(LOCAL, TARGET:同室番号, RELATION_うふふ時補正(LOCAL, TARGET:同室番号, MAX(15, TIME - TIME:2) / 15))
 		NEXT
+	ELSEIF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
+		;絶頂累積
+		TCVAR:LOCAL:うふふ中Ｃ絶頂累積 += NOWEX:LOCAL:Ｃ絶頂
+		TCVAR:LOCAL:うふふ中Ｂ絶頂累積 += NOWEX:LOCAL:Ｂ絶頂
+		TCVAR:LOCAL:うふふ中Ｖ絶頂累積 += NOWEX:LOCAL:Ｖ絶頂
+		TCVAR:LOCAL:うふふ中Ａ絶頂累積 += NOWEX:LOCAL:Ａ絶頂
+		TCVAR:LOCAL:うふふ中Ｓ絶頂累積 += NOWEX:LOCAL:Ｓ絶頂
 	ENDIF
 
 	;CUP等のリセット
@@ -549,7 +569,7 @@ FOR LOCAL,0,CHARANUM
 		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
 		;発情期に母乳体質化するオプションがあるキャラも処理する
 		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-			IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 2) ||キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || 男ドラフ母乳OPTION記憶)
+			IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 2) ||キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || OPTION変数:男ドラフ母乳)
 				IF CFLAG:LOCAL:発情期フラグ < 0
 					SIF TALENT:LOCAL:母乳体質 == 0
 						TALENT:LOCAL:母乳体質 = 2
