@@ -129,22 +129,28 @@ LOCAL:0 = RAND:100
 DRAWLINE
 SETCOLOR カラーパレット("クリーム色")
 LOCALS = \@ INRANGE(種親, 0, CHARANUM - 1)? %CALLNAME:種親%# 得体のしれぬ者\@
-PRINTFORM %CALLNAME:ARG%の子宮の中
+CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の子宮の中"
 IF TCVAR:ARG:膣内精液量 >= 600
-	PRINTFORML は、注ぎこまれた%LOCALS%の精で満たされている……
+	CSTR:ARG:妊娠報告_記録文字列 += @"は、注ぎこまれた%LOCALS%の精で満たされている……<br>"
 ELSEIF TCVAR:ARG:膣内精液量 >= 300
-	PRINTFORML を、%LOCALS%の精が我が物顔で蹂躙している……
+	CSTR:ARG:妊娠報告_記録文字列 += @"を、%LOCALS%の精が我が物顔で蹂躙している……<br>"
 ELSE
-	PRINTFORML では、%LOCALS%の精が卵子めがけて必死に泳いでいる……
+	CSTR:ARG:妊娠報告_記録文字列 += @"では、%LOCALS%の精が卵子めがけて必死に泳いでいる……<br>"
 ENDIF
 RESETCOLOR
 
-SIF TCVAR:ARG:避妊薬
-	RETURN 0
-SIF TALENT:ARG:妊娠
-	RETURN 0
-SIF TALENT:ARG:妊娠不可
-	RETURN 0
+IF TCVAR:ARG:避妊薬
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN -1
+ENDIF
+IF TALENT:ARG:妊娠
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN -1
+ENDIF
+IF TALENT:ARG:妊娠不可
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN -1
+ENDIF
 
 RESULT = 0
 TRYCALLFORM 個別妊娠処理_妊娠率制御_{NO:ARG}(ARG, 種親)
@@ -158,11 +164,11 @@ ELSE
 	;通常処理
 	IF 異種フラグ == 1
 		;異種の時は妊娠させない
-		PRINTW しかし、異種族の間では妊娠には至らないようだ。
+		CSTR:ARG:妊娠報告_記録文字列 += "しかし、異種族の間では妊娠には至らないようだ。<br>"
 		TCVAR:ARG:膣内精液量 = 0
-		RETURN 0
+		RETURN -1
 	ELSEIF 異種フラグ == 2 && LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
-		PRINTL 星晶獣eraの影響を受けた母体が、異種の子種を受け入れようとしている……！
+		CSTR:ARG:妊娠報告_記録文字列 += "星晶獣eraの影響を受けた母体が、異種の子種を受け入れようとしている……！<br>"
 	ENDIF
 ENDIF
 
@@ -172,33 +178,33 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		CALL 受精アニメ(0)
 	CFLAG:ARG:子の父親 = 種親
 	SIF TCVAR:ARG:膣内精液量 >= 450
-		PRINT 精液をたっぷりと注がれた
-	PRINTFORML %CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…
+		CSTR:ARG:妊娠報告_記録文字列 += "精液をたっぷりと注がれた"
+	CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の\@RISKY_DAY(ARG)?危険日の#\@\@TALENT:ARG:種族 == 種族_ハーヴィン || TALENT:ARG:体格 == -2?小さな#\@子宮が、痺れるように甘く疼く…<br>"
 	;MASTERの子を妊娠した時だけ追加で表示
 	IF 種親 == MASTER
 		IF TALENT:ARG:恋慕 || CFLAG:ARG:恋慕レベル >= 関係閾値:4
-			PRINTFORML %CALLNAME:ARG%の卵子は、愛する%CALLNAME:MASTER%の精子を嬉々として受け入れたようだ…
+			CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の卵子は、愛する%CALLNAME:MASTER%の精子を嬉々として受け入れたようだ…<br>"
 		ELSEIF INRANGE(CFLAG:ARG:恋慕レベル,関係閾値:2,関係閾値:4)
-			PRINTFORML %CALLNAME:ARG%の卵子は淡い憧れを抱いている%CALLNAME:MASTER%の精子を拒み切れず、受精を受け入れてしまった…
+			CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の卵子は淡い憧れを抱いている%CALLNAME:MASTER%の精子を拒み切れず、受精を受け入れてしまった…<br>"
 		ELSEIF CFLAG:ARG:発情期フラグ < 0
-			PRINTFORML 発情期の%CALLNAME:ARG%の卵子は勝手に受精の準備を整えており、簡単に%CALLNAME:MASTER%の精子を受け入れてしまった…
+			CSTR:ARG:妊娠報告_記録文字列 += @"発情期の%CALLNAME:ARG%の卵子は勝手に受精の準備を整えており、簡単に%CALLNAME:MASTER%の精子を受け入れてしまった…<br>"
 		ELSEIF 知識素質:ARG:性知識 == -2
-			PRINTFORML %CALLNAME:ARG%の無垢な卵子は、何が起こってるかも分からないままに受精させられてしまった…
+			CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の無垢な卵子は、何が起こってるかも分からないままに受精させられてしまった…<br>"
 		ELSE
-			PRINTFORML %CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@ 異種妊娠(ARG) ? 異種間 # \@受精を許してしまった…
+			CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の卵子は結合を迫る%CALLNAME:MASTER%の精子たちの勢いに流され、\@ 異種妊娠(ARG) ? 異種間 # \@受精を許してしまった…<br>"
 		ENDIF
 		CFLAG:ARG:MASTERの子供妊娠回数 ++
 	ENDIF
 	SIF FLAG_アニメーション
 		CALL 受精アニメ(1)
 	SETCOLOR カラーパレット("ピンク")
-	PRINTFORM %CALLNAME:ARG%は
+	CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%は"
 	IF 種親 >= 0
-		PRINTFORM %CALLNAME:種親%の子供を
+		CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:種親%の子供を"
 		LOCALS = 
 		IF 種親 == MASTER
 			SIF CFLAG:ARG:MASTERの子供妊娠回数 > 1
-				PRINT また
+				CSTR:ARG:妊娠報告_記録文字列 += "また"
 			IF TALENT:ARG:恋慕
 				LOCALS = 恋人の
 			ELSEIF TALENT:ARG:セフレ
@@ -226,12 +232,12 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		CALL 履歴データベース登録(CFLAG:種親:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:ARG%に子供を孕ませた</font><img src='えっちハート'>","うふふ実績")
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:種親%との子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
 	ELSE
-		PRINTFORM 得体のしれぬ相手の子供を
+		CSTR:ARG:妊娠報告_記録文字列 += "得体のしれぬ相手の子供を"
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>父親不明の子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
 	ENDIF
-	PRINTFORMW 妊娠したようです
+	CSTR:ARG:妊娠報告_記録文字列 += "妊娠したようです<br>"
 	RESETCOLOR
-	PRINTL
+	CSTR:ARG:妊娠報告_記録文字列 += "<br>"
 	TALENT:ARG:妊娠 = 1
 	EXP:ARG:妊娠経験 ++
 	SIF 種親 >= 0
@@ -258,10 +264,13 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 			SIF RAND:6400 == 0
 				CFLAG:ARG:今回受胎人数 = 3
 	ENDSELECT
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN 1
 ELSE
-	PRINTL
+	CSTR:ARG:妊娠報告_記録文字列 += "<br>"
+	TCVAR:ARG:膣内精液量 = 0
+	RETURN -1
 ENDIF
-TCVAR:ARG:膣内精液量 = 0
 
 
 ;出産 とりあえずの実装
@@ -273,6 +282,11 @@ TCVAR:ARG:膣内精液量 = 0
 #DIM 子供性別
 #DIM 子供種族
 #DIM 子供人数
+
+IF CFLAG:MOTHER:妊娠経過日 < 妊娠期間
+	PRINTW 出産済みです。
+	RETURN 0
+ENDIF
 
 FATHER = CFLAG:MOTHER:子の父親
 ;見た目をよく引き継ぐ側の親を1/2ずつで選択(ただしあなたは優先度低)
@@ -843,12 +857,11 @@ CALL 体力変動素質適用処理(ARG)
 #DIM 変化前バスト
 #DIM ループ回数
 
-;妊娠知覚イベント
-CALL DETECT_PREGNANCY(ARG)
 ;素の体力を更新
 CALL 体力変動素質適用処理(ARG)
 ;色々な経過日時のカウント
 ;妊娠経過日 妊娠後それなりに経つと母乳が出る
+LOCAL = 0
 IF TALENT:ARG:妊娠
 	CFLAG:ARG:妊娠経過日  ++
 	IF !CFLAG:ARG:妊娠時バストサイズ増加 && !素質切り替えOPTION記憶:母乳体質_なし && PREGNANCY_PROGRESS(ARG) >= 3
@@ -875,20 +888,21 @@ IF TALENT:ARG:妊娠
 		SIF TALENT:ARG:母乳体質 != 1
 			TALENT:ARG:母乳体質 = 3
 		IF CFLAG:ARG:滞在期間 >= 0
-			DRAWLINE
 			IF TALENT:ARG:バストサイズ == 3
-				PRINTFORML 母乳をたっぷりと湛えた%CALLNAME:ARG%の乳房は、もはや妊娠前とは見違えたサイズになっている…
+				CSTR:ARG:妊娠報告_記録文字列 += @"母乳をたっぷりと湛えた%CALLNAME:ARG%の乳房は、もはや妊娠前とは見違えたサイズになっている…<br>"
 			ELSE
-				PRINTFORML 妊娠して腹部が目立つようになってきた%CALLNAME:ARG%の乳房から、母乳が滲み出てきた…
+				CSTR:ARG:妊娠報告_記録文字列 += @"妊娠して腹部が目立つようになってきた%CALLNAME:ARG%の乳房から、母乳が滲み出てきた…<br>"
 			ENDIF
-			SETCOLOR カラーパレット("ピンク")
-				PRINTFORML %CALLNAME:ARG%の乳房は母乳を蓄えるようになり、より大きくなりました
-			RESETCOLOR
-			PRINTW
+			CSTR:ARG:妊娠報告_記録文字列 += @"<font color='#%カラーパレット_HTML("ピンク")%'>%CALLNAME:ARG%の乳房は母乳を蓄えるようになり、より大きくなりました</font><br>"
+			CSTR:ARG:妊娠報告_記録文字列 += "<br>"
+			LOCAL = 1
 		ENDIF
 	ENDIF
-	SIF CFLAG:ARG:妊娠経過日 >= 妊娠期間
-		CALL BIRTHING(ARG)
+	IF CFLAG:ARG:妊娠経過日 >= 妊娠期間
+		RETURN 2
+	ELSEIF LOCAL
+		RETURN 1
+	ENDIF
 ;産後経過日 産後それなりに経つと母乳が止まる
 ELSEIF CFLAG:ARG:産後経過日
 	CFLAG:ARG:産後経過日 ++
@@ -910,11 +924,14 @@ ELSEIF CFLAG:ARG:産後経過日
 			TALENT:ARG:母乳体質 = 0
 		IF CFLAG:ARG:滞在期間 >= 0
 			DRAWLINE
-			PRINTFORML 授乳を終えた%CALLNAME:ARG%の乳房は元の大きさに戻り\@TALENT:ARG:母乳体質 != 1?、母乳の分泌も止まり#\@ました
-			PRINTW
+			CSTR:ARG:妊娠報告_記録文字列 += @"授乳を終えた%CALLNAME:ARG%の乳房は元の大きさに戻り\@TALENT:ARG:母乳体質 != 1?、母乳の分泌も止まり#\@ました<br>"
+			CSTR:ARG:妊娠報告_記録文字列 += "<br>"
+			LOCAL = 1
 		ENDIF
 		CFLAG:ARG:産後経過日 = 0
 	ENDIF
+	SIF LOCAL
+		RETURN -1
 ENDIF
 
 
@@ -1064,6 +1081,9 @@ RETURNF 0
 @DETECT_PREGNANCY(ARG)
 IF CFLAG:ARG:滞在期間 < 0
 	RETURN 0
+ELSEIF CFLAG:ARG:妊娠発覚
+	PRINTW 妊娠発覚済みです。
+	RETURN 0
 ELSEIF PREGNANCY_SIZE(ARG) >= 2 && CFLAG:ARG:妊娠発覚 == 0
 	IF 知識素質:ARG:性知識 == -2
 		;無知シチュ
@@ -1118,6 +1138,7 @@ ELSEIF PREGNANCY_SIZE(ARG) >= 2 && CFLAG:ARG:妊娠発覚 == 0
 	ENDIF
 	PRINTW
 	CFLAG:ARG:妊娠発覚 = 1
+	RETURN 1
 ENDIF
 
 
