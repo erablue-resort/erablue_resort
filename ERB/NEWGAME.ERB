@@ -2495,7 +2495,8 @@ FOR LOCAL, 0, 追加人数
 	IF 追加候補:LOCAL < 0
 		PRINTL 未選択
 	ELSE
-		PRINTFORML %NAME:(追加候補:LOCAL)%
+		PRINTFORML %NAME:(追加候補:LOCAL), 24, LEFT%
+		PRINTBUTTON "[外す]", 9900 + LOCAL
 	ENDIF
 NEXT
 PRINTL 
@@ -2514,6 +2515,8 @@ DRAWLINE
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 9900 TO 9910
+		追加候補:(LOCAL - 9900) = -1
 	CASE 2000
 		CALL SHOW_CHARADATA_FILTA
 		現在ページ = 0
@@ -2616,20 +2619,85 @@ GOTO 表示処理_LOOP
 
 @初期従業員オススメセット(追加候補)
 #DIM REF 追加候補
+#DIM 選択セット番号
+#DIM 関数数
+#DIMS 関数配列, 100
 
+選択セット番号 = -1
+VARSET RESULTS
+VARSET 関数配列
+ENUMFUNCBEGINSWITH "オススメセット処理_"
+ARRAYCOPY "RESULTS", "関数配列"
+関数数 = RESULT
+
+$表示ループ
 DRAWLINE
 PRINTL 任意のセットを選択してください。
 DRAWLINE
 
 ;左側
-LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'>
-VARSET RESULTS
-ENUMFUNCBEGINSWITH "オススメセット処理_"
-FOR LOCAL, 0, RESULT
-	LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %REPLACE(RESULTS:LOCAL, "オススメセット処理_", "")%<br>"
+LOCALS = <div rect='81,31,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>
+FOR LOCAL, 0, 関数数
+	LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %REPLACE(関数配列:LOCAL, "オススメセット処理_", "")%</button><br>"
 NEXT
 LOCALS += "</div>"
 
 ;右側
-LOCALS += "<div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'>"
+LOCALS += "<div rect='2050,31,3875,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+RSTR:コマンド結果受渡し文字列 = 
+SIF 選択セット番号 >= 0
+	CALLFORM %関数配列:選択セット番号%("説明文表示", 追加候補)
+LOCALS += @"%RSTR:コマンド結果受渡し文字列%"
 LOCALS += "</div>"
+
+;戻る
+LOCALS += "<div rect='131,2631,1000,200'><button value='999'>[999] 戻る</button></div>"
+
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 998
+		CALLFORM %関数配列:選択セット番号%("キャラセット", 追加候補)
+		PRINTFORMW %REPLACE(関数配列:選択セット番号, "オススメセット処理_", "")%を適用しました。
+		RETURN 0
+	CASE 999
+		RETURN 0
+	CASE IS >= 1000
+		; キャラ確認用の簡易紹介
+		CALL キャラ簡易紹介(RESULT - 1000)
+		WAIT
+	CASEELSE
+		選択セット番号 = RESULT
+ENDSELECT
+GOTO 表示ループ
+
+@オススメセット処理_主人公たちセット(動作モード, 追加候補)
+#DIM REF 追加候補
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "説明文表示"
+		RSTR:コマンド結果受渡し文字列 += "■主人公たちセット<br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "グランブルーファンタジー原作でメインの位置にいる４人のキャラ。<br>"
+		RSTR:コマンド結果受渡し文字列 += "グラン・ジータ・ルリアは[命のリンク]素質でZPが稼ぎやすく、初心者向け。<br>"
+		RSTR:コマンド結果受渡し文字列 += "反面、加入キャラの性別がバラけているのでハーレム等には適していないセット。<br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "・加入キャラ<br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[夢抱く者]グラン") + 1000}'>[夢抱く者]グラン</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[碧く麗しき十天の輝星]ジータ") + 1000}'>[碧く麗しき十天の輝星]ジータ</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[蒼の少女]ルリア") + 1000}'>[蒼の少女]ルリア</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[小さき赤き竜]ビィ") + 1000}'>[小さき赤き竜]ビィ</button><br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "<button value='998'>[998] このセットを適用する</button><br>"
+	CASE "キャラセット"
+		追加候補:0 = キャラ検索("[夢抱く者]グラン")
+		追加候補:1 = キャラ検索("[碧く麗しき十天の輝星]ジータ")
+		追加候補:2 = キャラ検索("[蒼の少女]ルリア")
+		追加候補:3 = キャラ検索("[小さき赤き竜]ビィ")
+ENDSELECT
