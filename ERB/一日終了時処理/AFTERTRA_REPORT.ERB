@@ -113,7 +113,9 @@ GOTO 表示ラベル
 
 
 @一日終了時レポート表示_オナニー・夜這い報告(ボタン番号)
+#DIMS 分割用文字列, 3
 #DIM ボタン番号
+#DIM 分割番号
 
 SELECTCASE ボタン番号
 	CASE IS >= 50000
@@ -122,6 +124,28 @@ SELECTCASE ボタン番号
 		VARSET RESULTS
 		SPLIT CSTR:(ボタン番号 - 50000):夜這い口上渡し_記録文字列, "+++", RESULTS
 		TRYCALLFORM KOJO_夜這い実行時_{NO:(ボタン番号 - 50000)}(ボタン番号 - 50000, RCVAR:(ボタン番号 - 50000):夜這い相手保存, TOINT(RESULTS:1), TOINT(RESULTS:2))
+		;性癖自動取得チェック
+		VARSET RESULTS
+		SPLIT CSTR:(ボタン番号 - 50000):自動取得性癖_記録文字列, "___", RESULTS
+		FOR 分割番号, 0, RESULT
+			CALL 口上変数初期化
+			VARSET 分割用文字列
+			SPLIT RESULTS:分割番号, "+++", 分割用文字列
+			;分割用文字列:0に対象キャラ、:1に性癖名が入ってるはず
+			CALLFORM 自動取得性癖メッセージ_%分割用文字列:1%(TOINT(分割用文字列:0))
+			TRYCALLFORM KOJO_性癖開拓_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+		NEXT
+		;性癖自動成長チェック
+		VARSET RESULTS
+		SPLIT CSTR:(ボタン番号 - 50000):自動成長性癖_記録文字列, "___", RESULTS
+		FOR 分割番号, 0, RESULT
+			CALL 口上変数初期化
+			VARSET 分割用文字列
+			SPLIT RESULTS:分割番号, "+++", 分割用文字列
+			;分割用文字列:0に対象キャラ、:1に性癖名、:2に上がる前のレベルが入ってるはず
+			CALLFORM 性癖段階成長メッセージ_%分割用文字列:1%(TOINT(分割用文字列:0), TOINT(分割用文字列:2))
+			TRYCALLFORM KOJO_性癖成長_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+		NEXT
 	CASE IS >= 40000
 		HTML_PRINT CSTR:(ボタン番号 - 40000):夜這い報告_記録文字列
 		PRINTL
@@ -143,6 +167,9 @@ WAIT
 #DIM 順番シャッフル用配列, キャラクタ数上限
 #DIM シャッフル数
 #DIM 結果保存
+#DIM 口上あり
+#DIMS 分割用文字列, 3
+#DIM 分割番号
 
 CALL キャラ番号配列_初期化_シャッフル(順番シャッフル用配列, 0)
 シャッフル数 = RESULT
@@ -161,6 +188,7 @@ FOR LOCAL, 0, シャッフル数
 	CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列 = 
 	CSTR:(順番シャッフル用配列:LOCAL):自動取得性癖_記録文字列 = 
 	CSTR:(順番シャッフル用配列:LOCAL):自動成長性癖_記録文字列 = 
+	口上あり = 0
 	;滞在してないキャラはスルー
 	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
 		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
@@ -240,19 +268,52 @@ FOR LOCAL, 0, シャッフル数
 		ELSEIF 結果保存 >= 100
 			RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は%CALLNAME:(結果保存 - 100)%と熱い夜を過ごした…", 80, LEFT%"
 			CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列 = %RSTR:コマンド結果受渡し文字列%
+			;性癖自動取得チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動取得性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名が入ってるはず
+				TRYCCALLFORM KOJO_性癖開拓_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;性癖自動成長チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動成長性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名、:2に上がる前のレベルが入ってるはず
+				TRYCCALLFORM KOJO_性癖成長_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;夜這い実行時口上チェック
 			CALL 口上変数初期化
 			VARSET RESULTS
-			SPLIT RSTR:コマンド結果受渡し文字列, "+++", RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列, "+++", RESULTS
 			RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存 = TOINT(RESULTS:0)
 			TRYCCALLFORM KOJO_夜這い実行時_{NO:(順番シャッフル用配列:LOCAL)}(順番シャッフル用配列:LOCAL, RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存, TOINT(RESULTS:1), TOINT(RESULTS:2))
 				IF 口上有無確認(0,1)
-					RSTR:夜這い報告_記録文字列 += @"<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
-				ELSE
-					RSTR:夜這い報告_記録文字列 += @"　<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+					口上あり = 1
 				ENDIF
 			CATCH
-				RSTR:夜這い報告_記録文字列 += @"　<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
 			ENDCATCH
+			IF 口上あり
+				RSTR:夜這い報告_記録文字列 += @"<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+			ELSE
+				RSTR:夜這い報告_記録文字列 += @"　<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDIF
 			RSTR:夜這い報告_記録文字列 += "<br>"
 		ELSEIF 結果保存 == 0
 			;自慰判定
