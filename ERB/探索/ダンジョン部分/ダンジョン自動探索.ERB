@@ -10,6 +10,7 @@
 #DIM 取得ルピ量
 #DIM 取得EXP量
 #DIM レベルアップフラグ
+#DIM 口上番号
 
 VARSET 表示用リスト_クリア済み
 VARSET 表示用リスト_人数記録
@@ -78,8 +79,7 @@ NEXT
 LOCALS += @"　合計で{取得ルピ量, 6}ルピを取得しました。<br>"
 MONEY += 取得ルピ量
 LOCALS += @"　合計でそれぞれが{取得EXP量, 6}EXPを取得しました。<br>"
-HTML_PRINT LOCALS
-LOCALS = 
+LOCALS += @"<br>"
 FOR LOCAL, 1, CHARANUM
 	SIF TALENT:LOCAL:従業員 < 1
 		CONTINUE
@@ -90,10 +90,20 @@ FOR LOCAL, 1, CHARANUM
 	基礎BATTLE_STATE:LOCAL:蓄積EXP += 取得EXP量
 	CALL 口上変数初期化
 	CALL レベルアップ処理(LOCAL)
-	IF RESULT
-		PRINTL 
-		CALL 口上変数表示(LOCAL, 0)
-	ENDIF
+	;KSTR系列に入ってるものを変換、特殊な動作は入れてないはずなので特に処理は通さない
+	FOR 口上番号,0,1000
+		SIF !口上有無確認(口上番号,1)
+			BREAK
+		IF !(WSTR:口上番号 == "")
+			LOCALS += @"%WSTR:口上番号%<br>"
+		ELSEIF !(KSTR:口上番号 == "")
+			LOCALS += @"%KSTR:口上番号%<br>"
+		ELSEIF !(NSTR:口上番号 == "")
+			LOCALS += @"%NSTR:口上番号%"
+		ELSEIF !(WNSTR:口上番号 == "")
+			LOCALS += @"%WNSTR:口上番号%"
+		ENDIF
+	NEXT
 NEXT
 IF MAP_SIZE("自動探索ドロップ") > 0
 	LOCALS += "<br>"
@@ -104,7 +114,7 @@ IF MAP_SIZE("自動探索ドロップ") > 0
 	NEXT
 ENDIF
 MAP_RELEASE "自動探索ドロップ"
-HTML_PRINT LOCALS
+RESULTS '= LOCALS
 
 @ダンジョン自動探索編成処理
 #DIMS 表示用リスト_クリア済み, 100
