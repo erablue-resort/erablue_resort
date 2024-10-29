@@ -18,6 +18,31 @@ SIF GETBIT(セット位置, 3) || セット位置 == 0
 ;-------------------------
 ;身長の設定
 ;-------------------------
+@INIT_BODYSIZE_HEIGHT(対象)
+#DIM 対象
+;CSVに依存しない再設定関数
+
+IF !BASE:対象:身長
+	;身長がない場合は体格を元に身長を算出
+	CALL SET_BODYSIZE_HEIGHT(対象)
+ELSEIF !TALENT:対象:体格
+	;身長があり体格が無い場合再設定
+	SELECTCASE BASE:対象:身長
+		CASE IS < 1000
+			TALENT:対象:体格 = 体格_ハーヴィン並
+		CASE IS < 1300 + IS_MALE(対象)*100
+			TALENT:対象:体格 = 体格_子供
+		CASE IS < 1500 + IS_MALE(対象)*100
+			TALENT:対象:体格 = 体格_小柄
+		CASE IS < 1700 + IS_MALE(対象)*100
+			TALENT:対象:体格 = 体格_普通
+		CASE IS < 1900 + IS_MALE(対象)*100
+			TALENT:対象:体格 = 体格_長身
+		CASEELSE
+			TALENT:対象:体格 = 体格_男ドラフ並
+	ENDSELECT 
+ENDIF
+
 @SET_BODYSIZE_HEIGHT(対象)
 #DIM 対象
 #DIM 身長基礎値
@@ -66,6 +91,84 @@ RETURNF 基礎値
 ;-------------------------
 ;バストサイズの設定
 ;-------------------------
+@INIT_BODYSIZE_BUST(対象)
+#DIM 対象
+#DIM 計算値
+;CSVに依存しない再設定関数
+;先にHEIGHTとウエストを呼んでるはずなので身長・体格・体型・ウエストは存在するはず
+
+IF !BASE:対象:バスト
+	;既存データを元にバストを算出
+	CALL SET_BODYSIZE_BUST(対象)
+ELSEIF !TALENT:対象:バストサイズ
+	;バストがありバストサイズ素質がない場合再設定
+	計算値 = BASE:対象:バスト
+
+	;ドラフ補正
+	SIF TALENT:対象:種族 == 種族_ドラフ && IS_FEMALE(対象)
+		TIMES 計算値, 0.89
+
+	;体型補正
+	SELECTCASE TALENT:対象:体型
+		CASE 体型_痩せすぎ
+			SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+				TIMES 計算値, 1.11
+		CASE 体型_細身
+			SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+				TIMES 計算値, 1.06
+		CASE 体型_スレンダー
+			SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+				TIMES 計算値, 1.03
+		CASE 体型_グラマー
+			TIMES 計算値, 0.97
+		CASE 体型_豊満
+			TIMES 計算値, 0.96
+		CASE 体型_肥満
+			TIMES 計算値, 0.95
+	ENDSELECT
+
+	;体格補正
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			TIMES 計算値, 0.83
+		CASE 体格_子供
+			IF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+				TIMES 計算値, 0.94
+			ELSE
+				TIMES 計算値, 0.93
+			ENDIF
+		CASE 体格_小柄
+			IF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+				TIMES 計算値, 0.98
+			ELSE
+				TIMES 計算値, 0.97
+			ENDIF
+		CASE 体格_普通
+		CASE 体格_長身
+		CASE 体格_男ドラフ並
+			TIMES 計算値, 1.02
+	ENDSELECT
+
+	;身長補正
+	計算値 = 計算値 * 10000 / BASE:対象:身長 / (!HAS_VAGINA(対象) ? 52 # 53)
+	DEBUGPRINTFORML %CALLNAME:対象%：{計算値}：{BASE:対象:バスト}cm・{TALENT:対象:バストサイズ}
+
+	SELECTCASE 計算値
+		CASE IS > 116
+			TALENT:対象:バストサイズ = バストサイズ_魔乳
+		CASE IS > 110
+			TALENT:対象:バストサイズ = バストサイズ_爆乳
+		CASE IS > 101
+			TALENT:対象:バストサイズ = バストサイズ_巨乳
+		CASE IS > 96
+			TALENT:対象:バストサイズ = バストサイズ_並乳
+		CASE IS > 90
+			TALENT:対象:バストサイズ = バストサイズ_貧乳
+		CASEELSE
+			TALENT:対象:バストサイズ = バストサイズ_絶壁
+	ENDSELECT
+ENDIF
+
 @SET_BODYSIZE_BUST(対象)
 #DIM 対象
 #DIM 補正値
@@ -216,6 +319,53 @@ RETURNF 基礎値
 ;-------------------------
 ;ウエストの設定
 ;-------------------------
+@INIT_BODYSIZE_WAIST(対象)
+#DIM 対象
+#DIM 計算値
+;CSVに依存しない再設定関数
+;先にHEIGHTを呼んでるはずなので身長と体格は存在するはず
+
+IF !BASE:対象:ウエスト
+	;ウエストがない場合は身長・体格・体型を元にウエストを算出
+	CALL SET_BODYSIZE_WAIST(対象)
+ELSEIF !TALENT:対象:体型
+	;ウエストがあり体型素質がない場合再設定
+	計算値 = BASE:対象:ウエスト
+
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			TIMES 計算値, 0.82
+		CASE 体格_子供
+			TIMES 計算値, 0.93
+		CASE 体格_小柄
+			TIMES 計算値, 0.97
+		CASE 体格_普通
+		CASE 体格_長身
+			TIMES 計算値, 1.02
+		CASE 体格_男ドラフ並
+			TIMES 計算値, 1.03
+	ENDSELECT
+
+	計算値 = 計算値 * 10000 / (!HAS_VAGINA(対象) ? 43 # 38) / BASE:対象:身長
+
+	SELECTCASE 計算値
+		CASE IS > 110
+			TALENT:対象:体型 = 体型_肥満
+		CASE IS > 105
+			TALENT:対象:体型 = 体型_豊満
+		CASE IS > 100
+			TALENT:対象:体型 = 体型_グラマー
+		CASE IS > 95
+			TALENT:対象:体型 = 体型_普通
+		CASE IS > 90
+			TALENT:対象:体型 = 体型_スレンダー
+		CASE IS > 85
+			TALENT:対象:体型 = 体型_細身
+		CASEELSE
+			TALENT:対象:体型 = 体型_痩せすぎ
+	ENDSELECT
+ENDIF
+
 @SET_BODYSIZE_WAIST(対象)
 #DIM 対象
 #DIM ウエスト基礎値
@@ -267,6 +417,69 @@ RETURNF 基礎値
 ;-------------------------
 ;ヒップの設定
 ;-------------------------
+@INIT_BODYSIZE_HIP(対象)
+#DIM 対象
+#DIM 計算値
+;CSVに依存しない再設定関数
+;先にHEIGHTとウエストを呼んでるはずなので身長・体格・体型・ウエストは存在するはず
+
+IF !BASE:対象:ヒップ
+	;ヒップがない場合はそのまま再設定する
+	CALL SET_BODYSIZE_HIP(対象)
+ELSEIF !TALENT:対象:下半身
+	;ヒップがあり下半身素質がない場合再設定
+	計算値 = BASE:対象:ヒップ
+
+	;体型補正
+	SELECTCASE TALENT:対象:体型
+		CASE 体型_痩せすぎ
+			TIMES 計算値, 1.08
+		CASE 体型_細身
+			TIMES 計算値, 1.05
+		CASE 体型_スレンダー
+			TIMES 計算値, 1.02
+		CASE 体型_グラマー
+			TIMES 計算値, 0.96
+		CASE 体型_豊満
+			TIMES 計算値, 0.92
+		CASE 体型_肥満
+			TIMES 計算値, 0.89
+	ENDSELECT
+
+	;体格補正
+	SELECTCASE TALENT:対象:体格
+		CASE 体格_ハーヴィン並
+			TIMES 計算値, 0.83
+		CASE 体格_子供
+			TIMES 計算値, 0.95
+		CASE 体格_小柄
+			TIMES 計算値, 0.98
+		CASE 体格_普通
+		CASE 体格_長身
+			TIMES 計算値, 1.01
+		CASE 体格_男ドラフ並
+			TIMES 計算値, 1.02
+	ENDSELECT
+
+	;身長補正
+	計算値 = 計算値 * 10000 / BASE:対象:身長 / (!HAS_VAGINA(対象) ? 47 # 54)
+	DEBUGPRINTFORML %CALLNAME:対象%：{計算値}：{BASE:対象:ヒップ}・{TALENT:対象:下半身}
+	SELECTCASE 計算値
+		CASE IS > 103
+			TALENT:対象:下半身 = 下半身_安産型
+		CASE IS > 95
+			TALENT:対象:下半身 = 下半身_普通
+		CASE IS > 90
+			IF IS_MALE(対象)
+				TALENT:対象:下半身 = 下半身_逆三角形
+			ELSE
+				TALENT:対象:下半身 = 下半身_普通
+			ENDIF
+		CASEELSE
+			TALENT:対象:下半身 = 下半身_逆三角形
+	ENDSELECT
+ENDIF
+
 @SET_BODYSIZE_HIP(対象)
 #DIM 対象
 #DIM ヒップ基礎値
@@ -312,18 +525,18 @@ SELECTCASE TALENT:対象:体型
 		TIMES 基礎値, 1.12
 ENDSELECT
 
-IF IS_MALE(対象)
-	補正値 = 100
-ELSE
-	SELECTCASE TALENT:対象:下半身
-		CASE -1
+SELECTCASE TALENT:対象:下半身
+	CASE -1
+		IF IS_MALE(対象)
+			補正値 = 97
+		ELSE
 			補正値 = 93
-		CASE 0
-			補正値 = 100
-		CASE 1
-			補正値 = 108
-	ENDSELECT
-ENDIF
+		ENDIF
+	CASE 0
+		補正値 = 100
+	CASE 1
+		補正値 = 108
+ENDSELECT
 
 基礎値 = 基礎値 * 補正値 / 100
 
@@ -452,12 +665,9 @@ IF GETBIT(CSVTALENT(NO:ARG, GETNUM(TALENT, "性別")), 0) == GETBIT(TALENT:ARG:�
 		BASE:ARG:ヒップ = CFLAG:ARG:ヒップ初期値
 		MAXBASE:ARG:ヒップ = BASE:ARG:ヒップ
 	ENDIF
-
 ENDIF
 
-IF TALENT:ARG:ランダムキャラ == 0
-	CALL INIT_BODYTALENT(ARG)
-ENDIF
+CALL INIT_BODYTALENT(ARG)
 
 ;身長、バスト数値を決める
 LOCAL = SETBIT_PI(ARG)
@@ -514,7 +724,7 @@ ENDIF
 
 IF !CSVTALENT(NO:ARG, GETNUM(TALENT, "体型"))
 	;男性ドラフはグラマー（肉感的）
-	SIF TALENT:ARG:種族 == 種族_ドラフ && IS_MALE(ARG)
+	SIF TALENT:ARG:種族 == 種族_ドラフ
 		TALENT:ARG:体型 = 体型_グラマー
 ENDIF
 ;----------------------------------------------
@@ -545,3 +755,12 @@ SELECTCASE 巨乳指数
 	CASEELSE
 		TALENT:対象:バストサイズ = バストサイズ_魔乳
 ENDSELECT
+
+;----------------------------------------------
+;キャラの身長関数
+;BASE:バストを直接変動させたときにこの関数を使う
+;判定はそのキャラの身長、体型から求まる標準体型と比較してどれだけ巨乳かを表す数値、巨乳指数で行う
+;ここで使う関係で本来CALC_BODYSIZE_BUST内で行っていた計算を一部SET_BODYSIZE_BUSTへ移動させました
+;----------------------------------------------
+@RESET_HEIGHTSIZE(対象)
+#DIM 対象

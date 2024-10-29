@@ -45,7 +45,7 @@ IF ARG:2 == 1
 ENDIF
 
 ;非処女はスルー
-SIF !TALENT:ARG:処女
+SIF !TALENT:ARG:処女 || RCVAR:ARG:破瓜
 	RETURN 0
 RCVAR:ARG:破瓜 = ARG:2
 RCVAR:ARG:破瓜_相手番号 = ARG:1
@@ -193,7 +193,7 @@ IF ARG:2 == 1
 ENDIF
 
 ;非処女はスルー
-SIF !TALENT:ARG:Ａ処女
+SIF !TALENT:ARG:Ａ処女 || RCVAR:ARG:Ａ破瓜
 	RETURN 0
 RCVAR:ARG:Ａ破瓜 = ARG:2
 RCVAR:ARG:Ａ破瓜_相手番号 = ARG:1
@@ -316,64 +316,38 @@ ENDIF
 ;童貞喪失時の処理
 ;ARG		童貞喪失した人
 ;ARG:1	童貞喪失させる人
-;ARG:2		童貞喪失対象（V：１　A：２）
 ;-------------------------------------------------
-@LOST_MAN_VIRGIN(ARG, ARG:1, ARG:2)
+@LOST_MAN_VIRGIN(ARG, ARG:1)
 
 ;ちんこなし（＝ペニバン）はスルー
 SIF GETBIT(TALENT:ARG:性別, 1) == 0
 	RETURN 0
 
 ;非童貞の初挿入処理
-IF ARG:2 == 1
-	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_-1_") < 0
-		経験相手:ARG:Ｖ挿入初体験_男側 += "_-1_"
-		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＶ挿入した</font>","うふふ")
-	ELSEIF ARG:1 >= 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-		IF 初体験日:ARG:Ｖ挿入初体験_男側 == 0 && ARG:1 == MASTER
-			初体験日:ARG:Ｖ挿入初体験_男側 = DAY
-		ENDIF
-		経験相手:ARG:Ｖ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
-		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＶ挿入した</font>","うふふ")
+IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_-1_") < 0
+	経験相手:ARG:Ｖ挿入初体験_男側 += "_-1_"
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＶ挿入した</font>","うふふ")
+ELSEIF ARG:1 >= 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+	IF 初体験日:ARG:Ｖ挿入初体験_男側 == 0 && ARG:1 == MASTER
+		初体験日:ARG:Ｖ挿入初体験_男側 = DAY
 	ENDIF
-ELSEIF ARG:2 == 2
-	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_-1_") < 0
-		経験相手:ARG:Ａ挿入初体験_男側 += "_-1_"
-		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＡ挿入した</font>","うふふ")
-	ELSEIF STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-		IF 初体験日:ARG:Ａ挿入初体験_男側 == 0 && ARG:1 == MASTER
-			初体験日:ARG:Ａ挿入初体験_男側 = DAY
-		ENDIF
-		経験相手:ARG:Ａ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
-		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＡ挿入した</font>","うふふ")
-	ENDIF
+	経験相手:ARG:Ｖ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＶ挿入した</font>","うふふ")
 ENDIF
 
 ;非童貞はスルー
-SIF GETBIT(TALENT:ARG:非童貞, ARG:2 - 1)
+SIF GETBIT(TALENT:ARG:非童貞, 0) || RCVAR:ARG:童貞喪失
 	RETURN 0
-RCVAR:ARG:童貞喪失 = ARG:2
+RCVAR:ARG:童貞喪失 = 1
 RCVAR:ARG:童貞喪失_相手番号 = ARG:1
-IF ARG:2 == 1
-	IF ARG:1 < 0
-		CFLAG:ARG:童貞相手番号 = ARG:1
-	ELSE
-		CFLAG:ARG:童貞相手番号 = CFLAG:(ARG:1):人物番号
-	ENDIF
+IF ARG:1 < 0
+	CFLAG:ARG:童貞相手番号 = ARG:1
 ELSE
-	IF ARG:1 < 0
-		CFLAG:ARG:Ａ童貞相手番号 = ARG:1
-	ELSE
-		CFLAG:ARG:Ａ童貞相手番号 = CFLAG:(ARG:1):人物番号
-	ENDIF
+	CFLAG:ARG:童貞相手番号 = CFLAG:(ARG:1):人物番号
 ENDIF
 VARSET LOCAL
 ;SOURCE追加
-IF ARG:2 == 1
-	PRINTFORML Ｖ童貞喪失(%CALLNAME:ARG%)
-ELSEIF ARG:2 == 2
-	PRINTFORML Ａ童貞喪失(%CALLNAME:ARG%)
-ENDIF
+PRINTFORML Ｖ童貞喪失(%CALLNAME:ARG%)
 ;陥落素質による処理
 ;TARGETがMASTERの膣に挿入している
 IF ARG:1 == MASTER
@@ -392,11 +366,92 @@ IF ARG:1 == MASTER
 	ENDIF
 	;親愛
 	IF TALENT:ARG:恋慕 > 1
-		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初めての相手である事にこの上ない幸せを感じているようだ……
+		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が童貞を捨てた相手である事にこの上ない幸せを感じているようだ……
 		CALL SOURCE_CALC_歓楽(ARG, PLAYER, 5000)
 	;恋慕
 	ELSEIF TALENT:ARG:恋慕
-		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が初体験の相手である事に幸福を感じているようだ……
+		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%が童貞を捨てた初体験の相手である事に幸福を感じているようだ……
+		CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
+	ENDIF
+ELSE
+	;不潔
+	;貞操観念
+	IF TALENT:ARG:貞操 > 0
+		;非恋慕
+		IF ARG:1 < 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 300)
+		ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 300)
+		ENDIF
+	ELSEIF TALENT:ARG:貞操 == 0
+		;非恋慕
+		IF ARG:1 < 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 100)
+		ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:(ARG:1):人物番号} Or 対象キャラ２ = {CFLAG:(ARG:1):人物番号}) And 関係性種別 = '恋慕'") == 0
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 100)
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;童貞喪失時の処理
+;ARG		童貞喪失した人
+;ARG:1	童貞喪失させる人
+;-------------------------------------------------
+@LOST_MAN_A_VIRGIN(ARG, ARG:1)
+
+;ちんこなし（＝ペニバン）はスルー
+SIF GETBIT(TALENT:ARG:性別, 1) == 0
+	RETURN 0
+
+;非童貞の初挿入処理
+IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_-1_") < 0
+	経験相手:ARG:Ａ挿入初体験_男側 += "_-1_"
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＡ挿入した</font>","うふふ")
+ELSEIF STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
+	IF 初体験日:ARG:Ａ挿入初体験_男側 == 0 && ARG:1 == MASTER
+		初体験日:ARG:Ａ挿入初体験_男側 = DAY
+	ENDIF
+	経験相手:ARG:Ａ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
+	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＡ挿入した</font>","うふふ")
+ENDIF
+
+;非童貞はスルー
+SIF GETBIT(TALENT:ARG:非童貞, 1) || RCVAR:ARG:Ａ童貞喪失
+	RETURN 0
+RCVAR:ARG:Ａ童貞喪失 = 1
+RCVAR:ARG:Ａ童貞喪失_相手番号 = ARG:1
+IF ARG:1 < 0
+	CFLAG:ARG:Ａ童貞相手番号 = ARG:1
+ELSE
+	CFLAG:ARG:Ａ童貞相手番号 = CFLAG:(ARG:1):人物番号
+ENDIF
+VARSET LOCAL
+;SOURCE追加
+PRINTFORML Ａ童貞喪失(%CALLNAME:ARG%)
+;陥落素質による処理
+;TARGETがMASTERの膣に挿入している
+IF ARG:1 == MASTER
+	;不潔
+	;貞操観念
+	IF TALENT:ARG:貞操 > 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 300)
+		ENDIF
+	ELSEIF TALENT:ARG:貞操 == 0
+		;非恋慕
+		IF !TALENT:ARG:恋慕
+			CALL SOURCE_CALC_不潔(ARG, ARG:1, 100)
+		ENDIF
+	ENDIF
+	;親愛
+	IF TALENT:ARG:恋慕 > 1
+		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%がＡ童貞を捨てた相手である事にこの上ない幸せを感じているようだ……
+		CALL SOURCE_CALC_歓楽(ARG, PLAYER, 5000)
+	;恋慕
+	ELSEIF TALENT:ARG:恋慕
+		PRINTFORML %CALLNAME:ARG%は%CALLNAME:MASTER%がＡ童貞を捨てた相手である事に幸福を感じているようだ……
 		CALL SOURCE_CALC_歓楽(ARG, PLAYER, 2000)
 	ENDIF
 ELSE

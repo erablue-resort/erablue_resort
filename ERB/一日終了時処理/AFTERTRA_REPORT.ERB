@@ -1,17 +1,19 @@
 ﻿
-[SKIPSTART]
+;[SKIPSTART]
 
 ;────────────────────────────────────
 ;調教終了の処理
 ;────────────────────────────────────
-@EVENTEND0作成中につき関数名変更
+@EVENTEND0
+#DIM 現在ページ
 #DIMS 表示カテゴリ
 #DIMS HTML文字列
 ;#DIMS CONST カテゴリ表示順制御 = "オナニー・夜這い報告", "従業員業務報告", "妊娠報告", "リゾート収支計算", "リゾート人気変動", "その他報告"
-#DIMS CONST カテゴリ表示順制御 = "従業員業務報告", "リゾート収支計算"
+#DIMS CONST カテゴリ表示順制御 = "オナニー報告", "夜這い報告", "性癖開拓報告", "従業員業務報告", "妊娠報告", "リゾート収支計算", "リゾート人気変動", "依頼報告"
 
 ;一日終了時の諸々の処理
 探索フラグ = 0
+施設ルピ補正保存 = 0
 CALL 口上変数初期化
 SIF STRLENS(TSTR:1)
 	CALL SELL_VIDEO
@@ -23,13 +25,16 @@ CFLAG:MASTER:睡眠 = 1
 CALL 精力ゲージ_一日終了時回復処理(MASTER)
 
 CALL 寝取らせ夜這い判定()
-SELECTCOM = 0
+SELECTCOM = -1
 
 CALL JUEL_CHECK(MASTER)
 CALL DENIAL_CHECK(MASTER)
 
 料理ZP補正保存 = 0
 料理ルピ補正保存 = 0
+その他ZP補正保存 = 0
+その他ルピ補正保存 = 0
+RSTR:その他収支報告文字列 = 
 
 PRINTW 一日が終わりました
 
@@ -37,8 +42,18 @@ PRINTW 一日が終わりました
 ;以降に表示されるのは全て保存した文字列だけ（何度も表示呼んだりしても大丈夫なように処理する）
 
 FOR LOCAL, 0, VARSIZE("カテゴリ表示順制御")
+	;オナニー、夜這い、性癖開拓は同じ関数でまとめて処理している
+	IF LOCAL == 0
+		CALL 一日終了時レポート処理_オナニー・夜這い報告()
+		LOCAL += 2
+		CONTINUE
+	ENDIF
+	;収支計算だけは最後にやる
+	SIF カテゴリ表示順制御:LOCAL == "リゾート収支計算"
+		CONTINUE
 	CALLFORM 一日終了時レポート処理_%カテゴリ表示順制御:LOCAL%()
 NEXT
+CALL 一日終了時レポート処理_リゾート収支計算()
 
 SIF 表示カテゴリ == ""
 	表示カテゴリ = %カテゴリ表示順制御:0%
@@ -69,7 +84,7 @@ HTML文字列 += "</div>"
 
 ;そんでレポートの中身を表示する
 HTML文字列 += "<div rect='1400,100,5800,5000'>"
-HTML文字列 += @"%GETVARS(@"RSTR:%表示カテゴリ%_記録文字列")%"
+HTML文字列 += @"<nobr>%GETVARS(@"RSTR:%表示カテゴリ%_記録文字列")%</nobr>"
 HTML文字列 += "</div>"
 
 HTML_PRINT HTML文字列
@@ -81,91 +96,382 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 99
-		RETURN 0
-	CASE 0 TO 98
+		現在ページ = 0
+		;詳細必須の項目をここで表示する
+		FOR LOCAL, 0, CHARANUM
+			SIF CFLAG:LOCAL:妊娠経過日 >= 妊娠期間
+				CALL BIRTHING(LOCAL)
+			SIF PREGNANCY_SIZE(LOCAL) >= 2 && CFLAG:LOCAL:妊娠発覚 == 0
+				CALL DETECT_PREGNANCY(LOCAL)
+		NEXT
+		CALL レポート後全体処理()
+
+		BEGIN ABLUP
+	CASE 0 TO 90
+		現在ページ = 0
 		表示カテゴリ = %カテゴリ表示順制御:LOCAL%
 	CASEELSE
-		CALLFORM 一日終了時レポート表示_%表示カテゴリ%(LOCAL)
+		IF GROUPMATCH(表示カテゴリ, "オナニー報告", "夜這い報告", "性癖開拓報告")
+			CALL 一日終了時レポート表示_オナニー・夜這い報告(LOCAL)
+		ELSE
+			CALLFORM 一日終了時レポート表示_%表示カテゴリ%(LOCAL)
+		ENDIF
 ENDSELECT
 
 GOTO 表示ラベル
 
 
 @一日終了時レポート表示_オナニー・夜這い報告(ボタン番号)
+#DIMS 分割用文字列, 3
 #DIM ボタン番号
+#DIM 分割番号
+
+SELECTCASE ボタン番号
+	CASE IS >= 50000
+		HTML_PRINT CSTR:(ボタン番号 - 50000):夜這い報告_記録文字列
+		PRINTL
+		VARSET RESULTS
+		SPLIT CSTR:(ボタン番号 - 50000):夜這い口上渡し_記録文字列, "+++", RESULTS
+		TRYCALLFORM KOJO_夜這い実行時_{NO:(ボタン番号 - 50000)}(ボタン番号 - 50000, RCVAR:(ボタン番号 - 50000):夜這い相手保存, TOINT(RESULTS:1), TOINT(RESULTS:2))
+		;性癖自動取得チェック
+		VARSET RESULTS
+		SPLIT CSTR:(ボタン番号 - 50000):自動取得性癖_記録文字列, "___", RESULTS
+		FOR 分割番号, 0, RESULT
+			CALL 口上変数初期化
+			VARSET 分割用文字列
+			SIF STRFIND(RESULTS:分割番号, "+++") < 0
+				CONTINUE
+			SPLIT RESULTS:分割番号, "+++", 分割用文字列
+			;分割用文字列:0に対象キャラ、:1に性癖名が入ってるはず
+			CALLFORM 自動取得性癖メッセージ_%分割用文字列:1%(TOINT(分割用文字列:0))
+			TRYCALLFORM KOJO_性癖開拓_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+		NEXT
+		;性癖自動成長チェック
+		VARSET RESULTS
+		SPLIT CSTR:(ボタン番号 - 50000):自動成長性癖_記録文字列, "___", RESULTS
+		FOR 分割番号, 0, RESULT
+			CALL 口上変数初期化
+			VARSET 分割用文字列
+			SIF STRFIND(RESULTS:分割番号, "+++") < 0
+				CONTINUE
+			SPLIT RESULTS:分割番号, "+++", 分割用文字列
+			;分割用文字列:0に対象キャラ、:1に性癖名、:2に上がる前のレベルが入ってるはず
+			CALLFORM 性癖段階成長メッセージ_%分割用文字列:1%(TOINT(分割用文字列:0), TOINT(分割用文字列:2))
+			TRYCALLFORM KOJO_性癖成長_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0))
+		NEXT
+	CASE IS >= 40000
+		HTML_PRINT CSTR:(ボタン番号 - 40000):夜這い報告_記録文字列
+		PRINTL
+		TRYCALLFORM KOJO_夜這い失敗時_{NO:(ボタン番号 - 40000)}(ボタン番号 - 40000, RCVAR:(ボタン番号 - 40000):夜這い相手保存)
+	CASE IS >= 30000
+		HTML_PRINT CSTR:(ボタン番号 - 30000):オナニー報告_記録文字列
+		PRINTL
+		TRYCALLFORM KOJO_一日終了時オナニー_{NO:(ボタン番号 - 30000)}(ボタン番号 - 30000)
+	CASE IS >= 20000
+		HTML_PRINT CSTR:(ボタン番号 - 20000):性癖開拓報告_記録文字列
+		PRINTL
+		TRYCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:(ボタン番号 - 20000):性癖開発用フラグ変数)%_{NO:(ボタン番号 - 20000)}((ボタン番号 - 20000), RCVAR:(ボタン番号 - 20000):性癖開拓結果保存)
+	CASE IS >= 10000
+		TRYCALLFORM KOJO_欲求不満_野外オナニー_{NO:(ボタン番号 - 10000)}(ボタン番号 - 10000)
+ENDSELECT
+WAIT
 
 @一日終了時レポート処理_オナニー・夜這い報告()
-; #DIM 順番シャッフル用配列, キャラクタ数上限
-; #DIM シャッフル数
+#DIM 順番シャッフル用配列, キャラクタ数上限
+#DIM シャッフル数
+#DIM 結果保存
+#DIM 口上あり
+#DIMS 分割用文字列, 3
+#DIM 分割番号
 
-; CALL キャラ番号配列_初期化_シャッフル(順番シャッフル用配列, 0)
-; シャッフル数 = RESULT
+CALL キャラ番号配列_初期化_シャッフル(順番シャッフル用配列, 0)
+シャッフル数 = RESULT
+RSTR:オナニー報告_記録文字列 = 
+RSTR:夜這い報告_記録文字列 = 
+RSTR:性癖開拓報告_記録文字列 = 
 
-; ;シャッフル配列で処理
-; FOR LOCAL, 0, シャッフル数
-; 	;滞在してないキャラはスルー
-; 	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
-; 		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
-; 		CONTINUE
-; 	ENDIF
-; 	CALL JUEL_CHECK((順番シャッフル用配列:LOCAL))
-; 	CALL DENIAL_CHECK((順番シャッフル用配列:LOCAL))
+;シャッフル配列で処理
+;口上ボタンの表示判定のために非表示フラグをセット
+RFLAG:口上非表示フラグ = 1
+FOR LOCAL, 0, シャッフル数
+	;文字列リセット
+	CSTR:(順番シャッフル用配列:LOCAL):性癖開拓報告_記録文字列 = 
+	CSTR:(順番シャッフル用配列:LOCAL):オナニー報告_記録文字列 = 
+	CSTR:(順番シャッフル用配列:LOCAL):夜這い報告_記録文字列 = 
+	CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列 = 
+	CSTR:(順番シャッフル用配列:LOCAL):自動取得性癖_記録文字列 = 
+	CSTR:(順番シャッフル用配列:LOCAL):自動成長性癖_記録文字列 = 
+	口上あり = 0
+	;滞在してないキャラはスルー
+	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
+		CONTINUE
+	ENDIF
+	CALL JUEL_CHECK((順番シャッフル用配列:LOCAL))
+	CALL DENIAL_CHECK((順番シャッフル用配列:LOCAL))
 
-; 	;野外オナニー欲求不満
-; 	IF 性癖素質:(順番シャッフル用配列:LOCAL):野外オナニー > 2 && TCVAR:(順番シャッフル用配列:LOCAL):野外オナニー_実行回数 < 3
-; 		CALL 野外オナニー欲求不満処理((順番シャッフル用配列:LOCAL))
-; 	ENDIF
-; 	IF (順番シャッフル用配列:LOCAL) == FLAG:挿入睡眠相手記録
-; 		;挿入睡眠相手の時は性欲チャレンジもオナニーも発生しない
-; 	ELSEIF TCVAR:(順番シャッフル用配列:LOCAL):夜這い済み
-; 		;夜這いされた側については性癖チャレンジもオナニーも発生しない
-; 	ELSEIF 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数
-; 		;性癖開発チャレンジ
-; 		;チャレンジ時はオナニー判定が出ない
-; 		CALL 口上変数初期化
-; 		DRAWLINE
-; 		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%((順番シャッフル用配列:LOCAL))
-; 		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL), RESULT)
-; 			CALL 口上変数初期化
-; 		CATCH
-; 			CALL 口上変数表示((順番シャッフル用配列:LOCAL), 0)
-; 		ENDCATCH
-; 		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
-; 	ELSE
-; 		;一日終了時
-; 		;夜這い判定
-; 		CALL 一日終了時夜這い判定((順番シャッフル用配列:LOCAL))
-; 		結果保存 = RESULT
-; 		;自慰判定
-; 		;オプションによる制御
-; 		IF 一日終了時オナニーOPTION:(TALENT:(順番シャッフル用配列:LOCAL):性別) == 1
-; 			SKIPDISP 1
-; 		ENDIF
-; 		IF 結果保存 == 0
-; 			CALL 一日終了時オナニー判定((順番シャッフル用配列:LOCAL))
-; 			IF RESULT
-; 				TRYCALLFORM KOJO_一日終了時オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
-; 				CALL 口上変数初期化
-; 			ENDIF
-; 		ENDIF
-; 		SKIPDISP 0
-; 	ENDIF
-; 	CALL EXP変動記録処理((順番シャッフル用配列:LOCAL))
-; NEXT
-; FORCEWAIT
+	;野外オナニー欲求不満
+	IF 性癖素質:(順番シャッフル用配列:LOCAL):野外オナニー > 2 && TCVAR:(順番シャッフル用配列:LOCAL):野外オナニー_実行回数 < 3
+		CALL 野外オナニー欲求不満処理(順番シャッフル用配列:LOCAL)
+		RSTR:オナニー報告_記録文字列 += @"%RESULTS, 80, LEFT%"
+		CALL 口上変数初期化
+		;非表示状態で一旦口上を読んで、ちゃんと文字が入ってるなら表示ボタンを出す
+		TRYCCALLFORM KOJO_欲求不満_野外オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
+			IF 口上有無確認(0,1)
+				RSTR:オナニー報告_記録文字列 += @"<button value='{10000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+			ENDIF
+		CATCH
+		ENDCATCH
+		RSTR:オナニー報告_記録文字列 += "<br>"
+	ENDIF
+	IF (順番シャッフル用配列:LOCAL) == FLAG:挿入睡眠相手記録
+		;挿入睡眠相手の時は性欲チャレンジもオナニーも発生しない
+	ELSEIF TCVAR:(順番シャッフル用配列:LOCAL):夜這い済み
+		;夜這いされた側については性癖チャレンジもオナニーも発生しない
+	ELSEIF 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数
+		;性癖開発チャレンジ
+		;チャレンジ時はオナニー判定が出ない
+		TRYCALLFORM 性癖開拓チャレンジ処理_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%((順番シャッフル用配列:LOCAL))
+		RCVAR:(順番シャッフル用配列:LOCAL):性癖開拓結果保存 = RESULT
+		SELECTCASE RCVAR:(順番シャッフル用配列:LOCAL):性癖開拓結果保存
+			CASE -1
+				;知識不足
+				RSTR:性癖開拓報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%はエロ本を理解出来なかったようだ。", 80, LEFT%"
+			CASE 0
+				;失敗
+				RSTR:性癖開拓報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%性癖を取得しなかった……。", 80, LEFT%"
+			CASE 1
+				;成功
+				RSTR:性癖開拓報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%性癖を取得した。", 80, LEFT%"
+		ENDSELECT
+		CALL 口上変数初期化
+		;非表示状態で一旦口上を読んで、ちゃんと文字が入ってるなら表示ボタンを出す。入ってないなら詳細表示
+		TRYCCALLFORM KOJO_性癖開拓_%ERDNAME(性癖素質, 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数)%_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL), RCVAR:(順番シャッフル用配列:LOCAL):性癖開拓結果保存)
+			IF 口上有無確認(0,1)
+				RSTR:性癖開拓報告_記録文字列 += @"<button value='{20000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+			ELSE
+				RSTR:性癖開拓報告_記録文字列 += @"　<button value='{20000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDIF
+		CATCH
+			RSTR:性癖開拓報告_記録文字列 += @"　<button value='{20000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+		ENDCATCH
+		RSTR:性癖開拓報告_記録文字列 += "<br>"
+	ELSE
+		;一日終了時
+		;夜這い判定、性癖取得や成長のメッセージをキャンセルするために一旦SKIPDISP
+		SKIPDISP 1
+		;この文字列に結果を保存して後で格納する
+		RSTR:コマンド結果受渡し文字列 = 
+		CALL 一日終了時夜這い判定((順番シャッフル用配列:LOCAL))
+		結果保存 = RESULT
+		SKIPDISP 0
+		IF 結果保存 < 0
+			RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は夜這い出来なかったようだ…", 80, LEFT%"
+			RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存 = ABS(結果保存 + 1)
+			TRYCCALLFORM KOJO_夜這い失敗時_{NO:(順番シャッフル用配列:LOCAL)}(順番シャッフル用配列:LOCAL, RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存)
+				IF 口上有無確認(0,1)
+					RSTR:夜這い報告_記録文字列 += @"<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+				ELSE
+					RSTR:夜這い報告_記録文字列 += @"　<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+				ENDIF
+			CATCH
+				RSTR:夜這い報告_記録文字列 += @"　<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDCATCH
+			RSTR:夜這い報告_記録文字列 += "<br>"
+		ELSEIF 結果保存 >= 100
+			RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は%CALLNAME:(結果保存 - 100)%と熱い夜を過ごした…", 80, LEFT%"
+			CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列 = %RSTR:コマンド結果受渡し文字列%
+			;性癖自動取得チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動取得性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名が入ってるはず
+				TRYCCALLFORM KOJO_性癖開拓_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;性癖自動成長チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動成長性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名、:2に上がる前のレベルが入ってるはず
+				TRYCCALLFORM KOJO_性癖成長_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0))
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;夜這い実行時口上チェック
+			CALL 口上変数初期化
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列, "+++", RESULTS
+			RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存 = TOINT(RESULTS:0)
+			TRYCCALLFORM KOJO_夜這い実行時_{NO:(順番シャッフル用配列:LOCAL)}(順番シャッフル用配列:LOCAL, RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存, TOINT(RESULTS:1), TOINT(RESULTS:2))
+				IF 口上有無確認(0,1)
+					口上あり = 1
+				ENDIF
+			CATCH
+			ENDCATCH
+			IF 口上あり
+				RSTR:夜這い報告_記録文字列 += @"<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+			ELSE
+				RSTR:夜這い報告_記録文字列 += @"　<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDIF
+			RSTR:夜這い報告_記録文字列 += "<br>"
+		ELSEIF 結果保存 == 0
+			;自慰判定
+			CALL 一日終了時オナニー判定((順番シャッフル用配列:LOCAL))
+			RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存 = RESULT
+			;オプションによる制御
+			IF 一日終了時オナニーOPTION:(TALENT:(順番シャッフル用配列:LOCAL):性別) == 0
+				SELECTCASE RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存
+					CASE -1
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%はただ悶々としている…", 80, LEFT%"
+					CASE 1
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%はオナニーで性欲を発散している", 80, LEFT%"
+					CASE 2
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は自らの母乳を絞っている", 80, LEFT%"
+					CASE 3
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は覚えたばかりの自慰の虜になっている", 80, LEFT%"
+				ENDSELECT
+				IF RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存
+					CALL 口上変数初期化
+					TRYCCALLFORM KOJO_一日終了時オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
+						IF 口上有無確認(0,1)
+							RSTR:オナニー報告_記録文字列 += @"<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+						ELSE
+							RSTR:オナニー報告_記録文字列 += @"　<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+						ENDIF
+					CATCH
+						RSTR:オナニー報告_記録文字列 += @"　<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+					ENDCATCH
+					RSTR:オナニー報告_記録文字列 += "<br>"
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+	CALL EXP変動記録処理((順番シャッフル用配列:LOCAL))
+NEXT
+RFLAG:口上非表示フラグ = 0
 
 
 
 @一日終了時レポート表示_妊娠報告(ボタン番号)
 #DIM ボタン番号
+DRAWLINE
+
+PRINTL
+SELECTCASE ボタン番号
+	CASE IS >= 30000
+		CALL BIRTHING(ボタン番号 - 30000)
+	CASE IS >= 20000
+		;妊娠知覚イベント
+		CALL DETECT_PREGNANCY(ボタン番号 - 20000)
+		HTML_PRINT CSTR:(ボタン番号 - 20000):妊娠報告_記録文字列
+	CASE IS >= 10000
+		HTML_PRINT CSTR:(ボタン番号 - 10000):妊娠報告_記録文字列
+ENDSELECT
+WAIT
 
 @一日終了時レポート処理_妊娠報告()
+#DIM 口上ありフラグ
+
+;口上ボタンの表示判定のために非表示フラグをセット
+RFLAG:口上非表示フラグ = 1
+
 ;妊娠判定
 FOR LOCAL,0,CHARANUM
+	口上ありフラグ = 0
+	CSTR:LOCAL:妊娠報告_記録文字列 = 
 	CALL PREGNANCY_CHECK(LOCAL)
+	SELECTCASE RESULT
+		CASE -1
+			RSTR:妊娠報告_記録文字列 += @"%@"%CALLNAME:LOCAL%は妊娠しなかったようだ……。", 80, LEFT%"
+		CASE 1
+			RSTR:妊娠報告_記録文字列 += @"%@"%CALLNAME:LOCAL%は妊娠したようだ。", 80, LEFT%"
+	ENDSELECT
+	SIF RESULT
+		RSTR:妊娠報告_記録文字列 += @"　<button value='{10000 + LOCAL}'>[詳細表示]</button><br>"
 	CALL PREGNANCY_COUNTUP(LOCAL)
+	SELECTCASE RESULT
+		CASE -1
+			RSTR:妊娠報告_記録文字列 += @"%@"%CALLNAME:LOCAL%の授乳期間が終了した。", 80, LEFT%"
+			RSTR:妊娠報告_記録文字列 += @"　<button value='{20000 + LOCAL}'>[詳細表示]</button><br>"
+		CASE 1
+			RSTR:妊娠報告_記録文字列 += @"%@"%CALLNAME:LOCAL%の腹部が大きくなった。", 80, LEFT%"
+			;口上の判定のために同じ分岐をここでも見る
+			IF PREGNANCY_SIZE(LOCAL) >= 2 && CFLAG:LOCAL:妊娠発覚 == 0 && CFLAG:LOCAL:滞在期間 > 0
+				IF 知識素質:LOCAL:性知識 == -2
+					TRYCCALLFORM KOJO_無知_妊娠発覚_1_{NO:LOCAL}(LOCAL)
+						SIF 口上有無確認(0,1)
+							口上ありフラグ = 1
+					CATCH
+						TRYCCALLFORM KOJO_無知_妊娠発覚_2_{NO:LOCAL}(LOCAL)
+							SIF 口上有無確認(0,1)
+								口上ありフラグ = 1
+						CATCH
+							TRYCCALLFORM KOJO_無知_妊娠発覚_3_{NO:LOCAL}(LOCAL)
+							SIF 口上有無確認(0,1)
+								口上ありフラグ = 1
+							CATCH
+							ENDCATCH
+						ENDCATCH
+					ENDCATCH
+				ELSEIF TALENT:LOCAL:恋慕
+					TRYCCALLFORM KOJO_恋慕_妊娠発覚_{NO:LOCAL}(LOCAL)
+						SIF 口上有無確認(0,1)
+							口上ありフラグ = 1
+					CATCH
+					ENDCATCH
+				ELSE
+					TRYCCALLFORM KOJO_その他_妊娠発覚_{NO:LOCAL}(LOCAL)
+						SIF 口上有無確認(0,1)
+							口上ありフラグ = 1
+					CATCH
+					ENDCATCH
+				ENDIF
+			ENDIF
+			IF 口上ありフラグ
+				RSTR:妊娠報告_記録文字列 += @"<button value='{20000 + LOCAL}'>[口上の表示]</button>"
+			ELSE
+				RSTR:妊娠報告_記録文字列 += @"　<button value='{20000 + LOCAL}'>[詳細表示]</button>"
+			ENDIF
+			RSTR:妊娠報告_記録文字列 += "<br>"
+		CASE 2
+			RSTR:妊娠報告_記録文字列 += @"%@"%CALLNAME:LOCAL%は子供を出産したようだ", 80, LEFT%"
+			IF CFLAG:LOCAL:滞在期間 == -1 && LOCAL != MASTER
+				TRYCCALLFORM KOJO_出産_リゾート外_{NO:LOCAL}(LOCAL)
+					SIF 口上有無確認(0,1)
+						口上ありフラグ = 1
+				CATCH
+				ENDCATCH
+			ELSE
+				TRYCCALLFORM KOJO_出産_リゾート内_{NO:LOCAL}(LOCAL)
+					SIF 口上有無確認(0,1)
+						口上ありフラグ = 1
+				CATCH
+				ENDCATCH
+			ENDIF
+			IF 口上ありフラグ
+				RSTR:妊娠報告_記録文字列 += @"<button value='{30000 + LOCAL}'>[口上の表示]</button>"
+			ELSE
+				RSTR:妊娠報告_記録文字列 += @"　<button value='{30000 + LOCAL}'>[詳細表示]</button>"
+			ENDIF
+			RSTR:妊娠報告_記録文字列 += "<br>"
+	ENDSELECT
 NEXT
 
+RFLAG:口上非表示フラグ = 0
 
 @一日終了時レポート表示_従業員業務報告(ボタン番号)
 #DIM ボタン番号
@@ -190,6 +496,7 @@ WAIT
 ;記録用文字列リセット
 RSTR:従業員業務報告_記録文字列 = 
 VARSET 業務別報告文字列
+VARSET 港商店常駐_収支報告文字列
 ;--------------------------------------------------------------------------------
 ;従業員の仕事処理
 ;--------------------------------------------------------------------------------
@@ -280,25 +587,13 @@ FOR LOCAL, 0, CHARANUM
 			ENDIF
 		CASE 2
 			仕事人数表示用:常駐業務担当人数 ++
-			LOCALS = %MAP_GET("常駐業務名", GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000))%
-			IF LOCALS != ""
-				業務量 = (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * (常駐業務レベル:LOCAL:LOCALS + 1) * 滞在キャラ数算出関数() * RAND(95, 106) / 100
-				業務別報告文字列:仕事変数 += @"%GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000)%に常駐する%CALLNAME:LOCAL, 18, LEFT%の働きで%NUM_FORMAT(業務量), 6%ルピ分の利益が上がりました。<br>"
-				売上分ルピ += 業務量
-				;経験値取得とレベル上昇
-				LOCAL:1 = GETNUM(常駐業務レベル, LOCALS)
-				常駐業務経験値:LOCAL:(LOCAL:1) += 1
-				IF 常駐業務レベル:LOCAL:LOCALS < 5
-					IF 常駐業務経験値:LOCAL:(LOCAL:1) >= 仕事レベル経験値テーブル:(常駐業務レベル:LOCAL:LOCALS + 1)
-						常駐業務レベル:LOCAL:LOCALS += 1
-						業務別報告文字列:仕事変数 += @"%CALLNAME:LOCAL, 18, LEFT%の%LOCALS%レベルがLv{常駐業務レベル:LOCAL:LOCALS}に上昇した！<br>"
-						IF 常駐業務レベル:LOCAL:LOCALS >= 5
-							;仕事レベルは減少しないのでこれでいいはず
-							CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, @"仕事：常駐業務：%LOCALS%レベルがLv5になった","リゾート")
-						ENDIF
-					ENDIF
-				ENDIF
-			ENDIF
+			LOCALS = %MAP_GET("常駐業務名", REPLACE(GETPLACENAME(現在仕事:LOCAL:1 / 10000, 現在仕事:LOCAL:1 % 10000), "『.*』", ""))%
+			
+			RESULTS = 
+			CALLFORM 常駐業務効果_%LOCALS%(LOCAL, "ルピ補正")
+			SIF 現在仕事:LOCAL:1 / 10000 == 1 && 現在仕事:LOCAL:1 % 10000 >= 3 && 現在仕事:LOCAL:1 % 10000 <= 8
+				港商店常駐_収支報告文字列:(現在仕事:LOCAL:1 % 10000) += @"%RESULTS%"
+			売上分ルピ += RESULT
 		CASE 3
 			仕事人数表示用:秘書担当人数 ++
 			業務量 = (仕事レベル:LOCAL:仕事変数 + 1) * (仕事レベル:LOCAL:仕事変数 + 1) * RAND(190, 211)
@@ -542,6 +837,7 @@ WAIT
 ;記録用文字列リセット
 RSTR:リゾート収支計算_記録文字列 = 
 VARSET リゾート収支報告文字列
+;:0:長期雇用者EXP表示　1:従業員雇用費詳細　2:施設効果収入詳細
 合計ルピ収入 = 0
 合計ZP収入 = 0
 
@@ -624,26 +920,35 @@ IF 滞在キャラ数算出関数() > 0
 	LOCAL = 0
 	LOCAL:1 = 0
 	FOR LOCAL:2, 3, 9
+		表示フラグ = 0
 		TRYCALLFORM 空艇港店舗効果_{空艇港店舗状況:(LOCAL:2):0}("一日終了時のルピ収入")
 		LOCAL += RESULT
-		SIF RESULT
+		IF RESULT
 			リゾート収支報告文字列:2 += @"%GETPLACENAME(1, LOCAL:2), 26, LEFT%の効果：%NUM_FORMAT(RESULT), 9%ルピ<br>"
+			表示フラグ ++
+		ENDIF
 		TRYCALLFORM 空艇港店舗効果_{空艇港店舗状況:(LOCAL:2):0}("一日終了時のZP発生")
 		LOCAL:1 += RESULT
 		IF RESULT
 			LOCALS = {RESULT / 1000}.{RESULT % 1000}
 			リゾート収支報告文字列:2 += @"%GETPLACENAME(1, LOCAL:2), 26, LEFT%の効果：%LOCALS, 9%ZP<br>"
+			表示フラグ ++
 		ENDIF
+		SIF 表示フラグ == 0
+			リゾート収支報告文字列:2 += @"%GETPLACENAME(1, LOCAL:2), 26, LEFT%の効果：なし<br>"
+		SIF 港商店常駐_収支報告文字列:(LOCAL:2) != ""
+			リゾート収支報告文字列:2 += @"%港商店常駐_収支報告文字列:(LOCAL:2)%"
+		リゾート収支報告文字列:2 += "<br>"
 	NEXT
 	IF LOCAL || LOCAL:1
 		RSTR:リゾート収支計算_記録文字列 += @"%@"施設の効果により、以下の利益を得た。", 80, LEFT%"
 		RSTR:リゾート収支計算_記録文字列 += "<button value='102'>[詳細を表示]</button>"
 		RSTR:リゾート収支計算_記録文字列 += "<br>"
 	ENDIF
-	IF LOCAL
-		RSTR:リゾート収支計算_記録文字列 += @"ルピ利益：%NUM_FORMAT(LOCAL)%<br>"
-		MONEY += LOCAL
-		合計ルピ収入 += LOCAL
+	IF LOCAL + 施設ルピ補正保存
+		RSTR:リゾート収支計算_記録文字列 += @"ルピ利益：%NUM_FORMAT(LOCAL + 施設ルピ補正保存)%<br>"
+		MONEY += LOCAL + 施設ルピ補正保存
+		合計ルピ収入 += LOCAL + 施設ルピ補正保存
 	ENDIF
 	IF LOCAL:1
 		RSTR:リゾート収支計算_記録文字列 += @"発生ＺＰ：{LOCAL:1 / 1000}.{(LOCAL:1 % 1000) / 100}{(LOCAL:1 % 100) / 10}{(LOCAL:1 % 10)}<br>"
@@ -734,12 +1039,19 @@ IF 滞在キャラ数算出関数() > 0
 		RSTR:リゾート収支計算_記録文字列 += "-------------------------------------------------------------------------------------------------------------------<br>"
 	ENDIF
 
+	長期雇用者人数 = 0
+	FOR ループ用, 0, CHARANUM
+		IF CFLAG:ループ用:長期雇用
+			長期雇用者保存配列:長期雇用者人数 = ループ用
+			長期雇用者人数 ++
+		ENDIF
+	NEXT
 	IF 長期雇用者人数 > 0
-		RSTR:リゾート収支計算_記録文字列 += @"{長期雇用者人数}名の長期雇用により、以下のルピを消費した。<br>"
 		FOR ループ用, 0, 長期雇用者人数
 			SIF 長期雇用者保存配列:ループ用 > 0
-				RSTR:リゾート収支計算_記録文字列 += @"%CALLNAME:(長期雇用者保存配列:ループ用)%雇用費：1000ルピ<br>"
+				リゾート収支報告文字列:0 += @"%CALLNAME:(長期雇用者保存配列:ループ用)%雇用費：1000ルピ<br>"
 		NEXT
+		RSTR:リゾート収支計算_記録文字列 += @"{長期雇用者人数}名の長期雇用により、%NUM_FORMAT(長期雇用者人数 * 1000), 9%ルピを消費した。<br>"
 		MONEY -= 長期雇用者人数 * 1000
 		合計ルピ収入 -= 長期雇用者人数 * 1000
 		IF 施設改造度:3:8 > 0
@@ -749,6 +1061,7 @@ IF 滞在キャラ数算出関数() > 0
 				IF 長期雇用者保存配列:ループ用 > 0 && 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):Lv < LOCAL
 					IF 基礎BATTLE_STATE:(長期雇用者保存配列:ループ用):蓄積EXP >  戦闘経験値テーブル:(MAX(LOCAL - 2, 0))
 						;最大Lv到達EXPより現在のEXPが高いならスキップ
+						リゾート収支報告文字列:0 += @"%CALLNAME:(長期雇用者保存配列:ループ用), 18, LEFT%は今は訓練でEXPを入手できないようだ。<br>"
 						CONTINUE
 					ENDIF
 					LOCAL:1 = MIN(戦闘経験値テーブル:(MAX(LOCAL - 2, 0)) / 10, 500)
@@ -777,11 +1090,11 @@ IF 滞在キャラ数算出関数() > 0
 					CALL 口上変数初期化
 				ENDIF
 			NEXT
-			RSTR:リゾート収支計算_記録文字列 += @"%@"訓練室の効果により、長期雇用者{長期雇用者人数, 2}名の経験値が上昇した。", 80, LEFT%"
-			RSTR:リゾート収支計算_記録文字列 += "<button value='100'>[詳細を表示]</button>"
-			RSTR:リゾート収支計算_記録文字列 += "<br>"
-			RSTR:リゾート収支計算_記録文字列 += "-------------------------------------------------------------------------------------------------------------------<br>"
 		ENDIF
+		RSTR:リゾート収支計算_記録文字列 += @"%@"訓練室の効果により、長期雇用者{長期雇用者人数, 2}名の経験値が上昇した。", 80, LEFT%"
+		RSTR:リゾート収支計算_記録文字列 += "<button value='100'>[詳細を表示]</button>"
+		RSTR:リゾート収支計算_記録文字列 += "<br>"
+		RSTR:リゾート収支計算_記録文字列 += "-------------------------------------------------------------------------------------------------------------------<br>"
 	ENDIF
 	IF 従業員人数 > 0
 		IF SAVESTR:あなたスタイル == "スタートダッシュモード" && DAY < 30
@@ -836,6 +1149,18 @@ IF 滞在キャラ数算出関数() > 0
 		RSTR:リゾート収支計算_記録文字列 += "-------------------------------------------------------------------------------------------------------------------<br>"
 	ENDIF
 ENDIF
+IF その他ルピ補正保存 != 0 || その他ZP補正保存 != 0
+	リゾート収支報告文字列:9 '= RSTR:その他収支報告文字列
+	RSTR:リゾート収支計算_記録文字列 += @"%@"その他ルピ変動：%NUM_FORMAT(その他ルピ補正保存)%ルピ", 80, LEFT%"
+	RSTR:リゾート収支計算_記録文字列 += "<button value='109'>[詳細を表示]</button><br>"
+	LOCALS = {ABS(その他ZP補正保存 / 1000)}.{ABS(その他ZP補正保存 % 1000)}
+	IF その他ZP補正保存 >= 0
+		RSTR:リゾート収支計算_記録文字列 += @"その他ZP変動：%LOCALS, 9%ZP<br>"
+	ELSE
+		RSTR:リゾート収支計算_記録文字列 += @"その他ZP変動：－%LOCALS, 9%ZP</font><br>"
+	ENDIF
+ENDIF
+
 
 IF 合計ルピ収入 >= 0
 	RSTR:リゾート収支計算_記録文字列 += @"%@"ルピ収支：＋%NUM_FORMAT(ABS(合計ルピ収入)), 9%ルピ", 100%<br>"
@@ -856,6 +1181,185 @@ ENDIF
 #DIM ボタン番号
 
 @一日終了時レポート処理_リゾート人気変動()
+#DIM 人気度変動一時保存
+#DIM ルピ減数
+#DIM バッドイベ判定値
+#DIM ランダムセット
+
+LOCALS:1 = 
+LOCALS:2 = <br>
+RSTR:リゾート人気変動_記録文字列 = 
+人気度変動一時保存 = 0
+IF モブ観光客数 > 0
+	LOCALS:1 +=  "■本日のリゾート人気度変動<br>"
+	IF 人気度別施設充足度() > 0
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「遊ぶ場所が十分あって楽しい！」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += "人気度UP！<br>"
+		人気度変動一時保存 += 人気度別施設充足度() * 1000
+	ELSEIF 人気度別施設充足度() < 0
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「遊ぶ場所が足りないよ……」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += "人気度DOWN…<br>"
+		人気度変動一時保存 -= 人気度別施設充足度() * 500
+	ENDIF
+
+	VARSET LOCAL
+	;雑務ゲージ平均値算出
+	FOR LOCAL, 1, マップ部屋番号上限
+		SIF LOCAL == 20
+			CONTINUE
+		SIF LOCAL > 2000
+			CONTINUE
+		IF 存在しない移動先(0, LOCAL) == 0
+			LOCAL:1 += 雑務ゲージ:LOCAL
+			LOCAL:2 += 1
+		ENDIF
+	NEXT
+	LOCAL:1 = LOCAL:1 / LOCAL:2
+	IF LOCAL:1 < 500
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「雑務の対応が早くて快適だね」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += "人気度UP！<br>"
+		人気度変動一時保存 += 1000
+	ELSEIF LOCAL:1 < 2000
+	ELSEIF LOCAL:1 < 4000
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「ちょっと雑務が溜まってるかな」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 1000
+	ELSEIF LOCAL:1 < 6000
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「雑務が遅いのが気になるかも」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 3000
+	ELSEIF LOCAL:1 < 8000
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「雑務、溜まりすぎじゃない？」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 5000
+	ELSE
+		RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「雑務が何も対応されてない！」", 80, LEFT%"
+		RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+		人気度変動一時保存 -= 10000
+	ENDIF
+
+	;各施設イベント、モブが100人超えてから発生
+	IF モブ観光客数 >= 100
+		;数値が高いほど悪いイベが発生
+		バッドイベ判定値 = RAND:100
+	ENDIF
+	
+	VARSET LOCAL
+	;魔物襲撃が残ってるかどうか
+	LOCAL:1 = DT_ROW_LENGTH("各イベント用変数配列")
+	FOR LOCAL, 0, LOCAL:1
+		IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "魔物襲撃"
+			IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
+				;出現しているかつクリアしてない
+				RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「魔物が出てきて危ないぞ！！」", 80, LEFT%"
+				LOCALS:1 += "モブ観光客「魔物が出てきて危ないぞ！！」<br>"
+				RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				;再発生中
+				RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「魔物が出てきて危ないぞ！！」", 80, LEFT%"
+				RSTR:リゾート人気変動_記録文字列 += @"人気度DOWN…<br>"
+				人気度変動一時保存 -= 10000
+			ENDIF
+		ENDIF
+		IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名") == "ならず者の来訪"
+			IF (DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0) || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				ランダムセット = RAND:3
+				SELECTCASE ランダムセット
+					CASE 2
+						RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「ならず者が出てきて危ないんですけど！！」", 80, LEFT%"
+						RSTR:リゾート人気変動_記録文字列 += "人気度DOWN…<br>"
+						人気度変動一時保存 -= 10000
+					CASE 1
+						ルピ減数 = RAND(5000, 10001)
+						MONEY -= ルピ減数
+						RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「変な人が従業員室に入っていったの見たんですが…」", 80, LEFT%<br>"
+						RSTR:リゾート人気変動_記録文字列 += @"%@"調べたら金庫に入っていた{ルピ減数}ルピがなくなっていた", 80, LEFT%"
+						RSTR:リゾート人気変動_記録文字列 += "人気度DOWN…<br>"
+						人気度変動一時保存 -= 1000
+						;収支報告に記載
+						その他ルピ補正保存 -= ルピ減数
+						RSTR:その他収支報告文字列 += @"%"ならず者による被害", 50, LEFT%：%NUM_FORMAT(ルピ減数), 9%ルピ<br>"
+					CASE 0
+						ルピ減数 = RAND(2500, 5001)
+						MONEY -= ルピ減数
+						RSTR:リゾート人気変動_記録文字列 += @"%"モブ観光客「部屋に戻ってきたら荒らされてたんですけど！！」", 80, LEFT%<br>"
+						RSTR:リゾート人気変動_記録文字列 += @"%@"補償として{ルピ減数}ルピを支払った", 80, LEFT%<br>"
+						RSTR:リゾート人気変動_記録文字列 += "人気度DOWN…<br>"
+						人気度変動一時保存 -= 5000
+						;収支報告に記載
+						その他ルピ補正保存 -= ルピ減数
+						RSTR:その他収支報告文字列 += @"%"ならず者による被害", 50, LEFT%：%NUM_FORMAT(ルピ減数), 9%ルピ<br>"
+				ENDSELECT
+			ENDIF
+		ENDIF
+	NEXT
+
+	RSTR:リゾート人気変動_記録文字列 += @"--------------------------------------------------------------------------------------<br>"
+	SKIPDISP 1
+	CALL 人気上昇処理(人気度変動一時保存)
+	SKIPDISP 0
+	RSTR:リゾート人気変動_記録文字列 += @"リゾート人気度　　%リゾート人気度全文字列()%"
+	CALL 人気度上限算出()
+	IF リゾート人気度 >= RESULT / 1000
+		RSTR:リゾート人気変動_記録文字列 += "　　　<font color='#C0C070'>上限到達</font>"
+	ENDIF
+ENDIF
+
+
+@一日終了時レポート表示_依頼報告(ボタン番号)
+#DIM ボタン番号
+DRAWLINE
+
+PRINTL 
+HTML_PRINT 依頼報告文字列:(ボタン番号 - 100)
+
+WAIT
+
+
+@一日終了時レポート処理_依頼報告()
+LOCAL:1 = 0
+RSTR:依頼報告_記録文字列 = 
+FOR LOCAL, 0, 10
+	IF 遂行中依頼:LOCAL == ""
+		CONTINUE
+	ENDIF
+	IF 依頼受注者名:LOCAL == ""
+		;未受注なので受注者をランダムで決定
+		CALL 依頼受注者決定(LOCAL)
+		RSTR:依頼報告_記録文字列 += @"%遂行中依頼:LOCAL% の依頼を %依頼受注者名:LOCAL% が受注したようだ。<br>"
+		LOCAL:1 = 1
+	ELSE
+		;受注済みなので依頼の終了判定
+		;依頼残り期間が存在する場合はその間絶対に終了しない
+		IF 依頼残り期間:LOCAL > 0
+			RSTR:依頼報告_記録文字列 += @"%依頼受注者名:LOCAL% は %遂行中依頼:LOCAL% のために移動中だ。<br>"
+			依頼残り期間:LOCAL -= 1
+		ELSE
+			LOCAL:10 = RAND:100
+			IF LOCAL:10 < 依頼完了確率_初期値:LOCAL
+				;依頼完了
+				SIF LOCAL:1
+					PRINTL
+				RSTR:依頼報告_記録文字列 += @"%@"%依頼受注者名:LOCAL% が %遂行中依頼:LOCAL% の依頼を達成したようだ！", 80, LEFT%"
+				RSTR:依頼報告_記録文字列 += @"<button value='{LOCAL + 100}'>[詳細を表示]</button><br>"
+				CALLFORM 依頼完了時処理_%遂行中依頼:LOCAL%(LOCAL)
+				;登録情報をリセット
+				遂行中依頼:LOCAL = 
+				遂行中依頼_対象名:LOCAL = 
+				依頼受注者名:LOCAL = 
+				依頼残り期間:LOCAL = 0
+				依頼完了確率_初期値:LOCAL = 0
+				依頼完了確率_進数:LOCAL = 0
+				LOCAL:1 = 1
+			ELSE
+				;まだ完了しないので確率を上昇させておしまい
+				RSTR:依頼報告_記録文字列 += @"%依頼受注者名:LOCAL% は %遂行中依頼:LOCAL% の依頼を遂行中……<br>"
+				依頼完了確率_初期値:LOCAL += 依頼完了確率_進数:LOCAL
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
 
 
 @一日終了時レポート表示_その他報告(ボタン番号)
@@ -863,5 +1367,151 @@ ENDIF
 
 @一日終了時レポート処理_その他報告()
 
+CSTR:LOCAL:その他報告_キャラ別記録文字列 = 
 
-[SKIPEND]
+;[SKIPEND]
+
+
+
+
+
+
+@レポート後全体処理()
+#DIM ループ用
+
+;--------------------------------------------------------------------------------
+;キャラ個別処理
+;--------------------------------------------------------------------------------
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	TRYCALLFORM DAYEND_CHARAEVENT_{NO:LOCAL}
+	;滞在中は信頼度がじわじわ上昇（初対面だと上昇しない）
+	IF 初体験日:LOCAL:初対面
+		SKIPDISP 1
+		CFLAG:LOCAL:信頼度 += 500
+		CALL FAVOR_LvUPCheck(LOCAL)
+		SKIPDISP 0
+	ENDIF
+	CALL 処女童貞適用処理(LOCAL)
+NEXT
+
+;--------------------------------------------------------------------------------
+;縁結びの一日進行
+;--------------------------------------------------------------------------------
+CALL 縁結び進展処理()
+
+;--------------------------------------------------------------------------------
+;突発イベント再発生CT減少＆再発生判定
+;--------------------------------------------------------------------------------
+ループ用 = DT_ROW_LENGTH("各イベント用変数配列")
+
+FOR LOCAL, 0, ループ用
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生確率")
+	LOCAL:3 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
+	
+	RESULT = 0
+	;再発生確率は消失時にしか入らないはずなので、そこで条件を読むか見る
+	SIF LOCAL:2 > 0
+		TRYCALLFORM イベント時限消失_再発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF RESULT == -1
+		;再発生させない
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+		ENDIF
+	ELSEIF RESULT == 1
+		;即座に再発生させる
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+	ELSE
+		;以降通常処理
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", LOCAL:1 - 1
+		ELSEIF LOCAL:3 == -2
+			;消失状態、かつ発生条件を満たす場合はRANDで再発生させる
+			RESULT = 0
+			TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+			IF RESULT
+				LOCAL:10 = RAND:100
+				IF LOCAL:2 > LOCAL:10
+					DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", -1
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+
+	LOCAL:1 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT")
+	LOCAL:2 = DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅確率")
+
+	RESULT = 0
+	;消滅確率は消失時にしか入らないはずなので、そこで条件を読むか見る
+	SIF LOCAL:2 > 0
+		TRYCALLFORM イベント時限消失_再発生条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF RESULT == -1
+		;消滅させない
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", LOCAL:1 - 1
+		ENDIF
+	ELSEIF RESULT == 1
+		;即座に消滅させる
+		DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -1
+	ELSE
+		;以降通常処理
+		IF LOCAL:1 > 0
+			;CTが残ってる場合は１減らす
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", LOCAL:1 - 1
+		ELSEIF LOCAL:2 > 0
+			;現在出現中のものだけ消滅判定
+			IF (DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0) || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+				;消失確率がある場合はRANDで消失させる
+				LOCAL:10 = RAND:100
+				IF LOCAL:2 > LOCAL:10
+					DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅CT", -1
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;--------------------------------------------------------------------------------
+;輸入品店品揃え変動
+;--------------------------------------------------------------------------------
+CALL 輸入品店品揃え変動処理
+
+;変数初期化
+VARSET 解放キャラ招待
+モブ観光客数 = 0
+集客人数 = 0
+
+
+@人気度別施設充足度()
+#FUNCTION
+
+SELECTCASE リゾートランク
+	CASE 0
+		;誰も知らないリゾート
+		;一個でも施設改造していればOK、してないなら不満小
+		IF 施設改造度:3:0 || 施設改造度:5:0 || 施設改造度:15:0
+			RETURNF 施設改造度:3:0 + 施設改造度:5:0 + 施設改造度:15:0 + 施設改造度:3:8 + 施設改造度:5:6
+		ELSE
+			RETURNF -1
+		ENDIF
+	CASE 1
+		;無名リゾート
+		;前段階の改造は全部必須
+		IF 施設改造度:3:0 && 施設改造度:5:0 && 施設改造度:15:0
+			IF 施設改造度:3:8 || 施設改造度:5:6
+				;追加施設の数に応じて＋補正
+				RETURNF 施設改造度:3:8 + 施設改造度:5:6
+			ELSE
+				RETURNF 0
+			ENDIF
+		ELSE
+			RETURNF -4 + 施設改造度:3:0 + 施設改造度:5:0 + 施設改造度:15:0
+		ENDIF
+ENDSELECT
+
+RETURNF 0

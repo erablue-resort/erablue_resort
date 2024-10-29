@@ -585,6 +585,7 @@ IF 引き継ぎキャラフラグ == 0
 
 	IF EXP:ARG:キス経験
 		CFLAG:ARG:ファーストキスフラグ = 1
+		CFLAG:ARG:ファーストキス相手番号 = -1
 	ENDIF
 
 	SIF ARG == MASTER
@@ -636,14 +637,35 @@ IF 引き継ぎキャラフラグ == 0
 	SIF BASE:ARG:年齢 > 0
 		TALENT:ARG:年齢層 = 年齢層算出処理(BASE:ARG:年齢)
 
-	IF 従業員追加中フラグ
+	SIF 従業員追加中フラグ
 		従業員追加中フラグ = 0
-	ELSEIF !BASE:ARG:身長 || (!BASE:ARG:バスト && TALENT:ARG:性別 != 2) || !BASE:ARG:ウエスト || !BASE:ARG:ヒップ
-		CALL INIT_BODYSIZE(ARG)
-	ELSEIF BASE:ARG:身長
-		;身長があるなら体格の設定
-		CALL INIT_BODYTALENT(ARG)
+
+	;身長・体格決定
+	IF !BASE:ARG:身長 || !TALENT:ARG:体格
+		CALL INIT_BODYSIZE_HEIGHT(ARG)
 	ENDIF
+	;ウエスト・体型決定
+	IF !BASE:ARG:ウエスト || !TALENT:ARG:体型
+		CALL INIT_BODYSIZE_WAIST(ARG)
+	ENDIF
+	;バスト決定
+	IF !BASE:ARG:バスト || !TALENT:ARG:バストサイズ
+		CALL INIT_BODYSIZE_BUST(ARG)
+	ENDIF
+	;ヒップ決定
+	IF !BASE:ARG:ヒップ || !TALENT:ARG:下半身
+		CALL INIT_BODYSIZE_HIP(ARG)
+	ENDIF
+
+
+	; IF !BASE:ARG:身長 || (!BASE:ARG:バスト && TALENT:ARG:性別 != 2) || !BASE:ARG:ウエスト || !BASE:ARG:ヒップ
+	; 	CALL INIT_BODYSIZE(ARG)
+	; ELSE
+	; 	IF BASE:ARG:身長
+	; 		;身長があるなら体格の設定
+	; 		CALL INIT_BODYTALENT(ARG)
+	; 	ENDIF
+	; ENDIF
 
 	;画像フォルダで有効なものを探す
 	CALL 画像フォルダ有効チェック(ARG)
@@ -1534,6 +1556,16 @@ DT_COLUMN_ADD "関係性データベース", "関係性種別"
 DT_COLUMN_ADD "関係性データベース", "受け攻め設定"
 
 
+@初体験データベースセット
+DT_CREATE "初体験データベース"
+DT_COLUMN_ADD "初体験データベース", "体験キャラ人物番号", 4
+DT_COLUMN_ADD "初体験データベース", "相手キャラ人物番号", 4
+DT_COLUMN_ADD "初体験データベース", "体験名"
+DT_COLUMN_ADD "初体験データベース", "体験日時", 4
+DT_COLUMN_ADD "初体験データベース", "体験場所"
+DT_COLUMN_ADD "初体験データベース", "体験方法"
+DT_COLUMN_ADD "初体験データベース", "その他"
+
 @フレーバー素質初期設定
 #DIM 全体設定
 #DIM 残りキャラ設定
@@ -1983,146 +2015,148 @@ ENDIF
 GOTO 最初から
 
 
-@初期従業員選択(追加人数)
-#DIM 追加人数
-#DIM 追加候補, 10
-#DIM 表示候補, 5000
-#DIM 配列番号
-#DIM 表示最大数
-#DIM 現在ページ
-#DIM 対象キャラ
+; @初期従業員選択(追加人数)
+; #DIM 追加人数
+; #DIM 追加候補, 10
+; #DIM 表示候補, 5000
+; #DIM 配列番号
+; #DIM 表示最大数
+; #DIM 現在ページ
+; #DIM 対象キャラ
 
-VARSET 追加候補, -1
-VARSET 表示候補
+; VARSET 追加候補, -1
+; VARSET 表示候補
 
-表示最大数 = 0
-FOR 配列番号, 1, CHARANUM
-	SIF CFLAG:配列番号:招待不可フラグ == 2
-		CONTINUE
-	表示候補:表示最大数 = 配列番号
-	表示最大数 ++
-NEXT
+; 表示最大数 = 0
+; FOR 配列番号, 1, CHARANUM
+; 	SIF CFLAG:配列番号:招待不可フラグ == 2
+; 		CONTINUE
+; 	表示候補:表示最大数 = 配列番号
+; 	表示最大数 ++
+; NEXT
 
-$表示LOOP
-DRAWLINE
-PRINTL 初期追加する従業員を選択してください。
-DRAWLINE
+; $表示LOOP
+; DRAWLINE
+; PRINTL 初期追加する従業員を選択してください。
+; DRAWLINE
 
-FOR 配列番号, 現在ページ * 30, 現在ページ * 30 + 30
-	SIF 表示候補:配列番号 <= 0
-		BREAK
-	SIF MATCH(追加候補, 表示候補:配列番号)
-		SETCOLOR カラーパレット("黄")
-	PRINTBUTTON @"[{配列番号}]%NAME:(表示候補:配列番号), 41, LEFT%", 配列番号
-	RESETCOLOR
-	SIF 配列番号 % 2
-		PRINTL 
-NEXT
-PRINTL
-PRINTL 
-IF 現在ページ > 0
-	PRINTBUTTONLC "[-1] 前ページへ", -1
-ELSE
-	PRINTLC  
-ENDIF
-IF 表示候補:(現在ページ * 30 + 30) > 0
-	PRINTBUTTONLC "[-2] 次ページへ", -2
-ENDIF
-PRINTL 
-DRAWLINE
-PRINTL ・現在の選択キャラ
-FOR LOCAL, 0, 追加人数
-	IF 追加候補:LOCAL < 0
-		PRINTL 未選択
-	ELSE
-		PRINTFORML %NAME:(追加候補:LOCAL)%
-	ENDIF
-NEXT
-PRINTL 
-IF 10 - MATCH(追加候補, -1) == 追加人数
-	PRINTBUTTON "[9999] これで決定する", 9999
-ELSE
-	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAIN [9999] これで決定する
-	RESETCOLOR
-ENDIF
-PRINTL 
-DRAWLINE
-BINPUT
-LOCAL = RESULT
-SELECTCASE LOCAL
-	CASE -1
-		現在ページ --
-	CASE -2
-		現在ページ ++
-	CASE 9999
-		IF 10 - MATCH(追加候補, -1) != 追加人数
-			PRINTL 設定人数が合っていません
-			GOTO 表示LOOP
-		ENDIF
-		FOR 配列番号, 0, 追加人数
-			対象キャラ = 追加候補:配列番号
-			SIF 対象キャラ < 1
-				CONTINUE
-			CFLAG:対象キャラ:信頼度 = 5000
-			CFLAG:対象キャラ:招待不可フラグ = 0
-			TALENT:対象キャラ:従業員 = 1
-			CFLAG:対象キャラ:滞在期間 = 999
-			CFLAG:対象キャラ:探索参加許可フラグ = 1
-			FOR LOCAL, 0, 従業員部屋数
-				IF 従業員部屋割り配列:LOCAL < 1
-					従業員部屋割り配列:LOCAL = 対象キャラ
-					BREAK
-				ENDIF
-			NEXT
-			初体験日:対象キャラ:初対面 = -1
-			CFLAG:対象キャラ:現在位置 = キャラクター部屋検索(対象キャラ)
-			CFLAG:対象キャラ:現在マップ種別 = 0
-			;初期状態雑務
-			現在仕事:対象キャラ:0 = 1
-		NEXT
-		PRINTW 初期従業員キャラを設定しました。
-		RETURN 0
-	CASEELSE
+; FOR 配列番号, 現在ページ * 30, 現在ページ * 30 + 30
+; 	SIF 表示候補:配列番号 <= 0
+; 		BREAK
+; 	SIF MATCH(追加候補, 表示候補:配列番号)
+; 		SETCOLOR カラーパレット("黄")
+; 	PRINTBUTTON @"[{配列番号}]%NAME:(表示候補:配列番号), 41, LEFT%", 配列番号
+; 	RESETCOLOR
+; 	SIF 配列番号 % 2
+; 		PRINTL 
+; NEXT
+; PRINTL
+; PRINTL 
+; IF 現在ページ > 0
+; 	PRINTBUTTONLC "[-1] 前ページへ", -1
+; ELSE
+; 	PRINTLC  
+; ENDIF
+; IF 表示候補:(現在ページ * 30 + 30) > 0
+; 	PRINTBUTTONLC "[-2] 次ページへ", -2
+; ENDIF
+; PRINTL 
+; DRAWLINE
+; PRINTL ・
+; DRAWLINE
+; PRINTL ・現在の選択キャラ
+; FOR LOCAL, 0, 追加人数
+; 	IF 追加候補:LOCAL < 0
+; 		PRINTL 未選択
+; 	ELSE
+; 		PRINTFORML %NAME:(追加候補:LOCAL)%
+; 	ENDIF
+; NEXT
+; PRINTL 
+; IF 10 - MATCH(追加候補, -1) == 追加人数
+; 	PRINTBUTTON "[9999] これで決定する", 9999
+; ELSE
+; 	SETCOLOR カラーパレット("グレーアウト")
+; 	PRINTPLAIN [9999] これで決定する
+; 	RESETCOLOR
+; ENDIF
+; PRINTL 
+; DRAWLINE
+; BINPUT
+; LOCAL = RESULT
+; SELECTCASE LOCAL
+; 	CASE -1
+; 		現在ページ --
+; 	CASE -2
+; 		現在ページ ++
+; 	CASE 9999
+; 		IF 10 - MATCH(追加候補, -1) != 追加人数
+; 			PRINTL 設定人数が合っていません
+; 			GOTO 表示LOOP
+; 		ENDIF
+; 		FOR 配列番号, 0, 追加人数
+; 			対象キャラ = 追加候補:配列番号
+; 			SIF 対象キャラ < 1
+; 				CONTINUE
+; 			CFLAG:対象キャラ:信頼度 = 5000
+; 			CFLAG:対象キャラ:招待不可フラグ = 0
+; 			TALENT:対象キャラ:従業員 = 1
+; 			CFLAG:対象キャラ:滞在期間 = 999
+; 			CFLAG:対象キャラ:探索参加許可フラグ = 1
+; 			FOR LOCAL, 0, 従業員部屋数
+; 				IF 従業員部屋割り配列:LOCAL < 1
+; 					従業員部屋割り配列:LOCAL = 対象キャラ
+; 					BREAK
+; 				ENDIF
+; 			NEXT
+; 			初体験日:対象キャラ:初対面 = -1
+; 			CFLAG:対象キャラ:現在位置 = キャラクター部屋検索(対象キャラ)
+; 			CFLAG:対象キャラ:現在マップ種別 = 0
+; 			;初期状態雑務
+; 			現在仕事:対象キャラ:0 = 1
+; 		NEXT
+; 		PRINTW 初期従業員キャラを設定しました。
+; 		RETURN 0
+; 	CASEELSE
 		
-		;- キャラ招待ループ
-		WHILE 1
-			CALL 初期従業員セット確認(表示候補:LOCAL, MATCH(追加候補, 表示候補:LOCAL))
-			SELECTCASE RESULT
-				CASE 0
-					;- キャンセル
-					; リスタートしてリスト表示へ戻る
-					BREAK
-				CASE 1
-					;- キャラ追加後
-					; リスタートしてリスト表示へ戻る
-					IF MATCH(追加候補, 表示候補:LOCAL)
-						追加候補:(FINDELEMENT(追加候補, 表示候補:LOCAL)) = -1
-					ELSE
-						IF 10 - MATCH(追加候補, -1) < 追加人数
-							追加候補:(FINDELEMENT(追加候補, -1)) = 表示候補:LOCAL
-						ELSE
-							PRINTW 追加枠が一杯です。
-						ENDIF
-					ENDIF
-					BREAK
-				CASE 10
-					;- 前のキャラ
-					; 候補番号を更新、ループして前のキャラを表示
-					LOCAL -=  1
-					SIF LOCAL < 0
-						LOCAL = 表示最大数 - 1
-				CASE 11
-					;- 次のキャラ
-					; 候補番号を更新、ループして次のキャラを表示
-					LOCAL +=  1
-					SIF LOCAL >= 表示最大数
-						LOCAL = 0
-			ENDSELECT
-		WEND
-ENDSELECT
+; 		;- キャラ招待ループ
+; 		WHILE 1
+; 			CALL 初期従業員セット確認(表示候補:LOCAL, MATCH(追加候補, 表示候補:LOCAL))
+; 			SELECTCASE RESULT
+; 				CASE 0
+; 					;- キャンセル
+; 					; リスタートしてリスト表示へ戻る
+; 					BREAK
+; 				CASE 1
+; 					;- キャラ追加後
+; 					; リスタートしてリスト表示へ戻る
+; 					IF MATCH(追加候補, 表示候補:LOCAL)
+; 						追加候補:(FINDELEMENT(追加候補, 表示候補:LOCAL)) = -1
+; 					ELSE
+; 						IF 10 - MATCH(追加候補, -1) < 追加人数
+; 							追加候補:(FINDELEMENT(追加候補, -1)) = 表示候補:LOCAL
+; 						ELSE
+; 							PRINTW 追加枠が一杯です。
+; 						ENDIF
+; 					ENDIF
+; 					BREAK
+; 				CASE 10
+; 					;- 前のキャラ
+; 					; 候補番号を更新、ループして前のキャラを表示
+; 					LOCAL -=  1
+; 					SIF LOCAL < 0
+; 						LOCAL = 表示最大数 - 1
+; 				CASE 11
+; 					;- 次のキャラ
+; 					; 候補番号を更新、ループして次のキャラを表示
+; 					LOCAL +=  1
+; 					SIF LOCAL >= 表示最大数
+; 						LOCAL = 0
+; 			ENDSELECT
+; 		WEND
+; ENDSELECT
 
-GOTO 表示LOOP
+; GOTO 表示LOOP
 
 @初期従業員セット確認(対象キャラ, セットフラグ)
 #LOCALSIZE 1
@@ -2208,3 +2242,494 @@ CLEARLINE LINECOUNT - 描画開始行
 CALL ランダム画像表示_リソース解放(1)
 
 RETURN 返り値
+
+
+
+
+@初期従業員選択(追加人数)
+#DIM 追加人数
+#DIM 追加候補, 10
+#DIM 現在ページ
+#DIM 表示候補, 5000
+#DIM ソート基準値, 5000
+#DIM 候補人数
+#DIM 口上ファイル数
+#DIM アビ奥義関数
+#DIM 対象キャラ
+#DIM 配列番号
+現在ページ = 0
+VARSET 追加候補, -1
+
+$最初から
+;表示候補選定＆ソート処理
+
+VARSET 表示候補
+VARSET ソート基準値
+VARSET LOCALS
+
+LOCAL:1 = 0
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	CALL 装備再計算処理(LOCAL)
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	SIF 滞在者のみフィルタ == 1 && CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%") && TALENT:LOCAL:性別 != 2
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:LOCAL:性別 == 2
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:LOCAL:男性器サイズ)%") && GETBIT(TALENT:LOCAL:性別, 1) != 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:LOCAL:性別, 1) == 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
+		CONTINUE
+	IF 装備ステータス補正保存:LOCAL:装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1) != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1)%")
+			CONTINUE
+	ELSE
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
+			CONTINUE
+	ENDIF
+	SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:LOCAL:得意武器)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
+		CONTINUE
+	;発情期はちょっと面倒だけどオール手打ち
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
+		CONTINUE
+	口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:LOCAL}_%CALLNAME:LOCAL%", "口上_*.ERB", 1)
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
+		CONTINUE
+	アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:LOCAL}")
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数 > 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:LOCAL:恋慕
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:LOCAL:セフレ
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:LOCAL:セフレ && !TALENT:LOCAL:恋慕
+		CONTINUE
+	;条件を満たす場合はLOCAL:3に１以上が入る
+	LOCAL:3 = 1
+	FOR LOCAL:2, 0, 99
+		SIF キャラ一覧素質絞り込み:(LOCAL:2) == ""
+			BREAK
+		SPLIT キャラ一覧素質絞り込み:(LOCAL:2), "_", LOCALS
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:LOCAL:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+				;ANDの場合は一個でもアウトだとNG
+				LOCAL:3 = 0
+				BREAK
+			ENDIF
+		ELSE
+			LOCAL:3 = 0
+			IF TALENT:LOCAL:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+				;OR条件の場合は一個当てはまればOK
+				LOCAL:3 = 1
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	SIF LOCAL:3 == 0
+		CONTINUE
+
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
+候補人数 = LOCAL:1
+LOCAL:1 = 1
+;ソート処理
+IF キャラ一覧ソート:0 != ""
+	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+		LOCAL:1 = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+		LOCAL:1 = -1
+	ENDIF
+	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+		LOCALS = CFLAG
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):好感度レベル * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):恋慕レベル * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((ABL:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (知識素質:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録 * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 表示候補
+	ENDIF
+ENDIF
+
+$表示処理_LOOP
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, 現在ページ * 30, 候補人数
+	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "<font color='#FF3399'>"
+	ENDIF
+	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+		LOCALS += @"　恋慕Lv：{CFLAG:(表示候補:LOCAL):恋慕レベル, 3}　 "
+		SIF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+			LOCALS += "</font>"
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+		LOCALS += @"　回数：{CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録, 5}　 "
+	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+		LOCALS += @"%キャラ一覧ソート:0, 8%：{ABL:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
+	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+		LOCALS += @"%キャラ一覧ソート:0, 8%：{基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+		LOCALS += @"Lv：{基礎BATTLE_STATE:(表示候補:LOCAL):Lv, 3}　 "
+	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+		LOCALS += @"%キャラ一覧ソート:0, 8%：{知識素質:(表示候補:LOCAL):(キャラ一覧ソート:0)}　 "
+	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) >= 0
+		SELECTCASE 性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0)
+			CASE 0
+				LOCALS += @"%キャラ一覧ソート:0, 8%：なし　 "
+			CASE 1
+				LOCALS += @"%キャラ一覧ソート:0, 8%：興味　 "
+			CASE 2
+				LOCALS += @"%キャラ一覧ソート:0, 8%：愛好　 "
+			CASE 3
+				LOCALS += @"%キャラ一覧ソート:0, 8%：中毒　 "
+		ENDSELECT
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
+		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 3}　 "
+	ELSE
+		IF CFLAG:(表示候補:LOCAL):長期雇用
+			LOCALS += "　　長期雇用中　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 1
+			LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+			LOCALS += "　　　常時滞在　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+			LOCALS += @"　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
+		ELSE
+			LOCALS += "　　　　　　　　"
+		ENDIF
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 29
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+IF 現在ページ > 0
+	PRINTLC  [-1]前のページへ
+ELSE
+	PRINTLC  
+ENDIF
+IF 現在ページ < 候補人数 / 30
+	PRINTLC  [-2]次のページへ
+ENDIF
+PRINTL
+DRAWLINE
+
+PRINTBUTTON "[2000]フィルタ機能", 2000
+PRINTL
+PRINTBUTTON "[3000]ソート機能", 3000
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 3100
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 3200
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[4000]素質絞り込み機能", 4000
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+
+DRAWLINE
+PRINTL ・現在の選択キャラ
+FOR LOCAL, 0, 追加人数
+	IF 追加候補:LOCAL < 0
+		PRINTL 未選択
+	ELSE
+		PRINTBUTTON "[外す]", 9900 + LOCAL
+		PRINTFORML 　%NAME:(追加候補:LOCAL), 24, LEFT%
+	ENDIF
+NEXT
+PRINTL 
+PRINTBUTTON "[9998] おすすめセットを選ぶ", 9998
+PRINTL 
+IF 10 - MATCH(追加候補, -1) == 追加人数
+	PRINTBUTTON "[9999] これで決定する", 9999
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [9999] これで決定する
+	RESETCOLOR
+ENDIF
+
+PRINTL 
+DRAWLINE
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 9900 TO 9910
+		追加候補:(LOCAL - 9900) = -1
+	CASE 2000
+		CALL SHOW_CHARADATA_FILTA
+		現在ページ = 0
+		GOTO 最初から
+	CASE 2001
+		INVERTBIT 滞在者のみフィルタ, 0
+		現在ページ = 0
+		GOTO 最初から
+	CASE 3000
+		CALL SHOW_CHARADATA_SORT
+		現在ページ = 0
+		GOTO 最初から
+	CASE 3100
+		キャラ一覧ソート:1 = 降順
+		現在ページ = 0
+		GOTO 最初から
+	CASE 3200
+		キャラ一覧ソート:1 = 昇順
+		現在ページ = 0
+		GOTO 最初から
+	CASE 4000
+		CALL SHOW_CHARADATA_素質絞り込み
+		現在ページ = 0
+		GOTO 最初から
+	CASE -1
+		現在ページ --
+	CASE -2
+		現在ページ ++
+	CASE 9998
+		CALL 初期従業員オススメセット(追加候補)
+	CASE 9999
+		IF 10 - MATCH(追加候補, -1) != 追加人数
+			PRINTL 設定人数が合っていません
+			GOTO 表示処理_LOOP
+		ENDIF
+		FOR 配列番号, 0, 追加人数
+			対象キャラ = 追加候補:配列番号
+			SIF 対象キャラ < 1
+				CONTINUE
+			CFLAG:対象キャラ:信頼度 = 5000
+			CFLAG:対象キャラ:招待不可フラグ = 0
+			TALENT:対象キャラ:従業員 = 1
+			CFLAG:対象キャラ:滞在期間 = 999
+			CFLAG:対象キャラ:探索参加許可フラグ = 1
+			FOR LOCAL, 0, 従業員部屋数
+				IF 従業員部屋割り配列:LOCAL < 1
+					従業員部屋割り配列:LOCAL = 対象キャラ
+					BREAK
+				ENDIF
+			NEXT
+			初体験日:対象キャラ:初対面 = -1
+			CFLAG:対象キャラ:現在位置 = キャラクター部屋検索(対象キャラ)
+			CFLAG:対象キャラ:現在マップ種別 = 0
+			;初期状態雑務
+			現在仕事:対象キャラ:0 = 1
+		NEXT
+		PRINTW 初期従業員キャラを設定しました。
+		RETURN 0
+	CASEELSE
+		
+		;- キャラ招待ループ
+		WHILE 1
+			CALL 初期従業員セット確認(表示候補:LOCAL, MATCH(追加候補, 表示候補:LOCAL))
+			SELECTCASE RESULT
+				CASE 0
+					;- キャンセル
+					; リスタートしてリスト表示へ戻る
+					BREAK
+				CASE 1
+					;- キャラ追加後
+					; リスタートしてリスト表示へ戻る
+					IF MATCH(追加候補, 表示候補:LOCAL)
+						追加候補:(FINDELEMENT(追加候補, 表示候補:LOCAL)) = -1
+					ELSE
+						IF 10 - MATCH(追加候補, -1) < 追加人数
+							追加候補:(FINDELEMENT(追加候補, -1)) = 表示候補:LOCAL
+						ELSE
+							PRINTW 追加枠が一杯です。
+						ENDIF
+					ENDIF
+					BREAK
+				CASE 10
+					;- 前のキャラ
+					; 候補番号を更新、ループして前のキャラを表示
+					LOCAL -=  1
+					SIF LOCAL < 0
+						LOCAL = 候補人数 - 1
+				CASE 11
+					;- 次のキャラ
+					; 候補番号を更新、ループして次のキャラを表示
+					LOCAL +=  1
+					SIF LOCAL >= 候補人数
+						LOCAL = 0
+			ENDSELECT
+		WEND
+ENDSELECT
+
+GOTO 表示処理_LOOP
+
+
+@初期従業員オススメセット(追加候補)
+#DIM REF 追加候補
+#DIM 選択セット番号
+#DIM 関数数
+#DIMS 関数配列, 100
+
+選択セット番号 = -1
+VARSET RESULTS
+VARSET 関数配列
+ENUMFUNCBEGINSWITH "オススメセット処理_"
+ARRAYCOPY "RESULTS", "関数配列"
+関数数 = RESULT
+
+$表示ループ
+DRAWLINE
+PRINTL 任意のセットを選択してください。
+DRAWLINE
+
+;左側
+LOCALS = <div rect='81,31,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>
+FOR LOCAL, 0, 関数数
+	LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %REPLACE(関数配列:LOCAL, "オススメセット処理_", "")%</button><br>"
+NEXT
+LOCALS += "</div>"
+
+;右側
+LOCALS += "<div rect='2050,31,3875,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+RSTR:コマンド結果受渡し文字列 = 
+SIF 選択セット番号 >= 0
+	CALLFORM %関数配列:選択セット番号%("説明文表示", 追加候補)
+LOCALS += @"%RSTR:コマンド結果受渡し文字列%"
+LOCALS += "</div>"
+
+;戻る
+LOCALS += "<div rect='131,2631,1000,200'><button value='999'>[999] 戻る</button></div>"
+
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+SELECTCASE RESULT
+	CASE 998
+		CALLFORM %関数配列:選択セット番号%("キャラセット", 追加候補)
+		PRINTFORMW %REPLACE(関数配列:選択セット番号, "オススメセット処理_", "")%を適用しました。
+		RETURN 0
+	CASE 999
+		RETURN 0
+	CASE IS >= 1000
+		; キャラ確認用の簡易紹介
+		CALL キャラ簡易紹介(RESULT - 1000)
+		WAIT
+	CASEELSE
+		選択セット番号 = RESULT
+ENDSELECT
+GOTO 表示ループ
+
+@オススメセット処理_主人公たちセット(動作モード, 追加候補)
+#DIM REF 追加候補
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "説明文表示"
+		RSTR:コマンド結果受渡し文字列 += "■主人公たちセット<br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "グランブルーファンタジー原作でメインの位置にいる４人のキャラ。<br>"
+		RSTR:コマンド結果受渡し文字列 += "グラン・ジータ・ルリアは[命のリンク]素質でZPが稼ぎやすく、初心者向け。<br>"
+		RSTR:コマンド結果受渡し文字列 += "反面、加入キャラの性別がバラけているのでハーレム等には適していないセット。<br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "・加入キャラ<br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[夢抱く者]グラン") + 1000}'>[夢抱く者]グラン</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[碧く麗しき十天の輝星]ジータ") + 1000}'>[碧く麗しき十天の輝星]ジータ</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[蒼の少女]ルリア") + 1000}'>[蒼の少女]ルリア</button><br>"
+		RSTR:コマンド結果受渡し文字列 += @"<button value='{キャラ検索("[小さき赤き竜]ビィ") + 1000}'>[小さき赤き竜]ビィ</button><br>"
+		RSTR:コマンド結果受渡し文字列 += "<br>"
+		RSTR:コマンド結果受渡し文字列 += "<button value='998'>[998] このセットを適用する</button><br>"
+	CASE "キャラセット"
+		追加候補:0 = キャラ検索("[夢抱く者]グラン")
+		追加候補:1 = キャラ検索("[碧く麗しき十天の輝星]ジータ")
+		追加候補:2 = キャラ検索("[蒼の少女]ルリア")
+		追加候補:3 = キャラ検索("[小さき赤き竜]ビィ")
+ENDSELECT

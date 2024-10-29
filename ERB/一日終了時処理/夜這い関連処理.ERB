@@ -128,8 +128,8 @@ ELSE
 	ENDIF
 ENDIF
 
-DRAWLINE
-PRINTFORML %CALLNAME:対象キャラ%は性欲が溜まり、むらむらとした気分になっている
+
+CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:対象キャラ%は性欲が溜まり、むらむらとした気分になっている<br>"
 
 LOCAL = キャラクター部屋検索(対象キャラ)
 IF 夜這い相手 == MASTER && CFLAG:MASTER:現在マップ種別 == 部屋検索_マップ種別 && CFLAG:MASTER:現在位置 == LOCAL
@@ -137,42 +137,43 @@ IF 夜這い相手 == MASTER && CFLAG:MASTER:現在マップ種別 == 部屋検�
 ELSE
 	IF EXP:対象キャラ:夜這い経験 < 10 && TALENT:対象キャラ:経験豊富 == 0 && RAND:2
 		;夜這い経験がないとまごまごする
-		PRINTFORML しかし、夜這いをする勇気が出ないようだ……
-		PRINTFORMW しばらく%CALLNAME:夜這い相手%の部屋の前でまごまごした後、自分の部屋へと帰っていった。
-		RETURN 0
+		CSTR:対象キャラ:夜這い報告_記録文字列 += @"しかし、夜這いをする勇気が出ないようだ……<br>"
+		CSTR:対象キャラ:夜這い報告_記録文字列 += @"しばらく%CALLNAME:夜這い相手%の部屋の前でまごまごした後、自分の部屋へと帰っていった。<br>"
+		CSTR:対象キャラ:夜這い口上渡し_記録文字列 = まごまご
+		RETURN (夜這い相手 + 1) * -1
 	ENDIF
 	
 	LOCAL = キャラクター部屋検索(対象キャラ)
 	IF 夜這い相手 == MASTER && (CFLAG:MASTER:現在マップ種別 != 0 || CFLAG:MASTER:現在位置 != CFLAG:MASTER:自室位置) && (CFLAG:MASTER:現在マップ種別 != 部屋検索_マップ種別 || CFLAG:MASTER:現在位置 != LOCAL)
 		;あなた居ないパターン
-		PRINTFORML 夜のお誘いをしようと%CALLNAME:夜這い相手%の部屋を訪れたが、留守のようだ……。
-		PRINTFORMW %CALLNAME:対象キャラ%は残念そうに自室に帰っていった。
-		RETURN 0
+		CSTR:対象キャラ:夜這い報告_記録文字列 += @"夜のお誘いをしようと%CALLNAME:夜這い相手%の部屋を訪れたが、留守のようだ……。<br>"
+		CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:対象キャラ%は残念そうに自室に帰っていった。<br>"
+		CSTR:対象キャラ:夜這い口上渡し_記録文字列 = 不在
+		RETURN (夜這い相手 + 1) * -1
 	ENDIF
 ENDIF
 
-PRINTFORM %CALLNAME:対象キャラ%は
+CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:対象キャラ%は"
 IF 関係性種別 == "恋慕"
-	PRINT 恋人の
+	CSTR:対象キャラ:夜這い報告_記録文字列 += "恋人の"
 ELSE
-	PRINT セフレ相手の
+	CSTR:対象キャラ:夜這い報告_記録文字列 += "セフレ相手の"
 ENDIF
 
 LOCAL = キャラクター部屋検索(対象キャラ)
 IF 夜這い相手 == MASTER && CFLAG:MASTER:現在マップ種別 == 部屋検索_マップ種別 && CFLAG:MASTER:現在位置 == LOCAL
-	PRINTFORML %CALLNAME:夜這い相手%と、自分の部屋で熱い夜を過ごした……
+	CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:夜這い相手%と、自分の部屋で熱い夜を過ごした……<br>"
 ELSE
-	PRINTFORML %CALLNAME:夜這い相手%の部屋を訪れ、熱い夜を過ごした……
+	CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:夜這い相手%の部屋を訪れ、熱い夜を過ごした……<br>"
 ENDIF
-PRINTL
+CSTR:対象キャラ:夜這い報告_記録文字列 += "<br><br>"
 ;受け攻め設定を取り出す
 DT_SELECT "関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:夜這い相手:人物番号} Or 対象キャラ２ = {CFLAG:夜這い相手:人物番号})"
 RFLAG:夜這い処理中フラグ = 1
 CALL 夜這い実処理(対象キャラ, 夜這い相手, RESULT:1)
 RFLAG:夜這い処理中フラグ = 0
-;実行処理の後に口上表示
-PRINTW
-RETURN 1
+;夜這い相手の番号＋１００を返す
+RETURN 夜這い相手 + 100 
 
 
 @夜這い実処理(実行キャラ, 夜這い相手, 配列id)
@@ -480,9 +481,7 @@ IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 
 	BASE:対象キャラ:性欲 = MAX(0, BASE:対象キャラ:性欲 - (絶頂保存 * 10))
 	;処女喪失
 	CALL LOST_VIRGIN(対象キャラ, 相手キャラ, 1)
-	CALL LOST_MAN_VIRGIN(相手キャラ, 対象キャラ, 1)
-	CALL 処女童貞適用処理(対象キャラ)
-	CALL 処女童貞適用処理(相手キャラ)
+	CALL LOST_MAN_VIRGIN(相手キャラ, 対象キャラ)
 	;ちんこがあるかないかで分岐
 	IF GETBIT(TALENT:相手キャラ:性別, 1)
 		EXP:相手キャラ:Ｃ経験 += 相手キャラ_快楽基礎値 * 2
@@ -585,9 +584,7 @@ IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験
 	ENDIF
 	;Ａ処女喪失
 	CALL LOST_A_VIRGIN(対象キャラ, 相手キャラ, 1)
-	CALL LOST_MAN_VIRGIN(相手キャラ, 対象キャラ, 2)
-	CALL 処女童貞適用処理(対象キャラ)
-	CALL 処女童貞適用処理(相手キャラ)
+	CALL LOST_MAN_A_VIRGIN(相手キャラ, 対象キャラ)
 	;ちんこがあるかないかで分岐
 	IF GETBIT(TALENT:相手キャラ:性別, 1)
 		EXP:相手キャラ:Ｃ経験 += 相手キャラ_快楽基礎値 * 2
@@ -664,11 +661,11 @@ FOR LOCAL, 0, 2
 		IF EXP_UP(LOCAL:1, 対象キャラ)
 			LOCAL:2 ++
 			SIF LOCAL:2 == 1
-				PRINTL
+				CSTR:実行キャラ:夜這い報告_記録文字列 += "<br>"
 			LOCALS = %GET_EXPNAME(LOCAL:1, 対象キャラ)%
-			PRINTFORM %LOCALS,15,LEFT%
+			CSTR:実行キャラ:夜這い報告_記録文字列 += @"%LOCALS,15,LEFT%"
 			LOCALS = +{EXP_UP(LOCAL:1, 対象キャラ)}
-			PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:対象キャラ%)
+			CSTR:実行キャラ:夜這い報告_記録文字列 += @"%LOCALS,4,LEFT%(%CALLNAME:対象キャラ%)<br>"
 
 			;命のリンクを個別処理
 			IF TALENT:対象キャラ:命のリンク && LOCAL:1 <= 12
@@ -717,11 +714,11 @@ IF EXP計算フラグ != ""
 			IF EXP_UP(LOCAL:1, リンクキャラ)
 				LOCAL:2 ++
 				SIF LOCAL:2 == 1
-					PRINTL
+					CSTR:実行キャラ:夜這い報告_記録文字列 += "<br>"
 				LOCALS = %GET_EXPNAME(LOCAL:1, リンクキャラ)%
-				PRINTFORM %LOCALS,15,LEFT%
+				CSTR:実行キャラ:夜這い報告_記録文字列 += @"%LOCALS,15,LEFT%"
 				LOCALS = +{EXP_UP(LOCAL:1, リンクキャラ)}
-				PRINTFORML %LOCALS,4,LEFT%(%CALLNAME:リンクキャラ%)
+				CSTR:実行キャラ:夜這い報告_記録文字列 += @"%LOCALS,4,LEFT%(%CALLNAME:リンクキャラ%)<br>"
 				IF LOCAL:1 == 10
 					;絶頂経験をZPに投げる
 					LOCALS:1 += @" + {EXP_UP(LOCAL:1, リンクキャラ)}(%CALLNAME:リンクキャラ%)"
@@ -737,32 +734,41 @@ ENDIF
 ;ZPの取得量表示
 ;-------------------------------------------------
 IF MAX(ZP量保存:0, ZP量保存:1) > 0
-	PRINTL
-	PRINTFORM ZP:{FLAG:ZP所持量}
+	CSTR:実行キャラ:夜這い報告_記録文字列 += "<br>"
+	CSTR:実行キャラ:夜這い報告_記録文字列 += @"ZP:{FLAG:ZP所持量}"
 	IF ZP量保存:0
 		IF 実行キャラ == MASTER
 			ZP量保存:0 = 0
 		ELSE
-			PRINTFORM  + {ZP量保存:0}(%CALLNAME:実行キャラ%)
+			CSTR:実行キャラ:夜這い報告_記録文字列 += @" + {ZP量保存:0}(%CALLNAME:実行キャラ%)"
 		ENDIF
 	ENDIF
 	IF ZP量保存:1
 		IF 夜這い相手 == MASTER
 			ZP量保存:1 = 0
 		ELSE
-			PRINTFORM  + {ZP量保存:1}(%CALLNAME:夜這い相手%)
+			CSTR:実行キャラ:夜這い報告_記録文字列 += @" + {ZP量保存:1}(%CALLNAME:夜這い相手%)"
 		ENDIF
 	ENDIF
 	IF ZP量保存:2
-		PRINTFORM %LOCALS:1%
+		CSTR:実行キャラ:夜這い報告_記録文字列 += @"%LOCALS:1%"
 	ENDIF
 	FLAG:ZP所持量 += ZP量保存:0 + ZP量保存:1 + ZP量保存:2
-	PRINTFORML = {FLAG:ZP所持量}
+	CSTR:実行キャラ:夜這い報告_記録文字列 += @" = {FLAG:ZP所持量}<br>"
 ENDIF
 
 ;性癖成長
-CALL 性癖取得チェック(実行キャラ)
-CALL 性癖成長チェック(夜這い相手)
+;自動取得性癖_記録文字列に誰が何を取得したかを記録し、後でメッセージ再生に使う
+CALL 性癖取得チェック(実行キャラ, 1)
+CSTR:実行キャラ:自動取得性癖_記録文字列 += @"%RSTR:コマンド結果受渡し文字列%"
+CALL 性癖取得チェック(夜這い相手, 1)
+CSTR:実行キャラ:自動取得性癖_記録文字列 += @"%RSTR:コマンド結果受渡し文字列%"
+
+;自動成長性癖_記録文字列に誰が何を何レベルから成長したかを記録し、後でメッセージ再生に使う
+CALL 性癖成長チェック(実行キャラ, 1)
+CSTR:実行キャラ:自動成長性癖_記録文字列 += @"%RSTR:コマンド結果受渡し文字列%"
+CALL 性癖成長チェック(夜這い相手, 1)
+CSTR:実行キャラ:自動成長性癖_記録文字列 += @"%RSTR:コマンド結果受渡し文字列%"
 
 ;夜這いにあなたが絡んでいる場合は、相手側の獲得ZPをもとに精力回復
 SIF 実行キャラ == MASTER
@@ -775,4 +781,6 @@ TCVAR:実行キャラ:夜這い済み = 1
 TCVAR:夜這い相手:夜這い済み = 1
 EXP:実行キャラ:夜這い経験 += 1
 
+;口上へ渡す用の文字列を突っ込む
+RSTR:コマンド結果受渡し文字列 = {夜這い相手}+++{ZP量保存:0}+++{ZP量保存:1}
 
