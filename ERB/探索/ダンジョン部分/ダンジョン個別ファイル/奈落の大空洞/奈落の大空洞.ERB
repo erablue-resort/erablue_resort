@@ -62,6 +62,7 @@ RETURN RESULT
 
 @ダンジョン突入時特殊処理_奈落の大空洞
 #DIM 推奨レベル
+#DIM ランダムモード解禁フラグ
 
 CALL ダンジョン解説文_奈落の大空洞
 PRINTFORML ■奈落の大空洞　　推奨Lv：25～
@@ -69,17 +70,23 @@ PRINTL
 HTML_PRINT 詳細文文字列受け渡し変数
 PRINTL
 PRINTL 何階から始めますか？
+ランダムモード解禁フラグ = 0
 FOR LOCAL, 0, 奈落の大空洞踏破フロア数 + 1
 	TRYCCALLFORM 奈落の大空洞_存在判定_{LOCAL + 1}
 		推奨レベル = RESULT
 		SIF 推奨レベル <= 0
 			BREAK
 	CATCH
+		ランダムモード解禁フラグ = 1
 		BREAK
 	ENDCATCH
 	PRINTBUTTON @"[{LOCAL}] 地下%TOFULL(TOSTR(LOCAL + 1))%階から　　推奨Lv：{推奨レベル}", LOCAL
 	PRINTL
 NEXT
+IF ランダムモード解禁フラグ
+	PRINTBUTTON @"[998] さらなる奈落へ　　推奨Lv：？？？", 998
+	PRINTL
+ENDIF
 PRINTL
 PRINTBUTTON "[999] 戻る", 999
 PRINTL
@@ -87,6 +94,10 @@ BINPUT
 SELECTCASE RESULT
 	CASE 999
 		RETURN -1
+	CASE 998
+		ダンジョン階層記録 = 1
+		CALLF 奈落の大空洞_深層_正体(1)
+		CALL DUNGEON_MAIN_LOOP("奈落の大空洞")
 	CASEELSE
 		ダンジョン階層記録 = RESULT * -1
 		CALL DUNGEON_MAIN_LOOP("奈落の大空洞")
@@ -114,7 +125,7 @@ CALL ドロップ判定処理(ドロップ確率, ドロップアイテム)
 #DIM キャラ数
 #DIM ループ用
 
-IF (ダンジョン階層記録 * -1) > 奈落の大空洞踏破フロア数
+IF ダンジョン階層記録 && (ダンジョン階層記録 * -1) > 奈落の大空洞踏破フロア数
 	;未踏破の場合、無し
 	RETURN 0
 ELSE
@@ -395,6 +406,21 @@ SELECTCASE ARGS
 					IF (ダンジョン階層記録 * -1) > 奈落の大空洞踏破フロア数
 						奈落の大空洞踏破フロア数 = ダンジョン階層記録 * -1
 						WSTR:(K++) = %CALLNAME:PLAYER%たちは見事強敵を打倒し、次の階層への道を開拓した！
+					ELSEIF ダンジョン階層記録 == 0
+						WSTR:(K++) = %CALLNAME:PLAYER%たちは見事強敵を打倒した！
+						TRYCALLFORM 奈落の大空洞_エネミー勝利後_{ダンジョン階層記録 * -1}_{ウェーブ番号}
+						CALL メッセージ欄表示用関数(,,,0)
+
+						CALL 口上変数初期化
+						WSTR:(K++) = %CALLNAME:PLAYER%たちはさらなる深層への道を進んでいく…
+						CALL メッセージ欄表示用関数(,,,0)
+						;次階層生成
+						ダンジョン階層記録 = 1
+						CALL ダンジョン初期処理_奈落の大空洞
+						CALL 踏破マス開放処理
+						CALL 接続ルート全開放処理((ダンジョン現在位置:0), (ダンジョン現在位置:1))
+						CALL 画面再描画
+						RETURN
 					ELSE
 						WSTR:(K++) = %CALLNAME:PLAYER%たちは見事強敵を打倒した！
 					ENDIF
