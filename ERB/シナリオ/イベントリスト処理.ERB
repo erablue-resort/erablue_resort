@@ -3,7 +3,6 @@
 #DIMS 表示用リスト, 100
 #DIMS NEWフラグ用リスト, 100
 #DIM 表示候補数
-#DIM クリア済み視聴フラグ
 VARSET LOCAL
 VARSET LOCALS
 VARSET NEWフラグ用リスト
@@ -12,7 +11,7 @@ VARSET NEWフラグ用リスト
 SPLIT TSTR:NEWイベントフラグ, "_", NEWフラグ用リスト
 
 DRAWLINE
-IF クリア済み視聴フラグ
+IF FLAG:クリア済み視聴フラグ
 	PRINTL 再視聴するクリア済みイベントを選んでください。
 	PRINTBUTTON "[9998] イベントリストへ戻る", 9998
 ELSE
@@ -21,7 +20,7 @@ ELSE
 ENDIF
 PRINTL
 DRAWLINE
-IF クリア済み視聴フラグ
+IF FLAG:クリア済み視聴フラグ
 	FOR LOCAL, 0, 表示候補数
 		;発生してないものは出さない
 		SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
@@ -133,10 +132,10 @@ SELECTCASE LOCAL
 		ENDIF
 		RESTART
 	CASE 9998
-		INVERTBIT クリア済み視聴フラグ, 0
+		INVERTBIT FLAG:クリア済み視聴フラグ, 0
 		RESTART
 	CASE 9999
-		クリア済み視聴フラグ = 0
+		FLAG:クリア済み視聴フラグ = 0
 		RETURN 0
 ENDSELECT
 
@@ -259,6 +258,9 @@ NEXT
 @イベント完了フラグ汎用処理(ARGS)
 #DIM 行番号
 
+SIF FLAG:クリア済み視聴フラグ
+	RETURN 0
+
 FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	LOCALS = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
 	IF LOCALS == ARGS
@@ -299,4 +301,20 @@ IF LOCAL:1
 	RETURNF DT_CELL_GET("各イベント用変数配列", 行番号, "イベント完了フラグ")
 ELSE
 	RETURNF -1
+ENDIF
+
+
+@イベント中戦闘用処理()
+
+;再視聴中は常に勝利を返す
+IF FLAG:クリア済み視聴フラグ
+	PRINTL 視聴パターンを選択してください。
+	PRINTBUTTONLC "[0] 勝利", 0
+	PRINTBUTTONLC "[1] 敗北", 1
+	PRINTBUTTONLC "[-1] 逃走", -1
+	BINPUT
+	RETURN RESULT
+ELSE
+	CALL 雑魚敵遭遇汎用処理()
+	RETURN RESULT
 ENDIF
