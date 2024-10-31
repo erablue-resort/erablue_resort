@@ -5,6 +5,7 @@
 #DIM 行数保存
 #DIM 文字数カウント
 #DIM うふふ終了フラグ
+#DIM 追い出されフラグ
 #DIM 改行フラグ
 #DIM ツールチップフラグ
 
@@ -120,6 +121,10 @@ FOR LOCAL,1,CHARANUM
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 			SIF RESULT > 0
 				うふふ終了フラグ = 1
+			IF RESULT == 2
+				追い出されフラグ = 1
+				BREAK
+			ENDIF
 			SIF RESULT < 0
 				RESTART
 		ELSEIF !TCVAR:(CFLAG_SORTARRAY:LOCAL):挨拶フラグ && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && PREVCOM == 841
@@ -138,6 +143,10 @@ FOR LOCAL,1,CHARANUM
 NEXT
 SIF うふふ終了フラグ
 	CALL うふふ終了処理("目撃される")
+IF 追い出されフラグ
+	追い出されフラグ = 0
+	RESTART
+ENDIF
 SIF LOCALS != ""
 	PRINTFORMW %LOCALS%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に居た
 SIF LOCALS:1 != ""
@@ -1319,6 +1328,35 @@ ELSEIF LOCAL:1 && CFLAG:(LOCAL:1):うふふ && うふふ終了フラグ == 0 && 
 		LOCAL:2 = 1
 	ENDIF
 ENDIF
+IF CFLAG:MASTER:隠密
+	;隠密だとそもそも遭遇しない
+ELSEIF ROOM_SEX(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) == 0
+	;性別施設じゃないなら発動しない
+ELSEIF TALENT:MASTER:性別 != ROOM_SEX(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) && TALENT:MASTER:性別 != 0 && TALENT:MASTER:性別 != 3 && うふふ終了フラグ == 0
+	IF 陥落チェック(対象キャラ)
+		IF TCVAR:対象キャラ:異性施設見逃し済み == 0
+			DRAWLINE
+			PRINTFORMW %CALLNAME:対象キャラ%に%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%にいるところを見られてしまった！
+			PRINTFORMW %CALLNAME:対象キャラ%は他の人に見つからないように、と%CALLNAME:MASTER%を見逃してくれた。
+			TCVAR:対象キャラ:異性施設見逃し済み = 1
+		ENDIF
+	ELSE
+		DRAWLINE
+		PRINTFORMW %CALLNAME:対象キャラ%に%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%にいるところを見られてしまった！
+		PRINTFORMW %CALLNAME:MASTER%は追い出されてしまった……。
+		CFLAG:MASTER:現在位置 = 2
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置)
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF 追従中キャラ(TARGET:LOCAL)
+				CFLAG:(TARGET:LOCAL):現在位置 = 2
+		NEXT
+		LOCAL:2 = 2
+	ENDIF
+ENDIF
+SIF LOCAL:2 == 2
+	RETURN 2
 IF LOCAL:2 || うふふ終了フラグ
 	RETURN 1
 ENDIF
