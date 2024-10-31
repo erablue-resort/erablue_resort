@@ -1,0 +1,98 @@
+﻿; 記憶消去薬で消えるもの一覧
+; 	恋慕
+; 	セフレ
+; 	セフレあり
+; 	浮気
+; 	恋人持ち
+	
+; 	友情度
+; 	信頼度
+; 	恋心度
+; 	性愛度
+; 	好感度＆レベル
+; 	恋慕度＆レベル
+	
+; 	関係データベースでの恋慕関係とセフレ関係
+; 	および恋慕相手の恋人持ち
+; 	セフレ関係は相手のセフレ数が0になる場合にのみ相手のセフレ持ち消去
+; 	縁結びデータで選択したキャラの恋慕とセフレ関係
+	
+; 	※恋人持ちに関してはキャラ元のCSVファイルを参照してデフォルトの状態に戻すようになっています
+
+@記憶消去処理(キャラ番号)
+	#DIM キャラ番号
+	#DIM 恋慕相手
+	#DIM 関係数
+	#DIM セフレ相手
+	#DIM セフレ関係数
+SIF GETBIT(TALENT:キャラ番号:性別, 0) && TALENT:キャラ番号:処女 == 0
+	TALENT:キャラ番号:処女 = 1
+SIF GETBIT(TALENT:キャラ番号:性別, 1) && TALENT:キャラ番号:非童貞 > 0
+TALENT:キャラ番号:非童貞 = 0
+
+TALENT:キャラ番号:Ａ処女 = 1
+TALENT:キャラ番号:恋慕 = 0
+TALENT:キャラ番号:セフレ = 0
+TALENT:キャラ番号:セフレあり = 0
+TALENT:キャラ番号:浮気 = 0
+CALL 恋人持ち初期化(No:キャラ番号)
+
+CFLAG:キャラ番号:友情度 = 0
+CFLAG:キャラ番号:信頼度 = 0
+CFLAG:キャラ番号:恋心度 = 0
+CFLAG:キャラ番号:性愛度 = 0
+CFLAG:キャラ番号:好感度レベル = 0
+CFLAG:キャラ番号:恋慕度 = 0
+CFLAG:キャラ番号:恋慕レベル = 0
+
+LOCAL = 0
+IF DT_SELECT ("関係性データベース", @"(対象キャラ１ = {CFLAG:キャラ番号:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号:人物番号}) And 関係性種別 = '恋慕'")
+	IF CFLAG:キャラ番号:人物番号 == DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1)
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ２", 1))
+	ELSE
+		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1))
+	ENDIF
+	CALL 恋人持ち初期化(恋慕相手)
+	DT_ROW_REMOVE "関係性データベース", RESULT:1
+ENDIF
+
+VARSET RESULT
+関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:キャラ番号:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号:人物番号}) And 関係性種別 = 'セフレ'")
+IF 関係数 > 0
+	FOR LOCAL, 1, 関係数 + 1
+		IF CFLAG:キャラ番号:人物番号 == DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1)
+				セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ２", 1))
+			ELSE
+				セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1))
+		ENDIF
+		DT_ROW_REMOVE "関係性データベース", RESULT:LOCAL
+		セフレ関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:セフレ相手:人物番号} Or 対象キャラ２ = {CFLAG:セフレ相手:人物番号}) And 関係性種別 = 'セフレ'")
+		SIF セフレ関係数 < 1
+			TALENT:セフレ相手:セフレあり = 0
+	NEXT
+ENDIF
+
+関係数 = DT_SELECT("縁結びデータベース", @"(対象キャラ１ = {CFLAG:キャラ番号:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号:人物番号})")
+IF 関係数 > 0
+	FOR LOCAL, 1, 関係数 + 1
+		DT_ROW_REMOVE "縁結びデータベース", RESULT:LOCAL
+	NEXT
+ENDIF
+
+RETURN 0
+
+;CSVを参照して元の恋人持ちの数値を入れ直し
+@恋人持ち初期化(ARG)
+	LOCAL = 0
+	LOCAL = CSVTALENT(NO:ARG, 234)
+	IF LOCAL == -1
+		TALENT:ARG:恋人持ち = -1
+	ELSEIF LOCAL == 1
+		TALENT:ARG:恋人持ち = 1
+	ELSEIF LOCAL == 2
+		TALENT:ARG:恋人持ち = 2
+	ELSEIF LOCAL == 3
+		TALENT:ARG:恋人持ち = 3
+	ELSE
+		TALENT:ARG:恋人持ち = 0
+	ENDIF

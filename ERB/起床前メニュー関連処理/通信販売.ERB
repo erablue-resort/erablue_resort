@@ -165,6 +165,86 @@ IF LOCAL == 70
 	ENDSELECT
 	GOTO INPUT_LOOP_70
 ENDIF
+
+IF LOCAL == 90
+	現在ページ = 0
+	PRINTL 【記憶消去＆再生薬】を購入しますか？
+	PRINTL ※恋慕やセフレなど後天的な素質の一部、関係、個別に設定のあるもの以外の固有関係などをリセットして童貞と処女を付け直します
+	PRINTBUTTON "[0] はい", 0
+	PRINTL
+	PRINTBUTTON "[1] いいえ", 1
+	PRINTL
+	BINPUT
+	SIF RESULT
+		RESTART
+	PRINTL 誰に使いますか？
+
+	VARSET 表示候補
+	候補人数 = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF CFLAG:LOCAL:滞在期間 < 0
+			CONTINUE
+		表示候補:候補人数 = LOCAL
+		候補人数 += 1
+	NEXT
+
+	$INPUT_LOOP_90
+	VARSET LOCAL
+	LOCALS = 
+	;表示処理
+	FOR LOCAL, 現在ページ * 30, 候補人数
+		LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+		IF CFLAG:(表示候補:LOCAL):滞在期間 == 1
+			LOCALS += @"　　　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+			LOCALS += "　　　　　常時滞在　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+			LOCALS += @"　　　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
+		ENDIF
+		LOCAL:1 += 1
+		IF LOCAL:1 % 2 == 0
+			HTML_PRINT LOCALS
+			LOCALS = 
+		ENDIF
+		SIF LOCAL:1 > 29
+			BREAK
+	NEXT
+
+	IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+	ENDIF
+	PRINTL 
+	IF 現在ページ > 0
+		PRINTLC  [900]前のページへ
+	ELSE
+		PRINTLC  
+	ENDIF
+		PRINTLC  [999]戻る
+	IF 現在ページ < 候補人数 / 30
+		PRINTLC  [901]次のページへ
+	ENDIF
+	PRINTL
+	DRAWLINE
+
+	BINPUT
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 999
+			RESTART
+		CASE 900
+			現在ページ -= 1
+			GOTO INPUT_LOOP_90
+		CASE 901
+			現在ページ += 1
+			GOTO INPUT_LOOP_90
+		CASEELSE
+			PRINTFORMW %NAME:LOCAL%に記憶消去薬を投与しました
+			CALL 記憶消去処理(LOCAL)
+	ENDSELECT
+	GOTO INPUT_LOOP_90
+ENDIF
+
 IF LOCAL == 41
 	MONEY -= ITEMPRICE:LOCAL
 	ITEM:LOCAL ++
@@ -298,7 +378,7 @@ ENDSELECT
 SELECTCASE アイテム番号
 	CASE 0 TO 20
 		RETURNF "コマンド解放アイテム"
-	CASE 40, 70, 91, 92
+	CASE 40, 70, 90, 91, 92
 		RETURNF "消費アイテム"
 	CASE 80 TO 82
 		RETURNF "自宅用アイテム"
