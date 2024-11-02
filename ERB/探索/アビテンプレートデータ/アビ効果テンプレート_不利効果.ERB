@@ -26,6 +26,7 @@
 #DIM データベース行数
 #DIM 成功率一時格納
 #DIM 累積フラグ
+#DIM バフ番号
 #DIM 累積量
 
 CALL アビテンプレート_効果共通処理
@@ -73,6 +74,23 @@ FOR 対象番号, 0, アビ対象最大数
 			IF RAND:100 > 成功率一時格納
 				スキップフラグ = 2
 				GOTO メッセージ表示部
+			ELSEIF 戦闘行動対象 >= 10 && 敵BATTLE_STATE:(戦闘行動対象 - 10):ボスフラグ
+				;ボスに基礎成功率のあるデバフを掛けることに成功した場合、ボスはそのデバフの状態異常耐性を得る
+				累積量 = ボス耐性累積量(アビ汎用文字列:バフ・デバフ対象能力, 敵BATTLE_STATE:(戦闘行動対象 - 10):Lv)
+				IF 累積量 > 0
+					バフ番号 = バフ番号取得_枠("ボス累積耐性_" + アビ汎用文字列:バフ・デバフ対象能力, 戦闘行動対象)
+					IF バフ番号 < 0
+						{
+						DT_ROW_ADD @"バフデータベース_{戦闘行動対象}", "バフ枠", "ボス累積耐性_" + アビ汎用文字列:バフ・デバフ対象能力,
+							"バフ対象能力", "状態異常耐性_" + アビ汎用文字列:バフ・デバフ対象能力,
+							"バフ効果量_固定値", 累積量, "バフ名", "ボス累積耐性",
+							"持続ターン", -1, "消去不可フラグ", 1, "特殊表示オプション", -1
+						}
+					ELSE
+						累積量 += DT_CELL_GET(@"デバフデータベース_{戦闘行動対象}", バフ番号, "デバフ効果量_固定値")
+						DT_CELL_SET @"デバフデータベース_{戦闘行動対象}", バフ番号, "バフ効果量_固定値", 累積量
+					ENDIF
+				ENDIF
 			ENDIF
 		ENDIF
 	ENDIF
@@ -254,6 +272,8 @@ NEXT
 #DIM スキップフラグ
 #DIM 減少チャージ
 #DIM 成功率一時格納
+#DIM バフ番号
+#DIM 累積量
 
 CALL アビテンプレート_効果共通処理
 SIF RESULT == -1
@@ -286,6 +306,23 @@ FOR 対象番号, 0, アビ対象最大数
 				成功率一時格納 -= RESULT
 				IF RAND:100 > 成功率一時格納
 					スキップフラグ = 2
+				ELSEIF 戦闘行動対象 >= 10 && 敵BATTLE_STATE:(戦闘行動対象 - 10):ボスフラグ
+					;ボスに基礎成功率のあるデバフを掛けることに成功した場合、ボスはそのデバフの状態異常耐性を得る
+					累積量 = ボス耐性累積量("スロウ", 敵BATTLE_STATE:(戦闘行動対象 - 10):Lv)
+					IF 累積量 > 0
+						バフ番号 = バフ番号取得_枠("ボス累積耐性_スロウ", 戦闘行動対象)
+						IF バフ番号 < 0
+							{
+							DT_ROW_ADD @"バフデータベース_{戦闘行動対象}", "バフ枠", "ボス累積耐性_スロウ",
+								"バフ対象能力", "状態異常耐性_スロウ",
+								"バフ効果量_固定値", 累積量, "バフ名", "ボス累積耐性",
+								"持続ターン", -1, "消去不可フラグ", 1, "特殊表示オプション", -1
+							}
+						ELSE
+							累積量 += DT_CELL_GET(@"デバフデータベース_{戦闘行動対象}", バフ番号, "デバフ効果量_固定値")
+							DT_CELL_SET @"デバフデータベース_{戦闘行動対象}", バフ番号, "バフ効果量_固定値", 累積量
+						ENDIF
+					ENDIF
 				ENDIF
 			ENDIF
 		ENDIF
@@ -518,3 +555,67 @@ FOR 対象番号, 0, アビ対象最大数
 		;敵にはMPがないのでなんもしない
 	ENDIF
 NEXT
+
+
+@ボス耐性累積量(バフ・デバフ種類, レベル)
+#FUNCTION
+#DIMS CONST 能力系デバフタイプ = "連続攻撃率", "与ダメージ", "被ダメージ", "全強化", "全耐性"
+#DIMS CONST チャージ系デバフタイプ = "最大ＣＴ増加", "スロウ"
+#DIMS バフ・デバフ種類
+#DIM レベル
+
+IF バフ・デバフ種類 == "弱体耐性" || REGEXPMATCH(バフ・デバフ種類, "^状態異常耐性_.*$") > 0
+	;弱体の成功率を増減させるデバフには干渉しない
+	RETURNF 0
+ELSEIF MATCH(チャージ系デバフタイプ, バフ・デバフ種類)
+	;チャージターンを操作する系のデバフはボスくらいにしか出番がないので累積量が低い
+	SELECTCASE 敵BATTLE_STATE:(戦闘行動対象 - 10):Lv
+		CASE IS >= 75
+			RETURNF 15
+		CASE IS >= 65
+			RETURNF 10
+		CASE IS >= 55
+			RETURNF 5
+		CASE IS >= 45
+			RETURNF 3
+		CASE IS >= 35
+			RETURNF 2
+		CASEELSE
+			RETURNF 0
+	ENDSELECT
+ELSEIF GETNUM(BATTLE_STATE, バフ・デバフ種類, 2) > 0 || MATCH(能力系デバフタイプ, バフ・デバフ種類)
+	;基礎能力操作系のデバフはちょっと通りにくくなる
+	SELECTCASE 敵BATTLE_STATE:(戦闘行動対象 - 10):Lv
+		CASE IS >= 75
+			RETURNF 20
+		CASE IS >= 65
+			RETURNF 15
+		CASE IS >= 55
+			RETURNF 10
+		CASE IS >= 45
+			RETURNF 7
+		CASE IS >= 35
+			RETURNF 5
+		CASE IS >= 25
+			RETURNF 3
+		CASEELSE
+			RETURNF 0
+	ENDSELECT
+ELSE
+	;行動を縛ったりする特殊なデバフはすぐ全然効かなくなる
+	SELECTCASE 敵BATTLE_STATE:(戦闘行動対象 - 10):Lv
+		CASE IS >= 65
+			RETURNF 100000
+		CASE IS >= 55
+			RETURNF 90
+		CASE IS >= 45
+			RETURNF 50
+		CASE IS >= 35
+			RETURNF 34
+		CASE IS >= 25
+			RETURNF 25
+		CASEELSE
+			RETURNF 5
+	ENDSELECT
+ENDIF
+RETURNF 0
