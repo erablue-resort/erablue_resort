@@ -1,6 +1,6 @@
 ﻿
 @性癖開拓処理
-#DIM DYNAMIC 表示候補, 200
+#DIM DYNAMIC 表示候補, キャラクタ数上限
 #DIM 現在ページ
 #DIM 開拓対象
 #DIM 複数名フラグ
@@ -26,6 +26,7 @@ FOR LOCAL, 1, CHARANUM
 	表示候補:(LOCAL:1) = LOCAL
 	LOCAL:1 += 1
 NEXT
+CALL キャラ配列フィルタ処理(表示候補, -1)
 
 $表示_LOOP
 
@@ -33,7 +34,7 @@ DRAWLINE
 PRINTL 図書室の蔵書から該当するエロ本が任意のキャラに渡るよう細工し、キャラの性癖を開拓します
 PRINTL 誰の性癖を開拓しますか？
 DRAWLINE
-PRINTBUTTON "[1000] 複数名一括開拓", 1000
+PRINTBUTTON "[9000] 複数名一括開拓", 9000
 PRINTL
 DRAWLINE
 LOCAL:1 = 0
@@ -46,9 +47,12 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	ENDIF
 	LOCALS = %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 40, LEFT%
 	IF 性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数 == 0
-		LOCALS += "現在の性癖開拓：なし"
+		LOCALS += "現在の性癖開拓：なし　　　　　　"
 	ELSE
-		LOCALS += @"現在の性癖開拓：%GET_性癖素質NAME(性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数, 表示候補:LOCAL)%"
+		LOCALS += @"現在の性癖開拓：%GET_性癖素質NAME(性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数, 表示候補:LOCAL), 16, LEFT%"
+	ENDIF
+	IF キャラ一覧ソート:0 != ""
+		LOCALS += @"%ソート情報表示(表示候補:LOCAL)%"
 	ENDIF
 	PRINTBUTTON @"[{LOCAL, 3}] %LOCALS%", LOCAL
 	PRINTL 
@@ -58,41 +62,104 @@ DRAWLINE
 
 ;ページめくり表示
 IF 現在ページ > 0
-	PRINTBUTTONLC "[900]前ページへ", 900
+	PRINTBUTTONLC "[9009]前ページへ", 9009
 ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
 IF LOCAL:1 == 0
-	PRINTBUTTONC "[901]次ページへ", 901
+	PRINTBUTTONC "[9010]次ページへ", 9010
 ENDIF
 PRINTL 
-PRINTBUTTON "[998]システムの説明", 998
+
+DRAWLINE
+PRINTBUTTON "[9020]フィルタ機能", 9020
+PRINTL
+PRINTBUTTON "[9030]ソート機能", 9030
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 9031
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 9032
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[9040]素質絞り込み機能", 9040
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+DRAWLINE
+
+PRINTBUTTON "[9998]システムの説明", 9998
 PRINT 　　
-PRINTBUTTON "[999]戻る", 999
+PRINTBUTTON "[9999]戻る", 9999
 
 IF チュートリアルフラグ:性癖開拓 == 0
-	RESULT = 998
+	RESULT = 9998
 ELSE
 	BINPUT
 ENDIF
 ;広告対象のINPUT
 SELECTCASE RESULT
-	CASE 900
+	CASE 9020
+		CALL SHOW_CHARADATA_FILTA
+		現在ページ = 0
+		RESTART
+	CASE 9030
+		CALL SHOW_CHARADATA_SORT
+		現在ページ = 0
+		RESTART
+	CASE 9031
+		キャラ一覧ソート:1 = 降順
+		現在ページ = 0
+		RESTART
+	CASE 9032
+		キャラ一覧ソート:1 = 昇順
+		現在ページ = 0
+		RESTART
+	CASE 9040
+		CALL SHOW_CHARADATA_素質絞り込み
+		現在ページ = 0
+		RESTART
+	CASE 9009
 		現在ページ = MAX(現在ページ - 1, 0)
 		GOTO 表示_LOOP
-	CASE 901
+	CASE 9010
 		SIF LOCAL:1 == 0
 			現在ページ += 1
 		GOTO 表示_LOOP
-	CASE 999
+	CASE 9999
 		RETURN -1
-	CASE 998
+	CASE 9998
 		PRINTL
 		DRAWLINE
 		PRINTL ［性癖開拓システム：チュートリアル］
 		DRAWLINE
-		HTML_PRINT "<img src='era_顔' height='900' width='900'>"
+		HTML_PRINT "<img src='顔エラ' height='900' width='900'>"
 		PRINTL 
 		PRINTL 
 		PRINTL 
@@ -103,7 +170,7 @@ SELECTCASE RESULT
 		CALL 性癖開拓システムチュートリアル
 		DRAWLINE
 		RESTART
-	CASE 1000
+	CASE 9000
 		複数名フラグ = 1
 	CASEELSE
 		開拓対象 = 表示候補:RESULT
@@ -112,7 +179,6 @@ ENDSELECT
 IF 複数名フラグ
 	VARSET 開拓性癖配列
 	$性癖表示LOOP
-	VARSET 表示候補, -1
 	現在ページ = 0
 	DRAWLINE
 	PRINTFORML 複数名の一括性癖開拓を行います
@@ -152,7 +218,9 @@ IF 複数名フラグ
 			ENDIF
 			GOTO 性癖表示LOOP
 		CASE 998
+			$フィルタソートLOOP
 			;表示キャラを登録
+			VARSET 表示候補, -1
 			LOCAL:1 = 0
 			FOR キャラ番号, 1, CHARANUM
 				;非滞在は出さない
@@ -175,13 +243,14 @@ IF 複数名フラグ
 				表示候補:(LOCAL:1) = キャラ番号
 				LOCAL:1 += 1
 			NEXT
+			CALL キャラ配列フィルタ処理(表示候補, -1)
 
 			$表示_LOOP2
 			DRAWLINE
 			PRINTFORML 複数名の一括性癖開拓を行います
-			PRINTL どのキャラの性癖を開拓しますか？（100名まで）
+			PRINTL どのキャラの性癖を開拓しますか？（選択は100名まで）
 			DRAWLINE
-			PRINTBUTTON "[1001] 上から100名開拓候補に入れる", 1001
+			PRINTBUTTON "[9001] 表示キャラを全員開拓する", 9001
 			PRINTL
 			DRAWLINE
 			LOCAL:1 = 0
@@ -196,9 +265,12 @@ IF 複数名フラグ
 					SETCOLOR カラーパレット("黄")
 				LOCALS = %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"), 40, LEFT%
 				IF 性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数 == 0
-					LOCALS += "現在の性癖開拓：なし"
+					LOCALS += "現在の性癖開拓：なし　　　　　　"
 				ELSE
-					LOCALS += @"現在の性癖開拓：%GET_性癖素質NAME(性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数, 表示候補:LOCAL)%"
+					LOCALS += @"現在の性癖開拓：%GET_性癖素質NAME(性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数, 表示候補:LOCAL), 16, LEFT%"
+				ENDIF
+				IF キャラ一覧ソート:0 != ""
+					LOCALS += @"%ソート情報表示(表示候補:LOCAL)%"
 				ENDIF
 				PRINTBUTTON @"[{LOCAL, 3}] %LOCALS%", LOCAL
 				RESETCOLOR
@@ -209,33 +281,95 @@ IF 複数名フラグ
 
 			;ページめくり表示
 			IF 現在ページ > 0
-				PRINTBUTTONLC "[900]前ページへ", 900
+				PRINTBUTTONLC "[9009]前ページへ", 9009
 			ELSE
 				PRINTLC 　
 			ENDIF
 			PRINTFORM - {現在ページ + 1} -
 			IF LOCAL:1 == 0
-				PRINTBUTTONC "[901]次ページへ", 901
+				PRINTBUTTONC "[9010]次ページへ", 9010
 			ENDIF
 			PRINTL 
 			DRAWLINE
-			PRINTBUTTON "[1000] これで確定する", 1000
+		
+			PRINTBUTTON "[9020]フィルタ機能", 9020
 			PRINTL
-			PRINTBUTTON "[999]戻る", 999
+			PRINTBUTTON "[9030]ソート機能", 9030
+			PRINT 　　　　　現在のソート設定：
+			IF キャラ一覧ソート:0 != ""
+				PRINTFORM %キャラ一覧ソート:0%
+			ENDIF
+			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+				PRINT (昇順)
+				PRINT 　　　　　
+				PRINTBUTTON "[降順にする]", 9031
+			ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+				PRINT (降順)
+				PRINT 　　　　　
+				PRINTBUTTON "[昇順にする]", 9032
+			ELSE
+				PRINT なし(キャラ番号順)
+			ENDIF
+			PRINTL
+			PRINTBUTTON "[9040]素質絞り込み機能", 9040
+			PRINT 　　現在の絞り込み設定：
+			IF キャラ一覧素質絞り込み:0 != ""
+				IF キャラ一覧素質絞り込み:99 == "AND"
+					PRINT (AND条件)：
+				ELSE
+					PRINT (OR条件)：
+				ENDIF
+				FOR LOCAL, 0, 99
+					SIF キャラ一覧素質絞り込み:LOCAL == ""
+						BREAK
+					LOCALS:0 = 
+					LOCALS:1 = 
+					SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+					PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+				NEXT
+			ELSE
+				PRINT なし
+			ENDIF
+			PRINTL
+			DRAWLINE
+
+			PRINTBUTTON "[9000] これで確定する", 9000
+			PRINTL
+			PRINTBUTTON "[9999]戻る", 9999
 			BINPUT
 
 			;広告対象のINPUT
 			SELECTCASE RESULT
-				CASE 900
+				CASE 9020
+					CALL SHOW_CHARADATA_FILTA
+					現在ページ = 0
+					GOTO フィルタソートLOOP
+				CASE 9030
+					CALL SHOW_CHARADATA_SORT
+					現在ページ = 0
+					GOTO フィルタソートLOOP
+				CASE 9031
+					キャラ一覧ソート:1 = 降順
+					現在ページ = 0
+					GOTO フィルタソートLOOP
+				CASE 9032
+					キャラ一覧ソート:1 = 昇順
+					現在ページ = 0
+					GOTO フィルタソートLOOP
+				CASE 9040
+					CALL SHOW_CHARADATA_素質絞り込み
+					現在ページ = 0
+					GOTO フィルタソートLOOP
+				CASE 9009
 					現在ページ = MAX(現在ページ - 1, 0)
 					GOTO 表示_LOOP2
-				CASE 901
+				CASE 9010
 					SIF LOCAL:1 == 0
 						現在ページ += 1
 					GOTO 表示_LOOP2
-				CASE 999
+				CASE 9999
 					GOTO 性癖表示LOOP
-				CASE 1000
+				CASE 9000
 					VARSET 複数登録配列
 					SPLIT 複数登録キャラ, "_", 複数登録配列
 					FOR LOCAL, 1, 100
@@ -259,14 +393,26 @@ IF 複数名フラグ
 						NEXT
 					NEXT
 					PRINTW ※結果は一日の終了時に表示されます
-				CASE 1001
-					複数登録キャラ = _
-					FOR LOCAL, 0, 100
+				CASE 9001
+					FOR LOCAL, 0, CHARANUM
 						SIF 表示候補:LOCAL < 0
+							CONTINUE
+						FOR 開拓性癖ループ, 0, 100
+							SIF 開拓性癖配列:開拓性癖ループ == 0
+								BREAK
+							;すでに性癖持ってるならスキップ
+							SIF 性癖素質:(表示候補:LOCAL):(開拓性癖配列:開拓性癖ループ)
+								CONTINUE
+							;名前の設定されていない性癖は取れない
+							SIF GET_性癖素質NAME(開拓性癖配列:開拓性癖ループ, 表示候補:LOCAL) == ""
+								CONTINUE
+
+							性癖素質:(表示候補:LOCAL):性癖開発用フラグ変数 = 開拓性癖配列:開拓性癖ループ
 							BREAK
-						複数登録キャラ += @"{表示候補:LOCAL}_"
+						NEXT
 					NEXT
-					GOTO 表示_LOOP2
+					PRINTFORML 表示している全てのキャラにそれぞれのエロ本が渡るように細工を行います
+					PRINTW ※結果は一日の終了時に表示されます
 				CASEELSE
 					LOCALS = _{表示候補:RESULT}_
 					IF STRFIND(複数登録キャラ, LOCALS) > -1

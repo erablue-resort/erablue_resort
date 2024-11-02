@@ -34,13 +34,18 @@ CALL キャラ番号配列_初期化_フィルタソート(射精先キャラ, "
 IF 対象キャラ数 == 0
 	IF SELECTCOM == 315
 		;性処理業務時は、各コマンドに射精場所の管理を渡す
-		TRYCCALLFORM 性処理_射精時処理_%RSTR:コマンド結果受渡し文字列%
-			SIF RESULT
-				RETURN 0
-		CATCH
-		ENDCATCH
-		;コマンドが特に指定しなかった場合は30番
-		JUMP 射精実処理(MASTER, TARGET, 30)
+		IF RFLAG:性処理射精先
+			CALL 射精実処理(PLAYER, TARGET, RFLAG:性処理射精先 - 10)
+			RETURN 0
+		ELSE
+			TRYCCALLFORM 性処理_射精時処理_%RSTR:コマンド結果受渡し文字列%
+				SIF RESULT
+					RETURN 0
+			CATCH
+			ENDCATCH
+			;コマンドが特に指定しなかった場合は30番
+			JUMP 射精実処理(MASTER, TARGET, 30)
+		ENDIF
 	ELSE
 		;オートコマンドのみのはずなので、オートコマンド相手で呼び出す
 		JUMP 射精実処理(MASTER, AUTOCOM_相手番号保存, 30)
@@ -397,6 +402,8 @@ ENDIF
 ;射精
 IF TALENT:ARG:性別 & 2
 	CALL 射精処理_コマンド(ARG, RCVAR:ARG:被射精絶頂の強度)
+	SIF RESULT > 0
+		CALL 勃起度下降_射精時(ARG)
 ENDIF
 
 ;ZPの取得

@@ -1,0 +1,186 @@
+﻿
+;=========================================================
+;	・キャラフィルタ処理
+;	配列をREFで渡して現在のフィルタやソートに応じた配列を返す
+;	返し配列と配列数を統一するため、渡す配列の配列数は「キャラクタ数上限」を設定することを推奨
+;=========================================================
+@キャラ配列フィルタ処理(対象キャラ配列, 配列初期値 = 0)
+#DIM REF 対象キャラ配列, 0
+#DIM DYNAMIC 返し配列, キャラクタ数上限
+#DIM DYNAMIC ソート基準値, キャラクタ数上限
+#DIM 配列初期値
+#DIM 配列番号
+#DIM 候補人数
+#DIM 合致フラグ
+#DIM ソート順
+#DIM 口上ファイル数
+#DIM アビ奥義関数
+
+VARSET 返し配列, 配列初期値
+候補人数 = 0
+;まずはフィルタ
+;固有の条件は関数外で処理されているはずのため、フィルタしか勘案しない
+FOR 配列番号, 0, CHARANUM
+	;基本的にあなたは処理しないのでスキップ
+	SIF 対象キャラ配列:配列番号 < 1
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:(対象キャラ配列:配列番号):種族)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:(対象キャラ配列:配列番号):バストサイズ)%") && TALENT:(対象キャラ配列:配列番号):性別 != 2
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:(対象キャラ配列:配列番号):性別 == 2
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:(対象キャラ配列:配列番号):男性器サイズ)%") && GETBIT(TALENT:(対象キャラ配列:配列番号):性別, 1) != 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:(対象キャラ配列:配列番号):性別, 1) == 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:(対象キャラ配列:配列番号):性知識, 対象キャラ配列:配列番号)%")
+		CONTINUE
+	IF 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号, "変更属性", 1) != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号, "変更属性", 1)%")
+			CONTINUE
+	ELSE
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:(対象キャラ配列:配列番号):属性)%")
+			CONTINUE
+	ENDIF
+	SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:(対象キャラ配列:配列番号):得意武器)%")
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:(対象キャラ配列:配列番号):ステータスタイプ保存)%")
+		CONTINUE
+	;発情期はちょっと面倒だけどオール手打ち
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(対象キャラ配列:配列番号)
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(対象キャラ配列:配列番号) && CFLAG:(対象キャラ配列:配列番号):発情期フラグ < 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(対象キャラ配列:配列番号) && CFLAG:(対象キャラ配列:配列番号):発情期フラグ > -1
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:(対象キャラ配列:配列番号):妊娠
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:(対象キャラ配列:配列番号):妊娠
+		CONTINUE
+	口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:(対象キャラ配列:配列番号)}_%CALLNAME:(対象キャラ配列:配列番号)%", "口上_*.ERB", 1)
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
+		CONTINUE
+	アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(対象キャラ配列:配列番号)}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:(対象キャラ配列:配列番号)}")
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数 > 0
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:(対象キャラ配列:配列番号):恋慕
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:(対象キャラ配列:配列番号):セフレ
+		CONTINUE
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:(対象キャラ配列:配列番号):セフレ && !TALENT:(対象キャラ配列:配列番号):恋慕
+		CONTINUE
+
+	;条件を満たす場合は合致フラグに１以上が入る
+	合致フラグ = 1
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:(対象キャラ配列:配列番号):(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+				;ANDの場合は一個でもアウトだとNG
+				合致フラグ = 0
+				BREAK
+			ENDIF
+		ELSE
+			合致フラグ = 0
+			IF TALENT:(対象キャラ配列:配列番号):(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+				;OR条件の場合は一個当てはまればOK
+				合致フラグ = 1
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	SIF 合致フラグ == 0
+		CONTINUE
+
+	返し配列:候補人数 = 対象キャラ配列:配列番号
+	候補人数 += 1
+NEXT
+
+ソート順 = 1
+;ソート処理
+IF キャラ一覧ソート:0 != ""
+	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+		ソート順 = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+		ソート順 = -1
+	ENDIF
+	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+		LOCALS = CFLAG
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(返し配列:LOCAL):好感度レベル * 1000) * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((CFLAG:(返し配列:LOCAL):恋慕レベル * 1000) * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((ABL:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (基礎BATTLE_STATE:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (知識素質:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (CFLAG:(返し配列:LOCAL):コマンドタゲ回数記録 * 1000 * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+		FOR LOCAL, 0, 候補人数
+			ソート基準値:LOCAL = (性癖素質:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
+		NEXT
+		ARRAYMSORT ソート基準値, 返し配列
+	ENDIF
+ENDIF
+
+ARRAYCOPY "返し配列", "対象キャラ配列"
+RETURN 候補人数
+
+@ソート情報表示(対象キャラ)
+#FUNCTIONS
+#DIM 対象キャラ
+
+;ソート条件に応じた対象キャラの情報を文字列として返す
+
+SIF キャラ一覧ソート:0 == ""
+	RETURNF ""
+
+IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+	RETURNF @"好感度レベル：Lv{CFLAG:対象キャラ:好感度レベル, 3}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+	RETURNF @"恋慕レベル：Lv{CFLAG:対象キャラ:恋慕レベル, 3}"
+ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ABLNAME:(キャラ一覧ソート:0)%：{ABL:対象キャラ:(キャラ一覧ソート:0), 2}"
+ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ERDNAME(装備ステータス補正保存, GETNUM(装備ステータス補正保存, キャラ一覧ソート:0))%：{基礎BATTLE_STATE:対象キャラ:(キャラ一覧ソート:0) + 装備ステータス補正保存:対象キャラ:(キャラ一覧ソート:0), 4}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+	RETURNF @"Lv{基礎BATTLE_STATE:対象キャラ:Lv, 3}"
+ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ERDNAME(知識素質, GETNUM(知識素質, キャラ一覧ソート:0))%：{知識素質:対象キャラ:(キャラ一覧ソート:0)}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+	RETURNF @"コマンド回数：{CFLAG:対象キャラ:コマンドタゲ回数記録, 4}"
+ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+	RETURNF @"%ERDNAME(性癖素質, GETNUM(性癖素質, キャラ一覧ソート:0))%：{性癖素質:対象キャラ:(キャラ一覧ソート:0)}"
+ENDIF

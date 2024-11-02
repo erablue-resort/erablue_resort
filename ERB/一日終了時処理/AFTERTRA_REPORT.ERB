@@ -6,8 +6,13 @@
 ;────────────────────────────────────
 @EVENTEND0
 #DIM 現在ページ
+#DIM 改行数
+#DIM 前カット位置
+#DIM 後カット位置
 #DIMS 表示カテゴリ
 #DIMS HTML文字列
+#DIM CONST ページ送り用行数 = 40
+
 ;#DIMS CONST カテゴリ表示順制御 = "オナニー・夜這い報告", "従業員業務報告", "妊娠報告", "リゾート収支計算", "リゾート人気変動", "その他報告"
 #DIMS CONST カテゴリ表示順制御 = "オナニー報告", "夜這い報告", "性癖開拓報告", "従業員業務報告", "妊娠報告", "リゾート収支計算", "リゾート人気変動", "依頼報告"
 
@@ -83,8 +88,46 @@ HTML文字列 += @"<button value='99'>一日の報告表示を終わる</button>
 HTML文字列 += "</div>"
 
 ;そんでレポートの中身を表示する
+LOCALS = %GETVARS(@"RSTR:%表示カテゴリ%_記録文字列")%
+;ページの切り替えのために縦列を取得
+改行数 = STRCOUNT(LOCALS, "<br>")
+IF 改行数 > ページ送り用行数
+	前カット位置 = -4
+	IF 現在ページ > 0
+		FOR LOCAL, 0, 現在ページ * ページ送り用行数
+			IF STRFIND(LOCALS, "<br>", 前カット位置 + 4) > -1
+				前カット位置 = STRFIND(LOCALS, "<br>", 前カット位置 + 4)
+			ELSE
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+	LOCALS = %SUBSTRING(LOCALS, 前カット位置 + 4, -1)%
+	後カット位置 = 0
+	FOR LOCAL, 0, ページ送り用行数
+		IF STRFIND(LOCALS, "<br>", 後カット位置 + 4) > -1
+			後カット位置 = STRFIND(LOCALS, "<br>", 後カット位置 + 4)
+		ELSE
+			後カット位置 = -1
+			BREAK
+		ENDIF
+	NEXT
+	LOCALS = %SUBSTRING(LOCALS, 0, 後カット位置)%
+	HTML文字列 += "<div rect='1400,4700,5800,300'>"
+	HTML文字列 += "　　　"
+	IF 現在ページ > 0
+		HTML文字列 += @"<button value='97'>[97] 前ページへ</button>"
+	ELSE
+		HTML文字列 += "　　　　　　 　"
+	ENDIF
+	HTML文字列 += "　　　　　　　　"
+	IF 後カット位置 > -1
+		HTML文字列 += @"<button value='98'>[98] 次ページへ</button>"
+	ENDIF
+	HTML文字列 += "</div>"
+ENDIF
 HTML文字列 += "<div rect='1400,100,5800,5000'>"
-HTML文字列 += @"<nobr>%GETVARS(@"RSTR:%表示カテゴリ%_記録文字列")%</nobr>"
+HTML文字列 += @"<nobr>%LOCALS%</nobr>"
 HTML文字列 += "</div>"
 
 HTML_PRINT HTML文字列
@@ -95,6 +138,10 @@ NEXT
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 97
+		現在ページ --
+	CASE 98
+		現在ページ ++
 	CASE 99
 		現在ページ = 0
 		;詳細必須の項目をここで表示する
@@ -177,7 +224,7 @@ ENDSELECT
 WAIT
 
 @一日終了時レポート処理_オナニー・夜這い報告()
-#DIM 順番シャッフル用配列, キャラクタ数上限
+#DIM DYNAMIC 順番シャッフル用配列, キャラクタ数上限
 #DIM シャッフル数
 #DIM 結果保存
 #DIM 口上あり
