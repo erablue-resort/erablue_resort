@@ -248,26 +248,15 @@ RESTART
 #DIM 左キャラ
 #DIM 対象キャラ
 #DIM ページ数
+#DIM 表示数
 #DIM 初期進展度
 #DIM セットモード
 #DIM 既に恋慕フラグ
+#DIM DYNAMIC 候補配列, キャラクタ数上限
 
-;キャラ一覧を表示
-DRAWLINE
-PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
-PRINTL ※リゾートにいないキャラも選択出来ます。
-PRINTL ※恋愛対象外のキャラについては選択出来ません。
-PRINTL 　（特定のキャラについては選択出来ることがあります）
-DRAWLINE
-IF セットモード == 0
-	HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='1011'>[セフレの縁]</button>"
-ELSE
-	HTML_PRINT @"　　<button value='1010'>[恋慕の縁]</button>　　<font color='#%カラーパレット_HTML("黄")%'>[セフレの縁]</font>"
-ENDIF
-DRAWLINE
-LOCAL:1 = 0
-LOCALS = 
+表示数 = 0
 既に恋慕フラグ = 0
+VARSET 候補配列
 FOR 対象キャラ, 1, CHARANUM
 	SIF 対象キャラ == 左キャラ
 		CONTINUE
@@ -343,52 +332,103 @@ FOR 対象キャラ, 1, CHARANUM
 	ELSEIF RESULT == 1
 		既に恋慕フラグ = 0
 	ENDIF
-	IF ページ数 == LOCAL:1 / 30
-		LOCALS += @"<button value='{対象キャラ}'>[{対象キャラ,3}] %ADD_STR_SPACE(NAME:対象キャラ, "]", 1),41,LEFT%</button>　　　　　　　　"
-	ENDIF
-	LOCAL:1 += 1
-	IF LOCAL:1 % 2 == 0
-		HTML_PRINT LOCALS
-		LOCALS = 
-	ENDIF
+	候補配列:表示数 = 対象キャラ
+	表示数 ++
 NEXT
-IF 既に恋慕フラグ == 1
-	LOCALS += "既に恋人がいます。"
-ELSEIF 既に恋慕フラグ == 2
-	LOCALS += "既に恋慕の縁結びを設定済みです。"
-ENDIF
-IF LOCALS != ""
-	HTML_PRINT LOCALS
-	LOCALS = 
+
+;キャラ一覧を表示
+DRAWLINE
+PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
+PRINTL ※リゾートにいないキャラも選択出来ます。
+PRINTL ※恋愛対象外のキャラについては選択出来ません。
+PRINTL 　（特定のキャラについては選択出来ることがあります）
+DRAWLINE
+IF セットモード == 0
+	HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='9011'>[セフレの縁]</button>"
+ELSE
+	HTML_PRINT @"　　<button value='9010'>[恋慕の縁]</button>　　<font color='#%カラーパレット_HTML("黄")%'>[セフレの縁]</font>"
 ENDIF
 DRAWLINE
+LOCALS = 
+IF 既に恋慕フラグ == 1
+	LOCALS += "既に恋人がいます。"
+	LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
+	表示数 = 0
+ELSEIF 既に恋慕フラグ == 2
+	LOCALS += "既に恋慕の縁結びを設定済みです。"
+	LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
+	表示数 = 0
+ELSE
+	FOR 対象キャラ, ページ数 * 30, ページ数 * 30 + 30
+		IF 対象キャラ % 2 == 0 && 対象キャラ != 0
+			LOCALS += "<br>" 
+		ENDIF
+		IF 候補配列:対象キャラ > 0
+			LOCALS += @"<button value='{候補配列:対象キャラ}'>[{候補配列:対象キャラ,3}] %ADD_STR_SPACE(NAME:(候補配列:対象キャラ), "]", 1),41,LEFT%</button>　　　　　　　　"
+		ENDIF
+	NEXT
+
+	IF 表示数
+		PRINTBUTTON "[9100] 候補からランダムに選ぶ", 9100
+		PRINTL 
+		DRAWLINE
+	ENDIF
+ENDIF
+HTML_PRINT LOCALS
+DRAWLINE
 IF ページ数 > 0
-	PRINTBUTTONLC "[1000] 前のページへ", 1000
+	PRINTBUTTONLC "[9000] 前のページへ", 9000
 ELSE
 	PRINTC   
 ENDIF
-IF ページ数 < (LOCAL:1 + 1) / 30
-	PRINTBUTTONLC "[1001] 次のページへ", 1001
+IF 表示数 >= ページ数 * 30 + 30
+	PRINTBUTTONLC "[9001] 次のページへ", 9001
 ELSE
 	PRINTC   
 ENDIF
 PRINTL
-PRINTBUTTON "[999] 戻る", 999
+PRINTBUTTON "[9999] 戻る", 9999
 
 BINPUT
 対象キャラ = RESULT
 SELECTCASE 対象キャラ
-	CASE 999
+	CASE 9100
+		対象キャラ = 候補配列:(RAND:表示数)
+		;データベースにセット
+		PRINTFORM %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%との
+		IF セットモード
+			PRINT 『セフレの縁』
+			LOCALS = セフレ
+		ELSE
+			PRINT 『恋慕の縁』
+			LOCALS = 恋慕
+		ENDIF
+		PRINTL を導きました。
+		PRINTW 今後のリゾート生活で縁が進行していきます。
+		初期進展度 = 0
+		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
+			IF 同行候補キャラ番号:対象キャラ:LOCAL == 左キャラ
+				初期進展度 = MIN(同行候補キャラ確率:対象キャラ:LOCAL, 100) / 2
+				BREAK
+			ENDIF
+		NEXT
+		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:左キャラ:人物番号, "対象キャラ２", CFLAG:対象キャラ:人物番号, "進展度", 初期進展度, "縁結び種別", LOCALS
+		IF セットモード == 0
+			ページ数 = 0
+			セットモード = 0
+			RETURN 0
+		ENDIF
+	CASE 9999
 		ページ数 = 0
 		セットモード = 0
 		RETURN 0
-	CASE 1000
+	CASE 9000
 		ページ数 --
-	CASE 1001
+	CASE 9001
 		ページ数 ++
-	CASE 1010
+	CASE 9010
 		セットモード = 0
-	CASE 1011
+	CASE 9011
 		セットモード = 1
 	CASEELSE
 		;データベースにセット
