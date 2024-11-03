@@ -1,35 +1,35 @@
 ﻿;-------------------------------------------------
 ;勃起おしゃぶりエステ
 ;-------------------------------------------------
-@MASSAGE_COMNAME31
+@MASSAGE_COMNAME32
 #FUNCTIONS
-TSTR:コマンド名受渡 = 勃起おしゃぶりエステ
+TSTR:コマンド名受渡 = 精液ぐつぐつ睾丸マッサージ
 
 
 ;===================================================
 ;コマンドタイプ
 ;===================================================
-@MASSAGE_COMTYPE_31
+@MASSAGE_COMTYPE_32
 #FUNCTION
 TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
 
-@MASSAGE_COM_TOOLTIP_31
-LOCALS = <br>■勃起おしゃぶりエステ<br>
-LOCALS += "フェラモードには突入しない単発コマンド。"
-LOCALS += "<br>マッサージ中にカチカチに『凝って』しまったペニスを、おくちでマッサージしてあげる。"
+@MASSAGE_COM_TOOLTIP_32
+LOCALS = <br>■精液ぐつぐつ睾丸マッサージ<br>
+LOCALS += "睾丸を手で優しく揉み、マッサージしてあげる。"
+LOCALS += "<br>マッサージ後は一時的に元気な精子を生み出せるようになり、妊娠率が上がるとか。"
 LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｃ・露出・接触・奉仕(PLAYER)・不潔(PLAYER)"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-@MASSAGE_COM31
+@MASSAGE_COM32
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
 
 ;基盤ができたあとで理性を削る処理を入れる
 
-;フェラからだいたいそのまま持ってきた
-CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
+;快感はフェラの6割くらいにしとく
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 120)
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
 
@@ -45,6 +45,10 @@ SIF TALENT:PLAYER:猫舌
 CALL SOURCE_CALC_奉仕(PLAYER, TARGET, 300)
 CALL SOURCE_CALC_不潔(PLAYER, TARGET, 250)
 
+;精力を少しだけ回復する。連打可能なコマンドなので気持ち少なめ
+BASE:TARGET:精力 += 50
+;妊娠率……もとい孕ませパワーが10%上昇する
+RCVAR:TARGET:妊娠率補正_加算値 += 10
 
 ;下半身下着がある場合は脱がす。
 IF TEQUIP:下半身下着あり == 1
@@ -54,17 +58,18 @@ IF TEQUIP:下半身下着あり == 1
 		TEQUIP:上半身服あり = 0
 	RFLAG:コマンド結果受渡し変数 = 1
 ENDIF
+
+;理性削りはおしゃぶりエステ
 IF BASE:TARGET:理性 <= 1
 ;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
 	BASE:TARGET:性欲 += 300
 	BASE:TARGET:警戒 -= 80
 	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
 ELSEIF 知識素質:TARGET:性知識 <= -1
-;性知識がない場合でも「流石にこれはダメだろ！」と思う。が、時既に遅し。
-;ようやく100上げることができた警戒で理性が50上がるが、気持ちよすぎてそこから理性が500下がるイメージでこの数値。シヴァ……
-	BASE:TARGET:理性 -= 450
-	BASE:TARGET:性欲 += 400
-	BASE:TARGET:警戒 += 100
+;性知識がない場合、ギリマッサージと言えなくもないので丸め込まれる
+	BASE:TARGET:理性 -= 300
+	BASE:TARGET:性欲 += 300
+	BASE:TARGET:警戒 += 20
 	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
 ELSE
 ;実行に際し十分な理性・警戒削りがなされている場合。
@@ -77,6 +82,7 @@ ELSE
 	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 150)
 ENDIF
 
+
 ;-------------------------------------------------
 ;経験の処理
 ;-------------------------------------------------
@@ -87,72 +93,68 @@ RETURN 1
 ;実行判定
 ;-------------------------------------------------
 
-@MASSAGE_COM_ABLE31
+@MASSAGE_COM_ABLE32
 SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
 	RETURN 0
 
-;相手がオトコか半人半妖かふたなりじゃないとダメ
-SIF !(TALENT:TARGET:性別 & 2)
+;相手がオトコか玉ありふたなりじゃなきゃダメ。
+SIF TALENT:TARGET:性別 <= 1 || (TALENT:TARGET:性別 == 3 && (フレーバー素質:対象キャラ:ふたなり時_玉ありなし != 2 && OPTION変数:ふたなり玉設定 != 2))
 	RETURN 0
 ;相手にちんこがない場合駄目
 SIF TALENT:TARGET:Ｃ感度 == -2
-	RETURN 0
-
-;相手のちんぽが『凝って』ないとダメ
-SIF BASE:TARGET:勃起 < 1000
 	RETURN 0
 
 ;うつ伏せだとダメ
 SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
 	RETURN 0
 
-;理性警戒の合計が400以下じゃないとダメ
+;理性警戒の合計が600以下じゃないとダメ
 ;実行できる時点で、十分な理性・警戒削りがなされている状態。
-SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 400
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 600
 	RETURN 0
 
 RETURN 1
 
+
 ;-------------------------------------------------
 ;実行時メッセージ
 ;-------------------------------------------------
-@MASSAGE_MESSAGE_COM31
+@MASSAGE_MESSAGE_COM32
 
 PRINTFORM %CALLNAME:PLAYER%は、
 
 	IF RFLAG:コマンド結果受渡し変数 == 1
-		PRINTFORM %CALLNAME:TARGET%の
-			;Ｖがあり欲情している場合
-			IF TALENT:TARGET:Ｖ感度 >= -1 && PALAM:欲情  >= PALAMLV:3
-				PRINTFORM ぐっしょりと愛液を吸った
-			ELSE
-				PRINTFORM 勃起ちんぽでテントを張った
-			ENDIF
-		PRINTFORM 施術着を脱がし、
+		SIF BASE:TARGET:勃起 < 1000
+			PRINTFORM 勃起ちんぽでテントを張った
+		PRINTFORM %CALLNAME:TARGET%の施術着を脱がし、
 	ENDIF
 	
-PRINTFORM %CALLNAME:TARGET%の
+PRINTFORML %CALLNAME:TARGET%の%TEXTR("陰嚢/たまたま")%を手のひらで包んで、
 
+CALL PRINT_STR(@"「がんばれ_H_ がんばれ_H_」")
+PRINTFORM と激励の言葉をかけながら優しくマッサージした……。
+PRINTL
+PRINTFORM %CALLNAME:TARGET%は
+IF BASE:TARGET:勃起 < 1000
 	;巨根以上
 	IF TALENT:TARGET:男性器サイズ >= 1
-			PRINTFORM バキバキに勃起した%TEXTR("デカちんぽ/巨根")%
-		ELSEIF TALENT:TARGET:男性器サイズ <= -1
+		PRINTFORML %TEXTR("デカちんぽ/巨根")%をバキバキに勃起させ、
+	ELSEIF TALENT:TARGET:男性器サイズ <= -1
 		;短小以下
-			PRINTFORM カチカチに硬くなったひとくちサイズの%TEXTR("ちんちん/おちんちん/ペニス")%
-		ELSE
-		;普通サイズ
-			PRINTFORM ガチガチに勃起した%TEXTR("肉棒/ちんぽ")%
-		ENDIF
-		PRINTFORML を、%TEXTR("唾液たっぷりのおくち/舌で唾液をたっぷり塗りこん")%で『エステ』してあげた。
+		PRINTFORML 親指サイズの%TEXTR("ちんちん/おちんちん/ペニス")%を健気に硬くして、
+	ELSE
+	;普通サイズ
+		PRINTFORML %TEXTR("肉棒/ちんぽ")%をガチガチに勃起させ、
+	ENDIF
+ENDIF
 
-;削りが十分な時は追加のメッセージ
-IF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 400
-	PRINTW 
 	SELECTCASE RAND:2
 	CASE 0
-		PRINTFORM %CALLNAME:TARGET%は%TEXTR("とろんと目元を蕩けさせ/蕩けた顔でだらしなく口をあけて/法悦に目元を蕩けさせて")%、
+		PRINTFORM %TEXTR("とろんと目元を蕩けさせ/蕩けた顔でだらしなく口をあけて/法悦に目元を蕩けさせて")%、
 	CASE 1
-		PRINTFORM %CALLNAME:TARGET%はだらしなく緩んだ口から%TEXTR("あられもない声/快楽に染まった嬌声/淫らな声")%を%TEXTR("あげて/こぼして/こぼしながら")%、
+		PRINTFORM %CALLNAME:TARGET%はだらしなく緩んだ口から%TEXTR("あられもない声/だらしない声/女の子みたいな可愛らしい声")%を%TEXTR("あげて/こぼして/こぼしながら")%、
 	ENDSELECT
-	PRINTFORML %CALLNAME:PLAYER%%TEXTR("の『マッサージ』/の口技/のフェラチオ")%%TEXTR("に酔いしれている/にされるがままになっている/を受け入れている/を甘受している")%…
-ENDIF
+	PRINTFORML %CALLNAME:PLAYER%%TEXTR("の『マッサージ』/の手技")%%TEXTR("に酔いしれている/にされるがままになっている/を受け入れている/を甘受している")%…
+
+PRINTW 
+PRINTFORML %CALLNAME:TARGET%の睾丸は%CALLNAME:PLAYER%のマッサージによって活性化し、%TEXTR("元気な/活きのいい/力強い")%精子を生み出す%TEXTR("気力/活力/精力")%がみなぎった！
