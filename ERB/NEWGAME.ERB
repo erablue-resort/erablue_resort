@@ -1727,6 +1727,7 @@ SELECTCASE 全体設定
 			フレーバー素質:COUNT:乳輪大きさ = RAND:5 + 1
 			フレーバー素質:COUNT:性器種類 = RAND:5 + 1
 			フレーバー素質:COUNT:クリ大きさ = RAND:3 + 1
+			フレーバー素質:COUNT:ふたなり時_玉ありなし = RAND:2 + 1
 			LOCAL = RAND:5
 			SIF LOCAL == 0
 				SETBIT フレーバー素質:COUNT:ほくろ位置, 0
@@ -1747,6 +1748,12 @@ ENDSELECT
 #DIM キャラ番号
 #DIM フレーバー素質数値保存, 10
 VARSET フレーバー素質数値保存
+
+FOR COUNT, 1, 10
+	IF フレーバー素質:キャラ番号:COUNT
+		フレーバー素質数値保存:COUNT = フレーバー素質:キャラ番号:COUNT
+	ENDIF
+NEXT
 
 $描画_LOOP
 DRAWLINE
@@ -1883,6 +1890,21 @@ FOR LOCAL:1, 0, 4
 	ENDIF
 	LOCALS += @"<font color='#%LOCALS:1%'><button value='{60 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
 NEXT
+IF TALENT:キャラ番号:性別 == 3 && OPTION変数:ふたなり玉設定 == 0
+	LOCALS += @"　%ERDNAME(フレーバー素質, 7), 12, LEFT%：　　　　"
+	FOR LOCAL:1, 0, 3
+		LOCALS:2 = %GET_フレーバー素質NAME(7, LOCAL:1)%
+		IF LOCALS:2 == ""
+			CONTINUE
+		ENDIF
+		IF GETBIT(フレーバー素質数値保存:7,LOCAL:1)
+			LOCALS:1 = C0C0C0
+		ELSE
+			LOCALS:1 = 333333
+		ENDIF
+		LOCALS += @"<font color='#%LOCALS:1%'><button value='{70 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+	NEXT
+ENDIF
 LOCALS += "</div>"
 LOCALS += "<div rect='2812,3562,1875,312'><button value='999'>[999] これで決定</button></div>"
 
@@ -1894,7 +1916,7 @@ NEXT
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE 0 TO 59
+	CASE 0 TO 59, 70 TO 79
 		フレーバー素質数値保存:(LOCAL / 10) = LOCAL % 10
 		GOTO 描画_LOOP
 	CASE 60 TO 69
