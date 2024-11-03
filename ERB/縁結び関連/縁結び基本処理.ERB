@@ -49,8 +49,11 @@ DRAWLINE
 LOCALS = <div rect='81,0,1937,2812' padding='50, 25, 50' border='31' bcolor='#C0C0C0'>
 LOCALS += "<button value='-1'>[-1] 新しい縁結びを設定する</button><br>"
 LOCALS += "<br>"
+LOCALS += "<button value='-2'>[-2] ランダムに縁を結ぶ</button><br>"
+LOCALS += "<br>"
 LOCALS += "<button value='1000'>[1000] ヘルプ</button><br>"
 LOCALS += "<button value='1001'>[1001] オプション</button><br>"
+LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button><br>"
 LOCALS += "</div>"
 
@@ -152,6 +155,8 @@ ENDIF
 SELECTCASE LOCAL
 	CASE -1
 		CALL 縁結び左キャラセット()
+	CASE -2
+		CALL ランダム縁結び処理()
 	CASE 999
 		ページ数 = 0
 		RETURN 0
@@ -244,15 +249,20 @@ RESTART
 
 ;恋愛対象外チェック()
 
-@縁結び右キャラセット(左キャラ)
+@縁結び右キャラセット(左キャラ, 全キャラランダムモード = 0)
 #DIM 左キャラ
+#DIM 全キャラランダムモード
 #DIM 対象キャラ
 #DIM ページ数
 #DIM 表示数
 #DIM 初期進展度
 #DIM セットモード
 #DIM 既に恋慕フラグ
-#DIM DYNAMIC 候補配列, キャラクタ数上限
+#DIM 候補配列, キャラクタ数上限
+
+;ランダムモードに１が入ってれば恋慕、０が入ってればセフレで処理する
+SIF 全キャラランダムモード
+	セットモード = 全キャラランダムモード - 1
 
 表示数 = 0
 既に恋慕フラグ = 0
@@ -261,14 +271,14 @@ FOR 対象キャラ, 1, CHARANUM
 	SIF 対象キャラ == 左キャラ
 		CONTINUE
 	;優先条件
-	;オプションによる制御
-	SIF 性別招待制御_実処理(対象キャラ)
-		CONTINUE
 	;招待可能フラグによる制御
 	SIF CFLAG:対象キャラ:招待不可フラグ
 		CONTINUE
 	;同じ相手はダメ
 	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
+		CONTINUE
+	;オプションによる制御
+	SIF 性別招待制御_実処理(対象キャラ)
 		CONTINUE
 
 	;口上側で設定可能な条件
@@ -336,75 +346,82 @@ FOR 対象キャラ, 1, CHARANUM
 	表示数 ++
 NEXT
 
-;キャラ一覧を表示
-DRAWLINE
-PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
-PRINTL ※リゾートにいないキャラも選択出来ます。
-PRINTL ※恋愛対象外のキャラについては選択出来ません。
-PRINTL 　（特定のキャラについては選択出来ることがあります）
-DRAWLINE
-IF セットモード == 0
-	HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='9011'>[セフレの縁]</button>"
-ELSE
-	HTML_PRINT @"　　<button value='9010'>[恋慕の縁]</button>　　<font color='#%カラーパレット_HTML("黄")%'>[セフレの縁]</font>"
-ENDIF
-DRAWLINE
-LOCALS = 
-IF 既に恋慕フラグ == 1
-	LOCALS += "既に恋人がいます。"
-	LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
-	表示数 = 0
-ELSEIF 既に恋慕フラグ == 2
-	LOCALS += "既に恋慕の縁結びを設定済みです。"
-	LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
-	表示数 = 0
-ELSE
-	FOR 対象キャラ, ページ数 * 30, ページ数 * 30 + 30
-		IF 対象キャラ % 2 == 0 && 対象キャラ != 0
-			LOCALS += "<br>" 
-		ENDIF
-		IF 候補配列:対象キャラ > 0
-			LOCALS += @"<button value='{候補配列:対象キャラ}'>[{候補配列:対象キャラ,3}] %ADD_STR_SPACE(NAME:(候補配列:対象キャラ), "]", 1),41,LEFT%</button>　　　　　　　　"
-		ENDIF
-	NEXT
-
-	IF 表示数
-		PRINTBUTTON "[9100] 候補からランダムに選ぶ", 9100
-		PRINTL 
-		DRAWLINE
+IF 全キャラランダムモード == 0
+	;キャラ一覧を表示
+	DRAWLINE
+	PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
+	PRINTL ※リゾートにいないキャラも選択出来ます。
+	PRINTL ※恋愛対象外のキャラについては選択出来ません。
+	PRINTL 　（特定のキャラについては選択出来ることがあります）
+	DRAWLINE
+	IF セットモード == 0
+		HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='9011'>[セフレの縁]</button>"
+	ELSE
+		HTML_PRINT @"　　<button value='9010'>[恋慕の縁]</button>　　<font color='#%カラーパレット_HTML("黄")%'>[セフレの縁]</font>"
 	ENDIF
-ENDIF
-HTML_PRINT LOCALS
-DRAWLINE
-IF ページ数 > 0
-	PRINTBUTTONLC "[9000] 前のページへ", 9000
-ELSE
-	PRINTC   
-ENDIF
-IF 表示数 >= ページ数 * 30 + 30
-	PRINTBUTTONLC "[9001] 次のページへ", 9001
-ELSE
-	PRINTC   
-ENDIF
-PRINTL
-PRINTBUTTON "[9999] 戻る", 9999
+	DRAWLINE
+	LOCALS = 
+	IF 既に恋慕フラグ == 1
+		LOCALS += "既に恋人がいます。"
+		LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
+		表示数 = 0
+	ELSEIF 既に恋慕フラグ == 2
+		LOCALS += "既に恋慕の縁結びを設定済みです。"
+		LOCALS += "<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>" 
+		表示数 = 0
+	ELSE
+		FOR 対象キャラ, ページ数 * 30, ページ数 * 30 + 30
+			IF 対象キャラ % 2 == 0 && 対象キャラ != 0
+				LOCALS += "<br>" 
+			ENDIF
+			IF 候補配列:対象キャラ > 0
+				LOCALS += @"<button value='{候補配列:対象キャラ}'>[{候補配列:対象キャラ,3}] %ADD_STR_SPACE(NAME:(候補配列:対象キャラ), "]", 1),41,LEFT%</button>　　　　　　　　"
+			ENDIF
+		NEXT
 
-BINPUT
-対象キャラ = RESULT
+		IF 表示数
+			PRINTBUTTON "[9100] 候補からランダムに選ぶ", 9100
+			PRINTL 
+			DRAWLINE
+		ENDIF
+	ENDIF
+	HTML_PRINT LOCALS
+	DRAWLINE
+	IF ページ数 > 0
+		PRINTBUTTONLC "[9000] 前のページへ", 9000
+	ELSE
+		PRINTC   
+	ENDIF
+	IF 表示数 >= ページ数 * 30 + 30
+		PRINTBUTTONLC "[9001] 次のページへ", 9001
+	ELSE
+		PRINTC   
+	ENDIF
+	PRINTL
+	PRINTBUTTON "[9999] 戻る", 9999
+
+	BINPUT
+	対象キャラ = RESULT
+ELSE
+	SIF 既に恋慕フラグ 
+		表示数 = 0
+	SIF 表示数 < 1
+		RETURN 0
+	対象キャラ = 9100
+ENDIF
 SELECTCASE 対象キャラ
 	CASE 9100
 		対象キャラ = 候補配列:(RAND:表示数)
 		;データベースにセット
-		PRINTFORM %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%との
 		IF セットモード
-			PRINT 『セフレの縁』
 			LOCALS = セフレ
 		ELSE
-			PRINT 『恋慕の縁』
 			LOCALS = 恋慕
 		ENDIF
-		PRINTL を導きました。
-		PRINTW 今後のリゾート生活で縁が進行していきます。
+		IF 全キャラランダムモード == 0
+			PRINTFORML %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%との『%LOCALS%の縁』を導きました。
+			PRINTW 今後のリゾート生活で縁が進行していきます。
+		ENDIF
 		初期進展度 = 0
 		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
 			IF 同行候補キャラ番号:対象キャラ:LOCAL == 左キャラ
@@ -413,10 +430,10 @@ SELECTCASE 対象キャラ
 			ENDIF
 		NEXT
 		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:左キャラ:人物番号, "対象キャラ２", CFLAG:対象キャラ:人物番号, "進展度", 初期進展度, "縁結び種別", LOCALS
-		IF セットモード == 0
+		IF セットモード == 0 || 全キャラランダムモード
 			ページ数 = 0
 			セットモード = 0
-			RETURN 0
+			RETURN 1
 		ENDIF
 	CASE 9999
 		ページ数 = 0
@@ -453,7 +470,7 @@ SELECTCASE 対象キャラ
 		IF セットモード == 0
 			ページ数 = 0
 			セットモード = 0
-			RETURN 0
+			RETURN 1
 		ENDIF
 ENDSELECT
 
@@ -857,5 +874,105 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 	ENDIF
 NEXT
 
+@ランダム縁結び処理()
+#DIM 設定数
 
+DRAWLINE
+PRINTL キャラの縁結びをランダムに結びます。
+PRINTL 設定方法を選んでください。
+DRAWLINE
 
+PRINTBUTTON "[0] リゾートにいるキャラ全てに恋慕の縁をランダムに結ぶ", 0
+PRINTL
+PRINTBUTTON "[1] リゾートにいるキャラ全てにセフレの縁をランダムに結ぶ", 1
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+PRINTL
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0
+		DRAWLINE
+		PRINTL リゾートにいるキャラ全てに恋慕の縁をランダムに結びます。
+		PRINTL ※縁を結ぶ候補がいない場合はスキップされます。
+		PRINTL ※全キャラが他のランダムなキャラに向けた縁が結ばれます。１対１で対応しているわけではありません。
+		PRINTL ※滞在人数によっては無限ループ警告が出る場合がありますが、そのまま処理を継続してください。
+		PRINTL
+		PRINTL よろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			設定数 = 0
+			;左キャラセット
+			FOR LOCAL, 1, CHARANUM
+				SIF CFLAG:LOCAL:滞在期間 < 0
+					CONTINUE
+				RESULT = 0
+				TRYCALLFORM 縁結び特殊条件_左キャラ時_{NO:LOCAL}(LOCAL)
+				IF RESULT == 0
+					SIF TALENT:LOCAL:性別 == 0
+						CONTINUE
+					SIF TALENT:LOCAL:性欲 == -2
+						CONTINUE
+					SIF 知識素質:LOCAL:性知識 < 0
+						CONTINUE
+					SIF GETBIT(CSVTALENT(NO:LOCAL, GETNUM(TALENT, "陥落不可")), 0) && GETBIT(TALENT:LOCAL:陥落不可, 1)
+						CONTINUE
+				ELSEIF RESULT == -1
+					CONTINUE
+				ENDIF
+				;ランダムで右キャラセット
+				CALL 縁結び右キャラセット(LOCAL, 1)
+				SIF RESULT
+					設定数 ++
+			NEXT
+			PRINTFORMW {設定数}名のキャラに恋慕の縁を結びました。
+		ENDIF
+	CASE 1
+		DRAWLINE
+		PRINTL リゾートにいるキャラ全てにセフレの縁をランダムに結びます。
+		PRINTL ※縁を結ぶ候補がいない場合はスキップされます。
+		PRINTL ※全キャラが他のランダムなキャラに向けた縁が結ばれます。１対１で対応しているわけではありません。
+		PRINTL ※滞在人数によっては無限ループ警告が出る場合がありますが、そのまま処理を継続してください。
+		PRINTL
+		PRINTL よろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			設定数 = 0
+			;左キャラセット
+			FOR LOCAL, 1, CHARANUM
+				SIF CFLAG:LOCAL:滞在期間 < 0
+					CONTINUE
+				RESULT = 0
+				TRYCALLFORM 縁結び特殊条件_左キャラ時_{NO:LOCAL}(LOCAL)
+				IF RESULT == 0
+					SIF TALENT:LOCAL:性別 == 0
+						CONTINUE
+					SIF TALENT:LOCAL:性欲 == -2
+						CONTINUE
+					SIF 知識素質:LOCAL:性知識 < 0
+						CONTINUE
+					SIF GETBIT(CSVTALENT(NO:LOCAL, GETNUM(TALENT, "陥落不可")), 0) && GETBIT(TALENT:LOCAL:陥落不可, 1)
+						CONTINUE
+				ELSEIF RESULT == -1
+					CONTINUE
+				ENDIF
+				;ランダムで右キャラセット
+				CALL 縁結び右キャラセット(LOCAL, 2)
+				SIF RESULT
+					設定数 ++
+			NEXT
+			PRINTFORMW {設定数}名のキャラにセフレの縁を結びました。
+		ENDIF
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+RESTART

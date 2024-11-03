@@ -1,0 +1,546 @@
+﻿[IF_DEBUG]
+;---------------------------------------------------------------------
+;【デバッグ用】画像ファイル名のチェック処理
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック()
+#DIM  CSV_NO
+#DIM  L_CNT
+#DIM  L_CNT_F
+#DIMS FOLDER_NAME
+#DIMS DYNAMIC FOLDER_LIST, VARSIZE("RESULTS") ; 取得したフォルダリストの格納先
+#DIM  FOLDER_CNT
+
+;- 実行確認
+; 割と時間がかかるので一応確認
+PRINTL
+PRINTL 【デバッグ用】画像ファイル名のチェック
+PRINTL 処理に時間がかかりますが実行しますか？
+PRINTL
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+BINPUT
+SIF RESULT == 1
+	RETURN
+PRINTL
+REDRAW 0
+
+;- ファイル名チェック実行
+; チェック前に情報をリセット
+CALL デバッグ用_エラー画像情報管理("リセット")
+
+; CSV番号1～チェック
+; ・0番(あなた)は命名規則外なので飛ばす
+FOR CSV_NO, 1, デバッグ用_CSV番号_MAX + 1
+	; CSVがない番号は飛ばす
+	SIF !EXISTCSV(CSV_NO)
+		CONTINUE
+	; CSV番号＋CSV記載のCALLNAMEからフォルダ名を生成
+	FOLDER_NAME '= TOSTR(CSV_NO) + CSVCALLNAME(CSV_NO)
+	FOLDER_CNT = デバッグ用_画像ファイル名チェック_フォルダ取得(FOLDER_NAME, FOLDER_LIST)
+	
+	FOR L_CNT_F, 0, FOLDER_CNT
+		CALL デバッグ用_画像ファイル名チェック_フォルダ(FOLDER_LIST:L_CNT_F)
+	NEXT
+NEXT
+
+; 命名規則から外れたリソースフォルダのチェック(0あなた等)
+FOR L_CNT, 0, VARSIZE("デバッグ用_特殊リソースフォルダ")
+	FOLDER_NAME '= デバッグ用_特殊リソースフォルダ:L_CNT
+	FOLDER_CNT= デバッグ用_画像ファイル名チェック_フォルダ取得(FOLDER_NAME, FOLDER_LIST)
+	
+	FOR L_CNT_F, 0, FOLDER_CNT
+		CALL デバッグ用_画像ファイル名チェック_フォルダ(FOLDER_LIST:L_CNT_F)
+	NEXT
+NEXT
+
+;- 結果の表示
+REDRAW 1
+AWAIT
+CALL デバッグ用_エラー画像情報管理("結果出力")
+
+;- 結果のファイル出力
+PRINTL
+PRINTL 結果をファイルに出力しますか？
+PRINTL
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+BINPUT
+SIF RESULT == 1
+	RETURN
+
+; ファイル保存実行
+; RESULT:保存成否 RESULTS:保存したファイルのパス
+CALL デバッグ用_エラー画像情報管理("ファイル保存")
+IF RESULT
+	; ファイル保存成功
+	PRINTFORML 結果を「%RESULTS%」に保存しました
+ELSE
+	; ファイル保存失敗
+	PRINTL ファイルの保存に失敗しました
+ENDIF
+PRINTW
+
+;---------------------------------------------------------------------
+;ベースフォルダからフォルダ一覧を生成してフォルダごとにチェック
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_フォルダ取得(FOLDER_NAME, FOLDER_LIST)
+#FUNCTION
+#DIMS FOLDER_NAME
+#DIMS REF FOLDER_LIST
+#DIM  フォルダ数
+#DIM  L_CNT
+; 定数(ENUMFILES用)
+#DIM  CONST サブフォルダ検索なし = 0
+#DIM  CONST サブフォルダ検索あり = 1
+#DIMS CONST フォルダベース = "resources\\"
+#DIMS CONST 対象ファイル   = "顔_デフォルト.png"
+
+;GET_ALL_RESOURCES_FOLDERSと処理が似ているが、あちらはキャラ番号を指定＝ゲーム開始後用の処理なので流用不可
+
+VARSET RESULTS
+VARSET FOLDER_LIST
+フォルダ数 = ENUMFILES(フォルダベース + FOLDER_NAME, 対象ファイル, サブフォルダ検索あり)
+
+SIF フォルダ数 == 0
+	RETURNF 0
+
+; 取得結果(resources\***キャラ名\ファイル名)から不要部分(resources\と\ファイル名)を削除して保存
+FOR L_CNT, 0, フォルダ数
+	FOLDER_LIST:L_CNT '= SUBSTRING(RESULTS:L_CNT, STRLENS(フォルダベース), STRLENS(RESULTS:L_CNT) - (STRLENS(フォルダベース) + STRLENS("\\" + 対象ファイル)))
+NEXT
+RETURNF フォルダ数
+
+;---------------------------------------------------------------------
+;フォルダ内の画像ファイル名をチェック
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_フォルダ(FOLDER_NAME)
+#DIMS FOLDER_NAME
+#DIMS 種類
+#DIMS FILE_NAME
+#DIMS FILE_NAME_TEMP
+#DIM  G_NUM
+#DIMS DYNAMIC FILE_LIST , VARSIZE("RESULTS")
+#DIMS DYNAMIC ERROR_LIST, 1000
+#DIMS SPLIT_FILE_NAME, 10
+#DIMS SPLIT_TEXT
+#DIM  L_CNT
+#DIM  SPLIT_CNT
+#DIM  CHK_STEP
+#DIM  CHK_RESULT
+#DIM  DYNAMIC RESTART_CNT = 0
+
+;- RESTART回数による処理分岐
+; 1周目:顔画像チェック, 2周目:短冊画像チェック, 3週目:終わり
+; 顔、短冊以外の画像ファイルはキャラごとの独自ファイルも多いのでチェックは難しい
+RESTART_CNT ++
+SELECTCASE RESTART_CNT
+	CASE 1
+		FILE_NAME = 顔_*.png
+	CASE 2
+		FILE_NAME = 短冊_*.png
+	CASE 3
+		RETURN
+ENDSELECT
+
+;- ファイル一覧を取得
+G_NUM = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
+ARRAYCOPY "RESULTS", "FILE_LIST"
+
+;- ファイル一覧のファイルを順番にチェック
+FOR L_CNT, 0, G_NUM
+	; 無限ループ判定対策のウェイト処理
+	CALL デバッグ用_画像ファイル名チェック_ウェイト()
+	
+	;- 書式エラー判定
+	FILE_NAME '= FILE_LIST:L_CNT
+	CHK_RESULT = デバッグ用_画像ファイル名チェック_ファイル(FILE_NAME, FOLDER_NAME)
+	IF !CHK_RESULT
+		; 書式エラー情報登録
+		CALL デバッグ用_エラー画像情報管理("書式エラー", FOLDER_NAME, FILE_NAME)
+		; 書式エラーの場合は画像が揃っているかチェックしないで次のファイルへ
+		CONTINUE
+	ENDIF
+
+	;- 画像が揃っているかチェック(顔画像と短冊画像の両方があるか)
+	CHK_RESULT = デバッグ用_画像ファイル名チェック_画像セット(FOLDER_NAME, FILE_NAME)
+	SELECTCASE CHK_RESULT
+		CASE -1
+			; セット画像なし情報登録
+			CALL デバッグ用_エラー画像情報管理("顔画像なし", FOLDER_NAME, FILE_NAME)
+		CASE -2
+			; セット画像なし情報登録
+			CALL デバッグ用_エラー画像情報管理("短冊画像なし", FOLDER_NAME, FILE_NAME)
+	ENDSELECT
+NEXT
+RESTART
+
+;---------------------------------------------------------------------
+;無限ループ警告対策のウェイト処理
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_ウェイト()
+#DIM WAIT_COUNT
+#DIM CONST AWAIT周期 = 100
+
+;- 処理時間が長く無限ループ疑惑の警告が出るのでAWAITを挟んで対策
+;・処理中なのがわかるように適当に表示をぐるぐる回す
+;・所定ファイル数ごとに1回表示更新(1ファイルごとだとウェイトしすぎで処理時間がすごい延びた)
+IF WAIT_COUNT % AWAIT周期 == 0
+	PRINT ファイルチェック中...
+	SELECTCASE WAIT_COUNT / AWAIT周期
+		CASE 0
+			PRINT -
+		CASE 1
+			PRINT \
+		CASE 2
+			PRINT |
+		CASE 3
+			PRINT /
+	ENDSELECT
+	PRINTL
+	AWAIT
+	CLEARLINE 1
+ENDIF
+WAIT_COUNT = (WAIT_COUNT + 1) % (4 * AWAIT周期)
+
+;---------------------------------------------------------------------
+;指定ファイルのファイル名をチェック
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_ファイル(FILE_NAME, FOLDER_NAME)
+#FUNCTION
+#DIM  パターン取得済
+#DIMS FILE_NAME
+#DIMS FOLDER_NAME
+#DIMS REGEX_衣装名_BASE
+#DIMS REGEX_衣装名
+#DIMS REGEX_差分名_BASE
+#DIMS REGEX_差分名
+#DIMS REGEX_TEXT
+#DIMS FOLDER_NAME_NOW
+
+;- チェック用正規表現パターンの取得
+; 処理中に内容が変化しないので取得は1回だけ
+IF !パターン取得済
+	パターン取得済 = 1
+	; 衣装名パターン
+	REGEX_衣装名_BASE '=       デバッグ用_GET_REGEX("衣装名定義")
+	REGEX_衣装名_BASE += "|" + デバッグ用_GET_REGEX("衣装名定義_EX")
+	; 差分名パターン
+	REGEX_差分名_BASE '=       デバッグ用_GET_REGEX("差分名定義")
+	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ｖ")
+	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ｖ", "膣内射精")
+	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ａ")
+	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ａ", "膣内射精")
+ENDIF
+
+;- キャラ固有設定の正規表現パターンの取得
+; 対象フォルダが切り替わったらキャラ固有の要素を更新
+IF FOLDER_NAME != FOLDER_NAME_NOW
+	REGEX_衣装名 '= REGEX_衣装名_BASE
+	REGEX_衣装名 += "|" + デバッグ用_GET_REGEX_キャラ固有設定("衣装", FOLDER_NAME)
+	REGEX_差分名 '= REGEX_差分名_BASE
+	REGEX_差分名 += "|" + デバッグ用_GET_REGEX_キャラ固有設定("差分", FOLDER_NAME)
+	FOLDER_NAME_NOW '= FOLDER_NAME
+ENDIF
+
+;- 正規表現でパターンと一致するかチェック
+; まとめてやろうとするとパターンテキストが煩雑になるので5つに分けてチェックする
+
+; 基本系
+; ・顔_デフォルト.png、顔_デフォルト_差分_表情.png等
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?(%REGEX_衣装名%)[0-9]*(_差分_(%REGEX_差分名%)[0-9]*)?\.png"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; 奥義ゲージMAX差分
+; ・顔_デフォルト_差分_奥義ゲージMAX.png等
+; 　奥義ゲージMAXは顔画像のみ有効
+REGEX_TEXT '= @"顔_(妊娠)?(%REGEX_衣装名%)[0-9]*_差分_奥義ゲージMAX[0-9]*\.png"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; ダンジョン衣装
+; ・顔_ダンジョン衣装.png、顔_ダンジョン衣装_差分_表情.png等
+; 　ダンジョン衣装は使用できる差分が「表情」「欲情」「奥義ゲージMAX」の三種類のみ
+; 　奥義ゲージMAXはさらに顔画像のみ有効なので別個で判定
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?ダンジョン衣装(_差分_(表情|欲情)[0-9]*)?\.png"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; ダンジョン衣装＋奥義ゲージMAX差分
+REGEX_TEXT '= @"顔_(妊娠)?ダンジョン衣装_差分_奥義ゲージMAX[0-9]*\.png"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; 水着特殊差分
+; ・顔_水着-ビキニ-0.png、顔_水着-ビキニ-0_差分_表情.png等
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?水着-[^-]*-[0-3](_差分_(%REGEX_差分名%)[0-9]*)?\.png"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; 全パターンに一致しなかったらNG
+RETURNF 0
+
+;---------------------------------------------------------------------
+;各リストの内容を結合して正規表現パターンとして使用可能にする
+;---------------------------------------------------------------------
+@デバッグ用_GET_REGEX(リスト名, 追加テキスト = "")
+#FUNCTIONS
+#DIMS リスト名
+#DIMS 追加テキスト  ; "膣内射精"とか差分名の後ろに付与するテキスト
+#DIMS リスト結合テキスト
+#DIMS 作業用定義リスト, デバッグ用_差分要素数MAX
+#DIM  L_CNT
+
+; 定義リストを作業用テンポラリにコピー
+ARRAYCOPY @"デバッグ用_%リスト名%", "作業用定義リスト"
+
+リスト結合テキスト '= @"%作業用定義リスト:0%%追加テキスト%"
+FOR L_CNT, 1, VARSIZE(@"デバッグ用_%リスト名%")
+	リスト結合テキスト += @"|%作業用定義リスト:L_CNT%%追加テキスト%"
+NEXT
+RETURNF リスト結合テキスト
+
+;---------------------------------------------------------------------
+;キャラ固有設定の内容を結合して正規表現パターンとして使用可能にする
+;---------------------------------------------------------------------
+@デバッグ用_GET_REGEX_キャラ固有設定(TYPE, FOLDER_NAME)
+#FUNCTIONS
+#DIMS TYPE
+#DIMS FOLDER_NAME
+#DIM  リスト取得済
+#DIMS リスト結合テキスト
+#DIMS 固有衣装フォルダリスト, 20
+#DIMS 固有衣装CSV, 20
+#DIMS 固有差分フォルダリスト, 20
+#DIMS 固有差分CSV, 20
+#DIMS 作業用フォルダリスト, 20
+#DIMS 作業用CSV, 20
+#DIMS 作業用固有定義リスト, デバッグ用_キャラ固有差分要素数MAX
+#DIM  要素数
+#DIM  L_CNT
+#DIM  L_CNT_T
+#DIM  L_CNT_C
+#DIMS 種類リスト = "衣装", "差分"
+
+;- 固有要素設定を取得
+; 処理中に内容が変化しないので取得は1回だけ
+IF !リスト取得済
+	リスト取得済 = 1
+	FOR L_CNT_T, 0, VARSIZE("種類リスト")
+		; 定義リストを作業用テンポラリにコピー
+		ARRAYCOPY @"デバッグ用_キャラ固有%種類リスト:L_CNT_T%名定義", "作業用固有定義リスト"
+
+		; 定義リストの分解(1行1キャラ(フォルダ))
+		FOR L_CNT, 0, VARSIZE(@"デバッグ用_キャラ固有%種類リスト:L_CNT_T%名定義")
+			SPLIT 作業用固有定義リスト:L_CNT, ":", RESULTS
+			作業用フォルダリスト:L_CNT '= RESULTS:0
+			作業用CSV:L_CNT '= RESULTS:1
+			DEBUGPRINTFORML [{L_CNT}]%作業用フォルダリスト:L_CNT%:%作業用CSV:L_CNT%
+		NEXT
+		; 作業用テンポラリから各種リストにコピー
+		ARRAYCOPY "作業用フォルダリスト", @"固有%種類リスト:L_CNT_T%フォルダリスト"
+		ARRAYCOPY "作業用CSV"           , @"固有%種類リスト:L_CNT_T%CSV"
+	NEXT
+ENDIF
+; 各種リストを作業用テンポラリにコピー
+ARRAYCOPY @"固有%TYPE%フォルダリスト", "作業用フォルダリスト"
+ARRAYCOPY @"固有%TYPE%CSV"           , "作業用CSV"
+
+; 固有要素ありのフォルダと一致する場合は固有要素をまとめて結果として返す
+リスト結合テキスト '= ""
+FOR L_CNT, 0, VARSIZE(@"デバッグ用_キャラ固有%TYPE%名定義")
+	SIF 作業用フォルダリスト:L_CNT != FOLDER_NAME
+		CONTINUE
+	SPLIT 作業用CSV:L_CNT, ",", RESULTS
+	要素数 = RESULT
+	リスト結合テキスト '= @"%RESULTS:0%"
+	FOR L_CNT_C, 1, 要素数
+		リスト結合テキスト += @"|%RESULTS:L_CNT_C%"
+	NEXT
+	BREAK
+NEXT
+
+RETURNF リスト結合テキスト
+
+;---------------------------------------------------------------------
+;ファイルがセットになっているか(顔画像と短冊画像が揃っているか)チェック
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_画像セット(FOLDER_NAME, FILE_NAME)
+#FUNCTION
+#DIMS FOLDER_NAME
+#DIMS FILE_NAME
+#DIMS CHK_FILE_NAME
+#DIMS FOLDER_PATH
+#DIMS REGEX_TEXT
+
+#DIMS CONST フォルダベース = "resources"
+
+FOLDER_PATH '= @"%フォルダベース%\\%FOLDER_NAME%"
+
+DEBUGPRINTFORML 画像セット[%FOLDER_NAME%][%FILE_NAME%]
+
+; 顔画像か短冊画像か判定
+REGEX_TEXT '= @"顔_.*\.png"
+IF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	;- 顔画像
+	; 例外処理:奥義ゲージMAX差分は短冊がなくてOK
+	REGEX_TEXT '= @"顔_.*_奥義ゲージMAX[0-9]*\.png"
+	SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+		RETURNF 1
+
+	; 対応する短冊画像があるかチェック
+	CHK_FILE_NAME '= REPLACE(FILE_NAME, "^顔_", "短冊_")
+	SIF ENUMFILES(FOLDER_PATH, CHK_FILE_NAME) <= 0
+		RETURNF -2
+ELSE
+	;- 短冊画像
+	; 対応する顔画像があるかチェック
+	CHK_FILE_NAME '= REPLACE(FILE_NAME, "^短冊_", "顔_")
+	SIF ENUMFILES(FOLDER_PATH, CHK_FILE_NAME) <= 0
+		RETURNF -1
+ENDIF
+RETURNF 1
+
+;---------------------------------------------------------------------
+;エラー画像ファイル情報の登録、出力の取りまとめ
+;---------------------------------------------------------------------
+@デバッグ用_エラー画像情報管理(TYPE, FOLDER_NAME = "", FILE_NAME = "")
+; 引数
+#DIMS TYPE
+#DIMS FOLDER_NAME
+#DIMS FILE_NAME
+; Static変数:出力用エラー画像ファイル情報保存
+#DIMS エラー画像リスト_フォルダ , 2, デバッグ用_エラー内容保持数
+#DIMS エラー画像リスト_ファイル , 2, デバッグ用_エラー内容保持数
+#DIM  エラー件数, 2
+#DIMS エラータイトル,2
+#DIM  書式エラー件数
+#DIM  画像なし件数
+#DIMS SAVE_TEXT_DATA
+#DIM  SAVE_TEXT_DATA_SET
+; 内部変数:その他
+#DIMS DYNAMIC TIME_STAMP
+#DIM  DYNAMIC SPLIT_CNT
+#DIM  DYNAMIC L_CNT
+
+SELECTCASE TYPE
+	CASE "リセット"
+		VARSET エラー画像リスト_フォルダ
+		VARSET エラー画像リスト_ファイル
+		VARSET エラー件数
+		書式エラー件数 = 0
+		画像なし件数   = 0
+		SAVE_TEXT_DATA '= ""
+		SAVE_TEXT_DATA_SET = 0
+
+	CASE "書式エラー"
+		; 書式エラーの登録
+		IF 書式エラー件数 < VARSIZE("エラー画像リスト_フォルダ", 2)
+			エラー画像リスト_フォルダ:0:書式エラー件数 '= FOLDER_NAME
+			エラー画像リスト_ファイル:0:書式エラー件数 '= FILE_NAME
+		ENDIF
+		書式エラー件数 ++
+
+	CASE "顔画像なし", "短冊画像なし"
+		; セット画像なしの登録
+		IF 画像なし件数 < VARSIZE("エラー画像リスト_フォルダ", 2)
+			エラー画像リスト_フォルダ:1:画像なし件数 '= FOLDER_NAME
+			エラー画像リスト_ファイル:1:画像なし件数 '= FILE_NAME
+		ENDIF
+		画像なし件数 ++
+
+	CASE "結果出力", "ファイル保存"
+		; 出力内容は同じで画面に表示するかファイルに出力するかを変える
+		
+		;- 出力内容の作成
+		; リセットされるまで内容が変わらないので1回のみ実行
+		IF !SAVE_TEXT_DATA_SET
+			SAVE_TEXT_DATA_SET = 1
+			エラー件数:0 = 書式エラー件数
+			エラー件数:1 = 画像なし件数
+			エラータイトル:0 '= "書式エラーのファイル"
+			エラータイトル:1 '= "顔画像と短冊画像が揃っていないファイル"
+			SAVE_TEXT_DATA '= デバッグ用_エラー画像情報管理_出力テキスト作成(エラータイトル, エラー画像リスト_フォルダ, エラー画像リスト_ファイル, エラー件数)
+		ENDIF
+		
+		IF TYPE == "結果出力"
+			;- 出力内容を改行で分割して表示
+			SPLIT SAVE_TEXT_DATA, "\n", RESULTS
+			SPLIT_CNT = RESULT
+			; 出力ループ
+			; ・最後に余分な空行ができるのでループ回数は-1
+			FOR L_CNT, 0, SPLIT_CNT - 1
+				PRINTSL RESULTS:L_CNT
+			NEXT
+		ELSE
+			;- 出力内容をファイルに保存
+			; 現在の時刻を取得してYYMMDD_hhmmss形式に加工
+			TIME_STAMP '= GETTIMES()
+			TIME_STAMP '= REPLACE(TIME_STAMP, "^20", "")
+			TIME_STAMP '= REPLACE(TIME_STAMP, "/", "")
+			TIME_STAMP '= REPLACE(TIME_STAMP, ":", "")
+			TIME_STAMP '= REPLACE(TIME_STAMP, " ", "_")
+			; ファイルパスを受け渡し用にRESULTに格納
+			RESULTS '= @"dat/画像ファイル名チェック結果_%TIME_STAMP%.txt"
+			SAVETEXT SAVE_TEXT_DATA, RESULTS
+			RETURN RESULT
+		ENDIF
+ENDSELECT
+
+;---------------------------------------------------------------------
+;エラー画像ファイル情報の出力テキスト作成
+;---------------------------------------------------------------------
+@デバッグ用_エラー画像情報管理_出力テキスト作成(ERR_TITLE, ERR_LIST_FOLDER, ERR_LIST_FILE, ERR_CNT)
+#FUNCTIONS
+#DIMS REF ERR_TITLE       , 0
+#DIMS REF ERR_LIST_FOLDER , 0, 0
+#DIMS REF ERR_LIST_FILE   , 0, 0
+#DIM  REF ERR_CNT, 0
+#DIMS SAVE_TEXT_DATA
+#DIMS DYNAMIC FOLDER_TEMP
+#DIM  DYNAMIC LIAT_CNT_MAX
+#DIM  DYNAMIC L_CNT_EL
+#DIM  DYNAMIC L_CNT
+#DIM  CONST   LINE_LEN = 80
+#DIMS TITLE_TEMP
+
+LIAT_CNT_MAX = VARSIZE("ERR_LIST_FOLDER", 2)
+SAVE_TEXT_DATA '= ""
+FOR L_CNT, 0, VARSIZE("ERR_LIST_FOLDER", 1)
+	; 2周目以降は最初に空行を追加
+	SIF L_CNT
+		SAVE_TEXT_DATA += "\n"
+	; タイトル表示
+	TITLE_TEMP '= @"-□ %ERR_TITLE:L_CNT% □-"
+	SAVE_TEXT_DATA += TITLE_TEMP + "-" * (LINE_LEN - STRLENS(TITLE_TEMP)) + "\n"
+	
+	; エラー内容表示
+	IF ERR_CNT:L_CNT
+		; エラーあり
+		FOLDER_TEMP '= ""
+		FOR L_CNT_EL, 0, MIN(ERR_CNT:L_CNT, LIAT_CNT_MAX)
+			; フォルダ名が切り替わったらフォルダ名を表示
+			IF ERR_LIST_FOLDER:L_CNT:L_CNT_EL != FOLDER_TEMP
+				SIF L_CNT_EL != 0
+					SAVE_TEXT_DATA += "\n"
+				SAVE_TEXT_DATA += @"<%ERR_LIST_FOLDER:L_CNT:L_CNT_EL%>\n"
+				FOLDER_TEMP '= ERR_LIST_FOLDER:L_CNT:L_CNT_EL
+			ENDIF
+			; ファイル名を表示
+			SAVE_TEXT_DATA += @"%ERR_LIST_FILE:L_CNT:L_CNT_EL%\n"
+		NEXT
+		; 件数表示
+		SAVE_TEXT_DATA += "\n"
+		SAVE_TEXT_DATA += @"合計:{ERR_CNT:L_CNT}件\n"
+		; エラー件数が多すぎてリストサイズオーバーしていた場合の注意書き
+		SIF ERR_CNT:L_CNT >= LIAT_CNT_MAX
+			SAVE_TEXT_DATA += @"※ 件数が多いため{LIAT_CNT_MAX}件のみ出力しています\n"
+	ELSE
+		; エラーなし
+		SAVE_TEXT_DATA += "なし\n"
+	ENDIF
+NEXT
+SAVE_TEXT_DATA += "-" * LINE_LEN + "\n"
+
+RETURNF SAVE_TEXT_DATA
+[ENDIF]
