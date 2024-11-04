@@ -1,11 +1,19 @@
 ﻿
 @奥義名呼び出し(ARG)
+#DIM 先頭得意武器
+
 TSTR:コマンド名受渡 = 
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義名", ARG)
 CATCH
 	TRYCCALLFORM 奥義名補正_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "奥義名補正", 1), 26, LEFT%
 	CATCH
-		TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義名", ARG)
+		FOR LOCAL, 0, 10
+			IF GETBIT(基礎BATTLE_STATE:ARG:得意武器, LOCAL)
+				先頭得意武器 = LOCAL
+				BREAK
+			ENDIF
+		NEXT
+		TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義名", ARG)
 	ENDCATCH
 	IF 表示奥義:ARG:0 != "" || (陥落奥義:ARG:0 != "" && 基礎BATTLE_STATE:ARG:Lv >= 38)
 		;CSVで登録されていると奥義名の表示のみそれになる
@@ -48,12 +56,19 @@ RETURN RESULT
 
 @奥義威力呼び出し(ARG)
 #DIM 奥義威力
+#DIM 先頭得意武器
 #DIMS 文字列分割, 2
 
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義説明文", ARG)
 	奥義威力 = RESULT
 CATCH
-	TRYCCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義説明文", ARG)
+	FOR LOCAL, 0, 10
+		IF GETBIT(基礎BATTLE_STATE:ARG:得意武器, LOCAL)
+			先頭得意武器 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	TRYCCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義説明文", ARG)
 		奥義威力 = RESULT
 	CATCH
 		RETURN 0
@@ -75,13 +90,20 @@ ENDIF
 RETURN 奥義威力
 
 @奥義前効果呼び出し(ARG)
+#DIM 先頭得意武器
 VARSET LOCALS
 
 ;一旦数値をリセットしてから奥義前部分を呼び出す
 CALL アビ汎用変数文字列リセット
 TRYCCALLFORM 固有奥義_{NO:ARG}("奥義前効果", ARG)
 CATCH
-	TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義前効果", ARG)
+	FOR LOCAL, 0, 10
+		IF GETBIT(基礎BATTLE_STATE:ARG:得意武器, LOCAL)
+			先頭得意武器 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義前効果", ARG)
 ENDCATCH
 
 ;対象を戻す
@@ -89,6 +111,7 @@ CALL アビ対象選択テンプレート_指定(奥義対象指定先)
 
 
 @奥義追加効果呼び出し(ARG)
+#DIM 先頭得意武器
 VARSET LOCALS
 
 ;一旦数値をリセットしてから、文字列表示用に奥義名部分を呼び出す
@@ -100,7 +123,13 @@ TRYCCALLFORM 固有奥義_{NO:ARG}("奥義追加効果", ARG)
 	SIF RESULT == -1
 		RETURN -1
 CATCH
-	TRYCCALLFORM 汎用奥義_%得意武器数値文字列変換(基礎BATTLE_STATE:ARG:得意武器)%("奥義追加効果", ARG)
+	FOR LOCAL, 0, 10
+		IF GETBIT(基礎BATTLE_STATE:ARG:得意武器, LOCAL)
+			先頭得意武器 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+	TRYCCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義追加効果", ARG)
 		SIF RESULT == -1
 			RETURN -1
 	CATCH

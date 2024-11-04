@@ -507,6 +507,7 @@ CALL VERSION_UP
 
 @キャラクター初期化(ARG, 引き継ぎキャラフラグ = 0)
 #DIM 引き継ぎキャラフラグ
+#DIM 得意武器記録
 #DIMS CSTR切り分け文字列格納, 2
 VARSET LOCALS
 VARSET CSTR切り分け文字列格納
@@ -608,7 +609,13 @@ IF 引き継ぎキャラフラグ == 0
 		基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
 		;得意武器
 		SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
-		基礎BATTLE_STATE:ARG:得意武器 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
+		VARSET RESULTS
+		SPLIT CSTR切り分け文字列格納:1, "・", RESULTS
+		得意武器記録 = 0
+		FOR LOCAL, 0, RESULT
+			SETBIT 得意武器記録, 得意武器文字列数値変換(RESULTS:LOCAL)
+		NEXT
+		基礎BATTLE_STATE:ARG:得意武器 = 得意武器記録
 		;初期ステータス
 		SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
 		CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
@@ -1785,7 +1792,7 @@ ELSE
 	LOCALS:1 = %属性数値文字色変換_HTML(基礎BATTLE_STATE:キャラ番号:属性)%
 	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%</font>"
 ENDIF
-LOCALS += @"　得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:キャラ番号:得意武器)%　"
+LOCALS += @"　得意武器：%得意武器表示文字列(基礎BATTLE_STATE:キャラ番号:得意武器)%　"
 LOCALS += @"　タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存)%"
 LOCALS += "<br><br>"
 LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
@@ -2286,6 +2293,8 @@ RETURN 返り値
 #DIM 口上ファイル数
 #DIM アビ奥義関数
 #DIM 対象キャラ
+#DIM スキップフラグ
+#DIM 得意武器番号
 #DIM 配列番号
 現在ページ = 0
 VARSET 追加候補, -1
@@ -2324,7 +2333,14 @@ FOR LOCAL, 1, CHARANUM
 		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
 			CONTINUE
 	ENDIF
-	SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:LOCAL:得意武器)%")
+	スキップフラグ = 0
+	FOR 得意武器番号, 0, 10
+		IF GETBIT(基礎BATTLE_STATE:LOCAL:得意武器, 得意武器番号) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(得意武器番号)%")
+			スキップフラグ = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF スキップフラグ
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
 		CONTINUE
