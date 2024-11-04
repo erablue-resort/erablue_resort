@@ -26,7 +26,7 @@
 #DIM ABL数値保存, 50
 #DIM EXP一時保存, 100
 #DIM EXP数値保存, 100
-#DIMS CONST 好物一覧 = "食べ物","酒","宝石","アクセサリ","実用品","本","花","その他"
+#DIMS CONST 好物一覧 = "飲食系","肉","魚","野菜","お菓子","珍味","酒","茶類","芸術品","宝石","絵画","彫刻","詩","美容系","アクセサリ","化粧品","実用品","文房具","健康器具","日用品","調理器具","工具","娯楽","花","本","おもちゃ","機械"
 #DIMS 好物一時保存
 #DIM 同行者一時保存, 3000
 #DIM 同行確率一時保存, 3000
@@ -1896,15 +1896,19 @@ SELECTCASE LOCAL
 		DRAWLINE
 		PRINTL プレゼントの好みを設定してください。
 		FOR LOCAL:1, 0, VARSIZE("好物一覧")
+			SIF GROUPMATCH(好物一覧:(LOCAL:1), "飲食系", "芸術品", "美容系", "実用品")
+				PRINTL
+			IF 好物一覧:(LOCAL:1) == "娯楽"
+				PRINTL 
+				PRINT 　　　　　　　　　
+			ENDIF
 			SIF STRCOUNT(好物一時保存, 好物一覧:(LOCAL:1))
 				SETCOLOR カラーパレット("黄")
-			PRINTFORM [{LOCAL:1}] %好物一覧:(LOCAL:1), 10, LEFT%　
+			PRINTBUTTON @"%@"[{LOCAL:1, 2}] %好物一覧:(LOCAL:1), 10, LEFT%", 16, LEFT%", LOCAL:1
+			PRINT 　
 			RESETCOLOR
-			SIF (LOCAL:1 + 1) % 5 == 0
-				PRINTL 
 		NEXT
-		SIF LOCAL:1 + 1 % 8
-			PRINTL
+		PRINTL
 		PRINTL 
 		PRINTBUTTON "[999] 戻る", 999
 		PRINTL
@@ -1916,6 +1920,68 @@ SELECTCASE LOCAL
 			好物一時保存 = %RESULTS%
 		ELSE
 			好物一時保存 += @"%好物一覧:RESULT%_"
+			SELECTCASE 好物一覧:RESULT
+				CASE "肉","魚","野菜","お菓子","珍味","酒","茶類"
+					IF STRCOUNT(好物一時保存, "飲食系")
+						;小カテゴリ選んだら大カテゴリ削除
+						REPLACE 好物一時保存, @"飲食系_", ""
+						好物一時保存 = %RESULTS%
+					ENDIF
+				CASE "宝石","絵画","彫刻","詩"
+					IF STRCOUNT(好物一時保存, "芸術品")
+						;小カテゴリ選んだら大カテゴリ削除
+						REPLACE 好物一時保存, @"芸術品_", ""
+						好物一時保存 = %RESULTS%
+					ENDIF
+				CASE "アクセサリ","化粧品"
+					IF STRCOUNT(好物一時保存, "美容系")
+						;小カテゴリ選んだら大カテゴリ削除
+						REPLACE 好物一時保存, @"美容系_", ""
+						好物一時保存 = %RESULTS%
+					ENDIF
+				CASE "文房具","健康器具","日用品","調理器具","工具"
+					IF STRCOUNT(好物一時保存, "実用品")
+						;小カテゴリ選んだら大カテゴリ削除
+						REPLACE 好物一時保存, @"実用品_", ""
+						好物一時保存 = %RESULTS%
+					ENDIF
+				CASE "飲食系"
+					;大カテゴリ選んだら小カテゴリ削除
+					FOR LOCAL, 1, 8
+						IF STRCOUNT(好物一時保存, 好物一覧:LOCAL)
+							;小カテゴリ選んだら大カテゴリ削除
+							REPLACE 好物一時保存, @"%好物一覧:LOCAL%_", ""
+							好物一時保存 = %RESULTS%
+						ENDIF
+					NEXT
+				CASE "芸術品"
+					;大カテゴリ選んだら小カテゴリ削除
+					FOR LOCAL, 9, 13
+						IF STRCOUNT(好物一時保存, 好物一覧:LOCAL)
+							;小カテゴリ選んだら大カテゴリ削除
+							REPLACE 好物一時保存, @"%好物一覧:LOCAL%_", ""
+							好物一時保存 = %RESULTS%
+						ENDIF
+					NEXT
+				CASE "美容系"
+					;大カテゴリ選んだら小カテゴリ削除
+					FOR LOCAL, 14, 16
+						IF STRCOUNT(好物一時保存, 好物一覧:LOCAL)
+							;小カテゴリ選んだら大カテゴリ削除
+							REPLACE 好物一時保存, @"%好物一覧:LOCAL%_", ""
+							好物一時保存 = %RESULTS%
+						ENDIF
+					NEXT
+				CASE "実用品"
+					;大カテゴリ選んだら小カテゴリ削除
+					FOR LOCAL, 17, 22
+						IF STRCOUNT(好物一時保存, 好物一覧:LOCAL)
+							;小カテゴリ選んだら大カテゴリ削除
+							REPLACE 好物一時保存, @"%好物一覧:LOCAL%_", ""
+							好物一時保存 = %RESULTS%
+						ENDIF
+					NEXT
+			ENDSELECT
 		ENDIF
 		GOTO 好物_LOOP
 	CASE 106
@@ -2141,8 +2207,22 @@ SELECTCASE LOCAL
 
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;プレゼント好み
-			PRINTL ;・カテゴリ一覧
-			PRINTL ;食べ物,酒,宝石,アクセサリ,実用品,本,花,その他
+			PRINTL ;大カテゴリ、及びそれに付随する小カテゴリのどちらも設定可能。
+			PRINTL ;大カテゴリを好みに設定した時、小カテゴリ全てが好きと判定されるので運用には注意。
+			PRINTL ;プレゼントは複数のカテゴリを持つことがあり、どれか一つに引っかかれば好きと判定される。
+			PRINTL ;ただし小カテゴリ複数の場合、大カテゴリ好き者が引っかかるのは最初の一つだけ
+			PRINTL ;
+			PRINTL ;大カテゴリ,飲食系
+			PRINTL ;	小カテゴリ,肉,魚,野菜,お菓子,珍味,酒,茶類
+			PRINTL ;大カテゴリ,芸術品
+			PRINTL ;	小カテゴリ,宝石,絵画,彫刻,詩
+			PRINTL ;大カテゴリ,美容系
+			PRINTL ;	小カテゴリ,アクセサリ,化粧品
+			PRINTL ;大カテゴリ,実用品
+			PRINTL ;	小カテゴリ,文房具,健康器具,日用品,調理器具,工具
+			PRINTL ;以下は大カテゴリに当てはまらない個別の小カテゴリ
+			PRINTL ;	小カテゴリ,娯楽,花,本,おもちゃ,機械
+			PRINTL ;
 			PRINTL ;複数好みにする場合は「食べ物_酒」のように記述すること
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTFORML CSTR,プレゼント好み,%SUBSTRINGU(好物一時保存, 0, STRLENSU(好物一時保存) - 1)%
