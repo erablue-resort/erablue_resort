@@ -44,6 +44,44 @@ FOR DB番号, 0, DT_ROW_LENGTH("関係性データベース")
 	ENDIF
 NEXT
 
+;縁結び関係
+;縁結びからの成立関係は二重判定になるけどまあいいか……eraの縁結びパワーってことで……
+FOR DB番号, 0, DT_ROW_LENGTH("関係性データベース")
+	;恋慕でもセフレでもないならスキップ
+	SIF DT_CELL_GETS("関係性データベース", DB番号, "関係性種別") != "恋慕" && DT_CELL_GETS("関係性データベース", DB番号, "関係性種別") != "セフレ"
+		CONTINUE
+	;デート発生率は33％
+	SIF RAND:3
+		CONTINUE
+	デートキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", DB番号, "対象キャラ１"))
+	デートキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", DB番号, "対象キャラ２"))
+	;既にデートセット済みならスキップ
+	SIF CFLAG:デートキャラ１:デート
+		CONTINUE
+	SIF CFLAG:デートキャラ２:デート
+		CONTINUE
+	;汎用ルーチン以外ならスキップ
+	SIF MATCH(デート置き換えルーチン, 移動ルーチン:デートキャラ１:ルーチンID) == 0
+		CONTINUE
+	SIF MATCH(デート置き換えルーチン, 移動ルーチン:デートキャラ２:ルーチンID) == 0
+		CONTINUE
+	;デートフラグをセット
+	IF RAND:2
+		CFLAG:デートキャラ１:デート = デートキャラ２ + 100
+		CFLAG:デートキャラ２:デート = (デートキャラ１ + 100) * -1
+		;ルーチンIDを書き換えてルーチンセット
+		移動ルーチン:デートキャラ１:ルーチンID = デート先導
+		移動ルーチン:デートキャラ１:PMルーチンID = 
+		移動ルーチン:デートキャラ２:ルーチンID = デート追従
+		移動ルーチン:デートキャラ２:PMルーチンID = 
+		CALL ROUTINE_SCHEDULE_デートルーチン(デートキャラ１, デートキャラ２)
+	ELSE
+		CFLAG:デートキャラ１:デート = (デートキャラ２ + 100) * -1
+		CFLAG:デートキャラ２:デート = デートキャラ１ + 100
+		;ルーチンセット
+		CALL ROUTINE_SCHEDULE_デートルーチン(デートキャラ２, デートキャラ１)
+	ENDIF
+NEXT
 
 
 
