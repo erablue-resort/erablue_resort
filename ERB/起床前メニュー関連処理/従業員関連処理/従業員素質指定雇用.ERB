@@ -175,6 +175,15 @@ IF CSVエディタフラグ
 	PRINTL 作成したCSVファイルは「CSV_EDITFILE」フォルダの中にあるので、使用時にはCSVフォルダへ移動させてください。
 	DRAWLINE
 	LOCALS = 
+	IF !登録番号
+		;空き番号取得
+		FOR LOCAL, 2000, キャラクタ数上限
+			IF EXISTCSV(LOCAL) == 0
+				登録番号 = LOCAL
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
 ELSE
 	PRINTL 従業員の素質を完全指定して雇います。
 	PRINTPLAIN 指定した素質の数に応じて必要ルピが上昇するので注意してください。
@@ -247,6 +256,10 @@ ENDIF
 
 LOCALS += "<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='156,500,1937,2812'>"
+IF CSVエディタフラグ
+	LOCALS += "<button value='99'>[ 99] CSV番号を設定する</button>"
+	LOCALS += "<br>"
+ENDIF
 LOCALS += "<button value='100'>[100] 名前を設定する</button>"
 LOCALS += "<br>"
 IF CSVエディタフラグ
@@ -304,6 +317,8 @@ LOCALS += "<br>"
 LOCALS += "<button value='200'>[200] これで決定する</button>"
 LOCALS += "<br>"
 IF CSVエディタフラグ
+	LOCALS += "<button value='997'>[997] ｺﾒﾝﾄ/解説エディタを起動する</button>"
+	LOCALS += "<br>"
 	LOCALS += "<button value='998'>[998] 既存キャラをコピーする</button>"
 	LOCALS += "<br>"
 ENDIF
@@ -329,21 +344,22 @@ SELECTCASE 表示モード
 				LOCALS += @"■[従業員]（ランダム決定）　　　"
 			ENDIF
 		ENDIF
-		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
-		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF CSVエディタフラグ
 			IF ランダムキャラCALLネーム != ""
-				LOCALS += @"<br>呼び名：%ランダムキャラCALLネーム%"
+				LOCALS += @"<br>　呼び名：%ランダムキャラCALLネーム, 24, LEFT%"
 			ELSE
-				LOCALS += @"<br>呼び名：（名前と共通）"
+				LOCALS += @"<br>　呼び名：%"（名前と共通）", 24, LEFT%"
 			ENDIF
+			LOCALS += @"　／　CSV番号：{登録番号, 4, LEFT}"
 		ENDIF
+		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
+		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>出演作品：%ランダムキャラ出演作品%"
+			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
 		ENDIF
 		IF CSVエディタフラグ
-			LOCALS += @"<br>招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
 		ENDIF
 		LOCALS += "<br><br>"
 		LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
@@ -651,13 +667,13 @@ SELECTCASE 表示モード
 			ENDIF
 		ENDIF
 		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 		LOCALS += @"　得意武器：%得意武器数値文字列変換(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
 		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>出演作品：%ランダムキャラ出演作品%"
+			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
 		ENDIF
 		IF CSVエディタフラグ
-			LOCALS += @"<br>招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
 		ENDIF
 		LOCALS += "<br><br>"
 		LOCALS += "□ 服装 □---------------------------------------------------------------<br>"
@@ -1851,10 +1867,39 @@ SELECTCASE LOCAL
 			DT_CELL_SET "DT_CHARA", (LOCAL - 100000) / 10, "VALUE", LIMIT(LOCAL:2, 0, 100)
 		ENDIF
 ;メイン画面--------------------------------------------------------
+	CASE 99
+		LOCAL:2 = 0
+		LOCAL:3 = 0
+		FOR LOCAL:1, 0, 999
+			SIF EXISTCSV(LOCAL:1)
+				LOCAL:2 = LOCAL:1
+		NEXT
+		FOR LOCAL:1, 1001, キャラクタ数上限
+			SIF EXISTCSV(LOCAL:1)
+				LOCAL:3 = LOCAL:1
+		NEXT
+		PRINTFORML 使用したいCSV番号を入力してください。（現在：{登録番号, 4, LEFT}／上限：{キャラクタ数上限-1}）
+		PRINTFORML グラブルキャラは{LOCAL:2}番まで、Exキャラは{LOCAL:3}番まで使用されている可能性があります。
+		$INPUT_NUM
+		SETTEXTBOX TOSTR(登録番号)
+		INPUTS
+		LOCAL:4 = TOINT(RESULTS)
+		IF LOCAL:4 == 登録番号
+		ELSEIF !INRANGE(LOCAL:4, 0, キャラクタ数上限-1)
+			PRINTW 無効な入力です。
+			CLEARLINE 2
+			GOTO INPUT_NUM
+		ELSEIF EXISTCSV(LOCAL:4)
+			PRINTW 同じ番号のCSVファイルが存在します。
+			CLEARLINE 2
+			GOTO INPUT_NUM
+		ENDIF
+		登録番号 = LOCAL:4
 	CASE 100
 		$INPUT_NAME
 		PRINTFORML 名前を入力してください。（１２文字まで）　（現在：%ランダムキャラネーム%）
 		PRINTL ┗[1] 命名テーブルからランダムに決定する　[2] 完全にランダムな名前を生成する　[0] 現在のものを使用する
+		SETTEXTBOX ランダムキャラネーム
 		INPUTS (%ランダムキャラネーム%)
 		IF RESULTS == "1" || RESULTS == "2"
 			ランダムキャラネーム = %ランダムキャラ名前生成(ランダムキャラ素質:0, ランダムキャラ素質:1)%
@@ -1875,6 +1920,7 @@ SELECTCASE LOCAL
 	CASE 101
 		$二つ名ループ
 		PRINTL 二つ名を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラ二つ名
 		INPUTS
 		IF STRFIND(RESULTS, " ") >= 0 || STRFIND(RESULTS, "_") >= 0
 			PRINTL 処理の都合上、二つ名に半角スペースと「_」は使用出来ません。
@@ -1885,10 +1931,12 @@ SELECTCASE LOCAL
 		ENDIF
 	CASE 102
 		PRINTL 呼び名を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラCALLネーム
 		INPUTS
 		ランダムキャラCALLネーム = %SUBSTRING(RESULTS, 0, 24)%
 	CASE 103
 		PRINTL 出演作品を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラ出演作品
 		INPUTS
 		ランダムキャラ出演作品 = %SUBSTRING(RESULTS, 0, 24)%
 	CASE 104
@@ -2002,13 +2050,13 @@ SELECTCASE LOCAL
 		ENDIF
 		IF CSVエディタフラグ
 			CLEARLINE LINECOUNT
-			;空き番号取得
-			FOR LOCAL:1, 2000, キャラクタ数上限
-				IF EXISTCSV(LOCAL:1) == 0
-					登録番号 = LOCAL:1
-					BREAK
-				ENDIF
-			NEXT
+			;空き番号取得は冒頭へ移動
+;			FOR LOCAL:1, 2000, キャラクタ数上限
+;				IF EXISTCSV(LOCAL:1) == 0
+;					登録番号 = LOCAL:1
+;					BREAK
+;				ENDIF
+;			NEXT
 			PRINTFORML 番号,{登録番号}
 			PRINTFORML 名前,[%ランダムキャラ二つ名%]%ランダムキャラネーム%
 			IF ランダムキャラCALLネーム != ""
@@ -2418,6 +2466,12 @@ SELECTCASE LOCAL
 	CASE 3
 		ページ数 = 0
 		表示モード = 3
+	CASE 997
+		PRINTL 一言コメント/解説エディタを起動します。
+		PRINTL （新規実装のため十分な検証ができていない可能性があります。万が一に備えて、一度CSVを保存しておくことをお勧めします）
+			CALL CHOICE("よろしいですか？", "はい", "いいえ")
+			SIF !RESULT
+				CALL 一言コメント解説エディタ(登録番号, ランダムキャラネーム)
 	CASE 998
 		CALL CSVコピー処理
 		CSV番号 = RESULT
@@ -3047,7 +3101,7 @@ SELECTCASE RESULT
 		RETURN 0
 ENDSELECT
 
-@CSVコピー処理()
+@CSVコピー処理(ARG=0)
 #DIM CSV番号
 #DIM 配列番号
 #DIM 表示数
@@ -3069,7 +3123,11 @@ NEXT
 $処理部分
 
 DRAWLINE
-PRINTL 既存のCSVから設定をコピーします。コピー対象を選択してください
+IF !ARG
+	PRINTL 既存のCSVから設定をコピーします。コピー対象を選択してください
+ELSE
+	PRINTL 既存のCSVを対象としてエディタを起動します。編集対象を選択してください
+ENDIF
 DRAWLINE
 
 表示数 = 0
@@ -3109,7 +3167,11 @@ SELECTCASE RESULT
 		RETURN -1
 	CASEELSE
 		CSV番号 = RESULT
-		PRINTFORML %CSVNAME(CSV番号)%のデータをコピーします。よろしいですか？
+		IF !ARG
+			PRINTFORML %CSVNAME(CSV番号)%のデータをコピーします。よろしいですか？
+		ELSE
+			PRINTFORML %CSVNAME(CSV番号)%を編集対象とします。よろしいですか？
+		ENDIF
 		PRINTBUTTONLC "[0] はい", 0
 		PRINTBUTTONLC "[1] いいえ", 1
 		PRINTL
