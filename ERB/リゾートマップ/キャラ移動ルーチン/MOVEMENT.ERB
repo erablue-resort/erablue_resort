@@ -1,5 +1,6 @@
 ﻿;時間経過処理
-@CHARA_MOVEMENT
+@CHARA_MOVEMENT(追従モード = 0)
+#DIM DYNAMIC 追従モード
 #DIM キャラ登録番号
 #DIM 追い出し先
 #DIM モード実行中フラグ
@@ -8,6 +9,9 @@
 FOR LOCAL,0,CHARANUM
 	;滞在してないキャラはスルー
 	SIF CFLAG:LOCAL:滞在期間 == -1
+		CONTINUE
+	;追従モード時、追従じゃないキャラはスルー
+	SIF 追従モード && RCVAR:LOCAL:追従ルーチン中 == 0
 		CONTINUE
 	;マップ間移動処理
 	CALL マップ遷移判定処理(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置)
@@ -113,7 +117,7 @@ FOR LOCAL,0,CHARANUM
 			CFLAG:LOCAL:同行 = 1
 	ELSE
 		CFLAG:LOCAL:同行 = MAX(CFLAG:LOCAL:同行 - TIME_PROGRESS(TFLAG:行動前時刻),0)
-		SIF CFLAG:LOCAL:同行 < 1
+		SIF CFLAG:LOCAL:同行 < 1 && CFLAG:LOCAL:デート == MASTER + 100
 			CFLAG:LOCAL:デート = 0
 	ENDIF
 	IF 追従中キャラ(LOCAL)
@@ -174,8 +178,15 @@ FOR LOCAL,0,CHARANUM
 	SIF FLAG:イベントうふふ中フラグ
 		CONTINUE
 	;部屋移動
-	CALL CHARA_MOVEMENT_T(LOCAL)
+	CALL CHARA_MOVEMENT_T(LOCAL, 追従モード)
 NEXT
+
+;追従キャラを動かす
+IF 追従モード == 0
+	CALL CHARA_MOVEMENT(1)
+ELSE
+	RETURN 0
+ENDIF
 
 LOCAL:1 = 滞在キャラ数算出関数(2)
 
@@ -304,7 +315,6 @@ IF !CFLAG:ARG:睡眠
 		睡眠場所 = RESULT:2
 	ENDIF
 	CFLAG:ARG:同行 = 0
-	CFLAG:ARG:デート = 0
 	CFLAG:ARG:睡眠 = 1
 	CFLAG:ARG:うふふ = 0
 	CALL 性欲ゲージ減少処理(ARG)
@@ -414,7 +424,6 @@ IF !CFLAG:ARG:睡眠
 ENDIF
 
 CFLAG:ARG:同行 = 0
-CFLAG:ARG:デート = 0
 CFLAG:ARG:睡眠 = 1
 CFLAG:ARG:飲み会 = 0
 CFLAG:ARG:うふふ = 0
@@ -485,7 +494,8 @@ RETURN 1
 
 
 ;ARG 移動させるキャラ番号
-@CHARA_MOVEMENT_T(ARG)
+@CHARA_MOVEMENT_T(ARG, 追従モード = 0)
+#DIM 追従モード
 ;活動時間　睡眠時間ならRESULTに真、活動時間ならRESULTに偽を代入
 CALL CHARA_MOVEMENT_ACTIVETIME(ARG)
 
@@ -501,8 +511,8 @@ ELSE
 ENDIF
 
 ;スケジュールに基づいた移動処理
-IF TCVAR:ARG:移動インターバル時間 == 0
-	CALL MOVE_ON_SCHEDULE(ARG)
+IF TCVAR:ARG:移動インターバル時間 == 0 || 追従モード
+	CALL MOVE_ON_SCHEDULE(ARG, 追従モード)
 	IF RESULT > 0
 		;RETURNが１＝移動したという意味なので3分のインターバル
 		TCVAR:ARG:移動インターバル時間 = 3

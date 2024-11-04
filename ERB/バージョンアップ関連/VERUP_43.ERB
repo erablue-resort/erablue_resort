@@ -14,6 +14,17 @@ IF ダメージ補正ステータスフォロー == 0
 	NEXT
 ENDIF
 
+IF 得意武器フォロー == 0 && (得意武器フォロー_非適用番号 == 0 || 得意武器フォロー_非適用番号 > ARG)
+	LOCAL = 0
+	DEBUGPRINTFORML %NAME:ARG%：{基礎BATTLE_STATE:ARG:得意武器}
+	SETBIT LOCAL, 基礎BATTLE_STATE:ARG:得意武器
+	基礎BATTLE_STATE:ARG:得意武器 = LOCAL
+ENDIF
+
+IF プレゼント好みフォロー == 0
+	CSTR:ARG:プレゼント好み = %CSVCSTR(NO:ARG, GETNUM(CSTR, "プレゼント好み"))%
+ENDIF
+
 ;その他広域変数の書き換えなど
 @VERUP_43()
 
@@ -91,8 +102,22 @@ ENDIF
 SIF DAY > 1
 	チュートリアルフラグ:最初の広告 = 1
 
+
+IF プレゼント好みフォロー == 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
+		;プレゼントのカテゴリ修正
+		IF DT_CELL_GETS("所持素材データベース", LOCAL, "素材カテゴリ") == "贈答アイテム"
+			素材性能_プレゼント = 
+			CALLFORM 素材性能記述_%DT_CELL_GETS("所持素材データベース", LOCAL, "素材アイテム名")%
+			DT_CELL_SET "所持素材データベース", LOCAL, "プレゼントカテゴリ", 素材性能_プレゼント
+		ENDIF
+	NEXT
+ENDIF
+
 ;対応処理用フラグを対応済状態にセット
 @VERUP_43_FINISH()
 フィールドフォロー = 1
 オプション配列フォロー = 2
 ダメージ補正ステータスフォロー = 1
+得意武器フォロー = 1
+プレゼント好みフォロー = 1

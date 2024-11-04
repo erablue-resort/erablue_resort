@@ -18,6 +18,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM314
 #DIMS カテゴリ配列, 10
+#DIMS カテゴリ配列_プレゼント, 10
 #DIM 選択プレゼント番号
 #DIMS 好み情報
 
@@ -58,6 +59,53 @@ IF RESULT
 	;特殊反応あり
 	RFLAG:コマンド結果受渡し変数 = 2
 ELSE
+	VARSET カテゴリ配列_プレゼント
+	SPLIT DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1), "_", カテゴリ配列_プレゼント
+	FOR LOCAL, 0, RESULT
+		IF LOCAL == 0
+			;先頭の要素だけは大カテゴリも見る
+			IF MATCH(カテゴリ配列, カテゴリ配列_プレゼント:LOCAL)
+				;好みに含まれる
+				RFLAG:コマンド結果受渡し変数 = 1
+				BREAK
+			ELSE
+				;大カテゴリ判定
+				SELECTCASE カテゴリ配列_プレゼント:LOCAL
+					CASE "肉","魚","野菜","お菓子","珍味","酒","茶類"
+						IF MATCH(カテゴリ配列, "飲食系")
+							;好みに含まれる
+							RFLAG:コマンド結果受渡し変数 = 1
+							BREAK
+						ENDIF
+					CASE "宝石","絵画","彫刻","詩"
+						IF MATCH(カテゴリ配列, "芸術品")
+							;好みに含まれる
+							RFLAG:コマンド結果受渡し変数 = 1
+							BREAK
+						ENDIF
+					CASE "アクセサリ","化粧品"
+						IF MATCH(カテゴリ配列, "美容系")
+							;好みに含まれる
+							RFLAG:コマンド結果受渡し変数 = 1
+							BREAK
+						ENDIF
+					CASE "文房具","健康器具","日用品","調理器具","工具"
+						IF MATCH(カテゴリ配列, "実用品")
+							;好みに含まれる
+							RFLAG:コマンド結果受渡し変数 = 1
+							BREAK
+						ENDIF
+				ENDSELECT
+			ENDIF
+		ELSE
+			;あとは完全一致だけ
+			IF MATCH(カテゴリ配列, カテゴリ配列_プレゼント:LOCAL)
+				;好みに含まれる
+				RFLAG:コマンド結果受渡し変数 = 1
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
 	IF MATCH(カテゴリ配列, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1))
 		;好みに含まれる
 		RFLAG:コマンド結果受渡し変数 = 1

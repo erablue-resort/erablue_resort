@@ -41,6 +41,11 @@ PRINTL
 PRINTBUTTON "[4] 弱点コマンド設定ERBエディタを起動する", 4
 PRINTL
 PRINTBUTTON "[5] 一言コメント/解説エディタを起動する", 5
+[IF_DEBUG]
+PRINTL
+PRINTL
+PRINTBUTTON "[9] 【デバッグ用】画像ファイル名のチェック", 9
+[ENDIF]
 
 BINPUT
 SELECTCASE RESULT
@@ -58,8 +63,12 @@ SELECTCASE RESULT
 		CALL 弱点コマンド設定ERB生成処理
 	CASE 5
 		CALL 一言コメント解説エディタ
+[IF_DEBUG]
+	CASE 9
+		CALL デバッグ用_画像ファイル名チェック()
 	CASE 5656
 		CALL バージョンアップ準備処理
+[ENDIF]
 ENDSELECT
 
 RESTART
@@ -502,6 +511,7 @@ CALL VERSION_UP
 
 @キャラクター初期化(ARG, 引き継ぎキャラフラグ = 0)
 #DIM 引き継ぎキャラフラグ
+#DIM 得意武器記録
 #DIMS CSTR切り分け文字列格納, 2
 VARSET LOCALS
 VARSET CSTR切り分け文字列格納
@@ -526,8 +536,7 @@ CALL CLOTHES_RESET(ARG)
 CSTR:ARG:二人称 = %CALLNAME:PLAYER%
 CALL 精力ゲージ_初期化(ARG)
 
-;射精、勃起、ムード、理性、怒り
-BASE:ARG:射精 = 0
+;勃起、ムード、理性、怒り
 BASE:ARG:勃起 = 0
 BASE:ARG:ムード = 0
 BASE:ARG:理性 = MAXBASE:ARG:理性
@@ -604,7 +613,13 @@ IF 引き継ぎキャラフラグ == 0
 		基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
 		;得意武器
 		SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
-		基礎BATTLE_STATE:ARG:得意武器 = 得意武器文字列数値変換(CSTR切り分け文字列格納:1)
+		VARSET RESULTS
+		SPLIT CSTR切り分け文字列格納:1, "・", RESULTS
+		得意武器記録 = 0
+		FOR LOCAL, 0, RESULT
+			SETBIT 得意武器記録, 得意武器文字列数値変換(RESULTS:LOCAL)
+		NEXT
+		基礎BATTLE_STATE:ARG:得意武器 = 得意武器記録
 		;初期ステータス
 		SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
 		CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
@@ -1731,6 +1746,7 @@ SELECTCASE 全体設定
 			フレーバー素質:COUNT:乳輪大きさ = RAND:5 + 1
 			フレーバー素質:COUNT:性器種類 = RAND:5 + 1
 			フレーバー素質:COUNT:クリ大きさ = RAND:3 + 1
+			フレーバー素質:COUNT:ふたなり時_玉ありなし = RAND:2 + 1
 			LOCAL = RAND:5
 			SIF LOCAL == 0
 				SETBIT フレーバー素質:COUNT:ほくろ位置, 0
@@ -1751,6 +1767,12 @@ ENDSELECT
 #DIM キャラ番号
 #DIM フレーバー素質数値保存, 10
 VARSET フレーバー素質数値保存
+
+FOR COUNT, 1, 10
+	IF フレーバー素質:キャラ番号:COUNT
+		フレーバー素質数値保存:COUNT = フレーバー素質:キャラ番号:COUNT
+	ENDIF
+NEXT
 
 $描画_LOOP
 DRAWLINE
@@ -1774,7 +1796,7 @@ ELSE
 	LOCALS:1 = %属性数値文字色変換_HTML(基礎BATTLE_STATE:キャラ番号:属性)%
 	LOCALS += @"<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(基礎BATTLE_STATE:キャラ番号:属性)%</font>"
 ENDIF
-LOCALS += @"　得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:キャラ番号:得意武器)%　"
+LOCALS += @"　得意武器：%得意武器表示文字列(基礎BATTLE_STATE:キャラ番号:得意武器)%　"
 LOCALS += @"　タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:キャラ番号:ステータスタイプ保存)%"
 LOCALS += "<br><br>"
 LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
@@ -1887,6 +1909,21 @@ FOR LOCAL:1, 0, 4
 	ENDIF
 	LOCALS += @"<font color='#%LOCALS:1%'><button value='{60 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
 NEXT
+IF TALENT:キャラ番号:性別 == 3 && OPTION変数:ふたなり玉設定 == 0
+	LOCALS += @"　%ERDNAME(フレーバー素質, 7), 12, LEFT%：　　　　"
+	FOR LOCAL:1, 0, 3
+		LOCALS:2 = %GET_フレーバー素質NAME(7, LOCAL:1)%
+		IF LOCALS:2 == ""
+			CONTINUE
+		ENDIF
+		IF GETBIT(フレーバー素質数値保存:7,LOCAL:1)
+			LOCALS:1 = C0C0C0
+		ELSE
+			LOCALS:1 = 333333
+		ENDIF
+		LOCALS += @"<font color='#%LOCALS:1%'><button value='{70 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+	NEXT
+ENDIF
 LOCALS += "</div>"
 LOCALS += "<div rect='2812,3562,1875,312'><button value='999'>[999] これで決定</button></div>"
 
@@ -1898,7 +1935,7 @@ NEXT
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE 0 TO 59
+	CASE 0 TO 59, 70 TO 79
 		フレーバー素質数値保存:(LOCAL / 10) = LOCAL % 10
 		GOTO 描画_LOOP
 	CASE 60 TO 69
@@ -1948,7 +1985,7 @@ VARSET LOCAL
 VARSET LOCALS
 ;表示処理
 FOR LOCAL, 現在ページ * 30, 候補人数
-	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]"),41,LEFT%</button>"
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]"),41,LEFT%</button>"
 	LOCALS += "　　　　　　　　"
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
@@ -2260,6 +2297,8 @@ RETURN 返り値
 #DIM 口上ファイル数
 #DIM アビ奥義関数
 #DIM 対象キャラ
+#DIM スキップフラグ
+#DIM 得意武器番号
 #DIM 配列番号
 現在ページ = 0
 VARSET 追加候補, -1
@@ -2298,7 +2337,14 @@ FOR LOCAL, 1, CHARANUM
 		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
 			CONTINUE
 	ENDIF
-	SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(基礎BATTLE_STATE:LOCAL:得意武器)%")
+	スキップフラグ = 0
+	FOR 得意武器番号, 0, 10
+		IF GETBIT(基礎BATTLE_STATE:LOCAL:得意武器, 得意武器番号) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(得意武器番号)%")
+			スキップフラグ = 1
+			BREAK
+		ENDIF
+	NEXT
+	SIF スキップフラグ
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
 		CONTINUE
@@ -2418,7 +2464,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
 		LOCALS += "<font color='#FF3399'>"
 	ENDIF
-	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1),41,LEFT%</button>"
+	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]", 1),41,LEFT%</button>"
 	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
 		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")

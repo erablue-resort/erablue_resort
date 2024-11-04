@@ -336,6 +336,8 @@ ENDSELECT
 #DIM 追撃効果量, 10
 #DIM 追撃効果割合, 10
 #DIM 確認スキップ
+#DIM 先頭得意武器
+#DIMS 説明保存
 
 CALL アビテンプレ変数リセット
 CALL 口上変数初期化
@@ -371,13 +373,14 @@ SELECTCASE 戦闘行動内容
 		アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
 		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ番号)
 		奥義威力保存 = RESULT
+		説明保存 = %詳細文文字列受け渡し変数%
 		;最後が改行だった場合、それは消しとく
-		IF STRFIND(詳細文文字列受け渡し変数, "<br>", STRLENS(詳細文文字列受け渡し変数) - 4) > -1
-			詳細文文字列受け渡し変数 = %SUBSTRING(詳細文文字列受け渡し変数, 0, STRLENS(詳細文文字列受け渡し変数) - 4)%
+		IF STRFIND(説明保存, "<br>", STRLENS(説明保存) - 4) > -1
+			説明保存 = %SUBSTRING(説明保存, 0, STRLENS(説明保存) - 4)%
 		ENDIF
-		KSTR:(K++) = ■%口上用技名保存%　　%詳細文文字列受け渡し変数%
+		KSTR:(K++) = ■%口上用技名保存%　　%説明保存%
 		;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-		STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+		STRCOUNT 説明保存, "<br>"
 		IF RESULT < 4
 			FOR LOCAL, 0, 4 - RESULT
 				KSTR:(K++) = 　
@@ -388,6 +391,20 @@ SELECTCASE 戦闘行動内容
 		確認スキップ = !(奥義使用確認スキップフラグ == 0 || 奥義威力保存 < 1)
 		エネミー画像ボタン化フラグ = 確認スキップ
 		KSTR:(K++) = \@ 確認スキップ? 攻撃対象を選んで下さい# <button value='0'>[0]使用する</button>\@　　　　　<button value='999'>[999]戻る</button>
+		詳細文文字列受け渡し変数 = 
+		TRYCCALLFORM 固有奥義_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}("奥義説明文_詳細", (BATTLE_STATE:戦闘行動キャラ:キャラ番号))
+		CATCH
+			FOR LOCAL, 0, 10
+				IF GETBIT(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ番号):得意武器, LOCAL)
+					先頭得意武器 = LOCAL
+					BREAK
+				ENDIF
+			NEXT
+			TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義説明文_詳細", (BATTLE_STATE:戦闘行動キャラ:キャラ番号))
+		ENDCATCH
+		IF 詳細文文字列受け渡し変数 != ""
+			KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+		ENDIF
 		CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
 		行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ番号)}
 		IF 確認スキップ
@@ -406,6 +423,13 @@ SELECTCASE 戦闘行動内容
 			CASE 0
 				;使用する場合は下の処理へ移行
 				CALL 口上変数初期化
+			CASE 998
+				DRAWLINE
+				HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+				DRAWLINE
+				WAIT
+				CALL 画面再描画
+				GOTO INPUT_LOOP_奥義
 			CASE 999
 				RETURN -1
 			CASEELSE
@@ -517,12 +541,13 @@ SELECTCASE 戦闘行動内容
 		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
 		口上用技名保存 = %TSTR:コマンド名受渡%
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		説明保存 = %詳細文文字列受け渡し変数%
 		消費MP一時保存 = RESULT
 		IF アビ使用確認スキップフラグ == 0
 			KSTR:(K++) = ■%TSTR:コマンド名受渡%
-			KSTR:(K++) = %詳細文文字列受け渡し変数%
+			KSTR:(K++) = %説明保存%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+			STRCOUNT 説明保存, "<br>"
 			IF RESULT < 4
 				FOR LOCAL, 0, 4 - RESULT
 					KSTR:(K++) = 　
@@ -534,6 +559,11 @@ SELECTCASE 戦闘行動内容
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
 			ELSE
 				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			ENDIF
+			詳細文文字列受け渡し変数 = 
+			CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+			IF 詳細文文字列受け渡し変数 != ""
+				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
 			ENDIF
 			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
 			$INPUT_LOOP2
@@ -551,6 +581,13 @@ SELECTCASE 戦闘行動内容
 						GOTO INPUT_LOOP2
 					ENDIF
 					CALL 口上変数初期化
+				CASE 998
+					DRAWLINE
+					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+					DRAWLINE
+					WAIT
+					CALL 画面再描画
+					GOTO INPUT_LOOP2
 				CASE 999
 					RETURN -1
 				CASEELSE
@@ -587,11 +624,12 @@ SELECTCASE 戦闘行動内容
 		;消費MP算出
 		RESULT = 0
 		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+		説明保存 = %詳細文文字列受け渡し変数%
 		消費MP一時保存 = RESULT
 		IF アビ使用確認スキップフラグ == 0
-			KSTR:(K++) = %詳細文文字列受け渡し変数%
+			KSTR:(K++) = %説明保存%
 			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-			STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+			STRCOUNT 説明保存, "<br>"
 			IF RESULT < 4
 				FOR LOCAL, 0, 4 - RESULT
 					KSTR:(K++) = 　
@@ -603,6 +641,11 @@ SELECTCASE 戦闘行動内容
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
 			ELSE
 				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			ENDIF
+			詳細文文字列受け渡し変数 = 
+			CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ番号)
+			IF 詳細文文字列受け渡し変数 != ""
+				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
 			ENDIF
 			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
 			$INPUT_LOOP3
@@ -619,6 +662,13 @@ SELECTCASE 戦闘行動内容
 						REUSELASTLINE 
 						GOTO INPUT_LOOP3
 					ENDIF
+				CASE 998
+					DRAWLINE
+					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+					DRAWLINE
+					WAIT
+					CALL 画面再描画
+					GOTO INPUT_LOOP3
 				CASE 999
 					RETURN -1
 				CASEELSE

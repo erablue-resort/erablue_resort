@@ -2,6 +2,7 @@
 #DIM 種親精液量
 #DIM 妊娠確率
 #DIM 種親
+#DIM 種親妊娠補正
 #DIM 命中強度1
 #DIM 命中強度2
 #DIM 危険度
@@ -33,6 +34,7 @@ FOR LOCAL,0,19
 		;この種親で妊娠させる
 		種親 = 性交相手:ARG:LOCAL
 		種親精液量 = 相手ごとの射精量:ARG:LOCAL
+		種親妊娠補正 = 相手ごとの妊娠率補正:ARG:LOCAL
 		BREAK
 	ELSEIF RESULT == -1
 		;この種親では絶対妊娠させない
@@ -108,6 +110,8 @@ SIF CSTR:ARG:着せ替え服 == "バニー服"
 SIF CSTR:ARG:着せ替え服 == "逆バニー"
 	妊娠確率 -= 3
 
+妊娠確率 += TCVAR:ARG:妊娠率補正 + 種親妊娠補正
+
 危険度 = RISKY_DAY(ARG) + TCVAR:ARG:排卵誘発薬
 SIF TCVAR:ARG:排卵誘発薬 && 危険度 <= 0
 	危険度 = 1
@@ -126,18 +130,15 @@ ENDSELECT
 
 LOCAL:0 = RAND:100
 
-DRAWLINE
-SETCOLOR カラーパレット("クリーム色")
 LOCALS = \@ INRANGE(種親, 0, CHARANUM - 1)? %CALLNAME:種親%# 得体のしれぬ者\@
-CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%の子宮の中"
+CSTR:ARG:妊娠報告_記録文字列 += @"<font color='#%カラーパレット_HTML("クリーム色")%'>%CALLNAME:ARG%の子宮の中"
 IF TCVAR:ARG:膣内精液量 >= 600
-	CSTR:ARG:妊娠報告_記録文字列 += @"は、注ぎこまれた%LOCALS%の精で満たされている……<br>"
+	CSTR:ARG:妊娠報告_記録文字列 += @"は、注ぎこまれた%LOCALS%の精で満たされている……</font><br>"
 ELSEIF TCVAR:ARG:膣内精液量 >= 300
-	CSTR:ARG:妊娠報告_記録文字列 += @"を、%LOCALS%の精が我が物顔で蹂躙している……<br>"
+	CSTR:ARG:妊娠報告_記録文字列 += @"を、%LOCALS%の精が我が物顔で蹂躙している……</font><br>"
 ELSE
-	CSTR:ARG:妊娠報告_記録文字列 += @"では、%LOCALS%の精が卵子めがけて必死に泳いでいる……<br>"
+	CSTR:ARG:妊娠報告_記録文字列 += @"では、%LOCALS%の精が卵子めがけて必死に泳いでいる……</font><br>"
 ENDIF
-RESETCOLOR
 
 IF TCVAR:ARG:避妊薬
 	TCVAR:ARG:膣内精液量 = 0
@@ -174,8 +175,7 @@ ENDIF
 
 ;妊娠した
 IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
-	SIF FLAG_アニメーション
-		CALL 受精アニメ(0)
+	CSTR:ARG:妊娠報告_記録文字列 += "_受精アニメ_"
 	CFLAG:ARG:子の父親 = 種親
 	SIF TCVAR:ARG:膣内精液量 >= 450
 		CSTR:ARG:妊娠報告_記録文字列 += "精液をたっぷりと注がれた"
@@ -195,10 +195,8 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		ENDIF
 		CFLAG:ARG:MASTERの子供妊娠回数 ++
 	ENDIF
-	SIF FLAG_アニメーション
-		CALL 受精アニメ(1)
-	SETCOLOR カラーパレット("ピンク")
-	CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:ARG%は"
+	CSTR:ARG:妊娠報告_記録文字列 += "_受精アニメ_"
+	CSTR:ARG:妊娠報告_記録文字列 += @"<font color='#%カラーパレット_HTML("ピンク")%'>%CALLNAME:ARG%は"
 	IF 種親 >= 0
 		CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:種親%の子供を"
 		LOCALS = 
@@ -235,8 +233,7 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		CSTR:ARG:妊娠報告_記録文字列 += "得体のしれぬ相手の子供を"
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>父親不明の子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
 	ENDIF
-	CSTR:ARG:妊娠報告_記録文字列 += "妊娠したようです<br>"
-	RESETCOLOR
+	CSTR:ARG:妊娠報告_記録文字列 += "妊娠したようです</font><br>"
 	CSTR:ARG:妊娠報告_記録文字列 += "<br>"
 	TALENT:ARG:妊娠 = 1
 	EXP:ARG:妊娠経験 ++
@@ -689,12 +686,32 @@ ENDIF
 
 ;プレゼント好み
 STRDATA 子供プレゼント好み
-	DATA 食べ物
+	DATA 飲食系
+	DATA 肉
+	DATA 魚
+	DATA 野菜
+	DATA お菓子
+	DATA 珍味
+	DATA 茶類
+	DATA 芸術品
 	DATA 宝石
+	DATA 絵画
+	DATA 彫刻
+	DATA 詩
+	DATA 美容系
 	DATA アクセサリ
+	DATA 化粧品
 	DATA 実用品
-	DATA 本
+	DATA 文房具
+	DATA 健康器具
+	DATA 日用品
+	DATA 調理器具
+	DATA 工具
+	DATA 娯楽
 	DATA 花
+	DATA 本
+	DATA おもちゃ
+	DATA 機械
 ENDDATA
 CALL SET_PERSON_プレゼント好み(子供ID, 子供プレゼント好み)
 
@@ -1247,6 +1264,7 @@ FOR 相手カウンタ, 0, 19
 		性交相手:対象キャラ:相手カウンタ = 射精した人
 	IF 性交相手:対象キャラ:相手カウンタ == 射精した人
 		相手ごとの射精量:対象キャラ:相手カウンタ += 精液量
+		相手ごとの妊娠率補正:対象キャラ:相手カウンタ += TCVAR:対象キャラ:妊娠率補正
 		BREAK
 	ENDIF
 NEXT
