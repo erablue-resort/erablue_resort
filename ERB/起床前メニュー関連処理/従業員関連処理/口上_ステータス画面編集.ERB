@@ -1,0 +1,760 @@
+﻿@一言コメント解説エディタ(CSV番号=-1, キャラ名="")
+#DIM CSV番号
+#DIM 好感度コメント
+#DIM 表示モード, 2
+#DIMS キャラ名, 4
+#DIMS Column_M
+#DIMS Column_S
+#DIM L_CNT
+#DIM L_CNT2
+#DIMS コメント_業務中, 20, 9
+#DIMS コメント_状況別, 20, 9
+#DIMS コメント_好感度, 6, 6
+#DIMS コメント_解説, 1, 9
+#DIM L_SPR, 4
+#DIMS コメント種類 = "コメント_業務中", "コメント_状況別", "コメント_好感度", "コメント_解説"
+#DIMS 業務中リスト = "ロビー受付", "バーテンダー", "司書", "プール監視員", "道具屋", "土産物屋", "食事処", "装飾品店"
+#DIMS 状況別リスト = "飲み会", "睡眠中", "一緒に隠れている最中", "デート中", "一緒に遊んでいる最中", "同行中", "隠れているあなたに気づいていない時", "野外オナニー中"
+#DIMS 好感度リスト = "友情度", "信頼度", "恋心度", "性愛度", "固有好感度", "恋慕度"
+#DIMS 関係名, 6, 6
+#DIMS コメント値, 10
+
+表示モード = 100
+表示モード:1 = 1000
+VARSET コメント_業務中
+VARSET コメント_状況別
+VARSET コメント_好感度
+VARSET コメント_解説
+VARSET 関係名
+
+L_SPR:0 = 100 + ROUNDUP(VARSIZE("コメント_業務中"), 1)
+FOR LOCAL, 1, VARSIZE("コメント種類")
+	L_SPR:LOCAL = ROUNDUP(VARSIZE(コメント種類:LOCAL) + L_SPR:(LOCAL-1), 1)
+NEXT
+
+FOR LOCAL, 0, 6
+	SPLIT 関係呼称:LOCAL, "/", LOCALS
+	FOR L_CNT, 0, 4
+		関係名:L_CNT:LOCAL '= LOCALS:L_CNT
+	NEXT
+NEXT
+SPLIT 関係呼称:6, "/", LOCALS
+FOR L_CNT, 0, 6
+	関係名:5:L_CNT '= LOCALS:L_CNT
+NEXT
+
+$コメント_INIT
+IF キャラ名 == ""
+	IF !EXISTCSV(CSV番号) && CSV番号 != -1
+		キャラ名 = 未定
+	ELSE
+		IF CSV番号 == -1
+			CALL CSVコピー処理(1)
+			CSV番号 = RESULT
+			SIF !EXISTCSV(CSV番号)
+				RETURN 0
+		ENDIF
+		VARSET RESULTS
+		SPLIT CSVNAME(CSV番号), "]", RESULTS
+		キャラ名:0 = %REPLACE(CSVNAME(CSV番号), ".*\]", "")%
+		キャラ名:1 = %SUBSTRING(RESULTS:0, 1, -1)%
+		キャラ名:2 = %CSVCALLNAME(CSV番号)%
+		キャラ名:3 = %CSVCALLNAME(CSV番号)%
+	ENDIF
+ENDIF
+
+IF EXISTFUNCTION(@"キャラ固有好感度関係名_{CSV番号}")
+	DEBUGPRINTFORM %好感度リスト:4%：
+	FOR L_CNT, 0, 6
+		CALLFORM キャラ固有好感度関係名_{CSV番号}(関係閾値:L_CNT)
+		関係名:4:L_CNT '= RESULTS
+	NEXT
+ENDIF
+
+$コメント_LOOP
+Column_M = <div rect='81,0,5850,344' border='31' bcolor='#C0C0C0'></div>
+Column_M += @"<div rect='156,62,5775,281'>"
+Column_M += @"キャラ画像の下に一行だけ表示されるコメントや、好感度に応じて変化するコメント及びキャラ解説を簡易的に設定します<br>"
+Column_M += @"登録番号：{CSV番号}　名前：%キャラ名%<br></div>"
+
+Column_M += @"<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
+Column_M += @"<div rect='156,500,1937,2812'>"
+Column_M += @"<button value='100'>[100] 一言コメントを設定する</button>"
+Column_M += @"<br>"
+IF 表示モード < L_SPR:1
+	Column_M += @"<button value='100'>├[100] 業務中コメントを設定する</button>"
+	Column_M += @"<br>"
+	Column_M += @"<button value='{L_SPR:0}'>└[{L_SPR:0}] 状況別コメントを設定する</button>"
+	Column_M += @"<br>"
+ENDIF
+Column_M += @"<button value='{L_SPR:1}'>[{L_SPR:1}] 好感度コメントを設定する</button>"
+Column_M += @"<br>"
+IF INRANGE(表示モード, L_SPR:1, L_SPR:1+5)
+	Column_M += @"<button value='{L_SPR:1 + 1}'>├[{L_SPR:1 + 1}] 友情度コメントを設定する</button>"
+	Column_M += @"<br>"
+	Column_M += @"<button value='{L_SPR:1 + 2}'>├[{L_SPR:1 + 2}] 信頼度コメントを設定する</button>"
+	Column_M += @"<br>"
+	Column_M += @"<button value='{L_SPR:1 + 3}'>├[{L_SPR:1 + 3}] 恋心度コメントを設定する</button>"
+	Column_M += @"<br>"
+	Column_M += @"<button value='{L_SPR:1 + 4}'>├[{L_SPR:1 + 4}] 性愛度コメントを設定する</button>"
+	Column_M += @"<br>"
+	Column_M += @"<button value='{L_SPR:1 + 5}'>└[{L_SPR:1 + 5}] 固有好感度コメントを設定する</button>"
+	Column_M += @"<br>"
+ENDIF
+Column_M += @"<button value='{L_SPR:1 + 6}'>[{L_SPR:1 + 6}] 恋慕度コメントを設定する</button>"
+Column_M += @"<br>"
+Column_M += @"<button value='{L_SPR:2}'>[{L_SPR:2}] キャラ解説を設定する</button>"
+Column_M += @"<br>"
+Column_M += @"<br>"
+Column_M += @"<br>"
+;Column_M += @"<button value='700'>[700] 作業状況を保存する</button>"
+Column_M += @"<br>"
+;Column_M += @"<button value='701'>[701] 作業状況を呼び出す</button>"
+Column_M += @"<br>"
+Column_M += @"<button value='800'>[800] これで決定する</button>"
+Column_M += @"<br>"
+Column_M += @"<button value='999'>[999] 戻る</button>"
+Column_M += @"</div>"
+
+Column_S = <div rect='2125,500,3675,2812'>
+;Column_S += @"<button value='2000'>[2000] 冒頭になにか表示する？</button>"
+;Column_S += "-----------------------------------------------------------------------<br>"
+
+SELECTCASE 表示モード
+	CASE 100 TO L_SPR:0 - 1
+		;業務中コメント
+		Column_S += @"業務中に表示される一言コメントを設定します<br>"
+		Column_S += @"バリエーションを増やした場合、その中から等確率で1つが選ばれて表示されます<br>"
+		Column_S += "-----------------------------------------------------------------------<br>"
+		FOR LOCAL, 0, VARSIZE("業務中リスト")
+			LOCAL:1 = (100 + LOCAL) * 10
+			Column_S += @"<button value='{LOCAL:1}'>[{LOCAL:1}] %業務中リスト:LOCAL%</button><br>"
+			SIF !INRANGE(表示モード:1, LOCAL:1, LOCAL:1+9)
+				CONTINUE
+			FOR L_CNT, 0, 10
+				IF L_CNT == 9
+					Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>　　　　 バリエーションはこれ以上増やせません</font><br>"
+				ELSEIF コメント_業務中:LOCAL:L_CNT != ""
+					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>　[{LOCAL:1+L_CNT+1}] "
+					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%コメント_業務中:LOCAL:L_CNT%</button><br>"
+				ELSE
+					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
+					Column_S += @"　[{LOCAL:1+L_CNT+1}] バリエーションを増やす</font></button><br>"
+					BREAK
+				ENDIF
+			NEXT
+		NEXT
+	CASE L_SPR:0 TO L_SPR:1 - 1
+		;状況別コメント
+		Column_S += @"特定の状況で表示される一言コメントを設定します<br>"
+		Column_S += @"バリエーションを増やした場合、その中から等確率で1つが選ばれて表示されます<br>"
+		Column_S += "-----------------------------------------------------------------------<br>"
+		FOR LOCAL, 0, VARSIZE("状況別リスト")
+			LOCAL:1 = (L_SPR:0 + LOCAL) * 10
+			Column_S += @"<button value='{LOCAL:1}'>[{LOCAL:1}] %状況別リスト:LOCAL%</button><br>"
+			SIF !INRANGE(表示モード:1, LOCAL:1, LOCAL:1+9)
+				CONTINUE
+			FOR L_CNT, 0, 10
+				IF L_CNT == 9
+					Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>　　　　 バリエーションはこれ以上増やせません</font><br>"
+				ELSEIF コメント_状況別:LOCAL:L_CNT != ""
+					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>　[{LOCAL:1+L_CNT+1}] "
+					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%コメント_状況別:LOCAL:L_CNT%</button><br>"
+				ELSE
+					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
+					Column_S += @"　[{LOCAL:1+L_CNT+1}] バリエーションを増やす</font></button><br>"
+					BREAK
+				ENDIF
+			NEXT
+		NEXT
+	CASE L_SPR:1 TO L_SPR:1 + 6
+		;好感度コメント
+		LOCAL = MAX(表示モード % L_SPR:1 - 1, 0)
+		LOCAL:1 = (L_SPR:1 + LOCAL) * 10
+		Column_S += @"ステータス画面の関係欄に表示される、各種好感度の<br>種類・段階に応じて表示されるコメントを設定します<br>"
+		Column_S += "-----------------------------------------------------------------------<br>"
+		Column_S += @"・%好感度リスト:LOCAL%<br>"
+		FOR L_CNT, 0, 6
+			Column_S += @"<button value='{LOCAL:1 + L_CNT+1}'>"
+			Column_S += @"　　%関係名:LOCAL:L_CNT, 16, LEFT%："
+			IF コメント_好感度:LOCAL:L_CNT != ""
+				Column_S += @"<br>　[{LOCAL:1+L_CNT+1}] %コメント_好感度:LOCAL:L_CNT%</button><br>"
+			ELSE
+				Column_S += @"<font color='#808080'>"
+				Column_S += @"　[{LOCAL:1+L_CNT+1}] （未設定）</font></button><br>"
+				CONTINUE
+			ENDIF
+		NEXT
+	CASE L_SPR:2 TO L_SPR:3 - 1
+		;キャラ解説
+		LOCAL:1 = L_SPR:2 * 10
+		Column_S += @"ステータス画面に表示される、キャラ解説文を設定します<br>"
+		Column_S += "-----------------------------------------------------------------------<br>"
+		FOR L_CNT, 0, 10
+			IF L_CNT == 9
+				Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>行数はこれ以上増やせません</font><br>"
+			ELSEIF コメント_解説:0:L_CNT != ""
+				Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>"
+				Column_S += @"　[{LOCAL:1+L_CNT+1}] %コメント_解説:0:L_CNT%</button><br>"
+			ELSE
+				Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
+				Column_S += @"　[{LOCAL:1+L_CNT+1}] \@ !L_CNT? （未設定）# 行数を増やす\@</font></button><br>"
+				BREAK
+			ENDIF
+		NEXT
+ENDSELECT
+Column_S += @"</div>"
+
+HTML_PRINT Column_M + Column_S
+FOR LOCAL, 0, 28
+	PRINTL
+NEXT
+DRAWLINE
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 100 TO L_SPR:1 - 1
+		;一言コメントモード
+		表示モード = LOCAL
+		表示モード:1 = LOCAL * 10
+	CASE L_SPR:1 TO L_SPR:2 - 1
+		;好感度コメントモード
+		表示モード = LOCAL
+		表示モード:1 = LOCAL * 10
+	CASE L_SPR:1 + 6
+		;恋慕度コメントモード
+		表示モード = LOCAL
+	CASE L_SPR:2
+		;キャラ解説モード
+		表示モード = LOCAL
+	CASE 700
+		;一時保存
+		CALL CHOICE("作業状況を保存しますか？（ERB形式では出力されません）", "はい", "いいえ")
+		SIF !RESULT
+			GOTO TXT出力
+	CASE 701
+		;一時保存
+		CALL CHOICE("保存してある作業状況を呼び出しますか？（現在の作業状況はリセットされます）", "はい", "いいえ")
+		SIF !RESULT
+			GOTO TXT呼出
+	CASE 800
+		;決定・出力
+		CALL CHOICE("エディタを終了し、設定された一言コメント/解説を出力しますか？", "はい", "いいえ")
+		SIF !RESULT
+			GOTO ERB出力
+	CASE 999
+		;戻る
+		CALL CHOICE("一言コメント/解説エディタを終了しますか？（セーブは自動では行われません）", "はい", "いいえ")
+		SIF RESULT
+			GOTO コメント_LOOP
+		RETURN 0
+	CASE IS >= 1000
+		;入力処理
+		表示モード:1 = LOCAL
+		;選択した項目だけ一覧を表示
+		SIF !(LOCAL % 10)
+			GOTO コメント_LOOP
+		SELECTCASE 表示モード
+			CASE 100 TO L_SPR:0 - 1
+				LOCALS = コメント_業務中
+			CASE L_SPR:0 TO L_SPR:1 - 1
+				LOCALS = コメント_状況別
+			CASE L_SPR:1 TO L_SPR:1 + 6
+				LOCALS = コメント_好感度
+			CASE L_SPR:2 TO L_SPR:3 - 1
+				LOCALS = コメント_解説
+		ENDSELECT
+		LOCALS:1 = :{(表示モード:1%100)/10}:{(表示モード:1%10)-1}
+		;CALL コメント入力()
+		SETTEXTBOX GETVARS(@"%LOCALS+LOCALS:1%")
+		PRINTL コメントを入力してください（半角の「,」「/」「|」は使用しないでください）
+		SIF LOCALS == "コメント_解説"
+			PRINTL （空白で改行を入れたい場合、全角スペースを入力してください）
+		INPUTS
+		SETVAR @"%LOCALS+LOCALS:1%", RESULTS
+		;好感度コメント以外で入力が空欄なら後ろを詰める
+		IF RESULTS == "" && LOCALS != "コメント_好感度"
+			FOR LOCAL, (表示モード:1%10)-1, VARSIZE(LOCALS, 2)-1
+				SETVAR @"%LOCALS%:{(表示モード:1%100)/10}:{LOCAL}", GETVARS(@"%LOCALS%:{(表示モード:1%100)/10}:{LOCAL+1}")
+			NEXT
+			SETVAR @"%LOCALS%:{(表示モード:1%100)/10}:{LOCAL}", ""
+		ENDIF
+ENDSELECT
+
+GOTO コメント_LOOP
+
+$TXT出力
+PRINTW 未実装です
+GOTO コメント_LOOP
+
+;以下、WIP
+VARSET LOCALS
+;LOCALS:1 = コメント_業務中
+;FOR LOCAL, 0, VARSIZE("コメント_業務中", 1)
+;	FOR L_CNT, 0, VARSIZE("コメント_業務中", 2)
+;		LOCALS:1 += "/" + コメント_業務中:LOCAL:L_CNT
+;	NEXT
+;	LOCALS:1 += "|"
+;NEXT
+;LOCALS:2 = コメント_状況別
+;FOR LOCAL, 0, VARSIZE("コメント_状況別", 1)
+;	FOR L_CNT, 0, VARSIZE("コメント_状況別", 2)
+;		LOCALS:2 += "/" + コメント_状況別:LOCAL:L_CNT
+;	NEXT
+;	LOCALS:2 += "|"
+;NEXT
+;LOCALS:3 = コメント_好感度
+;FOR LOCAL, 0, VARSIZE("コメント_好感度", 1)
+;	FOR L_CNT, 0, VARSIZE("コメント_好感度", 2)
+;		LOCALS:3 += "/" + コメント_好感度:LOCAL:L_CNT
+;	NEXT
+;	LOCALS:3 += "|"
+;NEXT
+;LOCALS:4 = コメント_解説
+;FOR LOCAL, 0, VARSIZE("コメント_解説", 1)
+;	FOR L_CNT, 0, VARSIZE("コメント_解説", 2)
+;		LOCALS:4 += "/" + コメント_解説:LOCAL:L_CNT
+;	NEXT
+;	LOCALS:4 += "|"
+;NEXT
+LOCALS = {CSV番号}|%キャラ名%,
+FOR LOCAL, 0, VARSIZE("コメント種類")
+	LOCALS += コメント種類:LOCAL
+	FOR L_CNT, 0, VARSIZE(コメント種類:LOCAL, 1)
+		FOR L_CNT2, 0, VARSIZE(コメント種類:LOCAL, 2)
+			LOCALS += "/" + GETVARS(@"%コメント種類:LOCAL%:{L_CNT}:{L_CNT2}")
+		NEXT
+		LOCALS += "|"
+	NEXT
+	LOCALS += ","
+NEXT
+;FOR LOCAL, 1, 5
+;	LOCALS += "," + LOCALS:LOCAL
+;NEXT
+SAVETEXT LOCALS, @"ERB_EDITFILE/temp/コメント一時保存_{CSV番号}_%キャラ名%_{GETTIME()/100000}.txt"
+PRINTFORMW ERB_EDITFILE/temp/コメント一時保存_{CSV番号}_%キャラ名%_{GETTIME()/100000}.txtに保存しました。
+
+GOTO コメント_LOOP
+
+$TXT呼出
+PRINTW 未実装です
+GOTO コメント_LOOP
+
+;以下、WIP
+VARSET LOCAL
+VARSET LOCALS
+VARSET RESULTS
+LOCAL:1 = ENUMFILES("ERB_EDITFILE/temp/", "コメント一時保存_*.txt")
+IF !LOCAL:1
+	PRINTW 呼び出せるファイルが存在しません
+	GOTO コメント_LOOP
+ENDIF
+PRINTL 呼び出すファイルを選択してください
+FOR L_CNT, 0, LOCAL:1
+	LOCALS:L_CNT '= RESULTS:L_CNT
+	PRINTBUTTON @"[{L_CNT, 3, RIGHT}] %LOCALS:L_CNT, 50, LEFT%　", L_CNT
+	SIF L_CNT % 2
+		PRINTL
+NEXT
+SIF L_CNT % 2
+	PRINTL
+PRINTBUTTON "[999] 戻る", 999
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		GOTO コメント_LOOP
+	CASEELSE
+		PRINTFORML 現在の作業を中断し、保存してある作業状況　%LOCALS:LOCAL%　を呼び出します。
+		CALL CHOICE("本当によろしいですか？", "はい", "いいえ")
+		SIF RESULT
+			GOTO コメント_LOOP
+ENDSELECT
+
+VARSET RESULTS
+
+SPLIT LOADTEXT(LOCALS:LOCAL), ",", RESULTS
+
+表示モード = 100
+表示モード:1 = 1000
+VARSET コメント_業務中
+VARSET コメント_状況別
+VARSET コメント_好感度
+VARSET コメント_解説
+VARSET キャラ名
+;VARSの実装待ち
+;LOCAL:1 = 0
+;FOR LOCAL, 0, VARSIZE("コメント種類")
+;	LOCAL:1 = MAX(LOCAL:1, VARSIZE(コメント種類:LOCAL, 2))
+;NEXT
+;VARS コメント値, 1 + LOCAL:1
+
+SPLIT RESULTS:0, "|", LOCALS
+CSV番号 = TOINT(LOCALS:0)
+SIF !EXISTCSV(CSV番号) || CSV番号 < 1
+	キャラ名 = %LOCALS:1%
+
+FOR LOCAL, 1, VARSIZE("コメント種類")+1
+	VARSET LOCALS
+	SPLIT RESULTS:LOCAL, "|", LOCALS
+	LOCAL:1 = RESULT
+	FOR L_CNT, 1, LOCAL:1
+		SPLIT LOCALS:L_CNT, "/", コメント値
+		LOCAL:2 = RESULT
+		FOR L_CNT2, 1, LOCAL:2
+			SETVAR @"%コメント値:0%:{L_CNT}:{L_CNT2 - 1}", コメント値:L_CNT2
+		NEXT
+	NEXT
+NEXT
+GOTO コメント_INIT
+
+$ERB出力
+CLEARLINE LINECOUNT
+
+PRINTL ;・使い方
+PRINTFORML ;「{CSV番号}」をキャラクター番号に置換し、それぞれの関数に処理を入れる
+PRINTL ;--------------------------------------------------
+PRINTL ;通常画面一言口上
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_INFO画面_一言コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL 
+PRINTL ;口上と同じ感覚で使う為に書式を統一しているが、通常時の画面で表示されるので
+PRINTL ;基本的にWAIT系列は使わないことを推奨
+PRINTL ;また、一行のみの表示を想定。二行以上は基本的に禁止
+PRINTL ;※うふふ中には表示されません
+PRINTL 
+PRINTL ;以下は分岐の例
+PRINTL ;仕事中の一言口上
+PRINTL IF TALENT:対象キャラ:従業員 && TCVAR:対象キャラ:休暇中 == 0 && CFLAG:対象キャラ:現在位置 == 現在仕事:対象キャラ:1 % 10000 && CFLAG:対象キャラ:現在マップ種別 == 現在仕事:対象キャラ:1 / 10000
+PRINTL 	SELECTCASE 現在仕事:対象キャラ:1
+PRINTL 		CASE 2
+PRINTL 			;ロビーで受付中
+CALL コメント出力(コメント_業務中, 業務中リスト, "ロビー受付", "			")
+PRINTL 		CASE 503
+PRINTL 			;バーエリアでバーテンダー中
+CALL コメント出力(コメント_業務中, 業務中リスト, "バーテンダー", "			")
+PRINTL 		CASE 506
+PRINTL 			;図書室で司書中
+CALL コメント出力(コメント_業務中, 業務中リスト, "司書", "			")
+PRINTL 		CASE 1503, 15
+PRINTL 			;プールで監視員中
+CALL コメント出力(コメント_業務中, 業務中リスト, "プール監視員", "			")
+PRINTL 		CASE IS > 10000
+PRINTL 			;各種店舗で店番中
+PRINTL 			CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:(現在仕事:対象キャラ:1 - 10000):0}(現在仕事:対象キャラ:1 - 10000)
+PRINTL 			SELECTCASE REPLACE(TSTR:場所名受渡, "『.*』", "")
+PRINTL 				CASE "道具屋"
+CALL コメント出力(コメント_業務中, 業務中リスト, "道具屋", "					")
+PRINTL 				CASE "土産物屋"
+CALL コメント出力(コメント_業務中, 業務中リスト, "土産物屋", "					")
+PRINTL 				CASE "食事処"
+CALL コメント出力(コメント_業務中, 業務中リスト, "食事処", "					")
+PRINTL 				CASE "装飾品店"
+CALL コメント出力(コメント_業務中, 業務中リスト, "装飾品店", "					")
+PRINTL 			ENDSELECT
+PRINTL 	ENDSELECT
+PRINTL ENDIF
+PRINTL ;この時点で口上が入ってるなら表示へ飛ばす
+PRINTL SIF KSTR:0 != ""
+PRINTL 	GOTO 表示位置
+PRINTL ;状況で分岐
+PRINTL 
+PRINTL IF CFLAG:対象キャラ:飲み会
+PRINTL 	;飲み会中
+CALL コメント出力(コメント_状況別, 状況別リスト, "飲み会", "	")
+PRINTL ELSEIF CFLAG:対象キャラ:睡眠
+PRINTL 	;睡眠中
+CALL コメント出力(コメント_状況別, 状況別リスト, "睡眠中", "	")
+PRINTL ELSEIF CFLAG:対象キャラ:デート
+PRINTL 	;デート中
+PRINTL 	;デートの相手のキャラ番号 + 100が入っている
+PRINTL 	;あなた相手なら「CFLAG:対象キャラ:デート == MASTER + 100」
+CALL コメント出力(コメント_状況別, 状況別リスト, "デート中", "	")
+PRINTL ELSEIF CFLAG:対象キャラ:一緒に遊ぶ
+PRINTL 	;一緒に遊ぶ中
+CALL コメント出力(コメント_状況別, 状況別リスト, "一緒に遊んでいる最中", "	")
+PRINTL ELSEIF CFLAG:対象キャラ:同行
+PRINTL 	;同行中
+CALL コメント出力(コメント_状況別, 状況別リスト, "同行中", "	")
+PRINTL ELSEIF CFLAG:PLAYER:隠密 && CFLAG:対象キャラ:隠密
+PRINTL 	;一緒に隠密中
+CALL コメント出力(コメント_状況別, 状況別リスト, "一緒に隠れている最中", "	")
+PRINTL ELSEIF CFLAG:PLAYER:隠密 && !CFLAG:対象キャラ:隠密
+PRINTL 	;あなたが隠れていて、キャラはあなたに気づいていない
+CALL コメント出力(コメント_状況別, 状況別リスト, "隠れているあなたに気づいていない時", "	")
+PRINTL ELSEIF !CFLAG:PLAYER:隠密 && CFLAG:対象キャラ:隠密
+PRINTL 	;キャラの野外オナニー中
+CALL コメント出力(コメント_状況別, 状況別リスト, "野外オナニー中", "	")
+PRINTL ENDIF
+PRINTL ;この時点で口上が入ってるなら表示へ飛ばす
+PRINTL SIF KSTR:0 != ""
+PRINTL 	GOTO 表示位置
+PRINTL 
+PRINTL ;最も多い好感度要素で分岐
+PRINTL ;簡易版なのでステータス画面のコメントを利用。細かく決めたい場合は後で編集してください
+PRINTL SELECTCASE MAXRAND(CFLAG:対象キャラ:友情度, CFLAG:対象キャラ:信頼度, CFLAG:対象キャラ:恋心度, CFLAG:対象キャラ:性愛度)
+PRINTL 	CASE 0
+PRINTL 		;友情度
+PRINTFORML		CALL 口上_ステータス画面_友情コメント_{CSV番号}}(対象キャラ, 1)
+PRINTL 	CASE 1
+PRINTL 		;信頼度
+PRINTFORML		CALL 口上_ステータス画面_信頼コメント_{CSV番号}}(対象キャラ, 1)
+PRINTL 	CASE 2
+PRINTL 		;恋心度
+PRINTFORML		CALL 口上_ステータス画面_恋心コメント_{CSV番号}}(対象キャラ, 1)
+PRINTL 	CASE 3
+PRINTL 		;性愛度
+PRINTFORML		CALL 口上_ステータス画面_性愛コメント_{CSV番号}}(対象キャラ, 1)
+PRINTL ENDSELECT
+PRINTL 
+PRINTL $表示位置
+PRINTL CALL コメント文頭処理(対象キャラ, 2)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_友情
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_友情コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL 
+PRINTL ;口上と同じ感覚で使う為に書式を統一しているが、ステータス画面で表示されるので
+PRINTL ;基本的にWAIT系列は使わないことを推奨
+PRINTL ;こちらも簡易版なので一行のみに限定
+PRINTL 
+PRINTL SELECTCASE CFLAG:対象キャラ:友情度
+PRINTL 	CASE IS == 0
+PRINTL 		;初対面
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:0%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:1)
+PRINTL 		;他人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:1%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:2)
+PRINTL 		;顔見知り
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:2%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:3)
+PRINTL 		;友人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:3%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:4)
+PRINTL 		;親友
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:4%
+PRINTL 	CASEELSE
+PRINTL 		;無二の友
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:0:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_信頼
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_信頼コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL SELECTCASE CFLAG:対象キャラ:信頼度
+PRINTL 	CASE IS == 0
+PRINTL 		;初対面
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:0%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:1)
+PRINTL 		;他人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:1%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:2)
+PRINTL 		;顔見知り
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:2%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:3)
+PRINTL 		;知己
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:3%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:4)
+PRINTL 		;相棒
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:4%
+PRINTL 	CASEELSE
+PRINTL 		;水魚の交わり
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:1:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_恋心
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_恋心コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL SELECTCASE CFLAG:対象キャラ:恋心度
+PRINTL 	CASE IS == 0
+PRINTL 		;初対面
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:0%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:1)
+PRINTL 		;他人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:1%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:2)
+PRINTL 		;顔見知り
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:2%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:3)
+PRINTL 		;気になる人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:3%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:4)
+PRINTL 		;想い人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:4%
+PRINTL 	CASEELSE
+PRINTL 		;最愛の人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:2:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_性愛
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_性愛コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL SELECTCASE CFLAG:対象キャラ:性愛度
+PRINTL 	CASE IS == 0
+PRINTL 		;初対面
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:0%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:1)
+PRINTL 		;他人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:1%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:2)
+PRINTL 		;顔見知り
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:2%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:3)
+PRINTL 		;性癖に合う
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:3%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:4)
+PRINTL 		;自慰の対象
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:4%
+PRINTL 	CASEELSE
+PRINTL 		;肉欲の虜
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:3:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ, 1)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_固有要素
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_キャラ固有好感度要素コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL SELECTCASE CFLAG:対象キャラ:キャラ固有好感度
+PRINTL 	CASE IS == 0
+PRINTL 		;初対面
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:1)
+PRINTL 		;他人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:2)
+PRINTL 		;顔見知り
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:3)
+PRINTL 		;
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL 	CASE IS <= 経験値テーブル:(関係閾値:4)
+PRINTL 		;
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL 	CASEELSE
+PRINTL 		;
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:4:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ, 1)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;ステータス画面一言口上_恋慕
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_恋慕コメント_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL PRINTL 
+PRINTL SELECTCASE CFLAG:対象キャラ:恋慕レベル
+PRINTL 	CASE IS == 0
+PRINTL 		;脈ナシ
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:0%
+PRINTL 	CASE IS <= 関係閾値:1
+PRINTL 		;ちょっと気になる
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:1%
+PRINTL 	CASE IS <= 関係閾値:2
+PRINTL 		;なんかいいかも
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:2%
+PRINTL 	CASE IS <= 関係閾値:3
+PRINTL 		;好意を自覚
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:3%
+PRINTL 	CASE IS <= 関係閾値:4
+PRINTL 		;ラブラブ
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:4%
+PRINTL 	CASEELSE
+PRINTL 		;最愛の人
+PRINTFORML 		KSTR:(K++) = %コメント_好感度:5:5%
+PRINTL ENDSELECT
+PRINTL CALL コメント文頭処理(対象キャラ, 1)
+PRINTL CALL 口上変数表示(対象キャラ, 1)
+PRINTL 
+PRINTL ;--------------------------------------------------
+PRINTL ;キャラについての解説
+PRINTL ;--------------------------------------------------
+PRINTFORML @口上_ステータス画面_キャラ解説_{CSV番号}(対象キャラ)
+PRINTL #DIM 対象キャラ
+PRINTL CALL 口上変数初期化
+PRINTL 
+PRINTL ;EXキャラの出典を解説したり、キャラの設定・背景を解説するもの
+PRINTL 
+IF コメント_解説:0:0 != ""
+	FOR LOCAL, 0, VARSIZE("コメント_解説", 2)
+		SIF コメント_解説:0:LOCAL == ""
+			BREAK
+		PRINTFORML KSTR:(K++) = %コメント_解説:0:LOCAL%
+	NEXT
+ELSE
+	PRINTL KSTR:(K++) = 　
+	PRINTL KSTR:(K++) = 　
+	PRINTL KSTR:(K++) = 　
+	PRINTL KSTR:(K++) = 　
+ENDIF
+PRINTL 
+PRINTL CALL キャラ解説表示用(対象キャラ)
+PRINTL RETURN RESULT
+
+OUTPUTLOG @"ERB_EDITFILE/口上_{CSV番号}_%キャラ名%_ステータス画面.ERB", 1
+PRINTFORML ERB_EDITFILEフォルダに出力しました。「ERB/口上_キャラ個別ERB/{CSV番号}_%キャラ名%」フォルダに移動させてください
+PRINTFORMW （ゲームへの反映にはEmuera本体の再起動が必要です）
+RETURN 0
+
+@コメント出力(コメント, リスト, 種類, インデント)
+#DIMS 種類
+#DIMS インデント 
+#DIMS REF リスト,0
+#DIMS REF コメント,0,0
+#DIM L_CNT
+
+LOCAL = FINDELEMENT(リスト, 種類, , ,1)
+IF コメント:LOCAL:1 == ""
+	PRINTFORML %インデント%KSTR:(K++) = %コメント:LOCAL:0%
+ELSE
+	PRINTFORML %インデント%STRDATA KSTR:(K++)
+	FOR L_CNT, 0, VARSIZE("コメント", 2)
+		SIF コメント:LOCAL:L_CNT == ""
+			BREAK
+		PRINTFORML %インデント%	DATA %コメント:LOCAL:L_CNT%
+	NEXT
+	PRINTFORML %インデント%ENDDATA
+ENDIF
+
+
+;-------------------------------------------------
+;整数ARG:0をARG:1桁で切り上げる関数。作らなくてもどっかありそうなんだけどなー
+;-------------------------------------------------
+@ROUNDUP(ARG, ARG:1)
+#FUNCTION
+IF ARG:1 <= 0
+	THROW "@DECIMAL_STRINGの二番目の引数に0以下の値が指定されました({ARG:1})"
+ENDIF
+LOCAL = ARG / POWER(10, ARG:1)
+SIF ARG % POWER(10, ARG:1)
+	LOCAL ++
+RETURNF LOCAL*POWER(10, ARG:1)
