@@ -367,12 +367,13 @@ NEXT
 #DIM 消滅ID保存
 #DIM ID削除フラグ
 
-SIF バフ番号 < 0
-	RETURN 0
-
 IF ID削除フラグ
+	SIF DT_CELL_ISNULL(@"バフデータベース_{隊列番号}", バフ番号, "id", 1)
+		RETURN 0
 	消滅ID保存 = バフ番号
 ELSE
+	SIF バフ番号 < 0 || バフ番号 >= DT_ROW_LENGTH(@"バフデータベース_{隊列番号}")
+		RETURN 0
 	消滅ID保存 = DT_CELL_GET(@"バフデータベース_{隊列番号}", バフ番号, "id")
 ENDIF
 
@@ -385,12 +386,13 @@ DT_ROW_REMOVE @"バフデータベース_{隊列番号}", 消滅ID保存
 #DIM 消滅ID保存
 #DIM ID削除フラグ
 
-SIF デバフ番号 < 0
-	RETURN 0
-
 IF ID削除フラグ
+	SIF DT_CELL_ISNULL(@"デバフデータベース_{隊列番号}", デバフ番号, "id", 1)
+		RETURN 0
 	消滅ID保存 = デバフ番号
 ELSE
+	SIF デバフ番号 < 0 || デバフ番号 >= DT_ROW_LENGTH(@"デバフデータベース_{隊列番号}")
+		RETURN 0
 	消滅ID保存 = DT_CELL_GET(@"デバフデータベース_{隊列番号}", デバフ番号, "id")
 ENDIF
 
@@ -398,13 +400,55 @@ TRYCALLFORM デバフ消滅時処理_%DT_CELL_GETS(@"デバフデータベース
 DT_ROW_REMOVE @"デバフデータベース_{隊列番号}", 消滅ID保存
 
 
-@大技待機解除(隊列番号)
+@バフ削除_能力(隊列番号, 消去対象能力)
 #DIM 隊列番号
+#DIM ループ用
+#DIMS 消去対象能力
 
-FOR LOCAL, 0, DT_ROW_LENGTH(@"バフデータベース_{隊列番号}")
-	IF DT_CELL_GETS(@"バフデータベース_{隊列番号}", LOCAL, "バフ枠") == "大技待機"
-		TRYCALLFORM バフ消滅時処理_大技待機
-		DT_ROW_REMOVE @"バフデータベース_{隊列番号}", DT_CELL_GET(@"バフデータベース_{隊列番号}", LOCAL, "id")
+FOR ループ用, 0, DT_ROW_LENGTH(@"バフデータベース_{隊列番号}")
+	IF DT_CELL_GETS(@"バフデータベース_{隊列番号}", ループ用, "バフ対象能力") == 消去対象能力
+		CALL バフ削除(隊列番号, ループ用, 0)
 		RESTART
 	ENDIF
 NEXT
+
+@バフ削除_枠(隊列番号, 消去枠)
+#DIM 隊列番号
+#DIM ループ用
+#DIMS 消去枠
+
+FOR ループ用, 0, DT_ROW_LENGTH(@"バフデータベース_{隊列番号}")
+	IF DT_CELL_GETS(@"バフデータベース_{隊列番号}", ループ用, "バフ枠") == 消去枠
+		CALL バフ削除(隊列番号, ループ用, 0)
+		RESTART
+	ENDIF
+NEXT
+
+@デバフ削除_能力(隊列番号, 消去対象能力)
+#DIM 隊列番号
+#DIM ループ用
+#DIMS 消去対象能力
+
+FOR ループ用, 0, DT_ROW_LENGTH(@"デバフデータベース_{隊列番号}")
+	IF DT_CELL_GETS(@"デバフデータベース_{隊列番号}", ループ用, "デバフ対象能力") == 消去対象能力
+		CALL デバフ削除(隊列番号, ループ用, 0)
+		RESTART
+	ENDIF
+NEXT
+
+@デバフ削除_枠(隊列番号, 消去枠)
+#DIM 隊列番号
+#DIM ループ用
+#DIMS 消去枠
+
+FOR ループ用, 0, DT_ROW_LENGTH(@"デバフデータベース_{隊列番号}")
+	IF DT_CELL_GETS(@"デバフデータベース_{隊列番号}", ループ用, "デバフ枠") == 消去枠
+		CALL デバフ削除(隊列番号, ループ用, 0)
+		RESTART
+	ENDIF
+NEXT
+
+
+@大技待機解除(隊列番号)
+#DIM 隊列番号
+JUMP バフ削除_枠(隊列番号, "大技待機")
