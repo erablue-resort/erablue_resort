@@ -94,6 +94,18 @@ FOR LOCAL,0,CHARANUM
 	;0になると会話不能解除
 	SIF TCVAR:LOCAL:会話累積値 == 0
 		TCVAR:LOCAL:話題無しフラグ = 0
+
+	;デートちょっかいの時間経過
+	IF TCVAR:LOCAL:デートちょっかい値 > 0
+		TCVAR:LOCAL:ちょっかい経過時間 += TIME_PROGRESS(TFLAG:行動前時刻)
+		IF TCVAR:LOCAL:ちょっかい経過時間 >= 120 && TCVAR:LOCAL:デートちょっかい値 >= 120
+			;ちょっかい時間が2時間を過ぎたらデート中止
+			TCVAR:LOCAL:ちょっかい経過時間 = -2
+		ELSEIF TCVAR:LOCAL:ちょっかい経過時間 >= TCVAR:LOCAL:デートちょっかい値
+			;ちょっかい時間が基準値を過ぎたらデート再開
+			TCVAR:LOCAL:ちょっかい経過時間 = -1
+		ENDIF
+	ENDIF
 	
 	;身体の清潔度
 	LOCAL:1 = CFLAG:LOCAL:風呂
@@ -176,6 +188,8 @@ FOR LOCAL,0,CHARANUM
 	SIF CFLAG:LOCAL:添い寝フラグ
 		CONTINUE
 	SIF FLAG:イベントうふふ中フラグ
+		CONTINUE
+	SIF TCVAR:LOCAL:デートちょっかい値 > 0
 		CONTINUE
 	;部屋移動
 	CALL CHARA_MOVEMENT_T(LOCAL, 追従モード)

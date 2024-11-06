@@ -1,0 +1,65 @@
+﻿@COMNAME316
+#FUNCTIONS
+TSTR:コマンド名受渡 = デートに割り込む
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_316
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_316
+LOCALS = <br>■デートに割り込む<br>
+LOCALS += "デートしている相手に用事があると言って付き合ってもらうコマンド。<br>何分くらい付き合ってくれるかは素質や話術技能によって変動する。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：歓楽・征服・接触"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM316
+#DIM 基礎時間
+
+基礎時間 = ABL:MASTER:話術技能 * 20
+;素質補正
+基礎時間 += デート取り合い度算出(TARGET, ABS(CFLAG:TARGET:デート) - 100, MASTER)
+;0以下の場合は断る
+IF 基礎時間 <= 0
+	;ここ口上入れたいけどとりあえず汎用のみ
+	PRINTFORMW %CALLNAME:TARGET%は今忙しいから、と%CALLNAME:PLAYER%の誘いを断った。
+	RETURN -1
+ENDIF
+
+;何分までOKかを格納
+TCVAR:TARGET:デートちょっかい値 = 基礎時間
+TCVAR:TARGET:ちょっかい経過時間 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE316
+
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(316)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;デート時のみ
+SIF CFLAG:デート == 0 || CFLAG:デート == MASTER + 100
+	RETURN 0
+;一日一回
+SIF TCVAR:TARGET:デートちょっかい値 <= -1
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM316
+PRINTFORML %CALLNAME:TARGET%は用事があるなら、とデートを中断して%CALLNAME:PLAYER%の話を待っている。
+PRINTFORML およそ{TCVAR:TARGET:デートちょっかい値, 3}分の間付き合ってくれるようだ。

@@ -116,8 +116,26 @@ FOR LOCAL,1,CHARANUM
 	SIF CFLAG:(CFLAG_SORTARRAY:LOCAL):滞在期間 < 0
 		CONTINUE
 	IF CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置 == CFLAG:MASTER:現在位置 && CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別 == CFLAG:MASTER:現在マップ種別
-		;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
-		IF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠
+		IF TCVAR:(CFLAG_SORTARRAY:LOCAL):ちょっかい経過時間 < 0
+			;デートちょっかい関連処理
+			IF TCVAR:(CFLAG_SORTARRAY:LOCAL):ちょっかい経過時間 == -2
+				;デート中止
+				PRINTW 用事に時間を掛けすぎてしまったようだ。
+				PRINTFORMW %CALLNAME:(ABS(CFLAG:(CFLAG_SORTARRAY:LOCAL):デート) - 100)%からデートを後日に延期しようと告げられ、%CALLNAME:(CFLAG_SORTARRAY:LOCAL)%は少し残念そうな顔をしている……。
+				TCVAR:(CFLAG_SORTARRAY:LOCAL):デートちょっかい値 = -1
+				TCVAR:(CFLAG_SORTARRAY:LOCAL):ちょっかい経過時間 = 0
+				CFLAG:(ABS(CFLAG:(CFLAG_SORTARRAY:LOCAL):デート) - 100):デート = 0
+				CFLAG:(CFLAG_SORTARRAY:LOCAL):デート = 0
+			ELSEIF TCVAR:(CFLAG_SORTARRAY:LOCAL):ちょっかい経過時間 == -1
+				;デート再開
+				PRINTW そろそろ約束の時間のようだ。
+				PRINTFORMW %CALLNAME:(CFLAG_SORTARRAY:LOCAL)%は%CALLNAME:(ABS(CFLAG:(CFLAG_SORTARRAY:LOCAL):デート) - 100)%とのデートに戻っていった……。
+				TCVAR:(CFLAG_SORTARRAY:LOCAL):デートちょっかい値 = -1
+				TCVAR:(CFLAG_SORTARRAY:LOCAL):ちょっかい経過時間 = 0
+				うふふ終了フラグ = 2
+			ENDIF
+		ELSEIF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠
+			;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 			SIF RESULT > 0
 				うふふ終了フラグ = 1
@@ -141,8 +159,11 @@ FOR LOCAL,1,CHARANUM
 		CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 = 0
 	ENDIF
 NEXT
-SIF うふふ終了フラグ
+IF うふふ終了フラグ == 1
 	CALL うふふ終了処理("目撃される")
+ELSEIF うふふ終了フラグ == 2
+	CALL うふふ終了処理("デート再開")
+ENDIF
 IF 追い出されフラグ
 	追い出されフラグ = 0
 	RESTART
