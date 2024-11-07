@@ -9,6 +9,8 @@
 #DIM キャラ番号
 #DIMS 勝敗
 #DIM 罰ゲーム種類
+#DIMS 罰ゲーム候補, 50
+#DIM 候補数
 
 
 SELECTCASE 勝敗
@@ -63,11 +65,179 @@ SELECTCASE 勝敗
 				CALL MESSAGE_えっちな罰ゲーム(キャラ番号, 罰ゲーム種類)
 		ENDSELECT
 		
+
 	CASE "敗北"
-		;いずれ素質で受ける罰ゲームを分岐させるが今は単純にデコピンだけ
-		RFLAG:コマンド結果受渡し変数２ = -1
-		PRINTFORML %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:MASTER%に軽くデコピンした。
-		PRINTL 少しおでこがひりひりする…
+		;出現可能な罰ゲームを登録
+		VARSET 罰ゲーム候補
+		罰ゲーム候補:0 = デコピン
+		罰ゲーム候補:1 = 一気飲み
+		候補数 = 2
+		;体に触れる系はいるか？　いらない気がするぜぇ
+		LOCAL = ABLE_えっちな罰ゲーム(キャラ番号)
+		SIF LOCAL >= 40
+			罰ゲーム候補:(候補数++) = 下着の色を言う
+		SIF LOCAL >= 50
+			罰ゲーム候補:(候補数++) = セクシーポーズで淫語を言う
+		SIF LOCAL >= 65 && TALENT:PLAYER:Ｂ感度 > -2
+			罰ゲーム候補:(候補数++) = 乳首当てゲームをする
+		SIF LOCAL >= 70
+			罰ゲーム候補:(候補数++) = 尻を揉む
+		SIF LOCAL >= 70
+			罰ゲーム候補:(候補数++) = 胸を揉む
+		SIF LOCAL >= 80 && TALENT:PLAYER:尻尾あり
+			罰ゲーム候補:(候補数++) = 尻尾の付け根を揉む
+		SIF LOCAL >= 80 && 体格差計算(キャラ番号, PLAYER) < 2
+			罰ゲーム候補:(候補数++) = 肩組み乳揉み
+		SIF LOCAL >= 80 && TALENT:PLAYER:Ｂ感度 > -2
+			罰ゲーム候補:(候補数++) = 乳首ひっかき
+		SIF LOCAL >= 90
+			罰ゲーム候補:(候補数++) = 股間を弄る
+
+		;罰ゲーム決定
+		SELECTCASE 罰ゲーム候補:(RAND:候補数)
+			CASE "デコピン"
+				RFLAG:コマンド結果受渡し変数２ = 0
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%に軽くデコピンした。
+				PRINTL 少しおでこがひりひりする…
+			CASE "一気飲み"
+				RFLAG:コマンド結果受渡し変数２ = 1
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%はお酒を一杯飲ませた。
+				PRINTFORML %CALLNAME:PLAYER%は顔が少し赤くなっている。
+				IF !初体験日:PLAYER:初飲酒
+					初体験日:PLAYER:初飲酒 = DAY
+					TCVAR:PLAYER:初飲酒フラグ = 1
+					CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"初めてリゾートでお酒を飲んだ","日常")
+				ENDIF
+				EXP:PLAYER:飲酒経験 += RAND:3 + 1
+				BASE:PLAYER:酩酊 += RAND:100 + 100
+				SIF BASE:PLAYER:酩酊 >= 1000
+					CFLAG:PLAYER:酔いすぎ = 1
+			CASE "下着の色を言う"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%に「下着の色を言う」を要求してきた。
+				RFLAG:コマンド結果受渡し変数２ = 10
+				PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:キャラ番号%に
+				IF TEQUIP:キャラ番号:下半身下着あり == 1
+					PRINTW 服をズラして下着を少し見せてあげた。
+				ELSEIF TEQUIP:キャラ番号:下半身下着あり == 0
+					PRINTW 履いてないとこっそり囁いた。
+				ELSEIF TEQUIP:キャラ番号:下半身下着あり == 2
+					PRINTW 前張りをしていると囁いた。
+				ELSEIF TEQUIP:キャラ番号:下半身下着あり == 3
+					PRINTW ふんどしだと教えた。
+				ENDIF
+				CALL SOURCE_CALC_露出(PLAYER, キャラ番号, 100)
+				CALL SOURCE_CALC_好感度要素_友情度UP(PLAYER, キャラ番号, 10)
+				CALL SOURCE_CALC_好感度要素_性愛度UP(PLAYER, キャラ番号, 20)
+			CASE "セクシーポーズで淫語を言う"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%に「セクシーポーズで淫語を言う」を要求してきた。
+				RFLAG:コマンド結果受渡し変数２ = 11
+				;セクシーポーズで淫語
+				CALL SOURCE_CALC_露出(PLAYER, キャラ番号, 200)
+				CALL SOURCE_CALC_好感度要素_友情度UP(PLAYER, キャラ番号, 10)
+				CALL SOURCE_CALC_好感度要素_性愛度UP(PLAYER, キャラ番号, 50)
+				PRINTFORMW %CALLNAME:PLAYER%は煽るようなポーズを見せつけながら、%CALLNAME:キャラ番号%の耳元で淫靡なセリフを囁いた。
+			CASE "乳首当てゲームをする"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%に「乳首当てゲーム」を要求してきた。
+				PRINTFORMW %CALLNAME:PLAYER%は了承し、両手を後ろに回して%CALLNAME:キャラ番号%の指を待ち受けている。
+				RFLAG:コマンド結果受渡し変数２ = 12
+				;乳首当てゲーム
+				CALL SOURCE_CALC_露出(PLAYER, キャラ番号, 200)
+				CALL SOURCE_CALC_快Ｂ(PLAYER, キャラ番号, 50)
+				CALL SOURCE_CALC_好感度要素_友情度UP(PLAYER, キャラ番号, 30)
+				CALL SOURCE_CALC_好感度要素_性愛度UP(PLAYER, キャラ番号, 100)
+				SELECTCASE 乳首当て結果判定(PLAYER)
+					CASE 0 TO 4
+						RFLAG:コマンド結果受渡し変数４ = 1
+						PRINTFORMW %CALLNAME:PLAYER%の胸に、乳首めがけて指を前に出した。
+						PRINTW 【的中！】
+						PRINTFORMW %CALLNAME:キャラ番号%は見事に%CALLNAME:PLAYER%の乳首を突いた！
+						CALL SOURCE_CALC_快Ｂ(PLAYER, キャラ番号, 100)
+					CASE 5 TO 9
+						RFLAG:コマンド結果受渡し変数４ = -1
+						PRINTFORMW %CALLNAME:PLAYER%の胸に、乳首めがけて指を前に出した。
+						PRINTW 【ハズレ…】
+						PRINTFORMW %CALLNAME:キャラ番号%は乳首の位置を見誤ってしまったようだ。
+				ENDSELECT
+			CASE "尻を揉む"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 13
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 320
+				CALL CALL_COM(キャラ番号)
+				;口上用に変数を戻す
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM320
+				SWAP TARGET, PLAYER
+			CASE "胸を揉む"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 14
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 321
+				CALL CALL_COM(キャラ番号)
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM321
+				SWAP TARGET, PLAYER
+			CASE "尻尾の付け根を揉む"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 15
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 322
+				CALL CALL_COM(キャラ番号)
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM322
+				SWAP TARGET, PLAYER
+			CASE "肩組み乳揉み"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 16
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 323
+				CALL CALL_COM(キャラ番号)
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM323
+				SWAP TARGET, PLAYER
+			CASE "乳首ひっかき"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 17
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 324
+				CALL CALL_COM(キャラ番号)
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM324
+				SWAP TARGET, PLAYER
+			CASE "股間を弄る"
+				PRINTFORMW %CALLNAME:キャラ番号%は罰ゲームとして%CALLNAME:PLAYER%の体に触れることを選んだようだ。
+				RFLAG:コマンド結果受渡し変数２ = 18
+				;CALL_COMを経由させる
+				SWAP TARGET, PLAYER
+				LOCAL = SELECTCOM
+				RSTR:SELECTCOM_S受け渡し = 
+				SELECTCOM_S = 
+				SELECTCOM = 327
+				CALL CALL_COM(キャラ番号)
+				SELECTCOM = LOCAL
+				CALL MESSAGE_COM327
+				SWAP TARGET, PLAYER
+		ENDSELECT
 ENDSELECT
 
 TRYCALLFORM KOJO_EVENT_罰ゲーム_{NO:キャラ番号}(キャラ番号)
@@ -195,15 +365,6 @@ ENDIF
 
 ;初期値は好感度レベル
 許容値 = CFLAG:キャラ番号:好感度レベル
-
-;恋慕が低いとマイナス補正、恋慕が高いとプラス補正
-IF 恋慕対象フラグ:0 == キャラ番号
-	IF 恋慕_性愛比較(キャラ番号) < 30
-		許容値 -= 恋慕_性愛比較(キャラ番号) / 2
-	ELSE
-		許容値 += 恋慕_性愛比較(キャラ番号) / 2
-	ENDIF
-ENDIF
 
 ;素質に手を入れた後にいずれ色々追加すること
 
