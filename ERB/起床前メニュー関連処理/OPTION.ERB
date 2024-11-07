@@ -21,24 +21,38 @@ ELSEIF RESULT == 2
 ELSEIF RESULT == 3
 	CALL OPTION_機能切り替え
 ELSEIF RESULT == 4
-	PRINTL 何時に起床しますか？
-	PRINTFORML 現在の起床予定時刻は%CONVERT_HOURS(CFLAG:MASTER:起床予定時刻)%時です
+	IF SAVESTR:ゲームフェイズ管理 != ""
+		PRINTW 起床予定時刻は起床前にしか設定出来ません。
+	ELSE
+		PRINTL 何時に起床しますか？
+		PRINTFORML 現在の起床予定時刻は%CONVERT_HOURS(CFLAG:MASTER:起床予定時刻)%時です
+		IF CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) >= CFLAG:MASTER:起床予定時刻
+			;０時よりも前に寝た場合はその日のうちに起きないようにしておく
+			PRINTFORML 前日の就寝時刻である%CONVERT_HOURS(CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440))%時より後には設定出来ません。
+		ENDIF
 
-	FOR LOCAL, 0, 24
-		PRINTFORM [{LOCAL, 2}] 
-		SIF LOCAL % 10 == 9
-			PRINTL
-	NEXT
-	PRINTL
-	PRINTBUTTON "[変更しない]", 99
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 24
+			IF CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) >= CFLAG:MASTER:起床予定時刻
+				SIF CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) <= LOCAL * 60
+					CONTINUE
+			ENDIF
+			PRINTFORM [{LOCAL, 2}] 
+			LOCAL:1 ++
+			SIF LOCAL:1 % 10 == 9
+				PRINTL
+		NEXT
+		PRINTL
+		PRINTBUTTON "[変更しない]", 99
 
-	$INPUT_LOOP2
-	INPUT
-	SIF RESULT == 99
-		RESTART
-	SIF RESULT < 0 || RESULT > 23
-		GOTO INPUT_LOOP2
-	CFLAG:MASTER:起床予定時刻 = RESULT * 60
+		$INPUT_LOOP2
+		INPUT
+		SIF RESULT == 99
+			RESTART
+		SIF RESULT < 0 || RESULT > 23
+			GOTO INPUT_LOOP2
+		CFLAG:MASTER:起床予定時刻 = RESULT * 60
+	ENDIF
 ELSEIF RESULT == 100
 	PRINTL 周回でキャラを引き継いだ時にエラーが発生してしまう現象へ対処するボタンです
 	PRINTL 現在存在するキャラの関係性を全てリセットし、初期状態に戻します
