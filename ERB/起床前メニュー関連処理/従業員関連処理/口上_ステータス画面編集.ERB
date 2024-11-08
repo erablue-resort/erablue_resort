@@ -17,7 +17,7 @@
 #DIMS 状況別リスト = "飲み会", "睡眠中", "一緒に隠れている最中", "デート中", "一緒に遊んでいる最中", "同行中", "隠れているあなたに気づいていない時", "野外オナニー中"
 #DIMS 好感度リスト = "友情度", "信頼度", "恋心度", "性愛度", "固有好感度", "恋慕度"
 #DIMS 関係名, 6, 6
-#DIMS コメント値, 10
+#DIMS コメント_値, 10
 
 表示モード = 100
 表示モード:1 = 1000
@@ -43,6 +43,11 @@ FOR L_CNT, 0, 6
 	関係名:5:L_CNT '= LOCALS:L_CNT
 NEXT
 
+;今のところタイトル画面orCSVエディタからのみ呼出の想定で、キャラクタ変数を利用するためにキャラ追加。
+;他から呼び出したい要望があれば後で考える。そもそも誰も使ってな……考えるのはやめよう
+MASTER = CHARANUM
+ADDCHARA 0
+
 $コメント_INIT
 IF キャラ名 == ""
 	IF !EXISTCSV(CSV番号) && CSV番号 != -1
@@ -51,8 +56,10 @@ IF キャラ名 == ""
 		IF CSV番号 == -1
 			CALL CSVコピー処理(1)
 			CSV番号 = RESULT
-			SIF !EXISTCSV(CSV番号)
+			IF !EXISTCSV(CSV番号)
+				DELCHARA CHARANUM-1
 				RETURN 0
+			ENDIF
 		ENDIF
 		VARSET RESULTS
 		SPLIT CSVNAME(CSV番号), "]", RESULTS
@@ -63,8 +70,16 @@ IF キャラ名 == ""
 	ENDIF
 ENDIF
 
+TARGET = CHARANUM
+IF EXISTCSV(CSV番号)
+	ADDCHARA CSV番号
+ELSE
+	ADDCHARA 999
+	NO:TARGET = CSV番号
+	CALLNAME:TARGET = %キャラ名%
+ENDIF
+
 IF EXISTFUNCTION(@"キャラ固有好感度関係名_{CSV番号}")
-	DEBUGPRINTFORM %好感度リスト:4%：
 	FOR L_CNT, 0, 6
 		CALLFORM キャラ固有好感度関係名_{CSV番号}(関係閾値:L_CNT)
 		関係名:4:L_CNT '= RESULTS
@@ -72,13 +87,15 @@ IF EXISTFUNCTION(@"キャラ固有好感度関係名_{CSV番号}")
 ENDIF
 
 $コメント_LOOP
-Column_M = <div rect='81,0,5850,344' border='31' bcolor='#C0C0C0'></div>
-Column_M += @"<div rect='156,62,5775,281'>"
+ログ保存用文字列 =
+Column_M = <div rect='81,0,5850,494' border='31' bcolor='#C0C0C0'></div>
+Column_M += @"<div rect='156,62,5775,431'>"
 Column_M += @"キャラ画像の下に一行だけ表示されるコメントや、好感度に応じて変化するコメント及びキャラ解説を簡易的に設定します<br>"
+Column_M += @"■------------------------------------------------------------------------------------------------------------■<br>"
 Column_M += @"登録番号：{CSV番号}　名前：%キャラ名%<br></div>"
 
-Column_M += @"<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
-Column_M += @"<div rect='156,500,1937,2812'>"
+Column_M += @"<div rect='81,525,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,525,3875,2812' border='31' bcolor='#C0C0C0'></div>"
+Column_M += @"<div rect='156,650,1937,2812'>"
 Column_M += @"<button value='100'>[100] 一言コメントを設定する</button>"
 Column_M += @"<br>"
 IF 表示モード < L_SPR:1
@@ -116,9 +133,7 @@ Column_M += @"<br>"
 Column_M += @"<button value='999'>[999] 戻る</button>"
 Column_M += @"</div>"
 
-Column_S = <div rect='2125,500,3675,2812'>
-;Column_S += @"<button value='2000'>[2000] 冒頭になにか表示する？</button>"
-;Column_S += "-----------------------------------------------------------------------<br>"
+Column_S = <div rect='2125,650,3675,2812'>
 
 SELECTCASE 表示モード
 	CASE 100 TO L_SPR:0 - 1
@@ -136,7 +151,8 @@ SELECTCASE 表示モード
 					Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>　　　　 バリエーションはこれ以上増やせません</font><br>"
 				ELSEIF コメント_業務中:LOCAL:L_CNT != ""
 					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>　[{LOCAL:1+L_CNT+1}] "
-					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%コメント_業務中:LOCAL:L_CNT%</button><br>"
+					CALL PRINT_STR_メッセージ用(コメント_業務中:LOCAL:L_CNT)
+					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%RESULTS%</button><br>"
 				ELSE
 					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
 					Column_S += @"　[{LOCAL:1+L_CNT+1}] バリエーションを増やす</font></button><br>"
@@ -159,7 +175,8 @@ SELECTCASE 表示モード
 					Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>　　　　 バリエーションはこれ以上増やせません</font><br>"
 				ELSEIF コメント_状況別:LOCAL:L_CNT != ""
 					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>　[{LOCAL:1+L_CNT+1}] "
-					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%コメント_状況別:LOCAL:L_CNT%</button><br>"
+					CALL PRINT_STR_メッセージ用(コメント_状況別:LOCAL:L_CNT)
+					Column_S += @"<font color='#808080'>{L_CNT+1}.</font>%RESULTS%</button><br>"
 				ELSE
 					Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
 					Column_S += @"　[{LOCAL:1+L_CNT+1}] バリエーションを増やす</font></button><br>"
@@ -179,7 +196,8 @@ SELECTCASE 表示モード
 			Column_S += @"<button value='{LOCAL:1 + L_CNT+1}'><font color='#808080'>"
 			Column_S += @"　[{LOCAL:1+L_CNT+1}]</font> %関係名:LOCAL:L_CNT, 16, LEFT%："
 			IF コメント_好感度:LOCAL:L_CNT != ""
-				Column_S += @"%コメント_好感度:LOCAL:L_CNT%</button><br>"
+				CALL PRINT_STR_メッセージ用(コメント_好感度:LOCAL:L_CNT)
+				Column_S += @"%RESULTS%</button><br>"
 			ELSE
 				Column_S += @"<font color='#808080'>"
 				Column_S += @"　（未設定）</font></button><br>"
@@ -196,7 +214,8 @@ SELECTCASE 表示モード
 				Column_S += @"<font color='#%カラーパレット_HTML("黄")%'>行数はこれ以上増やせません</font><br>"
 			ELSEIF コメント_解説:0:L_CNT != ""
 				Column_S += @"<button value='{LOCAL:1+L_CNT+1}'>"
-				Column_S += @"　[{LOCAL:1+L_CNT+1}] %コメント_解説:0:L_CNT%</button><br>"
+				CALL PRINT_STR_メッセージ用(コメント_解説:0:L_CNT)
+				Column_S += @"　[{LOCAL:1+L_CNT+1}] %RESULTS%</button><br>"
 			ELSE
 				Column_S += @"<button value='{LOCAL:1+L_CNT+1}'><font color='#808080'>"
 				Column_S += @"　[{LOCAL:1+L_CNT+1}] \@ !L_CNT? （未設定）# 行数を増やす\@</font></button><br>"
@@ -207,7 +226,7 @@ ENDSELECT
 Column_S += @"</div>"
 
 HTML_PRINT Column_M + Column_S
-FOR LOCAL, 0, 28
+FOR LOCAL, 0, 29
 	PRINTL
 NEXT
 DRAWLINE
@@ -249,6 +268,7 @@ SELECTCASE LOCAL
 		CALL CHOICE("一言コメント/解説エディタを終了しますか？（セーブは自動では行われません）", "はい", "いいえ")
 		SIF RESULT
 			GOTO コメント_LOOP
+		DELCHARA CHARANUM-1, CHARANUM-2
 		RETURN 0
 	CASE IS >= 1000
 		;入力処理
@@ -267,12 +287,7 @@ SELECTCASE LOCAL
 				LOCALS = コメント_解説
 		ENDSELECT
 		LOCALS:1 = :{(表示モード:1%100)/10}:{(表示モード:1%10)-1}
-		;CALL コメント入力()
-		SETTEXTBOX GETVARS(@"%LOCALS+LOCALS:1%")
-		PRINTL コメントを入力してください（半角の「,」「/」「|」は使用しないでください）
-		SIF LOCALS == "コメント_解説"
-			PRINTL （空白で改行を入れたい場合、全角スペースを入力してください）
-		INPUTS
+		CALL KSTR構文入力(GETVARS(@"%LOCALS+LOCALS:1%"), TARGET, LOCALS)
 		SETVAR @"%LOCALS+LOCALS:1%", RESULTS
 		;好感度コメント以外で入力が空欄なら後ろを詰める
 		IF RESULTS == "" && LOCALS != "コメント_好感度"
@@ -346,12 +361,6 @@ VARSET コメント_状況別
 VARSET コメント_好感度
 VARSET コメント_解説
 VARSET キャラ名
-;VARSの実装待ち
-;LOCAL:1 = 0
-;FOR LOCAL, 0, VARSIZE("コメント種類")
-;	LOCAL:1 = MAX(LOCAL:1, VARSIZE(コメント種類:LOCAL, 2))
-;NEXT
-;VARS コメント値, 1 + LOCAL:1
 
 SPLIT RESULTS:0, "|", LOCALS
 CSV番号 = TOINT(LOCALS:0)
@@ -363,16 +372,16 @@ FOR LOCAL, 1, VARSIZE("コメント種類")+2
 	SPLIT RESULTS:LOCAL, "|", LOCALS
 	LOCAL:1 = RESULT
 	FOR L_CNT, 0, LOCAL:1-1
-		SPLIT LOCALS:L_CNT, "/", コメント値
+		SPLIT LOCALS:L_CNT, "/", コメント_値
 		LOCAL:2 = RESULT
-		DEBUGPRINTFORM %コメント種類:(LOCAL-1)%:{L_CNT}:
 		FOR L_CNT2, 0, LOCAL:2-1
-			SETVAR @"%コメント種類:(LOCAL-1)%:{L_CNT}:{L_CNT2}", コメント値:L_CNT2
-			DEBUGPRINTFORM {L_CNT2}=%コメント値:L_CNT2%/
+			SETVAR @"%コメント種類:(LOCAL-1)%:{L_CNT}:{L_CNT2}", コメント_値:L_CNT2
 		NEXT
 		DEBUGPRINTL
 	NEXT
 NEXT
+DELCHARA TARGET
+
 GOTO コメント_INIT
 
 $ERB出力
@@ -694,6 +703,7 @@ PRINTL RETURN RESULT
 OUTPUTLOG @"ERB_EDITFILE/口上_{CSV番号}_%キャラ名%_ステータス画面.ERB", 1
 PRINTFORML ERB_EDITFILEフォルダに出力しました。「ERB/口上_キャラ個別ERB/{CSV番号}_%キャラ名%」フォルダに移動させてください
 PRINTFORMW （ゲームへの反映にはEmuera本体の再起動が必要です）
+DELCHARA CHARANUM-1, CHARANUM-2
 RETURN 0
 
 @コメント出力(コメント, リスト, 種類, インデント)
