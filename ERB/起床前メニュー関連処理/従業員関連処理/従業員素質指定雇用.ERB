@@ -33,8 +33,8 @@
 #DIMS CONST 好物一覧_実用品 = "文房具","健康器具","日用品","調理器具","工具"
 #DIMS CONST 好物一覧_その他 = "娯楽","花","本","おもちゃ","機械"
 #DIMS 好物一時保存
-#DIM 同行者一時保存, 3000
-#DIM 同行確率一時保存, 3000
+#DIM 同行者一時保存, キャラクタ数上限
+#DIM 同行確率一時保存, キャラクタ数上限
 #DIMS CONST 同行確率一覧 = "-25","-5","+5","+25"
 #DIM ランダムキャラ経験, 80
 #DIM ランダムキャラ戦闘タイプ, 10
@@ -46,6 +46,7 @@
 #DIMS ランダムキャラ出演作品
 #DIM ランダムキャラ招待不可フラグ
 #DIMS ランダムキャラ服装名
+#DIMS ランダムキャラ特殊種族
 #DIM 重複チェック用, 10
 #DIM 表示モード, 2
 #DIM 表示数カウント
@@ -68,6 +69,7 @@ VARSET 表示モード
 ランダムキャラ二つ名 = （未定）
 ランダムキャラ服装名 = （未定）
 ランダムキャラ出演作品 = 
+ランダムキャラ特殊種族 = 
 汎用画像キー = 
 SIF CSVエディタフラグ
 	OPTION変数:汎用立ち絵制御 = 0
@@ -444,6 +446,8 @@ SELECTCASE 表示モード
 				LOCALS += "星晶獣"
 			CASE 6
 				LOCALS += "その他"
+				SIF ランダムキャラ特殊種族 != ""
+					LOCALS += @" [%ランダムキャラ特殊種族%]"
 		ENDSELECT
 		IF 肉体特徴数値保存:0
 			LOCALS += "（角あり）"
@@ -882,7 +886,7 @@ SELECTCASE 表示モード
 				SIF LOCAL >= LOCAL:1
 					BREAK
 				LOCAL:2 = 同行者一時保存:LOCAL
-				LOCALS += @"<nonbutton>[{DT_CELL_GET("DT_CHARA", LOCAL:2, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(DT_CELL_GETS("DT_CHARA", LOCAL:2, "NAME"), "]"), 41, LEFT%：{DT_CELL_GET("DT_CHARA", LOCAL:2, "VALUE"), 3}％</nonbutton>"
+				LOCALS += @"<nonbutton>[{DT_CELL_GET("DT_CHARA", LOCAL:2, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(NAME表示省略(DT_CELL_GETS("DT_CHARA", LOCAL:2, "NAME")), "]"), 41, LEFT%：{DT_CELL_GET("DT_CHARA", LOCAL:2, "VALUE"), 3}％</nonbutton>"
 				LOCALS += "<br>"
 			NEXT
 		ELSE
@@ -987,6 +991,8 @@ SELECTCASE 表示モード
 		LOCALS += "<br>"
 		LOCALS += "<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 120
+		;- 種族関連
+		; 種族
 		LOCALS += "種族："
 		FOR LOCAL, 1, 7
 			IF ランダムキャラ素質:0 == LOCAL
@@ -997,6 +1003,17 @@ SELECTCASE 表示モード
 			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12000 + LOCAL}'>[%GET_TALENTNAME(200,LOCAL)%]</button></font>"
 		NEXT
 		LOCALS += "<br>"
+		; 特殊種族名
+		IF ランダムキャラ素質:0 == 6
+			IF ランダムキャラ特殊種族 != ""
+				LOCALS:1 = %ランダムキャラ特殊種族%
+			ELSE
+				LOCALS:1 = 未設定
+			ENDIF
+			LOCALS += @"種族名:<button value='{12096}'>[%LOCALS:1%]</button>"
+			LOCALS += "<br>"
+		ENDIF
+		; 身体特徴
 		LOCALS += "角："
 		IF 肉体特徴数値保存:0
 			LOCALS += @"<font color='#C0C0C0'><button value='{12070}'>[あり]</button></font>"
@@ -1022,6 +1039,7 @@ SELECTCASE 表示モード
 			LOCALS += @"<font color='#333333'><button value='{12073}'>[なし]</button></font>"
 		ENDIF
 		LOCALS += "<br>"
+
 		LOCALS += "性別："
 		IF ランダムキャラ素質:1 == 1
 			LOCALS += @"<button value='{12007}'>[女性]</button>"
@@ -1517,7 +1535,7 @@ SELECTCASE 表示モード
 		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
 			SIF LOCAL >= LOCAL:1
 				BREAK
-			LOCALS += @"<button value='{100000 + LOCAL * 10}'>[{DT_CELL_GET("DT_CHARA", LOCAL, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(DT_CELL_GETS("DT_CHARA", LOCAL, "NAME"), "]"), 41, LEFT%：{DT_CELL_GET("DT_CHARA", LOCAL, "VALUE"), 3}％</button>"
+			LOCALS += @"<button value='{100000 + LOCAL * 10}'>[{DT_CELL_GET("DT_CHARA", LOCAL, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(NAME表示省略(DT_CELL_GETS("DT_CHARA", LOCAL, "NAME")), "]"), 41, LEFT%：{DT_CELL_GET("DT_CHARA", LOCAL, "VALUE"), 3}％</button>"
 			LOCALS += "<font color='#606060'>"
 			FOR LOCAL:2, 0, VARSIZE("同行確率一覧")
 				LOCALS += @"<button value='{100000 + LOCAL * 10 + LOCAL:2 + 1}'>[%同行確率一覧:(LOCAL:2)%]</button>"
@@ -1783,6 +1801,14 @@ SELECTCASE LOCAL
 		体型保存 = LOCAL - 12080
 	CASE 12089 TO 12091
 		下半身保存 = LOCAL - 12090
+	CASE 12096
+		; 種族名の文字数上限わからないのでとりあえず他の入力系と同じ12文字に設定
+		PRINTL 種族名を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラ特殊種族
+		INPUTS
+		ランダムキャラ特殊種族 = %SUBSTRING(RESULTS, 0, 24)%
+		SIF RESULTS != ランダムキャラ特殊種族
+			PRINTFORMW 種族名が１２文字をオーバーしたため「%ランダムキャラ特殊種族%」に省略されました。
 	CASE 12097
 		ランダムキャラ素質:33 = 0
 		DRAWLINE
@@ -2002,6 +2028,8 @@ SELECTCASE LOCAL
 				GOTO INPUT_NAME
 			ELSE
 				ランダムキャラネーム = %SUBSTRING(RESULTS, 0, 24)%
+				SIF RESULTS != ランダムキャラネーム
+					PRINTFORMW 名前が１２文字をオーバーしたため「%ランダムキャラネーム%」に省略されました。
 			ENDIF
 		ENDIF
 	CASE 101
@@ -2015,17 +2043,23 @@ SELECTCASE LOCAL
 			GOTO 二つ名ループ
 		ELSE
 			ランダムキャラ二つ名 = %SUBSTRING(RESULTS, 0, 24)%
+			SIF RESULTS != ランダムキャラ二つ名
+				PRINTFORMW 二つ名が１２文字をオーバーしたため「%ランダムキャラ二つ名%」に省略されました。
 		ENDIF
 	CASE 102
 		PRINTL 呼び名を入力してください。（１２文字まで）
 		SETTEXTBOX ランダムキャラCALLネーム
 		INPUTS
 		ランダムキャラCALLネーム = %SUBSTRING(RESULTS, 0, 24)%
+		SIF RESULTS != ランダムキャラCALLネーム
+			PRINTFORMW 呼び名が１２文字をオーバーしたため「%ランダムキャラCALLネーム%」に省略されました。
 	CASE 103
 		PRINTL 出演作品を入力してください。（１２文字まで）
 		SETTEXTBOX ランダムキャラ出演作品
 		INPUTS
 		ランダムキャラ出演作品 = %SUBSTRING(RESULTS, 0, 24)%
+		SIF RESULTS != ランダムキャラ出演作品
+			PRINTFORMW 出演作品が１２文字をオーバーしたため「%ランダムキャラ出演作品%」に省略されました。
 	CASE 104
 		$好物_LOOP
 		DRAWLINE
@@ -2263,7 +2297,9 @@ SELECTCASE LOCAL
 		IF ランダムキャラネーム == ""
 			ランダムキャラネーム = %ランダムキャラ名前生成(ランダムキャラ素質:0, ランダムキャラ素質:1)%
 		ENDIF
+
 		IF CSVエディタフラグ
+			; 作成するCSVファイルの内容表示
 			CLEARLINE LINECOUNT
 			;空き番号取得は冒頭へ移動
 ;			FOR LOCAL:1, 2000, キャラクタ数上限
@@ -2340,6 +2376,9 @@ SELECTCASE LOCAL
 			PRINTL }
 			PRINTL
 			PRINTFORML 素質,種族,{ランダムキャラ素質:0}
+			; 特殊種族は種族が[その他]の場合のみ有効
+			SIF ランダムキャラ素質:0 == 6 && ランダムキャラ特殊種族 != ""
+				PRINTFORML CSTR,特殊種族,%ランダムキャラ特殊種族%
 			PRINTFORML 素質,性別,{ランダムキャラ素質:1}
 			IF GETBIT(ランダムキャラ素質:2, 0)
 				PRINTL 素質,処女,0
@@ -2422,7 +2461,7 @@ SELECTCASE LOCAL
 			PRINTL ;以下は大カテゴリに当てはまらない個別の小カテゴリ
 			PRINTL ;	小カテゴリ,娯楽,花,本,おもちゃ,機械
 			PRINTL ;
-			PRINTL ;複数好みにする場合は「食べ物_酒」のように記述すること
+			PRINTL ;複数好みにする場合は「飲食系_娯楽」のように記述すること
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTFORML CSTR,プレゼント好み,%SUBSTRINGU(好物一時保存, 0, STRLENSU(好物一時保存) - 1)%
 			PRINTL 
@@ -2632,7 +2671,7 @@ SELECTCASE LOCAL
 			TALENT:(LOCAL:1):(TALENT一時保存:LOCAL) = TALENT数値保存:LOCAL - 5
 		NEXT
 		LOCAL = 0
-		FOR COUNT, 1, 10
+		FOR COUNT, 1, フレーバー素質_項目数 + 1
 			SIF フレーバー素質数値保存:COUNT == 0
 				CONTINUE
 			フレーバー素質:(LOCAL:1):COUNT = フレーバー素質数値保存:COUNT
@@ -2764,7 +2803,9 @@ SELECTCASE LOCAL
 			ランダムキャラ人称:0 = %CSVCSTR(CSV番号, GETNUM(CSTR, "一人称"))%
 			ランダムキャラ人称:1 = %CSVCSTR(CSV番号, GETNUM(CSTR, "二人称"))%
 
+
 			ランダムキャラ素質:0 = CSVTALENT(CSV番号, GETNUM(TALENT, "種族"))
+			ランダムキャラ特殊種族 = %CSVCSTR(CSV番号, GETNUM(CSTR, "特殊種族"))%
 			ランダムキャラ素質:1 = CSVTALENT(CSV番号, GETNUM(TALENT, "性別"))
 			ランダムキャラ素質:2 = 0
 			SIF CSVTALENT(CSV番号, GETNUM(TALENT, "処女")) == 0
@@ -2933,7 +2974,7 @@ FOR LOCAL, 0, 300
 	ENDIF
 NEXT
 従業員初期値記録:記録位置 += "^^^"
-FOR LOCAL, 0, 10
+FOR LOCAL, 0, フレーバー素質_項目数 + 1
 	IF フレーバー素質:キャラ番号:LOCAL
 		従業員初期値記録:記録位置 += @"フレーバー素質_{LOCAL}_{フレーバー素質:キャラ番号:LOCAL}_"
 	ENDIF
@@ -3427,4 +3468,3 @@ SELECTCASE RESULT
 			RESTART
 		ENDIF
 ENDSELECT
-
