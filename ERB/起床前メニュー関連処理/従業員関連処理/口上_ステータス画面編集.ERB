@@ -1,4 +1,4 @@
-@一言コメント解説エディタ(CSV番号=-1, キャラ名="")
+@一言コメント解説エディタ(CSV番号=-1, キャラ名="", 人称:0="", 人称:1="")
 #DIM CSV番号
 #DIM 好感度コメント
 #DIM 表示モード, 2
@@ -18,6 +18,7 @@
 #DIMS 好感度リスト = "友情度", "信頼度", "恋心度", "性愛度", "固有好感度", "恋慕度"
 #DIMS 関係名, 6, 6
 #DIMS コメント_値, 10
+#DIMS 人称, 2
 
 表示モード = 100
 表示モード:1 = 1000
@@ -73,10 +74,18 @@ ENDIF
 TARGET = CHARANUM
 IF EXISTCSV(CSV番号)
 	ADDCHARA CSV番号
+	IF !EXISTFUNCTION(@"口上側初期パラメータ変更_{CSV番号}") && EXISTCSV(CSV番号)
+		SIF CSVCSTR(CSV番号, GETNUM(CSTR, "一人称")) == ""
+			CSTR:一人称 = %人称:0%
+		SIF CSVCSTR(CSV番号, GETNUM(CSTR, "二人称")) == ""
+			CSTR:二人称 = %人称:1%
+	ENDIF
 ELSE
 	ADDCHARA 999
 	NO:TARGET = CSV番号
 	CALLNAME:TARGET = %キャラ名%
+	CSTR:一人称 = %人称:0%
+	CSTR:二人称 = %人称:1%
 ENDIF
 
 IF EXISTFUNCTION(@"キャラ固有好感度関係名_{CSV番号}")
@@ -86,16 +95,22 @@ IF EXISTFUNCTION(@"キャラ固有好感度関係名_{CSV番号}")
 	NEXT
 ENDIF
 
+IF EXISTFUNCTION(@"口上側初期パラメータ変更_{CSV番号}")
+	CALLFORM 口上側初期パラメータ変更_{CSV番号}()
+ENDIF
+
 $コメント_LOOP
 ログ保存用文字列 =
-Column_M = <div rect='81,0,5850,494' border='31' bcolor='#C0C0C0'></div>
-Column_M += @"<div rect='156,62,5775,431'>"
+Column_M = <div rect='81,0,5850,594' border='31' bcolor='#C0C0C0'></div>
+Column_M += @"<div rect='156,62,5775,531'>"
 Column_M += @"キャラ画像の下に一行だけ表示されるコメントや、好感度に応じて変化するコメント及びキャラ解説を簡易的に設定します<br>"
 Column_M += @"■------------------------------------------------------------------------------------------------------------■<br>"
-Column_M += @"登録番号：{CSV番号}　名前：%キャラ名%<br></div>"
+Column_M += @"登録番号：{CSV番号}　名前：%キャラ名%<br>"
+Column_M += @"一人称　：\@ CSTR:一人称 != "" ? %CSTR:一人称%# （未設定）\@　　二人称　：\@ CSTR:二人称 != "" ? %CSTR:二人称%# （未設定）\@<br>"
+Column_M += @"</div>"
 
-Column_M += @"<div rect='81,525,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,525,3875,2812' border='31' bcolor='#C0C0C0'></div>"
-Column_M += @"<div rect='156,650,1937,2812'>"
+Column_M += @"<div rect='81,625,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,625,3875,2812' border='31' bcolor='#C0C0C0'></div>"
+Column_M += @"<div rect='156,687,1937,2812'>"
 Column_M += @"<button value='100'>[100] 一言コメントを設定する</button>"
 Column_M += @"<br>"
 IF 表示モード < L_SPR:1
@@ -124,6 +139,17 @@ Column_M += @"<button value='{L_SPR:2}'>[{L_SPR:2}] キャラ解説を設定す�
 Column_M += @"<br>"
 Column_M += @"<br>"
 Column_M += @"<br>"
+IF !EXISTFUNCTION(@"口上側初期パラメータ変更_{CSV番号}") && EXISTCSV(CSV番号)
+	IF CSVCSTR(CSV番号, GETNUM(CSTR, "一人称")) == ""
+		Column_M += @"<button value='600'>[600] 一人称を設定する</button>"
+		Column_M += @"<br>"
+	ENDIF
+	IF CSVCSTR(CSV番号, GETNUM(CSTR, "二人称")) == ""
+		Column_M += @"<button value='601'>[601] 二人称を設定する</button>"
+		Column_M += @"<br>"
+	ENDIF
+ENDIF
+Column_M += @"<br>"
 Column_M += @"<button value='700'>[700] 作業状況を保存する</button>"
 Column_M += @"<br>"
 Column_M += @"<button value='701'>[701] 作業状況を呼び出す</button>"
@@ -133,7 +159,7 @@ Column_M += @"<br>"
 Column_M += @"<button value='999'>[999] 戻る</button>"
 Column_M += @"</div>"
 
-Column_S = <div rect='2125,650,3675,2812'>
+Column_S = <div rect='2125,687,3675,2812'>
 
 SELECTCASE 表示モード
 	CASE 100 TO L_SPR:0 - 1
@@ -193,7 +219,7 @@ SELECTCASE 表示モード
 		Column_S += "-----------------------------------------------------------------------<br>"
 		Column_S += @"・%好感度リスト:LOCAL%<br>"
 		FOR L_CNT, 0, 6
-			Column_S += @"<button value='{LOCAL:1 + L_CNT+1}'><font color='#808080'>"
+			Column_S += @"<button value='{LOCAL:1 + L_CNT+1}'>\@ CSTR:キャラ固有好感度要素 != ""? （%CSTR:キャラ固有好感度要素%）# \@<font color='#808080'>"
 			Column_S += @"　[{LOCAL:1+L_CNT+1}]</font> %関係名:LOCAL:L_CNT, 16, LEFT%："
 			IF コメント_好感度:LOCAL:L_CNT != ""
 				CALL PRINT_STR_メッセージ用(コメント_好感度:LOCAL:L_CNT)
@@ -248,6 +274,18 @@ SELECTCASE LOCAL
 	CASE L_SPR:2
 		;キャラ解説モード
 		表示モード = LOCAL
+	CASE 600
+		;一人称を入力
+		SETTEXTBOX CSTR:一人称
+		PRINTL 一人称を入力してください
+		INPUTS
+		CSTR:一人称 '= RESULTS
+	CASE 601
+		;二人称を入力
+		SETTEXTBOX CSTR:二人称
+		PRINTL 二人称を入力してください
+		INPUTS
+		CSTR:二人称 '= RESULTS
 	CASE 700
 		;一時保存
 		CALL CHOICE("作業状況を保存しますか？（ERB形式では出力されません）", "はい", "いいえ")
@@ -314,6 +352,7 @@ FOR LOCAL, 0, VARSIZE("コメント種類")
 	NEXT
 	LOCALS += "\n"
 NEXT
+LOCALS += @"%CSTR:一人称%/%CSTR:二人称%\n"
 SAVETEXT LOCALS, @"dat/コメント一時保存/{CSV番号}_%キャラ名%_{GETTIME()/100000}.txt"
 PRINTFORMW dat/コメント一時保存/{CSV番号}_%キャラ名%_{GETTIME()/100000}.txtに保存しました。
 
@@ -367,7 +406,7 @@ CSV番号 = TOINT(LOCALS:0)
 SIF !EXISTCSV(CSV番号)
 	キャラ名 = %LOCALS:1%
 
-FOR LOCAL, 1, VARSIZE("コメント種類")+2
+FOR LOCAL, 1, VARSIZE("コメント種類")+1
 	VARSET LOCALS
 	SPLIT RESULTS:LOCAL, "|", LOCALS
 	LOCAL:1 = RESULT
@@ -377,9 +416,9 @@ FOR LOCAL, 1, VARSIZE("コメント種類")+2
 		FOR L_CNT2, 0, LOCAL:2-1
 			SETVAR @"%コメント種類:(LOCAL-1)%:{L_CNT}:{L_CNT2}", コメント_値:L_CNT2
 		NEXT
-		DEBUGPRINTL
 	NEXT
 NEXT
+SPLIT RESULTS:LOCAL, "/", 人称
 DELCHARA TARGET
 
 GOTO コメント_INIT
@@ -699,6 +738,41 @@ ENDIF
 PRINTL 
 PRINTL CALL キャラ解説表示用(対象キャラ)
 PRINTL RETURN RESULT
+
+IF !EXISTFUNCTION(@"口上側初期パラメータ変更_{CSV番号}") && EXISTCSV(CSV番号) && (CSVCSTR(CSV番号, GETNUM(CSTR, "一人称")) != CSTR:一人称 || CSVCSTR(CSV番号, GETNUM(CSTR, "二人称")) != CSTR:二人称)
+	PRINTL 
+	PRINTL ;--------------------------------------------------
+	PRINTL ;初期パラメータ変更
+	PRINTL ;--------------------------------------------------
+	PRINTFORML @口上側初期パラメータ変更_{CSV番号}
+	PRINTL ;NEWGAME時に呼ばれる関数、ロード時には呼ばれないことに注意
+	PRINTL ;TALENTをONOFFしたり、EXPの取得や初期ABLの変更などをここに記述すること
+	PRINTL LOCAL = GETCHARA({CSV番号})
+	PRINTL 
+	PRINTL ;キャラクターが自分を指す際の呼び方
+	PRINTFORML CSTR:LOCAL:一人称 = %CSTR:一人称%
+	PRINTL 
+	PRINTL ;キャラクターがあなたを指す際の呼び方
+	PRINTFORML CSTR:LOCAL:二人称 = %CSTR:二人称%
+	PRINTL 
+	PRINTL ;--------------------------------------------------
+	PRINTL ;ロード時パラメータ変更
+	PRINTL ;--------------------------------------------------
+	PRINTL @口上側LOADENDパラメータ変更_{CSV番号}
+	PRINTL ;ロード時に呼ばれる変数。NEWGAME時に呼ばれないことに注意
+	PRINTL ;上の関数だけだと後から追加した時にバグるため追加
+	PRINTL LOCAL = GETCHARA({CSV番号})
+	PRINTL 
+	PRINTL ;キャラクターが自分を指す際の呼び方
+	PRINTL IF CSTR:LOCAL:一人称 == ""
+	PRINTFORML 	CSTR:LOCAL:一人称 = %CSTR:一人称%
+	PRINTL ENDIF
+	PRINTL ;キャラクターがあなたを指す際の呼び方
+	PRINTL IF CSTR:LOCAL:二人称 == ""
+	PRINTFORML 	CSTR:LOCAL:二人称 = %CSTR:二人称%
+	PRINTL ENDIF
+	PRINTL 
+ENDIF
 
 OUTPUTLOG @"ERB_EDITFILE/口上_{CSV番号}_%キャラ名%_ステータス画面.ERB", 1
 PRINTFORML ERB_EDITFILEフォルダに出力しました。「ERB/口上_キャラ個別ERB/{CSV番号}_%キャラ名%」フォルダに移動させてください
