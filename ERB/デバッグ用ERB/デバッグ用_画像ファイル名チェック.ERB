@@ -28,6 +28,9 @@ REDRAW 0
 ; チェック前に情報をリセット
 CALL デバッグ用_エラー画像情報管理("リセット")
 
+; フォルダ名のチェック
+CALL デバッグ用_画像フォルダ名チェック()
+
 ; CSV番号1～チェック
 ; ・0番(あなた)は命名規則外なので飛ばす
 FOR CSV_NO, 1, デバッグ用_CSV番号_MAX + 1
@@ -149,7 +152,7 @@ ARRAYCOPY "RESULTS", "FILE_LIST"
 ;- ファイル一覧のファイルを順番にチェック
 FOR L_CNT, 0, G_NUM
 	; 無限ループ判定対策のウェイト処理
-	CALL デバッグ用_画像ファイル名チェック_ウェイト()
+	CALL デバッグ用_チェック用ウェイト処理("ファイル名チェック中")
 	
 	;- 書式エラー判定
 	FILE_NAME '= FILE_LIST:L_CNT
@@ -177,15 +180,16 @@ RESTART
 ;---------------------------------------------------------------------
 ;無限ループ警告対策のウェイト処理
 ;---------------------------------------------------------------------
-@デバッグ用_画像ファイル名チェック_ウェイト()
+@デバッグ用_チェック用ウェイト処理(表示テキスト)
+#DIMS 表示テキスト
 #DIM WAIT_COUNT
 #DIM CONST AWAIT周期 = 100
 
 ;- 処理時間が長く無限ループ疑惑の警告が出るのでAWAITを挟んで対策
 ;・処理中なのがわかるように適当に表示をぐるぐる回す
-;・所定ファイル数ごとに1回表示更新(1ファイルごとだとウェイトしすぎで処理時間がすごい延びた)
+;・所定件数ごとに1回AWAIT＆表示更新(1件ごとだとAWAITしすぎで処理時間がすごい延びた)
 IF WAIT_COUNT % AWAIT周期 == 0
-	PRINT ファイルチェック中...
+	PRINTFORM %表示テキスト%...
 	SELECTCASE WAIT_COUNT / AWAIT周期
 		CASE 0
 			PRINT -
@@ -335,7 +339,6 @@ IF !リスト取得済
 			SPLIT 作業用固有定義リスト:L_CNT, ":", RESULTS
 			作業用フォルダリスト:L_CNT '= RESULTS:0
 			作業用CSV:L_CNT '= RESULTS:1
-			DEBUGPRINTFORML [{L_CNT}]%作業用フォルダリスト:L_CNT%:%作業用CSV:L_CNT%
 		NEXT
 		; 作業用テンポラリから各種リストにコピー
 		ARRAYCOPY "作業用フォルダリスト", @"固有%種類リスト:L_CNT_T%フォルダリスト"
@@ -377,8 +380,6 @@ RETURNF リスト結合テキスト
 
 FOLDER_PATH '= @"%フォルダベース%\\%FOLDER_NAME%"
 
-DEBUGPRINTFORML 画像セット[%FOLDER_NAME%][%FILE_NAME%]
-
 ; 顔画像か短冊画像か判定
 REGEX_TEXT '= @"顔_.*\.png"
 IF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
@@ -410,44 +411,61 @@ RETURNF 1
 #DIMS FOLDER_NAME
 #DIMS FILE_NAME
 ; Static変数:出力用エラー画像ファイル情報保存
-#DIMS エラー画像リスト_フォルダ , 2, デバッグ用_エラー内容保持数
-#DIMS エラー画像リスト_ファイル , 2, デバッグ用_エラー内容保持数
-#DIM  エラー件数, 2
-#DIMS エラータイトル,2
+#DIMS エラー画像リスト_フォルダ , 3, デバッグ用_エラー内容保持数
+#DIMS エラー画像リスト_ファイル , 3, デバッグ用_エラー内容保持数
+#DIM  エラー件数, 3
+#DIMS エラータイトル,3
 #DIM  書式エラー件数
 #DIM  画像なし件数
+#DIM  フォルダ名エラー件数
 #DIMS SAVE_TEXT_DATA
 #DIM  SAVE_TEXT_DATA_SET
 ; 内部変数:その他
 #DIMS DYNAMIC TIME_STAMP
 #DIM  DYNAMIC SPLIT_CNT
 #DIM  DYNAMIC L_CNT
+#DIM  CONST フォルダ名 = 0
+#DIM  CONST 書式エラー = 1
+#DIM  CONST 画像セット = 2
 
 SELECTCASE TYPE
 	CASE "リセット"
 		VARSET エラー画像リスト_フォルダ
 		VARSET エラー画像リスト_ファイル
 		VARSET エラー件数
-		書式エラー件数 = 0
-		画像なし件数   = 0
+		書式エラー件数       = 0
+		画像なし件数         = 0
+		フォルダ名エラー件数 = 0
 		SAVE_TEXT_DATA '= ""
 		SAVE_TEXT_DATA_SET = 0
+		; 定数にすると参照渡しできないので処理中で定義
+		エラータイトル:フォルダ名 '= "フォルダ名のエラー"
+		エラータイトル:書式エラー '= "書式エラーのファイル"
+		エラータイトル:画像セット '= "顔画像と短冊画像が揃っていないファイル"
 
 	CASE "書式エラー"
 		; 書式エラーの登録
 		IF 書式エラー件数 < VARSIZE("エラー画像リスト_フォルダ", 2)
-			エラー画像リスト_フォルダ:0:書式エラー件数 '= FOLDER_NAME
-			エラー画像リスト_ファイル:0:書式エラー件数 '= FILE_NAME
+			エラー画像リスト_フォルダ:書式エラー:書式エラー件数 '= FOLDER_NAME
+			エラー画像リスト_ファイル:書式エラー:書式エラー件数 '= FILE_NAME
 		ENDIF
 		書式エラー件数 ++
 
 	CASE "顔画像なし", "短冊画像なし"
 		; セット画像なしの登録
 		IF 画像なし件数 < VARSIZE("エラー画像リスト_フォルダ", 2)
-			エラー画像リスト_フォルダ:1:画像なし件数 '= FOLDER_NAME
-			エラー画像リスト_ファイル:1:画像なし件数 '= FILE_NAME
+			エラー画像リスト_フォルダ:画像セット:画像なし件数 '= FOLDER_NAME
+			エラー画像リスト_ファイル:画像セット:画像なし件数 '= FILE_NAME
 		ENDIF
 		画像なし件数 ++
+
+	CASE "フォルダ名エラー"
+		; フォルダ名エラーの登録
+		IF フォルダ名エラー件数 < VARSIZE("エラー画像リスト_フォルダ", 2)
+			エラー画像リスト_フォルダ:フォルダ名:フォルダ名エラー件数 '= FOLDER_NAME
+			エラー画像リスト_ファイル:フォルダ名:フォルダ名エラー件数 '= FILE_NAME
+		ENDIF
+		フォルダ名エラー件数 ++
 
 	CASE "結果出力", "ファイル保存"
 		; 出力内容は同じで画面に表示するかファイルに出力するかを変える
@@ -456,10 +474,9 @@ SELECTCASE TYPE
 		; リセットされるまで内容が変わらないので1回のみ実行
 		IF !SAVE_TEXT_DATA_SET
 			SAVE_TEXT_DATA_SET = 1
-			エラー件数:0 = 書式エラー件数
-			エラー件数:1 = 画像なし件数
-			エラータイトル:0 '= "書式エラーのファイル"
-			エラータイトル:1 '= "顔画像と短冊画像が揃っていないファイル"
+			エラー件数:書式エラー = 書式エラー件数
+			エラー件数:画像セット = 画像なし件数
+			エラー件数:フォルダ名 = フォルダ名エラー件数
 			SAVE_TEXT_DATA '= デバッグ用_エラー画像情報管理_出力テキスト作成(エラータイトル, エラー画像リスト_フォルダ, エラー画像リスト_ファイル, エラー件数)
 		ENDIF
 		
@@ -498,49 +515,269 @@ ENDSELECT
 #DIM  REF ERR_CNT, 0
 #DIMS SAVE_TEXT_DATA
 #DIMS DYNAMIC FOLDER_TEMP
-#DIM  DYNAMIC LIAT_CNT_MAX
+#DIM  DYNAMIC LIST_CNT_MAX
 #DIM  DYNAMIC L_CNT_EL
 #DIM  DYNAMIC L_CNT
 #DIM  CONST   LINE_LEN = 80
 #DIMS TITLE_TEMP
 
-LIAT_CNT_MAX = VARSIZE("ERR_LIST_FOLDER", 2)
+LIST_CNT_MAX = VARSIZE("ERR_LIST_FOLDER", 2)
 SAVE_TEXT_DATA '= ""
 FOR L_CNT, 0, VARSIZE("ERR_LIST_FOLDER", 1)
-	; 2周目以降は最初に空行を追加
-	SIF L_CNT
-		SAVE_TEXT_DATA += "\n"
 	; タイトル表示
 	TITLE_TEMP '= @"-□ %ERR_TITLE:L_CNT% □-"
 	SAVE_TEXT_DATA += TITLE_TEMP + "-" * (LINE_LEN - STRLENS(TITLE_TEMP)) + "\n"
 	
 	; エラー内容表示
 	IF ERR_CNT:L_CNT
-		; エラーあり
+		;- エラーあり時
 		FOLDER_TEMP '= ""
-		FOR L_CNT_EL, 0, MIN(ERR_CNT:L_CNT, LIAT_CNT_MAX)
-			; フォルダ名が切り替わったらフォルダ名を表示
-			IF ERR_LIST_FOLDER:L_CNT:L_CNT_EL != FOLDER_TEMP
-				SIF L_CNT_EL != 0
-					SAVE_TEXT_DATA += "\n"
-				SAVE_TEXT_DATA += @"<%ERR_LIST_FOLDER:L_CNT:L_CNT_EL%>\n"
-				FOLDER_TEMP '= ERR_LIST_FOLDER:L_CNT:L_CNT_EL
-			ENDIF
-			; ファイル名を表示
-			SAVE_TEXT_DATA += @"%ERR_LIST_FILE:L_CNT:L_CNT_EL%\n"
-		NEXT
+		; エラーファイル名が空の場合はフォルダ名チェック結果
+		IF ERR_LIST_FILE:L_CNT:0 == ""
+			;- フォルダ名チェック結果の格納
+			; エラー件数文繰り返し(エラー件数が多すぎる場合は省略)
+			FOR L_CNT_EL, 0, MIN(ERR_CNT:L_CNT, LIST_CNT_MAX)
+				; フォルダ名を表示
+				SAVE_TEXT_DATA += @"%ERR_LIST_FOLDER:L_CNT:L_CNT_EL%\n"
+			NEXT
+		ELSE
+			;- ファイル名チェック結果の格納
+			; エラー件数文繰り返し(エラー件数が多すぎる場合は省略)
+			FOR L_CNT_EL, 0, MIN(ERR_CNT:L_CNT, LIST_CNT_MAX)
+				; フォルダ名を表示(フォルダ名が切り替わったタイミングのみ)
+				IF ERR_LIST_FOLDER:L_CNT:L_CNT_EL != FOLDER_TEMP
+					SIF L_CNT_EL != 0
+						SAVE_TEXT_DATA += "\n"
+					SAVE_TEXT_DATA += @"<%ERR_LIST_FOLDER:L_CNT:L_CNT_EL%>\n"
+					FOLDER_TEMP '= ERR_LIST_FOLDER:L_CNT:L_CNT_EL
+				ENDIF
+				; ファイル名を表示
+				SAVE_TEXT_DATA += @"%ERR_LIST_FILE:L_CNT:L_CNT_EL%\n"
+			NEXT
+		ENDIF
 		; 件数表示
 		SAVE_TEXT_DATA += "\n"
 		SAVE_TEXT_DATA += @"合計:{ERR_CNT:L_CNT}件\n"
-		; エラー件数が多すぎてリストサイズオーバーしていた場合の注意書き
-		SIF ERR_CNT:L_CNT >= LIAT_CNT_MAX
-			SAVE_TEXT_DATA += @"※ 件数が多いため{LIAT_CNT_MAX}件のみ出力しています\n"
+		; エラー件数が多すぎてリストサイズをオーバーしていた場合の注意書き
+		SIF ERR_CNT:L_CNT >= LIST_CNT_MAX
+			SAVE_TEXT_DATA += @"※ 件数が多いため{LIST_CNT_MAX}件のみ出力しています\n"
+		; 最後以外は余白を追加
+		SIF L_CNT != (VARSIZE("ERR_LIST_FOLDER", 1) - 1)
+			SAVE_TEXT_DATA += "\n"
 	ELSE
-		; エラーなし
-		SAVE_TEXT_DATA += "なし\n"
+		;- エラーなし時
+		SAVE_TEXT_DATA += "なし\n\n"
 	ENDIF
 NEXT
 SAVE_TEXT_DATA += "-" * LINE_LEN + "\n"
 
 RETURNF SAVE_TEXT_DATA
+
+;---------------------------------------------------------------------
+;画像フォルダ名のチェック
+;---------------------------------------------------------------------
+@デバッグ用_画像フォルダ名チェック()
+; 内部変数:フォルダ名リスト関連
+#DIMS DYNAMIC フォルダ名リスト  , VARSIZE("RESULTS")
+#DIM  フォルダ件数
+#DIM  DYNAMIC 誤フォルダ番号リスト, VARSIZE("RESULTS")
+#DIMS DYNAMIC 誤フォルダ名リスト, VARSIZE("RESULTS")
+#DIMS DYNAMIC 正フォルダ名リスト, VARSIZE("RESULTS")
+#DIM  誤フォルダ件数
+#DIM  誤フォルダ名長
+#DIM  CONST 誤フォルダ名長_MIN = 20
+; 内部変数:名称比較処理関連
+#DIMS フォルダ名
+#DIM  CSV番号
+#DIMS キャラ名
+#DIMS 正フォルダ名
+#DIMS 候補フォルダ名1
+#DIMS 候補フォルダ名2
+#DIMS 前回フォルダ名
+; 内部変数:番号変換(例外パターン)用
+#DIM  番号変換表, VARSIZE("デバッグ用_CSV番号変換キャラ定義"), 2
+#DIM  番号変換表件数
+#DIM  番号変換表取得済
+#DIM  CONST 変換前 = 0
+#DIM  CONST 変換後 = 1
+; 内部変数:正規表現検索用
+#DIMS RE_PATTERN
+#DIM  RE_GRP_CNT
+#DIMS RE_MATCHES, 3
+#DIM  RE_CNT
+#DIMS RE_TARGET
+; 内部変数:その他
+#DIMS ERR_TEXT
+#DIM  L_CNT
+#DIM  L_CNT_EX
+#DIM  L_CNT_CSV
+; 定数:不明フォルダの並び順設定
+#DIM CONST 不明_ランダムキャラ = 1
+#DIM CONST 不明_CSV番号        = 2
+#DIM CONST 不明_キャラ名       = 3
+#DIM CONST 不明_両方           = 4
+
+; 正規表現テキスト「(番号)(文字列)」
+RE_PATTERN '= "^([0-9]+)([^0-9].*)$"
+
+; CSV番号変換表の作成
+; 処理中に内容が変化しないので取得は1回だけ
+IF !番号変換表取得済
+	番号変換表取得済 = 1
+	番号変換表件数 = VARSIZE("デバッグ用_CSV番号変換キャラ定義")
+	FOR L_CNT_EX, 0, 番号変換表件数
+		;- 変換前の番号の取得
+		; 変換表の番号部分と名前部分の区切り文字を削除して合体
+		RE_TARGET '= REPLACE(デバッグ用_CSV番号変換キャラ定義:L_CNT_EX, "_", "")
+		; 正規表現して番号(誤)を取得
+		RE_CNT = REGEXPMATCH(RE_TARGET, RE_PATTERN, RE_GRP_CNT, RE_MATCHES)
+		; 正規表現一致数が0→ヘッダの記載がおかしいのでエラー通知
+		SIF RE_CNT == 0
+			THROW デバッグ用_画像ファイル名チェック.ERHの「デバッグ用_CSV番号変換キャラ定義」の内容に誤りがあります
+
+		; 正規表現検索結果を変数へ格納
+		番号変換表:L_CNT_EX:変換前 = TOINT(RE_MATCHES:1)
+		
+		;- 変換後の番号の取得
+		; 変換表の番号部分を取得
+		SPLIT デバッグ用_CSV番号変換キャラ定義:L_CNT_EX, "_", RESULTS
+		番号変換表:L_CNT_EX:変換後 = TOINT(RESULTS:0)
+	NEXT
+ENDIF
+
+フォルダ件数 = デバッグ用_画像ファイル名チェック_フォルダ取得("", フォルダ名リスト)
+; フォルダ名でソート
+; ・フォルダ名のチェック処理を簡略化するために予めソートしておく
+ARRAYSORT フォルダ名リスト, FORWARD, 0, フォルダ件数
+誤フォルダ件数 = 0
+誤フォルダ名長 = 誤フォルダ名長_MIN
+前回フォルダ名 '= ""
+FOR L_CNT, 0, フォルダ件数
+	;- ベースフォルダ部分だけチェックする
+	; ・ただし、サブフォルダにしか画像がない場合もあるので「サブフォルダは飛ばす」とはしない
+	; サブフォルダ情報を除去
+	SPLIT フォルダ名リスト:L_CNT, "\\", RESULTS
+	フォルダ名 '= RESULTS:0
+	
+	; チェック済のフォルダはスキップ
+	; ・リストはフォルダ名でソート済なので同じフォルダ名の画像フォルダは連続する
+	SIF フォルダ名 == 前回フォルダ名
+		CONTINUE
+	前回フォルダ名 '= フォルダ名
+	
+	;- 無限ループ判定対策のウェイト処理(ファイルに比べると件数少ないけど一応実施)
+	CALL デバッグ用_チェック用ウェイト処理("フォルダ名チェック中")
+
+	;- 基本パターンチェック
+	;・フォルダ名を「CSV番号」と「キャラ名」に分割してCSVの内容と一致するかチェック
+	; 正規表現検索でフォルダ名を「CSV番号」と「キャラ名」に分割
+	VARSET RE_MATCHES
+	RE_TARGET '= フォルダ名
+	RE_CNT = REGEXPMATCH(RE_TARGET, RE_PATTERN, RE_GRP_CNT, RE_MATCHES)
+	
+	;- パターンと一致しないフォルダ
+	IF RE_CNT == 0
+		; 数値ならCSV番号、数値以外ならキャラ名として扱ってチェックする
+		IF ISNUMERIC(フォルダ名)
+			CSV番号 = TOINT(フォルダ名)
+			キャラ名 '= ""
+		ELSE
+			CSV番号 = デバッグ用_CSV番号_MAX + 不明_CSV番号
+			キャラ名   '= フォルダ名
+		ENDIF
+	;- パターンと一致するフォルダ
+	ELSE
+		; 正規表現検索結果を変数へ格納
+		CSV番号     = TOINT(RE_MATCHES:1)
+		キャラ名   '= RE_MATCHES:2
+	ENDIF
+	
+	;- 例外パターン処理1
+	; CSVが見つからなかった場合は番号変換表で変換できるか確認
+	IF !EXISTCSV(CSV番号)
+		FOR L_CNT_EX, 0, 番号変換表件数
+			IF CSV番号 == 番号変換表:L_CNT_EX:変換前
+				; 変換後のCSV番号を取得
+				CSV番号 = 番号変換表:L_CNT_EX:変換後
+				; 変換後のCSV番号を使ってキャラ名を再取得
+				キャラ名 '= REPLACE(フォルダ名, @"^{CSV番号}", "")
+			ENDIF
+		NEXT
+	ENDIF
+	
+	; CSV番号に対応するCSVがある＆キャラ名がCSVの呼び名と一致したらOK
+	SIF EXISTCSV(CSV番号) && (キャラ名 == CSVCALLNAME(CSV番号))
+		CONTINUE
+	
+	;- 例外パターン処理2
+	; 「特殊リソースフォルダ」に定義されているフォルダ名はOK
+	SIF MATCH(デバッグ用_特殊リソースフォルダ, フォルダ名)
+		CONTINUE
+	
+	;- 修正候補のフォルダ名を取得
+	;- CSV番号からキャラ名の候補を取得
+	IF CSV番号 == 999
+		;- ランダムキャラ(CSV番号999)
+		; 正しいフォルダ名は不明
+		候補フォルダ名1 '= "不明(ランダムキャラ)"
+		; ソート用にCSV番号を変更
+		CSV番号 = デバッグ用_CSV番号_MAX + 不明_ランダムキャラ
+	ELSEIF EXISTCSV(CSV番号)
+		; CSVあり
+		候補フォルダ名1 '= @"{CSV番号}%CSVCALLNAME(CSV番号)%"
+	ELSE
+		; CSVなし
+		候補フォルダ名1 '= ""
+	ENDIF
+
+	;- キャラ名からCSV番号の候補を取得
+	候補フォルダ名2 '= ""
+	FOR L_CNT_CSV, 0, デバッグ用_CSV番号_MAX
+		SIF !EXISTCSV(L_CNT_CSV)
+			CONTINUE
+		IF キャラ名 == CSVCALLNAME(L_CNT_CSV)
+			; 同名キャラのCSVがある
+			SIF 候補フォルダ名2 != ""
+				候補フォルダ名2 += " or "
+			候補フォルダ名2 += @"{L_CNT_CSV}%キャラ名%"
+		ENDIF
+	NEXT
+	
+	;- 結果を出力用にまとめる
+	IF 候補フォルダ名1 != ""
+		;- 番号に対応するCSVが存在する
+		正フォルダ名 '= @"%候補フォルダ名1%"
+		; 名前から抽出した候補を追加
+		SIF 候補フォルダ名2 != ""
+			正フォルダ名 += @" or %候補フォルダ名2%"
+	ELSEIF 候補フォルダ名2 != ""
+		;- 名前に対応するCSVが存在する
+		正フォルダ名 '= @"%候補フォルダ名2%"
+	ELSE
+		;- 完全に不明
+		; ソート用にCSV番号を変更
+		IF CSV番号 == デバッグ用_CSV番号_MAX + 不明_CSV番号
+			CSV番号 = デバッグ用_CSV番号_MAX + 不明_両方
+		ELSE
+			CSV番号 = デバッグ用_CSV番号_MAX + 不明_キャラ名
+		ENDIF
+		正フォルダ名 '= @"不明"
+	ENDIF
+	
+	; 表示調整用に誤フォルダ名の長さを測りつつリストに追加
+	誤フォルダ番号リスト:誤フォルダ件数 = CSV番号
+	誤フォルダ名リスト:誤フォルダ件数  '= フォルダ名
+	正フォルダ名リスト:誤フォルダ件数  '= 正フォルダ名
+	誤フォルダ名長 = MAX(誤フォルダ名長, STRLENS(フォルダ名))
+	誤フォルダ件数 ++
+NEXT
+
+;- エラーフォルダ名を記憶
+; CSV番号順にソート
+ARRAYMSORT 誤フォルダ番号リスト, 誤フォルダ名リスト, 正フォルダ名リスト
+; 誤フォルダ名と誤フォルダ名をセットで記憶
+FOR L_CNT, 0, 誤フォルダ件数
+	ERR_TEXT '= @"%誤フォルダ名リスト:L_CNT, 誤フォルダ名長, LEFT%　候補:%正フォルダ名リスト:L_CNT%"
+	CALL デバッグ用_エラー画像情報管理("フォルダ名エラー", ERR_TEXT)
+NEXT
 [ENDIF]
