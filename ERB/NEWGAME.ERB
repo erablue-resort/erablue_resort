@@ -1753,21 +1753,18 @@ SELECTCASE 全体設定
 			フレーバー素質:COUNT:陰毛濃さ = RAND:5 + 1
 			フレーバー素質:COUNT:乳首大きさ = RAND:5 + 1
 			フレーバー素質:COUNT:乳輪大きさ = RAND:5 + 1
-			フレーバー素質:COUNT:性器種類 = RAND:5 + 1
-			フレーバー素質:COUNT:クリ大きさ = RAND:3 + 1
-			フレーバー素質:COUNT:ふたなり時_玉ありなし = RAND:2 + 1
-			LOCAL = RAND:5
-			SIF LOCAL == 0
-				SETBIT フレーバー素質:COUNT:ほくろ位置, 0
-			LOCAL = RAND:5
-			SIF LOCAL == 0
-				SETBIT フレーバー素質:COUNT:ほくろ位置, 1
-			LOCAL = RAND:5
-			SIF LOCAL == 0
-				SETBIT フレーバー素質:COUNT:ほくろ位置, 2
-			LOCAL = RAND:5
-			SIF LOCAL == 0 && GETBIT(TALENT:COUNT:性別, 1)
-				SETBIT フレーバー素質:COUNT:ほくろ位置, 3
+			IF IS_FEMALE(COUNT)
+				フレーバー素質:COUNT:性器種類 = RAND:5 + 1
+				フレーバー素質:COUNT:クリ大きさ = RAND:3 + 1
+			ENDIF
+			IF TALENT:COUNT:性別 == 3
+				フレーバー素質:COUNT:ふたなり時_玉ありなし = RAND:2 + 1
+			ENDIF
+			;ほくろはbit管理でいくつでも設定可能
+			フレーバー素質:COUNT:ほくろ位置 |= !RAND:5 << 0                        ;乳首付近
+			フレーバー素質:COUNT:ほくろ位置 |= (!RAND:5 && HAS_VAGINA(COUNT)) << 1 ;女性器付近
+			フレーバー素質:COUNT:ほくろ位置 |= !RAND:5 << 2                        ;アナル付近
+			フレーバー素質:COUNT:ほくろ位置 |= (!RAND:5 && HAS_PENIS(COUNT)) << 3  ;陰茎
 		NEXT
 ENDSELECT
 
@@ -1881,7 +1878,7 @@ LOCALS += "□ フレーバー素質 □----------------------------------------
 FOR COUNT, 1, 6
 	SIF ERDNAME(フレーバー素質, COUNT) == ""
 		CONTINUE
-	SIF GETBIT(TALENT:キャラ番号:性別, 0) == 0 && COUNT >= 1
+	SIF IS_MALE(キャラ番号) && COUNT >= 1
 		BREAK
 	LOCALS += @"　%ERDNAME(フレーバー素質, COUNT), 12, LEFT%："
 	FOR LOCAL:1, 0, 6
@@ -1903,14 +1900,15 @@ FOR COUNT, 1, 6
 	NEXT
 	LOCALS += "<br>"
 NEXT
-LOCALS += @"　%ERDNAME(フレーバー素質, 6), 12, LEFT%：　　　　"
+LOCALS += @"　%ERDNAME(フレーバー素質, フレーバー素質_ほくろ位置), 12, LEFT%：　　　　"
 FOR LOCAL:1, 0, 4
-	LOCALS:2 = %GET_フレーバー素質NAME(6, POWER(2, LOCAL:1))%
-	IF LOCALS:2 == ""
+	LOCALS:2 = %GET_フレーバー素質NAME(フレーバー素質_ほくろ位置, POWER(2, LOCAL:1))%
+	SIF LOCALS:2 == ""
 		CONTINUE
-	ELSEIF LOCAL:1 == 3 && GETBIT(TALENT:キャラ番号:性別, 1) == 0
+	SIF LOCAL:1 == 1 && !HAS_VAGINA(キャラ番号) ;ビット0：乳首付近　1：女性器付近　2：アナル付近　3：陰茎（ふたなり時のみ）
 		CONTINUE
-	ENDIF
+	SIF LOCAL:1 == 3 && !HAS_PENIS(キャラ番号)
+		CONTINUE
 	IF GETBIT(フレーバー素質数値保存:6,LOCAL:1)
 		LOCALS:1 = C0C0C0
 	ELSE
@@ -1920,9 +1918,9 @@ FOR LOCAL:1, 0, 4
 NEXT
 LOCALS += "<br>"
 IF TALENT:キャラ番号:性別 == 3 && OPTION変数:ふたなり玉設定 == 0
-	LOCALS += @"　%ERDNAME(フレーバー素質, 7), 12, LEFT%：　　　　"
+	LOCALS += @"　%ERDNAME(フレーバー素質, フレーバー素質_ふたなり時_玉ありなし), 12, LEFT%：　　　　"
 	FOR LOCAL:1, 0, 3
-		LOCALS:2 = %GET_フレーバー素質NAME(7, LOCAL:1)%
+		LOCALS:2 = %GET_フレーバー素質NAME(フレーバー素質_ふたなり時_玉ありなし, LOCAL:1)%
 		IF LOCALS:2 == ""
 			CONTINUE
 		ENDIF
