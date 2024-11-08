@@ -704,37 +704,7 @@ CALL PRINT_STATE_性癖(ARG)
 PRINTL
 
 IF フレーバー素質:ARG:素質表示設定 == 1
-	PRINTL □ フレーバー素質 □-----------------------------------------------------------
-	LOCAL = 0
-	FOR COUNT, 1, 10
-		IF COUNT == 7
-			IF TALENT:ARG:性別 != 3
-				CONTINUE
-			ENDIF
-			PRINTL
-			SELECTCASE OPTION変数:ふたなり玉設定
-				CASE 0
-					PRINTFORM %ERDNAME(フレーバー素質, COUNT), 10, LEFT%：%GET_フレーバー素質NAME(COUNT, フレーバー素質:ARG:COUNT), 12, LEFT%
-				CASEELSE
-					PRINTFORM %ERDNAME(フレーバー素質, COUNT), 10, LEFT%：%GET_フレーバー素質NAME(COUNT, OPTION変数:ふたなり玉設定), 12, LEFT%
-			ENDSELECT
-			LOCAL += 1
-		ELSEIF フレーバー素質:ARG:COUNT
-			IF COUNT == 6
-				PRINTL
-				LOCAL = 0
-			ENDIF
-			PRINTFORM %ERDNAME(フレーバー素質, COUNT), 10, LEFT%：%GET_フレーバー素質NAME(COUNT, フレーバー素質:ARG:COUNT), 12, LEFT%
-			LOCAL += 1
-		ENDIF
-		IF LOCAL == 3
-			LOCAL = 0
-			PRINTL
-		ENDIF
-	NEXT
-	SIF LOCAL
-		PRINTL
-	PRINTL
+	CALL フレーバー素質表示(ARG)
 ENDIF
 
 ; IF ARG != MASTER
@@ -903,6 +873,55 @@ ENDIF
 FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
 	PRINTL
 NEXT
+
+
+;;;性的能力表示画面の内部でフレーバー素質を表示する
+@フレーバー素質表示(ARG)
+#DIM 改行チェック
+#DIM 項目番号
+#DIM 表示内容
+
+PRINTL □ フレーバー素質 □-----------------------------------------------------------
+
+;3項目表示で改行する
+改行チェック = 0
+FOR 項目番号, 1, フレーバー素質_項目数 + 1
+	SIF !フレーバー素質:ARG:項目番号
+		CONTINUE
+
+	表示内容 = フレーバー素質:ARG:項目番号
+	SELECTCASE 項目番号
+		CASE フレーバー素質_性器種類, フレーバー素質_クリ大きさ
+			SIF !HAS_VAGINA(ARG)
+				CONTINUE
+		CASE フレーバー素質_ほくろ位置
+			;フレーバー素質_ほくろ位置 は表示文字数が多くなる可能性があるので表示前に改行
+			改行チェック = 0
+			PRINTL
+		CASE フレーバー素質_ふたなり時_玉ありなし
+			;現時点ではふたなりのときのみ表示
+			SIF TALENT:ARG:性別 != 3
+				CONTINUE
+			;前の項目で表示文字列が多くなる可能性があるので表示前に改行
+			PRINTL
+			;フレーバー素質_ふたなり時_玉ありなし は値を直接表示せず, OPTIONの値などから実際にあるのかどうかを表示する
+			IF HAS_TESTICLES(ARG)
+				表示内容 = フレーバー素質_ふたなり時_玉あり
+			ELSE
+				表示内容 = フレーバー素質_ふたなり時_玉なし
+			ENDIF
+	ENDSELECT
+	PRINTFORM %ERDNAME(フレーバー素質, 項目番号), 10, LEFT%：%GET_フレーバー素質NAME(項目番号, 表示内容), 12, LEFT%
+	改行チェック += 1
+	IF 改行チェック >= 3
+		改行チェック = 0
+		PRINTL
+	ENDIF
+NEXT
+SIF 改行チェック
+	PRINTL
+PRINTL
+
 
 @キャラ解説表示画面(ARG)
 ;ここで立ち絵表示
