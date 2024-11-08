@@ -42,11 +42,12 @@
 #DIMS ランダムキャラネーム
 #DIMS ランダムキャラCALLネーム
 #DIMS ランダムキャラ二つ名
+#DIMS ランダムキャラ人称, 2
 #DIMS ランダムキャラ出演作品
 #DIM ランダムキャラ招待不可フラグ
 #DIMS ランダムキャラ服装名
 #DIM 重複チェック用, 10
-#DIM 表示モード
+#DIM 表示モード, 2
 #DIM 表示数カウント
 #DIM ページ数
 #DIM 必要ルピ
@@ -59,7 +60,7 @@
 #DIMS ランダムキャラ奥義名, 6
 #DIM ループ用
 
-表示モード = 0
+VARSET 表示モード
 ページ数 = 0
 表示数カウント = 0
 ランダムキャラネーム = 
@@ -260,26 +261,34 @@ ELSE
 	LOCALS += "</div>"
 ENDIF
 
-LOCALS += "<div rect='81,375,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,2812' border='31' bcolor='#C0C0C0'></div>"
-LOCALS += "<div rect='156,500,1937,2812'>"
-IF CSVエディタフラグ
-	LOCALS += "<button value='99'>[ 99] CSV番号を設定する</button>"
-	LOCALS += "<br>"
-ENDIF
-LOCALS += "<button value='100'>[100] 名前を設定する</button>"
+LOCALS += "<div rect='81,375,1937,3312' border='31' bcolor='#C0C0C0'></div><div rect='2050,375,3875,3312' border='31' bcolor='#C0C0C0'></div>"
+LOCALS += "<div rect='156,500,1937,3312'>"
+LOCAL = 99 + !CSVエディタフラグ
+LOCALS += @"<button value='{LOCAL}'>[{LOCAL, 3, RIGHT}] \@ CSVエディタフラグ? パーソナリティ# 名前\@を設定する</button>"
 LOCALS += "<br>"
-IF CSVエディタフラグ
-	LOCALS += "<button value='101'>[101] 二つ名を設定する</button>"
+IF CSVエディタフラグ && GETBIT(表示モード:1, 0)
+	LOCALS += "<button value='107'>├[107] CSV番号を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='102'>[102] 呼び名を設定する</button>"
+	LOCALS += "<button value='100'>├[100] 名前を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='103'>[103] 出演作品を設定する</button>"
+	LOCALS += "<button value='101'>├[101] 二つ名を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='104'>[104] プレゼントの好みを設定する</button>"
+	LOCALS += "<button value='102'>├[102] 呼び名を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='105'>[105] 同行者候補を設定する</button>"
+	LOCALS += "<button value='108'>├[108] 一人称を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='106'>[106] 招待可能・不可能を設定する</button>"
+	LOCALS += "<button value='109'>├[109] 二人称を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='103'>├[103] 出演作品を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='104'>├[104] プレゼントの好みを設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='105'>├[105] 同行者候補を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='106'>└[106] 招待可能・不可能を設定する</button>"
+	LOCALS += "<br>"
+ELSEIF CSVエディタフラグ
+	LOCALS += "<button value='99'><font color='#808080'>└ 展開する</font></button>"
 	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='110'>[110] 戦闘タイプを設定する</button>"
@@ -291,13 +300,19 @@ LOCALS += "<br>"
 IF フレーバー素質設定 != 1 && CSVエディタフラグ == 0
 	LOCALS += "<button value='131'>[131] フレーバー素質を設定する</button>"
 	LOCALS += "<br>"
+ELSEIF CSVエディタフラグ
+	LOCALS += "<button value='131'>[131] 知識などの素質を設定する</button>"
+	LOCALS += "<br>"
 ENDIF
-IF CSVエディタフラグ
-	LOCALS += "<button value='132'>[132] 知識素質を設定する</button>"
+IF CSVエディタフラグ && GETBIT(表示モード:1, 1)
+	LOCALS += "<button value='132'>├[132] 知識素質を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='133'>[133] 性癖素質を設定する</button>"
+	LOCALS += "<button value='133'>├[133] 性癖素質を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='134'>[134] 固有素質を設定する</button>"
+	LOCALS += "<button value='134'>└[134] 固有素質を設定する</button>"
+	LOCALS += "<br>"
+ELSEIF CSVエディタフラグ
+	LOCALS += "<button value='131'><font color='#808080'>└ 展開する</font></button>"
 	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='140'>[140] 能力を設定する</button>"
@@ -331,45 +346,90 @@ ENDIF
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
-LOCALS += "<div rect='2125,500,3675,2812'>"
+LOCALS += "<div rect='2125,500,3675,3312'>"
 
-
+IF GROUPMATCH(表示モード, 0, 1, 2)
+	;現状の設定表示
+	IF CSVエディタフラグ
+		LOCALS += @"■No.{登録番号, 4, LEFT}　"
+	ENDIF
+	IF ランダムキャラネーム != ""
+		IF CSVエディタフラグ
+			LOCALS += @"[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
+		ELSE
+			LOCALS += @"[従業員]%ランダムキャラネーム, 18, LEFT%"
+		ENDIF
+	ELSE
+		IF CSVエディタフラグ
+			LOCALS += @"[%ランダムキャラ二つ名%]（ランダム決定）　　　"
+		ELSE
+			LOCALS += @"[従業員]（ランダム決定）　　　"
+		ENDIF
+	ENDIF
+	IF CSVエディタフラグ
+		IF ランダムキャラCALLネーム != ""
+			LOCALS += @"<br>　呼び名：%ランダムキャラCALLネーム, 24, LEFT%"
+		ELSE
+			LOCALS += @"<br>　呼び名：%"（名前と共通）", 24, LEFT%"
+		ENDIF
+	ENDIF
+	LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
+	LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+	LOCALS += @"　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2), 10, LEFT%　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%"
+	IF ランダムキャラ出演作品 != ""
+		LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
+	ENDIF
+	IF CSVエディタフラグ
+		SELECTCASE ランダムキャラ招待不可フラグ
+			CASE 0
+				LOCALS += "<br>　<nonbutton title='初期から招待対象'>"
+			CASE 1
+				LOCALS += "<br>　<nonbutton title='初期から、ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される'>"
+			CASE 2
+				LOCALS += "<br>　<nonbutton title='ZPショップに搭載されず、また招待対象にもならない。イベントによる解禁用'>"
+			CASE 3
+				LOCALS += "<br>　<nonbutton title='イベント「「平行世界」という場所」をクリアすることで解禁され、<br>ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される'>"
+		ENDSELECT
+		LOCALS += @"招待不可フラグ：{ランダムキャラ招待不可フラグ}</nonbutton>"
+	ENDIF
+	LOCALS += "<br><br>"
+ENDIF
 SELECTCASE 表示モード
 	CASE 0
 		;現状の設定表示
-		IF ランダムキャラネーム != ""
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
-			ELSE
-				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
-			ENDIF
-		ELSE
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
-			ELSE
-				LOCALS += @"■[従業員]（ランダム決定）　　　"
-			ENDIF
-		ENDIF
-		IF CSVエディタフラグ
-			IF ランダムキャラCALLネーム != ""
-				LOCALS += @"<br>　呼び名：%ランダムキャラCALLネーム, 24, LEFT%"
-			ELSE
-				LOCALS += @"<br>　呼び名：%"（名前と共通）", 24, LEFT%"
-			ENDIF
-			LOCALS += @"　／　CSV番号：{登録番号, 4, LEFT}"
-		ENDIF
-		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
-		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
-		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
-		ENDIF
-		IF CSVエディタフラグ
-			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
-		ENDIF
-		LOCALS += "<br><br>"
-		LOCALS += "□ 情報 □---------------------------------------------------------------<br>"
-
+;		IF ランダムキャラネーム != ""
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
+;			ELSE
+;				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
+;			ENDIF
+;		ELSE
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
+;			ELSE
+;				LOCALS += @"■[従業員]（ランダム決定）　　　"
+;			ENDIF
+;		ENDIF
+;		IF CSVエディタフラグ
+;			IF ランダムキャラCALLネーム != ""
+;				LOCALS += @"<br>　呼び名：%ランダムキャラCALLネーム, 24, LEFT%"
+;			ELSE
+;				LOCALS += @"<br>　呼び名：%"（名前と共通）", 24, LEFT%"
+;			ENDIF
+;			LOCALS += @"　／　CSV番号：{登録番号, 4, LEFT}"
+;		ENDIF
+;		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
+;		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+;		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+;		IF ランダムキャラ出演作品 != ""
+;			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
+;		ENDIF
+;		IF CSVエディタフラグ
+;			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+;		ENDIF
+;		LOCALS += "<br><br>"
+		LOCALS += @"<button value='1010'>□ 情報（\@ GETBIT(表示モード:1, 10)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
+		IF !GETBIT(表示モード:1, 10)
 		LOCALS += "　種族："
 		SELECTCASE ランダムキャラ素質:0
 			CASE 1
@@ -514,21 +574,35 @@ SELECTCASE 表示モード
 		ENDIF
 		REPLACE 好物一時保存, "_", "、"
 		LOCALS += @"　プレゼントの好み：%SUBSTRINGU(RESULTS, 0, STRLENSU(RESULTS) - 1)%"
+		SIF CSVエディタフラグ
+			LOCALS += @"<br>　一人称：%ランダムキャラ人称:0, 24, LEFT%　二人称：%ランダムキャラ人称:0, 24, LEFT%"
 		LOCALS += "<br>"
-		LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
+		ENDIF
+		LOCALS += @"<button value='1011'>□ 素質（\@ GETBIT(表示モード:1, 11)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
 		LOCALS:1 = 
+		LOCALS:2 = 
+		LOCAL:1 = 0
 		FOR LOCAL, 0, 300
 			SIF TALENT数値保存:LOCAL == 0
 				CONTINUE
 			SIF TALENT数値保存:LOCAL == 5
 				CONTINUE
-			LOCALS += @"[%GET_TALENTNAME(TALENT一時保存:LOCAL, TALENT数値保存:LOCAL - 5)%]"
+			LOCALS:2 '= @"[%GET_TALENTNAME(TALENT一時保存:LOCAL, TALENT数値保存:LOCAL - 5)%]"
+			IF STRLENS(LOCALS:1+LOCALS:2) / (3675/50) > LOCAL:1
+				LOCAL:1 ++
+				LOCALS:1 += "<br>"
+			ENDIF
+			LOCALS:1 += LOCALS:2
+;			LOCALS += @"[%GET_TALENTNAME(TALENT一時保存:LOCAL, TALENT数値保存:LOCAL - 5)%]"
 		NEXT
+		LOCALS += LOCALS:1
+		LOCALS += "<br>"
 		FOR LOCAL, 1, 100
 			SIF 知識素質数値保存:LOCAL == 0
 				CONTINUE
 			LOCALS += @"[%ERDNAME(知識素質, LOCAL)%Lv{知識素質数値保存:LOCAL}]"
 		NEXT
+		LOCALS += "<br>"
 		FOR LOCAL, 0, 10
 			SIF 固有素質一時保存:LOCAL == ""
 				CONTINUE
@@ -536,25 +610,8 @@ SELECTCASE 表示モード
 		NEXT
 		LOCALS += "<br>"
 		LOCALS += "<br>"
-		LOCALS += "□ 性癖 □---------------------------------------------------------------<br>"
-		LOCALS:1 = 
-		FOR LOCAL, 1, 20
-			SIF 性癖素質数値保存:LOCAL == 0
-				CONTINUE
-			LOCALS += @"[%ERDNAME(性癖素質, LOCAL)%"
-			SELECTCASE 性癖素質数値保存:LOCAL
-				CASE 1
-					LOCALS += "(興味)]"
-				CASE 2
-					LOCALS += "(愛好)]"
-				CASE 3
-					LOCALS += "(中毒)]"
-			ENDSELECT
-		NEXT
-		LOCALS += "<br>"
-		LOCALS += "<br>"
 		IF CSVエディタフラグ == 0
-			LOCALS += "□ フレーバー素質 □-----------------------------------------------------<br>"
+			LOCALS += @"<button value='1012'>□ フレーバー素質（\@ GETBIT(表示モード:1, 12)? 展開# 収納\@） □ -------------------------------------------</button><br>"
 			LOCALS:1 = 
 			LOCAL = 0
 			FOR COUNT, 0, 10
@@ -574,26 +631,30 @@ SELECTCASE 表示モード
 		ENDIF
 	CASE 1
 		;現状の設定表示（能力素質）
-		IF ランダムキャラネーム != ""
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
-			ELSE
-				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
-			ENDIF
-		ELSE
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
-			ELSE
-				LOCALS += @"■[従業員]（ランダム決定）　　　"
-			ENDIF
-		ENDIF
-		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
-		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+;		IF ランダムキャラネーム != ""
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
+;			ELSE
+;				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
+;			ENDIF
+;		ELSE
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
+;			ELSE
+;				LOCALS += @"■[従業員]（ランダム決定）　　　"
+;			ENDIF
+;		ENDIF
+;		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
+;		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+;		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+;		LOCALS += "<br><br>"
+		LOCALS += @"<button value='1013'>□ 奥義（\@ GETBIT(表示モード:1, 13)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
 		LOCAL = 0
 		DO
 			IF LOCAL % 3 == 0
-				LOCALS += @"<br>　\@ LOCAL == 0? 通常# 陥落\@時奥義名："
+				SIF LOCAL == 3
+					LOCALS += "<br>"
+				LOCALS += @"　\@ LOCAL == 0? 通常# 陥落\@時奥義名："
 				IF ランダムキャラ奥義名:((LOCAL/3)*3) == "" && ランダムキャラ奥義名:0 == ""
 					LOCALS += @"<font color='#888888'>（汎用\@ LOCAL == 0? # 陥落時\@奥義）</font>"
 					LOCAL += 3
@@ -620,14 +681,14 @@ SELECTCASE 表示モード
 			ENDIF
 			LOCAL ++
 		LOOP LOCAL < 6
-		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
-		ENDIF
-		IF CSVエディタフラグ
-			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
-		ENDIF
+;		IF ランダムキャラ出演作品 != ""
+;			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
+;		ENDIF
+;		IF CSVエディタフラグ
+;			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+;		ENDIF
 		LOCALS += "<br><br>"
-		LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
+		LOCALS += @"<button value='1014'>□ 能力（\@ GETBIT(表示モード:1, 14)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
 		LOCAL:2 = 0
 		FOR LOCAL, 0, 50
 			SIF ABL数値保存:LOCAL < 1
@@ -644,7 +705,7 @@ SELECTCASE 表示モード
 		SIF LOCAL:2 != 0
 			LOCALS += "<br>"
 		LOCALS += "<br>"
-		LOCALS += "□ 経験 □---------------------------------------------------------------<br>"
+		LOCALS += @"<button value='1015'>□ 経験（\@ GETBIT(表示モード:1, 15)? 展開# 収納\@）  □-----------------------------------------------------</button><br>"
 		LOCAL:2 = 0
 		FOR LOCAL, 0, 100
 			SIF EXP数値保存:LOCAL < 1
@@ -658,30 +719,47 @@ SELECTCASE 表示モード
 				ENDIF
 			ENDIF
 		NEXT
+		LOCALS += "<br>"
+		LOCALS += "<br>"
+		LOCALS += @"<button value='10166'>□ 性癖（\@ GETBIT(表示モード:1, 16)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
+		LOCALS:1 = 
+		FOR LOCAL, 1, 20
+			SIF 性癖素質数値保存:LOCAL == 0
+				CONTINUE
+			LOCALS += @"[%ERDNAME(性癖素質, LOCAL)%"
+			SELECTCASE 性癖素質数値保存:LOCAL
+				CASE 1
+					LOCALS += "(興味)]"
+				CASE 2
+					LOCALS += "(愛好)]"
+				CASE 3
+					LOCALS += "(中毒)]"
+			ENDSELECT
+		NEXT
 	CASE 2
-		IF ランダムキャラネーム != ""
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
-			ELSE
-				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
-			ENDIF
-		ELSE
-			IF CSVエディタフラグ
-				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
-			ELSE
-				LOCALS += @"■[従業員]（ランダム決定）　　　"
-			ENDIF
-		ENDIF
-		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
-		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
-		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
-		IF ランダムキャラ出演作品 != ""
-			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
-		ENDIF
-		IF CSVエディタフラグ
-			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
-		ENDIF
-		LOCALS += "<br><br>"
+;		IF ランダムキャラネーム != ""
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
+;			ELSE
+;				LOCALS += @"■[従業員]%ランダムキャラネーム, 18, LEFT%"
+;			ENDIF
+;		ELSE
+;			IF CSVエディタフラグ
+;				LOCALS += @"■[%ランダムキャラ二つ名%]（ランダム決定）　　　"
+;			ELSE
+;				LOCALS += @"■[従業員]（ランダム決定）　　　"
+;			ENDIF
+;		ENDIF
+;		LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
+;		LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
+;		LOCALS += @"　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2)%"
+;		IF ランダムキャラ出演作品 != ""
+;			LOCALS += @"<br>　出演作品：%ランダムキャラ出演作品%"
+;		ENDIF
+;		IF CSVエディタフラグ
+;			LOCALS += @"<br>　招待不可フラグ：{ランダムキャラ招待不可フラグ}"
+;		ENDIF
+;		LOCALS += "<br><br>"
 		LOCALS += "□ 服装 □---------------------------------------------------------------<br>"
 		LOCALS += @"　名称：%ランダムキャラ服装名%<br>"
 		LOCAL = 0
@@ -811,7 +889,7 @@ SELECTCASE 表示モード
 			LOCALS += "(現在  0人)■<br>"
 		ENDIF
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,2906,3675,2962'>"
+		LOCALS += "<div rect='2125,3406,3675,2962'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29994'>[|≪]</button>"
 		ELSE
@@ -1227,7 +1305,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -1277,7 +1355,7 @@ SELECTCASE 表示モード
 			LOCALS += @"<font color='#%LOCALS:1%'><button value='{50000 + 6 * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 132
@@ -1302,7 +1380,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 133
@@ -1331,7 +1409,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 134
@@ -1339,7 +1417,7 @@ SELECTCASE 表示モード
 			LOCALS += @"<button value='{85000 + COUNT}'>固有素質{COUNT}：[%固有素質一時保存:COUNT%]</button><br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 140
@@ -1358,7 +1436,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -1376,7 +1454,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29998'>[前のページ]</button>"
 		ELSE
@@ -1416,7 +1494,7 @@ SELECTCASE 表示モード
 			LOCALS += "<br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,3006,3675,2812'>"
+		LOCALS += "<div rect='2125,3506,3675,2812'>"
 		LOCALS += @"服装名：<button value='71000'>%ランダムキャラ服装名, 30, LEFT%</button>"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>　　　　"
 	CASE 105
@@ -1447,7 +1525,7 @@ SELECTCASE 表示モード
 			LOCALS += "</font><br>"
 		NEXT
 		LOCALS += "</div>"
-		LOCALS += "<div rect='2125,2906,3675,2962'>"
+		LOCALS += "<div rect='2125,3406,3675,2962'>"
 		IF ページ数 > 0
 			LOCALS += "<button value='29994'>[|≪]</button>"
 		ELSE
@@ -1480,7 +1558,7 @@ SELECTCASE 表示モード
 ENDSELECT
 LOCALS += "</div>"
 IF CSVエディタフラグ && 表示モード < VARSIZE("表示切替") && 表示モード != 3
-	LOCALS += "<div rect='2125,2850,3675,312'>"
+	LOCALS += "<div rect='2125,3350,3675,312'>"
 	FOR LOCAL, 0, VARSIZE("表示切替")
 		IF 表示モード == LOCAL
 			LOCALS += @"<font color='#606060'>[{LOCAL}] %表示切替:LOCAL%表示へ</font>　"
@@ -1500,9 +1578,9 @@ IF CSVエディタフラグ && 表示モード < VARSIZE("表示切替") && 表�
 ;	ENDIF
 ELSE
 	IF 表示モード == 0
-		LOCALS += "<div rect='4812,3000,2500,312'><button value='1'>[1] 能力・経験表示へ</button></div>"
+		LOCALS += "<div rect='4812,3500,2500,312'><button value='1'>[1] 能力・経験表示へ</button></div>"
 	ELSEIF 表示モード == 1
-		LOCALS += "<div rect='4812,3000,2500,312'><button value='0'>[0] 情報・素質表示へ</button></div>"
+		LOCALS += "<div rect='4812,3500,2500,312'><button value='0'>[0] 情報・素質表示へ</button></div>"
 	ENDIF
 ENDIF
 
@@ -1530,7 +1608,7 @@ IF OPTION変数:汎用立ち絵制御
 ENDIF
 
 HTML_PRINT LOCALS
-FOR LOCAL, 0, 28
+FOR LOCAL, 0, 32
 	PRINTL
 NEXT
 DRAWLINE
@@ -1874,6 +1952,9 @@ SELECTCASE LOCAL
 		ENDIF
 ;メイン画面--------------------------------------------------------
 	CASE 99
+		表示モード = 0
+		INVERTBIT 表示モード:1, 0
+	CASE 107
 		LOCAL:2 = 0
 		LOCAL:3 = 0
 		FOR LOCAL:1, 0, 999
@@ -2119,6 +2200,16 @@ SELECTCASE LOCAL
 			CASEELSE
 				ランダムキャラ招待不可フラグ = RESULT
 		ENDSELECT
+	CASE 108
+		PRINTL 一人称（自分自身への呼称）を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラ人称
+		INPUTS
+		ランダムキャラ人称 = %SUBSTRING(RESULTS, 0, 24)%
+	CASE 109
+		PRINTL 二人称（「あなた」への呼称）を入力してください。（１２文字まで）
+		SETTEXTBOX ランダムキャラ人称:1
+		INPUTS
+		ランダムキャラ人称:1 = %SUBSTRING(RESULTS, 0, 24)%
 	CASE 110
 		表示モード = 110
 	CASE 120
@@ -2127,8 +2218,14 @@ SELECTCASE LOCAL
 		ページ数 = 0
 		表示モード = 130
 	CASE 131
-		ページ数 = 0
-		表示モード = 131
+		IF !CSVエディタフラグ
+			ページ数 = 0
+			表示モード = 131
+		ELSE
+			ページ数 = 0
+			表示モード = 132
+			INVERTBIT 表示モード:1, 1
+		ENDIF
 	CASE 132
 		ページ数 = 0
 		表示モード = 132
@@ -2188,6 +2285,8 @@ SELECTCASE LOCAL
 			PRINTL 基礎,理性,1000
 			PRINTL 基礎,怒り,1000
 			PRINTL 
+			PRINTFORML CSTR,一人称,%ランダムキャラ人称:0%
+			PRINTFORML CSTR,二人称,%ランダムキャラ人称:1%
 			IF ランダムキャラ出演作品 != ""
 				PRINTL ;-------------------------------------------------------------------------------------------
 				PRINTL ;初期招待不可キャラ設定
@@ -2603,11 +2702,10 @@ SELECTCASE LOCAL
 		ページ数 = 0
 		表示モード = 3
 	CASE 997
-		PRINTL 一言コメント/解説エディタを起動します。
-		PRINTL （新規実装のため十分な検証ができていない可能性があります。万が一に備えて、一度CSVを保存しておくことをお勧めします）
+		PRINTL 一言コメント/解説エディタを起動します（万が一に備えて、一度CSVを保存しておくことをお勧めします）
 			CALL CHOICE("よろしいですか？", "はい", "いいえ")
 			SIF !RESULT
-				CALL 一言コメント解説エディタ(登録番号, ランダムキャラネーム)
+				CALL 一言コメント解説エディタ(登録番号, ランダムキャラネーム, ランダムキャラ人称, ランダムキャラ人称:1)
 	CASE 998
 		CALL CSVコピー処理
 		CSV番号 = RESULT
@@ -2663,6 +2761,8 @@ SELECTCASE LOCAL
 
 			ランダムキャラ出演作品 = %CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品"))%
 			ランダムキャラ招待不可フラグ = CSVCFLAG(CSV番号, GETNUM(CFLAG, "招待不可フラグ"))
+			ランダムキャラ人称:0 = %CSVCSTR(CSV番号, GETNUM(CSTR, "一人称"))%
+			ランダムキャラ人称:1 = %CSVCSTR(CSV番号, GETNUM(CSTR, "二人称"))%
 
 			ランダムキャラ素質:0 = CSVTALENT(CSV番号, GETNUM(TALENT, "種族"))
 			ランダムキャラ素質:1 = CSVTALENT(CSV番号, GETNUM(TALENT, "性別"))
@@ -2796,6 +2896,8 @@ SELECTCASE LOCAL
 				GOTO 従業員_LOOP
 		ENDIF
 		RETURN 0
+	CASE 1010 TO 1020
+		INVERTBIT 表示モード:1, (LOCAL % 1000)
 ENDSELECT
 
 GOTO 従業員_LOOP
