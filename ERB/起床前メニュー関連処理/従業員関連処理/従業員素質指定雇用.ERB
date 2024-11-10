@@ -414,36 +414,61 @@ SELECTCASE 表示モード
 		;現状の設定表示
 		LOCALS += @"<button value='1010'>□ 情報（\@ GETBIT(表示モード:1, 10)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
 		IF !GETBIT(表示モード:1, 10)
-			LOCALS += "　種族："
+			LOCALS:1 '= "　種族："
+			LOCALS:2 = 
 			SELECTCASE ランダムキャラ素質:0
 				CASE 1
-					LOCALS += "ヒューマン"
+					LOCALS:1 += "ヒューマン"
 				CASE 2
-					LOCALS += "エルーン"
+					LOCALS:1 += "エルーン"
 				CASE 3
-					LOCALS += "ドラフ"
+					LOCALS:1 += "ドラフ"
 				CASE 4
-					LOCALS += "ハーヴィン"
+					LOCALS:1 += "ハーヴィン"
 				CASE 5
-					LOCALS += "星晶獣"
+					LOCALS:1 += "星晶獣"
 				CASE 6
-					LOCALS += "その他"
+					LOCALS:1 += "その他"
 					SIF ランダムキャラ特殊種族 != ""
-						LOCALS += @" [%ランダムキャラ特殊種族%]"
+						LOCALS:2 += @" [%ランダムキャラ特殊種族%]"
 			ENDSELECT
-			IF 肉体特徴数値保存:0
-				LOCALS += "（角あり）"
-			ENDIF
-			IF 肉体特徴数値保存:1
-				LOCALS += "（尻尾あり）"
-			ENDIF
-			IF 肉体特徴数値保存:2
-				LOCALS += "（エルーン耳）"
-			ENDIF
-			IF 肉体特徴数値保存:3
-				LOCALS += "（ハーヴィン耳）"
-			ENDIF
-			LOCALS += "<br>"
+			LOCAL:1 = STRLENS(HTML_TOPLAINTEXT(LOCALS:1))
+			LOCALS:1 += LOCALS:2
+			LOCALS:2 '= ""
+			FOR LOCAL, 0, VARSIZE("肉体特徴数値保存")
+				IF 肉体特徴数値保存:LOCAL
+					SELECTCASE LOCAL
+						CASE 0
+							LOCALS:2 '= "（角あり）"
+						CASE 1
+							LOCALS:2 '= "（尻尾あり）"
+						CASE 2
+							LOCALS:2 '= "（エルーン耳）"
+						CASE 3
+							LOCALS:2 '= "（ハーヴィン耳）"
+					ENDSELECT
+				ELSE
+					LOCALS:2 '= ""
+				ENDIF
+				IF STRLENS(HTML_TOPLAINTEXT(LOCALS:1+LOCALS:2)) / (3675/50) > 0
+					LOCALS += LOCALS:1 + "<br>"
+					LOCALS:1 '= " " * LOCAL:1
+				ENDIF
+				LOCALS:1 += LOCALS:2
+			NEXT
+;				IF 肉体特徴数値保存:0
+;					LOCALS += "（角あり）"
+;				ENDIF
+;				IF 肉体特徴数値保存:1
+;					LOCALS += "（尻尾あり）"
+;				ENDIF
+;				IF 肉体特徴数値保存:2
+;					LOCALS += "（エルーン耳）"
+;				ENDIF
+;				IF 肉体特徴数値保存:3
+;					LOCALS += "（ハーヴィン耳）"
+;				ENDIF
+			LOCALS += LOCALS:1 + "<br>"
 			SIF 年齢数値設定フラグ
 				LOCALS += @"　年齢：{年齢保存}歳"
 			SIF 身長数値設定フラグ
@@ -1638,6 +1663,7 @@ SELECTCASE LOCAL
 		PRINTFORM \@ LOCAL:1 / 3? 陥落# 通常\@時、第%TOFULL(TOSTR(1 + LOCAL:1 % 3))%段階での
 		PRINTL 奥義名を入力してください。（２０文字まで）
 		PRINTL （通常・陥落時各々の第１段階の奥義名が未設定の場合、それ以降の段階の設定は無視されます）
+		SETTEXTBOX ランダムキャラ奥義名:(LOCAL:1)
 		INPUTS
 		ランダムキャラ奥義名:(LOCAL:1) = %SUBSTRING(RESULTS, 0, 40)%
 	CASE 11100
@@ -1756,6 +1782,7 @@ SELECTCASE LOCAL
 	CASE 12025
 		DRAWLINE
 		PRINTL 身長をmm単位で入力してください。
+		SETTEXTBOX TOSTR(身長保存)
 		INPUT
 		身長保存 = RESULT
 		ランダムキャラ素質:31 = EDIT用体格算出(ランダムキャラ素質:1, 身長保存)
@@ -1764,6 +1791,7 @@ SELECTCASE LOCAL
 	CASE 12026
 		DRAWLINE
 		PRINTL バストサイズをmm単位で入力してください。
+		SETTEXTBOX TOSTR(バスト保存)
 		INPUT
 		バスト保存 = RESULT
 		ランダムキャラ素質:3 = EDIT用バストTALENT算出(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
@@ -1804,6 +1832,7 @@ SELECTCASE LOCAL
 		ランダムキャラ素質:33 = 0
 		DRAWLINE
 		PRINTL 年齢を入力してください。
+		SETTEXTBOX TOSTR(年齢保存)
 		INPUT
 		年齢保存 = RESULT
 	CASE 12098
@@ -1842,11 +1871,13 @@ SELECTCASE LOCAL
 	CASE 12990
 		DRAWLINE
 		PRINTL ウエストサイズをmm単位で入力してください。
+		SETTEXTBOX TOSTR(ウエスト保存)
 		INPUT
 		ウエスト保存 = RESULT
 	CASE 12991
 		DRAWLINE
 		PRINTL ヒップサイズをmm単位で入力してください。
+		SETTEXTBOX TOSTR(ヒップ保存)
 		INPUT
 		ヒップ保存 = RESULT
 	CASE 12992
@@ -1888,6 +1919,7 @@ SELECTCASE LOCAL
 	CASE 40000 TO 49997
 		RESULT = 0
 		PRINTL 経験数を入力してください。（３桁まで）
+		SETTEXTBOX TOSTR(EXP数値保存:((LOCAL - 40000) / 10))
 		INPUT
 		EXP数値保存:((LOCAL - 40000) / 10) = MIN(RESULT, 999)
 ;フレーバー素質----------------------------------------------------
@@ -1948,6 +1980,7 @@ SELECTCASE LOCAL
 		服装数値保存:30 = LOCAL % 10
 	CASE 71000
 		PRINTL 服装名を入力してください。（１５文字まで）
+		SETTEXTBOX ランダムキャラ服装名
 		INPUTS
 		ランダムキャラ服装名 = %SUBSTRING(RESULTS, 0, 30)%
 ;性癖素質----------------------------------------------------
@@ -1956,16 +1989,18 @@ SELECTCASE LOCAL
 ;固有素質----------------------------------------------------
 	CASE 85000 TO 85010
 		PRINTL 固有素質名を入力してください。
+		SETTEXTBOX 固有素質一時保存:(LOCAL - 85000)
 		INPUTS
 		固有素質一時保存:(LOCAL - 85000) = %RESULTS%
 ;同行者候補----------------------------------------------------
 	CASE 100000 TO 100000 + キャラクタ数上限 * 10
+		LOCAL:2 = DT_CELL_GET("DT_CHARA", (LOCAL - 100000) / 10, "VALUE")
 		IF LOCAL % 10 == 0
 			PRINTL 同行確率を％で入力してください。（０～１００の間）
+			SETTEXTBOX TOSTR(LOCAL:2)
 			INPUT
 			DT_CELL_SET "DT_CHARA", (LOCAL - 100000) / 10, "VALUE", LIMIT(RESULT, 0, 100)
 		ELSE
-			LOCAL:2 = DT_CELL_GET("DT_CHARA", (LOCAL - 100000) / 10, "VALUE")
 			LOCAL:2 += TOINT(同行確率一覧:(LOCAL % 10 - 1))
 			DT_CELL_SET "DT_CHARA", (LOCAL - 100000) / 10, "VALUE", LIMIT(LOCAL:2, 0, 100)
 		ENDIF
