@@ -20,7 +20,7 @@
 #DIM 知識素質数値保存, 100
 #DIM 性癖素質数値保存, 20
 #DIM 服装数値保存, 31
-#DIMS CONST 水着一覧 = "ビキニ型","ワンピース型","ボーイレッグ・ビキニ（ボトムが短パン型）","プランジングネック（首元から胸下まで切り込みの入ったワンピース型）"
+#DIMS CONST 水着一覧 = "ビキニ型","ワンピース型","ボーイレッグ・ビキニ型","プランジングネック型"
 #DIMS CONST 男水着一覧 = "通常","全身タイプ"
 #DIM ABL一時保存, 50
 #DIM ABL数値保存, 50
@@ -292,6 +292,9 @@ IF CSVエディタフラグ && GETBIT(表示モード:1, 0)
 ELSEIF CSVエディタフラグ
 	LOCALS += "<button value='99'><font color='#808080'>└ 展開する</font></button>"
 	LOCALS += "<br>"
+ELSE 
+	LOCALS += "<button value='102'>├[102] 呼び名を設定する</button>"
+	LOCALS += "<br>"
 ENDIF
 LOCALS += "<button value='110'>[110] 戦闘タイプを設定する</button>"
 LOCALS += "<br>"
@@ -322,10 +325,10 @@ LOCALS += "<br>"
 LOCALS += "<button value='150'>[150] 経験を設定する</button>"
 LOCALS += "<br>"
 IF CSVエディタフラグ
-	LOCALS += "<button value='160'>[160] 服装を設定する</button>"
+	LOCALS += "<button value='160'>[160] 服装・水着を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='161'>[161] 水着を設定する</button>"
-	LOCALS += "<br>"
+;	LOCALS += "<button value='161'>[161] 水着を設定する</button>"
+;	LOCALS += "<br>"
 ELSE
 	IF OPTION変数:汎用立ち絵制御
 		LOCALS += "<button value='170'>[170] 汎用立ち絵を選択する</button>"
@@ -353,28 +356,34 @@ LOCALS += "<div rect='2125,500,3675,3312'>"
 IF GROUPMATCH(表示モード, 0, 1, 2)
 	;現状の設定表示
 	IF CSVエディタフラグ
-		LOCALS += @"■No.{登録番号, 4, LEFT}　"
+		LOCALS += @"■<button value='107'>No.{登録番号, 4, LEFT}</button>　"
 	ENDIF
 	IF ランダムキャラネーム != ""
 		IF CSVエディタフラグ
-			LOCALS += @"[%ランダムキャラ二つ名%]%ランダムキャラネーム, 18, LEFT%"
+			LOCALS += @"<button value='101'>[%ランダムキャラ二つ名%]</button>"
+			LOCALS += @"<button value='100'>%ランダムキャラネーム, 18, LEFT%"
 		ELSE
-			LOCALS += @"[従業員]%ランダムキャラネーム, 18, LEFT%"
+			LOCALS += @"[従業員]<button value='100'>%ランダムキャラネーム, 18, LEFT%"
 		ENDIF
 	ELSE
 		IF CSVエディタフラグ
-			LOCALS += @"[%ランダムキャラ二つ名%]（ランダム決定）　　　"
+			LOCALS += @"<button value='101'>[%ランダムキャラ二つ名%]</button>"
+			LOCALS += @"<button value='100'>（ランダム決定）　　　"
 		ELSE
-			LOCALS += @"[従業員]（ランダム決定）　　　"
+			LOCALS += @"[従業員]<button value='100'>（ランダム決定）　　　"
 		ENDIF
 	ENDIF
-	IF CSVエディタフラグ
+	LOCALS += @"</button>"
+;　呼び名くらいは従業員雇用でも決めれていい気がする。オリヴァーに対して「ナル」とか呼びたいやん？
+;	IF CSVエディタフラグ
+		LOCALS += @"<button value='102'>"
 		IF ランダムキャラCALLネーム != ""
 			LOCALS += @"<br>　呼び名：%ランダムキャラCALLネーム, 24, LEFT%"
 		ELSE
 			LOCALS += @"<br>　呼び名：%"（名前と共通）", 24, LEFT%"
 		ENDIF
-	ENDIF
+		LOCALS += @"</button>"
+;	ENDIF
 	LOCALS:1 = %属性数値文字色変換_HTML(ランダムキャラ戦闘タイプ:0)%
 	LOCALS += @"<br>　<font color='#%LOCALS:1%'>属性：%属性数値文字列変換(ランダムキャラ戦闘タイプ:0)%</font>"
 	LOCALS += @"　タイプ：%成長タイプ:(ランダムキャラ戦闘タイプ:2), 10, LEFT%　得意武器：%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%"
@@ -1466,9 +1475,34 @@ SELECTCASE 表示モード
 			ENDIF
 			LOCALS += "<br>"
 		NEXT
+		LOCALS += "<br>"
+		LOCALS:2 = 
+		LOCALS:3 '= "　" * 13
+		LOCALS:4 = 
+		LOCALS += @"%"水着", 24, LEFT%：" 
+		FOR LOCAL, 0, MAX(VARSIZE("水着一覧"), VARSIZE("男水着一覧"))
+			IF 服装数値保存:30 == LOCAL
+				LOCALS:1 = C0C0C0
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			IF ランダムキャラ素質:1 == 2
+				SIF LOCAL >= VARSIZE("男水着一覧")
+					BREAK
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{70000 + 30 * 10 + LOCAL}'>[%男水着一覧:LOCAL%]</button></font>"
+			ELSE
+				SIF LOCAL >= VARSIZE("水着一覧")
+					BREAK
+				IF LOCAL > 1
+					LOCALS:4 = \@ LOCAL == 3? 首元から胸下まで切り込みの入ったワンピース# ボトムが短パン\@
+				ENDIF
+				LOCALS:(2 + LOCAL%2) += @"<font color='#%LOCALS:1%'><button value='{70000 + 30 * 10 + LOCAL}' title='%LOCALS:4%'>[%水着一覧:LOCAL%]</button></font>"
+			ENDIF
+		NEXT
+		LOCALS += LOCALS:2 + "<br>" + LOCALS:3 + "<br>"
 		LOCALS += "</div>"
 		LOCALS += "<div rect='2125,3506,3675,2812'>"
-		LOCALS += @"服装名：<button value='71000'>%ランダムキャラ服装名, 30, LEFT%</button>"
+		LOCALS += @"<button value='71000'>服装名：%ランダムキャラ服装名, 30, LEFT%</button>"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>　　　　"
 	CASE 105
 		IF !DT_EXIST("DT_CHARA")
@@ -1908,6 +1942,8 @@ SELECTCASE LOCAL
 			服装数値保存:8 = 1
 			服装数値保存:16 = 1
 		ENDIF
+	CASE 70300 TO 70303
+		服装数値保存:30 = LOCAL % 10
 	CASE 71000
 		PRINTL 服装名を入力してください。（１５文字まで）
 		INPUTS
@@ -1968,7 +2004,7 @@ SELECTCASE LOCAL
 		PRINTFORML 名前を入力してください。（１２文字まで）　（現在：%ランダムキャラネーム%）
 		PRINTL ┗[1] 命名テーブルからランダムに決定する　[2] 完全にランダムな名前を生成する　[0] 現在のものを使用する
 		SETTEXTBOX ランダムキャラネーム
-		INPUTS (%ランダムキャラネーム%)
+		INPUTS
 		IF RESULTS == "1" || RESULTS == "2"
 			ランダムキャラネーム = %ランダムキャラ名前生成(ランダムキャラ素質:0, ランダムキャラ素質:1)%
 			SIF RESULTS == "2"
@@ -2236,14 +2272,14 @@ SELECTCASE LOCAL
 	CASE 105
 		ページ数 = 0
 		表示モード = 105
-	CASE 161
-		IF ランダムキャラ素質:1 == 2
-			PRINTFORML [0] %男水着一覧:0%  [1] %男水着一覧:1%
-		ELSE
-			PRINTFORML [0] %水着一覧:0%  [1] %水着一覧:1%  [2] %水着一覧:2%  [3] %水着一覧:3%  
-		ENDIF
-		BINPUT
-		服装数値保存:30 = RESULT
+;	CASE 161
+;		IF ランダムキャラ素質:1 == 2
+;			PRINTFORML [0] %男水着一覧:0%  [1] %男水着一覧:1%
+;		ELSE
+;			PRINTFORML [0] %水着一覧:0%  [1] %水着一覧:1%  [2] %水着一覧:2%  [3] %水着一覧:3%  
+;		ENDIF
+;		BINPUT
+;		服装数値保存:30 = RESULT
 	CASE 170
 		CALL 汎用立ち絵選択処理(汎用画像キー)
 	CASE 171
@@ -2515,7 +2551,7 @@ SELECTCASE LOCAL
 		ADDCHARA 999
 		TALENT:(LOCAL:1):従業員 = 1
 		NAME:(LOCAL:1) = [従業員]%ランダムキャラネーム%
-		CALLNAME:(LOCAL:1) = %ランダムキャラネーム%
+		CALLNAME:(LOCAL:1) = \@ランダムキャラCALLネーム != "" ? %ランダムキャラCALLネーム% # %ランダムキャラネーム%\@
 		TALENT:(LOCAL:1):種族 = ランダムキャラ素質:0
 		TALENT:(LOCAL:1):性別 = ランダムキャラ素質:1
 		
