@@ -4,6 +4,7 @@
 #DIM 特殊補正後数値
 #DIMS バフ・デバフ種類
 #DIM バフ番号
+#DIM 効果番号
 ;特定のキャラや装備などの固有効果へのCALLをここにまとめる
 ;バフ・デバフが掛かった時ではなく、バフ・デバフの効果が発揮される時に呼ばれるので注意
 
@@ -47,19 +48,21 @@ ELSE
 	ENDCATCH
 ENDIF
 
-;バフを見る
-FOR バフ番号, 0, DT_ROW_LENGTH(@"バフデータベース_{隊列番号}")
-	TRYCCALLFORM 固有バフ・デバフ処理_バフ_%DT_CELL_GETS(@"バフデータベース_{隊列番号}", バフ番号, "バフ枠")%_%バフ・デバフ種類%(隊列番号, バフ番号, 特殊補正後数値)
-		特殊補正後数値 = RESULT
-	CATCH
-	ENDCATCH
-NEXT
-;デバフを見る
-FOR バフ番号, 0, DT_ROW_LENGTH(@"デバフデータベース_{隊列番号}")
-	TRYCCALLFORM 固有バフ・デバフ処理_デバフ_%DT_CELL_GETS(@"デバフデータベース_{隊列番号}", バフ番号, "デバフ枠")%_%バフ・デバフ種類%(隊列番号, バフ番号, 特殊補正後数値)
-		特殊補正後数値 = RESULT
-	CATCH
-	ENDCATCH
+;バフ・デバフを見る
+FOR 効果番号, 0, DT_ROW_LENGTH("戦闘効果データベース")
+	IF バフ・デバフ効果適用判定_行指定(効果番号, "", "", 戦闘行動キャラ)
+		IF DT_CELL_GETS("戦闘効果データベース", 効果番号, "バフ・デバフフラグ") == "バフ"
+			TRYCCALLFORM 固有バフ・デバフ処理_バフ_%DT_CELL_GETS("戦闘効果データベース", 効果番号, "効果枠")%(効果番号)
+				特殊補正後数値 = RESULT
+			CATCH
+			ENDCATCH
+		ELSEIF DT_CELL_GETS("戦闘効果データベース", 効果番号, "バフ・デバフフラグ") == "デバフ"
+			TRYCCALLFORM 固有バフ・デバフ処理_デバフ_%DT_CELL_GETS("戦闘効果データベース", 効果番号, "効果枠")%(効果番号)
+				特殊補正後数値 = RESULT
+			CATCH
+			ENDCATCH
+		ENDIF
+	ENDIF
 NEXT
 
 RETURN 特殊補正後数値
