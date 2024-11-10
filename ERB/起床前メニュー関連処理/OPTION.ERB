@@ -297,23 +297,32 @@ RESTART
 #DIM 場所フィルタ配列, 10, 20, マップ部屋番号上限
 #DIMS RESULTS分割, 10
 #DIM 改行用
+#DIM 派生番号
 
 VARSET LOCAL
 VARSET フィルタ配列
 FOR COM番号, 370, 375
-	FOR COUNT, 0, CHARANUM
-		LOCALS = /{COM番号}_{COUNT}/
-		SIF STRCOUNT(SAVESTR:1, LOCALS)
-			フィルタ配列:(COM番号 - 370):COUNT = 1
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH @"CHARACOMNAME{COM番号}_"
+	FOR 派生番号, 0, RESULT
+		LOCALS = /%REPLACE(RESULTS:派生番号, "CHARACOMNAME", "")%/
+		IF STRCOUNT(SAVESTR:1, LOCALS)
+			VARSET RESULTS分割
+			SPLIT RESULTS:派生番号, "_", RESULTS分割
+			フィルタ配列:(COM番号 - 370):(TOINT(RESULTS分割:1)) = 1
+		ENDIF
 	NEXT
 NEXT
 FOR COM番号, 380, 385
-	FOR COUNT, 0, 20
-		FOR COUNT:1, 0, マップ部屋番号上限
-			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
-			SIF STRCOUNT(SAVESTR:1, LOCALS)
-				場所フィルタ配列:(COM番号 - 380):COUNT:(COUNT:1) = 1
-		NEXT
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH @"COMNAME_PLACE_{COM番号}_"
+	FOR 派生番号, 0, RESULT
+		LOCALS = /%REPLACE(RESULTS:派生番号, "COMNAME_PLACE_", "")%/
+		IF STRCOUNT(SAVESTR:1, LOCALS)
+			VARSET RESULTS分割
+			SPLIT RESULTS:派生番号, "_", RESULTS分割
+			場所フィルタ配列:(COM番号 - 380):(TOINT(RESULTS分割:3)):(TOINT(RESULTS分割:4)) = 1
+		ENDIF
 	NEXT
 NEXT
 ;お祭りコマンドはフィルタ不可
@@ -326,18 +335,22 @@ SAVESTR:ゲームフェイズ管理 = 通常モード
 改行用 = 0
 ターゲット保存 = TARGET
 FOR COM番号, 370, 375
-	FOR COUNT, 1, CHARANUM
-		LOCALS = /{COM番号}_{COUNT}/
-		TARGET = COUNT
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH @"CHARACOMNAME{COM番号}_"
+	FOR 派生番号, 0, RESULT
+		LOCALS = /%REPLACE(RESULTS:派生番号, "CHARACOMNAME", "")%/
+		VARSET RESULTS分割
+		SPLIT RESULTS:派生番号, "_", RESULTS分割
+		TARGET = GETCHARA(TOINT(RESULTS分割:1))
 		;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
 		TRYCCALLFORM COM_ABLE{COM番号}_{NO:TARGET}
 			TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
 			IF STRCOUNT(SAVESTR:1,LOCALS)
-				LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{COUNT}'"
+				LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{NO:TARGET}'"
 			ELSE
-				LOCALS:1 += @"<button value = '{COM番号}_{COUNT}'"
+				LOCALS:1 += @"<button value = '{COM番号}_{NO:TARGET}'"
 			ENDIF
-			TRYCCALLFORM COM_TOOLTIP_{COM番号}_{COUNT}
+			TRYCCALLFORM COM_TOOLTIP_{COM番号}_{NO:TARGET}
 				IF OPTION変数:ツールチップ切り替え == 0
 					LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
 				ELSE
@@ -346,7 +359,7 @@ FOR COM番号, 370, 375
 			CATCH
 				LOCALS:1 += @">"
 			ENDCATCH
-			LOCALS:1 += @"%CALLNAME:COUNT,20,RIGHT% - %TRAIN_COMNAME(COM番号), 22%[{COM番号}_{COUNT,3}]</button>"
+			LOCALS:1 += @"%CALLNAME:TARGET,20,RIGHT% - %TRAIN_COMNAME(COM番号), 22%[{COM番号}_{NO:TARGET,3}]</button>"
 			SIF STRCOUNT(SAVESTR:1,LOCALS)
 				LOCALS:1 += "</font>"
 			改行用 += 1
@@ -370,45 +383,45 @@ DRAWLINE
 ターゲット保存 = CFLAG:MASTER:現在位置
 ターゲット保存２ = CFLAG:MASTER:現在マップ種別
 FOR COM番号, 380, 385
-	FOR COUNT, 0, 20
-		FOR COUNT:1, 1, マップ部屋番号上限
-			SIF COUNT:1 % 100 > 20
-				CONTINUE
-			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
-			CFLAG:MASTER:現在マップ種別 = COUNT
-			CFLAG:MASTER:現在位置 = COUNT:1
-			;マップ種別とりあえず入れておくだけ
-			;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
-			TRYCCALLFORM COM_ABLE{COM番号}
-				IF TRAIN_COMNAME(COM番号) != ""
-					TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
-					IF STRCOUNT(SAVESTR:1,LOCALS)
-						LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{COUNT}_{COUNT:1}'"
-					ELSE
-						LOCALS:1 += @"<button value = '{COM番号}_{COUNT}_{COUNT:1}'"
-					ENDIF
-					TRYCCALLFORM COM_TOOLTIP_{COM番号}_{COUNT}_{COUNT:1}
-						IF OPTION変数:ツールチップ切り替え == 0
-							LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
-						ELSE
-							LOCALS:1 += @">"
-						ENDIF
-					CATCH
-						LOCALS:1 += @">"
-					ENDCATCH
-					LOCALS:1 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置),20,RIGHT% - %TRAIN_COMNAME(COM番号),18,RIGHT%[{COM番号}_{COUNT}_{COUNT:1}]</button>"
-					SIF STRCOUNT(SAVESTR:1,LOCALS)
-						LOCALS:1 += "</font>"
-					改行用 += 1
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH @"COMNAME_PLACE_{COM番号}_"
+	FOR 派生番号, 0, RESULT
+		LOCALS = /%REPLACE(RESULTS:派生番号, "COMNAME_PLACE_", "")%/
+		VARSET RESULTS分割
+		SPLIT RESULTS:派生番号, "_", RESULTS分割
+		CFLAG:MASTER:現在マップ種別 = TOINT(RESULTS分割:3)
+		CFLAG:MASTER:現在位置 = TOINT(RESULTS分割:4)
+		;マップ種別とりあえず入れておくだけ
+		;固有コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+		TRYCCALLFORM COM_ABLE{COM番号}
+			IF TRAIN_COMNAME(COM番号) != ""
+				TSTR:ツールチップ受渡 = TRAIN_COMNAME(COM番号)
+				IF STRCOUNT(SAVESTR:1,LOCALS)
+					LOCALS:1 += @"<font color='#666666'><button value = '{COM番号}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}'"
+				ELSE
+					LOCALS:1 += @"<button value = '{COM番号}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}'"
 				ENDIF
-			CATCH
-			ENDCATCH
-			IF 改行用 >= 2
-				改行用 = 0
-				HTML_PRINT LOCALS:1
-				LOCALS:1 = 
+				TRYCCALLFORM COM_TOOLTIP_{COM番号}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+					IF OPTION変数:ツールチップ切り替え == 0
+						LOCALS:1 += @" title = '%TSTR:ツールチップ受渡%'>"
+					ELSE
+						LOCALS:1 += @">"
+					ENDIF
+				CATCH
+					LOCALS:1 += @">"
+				ENDCATCH
+				LOCALS:1 += @"%GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置),20,RIGHT% - %TRAIN_COMNAME(COM番号),18,RIGHT%[{COM番号}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}]</button>"
+				SIF STRCOUNT(SAVESTR:1,LOCALS)
+					LOCALS:1 += "</font>"
+				改行用 += 1
 			ENDIF
-		NEXT
+		CATCH
+		ENDCATCH
+		IF 改行用 >= 2
+			改行用 = 0
+			HTML_PRINT LOCALS:1
+			LOCALS:1 = 
+		ENDIF
 	NEXT
 NEXT
 IF LOCALS:1 != ""
@@ -500,30 +513,6 @@ SELECTCASE RESULTS
 		ENDIF
 ENDSELECT
 
-; SAVESTR:1 = /
-; FOR COM番号, 370, 375
-; 	FOR COUNT, 1, CHARANUM
-; 		SIF !フィルタ配列:(COM番号 - 370):COUNT
-; 			CONTINUE
-; 		LOCALS = /{COM番号}_{COUNT}/
-; 		SIF !STRCOUNT(SAVESTR:1,LOCALS)
-; 			SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}/
-; 	NEXT
-; NEXT
-; FOR COM番号, 380, 385
-; 	FOR COUNT, 1, 20
-; 		FOR COUNT:1, 1, 2000
-; 			SIF COUNT:1 % 100 > 20
-; 				CONTINUE
-; 			SIF !場所フィルタ配列:(COM番号 - 380):COUNT:(COUNT:1)
-; 				CONTINUE
-; 			LOCALS = /{COM番号}_{COUNT}_{COUNT:1}/
-; 			SIF !STRCOUNT(SAVESTR:1,LOCALS)
-; 				SAVESTR:1 = %SAVESTR:1%{COM番号}_{COUNT}_{COUNT:1}/
-; 		NEXT
-; 	NEXT
-; NEXT
-
 RESTART
 
 $処理部分ラベル
@@ -536,15 +525,19 @@ $処理部分ラベル
 #DIM フィルタ配列, 500, 50
 #DIMS RESULTS分割, 10
 #DIM 改行用
+#DIM 派生番号
 
 VARSET LOCAL
 VARSET フィルタ配列
-FOR COM番号, 0, 500
-	FOR COUNT, 1, 50
-		LOCALS = /{COM番号}_{COUNT}/
-		SIF STRCOUNT(SAVESTR:2, LOCALS)
-			フィルタ配列:COM番号:COUNT = 1
-	NEXT
+VARSET RESULTS
+ENUMFUNCBEGINSWITH @"COMNAME_S"
+FOR 派生番号, 0, RESULT
+	LOCALS = /%REPLACE(RESULTS:派生番号, "COMNAME_S", "")%/
+	IF STRCOUNT(SAVESTR:2, LOCALS)
+		VARSET RESULTS分割
+		SPLIT RESULTS:派生番号, "_", RESULTS分割
+		フィルタ配列:(TOINT(SUBSTRING(RESULTS分割:1, 1, -1))):(TOINT(RESULTS分割:2)) = 1
+	ENDIF
 NEXT
 SIF SAVESTR:2 == ""
 	SAVESTR:2 = /
@@ -552,46 +545,45 @@ DRAWLINE
 SAVESTR:ゲームフェイズ管理 = 通常モード
 
 改行用 = 0
-FOR COM番号, 0, 500
-	SIF COM番号 >= 370 && COM番号 <=390
-		CONTINUE
-	FOR COUNT, 1, 50
-		LOCALS = /{COM番号}_{COUNT}/
-		LOCALS:1 = {COM番号}_{COUNT}
-		SIF STRCOUNT(SAVESTR:2,LOCALS)
-			SETCOLOR 0x666666
-		;派生コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
-		TRYCCALLFORM COM_ABLE_S%LOCALS:1%
-			IF TRAIN_COMNAME_S(LOCALS:1) != ""
-				TSTR:ツールチップ受渡 = TRAIN_COMNAME_S(LOCALS:1)
-				IF STRCOUNT(SAVESTR:2,LOCALS)
-					LOCALS:2 += @"<font color='#666666'><button value = '%LOCALS:1%'"
-				ELSE
-					LOCALS:2 += @"<button value = '%LOCALS:1%'"
-				ENDIF
-				TRYCCALLFORM COM_TOOLTIP_S{COM番号}_{COUNT}
-					IF OPTION変数:ツールチップ切り替え == 0
-						LOCALS:2 += @" title = '%TSTR:ツールチップ受渡%'>"
-					ELSE
-						LOCALS:2 += @">"
-					ENDIF
-				CATCH
-					LOCALS:2 += @">"
-				ENDCATCH
-				LOCALS:2 += @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]</button>"
-				SIF STRCOUNT(SAVESTR:2,LOCALS)
-					LOCALS:2 += "</font>"
-				改行用 += 1
-				;PRINTBUTTON @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]", @"%LOCALS:1%"
+VARSET RESULTS
+ENUMFUNCBEGINSWITH @"COMNAME_S"
+FOR 派生番号, 0, RESULT
+	LOCALS = /%REPLACE(RESULTS:派生番号, "COMNAME_S", "")%/
+	VARSET RESULTS分割
+	SPLIT RESULTS:派生番号, "_", RESULTS分割
+	COM番号 = TOINT(SUBSTRING(RESULTS分割:1, 1, -1))
+	LOCALS:1 = {COM番号}_%RESULTS分割:2%
+	;派生コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+	TRYCCALLFORM COM_ABLE_S%LOCALS:1%
+		IF TRAIN_COMNAME_S(LOCALS:1) != ""
+			TSTR:ツールチップ受渡 = TRAIN_COMNAME_S(LOCALS:1)
+			IF STRCOUNT(SAVESTR:2,LOCALS)
+				LOCALS:2 += @"<font color='#666666'><button value = '%LOCALS:1%'"
+			ELSE
+				LOCALS:2 += @"<button value = '%LOCALS:1%'"
 			ENDIF
-		CATCH
-		ENDCATCH
-		IF 改行用 >= 2
-			改行用 = 0
-			HTML_PRINT LOCALS:2
-			LOCALS:2 = 
+			TRYCCALLFORM COM_TOOLTIP_S{COM番号}_{COUNT}
+				IF OPTION変数:ツールチップ切り替え == 0
+					LOCALS:2 += @" title = '%TSTR:ツールチップ受渡%'>"
+				ELSE
+					LOCALS:2 += @">"
+				ENDIF
+			CATCH
+				LOCALS:2 += @">"
+			ENDCATCH
+			LOCALS:2 += @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]</button>"
+			SIF STRCOUNT(SAVESTR:2,LOCALS)
+				LOCALS:2 += "</font>"
+			改行用 += 1
+			;PRINTBUTTON @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{COUNT,2}]", @"%LOCALS:1%"
 		ENDIF
-	NEXT
+	CATCH
+	ENDCATCH
+	IF 改行用 >= 2
+		改行用 = 0
+		HTML_PRINT LOCALS:2
+		LOCALS:2 = 
+	ENDIF
 NEXT
 IF LOCALS:2 != ""
 	改行用 = 0

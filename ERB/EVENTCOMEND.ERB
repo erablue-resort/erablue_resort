@@ -151,37 +151,40 @@ FOR LOCAL, 0, CHARANUM
 	;知識系素質の取得処理
 	CALL 知識系素質の取得(LOCAL)
 	;体力の回復
-	;昼食
-	IF TIME > 720 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 0) && !CFLAG:LOCAL:うふふ
-		;回復早い、回復遅い
-		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
-			CASE 3
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
-			CASE 4
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
-			CASE 5
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+	IF スケジュール状態:LOCAL:状況 == スケジュール_実行中 && !CFLAG:LOCAL:うふふ
+		SELECTCASE 移動スケジュール文字列:LOCAL:(スケジュール状態:LOCAL:現在スケジュール):スケジュール
+			CASE "食事", "自炊"
+				IF TIME < 1020 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 1)
+					;17時前は昼食
+					SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+						CASE 3
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+						CASE 4
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+						CASE 5
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+						CASEELSE
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)))
+					ENDSELECT
+					SETBIT TCVAR:LOCAL:食事済みフラグ, 1
+				ELSEIF TIME >= 1020 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 2)
+					;17時以降は夕食
+					SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
+						CASE 3
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
+						CASE 4
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
+						CASE 5
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
+						CASEELSE
+							BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)))
+					ENDSELECT
+					SETBIT TCVAR:LOCAL:食事済みフラグ, 2
+				ENDIF
+			CASE "お風呂", "自室入浴"
+				;回復早い、回復遅い
+				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
 		ENDSELECT
-		SETBIT TCVAR:LOCAL:食事済みフラグ, 0
-	ENDIF
-	;夕食
-	IF TIME > 1140 && !GETBIT(TCVAR:LOCAL:食事済みフラグ, 1) && !CFLAG:LOCAL:うふふ
-		;回復早い、回復遅い
-		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)))
-		SELECTCASE MATCH(料理属性一時保存, 基礎BATTLE_STATE:LOCAL:属性 + 100)
-			CASE 3
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 12 / 10)
-			CASE 4
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 14 / 10)
-			CASE 5
-				BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + (食事回復量 * 3 / (3 - TALENT:LOCAL:回復速度)) * 16 / 10)
-		ENDSELECT
-		SETBIT TCVAR:LOCAL:食事済みフラグ, 1
-	ENDIF
-	;風呂
-	IF BATHROOM(CFLAG:LOCAL:現在マップ種別, CFLAG:LOCAL:現在位置) && !CFLAG:LOCAL:うふふ
-		;回復早い、回復遅い
-		BASE:LOCAL:体力 = MIN(MAXBASE:LOCAL:体力, BASE:LOCAL:体力 + ((TIME - TIME:2) * 30 / (3 - TALENT:LOCAL:回復速度)))
 	ENDIF
 NEXT
 
@@ -792,6 +795,7 @@ IF RFLAG:入替えコマンドフラグ == 1
 	RFLAG:入替えコマンドフラグ = 0
 ENDIF
 
+SELECTCOM_NAME = 
 VARSET RFLAG
 VARSET RSTR
 FOR キャラ番号,0,CHARANUM

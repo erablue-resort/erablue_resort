@@ -127,8 +127,6 @@ RETURN 0
 #DIM TARGET保存
 #DIM ベース種族
 #DIM 素質選択用, 10
-#DIM バスト種別
-#DIMS 汎用画像キー
 #DIM 部屋決定フラグ
 #DIM 複数得意フラグ
 
@@ -396,44 +394,6 @@ CSTR:プレゼント好み '= GET_PERSON_プレゼント好み(子供人物番�
 SIF TALENT:飲兵衛 > 0
 	CSTR:プレゼント好み += "_酒"
 
-IF OPTION変数:汎用立ち絵制御
-	IF TALENT:性別 == 2
-	ELSE
-		SELECTCASE ベース種族
-			CASE 2
-				SELECTCASE TALENT:バストサイズ
-					CASE -2
-						バスト種別 = 0
-					CASE -1, 0
-						バスト種別 = 1
-					CASE 1
-						バスト種別 = 2
-					CASE 2, 3
-						バスト種別 = 3
-				ENDSELECT
-				汎用画像キー = エルーン\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
-			CASE 3
-				バスト種別 = (TALENT:バストサイズ <= 2) ? 3 # 4
-				汎用画像キー = ドラフ\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
-			CASE 4
-				バスト種別 = 0
-				汎用画像キー = ハーヴィン{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
-			CASEELSE
-				SELECTCASE TALENT:バストサイズ
-					CASE -2
-						バスト種別 = 0
-					CASE -1, 0
-						バスト種別 = 1
-					CASE 1
-						バスト種別 = 2
-					CASE 2, 3
-						バスト種別 = 3
-				ENDSELECT
-				汎用画像キー = ヒューマン\@ (TALENT:体格 <= -2) ? 小 # \@{NAMEHASH(NAME:TARGET, 3)}_{バスト種別}
-		ENDSELECT
-	ENDIF
-ENDIF
-
 CFLAG:人物番号 = 子供人物番号
 CALL コマンド存在チェック
 CALL キャラクター初期化(TARGET)
@@ -442,7 +402,10 @@ CALL 子供相性初期化(TARGET)
 TALENT:定住者 = 1
 CFLAG:滞在期間 = 999
 CFLAG:招待不可フラグ = 0
-CSTR:汎用立ち絵登録文字列 = %汎用画像キー%
+IF TALENT:性別 == 2
+ELSE
+	CSTR:汎用立ち絵登録文字列 '= 汎用立ち絵取得処理(NAME:TARGET, ベース種族, TALENT:バストサイズ, TALENT:体格)
+ENDIF
 CALL ステータス記録(TARGET)
 
 部屋決定フラグ = 0
