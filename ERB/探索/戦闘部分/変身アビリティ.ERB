@@ -1,0 +1,152 @@
+﻿@変身アビリティ
+#DIM キャラ番号
+#DIM 変身解除である
+#DIMS 呼出文字列差分
+#DIM 消費ＭＰ
+;変身あるときコマンドを描画して　1を返す
+
+キャラ番号 = BATTLE_STATE:戦闘行動キャラ:0
+DT_SELECT "変身データベース", @"キャラ番号 = {キャラ番号}"
+SIF !RESULT
+	RETURN 0
+
+IF DT_CELL_GET("変身データベース", RESULT:1, "変身残りターン数", 1)
+	CALL 変身解除ABLE(キャラ番号, "アビリティ")
+	IF !RESULT
+		RETURN 0
+	ENDIF
+    ;変身解除メソッド
+	変身解除である = 1
+ELSE
+	CALL 変身ABLE(キャラ番号, "アビリティ")
+	IF !RESULT
+		RETURN 0
+	ENDIF
+	変身解除である = 0
+    ;変身メソッド
+ENDIF
+
+;変身あります--------------------------------
+
+CALL GET変身データベース(キャラ番号)
+IF 変身解除である
+	呼出文字列差分 '= "変身解除"
+ELSE
+	呼出文字列差分 '= "変身"
+ENDIF
+TRYCCALLFORM 固有%呼出文字列差分%アビリティ_{NO:キャラ番号}(@"アビ説明文", キャラ番号)
+CATCH
+	;汎用値をセットする
+	IF 変身解除である
+		消費ＭＰ = 0
+		TSTR:コマンド名受渡 '= 変身配列STR:変身解除コマンド名
+		詳細文文字列受け渡し変数 = 消費ＭＰ：{消費ＭＰ}<br>変身を解除する
+	ELSE
+		消費ＭＰ = 変身配列INT:変身コスト
+		TSTR:コマンド名受渡 '= 変身配列STR:変身コマンド名
+		詳細文文字列受け渡し変数 = 消費ＭＰ：{消費ＭＰ}<br>変身を行う
+	ENDIF
+ENDCATCH
+;変身はアビ封印を受けるのか？変身できなくてピンチは見たことがある…
+アビテンプレート用_アビ封印用フラグ = 0
+IF デバフ番号取得("アビリティ封印", 戦闘行動キャラ) >= 0 || アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:戦闘行動キャラ:ＭＰ
+	IF アビ使用確認スキップフラグ == 0
+		NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'><button value = '200'>[200] %TSTR:コマンド名受渡, 24, LEFT%</button></font>
+	ELSE
+		NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[200] %TSTR:コマンド名受渡, 24, LEFT%</font>
+	ENDIF
+ELSE
+	NSTR:(K++) = <button value = '200'>[200] %TSTR:コマンド名受渡, 24, LEFT%</button>
+ENDIF
+RETURN 1
+
+@変身アビリティ使用実処理
+#DIM キャラ番号
+#DIM 変身解除である
+#DIMS 呼出文字列差分
+
+キャラ番号 = BATTLE_STATE:戦闘行動キャラ:0
+
+CALL GET変身データベース(キャラ番号)
+変身解除である = 変身配列INT:変身残りターン数
+CALL 口上変数初期化
+IF 変身解除である
+	呼出文字列差分 '= "変身解除"
+ELSE
+	呼出文字列差分 '= "変身"
+ENDIF
+TRYCCALLFORM 固有%呼出文字列差分%アビリティ_{NO:キャラ番号}(@"アビ説明文", キャラ番号)
+CATCH
+	IF 変身解除である
+		消費MP一時保存 = 0
+		TSTR:コマンド名受渡 '= 変身配列STR:変身解除コマンド名
+		詳細文文字列受け渡し変数 = 消費ＭＰ：{消費MP一時保存}<br>変身を解除する
+	ELSE
+		消費MP一時保存 = 変身配列INT:変身コスト
+		TSTR:コマンド名受渡 '= 変身配列STR:変身コマンド名
+		詳細文文字列受け渡し変数 = 消費ＭＰ：{消費MP一時保存}<br>変身する
+	ENDIF
+	アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
+	口上用技名保存 = %TSTR:コマンド名受渡%
+	;消費MP算出
+	IF アビ使用確認スキップフラグ == 0
+		KSTR:(K++) = ■%TSTR:コマンド名受渡%
+		KSTR:(K++) = %詳細文文字列受け渡し変数%
+		;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+		STRCOUNT 詳細文文字列受け渡し変数, "<br>"
+		IF RESULT < 4
+			FOR LOCAL, 0, 4 - RESULT
+				KSTR:(K++) = 　
+			NEXT
+		ENDIF
+		IF アビテンプレート用_アビ封印用フラグ
+			KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+		ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+			KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+		ELSE
+			KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+		ENDIF
+		CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+		$INPUT_LOOP
+		BINPUTS
+		IF STRCOUNT(RESULTS, "サイド領域") > 0
+			CALL サイド領域_実行処理_戦闘中
+			CALL 画面再描画
+			GOTO INPUT_LOOP
+		ENDIF
+		RESULT = TOINT(RESULTS)
+		SELECTCASE RESULT
+			CASE 0
+				IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+					REUSELASTLINE 
+					GOTO INPUT_LOOP
+				ENDIF
+				CALL 口上変数初期化
+			CASE 999
+				RETURN -1
+			CASEELSE
+				REUSELASTLINE 
+				GOTO INPUT_LOOP
+		ENDSELECT
+	ELSE
+		IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+			KSTR:(K++) = ＭＰが足りません。
+			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
+			RETURN -1
+		ENDIF
+	ENDIF
+	CALL 口上変数初期化
+	IF アビテンプレート用_キャンセルフラグ
+		アビテンプレート用_キャンセルフラグ = 0
+		RETURN -1
+	ELSE
+		IF 変身解除である
+			CALL 変身解除実行処理(キャラ番号)
+		ELSE
+			CALL 変身実行処理(キャラ番号)
+		ENDIF
+		;MP消費
+		BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
+		CALL アビテンプレート用_表示メッセージ変換処理
+	ENDIF
+ENDCATCH

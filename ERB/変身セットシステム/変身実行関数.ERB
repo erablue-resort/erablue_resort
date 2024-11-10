@@ -1,0 +1,168 @@
+﻿@変身実行処理(キャラ番号)
+#DIM キャラ番号
+
+;読み込んできて値をセットして登録する
+
+CALL GET変身データベース(キャラ番号)
+;個別処理があれば呼ぶ
+;関数探す前にあるかチェックさせる
+IF STRFINDU(変身配列STR:変身タイミング文字列, "個別") >= 0
+    VARSET RESULT
+    TRYCALLFORM 個別変身実行処理_{NO:キャラ番号}
+    ;個別処理で数値を返すとデフォルト処理をスキップできる
+    SIF RESULT
+        RETURN
+ENDIF
+
+NAME:キャラ番号 '= 変身配列STR:変身NAME
+CALLNAME:キャラ番号 '= 変身配列STR:変身CALLNAME
+;変身期間があれば変身残りターン数に変身期間をセットする
+IF 変身配列INT:変身期間 
+    ;ダンジョンならばそのままターン数を、日常ならTIME想定でセットする
+    IF ダンジョン表示モード != ""
+        変身配列INT:変身残りターン数 = 変身配列INT:変身期間
+    ELSE
+         ;TIMEはとりあえず10倍にしておく
+        変身配列INT:変身残りターン数 = 変身配列INT:変身期間 * 10
+    ENDIF
+ELSE
+    ;変身期間が無ければ変身残りターン数に1をセットする　これはフラグを兼ねる
+    変身配列INT:変身残りターン数 = 1 
+ENDIF
+CALL SET変身データベース
+
+;あればステータス変化処理をする
+TRYCALLFORM 変身設定ステータス変化_{NO:キャラ番号}
+
+;変身フォルダがセットされていなければ変身画像を探してセット
+IF STRFINDU(CSTR:キャラ番号:画像フォルダ, "変身フォルダ") < 0
+    ;変身画像が存在する
+    IF EXISTFILE("resources/" + CSTR:キャラ番号:画像フォルダ + "/変身フォルダ/顔_デフォルト.png")
+        ;汎用変身カットインを呼んでフォルダを変更する
+        TRYCCALLFORM 個別変身カットイン_{NO:キャラ番号}
+        CATCH
+            CALL 汎用変身カットイン(キャラ番号)
+        ENDCATCH
+        CSTR:キャラ番号:画像フォルダ '= CSTR:キャラ番号:画像フォルダ + "/変身フォルダ"
+    ENDIF
+ENDIF
+
+
+@変身解除実行処理(キャラ番号)
+#DIM キャラ番号
+
+;読み込んできて値をセットして戻す
+
+CALL GET変身データベース(キャラ番号)
+;個別処理があれば呼ぶ
+;関数探す前にあるかチェックさせる
+IF STRFINDU(変身配列STR:解除タイミング文字列, "個別") >= 0
+    VARSET RESULT
+    TRYCALLFORM 個別変身解除実行処理_{NO:キャラ番号}
+    ;個別処理で数値を返すとデフォルト処理をスキップできる
+    SIF RESULT
+        RETURN
+ENDIF
+
+NAME:キャラ番号 '= 変身配列STR:元NAME
+CALLNAME:キャラ番号 '= 変身配列STR:元CALLNAME
+変身配列INT:変身残りターン数 = 0 ;変身残りターン数を0にする
+CALL SET変身データベース
+
+;あればステータス変化処理をする
+TRYCALLFORM 変身設定ステータス変化解除_{NO:キャラ番号}
+
+;変身フォルダがセットされていれば外す
+IF STRFINDU(CSTR:キャラ番号:画像フォルダ, "変身フォルダ") >= 0
+    ;/変身フォルダ=7文字を後ろから減らす
+    CSTR:キャラ番号:画像フォルダ '= SUBSTRINGU(CSTR:キャラ番号:画像フォルダ, 0, STRLENSU(CSTR:キャラ番号:画像フォルダ)-7)
+ENDIF
+
+
+@汎用変身カットイン(キャラ番号)
+#DIM キャラ番号
+#DIM レイヤー番号 = 50
+#DIM CONST アニメフレームレート = 34
+#DIM CONST アニメタイマー = 50
+#DIM アニメID
+
+;呼ぶ前に変身可能であることをチェックする
+
+;短冊を使う
+;生成とチェック　できなかったら帰る
+GDISPOSE レイヤー番号 + 20 
+GCREATEFROMFILE レイヤー番号 + 20 , @"%CSTR:キャラ番号:画像フォルダ%/短冊_デフォルト.png"
+SIF !RESULT
+    RETURN 0
+GDISPOSE レイヤー番号 + 21 
+GCREATEFROMFILE レイヤー番号 + 21 , @"%CSTR:キャラ番号:画像フォルダ%/変身フォルダ/短冊_デフォルト.png"
+SIF !RESULT
+    RETURN 0
+
+FOR LOCAL, 0, 10
+	GDISPOSE レイヤー番号 + LOCAL
+	GCREATE レイヤー番号 + LOCAL, 900, 900
+NEXT
+
+GDRAWG レイヤー番号 + 0 , レイヤー番号 + 20 , 0, 0, 360, 720, 0, 0, 180, 360
+GDRAWG レイヤー番号 + 1 , レイヤー番号 + 21 , 0, 0, 360, 720, 0, 0, 180, 360
+GSETBRUSH レイヤー番号 + 9 , 0xC0FFFFFF
+GSETPEN レイヤー番号 + 9 , 0X80E0E0E0, 1
+GFILLRECTANGLE レイヤー番号 + 9 , 0, 0, 360, 720
+
+FOR アニメID, 0, 4
+	SPRITEDISPOSE @"カットインアニメ_{アニメID}"
+NEXT
+
+アニメID = 0
+SPRITEANIMECREATE @"カットインアニメ_{アニメID}", 900, 900
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + アニメID, 0, 0, 1, 1, 135, 300, 0 * アニメフレームレート
+LOCAL:1 = 0
+LOCAL:2 = 150
+FOR LOCAL, 0, 10
+	SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + アニメID, 0 + LOCAL:1, 0 + LOCAL:2, 270, 540, 310, 230, 2 * アニメフレームレート
+	LOCAL:2 = 150 -SQRT(1440 * LOCAL)
+NEXT
+	SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + アニメID, 0 + LOCAL:1, 0 + LOCAL:2, 270, 540, 310, 230, LOCAL * アニメフレームレート
+FOR LOCAL, 11, 13
+	SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 1, 0 + LOCAL:1, 0 + LOCAL:2, 270, 540, 310, 230, LOCAL * アニメフレームレート
+	LOCAL:2 = 150 -SQRT(1440 * LOCAL)
+NEXT
+	SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 1, 0 + LOCAL:1, 0 + LOCAL:2, 270, 540, 310, 230, 10000 * アニメフレームレート
+
+アニメID = 1
+SPRITEANIMECREATE @"カットインアニメ_{アニメID}", 900, 900
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 18 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 270, 540, 310, 230, 12 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 100000
+
+アニメID = 2
+SPRITEANIMECREATE @"カットインアニメ_{アニメID}", 900, 900
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 20 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 270, 540, 310, 230, 12 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 100000
+
+アニメID = 3
+SPRITEANIMECREATE @"カットインアニメ_{アニメID}", 900, 900
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 22 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 270, 540, 310, 230, 12 * アニメフレームレート
+SPRITEANIMEADDFRAME @"カットインアニメ_{アニメID}", レイヤー番号 + 9, 0, 0, 1, 1, 90, 275, 100000
+
+アニメID = 0
+	CBGSETSPRITE @"カットインアニメ_{アニメID}", 0, 0, -1 - アニメID
+アニメID = 1
+	CBGSETSPRITE @"カットインアニメ_{アニメID}", 0, 0, -1 - アニメID
+アニメID = 2
+	CBGSETSPRITE @"カットインアニメ_{アニメID}", 0, 0, -1 - アニメID
+アニメID = 3
+	CBGSETSPRITE @"カットインアニメ_{アニメID}", 0, 0, -1 - アニメID
+
+SETANIMETIMER アニメタイマー
+INPUTMOUSEKEY
+SETANIMETIMER -1
+CBGCLEAR
+
+RETURN
+
+
+
