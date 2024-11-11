@@ -458,42 +458,23 @@ SELECTCASE 表示モード
 				LOCALS:1 '= REPLACE(LOCALS:1, "）（", "／")
 			NEXT
 			LOCALS += LOCALS:1 + "<br>"
-			SIF 年齢数値設定フラグ
-				LOCALS += @"　年齢：{年齢保存}歳"
-			SIF 身長数値設定フラグ
-				LOCALS += @"　身長：%DECIMAL_STRING(身長保存, 1)%cm"
-			LOCALS += "　性別："
-			SELECTCASE ランダムキャラ素質:1
-				CASE 1
-					LOCALS += "女性"
-				CASE 2
-					LOCALS += "男性"
-				CASE 3
-					LOCALS += "ふたなり"
-			ENDSELECT
-			LOCALS:1 '= @"\@ GETBIT(ランダムキャラ素質:1, 0) && !GETBIT(ランダムキャラ素質:2, 0) ? （処女） # \@"
-			LOCALS:1 += @"\@ GETBIT(ランダムキャラ素質:1, 1) && !GETBIT(ランダムキャラ素質:2, 1) ? （童貞） # \@"
-			LOCALS:1 += @"\@ Ａ処女保存 ? # （Ａ処女）\@"
-			LOCALS += REPLACE(LOCALS:1, "）（", "／")
-			IF GETBIT(ランダムキャラ素質:1, 0)
-				LOCALS += "<br>"
-				LOCALS += @"　バスト："
-				IF バスト数値設定フラグ
-					LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
-					LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
-				ELSE
-					LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3)%"
-				ENDIF
-				IF ウエスト数値設定フラグ
-					LOCALS += @"　ウエスト："
-					LOCALS += @"%DECIMAL_STRING(ウエスト保存, 1)%cm"
-				ENDIF
-				IF ヒップ数値設定フラグ
-					LOCALS += @"　ヒップ："
-					LOCALS += @"%DECIMAL_STRING(ヒップ保存, 1)%cm"
-				ENDIF
+			;年齢
+			LOCALS:1 = 
+			IF ランダムキャラ素質:34 && !(ランダムキャラ素質:34 == 年齢層_幼い && ランダムキャラ素質:33 == 年齢層_老年)
+				LOCALS:1 += "　外見年齢："
+				LOCALS:1 += @"%GET_TALENTNAME(164, ランダムキャラ素質:34)%"
+				LOCALS:1 += "（実年齢："
+				LOCALS:1 += @"\@ 年齢数値設定フラグ? {年齢保存}歳# %GET_TALENTNAME(164, ランダムキャラ素質:33)%\@"
+				LOCALS:1 += "）"
+			ELSEIF !年齢数値設定フラグ
+				SIF ランダムキャラ素質:33 == 0
+					ランダムキャラ素質:33 = 年齢層_大人
+				LOCALS:1 += "　年齢層："
+				LOCALS:1 += @"%GET_年齢文字列(ランダムキャラ素質:1, ランダムキャラ素質:33, ランダムキャラ素質:34), 12, LEFT%"
+			ELSE
+				LOCALS:1 += @"　　年齢：{年齢保存}歳"
 			ENDIF
-			LOCALS += "<br>"
+			LOCALS += @"%LOCALS:1, 40, LEFT%"
 			LOCALS += @"　性知識レベル："
 			SELECTCASE ランダムキャラ素質:6
 				CASE -2
@@ -509,6 +490,64 @@ SELECTCASE 表示モード
 				CASE 3
 					LOCALS += "百戦錬磨"
 			ENDSELECT
+			LOCALS += "<br>　性別："
+			SELECTCASE ランダムキャラ素質:1
+				CASE 1
+					LOCALS:1 = 女性
+				CASE 2
+					LOCALS:1 = 男性
+				CASE 3
+					LOCALS:1 = ふたなり
+			ENDSELECT
+			LOCALS:1 += \@ GETBIT(ランダムキャラ素質:1, 0) && !GETBIT(ランダムキャラ素質:2, 0) ? （処女） # \@
+			LOCALS:1 += \@ GETBIT(ランダムキャラ素質:1, 1) && !GETBIT(ランダムキャラ素質:2, 1) ? （童貞） # \@
+			LOCALS:1 += \@ Ａ処女保存 ? # （Ａ処女）\@
+			LOCALS:1 = %REPLACE(LOCALS:1, "）（", "／"), 30, LEFT%
+			LOCALS += LOCALS:1
+			IF GETBIT(ランダムキャラ素質:1, 1)
+				LOCALS += "　　男性器サイズ："
+				LOCALS += @"%GET_TALENTNAME(162,ランダムキャラ素質:32)%"
+			ENDIF
+			LOCALS += "<br>"
+			IF !身長数値設定フラグ
+				LOCALS += "　体格："
+				LOCALS += @"%GET_TALENTNAME(161,ランダムキャラ素質:31), 12, LEFT%"
+			ELSE
+				LOCALS += @"　身長：%DECIMAL_STRING(身長保存, 1) + "cm", 12, LEFT%"
+			ENDIF
+			IF !GETBIT(ランダムキャラ素質:1, 0)
+				LOCALS += "　体型："
+				LOCALS += @"%GET_TALENTNAME(163,体型保存), 12, LEFT%"
+			ELSE
+				LOCALS += "　" * 10
+			ENDIF
+			IF !GETBIT(ランダムキャラ素質:1, 0) || (!ウエスト数値設定フラグ && ヒップ数値設定フラグ)
+				LOCALS += "　　　　下半身："
+				LOCALS += @"%GET_TALENTNAME(210,下半身保存)%"
+			ENDIF
+			IF GETBIT(ランダムキャラ素質:1, 0)
+				LOCALS += "<br>"
+				LOCALS += @"　バスト："
+				IF バスト数値設定フラグ
+					LOCALS:1 '= @"%DECIMAL_STRING(バスト保存, 1)%cm"
+					LOCALS:1 += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
+					LOCALS += @"%LOCALS:1, 16, LEFT%"
+				ELSE
+					LOCALS += @"%GET_TALENTNAME(205,ランダムキャラ素質:3), 16, LEFT%"
+				ENDIF
+				IF ウエスト数値設定フラグ
+					LOCALS += @"%"　ウエスト：" + DECIMAL_STRING(ウエスト保存, 1) + "cm", 20, LEFT%"
+				ELSE
+					LOCALS += @"%"　体型：" + GET_TALENTNAME(163,体型保存), 20, LEFT%"
+				ENDIF
+				IF ヒップ数値設定フラグ
+					LOCALS += @"　ヒップ："
+					LOCALS += @"%DECIMAL_STRING(ヒップ保存, 1)%cm"
+				ELSE
+					LOCALS += "　下半身："
+					LOCALS += @"%GET_TALENTNAME(210,下半身保存)%"
+				ENDIF
+			ENDIF
 			IF CSVエディタフラグ == 0
 				LOCALS += "　　　容姿："
 				IF ランダムキャラ素質:30 == 0
@@ -516,49 +555,14 @@ SELECTCASE 表示モード
 				ELSE
 					LOCALS += @"%GET_TALENTNAME(160,ランダムキャラ素質:30), 12, LEFT%"
 				ENDIF
-			ENDIF
-			IF !年齢数値設定フラグ
-				SIF ランダムキャラ素質:33 == 0
-					ランダムキャラ素質:33 = 年齢層_大人
-				LOCALS += "　　　年齢："
-				LOCALS += @"%GET_年齢文字列(ランダムキャラ素質:1, ランダムキャラ素質:33, ランダムキャラ素質:34), 12, LEFT%"
+				LOCALS += "<br>"
 			ENDIF
 			LOCALS += "<br>"
-			IF !身長数値設定フラグ
-				LOCALS += "　体格："
-				IF ランダムキャラ素質:31 == 0
-					LOCALS += "普通　　"
-				ELSE
-					LOCALS += @"%GET_TALENTNAME(161,ランダムキャラ素質:31)%　　"
-				ENDIF
-			ENDIF
-			IF !ウエスト数値設定フラグ
-				LOCALS += "　体型："
-				IF 体型保存 == 0
-					LOCALS += "普通　　"
-				ELSE
-					LOCALS += @"%GET_TALENTNAME(163,体型保存)%　　"
-				ENDIF
-			ENDIF
-			IF !ウエスト数値設定フラグ || !ヒップ数値設定フラグ
-				LOCALS += "　下半身："
-				IF 下半身保存 == 0
-					LOCALS += "普通　　"
-				ELSE
-					LOCALS += @"%GET_TALENTNAME(210,下半身保存)%　　"
-				ENDIF
-			ENDIF
-			SIF !身長数値設定フラグ || !ウエスト数値設定フラグ || !ヒップ数値設定フラグ
-				LOCALS += "<br>"
-			IF GETBIT(ランダムキャラ素質:1, 1)
-				LOCALS += "　男性器サイズ："
-				LOCALS += @"%GET_TALENTNAME(162,ランダムキャラ素質:32)%"
-				LOCALS += "<br>"
-			ENDIF
 			REPLACE 好物一時保存, "_", "、"
 			LOCALS += @"　プレゼントの好み：%SUBSTRINGU(RESULTS, 0, STRLENSU(RESULTS) - 1)%"
 			LOCALS += "<br>"
 		ENDIF
+		LOCALS += "<br>"
 		LOCALS += @"<button value='1011'>□ 素質（\@ GETBIT(表示モード:1, 11)? 展開# 収納\@） □ -----------------------------------------------------</button><br>"
 		IF !GETBIT(表示モード:1, 11)
 			LOCALS:1 '= "　"
@@ -1017,7 +1021,8 @@ SELECTCASE 表示モード
 			LOCALS += @"<font color='#333333'><button value='{12008}'>[男性]</button></font>"
 			LOCALS += @"<button value='{12009}'>[ふたなり]</button>"
 		ENDIF
-		LOCALS += "　　　純潔："
+		LOCALS += "<br>"
+		LOCALS += "純潔："
 		IF GETBIT(ランダムキャラ素質:1, 0)
 			IF GETBIT(ランダムキャラ素質:2, 0) == 0
 				LOCALS:1 = C0C0C0
