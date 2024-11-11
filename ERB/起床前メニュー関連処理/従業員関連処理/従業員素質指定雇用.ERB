@@ -477,35 +477,18 @@ SELECTCASE 表示モード
 			SELECTCASE ランダムキャラ素質:1
 				CASE 1
 					LOCALS += "女性"
-					IF GETBIT(ランダムキャラ素質:2, 0) == 0
-						LOCALS += "（処女）"
-					ENDIF
-					IF Ａ処女保存 == 0
-						LOCALS += "（Ａ処女）"
-					ENDIF
 				CASE 2
 					LOCALS += "男性"
-					IF GETBIT(ランダムキャラ素質:2, 1) == 0
-						LOCALS += "（童貞）"
-					ENDIF
-					IF Ａ処女保存 == 0
-						LOCALS += "（Ａ処女）"
-					ENDIF
 				CASE 3
 					LOCALS += "ふたなり"
-					IF GETBIT(ランダムキャラ素質:2, 0) == 0
-						LOCALS += "（処女）"
-					ENDIF
-					IF GETBIT(ランダムキャラ素質:2, 1) == 0
-						LOCALS += "（童貞）"
-					ENDIF
-					IF Ａ処女保存 == 0
-						LOCALS += "（Ａ処女）"
-					ENDIF
 			ENDSELECT
+			LOCALS:1 '= @"\@ GETBIT(ランダムキャラ素質:1, 0) && !GETBIT(ランダムキャラ素質:2, 0) ? （処女） # \@"
+			LOCALS:1 += @"\@ GETBIT(ランダムキャラ素質:1, 1) && !GETBIT(ランダムキャラ素質:2, 1) ? （童貞） # \@"
+			LOCALS:1 += @"\@ Ａ処女保存 ? # （Ａ処女）\@"
+			LOCALS += REPLACE(LOCALS:1, "）（", "／")
 			IF GETBIT(ランダムキャラ素質:1, 0)
 				LOCALS += "<br>"
-				LOCALS += @"　バストサイズ："
+				LOCALS += @"　バスト："
 				IF バスト数値設定フラグ
 					LOCALS += @"%DECIMAL_STRING(バスト保存, 1)%cm"
 					LOCALS += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
@@ -1178,6 +1161,16 @@ SELECTCASE 表示モード
 			NEXT
 		ENDIF
 		LOCALS += "<br>"
+;Discordより
+;基礎,年齢　実年齢を具体的に歳単位で入れる。わからない場合は使ってはいけない
+;素質,年齢層　実年齢のイメージを入れる。上の年齢とはどちらか１つだけでいい。わからないばあいは-1（不詳）。
+;素質,長命者　人間の尺度を越える年数生きている場合に使用する。それ以外は0。値は見た目の年齢層となる 。
+; 長命者 = 年齢層_幼い かつ 年齢層 = 年齢層_老年で年齢表記が「ロリババアorショタジジイ」になる。
+;記入例
+;渋谷凛：年齢が決まってる通常の例。基礎,年齢,15だけあればいい。
+;ルザミーネ：年齢がある程度わかるがピッタリの数値は不明な例。素質,年齢層,年齢層_壮年だけあればいい。
+;フランドール：年齢が決まっている長命者の例。基礎,年齢,495だけだと老婆になってしまうので、素質,長命者,年齢層_幼いを追加した。 
+;フェニー：年齢がわからん長命者の例。素質,年齢層,年齢層_老年と素質,長命者,年齢層_若いがある
 		IF 年齢数値設定フラグ && 年齢保存 > 0
 			IF ランダムキャラ素質:34 == 0
 				LOCALS += @"見た目年齢：<button value='{12120}'>[長命者をONにする]</button>"
@@ -2447,7 +2440,8 @@ SELECTCASE LOCAL
 			NEXT
 			SIF !(年齢数値設定フラグ && 年齢保存 > 0)
 				PRINTFORML 素質,年齢層,{ランダムキャラ素質:33}
-			PRINTFORML 素質,長命者,{ランダムキャラ素質:34}
+			SIF ランダムキャラ素質:34
+				PRINTFORML 素質,長命者,{ランダムキャラ素質:34}
 			SIF !身長数値設定フラグ
 				PRINTFORML 素質,体格,{ランダムキャラ素質:31}
 			SIF !ウエスト数値設定フラグ
@@ -3418,7 +3412,7 @@ ENDSELECT
 @CSVコピー処理(ARG=0)
 #DIM CSV番号
 #DIM 配列番号
-#DIM 表示数
+#DIM 表示数, 2
 #DIM CSVページ数
 #DIM 次ページフラグ
 #DIM 表示配列, 3000
@@ -3433,6 +3427,7 @@ FOR CSV番号, 1, 3000
 	表示配列:表示数 = CSV番号
 	表示数 ++
 NEXT
+表示数:1 = 表示数
 
 $処理部分
 
@@ -3449,7 +3444,7 @@ DRAWLINE
 FOR 配列番号, CSVページ数 * 30, CSVページ数 * 30 + 30
 	SIF 表示配列:配列番号 < 1
 		CONTINUE
-	PRINTBUTTON @"[{表示配列:配列番号, 4}] %NAME表示省略(CSVNAME(表示配列:配列番号)),41,LEFT%", 表示配列:配列番号
+	PRINTBUTTON @"[{表示配列:配列番号, 4}] %NAME表示省略(CSVNAME(表示配列:配列番号), 60),61,LEFT%", 表示配列:配列番号
 	表示数 ++
 	SIF 表示数 % 2 == 0
 		PRINTL
@@ -3457,20 +3452,63 @@ NEXT
 SIF 表示数 % 2
 	PRINTL
 DRAWLINE
+LOCALS = 
 IF CSVページ数 > 0
-	PRINTBUTTONLC "[9997] 前ページへ", 9997
+	LOCALS += "<button value='9997'>[前のページ]</button>"
 ELSE
-	PRINTLC 　
+	LOCALS += "　　　　　　"
 ENDIF
-IF CSVページ数 * 30 + 30 < 3000 && 表示配列:(CSVページ数 * 30 + 30) > 0
-	PRINTBUTTONLC "[9998] 次ページへ", 9998
+LOCALS += "　" * 11
+LOCALS += @"{CSVページ数, 4, RIGHT}/{表示数:1 / 30, 4, RIGHT}"
+LOCALS += "　" * 11
+IF CSVページ数 < 表示数:1 / 30
+	LOCALS += "<button value='9998'>[次のページ]</button>"
 ENDIF
-PRINTL
-PRINTBUTTONLC "[9999] 戻る", 9999
-PRINTL
+LOCALS += "<br>"
+IF CSVページ数 > 0
+	LOCALS += "<button value='9991'>[|≪]</button>"
+ELSE
+	LOCALS += "     "
+ENDIF
+IF CSVページ数 > 5
+	LOCALS += "<button value='9992'> [－５]</button>"
+ELSE
+	LOCALS += " 　　　"
+ENDIF
+LOCALS += "　" * 12
+LOCALS += "<button value='9999'> [戻る]</button>"
+LOCALS += "　" * 12
+IF CSVページ数 < 表示数:1 / 30 - 5
+	LOCALS += "<button value='9995'>[＋５] </button>"
+ELSE
+	LOCALS += " 　　　"
+ENDIF
+IF CSVページ数 < 表示数:1 / 30
+	LOCALS += "<button value='9996'>[≫|]</button>"
+ENDIF
+HTML_PRINT LOCALS
 
 BINPUT
 SELECTCASE RESULT
+	CASE 9991
+		CSVページ数 = 0
+		GOTO 処理部分
+	CASE 9992
+		CSVページ数 -= 5
+		GOTO 処理部分
+	CASE 9995
+		CSVページ数 += 5
+		GOTO 処理部分
+	CASE 9996
+;		CSVページ数 = 表示数:1 / 30 + (表示数:1%30 ? 1 # 0)
+		CSVページ数 = 表示数:1 / 30
+		GOTO 処理部分
+	CASE 9997
+		CSVページ数 --
+		GOTO 処理部分
+	CASE 9997
+		CSVページ数 --
+		GOTO 処理部分
 	CASE 9997
 		CSVページ数 --
 		GOTO 処理部分
