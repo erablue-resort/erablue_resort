@@ -19,14 +19,24 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "ヒールオール"
 #DIM CONST 消費ＭＰ = 50
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		TSTR:コマンド名受渡 = ヒールオール
+		TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■ヒールオール<br>"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：味方全体のＨＰを［回復力✕50％］回復させる。"
 		RETURN 消費ＭＰ
@@ -40,18 +50,34 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "キュア"
 #DIM CONST 消費ＭＰ = 5
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "杖")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("回復")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "杖")
-			TSTR:コマンド名受渡 = キュア
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("回復")
-			TSTR:コマンド名受渡 = キュア
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■キュア（装備者が杖得意or回復タイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が杖得意or回復タイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：味方単体のデバフ効果を1つ消去する。"
 		RETURN 消費ＭＰ
@@ -64,18 +90,34 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "ディスペル"
 #DIM CONST 消費ＭＰ = 10
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "槍")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("回復")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "槍")
-			TSTR:コマンド名受渡 = ディスペル
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("回復")
-			TSTR:コマンド名受渡 = ディスペル
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■ディスペル（装備者が槍得意or回復タイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が槍得意or回復タイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：敵単体のバフ効果を1つ消去する。"
 		RETURN 消費ＭＰ
@@ -87,13 +129,14 @@ ENDSELECT
 @証アビ関数_プリーストの証_4(処理モード, 対象キャラ)
 #DIM 対象キャラ
 #DIMS 処理モード
+#DIMS CONST アビ名 = "退魔の祈り"
 #DIM CONST 消費ＭＰ = 0
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		TSTR:コマンド名受渡 = 退魔の祈り
+		TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■退魔の祈り<br>"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：敵単体に自属性の［回復力✕100％］ダメージを与える。"
 		RETURN 消費ＭＰ
