@@ -40,14 +40,21 @@ DRAWLINE
 TSTR:コマンド名受渡 = 
 詳細文文字列受け渡し変数 = 
 TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:キャラ番号:装備証番号, "ジョブ証名", 1)%("証名")
-TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:キャラ番号:装備証番号, "ジョブ証名", 1)%("フレーバー")
 LOCALS = <div rect='200,0,5662,1250' border='31' bcolor='#C0C0C0'></div>
 LOCALS += @"<div rect='262, 62, 1125, 1125'>%顔グラ表示用文字列関数(キャラ番号)%</div>"
 LOCALS += @"<div rect='1387,62,5537,1125'>■%CALLNAME:キャラ番号%が装備中のジョブ証<br>"
-IF 詳細文文字列受け渡し変数 == ""
+IF TSTR:コマンド名受渡 == ""
 	LOCALS += "なし</div>"
 ELSE
-	LOCALS += @"%TSTR:コマンド名受渡%<br>%詳細文文字列受け渡し変数%</div>"
+	RESULT = 0
+	TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:キャラ番号:装備証番号, "ジョブ証名", 1)%("クラス名", キャラ番号)
+	IF RESULT
+		LOCALS += @"%TSTR:コマンド名受渡%　%RESULTS:1%：%RESULTS%<br>"
+	ELSE
+		LOCALS += @"%TSTR:コマンド名受渡%<br>"
+	ENDIF
+	TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:キャラ番号:装備証番号, "ジョブ証名", 1)%("フレーバー")
+	LOCALS += @"説明：%詳細文文字列受け渡し変数%</div>"
 ENDIF
 ;所持証リスト表示
 LOCALS += "<div rect='200,1312,5662,3750' border='31' bcolor='#C0C0C0'></div>"
@@ -104,8 +111,12 @@ SELECTCASE LOCAL
 		VARSET RESULTS
 		関数総数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%DT_CELL_GETS("所持ジョブ証データベース", LOCAL - 500, "ジョブ証名")%_")
 		FOR 表示アビ番号, 0, 関数総数
+			TSTR:コマンド名受渡 = 
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ名", キャラ番号)
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
 			詳細文文字列受け渡し変数 = 
-			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
+			TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文", キャラ番号)
 			LOCALS += @"%詳細文文字列受け渡し変数%<br>"
 		NEXT
 		LOCALS += "<br>"
