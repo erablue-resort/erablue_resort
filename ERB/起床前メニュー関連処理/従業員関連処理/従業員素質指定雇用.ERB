@@ -1081,13 +1081,22 @@ SELECTCASE 表示モード
 			ELSE
 				LOCALS:1 = 333333
 			ENDIF
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[\@ LOCAL == 年齢層_不詳? 年齢# \@%GET_TALENTNAME(164, LOCAL)%]</button></font>"
+			SELECTCASE LOCAL
+				CASE 年齢層_幼い TO 年齢層_中年
+					LOCALS:2 '= @"種族関係なく、実年齢で{年齢ボーダー:(LOCAL-1)}～{年齢ボーダー:LOCAL-1}歳くらい"
+				CASE 年齢層_老年
+					LOCALS:2 '= @"種族関係なく、実年齢で{年齢ボーダー:(LOCAL-1)}歳以上"
+				CASEELSE
+					LOCALS:2 = 
+			ENDSELECT
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}' title='%LOCALS:2%'>[\@ LOCAL == 年齢層_不詳? 年齢# \@%GET_TALENTNAME(164, LOCAL)%]</button></font>"
 		NEXT
 		LOCALS += "<br>"
 		;外見年齢が年齢層区分±1の場合、外見年齢を0（＝年相応）にする
 		SIF INRANGE(ランダムキャラ素質:34, ランダムキャラ素質:33-1, ランダムキャラ素質:33+1)
 			ランダムキャラ素質:34 = 0
-		LOCALS += @"<font color='#%見出し文字色%'><nonbutton title='単純な童顔やフケ顔レベルではなく、ロリババァや生後3年でほぼ大人といった感じの<br>外見年齢と実年齢が大幅に剥離している場合にのみ設定すること。'>外見年齢：</nonbutton></font>"
+		LOCALS:2 = 単純な童顔やフケ顔レベルではなく、ロリババァや生後3年でほぼ大人といった感じの<br>外見年齢と実年齢が大幅に剥離している場合にのみ設定すること。
+		LOCALS += @"<font color='#%見出し文字色%'><nonbutton title='%LOCALS:2%'>外見年齢：</nonbutton></font>"
 		LOCALS += @"<font color='#\@ ランダムキャラ素質:34? 333333# C0C0C0\@'><button value='{12120}'>[年相応]</button></font>"
 		FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
 			SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
@@ -1106,53 +1115,6 @@ SELECTCASE 表示モード
 			SIF INRANGE(LOCAL, ランダムキャラ素質:33-1, ランダムキャラ素質:33+1)
 				LOCALS += "</clearbutton>"
 		NEXT
-;		IF 年齢数値設定フラグ && 年齢保存 > 0
-;			IF ランダムキャラ素質:34 == 0
-;				LOCALS += @"<font color='#%見出し文字色%'>外見年齢：</font><button value='{12120}'>[長命者をONにする]</button>"
-;			ELSE
-;				LOCALS += @"<font color='#%見出し文字色%'>外見年齢：</font>"
-;				FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;					SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;						CONTINUE
-;					IF ランダムキャラ素質:34 == LOCAL
-;						LOCALS:1 = C0C0C0
-;					ELSE
-;						LOCALS:1 = 333333
-;					ENDIF
-;					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12120 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;				NEXT
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をOFFにする]</button>"
-;			ENDIF
-;		ELSE
-;			LOCALS += @"<font color='#%見出し文字色%'>年齢：</font>"
-;			FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;				SIF LOCAL != 年齢層_不詳 && !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;					CONTINUE
-;				IF ランダムキャラ素質:33 == LOCAL
-;					LOCALS:1 = C0C0C0
-;				ELSE
-;					LOCALS:1 = 333333
-;				ENDIF
-;				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;			NEXT
-;			IF ランダムキャラ素質:34 == 0
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をONにする]</button>"
-;			ELSE
-;				LOCALS += "<br>"
-;				LOCALS += @"<font color='#%見出し文字色%'>見た目年齢：</font>"
-;				FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;					SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;						CONTINUE
-;					IF ランダムキャラ素質:34 == LOCAL
-;						LOCALS:1 = C0C0C0
-;					ELSE
-;						LOCALS:1 = 333333
-;					ENDIF
-;					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12120 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;				NEXT
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をOFFにする]</button>"
-;			ENDIF
-;		ENDIF
 		LOCALS += "<br>"
 		LOCALS += "<br>"
 		LOCALS += @"<font color='#%見出し文字色%'>身長：</font>"
@@ -1160,12 +1122,26 @@ SELECTCASE 表示モード
 			LOCALS:1 = %DECIMAL_STRING(身長保存, 1)%cm
 
 			LOCALS += @"<button value='{12025}'>[%LOCALS:1%]</button>"
-			LOCALS += @"　　　<button value='{12998}'>[自動で設定する]</button>"
+			LOCALS += @"　　　<button value='{12998}'>[大まかに設定する]</button>"
 			LOCALS += @"　<button value='{12996}'>[リロール]</button>"
 		ELSE
-			LOCALS += @"体格により自動算出"
-			LOCALS += @"　　　<button value='{12998}'>[手動で設定する]</button>"
+			LOCALS += @"%GET_TALENTNAME(161, ランダムキャラ素質:31)%"
+			LOCALS += @"　　　<button value='{12998}'>[数値で設定する]</button>"
 		ENDIF
+		LOCALS += "<br>"
+		LOCALS += @"<font color='#%見出し文字色%'>体格：</font>"
+		FOR LOCAL, -3, 3
+			IF ランダムキャラ素質:31 == LOCAL
+				IF 身長数値設定フラグ
+					LOCALS:1 = FFFF00
+				ELSE
+					LOCALS:1 = C0C0C0
+				ENDIF
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[%GET_TALENTNAME(161, LOCAL)%]</button></font>"
+		NEXT
 		LOCALS += "<br>"
 		IF GETBIT(ランダムキャラ素質:1, 0)
 			LOCALS += @"<font color='#%見出し文字色%'>バストサイズ：</font>"
@@ -1227,25 +1203,9 @@ SELECTCASE 表示モード
 					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12040 + LOCAL}'>[%GET_TALENTNAME(160, LOCAL)%]</button></font>"
 				ENDIF
 			NEXT
-		ENDIF
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		IF !身長数値設定フラグ
-			LOCALS += @"<font color='#%見出し文字色%'>体格：</font>"
-			FOR LOCAL, -3, 3
-				IF ランダムキャラ素質:31 == LOCAL
-					LOCALS:1 = C0C0C0
-				ELSE
-					LOCALS:1 = 333333
-				ENDIF
-				IF LOCAL == 0
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[普通]</button></font>"
-				ELSE
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[%GET_TALENTNAME(161, LOCAL)%]</button></font>"
-				ENDIF
-			NEXT
 			LOCALS += "<br>"
 		ENDIF
+		LOCALS += "<br>"
 		IF !ウエスト数値設定フラグ
 			LOCALS += @"<font color='#%見出し文字色%'>体型：</font>"
 			FOR LOCAL, -3, 4
@@ -1849,10 +1809,8 @@ SELECTCASE LOCAL
 			ELSE
 				年齢保存 = RAND(年齢ボーダー:年齢層_成人, 年齢ボーダー:年齢層_大人)
 			ENDIF
-;			ランダムキャラ素質:33 = 0
 		ELSEIF ランダムキャラ素質:33 != 年齢層_不詳
 			ランダムキャラ素質:33 = 年齢層算出処理(年齢保存)
-;			年齢保存 = 0
 		ENDIF
 	CASE 12099 TO 12116
 		;年齢層：不詳～老年
@@ -1866,21 +1824,6 @@ SELECTCASE LOCAL
 		;外見年齢：年相応（旧 長命者ON/OFF）
 		;;ONOFFによらず外見年齢ボタン出しっぱなしにするので単純に外見年齢を0にするよう変更
 		ランダムキャラ素質:34 = 0
-;		IF 年齢数値設定フラグ && 年齢保存 > 0
-;			IF ランダムキャラ素質:34 == 0
-;				ランダムキャラ素質:34 = 年齢層_大人
-;			ELSE
-;				ランダムキャラ素質:34 = 0
-;			ENDIF
-;		ELSEIF ランダムキャラ素質:34 == 0 && INRANGE(ランダムキャラ素質:33, 年齢層_幼い, 年齢層_老年)
-;			ランダムキャラ素質:34 = ランダムキャラ素質:33
-;			ランダムキャラ素質:33 = 年齢層_老年
-;		ELSEIF ランダムキャラ素質:34 == 0
-;			ランダムキャラ素質:34 = 年齢層_大人
-;		ELSE
-;			ランダムキャラ素質:33 = ランダムキャラ素質:34
-;			ランダムキャラ素質:34 = 0
-;		ENDIF
 	CASE 12130 TO 12136
 		;外見年齢：幼い～老年
 		ランダムキャラ素質:34 = LOCAL - 12120
@@ -2579,7 +2522,7 @@ SELECTCASE LOCAL
 				PRINTL
 			ENDIF
 			PRINTL 
-			OUTPUTLOG @"CSV_EDITFILE/Chara{登録番号} %ランダムキャラネーム%.csv", 1
+			OUTPUTLOG @"CSV_EDITFILE/非共有ファイル/Chara{登録番号} %ランダムキャラネーム%.csv", 1
 			PRINTW CSV_EDITFILEフォルダに出力しました。CSV/キャラデータフォルダに移動して再起動してください
 			DT_RELEASE "DT_CHARA"
 			RETURN 0
