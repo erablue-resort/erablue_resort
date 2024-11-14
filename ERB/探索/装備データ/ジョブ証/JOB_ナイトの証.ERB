@@ -1,4 +1,5 @@
-﻿@証関数_ナイトの証(処理モード)
+﻿@証関数_ナイトの証(処理モード, 対象キャラ)
+#DIM 対象キャラ
 #DIMS 処理モード
 
 SELECTCASE 処理モード
@@ -6,6 +7,15 @@ SELECTCASE 処理モード
 		証関連文字列受け渡し = 通常ジョブ
 	CASE "証名"
 		TSTR:コマンド名受渡 = ナイトの証
+	CASE "クラス名"
+		SIF 対象キャラ <= 0
+			RETURN 0
+		SELECTCASE GET_JOBSKILL_LEVEL(対象キャラ)
+			CASEELSE
+				RESULTS = ナイト
+				RESULTS:1 = Class.I
+				RETURN 1
+		ENDSELECT
 	CASE "フレーバー"
 		詳細文文字列受け渡し変数 '= "守りを重視したタンク向けの証。<br>"
 		詳細文文字列受け渡し変数 += "味方を守り、相手の隙を付く技に長けている。<br>"
@@ -19,14 +29,24 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "ファランクス"
 #DIM CONST 消費ＭＰ = 45
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		TSTR:コマンド名受渡 = ファランクス
+		TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■ファランクス<br>"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：味方全体に1回のダメージカット［50%］効果を与える。"
 		RETURN 消費ＭＰ
@@ -42,20 +62,36 @@ ENDSELECT
 @証アビ関数_ナイトの証_2(処理モード, 対象キャラ)
 #DIM 対象キャラ
 #DIMS 処理モード
-#DIM LEVEL
 #DIM 攻撃対象
+#DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "ドライブバースト"
 #DIM CONST 消費ＭＰ = 15
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "剣")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("バランス")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "剣")
-			TSTR:コマンド名受渡 = ドライブバースト
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("バランス")
-			TSTR:コマンド名受渡 = ドライブバースト
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■ドライブバースト（装備者が剣得意orバランスタイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が剣得意orバランスタイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：敵横列に自属性の［攻撃力✕100％］ダメージを与える。<br>"
 		詳細文文字列受け渡し変数 += "　　　　対象のチャージターン1つにつき威力が30％上昇する。"
@@ -86,18 +122,34 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "かばう"
 #DIM CONST 消費ＭＰ = 20
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "槍")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("防御")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "槍")
-			TSTR:コマンド名受渡 = かばう
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("防御")
-			TSTR:コマンド名受渡 = かばう
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■かばう（装備者が槍得意or防御タイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が槍得意or防御タイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：自身に次の行動時まで、全ての単体攻撃を味方に代わって受ける効果を与える。"
 		RETURN 消費ＭＰ
@@ -113,13 +165,14 @@ ENDSELECT
 @証アビ関数_ナイトの証_4(処理モード, 対象キャラ)
 #DIM 対象キャラ
 #DIMS 処理モード
+#DIMS CONST アビ名 = "シールドバッシュ"
 #DIM CONST 消費ＭＰ = 0
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		TSTR:コマンド名受渡 = シールドバッシュ
+		TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■シールドバッシュ<br>"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：敵単体に自属性の［防御力✕100％］ダメージを与える。"
 		RETURN 消費ＭＰ

@@ -1,4 +1,5 @@
-﻿@証関数_ファイターの証(処理モード)
+﻿@証関数_ファイターの証(処理モード, 対象キャラ)
+#DIM 対象キャラ
 #DIMS 処理モード
 
 SELECTCASE 処理モード
@@ -6,6 +7,15 @@ SELECTCASE 処理モード
 		証関連文字列受け渡し = 通常ジョブ
 	CASE "証名"
 		TSTR:コマンド名受渡 = ファイターの証
+	CASE "クラス名"
+		SIF 対象キャラ <= 0
+			RETURN 0
+		SELECTCASE GET_JOBSKILL_LEVEL(対象キャラ)
+			CASEELSE
+				RESULTS = ファイター
+				RESULTS:1 = Class.I
+				RETURN 1
+		ENDSELECT
 	CASE "フレーバー"
 		詳細文文字列受け渡し変数 '= "駆け出しの戦士がよく使う前衛用の証。<br>"
 		詳細文文字列受け渡し変数 += "シンプルで使いやすいアビリティが多くの戦士に愛用されている。<br>"
@@ -19,14 +29,24 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "ウェポンバースト"
 #DIM CONST 消費ＭＰ = 100
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		TSTR:コマンド名受渡 = ウェポンバースト
+		TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■ウェポンバースト<br>"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：自身の奥義ゲージを［100％］にする。"
 		RETURN 消費ＭＰ
@@ -39,18 +59,34 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "レイジ"
 #DIM CONST 消費ＭＰ = 15
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "剣")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("サポート")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "剣")
-			TSTR:コマンド名受渡 = レイジ
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("サポート")
-			TSTR:コマンド名受渡 = レイジ
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■レイジ（装備者が剣得意orサポートタイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が剣得意orサポートタイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：味方全体の攻撃力を3ターン［20％/A枠］増加させる。"
 		RETURN 消費ＭＰ
@@ -67,18 +103,34 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
+; #DIM 効果数値, 1
+#DIMS CONST アビ名 = "アーマーブレイク"
 #DIM CONST 消費ＭＰ = 25
-LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
+	IF 得意武器判定(対象キャラ, "斧")
+	ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("バランス")
+	ELSE
+		LEVEL --
+	ENDIF
+ELSE
+	LEVEL = GET_JOBTOKEN_LEVEL()
+ENDIF
+SELECTCASE LEVEL
+	CASEELSE
+		; 効果数値:0 = 0
+ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
-		IF 得意武器判定(対象キャラ, "斧")
-			TSTR:コマンド名受渡 = アーマーブレイク
-		ELSEIF 基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存 == タイプ文字列数値変換("バランス")
-			TSTR:コマンド名受渡 = アーマーブレイク
-		ENDIF
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		詳細文文字列受け渡し変数 '= "■アーマーブレイク（装備者が斧得意orバランスタイプの時）<br>"
+		IF 対象キャラ <= 0
+			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が斧得意orバランスタイプの時）<br>"
+		ELSE
+			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
 		詳細文文字列受け渡し変数 += "　効果：敵単体に自属性の［攻撃力✕150％］ダメージを与える。<br>"
 		詳細文文字列受け渡し変数 += "　　　　対象の防御力を3ターン［15％/B枠］減少させる。基礎成功率100％。"
