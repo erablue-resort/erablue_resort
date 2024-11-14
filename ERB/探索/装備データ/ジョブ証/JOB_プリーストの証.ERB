@@ -11,6 +11,14 @@ SELECTCASE 処理モード
 		SIF 対象キャラ <= 0
 			RETURN 0
 		SELECTCASE GET_JOBSKILL_LEVEL(対象キャラ)
+			CASE IS >= 3
+				RESULTS = ビショップ
+				RESULTS:1 = Class.III
+				RETURN 1
+			CASE 2
+				RESULTS = クレリック
+				RESULTS:1 = Class.II
+				RETURN 1
 			CASEELSE
 				RESULTS = プリースト
 				RESULTS:1 = Class.I
@@ -29,17 +37,21 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
-; #DIM 効果数値, 1
+#DIM 効果数値, 1
 #DIMS CONST アビ名 = "ヒールオール"
 #DIM CONST 消費ＭＰ = 50
 IF 対象キャラ > 0
 	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
 ELSE
-	LEVEL = GET_JOBTOKEN_LEVEL()
+	LEVEL = 1
 ENDIF
 SELECTCASE LEVEL
+	CASE IS >= 3
+		効果数値:0 = 70
+	CASE 2
+		効果数値:0 = 60
 	CASEELSE
-		; 効果数値:0 = 0
+		効果数値:0 = 50
 ENDSELECT
 
 SELECTCASE 処理モード
@@ -48,11 +60,11 @@ SELECTCASE 処理モード
 	CASE "アビ説明文"
 		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
-		詳細文文字列受け渡し変数 += "　効果：味方全体のＨＰを［回復力✕50％］回復させる。"
+		詳細文文字列受け渡し変数 += @"　効果：味方全体のＨＰを［回復力✕{効果数値:0}％］回復させる。"
 		RETURN 消費ＭＰ
 	CASE "アビ効果"
 		CALL アビ対象選択テンプレート_味方全体_生者のみ
-		アビ汎用変数:効果割合 = 50
+		アビ汎用変数:効果割合 = 効果数値:0
 		CALL アビテンプレート_回復処理
 ENDSELECT
 
@@ -60,9 +72,10 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
-; #DIM 効果数値, 1
-#DIMS CONST アビ名 = "キュア"
-#DIM CONST 消費ＭＰ = 5
+#DIM 全体フラグ
+#DIM 消費ＭＰ
+#DIMS CONST アビ名 = "クリア", "クリアオール"
+#DIMS CONST 範囲テキスト = "味方単体", "味方全体"
 IF 対象キャラ > 0
 	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ)
 	IF 得意武器判定(対象キャラ, "杖")
@@ -71,28 +84,39 @@ IF 対象キャラ > 0
 		LEVEL --
 	ENDIF
 ELSE
-	LEVEL = GET_JOBTOKEN_LEVEL()
+	LEVEL = 1
 ENDIF
 SELECTCASE LEVEL
+	CASE IS >= 3
+		全体フラグ = 1
+		消費ＭＰ = 15
+	CASE 2
+		全体フラグ = 1
+		消費ＭＰ = 20
 	CASEELSE
-		; 効果数値:0 = 0
+		全体フラグ = 0
+		消費ＭＰ = 5
 ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
 		SIF LEVEL > 0
-			TSTR:コマンド名受渡 '= アビ名
+			TSTR:コマンド名受渡 '= アビ名:全体フラグ
 	CASE "アビ説明文"
 		IF 対象キャラ <= 0
-			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が杖得意or回復タイプの時）<br>"
+			詳細文文字列受け渡し変数 '= @"■%アビ名:全体フラグ%（装備者が杖得意or回復タイプの時）<br>"
 		ELSE
-			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+			詳細文文字列受け渡し変数 '= @"■%アビ名:全体フラグ%<br>"
 		ENDIF
 		詳細文文字列受け渡し変数 += @"　消費ＭＰ：{消費ＭＰ}<br>"
-		詳細文文字列受け渡し変数 += "　効果：味方単体のデバフ効果を1つ消去する。"
+		詳細文文字列受け渡し変数 += @"　効果：%範囲テキスト:全体フラグ%のデバフ効果を1つ消去する。"
 		RETURN 消費ＭＰ
 	CASE "アビ効果"
-		CALL アビ対象選択テンプレート_味方単体_生者のみ
+		IF 全体フラグ
+			CALL アビ対象選択テンプレート_味方全体_生者のみ
+		ELSE
+			CALL アビ対象選択テンプレート_味方単体_生者のみ
+		ENDIF
 		CALL アビテンプレート_有利効果_デバフ消去
 ENDSELECT
 
@@ -100,7 +124,6 @@ ENDSELECT
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIM LEVEL
-; #DIM 効果数値, 1
 #DIMS CONST アビ名 = "ディスペル"
 #DIM CONST 消費ＭＰ = 10
 IF 対象キャラ > 0
@@ -111,19 +134,15 @@ IF 対象キャラ > 0
 		LEVEL --
 	ENDIF
 ELSE
-	LEVEL = GET_JOBTOKEN_LEVEL()
+	LEVEL = 1
 ENDIF
-SELECTCASE LEVEL
-	CASEELSE
-		; 効果数値:0 = 0
-ENDSELECT
 
 SELECTCASE 処理モード
 	CASE "アビ名"
 		SIF LEVEL > 0
 			TSTR:コマンド名受渡 '= アビ名
 	CASE "アビ説明文"
-		IF 対象キャラ <= 0
+		IF 対象キャラ <= 0 && LEVEL <= 1
 			詳細文文字列受け渡し変数 '= @"■%アビ名%（装備者が槍得意or回復タイプの時）<br>"
 		ELSE
 			詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
@@ -137,6 +156,43 @@ SELECTCASE 処理モード
 ENDSELECT
 
 @証アビ関数_プリーストの証_4(処理モード, 対象キャラ)
+#DIM 対象キャラ
+#DIMS 処理モード
+#DIM LEVEL
+#DIM 消費ＭＰ
+#DIM 効果数値, 1
+#DIMS CONST アビ名 = "リヴァイヴ"
+IF 対象キャラ > 0
+	LEVEL = GET_JOBSKILL_LEVEL(対象キャラ) - 1
+ELSE
+	LEVEL = 0
+ENDIF
+SELECTCASE LEVEL
+	CASE IS >= 2
+		消費ＭＰ = 16
+		効果数値:0 = 45
+	CASEELSE
+		消費ＭＰ = 20
+		効果数値:0 = 30
+ENDSELECT
+
+SELECTCASE 処理モード
+	CASE "アビ名"
+		SIF LEVEL > 0
+			TSTR:コマンド名受渡 '= アビ名
+	CASE "アビ説明文"
+		詳細文文字列受け渡し変数 '= @"■%アビ名%<br>"
+		詳細文文字列受け渡し変数 += @"　消費ＭＰ：最大ＭＰの{消費ＭＰ}％<br>"
+		詳細文文字列受け渡し変数 += @"　効果：戦闘不能の味方単体のＨＰを［回復力✕{効果数値:0}％］回復させる。"
+		RETURN (基礎BATTLE_STATE:対象キャラ:最大ＭＰ * 消費ＭＰ + 99) / 100
+	CASE "アビ効果"
+		CALL アビ対象選択テンプレート_味方単体_死者のみ
+		アビ汎用変数:効果割合 = 効果数値:0
+		アビ汎用変数:蘇生可能オプション = 1
+		CALL アビテンプレート_回復処理
+ENDSELECT
+
+@証アビ関数_プリーストの証_10(処理モード, 対象キャラ)
 #DIM 対象キャラ
 #DIMS 処理モード
 #DIMS CONST アビ名 = "退魔の祈り"
