@@ -1,0 +1,116 @@
+﻿
+@RAPE_COMNAME_S9_1
+#FUNCTIONS
+TSTR:コマンド名受渡 = 舌をねじ込む
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_S_9_1
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ_被挿入中")
+
+
+@RAPE_COM_TOOLTIP_S9_1
+LOCALS = <br>■舌をねじ込む<br>
+LOCALS += "キスしている相手の口内に舌をねじ入れて絡ませる。<br>ディープキスモードに移行。<br>[舌使い][猫舌]によって効果が増減。"
+LOCALS += "<br>RAPE_COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：露出・接触・快Ｓ・不潔・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM_S9_1
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("ディープキス", PLAYER, TARGET)
+;-------------------------------------------------
+;RAPE_COM別FLAGの設定
+;-------------------------------------------------
+;奉仕コマンドフラグ
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 250)
+CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 150)
+
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 50)
+
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+ENDIF
+
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+EXP:キス経験 ++
+EXP:PLAYER:キス経験 ++
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE_S9_1
+;舌を入れる実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE_S("9_1")
+	RETURN RESULT
+;ボールギャグ使用中は不可
+; SIF TEQUIP:ボールギャグ
+; 	RETURN 0
+;猫舌の調教者の場合は技巧Lv2以上必要
+SIF TALENT:PLAYER:猫舌 && ABL:PLAYER:技巧 < 2
+	RETURN 0
+;キスモードじゃない時はアウト
+SIF MODE_確認_完全一致("キス", PLAYER, TARGET) < 0 && MODE_確認_完全一致("キス", TARGET, PLAYER) < 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM_S9_1
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の唇の隙間%TEXTR("に舌を割り込ませ/を舌で割り開き")%、%CALLNAME:TARGET%の%TEXTR("口腔を隅々まで舐め回した/舌の感触を堪能した/")%…
+
+;朦朧を前提としているので
+IF CFLAG:TARGET:発情期フラグ < 0
+	PRINTFORML 無理やり犯しているにもかかわらず、発情で朦朧とした%CALLNAME:TARGET%は無意識に%CALLNAME:PLAYER%に媚び、ゆるゆると自ら舌を絡ませてきている…
+ELSEIF PALAM:欲情 >= PALAMLV:4
+	PRINTFORML 無理やり犯しているにもかかわらず、欲情で朦朧とした%CALLNAME:TARGET%は無意識に%CALLNAME:PLAYER%に媚び、快楽を求めて自ら舌を絡ませてきている…
+ENDIF

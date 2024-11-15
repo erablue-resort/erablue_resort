@@ -1,0 +1,162 @@
+﻿;-------------------------------------------------
+;まんこを舐める
+;愛撫系コマンド　レベル1
+;-------------------------------------------------
+@RAPE_COMNAME1
+#FUNCTIONS
+TSTR:コマンド名受渡 = まんこを舐める
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_1
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ")
+
+
+@RAPE_COM_TOOLTIP_1
+LOCALS = <br>■まんこを舐める<br>
+LOCALS += "相手の股間に顔を埋め、クリトリスを中心に舌で刺激し楽しむ。<br>同意を得ていないので「シックスナイン」には派生しない。<br>実行者が[舌使い][猫舌]を持っている場合、効果が増減する。"
+LOCALS += "<br>RAPE_COMタイプ：うふふ<br>取得ソース：快Ｃ・露出・接触・液体"
+LOCALS += "<br>固有の取得経験：口淫経験(あなた)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM1
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+LOCAL = 150
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+SIF TALENT:PLAYER:舌使い
+	TIMES LOCAL , 1.50
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	TIMES LOCAL , 0.75
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, LOCAL)
+
+CALL SOURCE_CALC_液体(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 100)
+
+;下タイツがある場合は破く。
+IF TEQUIP:下タイツあり == 1
+	TEQUIP:下タイツ破れ = 1
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+;前張りがあったら剥がす
+IF TEQUIP:下半身下着あり == 2
+	TEQUIP:下半身下着あり = 0
+	RFLAG:コマンド結果受渡し変数２ = 1
+ENDIF
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+
+;調教者が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
+SIF TALENT:PLAYER:猫舌
+	EXP:PLAYER:嗜虐快楽経験 += 1
+;口淫経験
+EXP:PLAYER:口淫経験 ++
+
+IF CFLAG:PLAYER:ファーストキスフラグ == 0
+	CFLAG:PLAYER:ファーストキスフラグ = 10
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の[クリトリス]にファーストキスを捧げた</font><img src='えっちハート'>","うふふ")
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE1
+;クンニ実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(1)
+	RETURN RESULT
+;クリがない場合駄目
+SIF TALENT:TARGET:Ｃ感度 == -2
+	RETURN 0
+;女性器がないとダメ
+SIF GETBIT(TALENT:TARGET:性別, 0) == 0
+	RETURN 0
+;下半身着衣
+;前鎧、めくれない服があると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+
+	
+;シックスナインには派生しない。処理に自信がないのでフェラ中で禁止をかける。
+IF MODE_確認_完全一致("フェラチオ系", TARGET, PLAYER) > -1
+	RETURN 0
+ELSE
+	;口を何かに使ってる・届かないなら無理
+	SIF TEQUIP:PLAYER:口
+		RETURN 0
+	;クリを何かに使ってる・届かないなら無理
+	SIF TEQUIP:TARGET:クリトリス
+		RETURN 0
+ENDIF
+;挿入系時は個別にOFF
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1
+	RETURN 0
+SIF MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	RETURN 0
+
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+	SIF CFLAG:PLAYER:ファーストキスフラグ == 0
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM1
+
+PRINTFORM %CALLNAME:PLAYER%は、
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORM 履いていたタイツを強引に%TEXTR("引きちぎって/破いて")%露出させた
+	ELSEIF RFLAG:コマンド結果受渡し変数２ == 1
+		PRINTFORM 貼ってあった前張りをを強引に剥がして露出させた
+	ELSEIF !TEQUIP:下半身服あり && TEQUIP:下半身下着あり
+		PRINTFORM 下着をずらして露出させた
+	ELSEIF TEQUIP:ずらし可
+		PRINTFORM 服をずらして露出させた
+	ELSEIF TEQUIP:スカートめくり可
+		PRINTFORM 服を捲り上げて露出させた
+	ENDIF
+PRINTFORM %CALLNAME:TARGET%の秘唇にしゃぶりつき、
+;ふたなり＋欲情のPLAMLV3以上
+IF GETBIT(TALENT:性別, 1) && PALAM:欲情 >= PALAMLV:3
+	PRINTFORM 強姦されているにもかかわらず興奮でそそり勃ったペニスを手でしごきながら、
+;ふたなり
+ELSEIF GETBIT(TALENT:性別, 1)
+	PRINTFORM ふたなりチンポを手で弄りながら、
+ENDIF
+;欲情のPALAMLV3以上
+IF GETBIT(TALENT:性別, 1)
+;ふたなりの場合クリはちんぽだからしゃぶれないんじゃないか？
+	PRINTFORM 愛液で濡れた陰唇を舐めしゃぶった
+ELSEIF PALAM:欲情 >= PALAMLV:3
+	PRINTFORM 強姦されているにもかかわらず欲情でビンビンに尖ったクリトリスを%TEXTR("吸い上げた/舌で舐めほじった")%
+ELSE
+	PRINTFORM クリトリスを%TEXTR("吸い上げて/舌で舐めほじって")%反応を楽しんだ
+ENDIF
+PRINTFORML …
+

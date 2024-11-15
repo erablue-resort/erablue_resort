@@ -1,0 +1,174 @@
+﻿;-------------------------------------------------
+;唇を奪う
+;コミュニケーション系コマンド、レベル1
+;-------------------------------------------------
+@RAPE_COMNAME9
+#FUNCTIONS
+TSTR:コマンド名受渡 = 唇を奪う
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_9
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ_被挿入中")
+
+
+
+@RAPE_COM_TOOLTIP_9
+LOCALS = <br>■唇を奪う<br>
+LOCALS += "相手の唇を無理やり奪う。キスモードに移行。<br>[舌使い][猫舌]によって効果が増減。"
+LOCALS += "<br>RAPE_COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：露出・接触・快Ｓ・不潔・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@RAPE_COM9
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+CALL MODE_CHANGE("キス", PLAYER, TARGET)
+;-------------------------------------------------
+;RAPE_COM別FLAGの設定
+;-------------------------------------------------
+;奉仕コマンドフラグ
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+IF !CFLAG:睡眠
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_不潔(TARGET, PLAYER, 50)
+
+	;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+	IF TALENT:PLAYER:舌使い
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+	ENDIF
+
+	IF TALENT:TARGET:舌使い
+		CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+	ENDIF
+
+	;猫舌では減少
+	SIF TALENT:PLAYER:猫舌
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+	;同性愛　レズなら戻り値1ゲイなら戻り値2
+	IF HETEROSEX(TARGET,PLAYER)
+		EXP:同性愛経験 += 3
+		EXP:PLAYER:同性愛経験 += 3
+	ENDIF
+
+	SIF TALENT:恋慕
+		EXP:愛情経験 += 1
+
+	SIF TALENT:TARGET:猫舌
+		EXP:嗜虐快楽経験 += 1
+ENDIF
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 150)
+ENDIF
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+EXP:キス経験 ++
+EXP:PLAYER:キス経験 ++
+
+IF CFLAG:PLAYER:ファーストキスフラグ == 0
+	CFLAG:PLAYER:ファーストキスフラグ = 1
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%の[唇]で初めてのキスを済ませた</font><img src='えっちハート'>","うふふ")
+ENDIF
+
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	CFLAG:TARGET:ファーストキスフラグ = 1
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%の[唇]に初めてのキスを奪われてしまった</font><img src='えっちハート'>","うふふ")
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE9
+;キスする実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(9)
+	RETURN RESULT
+;ボールギャグ使用中は不可
+; SIF TEQUIP:ボールギャグ
+; 	RETURN 0
+;口を何かに使ってるなら無理
+IF TEQUIP:PLAYER:口
+	RETURN 0
+ENDIF
+SIF TEQUIP:TARGET:口
+	RETURN 0
+;キス魔は猫舌無視
+SIF TALENT:TARGET:キス嗜好 == 2
+	RETURN 1
+;猫舌の調教者の場合は技巧Lv2以上必要
+SIF TALENT:PLAYER:猫舌 && ABL:PLAYER:技巧 < 2
+	RETURN 0
+
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+	SIF CFLAG:PLAYER:ファーストキスフラグ == 0
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM9
+
+PRINTFORM %CALLNAME:PLAYER%は
+
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	PRINTFORML %CALLNAME:TARGET%を%TEXTR("思うがまま/欲望のまま")%に%TEXTR("犯しながら/犯し腰を打ちつけ/犯し腰を振りたくりながら/")%、
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の
+ENDIF
+
+IF TALENT:TARGET:恋人持ち == 1
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORM 、まだ恋人にも捧げていなかったなかった無垢な
+	ELSE
+		PRINTFORM 、恋人のものだったはずの
+	ENDIF
+ELSEIF TALENT:TARGET:恋人持ち == 2
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORM 、伴侶にも捧げていなかったなかった無垢な
+	ELSE
+		PRINTFORM 、伴侶のものだったはずの
+	ENDIF
+ELSEIF TALENT:TARGET:恋人持ち == 3
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORM 、亡き伴侶にも捧げていなかったなかった無垢な
+	ELSE
+		PRINTFORM 、かつては伴侶に捧げていたであろう
+	ENDIF
+ELSE
+	IF RFLAG:コマンド結果受渡し変数 == 1
+		PRINTFORM 、まだ誰ともキスしたことがなかった無垢な
+	ELSE
+		PRINTFORM %TEXTR("柔らかな/瑞々しい/美味そうな/可愛らしい")%
+	ENDIF
+ENDIF
+
+PRINTFORML 唇を%TEXTR("無理やり奪った/力ずくで奪い、味わった/無理やり奪い、堪能した")%…
+

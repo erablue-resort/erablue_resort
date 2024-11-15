@@ -1,0 +1,123 @@
+﻿;-------------------------------------------------
+;乳首に吸いつく
+;愛撫系コマンド、レベル1
+;-------------------------------------------------
+@RAPE_COMNAME7
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳首に吸いつく
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_7
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ_被挿入中")
+
+@RAPE_COM_TOOLTIP_7
+LOCALS = <br>■乳首に吸いつく<br>
+LOCALS += "相手の乳首にしゃぶりつき、味わう。"
+LOCALS += "<br>RAPE_COMタイプ：うふふor被挿入中<br>取得ソース：快Ｂ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+
+@RAPE_COM7
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+
+CALL MODE_CHANGE("乳首吸い", PLAYER, TARGET)
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+RCVAR:乳首開発フラグ = 2
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 70)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 70)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 15)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 100)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 3
+	EXP:PLAYER:同性愛経験 += 3
+ENDIF
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:PLAYER:猫舌
+	EXP:PLAYER:嗜虐快楽経験 += 1
+
+;口淫経験
+EXP:PLAYER:口淫経験 ++
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE7
+;乳首吸い
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(7)
+	RETURN RESULT
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:上半身服あり && (!TEQUIP:手差し込み可 && !TEQUIP:はだけ可)
+	RETURN 0
+SIF TEQUIP:上タイツあり && !TEQUIP:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:上半身下着あり
+	RETURN 0
+;ニプルキャップ使用中は不可
+SIF TEQUIP:16
+	RETURN 0
+;搾乳機使用中は不可
+SIF TEQUIP:17
+	RETURN 0
+;乳房電極装着中はダメ
+SIF TEQUIP:24
+	RETURN 0
+;口を何かに使ってるなら無理
+IF GETBIT(TEQUIP:PLAYER:口, 0)
+	RETURN 0
+ENDIF
+
+;陥没乳首は乳首露出させてからでないと不可
+SIF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+;授乳手コキや乳首責めとの調整は保留
+
+@RAPE_MESSAGE_COM7
+PRINTFORM %CALLNAME:PLAYER%は
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	PRINTFORM %CALLNAME:TARGET%とつながったまま、目の前で誘うように揺れる%OPPAI_DESCRIPTION(TARGET)%の
+ELSE
+	PRINTFORM 眼前に晒された%CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%の
+ENDIF
+
+
+PRINTFORML %TEXTR("、そのいやらしい先端/、その先端に実った甘美な乳首")%に%TEXTR("吸い/しゃぶり")%ついた…
+

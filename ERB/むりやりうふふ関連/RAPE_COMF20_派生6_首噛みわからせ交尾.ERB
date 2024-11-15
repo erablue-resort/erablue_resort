@@ -1,0 +1,134 @@
+﻿
+@RAPE_COMNAME_S20_6
+#FUNCTIONS
+TSTR:コマンド名受渡 = 首噛みわからせ交尾
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_S_20_6
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ｖ系")
+
+@RAPE_COM_TOOLTIP_S20_6
+LOCALS = <br>■首噛みわからせ交尾<br>
+LOCALS += "首筋に噛みつき、歯をたてながら腰を振るコマンド。<br>ドラフ、エルーン及びマゾっ気持ちに効果大。"
+LOCALS += "<br>体格差がない場合の正常位、後背位、対面座位、寝バック、立ちバック時のみ実行可能。"
+LOCALS += "<br>COMタイプ：Ｖ系<br>取得ソース：征服・快Ｖ・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM_S20_6
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_征服(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 400)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 180)
+RCVAR:TARGET:苦痛コマンドフラグ = 1
+RCVAR:PLAYER:嗜虐コマンドフラグ = 1
+
+;マゾに効果大。ただし苦痛の量が増すのではなくそのほかが増える。
+;痛みで締まるので快Ｖも盛っちゃお
+IF ABL:TARGET:マゾ性感 > 2
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 80)
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 80)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
+	EXP:TARGET:苦痛快楽経験 += 1
+ELSE
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 60)
+ENDIF
+
+;エルーンとドラフにはさらに効果が増す。マゾエルーンが重複でマシマシ効果になるようにこの調整。
+;猫は痛みで排卵するって言うし、噛まれて無意識に腰へこへこしちゃうマゾユエルは捗るのでこれでヨシ！
+IF TALENT:TARGET:種族 == 2 || TALENT:TARGET:種族 == 3
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 80)
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 80)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 120)
+	EXP:TARGET:苦痛快楽経験 += 1
+ENDIF
+
+;サドは嗜虐快楽
+SIF ABL:PLAYER:サド性感
+	EXP:PLAYER:嗜虐快楽経験 ++
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 4
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 4
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE_S20_6
+;実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE_S("20_6")
+	RETURN RESULT
+;噛む側が口を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:口
+	RETURN 0
+
+;体格問題 TARGETのほうが3サイズ大きいと届かない
+SIF 体格差計算(PLAYER, TARGET) >= 3
+	RETURN 0
+;組み敷く系や密着系モードじゃない時はアウト。背面座位とかでもできないことはないんだけど……シチュ的にどうだろ？
+SIF !MODE_存在判定_完全一致("正常位", PLAYER, TARGET) && !MODE_存在判定_完全一致("対面座位", PLAYER, TARGET) && !MODE_存在判定_完全一致("後背位", PLAYER, TARGET) && !MODE_存在判定_完全一致("立ちバック", PLAYER, TARGET) && !MODE_存在判定_完全一致("寝バック", PLAYER, TARGET)
+	RETURN 0
+RETURN 1
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM_S20_6
+
+PRINTFORM %CALLNAME:PLAYER%は
+PRINTFORML %CALLNAME:TARGET%の首筋に%TEXTR("噛みつき/歯をたて")%ながら%TEXTR("強く/激しく")%腰を打ち付けた…
+
+IF ABL:TARGET:マゾ性感 > 2 || TALENT:TARGET:種族 == 2 || TALENT:TARGET:種族 == 3 || 小等部魔法少女判定(TARGET)
+;こっそりプリヤ勢も入れちゃお
+	PRINTFORM 痛みに嬌声をあげる%CALLNAME:TARGET%のカラダは%TEXTR("被支配のマゾ性感に打ち震え、/誰が『ご主人様』かを従順に理解し、/この場における上下関係を本能的に理解して、")%
+	PRINTFORML %TEXTR("膣肉の締め付けを強くして/反射的に腰を擦りつけるようにして/無意識にヘコヘコと腰を振って/ペニスを深くまで咥えこみ、子宮を捧げて")%媚びている
+ELSEIF TALENT:種族 == 5
+	PRINTFORM 痛みに嬌声をあげる%CALLNAME:TARGET%のカラダは
+	IF RAND:4 == 0
+		PRINTFORML 星の民に『使われる』ために作られた奉仕種族としての%TEXTR("隷属/従属/屈服/被支配")%%TEXTR("本能/欲求")%を思い出し、
+	ELSE
+		PRINTFORM %TEXTR("被支配のマゾ性感に打ち震え、/誰が『ご主人様』かを従順に理解し、/この場における上下関係を本能的に理解して、")%
+	ENDIF
+	PRINTFORML %TEXTR("膣肉の締め付けを強くして/反射的に腰を擦りつけるようにして/無意識にヘコヘコと腰を振って/ペニスを深くまで咥えこみ、子宮を捧げて")%媚びている
+ENDIF
+
+;わからされてしまったことで、レイプから合意へ遷移する
+;コマンドの実行によってレイプモードから普通のうふふへと『コマンドが塗り替わる』演出
+;「首噛みわからせ交尾」が、レイプを合意の交尾に再構築する！リ・コントラクト・ユニバース！！
+;PRINTFORML %CALLNAME:PLAYER%が上位者なのだと本能で%TEXTR("理解させられてしまった/わからされてしまった")%%CALLNAME:TARGET%のカラダは、
+;PRINTFORML 媚びる嬌声をより甘く、雌穴の締め付けをより強くして屈服し、嫌がる本人の意思を置き去りにして%CALLNAME:PLAYER%%TEXTR("とのセックス/との交尾/に『犯していただく』こと/に『使っていただく』こと")%に勝手に合意してしまった…

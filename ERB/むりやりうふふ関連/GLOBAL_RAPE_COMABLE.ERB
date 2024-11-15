@@ -1,0 +1,202 @@
+﻿;COMABLE一括管理
+@GLOBAL_RAPE_COMABLE(コマンド番号)
+#FUNCTION
+#DIM コマンド番号
+#DIMS 分割文字列, 10
+;ARG = コマンド番号
+
+;コマンド種別による一括管理
+LOCALS = 
+VARSET 分割文字列
+TFLAG:コマンドタイプ受渡 = -1
+睡眠中許可 = 0
+
+;種別取得
+
+TRYCALLFORMF RAPE_COMTYPE_{コマンド番号}
+SIF TFLAG:コマンドタイプ受渡 >= 0
+	LOCALS = %RAPE_COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+
+;&や_が入ってるとAND条件やOR条件になる
+IF TFLAG:コマンドタイプ受渡 == 100
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "&", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_RAPE_COMABLE_TYPE(分割文字列:LOCAL)
+			;AND条件なので一個でも不許可（1が返ってくる）なら通さない
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部許可だったはずなので通す
+	RESULT = 0
+	RETURNF 0
+ENDIF
+
+IF TFLAG:コマンドタイプ受渡 == 101
+	SPLIT TSTR:複合コマンドタイプ受け渡し, "_", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_RAPE_COMABLE_TYPE(分割文字列:LOCAL) == 0
+			;OR条件なので一個でも許可（0が返ってくる）なら通す
+			RESULT = 0
+			RETURNF 0
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部不許可だったはずなので通さない
+	RESULT = 0
+	RETURNF 1
+ENDIF
+
+
+LOCAL = GLOBAL_RAPE_COMABLE_TYPE(LOCALS)
+RESULT = 0
+睡眠中許可 = 0
+
+RETURNF LOCAL
+
+@GLOBAL_RAPE_COMABLE_S(コマンドキー)
+#FUNCTION
+#DIMS コマンドキー
+#DIMS 分割文字列, 10
+
+;コマンド種別による一括管理
+LOCALS = 
+TFLAG:コマンドタイプ受渡 = -1
+;種別取得
+
+TRYCALLFORMF COMTYPE_S_%コマンドキー%
+IF TFLAG:コマンドタイプ受渡 >= 100
+	LOCALS = %TSTR:複合コマンドタイプ受け渡し%
+ELSEIF TFLAG:コマンドタイプ受渡 >= 0
+	LOCALS = %COMTYPE_S(TFLAG:コマンドタイプ受渡)%
+ENDIF
+VARSET 分割文字列
+;&や_が入ってるとAND条件やOR条件になる
+STRFIND LOCALS, "&"
+IF RESULT > -1
+	SPLIT LOCALS, "&", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_RAPE_COMABLE_TYPE(分割文字列:LOCAL)
+			;AND条件なので一個でも不許可（1が返ってくる）なら通さない
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部許可だったはずなので通す
+	RESULT = 0
+	RETURNF 0
+ENDIF
+
+STRFIND LOCALS, "_"
+IF RESULT > -1
+	SPLIT LOCALS, "_", 分割文字列
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, LOCAL:1
+		IF GLOBAL_RAPE_COMABLE_TYPE(分割文字列:LOCAL) == 0
+			;OR条件なので一個でも許可（0が返ってくる）なら通す
+			RESULT = 0
+			RETURNF 0
+		ENDIF
+	NEXT
+	;FORを抜けた＝全部不許可だったはずなので通さない
+	RESULT = 0
+	RETURNF 1
+ENDIF
+
+LOCAL = GLOBAL_RAPE_COMABLE_TYPE(LOCALS)
+RESULT = 0
+
+RETURNF LOCAL
+
+
+@GLOBAL_RAPE_COMABLE_TYPE(コマンドキー)
+#FUNCTION
+#DIM 睡眠フラグ
+#DIMS コマンドキー
+
+睡眠フラグ = CFLAG:睡眠
+SIF 睡眠中許可
+	睡眠フラグ = 2
+
+IF コマンドキー == "被挿入中"
+;被挿入中コマンドは被挿入中のみ
+	IF !MODE_存在判定_ターゲット側("ＶＡ挿入系", PLAYER)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+ELSE
+	;被挿入中は基本全部アウト
+	IF MODE_存在判定_ターゲット側("ＶＡ挿入系", PLAYER)
+		RESULT = 0
+		RETURNF 1
+	ENDIF
+	SELECTCASE コマンドキー
+	;各コマンドのカテゴリで分ける
+	;コマンド番号気にしなくてもあとから無秩序に追加できるように
+	CASE "うふふ"
+		IF SAVESTR:ゲームフェイズ管理 != "むりやりうふふモード"
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || 睡眠フラグ == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密) || CFLAG:体力限界 == 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "Ｖ系"
+		IF SAVESTR:ゲームフェイズ管理 != "むりやりうふふモード"
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || 睡眠フラグ == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密) || CFLAG:体力限界 == 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "Ａ系"
+		IF SAVESTR:ゲームフェイズ管理 != "むりやりうふふモード"
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || 睡眠フラグ == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密) || CFLAG:体力限界 == 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "道具系"
+		IF SAVESTR:ゲームフェイズ管理 != "むりやりうふふモード"
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		IF TARGET:1 <= 0 || 睡眠フラグ == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密) || CFLAG:体力限界 == 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "触手系"
+		;うふふのみ
+		IF SAVESTR:ゲームフェイズ管理 != "むりやりうふふモード"
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		;相手必須
+		IF TARGET:1 <= 0 || 睡眠フラグ == 1 || (CFLAG:隠密 && !CFLAG:PLAYER:隠密) || CFLAG:体力限界 == 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		;触手技能必須
+		IF !あなた特殊能力:触手変化術
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+		;触手性癖必須
+		IF 性癖素質:TARGET:触手プレイ < 1
+			RESULT = 0
+			RETURNF 1
+		ENDIF
+	CASE "いつでも"
+	ENDSELECT
+ENDIF
+
+
+
+
+

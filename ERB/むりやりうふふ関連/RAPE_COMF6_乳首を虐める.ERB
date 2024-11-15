@@ -1,0 +1,156 @@
+﻿;-------------------------------------------------
+;乳首を虐める
+;愛撫系コマンド、レベル1
+;-------------------------------------------------
+@RAPE_COMNAME6
+#FUNCTIONS
+IF TALENT:陥没乳首 && !TCVAR:陥没乳首露出フラグ
+	TSTR:コマンド名受渡 = 陥没乳首を発掘する
+	;こっちのほうが「オモチャにしてる感」強くて征服感煽れるかなって
+ELSE
+	TSTR:コマンド名受渡 = 乳首を虐める
+ENDIF
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_6
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ_被挿入中")
+
+
+@RAPE_COM_TOOLTIP_6
+LOCALS = <br>■乳首を虐める<br>
+LOCALS += "相手の乳首をオモチャにする。ほじり出したり、つねったり。"
+LOCALS += "<br>RAPE_COMタイプ：うふふor被挿入中<br>取得ソース：快Ｂ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：乳首開発(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM6
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+RCVAR:乳首開発フラグ = 2
+
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 120)
+
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 60)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 50)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE6
+;乳首責め
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(6)
+	RETURN RESULT
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+	
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:上半身服あり && (!TEQUIP:手差し込み可 && !TEQUIP:はだけ可)
+	RETURN 0
+SIF TEQUIP:上タイツあり && !TEQUIP:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:上半身下着あり
+	RETURN 0
+;ニプルキャップ使用中は不可
+SIF TEQUIP:16
+	RETURN 0
+;搾乳機使用中は不可
+SIF TEQUIP:17
+	RETURN 0
+;乳房電極装着中はダメ
+SIF TEQUIP:24
+	RETURN 0
+;指を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:指 && MODE_確認_完全一致("授乳手コキ", TARGET, PLAYER) < 0 && MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) < 0
+	RETURN 0
+;胸に届かないなら無理
+CALL MODE_部位届く判定(部位_胸, PLAYER, TARGET)
+SIF RESULT == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM6
+
+PRINTFORM %CALLNAME:PLAYER%は
+
+
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	PRINTFORM %CALLNAME:TARGET%とつながったまま、%OPPAI_DESCRIPTION(TARGET)%
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%
+ENDIF
+SELECTCASE TALENT:陥没乳首
+	CASE 0
+		;欲情のPALAMLV3以上
+		IF PALAM:欲情 >= PALAMLV:3
+			PRINTFORM の先端で、乱暴されているにも関わらず%TEXTR("すっかり硬くなった/ビンビンに硬くなった/")%%TEXTR("突起/乳首")%を
+			IF MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) > -1
+				PRINTFORML 舌でねぶり楽しんだ…
+			ELSE
+				PRINTFORML %TEXTR("指の腹でぎゅっと押し潰してやった/指の腹でつねってやった/指先につまんで絞るように引っぱってやった")%…
+			ENDIF
+		ELSE
+			PRINTFORM の先端の、まだ柔らかい%TEXTR("突起/乳首")%を
+			IF MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) > -1
+				PRINTFORML 舌でねぶり楽しんだ…
+			ELSE
+				PRINTFORML %TEXTR("指の腹でぎゅっと押し潰してやった/指の腹でつねってやった/指先につまんで絞るように引っぱってやった")%…
+			ENDIF
+		ENDIF
+	CASE 1
+		IF !TCVAR:陥没乳首露出フラグ
+			PRINTFORM の凹みに
+			IF MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) > -1
+				PRINTFORM 舌
+			ELSE
+				PRINTFORM 指
+			ENDIF
+			PRINTFORML を這わせ、隠れた乳首をほじり、弄った…
+		ELSEIF TCVAR:陥没乳首露出フラグ == 10
+			;フラグの数値が10になるのは勃起直後のみのはず
+			PRINTFORM の凹みを
+			IF MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) > -1
+				PRINTFORM 舌
+			ELSE
+				PRINTFORM 指
+			ENDIF
+			PRINTFORML でほじくると、
+			PRINTFORML こりこりに硬くなった%CALLNAME:TARGET%の乳首が外に顔を出した…
+		ELSE
+			PRINTFORM の先端で、乱暴されているにも関わらず%TEXTR("すっかり硬くなった/ビンビンに硬くなった/")%%TEXTR("突起/乳首")%を
+			IF MODE_確認_完全一致("授乳手コキ", TARGET, PLAYER) > -1 || MODE_確認_完全一致("乳首吸い", PLAYER, TARGET) > -1
+				PRINTFORML 舌でねぶり楽しんだ…
+			ELSE
+				PRINTFORML %TEXTR("指の腹でぎゅっと押し潰してやった/指の腹でつねってやった/指先につまんで絞るように引っぱってやった")%…
+			ENDIF
+		ENDIF
+ENDSELECT
+
