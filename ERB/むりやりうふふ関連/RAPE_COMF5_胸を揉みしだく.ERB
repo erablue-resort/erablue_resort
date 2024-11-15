@@ -1,0 +1,95 @@
+﻿;-------------------------------------------------
+;胸を揉みしだく
+;愛撫系コマンド、レベル2
+;-------------------------------------------------
+@RAPE_COMNAME5
+#FUNCTIONS
+TSTR:コマンド名受渡 = 胸を揉みしだく
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_5
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ_被挿入中")
+
+
+@RAPE_COM_TOOLTIP_5
+LOCALS = <br>■胸を揉みしだく<br>
+LOCALS += "相手の胸を揉みしだく。好き勝手揉むのでまあまあ痛い。"
+LOCALS += "<br>RAPE_COMタイプ：うふふor被挿入中<br>取得ソース：快Ｂ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM5
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 100)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+
+;スパンキングが100ならまぁこのくらいでしょ
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 60)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE5
+;胸愛撫実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(5)
+	RETURN RESULT
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+SIF GETBIT(TALENT:TARGET:性別, 0) == 0
+	RETURN 0
+
+;鎧があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+;指を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;胸を何かに使ってる・届かないなら無理
+SIF TEQUIP:TARGET:胸
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM5
+
+PRINTFORM %CALLNAME:PLAYER%は
+
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	PRINTFORM %CALLNAME:TARGET%とつながったまま、%OPPAI_DESCRIPTION(TARGET)%
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の%OPPAI_DESCRIPTION(TARGET)%
+ENDIF
+;欲望のPALAMLV3以上＋
+IF PALAM:欲情 >= PALAMLV:3
+	PRINTFORML %TEXTR("の先端の、すっかり硬くなった突起をつまみあげた/を揉みしだき、硬くなった乳首を手のひらで転がし弄んだ/を乱暴に揉み潰した")%…
+ELSE
+	PRINTFORML を%TEXTR("思うさま揉みしだいた/乱暴に揉み潰した/玩具にして弄んだ")%…
+ENDIF
+

@@ -1,0 +1,102 @@
+﻿;-------------------------------------------------
+;尻を叩く
+;-------------------------------------------------
+@RAPE_COMNAME11
+#FUNCTIONS
+TSTR:コマンド名受渡 = 尻を叩く
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_11
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ")
+
+@RAPE_COM_TOOLTIP_11
+LOCALS = <br>■尻を叩く<br>
+LOCALS += "相手の尻を叩き、痛みと快楽を与えるコマンド。"
+LOCALS += "<br>RAPE_COMタイプ：うふふ<br>取得ソース：快Ｓ・苦痛・反感（一定条件時）・歓楽（一定条件時）"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM11
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+CALL SOURCE_CALC_征服(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 100)
+IF ABL:TARGET:マゾ性感 > 2
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 150)
+ELSE
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 60)
+ENDIF
+RCVAR:TARGET:苦痛コマンドフラグ = 1
+RCVAR:PLAYER:嗜虐コマンドフラグ = 1
+
+;サドは嗜虐快楽
+SIF ABL:サド性感
+	EXP:嗜虐快楽経験 ++
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE11
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(11)
+	RETURN RESULT
+;指を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;挿入中は一部を除きダメ
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1
+	SIF MODE_確認_完全一致("後背位", PLAYER, TARGET) < 0 && MODE_確認_完全一致("立ちバック", PLAYER, TARGET) < 0
+		RETURN 0
+ENDIF
+IF MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1
+	SIF MODE_確認_完全一致("Ａ後背位", PLAYER, TARGET) < 0 && MODE_確認_完全一致("Ａ立ちバック", PLAYER, TARGET) < 0
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM11
+PRINTFORM %CALLNAME:PLAYER%は
+
+IF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1
+	PRINTFORM %CALLNAME:TARGET%%TEXTR("とつながったまま/の尻に腰を打ちつけながら/を後ろから犯しながら")%、
+ELSE
+	PRINTFORM %CALLNAME:TARGET%の
+ENDIF
+IF TALENT:TARGET:体型 >= 1
+	;肉感的以上
+	PRINTFORM %TEXTR("むっちりとした/もっちりとした/むっちりと肉の乗った/もっちりと肉感的な")%
+ELSEIF TALENT:TARGET:体型 <= -2
+	;細身以下
+	PRINTFORM 肉付きの薄い華奢な
+ENDIF
+PRINTFORML %TEXTR("尻/尻たぶ/尻肉")%を%TEXTR("平手/手のひら")%で強く幾度も叩き、鋭い痛みと支配の証を刻み付けた。
+
+
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1
+	PRINTFORML 叩くたびに痛みで収縮しペニスを締め付ける膣壁が、%CALLNAME:PLAYER%にたまらない征服感と快楽をもたらした…
+	
+@RAPE_MESSAGE_COM22_非口上時
+
+SIF ABL:TARGET:マゾ性感 > 2
+	PRINTFORML 被虐趣味が板についた%CALLNAME:TARGET%は、叩かれる痛みと被支配の昏い悦びに体を震わせ、嬌声を上げている…
+
+

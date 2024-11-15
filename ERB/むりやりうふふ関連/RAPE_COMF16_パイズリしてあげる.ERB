@@ -1,0 +1,157 @@
+﻿;-------------------------------------------------
+;パイズリしてあげる
+;奉仕系コマンド、レベル3
+;-------------------------------------------------
+@RAPE_COMNAME16
+#FUNCTIONS
+IF MODE_確認_完全一致("フェラチオ", TARGET, PLAYER) > -1
+	TSTR:コマンド名受渡 = パイズリフェラする
+ELSE
+	TSTR:コマンド名受渡 = パイズリしてあげる
+ENDIF
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_16
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ")
+
+
+
+@RAPE_COM_TOOLTIP_16
+LOCALS = <br>■パイズリしてあげる<br>
+LOCALS += "胸で相手のペニスを愛撫してあげるコマンド。<br>パイズリモードとなり、モードを変更するか性行為を終了するまで持続的に特定のソースが発生する。<br>フェラチオモード時、[パイズリフェラ]に変化。"
+LOCALS += "<br>RAPE_COMタイプ：うふふ<br>取得ソース：快Ｂ・露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：パイズリ経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM16
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+IF MODE_確認_完全一致("フェラチオ", PLAYER, TARGET) < 0
+	CALL MODE_CHANGE("パイズリ", PLAYER, TARGET)
+ELSE
+	CALL MODE_DELETE_プレイヤー側("フェラチオ", PLAYER)
+	CALL MODE_CHANGE("パイズリフェラ", PLAYER, TARGET)
+ENDIF
+;-------------------------------------------------
+;RAPE_COM別FLAGの設定
+;-------------------------------------------------
+
+;奉仕快楽
+RCVAR:PLAYER:奉仕コマンドフラグ = 1
+RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+
+
+CALL SOURCE_CALC_快Ｂ(PLAYER, TARGET, 80)
+CALL SOURCE_CALC_露出(PLAYER, TARGET, 50)
+CALL SOURCE_CALC_接触(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_奉仕(PLAYER, TARGET, 400)
+
+CALL SOURCE_CALC_不潔(PLAYER, TARGET, 200)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:パイズリ経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 7
+	EXP:PLAYER:同性愛経験 += 7
+ENDIF
+
+;愛情経験
+SIF TALENT:恋慕 == 1
+	EXP:愛情経験 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE16
+;パイズリ実行判定
+SIF GLOBAL_RAPE_COMABLE(16)
+	RETURN RESULT
+;ちんこがない場合駄目
+SIF TALENT:TARGET:Ｃ感度 == -2
+	RETURN 0
+;調教者がオトコか半人半妖かふたなりじゃないとダメ
+SIF !(TALENT:TARGET:性別 & 2)
+	RETURN 0
+;相手に胸がないならダメ
+SIF TALENT:PLAYER:性別 == 2
+	RETURN 0
+;縄使用中は不可
+; SIF TEQUIP:縄
+; 	RETURN 0
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツがあると無理
+SIF TEQUIP:PLAYER:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:PLAYER:上半身服あり && (!TEQUIP:PLAYER:はだけ可 && !TEQUIP:PLAYER:パイズリ可)
+	RETURN 0
+SIF TEQUIP:PLAYER:上タイツあり && !TEQUIP:PLAYER:上タイツ破れ
+	RETURN 0
+;胸、ペニスを何かに使ってる・届かないなら無理
+IF MODE_確認_完全一致("フェラチオ", TARGET, PLAYER) < 0
+	SIF TEQUIP:TARGET:ペニス
+		RETURN 0
+	SIF TEQUIP:PLAYER:胸
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM16
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%の
+	SIF CFLAG:TARGET:発情期フラグ < 0
+		PRINTFORM 発情
+	
+	;GETBITのほうがいいんだろうけど結局のところよくわかってないのでTALENTで
+	IF TALENT:非童貞 == 0
+		PRINTFORM 童貞
+	ELSEIF TALENT:イキやすさ == 1
+		PRINTFORM %TEXTR("ザコ/よわよわ")%
+	ELSEIF TALENT:Ｃ感度 == 1
+		PRINTFORM 敏感
+	ENDIF
+	
+	IF TALENT:男性器サイズ <= -1
+		PRINTFORM %TEXTR("ちんちん/おちんちん/ミニちんぽ")%
+	ELSEIF TALENT:男性器サイズ == 0
+		PRINTFORM %TEXTR("ちんぽ/ちんちん/ペニス")%
+	ELSEIF TALENT:男性器サイズ == 1
+		PRINTFORM %TEXTR("デカチンポ/デカちんぽ")%
+	ELSEIF TALENT:男性器サイズ == 2
+		PRINTFORM %TEXTR("デカチンポ/デカちんぽ")%
+	ENDIF
+PRINTFORM を
+SIF MODE_確認_完全一致("パイズリフェラ", PLAYER, TARGET) > -1
+	PRINTFORM 咥えたまま、
+IF TALENT:PLAYER:バストサイズ <= -1
+	PRINTFORM 薄い胸で
+;巨乳
+ELSEIF TALENT:PLAYER:バストサイズ == 1
+	PRINTFORM 大きく育った胸でペニスを包み込んで
+;爆乳以上
+ELSEIF TALENT:PLAYER:バストサイズ >= 2
+	PRINTFORM 豊満すぎる程に育った胸でペニスを包み隠すように挟んで
+ELSE
+	PRINTFORM 胸でペニスをはさんで
+ENDIF
+PRINTFORML 擦り上げてあげた…
+

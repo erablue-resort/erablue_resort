@@ -1,0 +1,80 @@
+﻿
+@RAPE_COMNAME_S20_1
+#FUNCTIONS
+TSTR:コマンド名受渡 = Ｇスポを責める
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_S_20_1
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ｖ系")
+
+
+@RAPE_COM_TOOLTIP_S20_1
+LOCALS = <br>■Ｇスポを責める<br>
+LOCALS += "膣上側に存在する性感帯に、ペニスで強い刺激を与えるコマンド。<br>Ｖ挿入系モード時のみ実行可能。"
+LOCALS += "<br>RAPE_COMタイプ：Ｖ系<br>取得ソース：快Ｖ・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｇスポ開発(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM_S20_1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+RCVAR:Ｇスポ開発フラグ = 3
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE_S20_1
+;Ｇスポ責め実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE_S("20_1")
+	RETURN RESULT
+;Ｖ挿入系モードじゃない時はアウト
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) < 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM_S20_1
+#DIM 同時キャラ番号
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の%TEXTR("膣肉をペニスで堪能し/膣の締まりを楽しみ/")%ながら、腹側にある性感帯を%TEXTR("擦り上げて/カリの返しでこそいで")%やった

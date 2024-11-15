@@ -1,0 +1,115 @@
+﻿;-------------------------------------------------
+;アナルをほじる
+;愛撫系コマンド、レベル2
+;-------------------------------------------------
+@RAPE_COMNAME4
+#FUNCTIONS
+TSTR:コマンド名受渡 = アナルをほじる
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_4
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ａ系")
+
+
+@RAPE_COM_TOOLTIP_4
+LOCALS = <br>■アナルをほじる<br>
+LOCALS += "相手のアナルを指でほじくる。"
+LOCALS += "Ａ経験が少ない時は外側から、こなれてきたら指を挿入して、ほじくる"
+LOCALS += "<br>RAPE_COMタイプ：Ａ系<br>取得ソース：快Ａ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM4
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 100)
+SIF TALENT:PLAYER:器用な指
+	CALL SOURCE_CALC_快Ａ(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+;苦痛
+LOCAL = 120 * PAIN_CHECK_A(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;下タイツがある場合は破く。
+IF TEQUIP:下タイツあり == 1
+	TEQUIP:下タイツ破れ = 1
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 2
+	EXP:PLAYER:同性愛経験 += 2
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE4
+;アナル愛撫実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(4)
+	RETURN RESULT
+;Aがない場合駄目
+SIF TALENT:TARGET:Ａ感度 == -2
+	RETURN 0
+
+;下半身着衣
+;後鎧、めくれない服があると無理
+SIF TEQUIP:下腹部後鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+;指を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;アナルを何かに使ってる・届かないなら無理
+SIF TEQUIP:TARGET:アナル
+	RETURN 0
+	
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+	SIF EXP:PLAYER:Ａ経験 == 0 || EXP:TARGET:Ａ経験 == 0
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM4
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%の
+
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1
+	PRINTFORM %TEXTR("まんこを犯しながら/膣を犯して腰を振りながら/膣の締め付けをペニスで堪能しながら")%、
+
+;下タイツがある場合は破く。挿入できてるってことは破れてるから場所はここでよさそう。
+SIF RFLAG:コマンド結果受渡し変数 == 1
+	PRINTFORM 履いていたタイツを強引に%TEXTR("引きちぎり/破り")%、
+
+;Ａ経験10以下
+IF EXP:Ａ経験 <= 10
+	PRINTFORM 硬く閉ざされたアヌスを指先でほじくるように刺激し
+;Ａ経験100以上＋欲望のPALAMLV3以上
+ELSEIF EXP:Ａ経験 >= 100 && PALAM:欲情 >= PALAMLV:3
+	PRINTFORM アナルに指先を突っ込んで直腸をかきまわしてやっ
+ELSE
+	PRINTFORM アヌスを指先でほじくるように刺激し
+ENDIF
+
+PRINTFORML た…
+

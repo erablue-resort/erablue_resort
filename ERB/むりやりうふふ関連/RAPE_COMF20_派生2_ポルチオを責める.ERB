@@ -1,0 +1,113 @@
+﻿
+@RAPE_COMNAME_S20_2
+#FUNCTIONS
+TSTR:コマンド名受渡 = ポルチオを責める
+LOCAL = 0
+SIF MODE_確認_完全一致("正常位", PLAYER, TARGET) > -1
+	LOCAL += 1
+SIF MODE_確認_完全一致("屈曲位", PLAYER, TARGET) > -1
+	LOCAL += 1
+SIF LOCAL && BASE:PLAYER:勃起 >= 1500 && MAX(PALAM:PLAYER:快Ｃ, PALAM:PLAYER:快Ｖ, PALAM:PLAYER:快Ａ, PALAM:PLAYER:快Ｂ, PALAM:PLAYER:快Ｓ) >= PALAMLV:3 + ((PALAMLV:4 - PALAMLV:3) * 5 / 10)
+	TSTR:コマンド名受渡 = 強制種付けプレス
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_S_20_2
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ｖ系")
+
+@RAPE_COM_TOOLTIP_S20_2
+CALLF RAPE_COMNAME_S20_2()
+LOCALS = <br>■%TSTR:コマンド名受渡%<br>
+IF TSTR:コマンド名受渡 == "ポルチオを責める"
+	LOCALS += "子宮口付近に存在する性感帯に、ペニスで強い刺激を与えるコマンド。<br>Ｖ挿入系モード時のみ実行可能。"
+	SIF OPTION変数:子宮口挿入_封印 == 0
+	LOCALS += "<br>ポルチオ開発経験が一定以上の時、確率で「子宮口にねじ込む」コマンドが解放される。"
+ELSE
+	LOCALS += "相手を孕ませようと、体全体を用いてペニスを子宮口に強く深く押し付けるコマンド。<br>Ｖ挿入系モード時のみ実行可能。"
+ENDIF
+LOCALS += "<br>RAPE_COMタイプ：Ｖ系<br>取得ソース：快Ｖ・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・ポルチオ開発(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM_S20_2
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+CALLF RAPE_COMNAME_S20_2()
+SIF TSTR:コマンド名受渡 == "強制種付けプレス"
+	RFLAG:コマンド結果受渡し変数 = 1
+
+
+RCVAR:ポルチオ開発フラグ = 3
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+IF EXP:TARGET:ポルチオ開発 > 200 && ABL:TARGET:Ｖ感覚 > 3 && OPTION変数:子宮口挿入_封印 == 0 && CFLAG:TARGET:子宮口許可フラグ == 0 && RAND:2 && RFLAG:コマンド結果受渡し変数 == 0
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 500)
+	RFLAG:コマンド結果受渡し変数２ = 1
+ENDIF
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ性交経験 ++
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE_S20_2
+;Ｇスポ責め実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE_S("20_2")
+	RETURN RESULT
+;Ｖ挿入系モードじゃない時はアウト
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) < 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM_S20_2
+#DIM 同時キャラ番号
+PRINTFORM %CALLNAME:PLAYER%は
+
+IF RFLAG:コマンド結果受渡し変数
+	PRINTFORML %CALLNAME:TARGET%に覆いかぶさり、全身を密着させて%TEXTR("体重をかけ/身動きを封じ")%、%TEXTR("ペニス/亀頭")%を子宮口へと%TEXTR("押し込んだ/密着させた/押し付けた")%
+ELSE
+	PRINTFORML %CALLNAME:TARGET%の膣内を前後しながら、奥の子宮口付近にある性感帯を圧迫した
+	IF RFLAG:コマンド結果受渡し変数２
+		PRINTL
+		PRINTFORML 柔らかく熟れた%CALLNAME:TARGET%の子宮はポルチオ快楽で口を開き、%CALLNAME:PLAYER%のペニスを咥えこんでしまった！
+		PRINTFORML %CALLNAME:TARGET%は不意の強い快楽に、目を白黒させて戸惑っている…
+	ENDIF
+ENDIF
+

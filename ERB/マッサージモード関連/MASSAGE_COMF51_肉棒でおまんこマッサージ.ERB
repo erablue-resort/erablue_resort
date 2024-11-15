@@ -1,0 +1,364 @@
+﻿;-------------------------------------------------
+;肉棒でおまんこマッサージ♡
+;-------------------------------------------------
+@MASSAGE_COMNAME51
+#FUNCTIONS
+TSTR:コマンド名受渡 = 肉棒でおまんこマッサージ_H_
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_51
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_51
+LOCALS = <br>■肉棒でおまんこマッサージ_H_<br>
+LOCALS += "とろとろにほぐれた_-_食べごろ_おまんこを、専用の『施術道具』を使ってマッサージする。"
+LOCALS += "挿入するまでは<u>一兆歩譲って</u>エステだが、挿入してしまったらそれはもうセックスなので、うふふモードに突入する。"
+LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｖ・露出・接触・苦痛・不潔(一定条件時)"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@MASSAGE_COM51
+;まずキャラの状態によって３つに分岐する
+
+CALL MASSAGE_分岐_COM51(TARGET)
+RFLAG:コマンド結果受渡し変数 = RESULT
+;RFLAG:コマンド結果受渡し変数に結果を入れる
+; 1:通常許可
+; 2:なし崩し許可
+; 3:レイプ
+;失敗はそもそもコマンドを出さないので分岐しない
+
+;ここでレイプ時の記憶喪失手段使うよ～とか
+;レイプするけどOK～？　みたいな確認分岐を入れる
+IF RFLAG:コマンド結果受渡し変数 == 2
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%が何をしようとしているのかに気付き、やめるように言ってくる。
+	PRINTW しかしその拒否は弱々しく、強く押せばなし崩しで許可してくれそうだ……
+	PRINTL このまま実行しますか？
+	PRINTL
+	PRINTBUTTONLC "[0] はい", 0
+	PRINTBUTTONLC "[1] いいえ", 1
+	BINPUT
+	IF RESULT == 1
+		PRINTFORMW %CALLNAME:PLAYER%は思い直すことにした。
+		RETURN -1
+	ENDIF
+	;履歴セット
+	CFLAG:TARGET:泥酔ックス回数 += 1
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>マッサージ中に快楽でとろとろにした%CALLNAME:TARGET%を手籠めにした</font><img src='えっちハート'>","うふふ")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>マッサージ中に快楽に負け、%CALLNAME:PLAYER%と一線を越えてしまった</font><img src='えっちハート'>","うふふ")
+	
+
+	IF (CFLAG:TARGET:お願いックス回数 + CFLAG:TARGET:泥酔ックス回数 / 3) >= 4 || TALENT:淫乱
+		SETBIT CFLAG:1 , 0
+		TALENT:セフレ = 1
+		初体験日:セフレ = DAY
+		RFLAG:コマンド結果受渡し変数４ = TALENT:陥落不可
+		CLEARBIT TALENT:陥落不可, 1
+		CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[セフレ]陥落させた</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[セフレ]を得た</font><img src='えっちハート'>","うふふ")
+	ENDIF
+ELSEIF RFLAG:コマンド結果受渡し変数 == 3
+	;「ことここに至っても、%CALLNAME:TARGET%はまだわずかに抵抗している」
+	;「だがここまでの『施術』の甲斐あって、%CALLNAME:PLAYER%を振りほどけるほどの力は残っていないようだ。」
+	;「──今なら、無理やりにでも手籠めにしてしまうことができるだろう。」
+	;BUTTON_[このまま犯す]_ 　_BUTTON_[やめておく]_
+	;IF RESULTS == "[このまま犯す]"
+	;	RETURN 1
+	;ELSEIF RESULTS == "[やめておく]"
+	;	RETURN 0
+	;ENDIF
+	;レイプしないを選んだ時はキャンセル扱いでコマンド選択に戻す
+	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%が何をしようとしているのかに気付き、やめるように言ってくる。
+	PRINTFORMW 無理やりに実行すると%CALLNAME:TARGET%は強く抵抗してくるだろう……。
+	;香使用から20分以上経ってると許可
+	IF TFLAG:マッサージ_鬼灯の香使用時間 + 20 < DAY * 1440 + TIME
+		;ここで記憶を曖昧にする薬の所持分岐
+		PRINTL しかし「鬼灯の香」が十分に効いている今ならば、抵抗させずに無理やりに関係を持つことが出来るだろう。
+		PRINTL 香の効果で事後にはそのことを忘れさせることも出来るはずだ……。
+		PRINTL このまま実行しますか？
+		PRINTL
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 1
+			PRINTFORMW %CALLNAME:PLAYER%は思い直すことにした。
+			RETURN -1
+		ENDIF
+	ELSEIF TFLAG:マッサージ_鬼灯の香使用時間
+		PRINTL 鬼灯の香が効いてくるまでは、まだもう少し時間が必要だろう。
+		PRINTFORMW %CALLNAME:PLAYER%はまだ待つことにした。
+		RETURN -1
+	ELSE
+		PRINTL このままでは実行出来ない。何か抵抗を封じるための道具が必要になるだろう。
+		PRINTFORMW %CALLNAME:PLAYER%は思い直すことにした。
+		RETURN -1
+	ENDIF
+
+ENDIF
+
+;通常モードに移行はターンエンド時に行う
+IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
+	;うつ伏せだと寝バック
+	CALL MASSAGE_COM51_1
+ELSE
+	;仰向けだと正常位
+	CALL MASSAGE_COM51_0
+ENDIF
+
+
+@MASSAGE_COM51_0
+;引数は前から快楽量、露出量、接触量
+CALL MASSAGE_体位COM(400, 50, 150)
+RETURN RESULT
+
+@MASSAGE_COM51_1
+;寝バック
+CALL MASSAGE_体位COM(400, 70, 100)
+RETURN RESULT
+
+@MASSAGE_体位COM(ARG, ARG:1, ARG:2)
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;基盤ができたあとで理性を削る処理を入れる
+
+;Ｖ挿入から持ってきた
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, ARG)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, ARG:1)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, ARG:2)
+
+IF !MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, ARG)
+ELSE
+	CALL SOURCE_CALC_快Ｖ(PLAYER, TARGET, ARG / 3)
+ENDIF
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;貞操観念
+IF !TALENT:恋慕
+	IF TALENT:貞操 == 1
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 500)
+	ELSEIF TALENT:貞操 == 0
+		CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+	ENDIF
+ENDIF
+;処女喪失
+CALL LOST_VIRGIN(TARGET, PLAYER, 1)
+CALL LOST_MAN_VIRGIN(PLAYER, TARGET)
+
+;下半身下着がある場合は脱がす。
+IF TEQUIP:下半身下着あり || TEQUIP:下半身服あり || TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || TEQUIP:下タイツあり
+	TEQUIP:下半身下着あり = 0
+	TEQUIP:下半身服あり = 0
+	SIF TEQUIP:上下一体服
+		TEQUIP:上半身服あり = 0
+	TEQUIP:下腹部後鎧あり = 0
+	TEQUIP:下腹部前鎧あり = 0
+	TEQUIP:下タイツあり = 0
+	RFLAG:コマンド結果受渡し変数２ = 1
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+EXP:Ｖ性交経験 ++
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+
+;同性愛
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 4
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 4
+
+	EXP:愛情経験 += TALENT:恋慕 * 2
+	;処女
+	SIF TALENT:処女 && TALENT:恋慕
+		EXP:愛情経験 += ARG:2 / 15
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+
+;Ｖ挿入の時みたく一度全部計算する。
+;計算後に達成値に到達しなかった(処女の-40とかがすごく重い)場合、媚薬オイルとかお香とかを参照して、それらがあるなら無理やり通す。
+
+;「ことここに至っても、%CALLNAME:TARGET%はまだわずかに抵抗している」
+;「だがここまでの『施術』の甲斐あって、%CALLNAME:PLAYER%を振りほどけるほどの力は残っていないようだ。」
+;「──今なら、無理やりにでも手籠めにしてしまうことができるだろう。」
+;BUTTON_[このまま犯す]_ 　_BUTTON_[やめておく]_
+;IF RESULTS == "[このまま犯す]"
+;	RETURN 1
+;ELSEIF RESULTS == "[やめておく]"
+;	RETURN 0
+;ENDIF
+;
+;みたいな感じ
+@MASSAGE_分岐_COM51(ARG)
+#DIM 判定値
+
+;分岐を判定する
+;RETURN 1:通常許可
+;RETURN 2:なし崩し許可
+;RETURN 3:レイプ
+;拒否はそもそもコマンドを出さないので分岐しない
+
+IF 陥落チェック(ARG)
+	RETURN 1
+ENDIF
+
+;性知識-2の場合、親友以上なら基本OK
+IF 知識素質:TARGET:性知識 < -1 && CFLAG:好感度レベル > 関係閾値:3
+	RETURN 2 
+ENDIF
+
+;性交渉お願いの判定を流用する
+判定値 = COM353_SUB(ARG)
+判定値 += CFLAG:ARG:お願いックス回数 * 30
+判定値 += CFLAG:ARG:泥酔ックス回数 * 10
+
+;好感度が無二の友未満である場合、大きく成功度と下限が減少
+SELECTCASE CFLAG:ARG:好感度レベル
+	CASE IS <= 関係閾値:2
+		;顔見知り以下
+		判定値 -= 55
+		SIF 判定値 > 0
+			判定値 /= 2
+	CASE IS <= 関係閾値:3
+		;友人
+		判定値 -= 40
+		SIF 判定値 > 0
+			LOCAL /= 2
+	CASE IS <= 関係閾値:4
+		;親友
+		判定値 -= 20
+		SIF 判定値 > 0
+			LOCAL /= 2
+ENDSELECT
+
+;理性が無い場合は追加で補正
+SIF BASE:理性 <= 0
+	判定値 += 20
+
+;判定値が50未満ならレイプ
+;緩すぎるか？　条件の数値は様子見する感じで
+IF 判定値 >= 50
+	RETURN 2
+ELSE
+	RETURN 3
+ENDIF
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE51
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+;Vがない場合駄目
+SIF TALENT:TARGET:Ｖ感度 == -2
+	RETURN 0
+;オトコだとダメ
+SIF !(TALENT:性別 & 1)
+	RETURN 0
+
+;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+SIF !(TALENT:PLAYER:性別 & 2) && !MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+	RETURN 0
+;処女かつ潤滑不足はだめ
+SIF PALAM:潤滑 < PALAMLV:3 && TALENT:処女
+	RETURN 0
+;処女でなくとも潤滑不足はだめ
+SIF PALAM:潤滑 < PALAMLV:2
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM51
+
+;RFLAG:コマンド結果受渡し変数に結果を入れる
+; 1:通常許可
+; 2:なし崩し許可
+; 3:レイプ
+
+;下着がある場合はRFLAG:コマンド結果受渡し変数２に1が入り、下着を剥ぎ取っている
+
+
+SELECTCASE RFLAG:コマンド結果受渡し変数
+	CASE 1
+		PRINTFORM %CALLNAME:PLAYER%は
+		IF RFLAG:コマンド結果受渡し変数２
+			PRINTFORM %CALLNAME:TARGET%の下着や服を脱がせ、
+		ENDIF
+		IF PALAM:TARGET:潤滑 > PALAMLV:3
+			PRINT とろとろに濡れた
+		ENDIF
+		PRINTFORM %CALLNAME:TARGET%のおまんこに、
+		IF MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+			PRINT ペニスバンド
+		ELSE
+			PRINT 自らの肉棒
+		ENDIF
+		PRINTL をゆっくりと挿入した……。
+	CASE 2
+		PRINTFORML %CALLNAME:PLAYER%がどうしてもと頼み込むと、%CALLNAME:TARGET%は迷いながらも『マッサージ』ではなくなることに頷いた。
+		PRINTFORM %CALLNAME:PLAYER%は
+		IF RFLAG:コマンド結果受渡し変数２
+			PRINTFORM %CALLNAME:TARGET%の下着や服を脱がせ、
+		ENDIF
+		IF PALAM:TARGET:潤滑 > PALAMLV:3
+			PRINT とろとろに濡れた
+		ENDIF
+		PRINTFORM %CALLNAME:TARGET%のおまんこに、
+		IF MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+			PRINT ペニスバンド
+		ELSE
+			PRINT 自らの肉棒
+		ENDIF
+		PRINTL をゆっくりと挿入した……。
+
+		IF (CFLAG:TARGET:お願いックス回数 + CFLAG:TARGET:泥酔ックス回数 / 3) >= 4
+			PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%と幾度か体を重ね、抵抗感が薄れてきたようだ…
+			PRINTFORML %CALLNAME:TARGET%は[セフレ]を得た
+			IF GETBIT(RFLAG:コマンド結果受渡し変数４, 1)
+				IF GETBIT(TALENT:TARGET:陥落不可, 0)
+					PRINTFORML %CALLNAME:TARGET%の[陥落不可]が[恋慕不可]に変化しました。
+				ELSE
+					PRINTFORML %CALLNAME:TARGET%の[セフレ不可]が消滅しました。
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE 3
+		PRINTFORM %CALLNAME:PLAYER%は
+		IF RFLAG:コマンド結果受渡し変数２
+			PRINTFORM %CALLNAME:TARGET%の下着や服を脱がせ、
+		ENDIF
+		PRINTFORM 嫌がる%CALLNAME:TARGET%の
+		IF PALAM:TARGET:潤滑 > PALAMLV:3
+			PRINT とろとろに濡れた
+		ENDIF
+		PRINT おまんこに、
+		IF MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+			PRINT ペニスバンド
+		ELSE
+			PRINT 自らの肉棒
+		ENDIF
+		PRINTL を乱暴に挿入した……。
+ENDSELECT
+

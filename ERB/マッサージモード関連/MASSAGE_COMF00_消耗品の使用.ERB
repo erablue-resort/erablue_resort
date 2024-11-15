@@ -1,0 +1,122 @@
+﻿;-------------------------------------------------
+;足つぼマッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME0
+#FUNCTIONS
+TSTR:コマンド名受渡 = 消耗品の使用
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_0
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("通常マッサージ")
+
+@MASSAGE_COM_TOOLTIP_0
+LOCALS = <br>■消耗品の使用<br>
+LOCALS += "マッサージに使えるアイテムを使用し、様々な効果を得る。"
+LOCALS += "<br>COMタイプ：通常マッサージ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM0
+#DIM 消耗品種類数
+#DIMS 選択肢配列, 10
+#DIM リザルト保存
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;使用可能オイルを並べる
+;本来は所持とかを見るべきだが、仮実装なのでとりあえずオイルと媚薬
+消耗品種類数 = 0
+VARSET 選択肢配列
+
+選択肢配列:消耗品種類数 = オイル
+消耗品種類数 += 1
+選択肢配列:消耗品種類数 = 鬼灯の香
+消耗品種類数 += 1
+
+; 選択肢配列:消耗品種類数 = 媚薬オイル
+; 消耗品種類数 += 1
+
+DO
+DRAWLINE
+PRINTL どの消耗品を使いますか？
+DRAWLINE
+FOR COUNT, 0, 消耗品種類数
+	IF GETNUM(ITEM, 選択肢配列:COUNT) >= 0
+		IF ITEM:(選択肢配列:COUNT) > 0
+			PRINTBUTTON @"[{COUNT}] %選択肢配列:COUNT%", COUNT
+		ELSE
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTPLAINFORM [{COUNT}] %選択肢配列:COUNT%
+			RESETCOLOR
+		ENDIF
+	ELSE
+		PRINTBUTTON @"[{COUNT}] %選択肢配列:COUNT%", COUNT
+	ENDIF
+	PRINTL
+NEXT
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+PRINTL
+BINPUT
+リザルト保存 = RESULT
+SELECTCASE リザルト保存
+	CASE 999
+		RETURN -1
+	CASEELSE
+		RSTR:コマンド結果受渡し文字列 '= 選択肢配列:リザルト保存
+		SELECTCASE 選択肢配列:リザルト保存
+			CASE "オイル"
+				;オイル共通部分
+				CALL SOURCE_CALC_液体(TARGET, PLAYER, 20000)
+				CALL SOURCE_CALC_接触(TARGET, PLAYER, 60)
+				RETURN 1
+			CASE "鬼灯の香"
+				IF TFLAG:マッサージ_鬼灯の香使用時間 != 0
+					;使用済み
+					PRINTW 鬼灯の香は既に焚いている。
+				ELSE
+					;使用時間をセット
+					TFLAG:マッサージ_鬼灯の香使用時間 = DAY * 1440 + TIME
+					;ITEM消費
+					ITEM:鬼灯の香 -= 1
+					RETURN 1
+				ENDIF
+		ENDSELECT
+ENDSELECT
+
+LOOP 1
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE0
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM0
+
+SELECTCASE RSTR:コマンド結果受渡し文字列
+	CASE "オイル"
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の体にオイルを垂らした…
+	CASE "鬼灯の香"
+		PRINTFORML %CALLNAME:PLAYER%は鬼灯の香を焚き始めた…
+ENDSELECT

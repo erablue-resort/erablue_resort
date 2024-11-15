@@ -690,16 +690,30 @@ SELECTCASE SELECTCOM
 		;おまんこマッサージはうふふに移行する関係上、ここで色々処理
 		;通常モードに移行
 		TARGET保存 = TARGET
-		CALL ゲームフェイズ変更("通常モード")
+		IF RFLAG:コマンド結果受渡し変数 == 3
+			CALL ゲームフェイズ変更("むりやりうふふモード")
+		ELSE
+			CALL ゲームフェイズ変更("通常モード")
+		ENDIF
 		TARGET = TARGET保存
 		;うふふに移行
 		CALL うふふ開始キャラ処理(TARGET)
 		CFLAG:PLAYER:うふふ = 1
 		BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+		
+		IF TEQUIP:下半身下着あり || TEQUIP:下半身服あり || TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || TEQUIP:下タイツあり
+			TEQUIP:下半身下着あり = 0
+			TEQUIP:下半身服あり = 0
+			SIF TEQUIP:上下一体服
+				TEQUIP:上半身服あり = 0
+			TEQUIP:下腹部後鎧あり = 0
+			TEQUIP:下腹部前鎧あり = 0
+			TEQUIP:下タイツあり = 0
+		ENDIF
 
 		IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
-			;うつ伏せだと後背位
-			CALL MODE_CHANGE("後背位", PLAYER, TARGET)
+			;うつ伏せだと寝バック
+			CALL MODE_CHANGE("寝バック", PLAYER, TARGET)
 		ELSE
 			;仰向けだと正常位
 			CALL MODE_CHANGE("正常位", PLAYER, TARGET)
@@ -886,6 +900,10 @@ IF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
 
 	;通常モードに移行
 	CALL ゲームフェイズ変更("通常モード")
+ELSEIF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒 / 2 && TFLAG:マッサージ_鬼灯の香使用時間 == 0
+	;警戒が半分以上の時、理性が一定値回復し続ける
+	;香を使うと無効化
+	BASE:TARGET:理性 = MIN(MAXBASE:TARGET:理性, BASE:TARGET:理性 + BASE:TARGET:警戒 / 10)
 ENDIF
 
 
@@ -908,6 +926,11 @@ BASE:対象キャラ:警戒 = 1000
 
 ;とりあえず好感度でセット
 BASE:対象キャラ:警戒 -= CFLAG:対象キャラ:好感度レベル * 5
+
+;陥落時は更にダウン
+IF 陥落チェック(対象キャラ)
+	BASE:対象キャラ:警戒 -= 200
+ENDIF
 
 TCVAR:対象キャラ:前ターン警戒度 = BASE:対象キャラ:警戒
 

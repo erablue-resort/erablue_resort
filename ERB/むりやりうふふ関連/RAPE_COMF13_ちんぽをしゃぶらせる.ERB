@@ -1,0 +1,145 @@
+﻿;-------------------------------------------------
+;ちんぽをしゃぶらせる
+;奉仕系コマンド、レベル2
+;-------------------------------------------------
+@RAPE_COMNAME13
+#FUNCTIONS
+TSTR:コマンド名受渡 = ちんぽをしゃぶらせる
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_13
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ")
+
+
+@RAPE_COM_TOOLTIP_13
+LOCALS = <br>■ちんぽをしゃぶらせる<br>
+LOCALS += "相手に無理やり、ペニスを口で愛撫させる。<br>フェラチオモードとなり、モードを変更するか性行為を終了するまで持続的に特定のソースが発生する。<br>レイプなので[パイズリフェラ]には変化しない。"
+LOCALS += "<br>RAPE_COMタイプ：うふふ<br>取得ソース：露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：口淫経験(TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM13
+;-------------------------------------------------
+;モードの設定
+;-------------------------------------------------
+
+CALL MODE_CHANGE("フェラチオ", TARGET, PLAYER)
+
+;-------------------------------------------------
+;RAPE_COM別FLAGの設定
+;-------------------------------------------------
+
+;奉仕快楽
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 300)
+
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌使いによって、快感のソース増加
+IF TALENT:TARGET:舌使い
+	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では苦痛ちょいある
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(PLAYER, TARGET, 20)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;フェラ経験
+EXP:口淫経験 += 1
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 7
+	EXP:PLAYER:同性愛経験 += 7
+ENDIF
+
+;愛情経験
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+;奴隷が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+IF CFLAG:TARGET:ファーストキスフラグ == 0
+	CFLAG:TARGET:ファーストキスフラグ = 11
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%の[陰茎]に初めてのキスを捧げさせられた</font><img src='えっちハート'>","うふふ")
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE13
+;フェラチオ実行判定
+SIF GLOBAL_RAPE_COMABLE(13)
+	RETURN RESULT
+;調教者がオトコか半人半妖かふたなりじゃないとダメ
+SIF !(TALENT:PLAYER:性別 & 2)
+	RETURN 0
+;ちんこがない場合駄目
+SIF TALENT:PLAYER:Ｃ感度 == -2
+	RETURN 0
+;下半身着衣
+;前鎧、タイツ、前張りがあると無理
+SIF TEQUIP:PLAYER:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:PLAYER:下タイツあり && !TEQUIP:PLAYER:下タイツ破れ
+	RETURN 0
+SIF TEQUIP:PLAYER:下半身下着あり == 2
+	RETURN 0
+;猫舌の奴隷の場合は技巧Lv2以上必要
+SIF TALENT:猫舌 && ABL:技巧 < 2
+	RETURN 0
+;ボールギャグ使用中は不可
+; SIF TEQUIP:ボールギャグ
+; 	RETURN 0
+;口、ペニスを何かに使ってる・届かないなら無理
+IF MODE_確認_完全一致("パイズリ", TARGET, PLAYER) < 0
+	SIF TEQUIP:PLAYER:ペニス
+		RETURN 0
+	SIF TEQUIP:TARGET:口
+		RETURN 0
+ENDIF
+
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+	SIF CFLAG:PLAYER:ファーストキスフラグ == 0
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM13
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の
+SIF RFLAG:コマンド結果受渡し変数 == 1
+	PRINTFORM キスもまだ済ませていない
+PRINTFORML %TEXTR("口/唇")%に%TEXTR("ペニス/ちんぽ")%を咥えさせ、%TEXTR("温かくぬめる口腔で『オナニー』した/性具扱いして気持ちよくなった/立場の上下を味覚から教えてやった/自分勝手に腰を振った/ペニスの味を覚えさせた")%…
+
+
+

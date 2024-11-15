@@ -1,0 +1,140 @@
+﻿;-------------------------------------------------
+;体の感触を味わう
+;愛撫系コマンド　レベル2
+;-------------------------------------------------
+@RAPE_COMNAME0
+#FUNCTIONS
+TSTR:コマンド名受渡 = 体をまさぐる
+
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_0
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("うふふ")
+
+
+@RAPE_COM_TOOLTIP_0
+LOCALS = <br>■体をまさぐる<br>
+LOCALS += "相手のカラダを思うさままさぐり、感触を堪能する。"
+LOCALS += "<br>実行者が[舌使い][器用な指][猫舌]を持っている場合、効果が増減する。"
+LOCALS += "<br>RAPE_COMタイプ：うふふ<br>取得ソース：快Ｃ・快Ｂ・快Ｓ・露出・接触"
+LOCALS += "<br>固有の取得経験：キス経験(あなた・TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM0
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;舌を使う調教では、舌使い,猫舌によって、快感のソース増減
+LOCAL = 80
+SIF TALENT:PLAYER:舌使い
+	TIMES LOCAL , 1.50
+SIF TALENT:PLAYER:器用な指
+	TIMES LOCAL , 1.50
+SIF TALENT:PLAYER:猫舌
+	TIMES LOCAL , 0.75
+
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, LOCAL)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, LOCAL)
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, LOCAL / 2)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+
+;IF TEQUIP:20
+; ;ボールギャグ使用中もなし
+; 	CALL SOURCE_CALC_接触(TARGET, PLAYER, 40)
+; ELSE
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+; ENDIF
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 5
+	EXP:PLAYER:同性愛経験 += 5
+ENDIF
+
+;調教者が猫舌持ちの場合は、調教者に嗜虐快楽経験を追加
+SIF TALENT:PLAYER:猫舌
+	EXP:PLAYER:嗜虐快楽経験 += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;愛撫実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE0
+
+;上か下に鎧があると無理
+SIF TEQUIP:TARGET:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:TARGET:下腹部前鎧あり
+	RETURN 0
+
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(0)
+	RETURN RESULT
+;指を何かに使ってる・届かないなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;パイズリ、フェラ系は体勢的に無理
+SIF MODE_確認_完全一致("フェラチオ系", TARGET, PLAYER) > -1
+	RETURN 0
+SIF MODE_確認_完全一致("パイズリ系", TARGET, PLAYER)> -1
+	RETURN 0
+RETURN 1
+
+
+
+
+;-------------------------------------------------
+;愛撫時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM0
+
+PRINTFORM %CALLNAME:PLAYER%は
+
+;膣とアナルに入れてるのがあれば持ち主を特定
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ｖ挿入系", TARGET, PLAYER) > -1 || MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+	PRINTFORM %CALLNAME:TARGET%とつながったまま、
+
+IF CFLAG:TARGET:発情期フラグ < 0
+	PRINTFORM %TEXTR("発情しきった/発情で火照った")%
+ELSEIF BASE:性欲 > 1000
+	PRINTFORM %TEXTR("欲情しきった/欲情で火照った")%
+ENDIF
+PRINTFORM %CALLNAME:TARGET%の
+
+IF 知識素質:TARGET:高貴 >= 1
+	PRINTFORM %TEXTR("高貴な/やんごとない")%玉体
+ELSE
+	;小柄体型
+	SIF TALENT:体格 <= -1
+		PRINTFORM 小柄な
+	PRINTFORM カラダ
+ENDIF
+PRINTFORML をまさぐり、感触を%TEXTR("堪能した/楽しんだ")%…
+
+PRINTL
+
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) > -1 || MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1
+	PRINTFORM くわえ込んだペニスをきゅんきゅんと締め付けながら、
+
+SELECTCASE MAX(CUP:TARGET:快Ｃ, CUP:TARGET:快Ｂ)
+;各部位の累積が10000で絶頂、場合分けの数値は参考数値なのでイメージで変えてもらってOK
+CASE IS > 10000
+;絶頂
+	PRINTFORML %CALLNAME:TARGET%のカラダは与えられる快楽に敏感に反応し、甘い絶頂快楽に震えている…
+CASE IS > 4000
+;感じている
+	PRINTFORML %CALLNAME:TARGET%は嫌がり逃れようと身をよじるも、その体は与えられる快楽に反応している…
+CASEELSE
+	;あまり感じていない
+	PRINTFORML 嫌がる%CALLNAME:TARGET%は%CALLNAME:PLAYER%の腕の中でもがいているが、無力な抵抗はかえって%CALLNAME:PLAYER%の%TEXTR("征服欲/嗜虐心")%を煽ることしかできていない…
+ENDSELECT

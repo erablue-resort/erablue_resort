@@ -1,0 +1,79 @@
+﻿
+@RAPE_COMNAME_S20_3
+#FUNCTIONS
+TSTR:コマンド名受渡 = 子宮口にねじ込む
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_S_20_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ｖ系")
+
+
+@RAPE_COM_TOOLTIP_S20_3
+LOCALS = <br>■子宮口にねじ込む<br>
+LOCALS += "柔らかく熟れた子宮口にペニスを挿入するコマンド。<br>Ｖ挿入系モード時のみ実行可能。"
+LOCALS += "<br>RAPE_COMタイプ：Ｖ系<br>取得ソース：快Ｖ・接触・苦痛"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・ポルチオ開発(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM_S20_3
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+CALLF RAPE_COMNAME_S20_3()
+RCVAR:ポルチオ開発フラグ = 5
+
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 600)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 500)
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:Ｖ性交経験 ++
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@RAPE_COM_ABLE_S20_3
+;子宮口実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE_S("20_3")
+	RETURN RESULT
+;Ｖ挿入系モードじゃない時はアウト
+SIF MODE_確認_完全一致("Ｖ挿入系", PLAYER, TARGET) < 0
+	RETURN 0
+;解放イベ踏んでないとアウト
+SIF CFLAG:TARGET:子宮口許可フラグ == 0
+	RETURN 0
+;オプション封印
+SIF OPTION変数:子宮口挿入_封印
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM_S20_3
+
+PRINTFORM %CALLNAME:PLAYER%は
+PRINTFORML 柔らかく熟れた%CALLNAME:TARGET%の子宮にペニスを%TEXTR("突き入れた/ねじ込んだ")%…
+

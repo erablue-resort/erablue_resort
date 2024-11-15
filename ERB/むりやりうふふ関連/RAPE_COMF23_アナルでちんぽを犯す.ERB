@@ -1,0 +1,270 @@
+﻿;-------------------------------------------------
+;セックス系コマンド
+;-------------------------------------------------
+@RAPE_COMNAME23
+#FUNCTIONS
+TSTR:コマンド名受渡 = アナルでちんぽをを犯す
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@RAPE_COMTYPE_23
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = RAPE_COMTYPE("Ａ系")
+
+
+@RAPE_COM_TOOLTIP_23
+LOCALS = <br>■アナルでちんぽを犯す<br>
+LOCALS += "尻穴に相手のペニスを挿入し、アナルセックスを行うコマンド。<br>無理やりなので騎乗位しか行えない。<br>Ａ挿入系モードとなり、モードを変更するか性行為を終了するまで持続的に快楽が発生する。"
+LOCALS += "<br>RAPE_COMタイプ：Ａ系<br>取得ソース：快Ａ・露出・接触・苦痛"
+LOCALS += "<br>固有の取得経験：Ｃ性交経験_Ａ挿入(TARGET)・Ａ性交経験(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@RAPE_COM23
+
+	$体位_LOOP
+	DRAWLINE
+	PRINTL ■体位を選んでください
+	PRINTL
+	FOR LOCAL, 0, 20
+		TRYCCALLFORM RAPE_COM_ABLE23_{LOCAL}
+			IF RESULT
+				PRINTBUTTONLC "[5]Ａ騎乗位", 5
+			ENDIF
+		CATCH
+			CONTINUE
+		ENDCATCH
+	NEXT
+
+	PRINTL
+	PRINTL
+	PRINTBUTTONLC "[999]戻る", 999
+
+	$INPUT_LOOP
+	INPUT
+
+	LOCAL = RESULT
+	SELECTCASE LOCAL
+		CASE 0 TO 11
+			TRYCALLFORM RAPE_COM_ABLE23_{LOCAL}
+			IF RESULT
+				IF TARGET == MASTER
+					TARGET = PLAYER
+					PLAYER = MASTER
+					RFLAG:指示モード対象あなたフラグ = 1
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
+					RFLAG:指示モード対象あなたフラグ = 0
+					PLAYER = TARGET
+					TARGET = MASTER
+				ELSE
+					TRYCALLFORM CAN_Ａ体位{LOCAL}(1)
+					IF !RESULT
+						TRYCALLFORM CAN_Ａ体位{LOCAL}(0)
+						GOTO 体位_LOOP
+					ENDIF
+				ENDIF
+				TRYCALLFORM RAPE_COM23_{LOCAL}
+				;メッセージ用に体位の種類を保存
+				RFLAG:コマンド結果受渡し変数 = LOCAL
+				RETURN 1
+			ENDIF
+			GOTO INPUT_LOOP
+		CASE 999
+			RETURN -1
+		CASEELSE
+			GOTO INPUT_LOOP
+	ENDSELECT
+
+
+@RAPE_COM23_5
+;騎乗位
+CALL Ａ体位逆RAPE_COM(500, 120, 150)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 250)
+CALL MODE_CHANGE("Ａ騎乗位", TARGET, PLAYER)
+RETURN RESULT
+
+
+
+
+@Ａ体位逆RAPE_COM(ARG, ARG:1, ARG:2)
+;-------------------------------------------------
+;RAPE_COM別FLAGの設定
+;-------------------------------------------------
+
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_快Ａ(PLAYER ,TARGET, ARG)
+CALL SOURCE_CALC_露出(PLAYER, TARGET, ARG:1)
+CALL SOURCE_CALC_接触(PLAYER, TARGET, ARG:2)
+
+IF MODE_確認_ターゲット側("ペニスバンド", PLAYER) < 0
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, ARG)
+ELSE
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, ARG / 3)
+ENDIF
+
+;苦痛
+LOCAL = 800 * PAIN_CHECK_A(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(PLAYER, TARGET, LOCAL)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+IF EXP:Ａ性交経験 == 0
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:TARGET%にＡ処女を捧げた</font><img src='えっちハート'>","うふふ")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%のＡ処女を奪わされた</font><img src='えっちハート'>","うふふ")
+ENDIF
+EXP:TARGET:Ｃ性交経験_Ａ挿入 ++
+EXP:Ａ性交経験 ++
+CALL LOST_A_VIRGIN(PLAYER, TARGET, 1)
+CALL LOST_MAN_A_VIRGIN(TARGET, PLAYER)
+;同性愛　レズなら戻り値1ゲイなら戻り値2
+IF HETEROSEX(TARGET,PLAYER)
+	EXP:同性愛経験 += 4
+	EXP:PLAYER:同性愛経験 += 4
+ENDIF
+
+
+;愛情経験
+EXP:愛情経験 += TALENT:恋慕
+
+RETURN 1
+
+
+
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+;レイプなので素通し
+
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@RAPE_COM_ABLE23
+;Ａ挿入共通実行判定
+;一括管理
+SIF GLOBAL_RAPE_COMABLE(23)
+	RETURN RESULT
+;Aがない場合駄目
+SIF TALENT:PLAYER:Ａ感度 == -2
+	RETURN 0
+;調教者がオトコ、半人半妖、ふたなりの場合はある程度勃起してないとダメ
+SIF (TALENT:TARGET:性別 & 2) && BASE:TARGET:勃起 < 1000
+	RETURN 0
+;アナルバイブ挿入中はダメ
+SIF TEQUIP:14
+	RETURN 0
+;アナルビーズ使用中は不可
+SIF TEQUIP:15
+	RETURN 0
+;普通の浣腸使用中は不可
+SIF TEQUIP:21
+	RETURN 0
+;バルーン使用中は不可
+SIF TEQUIP:22
+	RETURN 0
+;電極使用中は不可
+SIF TEQUIP:23
+	RETURN 0
+;一定のＡ経験が必要　無理やりなのでボーダーを下げた
+SIF EXP:2 < EXPLV:2
+	RETURN 0
+
+;調教者がオトコ、半人半妖、ふたなり、もしくはペニスバンドがないとダメ
+SIF !(TALENT:TARGET:性別 & 2) && MODE_確認_ターゲット側("ペニスバンド", TARGET) < 0
+	RETURN 0
+
+;下半身着衣
+;前鎧、めくれない服、タイツがあると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
+	RETURN 0
+SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	RETURN 0
+
+IF MODE_確認_完全一致("Ａ挿入系", TARGET, TARGET) < 0 && MODE_確認_完全一致("Ａ挿入系", TARGET, TARGET) < 0
+	;ちんこを何かに使ってる・届かないなら無理
+	SIF TEQUIP:TARGET:ペニス
+		RETURN 0
+	SIF TEQUIP:PLAYER:アナル
+		RETURN 0
+ENDIF
+
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+	SIF EXP:PLAYER:Ａ経験 == 0 || EXP:TARGET:Ａ経験 == 0
+		RETURN 0
+	SIF MODE_確認_完全一致("Ａ挿入系", PLAYER, TARGET) > -1 && MODE_確認_完全一致("Ａ挿入系", TARGET, PLAYER) > -1
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@RAPE_MESSAGE_COM23
+
+
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%%TEXTR("の上にまたがり/の腰にまたがり/の腰に乗りあげ/に馬乗りになり")%、
+
+IF MODE_確認_ターゲット側("ペニスバンド", TARGET) < 0
+
+	;おちんぽ冠詞群……いる？
+	;「パーシヴァルの高貴な童貞ちんぽ」とか「ウーノの小さな童貞おちんちん」とか出てきたら興奮とかより笑いが出てきちゃわない？
+	;高貴は流石に面白すぎちゃいそうだからいったん候補から外す
+
+	IF TALENT:男性器サイズ <= -1
+	;短小以下
+		PRINTFORM ぴんと硬くなった%TEXTR("小さな/ひとくちサイズの/ちっちゃな")%
+	ELSEIF TALENT:男性器サイズ == 2
+	;デカい
+		PRINTFORM %TEXTR("/バキバキに勃起した/硬く反り立ち威容を放つ")%規格外サイズの
+	ELSE
+		PRINTFORM = %TEXTR("ガチガチに勃起し/硬くそそり立っ")%た
+	ENDIF
+	
+	SIF CFLAG:TARGET:発情期フラグ < 0
+		PRINTFORM 発情
+	
+	;GETBITのほうがいいんだろうけど結局のところよくわかってないのでTALENTで
+	SIF TALENT:非童貞 == 0
+		PRINTFORM 童貞
+	
+	IF TALENT:イキやすさ == 1
+		PRINTFORM %TEXTR("ザコ/よわよわ")%
+	ELSEIF TALENT:Ｃ感度 == 1
+		PRINTFORM 敏感
+	ENDIF
+	
+	IF TALENT:男性器サイズ <= -1
+		PRINTFORM %TEXTR("ちんちん/おちんちん/ミニちんぽ")%
+	ELSEIF TALENT:男性器サイズ == 0
+		PRINTFORM %TEXTR("ちんぽ/ちんちん/ペニス")%
+	ELSEIF TALENT:男性器サイズ == 1
+		PRINTFORM %TEXTR("デカチンポ/デカちんぽ")%
+	ELSEIF TALENT:男性器サイズ == 2
+		PRINTFORM %TEXTR("デカチンポ/デカちんぽ")%
+	ENDIF
+ELSE
+	PRINTFORM = ペニスバンド
+ENDIF
+
+PRINTFORM を%TEXTR("肛門/アナル")%にあてがって、そのまま%TEXTR("ゆっくり/ずっぷり/ずぶずぶ")%と%TEXTR("咥えこんで/腰を下ろして/")%いった…
+
+;ここまでを全て繋げると
+;「%CALLNAME:PLAYER%は%CALLNAME:TARGET%%TEXTRに馬乗りになり"、硬くそそり立ったよわよわちんちんをアナルにあてがって、そのままゆっくりと咥えこんでいった…」
+;となる。
+;Q.この場合、%CALLNAME:TARGET%にあたるのはいったい誰ームニルでしょうか？
+
