@@ -13,7 +13,7 @@
 #DIM Ａ処女保存
 #DIM 年齢数値設定フラグ
 #DIM 身長数値設定フラグ
-#DIM バスト数値設定フラグ
+#DIM バスト数値設定フラグ, 2
 #DIM ウエスト数値設定フラグ
 #DIM ヒップ数値設定フラグ
 #DIM フレーバー素質数値保存, 10
@@ -1047,16 +1047,6 @@ SELECTCASE 表示モード
 		NEXT
 		LOCALS += "<br>"
 		LOCALS += "<br>"
-		;Discordより
-		;基礎,年齢　実年齢を具体的に歳単位で入れる。わからない場合は使ってはいけない
-		;素質,年齢層　実年齢のイメージを入れる。上の年齢とはどちらか１つだけでいい。わからないばあいは-1（不詳）。
-		;素質,長命者　人間の尺度を越える年数生きている場合に使用する。それ以外は0。値は見た目の年齢層となる 。
-		; 長命者 = 年齢層_幼い かつ 年齢層 = 年齢層_老年で年齢表記が「ロリババアorショタジジイ」になる。
-		;記入例
-		;渋谷凛：年齢が決まってる通常の例。基礎,年齢,15だけあればいい。
-		;ルザミーネ：年齢がある程度わかるがピッタリの数値は不明な例。素質,年齢層,年齢層_壮年だけあればいい。
-		;フランドール：年齢が決まっている長命者の例。基礎,年齢,495だけだと老婆になってしまうので、素質,長命者,年齢層_幼いを追加した。 
-		;フェニー：年齢がわからん長命者の例。素質,年齢層,年齢層_老年と素質,長命者,年齢層_若いがある
 		IF 年齢数値設定フラグ
 			LOCALS += @"<font color='#%見出し文字色%'>実年齢：</font>"
 			LOCALS += @"<button value='{12097}'>[{年齢保存}歳]</button>"
@@ -1081,13 +1071,22 @@ SELECTCASE 表示モード
 			ELSE
 				LOCALS:1 = 333333
 			ENDIF
-			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[\@ LOCAL == 年齢層_不詳? 年齢# \@%GET_TALENTNAME(164, LOCAL)%]</button></font>"
+			SELECTCASE LOCAL
+				CASE 年齢層_幼い TO 年齢層_中年
+					LOCALS:2 '= @"種族関係なく、実年齢で{年齢ボーダー:(LOCAL-1)}～{年齢ボーダー:LOCAL-1}歳くらい"
+				CASE 年齢層_老年
+					LOCALS:2 '= @"種族関係なく、実年齢で{年齢ボーダー:(LOCAL-1)}歳以上"
+				CASEELSE
+					LOCALS:2 = 
+			ENDSELECT
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}' title='%LOCALS:2%'>[\@ LOCAL == 年齢層_不詳? 年齢# \@%GET_TALENTNAME(164, LOCAL)%]</button></font>"
 		NEXT
 		LOCALS += "<br>"
 		;外見年齢が年齢層区分±1の場合、外見年齢を0（＝年相応）にする
 		SIF INRANGE(ランダムキャラ素質:34, ランダムキャラ素質:33-1, ランダムキャラ素質:33+1)
 			ランダムキャラ素質:34 = 0
-		LOCALS += @"<font color='#%見出し文字色%'><nonbutton title='単純な童顔やフケ顔レベルではなく、ロリババァや生後3年でほぼ大人といった感じの<br>外見年齢と実年齢が大幅に剥離している場合にのみ設定すること。'>外見年齢：</nonbutton></font>"
+		LOCALS:2 = 単純な童顔やフケ顔レベルではなく、ロリババァや生後3年でほぼ大人といった感じの<br>外見年齢と実年齢が大幅に剥離している場合にのみ設定すること。
+		LOCALS += @"<font color='#%見出し文字色%'><nonbutton title='%LOCALS:2%'>外見年齢：</nonbutton></font>"
 		LOCALS += @"<font color='#\@ ランダムキャラ素質:34? 333333# C0C0C0\@'><button value='{12120}'>[年相応]</button></font>"
 		FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
 			SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
@@ -1106,110 +1105,67 @@ SELECTCASE 表示モード
 			SIF INRANGE(LOCAL, ランダムキャラ素質:33-1, ランダムキャラ素質:33+1)
 				LOCALS += "</clearbutton>"
 		NEXT
-;		IF 年齢数値設定フラグ && 年齢保存 > 0
-;			IF ランダムキャラ素質:34 == 0
-;				LOCALS += @"<font color='#%見出し文字色%'>外見年齢：</font><button value='{12120}'>[長命者をONにする]</button>"
-;			ELSE
-;				LOCALS += @"<font color='#%見出し文字色%'>外見年齢：</font>"
-;				FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;					SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;						CONTINUE
-;					IF ランダムキャラ素質:34 == LOCAL
-;						LOCALS:1 = C0C0C0
-;					ELSE
-;						LOCALS:1 = 333333
-;					ENDIF
-;					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12120 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;				NEXT
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をOFFにする]</button>"
-;			ENDIF
-;		ELSE
-;			LOCALS += @"<font color='#%見出し文字色%'>年齢：</font>"
-;			FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;				SIF LOCAL != 年齢層_不詳 && !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;					CONTINUE
-;				IF ランダムキャラ素質:33 == LOCAL
-;					LOCALS:1 = C0C0C0
-;				ELSE
-;					LOCALS:1 = 333333
-;				ENDIF
-;				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12100 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;			NEXT
-;			IF ランダムキャラ素質:34 == 0
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をONにする]</button>"
-;			ELSE
-;				LOCALS += "<br>"
-;				LOCALS += @"<font color='#%見出し文字色%'>見た目年齢：</font>"
-;				FOR LOCAL, 年齢層_最小, 年齢層_最大 + 1
-;					SIF !INRANGE(LOCAL, 年齢層_幼い, 年齢層_老年)
-;						CONTINUE
-;					IF ランダムキャラ素質:34 == LOCAL
-;						LOCALS:1 = C0C0C0
-;					ELSE
-;						LOCALS:1 = 333333
-;					ENDIF
-;					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12120 + LOCAL}'>[%GET_TALENTNAME(164, LOCAL)%]</button></font>"
-;				NEXT
-;				LOCALS += @"　　　<button value='{12120}'>[長命者をOFFにする]</button>"
-;			ENDIF
-;		ENDIF
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		LOCALS += @"<font color='#%見出し文字色%'>身長：</font>"
-		IF 身長数値設定フラグ
-			LOCALS:1 = %DECIMAL_STRING(身長保存, 1)%cm
-
-			LOCALS += @"<button value='{12025}'>[%LOCALS:1%]</button>"
-			LOCALS += @"　　　<button value='{12998}'>[自動で設定する]</button>"
-			LOCALS += @"　<button value='{12996}'>[リロール]</button>"
-		ELSE
-			LOCALS += @"体格により自動算出"
-			LOCALS += @"　　　<button value='{12998}'>[手動で設定する]</button>"
-		ENDIF
 		LOCALS += "<br>"
 		IF GETBIT(ランダムキャラ素質:1, 0)
+			LOCALS += "<br>"
 			LOCALS += @"<font color='#%見出し文字色%'>バストサイズ：</font>"
 			IF バスト数値設定フラグ
 				LOCALS:1 = %DECIMAL_STRING(バスト保存, 1)%cm
 				LOCALS:1 += @"%EDIT用バストサイズ表示(バスト保存, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))%"
 
 				LOCALS += @"<button value='{12026}'>[%LOCALS:1%]</button>"
-				LOCALS += @"　　　<button value='{12999}'>[カップ数で指定する]</button>"
+				LOCALS += " " * (14 - STRLENS(LOCALS:1))
+				LOCALS += @"　<button value='{12999}'>[カップ数で指定する]</button>"
 				LOCALS += @"　<button value='{12997}'>[リロール]</button>"
 			ELSE
-				FOR LOCAL, -2, 4
-					IF ランダムキャラ素質:3 == LOCAL
-						LOCALS:1 = C0C0C0
-					ELSE
-						LOCALS:1 = 333333
-					ENDIF
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
-				NEXT
-				LOCALS += @"　　　<button value='{12999}'>[数値で指定する]</button>"
+				LOCALS += @"%GET_TALENTNAME(205, ランダムキャラ素質:3), 16, LEFT%"
+				LOCALS += @"　<button value='{12999}'>[数値で指定する]</button>"
 			ENDIF
+			LOCALS += "<br>"
+			LOCALS:2 '= " " * 12 + @"<font color='#%見出し文字色%'>├</font>"
+			FOR LOCAL, -2, 4
+				IF ランダムキャラ素質:3 == LOCAL
+					IF バスト数値設定フラグ
+						LOCALS:1 = FFFF00
+					ELSE
+						LOCALS:1 = C0C0C0
+					ENDIF
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS:3 '= @"<font color='#%LOCALS:1%'><button value='{12020 + LOCAL}'>[%GET_TALENTNAME(205,LOCAL)%]</button></font>"
+				IF STRLENS(HTML_TOPLAINTEXT(LOCALS:2+LOCALS:3)) / (3675/50) > 0
+					LOCALS += LOCALS:2 + "<br>"
+					LOCALS:2 '= " " * 12 + @"<font color='#%見出し文字色%'>└</font>"
+				ENDIF
+				LOCALS:2 += LOCALS:3
+			NEXT
+			LOCALS += LOCALS:2
 			LOCALS += "<br>"
 			LOCALS += @"<font color='#%見出し文字色%'>ウエストサイズ：</font>"
 			IF ウエスト数値設定フラグ
 				LOCALS:1 = %DECIMAL_STRING(ウエスト保存, 1)%cm
 
 				LOCALS += @"<button value='{12990}'>[%LOCALS:1%]</button>"
-				LOCALS += @"　　　<button value='{12992}'>[自動で設定する]</button>"
+				LOCALS += " " * (14 - STRLENS(LOCALS:1))
 				LOCALS += @"　<button value='{12994}'>[リロール]</button>"
+				LOCALS += @"　<button value='{12992}'>[自動で設定する]</button>"
 			ELSE
-				LOCALS += @"体格・体型により自動算出"
-				LOCALS += @"　　　<button value='{12992}'>[手動で設定する]</button>"
+				LOCALS += @"（体格・体型により自動算出）"
+				LOCALS += @"　<button value='{12992}'>[手動で設定する]</button>"
 			ENDIF
 			LOCALS += "<br>"
 			LOCALS += @"<font color='#%見出し文字色%'>ヒップサイズ：</font>"
 			IF ヒップ数値設定フラグ
 				LOCALS:1 = %DECIMAL_STRING(ヒップ保存, 1)%cm
 
-				LOCALS += @"<button value='{12991}'>[%LOCALS:1%]</button>"
-				LOCALS += @"　　　<button value='{12993}'>[自動で設定する]</button>"
+				LOCALS += @"<button value='{12991}'>　[%LOCALS:1%]</button>"
+				LOCALS += " " * (14- STRLENS(LOCALS:1))
 				LOCALS += @"　<button value='{12995}'>[リロール]</button>"
+				LOCALS += @"　<button value='{12993}'>[自動で設定する]</button>"
 			ELSE
-				LOCALS += @"体格・体型により自動算出"
-				LOCALS += @"　　　<button value='{12993}'>[手動で設定する]</button>"
+				LOCALS += @"　（体格・体型により自動算出）"
+				LOCALS += @"　<button value='{12993}'>[手動で設定する]</button>"
 			ENDIF
 		ENDIF
 		LOCALS += "<br>"
@@ -1227,25 +1183,36 @@ SELECTCASE 表示モード
 					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12040 + LOCAL}'>[%GET_TALENTNAME(160, LOCAL)%]</button></font>"
 				ENDIF
 			NEXT
-		ENDIF
-		LOCALS += "<br>"
-		LOCALS += "<br>"
-		IF !身長数値設定フラグ
-			LOCALS += @"<font color='#%見出し文字色%'>体格：</font>"
-			FOR LOCAL, -3, 3
-				IF ランダムキャラ素質:31 == LOCAL
-					LOCALS:1 = C0C0C0
-				ELSE
-					LOCALS:1 = 333333
-				ENDIF
-				IF LOCAL == 0
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[普通]</button></font>"
-				ELSE
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[%GET_TALENTNAME(161, LOCAL)%]</button></font>"
-				ENDIF
-			NEXT
 			LOCALS += "<br>"
 		ENDIF
+		LOCALS += "<br>"
+		LOCALS += @"<font color='#%見出し文字色%'>身長：</font>"
+		IF 身長数値設定フラグ
+			LOCALS:1 = %DECIMAL_STRING(身長保存, 1)%cm
+
+			LOCALS += @"<button value='{12025}'>[%LOCALS:1%]</button>"
+			LOCALS += " " * (12- STRLENS(LOCALS:1))
+			LOCALS += @"　<button value='{12998}'>[大まかに設定する]</button>"
+			LOCALS += @"　<button value='{12996}'>[リロール]</button>"
+		ELSE
+			LOCALS += @"%GET_TALENTNAME(161, ランダムキャラ素質:31), 14, LEFT%"
+			LOCALS += @"　<button value='{12998}'>[数値で設定する]</button>"
+		ENDIF
+		LOCALS += "<br>"
+		LOCALS += @"<font color='#%見出し文字色%'>体格：</font>"
+		FOR LOCAL, -3, 3
+			IF ランダムキャラ素質:31 == LOCAL
+				IF 身長数値設定フラグ
+					LOCALS:1 = FFFF00
+				ELSE
+					LOCALS:1 = C0C0C0
+				ENDIF
+			ELSE
+				LOCALS:1 = 333333
+			ENDIF
+			LOCALS += @"<font color='#%LOCALS:1%'><button value='{12050 + LOCAL}'>[%GET_TALENTNAME(161, LOCAL)%]</button></font>"
+		NEXT
+		LOCALS += "<br>"
 		IF !ウエスト数値設定フラグ
 			LOCALS += @"<font color='#%見出し文字色%'>体型：</font>"
 			FOR LOCAL, -3, 4
@@ -1254,11 +1221,7 @@ SELECTCASE 表示モード
 				ELSE
 					LOCALS:1 = 333333
 				ENDIF
-				IF LOCAL == 0
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[普通]</button></font>"
-				ELSE
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[%GET_TALENTNAME(163, LOCAL)%]</button></font>"
-				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12080 + LOCAL}'>[%GET_TALENTNAME(163, LOCAL)%]</button></font>"
 			NEXT
 			LOCALS += "<br>"
 		ENDIF
@@ -1270,11 +1233,7 @@ SELECTCASE 表示モード
 				ELSE
 					LOCALS:1 = 333333
 				ENDIF
-				IF LOCAL == 0
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12090 + LOCAL}'>[普通]</button></font>"
-				ELSE
-					LOCALS += @"<font color='#%LOCALS:1%'><button value='{12090 + LOCAL}'>[%GET_TALENTNAME(210, LOCAL)%]</button></font>"
-				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{12090 + LOCAL}' title='%GET_TALENTNAME(210, LOCAL, 1)%'>[%GET_TALENTNAME(210, LOCAL)%]</button></font>"
 			NEXT
 			LOCALS += "<br>"
 		ENDIF
@@ -1373,11 +1332,34 @@ SELECTCASE 表示モード
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 132
-		LOCALS += "趣味レベルは1、プロ級・職業に出来るレベルで2<br>全空でも最強レベルの場合は3が目安　　<button value='69999'>[設定の目安詳細]</button><br><br>"
+		LOCALS += "基本的に知識素質で設定されるレベルは「グラブル世界の知識」です。<br>"
+		LOCALS += "異世界出身のキャラは相応にレベルを下げて設定することが望ましいです。<br>"
+		LOCALS += "　趣味レベルは1、プロ級・職業に出来るレベルで2<br>　全空でも最強レベルの場合は3が目安　　<button value='69999'>[設定の目安詳細]</button><br>"
+		LOCALS += "<br>"
 		FOR COUNT, 1, 100
 			SIF ERDNAME(知識素質, COUNT) == ""
 				CONTINUE
-			LOCALS += @"%ERDNAME(知識素質, COUNT), 12, LEFT%："
+			LOCALS:3 '= ERDNAME(知識素質, COUNT)
+			SELECTCASE LOCALS:3
+				CASE "農業知識"
+					LOCALS:3 += @"<br>　　現実世界でも土地が違うと農業のノウハウがまったく違うことは珍しくない。<br>　　気候が似通っているならそのままで、違う気候なら下げた方が良い。"
+				CASE "経営知識"
+					LOCALS:3 += @"<br>　　基本的には下がらない側の知識だが、現代の経営とは異なり通信や輸送手段の<br>　　限られるグラブル世界ではノウハウが通用しないパターンが考えられる。<br>　　反面、ファンタジー出身のキャラならある程度通用すると考えられる。"
+				CASE "高貴"
+					LOCALS:3 += @"<br>　　基本的には下がらない側の知識だが、出身世界とグラブル世界で<br>　　あまりにも文化が違う場合は下げるのが適正な場合がある。"
+				CASE "魔法知識"
+					LOCALS:3 += @"<br>　　基本的には下がる側の知識だが、グラブルの魔法系統が非常に幅広いこと、<br>　　またコラボなどでも基本的に特殊能力は維持されている描写から、魔法の原理が<br>　　汎用的なものであるならレベルを維持しても不自然ではない。"
+				CASE "魔物知識","歴史知識"
+					LOCALS:3 += @"<br>　　世界ごとに全く異なる歴史・発展を遂げているはずだ<br>　　よほどのことが無い限り、レベルは大きく下げるべきだろう"
+				CASE "調合知識", "機械知識","錬金知識"
+					LOCALS:3 += @"<br>　　世界ごとの技術体系の違いから応用は効きにくいと思われる<br>　　レベルは多少下げるべきだろう"
+				CASEELSE
+					LOCALS:3 += @"<br>　　世界が変わっても通用しやすい技術と推測されるため<br>　　ほぼレベルは変えなくてもいいだろう"
+			ENDSELECT
+			LOCALS += @"<nonbutton title='%LOCALS:3%'>"
+			LOCALS += @"%ERDNAME(知識素質, COUNT)%<font color='#808080'>(?)</font>"
+			LOCALS += " " * (9 - STRLENS(ERDNAME(知識素質, COUNT)))
+			LOCALS += "：</nonbutton>"
 			FOR LOCAL:1, 0, 4
 				IF LOCAL:1 == 0
 					LOCALS:2 = なし
@@ -1389,7 +1371,7 @@ SELECTCASE 表示モード
 				ELSE
 					LOCALS:1 = 333333
 				ENDIF
-				LOCALS += @"<font color='#%LOCALS:1%'><button value='{60000 + COUNT * 10 + LOCAL:1}'>[%LOCALS:2%]</button></font>"
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{60000 + COUNT * 10 + LOCAL:1}' title='%LOCALS:3%'>[%LOCALS:2%]</button></font>"
 			NEXT
 			LOCALS += "<br>"
 		NEXT
@@ -1427,6 +1409,9 @@ SELECTCASE 表示モード
 		LOCALS += "　　　　　　"
 		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>"
 	CASE 134
+		LOCALS += "基本的には有利不利を与えることのない、フレーバーとしての素質です<br>　（例外：アイドル、スクールアイドル）<br>"
+		LOCALS += "キャラクタ再現に活用してください<br>"
+		LOCALS += "<br>"
 		FOR COUNT, 0, 10
 			LOCALS += @"<button value='{85000 + COUNT}'>固有素質{COUNT}：[%固有素質一時保存:COUNT%]</button><br>"
 		NEXT
@@ -1814,14 +1799,18 @@ SELECTCASE LOCAL
 		身長保存 = EDIT用身長算出(ランダムキャラ素質:1, ランダムキャラ素質:0, ランダムキャラ素質:31)
 		SIF !バスト数値設定フラグ
 			バスト保存 = EDIT用バストcm算出(ランダムキャラ素質:3, EDIT用アンダーバスト算出(ランダムキャラ素質:1, ランダムキャラ素質:0, 身長保存, ランダムキャラ素質:31, 体型保存))
+		ウエスト保存 = EDIT用ウエスト算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存)
+		ヒップ保存 = EDIT用ヒップ算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存, 下半身保存)
 	CASE 12058 TO 12062
 		ランダムキャラ素質:32 = LOCAL - 12060
 	CASE 12070 TO 12073
 		INVERTBIT 肉体特徴数値保存:(LOCAL - 12070), 0
 	CASE 12077 TO 12083
 		体型保存 = LOCAL - 12080
+		ウエスト保存 = EDIT用ウエスト算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存)
 	CASE 12089 TO 12091
 		下半身保存 = LOCAL - 12090
+		ヒップ保存 = EDIT用ヒップ算出(ランダムキャラ素質:1, 身長保存, ランダムキャラ素質:31, 体型保存, 下半身保存)
 	CASE 12096
 		; 種族名の文字数上限わからないのでとりあえず他の入力系と同じ12文字に設定
 		PRINTL 種族名を入力してください。（１２文字まで）
@@ -1849,10 +1838,8 @@ SELECTCASE LOCAL
 			ELSE
 				年齢保存 = RAND(年齢ボーダー:年齢層_成人, 年齢ボーダー:年齢層_大人)
 			ENDIF
-;			ランダムキャラ素質:33 = 0
 		ELSEIF ランダムキャラ素質:33 != 年齢層_不詳
 			ランダムキャラ素質:33 = 年齢層算出処理(年齢保存)
-;			年齢保存 = 0
 		ENDIF
 	CASE 12099 TO 12116
 		;年齢層：不詳～老年
@@ -1866,21 +1853,6 @@ SELECTCASE LOCAL
 		;外見年齢：年相応（旧 長命者ON/OFF）
 		;;ONOFFによらず外見年齢ボタン出しっぱなしにするので単純に外見年齢を0にするよう変更
 		ランダムキャラ素質:34 = 0
-;		IF 年齢数値設定フラグ && 年齢保存 > 0
-;			IF ランダムキャラ素質:34 == 0
-;				ランダムキャラ素質:34 = 年齢層_大人
-;			ELSE
-;				ランダムキャラ素質:34 = 0
-;			ENDIF
-;		ELSEIF ランダムキャラ素質:34 == 0 && INRANGE(ランダムキャラ素質:33, 年齢層_幼い, 年齢層_老年)
-;			ランダムキャラ素質:34 = ランダムキャラ素質:33
-;			ランダムキャラ素質:33 = 年齢層_老年
-;		ELSEIF ランダムキャラ素質:34 == 0
-;			ランダムキャラ素質:34 = 年齢層_大人
-;		ELSE
-;			ランダムキャラ素質:33 = ランダムキャラ素質:34
-;			ランダムキャラ素質:34 = 0
-;		ENDIF
 	CASE 12130 TO 12136
 		;外見年齢：幼い～老年
 		ランダムキャラ素質:34 = LOCAL - 12120
@@ -1973,6 +1945,8 @@ SELECTCASE LOCAL
 		PRINTL
 		PRINTL 農業知識：現実世界でも土地が違うと農業のノウハウがまったく違うことは珍しくない。
 		PRINTL 　　　　　気候が似通っているならそのままで、違う気候なら下げた方が良い。
+		PRINTL
+		PRINTW （これらは各種知識のツールチップでも確認できます）
 ;服装----------------------------------------------------
 	CASE 70010 TO 70221
 		服装数値保存:((LOCAL - 70000) / 10) = LOCAL % 10
@@ -2325,14 +2299,6 @@ SELECTCASE LOCAL
 	CASE 105
 		ページ数 = 0
 		表示モード = 105
-;	CASE 161
-;		IF ランダムキャラ素質:1 == 2
-;			PRINTFORML [0] %男水着一覧:0%  [1] %男水着一覧:1%
-;		ELSE
-;			PRINTFORML [0] %水着一覧:0%  [1] %水着一覧:1%  [2] %水着一覧:2%  [3] %水着一覧:3%  
-;		ENDIF
-;		BINPUT
-;		服装数値保存:30 = RESULT
 	CASE 170
 		CALL 汎用立ち絵選択処理(汎用画像キー)
 	CASE 171
@@ -2346,13 +2312,6 @@ SELECTCASE LOCAL
 			; 作成するCSVファイルの内容表示
 			CLEARLINE LINECOUNT
 			TWAIT 100, 1
-			;空き番号取得は冒頭へ移動
-;			FOR LOCAL:1, 2000, キャラクタ数上限
-;				IF EXISTCSV(LOCAL:1) == 0
-;					登録番号 = LOCAL:1
-;					BREAK
-;				ENDIF
-;			NEXT
 			PRINTFORML 番号,{登録番号}
 			PRINTFORML 名前,[%ランダムキャラ二つ名%]%ランダムキャラネーム%
 			IF ランダムキャラCALLネーム != ""
@@ -2365,7 +2324,7 @@ SELECTCASE LOCAL
 			PRINTL 基礎,ムード,1500
 			PRINTL 基礎,理性,1000
 			PRINTL 基礎,怒り,1000
-			PRINTL 
+			HTML_PRINT "<br>"
 			PRINTFORML CSTR,一人称,%ランダムキャラ人称:0%
 			PRINTFORML CSTR,二人称,%ランダムキャラ人称:1%
 			IF ランダムキャラ出演作品 != ""
@@ -2375,10 +2334,10 @@ SELECTCASE LOCAL
 				PRINTL ;招待不可フラグ=1  ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される。
 				PRINTL 		;その際、「ZPショップ値段」の数値が値段になる。０(設定していない)場合、50ZPになる
 				PRINTL 		;フラグ３とはフレーバーによって使い分けること
-				PRINTL 
+				HTML_PRINT "<br>"
 				PRINTL ;招待不可フラグ=2  ZPショップに搭載されず、また招待対象にもならない
 				PRINTL 		;特別なイベントで招待可能になるキャラ用
-				PRINTL 
+				HTML_PRINT "<br>"
 				PRINTL ;招待不可フラグ=3  ZPショップの「特別なキャラを招待候補に加える」の一覧に搭載される。
 				PRINTL 		;ただしイベント「「平行世界」という場所」をクリアしていなければ一覧に表示されない。
 				PRINTL 		;その際、「ZPショップ値段」の数値が値段になる。０(設定していない)場合、50ZPになる
@@ -2387,7 +2346,7 @@ SELECTCASE LOCAL
 				PRINTFORML CSTR,出演作品,%ランダムキャラ出演作品%
 				PRINTFORML フラグ,招待不可フラグ,{ランダムキャラ招待不可フラグ}
 			ENDIF
-			PRINTL 
+			HTML_PRINT "<br>"
 			SIF 年齢数値設定フラグ
 				PRINTFORML 基礎,年齢,{年齢保存}
 			SIF 身長数値設定フラグ
@@ -2400,7 +2359,7 @@ SELECTCASE LOCAL
 				SIF ヒップ数値設定フラグ
 					PRINTFORML 基礎,ヒップ,{ヒップ保存}
 			ENDIF
-			PRINTL 
+			HTML_PRINT "<br>"
 			PRINTL {
 			PRINTL CSTR,知識素質設定,
 			PRINTFORML 性知識Lv{ランダムキャラ素質:6}
@@ -2410,7 +2369,7 @@ SELECTCASE LOCAL
 				ENDIF
 			NEXT
 			PRINTL }
-			PRINTL 
+			HTML_PRINT "<br>"
 			PRINTL {
 			PRINTL CSTR,性癖素質設定,
 			FOR LOCAL, 1, 20
@@ -2419,7 +2378,7 @@ SELECTCASE LOCAL
 				ENDIF
 			NEXT
 			PRINTL }
-			PRINTL
+			HTML_PRINT "<br>"
 			PRINTFORML 素質,種族,{ランダムキャラ素質:0}
 			; 特殊種族は種族が[その他]の場合のみ有効
 			SIF ランダムキャラ素質:0 == 6 && ランダムキャラ特殊種族 != ""
@@ -2474,20 +2433,20 @@ SELECTCASE LOCAL
 				PRINTFORML 素質,下半身,{下半身保存}
 			SIF GETBIT(ランダムキャラ素質:1, 1)
 				PRINTFORML 素質,男性器サイズ,{ランダムキャラ素質:32}
-			PRINTL 
+			HTML_PRINT "<br>"
 
 			FOR LOCAL, 0, 50
 				IF ABL数値保存:LOCAL > 0
 					PRINTFORML 能力,%ABLNAME:(ABL一時保存:LOCAL)%,{ABL数値保存:LOCAL}
 				ENDIF
 			NEXT
-			PRINTL 
+			HTML_PRINT "<br>"
 			FOR LOCAL, 0, 100
 				IF EXP数値保存:LOCAL > 0
 					PRINTFORML 経験,%EXPNAME:(EXP一時保存:LOCAL)%,{EXP数値保存:LOCAL}
 				ENDIF
 			NEXT
-			PRINTL 
+			HTML_PRINT "<br>"
 
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;プレゼント好み
@@ -2510,7 +2469,7 @@ SELECTCASE LOCAL
 			PRINTL ;複数好みにする場合は「飲食系_娯楽」のように記述すること
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTFORML CSTR,プレゼント好み,%SUBSTRINGU(好物一時保存, 0, STRLENSU(好物一時保存) - 1)%
-			PRINTL 
+			HTML_PRINT "<br>"
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;同行キャラ設定
 			PRINTL ;「キャラのフルネーム_同行確率%」で記述すること。フルネームは二つ名込みで記述。（被り防止のため）
@@ -2525,7 +2484,7 @@ SELECTCASE LOCAL
 				ENDIF
 			NEXT
 			PRINTL }
-			PRINTL 
+			HTML_PRINT "<br>"
 			
 			PRINTFORML CSTR,服名称,%ランダムキャラ服装名%
 			FOR LOCAL, 1, 23
@@ -2538,7 +2497,7 @@ SELECTCASE LOCAL
 				PRINTFORML ;水着は%水着一覧:(服装数値保存:30)%
 				PRINTFORML フラグ,水着,{服装数値保存:30}
 			ENDIF
-			PRINTL 
+			HTML_PRINT "<br>"
 
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;戦闘ステータス設定
@@ -2553,7 +2512,7 @@ SELECTCASE LOCAL
 			PRINTFORML 得意武器_%得意武器表示文字列(ランダムキャラ戦闘タイプ:1)%
 			PRINTFORML 初期ステータスタイプ_%成長タイプ:(ランダムキャラ戦闘タイプ:2)%
 			PRINTL }
-			PRINTL 
+			HTML_PRINT "<br>"
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;表示奥義設定
 			PRINTL ;設定すると固有奥義を口上で設定しなくても、汎用奥義の表示名のみを変更する
@@ -2566,20 +2525,20 @@ SELECTCASE LOCAL
 				PRINTFORM %ランダムキャラ奥義名:0%
 				SIF ランダムキャラ奥義名:1 != "" || ランダムキャラ奥義名:2 != ""
 					PRINTFORM _%ランダムキャラ奥義名:1%_%ランダムキャラ奥義名:2%
-				PRINTL
+				HTML_PRINT "<br>"
 			ELSE
-				PRINTL
+				HTML_PRINT "<br>"
 			ENDIF
 			PRINT CSTR,陥落奥義設定,
 			IF ランダムキャラ奥義名:3 != ""
 				PRINTFORM %ランダムキャラ奥義名:3%
 				SIF ランダムキャラ奥義名:4 != "" || ランダムキャラ奥義名:5 != ""
 					PRINTFORM _%ランダムキャラ奥義名:4%_%ランダムキャラ奥義名:5%
-				PRINTL
+				HTML_PRINT "<br>"
 			ELSE
-				PRINTL
+				HTML_PRINT "<br>"
 			ENDIF
-			PRINTL 
+			HTML_PRINT "<br>"
 			OUTPUTLOG @"CSV_EDITFILE/Chara{登録番号} %ランダムキャラネーム%.csv", 1
 			PRINTW CSV_EDITFILEフォルダに出力しました。CSV/キャラデータフォルダに移動して再起動してください
 			DT_RELEASE "DT_CHARA"
@@ -3460,24 +3419,55 @@ ENDSELECT
 @CSVコピー処理(ARG=0)
 #DIM CSV番号
 #DIM 配列番号
-#DIM 表示数, 2
+#DIM 表示数, 3
 #DIM CSVページ数
 #DIM 次ページフラグ
-#DIM 表示配列, 3000
+#DIM 表示配列, キャラクタ数上限
+#DIMS Row_page
+#DIMS Row_filter
+#DIM フィルタフラグ, 2
+#DIMS フィルタ文字列,2;  0:出演作品 1:名前
+#DIMS 出演作品, 500
+#DIM 出演作品数
+#DIM L_COUNT
 
-VARSET 表示配列
+VARSET 出演作品
+出演作品:0 = グランブルーファンタジー
+出演作品数 = 1
+L_COUNT = LINECOUNT
+
+$処理部分
+;CLEARLINE L_COUNT - LINECOUNT
+L_COUNT = LINECOUNT
 表示数 = 0
-FOR CSV番号, 1, 3000
+VARSET 表示配列
+FOR CSV番号, 1, キャラクタ数上限
 	SIF EXISTCSV(CSV番号) == 0
 		CONTINUE
 	SIF CSV番号 == 999
 		CONTINUE
+	IF フィルタフラグ
+		SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, CSVTALENT(CSV番号, GETNUM(TALENT, "性別")))%")
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, CSVTALENT(CSV番号, GETNUM(TALENT, "種族")))%")
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:その他, @"その他：招待不可%TOSTR(CSVCFLAG(CSV番号, GETNUM(CFLAG, "招待不可フラグ")))%")
+			CONTINUE
+		LOCALS = \@ CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品")) != "" ? %CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品"))% # グランブルーファンタジー\@
+		SIF STRCOUNT(フィルタ文字列, @"出演作品：%LOCALS%")
+			CONTINUE
+		SIF フィルタ文字列:1 != "" && !STRCOUNT(CSVNAME(CSV番号), フィルタ文字列:1)
+			CONTINUE
+	ENDIF
 	表示配列:表示数 = CSV番号
+	IF CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品")) != "" && !MATCH(出演作品, CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品")))
+		出演作品:出演作品数 '= CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品"))
+		出演作品数 ++
+	ENDIF
 	表示数 ++
 NEXT
 表示数:1 = 表示数
 
-$処理部分
 
 DRAWLINE
 IF !ARG
@@ -3500,44 +3490,169 @@ NEXT
 SIF 表示数 % 2
 	PRINTL
 DRAWLINE
-LOCALS = 
+Row_page = 
 IF CSVページ数 > 0
-	LOCALS += "<button value='9997'>[前のページ]</button>"
+	Row_page += "<button value='9997'>[前のページ]</button>"
 ELSE
-	LOCALS += "　　　　　　"
+	Row_page += "　　　　　　"
 ENDIF
-LOCALS += " " * 22
-LOCALS += @"{CSVページ数, 4, RIGHT}/{表示数:1 / 40, 4, RIGHT}"
-LOCALS += " " * 25
-IF CSVページ数 < 表示数:1 / 40
-	LOCALS += "<button value='9998'>[次のページ]</button>"
+Row_page += " " * 22
+Row_page += @"{CSVページ数, 4, RIGHT}/{表示数:1 / 40 - !(表示数%40), 4, RIGHT}"
+Row_page += " " * 25
+IF CSVページ数 < 表示数:1 / 40 - !(表示数%40)
+	Row_page += "<button value='9998'>[次のページ]</button>"
 ENDIF
-LOCALS += "<br>"
+Row_page += "<br>"
 IF CSVページ数 > 0
-	LOCALS += "<button value='9991'>[|≪]</button>"
+	Row_page += "<button value='9991'>[|≪]</button>"
 ELSE
-	LOCALS += "     "
+	Row_page += "     "
 ENDIF
 IF CSVページ数 > 5
-	LOCALS += "<button value='9992'> [－５]</button>"
+	Row_page += "<button value='9992'> [－５]</button>"
 ELSE
-	LOCALS += " 　　　"
+	Row_page += " 　　　"
 ENDIF
-LOCALS += " " * 24
-LOCALS += "<button value='9999'> [戻る]</button>"
-LOCALS += " " * 25
-IF CSVページ数 <= 表示数:1 / 40 - 5
-	LOCALS += "<button value='9995'>[＋５] </button>"
+Row_page += " " * 24
+Row_page += "<button value='9999'> [戻る]</button>"
+Row_page += " " * 25
+IF CSVページ数 <= 表示数:1 / 40 - 5 - !(表示数%40)
+	Row_page += "<button value='9995'>[＋５] </button>"
 ELSE
-	LOCALS += " 　　　"
+	Row_page += " 　　　"
 ENDIF
-IF CSVページ数 < 表示数:1 / 40
-	LOCALS += "<button value='9996'>[≫|]</button>"
+IF CSVページ数 < 表示数:1 / 40 - !(表示数%40)
+	Row_page += "<button value='9996'>[≫|]</button>"
 ENDIF
-HTML_PRINT LOCALS
+HTML_PRINT Row_page
+DRAWLINE
 
-BINPUT
-SELECTCASE RESULT
+Row_filter '= @"<button value='9000'>□フィルタ機能（<font color='#\@ フィルタフラグ? B0B0B0'> ON# 666666'>OFF\@</font>）</button>"
+IF フィルタフラグ
+	Row_filter += "<br>"
+	Row_filter += @"　■性別　　　"
+	FOR LOCAL, 1, 4
+		Row_filter += @"<font color='#\@  STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, LOCAL)%")? 666666# B0B0B0\@'>"
+		Row_filter += @"<button value='性別：%GET_TALENTNAME(2, LOCAL)%'>[%GET_TALENTNAME(2, LOCAL)%]</button></font> "
+	NEXT
+	Row_filter += @"<font color='#\@  STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, 0)%")? 666666# B0B0B0\@'>"
+	Row_filter += @"<button value='性別：%GET_TALENTNAME(2, 0)%'>[%GET_TALENTNAME(2, 0)%]</button></font> "
+	Row_filter += @"／<button value='性別：全て表示'>[全て表示]</button> <button value='性別：全て非表示'>[全て非表示]</button>"
+	Row_filter += "<br>"
+
+	Row_filter += @"　■種族　　　"
+	FOR LOCAL, 1, 7
+		Row_filter += @"<font color='#\@  STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, LOCAL)%")? 666666# B0B0B0\@'>"
+		Row_filter += @"<button value='種族：%GET_TALENTNAME(200, LOCAL)%'>[%GET_TALENTNAME(200, LOCAL)%]</button></font> "
+	NEXT
+	Row_filter += @"／<button value='種族：全て表示'>[全て表示]</button> <button value='種族：全て非表示'>[全て非表示]</button>"
+	Row_filter += "<br>"
+
+	Row_filter += @"　■その他　　"
+	FOR LOCAL, 0, 4
+		Row_filter += @"<font color='#\@  STRCOUNT(キャラ一覧フィルタ:その他, @"その他：招待不可%TOSTR(LOCAL)%")? 666666# B0B0B0\@'>"
+		Row_filter += @"<button value='その他：招待不可%TOSTR(LOCAL)%'>[招待不可フラグ%TOSTR(LOCAL)%]</button></font> "
+	NEXT
+	Row_filter += @"／<button value='その他：全て表示'>[全て表示]</button> <button value='その他：全て非表示'>[全て非表示]</button>"
+	Row_filter += "<br>"
+
+	Row_filter += @"　■出演作品　"
+	Row_filter += @"<font color='#\@  STRCOUNT(フィルタ文字列:0, @"出演作品：%出演作品:0%")? 666666# B0B0B0\@'>"
+	Row_filter += @"<button value='出演作品：%出演作品:0%'>[%出演作品:0%]</button></font> "
+	Row_filter += @"／<button value='出演作品：全て表示'>[全て表示]</button> <button value='出演作品：全て非表示'>[全て非表示]</button>"
+	Row_filter += @"<button value='9001'>[EX個別選択表示（<font color='#\@ フィルタフラグ:1? B0B0B0'> ON# 666666'>OFF\@</font>）]</button>"
+	IF フィルタフラグ:1
+		Row_filter += "<br>"
+		LOCALS '= " " * 14
+		FOR LOCAL, 1, 出演作品数
+			LOCALS:1 '= @"<font color='#\@  STRCOUNT(フィルタ文字列, @"出演作品：%出演作品:LOCAL%")? 666666# B0B0B0\@'>"
+			LOCALS:1 += @"<button value='出演作品：%出演作品:LOCAL%'>[%出演作品:LOCAL%]</button></font> "
+			IF STRLENS(HTML_TOPLAINTEXT(LOCALS+LOCALS:1)) / (5850/50) > 0
+				Row_filter += LOCALS + "<br>"
+				LOCALS '= " " * 14
+			ENDIF
+			LOCALS += LOCALS:1
+		NEXT
+		Row_filter += LOCALS
+	ENDIF
+	Row_filter += "<br>"
+	Row_filter += "　■名前検索　"
+	Row_filter += @"<font color='#\@  フィルタ文字列:1 == ""? 666666# B0B0B0\@'>"
+	Row_filter += @"<button value='直接入力'>\@ フィルタ文字列:1 == ""? （なし）# %フィルタ文字列:1%\@</button></font> "
+	SIF フィルタ文字列:1 != ""
+	Row_filter += @"<button value='入力消去'>[入力消去]</button> "
+	Row_filter += "<br>"
+ENDIF
+HTML_PRINT Row_filter
+
+
+BINPUTS
+IF !ISNUMERIC(RESULTS)
+	LOCALS = %RESULTS%
+	IF STRCOUNT(LOCALS, "種族：")
+		LOCAL = 0
+	ELSEIF STRCOUNT(LOCALS, "性別：")
+		LOCAL = 7
+	ELSEIF STRCOUNT(LOCALS, "その他：")
+		LOCAL = 9
+	ELSEIF STRCOUNT(LOCALS, "出演作品：")
+		LOCAL = 99
+	ELSEIF LOCALS == "入力消去"
+		フィルタ文字列:1 =
+		GOTO 処理部分
+	ELSEIF LOCALS == "直接入力"
+		PRINTL 検索したい名前を入力してください
+		SETTEXTBOX フィルタ文字列:1
+		INPUTS
+		フィルタ文字列:1 '= RESULTS
+		GOTO 処理部分
+	ELSE
+		GOTO 処理部分
+	ENDIF
+	IF STRCOUNT(LOCALS, "全て表示")
+		IF LOCAL == 99
+			フィルタ文字列 = 
+		ELSE
+			キャラ一覧フィルタ:LOCAL =
+		ENDIF
+	ELSEIF STRCOUNT(LOCALS, "全て非表示")
+		SELECTCASE LOCAL
+			CASE 0
+				キャラ一覧フィルタ:種族 = "種族：ヒューマン_種族：エルーン_種族：ドラフ_種族：ハーヴィン_種族：星晶獣_種族：その他_"
+			CASE 7
+				キャラ一覧フィルタ:性別 = "性別：女性_性別：男性_性別：ふたなり_性別：その他_"
+			CASE 9
+				キャラ一覧フィルタ:その他 = "その他：招待不可0_その他：招待不可1_その他：招待不可2_その他：招待不可3_その他：長命者_"
+			CASE 99
+				フィルタ文字列 = 
+				FOR LOCAL, 0, 出演作品数
+					フィルタ文字列 += @"出演作品：%出演作品:LOCAL%_"
+				NEXT
+		ENDSELECT
+	ELSEIF LOCAL == 99
+		IF STRCOUNT(フィルタ文字列, LOCALS)
+			REPLACE フィルタ文字列, @"%LOCALS%_", ""
+			フィルタ文字列 = %RESULTS%
+		ELSE
+			フィルタ文字列 += @"%LOCALS%_"
+		ENDIF
+	ELSEIF STRCOUNT(キャラ一覧フィルタ:LOCAL, LOCALS)
+		REPLACE キャラ一覧フィルタ:LOCAL, @"%LOCALS%_", ""
+		キャラ一覧フィルタ:LOCAL = %RESULTS%
+	ELSE
+		キャラ一覧フィルタ:LOCAL += @"%LOCALS%_"
+	ENDIF
+	GOTO 処理部分
+ELSE
+	LOCAL = TOINT(RESULTS)
+ENDIF
+SELECTCASE LOCAL
+	CASE 9000
+		INVERTBIT フィルタフラグ, 0
+		GOTO 処理部分
+	CASE 9001
+		INVERTBIT フィルタフラグ:1, 0
+		GOTO 処理部分
 	CASE 9991
 		CSVページ数 = 0
 		GOTO 処理部分
@@ -3548,7 +3663,7 @@ SELECTCASE RESULT
 		CSVページ数 += 5
 		GOTO 処理部分
 	CASE 9996
-		CSVページ数 = 表示数:1 / 40
+		CSVページ数 = 表示数:1 / 40 - !(表示数%40)
 		GOTO 処理部分
 	CASE 9997
 		CSVページ数 --
@@ -3565,7 +3680,7 @@ SELECTCASE RESULT
 	CASE 9999
 		RETURN -1
 	CASEELSE
-		CSV番号 = RESULT
+		CSV番号 = LOCAL
 		IF !ARG
 			PRINTFORML %CSVNAME(CSV番号)%のデータをコピーします。よろしいですか？
 		ELSE
