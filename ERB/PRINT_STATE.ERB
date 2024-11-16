@@ -1472,22 +1472,24 @@ SIF LOCAL:1 % 4
 #DIM 予定時間
 
 LOCALS = □ 情報 □---------------------------------------------------------------------<br>
-LOCALS += @"　種族：%GET_TALENTNAME(200,TALENT:ARG:種族)%"
+名前格納 '= @"　種族：%GET_TALENTNAME(200,TALENT:ARG:種族)%"
 IF CSTR:ARG:特殊種族 != ""
 	LOCALS += @" [%CSTR:ARG:特殊種族%]"
 ENDIF
 SIF TALENT:ARG:角あり
-	LOCALS += "（角あり）"
+	名前格納 += "（角あり）"
 SIF TALENT:ARG:尻尾あり
-	LOCALS += "（尻尾）"
+	名前格納 += "（尻尾）"
 SIF TALENT:ARG:エルーン耳
-	LOCALS += "（エルーン耳）"
+	名前格納 += "（エルーン耳）"
 SIF TALENT:ARG:ハーヴィン耳
-	LOCALS += "（ハーヴィン耳）"
+	名前格納 += "（ハーヴィン耳）"
 SIF TALENT:ARG:発情期あり > 0
-	LOCALS += "（発情期あり）"
+	名前格納 += "（発情期あり）"
 SIF TALENT:ARG:発情期あり < 0
-	LOCALS += "（発情期なし）"
+	名前格納 += "（発情期なし）"
+名前格納 '= REPLACE(名前格納, "）（", "／")
+LOCALS += 名前格納
 IF 発情期判定(ARG)
 	SELECTCASE RISKY_DAY(ARG)
 		CASE 1
@@ -1526,7 +1528,7 @@ IF CSTR:ARG:性別表記 != ""
 		名前格納 += "（処女）"
 	SIF TALENT:ARG:Ａ処女 && CFLAG:ARG:Ａ処女表示
 		名前格納 += "（Ａ処女）"
-	名前格納 += "<br>　"
+;	名前格納 += "<br>　"
 ELSEIF TALENT:ARG:性別 == 1
 	名前格納 += "女性"
 	SIF TALENT:ARG:処女
@@ -1550,7 +1552,8 @@ ELSEIF TALENT:ARG:性別 == 3
 ELSE
 	名前格納 += "その他"
 ENDIF
-名前格納 = %名前格納, 27,LEFT%
+名前格納 '= REPLACE(名前格納, "）（", "／")
+名前格納 = %名前格納, 40,LEFT%
 
 名前格納 += "<button value='133'>"
 IF GETBIT(OPTION変数:身体項目表示切り替え, 0)
@@ -1567,10 +1570,10 @@ LOCALS += @"%名前格納%<br>"
 名前格納 += "<button value='132'>"
 IF TALENT:ARG:性別 != 2 || GETBIT(OPTION変数:身体項目表示切り替え, 4)
 	IF GETBIT(OPTION変数:身体項目表示切り替え, 1)
-		LOCALS:1 = バスト：%DECIMAL_STRING(BASE:ARG:バスト, 1)%cm%GET_CUPSIZE(ARG)%
+		LOCALS:1 = 　バスト：%DECIMAL_STRING(BASE:ARG:バスト, 1)%cm%GET_CUPSIZE(ARG)%
 		名前格納 += @"%LOCALS:1, 25, LEFT%"
 	ELSE
-		LOCALS:1 = バスト：%GET_TALENTNAME(205,TALENT:ARG:バストサイズ)%
+		LOCALS:1 = 　バスト：%GET_TALENTNAME(205,TALENT:ARG:バストサイズ)%
 		名前格納 += @"%LOCALS:1, 25, LEFT%"
 	ENDIF
 ENDIF
@@ -1611,26 +1614,38 @@ IF ARG
 ENDIF
 IF CSTR:ARG:特殊年齢 != ""
 	名前格納 '= CSTR:ARG:特殊年齢
-ELSEIF BASE:ARG:年齢 > 0
-	IF GETBIT(OPTION変数:身体項目表示切り替え, 5)
+ELSEIF TALENT:ARG:長命者
+	IF GETBIT(OPTION変数:身体項目表示切り替え, 5) && BASE:ARG:年齢 > 0
+		名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者, BASE:ARG:年齢)
+	ELSE
+		名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者)
+	ENDIF
+ELSEIF BASE:ARG:年齢 || TALENT:ARG:年齢層
+	IF GETBIT(OPTION変数:身体項目表示切り替え, 5) && BASE:ARG:年齢 > 0
 		名前格納 = {BASE:ARG:年齢}歳
 	ELSE
 		名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者)
 	ENDIF
-ELSEIF TALENT:ARG:年齢層 || TALENT:ARG:長命者
-	名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者, GETBIT(OPTION変数:身体項目表示切り替え, 5))
+;ELSEIF BASE:ARG:年齢 > 0
+;	IF GETBIT(OPTION変数:身体項目表示切り替え, 5)
+;		名前格納 = {BASE:ARG:年齢}歳
+;	ELSE
+;		名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者)
+;	ENDIF
+;ELSEIF TALENT:ARG:年齢層 || TALENT:ARG:長命者
+;	名前格納 '= GET_年齢文字列(TALENT:ARG:性別, TALENT:ARG:年齢層, TALENT:ARG:長命者, GETBIT(OPTION変数:身体項目表示切り替え, 5))
 ELSE
 	名前格納 '= ""
 ENDIF
 IF ARG == MASTER || TALENT:ARG:ランダムキャラ
 	LOCALS += @"　容姿：%GET_TALENTNAME(160,TALENT:ARG:容姿), 17, LEFT%"
 	IF 名前格納 != ""
-		LOCALS += @"<button value='136'>年齢：%名前格納, 17, LEFT%</button>"
+		LOCALS += @"<button value='136'>\@ CSTR:ARG:特殊年齢 == "" && TALENT:ARG:長命者 ? 外見# 年齢\@：%名前格納, 17, LEFT%</button>"
 	ENDIF
 	LOCALS += "<br>"
 ELSE
 	IF 名前格納 != ""
-		LOCALS += @"<button value='136'>　年齢：%名前格納, 17, LEFT%</button>"
+		LOCALS += @"<button value='136'>　\@ CSTR:ARG:特殊年齢 == "" && TALENT:ARG:長命者 ? 外見# 年齢\@：%名前格納, 17, LEFT%</button>"
 		LOCALS += "<br>"
 	ENDIF
 ENDIF
