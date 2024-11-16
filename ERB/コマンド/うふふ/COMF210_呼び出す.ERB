@@ -23,28 +23,46 @@ TSTR:ツールチップ受渡 = %LOCALS%
 #DIM 表示候補, 1000
 #DIM 現在ページ
 #DIM 呼び出し人数
+#DIM 対象キャラ
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM リスタートフラグ
+#DIM 実行結果
+#DIM 入力内容
+#DIM REDRAW_TEMP
+#DIM 描画開始行
+#DIM CONST 表示人数 = 15
 
-VARSET 表示候補, -1
-現在ページ = 0
-VARSET 呼び出し対象
-呼び出し人数 = 0
-CALL 呼び出す候補キャラ登録(表示候補)
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	; 呼び出しキャラ情報を初期化
+	VARSET 表示候補, -1
+	現在ページ = 0
+	VARSET 呼び出し対象
+	呼び出し人数 = 0
+	CALL 呼び出す候補キャラ登録(表示候補)
+	; 描画周りの初期状態を記憶
+	描画開始行 =LINECOUNT
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 0
+ENDIF
 
-$表示_LOOP
+PRINTL
 DRAWLINE
 PRINTL 誰を呼び出しますか？
 DRAWLINE
 LOCAL:1 = 0
-;キャラの表示（15人まで）
-FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+;キャラの表示
+FOR LOCAL, (現在ページ * 表示人数), ((現在ページ * 表示人数) + 表示人数)
 	;登録が終わったら表示終了
 	IF 表示候補:LOCAL == -1
 		BREAK
 	ENDIF
+	;選択中のキャラの色を変更
 	SIF MATCH(呼び出し対象, 表示候補:LOCAL)
 		SETCOLOR カラーパレット("黄")
 	PRINTBUTTONLC @"[{LOCAL, 2}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]"), 41, LEFT%", LOCAL
 	RESETCOLOR
+	; 体力の状態に合わせて体力の色を変更
 	IF MAXBASE:(表示候補:LOCAL):体力 == BASE:(表示候補:LOCAL):体力
 		SETCOLOR 0x50B050
 	ELSEIF MAXBASE:(表示候補:LOCAL):体力 < BASE:(表示候補:LOCAL):体力 / 3
@@ -52,6 +70,7 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	ENDIF
 	PRINTFORM 体力：{BASE:(表示候補:LOCAL):体力, 4} / {MAXBASE:(表示候補:LOCAL):体力, 4}　
 	RESETCOLOR
+	; 性欲の状態に合わせて性欲の色を変更
 	IF BASE:(表示候補:LOCAL):性欲 > 2000
 		SETCOLOR カラーパレット("ピンク")
 	ELSEIF BASE:(表示候補:LOCAL):性欲 > 1000
@@ -59,6 +78,7 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	ENDIF
 	PRINTFORM 性欲：{BASE:(表示候補:LOCAL):性欲, 4}　
 	RESETCOLOR
+	; 発情期表示
 	IF CFLAG:(表示候補:LOCAL):発情期フラグ < 0
 		SETCOLOR カラーパレット("えっちな色")
 		PRINT 発情期
@@ -68,6 +88,7 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	ELSE
 		PRINT 　　　　　
 	ENDIF
+	; 陥落状態表示
 	IF TALENT:(表示候補:LOCAL):恋慕
 		SETCOLOR カラーパレット("えっちな色")
 		PRINT 恋慕
@@ -75,11 +96,10 @@ FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
 	ELSEIF TALENT:(表示候補:LOCAL):セフレ
 		PRINT セフレ
 	ENDIF
-	PRINTL 
+	PRINTL
 NEXT
 
 DRAWLINE
-
 ;ページめくり表示
 IF 現在ページ > 0
 	PRINTBUTTONLC "[900] 前ページへ", 900
@@ -87,99 +107,150 @@ ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
-IF 表示候補:((現在ページ * 15) + 15) > 0
+IF 表示候補:((現在ページ * 表示人数) + 表示人数) > 0
 	PRINTBUTTONC "[901] 次ページへ", 901
 ENDIF
 PRINTL 
+;まとめて選択系ボタン
+PRINTBUTTONLC @"[995] 全員選択", 995
+PRINTBUTTONLC @"[994] 恋慕キャラ選択", 994
+PRINTBUTTONLC @"[993] セフレキャラ選択", 993
+PRINTBUTTONLC @"[992] セフレキャラ選択(恋慕除く)", 992
+PRINTL
+;確定と選択解除ボタン
 IF 呼び出し人数
-	PRINTBUTTON @"[998] 以上の{呼び出し人数}人を呼び出す", 998
+	PRINTBUTTONLC @"[998] 以上{呼び出し人数}人を呼び出す", 998
 ELSE
 	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAINFORM [998] 以上の{呼び出し人数}人を呼び出す
+	PRINTFORMLC [---] 以上{呼び出し人数}人を呼び出す
 	RESETCOLOR
 ENDIF
-PRINT 　　　
-PRINTBUTTON @"[997] 呼び出し可能キャラを全員呼び出す", 997
+PRINTBUTTONLC @"[996] 選択全解除", 996
+;PRINTBUTTONLC @"[997] 呼び出し可能キャラを全員呼び出す", 997
 PRINTL 
-PRINTBUTTON "[999] やめる", 999
+PRINTBUTTONLC "[999] やめる", 999
 
 BINPUT
-SELECTCASE RESULT
+入力内容 = RESULT
+リスタートフラグ = 0
+実行結果 = 0
+SELECTCASE 入力内容
 	CASE 900
 		現在ページ = MAX(現在ページ - 1, 0)
-		GOTO 表示_LOOP
+		リスタートフラグ = 1
 	CASE 901
 		SIF LOCAL:1 == 0
 			現在ページ += 1
-		GOTO 表示_LOOP
+		リスタートフラグ = 1
 	CASE 999
-		RETURN -1
+		実行結果 = -1
 	CASE 998
-		FOR LOCAL, 0, 500
-			SIF 呼び出し対象:LOCAL < 1
+		; 呼び出し対象確定
+		FOR LOCAL, 0, VARSIZE("呼び出し対象")
+			対象キャラ = 呼び出し対象:LOCAL
+			SIF 対象キャラ < 1
 				CONTINUE
-			CFLAG:(呼び出し対象:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
-			CFLAG:(呼び出し対象:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
-			CALL うふふ開始キャラ処理(呼び出し対象:LOCAL)
+			CFLAG:対象キャラ:現在位置 = CFLAG:PLAYER:現在位置
+			CFLAG:対象キャラ:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+			CALL うふふ開始キャラ処理(対象キャラ)
 			;野外オナニー時に備えて隠密を消す
-			CALL 野外オナニー途中終了(呼び出し対象:LOCAL)
-			CFLAG:(呼び出し対象:LOCAL):隠密 = 0
+			CALL 野外オナニー途中終了(対象キャラ)
+			CFLAG:対象キャラ:隠密 = 0
 			;先に同室フラグを建てることで発覚口上をスキップする
-			CFLAG:(呼び出し対象:LOCAL):同室 = 1
+			CFLAG:対象キャラ:同室 = 1
 			SIF RFLAG:コマンド結果受渡し変数 < 1
-				RFLAG:コマンド結果受渡し変数 = 呼び出し対象:LOCAL
+				RFLAG:コマンド結果受渡し変数 = 対象キャラ
 		NEXT
 		SIF 呼び出し人数 > 1
 			RFLAG:コマンド結果受渡し変数２ = 1
 		;モード管理フラグを初期化
 		FLAG:モード管理 = 0
-		RETURN 0
-	CASE 997
+		実行結果 = 0
+	CASE 996
+		; 選択全解除
+		VARSET 呼び出し対象
+		呼び出し人数 = 0
+		リスタートフラグ = 1
+	CASE 992 TO 995
+		; まとめて選択系処理
+		VARSET 呼び出し対象
 		呼び出し人数 = 0
 		FOR LOCAL, 0, VARSIZE("表示候補")
+			対象キャラ = 表示候補:LOCAL
 			;登録が終わったら表示終了
-			IF 表示候補:LOCAL == -1
+			SIF 対象キャラ == -1
 				BREAK
-			ENDIF
-			CFLAG:(表示候補:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
-			CFLAG:(表示候補:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
-			CALL うふふ開始キャラ処理(表示候補:LOCAL)
-			;野外オナニー時に備えて隠密を消す
-			CALL 野外オナニー途中終了(表示候補:LOCAL)
-			CFLAG:(表示候補:LOCAL):隠密 = 0
-			;先に同室フラグを建てることで発覚口上をスキップする
-			CFLAG:(表示候補:LOCAL):同室 = 1
-			SIF RFLAG:コマンド結果受渡し変数 < 1
-				RFLAG:コマンド結果受渡し変数 = 表示候補:LOCAL
+			; 恋慕キャラを選択
+			; → 恋慕なしはNG
+			SIF 入力内容 == 994 && !TALENT:対象キャラ:恋慕
+				CONTINUE
+			; セフレキャラを選択(恋慕＋セフレのキャラもOK)
+			; → セフレなしはNG
+			SIF 入力内容 == 993 && !TALENT:対象キャラ:セフレ
+				CONTINUE
+			; セフレキャラを選択(恋慕＋セフレのキャラはNG)
+			; → セフレなし or 恋慕ありはNG
+			SIF 入力内容 == 992 && (!TALENT:対象キャラ:セフレ || TALENT:対象キャラ:恋慕)
+				CONTINUE
+			呼び出し対象:呼び出し人数 = 対象キャラ
 			呼び出し人数 ++
 		NEXT
-		SIF 呼び出し人数 > 1
-			RFLAG:コマンド結果受渡し変数２ = 1
-		;モード管理フラグを初期化
-		FLAG:モード管理 = 0
-		RETURN 0
+		リスタートフラグ = 1
+;	CASE 997
+;		; まとめて呼び出す
+;		呼び出し人数 = 0
+;		FOR LOCAL, 0, VARSIZE("表示候補")
+;			;登録が終わったら表示終了
+;			IF 表示候補:LOCAL == -1
+;				BREAK
+;			ENDIF
+;			CFLAG:(表示候補:LOCAL):現在位置 = CFLAG:PLAYER:現在位置
+;			CFLAG:(表示候補:LOCAL):現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+;			CALL うふふ開始キャラ処理(表示候補:LOCAL)
+;			;野外オナニー時に備えて隠密を消す
+;			CALL 野外オナニー途中終了(表示候補:LOCAL)
+;			CFLAG:(表示候補:LOCAL):隠密 = 0
+;			;先に同室フラグを建てることで発覚口上をスキップする
+;			CFLAG:(表示候補:LOCAL):同室 = 1
+;			SIF RFLAG:コマンド結果受渡し変数 < 1
+;				RFLAG:コマンド結果受渡し変数 = 表示候補:LOCAL
+;			呼び出し人数 ++
+;		NEXT
+;		SIF 呼び出し人数 > 1
+;			RFLAG:コマンド結果受渡し変数２ = 1
+;		;モード管理フラグを初期化
+;		FLAG:モード管理 = 0
+;		実行結果 = 0
 	CASEELSE
-		IF MATCH(呼び出し対象, 表示候補:RESULT)
-			FOR LOCAL, 0, 500
-				IF 呼び出し対象:LOCAL == 表示候補:RESULT
+		対象キャラ = 表示候補:入力内容
+		IF MATCH(呼び出し対象, 対象キャラ)
+			FOR LOCAL, 0, VARSIZE("呼び出し対象")
+				IF 呼び出し対象:LOCAL == 対象キャラ
 					呼び出し対象:LOCAL = 0
 					呼び出し人数 --
 					BREAK
 				ENDIF
 			NEXT
 		ELSE
-			FOR LOCAL, 0, 500
+			FOR LOCAL, 0, VARSIZE("呼び出し対象")
 				IF 呼び出し対象:LOCAL < 1
-					呼び出し対象:LOCAL = 表示候補:RESULT
+					呼び出し対象:LOCAL = 対象キャラ
 					呼び出し人数 ++
 					BREAK
 				ENDIF
 			NEXT
 		ENDIF
-		GOTO 表示_LOOP
+		リスタートフラグ = 1
 ENDSELECT
+CLEARLINE LINECOUNT - 描画開始行
+SIF リスタートフラグ == 1
+	RESTART
+REDRAW REDRAW_TEMP
+RETURN 実行結果
 
-
+;-------------------------------------------------
+;呼び出す候補キャラ登録
+;-------------------------------------------------
 @呼び出す候補キャラ登録(表示候補)
 #DIM REF 表示候補
 LOCAL:1 = 0
@@ -202,12 +273,12 @@ NEXT
 
 RETURN LOCAL:1
 
-@CAN_COM210(ARG)
-SKIPDISP ARG
-PRINTFORML 他のキャラを呼び出す(%CALLNAME:TARGET%)
 ;-------------------------------------------------
 ;実行判定処理
 ;-------------------------------------------------
+@CAN_COM210(ARG)
+SKIPDISP ARG
+PRINTFORML 他のキャラを呼び出す(%CALLNAME:TARGET%)
 
 ;体力限界時はオート許可
 SIF CFLAG:体力限界
@@ -299,10 +370,10 @@ SKIPDISP 0
 SIF A < V
 	RETURN 0
 RETURN 1
+
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-
 @COM_ABLE210
 ;呼び出す
 SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
