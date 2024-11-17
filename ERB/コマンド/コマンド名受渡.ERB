@@ -60,75 +60,134 @@ ENDSELECT
 RETURNF TSTR:コマンド名受渡
 
 
+;-------------------------------------------------
+;同時モード設定
+;-------------------------------------------------
 @同時モード設定()
 #DIM 同室番号
+#DIM 対象キャラ
 #DIM 選択キャラカウント
 #DIM ページ数
 #DIM 次ページフラグ
 #DIM 選択キャラ一時保存, 10
-;同室者から、同時コマンドのターゲットを指定する
-;まず候補を並べる
+#DIM CONST 表示人数 = 30
+#DIM ALL_SEL_BTN_LEN
 
+#DIM  NAME_LEN
+#DIM  DYNAMIC 初回実行フラグ = 1
+#DIM  REDRAW_TEMP
+#DIM  描画開始行
+#DIM  実行結果
+#DIM  入力内容
+
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	; キャラ選択情報の初期化
+	VARSET 選択キャラ一時保存
+	; 描画周りの初期状態を記憶
+	描画開始行 =LINECOUNT
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 0
+ENDIF
+
+;同室者から、同時コマンドのターゲットを指定する
 選択キャラカウント = 0
 次ページフラグ = 0
+PRINTL
 DRAWLINE
+
+;ヘッダ兼まとめて選択系ボタンの表示
+PRINTS " " * 6
+PRINTS " " * (41 - STRLENS("[全員選択]"))
+PRINTBUTTON "[全員選択]", -1
+PRINTS " "
+PRINTBUTTON "[服]", -2
+PRINTS " "
+PRINTBUTTON "[Ｂ]", -3
+PRINTBUTTON "[Ｃ]", -4
+PRINTBUTTON "[Ｖ]", -5
+PRINTBUTTON "[Ａ]", -6
+PRINTBUTTON "[Ｐ]", -7
+PRINTL
+
+;まず候補を並べる
 FOR 同室番号, 1, CHARANUM
-	SIF TARGET:同室番号 < 1
+	対象キャラ = TARGET:同室番号
+	SIF 対象キャラ < 1
 		BREAK
-	IF GETBIT(選択キャラ一時保存:(同室番号 / 64), 同室番号 % 64)
+	; 選択済みのキャラ数をカウント
+	SIF GETBIT(選択キャラ一時保存:(同室番号 / 64), 同室番号 % 64)
 		選択キャラカウント += 1
-	ENDIF
-	SIF 同室番号 < ページ数 * 30
+	; 現在ページに表示するか表示判定
+	SIF 同室番号 < ページ数 * 表示人数
 		CONTINUE
-	SIF 同室番号 == ページ数 * 30 + 30
+	SIF 同室番号 == ページ数 * 表示人数 + 表示人数
 		CONTINUE
-	IF 同室番号 > ページ数 * 30 + 30
+	IF 同室番号 > ページ数 * 表示人数 + 表示人数
 		次ページフラグ = 1
 		CONTINUE
 	ENDIF
-	SIF CFLAG:(TARGET:同室番号):うふふ == 0
+	; うふふ中でないキャラは表示しない
+	SIF CFLAG:対象キャラ:うふふ == 0
 		CONTINUE
-	;うふふ同室者は全部並べる
+
 	IF GETBIT(選択キャラ一時保存:(同室番号 / 64), 同室番号 % 64)
+		; 選択中のキャラは表示色を変える
 		SETCOLOR カラーパレット("えっちな色")
 	ENDIF
-	IF CFLAG:(TARGET:同室番号):体力限界
+	IF CFLAG:対象キャラ:体力限界
+		; ダウン中のキャラは選択不可
 		SETCOLOR カラーパレット("グレーアウト")
-		PRINTPLAINFORM [{同室番号}] %NAME:(TARGET:同室番号)%
+		PRINTPLAINFORM [{同室番号, 3}] %ADD_STR_SPACE(NAME表示省略(NAME:対象キャラ), "]"), 41, LEFT%
+		PRINTS " "
+		; 選択できないので状態表示は全部・で埋める
+		PRINTS " ・   ・  ・  ・  ・  ・ "
 	ELSE
-		PRINTBUTTON @"[{同室番号}] %NAME:(TARGET:同室番号)%", 同室番号
+		PRINTBUTTON @"[{同室番号, 3}] %ADD_STR_SPACE(NAME表示省略(NAME:対象キャラ), "]"), 41, LEFT%", 同室番号
+		PRINTS " "
+		CALL 同時モード設定_状態表示(対象キャラ)
 	ENDIF
 	RESETCOLOR
 	PRINTL
 NEXT
-PRINTL
-IF 選択キャラカウント < 2
-	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAIN [998] これで決定
-	RESETCOLOR
-ELSE
-	PRINTBUTTON "[998] これで決定", 998
-ENDIF
-PRINTL
-PRINTL
+DRAWLINE
+;ページめくり表示
 IF ページ数 > 0
 	PRINTBUTTONLC "[996] 前ページへ", 996
 ELSE
 	PRINTLC 　
 ENDIF
+PRINTFORM - {ページ数 + 1} -
 IF 次ページフラグ
 	PRINTBUTTONLC "[997] 次ページへ", 997
 ENDIF
-PRINTBUTTON "[999] 戻る", 999
+PRINTL
+; 操作ボタンの表示
+IF 選択キャラカウント < 1
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTFORMLC [---] これで決定
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[998] これで決定", 998
+ENDIF
+PRINTBUTTONLC "[995] 選択全解除", 995
+PRINTL
+; 戻るボタン
+PRINTBUTTONLC "[999] 戻る", 999
 PRINTL
 DRAWLINE
 
+; 入力処理
 BINPUT
-SELECTCASE RESULT
+入力内容 = RESULT
+実行結果 = -1
+SELECTCASE 入力内容
 	CASE 999
-		VARSET 選択キャラ一時保存
-		RETURN 0
+		; 戻る
+		実行結果 = 0
 	CASE 998
+		; これで決定
+		; 選択しているキャラを同時モードの対象キャラに設定
 		VARSET 同時モード_選択キャラ, -1
 		同時モード_選択数 = 選択キャラカウント
 		選択キャラカウント = 0
@@ -141,15 +200,217 @@ SELECTCASE RESULT
 			ENDIF
 		NEXT
 		TFLAG:TARGET変更用 = 同時モード_選択キャラ:0
-		VARSET 選択キャラ一時保存
-		RETURN 1
+		実行結果 = 選択キャラカウント
 	CASE 996
 		ページ数 --
-		RESTART
 	CASE 997
 		ページ数 ++
-		RESTART
+	CASE 995
+		; まとめて選択処理
+		CALL 同時モード設定_まとめて選択(入力内容, 選択キャラ一時保存)
+	CASE IS < 0
+		; まとめて選択処理
+		CALL 同時モード設定_まとめて選択(ABS(入力内容), 選択キャラ一時保存)
 	CASEELSE
-		INVERTBIT 選択キャラ一時保存:(RESULT / 64), RESULT % 64
-		RESTART
+		INVERTBIT 選択キャラ一時保存:(入力内容 / 64), 入力内容 % 64
 ENDSELECT
+CLEARLINE LINECOUNT - 描画開始行
+; 実行結果未設定の場合はリスタート
+SIF 実行結果 == -1
+	RESTART
+REDRAW REDRAW_TEMP
+RETURN 実行結果
+
+;-------------------------------------------------
+;状態表示
+;-------------------------------------------------
+@同時モード設定_状態表示(対象キャラ)
+#DIM 対象キャラ
+#DIMS 部位リスト = "Ｂ", "Ｃ", "Ｖ", "Ａ", "Ｐ"
+#DIM 部位番号
+#DIM フォント色
+
+フォント色 = GETCOLOR()
+;- 衣装状態表示
+;・同時実行で全員まとめて脱がしたい場合に脱衣済のキャラが混ざっていると脱がせないので
+;　選択時に全裸か表示して判断できるようにする
+
+IF CSTR:対象キャラ:着せ替え服 != "全裸"
+	; 着衣時
+	PRINTS " 服 "
+ELSE
+	; 全裸時
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTS " 裸 "
+	SETCOLOR フォント色
+ENDIF
+PRINTS " "
+
+;- 部位(ＢＣＶＡＰ)使用状態表示
+FOR 部位番号, 0, VARSIZE("部位リスト")
+	; 部位が存在しない場合は表示なし
+	IF !同時モード設定_部位使用可能判定(対象キャラ, 部位リスト:部位番号, 0)
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTS " ・ "
+		SETCOLOR フォント色
+		CONTINUE
+	ENDIF
+
+	; 部位固有の特殊表示
+	SELECTCASE 部位リスト:部位番号
+		CASE "Ｂ"
+			; 陥没中で使用できない場合はグレーアウトで「陥」表示
+			IF !同時モード設定_部位使用可能判定(対象キャラ, 部位リスト:部位番号, 2)
+				SETCOLOR カラーパレット("グレーアウト")
+				PRINTS " 陥 "
+				SETCOLOR フォント色
+				CONTINUE
+			ENDIF
+	ENDSELECT
+
+	; 部位が使用中の場合はグレーアウト
+	SIF !同時モード設定_部位使用可能判定(対象キャラ, 部位リスト:部位番号, 1)
+		SETCOLOR カラーパレット("グレーアウト")
+	PRINTS @" %部位リスト:部位番号% "
+	SETCOLOR フォント色
+NEXT
+
+;-------------------------------------------------
+;まとめて選択処理
+;-------------------------------------------------
+@同時モード設定_まとめて選択(選択モード, 選択キャラ一時保存)
+#DIM 選択モード
+#DIM REF 選択キャラ一時保存
+#DIM 同室番号
+#DIM 対象キャラ
+#DIM 配列位置
+#DIM  ビット位置
+#DIM  選択判定
+#DIMS 部位リスト = "Ｂ", "Ｃ", "Ｖ", "Ａ", "Ｐ"
+#DIM  部位番号
+
+; 一旦選択全解除
+VARSET 選択キャラ一時保存
+
+; 選択全解除モードの場合はココで終了
+SIF 選択モード == 995
+	RETURN
+
+; キャラの選択
+部位番号 = 選択モード - 3
+FOR 同室番号, 1, CHARANUM
+	対象キャラ = TARGET:同室番号
+	配列位置   = 同室番号 / 64
+	ビット位置 = 同室番号 % 64
+	SIF 対象キャラ < 1
+		BREAK
+	;ダウン中のキャラは選択不可
+	SIF CFLAG:対象キャラ:体力限界
+		CONTINUE
+	; うふふ中ではないキャラは選択しない
+	SIF !CFLAG:対象キャラ:うふふ
+		CONTINUE
+	; 選択モードにあわせたキャラの選択判定
+	SELECTCASE 選択モード
+		CASE 1
+			; 無条件で選択
+			選択判定 = 1
+		CASE 2
+			; 服を着ているキャラを選択
+			選択判定 = CSTR:対象キャラ:着せ替え服 != "全裸"
+		CASEELSE
+			; 部位が使用可能なキャラを選択
+			選択判定 = 同時モード設定_部位使用可能判定(対象キャラ, 部位リスト:部位番号)
+	ENDSELECT
+	; 選択処理(対応する位置のビットをセット)
+	SIF 選択判定
+		SETBIT 選択キャラ一時保存:配列位置, ビット位置
+NEXT
+
+;-------------------------------------------------
+;部位の使用可能判定
+;・着衣状態等でも使用可能か変化するが、コマンドによって条件が様々でチェックしきれないので
+;　基本的に「部位があるか(部位感度)」と「使用中か(TEQUIP)」だけ判定
+;-------------------------------------------------
+@同時モード設定_部位使用可能判定(対象キャラ, チェック部位, チェック対象 = -1)
+#FUNCTION
+#DIM  対象キャラ
+#DIMS チェック部位
+#DIM  チェック対象 ; -1:全部 0:部位の存在判定 1:部位使用可否判定 2:特殊判定用
+#DIM  START_NO
+#DIM  END_NO
+#DIM  L_CNT
+#DIM  チェック結果
+
+IF チェック対象 < 0
+	; 全部チェック
+	START_NO = 0
+	END_NO   = 3
+ELSE
+	; 指定箇所のみチェック
+	START_NO = チェック対象
+	END_NO   = チェック対象 + 1
+ENDIF
+
+チェック結果 = 1
+FOR L_CNT, START_NO, END_NO
+	SELECTCASE チェック部位
+		CASE "Ｂ"
+			SELECTCASE L_CNT
+				CASE 0
+					; Ｂあり
+					チェック結果 &= TALENT:対象キャラ:Ｂ感度 != -2
+				CASE 1
+					; Ｂ未使用
+					チェック結果 &= !TEQUIP:対象キャラ:胸
+				CASE 2
+					; 陥没していない
+					チェック結果 &= !TALENT:対象キャラ:陥没乳首 || TCVAR:対象キャラ:陥没乳首露出フラグ
+			ENDSELECT
+		CASE "Ｃ"
+			SELECTCASE L_CNT
+				CASE 0
+					; Ｃあり(女性のみ)
+					チェック結果 &= (TALENT:対象キャラ:Ｃ感度 != -2) && GROUPMATCH(TALENT:対象キャラ:性別, 1)
+				CASE 1
+					; Ｂ未使用
+					チェック結果 &= !TEQUIP:対象キャラ:クリトリス
+				CASE 2
+					; 特殊判定なし
+			ENDSELECT
+		CASE "Ｖ"
+			SELECTCASE L_CNT
+				CASE 0
+					; Ｖあり(女性 or ふたなり)
+					チェック結果 &= (TALENT:対象キャラ:Ｖ感度 != -2) && GROUPMATCH(TALENT:対象キャラ:性別, 1, 3)
+				CASE 1
+					; Ｖ未使用
+					チェック結果 &= !TEQUIP:対象キャラ:膣
+				CASE 2
+					; 特殊判定なし
+			ENDSELECT
+		CASE "Ａ"
+			SELECTCASE L_CNT
+				CASE 0
+					; Ａあり
+					チェック結果 &= TALENT:対象キャラ:Ａ感度 != -2
+				CASE 1
+					; Ａ未使用
+					チェック結果 &= !TEQUIP:対象キャラ:アナル
+				CASE 2
+					; 特殊判定なし
+			ENDSELECT
+		CASE "Ｐ"
+			SELECTCASE L_CNT
+				CASE 0
+					; Ｐあり(男性 or ふたなり, 感度情報はＣで判定)
+					チェック結果 &= (TALENT:対象キャラ:Ｃ感度 != -2) && GROUPMATCH(TALENT:対象キャラ:性別, 2, 3)
+				CASE 1
+					; Ｐ未使用
+					チェック結果 &= !TEQUIP:対象キャラ:ペニス
+				CASE 2
+					; 特殊判定なし
+			ENDSELECT
+	ENDSELECT
+NEXT
+RETURNF チェック結果
