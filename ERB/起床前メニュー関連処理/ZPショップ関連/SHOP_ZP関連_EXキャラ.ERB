@@ -36,6 +36,7 @@
 #DIM 選択モード
 #DIM リスト更新判定
 #DIM ソートモード
+#DIM ソートモード前回値
 #DIMS ソートキー, 2
 
 ; RESTART時に現在ページをリセットしない
@@ -49,6 +50,7 @@ IF 初回実行フラグ
 	描画開始行 = LINECOUNT
 	REDRAW_TEMP = CURRENTREDRAW()
 	ソートモード = 0
+	ソートモード前回値 = -1
 	REDRAW 0
 ENDIF
 
@@ -73,7 +75,8 @@ IF リスト更新判定
 	VARSET 出展情報配列
 	ソートキー:0 = 出展情報配列
 	ソートキー:1 = 出展作品配列
-
+	; リスト更新後にソートを実行するように前回値をリセット
+	ソートモード前回値 = -1
 	候補キャラ数 = 0
 	出典番号 = 1
 	出展作品配列:0 = グランブルーファンタジー
@@ -121,14 +124,20 @@ IF リスト更新判定
 	NEXT
 ENDIF
 
-SELECTCASE ソートモード
-	CASE 0
-		;人数順
-		ARRAYMSORTEX "出展情報配列", ソートキー, 0
-	CASE 1
-		;シリーズ名順
-		ARRAYMSORT 出展作品配列, 出展情報配列
-ENDSELECT
+;ソートモードが切り替わった場合はソートする
+;・ARRAYMSORTEXが安定ソートではないようで、モード切替、リスト更新時のみソートを実行
+;　(制限しないと人数順ソートでリストを表示するごとに人数が同じの作品の順番が変わる)
+IF ソートモード != ソートモード前回値
+	ソートモード前回値 = ソートモード
+	SELECTCASE ソートモード
+		CASE 0
+			;人数順
+			ARRAYMSORTEX "出展情報配列", ソートキー, 0, 出典番号
+		CASE 1
+			;シリーズ名順
+			ARRAYMSORT 出展作品配列, 出展情報配列
+	ENDSELECT
+ENDIF
 
 DRAWLINE
 IF 選択モード
@@ -145,14 +154,7 @@ IF 選択モード
 	END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
 
 	; 番号の最大桁数を取得
-	SELECTCASE END_NO
-		CASE IS >= 100
-			NO_LEN = 3
-		CASE IS >= 10
-			NO_LEN = 2
-		CASEELSE
-			NO_LEN = 1
-	ENDSELECT
+	NO_LEN = LOG10(END_NO) + 1
 
 	; キャラ表示ループ
 	最終ページフラグ = 0
