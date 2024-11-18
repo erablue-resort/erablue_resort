@@ -80,7 +80,7 @@ FOR LOCAL, 0, VARSIZE("カテゴリ表示順制御")
 		HTML文字列 += @"<div rect='1300,{LOCAL * 268 + 31},31,150' color='#101010'></div>"
 	ELSE
 		HTML文字列 += @"<div rect='30,{LOCAL * 270},1300,200' padding='25' border='31' bcolor='#C0C0C0'>"
-		HTML文字列 += @"<button value='{LOCAL}'>%カテゴリ表示順制御:LOCAL%</button>"
+		HTML文字列 += @"<button value='{LOCAL}'>[{LOCAL, 2}] %カテゴリ表示順制御:LOCAL%</button>"
 		HTML文字列 += "</div>"
 	ENDIF
 NEXT
@@ -176,6 +176,12 @@ GOTO 表示ラベル
 #DIM 分割番号
 
 SELECTCASE ボタン番号
+	CASE IS >= 60000
+		PRINTL
+		TRYCALLFORM KOJO_キャラ同士デート_{NO:(ボタン番号 - 60000)}(ボタン番号 - 60000)
+		PRINTL
+		TRYCALLFORM KOJO_キャラ同士デート_{NO:(ABS(CFLAG:(ボタン番号 - 60000):デート))}(ABS(CFLAG:(ボタン番号 - 60000):デート))
+		PRINTL
 	CASE IS >= 50000
 		HTML_PRINT CSTR:(ボタン番号 - 50000):夜這い報告_記録文字列
 		PRINTL
@@ -232,6 +238,11 @@ WAIT
 #DIM 口上あり
 #DIMS 分割用文字列, 3
 #DIM 分割番号
+
+;--------------------------------------------------------------------------------
+;縁結びの一日進行をここで行う
+;--------------------------------------------------------------------------------
+CALL 縁結び進展処理()
 
 CALL キャラ番号配列_初期化_シャッフル(順番シャッフル用配列, 0)
 シャッフル数 = RESULT
@@ -414,7 +425,6 @@ NEXT
 RFLAG:口上非表示フラグ = 0
 
 
-
 @一日終了時レポート表示_妊娠報告(ボタン番号)
 #DIM ボタン番号
 DRAWLINE
@@ -431,12 +441,16 @@ SELECTCASE ボタン番号
 		VARSET RESULTS
 		SPLIT CSTR:(ボタン番号 - 10000):妊娠報告_記録文字列, "_受精アニメ_", RESULTS
 		HTML_PRINT RESULTS:0
-		SIF FLAG_アニメーション
-			CALL 受精アニメ(0)
-		HTML_PRINT RESULTS:1
-		SIF FLAG_アニメーション
-			CALL 受精アニメ(1)
-		HTML_PRINT RESULTS:2
+		IF RESULTS:1 != ""
+			SIF FLAG_アニメーション
+				CALL 受精アニメ(0)
+			HTML_PRINT RESULTS:1
+		ENDIF
+		IF RESULTS:2 != ""
+			SIF FLAG_アニメーション
+				CALL 受精アニメ(1)
+			HTML_PRINT RESULTS:2
+		ENDIF
 ENDSELECT
 WAIT
 
@@ -1457,11 +1471,6 @@ FOR LOCAL, 0, CHARANUM
 	ENDIF
 	CALL 処女童貞適用処理(LOCAL)
 NEXT
-
-;--------------------------------------------------------------------------------
-;縁結びの一日進行
-;--------------------------------------------------------------------------------
-CALL 縁結び進展処理()
 
 ;--------------------------------------------------------------------------------
 ;突発イベント再発生CT減少＆再発生判定
