@@ -851,6 +851,33 @@ NEXT
 #DIM 進行量
 
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
+	IF ABS(CFLAG:対象キャラ１:デート) == 対象キャラ２ + 100 && ABS(CFLAG:対象キャラ２:デート) == 対象キャラ１ + 100
+		;デート状態の記録
+		RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%は一日デートを楽しんだようです。", 80, LEFT%"
+		CALL 口上変数初期化
+		;非表示状態で一旦口上を読んで、ちゃんと文字が入ってるなら表示ボタンを出す
+		TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ１}(対象キャラ１)
+			IF 口上有無確認(0,1)
+				RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+			ELSE
+				TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ２}(対象キャラ２)
+					IF 口上有無確認(0,1)
+						RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+					ENDIF
+				CATCH
+				ENDCATCH
+			ENDIF
+		CATCH
+			TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ２}(対象キャラ２)
+				IF 口上有無確認(0,1)
+					RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+				ENDIF
+			CATCH
+			ENDCATCH
+		ENDCATCH
+		RSTR:夜這い報告_記録文字列 += "<br>"
+	ENDIF
+
 	;成立済みはスキップ
 	SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ")
 		CONTINUE
@@ -873,7 +900,7 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 		DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", MIN(100, DT_CELL_GET("縁結びデータベース", LOCAL, "進展度") + 進行量)
 	ENDIF
 
-	IF CFLAG:対象キャラ１:デート && CFLAG:対象キャラ２:デート
+	IF ABS(CFLAG:対象キャラ１:デート) == 対象キャラ２ + 100 && ABS(CFLAG:対象キャラ２:デート) == 対象キャラ１ + 100
 		;１日終了時にデート状態なら更に進展する
 		進行量 = RAND:5 + 2
 

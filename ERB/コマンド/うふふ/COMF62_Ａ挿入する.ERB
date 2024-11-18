@@ -67,9 +67,64 @@ IF TFLAG:オートコマンドフラグ
 	RETURN 1
 ELSEIF FLAG:モード管理 == 2
 	IF RFLAG:コマンド結果受渡し変数 == 12
-		TRYCALLFORM COM62_12
-		RETURN 0
+		TRYCALLFORM COM62_12(強さ初期値記録, 速さ初期値記録)
 	ELSE
+		強さ初期値記録 = 0
+		速さ初期値記録 = 0
+		$体位_LOOP2
+		DRAWLINE
+		PRINTL ■速さ・強さの初期値を選んでください
+		PRINT 　　Ａ挿入強さ：
+		PRINTBUTTON "[-]", 899
+		FOR LOCAL, 0, 6
+			IF 強さ初期値記録 >= LOCAL
+				PRINTBUTTON "■", 900 + LOCAL
+			ELSE
+				PRINTBUTTON "□", 900 + LOCAL
+			ENDIF
+		NEXT
+		PRINTBUTTON "[+]", "906"
+		PRINT 　　
+		PRINT Ａ挿入速さ：
+		PRINTBUTTON "[-]", "909"
+		FOR LOCAL, 0, 6
+			IF 速さ初期値記録 >= LOCAL
+				PRINTBUTTON "■", 910 + LOCAL
+			ELSE
+				PRINTBUTTON "□", 910 + LOCAL
+			ENDIF
+		NEXT
+		PRINTBUTTON "[+]", 916
+		PRINTL
+		PRINTL
+		PRINTBUTTONLC "[998]決定", 998
+		PRINTBUTTONLC "[999]戻る", 999
+
+		BINPUT
+
+		LOCAL = RESULT
+		SELECTCASE LOCAL
+			CASE 900 TO 905
+				強さ初期値記録 = LOCAL - 900
+				GOTO 体位_LOOP2
+			CASE 910 TO 915
+				速さ初期値記録 = LOCAL - 910
+				GOTO 体位_LOOP2
+			CASE 899
+				強さ初期値記録 = MAX(強さ初期値記録 - 1, 0)
+				GOTO 体位_LOOP2
+			CASE 906
+				強さ初期値記録 = MIN(強さ初期値記録 + 1, 5)
+				GOTO 体位_LOOP2
+			CASE 909
+				速さ初期値記録 = MAX(強さ初期値記録 - 1, 0)
+				GOTO 体位_LOOP2
+			CASE 916
+				速さ初期値記録 = MIN(強さ初期値記録 + 1, 5)
+				GOTO 体位_LOOP2
+			CASE 999
+				RETURN -1
+		ENDSELECT
 		LOCAL:10 = TARGET
 		FOR LOCAL, 0, 同時モード_選択数
 			SIF 同時モード_選択キャラ:LOCAL < 0
@@ -90,12 +145,11 @@ ELSEIF FLAG:モード管理 == 2
 		NEXT
 		TARGET = LOCAL:10
 
-		TRYCALLFORM COM62_12
+		TRYCALLFORM COM62_12(強さ初期値記録, 速さ初期値記録)
 		;メッセージ用に体位の種類を保存
 		RFLAG:コマンド結果受渡し変数 = 12
-		RETURN 0
 	ENDIF
-	RETURN 0
+	RETURN 1
 ELSE
 	強さ初期値記録 = 0
 	速さ初期値記録 = 0
@@ -193,7 +247,7 @@ ELSE
 						GOTO 体位_LOOP
 					ENDIF
 				ENDIF
-				TRYCALLFORM COM62_{LOCAL}
+				TRYCALLFORM COM62_{LOCAL}(強さ初期値記録, 速さ初期値記録)
 				;メッセージ用に体位の種類を保存
 				RFLAG:コマンド結果受渡し変数 = LOCAL
 				RETURN 1
