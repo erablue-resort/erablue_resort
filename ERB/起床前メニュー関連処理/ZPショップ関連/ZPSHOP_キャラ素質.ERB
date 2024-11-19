@@ -567,14 +567,24 @@ ENDSELECT
 
 DRAWLINE
 PRINTL ZPを消費してキャラの性別を変化させることができます。
+PRINTL 発情ふたなりなど、一時的に性別が変化する状態の場合、変化前の性別を変更します。
 PRINTL 任意の性別を選択してください。
 PRINTL ※その他・無性への変化は出来ません。元が該当性別の場合、性別変化させると元に戻せなくなります。
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
-FOR LOCAL:1 , 1, 3
-	IF TALENT:対象キャラ:性別 == LOCAL:1
+FOR LOCAL:1, 1, 3
+	IF CFLAG:対象キャラ:元性別保存 == LOCAL:1
 		SETCOLOR 0x666666
-		PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（現在の性別）
+		IF CFLAG:対象キャラ:元性別保存 == TALENT:対象キャラ:性別
+			PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（現在の性別）
+		ELSE
+			PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（変化前の性別）
+		ENDIF
+		PRINTL
+		RESETCOLOR
+	ELSEIF TALENT:対象キャラ:妊娠 && GETBIT(LOCAL:1, 0) == 0
+		SETCOLOR 0x666666
+		PRINTPLAINFORM [{LOCAL:1}]%GET_TALENTNAME(2, LOCAL:1)%（妊娠中のため不可）
 		PRINTL
 		RESETCOLOR
 	ELSE
@@ -694,6 +704,8 @@ SELECTCASE LOCAL:1
 				TALENT:対象キャラ:性転換 = 2
 			ENDIF
 			;ふたなり、その他の場合は何に変化しても元女・元男はつかない
+			;元性別も処理しておく
+			CFLAG:対象キャラ:元性別保存 = TALENT:対象キャラ:性別
 		ENDIF
 		RETURN 0
 	CASEELSE
@@ -1037,6 +1049,9 @@ IF 発情期判定(対象キャラ)
 	IF GETBIT(TALENT:対象キャラ:発情期あり, 7) && 素質切り替えOPTION記憶:陥没乳首_なし == 0
 		LOCALS:(表示番号++) = ├陥没乳首常時勃起
 	ENDIF
+	IF GETBIT(TALENT:対象キャラ:発情期あり, 8) && GETBIT(CFLAG:対象キャラ:元性別保存, 0) == 0
+		LOCALS:(表示番号++) = ├女体化
+	ENDIF
 
 	;最後の├だけ置き換える
 	IF 表示番号 > 0
@@ -1154,6 +1169,17 @@ IF 発情期判定(対象キャラ)
 			PRINTFORML  　　　　… {必要COST}ZP
 		ENDIF
 	ENDIF
+	IF FLAG:ZP所持量 < 必要COST
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTL 　ZP不足につき 女体化 変更不可
+		RESETCOLOR
+	ELSEIF GETBIT(TALENT:対象キャラ:発情期あり, 8)
+		PRINTBUTTON "　[8] 女体化を なし に変更する", 8
+		PRINTFORML  … {必要COST}ZP
+	ELSE
+		PRINTBUTTON "　[8] 女体化を あり に変更する", 8
+		PRINTFORML  … {必要COST}ZP
+	ENDIF
 ELSE
 	PRINTL ■ 発情期なし
 	DRAWLINE
@@ -1213,11 +1239,16 @@ SELECTCASE LOCAL
 				PRINT 過敏体質（快楽・苦痛＋）
 			CASE 7
 				PRINT 陥没乳首常時勃起
+			CASE 8
+				PRINT 女体化
 		ENDSELECT
 		IF GETBIT(TALENT:対象キャラ:発情期あり, LOCAL)
 			PRINTL を なし に変更します。よろしいですか？
 		ELSE
 			PRINTL を あり に変更します。よろしいですか？
+		ENDIF
+		IF LOCAL == 8
+			PRINTL ※ふたなり化の発情がありの場合、そちらが優先されます。
 		ENDIF
 		PRINTFORML 使用ZP： {必要COST}
 		PRINTBUTTONLC "[0] はい", 0
