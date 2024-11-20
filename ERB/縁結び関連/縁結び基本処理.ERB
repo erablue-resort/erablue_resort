@@ -249,10 +249,11 @@ RESTART
 
 ;恋愛対象外チェック()
 
-@縁結び右キャラセット(左キャラ, 全キャラランダムモード = 0)
+@縁結び右キャラセット(左キャラ, 全キャラランダムモード = 0, 候補取得モード = 0)
 #DIM 左キャラ
 #DIM 全キャラランダムモード
 #DIM 対象キャラ
+#DIM 候補取得モード
 #DIM ページ数
 #DIM 表示数
 #DIM 初期進展度
@@ -260,7 +261,7 @@ RESTART
 #DIM 既に恋慕フラグ
 #DIM 候補配列, キャラクタ数上限
 
-;ランダムモードに１が入ってれば恋慕、０が入ってればセフレで処理する
+;ランダムモードに１が入ってれば恋慕、２が入ってればセフレで処理する
 SIF 全キャラランダムモード
 	セットモード = 全キャラランダムモード - 1
 
@@ -280,6 +281,33 @@ FOR 対象キャラ, 1, CHARANUM
 	;オプションによる制御
 	SIF 性別招待制御_実処理(対象キャラ)
 		CONTINUE
+		
+	;オート縁結びの制限
+	IF RFLAG:オート縁結び中
+		;滞在者のみ
+		SIF CFLAG:対象キャラ:滞在期間 <= 0
+			CONTINUE
+		;ある程度仲の良い相手のみ。互いに10以上かこっち側が30以上
+		SIF GET_RELATION(左キャラ, 対象キャラ) < 30 && (GET_RELATION(左キャラ, 対象キャラ) < 10 || GET_RELATION(対象キャラ, 左キャラ) < 10)
+			CONTINUE
+		;性別嗜好を見る
+		SIF TALENT:左キャラ:性別嗜好 == 1 && TALENT:対象キャラ:性別 == 2
+			CONTINUE
+		SIF TALENT:左キャラ:性別嗜好 == 2 && TALENT:対象キャラ:性別 == 1
+			CONTINUE
+		SIF TALENT:左キャラ:性別嗜好 == 3
+			CONTINUE
+		;オプションを見る
+		IF GETBIT(OPTION変数:オート縁結び詳細, 2) == 0
+			IF CSTR:左キャラ:出演作品 == "" || CSTR:左キャラ:出演作品 == "グランブルーファンタジー"
+				SIF CSTR:対象キャラ:出演作品 != "" && CSTR:対象キャラ:出演作品 != "グランブルーファンタジー"
+					CONTINUE
+			ELSE
+				SIF CSTR:左キャラ:出演作品 != CSTR:対象キャラ:出演作品
+					CONTINUE
+			ENDIF
+		ENDIF
+	ENDIF
 
 	;口上側で設定可能な条件
 	RESULT = 0
@@ -342,9 +370,19 @@ FOR 対象キャラ, 1, CHARANUM
 	ELSEIF RESULT == 1
 		既に恋慕フラグ = 0
 	ENDIF
+
 	候補配列:表示数 = 対象キャラ
 	表示数 ++
+
+	;候補取得モードが１なら候補が存在する時点で戻す
+	IF 候補取得モード == 1
+		RETURN 1
+	ENDIF
 NEXT
+
+;候補取得モードが１ならここに来た時点で候補なしなので戻す
+SIF 候補取得モード == 1
+	RETURN 0
 
 IF 全キャラランダムモード == 0
 	;キャラ一覧を表示
@@ -419,8 +457,10 @@ SELECTCASE 対象キャラ
 			LOCALS = 恋慕
 		ENDIF
 		IF 全キャラランダムモード == 0
-			PRINTFORML %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%との『%LOCALS%の縁』を導きました。
+			PRINTFORML %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%への『%LOCALS%の縁』を導きました。
 			PRINTW 今後のリゾート生活で縁が進行していきます。
+		ELSEIF RFLAG:オート縁結び中
+			RSTR:縁結び報告_記録文字列 += @"%CALLNAME:左キャラ%に%CALLNAME:対象キャラ%への『%LOCALS%の縁』が繋がりました。<br>"
 		ENDIF
 		初期進展度 = 0
 		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
@@ -853,16 +893,16 @@ NEXT
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 	IF ABS(CFLAG:対象キャラ１:デート) == 対象キャラ２ + 100 && ABS(CFLAG:対象キャラ２:デート) == 対象キャラ１ + 100
 		;デート状態の記録
-		RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%は一日デートを楽しんだようです。", 80, LEFT%"
+		RSTR:縁結び報告_記録文字列 += @"%@"%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%は一日デートを楽しんだようです。", 80, LEFT%"
 		CALL 口上変数初期化
 		;非表示状態で一旦口上を読んで、ちゃんと文字が入ってるなら表示ボタンを出す
 		TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ１}(対象キャラ１)
 			IF 口上有無確認(0,1)
-				RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+				RSTR:縁結び報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
 			ELSE
 				TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ２}(対象キャラ２)
 					IF 口上有無確認(0,1)
-						RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+						RSTR:縁結び報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
 					ENDIF
 				CATCH
 				ENDCATCH
@@ -870,12 +910,12 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 		CATCH
 			TRYCCALLFORM KOJO_キャラ同士デート_{NO:対象キャラ２}(対象キャラ２)
 				IF 口上有無確認(0,1)
-					RSTR:夜這い報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
+					RSTR:縁結び報告_記録文字列 += @"<button value='{60000 + 対象キャラ１}'>[口上を表示]</button>"
 				ENDIF
 			CATCH
 			ENDCATCH
 		ENDCATCH
-		RSTR:夜這い報告_記録文字列 += "<br>"
+		RSTR:縁結び報告_記録文字列 += "<br>"
 	ENDIF
 
 	;成立済みはスキップ
@@ -1013,3 +1053,125 @@ SELECTCASE LOCAL
 ENDSELECT
 
 RESTART
+
+
+@オート縁結び処理()
+#DIM 設定カップル数
+#DIM 許可フラグ
+#DIM 対象キャラ１
+#DIM 候補配列, キャラクタ数上限
+#DIM 候補総数
+
+;オプションで禁止なら戻す
+SIF OPTION変数:オート縁結び == 0
+	RETURN 0
+SIF GETBIT(OPTION変数:オート縁結び詳細, 0) == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1) == 0
+	RETURN 0
+
+;設定カップル数を設定
+設定カップル数 = RAND:4
+設定カップル数 = 10
+;設定が０なら戻す
+SIF 設定カップル数 <= 0
+	RETURN 0
+
+VARSET 候補配列
+;滞在キャラを全員見て候補配列に登録
+FOR 対象キャラ１, 0, CHARANUM
+	SIF CFLAG:対象キャラ１:滞在期間 <= 0
+		CONTINUE
+	;特殊条件チェック
+	TRYCALLFORM 縁結び特殊条件_左キャラ時_{NO:対象キャラ１}(対象キャラ１)
+	IF RESULT == 0
+		;性欲なし・性別なしはダメ
+		SIF TALENT:対象キャラ１:性欲 == -2
+			CONTINUE
+		SIF TALENT:対象キャラ１:性別 == 0
+			CONTINUE
+		;無知もダメ
+		SIF 知識素質:対象キャラ１:性知識 < 0
+			CONTINUE
+		;陥落不可素質
+		SIF GETBIT(CSVTALENT(NO:対象キャラ１, GETNUM(TALENT, "陥落不可")), 0) && GETBIT(TALENT:対象キャラ１:陥落不可, 1)
+			CONTINUE
+	ELSEIF RESULT == -1
+		CONTINUE
+	ENDIF
+	;ちゃんと相手候補がいるかチェック
+	IF GETBIT(OPTION変数:オート縁結び詳細, 0)
+		;恋慕
+		;既に恋慕セットするorされてたらアウト
+		IF 縁結びセット数取得(対象キャラ１, "恋慕")
+			CONTINUE
+		ENDIF
+		;相手が存在するか
+		CALL 縁結び候補存在判定(対象キャラ１, "恋慕")
+		IF RESULT
+			;相手候補がいるなら配列にセットして次へ
+			候補配列:候補総数 = 対象キャラ１
+			候補総数 ++
+			CONTINUE
+		ENDIF
+	ENDIF
+	IF GETBIT(OPTION変数:オート縁結び詳細, 1)
+		;セフレ
+		;オートで結べるセフレは３組まで
+		IF 縁結びセット数取得(対象キャラ１, "セフレ") >= 3
+			CONTINUE
+		ENDIF
+		;相手が存在するか
+		CALL 縁結び候補存在判定(対象キャラ１, "セフレ")
+		IF RESULT
+			;相手候補がいるなら配列にセットして次へ
+			候補配列:候補総数 = 対象キャラ１
+			候補総数 ++
+			CONTINUE
+		ENDIF
+	ENDIF
+NEXT
+
+;候補から選出
+IF 候補総数 <= 設定カップル数
+	FOR LOCAL, 0, 設定カップル数
+		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
+			;恋慕が入る確率の方がやや高い
+			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+				CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
+				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1)
+					CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
+			ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
+				CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
+				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+					CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
+			ENDIF
+		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 0)
+			CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
+		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
+			CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
+		ENDIF
+	NEXT
+ELSE
+	FOR LOCAL, 0, 設定カップル数
+		対象キャラ１ = RAND:候補総数
+		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
+			;恋慕が入る確率の方がやや高い
+			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+				CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
+				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1)
+					CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
+			ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
+				CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
+				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+					CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
+			ENDIF
+		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 0)
+			CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
+		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
+			CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
+		ENDIF
+		ARRAYREMOVE 候補配列, 対象キャラ１, 1
+		候補総数 --
+	NEXT
+ENDIF
+
+
