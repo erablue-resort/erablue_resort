@@ -185,6 +185,31 @@ SELECTCASE LOCAL
 	CASE 999
 		CALL 仕事切替時補正(変更キャラ)
 		ページ数 = 0
+		IF 高速船記録:派遣先登録 != ""
+			CALLFORM 高速船派遣先関数_%高速船記録:派遣先登録%("派遣条件")
+			IF RESULT == 0
+				CALLFORM 高速船派遣先関数_%高速船記録:派遣先登録%("解説文")
+				DRAWLINE
+				HTML_PRINT TSTR:ツールチップ受渡
+				PRINTL
+				DRAWLINE
+				PRINTL 以上の高速船派遣の条件を満たさなくなったため、派遣を中止します。
+				PRINTL よろしいですか？
+				PRINTBUTTONLC "[0] はい", 0
+				PRINTBUTTONLC "[1] いいえ", 1
+				PRINTL
+				BINPUT
+				IF RESULT == 0
+					高速船記録:派遣先登録 = 
+					高速船記録:派遣状態 = 
+					PRINTL
+					PRINTL
+					PRINTW 派遣を中止しました。
+				ELSE
+					GOTO 表示ループ
+				ENDIF
+			ENDIF
+		ENDIF
 		RETURN 0
 	CASE 998
 		INVERTBIT ソートタイプ, 0
@@ -364,7 +389,7 @@ SELECTCASE LOCAL
 		ELSE
 			RESTART
 		ENDIF
-	CASE 0 TO 10
+	CASE 0 TO 11
 		IF 仕事条件判定関数(ARG, LOCAL) == 0
 			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
 			REUSELASTLINE 
@@ -535,6 +560,11 @@ SELECTCASE ARG
 			RETURNF "リゾート内の食堂で給仕を担当する業務。<br>効果：料理メニューの効果によるルピ収入が<br>　　　［（仕事レベル＋１）✕５］％増加する。<br>　　　複数人の効果は加算されるが、上限は<br>［滞在人数÷１０］％まで。（モブ・ユニーク合算）"
 		ENDIF
 		RETURNF "給仕"
+	CASE 11
+		IF ARG:1
+			RETURNF @"高速船に乗り込み、派遣先に向かう業務。<br>効果：派遣先により変化。"
+		ENDIF
+		RETURNF "高速船員"
 ENDSELECT
 
 @仕事条件判定関数(キャラ番号, 仕事番号)
@@ -543,7 +573,7 @@ ENDSELECT
 #DIM 仕事番号
 
 SELECTCASE 仕事番号
-	CASE 2,3
+	CASE 2,3,11
 		SIF キャラ番号 == PLAYER
 			RETURNF 0
 	CASE 5,6

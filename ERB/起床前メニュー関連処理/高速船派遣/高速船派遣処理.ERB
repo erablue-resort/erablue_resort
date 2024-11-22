@@ -1,0 +1,165 @@
+﻿@高速船派遣処理
+#DIMS HTML表示文字列
+#DIM 表示モード
+#DIM 選択番号
+#DIMS 派遣先配列, 100
+#DIM ソート配列, 100
+#DIM 派遣先数
+#DIM 人数カウント
+
+;派遣先登録
+VARSET 派遣先配列
+VARSET ソート配列
+VARSET RESULTS
+派遣先数 = 0
+選択番号 = -1
+
+FOR LOCAL, 0, ENUMFUNCBEGINSWITH("高速船派遣先関数_")
+	CALLFORM %RESULTS:LOCAL%("出現条件")
+	IF RESULT
+		ソート配列:派遣先数 = RESULT
+		派遣先配列:派遣先数 '= REPLACE(RESULTS:LOCAL, "高速船派遣先関数_", "")
+		派遣先数 ++
+	ENDIF
+NEXT
+;表示ソート
+ARRAYMSORT ソート配列, 派遣先配列
+
+
+$表示LOOP
+DRAWLINE
+PRINTL 高速船派遣の設定を行います。
+DRAWLINE
+;左側ウインドウ
+HTML表示文字列 = <div rect='81,31,1937,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>
+IF 表示モード == 1
+	;派遣先を一覧で選ぶ
+	FOR LOCAL, 0, 派遣先数
+		IF LOCAL == 選択番号
+			HTML表示文字列 += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 100}] %派遣先配列:LOCAL%</font>"
+		ELSE
+			HTML表示文字列 += @"<button value='{LOCAL + 100}'>[{LOCAL + 100}] %派遣先配列:LOCAL%</button>"
+		ENDIF
+		CALLFORM 高速船派遣先関数_%派遣先配列:LOCAL%("派遣条件")
+		IF RESULT == 0
+			HTML表示文字列 += "：✕"
+		ELSEIF 派遣先配列:LOCAL == 高速船記録:派遣先登録
+			HTML表示文字列 += "(派遣中)"
+		ENDIF
+		HTML表示文字列 += @"<br>"
+	NEXT
+	HTML表示文字列 += "<br>"
+	IF 選択番号 == -1
+		HTML表示文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 派遣先を変更して戻る</font><br>"
+	ELSE
+		CALLFORM 高速船派遣先関数_%派遣先配列:選択番号%("派遣条件")
+		IF RESULT
+			HTML表示文字列 += "<button value='998'>[998] 派遣先を変更して戻る</button><br>"
+		ELSE
+			HTML表示文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 派遣先を変更して戻る</font><br>"
+		ENDIF
+	ENDIF
+	HTML表示文字列 += "<button value='999'>[999] 変更せず戻る</button><br>"
+ELSE
+	HTML表示文字列 += "<button value='1'>[1] 派遣先を変更する</button><br>"
+	HTML表示文字列 += "<button value='2'>[2] 従業員の仕事設定へ</button><br>"
+	HTML表示文字列 += "<br>"
+	HTML表示文字列 += "<button value='997'>[997] 高速船派遣チュートリアル</button><br>"
+	HTML表示文字列 += "<button value='999'>[999] 戻る</button><br>"
+ENDIF
+HTML表示文字列 += "</div>"
+
+
+;右側ウインドウ
+HTML表示文字列 += "<div rect='2050,31,3875,2812' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+SELECTCASE 表示モード
+	CASE 1
+		;選択してる派遣先の詳細表示
+		IF 選択番号 >= 0
+			HTML表示文字列 += "■選択した派遣先<br><br>"
+			HTML表示文字列 += @"・%派遣先配列:選択番号%<br>"
+			CALLFORM 高速船派遣先関数_%派遣先配列:選択番号%("解説文")
+			HTML表示文字列 += @"　　%REPLACE(TSTR:ツールチップ受渡, "<br>", "<br>　　")%<br>"
+		ENDIF
+	CASEELSE
+		;現在の派遣先情報を表示
+		HTML表示文字列 += "■現在の派遣先<br><br>"
+		IF 高速船記録:派遣先登録 == ""
+		ELSE
+			HTML表示文字列 += @"　・%高速船記録:派遣先登録%<br>"
+			CALLFORM 高速船派遣先関数_%高速船記録:派遣先登録%("解説文")
+			HTML表示文字列 += @"　　%REPLACE(TSTR:ツールチップ受渡, "<br>", "<br>　　")%<br>"
+			HTML表示文字列 += @"■派遣状態<br>"
+			HTML表示文字列 += @"　・%高速船記録:派遣状態%<br>"
+		ENDIF
+		HTML表示文字列 += @"■高速船員一覧<br>"
+		HTML表示文字列 += @"　・"
+		人数カウント = 0
+		FOR LOCAL, 0, CHARANUM
+			IF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 11
+				SIF 人数カウント > 0
+					HTML表示文字列 += "、"
+				HTML表示文字列 += @"%CALLNAME:LOCAL%"
+				人数カウント ++
+			ENDIF
+		NEXT
+ENDSELECT
+HTML表示文字列 += "</div>"
+
+HTML_PRINT HTML表示文字列, 1
+FOR LOCAL, 0, 30
+	PRINTL
+NEXT
+
+IF チュートリアルフラグ:高速船派遣 == 0
+	RESULT = 997
+ELSE
+	BINPUT
+ENDIF
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		IF 表示モード == 1
+			;最初に戻る
+			選択番号 = -1
+			表示モード = 0
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE 998
+		IF 高速船記録:派遣先登録 != 派遣先配列:選択番号
+			高速船記録:派遣先登録 '= 派遣先配列:選択番号
+			高速船記録:派遣状態 = 派遣準備中
+			PRINTL
+			PRINTL
+			PRINTL
+			PRINTW 派遣先を変更しました。
+		ENDIF
+		選択番号 = -1
+		表示モード = 0
+	CASE 997
+		CALL 高速船派遣チュートリアル()
+	CASE 1
+		表示モード = 1
+		選択番号 = -1
+	CASE 2
+		CALL 従業員仕事割り振り
+	CASEELSE
+		選択番号 = LOCAL - 100
+ENDSELECT
+
+GOTO 表示LOOP
+
+
+
+@高速船派遣_乗組員数()
+#FUNCTION
+#DIM 人数カウント
+
+人数カウント = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 && 現在仕事:LOCAL:0 == 11
+		人数カウント ++
+NEXT
+
+RETURNF 人数カウント
