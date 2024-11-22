@@ -275,6 +275,7 @@ ENDSELECT
 #DIM 兵器id
 #DIM 素材id, 50
 #DIM 素材不足フラグ
+#DIM 必要数
 #DIMS 分割文字列, 2
 
 DO
@@ -375,9 +376,13 @@ SELECTCASE 選択乗機番号
 				RETURN -1
 			ENDIF
 			SETCOLOR 属性数値文字色変換(DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "素材属性", 1))
-			PRINTFORML 　%分割文字列:0%：%分割文字列:1, 3%個 / 所持数{DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1)}個
+			必要数 = TOINT(分割文字列:1)
+			IF 必要数 >= 10 && 高速船記録:派遣先登録 == "バルツ公国" && 高速船記録:派遣状態 == "派遣中"
+				必要数 -= 3
+			ENDIF
+			PRINTFORML 　%分割文字列:0%：{必要数, 3}個 / 所持数{DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1)}個
 			RESETCOLOR
-			IF DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1) < TOINT(分割文字列:1)
+			IF DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1) < 必要数
 				素材不足フラグ = 1
 			ENDIF
 		NEXT
@@ -401,7 +406,11 @@ SELECTCASE 選択乗機番号
 						BREAK
 					SPLIT 作成素材登録:LOCAL, "_", 分割文字列
 					;素材消費
-					DT_CELL_SET "所持素材データベース", 素材id:LOCAL, "所持素材数", DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1) - TOINT(分割文字列:1), 1
+					必要数 = TOINT(分割文字列:1)
+					IF 必要数 >= 10 && 高速船記録:派遣先登録 == "バルツ公国" && 高速船記録:派遣状態 == "派遣中"
+						必要数 -= 3
+					ENDIF
+					DT_CELL_SET "所持素材データベース", 素材id:LOCAL, "所持素材数", DT_CELL_GET("所持素材データベース", 素材id:LOCAL, "所持素材数", 1) - 必要数, 1
 				NEXT
 				;設計フラグを0にする
 				DT_CELL_SET "所持乗機データベース", 表示id, "設計状態フラグ", 0, 1
