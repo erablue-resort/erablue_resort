@@ -278,6 +278,9 @@ SELECTCASE RESULT
 		;性癖素質の無効化
 		性癖素質:ARG:(RESULT - 300) = 性癖素質:ARG:(RESULT - 300) * -1
 		RESTART
+	CASE 800
+		INVERTBIT INFO格納フィルタ:9, 0
+		RESTART
 	CASE 900
 		能力表示現在ページ = 0
 		RESTART
@@ -2228,85 +2231,100 @@ FOR LOCAL, 1, 関係数 + 1
 NEXT
 
 @PRINT_STATE_好感度詳細(ARG)
+#DIMS CONST 好感度種類 = "友情", "信頼", "恋心", "性愛"
 IF ARG
-	PRINTL □ 関係 □---------------------------------------------------------------------
+	PRINTBUTTON @"□ \@ GETBIT(INFO格納フィルタ:9, 0)? |▶ # ▽\@ 関係 □------------------------------------------------------------------", 800
+	PRINTL 
 	PRINT 　
-	CALL PRINT_好感度レベル表示(ARG)
-	PRINTL
-	IF CFLAG:ARG:友情度 >= 100500
-		PRINTFORM 　　├ 要素：友情  MAX!!
-		HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
-	ELSE
-		IF あなた特殊能力:フレンドリーセンス
-			PRINTFORM 　　├ 要素：友情 {CFLAG:ARG:友情度,6}
-			SIF CFLAG:ARG:友情度 > 239
-				HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:友情度 * 7 / 268}, 37' color='#4db56a'>", 1
+	IF !GETBIT(INFO格納フィルタ:9, 0)
+		CALL PRINT_好感度レベル表示(ARG)
+		PRINTL
+		IF CFLAG:ARG:友情度 >= 100500
+			PRINTFORM 　　├ 要素：友情  MAX!!
+			HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
 		ELSE
-			PRINTFORM 　　├ 要素：友情
+			IF あなた特殊能力:フレンドリーセンス
+				PRINTFORM 　　├ 要素：友情 {CFLAG:ARG:友情度,6}
+				SIF CFLAG:ARG:友情度 > 239
+					HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:友情度 * 7 / 268}, 37' color='#4db56a'>", 1
+			ELSE
+				PRINTFORM 　　├ 要素：友情
+			ENDIF
+		ENDIF
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCCALLFORM 口上_ステータス画面_友情コメント_{NO:ARG}(ARG)
+			CATCH
+				PRINTL 　　│
+			ENDCATCH
+		ENDIF
+		IF CFLAG:ARG:信頼度 >= 100500
+			PRINTFORM 　　├ 要素：信頼  MAX!!
+			HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
+		ELSE
+			IF あなた特殊能力:フレンドリーセンス
+				PRINTFORM 　　├ 要素：信頼 {CFLAG:ARG:信頼度,6}
+				SIF CFLAG:ARG:信頼度 > 239
+					HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:信頼度 * 7 / 268}, 37' color='#4db56a'>", 1
+			ELSE
+				PRINTFORM 　　├ 要素：信頼
+			ENDIF
+		ENDIF
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCCALLFORM 口上_ステータス画面_信頼コメント_{NO:ARG}(ARG)
+			CATCH
+				PRINTL 　　│
+			ENDCATCH
+		ENDIF
+		IF CFLAG:ARG:恋心度 >= 100500
+			PRINTFORM 　　├ 要素：恋心  MAX!!
+			HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
+		ELSE
+			IF あなた特殊能力:フレンドリーセンス
+				PRINTFORM 　　├ 要素：恋心 {CFLAG:ARG:恋心度,6}
+				SIF CFLAG:ARG:恋心度 > 239
+					HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:恋心度 * 7 / 268}, 37' color='#4db56a'>", 1
+			ELSE
+				PRINTFORM 　　├ 要素：恋心
+			ENDIF
+		ENDIF
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			TRYCCALLFORM 口上_ステータス画面_恋心コメント_{NO:ARG}(ARG)
+			CATCH
+				PRINTL 　　│
+			ENDCATCH
+		ENDIF
+		IF CFLAG:ARG:性愛度 >= 100500
+			PRINTFORM 　　└ 要素：性愛  MAX!!
+			HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
+		ELSE
+			IF あなた特殊能力:フレンドリーセンス
+				PRINTFORM 　　└ 要素：性愛 {CFLAG:ARG:性愛度,6}
+				SIF CFLAG:ARG:性愛度 > 239
+					HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:性愛度 * 7 / 268}, 37' color='#4db56a'>", 1
+			ELSE
+				PRINTFORM 　　└ 要素：性愛
+			ENDIF
+		ENDIF
+		PRINTL
+		IF FLAG:口上表示切り替えオプション > 0
+			PRINT  
+			TRYCALLFORM 口上_ステータス画面_性愛コメント_{NO:ARG}(ARG)
+		ENDIF
+	ELSE
+		CALL PRINT_好感度レベル表示(ARG)
+		IF FLAG:口上表示切り替えオプション > 0
+			LOCAL = MAXFIND(5, CFLAG:ARG:友情度, CFLAG:ARG:信頼度, CFLAG:ARG:恋心度, CFLAG:ARG:性愛度, CFLAG:ARG:キャラ固有好感度)
+			LOCALS = \@ LOCAL < 5 ? %好感度種類:LOCAL% # キャラ固有好感度要素\@
+			PRINTL  
+			TRYCALLFORM 口上_ステータス画面_%LOCALS%コメント_{NO:ARG}(ARG)
 		ENDIF
 	ENDIF
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		TRYCCALLFORM 口上_ステータス画面_友情コメント_{NO:ARG}(ARG)
-		CATCH
-			PRINTL 　　│
-		ENDCATCH
-	ENDIF
-	IF CFLAG:ARG:信頼度 >= 100500
-		PRINTFORM 　　├ 要素：信頼  MAX!!
-		HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
-	ELSE
-		IF あなた特殊能力:フレンドリーセンス
-			PRINTFORM 　　├ 要素：信頼 {CFLAG:ARG:信頼度,6}
-			SIF CFLAG:ARG:信頼度 > 239
-				HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:信頼度 * 7 / 268}, 37' color='#4db56a'>", 1
-		ELSE
-			PRINTFORM 　　├ 要素：信頼
-		ENDIF
-	ENDIF
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		TRYCCALLFORM 口上_ステータス画面_信頼コメント_{NO:ARG}(ARG)
-		CATCH
-			PRINTL 　　│
-		ENDCATCH
-	ENDIF
-	IF CFLAG:ARG:恋心度 >= 100500
-		PRINTFORM 　　├ 要素：恋心  MAX!!
-		HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
-	ELSE
-		IF あなた特殊能力:フレンドリーセンス
-			PRINTFORM 　　├ 要素：恋心 {CFLAG:ARG:恋心度,6}
-			SIF CFLAG:ARG:恋心度 > 239
-				HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:恋心度 * 7 / 268}, 37' color='#4db56a'>", 1
-		ELSE
-			PRINTFORM 　　├ 要素：恋心
-		ENDIF
-	ENDIF
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		TRYCCALLFORM 口上_ステータス画面_恋心コメント_{NO:ARG}(ARG)
-		CATCH
-			PRINTL 　　│
-		ENDCATCH
-	ENDIF
-	IF CFLAG:ARG:性愛度 >= 100500
-		PRINTFORM 　　└ 要素：性愛  MAX!!
-		HTML_PRINT "<shape type='rect' param='62, 56, 2625, 37' color='red'>", 1
-	ELSE
-		IF あなた特殊能力:フレンドリーセンス
-			PRINTFORM 　　└ 要素：性愛 {CFLAG:ARG:性愛度,6}
-			SIF CFLAG:ARG:性愛度 > 239
-				HTML_PRINT @"<shape type='rect' param='62, 56,{CFLAG:ARG:性愛度 * 7 / 268}, 37' color='#4db56a'>", 1
-		ELSE
-			PRINTFORM 　　└ 要素：性愛
-		ENDIF
-	ENDIF
-	PRINTL
-	IF FLAG:口上表示切り替えオプション > 0
-		PRINT  
-		TRYCALLFORM 口上_ステータス画面_性愛コメント_{NO:ARG}(ARG)
-	ENDIF
+ENDIF
+CALL PRINT_恋慕レベル表示(ARG)
+IF ARG && !GETBIT(INFO格納フィルタ:9, 0)
 	IF CSTR:ARG:キャラ固有好感度要素 != ""
 		RESULTS = 
 		TRYCALLFORM キャラ固有好感度関係名_{NO:ARG}(CFLAG:ARG:キャラ固有好感度)
@@ -2337,7 +2355,6 @@ IF ARG
 		ENDIF
 	ENDIF
 ENDIF
-CALL PRINT_恋慕レベル表示(ARG)
 CALL PRINT_セフレ相手表示(ARG)
 PRINTL
 
