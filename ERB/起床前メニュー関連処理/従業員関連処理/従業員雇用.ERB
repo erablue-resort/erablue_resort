@@ -11,8 +11,6 @@
 #DIM Ａ処女保存
 #DIMS ランダムキャラ種族
 
-ランダムキャラ種族 = 
-
 VARSET メニュー調理法一時保存
 FOR LOCAL, 1, 6
 	メニュー調理法一時保存:LOCAL = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "調理器具ID", 1)
@@ -30,19 +28,17 @@ DRAWLINE
 VARSET ランダムキャラ素質:0
 VARSET ランダムキャラ戦闘タイプ:0
 VARSET ランダムキャラ知識素質:0, "料理人Lv0"
+ランダムキャラ種族 = 
 LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1937,2812'>"
 LOCALS += "<button value='100'>[100] このキャラを雇用する</button>"
 LOCALS += "<br>"
 LOCALS += "<button value='110'>[110] 別の候補を見る</button>"
 LOCALS += "<br>"
-IF OPTION変数:汎用立ち絵制御
-	LOCALS += "<button value='120'>[120] 汎用立ち絵をOFFにする</button>"
-	LOCALS += "<br>"
-ELSE
-	LOCALS += "<button value='120'>[120] 汎用立ち絵をONにする</button>"
-	LOCALS += "<br>"
-ENDIF
+LOCALS += "<button value='120'>[120] 汎用立ち絵機能を切り替える</button>"
+LOCALS += "<br>"
+LOCALS += "<button value='130'>[130] ワーウルフの立ち絵を変更する</button>"
+LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
@@ -97,12 +93,28 @@ ENDIF
 
 ;種族：ヒューマンが若干多い
 ランダムキャラ素質:0 = LIMIT(RAND:5, 1, 4)
-IF !RAND:100 && 0
-	;1/100で星晶獣がやってくる。1/200で野生のロリババアが来るんだしそれくらい来るだろ
-	;なお星晶獣は1/4でロリババア。やったね！
+
+;施設開放条件に応じて火水風土光闇それぞれの星晶獣の雇用が開放される
+LOCALS:1 = 
+SIF 火の星晶獣_陥落チェック() || ダンジョンクリアフラグ_バルツ地下廃工場
+	LOCALS:1 += "0/"
+SIF 水の星晶獣_陥落チェック() || ダンジョンクリアフラグ_深海の古戦場跡
+	LOCALS:1 += "1/"
+SIF 風の星晶獣_陥落チェック() || ダンジョンクリアフラグ_風遊ぶ渓谷の参道
+	LOCALS:1 += "2/"
+SIF 土の星晶獣_陥落チェック() || ダンジョンクリアフラグ_名前を亡くした遺跡
+	LOCALS:1 += "3/"
+;SIF 光の星晶獣_陥落チェック() || ダンジョンクリアフラグ_
+;	LOCALS:1 += "4/"
+;SIF 闇の星晶獣_陥落チェック() || ダンジョンクリアフラグ_
+;	LOCALS:1 += "5/"
+
+IF LOCALS:1 != "" && !RAND:(50 + 25 * (12 - STRLENS(LOCALS:1)))
+	;1/50～300で星晶獣がやってくる。施設開放条件を満たすたびに1/50ずつ緩和される
+	;1/200で野生のロリババアが来るんだしそれくらい来るだろ。なお星晶獣は1/4でロリババア。やったね！
 	ランダムキャラ素質:0 = 5
 	;施設開放条件に応じてやってくる属性が開放される
-	ランダムキャラ戦闘タイプ:0 = RAND:6
+	ランダムキャラ戦闘タイプ:0 = TOINT(TEXTR(LOCALS:1))
 ELSEIF RAND:99 < 2
 	;1/50で亜人がやってくる。1/200で野生のロリババアが来るんだし（ｒｙ 
 	;特定の種族に来てほしい場合さらに確率下がるので、要望を受けもともとの確率上昇
@@ -115,7 +127,7 @@ ENDIF
 SIF 素質切り替えOPTION記憶:ふたなり_女性 ||  GETBIT(OPTION変数:性別招待制御, 2) || ランダムキャラ種族 == "クリスタリア"
 	ランダムキャラ素質:1 = 1
 ;男性が許可されてるなら1/4で男
-SIF GETBIT(OPTION変数:性別招待制御, 1) == 0 && RAND:4 == 0
+SIF GETBIT(OPTION変数:性別招待制御, 1) == 0 && RAND:4 == 0 && ランダムキャラ種族 != "クリスタリア"
 	ランダムキャラ素質:1 = 2
 ;女性が許可されてないなら男化orふたなり化
 IF GETBIT(OPTION変数:性別招待制御, 0) && ランダムキャラ素質:1 == 1
@@ -148,79 +160,85 @@ LOCALS += "□ 情報 □-------------------------------------------------------
 
 ;ランダムキャラ素質:4、5に種族系素質
 LOCALS += "　種族："
+LOCALS:1 = 
 SELECTCASE ランダムキャラ素質:0
 	CASE 1
 		LOCALS += "ヒューマン"
 	CASE 2
 		LOCALS += "エルーン"
 		ランダムキャラ素質:4 = 208
-		LOCALS += "（エルーン耳）"
+		LOCALS:1 += "（エルーン耳）"
 		IF RAND:5 == 0
 			ランダムキャラ素質:5 = 207
-			LOCALS += "（尻尾）"
+			LOCALS:1 += "（尻尾）"
 		ENDIF
 	CASE 3
 		LOCALS += "ドラフ"
 		ランダムキャラ素質:4 = 206
-		LOCALS += "（角あり）"
+		LOCALS:1 += "（角あり）"
 	CASE 4
 		LOCALS += "ハーヴィン"
 		ランダムキャラ素質:4 = 209
-		LOCALS += "（ハーヴィン耳）"
+		LOCALS:1 += "（ハーヴィン耳）"
 	CASE 5
 		LOCALS += "星晶獣"
 	CASE 6
 		LOCALS += "その他"
+		SIF ランダムキャラ種族 != ""
+			LOCALS += @"[%ランダムキャラ種族%]"
 		SELECTCASE ランダムキャラ種族
 			CASE "クリスタリア"
 				;クリスタリア
 				ランダムキャラ素質:4 = 209
-				LOCALS += "（ハーヴィン耳）"
+				LOCALS:1 += "（ハーヴィン耳）"
 			CASE "ヴァンパイア"
 				;ヴァンパイア
 				ランダムキャラ素質:4 = 132
-				LOCALS += "（吸血鬼）"
+				LOCALS:1 += "（吸血鬼）"
 			CASE "ワーウルフ"
 				;ワーウルフ
 				TALENT:ハーヴィン耳 = 0
 				ランダムキャラ素質:4 = 208
-				LOCALS += "（エルーン耳）"
+				LOCALS:1 += "（エルーン耳）"
 				ランダムキャラ素質:5 = 207
-				LOCALS += "（尻尾）"
+				LOCALS:1 += "（尻尾）"
 				ランダムキャラ素質:7 = 203
-				LOCALS += "（発情期あり）"
+				LOCALS:1 += "（発情期あり）"
 		ENDSELECT
 ENDSELECT
+LOCALS += REPLACE(LOCALS:1, "）（", "／")
 LOCALS += "<br>"
 LOCALS += "　性別："
+LOCALS:1 = 
 SELECTCASE ランダムキャラ素質:1
 	CASE 1
 		LOCALS += "女性"
 		IF ランダムキャラ素質:2 == 0
 		ELSE
-			LOCALS += "（処女）"
+			LOCALS:1 += "（処女）"
 		ENDIF
 	CASE 2
 		LOCALS += "男性"
 		IF ランダムキャラ素質:2 == 0
 		ELSE
-			LOCALS += "（童貞）"
+			LOCALS:1 += "（童貞）"
 		ENDIF
 	CASE 3
 		LOCALS += "ふたなり"
 		IF ランダムキャラ素質:2 == 0
 		ELSE
-			LOCALS += "（処女）（童貞）"
+			LOCALS:1 += "（処女）（童貞）"
 		ENDIF
 ENDSELECT
 IF Ａ処女保存 == 0
-	LOCALS += "（Ａ処女）"
+	LOCALS:1 += "（Ａ処女）"
 ENDIF
+LOCALS += REPLACE(LOCALS:1, "）（", "／")
 LOCALS += "<br>"
 IF GETBIT(ランダムキャラ素質:1, 0)
 	;バストサイズ：種族、年齢層で分布が異なる
 	ランダムキャラ素質:3 = ランダムバストサイズ(ランダムキャラ素質:0, ランダムキャラ年齢層(ランダムキャラ素質:51))
-	LOCALS += @"バストサイズ：%GET_TALENTNAME(205,ランダムキャラ素質:3)%　　"
+	LOCALS += @"　バストサイズ：%GET_TALENTNAME(205,ランダムキャラ素質:3)%　　"
 ENDIF
 LOCALS += @"　性知識レベル："
 ;性知識：処女/童貞、年齢層、エルーンかどうかで分布が異なる
@@ -274,15 +292,25 @@ LOCALS += "<br>"
 ;6個～8個（うち2つは性格系の素質確定）
 CALL ランダム素質選択(素質選択用)
 FOR LOCAL, 0, 8
+	IF ランダムキャラ素質:0 == 種族_その他 && ランダムキャラ種族 == "ワーウルフ"
+		SIF (!素質選択用:LOCAL || ランダムキャラ素質番号(素質選択用:LOCAL) == GETNUM(TALENT, "汚臭耐性")) && !MATCH(素質選択用, -61) && !MATCH(素質選択用, -10061)
+			素質選択用:LOCAL = (RAND:5? -61# -10061)
+	ENDIF
 	ランダムキャラ素質:(LOCAL + 10) = 素質選択用:LOCAL
 NEXT
 LOCALS += "□ 素質 □---------------------------------------------------------------<br>"
-LOCALS:1 = 
+LOCALS:1 = 　
 FOR LOCAL, 0, 8
 	SIF ランダムキャラ素質:(LOCAL + 10) == 0
 		BREAK
-	LOCALS += @"[%GET_TALENTNAME(ランダムキャラ素質番号(ランダムキャラ素質:(LOCAL + 10)), ランダムキャラ素質値(ランダムキャラ素質:(LOCAL + 10)))%]"
-	LOCALS:1 += @"[%GET_TALENTNAME(ランダムキャラ素質番号(ランダムキャラ素質:(LOCAL + 10)), ランダムキャラ素質値(ランダムキャラ素質:(LOCAL + 10)))%]"
+;	LOCALS += @"[%GET_TALENTNAME(ランダムキャラ素質番号(ランダムキャラ素質:(LOCAL + 10)), ランダムキャラ素質値(ランダムキャラ素質:(LOCAL + 10)))%]"
+	LOCALS:2 '= @"[%GET_TALENTNAME(ランダムキャラ素質番号(ランダムキャラ素質:(LOCAL + 10)), ランダムキャラ素質値(ランダムキャラ素質:(LOCAL + 10)))%]"
+	IF STRLENS(HTML_TOPLAINTEXT(LOCALS:1+LOCALS:2)) / (3625/50) > 0
+		LOCALS += LOCALS:1 + "<br>"
+		LOCALS:1 '= "　"
+	ENDIF
+	LOCALS:1 += LOCALS:2
+	LOCALS:2 = 
 NEXT
 ;こっから敏感系
 FOR LOCAL, 0, 5
@@ -290,48 +318,54 @@ FOR LOCAL, 0, 5
 	IF LOCAL:1 < 2
 		;鈍感
 		ランダムキャラ素質:(LOCAL + 20) = (LOCAL + 101) * -1
-		LOCALS += @"[%GET_TALENTNAME(ABS(ランダムキャラ素質:(LOCAL + 20)), -1)%]"
-		LOCALS:1 += @"[%GET_TALENTNAME(ABS(ランダムキャラ素質:(LOCAL + 20)), -1)%]"
+;		LOCALS += @"[%GET_TALENTNAME(ABS(ランダムキャラ素質:(LOCAL + 20)), -1)%]"
+		LOCALS:2 '= @"[%GET_TALENTNAME(ABS(ランダムキャラ素質:(LOCAL + 20)), -1)%]"
 	ELSEIF LOCAL:1 < 7
 	ELSE
 		;敏感
 		ランダムキャラ素質:(LOCAL + 20) = LOCAL + 101
-		LOCALS += @"[%GET_TALENTNAME(ランダムキャラ素質:(LOCAL + 20), 1)%]"
-		LOCALS:1 += @"[%GET_TALENTNAME(ランダムキャラ素質:(LOCAL + 20), 1)%]"
+;		LOCALS += @"[%GET_TALENTNAME(ランダムキャラ素質:(LOCAL + 20), 1)%]"
+		LOCALS:2 '= @"[%GET_TALENTNAME(ランダムキャラ素質:(LOCAL + 20), 1)%]"
 	ENDIF
+	IF STRLENS(HTML_TOPLAINTEXT(LOCALS:1+LOCALS:2)) / (3625/50) > 0
+		LOCALS += LOCALS:1 + "<br>"
+		LOCALS:1 '= "　"
+	ENDIF
+	LOCALS:1 += LOCALS:2
+	LOCALS:2 = 
 NEXT
 IF RAND:100 == 0
 	ランダムキャラ素質:26 = 1086
-	LOCALS += "[元男]"
+;	LOCALS += "[元男]"
 	LOCALS:1 += "[元男]"
 ENDIF
 IF ランダムキャラ素質:3 > 1 && RAND:10 == 0 && 素質切り替えOPTION記憶:陥没乳首_なし == 0
 	ランダムキャラ素質:27 = 111
-	LOCALS += "[陥没乳首]"
+;	LOCALS += "[陥没乳首]"
 	LOCALS:1 += "[陥没乳首]"
 ENDIF
 IF ランダムキャラ素質:3 > 1 && RAND:10 == 0 && 素質切り替えOPTION記憶:母乳体質_なし == 0
 	ランダムキャラ素質:28 = 149
-	LOCALS += "[母乳体質]"
+;	LOCALS += "[母乳体質]"
 	LOCALS:1 += "[母乳体質]"
 ENDIF
 IF ランダムキャラ素質:1 == 3 && RAND:3 == 0
 	ランダムキャラ素質:29 = 152
-	LOCALS += "[絶倫]"
+;	LOCALS += "[絶倫]"
 	LOCALS:1 += "[絶倫]"
 ENDIF
 ;交際経験(処女/童貞、見た目年齢、長命者かどうかで分布が異なる)
 ランダムキャラ素質:55 = ランダム交際経験(ランダムキャラ素質:2, ランダムキャラ見た目年齢(ランダムキャラ素質:51), ランダムキャラ長命者(ランダムキャラ素質:51))
 IF ランダムキャラ出産経験(ランダムキャラ素質:55) >= 1
-	LOCALS += @"[子持ち]"
+;	LOCALS += @"[子持ち]"
 	LOCALS:1 += @"[子持ち]"
 ENDIF
 IF ランダムキャラ恋人持ち(ランダムキャラ素質:55) != 0
-	LOCALS += @"[%GET_TALENTNAME(234, ランダムキャラ恋人持ち(ランダムキャラ素質:55))%]"
+;	LOCALS += @"[%GET_TALENTNAME(234, ランダムキャラ恋人持ち(ランダムキャラ素質:55))%]"
 	LOCALS:1 += @"[%GET_TALENTNAME(234, ランダムキャラ恋人持ち(ランダムキャラ素質:55))%]"
 ENDIF
 IF ランダムキャラセフレあり(ランダムキャラ素質:55) != 0
-	LOCALS += @"[%GET_TALENTNAME(244, ランダムキャラセフレあり(ランダムキャラ素質:55))%]"
+;	LOCALS += @"[%GET_TALENTNAME(244, ランダムキャラセフレあり(ランダムキャラ素質:55))%]"
 	LOCALS:1 += @"[%GET_TALENTNAME(244, ランダムキャラセフレあり(ランダムキャラ素質:55))%]"
 ENDIF
 IF RAND:10 == 0
@@ -352,9 +386,10 @@ IF RAND:10 == 0
 		DATA 水泳技能Lv1
 		DATA 農業知識Lv1
 	ENDDATA
-	LOCALS += @"[%ランダムキャラ知識素質:1%]"
+;	LOCALS += @"[%ランダムキャラ知識素質:1%]"
 	LOCALS:1 += @"[%ランダムキャラ知識素質:1%]"
 ENDIF
+LOCALS += LOCALS:1
 LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "□ 能力 □---------------------------------------------------------------<br>"
@@ -443,30 +478,50 @@ LOCALS += @"%(EXPNAME:10), 16%:{LOCAL:3}"
 LOCALS += "</div>"
 
 $表示_LOOP
-汎用画像キー '= 汎用立ち絵取得処理(ランダムキャラネーム, ランダムキャラ素質:0, ランダムキャラ素質:3, ランダムキャラ素質:52)
-
+汎用画像キー '= 汎用立ち絵取得処理(ランダムキャラネーム, ランダムキャラ素質:0, ランダムキャラ素質:3, ランダムキャラ素質:52, ランダムキャラ種族)
+LOCALS:1 = <div rect='81,31,5860,1200' padding='6' border='31' bcolor='#C0C0C0'>
+LOCALS:1 += "<br>"
 IF OPTION変数:汎用立ち絵制御
-	LOCALS:1 = <div rect='2050,31,1200,1200' padding='6' border='31' bcolor='#C0C0C0'>
+	LOCALS:1 += "<button value='120'>[120] 汎用立ち絵をOFFにする</button>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += @"<button value='130'>[130] ワーウルフの立ち絵を変更する<br>　　　（現在：\@ OPTION変数:ワーウルフ画像ケモ度? ケモより# 人より\@）</button>"
+	LOCALS:1 += "<br>"
+ELSE
+	LOCALS:1 += "<button value='120'>[120] 汎用立ち絵をONにする</button>"
+	LOCALS:1 += "<br>"
+ENDIF
+LOCALS:1 += "</div>"
+IF OPTION変数:汎用立ち絵制御
+	LOCALS:1 += "<div rect='2050,31,2400,1200' padding='6' border='31' bcolor='#C0C0C0'>"
 	IF ランダムキャラ素質:1 == 2
 		LOCALS:1 += "<img src='顔ノーイメ' height='1125'>"
 		汎用画像キー = 
 	ELSE
-		SPRITEDISPOSE @"短冊グラ3000"
+		SPRITEDISPOSE @"顔グラ3000"
 		GDISPOSE 3000
 		GCREATEFROMFILE 3000, @"汎用グラフィック/顔_%汎用画像キー%.png"
+		SPRITEDISPOSE @"短冊グラ3000"
+		GDISPOSE 3001
+		GCREATEFROMFILE 3001, @"汎用グラフィック/短冊_%汎用画像キー%.png"
 		;設定中の顔グラが存在すればそちらを拡縮で表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
 		画像サイズ切り替えOPTION記憶:1 = 1
-		SIF スプライト作成(@"短冊グラ3000", 3000, 0)
-			LOCALS:1 += @"<img src='短冊グラ3000'height='1125'>"
+		SIF ランダムキャラ種族 != "ワーウルフ"
+			LOCALS:1 += "<clearbutton>"
+		SIF スプライト作成(@"顔グラ3000", 3000, 0)
+			LOCALS:1 += @"<button value='130'><img src='顔グラ3000'height='1125'></button>"
+		SIF スプライト作成(@"短冊グラ3000", 3001, 0)
+			LOCALS:1 += @"<button value='130'><img src='短冊グラ3000'height='1125'></button>"
+		SIF ランダムキャラ種族 != "ワーウルフ"
+			LOCALS:1 += "</clearbutton>"
 		画像サイズ切り替えOPTION記憶:1 = LOCAL
 	ENDIF
 	LOCALS:1 += "</div>"
-	HTML_PRINT LOCALS:1
-	FOR LOCAL, 0, 10
-		PRINTL
-	NEXT
 ENDIF
+HTML_PRINT LOCALS:1
+FOR LOCAL, 0, 10
+	PRINTL
+NEXT
 
 HTML_PRINT LOCALS
 FOR LOCAL, 0, 25
@@ -631,6 +686,9 @@ SELECTCASE LOCAL
 	CASE 120
 		INVERTBIT OPTION変数:汎用立ち絵制御, 0
 		GOTO 表示_LOOP
+	CASE 130
+		INVERTBIT OPTION変数:ワーウルフ画像ケモ度, 0
+		GOTO 表示_LOOP
 	CASE 999
 		RETURN 0
 	CASEELSE
@@ -674,26 +732,29 @@ NEXT
 RETURNF LOCALS
 
 
-@汎用立ち絵取得処理(名前, 種族, バスト, 体格)
+@汎用立ち絵取得処理(名前, 種族, バスト, 体格, 特殊種族="")
 #FUNCTIONS
 #DIMS 名前
 #DIM 種族
 #DIM バスト
 #DIM 体格
 #DIM バスト種別
+#DIMS 特殊種族
+
+;しょっちゅう使うので先に出しちゃう
+SELECTCASE バスト
+	CASE -2
+		バスト種別 = 0
+	CASE -1, 0
+		バスト種別 = 1
+	CASE 1
+		バスト種別 = 2
+	CASE 2, 3
+		バスト種別 = 3
+ENDSELECT
 
 SELECTCASE 種族
 	CASE 2
-		SELECTCASE バスト
-			CASE -2
-				バスト種別 = 0
-			CASE -1, 0
-				バスト種別 = 1
-			CASE 1
-				バスト種別 = 2
-			CASE 2, 3
-				バスト種別 = 3
-		ENDSELECT
 		RETURNF @"エルーン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
 	CASE 3
 		バスト種別 = (バスト <= 2) ? 3 # 4
@@ -701,16 +762,10 @@ SELECTCASE 種族
 	CASE 4
 		バスト種別 = 0
 		RETURNF @"ハーヴィン{NAMEHASH(名前, 4)}_{バスト種別}"
-	CASEELSE
-		SELECTCASE バスト
-			CASE -2
-				バスト種別 = 0
-			CASE -1, 0
-				バスト種別 = 1
-			CASE 1
-				バスト種別 = 2
-			CASE 2, 3
-				バスト種別 = 3
-		ENDSELECT
-		RETURNF @"ヒューマン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
+	CASE 6
+		IF 特殊種族 == "ワーウルフ"
+			RETURNF @"ワーウルフ\@ (体格 <= -2) ? 小 # \@{OPTION変数:ワーウルフ画像ケモ度}{NAMEHASH(名前, 4)}_{バスト種別}"
+		ENDIF
 ENDSELECT
+;ここまで来るのはヒューマンor固有グラフィックがない種族
+RETURNF @"ヒューマン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"

@@ -1,17 +1,24 @@
 ﻿
 ;ステータス表示
 @SHOW_CHARADATA
-#DIM 現在ページ
+#DIM ページ数, 2
 #DIM 表示候補, キャラクタ数上限
 #DIM ソート基準値, キャラクタ数上限
 #DIM 候補人数
-#DIM 口上ファイル数
-#DIM アビ奥義関数
+#DIM 口上ファイル数, キャラクタ数上限
+#DIM アビ奥義関数, キャラクタ数上限
 #DIM 得意武器番号
 #DIM スキップフラグ
-現在ページ = 0
+#DIM 表示人数 = 50
+#DIM L_TIME,2
+VARSET ページ数
+VARSET 口上ファイル数, -1
+VARSET アビ奥義関数, -1
 
 $最初から
+DEBUGPRINTFORM フィルタリング開始
+L_TIME = GETTIME()
+L_TIME:1 = GETTIME()
 ;表示候補選定＆ソート処理
 LOCAL:1 = 0
 VARSET 表示候補
@@ -24,65 +31,86 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF 滞在者のみフィルタ == 1 && CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+	SIF MATCH(キャラ一覧フィルタ, "") == VARSIZE("キャラ一覧フィルタ")
+		GOTO フィルタスキップ
 	SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, TALENT:LOCAL:性別)%")
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%") && TALENT:LOCAL:性別 != 2
+	IF キャラ一覧フィルタ:バストサイズ != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%") && TALENT:LOCAL:性別 != 2
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:LOCAL:性別 == 2
+			CONTINUE
+	ENDIF
+	IF キャラ一覧フィルタ:男性器サイズ != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:LOCAL:男性器サイズ)%") && GETBIT(TALENT:LOCAL:性別, 1) != 0
 		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:LOCAL:性別 == 2
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:LOCAL:男性器サイズ)%") && GETBIT(TALENT:LOCAL:性別, 1) != 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:LOCAL:性別, 1) == 0
-		CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:LOCAL:性別, 1) == 0
+			CONTINUE
+	ENDIF
 	SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
 		CONTINUE
 	IF 装備ステータス補正保存:LOCAL:装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1) != ""
-		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1)%")
+		SIF キャラ一覧フィルタ:属性 != "" && STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1)%")
 			CONTINUE
 	ELSE
-		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
+		SIF キャラ一覧フィルタ:属性 != "" && STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
 			CONTINUE
 	ENDIF
 	スキップフラグ = 0
-	FOR 得意武器番号, 0, 10
-		IF GETBIT(基礎BATTLE_STATE:LOCAL:得意武器, 得意武器番号) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(得意武器番号)%")
-			スキップフラグ = 1
-			BREAK
-		ENDIF
-	NEXT
-	SIF スキップフラグ
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
+	IF キャラ一覧フィルタ:得意武器 != ""
+		FOR 得意武器番号, 0, 10
+			IF GETBIT(基礎BATTLE_STATE:LOCAL:得意武器, 得意武器番号) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(得意武器番号)%")
+				スキップフラグ = 1
+				BREAK
+			ENDIF
+		NEXT
+		SIF スキップフラグ
+			CONTINUE
+	ENDIF
+	SIF キャラ一覧フィルタ:タイプ != "" && STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
 		CONTINUE
 	;発情期はちょっと面倒だけどオール手打ち
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
-		CONTINUE
-	口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:LOCAL}_%CALLNAME:LOCAL%", "口上_*.ERB", 1)
-	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
-		CONTINUE
-	アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:LOCAL}")
-	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数 > 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:LOCAL:恋慕
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:LOCAL:セフレ
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:LOCAL:セフレ && !TALENT:LOCAL:恋慕
-		CONTINUE
+	IF キャラ一覧フィルタ:発情期 != "" 
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
+			CONTINUE
+	ENDIF
+	IF キャラ一覧フィルタ:妊娠 != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
+			CONTINUE
+	ENDIF
+	SIF 口上ファイル数:LOCAL == -1
+		口上ファイル数:LOCAL = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:LOCAL}_%CALLNAME:LOCAL%", "口上_*.ERB", 1)
+	IF キャラ一覧フィルタ:口上 != ""
+		SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数:LOCAL > 0
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数:LOCAL < 1
+			CONTINUE
+	ENDIF
+	SIF アビ奥義関数:LOCAL == -1
+		アビ奥義関数:LOCAL = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:LOCAL}")
+	IF キャラ一覧フィルタ:固有アビ奥義 != "" 
+		SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数:LOCAL > 0
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数:LOCAL < 1
+			CONTINUE
+	ENDIF
+	IF キャラ一覧フィルタ:陥落 != "" 
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:LOCAL:恋慕
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:LOCAL:セフレ
+			CONTINUE
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:LOCAL:セフレ && !TALENT:LOCAL:恋慕
+			CONTINUE
+	ENDIF
+	$フィルタスキップ
 	;条件を満たす場合はLOCAL:3に１以上が入る
 	LOCAL:3 = 1
 	FOR LOCAL:2, 0, 99
@@ -109,9 +137,18 @@ FOR LOCAL, 1, CHARANUM
 
 	表示候補:(LOCAL:1) = LOCAL
 	LOCAL:1 += 1
+	IF LOCAL % 200 == 0
+		DEBUGPRINTFORM ...{LOCAL}人[{GETTIME()-L_TIME}]
+		L_TIME = GETTIME()
+	ENDIF
+
 NEXT
 候補人数 = LOCAL:1
 LOCAL:1 = 1
+DEBUGPRINTFORML ...{LOCAL}人完了[{GETTIME()-L_TIME:1}]
+L_TIME = GETTIME()
+
+
 ;ソート処理
 IF キャラ一覧ソート:0 != ""
 	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
@@ -174,17 +211,18 @@ IF キャラ一覧ソート:0 != ""
 ENDIF
 
 $表示処理_LOOP
+ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
 DRAWLINE
-PRINTFORML 　[0] %NAME:MASTER%
+PRINTFORML 　 [0] %NAME:MASTER%
 DRAWLINE
 VARSET LOCAL
 VARSET LOCALS
 ;表示処理
-FOR LOCAL, 現在ページ * 30, 候補人数
+FOR LOCAL, ページ数 * 表示人数, 候補人数
 	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
 		LOCALS += "<font color='#FF3399'>"
 	ENDIF
-	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1)),41,LEFT%</button>"
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1), 50),51,LEFT%</button>"
 	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
 		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
@@ -215,7 +253,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
 		LOCALS += @"画像数：{ENUMFILES(@"resources/%CSTR:(表示候補:LOCAL):画像フォルダ%"), 4}　"
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
-		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 3}　 "
+		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 4}　"
 	ELSE
 		IF CFLAG:(表示候補:LOCAL):長期雇用
 			LOCALS += "　　長期雇用中　"
@@ -234,7 +272,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 		HTML_PRINT LOCALS
 		LOCALS = 
 	ENDIF
-	SIF LOCAL:1 > 29
+	SIF LOCAL:1 > 表示人数 - 1
 		BREAK
 NEXT
 IF LOCALS != ""
@@ -242,15 +280,42 @@ IF LOCALS != ""
 	LOCALS = 
 ENDIF
 PRINTL 
-IF 現在ページ > 0
-	PRINTLC  [900]前のページへ
+LOCALS:2 = 
+IF ページ数 > 0
+	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
 ELSE
-	PRINTLC  
+	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
 ENDIF
-IF 現在ページ < 候補人数 / 30
-	PRINTLC  [901]次のページへ
+LOCALS:2 += " " * 24
+LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+LOCALS:2 += " " * 23
+IF ページ数 < ページ数:1
+	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
 ENDIF
-PRINTL
+LOCALS:2 += "<br>"
+IF ページ数 > 0
+	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+ELSE
+	LOCALS:2 += "     "
+ENDIF
+IF ページ数 > 4
+	LOCALS:2 += "<button value='9003'> [－５]</button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 26
+LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+LOCALS:2 += " " * (56-20-20)
+IF ページ数 <= ページ数:1 - 5
+	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 5
+IF ページ数 < ページ数:1
+	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+ENDIF
+HTML_PRINT LOCALS:2
 DRAWLINE
 
 PRINTBUTTON "[2000]フィルタ機能", 2000
@@ -299,42 +364,68 @@ ELSE
 	PRINT なし
 ENDIF
 PRINTL
-PRINTBUTTONLC "[1000]戻る", 1000
+PRINTBUTTONLC "[9999]戻る", 9999
 PRINTL
 
 $INPUT_LOOP
-INPUT
-IF RESULT == 1000
+BINPUT
+IF RESULT == 9999
 	RETURN 0
 ELSEIF RESULT == 2000
 	CALL SHOW_CHARADATA_FILTA
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 2001
 	INVERTBIT 滞在者のみフィルタ, 0
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3000
 	CALL SHOW_CHARADATA_SORT
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3100
 	キャラ一覧ソート:1 = 降順
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3200
 	キャラ一覧ソート:1 = 昇順
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 4000
 	CALL SHOW_CHARADATA_素質絞り込み
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
-ELSEIF RESULT == 900
-	現在ページ = MAX(現在ページ - 1, 0)
+ELSEIF RESULT == 9000
+	ページ数 = MAX(ページ数 - 1, 0)
 	GOTO 表示処理_LOOP
-ELSEIF RESULT == 901
-	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
+ELSEIF RESULT == 9001
+	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9002
+	ページ数 = 0
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9003
+	ページ数 = MAX(ページ数 - 5, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9004
+	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9005
+	ページ数 = ページ数:1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9006
+	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+	INPUT
+	SIF INRANGE(RESULT, 1, 1+ページ数:1)
+		ページ数 = RESULT - 1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9007
+	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+	INPUT
+	IF INRANGE(RESULT, 1, 100)
+		表示人数 = RESULT
+		ページ数 = 0
+	ENDIF
 	GOTO 表示処理_LOOP
 ELSEIF RESULT < 0 || RESULT >= CHARANUM
 	REUSELASTLINE 
@@ -382,6 +473,7 @@ DRAWLINE
 
 IF 表示フィルタ種類 == ""
 	PRINTL ■ 性別
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:性別, "性別：女性")
 		SETCOLOR 0x666666
 	PRINTBUTTON "[女性]", "性別：女性"
@@ -408,6 +500,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 	DRAWLINE
 	PRINTL ■ 陥落
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：恋慕")
 		SETCOLOR 0x666666
 	PRINTBUTTON "[恋慕]", "陥落：恋慕"
@@ -429,6 +522,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 	DRAWLINE
 	PRINTL ■ 種族
+	PRINT 　 
 	FOR LOCAL, 1, 7
 		SIF STRCOUNT(キャラ一覧フィルタ:種族, GET_TALENTNAME(200, LOCAL))
 			SETCOLOR 0x666666
@@ -446,6 +540,7 @@ IF 表示フィルタ種類 == ""
 	NEXT
 	DRAWLINE
 	PRINTL ■ バストサイズ
+	PRINT 　 
 	FOR LOCAL, -2, 4
 		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, GET_TALENTNAME(205, LOCAL))
 			SETCOLOR 0x666666
@@ -457,17 +552,21 @@ IF 表示フィルタ種類 == ""
 				SETCOLOR 0x666666
 			PRINTBUTTON "[バストなし]", "バストサイズ：なし"
 			RESETCOLOR
-			PRINT 　　　　　
+			PRINT 　　　　　　　　　　
 			PRINTBUTTON "[全て表示]", "バストサイズ：全て表示"
 			PRINT /
 			PRINTBUTTON "[全て非表示]", "バストサイズ：全て非表示"
 			PRINTL
+		ELSEIF LOCAL == 1
+			PRINTL 
+			PRINT 　 
 		ELSE
 			PRINT  / 
 		ENDIF
 	NEXT
 	DRAWLINE
 	PRINTL ■ 男性器サイズ
+	PRINT 　 
 	FOR LOCAL, -2, 3
 		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, GET_TALENTNAME(162, LOCAL))
 			SETCOLOR 0x666666
@@ -490,6 +589,7 @@ IF 表示フィルタ種類 == ""
 	NEXT
 	DRAWLINE
 	PRINTL ■ 性知識Lv
+	PRINT 　 
 	FOR LOCAL, -2, 4
 		SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, 性知識段階表示(LOCAL, 0))
 			SETCOLOR 0x666666
@@ -514,6 +614,7 @@ IF 表示フィルタ種類 == ""
 	NEXT
 	DRAWLINE
 	PRINTL ■ 発情期
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし")
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[発情期なし]", @"発情期フラグ：発情期なし"
@@ -535,7 +636,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 	DRAWLINE
 	PRINTL ■ 妊娠
-
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中")
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[妊娠中]", @"妊娠フラグ：妊娠中"
@@ -553,7 +654,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 	DRAWLINE
 	PRINTL ■ 口上有無
-
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり")
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[口上あり]", "口上：口上あり"
@@ -563,7 +664,6 @@ IF 表示フィルタ種類 == ""
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[口上なし]", "口上：口上なし"
 	RESETCOLOR
-
 	PRINT 　　　　　
 	PRINTBUTTON "[全て表示]", "口上：全て表示"
 	PRINT /
@@ -571,7 +671,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 	DRAWLINE
 	PRINTL ■ 固有アビ奥義有無
-
+	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり")
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[固有アビ奥義あり]", "固有アビ奥義：あり"
@@ -581,7 +681,6 @@ IF 表示フィルタ種類 == ""
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[固有アビ奥義なし]", "固有アビ奥義：なし"
 	RESETCOLOR
-
 	PRINT 　　　　　
 	PRINTBUTTON "[全て表示]", "固有アビ奥義：全て表示"
 	PRINT /
@@ -593,6 +692,7 @@ IF 表示フィルタ種類 == ""
 	PRINTL
 ELSEIF 表示フィルタ種類 == "戦闘系フィルタ"
 	PRINTL ■ 属性
+	PRINT 　 
 	FOR LOCAL, 0, 6
 		SIF STRCOUNT(キャラ一覧フィルタ:属性, 属性数値文字列変換(LOCAL))
 			SETCOLOR 0x666666
@@ -610,6 +710,7 @@ ELSEIF 表示フィルタ種類 == "戦闘系フィルタ"
 	NEXT
 	DRAWLINE
 	PRINTL ■ 得意武器
+	PRINT 　 
 	FOR LOCAL, 0, 10
 		SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"：%得意武器数値文字列変換(LOCAL)%")
 			SETCOLOR 0x666666
@@ -627,6 +728,7 @@ ELSEIF 表示フィルタ種類 == "戦闘系フィルタ"
 	NEXT
 	DRAWLINE
 	PRINTL ■ タイプ
+	PRINT 　 
 	FOR LOCAL, 0, 8
 		SIF STRCOUNT(キャラ一覧フィルタ:タイプ, タイプ数値文字列変換(LOCAL))
 			SETCOLOR 0x666666
@@ -949,7 +1051,7 @@ IF STRCOUNT(LOCALS, "_")
 	ELSE
 		SPLIT LOCALS, "_", LOCALS
 		IF GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)) != ""
-			キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, "")) = %LOCALS:0%_%LOCALS:1%
+			キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, "", , , 1)) = %LOCALS:0%_%LOCALS:1%
 			RESTART
 		ENDIF
 	ENDIF
