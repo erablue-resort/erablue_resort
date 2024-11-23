@@ -1,7 +1,7 @@
 ﻿
 ;ステータス表示
 @SHOW_CHARADATA
-#DIM 現在ページ
+#DIM ページ数, 2
 #DIM 表示候補, キャラクタ数上限
 #DIM ソート基準値, キャラクタ数上限
 #DIM 候補人数
@@ -9,7 +9,8 @@
 #DIM アビ奥義関数
 #DIM 得意武器番号
 #DIM スキップフラグ
-現在ページ = 0
+#DIM 表示人数 = 50
+VARSET ページ数
 
 $最初から
 ;表示候補選定＆ソート処理
@@ -109,9 +110,12 @@ FOR LOCAL, 1, CHARANUM
 
 	表示候補:(LOCAL:1) = LOCAL
 	LOCAL:1 += 1
+
 NEXT
 候補人数 = LOCAL:1
 LOCAL:1 = 1
+
+
 ;ソート処理
 IF キャラ一覧ソート:0 != ""
 	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
@@ -174,17 +178,18 @@ IF キャラ一覧ソート:0 != ""
 ENDIF
 
 $表示処理_LOOP
+ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
 DRAWLINE
-PRINTFORML 　[0] %NAME:MASTER%
+PRINTFORML 　 [0] %NAME:MASTER%
 DRAWLINE
 VARSET LOCAL
 VARSET LOCALS
 ;表示処理
-FOR LOCAL, 現在ページ * 30, 候補人数
+FOR LOCAL, ページ数 * 表示人数, 候補人数
 	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
 		LOCALS += "<font color='#FF3399'>"
 	ENDIF
-	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1)),41,LEFT%</button>"
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1), 50),51,LEFT%</button>"
 	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
 		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
@@ -215,7 +220,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
 		LOCALS += @"画像数：{ENUMFILES(@"resources/%CSTR:(表示候補:LOCAL):画像フォルダ%"), 4}　"
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
-		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 3}　 "
+		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 4}　"
 	ELSE
 		IF CFLAG:(表示候補:LOCAL):長期雇用
 			LOCALS += "　　長期雇用中　"
@@ -234,7 +239,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 		HTML_PRINT LOCALS
 		LOCALS = 
 	ENDIF
-	SIF LOCAL:1 > 29
+	SIF LOCAL:1 > 表示人数 - 1
 		BREAK
 NEXT
 IF LOCALS != ""
@@ -242,15 +247,75 @@ IF LOCALS != ""
 	LOCALS = 
 ENDIF
 PRINTL 
-IF 現在ページ > 0
-	PRINTLC  [900]前のページへ
+LOCALS:2 = 
+IF ページ数 > 0
+	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
 ELSE
-	PRINTLC  
+	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
 ENDIF
-IF 現在ページ < 候補人数 / 30
-	PRINTLC  [901]次のページへ
+LOCALS:2 += " " * 24
+LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+LOCALS:2 += " " * 23
+IF ページ数 < ページ数:1
+	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
 ENDIF
-PRINTL
+LOCALS:2 += "<br>"
+IF ページ数 > 0
+	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+ELSE
+	LOCALS:2 += "     "
+ENDIF
+IF ページ数 > 4
+	LOCALS:2 += "<button value='9003'> [－５]</button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 26
+LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+LOCALS:2 += " " * (56-20-20)
+IF ページ数 <= ページ数:1 - 5
+	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 5
+IF ページ数 < ページ数:1
+	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+ENDIF
+HTML_PRINT LOCALS:2
+
+;IF ページ数 > 0
+;	PRINTBUTTON "[9000] 前のページへ", 9000
+;	PRINTFORM %"", 57-STRLENS("[9000] 前のページへ")+16-13, LEFT%
+;ELSE
+;	PRINTFORM %"", 57+16-13, LEFT%
+;ENDIF
+;PRINTPLAINFORM {1+ページ数:0, 3, RIGHT}/{1+ページ数:1, 3, LEFT}ページ 
+;IF ページ数 < ページ数:1;候補人数 / 表示人数
+;	PRINT [9001] 次のページへ
+;ENDIF
+;PRINTL
+;IF ページ数 > 0
+;	PRINTBUTTON "[9002] 最初へ ", 9002
+;ELSE
+;	PRINTFORM %"", STRLENS("[9002] 最初へ "), LEFT%
+;ENDIF
+;IF ページ数 > 4
+;	PRINTBUTTON "[9003] ‐5ページ", 9003
+;	PRINTFORM %"", 57-STRLENS("[9002] 最初へ ")-STRLENS("[9003] ‐5ページ")+16, LEFT%
+;ELSE
+;	PRINTFORM %"", 57+16+1, LEFT%
+;ENDIF
+;IF ページ数 < ページ数:1 - 5
+;	PRINTBUTTON "[9004] +5ページ ", 9004
+;ELSE
+;	PRINTFORM %"", STRLENS("[9004] +5ページ "), LEFT%
+;ENDIF
+;IF ページ数 < ページ数:1
+;	PRINT [9005] 最後へ
+;ELSE
+;ENDIF
+;PRINTL
 DRAWLINE
 
 PRINTBUTTON "[2000]フィルタ機能", 2000
@@ -299,42 +364,68 @@ ELSE
 	PRINT なし
 ENDIF
 PRINTL
-PRINTBUTTONLC "[1000]戻る", 1000
+PRINTBUTTONLC "[9999]戻る", 9999
 PRINTL
 
 $INPUT_LOOP
-INPUT
-IF RESULT == 1000
+BINPUT
+IF RESULT == 9999
 	RETURN 0
 ELSEIF RESULT == 2000
 	CALL SHOW_CHARADATA_FILTA
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 2001
 	INVERTBIT 滞在者のみフィルタ, 0
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3000
 	CALL SHOW_CHARADATA_SORT
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3100
 	キャラ一覧ソート:1 = 降順
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 3200
 	キャラ一覧ソート:1 = 昇順
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
 ELSEIF RESULT == 4000
 	CALL SHOW_CHARADATA_素質絞り込み
-	現在ページ = 0
+	ページ数 = 0
 	RESTART
-ELSEIF RESULT == 900
-	現在ページ = MAX(現在ページ - 1, 0)
+ELSEIF RESULT == 9000
+	ページ数 = MAX(ページ数 - 1, 0)
 	GOTO 表示処理_LOOP
-ELSEIF RESULT == 901
-	現在ページ = MIN(現在ページ + 1, 候補人数 / 30)
+ELSEIF RESULT == 9001
+	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9002
+	ページ数 = 0
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9003
+	ページ数 = MAX(ページ数 - 5, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9004
+	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9005
+	ページ数 = ページ数:1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9006
+	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+	INPUT
+	SIF INRANGE(RESULT, 1, 1+ページ数:1)
+		ページ数 = RESULT - 1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9007
+	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+	INPUT
+	IF INRANGE(RESULT, 1, 100)
+		表示人数 = RESULT
+		ページ数 = 0
+	ENDIF
 	GOTO 表示処理_LOOP
 ELSEIF RESULT < 0 || RESULT >= CHARANUM
 	REUSELASTLINE 
