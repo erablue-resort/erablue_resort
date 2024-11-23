@@ -1016,9 +1016,11 @@ RETURN 0
 @発情期素質設定(対象キャラ)
 #DIM 対象キャラ
 #DIM 表示番号
+#DIM 発情不可フラグ
 #DIM CONST 必要COST = 20
 VARSET LOCALS
 表示番号 = 0
+発情不可フラグ = 0
 
 DRAWLINE
 PRINTL ZPを消費してキャラの発情期を設定したり、特殊発情を付与・削除することができます。
@@ -1026,7 +1028,28 @@ PRINTL 種族によっては一部の特殊発情が外せないことがあり�
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
 PRINTFORML ・現在の%CALLNAME:対象キャラ%の発情期状況
-IF 発情期判定(対象キャラ)
+SELECTCASE TALENT:対象キャラ:性別
+	CASE 0
+		PRINTL 無性別の場合、発情出来ません。
+		発情不可フラグ = 1
+	CASE 1
+		IF TALENT:対象キャラ:妊娠不可 == 2
+			PRINTL 初潮前の場合、発情出来ません。
+			発情不可フラグ = 1
+		ENDIF
+	CASE 2
+		IF TALENT:対象キャラ:射精不可 == 2
+			PRINTL 精通前の場合、発情出来ません。
+			発情不可フラグ = 1
+		ENDIF
+	CASE 3
+		IF TALENT:対象キャラ:妊娠不可 == 2 && TALENT:対象キャラ:射精不可 == 2
+			PRINTL 精通前かつ初潮前の場合、発情出来ません。
+			発情不可フラグ = 1
+		ENDIF
+ENDSELECT
+IF 発情不可フラグ
+ELSEIF 発情期判定(対象キャラ)
 	PRINTL ■ 発情期あり
 	IF GETBIT(TALENT:対象キャラ:発情期あり, 1) || TALENT:対象キャラ:種族 == 2
 		LOCALS:(表示番号++) = ├欲情ブースト（大）
