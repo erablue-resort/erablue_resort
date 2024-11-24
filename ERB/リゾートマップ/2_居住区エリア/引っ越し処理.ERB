@@ -1,0 +1,208 @@
+﻿@引っ越し処理
+#DIM ページ数
+#DIM ループ用
+#DIM 部屋主配列, 10
+
+VARSET LOCAL
+VARSET LOCALS
+	
+DRAWLINE
+PRINTL 引っ越しさせるキャラを選んでください。
+DRAWLINE
+LOCALS = <div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='156,156,1187,2812'>"
+LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+CALL 居住区エリア_住宅街_表示(ページ数, 1)
+;RESULTにページ数上限が入っている
+LOCAL:10 = RESULT
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+
+SELECTCASE RESULT
+	CASE 1000
+		ページ数 --
+	CASE 1001
+		ページ数 ++
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASEELSE
+		LOCAL = RESULT
+		;部屋の居住者を配列化、空き部屋はボタン化してないはずなので考慮にいれない
+		VARSET 部屋主配列
+		VARSET RESULTS
+		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+		IF RESULT == 2
+			;一人だけなら即座に引越し先選択へ
+			CALL 引っ越し先選択処理(TOINT(RESULTS:0))
+		ELSE
+			;複数人いるなら誰を引っ越させるかを選択
+			DRAWLINE
+			PRINTL 誰を引っ越しさせるかを選んでください。
+			DRAWLINE
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+				PRINTBUTTON @"[{ループ用}] %NAME:(部屋主配列:ループ用)%", ループ用
+				PRINTL 
+			NEXT
+			PRINTL 
+			PRINTBUTTON "[999] 戻る", 999
+			PRINTL
+			BINPUT
+			IF RESULT == 999
+				RESTART
+			ELSE
+				CALL 引っ越し先選択処理(部屋主配列:RESULT)
+			ENDIF
+		ENDIF
+ENDSELECT
+
+RESTART
+
+@引っ越し先選択処理(対象キャラ)
+#DIM 対象キャラ
+#DIM 引っ越し不許可フラグ
+#DIM ページ数
+#DIM 元の部屋
+#DIM ループ用
+#DIM 部屋主配列, 10
+
+VARSET LOCAL
+VARSET LOCALS
+
+;元の部屋保存
+元の部屋 = キャラクター部屋検索(対象キャラ)
+
+DRAWLINE
+PRINTFORML %NAME:対象キャラ%をどの部屋に引っ越しをさせますか？
+DRAWLINE
+LOCALS = <div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS += "<div rect='156,156,1187,2812'>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
+LOCALS += "<br>"
+LOCALS += "</div>"
+
+CALL 居住区エリア_住宅街_表示(ページ数)
+;RESULTにページ数上限が入っている
+LOCAL:10 = RESULT
+
+HTML_PRINT LOCALS, 1
+
+FOR LOCAL, 0, 27
+	PRINTL
+NEXT
+
+BINPUT
+PRINTL
+PRINTL
+PRINTL
+
+SELECTCASE RESULT
+	CASE 1000
+		ページ数 --
+	CASE 1001
+		ページ数 ++
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASEELSE
+		LOCAL = RESULT
+		IF 元の部屋 == LOCAL + 100
+			PRINTL 現在の部屋です。
+		ELSEIF 定住者部屋割り配列:LOCAL == ""
+			;空き部屋
+			PRINTL この空き部屋に引っ越ししますか？
+			PRINTBUTTON "[0] はい", 0
+			PRINTL
+		ELSEIF STRCOUNT(定住者部屋割り配列:LOCAL, "_") >= 5
+			;部屋は5人まで
+			PRINTL この部屋にこれ以上の人数で住むことは出来ません。
+		ELSE
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			引っ越し不許可フラグ = 0
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+				IF 任意引っ越し許可判定(対象キャラ, 部屋主配列:ループ用)
+					;許可
+					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れOK
+				ELSE
+					;不許可
+					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れNG
+					引っ越し不許可フラグ = 1
+				ENDIF
+			NEXT
+			PRINTL
+			IF 引っ越し不許可フラグ
+				PRINTL この部屋には引っ越し出来ません。
+			ELSE
+				PRINTL この部屋に引っ越ししますか？
+				PRINTBUTTON "[0] はい", 0
+				PRINTL
+			ENDIF
+		ENDIF
+		PRINTL 
+		PRINTBUTTON "[999] 戻る", 999
+		PRINTL
+		BINPUT
+		IF RESULT == 999
+			RESTART
+		ELSEIF RESULT == 0
+			PRINTFORMW %NAME:対象キャラ%に引っ越してもらいました。
+			IF 元の部屋 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:現在マップ種別 == 2
+				;今部屋にいるなら現在地も移動
+				CFLAG:対象キャラ:現在位置 = LOCAL + 1000
+			ENDIF
+			CALL 滞在者部屋割り配列削除処理(対象キャラ)
+			定住者部屋割り配列:LOCAL += @"{対象キャラ}_"
+			ページ数 = 0
+			RETURN 0
+		ENDIF
+ENDSELECT
+
+RESTART
+
+
+
+
+@任意引っ越し許可判定(引っ越すキャラ, 引っ越し先キャラ)
+#FUNCTION
+#DIM 引っ越すキャラ
+#DIM 引っ越し先キャラ
+
+IF (TALENT:引っ越すキャラ:性別 == 1 || TALENT:引っ越すキャラ:性別 == 2) && (TALENT:引っ越し先キャラ:性別 == 1 || TALENT:引っ越し先キャラ:性別 == 2)
+	;男女の組み合わせの場合、相手が異性だとハードルがちょっと上がる
+	IF TALENT:引っ越すキャラ:性別 != TALENT:引っ越し先キャラ:性別
+		SIF GET_RELATION(引っ越し先キャラ, 引っ越すキャラ) / 100 < 関係閾値:3
+			RETURNF 0
+		SIF GET_RELATION(引っ越すキャラ, 引っ越し先キャラ) / 100 < 関係閾値:3
+			RETURNF 0
+	ELSE
+		SIF GET_RELATION(引っ越し先キャラ, 引っ越すキャラ) / 100 < 関係閾値:2
+			RETURNF 0
+		SIF GET_RELATION(引っ越すキャラ, 引っ越し先キャラ) / 100 < 関係閾値:2
+			RETURNF 0
+	ENDIF
+ELSE
+	SIF GET_RELATION(引っ越し先キャラ, 引っ越すキャラ) / 100 < 関係閾値:2
+		RETURNF 0
+	SIF GET_RELATION(引っ越すキャラ, 引っ越し先キャラ) / 100 < 関係閾値:2
+		RETURNF 0
+ENDIF
+
+RETURNF 1
