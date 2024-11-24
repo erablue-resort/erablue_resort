@@ -12,6 +12,7 @@
 #DIM F_NUM
 #DIM 追加前キャラ数保存
 #DIM CSV番号
+#DIM 部屋番号
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -214,6 +215,27 @@ FOR LOCAL:1, 0, 50
 	ENDIF
 NEXT
 
+;スイートルーム関係おかしくなってないかチェック
+FOR 部屋番号, 0, VARSIZE("スイートルーム部屋割り配列")
+	VARSET RESULTS
+	SPLIT スイートルーム部屋割り配列:部屋番号, "_", RESULTS
+	;スイートルームは文字列的に1から読む
+	FOR LOCAL, 1, RESULT
+		SIF RESULTS:LOCAL == ""
+			BREAK
+		IF ISNUMERIC(RESULTS:LOCAL)
+			IF CFLAG:(TOINT(RESULTS:LOCAL)):スイートルーム滞在フラグ - 100 != 部屋番号
+				;部屋割りとフラグが一致してない場合は追い出す
+				CFLAG:(TOINT(RESULTS:LOCAL)):スイートルーム滞在フラグ = 0
+				スイートルーム部屋割り配列:部屋番号 '= REPLACE(スイートルーム部屋割り配列:部屋番号, @"_{TOINT(RESULTS:LOCAL)}_", "_")
+				SIF スイートルーム部屋割り配列:部屋番号 == "_"
+					スイートルーム部屋割り配列:部屋番号 = 
+				;追い出されたキャラはこの後の部屋なしキャラチェックで正しく整備されるはず
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+
 FOR LOCAL, 1, CHARANUM
 	;キャラ体力再計算
 	CALL 体力変動素質適用処理(LOCAL)
@@ -259,6 +281,14 @@ FOR LOCAL, 1, CHARANUM
 				ENDIF
 			NEXT
 		ENDIF
+	ENDIF
+
+	;スイートルーム関係おかしくなってないかチェック
+	IF CFLAG:LOCAL:スイートルーム滞在フラグ && STRFIND(スイートルーム部屋割り配列:(CFLAG:LOCAL:スイートルーム滞在フラグ - 100), @"_{LOCAL}_") == -1
+		スイートルーム部屋割り配列:(CFLAG:LOCAL:スイートルーム滞在フラグ - 100) '= REPLACE(スイートルーム部屋割り配列:(CFLAG:LOCAL:スイートルーム滞在フラグ - 100), @"_{LOCAL}_", "_")
+		SIF スイートルーム部屋割り配列:(CFLAG:LOCAL:スイートルーム滞在フラグ - 100) == "_"
+			スイートルーム部屋割り配列:(CFLAG:LOCAL:スイートルーム滞在フラグ - 100) = 
+		CFLAG:LOCAL:スイートルーム滞在フラグ = 0
 	ENDIF
 NEXT
 
