@@ -11,7 +11,7 @@ PRINTL 引っ越しさせるキャラを選んでください。
 DRAWLINE
 LOCALS = <div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1187,2812'>"
-LOCALS += "<button value='999'>[999] 居住区に戻る</button>"
+LOCALS += "<button value='999'>[999] 住宅街に戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
 
@@ -74,17 +74,18 @@ RESTART
 #DIM 対象キャラ
 #DIM 引っ越し不許可フラグ
 #DIM ページ数
-#DIM 元の部屋
 #DIM ループ用
 #DIM 最高値記録
 #DIM 無視閾値
 #DIM 部屋主配列, 10
+#DIM 元の部屋
+
+;元の部屋保存
+元の部屋 = キャラクター部屋検索(対象キャラ)
 
 VARSET LOCAL
 VARSET LOCALS
 
-;元の部屋保存
-元の部屋 = キャラクター部屋検索(対象キャラ)
 
 DRAWLINE
 PRINTFORML %NAME:対象キャラ%をどの部屋に引っ越しをさせますか？
@@ -95,7 +96,7 @@ LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
 
-CALL 居住区エリア_住宅街_表示(ページ数)
+CALL 居住区エリア_引っ越し先_表示(ページ数, 対象キャラ)
 ;RESULTにページ数上限が入っている
 LOCAL:10 = RESULT
 
@@ -120,56 +121,41 @@ SELECTCASE RESULT
 		RETURN 0
 	CASEELSE
 		LOCAL = RESULT
-		IF 元の部屋 == LOCAL + 1000
-			PRINTL 現在の部屋です。
-		ELSEIF 定住者部屋割り配列:LOCAL == ""
-			;空き部屋
-			PRINTL この空き部屋に引っ越ししますか？
-			PRINTBUTTON "[0] はい", 0
-			PRINTL
-		ELSEIF STRCOUNT(定住者部屋割り配列:LOCAL, "_") >= 5
-			;部屋は5人まで
-			PRINTL この部屋にこれ以上の人数で住むことは出来ません。
-		ELSE
-			;部屋の居住者を配列化
-			VARSET 部屋主配列
-			VARSET RESULTS
-			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
-			引っ越し不許可フラグ = 0
-			最高値記録 = 0
-			無視閾値 = 50
-			FOR ループ用, 0, RESULT
-				SIF RESULTS:ループ用 == ""
-					BREAK
-				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
-				;同行率の最高値を記録
-				SIF GET_RELATION(部屋主配列:ループ用, 対象キャラ) > 最高値記録
-					最高値記録 = GET_RELATION(部屋主配列:ループ用, 対象キャラ)
-				;異性なら無視閾値を上昇
-				SIF (TALENT:対象キャラ:性別 == 1 && TALENT:(部屋主配列:ループ用):性別 == 2) || (TALENT:対象キャラ:性別 == 2 && TALENT:(部屋主配列:ループ用):性別 == 1)
-					無視閾値 = 80
-				IF 任意引っ越し許可判定(対象キャラ, 部屋主配列:ループ用)
-					;許可
-					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れOK
-				ELSE
-					;不許可
-					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%
-					引っ越し不許可フラグ = 1
-				ENDIF
-			NEXT
-			PRINTL
-			IF 引っ越し不許可フラグ && 最高値記録 / 100 >= 無視閾値
-				引っ越し不許可フラグ = 0
-				PRINTL 同居先に特に仲の良い相手がいるため、引っ越し可能です。
-			ENDIF
-			IF 引っ越し不許可フラグ
-				PRINTL この部屋には引っ越し出来ません。
+		;部屋の居住者を配列化
+		VARSET 部屋主配列
+		VARSET RESULTS
+		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+		引っ越し不許可フラグ = 0
+		最高値記録 = 0
+		無視閾値 = 50
+		FOR ループ用, 0, RESULT
+			SIF RESULTS:ループ用 == ""
+				BREAK
+			部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			;同行率の最高値を記録
+			SIF GET_RELATION(部屋主配列:ループ用, 対象キャラ) > 最高値記録
+				最高値記録 = GET_RELATION(部屋主配列:ループ用, 対象キャラ)
+			;異性なら無視閾値を上昇
+			SIF (TALENT:対象キャラ:性別 == 1 && TALENT:(部屋主配列:ループ用):性別 == 2) || (TALENT:対象キャラ:性別 == 2 && TALENT:(部屋主配列:ループ用):性別 == 1)
+				無視閾値 = 80
+			IF 任意引っ越し許可判定(対象キャラ, 部屋主配列:ループ用)
+				;許可
+				PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れOK
 			ELSE
-				PRINTL この部屋に引っ越ししますか？
-				PRINTBUTTON "[0] はい", 0
-				PRINTL
+				;不許可
+				PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%
+				引っ越し不許可フラグ = 1
 			ENDIF
+		NEXT
+		PRINTL
+		IF 引っ越し不許可フラグ && 最高値記録 / 100 >= 無視閾値
+			引っ越し不許可フラグ = 0
+			PRINTL 同居先に特に仲の良い相手がいるため、引っ越し可能です。
 		ENDIF
+		PRINTL この部屋に引っ越ししますか？
+		PRINTBUTTON "[0] はい", 0
+		PRINTL
+
 		PRINTL 
 		PRINTBUTTON "[999] 戻る", 999
 		PRINTL
@@ -220,3 +206,125 @@ ELSE
 ENDIF
 
 RETURNF 1
+
+
+@居住区エリア_引っ越し先_表示(ページ数, 引っ越しキャラ)
+#DIM ページ数
+#DIM 引っ越しキャラ
+#DIM 家最大数
+#DIM ループ用
+#DIM 縦位置
+#DIM 横位置
+#DIM 縦位置２
+#DIM 位置基準
+#DIM 引っ越し不許可フラグ
+#DIM 部屋主配列, 10
+#DIM 最高値記録
+#DIM 無視閾値
+#DIM 元の部屋
+
+;元の部屋保存
+元の部屋 = キャラクター部屋検索(引っ越しキャラ)
+
+VARSET LOCAL
+家最大数 = 住宅街広さ()
+FOR LOCAL, 499, 49, -1
+	IF 定住者部屋割り配列:LOCAL != ""
+		家最大数 = LOCAL + 1 
+		BREAK
+	ENDIF
+NEXT
+
+
+LOCALS = <div rect='1375,0,5000,125'>
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>[1000]前の住宅街エリアへ</button>　　　　　　　　　"
+ELSE
+	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
+ENDIF
+IF ページ数 < (家最大数 - 1) / 16
+	LOCALS += "<button value='1001'>[1001]次の住宅街エリアへ</button>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+VARSET LOCALS
+
+FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
+	SIF LOCAL >= 家最大数
+		BREAK
+
+	;部屋の居住者を配列化
+	VARSET 部屋主配列
+	VARSET RESULTS
+	引っ越し不許可フラグ = 0
+	最高値記録 = 0
+	無視閾値 = 50
+	SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+	FOR ループ用, 0, RESULT
+		SIF RESULTS:ループ用 == ""
+			BREAK
+		部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+		;同行率の最高値を記録
+		SIF GET_RELATION(部屋主配列:ループ用, 引っ越しキャラ) > 最高値記録
+			最高値記録 = GET_RELATION(部屋主配列:ループ用, 引っ越しキャラ)
+		;異性なら無視閾値を上昇
+		SIF (TALENT:引っ越しキャラ:性別 == 1 && TALENT:(部屋主配列:ループ用):性別 == 2) || (TALENT:引っ越しキャラ:性別 == 2 && TALENT:(部屋主配列:ループ用):性別 == 1)
+			無視閾値 = 80
+		IF 任意引っ越し許可判定(引っ越しキャラ, 部屋主配列:ループ用)
+			;許可
+		ELSE
+			;不許可
+			引っ越し不許可フラグ = 1
+		ENDIF
+	NEXT
+	IF 引っ越し不許可フラグ && 最高値記録 / 100 >= 無視閾値
+		引っ越し不許可フラグ = 0
+	ENDIF
+	
+	IF 元の部屋 == LOCAL + 1000
+		引っ越し不許可フラグ = 1
+	ELSEIF STRCOUNT(定住者部屋割り配列:LOCAL, "_") >= 5
+		引っ越し不許可フラグ = 1
+	ENDIF
+
+	位置基準 = LOCAL - (ページ数 * 16)
+	縦位置 = 31 + (位置基準 / 4 * 625) + ((位置基準 / 4 + 1) / 2 * 175)
+	横位置 = 1375 + (位置基準 % 4) * 1187
+	縦位置２ = 562 + (位置基準 / 4 * 207) + ((位置基準 / 4) / 2 * 1011)
+	IF 部屋主配列:0 > 0
+		LOCAL:1 = 0
+		LOCAL:2 = 0
+		FOR ループ用, 0, 10
+			SIF 部屋主配列:ループ用 < 1
+				BREAK
+			LOCAL:2 ++
+			IF CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000 && CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2
+				LOCAL:1 += 1
+			ENDIF
+		NEXT
+		IF 引っ越し不許可フラグ
+			LOCALS:1 = 引っ越しNG
+			LOCALS:2 = #333333
+			LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></div>"
+		ELSE
+			LOCALS:1 = 引っ越しOK
+			LOCALS:2 = #C0C000
+			LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='%LOCALS:2%'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		ENDIF
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		IF 部屋主配列:1 > 0
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>■家主<br>%CALLNAME:(部屋主配列:0)%他{LOCAL:2 - 1}名<br>（%LOCALS:1%）</div>"
+		ELSE
+			LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>■家主<br>%CALLNAME:(部屋主配列:0)%<br>（%LOCALS:1%）</div>"
+		ENDIF
+	ELSE
+		LOCALS += @"<div rect='{横位置},{縦位置},1125,587' border='31' bcolor='#C0C000'><button value='{LOCAL}'><img src='透過アイコン' srcb='透過アイコン_選択' height='587' width='1125'></button></div>"
+		LOCALS += @"<div width='500' height='125' xpos='{319 + 横位置}' ypos='{縦位置２}' color='#101010'></div>"
+		LOCALS += @"<div rect='{横位置 + 125},{縦位置 + 125},1000,362'>空き家</div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+RETURN (家最大数 - 1) / 16
