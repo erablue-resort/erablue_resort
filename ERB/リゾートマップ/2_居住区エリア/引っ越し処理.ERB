@@ -76,6 +76,8 @@ RESTART
 #DIM ページ数
 #DIM 元の部屋
 #DIM ループ用
+#DIM 最高値記録
+#DIM 無視閾値
 #DIM 部屋主配列, 10
 
 VARSET LOCAL
@@ -118,7 +120,7 @@ SELECTCASE RESULT
 		RETURN 0
 	CASEELSE
 		LOCAL = RESULT
-		IF 元の部屋 == LOCAL + 100
+		IF 元の部屋 == LOCAL + 1000
 			PRINTL 現在の部屋です。
 		ELSEIF 定住者部屋割り配列:LOCAL == ""
 			;空き部屋
@@ -134,20 +136,32 @@ SELECTCASE RESULT
 			VARSET RESULTS
 			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
 			引っ越し不許可フラグ = 0
+			最高値記録 = 0
+			無視閾値 = 50
 			FOR ループ用, 0, RESULT
 				SIF RESULTS:ループ用 == ""
 					BREAK
 				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+				;同行率の最高値を記録
+				SIF GET_RELATION(部屋主配列:ループ用, 対象キャラ) > 最高値記録
+					最高値記録 = GET_RELATION(部屋主配列:ループ用, 対象キャラ)
+				;異性なら無視閾値を上昇
+				SIF (TALENT:対象キャラ:性別 == 1 && TALENT:(部屋主配列:ループ用):性別 == 2) || (TALENT:対象キャラ:性別 == 2 && TALENT:(部屋主配列:ループ用):性別 == 1)
+					無視閾値 = 80
 				IF 任意引っ越し許可判定(対象キャラ, 部屋主配列:ループ用)
 					;許可
 					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れOK
 				ELSE
 					;不許可
-					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%：受け入れNG
+					PRINTFORML %ADD_STR_SPACE(NAME表示省略(NAME:(部屋主配列:ループ用)), "]"), 41, LEFT%からの同行率{GET_RELATION(部屋主配列:ループ用, 対象キャラ) / 100, 3}\%
 					引っ越し不許可フラグ = 1
 				ENDIF
 			NEXT
 			PRINTL
+			IF 引っ越し不許可フラグ && 最高値記録 / 100 >= 無視閾値
+				引っ越し不許可フラグ = 0
+				PRINTL 同居先に特に仲の良い相手がいるため、引っ越し可能です。
+			ENDIF
 			IF 引っ越し不許可フラグ
 				PRINTL この部屋には引っ越し出来ません。
 			ELSE
