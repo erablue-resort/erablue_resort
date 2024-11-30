@@ -460,7 +460,9 @@ SELECTCASE 対象キャラ
 			PRINTFORML %CALLNAME:左キャラ%に%CALLNAME:対象キャラ%への『%LOCALS%の縁』を導きました。
 			PRINTW 今後のリゾート生活で縁が進行していきます。
 		ELSEIF RFLAG:オート縁結び中
-			RSTR:縁結び報告_記録文字列 += @"%CALLNAME:左キャラ%に%CALLNAME:対象キャラ%への『%LOCALS%の縁』が繋がりました。<br>"
+			RSTR:縁結び報告_記録文字列 += @"<font color='#%カラーパレット_HTML("青緑")%'>"
+			RSTR:縁結び報告_記録文字列 += @"%CALLNAME:左キャラ%に%CALLNAME:対象キャラ%への『%LOCALS%の縁』が繋がりました。"
+			RSTR:縁結び報告_記録文字列 +=  "</font><br>"
 		ENDIF
 		初期進展度 = 0
 		FOR LOCAL, 0, VARSIZE("同行候補キャラ番号")
@@ -1061,6 +1063,7 @@ RESTART
 #DIM 対象キャラ１
 #DIM 候補配列, キャラクタ数上限
 #DIM 候補総数
+#DIM 縁結び組数
 
 ;オプションで禁止なら戻す
 SIF OPTION変数:オート縁結び == 0
@@ -1129,9 +1132,11 @@ FOR 対象キャラ１, 1, CHARANUM
 	ENDIF
 NEXT
 
+縁結び組数 = 0
 ;候補から選出
 IF 候補総数 <= 設定カップル数
 	FOR LOCAL, 0, 設定カップル数
+		RESULT = 0
 		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
 			;恋慕が入る確率の方がやや高い
 			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
@@ -1148,10 +1153,13 @@ IF 候補総数 <= 設定カップル数
 		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
 			CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
 		ENDIF
+		SIF RESULT
+			縁結び組数 ++
 	NEXT
 ELSE
 	FOR LOCAL, 0, 設定カップル数
 		対象キャラ１ = RAND:候補総数
+		RESULT = 0
 		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
 			;恋慕が入る確率の方がやや高い
 			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
@@ -1168,9 +1176,11 @@ ELSE
 		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
 			CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
 		ENDIF
+		SIF RESULT
+			縁結び組数 ++
 		ARRAYREMOVE 候補配列, 対象キャラ１, 1
 		候補総数 --
 	NEXT
 ENDIF
-
+RETURN 縁結び組数
 
