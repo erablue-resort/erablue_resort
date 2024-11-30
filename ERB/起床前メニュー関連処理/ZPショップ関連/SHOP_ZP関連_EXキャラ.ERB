@@ -30,6 +30,7 @@
 #DIM 出展表示候補, 500
 #DIM 出典番号
 #DIM 配列番号
+#DIM 最初から詳細
 #DIM 表示用番号
 #DIM 値段保存
 #DIM 選択シリーズ
@@ -158,6 +159,18 @@ IF 選択モード
 		BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
 		SIF ZPキャラ無料回数
 			BUTTON_TEXT += " → 0"
+		SELECTCASE ZPキャラリストソート
+			CASE 1
+				;画像数順
+				BUTTON_TEXT += @"　　画像数：{ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%", "*.png", 0)}"
+			CASE 2
+				;バスト順、男は０扱い
+				IF GETBIT(TALENT:対象キャラ:性別, 0)
+					BUTTON_TEXT += @"　　バスト：%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm"
+				ELSE
+					BUTTON_TEXT += "　　バスト：なし"
+				ENDIF
+		ENDSELECT
 		PRINTBUTTON BUTTON_TEXT, L_CNT
 		PRINTL
 	NEXT
@@ -199,6 +212,18 @@ ELSE
 			BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
 			SIF ZPキャラ無料回数
 				BUTTON_TEXT += " → 0"
+			SELECTCASE ZPキャラリストソート
+				CASE 1
+					;画像数順
+					BUTTON_TEXT += @"　　画像数：{ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%", "*.png", 0)}"
+				CASE 2
+					;バスト順、男は０扱い
+					IF GETBIT(TALENT:対象キャラ:性別, 0)
+						BUTTON_TEXT += @"　　バスト：%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm"
+					ELSE
+						BUTTON_TEXT += "　　バスト：なし"
+					ENDIF
+			ENDSELECT
 			PRINTBUTTON BUTTON_TEXT, L_CNT
 			PRINTL
 		NEXT
@@ -259,8 +284,10 @@ ELSE
 ENDIF
 ;- フィルタ設定ボタン表示
 ; シリーズ選択中はフィルタ設定不可(フィルタを切り替えた際のリスト更新がうまくいかないので)
-SIF !(選択モード == 0 && 選択シリーズ >= 0)
+IF !(選択モード == 0 && 選択シリーズ >= 0)
 	PRINTBUTTONC "[910] フィルタ設定", 910
+	PRINTBUTTONC "[911] ソート設定", 911
+ENDIF
 
 IF 選択モード == 0 && 選択シリーズ >= 0
 	PRINTL 
@@ -315,6 +342,16 @@ WHILE 1
 				; フィルタ変更時は表示内容が変化するのでリスト更新＆現在ページリセット
 				リスト更新判定 = 1
 				現在ページ = 0
+			ENDIF
+			リスタートフラグ = 1
+			BREAK
+		CASE 911
+			;- ソート設定
+			; リスタートしてリスト表示へ戻る
+			CALL EXキャラリストソート設定()
+			IF RESULT
+				; ソート変更時は表示内容が変化するのでリスト更新
+				リスト更新判定 = 1
 			ENDIF
 			リスタートフラグ = 1
 			BREAK
@@ -395,6 +432,7 @@ WHILE 1
 				ELSE
 					表示用番号 = 候補キャラ数_シリーズ
 				ENDIF
+				最初から詳細 = 0
 				;- キャラ招待ループ
 				WHILE 1
 					IF 選択モード
@@ -402,7 +440,8 @@ WHILE 1
 					ELSE
 						対象キャラ = 出展表示候補:候補番号
 					ENDIF
-					CALL ZP_SHOP_EXキャラ_招待確認(対象キャラ)
+					CALL ZP_SHOP_EXキャラ_招待確認(対象キャラ, 最初から詳細)
+					最初から詳細 = 0
 					SELECTCASE RESULT
 						CASE -1
 							;- キャンセル
@@ -429,6 +468,20 @@ WHILE 1
 						CASE 3
 							;- 次のキャラ
 							; 候補番号を更新、ループして次のキャラを表示
+							候補番号 +=  1
+							SIF 候補番号 >= 表示用番号
+								候補番号 = 0
+						CASE 12
+							;- 前のキャラ
+							; 候補番号を更新、ループして前のキャラを表示
+							最初から詳細 = 1
+							候補番号 -=  1
+							SIF 候補番号 < 0
+								候補番号 = 表示用番号 - 1
+						CASE 13
+							;- 次のキャラ
+							; 候補番号を更新、ループして次のキャラを表示
+							最初から詳細 = 1
 							候補番号 +=  1
 							SIF 候補番号 >= 表示用番号
 								候補番号 = 0
@@ -508,20 +561,40 @@ SIF !EXキャラリストフィルタ判定(キャラ番号)
 ; リスト登録確定。ソート順はキャラ番号順
 ; → 要は追加順なのでソート不要なのだが、仕組み上ソートが必ず実行される＆安定ソートではないので
 ;    順番指定しないと(RETURN 1で固定したりすると)キャラの並びがグチャグチャになるので指定必須
+
+SELECTCASE ZPキャラリストソート
+	CASE 0
+		;登録順
+		RETURN キャラ番号
+	CASE 1
+		;画像数順
+		RETURN (ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%", "*.png", 0) * 10000 + キャラ番号) * -1
+	CASE 2
+		;バスト順、男は０扱い
+		IF GETBIT(TALENT:キャラ番号:性別, 0)
+			RETURN (BASE:キャラ番号:バスト * 10000 + キャラ番号) * -1
+		ELSE
+			RETURN キャラ番号
+		ENDIF
+ENDSELECT
+
+;ないはずだが変な値が入ってる場合はキャラ番号
 RETURN キャラ番号
 
 ;-------------------------------------------------
 ;EXキャラの招待確認
 ;-------------------------------------------------
-@ZP_SHOP_EXキャラ_招待確認(対象キャラ)
+@ZP_SHOP_EXキャラ_招待確認(対象キャラ, 最初から詳細)
 #LOCALSIZE 1
 #LOCALSSIZE 1
 #DIM 対象キャラ
 #DIM 入力番号
 #DIM 描画開始行
 #DIM 対象画像数
+#DIM 最初から詳細
 #DIM リロールボタン有効
 #DIM 実行結果
+#DIM TFLAG保存
 #DIM リスタートフラグ
 #DIM DYNAMIC 初回フラグ = 1
 
@@ -539,6 +612,9 @@ IF 初回フラグ
 	描画開始行 = LINECOUNT
 ENDIF
 
+SIF 最初から詳細
+	GOTO 最初から詳細_場所
+
 PRINTL
 ; キャラ確認用の簡易紹介
 CALL キャラ簡易紹介(対象キャラ)
@@ -551,6 +627,7 @@ PRINTL よろしいですか？
 ; ボタン表示
 PRINTBUTTONLC "[0]はい", 0
 PRINTBUTTONLC "[1]いいえ", 1
+PRINTBUTTONLC "[10]詳細能力", 10
 PRINTL
 PRINTBUTTONLC "[2]前のキャラ", 2
 PRINTBUTTONLC "[3]次のキャラ", 3
@@ -601,6 +678,44 @@ WHILE 1
 			; 何もせず処理終了(キャラ変更処理は関数外で実行)
 			実行結果 = 3
 			リスタートフラグ = 0
+			BREAK
+		CASE 10
+			;- [10]詳細能力
+			; 詳細画面を読んでからリスタートして再表示
+			$最初から詳細_場所
+			TFLAG保存 = TFLAG:調教モード
+			TFLAG:調教モード = -2
+			CALL PRINT_STATE(対象キャラ, 3)
+			TFLAG:調教モード = TFLAG保存
+			SELECTCASE RESULT
+				CASE 100
+					;前のキャラへ
+					; 何もせず処理終了(キャラ変更処理は関数外で実行)
+					実行結果 = 12
+					リスタートフラグ = 0
+				CASE 101
+					;次のキャラへ
+					; 何もせず処理終了(キャラ変更処理は関数外で実行)
+					実行結果 = 13
+					リスタートフラグ = 0
+				CASE 1
+					;はい
+					; ZPが足りるかチェックしてキャラ開放
+					IF ZPキャラ無料回数 || FLAG:ZP所持量 >= CFLAG:対象キャラ:ZPショップ値段
+						; キャラ開放して処理終了
+						CALL EXキャラ開放(対象キャラ)
+						実行結果 = 1
+						リスタートフラグ = 0
+					ELSE
+						; エラー表示
+						PRINTW ZPが足りません
+					ENDIF
+				CASE 0
+					;いいえ
+					; 何もせず処理終了
+					実行結果 = -1
+					リスタートフラグ = 0
+			ENDSELECT
 			BREAK
 		CASEELSE
 			; 入力エラー
@@ -737,6 +852,65 @@ ELSE
 	;- フィルタON/OFF切替
 	INVERTBIT ZPキャラリストフィルタ, 入力結果
 ENDIF
+; 表示した内容を消去してリスタート
+CLEARLINE LINECOUNT - 描画開始行
+RESTART
+
+@EXキャラリストソート設定()
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM CONST B_LEN = 14
+#DIM L_CNT
+#DIM 入力結果
+#DIM 分類番号
+#DIM 項目番号
+#DIM ビット位置
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM 変更前ソート設定
+#DIM 描画開始行
+#DIMS ボタンテキスト
+#DIMS CONST ソート項目 = "登録順", "画像数", "バスト"
+
+;- 設定モード
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	描画開始行 = LINECOUNT
+	変更前ソート設定 = ZPキャラリストソート
+ENDIF
+
+PRINTL
+DRAWLINE
+PRINTL ソート設定
+DRAWLINE
+FOR 分類番号, 0, 3
+	PRINTFORM <%ソート項目:分類番号%>
+	PRINTS "　"
+	IF ZPキャラリストソート == 分類番号
+		SETCOLOR カラーパレット("黄")
+		PRINT （選択中）
+		RESETCOLOR
+	ELSE
+		ボタンテキスト = [選択する]
+		PRINTBUTTON @"%ボタンテキスト, B_LEN, LEFT%", 分類番号
+	ENDIF
+	PRINTL
+	PRINTL
+NEXT
+DRAWLINE
+PRINTBUTTON "[確定]", 999
+BINPUT
+入力結果 = RESULT
+
+;- 確定
+IF 入力結果 == 999
+	IF ZPキャラリストソート != 変更前ソート設定
+		RETURN 1
+	ELSE
+		RETURN 0
+	ENDIF
+ENDIF
+
+ZPキャラリストソート = 入力結果
 ; 表示した内容を消去してリスタート
 CLEARLINE LINECOUNT - 描画開始行
 RESTART
