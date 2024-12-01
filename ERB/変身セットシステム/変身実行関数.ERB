@@ -1,45 +1,50 @@
 ﻿@変身実行処理(キャラ番号)
 #DIM キャラ番号
+#DIM 変身ID
 
 ;読み込んできて値をセットして登録する
 
-CALL GET変身データベース(キャラ番号)
+変身ID = FIND_変身ID(キャラ番号)
 ;個別処理があれば呼ぶ
 ;関数探す前にあるかチェックさせる
-IF STRFINDU(変身配列STR:変身タイミング文字列, "個別") >= 0
-	VARSET RESULT
-	TRYCALLFORM 個別変身実行処理_{NO:キャラ番号}
-	;個別処理で数値を返すとデフォルト処理をスキップできる
-	SIF RESULT
-		RETURN
+IF STRFINDU(GET_変身_変身タイミング文字列(変身ID), "個別") >= 0
+	TRYCCALLFORM 個別変身実行処理_{NO:キャラ番号}(キャラ番号)
+		;個別処理で数値を返すとデフォルト処理をスキップできる
+		SIF RESULT
+			RETURN
+	CATCH
+	ENDCATCH
 ENDIF
 
-NAME:キャラ番号 '= 変身配列STR:変身NAME
-CALLNAME:キャラ番号 '= 変身配列STR:変身CALLNAME
-;変身期間があれば変身残りターン数に変身期間をセットする
-IF 変身配列INT:変身期間 
-	;ダンジョンならばそのままターン数を、日常ならTIME想定でセットする
-	IF ダンジョン表示モード != ""
-		変身配列INT:変身残りターン数 = 変身配列INT:変身期間
-	ELSE
-		 ;TIMEはとりあえず10倍にしておく
-		変身配列INT:変身残りターン数 = 変身配列INT:変身期間 * 10
-	ENDIF
-ELSE
-	;変身期間が無ければ変身残りターン数に1をセットする　これはフラグを兼ねる
-	変身配列INT:変身残りターン数 = 1 
-ENDIF
-CALL SET変身データベース
+NAME:キャラ番号 '= GET_変身_変身NAME(変身ID)
+CALLNAME:キャラ番号 '= GET_変身_変身CALLNAME(変身ID)
+SELECTCASE GET_変身_変身期間(変身ID)
+	CASE IS > 0
+		;有限の変身期間があれば変身残りターン数に変身期間をセットする
+		IF ダンジョン表示モード != ""
+			;ダンジョンならばそのままターン数をセットする
+			CALL SET_変身_変身残りターン数(変身ID, GET_変身_変身期間(変身ID))
+		ELSE
+			;日常ならTIME想定でセットする（とりあえず10倍にしておく）
+			CALL SET_変身_変身残りターン数(変身ID, GET_変身_変身期間(変身ID) * 10)
+		ENDIF
+	CASE IS < 0
+		;負の変身期間は無限として扱う
+		CALL SET_変身_変身残りターン数(変身ID, -1)
+	CASEELSE
+		;変身期間が無ければ変身残りターン数に1をセットする　これはフラグを兼ねる
+		CALL SET_変身_変身残りターン数(変身ID, 1)
+ENDSELECT
 
 ;あればステータス変化処理をする
-TRYCALLFORM 変身設定ステータス変化_{NO:キャラ番号}
+TRYCALLFORM 変身設定ステータス変化_{NO:キャラ番号}(キャラ番号)
 
 ;変身フォルダがセットされていなければ変身画像を探してセット
 IF STRFINDU(CSTR:キャラ番号:画像フォルダ, "変身フォルダ") < 0
 	;変身画像が存在する
 	IF EXISTFILE("resources/" + CSTR:キャラ番号:画像フォルダ + "/変身フォルダ/顔_デフォルト.png")
 		;汎用変身カットインを呼んでフォルダを変更する
-		TRYCCALLFORM 個別変身カットイン_{NO:キャラ番号}
+		TRYCCALLFORM 個別変身カットイン_{NO:キャラ番号}(キャラ番号)
 		CATCH
 			CALL 汎用変身カットイン(キャラ番号)
 		ENDCATCH
@@ -50,27 +55,29 @@ ENDIF
 
 @変身解除実行処理(キャラ番号)
 #DIM キャラ番号
+#DIM 変身ID
 
 ;読み込んできて値をセットして戻す
 
-CALL GET変身データベース(キャラ番号)
+変身ID = FIND_変身ID(キャラ番号)
 ;個別処理があれば呼ぶ
 ;関数探す前にあるかチェックさせる
-IF STRFINDU(変身配列STR:解除タイミング文字列, "個別") >= 0
-	VARSET RESULT
-	TRYCALLFORM 個別変身解除実行処理_{NO:キャラ番号}
-	;個別処理で数値を返すとデフォルト処理をスキップできる
-	SIF RESULT
-		RETURN
+IF STRFINDU(GET_変身_変身タイミング文字列(変身ID), "個別") >= 0
+	TRYCCALLFORM 個別変身解除実行処理_{NO:キャラ番号}(キャラ番号)
+		;個別処理で数値を返すとデフォルト処理をスキップできる
+		SIF RESULT
+			RETURN
+	CATCH
+	ENDCATCH
 ENDIF
 
-NAME:キャラ番号 '= 変身配列STR:元NAME
-CALLNAME:キャラ番号 '= 変身配列STR:元CALLNAME
-変身配列INT:変身残りターン数 = 0 ;変身残りターン数を0にする
-CALL SET変身データベース
+NAME:キャラ番号 '= GET_変身_元NAME(変身ID)
+CALLNAME:キャラ番号 '= GET_変身_元CALLNAME(変身ID)
+;変身残りターン数を0にする
+CALL SET_変身_変身残りターン数(変身ID, 0)
 
 ;あればステータス変化処理をする
-TRYCALLFORM 変身設定ステータス変化解除_{NO:キャラ番号}
+TRYCALLFORM 変身設定ステータス変化解除_{NO:キャラ番号}(キャラ番号)
 
 ;変身フォルダがセットされていれば外す
 IF STRFINDU(CSTR:キャラ番号:画像フォルダ, "変身フォルダ") >= 0
