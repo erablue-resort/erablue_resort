@@ -1,0 +1,56 @@
+﻿
+@アイテム個別文章表示_海苔おせんべセット(ARGS)
+;海苔おせんべセット
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 5500
+ENDIF
+
+LOCALS = 
+LOCALS += @"■海苔おせんべセット　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "海苔おせんべセット")}<br>"
+LOCALS += "美味しいおせんべセット。海苔がパリパリして美味しい。<br>"
+LOCALS += "食べると元気が湧いてきて、全員の魔力が少し回復する。<br>"
+LOCALS += "戦闘中に使用することは出来ない。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方全体のＭＰを[１５０]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_海苔おせんべセット
+;戦闘時使用不可
+CALL 汎用使用先表示("味方全体", -1)
+
+@アイテム効果処理_海苔おせんべセット(ARG)
+;ARG = 隊列の何番目か
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "海苔おせんべセット") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+LOCAL:1 = 0
+FOR LOCAL, 0, 14
+	SIF LOCAL > 3 && LOCAL < 10
+		CONTINUE
+	SIF !BATTLE_STATE:LOCAL:キャラ登録番号
+		CONTINUE
+	SIF BATTLE_STATE:LOCAL:最大ＭＰ == BATTLE_STATE:LOCAL:ＭＰ
+		CONTINUE
+	IF BATTLE_STATE:LOCAL:最大ＭＰ - BATTLE_STATE:LOCAL:ＭＰ < 150
+		PRINTFORML %CALLNAME:(BATTLE_STATE:LOCAL:キャラ登録番号)%のＭＰを{BATTLE_STATE:LOCAL:最大ＭＰ - BATTLE_STATE:LOCAL:ＭＰ}回復しました
+	ELSE
+		PRINTFORML %CALLNAME:(BATTLE_STATE:LOCAL:キャラ登録番号)%のＭＰを150回復しました
+	ENDIF
+	BATTLE_STATE:LOCAL:ＭＰ = MIN(BATTLE_STATE:LOCAL:ＭＰ + 150, BATTLE_STATE:LOCAL:最大ＭＰ)
+	LOCAL:1 += 1
+NEXT
+
+IF LOCAL:1 > 0
+	WAIT
+ELSE
+	PRINTW 回復可能な対象がいません。
+	RETURN 0
+ENDIF
+
+RETURN 1
