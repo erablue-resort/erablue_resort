@@ -1712,51 +1712,83 @@ LOCALS = □ 弱点コマンド □---------------------<br>
 FOR LOCAL, 0, 8
 	SIF 弱点コマンド枠:ARG:LOCAL == ""
 		BREAK
+	VARSET 弱点コマンドSPLIT用配列
 	IF 弱点看破:ARG:LOCAL || OPTION変数:弱点コマンド全表示
 		弱点コマンド欄表示名 = 
 		IF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
 			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
-			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
-				CASE 370 TO 374
-					LOCAL:1 = TARGET
-					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS += @"　[キャラ固有：%弱点コマンド欄表示名%]<br>"
-					ELSE
-						LOCALS += @"　[キャラ固有：%TSTR:コマンド名受渡%]<br>"
-					ENDIF
-					TARGET = LOCAL:1
-				CASE 380 TO 384
-					LOCAL:1 = CFLAG:MASTER:現在位置
-					LOCAL:2 = CFLAG:MASTER:現在マップ種別
-					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
-					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS += @"　[場所固有：%弱点コマンド欄表示名%]<br>"
-					ELSE
-						LOCALS += @"　[場所固有：%TSTR:コマンド名受渡%]<br>"
-					ENDIF
-					CFLAG:MASTER:現在位置 = LOCAL:1
-					CFLAG:MASTER:現在マップ種別 = LOCAL:2
-				CASE 385 TO 389
-					;お祭りコマンドは弱点にしない
-				CASEELSE
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS += @"　[%弱点コマンド欄表示名%派生："
-					ELSE
-						LOCALS += @"　[%TSTR:コマンド名受渡%派生："
-					ENDIF
-					弱点コマンド欄表示名 = 
-					CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS += @"%弱点コマンド欄表示名%]<br>"
-					ELSE
-						LOCALS += @"%TSTR:コマンド名受渡%]<br>"
-					ENDIF
-			ENDSELECT
+			IF ISNUMERIC(弱点コマンドSPLIT用配列:0)
+				SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
+					CASE 370 TO 374
+						LOCAL:1 = TARGET
+						TARGET = TOINT(弱点コマンドSPLIT用配列:1)
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						IF 弱点コマンド欄表示名 != ""
+							LOCALS += @"　[キャラ固有：%弱点コマンド欄表示名%]<br>"
+						ELSE
+							LOCALS += @"　[キャラ固有：%TSTR:コマンド名受渡%]<br>"
+						ENDIF
+						TARGET = LOCAL:1
+					CASE 380 TO 384
+						LOCAL:1 = CFLAG:MASTER:現在位置
+						LOCAL:2 = CFLAG:MASTER:現在マップ種別
+						CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
+						CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						IF 弱点コマンド欄表示名 != ""
+							LOCALS += @"　[場所固有：%弱点コマンド欄表示名%]<br>"
+						ELSE
+							LOCALS += @"　[場所固有：%TSTR:コマンド名受渡%]<br>"
+						ENDIF
+						CFLAG:MASTER:現在位置 = LOCAL:1
+						CFLAG:MASTER:現在マップ種別 = LOCAL:2
+					CASE 385 TO 389
+						;お祭りコマンドは弱点にしない
+					CASEELSE
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						IF 弱点コマンド欄表示名 != ""
+							LOCALS += @"　[%弱点コマンド欄表示名%派生："
+						ELSE
+							LOCALS += @"　[%TSTR:コマンド名受渡%派生："
+						ENDIF
+						弱点コマンド欄表示名 = 
+						CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
+						IF 弱点コマンド欄表示名 != ""
+							LOCALS += @"%弱点コマンド欄表示名%]<br>"
+						ELSE
+							LOCALS += @"%TSTR:コマンド名受渡%]<br>"
+						ENDIF
+				ENDSELECT
+			ELSE
+				;_の前部分が数字ではないパターン
+				SELECTCASE 弱点コマンドSPLIT用配列:0
+					CASE "MASSAGE"
+						IF 弱点コマンドSPLIT用配列:2 != ""
+							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
+							IF 弱点コマンド欄表示名 != ""
+								LOCALS += @"　[%弱点コマンド欄表示名%派生："
+							ELSE
+								LOCALS += @"　[%TSTR:コマンド名受渡%派生："
+							ENDIF
+							弱点コマンド欄表示名 = 
+							CALLFORMF MASSAGE_COMNAME_S%弱点コマンドSPLIT用配列:1%_%弱点コマンドSPLIT用配列:2%
+							IF 弱点コマンド欄表示名 != ""
+								LOCALS += @"%弱点コマンド欄表示名%]<br>"
+							ELSE
+								LOCALS += @"%TSTR:コマンド名受渡%]<br>"
+							ENDIF
+						ELSE
+							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
+							IF 弱点コマンド欄表示名 != ""
+								LOCALS += @"　[%弱点コマンド欄表示名%]<br>"
+							ELSE
+								LOCALS += @"　[%TSTR:コマンド名受渡%]<br>"
+							ENDIF
+						ENDIF
+					CASE "MODE"
+						LOCALS += @"　[モード：%弱点コマンドSPLIT用配列:1%]<br>"
+				ENDSELECT
+			ENDIF
 		ELSE
 			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
 			IF 弱点コマンド欄表示名 != ""
@@ -1777,31 +1809,50 @@ FOR LOCAL, 0, 8
 			ENDIF
 		ELSEIF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
 			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
-			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
-				CASE 370 TO 374
-					LOCAL:1 = TARGET
-					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					LOCALS += @"　[キャラ固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-					TARGET = LOCAL:1
-				CASE 380 TO 384
-					LOCAL:1 = CFLAG:MASTER:現在位置
-					LOCAL:2 = CFLAG:MASTER:現在マップ種別
-					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
-					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					LOCALS += @"　[場所固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-					CFLAG:MASTER:現在位置 = LOCAL:1
-					CFLAG:MASTER:現在マップ種別 = LOCAL:2
-				CASE 385 TO 389
-					;お祭りコマンドは弱点にしない
-				CASEELSE
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
-					弱点コマンド欄表示名 = 
-					CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
-					LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-			ENDSELECT
+			IF ISNUMERIC(弱点コマンドSPLIT用配列:0)
+				SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
+					CASE 370 TO 374
+						LOCAL:1 = TARGET
+						TARGET = TOINT(弱点コマンドSPLIT用配列:1)
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						LOCALS += @"　[キャラ固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+						TARGET = LOCAL:1
+					CASE 380 TO 384
+						LOCAL:1 = CFLAG:MASTER:現在位置
+						LOCAL:2 = CFLAG:MASTER:現在マップ種別
+						CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
+						CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						LOCALS += @"　[場所固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+						CFLAG:MASTER:現在位置 = LOCAL:1
+						CFLAG:MASTER:現在マップ種別 = LOCAL:2
+					CASE 385 TO 389
+						;お祭りコマンドは弱点にしない
+					CASEELSE
+						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
+						LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
+						弱点コマンド欄表示名 = 
+						CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
+						LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+				ENDSELECT
+			ELSE
+				;_の前部分が数字ではないパターン
+				SELECTCASE 弱点コマンドSPLIT用配列:0
+					CASE "MASSAGE"
+						IF 弱点コマンドSPLIT用配列:2 != ""
+							CALLFORMF COMNAME%弱点コマンドSPLIT用配列:1%
+							LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
+							弱点コマンド欄表示名 = 
+							CALLFORMF MASSAGE_COMNAME_S%弱点コマンドSPLIT用配列:1%_%弱点コマンドSPLIT用配列:2%
+							LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+						ELSE
+							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
+							LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
+						ENDIF
+					CASE "MODE"
+						LOCALS += @"　[モード：%マスク_弱点コマンド(ARG, "", 弱点コマンドSPLIT用配列:1)%]<br>"
+				ENDSELECT
+			ENDIF
 		ELSE
 			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
 			LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
