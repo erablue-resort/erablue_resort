@@ -55,17 +55,20 @@ FOR 対象キャラ, 1, CHARANUM
 	;寝てるとダメ
 	SIF CFLAG:(TARGET:対象キャラ):睡眠
 		CONTINUE
-	;陥落済み必須
-	SIF 陥落チェック(TARGET:対象キャラ) == 0
+	;陥落済みor売春経験必須
+	IF 陥落チェック(TARGET:対象キャラ) && 初体験日:(TARGET:対象キャラ):初うふふ
+		;陥落済みかつうふふ経験済み必須
+	ELSEIF EXP:(TARGET:対象キャラ):売春経験 >= 10
+		;あるいは売春経験必須
+	ELSE
+		;どっちもないならダメ
 		CONTINUE
+	ENDIF
 	;性欲なしはダメ
 	SIF TALENT:(TARGET:対象キャラ):性欲 == -2
 		CONTINUE
 	;無知はダメ
 	SIF 知識素質:(TARGET:対象キャラ):性知識 == -2
-		CONTINUE
-	;うふふ経験済み必須
-	SIF 初体験日:(TARGET:対象キャラ):初うふふ == 0
 		CONTINUE
 	;以下、連れ込みルート分岐
 	IF CFLAG:(TARGET:対象キャラ):中毒欲求不満フラグ >= 3
@@ -107,32 +110,110 @@ NEXT
 SIF 連れ込みキャラ == 0
 	RETURN 0
 
-;共通処理部分
-CFLAG:MASTER:隠密 = 1
-CFLAG:連れ込みキャラ:隠密 = 1
-CFLAG:MASTER:うふふ = 1
-CALL うふふ開始キャラ処理(連れ込みキャラ)
-TARGET = 連れ込みキャラ
-PALAM:連れ込みキャラ:欲情 = 30000
-SIF GETBIT(TALENT:連れ込みキャラ:性別, 0)
-	PALAM:連れ込みキャラ:潤滑 = 30000
 
 DRAWLINE
-IF GETNUM(性癖素質, 連れ込みパターン) > -1
-	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
-	PRINTFORML どうやら[%連れ込みパターン%(中毒)]の欲求が限界のようだ
-	PRINTW 満たされるまでは解放されないだろう…（条件：該当性癖を満たしつつ絶頂１回）
-ELSEIF 連れ込みパターン == "発情期"
-	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
-	PRINTFORML どうやら発情期の強さがピークに達しているようだ
-	PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
-ELSE
-	PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
-	PRINTFORML どうやら性欲が溜まっているところに煽りすぎたようだ
-	PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
+IF 陥落チェック(連れ込みキャラ)
+	;共通処理部分
+	CFLAG:MASTER:隠密 = 1
+	CFLAG:連れ込みキャラ:隠密 = 1
+	CFLAG:MASTER:うふふ = 1
+	CALL うふふ開始キャラ処理(連れ込みキャラ)
+	TARGET = 連れ込みキャラ
+	PALAM:連れ込みキャラ:欲情 = 30000
+	SIF GETBIT(TALENT:連れ込みキャラ:性別, 0)
+		PALAM:連れ込みキャラ:潤滑 = 30000
+
+	IF GETNUM(性癖素質, 連れ込みパターン) > -1
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら[%連れ込みパターン%(中毒)]の欲求が限界のようだ
+		PRINTW 満たされるまでは解放されないだろう…（条件：該当性癖を満たしつつ絶頂１回）
+	ELSEIF 連れ込みパターン == "発情期"
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら発情期の強さがピークに達しているようだ
+		PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
+	ELSE
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら性欲が溜まっているところに煽りすぎたようだ
+		PRINTW 満たされるまでは解放されないだろう…（条件：絶頂３回）
+	ENDIF
+	PRINTL
+	TRYCALLFORM KOJO_EVENT_物陰連れ込み_{NO:連れ込みキャラ}(連れ込みキャラ)
+
+	RETURN 0
+ELSEIF EXP:連れ込みキャラ:売春経験 >= 10
+	IF GETNUM(性癖素質, 連れ込みパターン) > -1
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら[%連れ込みパターン%(中毒)]の欲求が限界のようだ
+	ELSEIF 連れ込みパターン == "発情期"
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら発情期の強さがピークに達しているようだ
+	ELSE
+		PRINTFORML %CALLNAME:MASTER%は%CALLNAME:連れ込みキャラ%に物陰に連れ込まれた…
+		PRINTFORML どうやら性欲が溜まっているところに煽りすぎたようだ
+	ENDIF
+	PRINTW お金を払うから、性欲解消を手伝って欲しいと頼んできている。
+	PRINTL
+	PRINTL どうしようか？
+	PRINTBUTTON "[0] 性欲解消を手伝う", 0
+	PRINTL 
+;	PRINTL 　　…※欲求に応じた額のルピを入手・各種EXPが増加・30分経過
+	PRINTL 　　…※１万ルピを入手・各種EXPが増加・30分経過
+	PRINTL 
+	PRINTBUTTON "[1] 体力の限界までイかせてやる", 1
+	PRINTL 
+;	PRINTL 　　…※欲求に応じた額のルピを入手・各種EXPが大きく増加・相手がダウン状態になる・120分経過
+	PRINTL 　　…※２万ルピを入手・各種EXPが大きく増加・相手がダウン状態になる・120分経過
+	PRINTL 
+	PRINTBUTTON "[9] 断る", 9
+	PRINTL 
+	PRINTL 　　…※一日終了時に必ず対象キャラの夜這いorオナニーが発生（未実装）
+	PRINTL 
+	PRINTL
+	BINPUT
+	SELECTCASE RESULT
+		CASE 0
+			MONEY += 10000
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:連れ込みキャラ%の申し出を受け、性欲解消を手伝ってあげた。
+			PRINTL
+			TRYCALLFORM KOJO_EVENT_逆性処理_通常_{NO:連れ込みキャラ}(連れ込みキャラ)
+			CALL 逆性処理_EXP増加処理(連れ込みキャラ, 0)
+			TIME += 30
+		CASE 1
+			MONEY += 20000
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:連れ込みキャラ%の申し出を受け、体力の限界まで絶頂を味あわせてあげた。
+			PRINTL
+			TRYCALLFORM KOJO_EVENT_逆性処理_限界_{NO:連れ込みキャラ}(連れ込みキャラ)
+			CALL 逆性処理_EXP増加処理(連れ込みキャラ, 1)
+			BASE:連れ込みキャラ:体力 = 0
+			PRINTFORML （%CALLNAME:連れ込みキャラ%の体力が限界に来ています）
+			TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:連れ込みキャラ}(連れ込みキャラ)
+			FORCEWAIT
+			TCVAR:連れ込みキャラ:食いしばりフラグ = 0
+			CFLAG:連れ込みキャラ:体力限界 = 1
+			CFLAG:連れ込みキャラ:一緒に遊ぶ = 0
+			CFLAG:連れ込みキャラ:同行 = 0
+			CFLAG:連れ込みキャラ:デート = 0
+			CFLAG:連れ込みキャラ:隠密 = 0
+			EXP:連れ込みキャラ:ダウン経験 += 1
+			;経験取得表示スキップ用
+			TCVAR:連れ込みキャラ:436 = EXP:連れ込みキャラ:ダウン経験
+			IF AUTOCOM_相手番号保存 == 連れ込みキャラ
+				TFLAG:オートコマンドフラグ = 0
+				AUTOCOM_相手番号保存 = 0
+				自慰ターゲット保存 = -1
+			ENDIF
+			;モードもリセット
+			CALL 特定キャラモードリセット(連れ込みキャラ)
+			TIME += 120
+		CASE 9
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:連れ込みキャラ%の申し出を断った。
+			PRINTL
+			TRYCALLFORM KOJO_EVENT_逆性処理_断り_{NO:連れ込みキャラ}(連れ込みキャラ)
+	ENDSELECT
+	連れ込みパターン = 
+	TCVAR:連れ込みキャラ:連れ込み済フラグ = 1
+	RETURN 1
 ENDIF
-PRINTL
-TRYCALLFORM KOJO_EVENT_物陰連れ込み_{NO:連れ込みキャラ}(連れ込みキャラ)
 
 @連れ込み条件セット(対象キャラ)
 #FUNCTION
@@ -180,3 +261,460 @@ FOR ループ用, 0, 100
 NEXT
 
 RETURNF 性欲閾値
+
+@逆性処理_EXP増加処理(対象キャラ, ダウンフラグ = 0)
+#DIM 対象キャラ
+#DIM ダウンフラグ
+#DIM 係数
+#DIM 絶頂保存
+#DIM ZP保存
+
+係数 = 1
+SIF ダウンフラグ
+	係数 = MIN(10, MAXBASE:対象キャラ:体力 / 333)
+;体力1000で3倍、最大10倍
+
+ZP保存 = 0
+;内容は連れ込みパターンで分岐
+EXP:対象キャラ:肉体熟知 += RAND(50 * 係数, 150 * 係数)
+SELECTCASE 連れ込みパターン
+	CASE "一般"
+		EXP:対象キャラ:Ｃ経験 += RAND(15, 20) * 係数
+		絶頂保存 = RAND(1 * 係数, 3 * 係数)
+		ZP保存 += 絶頂保存
+		EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+		IF 初体験日:対象キャラ:Ｖ挿入初体験_男側 && EXP:PLAYER:Ｖ性交経験 > 0
+			EXP:PLAYER:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+			EXP:PLAYER:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			EXP:PLAYER:Ｖ絶頂経験 += 絶頂保存
+			EXP:PLAYER:膣内射精絶頂経験 += 絶頂保存
+			;妊娠処理用に膣内射精された精液を計上
+			CALL TAKE_SPERM(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		IF 初体験日:対象キャラ:Ａ挿入初体験_男側 && EXP:PLAYER:Ａ性交経験 > 0
+			EXP:PLAYER:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+			SIF GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:PLAYER:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ａ絶頂経験 += 絶頂保存
+			EXP:PLAYER:腸内射精絶頂経験 += 絶頂保存
+			;射精された精液を計上
+			CALL TAKE_SPERM_A(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		EXP:対象キャラ:Ｂ経験 += RAND(0, 5) * 係数
+		EXP:対象キャラ:Ｓ経験 += RAND(15, 20) * 係数
+		IF GETBIT(TALENT:対象キャラ:性別, 0)
+			EXP:対象キャラ:Ｂ経験 += RAND(10, 15) * 係数
+			EXP:対象キャラ:Ｖ経験 += RAND(15, 20) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｂ絶頂経験 += 絶頂保存
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ｖ挿入初体験
+				EXP:対象キャラ:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+				EXP:対象キャラ:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:膣内射精絶頂経験 += 絶頂保存
+				;妊娠処理用に膣内射精された精液を計上
+				CALL TAKE_SPERM(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+		IF EXP:対象キャラ:Ａ経験 > 0
+			EXP:対象キャラ:Ａ経験 += RAND(15, 20) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ａ挿入初体験 && GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:対象キャラ:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+				SIF GETBIT(TALENT:対象キャラ:性別, 1)
+					EXP:対象キャラ:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(3 * 係数, 5 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:腸内射精絶頂経験 += 絶頂保存
+				;射精された精液を計上
+				CALL TAKE_SPERM_A(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+
+		IF GETBIT(TALENT:対象キャラ:性別, 1)
+			EXP:対象キャラ:射精経験 += ZP保存 * RAND(80, 90) / 100
+		ENDIF
+	CASE "発情期"
+		EXP:対象キャラ:Ｃ経験 += RAND(15, 20) * 係数
+		絶頂保存 = RAND(1 * 係数, 3 * 係数)
+		ZP保存 += 絶頂保存
+		EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+		IF 初体験日:対象キャラ:Ｖ挿入初体験_男側 && EXP:PLAYER:Ｖ性交経験 > 0
+			EXP:PLAYER:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+			EXP:PLAYER:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			EXP:PLAYER:Ｖ絶頂経験 += 絶頂保存
+			EXP:PLAYER:膣内射精絶頂経験 += 絶頂保存
+			;妊娠処理用に膣内射精された精液を計上
+			CALL TAKE_SPERM(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		IF 初体験日:対象キャラ:Ａ挿入初体験_男側 && EXP:PLAYER:Ａ性交経験 > 0
+			EXP:PLAYER:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+			SIF GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:PLAYER:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ａ絶頂経験 += 絶頂保存
+			EXP:PLAYER:腸内射精絶頂経験 += 絶頂保存
+			;射精された精液を計上
+			CALL TAKE_SPERM_A(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		EXP:対象キャラ:Ｂ経験 += RAND(0, 5) * 係数
+		EXP:対象キャラ:Ｓ経験 += RAND(5, 10) * 係数
+		IF GETBIT(TALENT:対象キャラ:性別, 0)
+			EXP:対象キャラ:Ｂ経験 += RAND(5, 10) * 係数
+			EXP:対象キャラ:Ｖ経験 += RAND(10, 15) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｂ絶頂経験 += 絶頂保存
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ｖ挿入初体験
+				EXP:対象キャラ:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+				EXP:対象キャラ:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:膣内射精絶頂経験 += 絶頂保存
+				;妊娠処理用に膣内射精された精液を計上
+				CALL TAKE_SPERM(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+		IF EXP:対象キャラ:Ａ経験 > 0
+			EXP:対象キャラ:Ａ経験 += RAND(10, 25) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ａ挿入初体験 && GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:対象キャラ:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+				SIF GETBIT(TALENT:対象キャラ:性別, 1)
+					EXP:対象キャラ:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(3 * 係数, 5 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:腸内射精絶頂経験 += 絶頂保存
+				;射精された精液を計上
+				CALL TAKE_SPERM_A(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+
+		IF GETBIT(TALENT:対象キャラ:性別, 1)
+			EXP:対象キャラ:射精経験 += ZP保存 * RAND(80, 90) / 100
+		ENDIF
+	CASE "精飲"
+			EXP:対象キャラ:口淫経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ｓ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ｓ絶頂経験 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｓ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:精飲経験 += 絶頂保存
+			EXP:対象キャラ:精飲絶頂経験 += 絶頂保存
+
+			EXP:PLAYER:Ｃ経験 += RAND(30 * 係数, 50 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+			EXP:PLAYER:射精経験 += 絶頂保存
+	CASE "膣内射精"
+			EXP:対象キャラ:Ｖ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ｖ性交経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ｇスポ開発 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:ポルチオ開発 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:膣内射精絶頂経験 += 絶頂保存
+			;妊娠処理用に膣内射精された精液を計上
+			CALL TAKE_SPERM(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+			EXP:PLAYER:Ｃ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:PLAYER:Ｃ性交経験_Ｖ挿入 += RAND(30 * 係数, 50 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+			EXP:PLAYER:射精経験 += 絶頂保存
+	CASE "腸内射精"
+			EXP:対象キャラ:Ａ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ａ性交経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:対象キャラ:Ｓ字結腸開発 += RAND(5 * 係数, 10 * 係数)
+			SIF GETBIT(TALENT:対象キャラ:性別, 1)
+				EXP:対象キャラ:前立腺開発 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:腸内射精絶頂経験 += 絶頂保存
+			;射精された精液を計上
+			CALL TAKE_SPERM_A(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+			EXP:PLAYER:Ｃ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:PLAYER:Ｃ性交経験_Ａ挿入 += RAND(30 * 係数, 50 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+			EXP:PLAYER:射精経験 += 絶頂保存
+	CASE "逆アナル"
+			EXP:PLAYER:Ａ経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:PLAYER:Ａ性交経験 += RAND(30 * 係数, 50 * 係数)
+			EXP:PLAYER:Ｓ字結腸開発 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:前立腺開発 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ａ絶頂経験 += 絶頂保存
+			IF GETBIT(TALENT:対象キャラ:性別, 1)
+				;ふたなり
+				EXP:PLAYER:腸内射精絶頂経験 += 絶頂保存
+
+				EXP:対象キャラ:Ｃ経験 += RAND(30 * 係数, 50 * 係数)
+				EXP:対象キャラ:Ｃ性交経験_Ａ挿入 += RAND(30 * 係数, 50 * 係数)
+				絶頂保存 = RAND(3 * 係数, 5 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:射精経験 += 絶頂保存
+				;射精された精液を計上
+				CALL TAKE_SPERM_A(PLAYER, 対象キャラ, 絶頂保存 * 30)
+			ELSE
+				;女
+				EXP:対象キャラ:Ｖ経験 += RAND(30 * 係数, 50 * 係数)
+				EXP:対象キャラ:Ｃ性交経験_Ａ挿入 += RAND(30 * 係数, 50 * 係数)
+				絶頂保存 = RAND(3 * 係数, 5 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			ENDIF
+	CASE "搾乳プレイ"
+		EXP:対象キャラ:Ｂ経験 += RAND(30 * 係数, 50 * 係数)
+		EXP:対象キャラ:乳首開発 += RAND(5 * 係数, 10 * 係数)
+		EXP:対象キャラ:苦痛快楽経験 += RAND(5 * 係数, 10 * 係数)
+		EXP:対象キャラ:搾乳快楽経験 += RAND(5 * 係数, 10 * 係数)
+		絶頂保存 = RAND(3 * 係数, 5 * 係数)
+		ZP保存 += 絶頂保存
+		EXP:対象キャラ:Ｂ絶頂経験 += 絶頂保存
+		SIF TALENT:対象キャラ:母乳体質
+			EXP:対象キャラ:噴乳経験 += 絶頂保存
+	CASE "触手プレイ"
+		EXP:対象キャラ:緊縛経験 += RAND(5, 10) * 係数
+		EXP:対象キャラ:Ｃ経験 += RAND(15, 20) * 係数
+		絶頂保存 = RAND(1 * 係数, 3 * 係数)
+		ZP保存 += 絶頂保存
+		EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+		EXP:対象キャラ:Ｂ経験 += RAND(0, 5) * 係数
+		EXP:対象キャラ:Ｓ経験 += RAND(5, 10) * 係数
+		IF GETBIT(TALENT:対象キャラ:性別, 0)
+			EXP:対象キャラ:Ｂ経験 += RAND(5, 10) * 係数
+			EXP:対象キャラ:Ｖ経験 += RAND(10, 15) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｂ絶頂経験 += 絶頂保存
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ｖ挿入初体験
+				EXP:対象キャラ:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+				EXP:対象キャラ:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			ENDIF
+		ENDIF
+		IF EXP:対象キャラ:Ａ経験 > 0
+			EXP:対象キャラ:Ａ経験 += RAND(10, 25) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+		ENDIF
+		EXP:対象キャラ:触手快楽経験 += ZP保存 * RAND(110, 120) / 100
+		EXP:対象キャラ:触手絶頂経験 += ZP保存 * RAND(80, 90) / 100
+
+		IF GETBIT(TALENT:対象キャラ:性別, 1)
+			EXP:対象キャラ:射精経験 += ZP保存 * RAND(80, 90) / 100
+		ENDIF
+	CASE "首絞め"
+		EXP:対象キャラ:Ｃ経験 += RAND(15, 20) * 係数
+		絶頂保存 = RAND(1 * 係数, 3 * 係数)
+		ZP保存 += 絶頂保存
+		EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+		IF 初体験日:対象キャラ:Ｖ挿入初体験_男側 && EXP:PLAYER:Ｖ性交経験 > 0
+			EXP:PLAYER:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+			EXP:PLAYER:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			EXP:PLAYER:Ｖ絶頂経験 += 絶頂保存
+			EXP:PLAYER:膣内射精絶頂経験 += 絶頂保存
+			;妊娠処理用に膣内射精された精液を計上
+			CALL TAKE_SPERM(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		IF 初体験日:対象キャラ:Ａ挿入初体験_男側 && EXP:PLAYER:Ａ性交経験 > 0
+			EXP:PLAYER:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:PLAYER:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+			SIF GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:PLAYER:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+			絶頂保存 = RAND(3 * 係数, 5 * 係数)
+			EXP:PLAYER:Ａ絶頂経験 += 絶頂保存
+			EXP:PLAYER:腸内射精絶頂経験 += 絶頂保存
+			;射精された精液を計上
+			CALL TAKE_SPERM_A(PLAYER, 対象キャラ, 絶頂保存 * 30)
+
+			EXP:対象キャラ:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+			EXP:対象キャラ:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｃ絶頂経験 += 絶頂保存
+			EXP:対象キャラ:射精経験 += 絶頂保存
+		ENDIF
+		EXP:対象キャラ:Ｂ経験 += RAND(0, 5) * 係数
+		EXP:対象キャラ:Ｓ経験 += RAND(5, 10) * 係数
+		IF GETBIT(TALENT:対象キャラ:性別, 0)
+			EXP:対象キャラ:Ｂ経験 += RAND(5, 10) * 係数
+			EXP:対象キャラ:Ｖ経験 += RAND(10, 15) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｂ絶頂経験 += 絶頂保存
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ｖ挿入初体験
+				EXP:対象キャラ:Ｖ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｇスポ開発 += RAND(1 * 係数, 3 * 係数)
+				EXP:対象キャラ:ポルチオ開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ｖ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:膣内射精絶頂経験 += 絶頂保存
+				;射精された精液を計上
+				CALL TAKE_SPERM(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ｖ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+		IF EXP:対象キャラ:Ａ経験 > 0
+			EXP:対象キャラ:Ａ経験 += RAND(10, 25) * 係数
+			絶頂保存 = RAND(1 * 係数, 2 * 係数)
+			ZP保存 += 絶頂保存
+			EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+			IF 初体験日:対象キャラ:Ａ挿入初体験 && GETBIT(TALENT:PLAYER:性別, 1)
+				EXP:対象キャラ:Ａ性交経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:対象キャラ:Ｓ字結腸開発 += RAND(1 * 係数, 3 * 係数)
+				SIF GETBIT(TALENT:対象キャラ:性別, 1)
+					EXP:対象キャラ:前立腺開発 += RAND(1 * 係数, 3 * 係数)
+				絶頂保存 = RAND(3 * 係数, 5 * 係数)
+				ZP保存 += 絶頂保存
+				EXP:対象キャラ:Ａ絶頂経験 += 絶頂保存
+				EXP:対象キャラ:腸内射精絶頂経験 += 絶頂保存
+				;射精された精液を計上
+				CALL TAKE_SPERM_A(対象キャラ, PLAYER, 絶頂保存 * 30)
+
+				EXP:PLAYER:Ｃ経験 += RAND(5 * 係数, 10 * 係数)
+				EXP:PLAYER:Ｃ性交経験_Ａ挿入 += RAND(5 * 係数, 10 * 係数)
+				絶頂保存 = RAND(1 * 係数, 2 * 係数)
+				EXP:PLAYER:Ｃ絶頂経験 += 絶頂保存
+				EXP:PLAYER:射精経験 += 絶頂保存
+			ENDIF
+		ENDIF
+		EXP:対象キャラ:苦痛快楽経験 += ZP保存 * RAND(110, 120) / 100
+		EXP:対象キャラ:苦痛絶頂経験 += ZP保存 * RAND(80, 90) / 100
+		EXP:対象キャラ:首絞め絶頂経験 += ZP保存 * RAND(80, 90) / 100
+
+		IF GETBIT(TALENT:対象キャラ:性別, 1)
+			EXP:対象キャラ:射精経験 += ZP保存 * RAND(80, 90) / 100
+		ENDIF
+ENDSELECT
+
+CALL EXP取得表示_指定キャラ(対象キャラ)
+CALL EXP変動記録処理(対象キャラ)
+;-------------------------------------------------
+;ZPの取得量表示
+;-------------------------------------------------
+IF ZP保存
+	PRINTL
+	PRINTFORM ZP:{FLAG:ZP所持量}
+	PRINTFORM  + {ZP保存}(%CALLNAME:対象キャラ%)
+	FLAG:ZP所持量 += ZP保存
+	PRINTFORML = {FLAG:ZP所持量}
+ENDIF
+
+PRINTL
+PRINTL
+PRINTL
+WAIT
+PRINTL
+PRINTL
+PRINTL
