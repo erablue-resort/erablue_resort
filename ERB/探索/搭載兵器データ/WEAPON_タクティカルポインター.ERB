@@ -52,155 +52,18 @@ SELECTCASE 処理モード
 		LOCALS += "　　　　（バフ・デバフ効果は引き継がない）<br>"
 		詳細文文字列受け渡し変数 = %LOCALS%
 	CASE "アビ効果"
-		CALL サブメンバー交代処理_戦闘中()
-		SIF RESULT == 0
+		IF BATTLE_STATE:10:キャラ登録番号 <= 0
+			CALL 口上変数初期化
+			WSTR:(K++) = サブメンバーが搭乗していません
+			CALL メッセージ欄表示用関数(,,,0)
 			アビテンプレート用_キャンセルフラグ = 1
+			RETURN
+		ELSE
+			CALL サブメンバー交代処理_戦闘中()
+			SIF RESULT == 0
+				アビテンプレート用_キャンセルフラグ = 1
+		ENDIF
 ENDSELECT
 
 ;兵装開発では出現しない（入手法：ダンジョン「風遊ぶ渓谷の参道」でボス「ティアマト」を初回撃破することで実物を入手。設計図は入手不能。周回含め１個制限）
 ;@兵器開発対象_タクティカルポインター(処理モード)
-
-
-@サブメンバー交代処理_戦闘中()
-#DIM 交代候補_メイン
-#DIM 交代候補_サブ
-#DIMS 描画用
-#DIM INPUT保存
-#DIM ループ用
-#DIM 戦闘行動キャラ保存用
-
-交代候補_メイン = -1
-交代候補_サブ = -1
-
-;全員分の画像を再生成
-CALL 探索用顔グラフィック生成
-CALL DUNGEON_キャラ描画
-
-DO
-	DRAWLINE
-	PRINTL メインメンバーとサブメンバーを入れ替えることが出来ます。
-	PRINTL 入れ替えたいキャラを左右それぞれで選んでください。
-	DRAWLINE
-	;順番に並べる
-	描画用 = 
-	描画用 += "<div rect='2887,1530, 500, 200'>←→</div>"
-	FOR ループ用, 10, 14
-		SIF BATTLE_STATE:ループ用:キャラ登録番号 < 1
-			BREAK
-		描画用 += @"<div rect='100, {(ループ用 - 10) * 790}, 2500, 5000'>"
-		IF 交代候補_サブ == ループ用
-			描画用 += @"<button value='{ループ用}' ><img src='キャラ_{ループ用}_ボタン' height='750' width='2462'></button>"
-		ELSE
-			描画用 += @"<button value='{ループ用}' ><img src='キャラ_{ループ用}' srcb='キャラ_{ループ用}_ボタン' height='750' width='2462'></button>"
-		ENDIF
-		描画用 += "</div>"
-	NEXT
-	FOR ループ用, 0, 4
-		SIF BATTLE_STATE:ループ用:キャラ登録番号 < 1
-			BREAK
-		描画用 += @"<div rect='3375,{ループ用 * 790}, 2500, 1000'>"
-		IF 交代候補_メイン == ループ用
-			描画用 += @"<button value='{ループ用}' ><img src='キャラ_{ループ用}_ボタン' height='750' width='2462'></button>"
-		ELSE
-			描画用 += @"<button value='{ループ用}' ><img src='キャラ_{ループ用}' srcb='キャラ_{ループ用}_ボタン' height='750' width='2462'></button>"
-		ENDIF
-		描画用 += "</div>"
-	NEXT
-	HTML_PRINT 描画用
-	FOR ループ用, 0, 29
-		PRINTL
-	NEXT
-	PRINTBUTTON "[999] 戻る", 999
-	PRINTL
-	PRINTL
-
-	BINPUT
-	INPUT保存 = RESULT
-	SELECTCASE INPUT保存
-		CASE 0 TO 3
-			IF INPUT保存 != 交代候補_メイン
-				交代候補_メイン = INPUT保存
-			ELSE
-				交代候補_メイン = -1
-			ENDIF
-		CASE 10 TO 13
-			IF INPUT保存 != 交代候補_サブ
-				交代候補_サブ = INPUT保存
-			ELSE
-				交代候補_サブ = -1
-			ENDIF
-		CASE 999
-			RETURN 0
-	ENDSELECT
-LOOP !INRANGE(交代候補_メイン, 0, 3) || !INRANGE(交代候補_サブ, 10, 13)
-
-;交代処理
-FOR ループ用, 0, VARSIZE("BATTLE_STATE", 2)
-	;行動済みフラグはそのまま
-	SIF ループ用 == GETNUM(BATTLE_STATE, "行動済みフラグ", 2)
-		CONTINUE
-	SWAP BATTLE_STATE:交代候補_サブ:ループ用, BATTLE_STATE:交代候補_メイン:ループ用
-NEXT
-FOR ループ用, 0, VARSIZE("探索中カウント", 2)
-	探索中カウント:交代候補_メイン:ループ用 += 戦闘中カウント:交代候補_メイン:ループ用
-	戦闘中カウント:交代候補_メイン:ループ用 = 0
-	SWAP 探索中カウント:交代候補_サブ:ループ用, 探索中カウント:交代候補_メイン:ループ用
-NEXT
-
-;メインメンバー特有の変数やデバフをリセット
-FOR ループ用, 0, VARSIZE("行動種別フラグ", 2)
-	行動種別フラグ:交代候補_メイン:ループ用 = 0
-NEXT
-ループ用 = FINDELEMENT(チェンバ基準キャラ保存, 交代候補_メイン)
-WHILE ループ用 >= 0
-	ARRAYSHIFT チェンバ基準キャラ保存, -1, -1, ループ用
-	ターン中奥義回数保存 --
-	ループ用 = FINDELEMENT(チェンバ基準キャラ保存, 交代候補_メイン)
-WEND
-;固有バフなどが残って変なことになりそうなので、仕方なく引き継がない
-CALL 戦闘効果直接削除(交代候補_メイン, "ALL", "", "ALL")
-
-PRINTFORMW %CALLNAME:(BATTLE_STATE:交代候補_サブ:キャラ登録番号)%と%CALLNAME:(BATTLE_STATE:交代候補_メイン:キャラ登録番号)%を交代しました。
-
-;戦闘開始時のキャラ固有処理を行う
-戦闘行動キャラ保存用 = 戦闘行動キャラ
-戦闘行動キャラ = RESULT
-CALL 口上変数初期化
-CALL アビテンプレ変数リセット
-
-;指輪を見る
-TRYCCALLFORM 固有戦闘開始時処理_指輪_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号):装備指輪番号, "指輪名", 1)%()
-	;表示処理
-	CALL アビテンプレート用_表示メッセージ変換処理
-	SIF K > 0
-		CALL メッセージ欄表示用関数(,,,0)
-	CALL 口上変数初期化
-	CALL アビテンプレ変数リセット
-CATCH
-ENDCATCH
-
-;ジョブ証を見る
-TRYCCALLFORM 固有戦闘開始時処理_ジョブ証_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号):装備証番号, "ジョブ証名", 1)%()
-	;表示処理
-	CALL アビテンプレート用_表示メッセージ変換処理
-	SIF K > 0
-		CALL メッセージ欄表示用関数(,,,0)
-	CALL 口上変数初期化
-	CALL アビテンプレ変数リセット
-CATCH
-ENDCATCH
-
-;キャラを見る
-TRYCCALLFORM 固有戦闘開始時処理_キャラ_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}()
-	;表示処理
-	CALL アビテンプレート用_表示メッセージ変換処理
-	SIF K > 0
-		CALL メッセージ欄表示用関数(,,,0)
-	CALL 口上変数初期化
-	CALL アビテンプレ変数リセット
-CATCH
-ENDCATCH
-
-戦闘行動キャラ = 戦闘行動キャラ保存用
-CALL 探索用顔グラフィック生成()
-RETURN 1
