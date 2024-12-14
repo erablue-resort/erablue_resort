@@ -1,0 +1,87 @@
+﻿
+@アイテム個別文章表示_ポテトフライＬ(ARGS)
+;ポテトフライＬ
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 3980
+ENDIF
+
+LOCALS = 
+LOCALS += @"■ポテトフライＬ　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "ポテトフライＬ")}<br>"
+LOCALS += "芋を油で揚げた罪深い食べ物のＬサイズ。<br>"
+LOCALS += "基本的にシェア推奨の一品。<br>"
+LOCALS += "食べると元気が湧いてきて、体力と魔力が回復する。<br>"
+LOCALS += "戦闘中に使用することは出来ない。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方全体のＨＰを［２０００÷人数］、<br>"
+LOCALS += "ＭＰを［２００÷人数］回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_ポテトフライＬ
+;戦闘時使用不可
+CALL 汎用使用先表示("味方単体", -1)
+
+@アイテム効果処理_ポテトフライＬ(隊列番号)
+#DIM CONST 基礎HP回復量 = 2000
+#DIM CONST 基礎MP回復量 = 200
+#DIM 人数
+#DIM 隊列番号
+#DIM HP回復量
+#DIM MP回復量
+;ARG = 隊列の何番目か
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "ポテトフライＬ") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+人数 = 0
+;人数取得
+FOR 隊列番号, 0, 14
+	SIF 隊列番号 > 3 && 隊列番号 < 10
+		CONTINUE
+	SIF !BATTLE_STATE:隊列番号:キャラ登録番号
+		CONTINUE
+	SIF BATTLE_STATE:隊列番号:ＨＰ < 1
+		CONTINUE
+	人数 ++
+NEXT
+
+HP回復量 = 基礎HP回復量 / 人数
+MP回復量 = 基礎MP回復量 / 人数
+
+人数 = 0
+FOR 隊列番号, 0, 14
+	SIF 隊列番号 > 3 && 隊列番号 < 10
+		CONTINUE
+	SIF !BATTLE_STATE:隊列番号:キャラ登録番号
+		CONTINUE
+	SIF BATTLE_STATE:隊列番号:最大ＨＰ == BATTLE_STATE:隊列番号:ＨＰ && BATTLE_STATE:隊列番号:最大ＭＰ == BATTLE_STATE:隊列番号:ＭＰ
+		CONTINUE
+
+	IF BATTLE_STATE:隊列番号:最大ＨＰ - BATTLE_STATE:隊列番号:ＨＰ < HP回復量
+		PRINTFORMW %CALLNAME:(BATTLE_STATE:隊列番号:キャラ登録番号)%のＨＰを{BATTLE_STATE:隊列番号:最大ＨＰ - BATTLE_STATE:隊列番号:ＨＰ}回復しました
+	ELSE
+		PRINTFORMW %CALLNAME:(BATTLE_STATE:隊列番号:キャラ登録番号)%のＨＰを{HP回復量}回復しました
+	ENDIF
+	IF BATTLE_STATE:隊列番号:最大ＭＰ - BATTLE_STATE:隊列番号:ＭＰ < MP回復量
+		PRINTFORMW %CALLNAME:(BATTLE_STATE:隊列番号:キャラ登録番号)%のＭＰを{BATTLE_STATE:隊列番号:最大ＭＰ - BATTLE_STATE:隊列番号:ＭＰ}回復しました
+	ELSE
+		PRINTFORMW %CALLNAME:(BATTLE_STATE:隊列番号:キャラ登録番号)%のＭＰを{MP回復量}回復しました
+	ENDIF
+
+	BATTLE_STATE:隊列番号:ＨＰ = MIN(BATTLE_STATE:隊列番号:ＨＰ + HP回復量, BATTLE_STATE:隊列番号:最大ＨＰ)
+	BATTLE_STATE:隊列番号:ＭＰ = MIN(BATTLE_STATE:隊列番号:ＭＰ + MP回復量, BATTLE_STATE:隊列番号:最大ＭＰ)
+	人数 ++
+NEXT
+
+IF 人数 > 0
+	WAIT
+ELSE
+	PRINTW 回復可能な対象がいません。
+	RETURN 0
+ENDIF
+
+RETURN 1

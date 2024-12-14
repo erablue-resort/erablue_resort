@@ -1,0 +1,63 @@
+﻿
+@アイテム個別文章表示_ビッグバーガー(ARGS)
+;ビッグバーガー
+IF ARGS == "値段"
+	詳細文文字列受け渡し変数 = ルピ
+	RETURN 1480
+ENDIF
+
+LOCALS = 
+LOCALS += @"■ビッグバーガー　　　所持数:{DT_CELL_GET("所持アイテムデータベース", 0, "ビッグバーガー")}<br>"
+LOCALS += "肉、野菜、目玉焼きを沢山挟んだ美味しいバーガー。<br>"
+LOCALS += "ドラフの男性も満足のドデカサイズ。<br>"
+LOCALS += "食べると元気が湧いてきて、体力と魔力が回復する。<br>"
+LOCALS += "戦闘中に使用することは出来ない。<br>"
+LOCALS += "<br>"
+LOCALS += "【効果】<br>"
+LOCALS += "味方単体のＨＰを[１０００]、ＭＰを[１５０]回復する。<br>"
+
+詳細文文字列受け渡し変数 = %LOCALS%
+
+@アイテム使用先表示_ビッグバーガー
+;戦闘時使用不可
+CALL 汎用使用先表示("味方単体", -1)
+
+@アイテム効果処理_ビッグバーガー(ARG)
+#DIM CONST HP回復量 = 1000
+#DIM CONST MP回復量 = 150
+;ARG = 隊列の何番目か
+
+IF !BATTLE_STATE:ARG:キャラ登録番号
+	RETURN 0
+ENDIF
+
+IF DT_CELL_GET("所持アイテムデータベース", 0, "ビッグバーガー") < 1
+	PRINTW アイテムがありません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＨＰ == BATTLE_STATE:ARG:ＨＰ && BATTLE_STATE:ARG:最大ＭＰ == BATTLE_STATE:ARG:ＭＰ
+	PRINTW ＨＰとＭＰが最大です
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:ＨＰ < 1
+	PRINTW 戦闘不能は治療出来ません
+	RETURN 0
+ENDIF
+
+IF BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ < HP回復量
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:キャラ登録番号)%のＨＰを{BATTLE_STATE:ARG:最大ＨＰ - BATTLE_STATE:ARG:ＨＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:キャラ登録番号)%のＨＰを{HP回復量}回復しました
+ENDIF
+IF BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ < MP回復量
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:キャラ登録番号)%のＭＰを{BATTLE_STATE:ARG:最大ＭＰ - BATTLE_STATE:ARG:ＭＰ}回復しました
+ELSE
+	PRINTFORMW %CALLNAME:(BATTLE_STATE:ARG:キャラ登録番号)%のＭＰを{MP回復量}回復しました
+ENDIF
+
+BATTLE_STATE:ARG:ＨＰ = MIN(BATTLE_STATE:ARG:ＨＰ + HP回復量, BATTLE_STATE:ARG:最大ＨＰ)
+BATTLE_STATE:ARG:ＭＰ = MIN(BATTLE_STATE:ARG:ＭＰ + MP回復量, BATTLE_STATE:ARG:最大ＭＰ)
+
+RETURN 1
