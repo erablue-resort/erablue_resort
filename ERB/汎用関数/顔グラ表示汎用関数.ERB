@@ -11,6 +11,7 @@
 #DIM size
 #DIM 文字列記録フラグ
 #DIM デフォルト生成
+#DIM debugtime
 
 ;リソース解放
 SPRITEDISPOSE @"顔グラ{g_loop}"
@@ -26,6 +27,8 @@ ENDIF
 
 VARSET 差分エフェクト
 
+debugtime = GETTIME()
+DEBUGPRINTFORML １：{GETTIME() - debugtime}
 IF デフォルト生成 == 0
 	IF ダンジョン表示モード == ""
 		グラ表示用一時文字列_短冊 = %グラ表示用文字列算出(ARG, "短冊_")%
@@ -36,62 +39,65 @@ IF デフォルト生成 == 0
 		グラ表示用一時文字列_顔 = %GETVARS(@"探索中顔グラ保存:(キャラ隊列検索(ARG)):%探索中顔グラキー:(キャラ隊列検索(ARG))%")%
 	ENDIF
 ENDIF
+DEBUGPRINTFORML ２：{GETTIME() - debugtime}
 
 IF グラ表示用一時文字列_顔 == "" || デフォルト生成
-	RESULTS:(2 + g_loop) = 顔_デフォルト.png
-	GCREATEFROMFILE 1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/顔_デフォルト.png"
+	RESULTS:(2 + g_loop) = 顔_デフォルト
+	CALLF GCREATE_拡張子F(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/顔_デフォルト")
 	SIF 文字列記録フラグ
-		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_デフォルト.png
+		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_デフォルト
+DEBUGPRINTFORML ３：{GETTIME() - debugtime}：%CALLNAME:ARG%
 ELSE
-	RESULTS:(2 + g_loop) = %グラ表示用一時文字列_顔%.png
-	GCREATEFROMFILE 1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png"
+	RESULTS:(2 + g_loop) = %グラ表示用一時文字列_顔%
+	CALLF GCREATE_拡張子F(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%")
 	SIF 文字列記録フラグ
-		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%.png
+		RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_顔%
+DEBUGPRINTFORML ４：{GETTIME() - debugtime}：%CALLNAME:ARG%
 ENDIF
 
 IF RESULT == 0 && GCREATED(1000 + g_loop) == 0
 	;該当画像が無い場合
 	IF グラ表示用一時文字列_顔 == ""
 		;そもそもデフォルト画像が無い場合はNoimage画像で返す。差分エフェクトも無し
-		GCREATEFROMFILE 1000 + g_loop, @"Noimage_顔.png"
-		RESULTS:(2 + g_loop) = Noimage_顔.png
+		CALLF GCREATE_拡張子F(1000 + g_loop, @"Noimage_顔")
+		RESULTS:(2 + g_loop) = Noimage_顔
 		SIF 文字列記録フラグ
 			RSTR:表示グラ記録 = 
 		立ち絵リソース記録 = 顔ノーイメ
 		RETURNF @"<img src='顔ノーイメ' width='{size}' height='{size}' ypos='{y_pos}'>"
-	ELSEIF GCREATEFROMFILE(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%.png")
+	ELSEIF GCREATE_拡張子F(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%")
 		;設定中の短冊グラが存在すればそちらをトリミングで表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
 		画像サイズ切り替えOPTION記憶:1 = 0
 		SIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)
 			LOCALS '= @"<img src='顔グラ{g_loop}' width='{size}' height='{size}' ypos='{y_pos}'>"
 		画像サイズ切り替えOPTION記憶:1 = LOCAL
-		RESULTS:(2 + g_loop) = %グラ表示用一時文字列_短冊%.png
+		RESULTS:(2 + g_loop) = %グラ表示用一時文字列_短冊%
 		SIF 文字列記録フラグ
-			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%.png
-	ELSEIF GCREATEFROMFILE(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/顔_デフォルト.png")
+			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/%グラ表示用一時文字列_短冊%
+	ELSEIF GCREATE_拡張子F(1000 + g_loop, @"%CSTR:ARG:画像フォルダ%/顔_デフォルト")
 		;変更後画像も設定中の顔グラも無い場合はデフォルト顔を表示させる
 		SIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)
 			LOCALS '= @"<img src='顔グラ{g_loop}' width='{size}' height='{size}' ypos='{y_pos}'>"
-		RESULTS:(2 + g_loop) = 顔_デフォルト.png
+		RESULTS:(2 + g_loop) = 顔_デフォルト
 		SIF 文字列記録フラグ
-			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_デフォルト.png
+			RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_デフォルト
 	ELSE
 		IF CSTR:ARG:汎用立ち絵登録文字列 == "" || OPTION変数:汎用立ち絵制御 == 0
-			GCREATEFROMFILE 1000 + g_loop, @"Noimage_顔.png"
+			CALLF GCREATE_拡張子F(1000 + g_loop, @"Noimage_顔")
 			;どれもない場合はNoimage画像で返す。差分エフェクトも無し
-			RESULTS:(2 + g_loop) = Noimage_顔.png
+			RESULTS:(2 + g_loop) = Noimage_顔
 			SIF 文字列記録フラグ
 				RSTR:表示グラ記録 = 
 			立ち絵リソース記録 = 顔ノーイメ
 			RETURNF @"<img src='顔ノーイメ' width='{size}' height='{size}' ypos='{y_pos}'>"
-		ELSEIF GCREATEFROMFILE(1000 + g_loop, @"汎用グラフィック/顔_%CSTR:ARG:汎用立ち絵登録文字列%.png")
+		ELSEIF GCREATE_拡張子F(1000 + g_loop, @"汎用グラフィック/顔_%CSTR:ARG:汎用立ち絵登録文字列%")
 			;汎用立ち絵登録されてる場合はそれを表示させる
 			SIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)
 				LOCALS '= @"<img src='顔グラ{g_loop}' width='{size}' height='{size}' ypos='{y_pos}'>"
-			RESULTS:(2 + g_loop) = 顔_%CSTR:ARG:汎用立ち絵登録文字列%.png
+			RESULTS:(2 + g_loop) = 顔_%CSTR:ARG:汎用立ち絵登録文字列%
 			SIF 文字列記録フラグ
-				RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_%CSTR:ARG:汎用立ち絵登録文字列%.png
+				RSTR:表示グラ記録 = %CSTR:ARG:画像フォルダ%/顔_%CSTR:ARG:汎用立ち絵登録文字列%
 		ENDIF
 	ENDIF
 ELSEIF スプライト作成(@"顔グラ{g_loop}", 1000 + g_loop, 0)

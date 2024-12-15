@@ -97,7 +97,7 @@ CSTR:ARG:今日の衣装 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
 
 VARSET LOCALS
 LOCALS = 水着
-IF ENUMFILES("resources\\" + CSTR:ARG:画像フォルダ, "顔_水着-*-?.png")
+IF ENUMFILES("resources\\" + CSTR:ARG:画像フォルダ, "顔_水着-*-?.*")
 	LOCALS:1 = 水着-*-?
 ENDIF
 
@@ -106,7 +106,7 @@ CSTR:ARG:今日の水着 = %GRAP_RAND(ARG, "顔_", LOCALS, LOCALS:1)%
 ;********************************************************************************************
 ;@GRAP_RAND(ARG, TYPE, PATRN, PATRN:1)
 ;  キャラARGのTYPE+PATRNで始まるファイル名を持つ画像を抽出し、その中からランダムで１つ選び
-;  TYPEと.pngを除いたファイル名を返す
+;  TYPEと拡張子を除いたファイル名を返す
 ;  TYPE "顔_" または "短冊_"
 ;********************************************************************************************
 
@@ -140,7 +140,7 @@ VARSET 画像配列保存
 VARSET RESULTS
 
 FOLDER '= "resources\\" + CSTR:ARG:画像フォルダ
-LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.png")
+LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "*.*")
 FOR L_CNT, 0, LOCAL
 	IF STRCOUNT(RESULTS:L_CNT, "差分") == 0 || STRCOUNT(PATRN, "差分")
 		画像配列保存:(LOCAL:10) '= RESULTS:L_CNT
@@ -150,7 +150,7 @@ FOR L_CNT, 0, LOCAL
 NEXT
 LOCAL:11 = LOCAL:10
 IF PATRN:1 != ""
-	LOCAL:1 = ENUMFILES(FOLDER, TYPE + PATRN:1 + "*.png")
+	LOCAL:1 = ENUMFILES(FOLDER, TYPE + PATRN:1 + "*.*")
 	FOR L_CNT, LOCAL, LOCAL + LOCAL:1
 		IF STRCOUNT(RESULTS:(L_CNT - LOCAL), "差分") == 0 || STRCOUNT(PATRN:1, "差分")
 			画像配列保存:(LOCAL:11) '= RESULTS:(L_CNT - LOCAL)
@@ -195,12 +195,13 @@ ENDIF
 
 SUBSTRING RESULTS, 1 +STRLENS(FOLDER) + STRLENS(TYPE), -1
 REPLACE RESULTS, "\.png", ""
+REPLACE RESULTS, "\.webp", ""
 
 RETURNF RESULTS
 
 ;********************************************************************************************
 ;@画像フォルダ選択(対象キャラ)
-;  対象キャラの画像フォルダ内で"顔_デフォルト.png"という名前の画像を含むフォルダ（親フォルダ、サブフォルダ含む）を
+;  対象キャラの画像フォルダ内で"顔_デフォルト"という名前の画像を含むフォルダ（親フォルダ、サブフォルダ含む）を
 ;  探して、そのフォルダ内の画像ファイルを一覧で表示し、どのフォルダの画像を使用するかを選択させる
 ;********************************************************************************************
 
@@ -659,9 +660,9 @@ RETURNF LOCALS
 ;  @グラ表示用文字列算出から呼び出されて条件に合うファイルからランダムに抽出する
 ;  TYPE:0 "顔_" または "短冊_"
 ;  TYPE:1 基本的にはその時のグラ表示切り替え用文字列。空欄なら表示グラフィックカテゴリまたはデフォルトが入っているはず
-;  DIFF:0 サーチする差分区分名。「顔_デフォルト_◯◯.png」の◯◯部分
+;  DIFF:0 サーチする差分区分名。「顔_デフォルト_◯◯」の◯◯部分
 ;  DIFF:1、2 見つからなかった場合に表示する差分エフェクト名。1と2でレイヤー別で重ねて表示可能
-;  TYPE:2 間に挟むキーワード、「顔_デフォルト[_差分_]〇〇.png」の[]内の文字列。省略した場合「_差分_」が使用される
+;  TYPE:2 間に挟むキーワード、「顔_デフォルト[_差分_]〇〇」の[]内の文字列。省略した場合「_差分_」が使用される
 ;********************************************************************************************
 
 @差分抽出(ARG, TYPE="顔_", TYPE:1, DIFF, DIFF:1="", DIFF:2="", TYPE:2="_差分_", DIFF:3="")
@@ -669,11 +670,11 @@ RETURNF LOCALS
 #DIMS TYPE, 3
 #DIMS DIFF, 4
 
-IF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%/", @"%TYPE:1 + TYPE:2 +DIFF%*.png")
+IF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%/", @"%TYPE:1 + TYPE:2 +DIFF%*.*")
 	;現在表示してるグラの差分があるか見る
 	RESULTS '= TYPE:1 + GRAP_RAND(ARG, TYPE:1, TYPE:2 + DIFF)
 	RETURNF 1
-;ELSEIF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%/", @"%TYPE + CSTR:ARG:表示グラフィックカテゴリ + TYPE:2 + DIFF%*.png")
+;ELSEIF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%/", @"%TYPE + CSTR:ARG:表示グラフィックカテゴリ + TYPE:2 + DIFF%*.*")
 ;	;現在表示してるグラの、基本画像の差分があるか見る
 ;	RESULTS '= TYPE + GRAP_RAND(ARG, TYPE, CSTR:ARG:表示グラフィックカテゴリ + TYPE:2 + DIFF)
 ;	RETURNF 1
@@ -754,7 +755,7 @@ RETURNF
 IF CSTR:対象キャラ:画像フォルダ != ""
 	;CSTRに入ってるフォルダ名は有効か？
 	LOCALS '= "resources\\" + CSTR:対象キャラ:画像フォルダ
-	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png")
+	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*")
 	IF F_NUM > 0
 		;デフォルト画像があるなら有効と見なす
 		RETURN 1
@@ -766,7 +767,7 @@ ENDIF
 CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
 
 LOCALS '= "resources\\" + CSTR:対象キャラ:画像フォルダ
-F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png")
+F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*")
 IF F_NUM > 0
 	;デフォルト画像があるなら有効と見なしてこのまま帰る
 	RETURN 1
@@ -774,7 +775,7 @@ ENDIF
 
 ;ないならサブフォルダを見に行く
 LOCALS '= "resources\\" + TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ
-F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.png", 1)
+F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*", 1)
 IF F_NUM < 1
 	;そもそも画像がないので帰る、CSTRはそのまま
 	RETURN 0
@@ -782,3 +783,55 @@ ENDIF
 ;見つかったら一番最初のフォルダを選択しておく
 FOLDER '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
 CSTR:対象キャラ:画像フォルダ '= FOLDER
+
+
+@GCREATE_拡張子(作成レイヤー, ファイルパス)
+#DIMS ファイルパス
+#DIM 作成レイヤー
+
+SIF STRFIND(ファイルパス, ".png") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".png", "")
+SIF STRFIND(ファイルパス, ".webp") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".webp", "")
+
+IF EXISTFILE(@"%ファイルパス%.webp")
+	GCREATEFROMFILE 作成レイヤー, ファイルパス + ".webp"
+ELSE
+	GCREATEFROMFILE 作成レイヤー, ファイルパス + ".png"
+ENDIF
+
+RETURN RESULT
+
+@GCREATE_拡張子F(作成レイヤー, ファイルパス)
+#FUNCTION
+#DIMS ファイルパス
+#DIM 作成レイヤー
+
+SIF STRFIND(ファイルパス, ".png") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".png", "")
+SIF STRFIND(ファイルパス, ".webp") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".webp", "")
+
+IF EXISTFILE(@"%ファイルパス%.webp")
+	GCREATEFROMFILE 作成レイヤー, ファイルパス + ".webp"
+ELSE
+	GCREATEFROMFILE 作成レイヤー, ファイルパス + ".png"
+ENDIF
+
+RETURNF RESULT
+
+
+@EXIST画像FILE(ファイルパス)
+#FUNCTION
+#DIMS ファイルパス
+
+SIF STRFIND(ファイルパス, ".png") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".png", "")
+SIF STRFIND(ファイルパス, ".webp") >= 0
+	ファイルパス '= REPLACE(ファイルパス, ".webp", "")
+
+IF EXISTFILE(@"%ファイルパス%.webp")
+	RETURNF 1
+ELSE
+	RETURNF EXISTFILE(@"%ファイルパス%.png")
+ENDIF

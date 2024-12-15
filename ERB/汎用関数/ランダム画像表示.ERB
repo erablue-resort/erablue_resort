@@ -51,13 +51,13 @@ FOR FOLDER_CNT, 0, FOLDER_NUM
 	;- 対象フォルダパスの取得
 	FOLDER_NAME '= FOLDER_LIST:FOLDER_CNT
 	;- 画像枚数の取得
-	FILE_NAME '= "*.png"
+	FILE_NAME '= "*.*"
 	G_NUM_ALL = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
 	G_NUM_C = 0
 	G_NUM_L = 0
 	G_NUM_S = 0
 	FOR L_CNT, 0, G_NUM_ALL
-		IF STRFIND(RESULTS:L_CNT, "カットイン.png") >= 0
+		IF STRFIND(RESULTS:L_CNT, "カットイン") >= 0
 			;- カットイン画像の有無の確認
 			G_NUM_C ++
 		ELSEIF STRFIND(RESULTS:L_CNT, "短冊_") == 0
@@ -68,26 +68,18 @@ FOR FOLDER_CNT, 0, FOLDER_NUM
 			G_NUM_S ++
 		ENDIF
 	NEXT
-	; ;- カットイン画像の有無の確認
-	; FILE_NAME '= "*カットイン.png"
-	; G_NUM_C = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
-	; ;- 短冊/顔画像枚数を取得
-	; FILE_NAME = 短冊_*.png
-	; G_NUM_L = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
-	; FILE_NAME = 顔_*.png
-	; G_NUM_S = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
 	;- その他(短冊/顔以外)の枚数を取得
 	G_NUM_O = G_NUM_ALL - (G_NUM_L + G_NUM_S)
 	
 	;- 表示する画像の種類を決定(短冊を優先して表示)
 	IF G_NUM_L
-		FILE_NAME = 短冊_*.png
-		DEFAULT_FILE = 短冊_デフォルト.png
+		FILE_NAME = 短冊_*.*
+		DEFAULT_FILE = 短冊_デフォルト
 		G_NUM = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
 		短冊フラグ = 1
 	ELSE
-		FILE_NAME = 顔_*.png
-		DEFAULT_FILE = 顔_デフォルト.png
+		FILE_NAME = 顔_*.*
+		DEFAULT_FILE = 顔_デフォルト
 		G_NUM = GET_RESOURCES_FILES(FOLDER_NAME, FILE_NAME)
 		短冊フラグ = 0
 	ENDIF
@@ -109,10 +101,16 @@ FOR FOLDER_CNT, 0, FOLDER_NUM
 			; 1枚目はデフォルト優先
 			IF FILE_CNT == 0
 				; デフォルト画像を探して見つかった場合は乱数を上書き
-				FINDELEMENT RESULTS, DEFAULT_FILE
+				FINDELEMENT RESULTS, DEFAULT_FILE + ".png"
 				DEFAULT_NO = RESULT
-				SIF DEFAULT_NO != -1
+				IF DEFAULT_NO != -1
 					LIST_NO = DEFAULT_NO
+				ELSE
+					FINDELEMENT RESULTS, DEFAULT_FILE + ".webp"
+					DEFAULT_NO = RESULT
+					SIF DEFAULT_NO != -1
+						LIST_NO = DEFAULT_NO
+				ENDIF
 			ENDIF
 			FILE_LIST:FILE_CNT '= RESULTS:LIST_NO
 			; 選出した画像を最後尾と入れ替えて選出されないようにする
@@ -123,11 +121,18 @@ FOR FOLDER_CNT, 0, FOLDER_NUM
 		FILE_NUM = MIN(FILE_NUM_MAX, G_NUM)
 		LIST_NO = 0
 		; 1枚目はデフォルト優先
-		FINDELEMENT RESULTS, DEFAULT_FILE
+		FINDELEMENT RESULTS, DEFAULT_FILE + ".png"
 		DEFAULT_NO = RESULT
 		IF DEFAULT_NO != -1
 			FILE_LIST:LIST_NO '= RESULTS:DEFAULT_NO
 			LIST_NO += 1
+		ELSE
+			FINDELEMENT RESULTS, DEFAULT_FILE + ".webp"
+			DEFAULT_NO = RESULT
+			IF DEFAULT_NO != -1
+				FILE_LIST:LIST_NO '= RESULTS:DEFAULT_NO
+				LIST_NO += 1
+			ENDIF
 		ENDIF
 		
 		FOR FILE_CNT, 0, FILE_NUM
