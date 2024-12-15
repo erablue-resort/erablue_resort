@@ -1,0 +1,159 @@
+﻿
+@COMNAME_S60_7
+#FUNCTIONS
+TSTR:コマンド名受渡 = おっぱい手綱正常位
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_60_7
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("Ｖ系")
+弱点コマンドカテゴリ = V
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S60_7
+LOCALS = <br>■おっぱい手綱正常位<br>
+LOCALS += "巨乳を鷲掴みにし、引っぱりながら腰を振るコマンド。<br>正常位時かつ掴めるほどにおっぱいが大きくなければ実行できない。<br>マゾ性感で効果が上昇する。"
+LOCALS += "<br>何度も繰り返し実行すると……？"
+LOCALS += "<br>COMタイプ：Ｖ系<br>取得ソース：征服・快Ｂ・快Ｖ・接触・苦痛"
+LOCALS += "<br>固有の取得経験：Ｖ性交経験(TARGET)・Ｃ性交経験_Ｖ挿入(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S60_7
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+
+CALL SOURCE_CALC_征服(PLAYER, TARGET, 150)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 400)
+CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 400)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+IF !MODE_存在判定_ターゲット側("ペニスバンド", PLAYER)
+	CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 400)
+ELSE
+	CALL SOURCE_CALC_快Ｖ(PLAYER, TARGET, 150)
+ENDIF
+
+;苦痛
+LOCAL = 200 * PAIN_CHECK_V(TARGET) / 1000
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, LOCAL)
+
+CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 180)
+RCVAR:TARGET:苦痛コマンドフラグ = 1
+RCVAR:PLAYER:嗜虐コマンドフラグ = 1
+
+;マゾに効果大。ただし苦痛の量が増すのではなくそのほかが増える。
+;痛みで締まるので快Ｖも盛っちゃお
+IF ABL:TARGET:マゾ性感 > 2
+	CALL SOURCE_CALC_征服(PLAYER, TARGET, 80)
+	CALL SOURCE_CALC_快Ｖ(TARGET, PLAYER, 80)
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 100)
+	EXP:TARGET:苦痛快楽経験 += 1
+ELSE
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 60)
+ENDIF
+
+;サドは嗜虐快楽
+SIF ABL:PLAYER:サド性感
+	EXP:PLAYER:嗜虐快楽経験 ++
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+EXP:PLAYER:Ｃ性交経験_Ｖ挿入 ++
+EXP:Ｖ性交経験 ++
+
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 4
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 4
+
+;EXPにしたほうがえっちかもしれないんだけど、強い経験名が浮かばなかったのでやむなくCFLAGに格納
+CFLAG:TARGET:おっぱい引っぱりカウント += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S60_7
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("60_7")
+	RETURN RESULT
+;あなたが指を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;巨乳以上でなければ実行不可
+SIF TALENT:TARGET:バストサイズ >= 1
+	RETURN 0
+;体格差はあっても多分実行できそうなのでヨシ
+
+;正常位じゃない時はアウト。対面座位とかでも出来はするんだけど、対面まで包括したグッとくるコマンド名が思い浮かばずやむなく正常位限定とする
+SIF !MODE_存在判定_完全一致("正常位", PLAYER, TARGET)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S60_7
+#DIM 同時キャラ番号
+PRINTFORM %CALLNAME:PLAYER%は、
+IF TALENT:TARGET:長乳
+	PRINTFORM %CALLNAME:PLAYER%に%TEXTR("何度も/幾度も/繰り返し")%引っぱられてすっかり%TEXTR("下品に/だらしなく")%伸び%TEXTR("きっ/")%てしまった
+ELSE
+	PRINTFORM %TEXTR("寝そべった/突くごとに眼前で揺れる/揺れてあなたを誘う")%
+ENDIF
+PRINTFORM %CALLNAME:TARGET%の
+IF TALENT:TARGET:バストサイズ == 3
+	;魔乳
+	;「あまりにもデカすぎるデカパイ」、頭悪すぎて好き
+	;「下品に育ちきった」とか「だらしなく実った」とかもアリかもしれないけど……純愛シチュの時に貶すようなワード出てもアレかもなぁってことで一応保留
+	PRINTFORM %TEXTR("キングサイズの/あまりにもデカすぎる/人の頭ほどもあるサイズの/規格外サイズの")%%TEXTR("おっぱい/デカパイ/魔乳")%
+ELSEIF TALENT:TARGET:バストサイズ == 2
+	;爆乳
+	PRINTFORM %TEXTR("手のひらからはみ出るほどの/日頃から男達の目を引いてやまない/夢が詰まった")%%TEXTR("おっぱい/デカパイ/爆乳")%
+ELSEIF TALENT:TARGET:バストサイズ == 1
+	;巨乳
+	IF TALENT:TARGET:種族 == 3
+	;ドラフ
+	;「小さめな巨乳」という矛盾したワード
+		PRINTFORM ドラフにしては小さめな%TEXTR("デカパイ/巨乳")%
+	ELSE
+		PRINTFORM %TEXTR("ボリューミーな/掴むのにちょうどいいサイズの")%%TEXTR("おっぱい/デカパイ/巨乳")%
+	ENDIF
+ENDIF
+PRINTFORM を%TEXTR("ぎゅっ/ぎゅうっ")%
+CALL PRINT_STR("_H_")
+PRINTFORML と%TEXTR("握りしめ/鷲掴みにし/手のひらいっぱいに掴み")%、
+PRINTFORM %TEXTR("むっぎゅゥゥ～～ッ/ぐにゅゥゥ～～ッ")%
+CALL PRINT_STR("_H__H__H_")
+PRINTFORML と引っ張りながら%TEXTR("強く/激しく/荒々しく")%腰を打ち付けた……
+
+IF CFLAG:TARGET:おっぱい引っぱりカウント >= 20 && TALENT:TARGET:長乳 == 0
+	PRINTW
+	PRINTFORM 何度も何度も繰り返し%CALLNAME:PLAYER%に交尾の際の手綱にされた%CALLNAME:TARGET%の
+	IF TALENT:TARGET:バストサイズ == 3
+		PRINTFORM 魔乳
+	ELSEIF TALENT:TARGET:バストサイズ == 2
+		PRINTFORM 爆乳
+	ELSEIF TALENT:TARGET:バストサイズ == 1
+		PRINTFORM 巨乳
+	ENDIF
+	PRINTFORML は、
+	PRINTFORM 執拗に引っぱられたことでだらしなく縦に伸び、
+	SETCOLOR カラーパレット("えっちな色")
+		PRINT [長乳]
+	RESETCOLOR
+	PRINTFORML になってしまった……
+	TALENT:TARGET:長乳 = 1
+ENDIF
