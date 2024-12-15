@@ -423,7 +423,7 @@ SIF 同行キャラ番:15 > 0
 
 
 LOCALS += "<br>"
-CALL PRINT_STATE_弱点コマンド(ARG)
+CALL PRINT_STATE_弱点コマンド(ARG, "998")
 LOCALS += @"%RESULTS%"
 L_C:0 = 360 / GETCONFIG("フォントサイズ") + STRCOUNT(LOCALS, "<br>")
 
@@ -1709,228 +1709,59 @@ ENDIF
 RESULTS = %LOCALS%
 RETURN STRCOUNT(LOCALS, "<br>") - 2
 
-@PRINT_STATE_弱点コマンド(ARG)
-#DIM CONST 要求熟知 = 100, 120, 140, 170, 200, 240, 280, 340
-#DIMS 弱点コマンドSPLIT用配列, 10
-#DIM 要求熟知表示フラグ
 
-LOCALS = □ 弱点コマンド □---------------------<br>
+@PRINT_STATE_弱点コマンド(対象キャラ, 全て表示ボタン番号 = "")
+#DIM  対象キャラ
+#DIMS 全て表示ボタン番号
+#DIM  弱点コマンド数
+#DIM  L_CNT
+#DIMS HTML_TEXT
+#DIM  グレーアウト中
+#DIMS 弱点コマンドリスト, 8
+#DIM  看破状態リスト    , 8
+#DIM  弱点コマンド表示数
 
-要求熟知表示フラグ = 0
-FOR LOCAL, 0, 8
-	SIF 弱点コマンド枠:ARG:LOCAL == ""
+HTML_TEXT = □ 弱点コマンド □---------------------<br>
+
+弱点コマンド数 = GET_WEAKCOMMAND_LIST(対象キャラ, 弱点コマンドリスト, 看破状態リスト)
+弱点コマンド表示数 = VARSIZE("弱点コマンドリスト")
+グレーアウト中 = 0
+FOR L_CNT, 0, 弱点コマンド表示数
+	; 途中で空になったら終了
+	SIF 弱点コマンドリスト:L_CNT == ""
 		BREAK
-	VARSET 弱点コマンドSPLIT用配列
-	IF 弱点看破:ARG:LOCAL || OPTION変数:弱点コマンド全表示
-		弱点コマンド欄表示名 = 
-		IF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
-			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
-			IF ISNUMERIC(弱点コマンドSPLIT用配列:0)
-				SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
-					CASE 370 TO 374
-						LOCAL:1 = TARGET
-						TARGET = TOINT(弱点コマンドSPLIT用配列:1)
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						IF 弱点コマンド欄表示名 != ""
-							LOCALS += @"　[キャラ固有：%弱点コマンド欄表示名%]<br>"
-						ELSE
-							LOCALS += @"　[キャラ固有：%TSTR:コマンド名受渡%]<br>"
-						ENDIF
-						TARGET = LOCAL:1
-					CASE 380 TO 384
-						LOCAL:1 = CFLAG:MASTER:現在位置
-						LOCAL:2 = CFLAG:MASTER:現在マップ種別
-						CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
-						CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						IF 弱点コマンド欄表示名 != ""
-							LOCALS += @"　[場所固有：%弱点コマンド欄表示名%]<br>"
-						ELSE
-							LOCALS += @"　[場所固有：%TSTR:コマンド名受渡%]<br>"
-						ENDIF
-						CFLAG:MASTER:現在位置 = LOCAL:1
-						CFLAG:MASTER:現在マップ種別 = LOCAL:2
-					CASE 385 TO 389
-						;お祭りコマンドは弱点にしない
-					CASEELSE
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						IF 弱点コマンド欄表示名 != ""
-							LOCALS += @"　[%弱点コマンド欄表示名%派生："
-						ELSE
-							LOCALS += @"　[%TSTR:コマンド名受渡%派生："
-						ENDIF
-						弱点コマンド欄表示名 = 
-						CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
-						IF 弱点コマンド欄表示名 != ""
-							LOCALS += @"%弱点コマンド欄表示名%]<br>"
-						ELSE
-							LOCALS += @"%TSTR:コマンド名受渡%]<br>"
-						ENDIF
-				ENDSELECT
-			ELSE
-				;_の前部分が数字ではないパターン
-				SELECTCASE 弱点コマンドSPLIT用配列:0
-					CASE "MASSAGE"
-						IF 弱点コマンドSPLIT用配列:2 != ""
-							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
-							IF 弱点コマンド欄表示名 != ""
-								LOCALS += @"　[%弱点コマンド欄表示名%派生："
-							ELSE
-								LOCALS += @"　[%TSTR:コマンド名受渡%派生："
-							ENDIF
-							弱点コマンド欄表示名 = 
-							CALLFORMF MASSAGE_COMNAME_S%弱点コマンドSPLIT用配列:1%_%弱点コマンドSPLIT用配列:2%
-							IF 弱点コマンド欄表示名 != ""
-								LOCALS += @"%弱点コマンド欄表示名%]<br>"
-							ELSE
-								LOCALS += @"%TSTR:コマンド名受渡%]<br>"
-							ENDIF
-						ELSE
-							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
-							IF 弱点コマンド欄表示名 != ""
-								LOCALS += @"　[%弱点コマンド欄表示名%]<br>"
-							ELSE
-								LOCALS += @"　[%TSTR:コマンド名受渡%]<br>"
-							ENDIF
-						ENDIF
-					CASE "MODE"
-						LOCALS += @"　[モード：%弱点コマンドSPLIT用配列:1%]<br>"
-				ENDSELECT
-			ENDIF
-		ELSE
-			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
-			IF 弱点コマンド欄表示名 != ""
-				LOCALS += @"　[%弱点コマンド欄表示名%]<br>"
-			ELSE
-				LOCALS += @"　[%TSTR:コマンド名受渡%]<br>"
-			ENDIF
-		ENDIF
-	ELSEIF あなた特殊能力:弱点洞察術
-		LOCALS += "<font color='#666666'>"
-		弱点コマンド欄表示名 = 
-		IF EXP:ARG:肉体熟知 < 要求熟知:LOCAL
-			IF !要求熟知表示フラグ
-				LOCALS += @"　[(肉体熟知が{要求熟知:LOCAL}必要です)]<br>"
-				要求熟知表示フラグ = 1
-			ELSE
-				LOCALS += @"　[？？？？？]<br>"
-			ENDIF
-		ELSEIF STRFIND(弱点コマンド枠:ARG:LOCAL, "_") >= 0
-			SPLIT 弱点コマンド枠:ARG:LOCAL, "_", 弱点コマンドSPLIT用配列
-			IF ISNUMERIC(弱点コマンドSPLIT用配列:0)
-				SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
-					CASE 370 TO 374
-						LOCAL:1 = TARGET
-						TARGET = TOINT(弱点コマンドSPLIT用配列:1)
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						LOCALS += @"　[キャラ固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-						TARGET = LOCAL:1
-					CASE 380 TO 384
-						LOCAL:1 = CFLAG:MASTER:現在位置
-						LOCAL:2 = CFLAG:MASTER:現在マップ種別
-						CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
-						CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						LOCALS += @"　[場所固有：%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-						CFLAG:MASTER:現在位置 = LOCAL:1
-						CFLAG:MASTER:現在マップ種別 = LOCAL:2
-					CASE 385 TO 389
-						;お祭りコマンドは弱点にしない
-					CASEELSE
-						CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-						LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
-						弱点コマンド欄表示名 = 
-						CALLFORMF COMNAME_S%弱点コマンド枠:ARG:LOCAL%
-						LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-				ENDSELECT
-			ELSE
-				;_の前部分が数字ではないパターン
-				SELECTCASE 弱点コマンドSPLIT用配列:0
-					CASE "MASSAGE"
-						IF 弱点コマンドSPLIT用配列:2 != ""
-							CALLFORMF COMNAME%弱点コマンドSPLIT用配列:1%
-							LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%派生："
-							弱点コマンド欄表示名 = 
-							CALLFORMF MASSAGE_COMNAME_S%弱点コマンドSPLIT用配列:1%_%弱点コマンドSPLIT用配列:2%
-							LOCALS += @"%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-						ELSE
-							CALLFORMF MASSAGE_COMNAME%弱点コマンドSPLIT用配列:1%
-							LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-						ENDIF
-					CASE "MODE"
-						LOCALS += @"　[モード：%マスク_弱点コマンド(ARG, "", 弱点コマンドSPLIT用配列:1)%]<br>"
-				ENDSELECT
-			ENDIF
-		ELSE
-			CALLFORMF COMNAME%弱点コマンド枠:ARG:LOCAL%
-			LOCALS += @"　[%マスク_弱点コマンド(ARG, 弱点コマンド欄表示名, TSTR:コマンド名受渡)%]<br>"
-		ENDIF
-		LOCALS += "</font>"
-	ELSE
-		LOCALS += "<font color='#666666'>"
-		LOCALS += "　[？？？？？]<br>"
-		LOCALS += "</font>"
+	; グレーアウト判定
+	IF 看破状態リスト:L_CNT && グレーアウト中
+		グレーアウト中 = 0
+		HTML_TEXT += "</font>"
+	ELSEIF !看破状態リスト:L_CNT && !グレーアウト中
+		グレーアウト中 = 1
+		HTML_TEXT += "<font color='#666666'>"
 	ENDIF
+	; 弱点コマンド名を表示
+	HTML_TEXT += @"　[%弱点コマンドリスト:L_CNT%]<br>"
 NEXT
-LOCAL:1 = 0
-FOR LOCAL, 8, 50
-	SIF 弱点コマンド枠:ARG:LOCAL == ""
-		BREAK
-	LOCAL:1 += 1
-NEXT
-IF LOCAL:1 > 0
-	LOCALS += @"　他{LOCAL:1, 2}件　　<button value='998'>[998] 全て表示</button>"
-ENDIF
-RESULTS = %LOCALS%
-RETURN STRCOUNT(LOCALS, "<br>") - 2
+; グレーアウト中のまま終わった場合はfontタグを閉じる
+SIF グレーアウト中
+	HTML_TEXT += "</font>"
 
-@マスク_弱点コマンド(対象キャラ, マスク元:1, マスク元:2)
-#FUNCTIONS
-#DIM 対象キャラ
-#DIMS マスク元, 3
-#DIM コマンド文字長さ
-#DIM HASH
-#DIM CHARPOS, 2
-#DIMS マスク結果
-
-IF マスク元:1 != ""
-	マスク元:0 '= マスク元:1
-ELSE
-	マスク元:0 '= マスク元:2
-ENDIF
-
-コマンド文字長さ = STRLENSU(マスク元:0)
-SIF コマンド文字長さ <= 0
-	RETURNF ""
-
-;乱数で文字が変わるとバレバレなので名前とコマンド文字からハッシュを作る
-HASH = 0
-FOR LOCAL, 0, STRLENSU(CALLNAME:対象キャラ)
-	HASH ^= ENCODETOUNI(CALLNAME:対象キャラ, LOCAL)
-NEXT
-FOR LOCAL, 0, コマンド文字長さ
-	HASH ^= ENCODETOUNI(マスク元:0, LOCAL)
-NEXT
-
-;1文字選ぶ
-CHARPOS:0 = HASH % コマンド文字長さ
-CHARPOS:1 = -1
-IF コマンド文字長さ >= 5
-	;コマンドが5文字以上の場合はもう1文字
-	CHARPOS:1 = (HASH / コマンド文字長さ) % (コマンド文字長さ - 1)
-	SIF CHARPOS:0 <= CHARPOS:1
-		CHARPOS:1 += 1
-ENDIF
-
-マスク結果 '= ""
-FOR LOCAL, 0, コマンド文字長さ
-	IF LOCAL == CHARPOS:0 || LOCAL == CHARPOS:1
-		マスク結果 += CHARATU(マスク元:0, LOCAL)
-	ELSE
-		マスク結果 += "？"
+; 表示数以上に弱点コマンドがある場合
+IF 弱点コマンド数 > 弱点コマンド表示数
+	; 件数表示
+	HTML_TEXT += @"　他{弱点コマンド数 - 弱点コマンド表示数, 2}件"
+	; 全て表示ボタンの番号設定がある場合はボタンも表示
+	IF 全て表示ボタン番号 != ""
+		IF ISNUMERIC(全て表示ボタン番号)
+			HTML_TEXT += @"　　　<button value='%全て表示ボタン番号%'>[%全て表示ボタン番号%] 全て表示</button>"
+		ELSE
+			HTML_TEXT += @"　　　<button value='%全て表示ボタン番号%'>[全て表示]</button>"
+		ENDIF
 	ENDIF
-NEXT
-RETURNF マスク結果
+ENDIF
+
+RESULTS '= HTML_TEXT
+RETURN STRCOUNT(HTML_TEXT, "<br>") - 2
+
 
 @PRINT_STATE_TALENT(ARG)
 #DIM ループ用
@@ -2506,82 +2337,53 @@ SIF TALENT:ARG:母乳体質 == 3
 	PRINTFORML 　胸は妊娠の影響で少し大きくなり、子供のための母乳を蓄えている
 
 
+@弱点コマンド全表示(対象キャラ)
+#DIM  対象キャラ
+#DIMS 弱点コマンドリスト, 弱点コマンド数上限
+#DIM  看破状態リスト    , 弱点コマンド数上限
+#DIM  弱点コマンド数
+#DIMS 弱点コマンド名
+#DIM  表示件数
+#DIM  L_CNT
+#DIM  グレーアウト中
+#DIMS HTML_TEXT
+#DIM  CONST CMD_LEN = STRLENS("[身体に触れる派生：耳に吐息を吹きかける]") ;一番長そうなコマンドを長さの基準値に
 
-@弱点コマンド全表示(対象キャラ番号)
-#DIM 対象キャラ番号
-#DIMS 弱点コマンドSPLIT用配列, 10
-
+PRINTL
 DRAWLINE
-VARSET LOCALS
-VARSET LOCAL
-FOR LOCAL, 0, 50
-	SIF 弱点コマンド枠:対象キャラ番号:LOCAL == ""
-		CONTINUE
-	IF 弱点看破:対象キャラ番号:LOCAL || OPTION変数:弱点コマンド全表示
-		弱点コマンド欄表示名 = 
-		IF STRFIND(弱点コマンド枠:対象キャラ番号:LOCAL, "_") >= 0
-			SPLIT 弱点コマンド枠:対象キャラ番号:LOCAL, "_", 弱点コマンドSPLIT用配列
-			SELECTCASE TOINT(弱点コマンドSPLIT用配列:0)
-				CASE 370 TO 374
-					LOCAL:1 = TARGET
-					TARGET = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS:1 = {LOCAL, 2}：[キャラ固有：%弱点コマンド欄表示名%]
-					ELSE
-						LOCALS:1 = {LOCAL, 2}：[キャラ固有：%TSTR:コマンド名受渡%]
-					ENDIF
-					TARGET = LOCAL:1
-				CASE 380 TO 384
-					LOCAL:1 = CFLAG:MASTER:現在位置
-					LOCAL:2 = CFLAG:MASTER:現在マップ種別
-					CFLAG:MASTER:現在位置 = TOINT(弱点コマンドSPLIT用配列:2)
-					CFLAG:MASTER:現在マップ種別 = TOINT(弱点コマンドSPLIT用配列:1)
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS:1 = {LOCAL, 2}：[場所固有：%弱点コマンド欄表示名%]
-					ELSE
-						LOCALS:1 = {LOCAL, 2}：[場所固有：%TSTR:コマンド名受渡%]
-					ENDIF
-					CFLAG:MASTER:現在位置 = LOCAL:1
-					CFLAG:MASTER:現在マップ種別 = LOCAL:2
-				CASE 385 TO 389
-					;お祭りコマンドは弱点にしない
-				CASEELSE
-					CALLFORMF COMNAME%弱点コマンドSPLIT用配列:0%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS:1 = {LOCAL, 2}：[%弱点コマンド欄表示名%派生：
-					ELSE
-						LOCALS:1 = {LOCAL, 2}：[%TSTR:コマンド名受渡%派生：
-					ENDIF
-					弱点コマンド欄表示名 = 
-					CALLFORMF COMNAME_S%弱点コマンド枠:対象キャラ番号:LOCAL%
-					IF 弱点コマンド欄表示名 != ""
-						LOCALS:1 += @"%弱点コマンド欄表示名%]"
-					ELSE
-						LOCALS:1 += @"%TSTR:コマンド名受渡%]"
-					ENDIF
-			ENDSELECT
-		ELSE
-			CALLFORMF COMNAME%弱点コマンド枠:対象キャラ番号:LOCAL%
-			IF 弱点コマンド欄表示名 != ""
-				LOCALS:1 = {LOCAL, 2}：[%弱点コマンド欄表示名%]
-			ELSE
-				LOCALS:1 = {LOCAL, 2}：[%TSTR:コマンド名受渡%]
-			ENDIF
-		ENDIF
-	ELSE
-		LOCALS:1 = {LOCAL, 2}：[？？？？？]
+弱点コマンド数 = GET_WEAKCOMMAND_LIST(対象キャラ, 弱点コマンドリスト, 看破状態リスト)
+グレーアウト中 = 0
+表示件数 = 0
+VARSET HTML_TEXT
+FOR L_CNT, 0, 弱点コマンド数上限
+	; 途中で空になったら終了
+	SIF 弱点コマンドリスト:L_CNT == ""
+		BREAK
+	; グレーアウト判定
+	IF 看破状態リスト:L_CNT && グレーアウト中
+		グレーアウト中 = 0
+		HTML_TEXT += "</font>"
+	ELSEIF !看破状態リスト:L_CNT && !グレーアウト中
+		グレーアウト中 = 1
+		HTML_TEXT += "<font color='#666666'>"
 	ENDIF
-	LOCAL:10 += 1
-	IF LOCAL:10 % 3 == 0
-		LOCALS += @"%LOCALS:1, 30, LEFT%<br>"
+	; 弱点コマンド名を表示
+	弱点コマンド名 = [%弱点コマンドリスト:L_CNT%]
+	HTML_TEXT += @"{L_CNT, 2}：%弱点コマンド名, CMD_LEN, LEFT%"
+
+	; 3個ごとに改行
+	表示件数 ++
+	IF 表示件数 % 3 == 0
+		HTML_TEXT += @"<br>"
 	ELSE
-		LOCALS += @"%LOCALS:1, 30, LEFT%　　　"
+		HTML_TEXT += @"　"
 	ENDIF
 NEXT
+; グレーアウト中のまま終わった場合はfontタグを閉じる
+SIF グレーアウト中
+	HTML_TEXT += "</font>"
 
-HTML_PRINT LOCALS
+HTML_PRINT HTML_TEXT
 WAIT
 
 @PRINT_STATE_あなた特殊能力
