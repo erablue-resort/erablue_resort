@@ -2,6 +2,9 @@
 @一日終了時夜這い判定(対象キャラ)
 #DIM 対象キャラ
 #DIM 夜這い相手
+#DIM 夜這候補
+#DIM シャッフル番号
+#DIM 追加最大人数
 #DIM 対象配列, 500
 #DIM 候補配列, 500
 #DIM 候補数
@@ -153,10 +156,75 @@ ELSE
 	ENDIF
 ENDIF
 
+VARSET 対象配列, -1
+
 CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:対象キャラ%は"
 IF 関係性種別 == "恋慕"
 	CSTR:対象キャラ:夜這い報告_記録文字列 += "恋人の"
 ELSE
+	;夜這い成功時、相手がセフレのとき、他のセフレを呼ぶことがある
+	;最大人数をセット
+	IF 知識素質:対象キャラ:性知識 >= 0
+		;疎いと呼ばない、Lv1以上の時に呼ぶ可能性がある
+		追加最大人数 = RAND:(知識素質:対象キャラ:性知識 + 1)
+	ELSE
+		;性知識がない場合、逆に人数が多くなる
+		追加最大人数 = RAND:10
+	ENDIF
+	IF 追加最大人数 > 0
+		VARSET 対象配列
+		VARSET 候補配列
+		候補数 = 0
+		関係数 = DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And 関係性種別 = 'セフレ'", , 対象配列)
+		IF 関係数 > 0
+			FOR LOCAL, 0, 関係数
+				;セフレ
+				LOCAL:1 = 関係性_相手人物番号取得(CFLAG:対象キャラ:人物番号, 対象配列:LOCAL)
+				SIF LOCAL:1 <= 0
+					CONTINUE
+				夜這候補 = FIND_CHARA_FROM_PERSON_ID(LOCAL:1)
+				SIF 夜這候補 < 0
+					CONTINUE
+				SIF 夜這候補 == 夜這い相手
+					CONTINUE
+				;既に夜這いしてるか対象になってる相手はキャンセル
+				SIF TCVAR:夜這候補:夜這い済み
+					CONTINUE
+				;島にいない相手は当然ダメ
+				SIF CFLAG:夜這候補:滞在期間 < 0
+					CONTINUE
+				候補配列:候補数 = LOCAL:1
+				候補数 ++
+			NEXT
+			IF TALENT:対象キャラ:セフレ && TCVAR:MASTER:夜這い済み == 0
+				候補配列:候補数 = CFLAG:MASTER:人物番号
+				候補数 ++
+			ENDIF
+			VARSET 対象配列, -1
+			IF 候補数 <= 追加最大人数
+				FOR LOCAL, 0, 候補数
+					対象配列:LOCAL = FIND_CHARA_FROM_PERSON_ID(候補配列:LOCAL)
+					SIF LOCAL > 0
+						CSTR:対象キャラ:夜這い報告_記録文字列 += "、"
+					CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:(対象配列:LOCAL)%"
+				NEXT
+				CSTR:対象キャラ:夜這い報告_記録文字列 += "を呼び出して"
+				追加最大人数 = 候補数
+			ELSE
+				FOR LOCAL, 0, 追加最大人数
+					シャッフル番号 = RAND(LOCAL, 候補数)
+					SWAP 候補配列:シャッフル番号, 候補配列:LOCAL
+				NEXT
+				FOR LOCAL, 0, 追加最大人数
+					対象配列:LOCAL = FIND_CHARA_FROM_PERSON_ID(候補配列:LOCAL)
+					SIF LOCAL > 0
+						CSTR:対象キャラ:夜這い報告_記録文字列 += "、"
+					CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:(対象配列:LOCAL)%"
+				NEXT
+				CSTR:対象キャラ:夜這い報告_記録文字列 += "を呼び出して"
+			ENDIF
+		ENDIF
+	ENDIF
 	CSTR:対象キャラ:夜這い報告_記録文字列 += "セフレ相手の"
 ENDIF
 
@@ -166,11 +234,20 @@ IF 夜這い相手 == MASTER && CFLAG:MASTER:現在マップ種別 == 部屋検�
 ELSE
 	CSTR:対象キャラ:夜這い報告_記録文字列 += @"%CALLNAME:夜這い相手%の部屋を訪れ、熱い夜を過ごした……<br>"
 ENDIF
-CSTR:対象キャラ:夜這い報告_記録文字列 += "<br><br>"
+CSTR:対象キャラ:夜這い報告_記録文字列 += "<br><br>ここでWAITを入れて表示を分離"
 ;受け攻め設定を取り出す
 DT_SELECT "関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:夜這い相手:人物番号} Or 対象キャラ２ = {CFLAG:夜這い相手:人物番号})"
 RFLAG:夜這い処理中フラグ = 1
 CALL 夜這い実処理(対象キャラ, 夜這い相手, RESULT:1)
+;3P以上の時
+IF 対象配列:0 > -1
+	FOR LOCAL, 0, 追加最大人数
+		;受け攻め設定を取り出す
+		DT_SELECT "関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:(対象配列:LOCAL):人物番号} Or 対象キャラ２ = {CFLAG:(対象配列:LOCAL):人物番号})"
+		CALL 夜這い実処理(対象キャラ, (対象配列:LOCAL), RESULT:1)
+	NEXT
+ENDIF
+
 RFLAG:夜這い処理中フラグ = 0
 ;夜這い相手の番号＋１００を返す
 RETURN 夜這い相手 + 100 

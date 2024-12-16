@@ -261,6 +261,7 @@ RESTART
 #DIM 既に恋慕フラグ
 #DIM 候補配列, キャラクタ数上限
 #DIM 汎用セット不可フラグ
+#DIM 固有条件なし
 
 ;ランダムモードに１が入ってれば恋慕、２が入ってればセフレで処理する
 SIF 全キャラランダムモード
@@ -296,6 +297,7 @@ ENDIF
 既に恋慕フラグ = 0
 VARSET 候補配列
 FOR 対象キャラ, 1, CHARANUM
+	固有条件なし = 0
 	SIF 対象キャラ == 左キャラ
 		CONTINUE
 	;優先条件
@@ -339,9 +341,15 @@ FOR 対象キャラ, 1, CHARANUM
 	;口上側で設定可能な条件
 	RESULT = 0
 	IF セットモード
-		TRYCALLFORM 縁結び相手条件_セフレ_{NO:左キャラ}(左キャラ, 対象キャラ)
+		TRYCCALLFORM 縁結び相手条件_セフレ_{NO:左キャラ}(左キャラ, 対象キャラ)
+		CATCH
+			固有条件なし = 1
+		ENDCATCH
 	ELSE
-		TRYCALLFORM 縁結び相手条件_恋慕_{NO:左キャラ}(左キャラ, 対象キャラ)
+		TRYCCALLFORM 縁結び相手条件_恋慕_{NO:左キャラ}(左キャラ, 対象キャラ)
+		CATCH
+			固有条件なし = 1
+		ENDCATCH
 	ENDIF
 	IF RESULT == 0
 		;基本的に無性別は対象にならない
@@ -370,6 +378,8 @@ FOR 対象キャラ, 1, CHARANUM
 		IF 汎用セット不可フラグ
 			SIF 既に恋慕フラグ >= 0
 				既に恋慕フラグ = 汎用セット不可フラグ - 1
+			SIF 固有条件なし
+				BREAK
 			CONTINUE
 		ENDIF
 	ELSEIF RESULT == -1
@@ -1143,6 +1153,7 @@ FOR 対象キャラ１, 1, CHARANUM
 	IF GETBIT(OPTION変数:オート縁結び詳細, 0)
 		;恋慕
 		;既に恋慕セットするorされてたらアウト
+		
 		IF 縁結びセット数取得(対象キャラ１, "恋慕")
 			CONTINUE
 		ENDIF
