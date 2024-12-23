@@ -1,0 +1,77 @@
+﻿@CREATE変身データベース
+DT_CREATE "変身データベース"
+DT_COLUMN_ADD "変身データベース", "キャラ番号", 2
+DT_COLUMN_ADD "変身データベース", "元NAME"
+DT_COLUMN_ADD "変身データベース", "元CALLNAME"
+DT_COLUMN_ADD "変身データベース", "変身NAME"
+DT_COLUMN_ADD "変身データベース", "変身CALLNAME"
+DT_COLUMN_ADD "変身データベース", "変身タイミング文字列"
+DT_COLUMN_ADD "変身データベース", "解除タイミング文字列"
+DT_COLUMN_ADD "変身データベース", "変身コマンド名"
+DT_COLUMN_ADD "変身データベース", "変身解除コマンド名"
+DT_COLUMN_ADD "変身データベース", "変身期間", 1
+DT_COLUMN_ADD "変身データベース", "変身残りターン数", 1
+DT_COLUMN_ADD "変身データベース", "変身コスト", 1
+
+
+@RELEASE変身データベース
+DT_RELEASE "変身データベース"
+
+
+@INSERT変身データベース(キャラ番号)
+;指定のキャラ番号の設定ファイルを読み込んでデータベースに登録する
+;重複登録はしない
+#DIM キャラ番号
+#DIM 変身ID
+
+IF FIND_変身ID(キャラ番号)
+	;登録済み
+	RETURN 1
+ENDIF
+
+;一旦、汎用値で行を作る
+{
+	DT_ROW_ADD "変身データベース",
+		"キャラ番号", キャラ番号,
+		"元NAME", CSVNAME(NO:キャラ番号),
+		"元CALLNAME", CSVCALLNAME(NO:キャラ番号),
+		"変身NAME", CSVNAME(NO:キャラ番号),
+		"変身CALLNAME", CSVCALLNAME(NO:キャラ番号),
+		"変身タイミング文字列", "コマンド_アビリティ",
+		"解除タイミング文字列", "コマンド_アビリティ_ターン",
+		"変身コマンド名", "変身",
+		"変身解除コマンド名", "変身解除",
+		"変身期間", 6,
+		"変身残りターン数", 0,
+		"変身コスト", 80
+}
+変身ID = RESULT
+;そうそう Utils.TimePoint() が0になることはないはず
+SIF !変身ID
+	THROW 変身データの登録に失敗しました
+
+;汎用値を個別変身設定で上書きする
+TRYCCALLFORM 変身設定_{NO:キャラ番号}(変身ID)
+	RETURN 1
+CATCH
+	;変身設定がないなら、作った行は消す
+	DT_ROW_REMOVE "変身データベース", 変身ID
+	RETURN 0
+ENDCATCH
+
+
+@UPDATE変身データベース(キャラ番号)
+#DIM キャラ番号
+
+;列IDを維持する必要はないのでREMOVEしてINSERTする
+CALL REMOVE変身データベース(キャラ番号)
+CALL INSERT変身データベース(キャラ番号)
+
+
+@REMOVE変身データベース(キャラ番号)
+#DIM キャラ番号
+#DIM 変身ID
+
+変身ID = FIND_変身ID(キャラ番号)
+SIF 変身ID
+	DT_ROW_REMOVE "変身データベース", 変身ID
