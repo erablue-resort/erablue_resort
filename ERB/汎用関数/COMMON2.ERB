@@ -589,21 +589,29 @@ NEXT
 
 RETURNF MAX(CFLAG:対象キャラ:恋慕レベル, 性愛_好感度レベル)
 
-@うふふ開始キャラ処理(対象キャラ, シチュ記録 = "")
+@うふふ開始キャラ処理(対象キャラ, シチュ記録 = "", 場所登録 = "")
 #DIM 対象キャラ
 #DIMS シチュ記録
-;基本的にPLAYER相手なので相手キャラは取らない
+#DIMS 場所登録
+;MASTER相手なので相手キャラは取らない
 
 CFLAG:対象キャラ:うふふ = 1
 CSTR:対象キャラ:うふふシチュ記録 '= シチュ記録
 
-SIF PLAYER == MASTER && 初体験日:対象キャラ:初うふふ == 0
-	初体験日:対象キャラ:初うふふ = DAY
-IF STRFIND(経験相手:対象キャラ:初うふふ, @"_{CFLAG:PLAYER:人物番号}_") < 0
-	経験相手:対象キャラ:初うふふ += @"_{CFLAG:PLAYER:人物番号}_"
-	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:対象キャラ%とえっちをした</font><img src='えっちハート'>","うふふ")
-	CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:PLAYER%とえっちをした</font><img src='えっちハート'>","うふふ")
+IF 場所登録 == ""
+	場所登録 '= GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
+ENDIF
+
+CALL 初体験日登録処理(対象キャラ, MASTER, "初うふふ", DAY * 1440 + TIME, 場所登録, シチュ記録, "", 1)
+CALL 初体験日登録処理(対象キャラ, MASTER, "うふふ", DAY * 1440 + TIME, 場所登録, シチュ記録, "", 0)
+IF RESULT
+	CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:MASTER%とえっちをした</font><img src='えっちハート'>","うふふ")
 	TCVAR:対象キャラ:初うふふフラグ = 1
+ENDIF
+CALL 初体験日登録処理(MASTER, 対象キャラ, "初うふふ", DAY * 1440 + TIME, 場所登録, シチュ記録, "", 1)
+CALL 初体験日登録処理(MASTER, 対象キャラ, "うふふ", DAY * 1440 + TIME, 場所登録, シチュ記録, "", 0)
+IF RESULT
+	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:対象キャラ%とえっちをした</font><img src='えっちハート'>","うふふ")
 ENDIF
 
 あなた追跡キャラ = 0
