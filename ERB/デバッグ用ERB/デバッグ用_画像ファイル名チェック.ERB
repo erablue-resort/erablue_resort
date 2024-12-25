@@ -14,8 +14,9 @@
 ; 割と時間がかかるので一応確認
 PRINTL
 PRINTL 【デバッグ用】画像ファイル名のチェック
-PRINTL 処理に時間がかかりますが実行しますか？
+PRINTL 　※ pngファイルはチェックされません。
 PRINTL
+PRINTL 処理に時間がかかりますが実行しますか？
 PRINTBUTTONLC "[0] はい", 0
 PRINTBUTTONLC "[1] いいえ", 1
 BINPUT
@@ -109,7 +110,14 @@ SIF フォルダ数 == 0
 
 ; 取得結果(resources\***キャラ名\ファイル名)から不要部分(resources\と\ファイル名)を削除して保存
 FOR L_CNT, 0, フォルダ数
-	FOLDER_LIST:L_CNT '= SUBSTRING(RESULTS:L_CNT, STRLENS(フォルダベース), STRLENS(RESULTS:L_CNT) - (STRLENS(フォルダベース) + STRLENS("/" + 対象ファイル)))
+	DEBUGPRINTL
+	FOLDER_LIST:L_CNT '= RESULTS:L_CNT
+	DEBUGPRINTFORML 1.%FOLDER_LIST:L_CNT%
+	; "\"を"/"に置換(REPLACEは二重にエスケープ処理されるようなので"\\"ではなく"\\\\")
+	FOLDER_LIST:L_CNT '= REPLACE(FOLDER_LIST:L_CNT, "\\\\", "/")
+	DEBUGPRINTFORML 2.%FOLDER_LIST:L_CNT%
+	FOLDER_LIST:L_CNT '= SUBSTRING(FOLDER_LIST:L_CNT, STRLENS(フォルダベース), STRLENS(FOLDER_LIST:L_CNT) - (STRLENS(フォルダベース) + STRLENS("/" + 対象ファイル)))
+	DEBUGPRINTFORML 3.%FOLDER_LIST:L_CNT%
 NEXT
 RETURNF フォルダ数
 
@@ -216,8 +224,10 @@ WAIT_COUNT = (WAIT_COUNT + 1) % (4 * AWAIT周期)
 #DIMS FOLDER_NAME
 #DIMS REGEX_衣装名_BASE
 #DIMS REGEX_衣装名
+#DIMS REGEX_衣装名_マッサージ
 #DIMS REGEX_差分名_BASE
 #DIMS REGEX_差分名
+#DIMS REGEX_差分名_マッサージ
 #DIMS REGEX_TEXT
 #DIMS FOLDER_NAME_NOW
 
@@ -234,6 +244,9 @@ IF !パターン取得済
 	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ｖ", "膣内射精")
 	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ａ")
 	REGEX_差分名_BASE += "|" + デバッグ用_GET_REGEX("差分名定義_Ａ", "腸内射精")
+	; マッサージ用パターン
+	REGEX_衣装名_マッサージ '= デバッグ用_GET_REGEX("衣装名定義_マッサージ")
+	REGEX_差分名_マッサージ '= デバッグ用_GET_REGEX("差分名定義_マッサージ")
 ENDIF
 
 ;- キャラ固有設定の正規表現パターンの取得
@@ -247,7 +260,7 @@ IF FOLDER_NAME != FOLDER_NAME_NOW
 ENDIF
 
 ;- 正規表現でパターンと一致するかチェック
-; まとめてやろうとするとパターンテキストが煩雑になるので5つに分けてチェックする
+; まとめてやろうとするとパターンテキストが煩雑になるので分けてチェックする
 
 ; 基本系
 ; ・顔_デフォルト.webp、顔_デフォルト_差分_表情.webp等
@@ -255,29 +268,28 @@ REGEX_TEXT '= @"(顔|短冊)_(妊娠)?(%REGEX_衣装名%)[0-9]*(_差分_(%REGEX_
 SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	RETURNF 1
 
-; 奥義ゲージMAX差分
-; ・顔_デフォルト_差分_奥義ゲージMAX.webp等
-; 　奥義ゲージMAXは顔画像のみ有効
-REGEX_TEXT '= @"顔_(妊娠)?(%REGEX_衣装名%)[0-9]*_差分_奥義ゲージMAX[0-9]*\.webp"
-SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
-	RETURNF 1
-
 ; ダンジョン衣装
 ; ・顔_ダンジョン衣装.webp、顔_ダンジョン衣装_差分_表情.webp等
 ; 　ダンジョン衣装は使用できる差分が「表情」「欲情」「奥義ゲージMAX」の三種類のみ
-; 　奥義ゲージMAXはさらに顔画像のみ有効なので別個で判定
-REGEX_TEXT '= @"(顔|短冊)_(妊娠)?ダンジョン衣装(_差分_(表情|欲情)[0-9]*)?\.webp"
-SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
-	RETURNF 1
-
-; ダンジョン衣装＋奥義ゲージMAX差分
-REGEX_TEXT '= @"顔_(妊娠)?ダンジョン衣装_差分_奥義ゲージMAX[0-9]*\.webp"
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?ダンジョン衣装(_差分_(表情|欲情|奥義ゲージMAX)[0-9]*)?\.webp"
 SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	RETURNF 1
 
 ; 水着特殊差分
 ; ・顔_水着-ビキニ-0.webp、顔_水着-ビキニ-0_差分_表情.webp等
 REGEX_TEXT '= @"(顔|短冊)_(妊娠)?水着-[^-]*-[0-3](_差分_(%REGEX_差分名%)[0-9]*)?\.webp"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; マッサージ系差分
+; ・顔_水着_差分_マッサージ仰向け.webp、顔_マッサージ着_差分_マッサージうつ伏せ.webp等
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?(%REGEX_衣装名_マッサージ%)[0-9]*(_差分_(%REGEX_差分名_マッサージ%)[0-9]*)?\.webp"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; マッサージ系差分(水着特殊差分)
+; ・顔_水着-ビキニ-0_差分_マッサージ仰向け.webp等
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?水着-[^-]*-[0-3](_差分_(%REGEX_差分名_マッサージ%)[0-9]*)?\.webp"
 SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	RETURNF 1
 
@@ -384,11 +396,6 @@ FOLDER_PATH '= @"%フォルダベース%/%FOLDER_NAME%"
 REGEX_TEXT '= @"顔_.*\.webp"
 IF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	;- 顔画像
-	; 例外処理:奥義ゲージMAX差分は短冊がなくてOK
-	REGEX_TEXT '= @"顔_.*_奥義ゲージMAX[0-9]*\.webp"
-	SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
-		RETURNF 1
-
 	; 対応する短冊画像があるかチェック
 	CHK_FILE_NAME '= REPLACE(FILE_NAME, "^顔_", "短冊_")
 	SIF ENUMFILES(FOLDER_PATH, CHK_FILE_NAME) <= 0
