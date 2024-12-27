@@ -30,16 +30,36 @@ ENDSELECT
 ;ARG:2	処女喪失手段(=1 チンコ	=2 バイブ	=3 指	=4 触手	=5 ペニスバンド)
 ;-------------------------------------------------
 @LOST_VIRGIN(ARG, ARG:1, ARG:2)
+#DIMS 喪失場所
+#DIM 喪失時間
+#DIMS 喪失方法
 
 ;処女以外の初挿入処理
-IF ARG:2 == 1
-	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験, "_-1_") < 0
-		経験相手:ARG:Ｖ挿入初体験 += "_-1_"
+IF SAVESTR:ゲームフェイズ管理 == ""
+	喪失場所 = 不明
+	喪失時間 = DAY * 1440 + 420
+ELSE
+	喪失場所 '= GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)
+	喪失時間 = DAY * 1440 + TIME
+ENDIF
+SELECTCASE ARG:2
+	CASE 1
+		喪失方法 = ペニス
+	CASE 2
+		喪失方法 = バイブ
+	CASE 3
+		喪失方法 = 指
+	CASE 4
+		喪失方法 = 触手
+	CASE 5
+		喪失方法 = ペニスバンド
+ENDSELECT
+CALL 初体験日登録処理(ARG, ARG:1, "Ｖ挿入初体験", 喪失時間, 喪失場所, 喪失方法, , 1)
+CALL 初体験日登録処理(ARG, ARG:1, "Ｖ挿入体験", 喪失時間, 喪失場所, 喪失方法, , 0)
+IF RESULT
+	IF ARG:1 < 0
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手からＶ挿入された</font>","うふふ")
-	ELSEIF ARG:1 >= 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-		SIF 初体験日:ARG:Ｖ挿入初体験 == 0 && ARG:1 == MASTER
-			初体験日:ARG:Ｖ挿入初体験 = DAY
-		経験相手:ARG:Ｖ挿入初体験 += @"_{CFLAG:(ARG:1):人物番号}_"
+	ELSE
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%からＶ挿入された</font>","うふふ")
 	ENDIF
 ENDIF
@@ -177,17 +197,32 @@ ENDIF
 ;ARG:2	処女喪失手段(=1 チンコ	=4 触手)
 ;-------------------------------------------------
 @LOST_A_VIRGIN(ARG, ARG:1, ARG:2)
+#DIMS 喪失場所
+#DIM 喪失時間
+#DIMS 喪失方法
 
 ;処女以外の初挿入処理
-IF ARG:2 == 1
-	IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験, @"_-1_") < 0
-		経験相手:ARG:Ａ挿入初体験 += "_-1_"
+IF SAVESTR:ゲームフェイズ管理 == ""
+	喪失場所 = 不明
+	喪失時間 = DAY * 1440 + 420
+ELSE
+	喪失場所 '= GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)
+	喪失時間 = DAY * 1440 + TIME
+ENDIF
+SELECTCASE ARG:2
+	CASE 1
+		喪失方法 = ペニス
+	CASE 4
+		喪失方法 = 触手
+	CASE 5
+		喪失方法 = ペニスバンド
+ENDSELECT
+CALL 初体験日登録処理(ARG, ARG:1, "Ａ挿入初体験", 喪失時間, 喪失場所, 喪失方法, , 1)
+CALL 初体験日登録処理(ARG, ARG:1, "Ａ挿入体験", 喪失時間, 喪失場所, 喪失方法, , 0)
+IF RESULT
+	IF ARG:1 < 0
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手からＡ挿入された</font>","うふふ")
-	ELSEIF ARG:1 >= 0 && STRFIND(経験相手:ARG:Ａ挿入初体験, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-		IF 初体験日:ARG:Ａ挿入初体験 == 0 && ARG:1 == MASTER
-			初体験日:ARG:Ａ挿入初体験 = DAY
-		ENDIF
-		経験相手:ARG:Ａ挿入初体験 += @"_{CFLAG:(ARG:1):人物番号}_"
+	ELSE
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%からＡ挿入された</font>","うふふ")
 	ENDIF
 ENDIF
@@ -318,22 +353,32 @@ ENDIF
 ;ARG:1	童貞喪失させる人
 ;-------------------------------------------------
 @LOST_MAN_VIRGIN(ARG, ARG:1)
+#DIMS 喪失場所
+#DIM 喪失時間
 
 ;ちんこなし（＝ペニバン）はスルー
 SIF GETBIT(TALENT:ARG:性別, 1) == 0
 	RETURN 0
 
+
 ;非童貞の初挿入処理
-IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_-1_") < 0
-	経験相手:ARG:Ｖ挿入初体験_男側 += "_-1_"
-	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＶ挿入した</font>","うふふ")
-ELSEIF ARG:1 >= 0 && STRFIND(経験相手:ARG:Ｖ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-	IF 初体験日:ARG:Ｖ挿入初体験_男側 == 0 && ARG:1 == MASTER
-		初体験日:ARG:Ｖ挿入初体験_男側 = DAY
-	ENDIF
-	経験相手:ARG:Ｖ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
-	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＶ挿入した</font>","うふふ")
+IF SAVESTR:ゲームフェイズ管理 == ""
+	喪失場所 = 不明
+	喪失時間 = DAY * 1440 + 420
+ELSE
+	喪失場所 '= GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)
+	喪失時間 = DAY * 1440 + TIME
 ENDIF
+CALL 初体験日登録処理(ARG, ARG:1, "Ｖ挿入初体験_男側", 喪失時間, 喪失場所, , , 1)
+CALL 初体験日登録処理(ARG, ARG:1, "Ｖ挿入体験_男側", 喪失時間, 喪失場所, , , 0)
+IF RESULT
+	IF ARG:1 < 0
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＶ挿入した</font>","うふふ")
+	ELSE
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＶ挿入した</font>","うふふ")
+	ENDIF
+ENDIF
+
 
 ;非童貞はスルー
 SIF GETBIT(TALENT:ARG:非童貞, 0) || RCVAR:ARG:童貞喪失
@@ -399,21 +444,29 @@ ENDIF
 ;ARG:1	童貞喪失させる人
 ;-------------------------------------------------
 @LOST_MAN_A_VIRGIN(ARG, ARG:1)
+#DIMS 喪失場所
+#DIM 喪失時間
 
 ;ちんこなし（＝ペニバン）はスルー
 SIF GETBIT(TALENT:ARG:性別, 1) == 0
 	RETURN 0
 
 ;非童貞の初挿入処理
-IF ARG:1 < 0 && STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_-1_") < 0
-	経験相手:ARG:Ａ挿入初体験_男側 += "_-1_"
-	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＡ挿入した</font>","うふふ")
-ELSEIF STRFIND(経験相手:ARG:Ａ挿入初体験_男側, @"_{CFLAG:(ARG:1):人物番号}_") < 0
-	IF 初体験日:ARG:Ａ挿入初体験_男側 == 0 && ARG:1 == MASTER
-		初体験日:ARG:Ａ挿入初体験_男側 = DAY
+IF SAVESTR:ゲームフェイズ管理 == ""
+	喪失場所 = 不明
+	喪失時間 = DAY * 1440 + 420
+ELSE
+	喪失場所 '= GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)
+	喪失時間 = DAY * 1440 + TIME
+ENDIF
+CALL 初体験日登録処理(ARG, ARG:1, "Ａ挿入初体験_男側", 喪失時間, 喪失場所, , , 1)
+CALL 初体験日登録処理(ARG, ARG:1, "Ａ挿入体験_男側", 喪失時間, 喪失場所, , , 0)
+IF RESULT
+	IF ARG:1 < 0
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて見知らぬ相手にＡ挿入した</font>","うふふ")
+	ELSE
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＡ挿入した</font>","うふふ")
 	ENDIF
-	経験相手:ARG:Ａ挿入初体験_男側 += @"_{CFLAG:(ARG:1):人物番号}_"
-	CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めて%CALLNAME:(ARG:1)%にＡ挿入した</font>","うふふ")
 ENDIF
 
 ;非童貞はスルー
