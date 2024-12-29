@@ -1,6 +1,7 @@
 ﻿@宿泊エリア処理
 #DIM 表示エリア種類
 #DIM ページ数
+#DIM 入室不可フラグ
 #DIM ループ用
 #DIM 部屋主配列, 10
 
@@ -92,8 +93,9 @@ FOR LOCAL, 0, 27
 NEXT
 $INPUT_LOOP
 BINPUT
+LOCAL = RESULT
 
-SELECTCASE RESULT
+SELECTCASE LOCAL
 	CASE 200
 		IF 表示エリア種類 == 200
 			REUSELASTLINE 
@@ -151,14 +153,13 @@ SELECTCASE RESULT
 		CALL 引っ越し処理()
 		GOTO RESTART_LABEL
 	CASEELSE
+		CALL 入室不可処理(999, LOCAL)
+		IF RESULT
+			GOTO RESTART_LABEL
+		ENDIF
 		IF 表示エリア種類 == 200
-			IF CFLAG:(滞在者部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:RESULT):睡眠 && CFLAG:(滞在者部屋割り配列:RESULT):現在位置 == RESULT && 陥落チェック(滞在者部屋割り配列:RESULT) == 0
-				PRINTL 部屋には鍵が掛かっている。
-				PRINTW どうやら眠っているようだ…
-				GOTO RESTART_LABEL
-			ENDIF
 			CFLAG:PLAYER:現在マップ種別 = 999
-			CFLAG:MASTER:現在位置 = RESULT
+			CFLAG:MASTER:現在位置 = LOCAL
 			CALL 移動時モード消去(PLAYER)
 			FOR LOCAL,1,CHARANUM
 				IF 追従中キャラ(LOCAL)
@@ -167,13 +168,8 @@ SELECTCASE RESULT
 				ENDIF
 			NEXT
 		ELSEIF 表示エリア種類 == 300
-			IF CFLAG:(従業員部屋割り配列:RESULT):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:RESULT):睡眠 && CFLAG:(従業員部屋割り配列:RESULT):現在位置 == RESULT + 1000 && 陥落チェック(従業員部屋割り配列:RESULT) == 0
-				PRINTL 部屋には鍵が掛かっている。
-				PRINTW どうやら眠っているようだ…
-				GOTO RESTART_LABEL
-			ENDIF
 			CFLAG:PLAYER:現在マップ種別 = 999
-			CFLAG:MASTER:現在位置 = RESULT + 1000
+			CFLAG:MASTER:現在位置 = LOCAL + 1000
 			CALL 移動時モード消去(PLAYER)
 			FOR LOCAL,1,CHARANUM
 				IF 追従中キャラ(LOCAL)
@@ -182,22 +178,8 @@ SELECTCASE RESULT
 				ENDIF
 			NEXT
 		ELSEIF 表示エリア種類 == 400
-			LOCAL:2 = 0
-			FOR ループ用,0,CHARANUM
-				SIF CFLAG:ループ用:滞在期間 < 1
-					CONTINUE
-				IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == RESULT + 2000
-					SIF CFLAG:ループ用:睡眠 && 陥落チェック(ループ用) == 0
-						LOCAL:2 = 1
-				ENDIF
-			NEXT
-			IF LOCAL:2
-				PRINTL 部屋には鍵が掛かっている。
-				PRINTW どうやら眠っているようだ…
-				GOTO RESTART_LABEL
-			ENDIF
 			CFLAG:PLAYER:現在マップ種別 = 999
-			CFLAG:MASTER:現在位置 = RESULT + 2000
+			CFLAG:MASTER:現在位置 = LOCAL + 2000
 			CALL 移動時モード消去(PLAYER)
 			FOR LOCAL,1,CHARANUM
 				IF 追従中キャラ(LOCAL)
@@ -206,49 +188,6 @@ SELECTCASE RESULT
 				ENDIF
 			NEXT
 		ELSEIF 表示エリア種類 == 500
-			LOCAL = RESULT
-			;部屋の居住者を配列化
-			VARSET 部屋主配列
-			VARSET RESULTS
-			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
-			FOR ループ用, 0, RESULT
-				SIF RESULTS:ループ用 == ""
-					BREAK
-				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
-			NEXT
-			IF 部屋主配列:0 > 0
-				;睡眠時
-				LOCAL:2 = 0
-				FOR ループ用, 0, 10
-					SIF 部屋主配列:ループ用 < 1
-						BREAK
-					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
-						SIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0
-							LOCAL:2 = 1
-					ENDIF
-				NEXT
-				IF LOCAL:2
-					PRINTL 家には鍵が掛かっている。
-					PRINTW どうやら眠っているようだ…
-					GOTO RESTART_LABEL
-				ENDIF
-				;全員外出時
-				LOCAL:2 = 0
-				FOR ループ用, 0, 10
-					SIF 部屋主配列:ループ用 < 1
-						BREAK
-					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
-						LOCAL:2 = 1
-					ELSEIF 追従中キャラ(部屋主配列:ループ用)
-						LOCAL:2 = 1
-					ENDIF
-				NEXT
-				IF LOCAL:2 == 0
-					PRINTL 家には鍵が掛かっている。
-					PRINTW どうやら家に誰もいないようだ…
-					GOTO RESTART_LABEL
-				ENDIF
-			ENDIF
 			CFLAG:PLAYER:現在マップ種別 = 2
 			CFLAG:MASTER:現在位置 = LOCAL + 1000
 			CALL 移動時モード消去(PLAYER)
@@ -259,40 +198,6 @@ SELECTCASE RESULT
 				ENDIF
 			NEXT
 		ELSEIF 表示エリア種類 == 600
-			LOCAL = RESULT
-			;部屋の居住者を配列化
-			VARSET 部屋主配列
-			VARSET RESULTS
-			SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
-			FOR ループ用, 0, RESULT
-				SIF RESULTS:ループ用 == ""
-					BREAK
-				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
-			NEXT
-			IF 部屋主配列:0 > 0
-				;不在時
-				LOCAL:2 = 0
-				FOR ループ用, 0, 10
-					SIF 部屋主配列:ループ用 < 1
-						BREAK
-					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 1 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
-						LOCAL:2 = 1
-					ELSEIF 追従中キャラ(部屋主配列:ループ用)
-						LOCAL:2 = 1
-					ENDIF
-				NEXT
-				IF LOCAL:2 == 0
-					PRINTL 店には鍵が掛かっている。
-					PRINTW どうやら誰もいないようだ…
-					GOTO RESTART_LABEL
-				ENDIF
-			ELSEIF 部屋主配列:0 < 0
-				IF TIME < 540 || TIME > 1200 || 定休日判定(LOCAL)
-					PRINTL 店には鍵が掛かっている。
-					PRINTW どうやら誰もいないようだ…
-					GOTO RESTART_LABEL
-				ENDIF
-			ENDIF
 			CFLAG:PLAYER:現在マップ種別 = 1
 			CFLAG:MASTER:現在位置 = LOCAL + 1000
 			CALL 移動時モード消去(PLAYER)

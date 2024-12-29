@@ -147,29 +147,10 @@ SELECTCASE LOCAL
 		SIF RFLAG:立ち止まらないフラグ < 0
 			RETURN 0
 		;次にエリア内移動
-		入室禁止フラグ = 0
+		CALL 入室不可処理(表示マップ種別, LOCAL)
+		入室禁止フラグ = RESULT
 		IF 表示マップ種別 == 999
-			SELECTCASE LOCAL
-				CASE IS >= 2000
-					VARSET RESULTS
-					SPLIT スイートルーム部屋割り配列:(LOCAL - 2000), "_", RESULTS
-					FOR 対象キャラ, 0, RESULT
-						IF CFLAG:(TOINT(RESULTS:対象キャラ)):現在マップ種別 == 999 && CFLAG:(TOINT(RESULTS:対象キャラ)):現在位置 == LOCAL && CFLAG:(TOINT(RESULTS:対象キャラ)):睡眠 && 陥落チェック((TOINT(RESULTS:対象キャラ))) == 0
-							入室禁止フラグ = 1
-						ENDIF
-					NEXT
-				CASE IS >= 1000
-					IF CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):睡眠 && CFLAG:(従業員部屋割り配列:(LOCAL - 1000)):現在位置 == LOCAL - 1000 && 陥落チェック(従業員部屋割り配列:(LOCAL - 1000)) == 0
-						入室禁止フラグ = 1
-					ENDIF
-				CASEELSE
-					IF CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:LOCAL):睡眠 && CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL && 陥落チェック(滞在者部屋割り配列:LOCAL) == 0
-						入室禁止フラグ = 1
-					ENDIF
-			ENDSELECT
 			IF 入室禁止フラグ
-				PRINTL 部屋には鍵が掛かっている。
-				PRINTW どうやら眠っているようだ…
 				CFLAG:MASTER:現在マップ種別 = 0
 				IF 施設改造度:20:0
 					CFLAG:MASTER:現在位置 = 2001
@@ -185,56 +166,13 @@ SELECTCASE LOCAL
 		ELSEIF LOCAL != CFLAG:MASTER:現在位置
 			IF CFLAG:MASTER:現在マップ種別 == 2 && LOCAL >= 1000
 				;そのまま目的地に移動させる
-				;の前に入室禁止処理
-				VARSET RESULTS
-				SPLIT 定住者部屋割り配列:(LOCAL - 1000), "_", RESULTS
-				FOR 対象キャラ, 0, RESULT
-					IF CFLAG:(TOINT(RESULTS:対象キャラ)):現在マップ種別 == 2 && CFLAG:(TOINT(RESULTS:対象キャラ)):現在位置 == LOCAL && CFLAG:(TOINT(RESULTS:対象キャラ)):睡眠 && 陥落チェック((TOINT(RESULTS:対象キャラ))) == 0
-						入室禁止フラグ = 1
-					ENDIF
-				NEXT
 				IF 入室禁止フラグ
-					PRINTL 家には鍵が掛かっている。
-					PRINTW どうやら眠っているようだ…
 					RETURN 0
-				ELSE
-					;全員外出時
-					入室禁止フラグ = 1
-					SPLIT 定住者部屋割り配列:(LOCAL - 1000), "_", RESULTS
-					FOR 対象キャラ, 0, RESULT
-						IF CFLAG:(TOINT(RESULTS:対象キャラ)):現在マップ種別 == 2 && CFLAG:(TOINT(RESULTS:対象キャラ)):現在位置 == LOCAL
-							入室禁止フラグ = 0
-						ELSEIF 追従中キャラ(TOINT(RESULTS:対象キャラ))
-							入室禁止フラグ = 0
-						ENDIF
-					NEXT
-					IF 入室禁止フラグ
-						PRINTL 家には鍵が掛かっている。
-						PRINTW どうやら家に誰もいないようだ…
-						RETURN 0
-					ENDIF
 				ENDIF
 				CFLAG:MASTER:現在位置 = LOCAL
 			ELSEIF CFLAG:MASTER:現在マップ種別 == 1 && LOCAL >= 1000
 				;そのまま目的地に移動させる
-				;の前に入室禁止処理
-				VARSET RESULTS
-				入室禁止フラグ = 1
-				SPLIT 商業区店割り配列:(LOCAL - 1000):店員配列, "_", RESULTS
-				FOR 対象キャラ, 0, RESULT
-					IF TOINT(RESULTS:対象キャラ) > 0
-						IF CFLAG:(TOINT(RESULTS:対象キャラ)):現在マップ種別 == 1 && CFLAG:(TOINT(RESULTS:対象キャラ)):現在位置 == LOCAL
-							入室禁止フラグ = 0
-						ENDIF
-					ELSEIF TOINT(RESULTS:対象キャラ) < 0
-						IF TIME >= 540 && TIME <= 1200
-							入室禁止フラグ = 0
-						ENDIF
-					ENDIF
-				NEXT
 				IF 入室禁止フラグ
-					PRINTL 店には鍵が掛かっている。
-					PRINTW どうやら誰もいないようだ…
 					RETURN 0
 				ENDIF
 				CFLAG:MASTER:現在位置 = LOCAL
@@ -252,7 +190,7 @@ SELECTCASE LOCAL
 				TFLAG:SELECTCOM受け渡し = 400
 				SELECTCOM = 400
 				CALL COM400
-				CALL 入室不可処理
+				CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
 				SIF TARGET登録
 					TFLAG:TARGET変更用 = TARGET登録
 			ENDIF
