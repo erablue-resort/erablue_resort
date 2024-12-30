@@ -1,0 +1,300 @@
+﻿
+@入室不可処理(移動先マップ種別, 移動先位置, 自動移動フラグ = 0)
+#DIM ループ用
+#DIM 部屋人数
+#DIM 部屋主配列, 100
+#DIM 在宅配列, 100
+#DIM 在宅者数
+#DIM 移動先位置
+#DIM 移動先マップ種別
+#DIM 自動移動フラグ
+
+SELECTCASE 移動先マップ種別
+	CASE 999
+		IF 移動先位置 < 1000
+			LOCAL = 移動先位置
+			IF 滞在者部屋割り配列:LOCAL > 0
+				;睡眠時
+				IF CFLAG:(滞在者部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(滞在者部屋割り配列:LOCAL):現在位置 == LOCAL
+					IF CFLAG:(滞在者部屋割り配列:LOCAL):睡眠 && 陥落チェック(滞在者部屋割り配列:LOCAL) == 0
+						PRINTFORML %CALLNAME:(滞在者部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						CALL 睡眠時表示文章(滞在者部屋割り配列:LOCAL)
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						あなた追跡キャラ = 0
+						RETURN 1
+					ELSEIF CFLAG:(滞在者部屋割り配列:LOCAL):キャラ同士うふふ
+						PRINTFORML %CALLNAME:(滞在者部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						;同室者の検索
+						FOR ループ用, 1, CHARANUM
+							IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL && CFLAG:ループ用:キャラ同士うふふ && ループ用 != 滞在者部屋割り配列:LOCAL
+								CALL キャラ同士うふふ時表示文章(滞在者部屋割り配列:LOCAL, ループ用)
+								BREAK
+							ENDIF
+						NEXT
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						あなた追跡キャラ = 0
+						RETURN 1
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF 移動先位置 >= 1000 && 移動先位置 < 2000
+			LOCAL = 移動先位置 - 1000
+			IF 従業員部屋割り配列:LOCAL > 0
+				;睡眠時
+				IF CFLAG:(従業員部屋割り配列:LOCAL):現在マップ種別 == 999 && CFLAG:(従業員部屋割り配列:LOCAL):現在位置 == LOCAL
+					IF CFLAG:(従業員部屋割り配列:LOCAL):睡眠 && 陥落チェック(従業員部屋割り配列:LOCAL) == 0
+						PRINTFORML %CALLNAME:(従業員部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						CALL 睡眠時表示文章(従業員部屋割り配列:LOCAL)
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						あなた追跡キャラ = 0
+						RETURN 1
+					ELSEIF CFLAG:(従業員部屋割り配列:LOCAL):キャラ同士うふふ
+						PRINTFORML %CALLNAME:(従業員部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						;同室者の検索
+						FOR ループ用, 1, CHARANUM
+							IF CFLAG:ループ用:現在マップ種別 == 999 && CFLAG:ループ用:現在位置 == LOCAL && CFLAG:ループ用:キャラ同士うふふ && ループ用 != 従業員部屋割り配列:LOCAL
+								CALL キャラ同士うふふ時表示文章(従業員部屋割り配列:LOCAL, ループ用)
+								BREAK
+							ENDIF
+						NEXT
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						あなた追跡キャラ = 0
+						RETURN 1
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF 移動先位置 >= 2000 && 移動先位置 < 3000
+			LOCAL = 移動先位置 - 2000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT スイートルーム部屋割り配列:LOCAL, "_", RESULTS
+			部屋人数 = 0
+			FOR ループ用, 1, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:部屋人数 = TOINT(RESULTS:ループ用)
+				部屋人数 ++
+			NEXT
+			IF 部屋人数 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				VARSET 在宅配列
+				在宅者数 = 0
+				FOR ループ用, 0, 部屋人数
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 999 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 2000
+						IF LOCAL:2 == 2
+							;キャラ同士うふふ中はもうひとりのうふふを探す
+							IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ
+								在宅配列:在宅者数 = 部屋主配列:ループ用
+								在宅者数 ++
+								BREAK
+							ENDIF
+						ELSE
+							;うふふが見つかってない時は睡眠をチェックしておく
+							IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ
+								LOCAL:2 = 2
+								VARSET 在宅配列
+								在宅者数 = 0
+								;LOCAL:2を2にしたので次からは上の分岐へ
+							ELSEIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0 && LOCAL:2 >= 0
+								;非陥落の睡眠が一人でもいると入れない
+								LOCAL:2 = 1
+							ELSEIF !CFLAG:(部屋主配列:ループ用):睡眠
+								;一人でも起きてたら入れる
+								LOCAL:2 = -1
+							ENDIF
+							在宅配列:在宅者数 = 部屋主配列:ループ用
+							在宅者数 ++
+						ENDIF
+					ENDIF
+				NEXT
+				IF LOCAL:2 > 0
+					IF 部屋人数 > 1
+						PRINTFORML %NAME:(部屋主配列:0)%たちの部屋には鍵が掛かっている。
+					ELSE
+						PRINTFORML %NAME:(部屋主配列:0)%の部屋には鍵が掛かっている。
+					ENDIF
+					IF LOCAL:2 == 1
+						;寝てるキャラからランダムで選ぶ
+						CALL 睡眠時表示文章(在宅配列:(RAND:在宅者数))
+					ELSEIF LOCAL:2 == 2
+						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
+					ENDIF
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					あなた追跡キャラ = 0
+					RETURN 1
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE 1
+		IF 移動先位置 >= 1000
+			LOCAL = 移動先位置 - 1000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 商業区店割り配列:LOCAL:店員配列, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;不在時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 1 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF 追従中キャラ(部屋主配列:ループ用)
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					PRINTL 店には鍵が掛かっている。
+					PRINTW どうやら誰もいないようだ…
+					あなた追跡キャラ = 0
+					RETURN 1
+				ENDIF
+			ELSEIF 部屋主配列:0 < 0
+				IF TIME < 540 || TIME > 1200 || 定休日判定(LOCAL)
+					PRINTL 店には鍵が掛かっている。
+					PRINTW どうやら誰もいないようだ…
+					あなた追跡キャラ = 0
+					RETURN 1
+				ENDIF
+			ENDIF
+		ENDIF
+	CASE 2
+		IF 移動先位置 >= 1000 && 移動先位置 <= 6000
+			LOCAL = 移動先位置 - 1000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				VARSET 在宅配列
+				在宅者数 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						IF LOCAL:2 == 2
+							;キャラ同士うふふ中はもうひとりのうふふを探す
+							IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ
+								在宅配列:在宅者数 = 部屋主配列:ループ用
+								在宅者数 ++
+								BREAK
+							ENDIF
+						ELSE
+							;うふふが見つかってない時は睡眠をチェックしておく
+							IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ
+								LOCAL:2 = 2
+								VARSET 在宅配列
+								在宅者数 = 0
+								;LOCAL:2を2にしたので次からは上の分岐へ
+							ELSEIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0 && LOCAL:2 >= 0
+								;非陥落の睡眠が一人でもいると入れない
+								LOCAL:2 = 1
+							ELSEIF !CFLAG:(部屋主配列:ループ用):睡眠
+								;一人でも起きてたら入れる
+								LOCAL:2 = -1
+							ENDIF
+							在宅配列:在宅者数 = 部屋主配列:ループ用
+							在宅者数 ++
+						ENDIF
+					ENDIF
+				NEXT
+				IF LOCAL:2 > 0
+					CALLF GETPLACENAME_2_10(移動先位置)
+					IF LOCAL:2 == 1
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						;寝てるキャラからランダムで選ぶ
+						CALL 睡眠時表示文章(在宅配列:(RAND:在宅者数))
+					ELSEIF LOCAL:2 == 2
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
+					ENDIF
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 2
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					あなた追跡キャラ = 0
+					RETURN 1
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF 追従中キャラ(部屋主配列:ループ用)
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					CALLF GETPLACENAME_2_10(移動先位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 2
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					あなた追跡キャラ = 0
+					RETURN 1
+				ENDIF
+			ENDIF
+		ENDIF
+ENDSELECT
+
+RETURN 0
+
+
+@睡眠時表示文章(睡眠キャラ)
+#DIM 睡眠キャラ
+
+;キャラが寝てて施錠されてる時の表示文章を制御する
+;どっちにしろデフォルトメッセージは表示する
+PRINTW どうやら眠っているようだ…
+
+TRYCALLFORM 部屋施錠時_睡眠口上_{NO:睡眠キャラ}(睡眠キャラ)
+
+
+@キャラ同士うふふ時表示文章(対象キャラ１, 対象キャラ２)
+#DIM 対象キャラ１
+#DIM 対象キャラ２
+
+;キャラが寝てて施錠されてる時の表示文章を制御する
+;どっちにしろデフォルトメッセージは表示する
+PRINTW 中から嬌声が聞こえてくる……どうやらお楽しみ中のようだ…
+
+;以下、受け攻めの設定を見て口上などを呼び出す
+
+
+
