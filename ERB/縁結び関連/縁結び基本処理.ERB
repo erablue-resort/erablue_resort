@@ -749,34 +749,70 @@ RETURN 対象外フラグ
 @同室者縁結び進行処理(進行量)
 #DIM 進行量
 #DIM 実行TARGET
-#DIM 対象TARGET
+#DIM 相手キャラ
+#DIM 対象２
+#DIM 対象配列
+#DIM 関係数
 
 ;同室してるTARGET全員の組み合わせについて縁結びを進展させる
 
-FOR 実行TARGET, 0, CHARANUM
+; FOR 実行TARGET, 1, CHARANUM
+; 	SIF TARGET:実行TARGET < 0
+; 		BREAK
+; 	FOR 対象TARGET, 1, CHARANUM
+; 		SIF TARGET:対象TARGET < 0
+; 			BREAK
+; 		SIF 実行TARGET == 対象TARGET
+; 			CONTINUE
+; 		VARSET RESULT
+; 		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:(TARGET:実行TARGET):人物番号} And 対象キャラ２ = {CFLAG:(TARGET:対象TARGET):人物番号}")
+; 			LOCAL = RESULT:1
+; 			;完了してるならスキップ
+; 			SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ", 1)
+; 				CONTINUE
+; 			;判定をチェック
+; 			CALL 縁結び進展しない判定(TARGET:実行TARGET, TARGET:対象TARGET, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1))
+; 			SIF RESULT:0
+; 				CONTINUE
+
+; 			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_実行側_{NO:(TARGET:実行TARGET)}(TARGET:実行TARGET, TARGET:対象TARGET, 進行量)
+; 			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_対象側_{NO:(TARGET:対象TARGET)}(TARGET:対象TARGET, TARGET:実行TARGET, 進行量)
+
+; 			;同じ組み合わせは複数存在しないはずなのでそのまま進展
+; 			DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
+; 		ENDIF
+; 	NEXT
+; NEXT
+
+;同室してるTARGET全員の組み合わせについて縁結びを進展させる
+
+FOR 実行TARGET, 1, CHARANUM
 	SIF TARGET:実行TARGET < 0
 		BREAK
-	FOR 対象TARGET, 0, CHARANUM
-		SIF TARGET:対象TARGET < 0
-			BREAK
-		VARSET RESULT
-		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:(TARGET:実行TARGET):人物番号} And 対象キャラ２ = {CFLAG:(TARGET:対象TARGET):人物番号}")
-			LOCAL = RESULT:1
-			;完了してるならスキップ
-			SIF DT_CELL_GET("縁結びデータベース", LOCAL, "完遂フラグ", 1)
-				CONTINUE
-			;判定をチェック
-			CALL 縁結び進展しない判定(TARGET:実行TARGET, TARGET:対象TARGET, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1))
-			SIF RESULT:0
-				CONTINUE
+	;完遂してない縁結びを検索
+	関係数 = DT_SELECT("縁結びデータベース", @"(対象キャラ１ = {CFLAG:(TARGET:実行TARGET):人物番号} Or 対象キャラ２ = {CFLAG:(TARGET:実行TARGET):人物番号}) And 完遂フラグ = 0")
+	IF 関係数
+		FOR 対象配列, 1, 関係数 + 1
+			LOCAL = RESULT:対象配列
+			;対象キャラを抜き出して比較
+			相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１", 1))
+			IF 相手キャラ == TARGET:実行TARGET
+				相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２", 1))
+			ENDIF
+			IF CFLAG:相手キャラ:現在マップ種別 == CFLAG:(TARGET:実行TARGET):現在マップ種別 && CFLAG:相手キャラ:現在位置 == CFLAG:(TARGET:実行TARGET):現在位置
+				;判定をチェック
+				CALL 縁結び進展しない判定(TARGET:実行TARGET, 相手キャラ, DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1))
+				SIF RESULT:0
+					CONTINUE
 
-			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_実行側_{NO:(TARGET:実行TARGET)}(TARGET:実行TARGET, TARGET:対象TARGET, 進行量)
-			TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_対象側_{NO:(TARGET:対象TARGET)}(TARGET:対象TARGET, TARGET:実行TARGET, 進行量)
+				TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_実行側_{NO:(TARGET:実行TARGET)}(TARGET:実行TARGET, 相手キャラ, 進行量)
+				TRYCALLFORM 縁結び進行固有補正_%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別", 1)%_対象側_{NO:相手キャラ}(相手キャラ, TARGET:実行TARGET, 進行量)
 
-			;同じ組み合わせは複数存在しないはずなのでそのまま進展
-			DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
-		ENDIF
-	NEXT
+				;同じ組み合わせは複数存在しないはずなのでそのまま進展
+				DT_CELL_SET "縁結びデータベース", LOCAL, "進展度", DT_CELL_GET("縁結びデータベース", LOCAL, "進展度", 1) + 進行量, 1
+			ENDIF
+		NEXT
+	ENDIF
 NEXT
 
 @縁結び完了処理
