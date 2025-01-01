@@ -1262,6 +1262,8 @@ ENDSELECT
 #DIM キャラ番号
 #DIMS 小分類
 #DIMS 処理内容
+#DIM 攻めキャラ
+#DIM 受けキャラ
 
 IF CFLAG:キャラ番号:デート < 0
 	;あなた以外とデート中は追従
@@ -1270,8 +1272,8 @@ ENDIF
 
 SELECTCASE 処理内容
 	CASE "開始処理"
-		IF RCVAR:キャラ番号:追従ルーチン中
-			スケジュール状態:キャラ番号:目的地 = キャラクター部屋検索(RCVAR:キャラ番号:追従ルーチン中)
+		IF CFLAG:キャラ番号:デート < 0
+			スケジュール状態:キャラ番号:目的地 = キャラクター部屋検索(ABS(CFLAG:キャラ番号:デート) - 100)
 			スケジュール状態:キャラ番号:目的マップ = 部屋検索_マップ種別
 		ELSE
 			スケジュール状態:キャラ番号:目的地 = キャラクター部屋検索(キャラ番号)
@@ -1282,14 +1284,60 @@ SELECTCASE 処理内容
 				CFLAG:キャラ番号:キャラ同士うふふ = 1
 			ENDIF
 		ENDIF
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
 		RETURN 1
 	CASE "経過処理"
 		IF CFLAG:キャラ番号:デート
 			IF CFLAG:キャラ番号:現在位置 == CFLAG:(ABS(CFLAG:キャラ番号:デート) - 100):現在位置 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:(ABS(CFLAG:キャラ番号:デート) - 100):現在マップ種別
 				CFLAG:キャラ番号:キャラ同士うふふ = 1
+				;ランダムにモードをセット、モードの切り替えはインターバル時間を流用
+				;時間を共通させるため、追従キャラの時は処理しない
+				IF CFLAG:キャラ番号:デート > 0 && TCVAR:キャラ番号:移動ルーチンインターバル時間 < 1
+					;まずモードリセット
+					CALL 特定キャラモードリセット(キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+					;PLAYERが観測してないなら文章表示しない
+					SIF CFLAG:キャラ番号:現在位置 != CFLAG:PLAYER:現在位置 || CFLAG:キャラ番号:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
+						SKIPDISP 1
+					;以下、ランダムでモードを設定
+					;キス
+					IF RAND:3 == 0 || TALENT:キャラ番号:キス嗜好 || TALENT:(ABS(CFLAG:キャラ番号:デート) - 100):キス嗜好
+						IF RAND:3 == 0 || TALENT:キャラ番号:キス嗜好 || TALENT:(ABS(CFLAG:キャラ番号:デート) - 100):キス嗜好
+							CALL MODE_CHANGE("ディープキス", キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+						ELSE
+							CALL MODE_CHANGE("キス", キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+						ENDIF
+					ENDIF
+					;アイテム・自慰系、それぞれにどれか一個しかセットされない
+					IF RAND:2
+						CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(キャラ番号), ABS(CFLAG:キャラ番号:デート) - 100, キャラ番号)
+					ENDIF
+					IF RAND:2
+						CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(ABS(CFLAG:キャラ番号:デート) - 100), キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+					ENDIF
+					;愛撫系、それぞれにどれか一個しかセットされない
+					CALL MODE_CHANGE(ランダム愛撫モード算出(キャラ番号), ABS(CFLAG:キャラ番号:デート) - 100, キャラ番号)
+					CALL MODE_CHANGE(ランダム愛撫モード算出(ABS(CFLAG:キャラ番号:デート) - 100), キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+					;挿入系、受け攻めを見て算出
+					IF RAND:2
+						CALL 受け攻め関係性算出(キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+						IF RESULT >= 0
+							攻めキャラ = RESULT:10
+							受けキャラ = RESULT:11
+
+							CALL ランダム挿入モードセット(攻めキャラ, 受けキャラ)
+						ENDIF
+					ENDIF
+					TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(30, 60)
+					SKIPDISP 0
+				ENDIF
 			ENDIF
 		ENDIF
 	CASE "終了処理"
 		CFLAG:キャラ番号:キャラ同士うふふ = 0
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		IF !CFLAG:キャラ番号:うふふ
+			;うふふじゃないなら全てのモードを消す
+			CALL 特定キャラモードリセット(キャラ番号)
+		ENDIF
 		RETURN 1
 ENDSELECT
