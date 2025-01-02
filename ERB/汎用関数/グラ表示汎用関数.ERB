@@ -200,6 +200,90 @@ REPLACE RESULTS, "\.webp", ""
 RETURNF RESULTS
 
 ;********************************************************************************************
+;@GRAP_COM_RAND(ARG, TYPE, PATRN, PATRN:1)
+;  キャラARGのTYPE+PATRNで始まるファイル名を持つ画像を抽出し、その中からランダムで１つ選び
+;  TYPEと拡張子を除いたファイル名を返す
+;  TYPE "コマンド実行時_"
+;********************************************************************************************
+
+@GRAP_COM_RAND(対象キャラ, TYPE, PATRN, COM名前)
+#FUNCTIONS
+#DIMS FOLDER
+#DIMS TYPE
+#DIMS PATRN
+#DIMS 妊娠用PATRN保存
+#DIMS COM名前
+#DIM 対象キャラ
+#DIM L_CNT
+#DIMS 画像配列保存, 2000
+
+SIF !INRANGE(対象キャラ, 0, CHARANUM-1)
+	RETURNF
+
+SIF CSTR:対象キャラ:画像フォルダ == ""
+	CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+
+妊娠用PATRN保存 = 
+IF TALENT:対象キャラ:妊娠 && PREGNANCY_SIZE(対象キャラ) >= 2
+	妊娠用PATRN保存 '= PATRN
+	PATRN '= "妊娠" + PATRN
+ENDIF
+
+$妊娠差分用_LOOP
+
+VARSET LOCAL
+VARSET 画像配列保存
+VARSET RESULTS
+
+FOLDER '= "resources/" + CSTR:対象キャラ:画像フォルダ
+IF PATRN != ""
+	LOCAL = ENUMFILES(FOLDER, TYPE + PATRN + "_" + COM名前 + "*.*")
+ELSE
+	LOCAL = ENUMFILES(FOLDER, TYPE + COM名前 + "*.*")
+ENDIF
+FOR L_CNT, 0, LOCAL
+	画像配列保存:(LOCAL:10) '= RESULTS:L_CNT
+	LOCAL:10 += 1
+NEXT
+
+IF LOCAL:10 < 1
+	IF PATRN == "妊娠デフォルト"
+		;妊娠デフォルトが無いならデフォルトに戻してもういっかい
+		PATRN = デフォルト
+		;分岐用に一時保存にも入れておく
+		妊娠用PATRN保存 = デフォルト
+		GOTO 妊娠差分用_LOOP
+	ELSEIF STRCOUNT(PATRN, "妊娠") > 0
+		;着せ替えの妊娠差分がないなら戻して最初から
+		PATRN '= 妊娠用PATRN保存
+		妊娠用PATRN保存 = 
+		GOTO 妊娠差分用_LOOP
+	ELSE
+		IF TALENT:対象キャラ:妊娠 && PREGNANCY_SIZE(対象キャラ) >= 2 && 妊娠用PATRN保存 == ""
+			;妊娠しててPATRN保存が空っぽ = 現在衣装のグラが妊娠も通常も無いパターン
+			;なので通常妊娠画像を見に行く
+			PATRN = 妊娠デフォルト
+			GOTO 妊娠差分用_LOOP
+		ELSEIF PATRN != ""
+			;なんにも見つからなかったようなので衣装指定なしを見に行く
+			PATRN = 
+			GOTO 妊娠差分用_LOOP
+		ELSE
+			;それでもないなら空っぽを返す
+			RETURNF 
+		ENDIF
+	ENDIF
+ENDIF
+L_CNT = RAND(LOCAL + LOCAL:1)
+RESULTS '= 画像配列保存:L_CNT
+
+SUBSTRING RESULTS, 1 +STRLENS(FOLDER) + STRLENS(TYPE), -1
+REPLACE RESULTS, "\.png", ""
+REPLACE RESULTS, "\.webp", ""
+
+RETURNF RESULTS
+
+;********************************************************************************************
 ;@画像フォルダ選択(対象キャラ)
 ;  対象キャラの画像フォルダ内で"顔_デフォルト"という名前の画像を含むフォルダ（親フォルダ、サブフォルダ含む）を
 ;  探して、そのフォルダ内の画像ファイルを一覧で表示し、どのフォルダの画像を使用するかを選択させる
