@@ -1,0 +1,112 @@
+﻿;-------------------------------------------------
+;見せ槍
+;-------------------------------------------------
+@COMNAME13
+#FUNCTIONS
+TSTR:コマンド名受渡 = 見せ槍
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_13
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_13
+LOCALS = <br>■見せ槍<br>
+LOCALS += "相手に陰茎を見せつけて、性欲を煽るコマンド。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：欲情・屈従・征服"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM13
+#DIM 比較値
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;無知の場合、何も起こらない
+IF 知識素質:TARGET:性知識 == -2
+	RETURN 1
+ENDIF
+
+;基礎
+CALL SOURCE_CALC_欲情(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_屈従(TARGET, PLAYER, 60)
+
+IF GETBIT(TALENT:TARGET:性別, 1)
+	比較値 = TALENT:PLAYER:男性器サイズ - TALENT:TARGET:男性器サイズ
+	;-2:こどもちんこ、-1:短小、0:平凡、1:巨根、2:規格外
+	IF 比較値 > 0
+		CALL SOURCE_CALC_屈従(TARGET, PLAYER, 100)
+	ELSEIF 比較値 < 0
+		CALL SOURCE_CALC_征服(TARGET, PLAYER, 100)
+		CALL SOURCE_CALC_欲情(TARGET, PLAYER, 50)
+	ELSE
+		CALL SOURCE_CALC_欲情(TARGET, PLAYER, 100)
+	ENDIF
+ELSE
+	比較値 = TALENT:PLAYER:男性器サイズ - MAX(TALENT:TARGET:体格, -2)
+	;-3:ハーヴィン並、-2:子供並、-1:小柄、0:普通、1:長身、2:男ドラフ並
+	IF 比較値 > 0
+		CALL SOURCE_CALC_屈従(TARGET, PLAYER, 100)
+	ELSEIF 比較値 < 0
+		CALL SOURCE_CALC_征服(TARGET, PLAYER, 100)
+		CALL SOURCE_CALC_欲情(TARGET, PLAYER, 50)
+	ELSE
+		CALL SOURCE_CALC_欲情(TARGET, PLAYER, 100)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛　
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 1
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 1
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE13
+;見せ槍
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(13)
+	RETURN RESULT
+;ちんこがない場合駄目
+SIF GETBIT(TALENT:PLAYER:性別, 1) == 0 || TALENT:PLAYER:Ｃ感度 == -2
+	RETURN 0
+;ちんこを何かに使ってるなら無理
+SIF TEQUIP:PLAYER:ペニス
+	RETURN 0
+;勃起必須
+SIF BASE:PLAYER:勃起 < 1000
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM13
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%の顔に勃起した
+SELECTCASE TALENT:PLAYER:男性器サイズ
+	CASE -2
+		PRINT 可愛らしい、子どものような
+	CASE -1
+		PRINT 小さめの
+	CASE 0
+	CASE 1
+		PRINT 人並み以上の
+	CASE 2
+		PRINT 規格外に巨大な
+ENDSELECT
+
+PRINTL 陰茎を近づけ、見せつけた……
