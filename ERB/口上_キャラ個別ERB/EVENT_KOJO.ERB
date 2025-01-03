@@ -446,3 +446,76 @@ TARGET = LOCAL
 IF 画像文字列 != ""
 	CALL PRINT_STRL(@"IMAGEPATH_%CSTR:対象キャラ:画像フォルダ%/コマンド実行時_%画像文字列%")
 ENDIF
+
+@体力限界時画像表示処理(対象キャラ)
+#DIM 対象キャラ
+#DIMS FOLDER
+#DIMS PATRN
+#DIMS 妊娠用PATRN保存
+#DIM L_CNT
+#DIMS 画像配列保存, 2000
+
+SIF CSTR:対象キャラ:画像フォルダ == ""
+	CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+
+PATRN '= CSTR:対象キャラ:表示グラフィックカテゴリ
+SIF PATRN == ""
+	PATRN = デフォルト
+
+妊娠用PATRN保存 = 
+IF TALENT:対象キャラ:妊娠 && PREGNANCY_SIZE(対象キャラ) >= 2
+	妊娠用PATRN保存 '= PATRN
+	PATRN '= "妊娠" + PATRN
+ENDIF
+
+$妊娠差分用_LOOP
+
+VARSET LOCAL
+VARSET 画像配列保存
+VARSET RESULTS
+
+FOLDER '= "resources/" + CSTR:対象キャラ:画像フォルダ
+LOCAL = ENUMFILES(FOLDER, "体力限界時_" + PATRN + "*.*")
+ARRAYCOPY "RESULTS", "画像配列保存"
+
+IF LOCAL < 1
+	VARSET RESULTS
+	;見つからなかったならダウン時の短冊を探す
+	IF 差分抽出(対象キャラ, "短冊_", PATRN, "ダウン")
+		画像配列保存:0 '= FOLDER + RESULTS
+		LOCAL = 1
+	ELSE
+		IF PATRN == "妊娠デフォルト"
+			;妊娠デフォルトが無いならデフォルトに戻してもういっかい
+			PATRN = デフォルト
+			;分岐用に一時保存にも入れておく
+			妊娠用PATRN保存 = デフォルト
+			GOTO 妊娠差分用_LOOP
+		ELSEIF STRCOUNT(PATRN, "妊娠") > 0
+			;着せ替えの妊娠差分がないなら戻して最初から
+			PATRN '= 妊娠用PATRN保存
+			妊娠用PATRN保存 = 
+			GOTO 妊娠差分用_LOOP
+		ELSE
+			IF TALENT:対象キャラ:妊娠 && PREGNANCY_SIZE(対象キャラ) >= 2 && 妊娠用PATRN保存 == ""
+				;妊娠しててPATRN保存が空っぽ = 現在衣装のグラが妊娠も通常も無いパターン
+				;なので通常妊娠画像を見に行く
+				PATRN = 妊娠デフォルト
+				GOTO 妊娠差分用_LOOP
+			ELSE
+				;なんにも見つからなかったなら表示しない
+				RETURN 0
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+L_CNT = RAND:LOCAL
+RESULTS '= 画像配列保存:L_CNT
+
+SUBSTRING RESULTS, 1 + STRLENS(FOLDER), -1
+REPLACE RESULTS, "\.png", ""
+REPLACE RESULTS, "\.webp", ""
+
+CALL PRINT_STRL(@"IMAGEPATH_%CSTR:対象キャラ:画像フォルダ%/%RESULTS%")
+
+RETURN 1
