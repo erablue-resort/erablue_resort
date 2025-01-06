@@ -290,6 +290,9 @@ TRYCALLFORM 部屋施錠時_睡眠口上_{NO:睡眠キャラ}(睡眠キャラ)
 #DIM 受けキャラ
 #DIM 対象キャラ１判定値
 #DIM 対象キャラ２判定値
+#DIM 配列番号
+#DIMS モード名
+#DIM 表示フラグ
 
 ;キャラがうふふ中で施錠されてる時の表示文章を制御する
 ;以下、受け攻めの設定を見て口上などを呼び出す
@@ -309,11 +312,17 @@ ENDIF
 ;一定条件で乱入可能
 IF あなた単独() == 0
 	;誰かを連れてる時は無理
+	PRINTL 
+	PRINTFORML 中の様子を覗きますか？
+	PRINTBUTTONLC "[2] はい", 2
+	PRINTBUTTONLC "[1] いいえ", 1
+	BINPUT
 ELSEIF (TALENT:対象キャラ１:恋慕 && TALENT:対象キャラ２:恋慕) || (TALENT:対象キャラ１:セフレ || TALENT:対象キャラ２:セフレ)
 	PRINTL 
 	PRINTFORML 乱入しますか？
 	PRINTBUTTONLC "[0] はい", 0
 	PRINTBUTTONLC "[1] いいえ", 1
+	PRINTBUTTONLC "[2] 中の様子を覗く", 2
 	BINPUT
 	IF RESULT == 0
 		PRINTFORMW %CALLNAME:PLAYER%は合鍵で扉を開け、%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%の睦み合いに乱入した。
@@ -374,6 +383,119 @@ ELSEIF (TALENT:対象キャラ１:恋慕 && TALENT:対象キャラ２:恋慕) ||
 		CFLAG:対象キャラ２:同室 = 1
 		CFLAG:PLAYER:うふふ = 1
 		RETURN 1
+	ENDIF
+ELSE
+	PRINTL 
+	PRINTFORML 中の様子を覗きますか？
+	PRINTBUTTONLC "[2] はい", 2
+	PRINTBUTTONLC "[1] いいえ", 1
+	BINPUT
+ENDIF
+
+IF RESULT == 2
+	表示フラグ = 0
+	VARSET RESULT
+	IF DT_SELECT("体位モードデータベース", @"対象キャラ = {受けキャラ}")
+		FOR 配列番号, 1, RESULT + 1
+			モード名 '= DT_CELL_GETS("体位モードデータベース", RESULT:配列番号, "モード名", 1)
+			IF モード名 == "キス"
+				PRINTFORML %CALLNAME:攻めキャラ%と%CALLNAME:受けキャラ%が情熱的に唇を合わせている……
+				表示フラグ ++
+			ELSEIF モード名 == "ディープキス"
+				PRINTFORML %CALLNAME:攻めキャラ%と%CALLNAME:受けキャラ%が舌を絡ませて互いを味わっている……
+				表示フラグ ++
+			ELSEIF 系統リスト_アイテム系(モード名)
+				PRINTFORML %モード名%が%CALLNAME:受けキャラ%を機械的に攻め立ててる様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_愛撫系(モード名)
+				PRINTFORM %CALLNAME:攻めキャラ%が%TEXTR("丹念に/丁寧に/激しく/遠慮なく")%%CALLNAME:受けキャラ%の
+				IF モード名 == "Ｃ愛撫"
+					IF GETBIT(TALENT:受けキャラ:性別, 1)
+						PRINT 陰茎を
+					ELSE
+						PRINT クリトリスを
+					ENDIF
+				ELSEIF モード名 == "Ｖ愛撫"
+						PRINT 膣口を
+				ELSEIF モード名 == "Ａ愛撫"
+						PRINT アナルを
+				ELSEIF モード名 == "Ｂ愛撫"
+						PRINT 乳首を
+				ENDIF
+				PRINTL 弄り、啼かせている様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_自慰系(モード名)
+				PRINTFORM %CALLNAME:受けキャラ%が自らの手で自分の
+				IF 系統リスト_Ｃ自慰系(モード名)
+					IF GETBIT(TALENT:受けキャラ:性別, 1)
+						PRINT 陰茎を
+					ELSE
+						PRINT クリトリスを
+					ENDIF
+				ELSEIF 系統リスト_Ｖ自慰系(モード名)
+						PRINT 膣口を
+				ELSEIF 系統リスト_Ａ自慰系(モード名)
+						PRINT アナルを
+				ELSEIF 系統リスト_Ｂ自慰系(モード名)
+						PRINT 乳首を
+				ENDIF
+				PRINTL 弄り、快楽を貪る様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_Ｖ挿入系(モード名)
+				PRINTFORML %CALLNAME:攻めキャラ%が%CALLNAME:受けキャラ%に挿入し、互いに求め合う様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_Ａ挿入系(モード名)
+				PRINTFORML %CALLNAME:攻めキャラ%が%CALLNAME:受けキャラ%のアナルに挿入し、互いに求め合う様子が見える……
+				表示フラグ ++
+			ENDIF
+		NEXT
+	ENDIF
+	IF DT_SELECT("体位モードデータベース", @"対象キャラ = {攻めキャラ}")
+		FOR 配列番号, 1, RESULT + 1
+			IF 系統リスト_アイテム系(モード名)
+				PRINTFORML %モード名%が%CALLNAME:攻めキャラ%を機械的に攻め立ててる様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_愛撫系(モード名)
+				PRINTFORM %CALLNAME:受けキャラ%が%TEXTR("丹念に/丁寧に/激しく/遠慮なく")%%CALLNAME:攻めキャラ%の
+				IF モード名 == "Ｃ愛撫"
+					IF GETBIT(TALENT:攻めキャラ:性別, 1)
+						PRINT 陰茎を
+					ELSE
+						PRINT クリトリスを
+					ENDIF
+				ELSEIF モード名 == "Ｖ愛撫"
+						PRINT 膣口を
+				ELSEIF モード名 == "Ａ愛撫"
+						PRINT アナルを
+				ELSEIF モード名 == "Ｂ愛撫"
+						PRINT 乳首を
+				ENDIF
+				PRINTL 弄り、奉仕している様子が見える……
+				表示フラグ ++
+			ELSEIF 系統リスト_自慰系(モード名)
+				PRINTFORM %CALLNAME:攻めキャラ%が自らの手で自分の
+				IF 系統リスト_Ｃ自慰系(モード名)
+					IF GETBIT(TALENT:攻めキャラ:性別, 1)
+						PRINT 陰茎を
+					ELSE
+						PRINT クリトリスを
+					ENDIF
+				ELSEIF 系統リスト_Ｖ自慰系(モード名)
+						PRINT 膣口を
+				ELSEIF 系統リスト_Ａ自慰系(モード名)
+						PRINT アナルを
+				ELSEIF 系統リスト_Ｂ自慰系(モード名)
+						PRINT 乳首を
+				ENDIF
+				PRINTL 弄り、快楽を貪る様子が見える……
+				表示フラグ ++
+			ENDIF
+		NEXT
+	ENDIF
+	IF 表示フラグ
+		WAIT
+	ELSE
+		PRINTFORMW %CALLNAME:攻めキャラ%と%CALLNAME:受けキャラ%がベッドの上で仲睦まじくいちゃいちゃしている姿が見える……
 	ENDIF
 ENDIF
 
