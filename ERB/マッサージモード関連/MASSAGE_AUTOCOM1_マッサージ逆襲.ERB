@@ -1,0 +1,96 @@
+﻿;------------------------------------------------------------------------------
+;マッサージ中、
+;------------------------------------------------------------------------------
+@MASSAGE_AUTOCOM1
+;処理はすべてCOMENDで行う
+;処理の発動キー用にSELECTCOMを代入
+SELECTCOM = 1001
+
+RETURN 1
+
+@MASSAGE_AUTOCOM_ABLE1(キャラ番号)
+#DIM キャラ番号
+;オプション制御
+SIF OPTION変数:マッサージ_逆襲禁止
+	RETURN 0
+;ターゲットが陥落済みであること
+SIF 陥落チェック(キャラ番号) == 0
+	RETURN 0
+;初うふふ済み必須
+SIF 初体験日取得("うふふ", キャラ番号, PLAYER) == 0
+	RETURN 0
+;理性は削れてること
+SIF BASE:キャラ番号:理性 > 1
+	RETURN 0
+;専用ステータスを参照
+SIF BASE:キャラ番号:ちんイラ < 200
+	RETURN 0
+SIF BASE:キャラ番号:ちんイラ < RAND:1000
+	RETURN 0
+;通常マッサージ直後には発動しない
+TRYCALLFORMF MASSAGE_COMTYPE_{コマンド履歴:0}
+SIF TFLAG:コマンドタイプ受渡 == 0
+	RETURN 0
+
+RETURN 1
+
+@MESSAGE_MASSAGE_AUTOCOM1
+PRINTFORML %CALLNAME:AUTOCOM_相手番号保存%は息を荒くし、もう我慢が出来ない様子で%CALLNAME:PLAYER%に襲いかかってきた！
+PRINTFORML どうやらきわどいマッサージで情欲を煽りすぎたようだ
+PRINTL 満たされるまでは解放されないだろう…
+PRINTW （なすがまま状態でうふふを開始　うふふ終了条件：絶頂３回）
+
+
+
+@ちんイラ増加処理(対象キャラ, 基礎値)
+#DIM 対象キャラ
+#DIM 基礎値
+#DIM 補正量
+
+;素質で基礎値に補正を掛ける
+
+IF TALENT:対象キャラ:性欲 == -2
+	BASE:対象キャラ:ちんイラ = 0
+	RETURN 0
+ENDIF
+
+補正量 = 0
+
+補正量 += TALENT:対象キャラ:態度 * 3
+補正量 += TALENT:対象キャラ:応答 * 5
+補正量 += TALENT:対象キャラ:プライド * 3
+
+SIF TALENT:対象キャラ:精神的余裕 > 0
+	補正量 -= 10
+SIF TALENT:対象キャラ:精神的余裕 < 0
+	補正量 += 5
+SIF TALENT:対象キャラ:無関心 > 0
+	補正量 -= 10
+SIF TALENT:対象キャラ:感情乏しい > 0
+	補正量 -= 10
+
+補正量 -= TALENT:対象キャラ:自制心 * 3
+
+SIF TALENT:対象キャラ:性欲 > 0
+	補正量 += 10
+SIF TALENT:対象キャラ:性欲 < 0
+	補正量 -= 5
+
+補正量 += TALENT:対象キャラ:経験豊富 * 5
+補正量 += TALENT:対象キャラ:淫乱 * 50
+補正量 -= TALENT:対象キャラ:貞操 * 10
+補正量 += TALENT:対象キャラ:快感応答 * 10
+
+SIF TALENT:対象キャラ:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	補正量 -= 20
+SIF TALENT:対象キャラ:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
+	補正量 -= 20
+SIF TALENT:対象キャラ:性別嗜好 == 3
+	補正量 -= 20
+
+SIF TALENT:PLAYER:印象 == 4
+	補正量 += 5
+
+BASE:対象キャラ:ちんイラ = MIN(MAXBASE:対象キャラ:ちんイラ, BASE:対象キャラ:ちんイラ + 基礎値 * (100 + 補正量) / 100)
+
+RETURN 基礎値 * (100 + 補正量) / 100

@@ -77,6 +77,13 @@ IF TCVAR:TARGET:マッサージ_うつ伏せフラグ
 ELSE
 	PRINTFORMC 　%CALLNAME:TARGET%をうつ伏せにする[810]
 ENDIF
+IF OPTION変数:マッサージ_逆襲禁止
+	SETCOLOR カラーパレット("黄")
+	PRINTBUTTONC "逆襲禁止:ON[811]", 811
+	RESETCOLOR
+ELSE
+	PRINTBUTTONC "逆襲禁止:OFF[811]", 811
+ENDIF
 PRINTL 
 PRINTC マッサージを終える[999]
 PRINTC OPTION[809]
@@ -431,6 +438,9 @@ ELSEIF RESULT == 810
 		ENDIF
 	ENDIF
 	RETURN 1
+ELSEIF RESULT == 811
+	INVERTBIT OPTION変数:マッサージ_逆襲禁止, 0
+	RETURN 1
 ELSEIF RESULT == 809
 	CALL OPTION
 	RETURN 1
@@ -591,7 +601,15 @@ IF FLAG:汎用文章表示切り替えオプション > 0
 		RESETCOLOR
 	ENDIF
 	DRAWLINE
-	IF SELECTCOM_S != ""
+	IF TFLAG:オートコマンドフラグ
+		地の文MOD_関数名 = {TFLAG:オートコマンドフラグ}
+		SIF EXISTFUNCTION(@"MESSAGE_MASSAGE_AUTOCOM%地の文MOD_関数名%_MOD") > 0
+			地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
+		TRYCCALLFORM MESSAGE_MASSAGE_AUTOCOM%地の文MOD_関数名%
+			PRINTW
+		CATCH
+		ENDCATCH
+	ELSEIF SELECTCOM_S != ""
 		地の文MOD_関数名 = %SELECTCOM_S%
 		SIF EXISTFUNCTION(@"MASSAGE_MESSAGE_COM_S%地の文MOD_関数名%_MOD") > 0
 			地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
@@ -628,81 +646,89 @@ RESULT = 0
 ;口上ありでも汎用喘ぎを使うならここで表示
 ;エロマッサージの場合は一時的にうふふをONに
 
-対象キャラ = TARGET
-SIF 汎用喘ぎうふふフラグ
-	CFLAG:対象キャラ:うふふ = 1
-
-IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
-	CALL 汎用喘ぎ処理(対象キャラ)
-ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
-	;禁止時はなにもしない
-ELSE
-	IF TALENT:対象キャラ:性別 == 2
-		SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1)
-			CALL 汎用喘ぎ処理(対象キャラ)
-	ELSE
-		SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1)
-			CALL 汎用喘ぎ処理(対象キャラ)
-	ENDIF
-ENDIF
-CFLAG:対象キャラ:うふふ = 0
-
-SIF TCVAR:TARGET:食いしばりフラグ
-	SKIPDISP 1
-
-;コマンドごとの画像をここで表示
-CALL コマンド実行時画像表示処理(TARGET, SELECTCOM_NAME)
-
-RESULT = 0
-
-IF RSTR:SELECTCOM_S受け渡し != ""
-	TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_%RSTR:SELECTCOM_S受け渡し%(TARGET)
-	IF FLAG:モード管理 == 2
-		呼び出し文字列 = %RSTR:SELECTCOM_S受け渡し%
-	ENDIF
-ELSE
-	TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_{SELECTCOM}(TARGET)
-	IF FLAG:モード管理 == 2
-		呼び出し文字列 = {SELECTCOM}
-	ENDIF
-ENDIF
-
-SKIPDISP 0
-SIF K < 1
-	LOCAL:1 = 1
-
-IF K < 1 && LOCAL:1 == 1
-	;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
-	;口上なしで汎用喘ぎを使うならここで表示
+IF TFLAG:オートコマンドフラグ == 0
 	対象キャラ = TARGET
 	SIF 汎用喘ぎうふふフラグ
 		CFLAG:対象キャラ:うふふ = 1
-	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+
+	IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == -1
+		CALL 汎用喘ぎ処理(対象キャラ)
+	ELSEIF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
 		;禁止時はなにもしない
-	ELSEIF TFLAG:オートコマンドフラグ == 0
+	ELSE
 		IF TALENT:対象キャラ:性別 == 2
-			SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1) == 0
+			SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1)
 				CALL 汎用喘ぎ処理(対象キャラ)
 		ELSE
-			SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1) == 0
+			SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1)
 				CALL 汎用喘ぎ処理(対象キャラ)
-		ENDIF
-	ENDIF
-	IF TCVAR:対象キャラ:食いしばりフラグ == 0
-		IF SELECTCOM_S != ""
-			地の文MOD_関数名 = %SELECTCOM_S%_非口上時
-			SIF EXISTFUNCTION(@"MASSAGE_MESSAGE_COM_S%地の文MOD_関数名%_MOD") > 0
-				地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
-			TRYCALLFORM MASSAGE_MESSAGE_COM_S%地の文MOD_関数名%
-		ELSE
-			地の文MOD_関数名 = {SELECTCOM}_非口上時
-			SIF EXISTFUNCTION(@"MASSAGE_MESSAGE_COM%地の文MOD_関数名%_非口上時_MOD") > 0
-				地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
-			TRYCALLFORM MASSAGE_MESSAGE_COM%地の文MOD_関数名%
 		ENDIF
 	ENDIF
 	CFLAG:対象キャラ:うふふ = 0
 ENDIF
+
+SIF TCVAR:TARGET:食いしばりフラグ
+	SKIPDISP 1
+
+IF TFLAG:オートコマンドフラグ > 0
+	TRYCALLFORM KOJO_MASSAGE_AUTOCOM_{NO:AUTOCOM_相手番号保存}_{TFLAG:オートコマンドフラグ}(AUTOCOM_相手番号保存)
+ELSE
+	;コマンドごとの画像をここで表示
+	CALL コマンド実行時画像表示処理(TARGET, SELECTCOM_NAME)
+
+	RESULT = 0
+
+	IF RSTR:SELECTCOM_S受け渡し != ""
+		TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_%RSTR:SELECTCOM_S受け渡し%(TARGET)
+		IF FLAG:モード管理 == 2
+			呼び出し文字列 = %RSTR:SELECTCOM_S受け渡し%
+		ENDIF
+	ELSE
+		TRYCALLFORM KOJO_MASSAGE_COM_{NO:TARGET}_{SELECTCOM}(TARGET)
+		IF FLAG:モード管理 == 2
+			呼び出し文字列 = {SELECTCOM}
+		ENDIF
+	ENDIF
+
+	SKIPDISP 0
+	SIF K < 1
+		LOCAL:1 = 1
+
+	IF K < 1 && LOCAL:1 == 1
+		;通常口上も複数人プレイ口上も無かった場合、非口上メッセージを出す
+		;口上なしで汎用喘ぎを使うならここで表示
+		対象キャラ = TARGET
+		SIF 汎用喘ぎうふふフラグ
+			CFLAG:対象キャラ:うふふ = 1
+		IF CFLAG:対象キャラ:汎用喘ぎ禁止フラグ == 1
+			;禁止時はなにもしない
+		ELSEIF TFLAG:オートコマンドフラグ == 0
+			IF TALENT:対象キャラ:性別 == 2
+				SIF GETBIT(OPTION変数:汎用喘ぎ使用_男, 0) && GETBIT(OPTION変数:汎用喘ぎ使用_男, 1) == 0
+					CALL 汎用喘ぎ処理(対象キャラ)
+			ELSE
+				SIF GETBIT(OPTION変数:汎用喘ぎ使用, 0) && GETBIT(OPTION変数:汎用喘ぎ使用, 1) == 0
+					CALL 汎用喘ぎ処理(対象キャラ)
+			ENDIF
+		ENDIF
+		IF TCVAR:対象キャラ:食いしばりフラグ == 0
+			IF SELECTCOM_S != ""
+				地の文MOD_関数名 = %SELECTCOM_S%_非口上時
+				SIF EXISTFUNCTION(@"MASSAGE_MESSAGE_COM_S%地の文MOD_関数名%_MOD") > 0
+					地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
+				TRYCALLFORM MASSAGE_MESSAGE_COM_S%地の文MOD_関数名%
+			ELSE
+				地の文MOD_関数名 = {SELECTCOM}_非口上時
+				SIF EXISTFUNCTION(@"MASSAGE_MESSAGE_COM%地の文MOD_関数名%_非口上時_MOD") > 0
+					地の文MOD_関数名 '= 地の文MOD_関数名 + "_MOD"
+				TRYCALLFORM MASSAGE_MESSAGE_COM%地の文MOD_関数名%
+			ENDIF
+		ENDIF
+		CFLAG:対象キャラ:うふふ = 0
+	ENDIF
+ENDIF
+
+SKIPDISP 0
 
 
 
@@ -762,6 +788,15 @@ ELSE
 	ENDIF
 ENDIF
 
+;リセット前に次ターン自動行動をするか判定
+AUTOCOM_相手番号保存 = 0
+TFLAG:前ターンオートフラグ = TFLAG:オートコマンドフラグ
+FLAG:オートコマンド判定中フラグ = 1
+CALL MASSAGE_BEFORE_AUTOCOM
+TFLAG:オートコマンドフラグ = RESULT
+FLAG:オートコマンド判定中フラグ = 0
+
+;コマンドごとの特殊処理
 SELECTCASE SELECTCOM
 	CASE 51 TO 54
 		;おまんこマッサージはうふふに移行する関係上、ここで色々処理
@@ -837,6 +872,37 @@ SELECTCASE SELECTCOM
 		ELSEIF SELECTCOM == 54
 			CALL MODE_CHANGE("Ａ騎乗位", TARGET, PLAYER)
 		ENDIF
+	CASE 1001
+		;マッサージ逆襲の処理
+		;通常モードに移行
+		LOCALS '= CSTR:TARGET:コスプレ前の服
+		LOCALS:1 '= CSTR:TARGET:着せ替え服
+		TARGET保存 = TARGET
+		;ゲームフェイズ変更でリセットされるのでSELECTCOM保存
+		SWAP SELECTCOM, COM保存
+		CALL ゲームフェイズ変更("通常モード")
+		シチュ受け渡し = マッサージ逆襲
+		;SELECTCOM復帰
+		SWAP SELECTCOM, COM保存
+		TARGET = TARGET保存
+		CSTR:TARGET:コスプレ前の服 '= LOCALS
+		CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+		;うふふに移行
+		CALL うふふ開始キャラ処理(TARGET, シチュ受け渡し)
+		CFLAG:PLAYER:うふふ = 1
+		TFLAG:調教モード = 2
+
+		;なすがまま状態を付与
+		TFLAG:オートコマンド連続発動 = 6
+		TFLAG:オートコマンド連続発動_なすがまま = 1
+		;オートコマンド設定
+		AUTOCOM_相手番号保存 = 0
+		TFLAG:オートコマンドフラグ = 0
+		TFLAG:前ターンオートフラグ = TFLAG:オートコマンドフラグ
+		FLAG:オートコマンド判定中フラグ = 1
+		CALL BEFORE_AUTOCOM
+		TFLAG:オートコマンドフラグ = RESULT
+		FLAG:オートコマンド判定中フラグ = 0
 ENDSELECT
 
 ;キャラごとの特殊処理を呼び出す
@@ -1052,6 +1118,10 @@ IF 陥落チェック(対象キャラ)
 ENDIF
 
 TCVAR:対象キャラ:前ターン警戒度 = BASE:対象キャラ:警戒
+
+;ついでにちんイラもセット
+BASE:(TARGET:LOCAL):ちんイラ = 0
+MAXBASE:(TARGET:LOCAL):ちんイラ = 1000
 
 
 @GLOBAL_MASSAGE_COMABLE(COM番号)
