@@ -1,0 +1,110 @@
+﻿
+; erablue_resort 開発者向け __DEBUG_同行キャラ設定チェック 2025/01/08版
+;  キャラCSVの CSTR,同行キャラ の記述が間違っていたり、修正したけど過去のデータの影響が残っていたりするのを検出します
+;  正しく動作するという保証はありません
+
+; 2025/01/08版のライセンス
+; era内での利用に限り改変も無改変再配布も可。
+
+; 使用方法
+; １．このERBファイルをERBフォルダ直下またはERBフォルダの下のサブフォルダに入れる。
+; ２．Emueraをデバッグモードで起動する。
+; ３．最初から始める で起床前の画面まで進む または セーブデータをロードする。起床して交流を開始しても可。
+; ４．Emueraのデバッグウインドウを表示してコンソールタブに切り替える。
+; ５．コンソールタブの下部の入力領域に __DEBUG_同行キャラ設定チェック() を入力してEnterを押す。無限ループの可能性の警告が出ても1回は「いいえ」を選ぶべし。
+; すると、
+; ・キャラCSVの同行キャラの記述
+; ・登録キャラのNAME
+; ・変数「同行候補キャラ番号」の値
+; の不一致や不適切な値をチェックした結果がコンソールタブに出力されるはず。
+
+; 同行候補キャラ番号:x:y	xはキャラ登録番号 yは0から99まで
+;  値が1以上：xに同行する候補のキャラ登録番号
+;  値が0：空き領域
+;  値が-1：FINDCHARA() でキャラが見つからなかった（戻り値が-1）けどそのまま戻り値を入れてしまったパターンなので不適切な値
+; のはず。
+
+
+@__DEBUG_同行キャラ設定チェック
+#FUNCTION
+#DIM DYNAMIC LCOUNT1
+#DIM DYNAMIC LCOUNT2
+#DIMS DYNAMIC 同行キャラ文字列一時保存
+#DIMS DYNAMIC CSTR切り分け文字列格納, 2
+#DIM DYNAMIC 同行キャラ数
+#DIM DYNAMIC 空きアリ
+#DIM DYNAMIC 同行キャラ登録番号
+#DIMS DYNAMIC 出力文字列, 8
+
+DEBUGCLEAR
+DEBUGPRINTFORML __DEBUG_同行キャラ設定チェック 開始
+
+IF CHARANUM <= 0
+	DEBUGPRINTFORML ゲームを開始してから実行してください
+ENDIF
+
+FOR LCOUNT1, 0, CHARANUM
+	SIF LCOUNT1 == MASTER || TALENT:LCOUNT1:ランダムキャラ
+		CONTINUE
+	VARSET 出力文字列
+	出力文字列:0 '= @"CSV番号({NO:LCOUNT1}) キャラ登録番号({LCOUNT1}) %CSTR:LCOUNT1:出演作品% 「%CALLNAME:LCOUNT1%」:"
+
+	空きアリ = 0
+	IF MINARRAY(同行候補キャラ番号:LCOUNT1:0) <= 0
+		空きアリ = 1
+	ENDIF
+	SIF !空きアリ
+		出力文字列:1 '= "しかし、変数「同行候補キャラ番号」の中に空きがないので仕方ないかもしれません" ; このへんの動作は未確認
+
+	空きアリ = 0
+	IF MINARRAY(RELATION_NO:LCOUNT1:0) <= 0
+		空きアリ = 1
+	ENDIF
+	SIF !空きアリ
+		出力文字列:5 '= "しかし、変数「RELATION_NO」の中に空きがないので仕方ないかもしれません" ; このへんの動作は未確認
+
+	同行キャラ文字列一時保存 = %CSVCSTR(NO:LCOUNT1, GETNUM(CSTR, "同行キャラ"))%
+	VARSET LOCALS
+	REPLACE 同行キャラ文字列一時保存, " ", ""
+	SPLIT RESULTS, "%", LOCALS
+	同行キャラ数 = RESULT - 1
+	FOR LCOUNT2, 0, 同行キャラ数
+		出力文字列:2 '= ""
+		出力文字列:3 '= ""
+		VARSET CSTR切り分け文字列格納
+		SPLIT LOCALS:LCOUNT2, "_", CSTR切り分け文字列格納
+		同行キャラ登録番号 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+		IF 同行キャラ登録番号 < 0 && CSTR切り分け文字列格納:0 == "[北の守護神]ビカラ"
+			同行キャラ登録番号 = FINDCHARA(NAME, CSTR切り分け文字列格納:0 + "（陰）") ; ここだけ特別扱い
+		ENDIF
+		IF 同行キャラ登録番号 < 0
+			出力文字列:2 '= @"同行キャラ「%CSTR切り分け文字列格納:0%」が登録キャラの中に見つかりません"
+		ENDIF
+		IF 同行キャラ登録番号 >= 0 && FINDELEMENT(同行候補キャラ番号:LCOUNT1:0, 同行キャラ登録番号) < 0
+			出力文字列:3 '= @"変数「同行候補キャラ番号」の中に「%CALLNAME:同行キャラ登録番号%」の登録番号が含まれていません" ; このへんの動作は未確認
+		ENDIF
+		IF 同行キャラ登録番号 >= 0 && FINDELEMENT(RELATION_NO:LCOUNT1:0, 同行キャラ登録番号) < 0
+			出力文字列:6 '= @"変数「RELATION_NO」の中に「%CALLNAME:同行キャラ登録番号%」の登録番号が含まれていません" ; このへんの動作は未確認
+		ENDIF
+		SIF 出力文字列:2 != ""
+			DEBUGPRINTFORML %出力文字列:0% %出力文字列:2%
+		SIF 出力文字列:3 != ""
+			DEBUGPRINTFORML %出力文字列:0% %出力文字列:3% %出力文字列:1%
+		SIF 出力文字列:6 != ""
+			DEBUGPRINTFORML %出力文字列:0% %出力文字列:6% %出力文字列:5%
+	NEXT
+	IF MINARRAY(同行候補キャラ番号:LCOUNT1:0) < 0
+		出力文字列:4 '= "変数「同行候補キャラ番号」の中にマイナスの値が含まれています"
+	ENDIF
+	IF MINARRAY(RELATION_NO:LCOUNT1:0) < 0
+		出力文字列:7 '= "変数「RELATION_NO」の中にマイナスの値が含まれています" ; これは発生しない？
+	ENDIF
+	SIF 出力文字列:4 != ""
+		DEBUGPRINTFORML %出力文字列:0% %出力文字列:4%
+	SIF 出力文字列:7 != ""
+		DEBUGPRINTFORML %出力文字列:0% %出力文字列:7%
+NEXT
+
+DEBUGPRINTFORML __DEBUG_同行キャラ設定チェック 終了
+
+RETURNF 0

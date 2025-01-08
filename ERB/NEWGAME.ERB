@@ -442,10 +442,18 @@ ELSEIF SAVESTR:あなたスタイル == "スタートダッシュモード"
 	PRINTBUTTON "[0] スキップしない", 0
 	PRINTL 
 	PRINTBUTTON "[1] 人食い鳥の島 クリアまでスキップ（ＥＸキャラ解放可能）", 1
-;	PRINTBUTTON "[2] 温泉解放までスキップ（マッサージ解放可能）", 2
+	PRINTL 
+	PRINTBUTTON "[2] 温泉解放までスキップ（マッサージ解放可能）", 2
+	$INPUT_LOOP_Q
 	BINPUT
-	SIF RESULT
+	SELECTCASE RESULT
+	CASE 0
+	CASE 1 TO 2
 		CALL QUICK_START(RESULT)
+	CASEELSE
+		GOTO INPUT_LOOP_Q
+	ENDSELECT
+	
 	CALL シナリオ_OP
 ELSE
 	CALL シナリオ_OP
@@ -2839,6 +2847,7 @@ ENDSELECT
 
 @QUICK_START(ARG)
 #DIM 初期レベル
+#DIM 追加信頼度
 
 ;ARG:クイックスタート番号
 ;どこらへんから始めるか
@@ -2848,18 +2857,26 @@ ENDSELECT
 SELECTCASE ARG
 	CASE 1
 		初期レベル = 4
+		追加信頼度 = 1500
 	CASE 2
 		初期レベル = 8
+		追加信頼度 = 2500
+	CASEELSE
+		RETURN
 ENDSELECT
 
 
 
 FOR LOCAL,1, CHARANUM
-	;非戦闘員なのにレベル上がるのはバグの元になりそうなのでひとまず上げない
-	IF TALENT:LOCAL:従業員 && !TALENT:LOCAL:非戦闘キャラ
-		基礎BATTLE_STATE:LOCAL:蓄積EXP = 戦闘経験値テーブル:初期レベル
-		CALL レベルアップ処理(LOCAL, 1)
+	IF TALENT:LOCAL:従業員
+		CFLAG:LOCAL:信頼度 += 追加信頼度
+		;非戦闘員なのにレベル上がるのはバグの元になりそうなのでひとまず上げない
+		IF !TALENT:LOCAL:非戦闘キャラ
+			基礎BATTLE_STATE:LOCAL:蓄積EXP = 戦闘経験値テーブル:初期レベル
+			CALL レベルアップ処理(LOCAL, 1)
+		ENDIF
 	ENDIF
+	
 NEXT
 ;沿岸部の森クリア
 CALL イベント完了フラグ汎用処理("森に住み着いた魔物")
@@ -2892,4 +2909,37 @@ CALL 汎用証取得処理("ウィザードの証")
 ;門
 SETBIT ダンジョン構造配列_人食い鳥の島:11:4, 2
 
+;人食い鳥の島クリアから開始ならここで抜ける
+SIF ARG == 1
+	RETURN
 
+;前提のあれこれ
+CALL イベント完了フラグ汎用処理("渡りに船の定期便")
+CALL イベント完了フラグ汎用処理("大拡張！空艇港")
+
+;ゆぐゆぐダンジョンクリア
+SETVAR @"ダンジョン構造配列_名前を亡くした遺跡:0:4", 3
+ダンジョン出現フラグ_名前を亡くした遺跡 = 1
+ダンジョンクリアフラグ_名前を亡くした遺跡 = 1
+SETBIT ダンジョン構造配列_名前を亡くした遺跡:22:5, 4
+CALL 汎用耳飾り取得処理("猛禽の耳飾り")
+
+;ゆぐゆぐ解禁
+LOCAL = GETCHARA(124)
+CFLAG:LOCAL:招待不可フラグ = 0
+CFLAG:LOCAL:信頼度 = 1000
+
+
+;温泉追加
+温泉作成許可フラグ = 1
+
+施設改造度:7:0 = 1
+施設改造度:8:0 = 1
+CALL 滞在可能キャラ数再計算
+CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"大浴場を温泉施設Lv1に改造した","実績")
+CALL イベント完了フラグ汎用処理("温泉を作るために")
+CALL イベント完了フラグ汎用処理("【条件確認】温泉を作るために")
+
+;維持費が辛くなるだろうからお金と人気度追加
+MONEY += 100000
+リゾート人気度 = 1000
