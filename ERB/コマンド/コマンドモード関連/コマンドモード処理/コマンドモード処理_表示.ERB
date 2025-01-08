@@ -13,6 +13,8 @@
 #DIM ソート用配列_優先度, 体位モード検索上限
 #DIM ソート用配列_配列番号, 体位モード検索上限
 #DIM CONST 表示上限 = 10
+#DIM 改行カウント
+#DIMS モード名記録
 
 モード数カウント = 0
 VARSET ソート用配列_優先度
@@ -21,12 +23,22 @@ VARSET ソート用配列_配列番号
 ;モードに優先度を付けて配列へ格納
 ;昇順ソートのため負数で優先度を付ける
 FOR 配列番号, 0, DT_ROW_LENGTH("体位モードデータベース")
-	SIF 配列番号 >= 100
+	SIF 配列番号 >= 体位モード検索上限
 		BREAK
 	実行キャラ番号 = DT_CELL_GET("体位モードデータベース", 配列番号, "実行キャラ")
 	対象キャラ番号 = DT_CELL_GET("体位モードデータベース", 配列番号, "対象キャラ")
 	SIF !IS_SAME_ROOM(PLAYER, 対象キャラ番号)
 		CONTINUE
+	IF OPTION変数:MODE全表示フラグ == 2
+		モード名記録 '= DT_CELL_GET("体位モードデータベース", 配列番号, "モード名")
+		IF 系統リスト_アイテム系(モード名記録) || 系統リスト_自慰系(モード名記録)
+			SIF 対象キャラ番号 != MASTER && 対象キャラ番号 != TARGET
+				CONTINUE
+		ELSE
+			SIF 実行キャラ番号 != MASTER && 実行キャラ番号 != TARGET && 対象キャラ番号 != MASTER && 対象キャラ番号 != TARGET
+				CONTINUE
+		ENDIF
+	ENDIF
 	優先度計算 = 配列番号 - 1000
 	SIF 実行キャラ番号 == PLAYER
 		優先度計算 -= 200000
@@ -47,7 +59,7 @@ SIF モード数カウント > 0
 	DRAWLINE
 
 ;優先度の高いモードから順に表示上限まで表示
-IF OPTION変数:MODE全表示フラグ
+IF OPTION変数:MODE全表示フラグ > 0
 	最大番号 = モード数カウント
 ELSE
 	最大番号 = MIN(モード数カウント, 表示上限)
@@ -82,13 +94,22 @@ FOR 配列番号, 0, 最大番号
 	PRINTL 
 NEXT
 
-IF 表示上限 < モード数カウント
+IF 表示上限 < DT_ROW_LENGTH("体位モードデータベース")
 	IF OPTION変数:MODE全表示フラグ == 0
 		PRINTFORM 他{モード数カウント - 表示上限, 2}件　　
 		PRINTBUTTON "[全表示]", "モード全表示"
+		PRINT / 
+		PRINTBUTTON "[PLAYERとTARGETのみ表示]", "モード制限表示"
+		PRINTL
+	ELSEIF OPTION変数:MODE全表示フラグ == 1
+		PRINTBUTTON "[PLAYERとTARGETのみ表示]", "モード制限表示"
+		PRINT / 
+		PRINTBUTTON "[省略表示]", "モード省略表示"
 		PRINTL
 	ELSE
-		PRINTBUTTON "[省略表示]", "モード全表示"
+		PRINTBUTTON "[全表示]", "モード全表示"
+		PRINT / 
+		PRINTBUTTON "[省略表示]", "モード省略表示"
 		PRINTL
 	ENDIF
 ENDIF
@@ -268,8 +289,14 @@ ELSEIF STRCOUNT(入力値, "モード中断_") > 0
 	WAIT
 	CALL MODE_DELETE_FROM_ID(モードID)
 	RETURN 1
+ELSEIF STRCOUNT(入力値, "モード省略表示") > 0
+	OPTION変数:MODE全表示フラグ = 0
+	RETURN 1
 ELSEIF STRCOUNT(入力値, "モード全表示") > 0
-	INVERTBIT OPTION変数:MODE全表示フラグ, 0
+	OPTION変数:MODE全表示フラグ = 1
+	RETURN 1
+ELSEIF STRCOUNT(入力値, "モード制限表示") > 0
+	OPTION変数:MODE全表示フラグ = 2
 	RETURN 1
 ENDIF
 
