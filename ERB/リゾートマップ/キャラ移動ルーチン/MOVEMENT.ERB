@@ -4,6 +4,7 @@
 #DIM 追い出し先
 #DIM モード実行中フラグ
 #DIM モード番号
+#DIM あなた追従中
 
 FOR LOCAL,0,CHARANUM
 	;滞在してないキャラはスルー
@@ -128,12 +129,24 @@ FOR LOCAL,0,CHARANUM
 			CFLAG:LOCAL:同行 = 1
 	ELSE
 		CFLAG:LOCAL:同行 = MAX(CFLAG:LOCAL:同行 - TIME_PROGRESS(TFLAG:行動前時刻),0)
-		SIF CFLAG:LOCAL:同行 < 1 && CFLAG:LOCAL:デート == MASTER + 100
-			CFLAG:LOCAL:デート = 0
 	ENDIF
+	;デート残り時間は関係なく時間経過
+	IF CFLAG:LOCAL:デート残り時間 > 0
+		CFLAG:LOCAL:デート残り時間 = MAX(CFLAG:LOCAL:デート残り時間 - TIME_PROGRESS(TFLAG:行動前時刻),0)
+		IF !CFLAG:LOCAL:デート残り時間 || TIME >= 1260
+			;デート採点処理
+			CALL デート採点処理(LOCAL)
+			;うふふなどの途中の場合、同行をセット
+			SIF CFLAG:LOCAL:うふふ || (CFLAG:LOCAL:隠密 && CFLAG:LOCAL:同行 && CFLAG:MASTER:隠密) || (SAVESTR:ゲームフェイズ管理 == "マッサージモード" && MATCH(TARGET, LOCAL))
+				CFLAG:LOCAL:同行 = 1
+		ENDIF
+	ENDIF
+
+	あなた追従中 = 0
 	IF 追従中キャラ(LOCAL)
 		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
 		CFLAG:LOCAL:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+		あなた追従中 = 1
 	ENDIF
 
 	;うふふ中ではない、かつ同行終わったら隠密消去
@@ -174,9 +187,9 @@ FOR LOCAL,0,CHARANUM
 			CONTINUE
 	ENDIF
 
-	SIF CFLAG:LOCAL:うふふ
+	SIF あなた追従中
 		CONTINUE
-	SIF CFLAG:LOCAL:同行
+	SIF CFLAG:LOCAL:うふふ
 		CONTINUE
 	SIF CFLAG:LOCAL:飲み会
 		CONTINUE

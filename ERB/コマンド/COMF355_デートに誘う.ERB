@@ -1,0 +1,150 @@
+﻿
+@COMNAME355
+#FUNCTIONS
+TSTR:コマンド名受渡 = デートに誘う
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_355
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_355
+LOCALS = <br>■デートに誘う<br>
+LOCALS += "一定値以上の好感度レベルを持つ相手とデートするコマンド。<br>一人まで可能。<br>同行してくれる時間は３６０分、あるいは夜９時まで。一緒に隠密中・うふふ中も時間がカウントされる。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM355
+
+CALLFORMF COMNAME355
+SELECTCOM_NAME '= TSTR:コマンド名受渡
+
+IF CFLAG:TARGET:デート && CFLAG:TARGET:デート != MASTER + 100
+	PRINTFORMW %CALLNAME:TARGET%は今日一日%CALLNAME:(ABS(CFLAG:TARGET:デート) - 100)%とデートしているため連れ出せません
+	RETURN -1
+ENDIF
+
+;同行者は解除
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF CFLAG:(TARGET:LOCAL):同行
+		CFLAG:(TARGET:LOCAL):同行 = 0
+	ENDIF
+NEXT
+
+PRINTFORMW %CALLNAME:TARGET%とデートに行きます。
+CFLAG:TARGET:デート = PLAYER + 100
+CFLAG:PLAYER:デート = TARGET + 100
+
+CFLAG:TARGET:デート残り時間 = 360
+TFLAG:TARGET変更用 = TARGET
+TIME += 1
+CALL 初体験日登録処理(TARGET, PLAYER, "初デート", DAY * 1440 + TIME, GETPLACENAME(部屋検索_マップ種別, 場所保存), "", "", 1)
+CALL 初体験日登録処理(TARGET, PLAYER, "デート", DAY * 1440 + TIME, GETPLACENAME(部屋検索_マップ種別, 場所保存), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"初めて%CALLNAME:PLAYER%とデートをした","日常")
+ENDIF
+CALL 初体験日登録処理(PLAYER, TARGET, "初デート", DAY * 1440 + TIME, GETPLACENAME(部屋検索_マップ種別, 場所保存), "", "", 1)
+CALL 初体験日登録処理(PLAYER, TARGET, "デート", DAY * 1440 + TIME, GETPLACENAME(部屋検索_マップ種別, 場所保存), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"初めて%CALLNAME:TARGET%とデートをした","日常")
+ENDIF
+
+;SOURCEまで回さないのでここで口上を表示させる
+RESULT = 0
+RESULTS =
+IF FLAG:7 > 0
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_355(TARGET)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE355
+;連れ出す実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(355)
+	RETURN RESULT
+;TARGETの好感度レベル
+SIF CFLAG:好感度レベル < 1 + 関係閾値:3
+	RETURN 0
+;相手にとってあなたが恋愛対象であること
+SIF 恋愛対象外チェック(TARGET, PLAYER)
+	RETURN 0
+;デート中はダメ
+SIF CFLAG:TARGET:デート
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+
+
+
+@デート採点処理(対象キャラ)
+#DIM 対象キャラ
+
+DRAWLINE
+PRINTW デートの時間が終わった……
+PRINTFORML 今回のデートは{CFLAG:対象キャラ:デートスコア, 6}点くらいの出来だった。
+SELECTCASE CFLAG:対象キャラ:デートスコア
+	CASE IS < 7500
+		PRINTFORML %CALLNAME:対象キャラ%を退屈させてしまったかもしれない……
+		PRINTL 次はもう少しプランを練ってから誘おう
+	CASE IS < 15000
+		PRINTFORML %CALLNAME:対象キャラ%は楽しんでくれていたが、平凡なデートだった
+		PRINTL プレゼントを渡したりしてもいいかもしれない
+	CASE IS < 30000
+		PRINTFORML %CALLNAME:対象キャラ%はなかなか楽しんでくれていたようだ
+		PRINTL しかしこれで満足せず、もっと上を目指そう！
+	CASE IS < 60000
+		PRINTFORML %CALLNAME:対象キャラ%はとても楽しんでくれていたようだ！
+		PRINTL これだけのもてなしが出来るのなら十分と言っていいだろう
+	CASEELSE
+		PRINTFORML %CALLNAME:対象キャラ%は大満足した様子だ！
+		PRINTL 完璧と言っても過言ではない！
+ENDSELECT
+FORCEWAIT
+DRAWLINE
+
+DT_ROW_ADD "デートスコアデータベース", "デート相手人物番号", CFLAG:対象キャラ:人物番号, "デートスコア", CFLAG:対象キャラ:デートスコア, "デート日時", DAY * 1440 + TIME
+CALL デートリセット処理(対象キャラ)
+
+
+@デートリセット処理(対象キャラ)
+#DIM 対象キャラ
+
+CFLAG:対象キャラ:デート残り時間 = 0
+CFLAG:対象キャラ:デートスコア = 0
+CFLAG:対象キャラ:デート = 0
+CFLAG:MASTER:デート = 0
+;デートに使うスコア変数などをリセット
+
+
+@デートスコア上昇処理(対象キャラ)
+#DIM 対象キャラ
+#DIM スコア加算値
+
+スコア加算値 = 0
+
+;好感度の上昇量を使う
+スコア加算値 += NOWEX:対象キャラ:友情度上昇格納 / 3
+スコア加算値 += NOWEX:対象キャラ:信頼度上昇格納 / 2
+スコア加算値 += NOWEX:対象キャラ:恋心度上昇格納
+スコア加算値 += NOWEX:対象キャラ:性愛度上昇格納 / 3
+
+;コマンドの経過時間で差が出ないよう、消費時間でかける
+;10で割るのは数値のインフレ防止
+スコア加算値 = スコア加算値 / 10 * TIME_PROGRESS(TFLAG:行動前時刻)
+
+CFLAG:対象キャラ:デートスコア += スコア加算値
