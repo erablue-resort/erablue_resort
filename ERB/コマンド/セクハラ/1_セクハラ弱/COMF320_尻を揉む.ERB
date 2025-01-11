@@ -14,12 +14,13 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 
 @COM_TOOLTIP_320
 LOCALS = <br>■尻を揉む<br>
-LOCALS += "相手の尻を思うがままに揉むコマンド。<br>対象が下半身後ろ側に鎧を着ている場合は実行不可。"
+LOCALS += "相手の尻を思うがままに揉むコマンド。<br>対象が下半身後ろ側に鎧を着ている場合は実行不可。<br>連れ出し可能時、モード化して同行状態になる。"
 LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：接触・露出・快Ａ・歓楽(一定条件時)・不快(一定条件時)・反感(一定条件時)"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM320
+#DIM 同行数
 ;尻を揉む
 
 
@@ -207,6 +208,23 @@ SELECTCASE RFLAG:コマンド結果受渡し変数２
 		ENDSELECT
 ENDSELECT
 
+;同行が二人未満なら同行化
+IF !CFLAG:TARGET:睡眠 && (CFLAG:TARGET:デート == 0 || CFLAG:TARGET:デート == PLAYER + 100)
+	同行数 = 0
+	FOR LOCAL,1,CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		IF CFLAG:(TARGET:LOCAL):同行 
+			同行数 ++
+		ENDIF
+	NEXT
+	IF 同行数 < 2
+		CALL MODE_CHANGE("尻揉み", PLAYER, TARGET)
+		CFLAG:TARGET:同行 = 60 + (CFLAG:好感度レベル - 関係閾値:2) * 5
+		RFLAG:コマンド結果受渡し変数３ = 1
+	ENDIF
+ENDIF
+
 RETURN 1
 
 ;-------------------------------------------------
@@ -241,6 +259,11 @@ ELSE
 		ENDIF
 		PRINTL
 	ENDIF
+ENDIF
+
+IF RFLAG:コマンド結果受渡し変数３
+	PRINTL 
+	PRINTFORML %CALLNAME:PLAYER%は尻を掴んだまま、%CALLNAME:TARGET%を連れ歩くことにした
 ENDIF
 
 @MESSAGE_COM320_非口上時
