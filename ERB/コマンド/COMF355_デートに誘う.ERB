@@ -148,3 +148,115 @@ CFLAG:MASTER:デート = 0
 スコア加算値 = スコア加算値 / 10 * TIME_PROGRESS(TFLAG:行動前時刻)
 
 CFLAG:対象キャラ:デートスコア += スコア加算値
+
+
+@デート履歴表示画面(ソートフラグ)
+#DIM イベント件数
+#DIM 行カウント
+#DIM ページ番号
+#DIM 開始ページ
+#DIM DYNAMIC 検索リザルトID, 100000
+#DIMS フィルタ
+#DIM 表示行数 = 20; 履歴の表示行数
+;#DIM 履歴表示フィルタ
+#DIM L_C
+#DIM ソートフラグ
+#DIMS ソートルール
+
+;データ取得
+IF ソートフラグ == 1
+	ソートルール = デート相手人物番号 ASC
+ELSEIF ソートフラグ == 2
+	ソートルール = デートスコア DESC
+ELSE
+	ソートルール = 
+ENDIF
+
+VARSET 検索リザルトID
+イベント件数 = DT_SELECT("デートスコアデータベース", , ソートルール, 検索リザルトID)
+
+
+$表示部分
+;ここで立ち絵表示
+CALL 画像描画終了
+L_C = LINECOUNT
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(MASTER)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(MASTER)%</div>", 1
+ENDIF
+PRINTFORM ■%NAME:MASTER%
+PRINTL
+PRINTL
+PRINTL □ デート履歴 □---------------------------------------------------------------
+
+FOR 行カウント, 能力表示現在ページ * 表示行数, 能力表示現在ページ * 表示行数 + 表示行数
+	SIF 行カウント >= イベント件数
+		BREAK
+	CALL 任意日付表示(DT_CELL_GET("デートスコアデータベース", 検索リザルトID:行カウント, "デート日時", 1))
+	PRINTFORM 　%@"%CALLNAME:FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("デートスコアデータベース", 検索リザルトID:行カウント, "デート相手人物番号", 1))%とのデート", 26, LEFT%
+	PRINTFORM 　スコア：%NUM_FORMAT(DT_CELL_GET("デートスコアデータベース", 検索リザルトID:行カウント, "デートスコア", 1)), 9%
+	PRINTL 
+NEXT
+
+PRINTL
+LOCALS = 
+IF イベント件数 > 表示行数
+	IF 能力表示現在ページ > 5
+		LOCALS += @"<button value='-1'>[0]</button>..."
+		開始ページ = 能力表示現在ページ - 5
+	ELSE
+		LOCALS += @"　　　"
+		開始ページ = 0
+	ENDIF
+	FOR ページ番号, 0, 11
+		IF イベント件数 > (ページ番号 + 開始ページ) * 表示行数
+			SIF 能力表示現在ページ == ページ番号 + 開始ページ
+				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>"
+			LOCALS += @"<button value='{(ページ番号 + 開始ページ) * -1 - 1}'>[{ページ番号 + 開始ページ}]</button> "
+			SIF 能力表示現在ページ == ページ番号 + 開始ページ
+				LOCALS += @"</font>"
+		ENDIF
+	NEXT
+	IF イベント件数 > (MAX(能力表示現在ページ, 5) + 5) * 表示行数
+		LOCALS += @"<button value='{((イベント件数 - 1) / 表示行数) * -1 - 1}'>...[{(イベント件数 - 1) / 表示行数}]</button> "
+	ENDIF
+ELSE
+	能力表示現在ページ = 0
+ENDIF
+HTML_PRINT LOCALS, 1
+; IF 能力表示現在ページ > 0
+; 	PRINTBUTTON "[900] 前ページへ", 900
+; ELSE
+; 	PRINT 　　　　　　　　
+; ENDIF
+; PRINT 　　　
+; IF イベント件数 > 能力表示現在ページ * 表示行数 + 表示行数
+; 	PRINTBUTTON "[901] 次ページへ", 901
+; ENDIF
+PRINTL 
+PRINTL 
+
+IF ソートフラグ == 0
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1014] 日付順
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1014] 日付順", 1014
+ENDIF
+PRINT  / 
+IF ソートフラグ == 1
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1015] 人物順
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1015] 人物順", 1015
+ENDIF
+PRINT  / 
+IF ソートフラグ == 2
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1016] スコア順
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1016] スコア順", 1016
+ENDIF
