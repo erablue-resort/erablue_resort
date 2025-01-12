@@ -176,17 +176,15 @@ ENDSELECT
 RESTART
 
 @縁結び左キャラセット()
+#DIM 表示候補, キャラクタ数上限
 #DIM ページ数
-;キャラ一覧を表示
-DRAWLINE
-PRINTL 誰の縁を結びますか？
-PRINTL ※現在リゾートにいるキャラが対象です
-PRINTL ※性別なし、性欲なし、性知識がマイナス、元が陥落不可のキャラについては選択出来ません
-PRINTL 　（特定のキャラについては選択出来ることがあります）
-DRAWLINE
+#DIM 登録総数
 
-LOCAL:1 = 0
+VARSET 表示候補
+
+登録総数 = 0
 LOCALS = 
+;配列に登録
 FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
@@ -204,8 +202,27 @@ FOR LOCAL, 1, CHARANUM
 	ELSEIF RESULT == -1
 		CONTINUE
 	ENDIF
+	表示候補:登録総数 = LOCAL
+	登録総数 ++
+NEXT
+CALL キャラ配列フィルタ処理(表示候補)
+
+$表示位置
+
+;キャラ一覧を表示
+DRAWLINE
+PRINTL 誰の縁を結びますか？
+PRINTL ※現在リゾートにいるキャラが対象です
+PRINTL ※性別なし、性欲なし、性知識がマイナス、元が陥落不可のキャラについては選択出来ません
+PRINTL 　（特定のキャラについては選択出来ることがあります）
+DRAWLINE
+
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	SIF 表示候補:LOCAL < 1
+		BREAK
 	IF ページ数 == LOCAL:1 / 30
-		LOCALS += @"<button value='{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:LOCAL), "]", 1),41,LEFT%</button>　　　　　　　　"
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]", 1),41,LEFT%</button>　　　　　　　　"
 	ENDIF
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
@@ -229,20 +246,83 @@ ELSE
 	PRINTC   
 ENDIF
 PRINTL
+DRAWLINE
+PRINTBUTTON "[9020]フィルタ機能", 9020
+PRINTL
+PRINTBUTTON "[9030]ソート機能", 9030
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 9031
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 9032
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[9040]素質絞り込み機能", 9040
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+DRAWLINE
 PRINTBUTTON "[999] 戻る", 999
 
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 9020
+		CALL SHOW_CHARADATA_FILTA
+		ページ数 = 0
+		RESTART
+	CASE 9030
+		CALL SHOW_CHARADATA_SORT
+		ページ数 = 0
+		RESTART
+	CASE 9031
+		キャラ一覧ソート:1 = 降順
+		ページ数 = 0
+		RESTART
+	CASE 9032
+		キャラ一覧ソート:1 = 昇順
+		ページ数 = 0
+		RESTART
+	CASE 9040
+		CALL SHOW_CHARADATA_素質絞り込み
+		ページ数 = 0
+		RESTART
 	CASE 999
 		ページ数 = 0
 		RETURN 0
 	CASE 1000
 		ページ数 --
+		GOTO 表示位置
 	CASE 1001
 		ページ数 ++
+		GOTO 表示位置
 	CASEELSE
-		CALL 縁結び右キャラセット(LOCAL)
+		CALL 縁結び右キャラセット(表示候補:LOCAL)
 ENDSELECT
 
 RESTART
@@ -401,7 +481,11 @@ NEXT
 SIF 候補取得モード == 1
 	RETURN 0
 
+
 IF 全キャラランダムモード == 0
+	CALL キャラ配列フィルタ処理(候補配列)
+
+	$表示位置
 	;キャラ一覧を表示
 	DRAWLINE
 	PRINTFORML %NAME:左キャラ%　と誰の縁を結びますか？
@@ -426,7 +510,7 @@ IF 全キャラランダムモード == 0
 		表示数 = 0
 	ELSE
 		FOR 対象キャラ, ページ数 * 30, ページ数 * 30 + 30
-			IF 対象キャラ % 2 == 0 && 対象キャラ != 0
+			IF 対象キャラ % 2 == 0 && 対象キャラ != ページ数 * 30
 				LOCALS += "<br>" 
 			ENDIF
 			IF 候補配列:対象キャラ > 0
@@ -453,6 +537,47 @@ IF 全キャラランダムモード == 0
 		PRINTC   
 	ENDIF
 	PRINTL
+	DRAWLINE
+	PRINTBUTTON "[9020]フィルタ機能", 9020
+	PRINTL
+	PRINTBUTTON "[9030]ソート機能", 9030
+	PRINT 　　　　　現在のソート設定：
+	IF キャラ一覧ソート:0 != ""
+		PRINTFORM %キャラ一覧ソート:0%
+	ENDIF
+	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+		PRINT (昇順)
+		PRINT 　　　　　
+		PRINTBUTTON "[降順にする]", 9031
+	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+		PRINT (降順)
+		PRINT 　　　　　
+		PRINTBUTTON "[昇順にする]", 9032
+	ELSE
+		PRINT なし(キャラ番号順)
+	ENDIF
+	PRINTL
+	PRINTBUTTON "[9040]素質絞り込み機能", 9040
+	PRINT 　　現在の絞り込み設定：
+	IF キャラ一覧素質絞り込み:0 != ""
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			PRINT (AND条件)：
+		ELSE
+			PRINT (OR条件)：
+		ENDIF
+		FOR LOCAL, 0, 99
+			SIF キャラ一覧素質絞り込み:LOCAL == ""
+				BREAK
+			LOCALS:0 = 
+			LOCALS:1 = 
+			SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+			PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+		NEXT
+	ELSE
+		PRINT なし
+	ENDIF
+	PRINTL
+	DRAWLINE
 	PRINTBUTTON "[9999] 戻る", 9999
 
 	BINPUT
@@ -497,14 +622,36 @@ SELECTCASE 対象キャラ
 			セットモード = 0
 			RETURN 1
 		ENDIF
+	CASE 9020
+		CALL SHOW_CHARADATA_FILTA
+		ページ数 = 0
+		RESTART
+	CASE 9030
+		CALL SHOW_CHARADATA_SORT
+		ページ数 = 0
+		RESTART
+	CASE 9031
+		キャラ一覧ソート:1 = 降順
+		ページ数 = 0
+		RESTART
+	CASE 9032
+		キャラ一覧ソート:1 = 昇順
+		ページ数 = 0
+		RESTART
+	CASE 9040
+		CALL SHOW_CHARADATA_素質絞り込み
+		ページ数 = 0
+		RESTART
 	CASE 9999
 		ページ数 = 0
 		セットモード = 0
 		RETURN 0
 	CASE 9000
 		ページ数 --
+		GOTO 表示位置
 	CASE 9001
 		ページ数 ++
+		GOTO 表示位置
 	CASE 9010
 		セットモード = 0
 	CASE 9011
