@@ -1,4 +1,4 @@
-﻿@BEFORE_AUTOCOM
+﻿@BEFORE_AUTOCOM()
 #DIM 行動候補, 500
 #DIMS 行動候補文字列, 500
 #DIM 同室者番号
@@ -15,6 +15,9 @@
 #DIM 派生番号
 #DIM TARGET保存
 #DIM PLAYER保存
+#DIM 行動対象キャラ
+
+行動対象キャラ = MASTER
 
 VARSET AUTOCOM_候補情報
 PREAUTO候補者数 = 0
@@ -26,11 +29,11 @@ AUTOCOM_派生保存 =
 ;RETURNの数値をそのままフラグに入れ込むので、0を返せば動かない、他を返せば動く
 ;ついでにフラグにAUTOCOM番号を入れといて行動内容も保存しとく
 ;タゲなしの場合は戻る
-IF !TARGET
+IF !TARGET && 行動対象キャラ == MASTER
 	IF RFLAG:休憩選択フラグ
 		;休憩時TARGETが居ない場合に特殊処理に派生する
 		RETURN -1
-	ELSEIF RFLAG:自慰選択フラグ && CFLAG:PLAYER:現在位置 == CFLAG:PLAYER:自室位置
+	ELSEIF RFLAG:自慰選択フラグ && CFLAG:MASTER:現在位置 == CFLAG:MASTER:自室位置
 		;休憩時TARGETが居ない場合に特殊処理に派生する
 		CALL 自宅訪問からの目撃者決定
 		RETURN RESULT
@@ -39,25 +42,33 @@ IF !TARGET
 ENDIF
 
 ;逆オナホ時はオプションに関係なく専用のオートコマンドを走らせる
-IF TFLAG:オートコマンド連続発動_逆オナホ
-	AUTOCOM_相手番号保存 = DT_CELL_GET("体位モードデータベース", MODE_確認_ターゲット側("ハーヴィンオナホ系", PLAYER), "実行キャラ")
+IF TFLAG:オートコマンド連続発動_逆オナホ && 行動対象キャラ == MASTER
+	AUTOCOM_実行番号保存 = DT_CELL_GET("体位モードデータベース", MODE_確認_ターゲット側("ハーヴィンオナホ系", MASTER), "実行キャラ")
 	RETURN 10
 ENDIF
 
 SIF FLAG:オートコマンド切り替えオプション == 15
 	RETURN 0
 
-;二人同時にオートコマンドの対象になる場合、もう一人を予約する
-;現状、射精後の精飲or乳間見せつけのみ
-IF GROUPMATCH(TFLAG:オートコマンドフラグ, 1, 2) && !RFLAG:フィニッシュ相手番号 && TFLAG:フィニッシュ相手番号2
-	AUTOCOM_相手番号保存 = TFLAG:フィニッシュ相手番号2
-	TFLAG:フィニッシュ相手番号2 = 0
-	RETURN TFLAG:オートコマンドフラグ
-ENDIF
+;なんかバグりそうなので封印
+; ;二人同時にオートコマンドの対象になる場合、もう一人を予約する
+; ;現状、射精後の精飲or乳間見せつけのみ
+; IF GROUPMATCH(TFLAG:オートコマンドフラグ, 1, 2) && !RFLAG:フィニッシュ相手番号 && TFLAG:フィニッシュ相手番号2
+; 	AUTOCOM_実行番号保存 = TFLAG:フィニッシュ相手番号2
+; 	TFLAG:フィニッシュ相手番号2 = 0
+; 	RETURN TFLAG:オートコマンドフラグ
+; ENDIF
+
+;一旦保存
+TARGET保存 = TARGET
+PLAYER保存 = PLAYER
 
 FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;あなたは動かない
-	SIF NO:(TARGET:同室者番号) == MASTER
+	SIF TARGET:同室者番号 == MASTER
+		CONTINUE
+	;行動対象もスキップ
+	SIF TARGET:同室者番号 == 行動対象キャラ
 		CONTINUE
 	;相手が寝てる場合は次へ
 	SIF CFLAG:(TARGET:同室者番号):睡眠
@@ -81,6 +92,11 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	SIF MODE_存在判定_ターゲット側("全裸散歩", TARGET:同室者番号)
 		CONTINUE
 
+	;保存を戻す
+	TARGET = TARGET保存
+	PLAYER = PLAYER保存
+
+	;オプション制御
 	SIF GETBIT(FLAG:オートコマンド切り替えオプション, 0)
 		GOTO オート一般コマンド
 
@@ -161,12 +177,13 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;現状うふふでしか動かないように制限
 	SIF CFLAG:(TARGET:同室者番号):うふふ == 0
 		CONTINUE
+	;恋愛対象性別の時のみ動かす
+	SIF 恋愛対象外チェック(TARGET:同室者番号, 行動対象キャラ, 1)
+		CONTINUE
 
 	自慰ターゲット保存 = TARGET:同室者番号
 	LOCAL:1 = 0
-	TARGET保存 = TARGET
-	PLAYER保存 = PLAYER
-	TARGET = MASTER
+	TARGET = 行動対象キャラ
 	PLAYER = TARGET:同室者番号
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;許可されたCOMを全部見て行って条件とマッチしたCOM番号+3000を登録しておく
@@ -343,8 +360,6 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		ENDIF
 		SWAP PLAYER, TARGET
 	NEXT
-	TARGET = TARGET保存
-	PLAYER = PLAYER保存
 
 	;登録したCOM番号からランダムで選出
 	IF LOCAL:1 > 0
@@ -390,34 +405,43 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	ENDIF
 NEXT
 
+;保存を戻す
+TARGET = TARGET保存
+PLAYER = PLAYER保存
+
 ;同室者全員分見終わったら同一優先度からRAND
 VARSET 候補者_AUTO番号_文字列分割
 IF PREAUTO候補者数 > 0
 	ランダム格納 = RAND:PREAUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
-	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	AUTOCOM_実行番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	AUTOCOM_対象番号保存 = 行動対象キャラ
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
 ELSEIF AUTO候補者数 > 0
 	ランダム格納 = RAND:AUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
-	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	AUTOCOM_実行番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	AUTOCOM_対象番号保存 = 行動対象キャラ
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
 ELSEIF REVERSEAUTO候補者数 > 0
 	ランダム格納 = RAND:REVERSEAUTO候補者数
 	SPLIT AUTOCOM_候補情報:ランダム格納, "_", 候補者_AUTO番号_文字列分割
-	AUTOCOM_相手番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
+	AUTOCOM_実行番号保存 = TOINT(候補者_AUTO番号_文字列分割:0)
 	IF 候補者_AUTO番号_文字列分割:2 != ""
 		AUTOCOM_派生保存 = %候補者_AUTO番号_文字列分割:2%
 		CALL オートコマンド履歴保存(@"%候補者_AUTO番号_文字列分割:1%_%候補者_AUTO番号_文字列分割:2%")
 	ELSE
 		CALL オートコマンド履歴保存(@"%候補者_AUTO番号_文字列分割:1%")
 	ENDIF
+	AUTOCOM_対象番号保存 = 行動対象キャラ
 	RETURN TOINT(候補者_AUTO番号_文字列分割:1)
 ENDIF
 
 ;同室者にオートコマンドが無い時、非同室オートコマンドの判定へ
 
 $非同室AUTOCOM
+SIF 行動対象キャラ != MASTER
+	RETURN 0
 
 VARSET AUTOCOM_候補情報
 VARSET 行動候補
@@ -433,7 +457,7 @@ SIF TFLAG:調教モード == 2 || TFLAG:調教モード == 3
 	RETURN 0
 
 ;隠密時は発動しない
-SIF CFLAG:PLAYER:隠密
+SIF CFLAG:行動対象キャラ:隠密
 	RETURN 0
 
 ;イベントうふふ時は発動しない
@@ -454,12 +478,12 @@ FOR キャラ番号, 1, CHARANUM
 		CONTINUE
 	SIF CFLAG:キャラ番号:隠密
 		CONTINUE
-	SIF CFLAG:キャラ番号:現在位置 == CFLAG:MASTER:現在位置 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:MASTER:現在マップ種別
+	SIF CFLAG:キャラ番号:現在位置 == CFLAG:行動対象キャラ:現在位置 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:行動対象キャラ:現在マップ種別
 		CONTINUE
 	FOR ALLAUTOCOM番号, 0, LOCAL
 		CALLFORM %RESULTS:ALLAUTOCOM番号%(キャラ番号)
 		IF RESULT
-			AUTOCOM_相手番号保存 = キャラ番号
+			AUTOCOM_実行番号保存 = キャラ番号
 			LOCALS = %SUBSTRING(RESULTS:ALLAUTOCOM番号, 15, -1)%
 			RETURN TOINT(LOCALS) + 2000
 		ENDIF
@@ -527,12 +551,12 @@ RETURNF 相手判別変数
 ;要求を断った時にも記録出来るよう、種別決定時点で記録する
 
 ;うふふ中のみ記録する
-IF CFLAG:MASTER:うふふ
-	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴４ '= CSTR:AUTOCOM_相手番号保存:オートコマンド履歴３
-	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴３ '= CSTR:AUTOCOM_相手番号保存:オートコマンド履歴２
-	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴２ '= CSTR:AUTOCOM_相手番号保存:オートコマンド履歴１
-	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴１ '= CSTR:AUTOCOM_相手番号保存:オートコマンド履歴０
-	CSTR:AUTOCOM_相手番号保存:オートコマンド履歴０ '= 記録文字列
+IF CFLAG:AUTOCOM_実行番号保存:うふふ
+	CSTR:AUTOCOM_実行番号保存:オートコマンド履歴４ '= CSTR:AUTOCOM_実行番号保存:オートコマンド履歴３
+	CSTR:AUTOCOM_実行番号保存:オートコマンド履歴３ '= CSTR:AUTOCOM_実行番号保存:オートコマンド履歴２
+	CSTR:AUTOCOM_実行番号保存:オートコマンド履歴２ '= CSTR:AUTOCOM_実行番号保存:オートコマンド履歴１
+	CSTR:AUTOCOM_実行番号保存:オートコマンド履歴１ '= CSTR:AUTOCOM_実行番号保存:オートコマンド履歴０
+	CSTR:AUTOCOM_実行番号保存:オートコマンド履歴０ '= 記録文字列
 ENDIF
 
 @オートコマンド許可取り(反転フラグ = 0)
