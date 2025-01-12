@@ -2,60 +2,72 @@
 #DIM 値段一時登録
 #DIM 表示アビ番号
 #DIM 関数総数
+#DIMS 表示文字列
 
-LOCALS = 
+VARSET 表示文字列
 DRAWLINE
 PRINTL 島外から運んできた珍しい品物を販売しています
 DRAWLINE
-LOCALS += "<div rect='62,0,4375,3000' border='31' bcolor='#C0C0C0'></div>"
-LOCALS += "<div rect='4469,0,1562,625' border='31' bcolor='#C0C0C0'></div>"
-LOCALS += @"<div rect='4531,62,1562,625'>所持ルピ：%NUM_FORMAT(MONEY)%ルピ<br>所持ZP　：%ZP所持量全文字列()%</div>"
+表示文字列 += "<div rect='62,0,4375,3000' border='31' bcolor='#C0C0C0'></div>"
+表示文字列 += "<div rect='4469,0,1562,625' border='31' bcolor='#C0C0C0'></div>"
+表示文字列 += @"<div rect='4531,62,1562,625'>所持ルピ：%NUM_FORMAT(MONEY)%ルピ<br>所持ZP　：%ZP所持量全文字列()%</div>"
 
-;ランダムで５つの商品を並べる
+;商品の補充は @輸入品店品揃え変動処理 でなされる
 FOR LOCAL, 0, 5
+	;輸入品店_品揃え登録文字列が空文字列の場合は売り切れなどで商品がない
 	SIF 輸入品店_品揃え登録文字列:LOCAL == ""
 		CONTINUE
-	LOCALS += @"<div rect='{200 + LOCAL % 2 * 2100},{100 + LOCAL / 2 * 600},2000,550' border='20' bcolor='#C0C0C0' padding='31'><nobr>"
-	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 4
+
+	表示文字列 += @"<div rect='{200 + LOCAL % 2 * 2100},{100 + LOCAL / 2 * 600},2000,550' border='20' bcolor='#C0C0C0' padding='31'><nobr>"
+
+	;商品名表示 素材のみランク表示や属性の色つけをする
+	表示文字列 += "■"
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 品目種別_素材
 		CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:LOCAL%
-		LOCALS += @"■ランク%TOFULL(TOSTR(素材性能_素材ランク))%：<font color='#%カラーパレット_HTML(@"%素材性能_属性%属性")%'>"
-	ELSE
-		LOCALS += "■"
+		表示文字列 += @"ランク%TOFULL(TOSTR(素材性能_素材ランク))%：<font color='#%カラーパレット_HTML(@"%素材性能_属性%属性")%'>"
 	ENDIF
-	LOCALS += @"%輸入品店_品揃え登録文字列:LOCAL%"
-	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 4
-		LOCALS += "</font>"
-		IF 素材アイテム_数値データ取得("累計入手素材数", 輸入品店_品揃え登録文字列:LOCAL) == 0
-			LOCALS += @"　<font color='#%カラーパレット_HTML("真っ赤")%'>未入手！</font>"
-		ENDIF
+	表示文字列 += @"%輸入品店_品揃え登録文字列:LOCAL%"
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 品目種別_素材
+		表示文字列 += "</font>"
 	ENDIF
-	値段一時登録 = 輸入品店_品揃え登録:LOCAL:値段
-	LOCALS:1 = 
-	IF 値段一時登録 < 0
-		値段一時登録 = 値段一時登録 * -1
-		LOCALS:1 = 　<font color='#%カラーパレット_HTML("黄")%'>SALE！</font>
+	表示文字列 += "<br>"
+
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 品目種別_指輪
+		表示文字列 += @"　オプション数：{輸入品店_品揃え登録:LOCAL:品目性能, 2}<br>"
 	ENDIF
-	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 2
-		LOCALS += @"<br>　オプション数：{輸入品店_品揃え登録:LOCAL:品目性能, 2}<br>　値段：{値段一時登録}ルピ%LOCALS:1%<br>"
-	ELSE
-		LOCALS += @"<br>　値段：{値段一時登録}ルピ%LOCALS:1%<br><br>"
+
+	;価格表示 セール品の場合は輸入品店_品揃え登録:LOCAL:値段が負であることに注意
+	表示文字列 += @"　値段：{ABS(輸入品店_品揃え登録:LOCAL:値段)}ルピ"
+	IF 輸入品店_品揃え登録:LOCAL:値段 < 0
+		表示文字列 += @"　<font color='#%カラーパレット_HTML("黄")%'>SALE！</font>"
 	ENDIF
-	LOCALS += @"　　　　　　　　<button value='{LOCAL + 100}'>[詳細]</button>　　<button value='{LOCAL}'>[購入する]</button>"
-	LOCALS += "</div>"
+	;証は必ず未入手
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 == 品目種別_証 || (輸入品店_品揃え登録:LOCAL:品目種別 == 品目種別_素材 && 素材アイテム_数値データ取得("累計入手素材数", 輸入品店_品揃え登録文字列:LOCAL) == 0)
+		表示文字列 += @"　<font color='#%カラーパレット_HTML("真っ赤")%'>未入手！</font>"
+	ENDIF
+
+	;指輪だけオプション表示行があるのでそれ以外の品目は改行を追加
+	IF 輸入品店_品揃え登録:LOCAL:品目種別 != 品目種別_指輪
+		表示文字列 += "<br>"
+	ENDIF
+	表示文字列 += "<br>"
+
+	表示文字列 += @"　　　　　　　　<button value='{LOCAL + 100}'>[詳細]</button>　　<button value='{LOCAL}'>[購入する]</button>"
+	表示文字列 += "</div>"
 NEXT
 
-
-LOCALS += "<div rect='550,2812,5125,281'>"
+表示文字列 += "<div rect='130,2812,5125,281'>"
+表示文字列 += "<button value='998'>[998] システムの説明</button>　　"
 IF ITEM:輸入品リロールチケット > 0
-	LOCALS += "<button value='997'>[997] 輸入品リロールチケットを使用</button>　　"
+	表示文字列 += @"<button value='997'>[997] 輸入品リロールチケットを使用（残り{ITEM:輸入品リロールチケット,2}枚）</button>　　"
 ELSE
-	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[997] 輸入品リロールチケットを使用</font>　　"
+	表示文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[997] 輸入品リロールチケットを使用（残り{ITEM:輸入品リロールチケット,2}枚）</font>　　"
 ENDIF
-LOCALS += "<button value='998'>[998] システムの説明</button>　　"
-LOCALS += "<button value='999'>[999] 戻る</button>"
-LOCALS += "</div>"
+表示文字列 += "<button value='999'>[999] 戻る</button>"
+表示文字列 += "</div>"
 
-HTML_PRINT LOCALS, 1
+
+HTML_PRINT 表示文字列, 1
 FOR LOCAL, 0, 27
 	PRINTL
 NEXT
@@ -78,13 +90,13 @@ SELECTCASE LOCAL
 		PRINTL ［輸入品店：チュートリアル］
 		DRAWLINE
 		HTML_PRINT "<img src='顔エラ' height='900' width='900'>"
-		PRINTL 
-		PRINTL 
-		PRINTL 
-		PRINTL 
-		PRINTL 
-		PRINTL 
-		PRINTL 
+		PRINTL
+		PRINTL
+		PRINTL
+		PRINTL
+		PRINTL
+		PRINTL
+		PRINTL
 		CALL 輸入品店システムチュートリアル
 		DRAWLINE
 		RESTART
@@ -93,11 +105,11 @@ SELECTCASE LOCAL
 		DRAWLINE
 		PRINTFORML ■%輸入品店_品揃え登録文字列:(LOCAL - 100)%
 		SELECTCASE 輸入品店_品揃え登録:(LOCAL - 100):品目種別
-			CASE 1
+			CASE 品目種別_証
 				;証
 				TRYCALLFORM 証関数_%輸入品店_品揃え登録文字列:(LOCAL - 100)%("フレーバー")
-				LOCALS = %詳細文文字列受け渡し変数%<br>
-				LOCALS += @"・追加アビ<br>"
+				表示文字列 = %詳細文文字列受け渡し変数%<br>
+				表示文字列 += @"・追加アビ<br>"
 				VARSET RESULTS
 				関数総数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%輸入品店_品揃え登録文字列:(LOCAL - 100)%_")
 				FOR 表示アビ番号, 0, 関数総数
@@ -107,23 +119,23 @@ SELECTCASE LOCAL
 						CONTINUE
 					詳細文文字列受け渡し変数 = 
 					TRYCALLFORM %RESULTS:表示アビ番号%("アビ説明文")
-					LOCALS += @"%詳細文文字列受け渡し変数%<br>"
+					表示文字列 += @"%詳細文文字列受け渡し変数%<br>"
 				NEXT
-				LOCALS += "<br>"
-				HTML_PRINT LOCALS
-			CASE 2
+				表示文字列 += "<br>"
+				HTML_PRINT 表示文字列
+			CASE 品目種別_指輪
 				;指輪
 				CALLFORM 指輪基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
-				LOCALS = %詳細文文字列受け渡し変数%<br>
-				LOCALS += @"【オプション効果】<br>%オプション効果表示文字列作成(輸入品店_オプション固定登録:(LOCAL - 100))%"
-				HTML_PRINT LOCALS
-			CASE 3
+				表示文字列 = %詳細文文字列受け渡し変数%<br>
+				表示文字列 += @"【オプション効果】<br>%オプション効果表示文字列作成(輸入品店_オプション固定登録:(LOCAL - 100))%"
+				HTML_PRINT 表示文字列
+			CASE 品目種別_耳飾り
 				;耳飾り
 				CALLFORM 耳飾り基礎効果文章表示_%輸入品店_品揃え登録文字列:(LOCAL - 100)%(0, 輸入品店_品揃え登録:(LOCAL - 100):品目性能２)
-				LOCALS = %詳細文文字列受け渡し変数%
-				HTML_PRINT LOCALS
-			CASE 4
-				;食材
+				表示文字列 = %詳細文文字列受け渡し変数%
+				HTML_PRINT 表示文字列
+			CASE 品目種別_素材
+				;素材
 				CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:(LOCAL - 100)%
 				PRINTFORM カテゴリ：%素材性能_カテゴリ, 12, LEFT%
 				IF 素材性能_カテゴリ == "食物素材"
@@ -143,34 +155,30 @@ SELECTCASE LOCAL
 		RESTART
 	CASEELSE
 		;購入
-		IF 輸入品店_品揃え登録:LOCAL:値段 > MONEY
+		IF ABS(輸入品店_品揃え登録:LOCAL:値段) > MONEY
 			PRINTW ルピが足りません。
 			RESTART
 		ENDIF
-		IF 輸入品店_品揃え登録:LOCAL:値段 < 0
-			MONEY += 輸入品店_品揃え登録:LOCAL:値段
-		ELSE
-			MONEY -= 輸入品店_品揃え登録:LOCAL:値段
-		ENDIF
 		SELECTCASE 輸入品店_品揃え登録:LOCAL:品目種別
-			CASE 1
+			CASE 品目種別_証
 				;証
 				CALL 汎用証取得処理(輸入品店_品揃え登録文字列:LOCAL)
-			CASE 2
+			CASE 品目種別_指輪
 				;指輪
 				CALL 汎用指輪取得処理(輸入品店_品揃え登録文字列:LOCAL, 0, 輸入品店_品揃え登録:LOCAL:品目性能２ - 1)
 				IF RESULT > -1
 					;オプション固定のため一旦オプション無しで登録してから手動で入れ込む
 					DT_CELL_SET "所持指輪データベース", DT_ROW_LENGTH("所持指輪データベース") - 1, "オプションステータス補正", 輸入品店_オプション固定登録:LOCAL
 				ENDIF
-			CASE 3
+			CASE 品目種別_耳飾り
 				;耳飾り
 				CALL 汎用耳飾り取得処理(輸入品店_品揃え登録文字列:LOCAL, 輸入品店_品揃え登録:LOCAL:品目性能２)
-			CASE 4
+			CASE 品目種別_素材
 				;食材
 				CALL 素材入手処理(輸入品店_品揃え登録文字列:LOCAL, 1)
 		ENDSELECT
 		IF RESULT > -1
+			MONEY -= ABS(輸入品店_品揃え登録:LOCAL:値段)
 			PRINTFORMW %輸入品店_品揃え登録文字列:LOCAL%を購入しました。
 			輸入品店_品揃え登録文字列:LOCAL =
 		ENDIF
@@ -209,7 +217,7 @@ VARSET 候補保存配列
 IF RAND:6 == 0
 	CALL ランダム証("輸入")
 	IF RESULTS != ""
-		輸入品店_品揃え登録:登録品目番号:品目種別 = 1
+		輸入品店_品揃え登録:登録品目番号:品目種別 = 品目種別_証
 		輸入品店_品揃え登録文字列:登録品目番号 '= RESULTS
 		輸入品店_品揃え登録:登録品目番号:値段 = 50000
 		証品目数 = 1
@@ -226,8 +234,8 @@ ELSE
 ENDIF
 
 FOR LOCAL, 0, 装飾品品目数
-	輸入品店_品揃え登録:登録品目番号:品目種別 = RAND:2 + 2
-	IF 輸入品店_品揃え登録:登録品目番号:品目種別 == 2
+	輸入品店_品揃え登録:登録品目番号:品目種別 = RAND:2 + 品目種別_指輪
+	IF 輸入品店_品揃え登録:登録品目番号:品目種別 == 品目種別_指輪
 		CALL ランダム指輪("輸入")
 		IF RESULTS == ""
 			THROW 輸入品店に並べる指輪の候補がありません。開発者に報告してください。
@@ -257,12 +265,12 @@ FOR LOCAL, 0, 装飾品品目数
 			輸入品店_品揃え登録:登録品目番号:品目性能２ = RAND:RESULT + 1
 
 		;値段決定(オプション数１個につき50%値段UP)
-		輸入品店_品揃え登録:登録品目番号:値段 = (輸入品店_品揃え登録:登録品目番号:値段 * (10 + 輸入品店_品揃え登録:登録品目番号:品目性能 * 5) / 10) * RAND(80, 120) / 100
+		輸入品店_品揃え登録:登録品目番号:値段 = (輸入品店_品揃え登録:登録品目番号:値段 * (10 + 輸入品店_品揃え登録:登録品目番号:品目性能 * 5) / 10) * RAND(80, 121) / 100
 		;10%の確率でセール品
 		SIF RAND:10 == 0
 			輸入品店_品揃え登録:登録品目番号:値段 = 輸入品店_品揃え登録:登録品目番号:値段 / -2
 
-	ELSEIF 輸入品店_品揃え登録:登録品目番号:品目種別 == 3
+	ELSEIF 輸入品店_品揃え登録:登録品目番号:品目種別 == 品目種別_耳飾り
 		CALL ランダム耳飾り("輸入")
 		IF RESULTS == ""
 			THROW 輸入品店に並べる耳飾りの候補がありません。開発者に報告してください。
@@ -280,7 +288,7 @@ FOR LOCAL, 0, 装飾品品目数
 			輸入品店_品揃え登録:登録品目番号:品目性能２ = RAND:RESULT + 1
 
 		;値段決定
-		輸入品店_品揃え登録:登録品目番号:値段 = 輸入品店_品揃え登録:登録品目番号:値段 * RAND(80, 120) / 100
+		輸入品店_品揃え登録:登録品目番号:値段 = 輸入品店_品揃え登録:登録品目番号:値段 * RAND(80, 121) / 100
 		;10%の確率でセール品
 		SIF RAND:10 == 0
 			輸入品店_品揃え登録:登録品目番号:値段 = 輸入品店_品揃え登録:登録品目番号:値段 / -2
@@ -304,15 +312,15 @@ NEXT
 食材品目数 = 候補食材数
 
 FOR LOCAL, 登録品目番号, 登録品目上限
-	輸入品店_品揃え登録:登録品目番号:品目種別 = 4
+	輸入品店_品揃え登録:登録品目番号:品目種別 = 品目種別_素材
 	輸入品店_品揃え登録文字列:登録品目番号 = %候補保存配列:(RAND:候補食材数)%
-	
+
 	CALLFORM 素材性能記述_%輸入品店_品揃え登録文字列:登録品目番号%
 	;値段決定
 	IF 素材性能_カテゴリ == "食物素材"
-		輸入品店_品揃え登録:登録品目番号:値段 = 素材性能_素材ランク * 素材性能_素材ランク * 500 * RAND(80, 120) / 100
+		輸入品店_品揃え登録:登録品目番号:値段 = 素材性能_素材ランク * 素材性能_素材ランク * 500 * RAND(80, 121) / 100
 	ELSE
-		輸入品店_品揃え登録:登録品目番号:値段 = 素材性能_素材ランク * 素材性能_素材ランク * 1000 * RAND(80, 120) / 100
+		輸入品店_品揃え登録:登録品目番号:値段 = 素材性能_素材ランク * 素材性能_素材ランク * 1000 * RAND(80, 121) / 100
 	ENDIF
 	;10%の確率でセール品
 	SIF RAND:10 == 0
