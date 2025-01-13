@@ -1,5 +1,5 @@
 ﻿;-------------------------------------------------
-;足つぼマッサージ
+;消耗品の使用
 ;-------------------------------------------------
 @MASSAGE_COMNAME0
 #FUNCTIONS
@@ -22,8 +22,12 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @MASSAGE_COM0
 #DIM 消耗品種類数
-#DIMS 選択肢配列, 10
+#DIMS 選択肢配列  , 10
+#DIM  使用条件配列, 10
+#DIMS 追加情報配列, 10
 #DIM リザルト保存
+#DIM ITEMNAME_LEN
+#DIMS BUTTON_TEXT
 ;-------------------------------------------------
 ;ソース追加処理
 ;-------------------------------------------------
@@ -32,31 +36,52 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;本来は所持とかを見るべきだが、仮実装なのでとりあえずオイルと媚薬
 消耗品種類数 = 0
 VARSET 選択肢配列
+VARSET 使用条件配列, 1
+VARSET 追加情報配列
+ITEMNAME_LEN = 0
 
+;- 消耗品の情報設定
+; オイル
 選択肢配列:消耗品種類数 = オイル
-消耗品種類数 += 1
-選択肢配列:消耗品種類数 = 鬼灯の香
+ITEMNAME_LEN =MAX(STRLENS(選択肢配列:消耗品種類数), ITEMNAME_LEN)
 消耗品種類数 += 1
 
-; 選択肢配列:消耗品種類数 = 媚薬オイル
-; 消耗品種類数 += 1
+; 鬼灯の香
+選択肢配列:消耗品種類数 = 鬼灯の香
+ITEMNAME_LEN =MAX(STRLENS(選択肢配列:消耗品種類数), ITEMNAME_LEN)
+使用条件配列:消耗品種類数 = TFLAG:マッサージ_鬼灯の香使用時間 == 0
+SIF TFLAG:マッサージ_鬼灯の香使用時間
+	追加情報配列:消耗品種類数 = 使用済（{(DAY * 1440 + TIME) - TFLAG:マッサージ_鬼灯の香使用時間}分経過）
+消耗品種類数 += 1
 
 DO
 DRAWLINE
 PRINTL どの消耗品を使いますか？
 DRAWLINE
 FOR COUNT, 0, 消耗品種類数
+	BUTTON_TEXT '= @"[{COUNT}] %選択肢配列:COUNT, ITEMNAME_LEN, LEFT%"
 	IF GETNUM(ITEM, 選択肢配列:COUNT) >= 0
-		IF ITEM:(選択肢配列:COUNT) > 0
-			PRINTBUTTON @"[{COUNT}] %選択肢配列:COUNT%", COUNT
+		; 所持数設定があるもの(ITEMに定義がある)
+		BUTTON_TEXT += @"　所持数：{ITEM:(選択肢配列:COUNT)}"
+		IF ITEM:(選択肢配列:COUNT) > 0 && 使用条件配列:COUNT
+			PRINTBUTTON BUTTON_TEXT, COUNT
 		ELSE
 			SETCOLOR カラーパレット("グレーアウト")
-			PRINTPLAINFORM [{COUNT}] %選択肢配列:COUNT%
-			RESETCOLOR
+			PRINTPLAINFORM %BUTTON_TEXT%
 		ENDIF
 	ELSE
-		PRINTBUTTON @"[{COUNT}] %選択肢配列:COUNT%", COUNT
+		; 所持数設定がないもの(ITEMに定義がない)
+		BUTTON_TEXT += "　所持数：∞"
+		IF 使用条件配列:COUNT
+			PRINTBUTTON BUTTON_TEXT, COUNT
+		ELSE
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTPLAINFORM %BUTTON_TEXT%
+		ENDIF
 	ENDIF
+	SIF 追加情報配列:COUNT != ""
+		PRINTFORM 　%追加情報配列:COUNT%
+	RESETCOLOR
 	PRINTL
 NEXT
 PRINTL

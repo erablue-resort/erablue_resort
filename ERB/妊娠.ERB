@@ -749,6 +749,9 @@ RETURN 子供ID
 #DIM 命名者
 #DIM 命名者種族
 #DIM 案出し回数
+#DIM 子供人数
+#DIM 子供名前表示
+#DIM L_CNT
 
 IF FATHER < 0 || FATHER == MASTER || MOTHER == FATHER
 	PARENT:0 = MOTHER
@@ -762,11 +765,32 @@ ELSE
 ENDIF
 DRAWLINE
 PRINTFORML ・%CALLNAME:MOTHER%の子の名前一覧
-FOR LOCAL, 0, CHARANUM
-	IF DT_CELL_GET("人物データベース", CFLAG:LOCAL:人物番号, "母親", 1) == CFLAG:MOTHER:人物番号
-		PRINTFORML %NAME:LOCAL%
-	ENDIF
-NEXT
+CALL FIND_CHILDREN(CFLAG:MOTHER:人物番号)
+子供人数 = RESULT:0
+子供名前表示 = 0
+IF 子供人数 > 0
+	FOR L_CNT, 1, 子供人数 + 1
+		子供名前 '= GET_PERSON_呼び名(RESULT:L_CNT)
+		IF 子供名前 != ""
+			PRINTFORM 　%"第" + TOSTR(L_CNT + MAX(0, EXP:MOTHER:出産経験 - 子供人数)) + "子", 7, LEFT% 
+			PRINTFORM %子供名前%
+			SELECTCASE GET_PERSON_性別(RESULT:L_CNT)
+				CASE 1
+					PRINT (♀)
+				CASE 2
+					PRINT (♂)
+				CASE 3
+					PRINT (♀?)
+				CASEELSE
+					PRINT (？)
+			ENDSELECT
+			PRINTL
+			子供名前表示 = 1
+		ENDIF
+	NEXT
+ENDIF
+SIF !子供名前表示
+	PRINTL なし
 DRAWLINE
 
 PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…

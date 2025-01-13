@@ -28,6 +28,7 @@ RETURN ZP取得値
 
 
 @ZP_SHOP
+PRINTL
 DRAWLINE
 PRINTL ■ZPショップへようこそ
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
@@ -106,18 +107,33 @@ GOTO INPUT_LOOP
 @ZP_SHOP_アイテム
 #DIM 危険日変動薬購入数
 #DIM 鬼灯の香購入数
+#DIM CONST 価格_危険日変動薬 = 5
+#DIM CONST 価格_鬼灯の香     = 100
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM 開始行数
+#DIM REDRAW退避
+#DIM 購入限界
 
-SIF 危険日変動薬購入数 < 1
-	危険日変動薬購入数 = 1
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	開始行数 = LINECOUNT
+	REDRAW退避 = CURRENTREDRAW()
+	REDRAW 0
+ELSE
+	CLEARLINE LINECOUNT - 開始行数
+ENDIF
 
-SIF 鬼灯の香購入数 < 1
-	鬼灯の香購入数 = 1
+;上下限処理
+購入限界 = FLAG:ZP所持量 / 価格_危険日変動薬
+危険日変動薬購入数 = LIMIT(危険日変動薬購入数, 1, MAX(購入限界, 1))
+購入限界 = FLAG:ZP所持量 / 価格_鬼灯の香
+鬼灯の香購入数 = LIMIT(鬼灯の香購入数, 1, MAX(購入限界, 1))
 
+PRINTL
 DRAWLINE
 PRINTL ZPを消費し、特別なアイテムを入手できます。
 PRINTL どのアイテムを購入しますか？
-PRINTFORML 所持ZP:{FLAG:ZP所持量}
-DRAWLINE
+PRINTFORML 所持ZP:%TOSTR(FLAG:ZP所持量, "#,##0")%
 ; PRINTBUTTON "[0]サプチケを購入する", 0
 ; PRINTL 　　　　　値段：20ZP
 ; PRINTL 　　　　　…任意のキャラを必ず招待するチケット。開発中Ver専用の特売品です。
@@ -128,44 +144,51 @@ DRAWLINE
 ; PRINTL 　　　　　…陥落済みのキャラに対して、即座に発情期を開始させる薬。消耗品。
 ; PRINTL 　　　　　　発情期が存在しないキャラに対しては使用出来ません。
 ; PRINTL
+PRINTSL "-" * 90
+PRINTFORML 　危険日変動薬　値段：1個{価格_危険日変動薬}ZP　所持数：{ITEM:危険日変動薬}
+PRINTL 　　　　　…危険日を薬を服用した日に変化させる薬。消耗品。
+PRINTL 　　　　　　陥落済みのキャラに対してのみ使用可能。
+PRINTL 　　　　　　発情期が存在するキャラの場合、発情期も変動する。
+PRINTL
+PRINT 　
 PRINTBUTTON "[-10]", 1
 PRINTBUTTON "[-1]", 2
 PRINT 　　
-IF 危険日変動薬購入数 * 5 > FLAG:ZP所持量
+IF 危険日変動薬購入数 * 価格_危険日変動薬 > FLAG:ZP所持量
 	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAINFORM [0]危険日変動薬を{危険日変動薬購入数}個購入する
+	PRINTPLAINFORM [0]{危険日変動薬購入数}個購入する(%TOSTR(危険日変動薬購入数 * 価格_危険日変動薬, "#,##0")%ZP)
 	RESETCOLOR
 ELSE
-	PRINTBUTTON @"[0]危険日変動薬を{危険日変動薬購入数}個購入する", 0
+	PRINTBUTTON @"[0]{危険日変動薬購入数}個購入する(%TOSTR(危険日変動薬購入数 * 価格_危険日変動薬, "#,##0")%ZP)", 0
 ENDIF
 PRINT 　　
 PRINTBUTTON "[+1]", 3
 PRINTBUTTON "[+10]", 4
 PRINTL
-PRINTFORML 　　　　　値段：{危険日変動薬購入数 * 5}ZP
-PRINTL 　　　　　…陥落済みのキャラに対して使用可能な、危険日を薬を服用した日に変化させる薬。消耗品。
-PRINTL 　　　　　　発情期が存在するキャラの場合、発情期も変動する。
+
+PRINTSL "-" * 90
+PRINTFORML 　鬼灯の香　値段：1個{価格_鬼灯の香}ZP　所持数：{ITEM:鬼灯の香}
+PRINTL 　　　　　…相手の認識をごまかす香りを放つ御香。消耗品。
+PRINTL 　　　　　　マッサージ中に使用しておくと、理性の自動回復が無効になる。
+PRINTL 　　　　　　また効果が十分に浸透した時、強く拒否されるような行為を実行出来るようになる。
 PRINTL
+PRINT 　
 PRINTBUTTON "[-10]", 11
 PRINTBUTTON "[-1]", 12
 PRINT 　　
-IF 鬼灯の香購入数 * 100 > FLAG:ZP所持量
+IF 鬼灯の香購入数 * 価格_鬼灯の香 > FLAG:ZP所持量
 	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAINFORM [10]鬼灯の香を{鬼灯の香購入数}個購入する
+	PRINTPLAINFORM [10]{鬼灯の香購入数}個購入する(%TOSTR(鬼灯の香購入数 * 価格_鬼灯の香, "#,##0")%ZP)
 	RESETCOLOR
 ELSE
-	PRINTBUTTON @"[10]鬼灯の香を{鬼灯の香購入数}個購入する", 10
+	PRINTBUTTON @"[10]{鬼灯の香購入数}個購入する(%TOSTR(鬼灯の香購入数 * 価格_鬼灯の香, "#,##0")%ZP)", 10
 ENDIF
 PRINT 　　
 PRINTBUTTON "[+1]", 13
 PRINTBUTTON "[+10]", 14
 PRINTL
-PRINTFORML 　　　　　値段：{鬼灯の香購入数 * 100}ZP
-PRINTL 　　　　　…相手の認識をごまかす香りを放つ御香。消耗品。
-PRINTL 　　　　　　マッサージ中に使用しておくと、理性の自動回復が無効になる。
-PRINTL 　　　　　　また効果が十分に浸透した時、強く拒否されるような行為を実行出来るようになる。
-PRINTL
 
+PRINTSL "-" * 90
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP
 BINPUT
@@ -214,12 +237,12 @@ SELECTCASE RESULT
 		危険日変動薬購入数 -= 1
 		RESTART
 	CASE 0
-		PRINTFORML {危険日変動薬購入数 * 5}ZPを支払い、危険日変動薬を{危険日変動薬購入数}個取得しますか？
+		PRINTFORML {危険日変動薬購入数 * 価格_危険日変動薬}ZPを支払い、危険日変動薬を{危険日変動薬購入数}個取得しますか？
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
-			FLAG:ZP所持量 -= 危険日変動薬購入数 * 5
+			FLAG:ZP所持量 -= 危険日変動薬購入数 * 価格_危険日変動薬
 			ITEM:危険日変動薬 += 危険日変動薬購入数
 			PRINTFORMW 危険日変動薬を{危険日変動薬購入数}個購入しました。
 		ENDIF
@@ -238,12 +261,12 @@ SELECTCASE RESULT
 		鬼灯の香購入数 -= 1
 		RESTART
 	CASE 10
-		PRINTFORML {鬼灯の香購入数 * 100}ZPを支払い、鬼灯の香を{鬼灯の香購入数}個取得しますか？
+		PRINTFORML {鬼灯の香購入数 * 価格_鬼灯の香}ZPを支払い、鬼灯の香を{鬼灯の香購入数}個取得しますか？
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
-			FLAG:ZP所持量 -= 鬼灯の香購入数 * 100
+			FLAG:ZP所持量 -= 鬼灯の香購入数 * 価格_鬼灯の香
 			ITEM:鬼灯の香 += 鬼灯の香購入数
 			PRINTFORMW 鬼灯の香を{鬼灯の香購入数}個購入しました。
 		ENDIF
@@ -256,6 +279,7 @@ SELECTCASE RESULT
 		鬼灯の香購入数 += 10
 		RESTART
 	CASE 999
+		REDRAW REDRAW退避
 		RETURN 0
 ENDSELECT
 
@@ -267,10 +291,11 @@ ENDSELECT
 フィールド期間変化値 = 0
 妊娠期間変化値 = 妊娠期間
 
+PRINTL
 DRAWLINE
 PRINTL ZPを消費し、リゾート内の滞在者全員に特殊な影響を与えることができます。
 PRINTL どの機能を導入しますか？
-PRINTFORML 所持ZP:{FLAG:ZP所持量}
+PRINTFORML 所持ZP:%TOSTR(FLAG:ZP所持量, "#,##0")%
 DRAWLINE
 IF !OPTION変数:妊娠切り替え
 	PRINTBUTTON "[0]妊娠期間を変動させる", 0
@@ -317,18 +342,25 @@ BINPUT
 SELECTCASE RESULT
 	CASE 0
 		$INPUT_BEFORE2
+		PRINTL
+		DRAWLINE
 		PRINTFORML 妊娠期間として適用したい数値を入力してください。（現在の妊娠期間：{妊娠期間}日）
+		PRINTFORML 所持ZP:%TOSTR(FLAG:ZP所持量, "#,##0")%
 		PRINTBUTTON "[<< -10] ",-999
 		PRINTBUTTON "[< -1] ",-998
-		PRINTFORM  [{妊娠期間変化値}]決定  
+		PRINTFORM  [{妊娠期間変化値, 3}]決定({ABS(妊娠期間 - 妊娠期間変化値), 3}ZP)  
 		PRINTBUTTON "[+1 >] ",-997
 		PRINTBUTTON "[+10 >>] " ,-996
-		PRINTBUTTON "      [0]戻る", 0
 		PRINTL
+		PRINTSL "-" * 80
+		PRINTBUTTON "[0]戻る", 0
+		PRINTL
+		REDRAW 0
 		$INPUT_LOOP2
 		INPUT
 		消費ZP = ABS(RESULT - 妊娠期間)
 		IF RESULT == 0
+			REDRAW 1
 			RESTART
 		ELSEIF INRANGE(RESULT,-999,-996)
 			SELECTCASE RESULT
@@ -341,7 +373,9 @@ SELECTCASE RESULT
 				CASE -999
 					妊娠期間変化値 -= 10
 			ENDSELECT
-			CLEARLINE 3
+			;上限下限処理
+			妊娠期間変化値 = LIMIT(妊娠期間変化値, MAX(妊娠期間 - FLAG:ZP所持量, 1), 妊娠期間 + FLAG:ZP所持量)
+			CLEARLINE 8
 			REUSELASTLINE 
 			GOTO INPUT_BEFORE2
 		ELSEIF RESULT < 0
@@ -358,10 +392,13 @@ SELECTCASE RESULT
 			GOTO INPUT_LOOP2
 		ELSE
 			妊娠期間変化値 = RESULT
+			REDRAW 1
+			PRINTL
 			PRINTFORML {消費ZP}ZPを支払い、出産までにかかる期間を{妊娠期間}日から{妊娠期間変化値}日へと変動させますか？
 			PRINTL （現状のキャラごとの妊娠の進行度は再計算され引き継がれますが、多少ずれる可能性があります）
 			PRINTBUTTONLC "[0]はい", 0
 			PRINTBUTTONLC "[1]いいえ", 1
+			REDRAW 0
 			$INPUT_LOOP2_2
 			INPUT
 			SELECTCASE RESULT
@@ -372,6 +409,7 @@ SELECTCASE RESULT
 							CFLAG:LOCAL:妊娠経過日 = CFLAG:LOCAL:妊娠経過日 * 妊娠期間変化値 / 妊娠期間
 					NEXT
 					妊娠期間 = 妊娠期間変化値
+					REDRAW 1
 					PRINTFORMW 出産までにかかる期間を{妊娠期間}日へと変動させました。
 					RESTART
 				CASE 1
@@ -430,4 +468,3 @@ FOR LOCAL, 1, CHARANUM
 		ENDIF
 	NEXT
 NEXT
-
