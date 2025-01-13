@@ -5,18 +5,185 @@
 @弱点の欠片取得処理(弱点キー, 加算値 = 0)
 #DIMS 弱点キー
 #DIM 加算値
+#DIM 表示フラグ
 
 SIF 加算値 == 0
 	加算値 = 1
 
+IF STRFIND(弱点キー, "MODE_") >= 0
+	表示フラグ = 1
+ELSEIF STRFIND(弱点キー, "SITUATION_") >= 0
+	表示フラグ = 2
+ELSEIF STRFIND(弱点キー, "MASSAGE_") >= 0
+	表示フラグ = 3
+ELSEIF STRFIND(弱点キー, "RAPE_") >= 0
+	表示フラグ = 4
+ELSE
+	表示フラグ = 0
+ENDIF
+
 IF DT_SELECT("弱点の欠片データベース", @"弱点キー = '%弱点キー%'")
 	DT_CELL_SET "弱点の欠片データベース", RESULT:1, "数量", DT_CELL_GET("弱点の欠片データベース", RESULT:1, "数量", 1) + 加算値, 1
 ELSE
-	DT_ROW_ADD "弱点の欠片データベース", "弱点キー", 弱点キー, "数量", 加算値
+	DT_ROW_ADD "弱点の欠片データベース", "弱点キー", 弱点キー, "数量", 加算値, "表示フラグ", 表示フラグ
 ENDIF
 
 
 
-@弱点の欠片表示画面()
+@弱点の欠片表示画面(フィルタフラグ)
+#DIM イベント件数
+#DIM 行カウント
+#DIM 表示行保存
+#DIM ページ番号
+#DIM 開始ページ
+#DIM DYNAMIC 検索リザルトID, 100000
+#DIMS フィルタ
+#DIM 表示行数 = 20; 履歴の表示行数
+;#DIM 履歴表示フィルタ
+#DIM L_C
+#DIM フィルタフラグ
+#DIMS フィルタルール
 
 
+PRINTL
+PRINTL
+PRINTL
+PRINTL
+PRINTL
+
+
+;データ取得
+フィルタルール '= @"表示フラグ = {フィルタフラグ}"
+
+VARSET 検索リザルトID
+イベント件数 = DT_SELECT("弱点の欠片データベース", フィルタルール, "弱点キー ASC", 検索リザルトID)
+
+
+$表示部分
+;ここで立ち絵表示
+CALL 画像描画終了
+L_C = LINECOUNT
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(MASTER)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(MASTER)%</div>", 1
+ENDIF
+PRINTFORM ■%NAME:MASTER%
+PRINTL
+PRINTL
+PRINTL □ 弱点の欠片所持数 □---------------------------------------------------------
+
+表示行保存 = LINECOUNT
+
+FOR 行カウント, 能力表示現在ページ * 表示行数, 能力表示現在ページ * 表示行数 + 表示行数
+	SIF 行カウント >= イベント件数
+		BREAK
+	SIF 行カウント != 能力表示現在ページ * 表示行数 && 行カウント % 2 == 0
+		PRINTL
+	PRINTFORM ■%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 検索リザルトID:行カウント, "弱点キー", 1)), 26, LEFT%
+	PRINTFORM ✕{DT_CELL_GET("弱点の欠片データベース", 検索リザルトID:行カウント, "数量", 1), 4}　　　
+NEXT
+PRINTL
+
+IF LINECOUNT - 表示行保存 < 7
+	FOR 行カウント, 0, 7 - (LINECOUNT - 表示行保存)
+		PRINTL
+	NEXT
+ENDIF
+
+IF 能力表示現在ページ > 0
+	PRINTBUTTON "[900] 前ページへ", 900
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+IF イベント件数 > 能力表示現在ページ * 表示行数 + 表示行数
+	PRINTBUTTON "[901] 次ページへ", 901
+ENDIF
+PRINTL 
+PRINTL 
+
+IF フィルタフラグ == 0
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1014] 通常コマンド　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1014] 通常コマンド　", 1014
+ENDIF
+PRINT  / 
+IF フィルタフラグ == 1
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1015] モード弱点　　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1015] モード弱点　　", 1015
+ENDIF
+PRINT  / 
+IF フィルタフラグ == 2
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1016] シチュ弱点　　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1016] シチュ弱点　　", 1016
+ENDIF
+PRINT  / 
+IF フィルタフラグ == 3
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1017] マッサージ弱点
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1017] マッサージ弱点", 1017
+ENDIF
+PRINT  / 
+IF フィルタフラグ == 4
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1018] むりやり弱点　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1018] むりやり弱点　", 1018
+ENDIF
+
+
+@弱点の欠片名前表示(弱点キー)
+#FUNCTIONS
+#DIMS 弱点キー
+#DIMS 返し文字列
+
+返し文字列 = 
+弱点コマンド欄表示名 = 
+IF STRFIND(弱点キー, "MODE_") >= 0
+	返し文字列 '= REPLACE(弱点キー, "MODE_", "")
+ELSEIF STRFIND(弱点キー, "SITUATION_") >= 0
+	返し文字列 '= REPLACE(弱点キー, "SITUATION_", "")
+ELSEIF STRFIND(弱点キー, "MASSAGE_") >= 0
+	CALLFORMF %REPLACE(弱点キー, "MASSAGE_", "MASSAGE_COMNAME")%
+	IF 弱点コマンド欄表示名 != ""
+		返し文字列 '= 弱点コマンド欄表示名
+	ELSE
+		返し文字列 '= TSTR:コマンド名受渡
+	ENDIF
+ELSEIF STRFIND(弱点キー, "RAPE_") >= 0
+	IF STRCOUNT(弱点キー, "_") > 1
+		CALLFORMF %REPLACE(弱点キー, "RAPE_", "RAPE_COMNAME_S")%
+	ELSE
+		CALLFORMF %REPLACE(弱点キー, "RAPE_", "RAPE_COMNAME")%
+	ENDIF
+	IF 弱点コマンド欄表示名 != ""
+		返し文字列 '= 弱点コマンド欄表示名
+	ELSE
+		返し文字列 '= TSTR:コマンド名受渡
+	ENDIF
+ELSE
+	IF STRCOUNT(弱点キー, "_") >= 1
+		CALLFORMF COMNAME_S%弱点キー%
+	ELSE
+		CALLFORMF COMNAME%弱点キー%
+	ENDIF
+	IF 弱点コマンド欄表示名 != ""
+		返し文字列 '= 弱点コマンド欄表示名
+	ELSE
+		返し文字列 '= TSTR:コマンド名受渡
+	ENDIF
+ENDIF
+
+RETURNF 返し文字列
