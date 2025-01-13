@@ -1,0 +1,115 @@
+﻿@COMNAME317
+#FUNCTIONS
+TSTR:コマンド名受渡 = デートに乱入
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_317
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_317
+LOCALS = <br>■デートに乱入<br>
+LOCALS += "デートに乱入しそのまま一緒にデートするコマンド。<br>デートしている双方を陥落させていないと不可"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM317
+#DIM 元デート相手
+
+CALLFORMF COMNAME317
+SELECTCOM_NAME '= TSTR:コマンド名受渡
+
+;同行者は解除
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF CFLAG:(TARGET:LOCAL):同行
+		CFLAG:(TARGET:LOCAL):同行 = 0
+	ENDIF
+NEXT
+
+
+PRINTFORMW %CALLNAME:TARGET%と%CALLNAME:(ABS(CFLAG:TARGET:デート) - 100)%がしているデートに乱入した。
+
+元デート相手 = ABS(CFLAG:TARGET:デート) - 100
+
+
+CFLAG:TARGET:デート = PLAYER + 100
+CFLAG:PLAYER:デート = TARGET + 100
+CFLAG:元デート相手:デート = PLAYER + 100
+CFLAG:PLAYER:デート = 元デート相手 + 100
+
+
+
+CFLAG:TARGET:デート残り時間 = 360
+CFLAG:元デート相手:デート残り時間 = 360
+TFLAG:TARGET変更用 = TARGET
+
+TIME += 1
+
+CALL 初体験日登録処理(TARGET, PLAYER, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+CALL 初体験日登録処理(TARGET, PLAYER, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"初めて%CALLNAME:PLAYER%とデートをした","日常")
+ENDIF
+CALL 初体験日登録処理(PLAYER, TARGET, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+CALL 初体験日登録処理(PLAYER, TARGET, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"初めて%CALLNAME:TARGET%とデートをした","日常")
+ENDIF
+
+CALL 初体験日登録処理(元デート相手, PLAYER, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+CALL 初体験日登録処理(元デート相手, PLAYER, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:元デート相手:人物番号, @"初めて%CALLNAME:PLAYER%とデートをした","日常")
+ENDIF
+CALL 初体験日登録処理(PLAYER, 元デート相手, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+CALL 初体験日登録処理(PLAYER, 元デート相手, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+IF RESULT
+	;相手とのデートが初の場合にここに入る
+	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"初めて%CALLNAME:元デート相手%とデートをした","日常")
+ENDIF
+
+;SOURCEまで回さないのでここで口上を表示させる
+RESULT = 0
+RESULTS =
+IF FLAG:7 > 0
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_317(TARGET)
+	TRYCALLFORM KOJO_COM_{NO:元デート相手}_317(元デート相手)
+ENDIF
+RETURN -1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE317
+
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(317)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;デート時のみ
+SIF CFLAG:デート == 0 || CFLAG:デート == MASTER + 100
+	RETURN 0
+SIF CFLAG:PLAYER:デート
+	RETURN 0
+	
+SIF !((TALENT:TARGET:恋慕 || TALENT:TARGET:セフレ) && (TALENT:(ABS(CFLAG:TARGET:デート) - 100):恋慕 || TALENT:(ABS(CFLAG:TARGET:デート) - 100):セフレ))
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+
