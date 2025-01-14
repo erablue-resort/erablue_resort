@@ -342,6 +342,7 @@ RESTART
 #DIM 候補配列, キャラクタ数上限
 #DIM 汎用セット不可フラグ
 #DIM 固有条件なし
+#DIMS 判別文字列
 
 ;ランダムモードに１が入ってれば恋慕、２が入ってればセフレで処理する
 SIF 全キャラランダムモード
@@ -356,6 +357,7 @@ IF セットモード
 	;セフレ不可はダメ
 	SIF GETBIT(TALENT:左キャラ:陥落不可, 1)
 		汎用セット不可フラグ = 1
+	判別文字列 = セフレ
 ELSE
 	;恋慕陥落状態の時は恋慕陥落は選べない
 	IF TALENT:左キャラ:恋慕 > 0
@@ -371,6 +373,7 @@ ELSE
 	;CSVで恋慕不可はダメ
 	SIF	GETBIT(CSVTALENT(NO:左キャラ, GETNUM(TALENT, "陥落不可")), 0)
 		汎用セット不可フラグ = 1
+	判別文字列 = 恋慕
 ENDIF
 
 表示数 = 0
@@ -386,6 +389,10 @@ FOR 対象キャラ, 1, CHARANUM
 		CONTINUE
 	;同じ相手はダメ
 	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
+		CONTINUE
+	SIF DT_SELECT("関係性データベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号} And 関係性種別 = '%判別文字列%'")
+		CONTINUE
+	SIF DT_SELECT("関係性データベース", @"対象キャラ１ = {CFLAG:対象キャラ:人物番号} And 対象キャラ２ = {CFLAG:左キャラ:人物番号} And 関係性種別 = '%判別文字列%'")
 		CONTINUE
 	;オプションによる制御
 	SIF 性別招待制御_実処理(対象キャラ)
@@ -969,11 +976,16 @@ NEXT
 #DIM 進展区切り
 #DIM 同行基準
 #DIMS 素質名
+#DIM 消去候補ID, 500
+#DIM 消去候補総数
+
 
 LOCAL:10 = 0
 SIF DT_ROW_LENGTH("縁結びデータベース") < 1
 	RETURN 0
 
+VARSET 消去候補ID
+消去候補総数 = 0
 ;進展度が100以上になった縁結びを完了させる
 FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 
@@ -1091,7 +1103,17 @@ FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 		CALL 履歴データベース登録(CFLAG:対象キャラ２:人物番号, @"%CALLNAME:対象キャラ１%とセフレ関係になった","うふふ実績")
 	ENDIF
 	DRAWLINE
+
+	;もし同じ組み合わせ・同じ種別の縁結びがある場合消す
+	IF DT_SELECT("縁結びデータベース", @"対象キャラ１={DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ２")} And 対象キャラ２ = {DT_CELL_GET("縁結びデータベース", LOCAL, "対象キャラ１")} And 縁結び種別 = '%DT_CELL_GETS("縁結びデータベース", LOCAL, "縁結び種別")%'")
+		消去候補ID:消去候補総数 = RESULT:1
+		消去候補総数 ++
+	ENDIF
 NEXT
+
+IF 消去候補総数 > 0
+	DT_ROW_REMOVE "縁結びデータベース", 消去候補ID, 消去候補総数
+ENDIF
 
 @縁結び進展処理()
 #DIM 対象キャラ１
