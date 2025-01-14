@@ -30,12 +30,16 @@ ENDIF
 
 
 
-@弱点の欠片表示画面(フィルタフラグ)
+@弱点の欠片表示画面(フィルタフラグ, 表示キャラ = -1,グレーアウト閾値 = 0, ボタン化フラグ = 0)
 #DIM イベント件数
 #DIM 行カウント
 #DIM 表示行保存
 #DIM ページ番号
+#DIM 表示キャラ
+#DIM ボタン化フラグ
 #DIM 開始ページ
+#DIM 数量保存
+#DIM グレーアウト閾値
 #DIM DYNAMIC 検索リザルトID, 100000
 #DIMS フィルタ
 #DIM 表示行数 = 20; 履歴の表示行数
@@ -44,13 +48,8 @@ ENDIF
 #DIM フィルタフラグ
 #DIMS フィルタルール
 
-
-PRINTL
-PRINTL
-PRINTL
-PRINTL
-PRINTL
-
+SIF 表示キャラ == -1
+	表示キャラ = MASTER
 
 ;データ取得
 フィルタルール '= @"表示フラグ = {フィルタフラグ}"
@@ -64,11 +63,11 @@ $表示部分
 CALL 画像描画終了
 L_C = LINECOUNT
 IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
-	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(MASTER)%</div>", 1
+	HTML_PRINT @"<div rect='4062, 37, 1125, 2250'>%短冊グラ表示用文字列関数(表示キャラ)%</div>", 1
 ELSE
-	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(MASTER)%</div>", 1
+	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(表示キャラ)%</div>", 1
 ENDIF
-PRINTFORM ■%NAME:MASTER%
+PRINTFORM ■%NAME:表示キャラ%
 PRINTL
 PRINTL
 PRINTL □ 弱点の欠片所持数 □---------------------------------------------------------
@@ -80,8 +79,19 @@ FOR 行カウント, 能力表示現在ページ * 表示行数, 能力表示現
 		BREAK
 	SIF 行カウント != 能力表示現在ページ * 表示行数 && 行カウント % 2 == 0
 		PRINTL
-	PRINTFORM ■%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 検索リザルトID:行カウント, "弱点キー", 1)), 26, LEFT%
-	PRINTFORM ✕{DT_CELL_GET("弱点の欠片データベース", 検索リザルトID:行カウント, "数量", 1), 4}　　　
+	数量保存 = DT_CELL_GET("弱点の欠片データベース", 検索リザルトID:行カウント, "数量", 1)
+	IF グレーアウト閾値 >= 数量保存
+		SETCOLOR カラーパレット("グレーアウト")
+	ENDIF
+	IF ボタン化フラグ && グレーアウト閾値 < 数量保存
+		;ボタン化フラグがあっても閾値以下の項目はボタン化しない
+		PRINTBUTTON @"■%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 検索リザルトID:行カウント, "弱点キー", 1)), 26, LEFT%✕{数量保存, 4}", 行カウント
+		PRINT 　　　
+	ELSE
+		PRINTFORM ■%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 検索リザルトID:行カウント, "弱点キー", 1)), 26, LEFT%
+		PRINTFORM ✕{数量保存, 4}　　　
+	ENDIF
+	RESETCOLOR
 NEXT
 PRINTL
 
@@ -142,6 +152,8 @@ IF フィルタフラグ == 4
 ELSE
 	PRINTBUTTON "[1018] むりやり弱点　", 1018
 ENDIF
+VARSET RESULT
+ARRAYCOPY "検索リザルトID", "RESULT"
 
 
 @弱点の欠片名前表示(弱点キー)

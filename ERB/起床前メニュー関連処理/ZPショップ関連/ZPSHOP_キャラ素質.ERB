@@ -145,10 +145,10 @@ IF フレーバー素質:キャラ番号:フレーバー素質_素質表示設�
 	PRINTBUTTONLC "[9]フレーバー素質を再設定する", 9
 	PRINTL
 ENDIF
+PRINTBUTTONLC "[10]弱点コマンドを追加する", 10
+PRINTL
 
 PRINTL
-; PRINTBUTTONLC "[10]称号素質を設定する", 10
-; PRINTL
 IF キャラ番号 == MASTER
 	PRINTBUTTONLC "[998]あなたの設定をやり直す", 998
 	PRINTL
@@ -193,7 +193,7 @@ SELECTCASE RESULT
 		CALL フレーバー素質再設定(キャラ番号)
 		RESTART
 	CASE 10
-		CALL 称号素質設定(キャラ番号)
+		CALL 弱点コマンド追加(キャラ番号)
 		RESTART
 	CASE 995
 		RESTART
@@ -1324,9 +1324,6 @@ ENDSELECT
 
 RESTART
 
-@称号素質設定(対象キャラ)
-#DIM 対象キャラ
-
 
 @フレーバー素質再設定(対象キャラ)
 #DIM 対象キャラ
@@ -1521,6 +1518,133 @@ SELECTCASE LOCAL
 				CALL INIT_BODYSIZE_HEIGHT(対象キャラ)
 				RETURN 1
 		ENDSELECT
+ENDSELECT
+
+RESTART
+
+
+@弱点コマンド追加(対象キャラ)
+#DIM 対象キャラ
+#DIM グレーアウト閾値
+#DIM フィルタフラグ
+#DIM 枠番号
+#DIM 選択枠
+#DIM ZP消費量
+#DIM 入力値
+#DIMS 表示種別
+#DIM 表示ID配列, 2000
+
+PRINTL
+DRAWLINE
+PRINTFORML %NAME:対象キャラ%に弱点を追加します。
+PRINTL 追加する枠と種類を選択してください。
+DRAWLINE
+PRINTL ・現在の追加弱点枠
+FOR 枠番号, 0, 追加弱点コマンド数上限
+	SIF 選択枠 == 枠番号
+		SETCOLOR カラーパレット("黄")
+	IF 追加弱点コマンド枠:対象キャラ:枠番号 == ""
+		PRINTBUTTON "[空き枠]", 枠番号 + 1000
+	ELSE
+		PRINTBUTTON @"[%弱点の欠片名前表示(追加弱点コマンド枠:対象キャラ:枠番号)%]", 枠番号 + 1000
+	ENDIF
+	RESETCOLOR
+	PRINT  / 
+NEXT
+PRINTL
+SELECTCASE 表示種別
+	CASE "モード"
+		フィルタフラグ = 1
+		グレーアウト閾値 = 999
+		ZP消費量 = 100
+		PRINTL ・モード弱点の必要欠片数：1000個　　必要ZP：100
+	CASE "シチュエーション"
+		フィルタフラグ = 2
+		グレーアウト閾値 = 2999
+		ZP消費量 = 200
+		PRINTL ・シチュエーション弱点の必要欠片数：3000個　　必要ZP：200
+	CASE "マッサージ"
+		フィルタフラグ = 3
+		グレーアウト閾値 = 99
+		ZP消費量 = 30
+		PRINTL ・マッサージ弱点の必要欠片数：100個　　必要ZP：30
+	CASE "むりやりうふふ"
+		フィルタフラグ = 4
+		グレーアウト閾値 = 99
+		ZP消費量 = 30
+		PRINTL ・むりやりうふふ弱点の必要欠片数：100個　　必要ZP：30
+	CASEELSE
+		フィルタフラグ = 0
+		グレーアウト閾値 = 99
+		ZP消費量 = 30
+		PRINTL ・通常弱点の必要欠片数：100個　　必要ZP：30
+ENDSELECT
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+
+CALL 弱点の欠片表示画面(フィルタフラグ, 対象キャラ, グレーアウト閾値, 1)
+VARSET 表示ID配列
+ARRAYCOPY "RESULT", "表示ID配列"
+PRINTL
+DRAWLINE
+PRINTBUTTON "[9999] 戻る", 9999
+PRINTL
+BINPUT
+入力値 = RESULT
+SELECTCASE 入力値
+	CASE 9999
+		表示種別 = 
+		能力表示現在ページ = 0
+		RETURN 0
+	CASE 900
+		能力表示現在ページ --
+	CASE 901
+		能力表示現在ページ ++
+	CASE 1000 TO 1000 + 追加弱点コマンド数上限
+		選択枠 = 入力値 - 1000
+	CASE 1014
+		表示種別 = 
+		能力表示現在ページ = 0
+	CASE 1015
+		表示種別 = モード
+		能力表示現在ページ = 0
+	CASE 1016
+		表示種別 = シチュエーション
+		能力表示現在ページ = 0
+	CASE 1017
+		表示種別 = マッサージ
+		能力表示現在ページ = 0
+	CASE 1018
+		表示種別 = むりやりうふふ
+		能力表示現在ページ = 0
+	CASEELSE
+		IF ZP消費量 > FLAG:ZP所持量
+			PRINTW ZPが足りません
+		ELSEIF MATCH(追加弱点コマンド枠:対象キャラ:0, DT_CELL_GETS("弱点の欠片データベース", 表示ID配列:入力値, "弱点キー", 1))
+			PRINTW 既に同じ弱点が追加済みです
+		ELSE
+			;欠片を消費して弱点を付与
+			PRINT 追加弱点
+			IF 追加弱点コマンド枠:対象キャラ:選択枠 == ""
+				PRINT [空き枠]
+			ELSE
+				PRINTFORM [%弱点の欠片名前表示(追加弱点コマンド枠:対象キャラ:選択枠)%]
+			ENDIF
+			PRINTFORML を[%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 表示ID配列:入力値, "弱点キー", 1))%]に変更しますか？
+			PRINTFORML 消費する弱点の欠片：{グレーアウト閾値 + 1, 4}個 / 所持数：{DT_CELL_GET("弱点の欠片データベース", 表示ID配列:入力値, "数量", 1)}個
+			PRINTFORML 消費するZP：{ZP消費量, 4}
+			PRINTL
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			IF RESULT == 0
+				FLAG:ZP所持量 -= ZP消費量
+				DT_CELL_SET "弱点の欠片データベース", 表示ID配列:入力値, "数量", DT_CELL_GET("弱点の欠片データベース", 表示ID配列:入力値, "数量", 1) - (グレーアウト閾値 + 1), 1
+				PRINTFORMW 追加弱点に[%弱点の欠片名前表示(DT_CELL_GETS("弱点の欠片データベース", 表示ID配列:入力値, "弱点キー", 1))%]を設定しました。
+				追加弱点コマンド枠:対象キャラ:選択枠 '= DT_CELL_GETS("弱点の欠片データベース", 表示ID配列:入力値, "弱点キー", 1)
+			ENDIF
+		ENDIF
 ENDSELECT
 
 RESTART

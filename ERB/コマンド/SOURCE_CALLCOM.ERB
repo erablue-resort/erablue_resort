@@ -92,7 +92,7 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 						BREAK
 					TARGET = 同時モード_選択キャラ:LOCAL
 					;シチュエーション弱点判定
-					IF MATCH(弱点コマンド枠:TARGET:0, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
+					IF 弱点チェック(TARGET, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
 						CALL 弱点の欠片取得処理(@"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
 						TCVAR:TARGET:弱点シチュフラグ = 1
 					ENDIF
@@ -105,7 +105,7 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 				TARGET = TARGET保存
 			ELSE
 				;シチュエーション弱点判定
-				IF MATCH(弱点コマンド枠:TARGET:0, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
+				IF 弱点チェック(TARGET, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
 					CALL 弱点の欠片取得処理(@"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
 					TCVAR:TARGET:弱点シチュフラグ = 1
 				ENDIF
@@ -142,7 +142,7 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 			TRYCALLFORM MASSAGE_AUTOCOM{TFLAG:オートコマンドフラグ}
 		ELSE
 			;シチュエーション弱点判定、マッサージ中はマッサージシチュ
-			IF MATCH(弱点コマンド枠:TARGET:0, @"SITUATION_マッサージモード")
+			IF 弱点チェック(TARGET, "SITUATION_マッサージモード")
 				CALL 弱点の欠片取得処理(@"SITUATION_マッサージモード")
 				TCVAR:TARGET:弱点シチュフラグ = 1
 			ENDIF
@@ -155,7 +155,7 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 		IF RFLAG:サイドボタン操作
 		ELSE
 			;シチュエーション弱点判定、むりやりうふふシチュ
-			IF MATCH(弱点コマンド枠:TARGET:0, @"SITUATION_むりやりうふふモード")
+			IF 弱点チェック(TARGET, "SITUATION_むりやりうふふモード")
 				CALL 弱点の欠片取得処理(@"SITUATION_むりやりうふふモード")
 				TCVAR:TARGET:弱点シチュフラグ = 1
 			ENDIF
@@ -203,31 +203,30 @@ IF RSTR:SELECTCOM_S受け渡し != ""
 			LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 		ENDIF
 		; IF 弱点コマンドカテゴリ != ""
-			FOR LOCAL, 0, 50
-				IF 弱点コマンド枠:ARG:LOCAL == LOCALS
-					TCVAR:ARG:弱点コマンドフラグ = 1
-					CALL 弱点の欠片取得処理(LOCALS)
-					IF 弱点看破:ARG:LOCAL == 0
-						弱点看破:ARG:LOCAL = 1
-						弱点コマンド欄表示名 = 
-						CALLFORMF COMNAME_S%LOCALS%
-						SIF 弱点コマンド欄表示名 != ""
-							TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-						CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-						CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-						LOCAL:4 = 0
-						LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:ARG:0, ".")
-						FOR LOCAL:3, 0, LOCAL:2 + 1
-							SIF 弱点看破:ARG:(LOCAL:3) == 0
-								LOCAL:4 ++
-						NEXT
-						IF LOCAL:4 == 0
-							CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-							CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-						ENDIF
-					ENDIF
+		LOCAL = 弱点番号算出(ARG, LOCALS)
+		IF LOCAL >= 0
+			TCVAR:ARG:弱点コマンドフラグ = 1
+			CALL 弱点の欠片取得処理(LOCALS)
+			IF 弱点看破:ARG:LOCAL == 0
+				弱点看破:ARG:LOCAL = 1
+				弱点コマンド欄表示名 = 
+				CALLFORMF COMNAME_S%LOCALS%
+				SIF 弱点コマンド欄表示名 != ""
+					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
+				IF 弱点全看破チェック(ARG)
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
+					CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
 				ENDIF
-			NEXT
+			ENDIF
+		ELSE
+			LOCAL = 追加弱点番号算出(ARG, LOCALS)
+			IF LOCAL >= 0
+				TCVAR:ARG:弱点コマンドフラグ = 1
+				CALL 弱点の欠片取得処理(LOCALS)
+			ENDIF
+		ENDIF
 		; ENDIF
 	ENDIF
 	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
@@ -275,31 +274,30 @@ ELSE
 		; 	LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 		; ENDIF
 		; IF 弱点コマンドカテゴリ != ""
-			FOR LOCAL, 0, 50
-				IF 弱点コマンド枠:ARG:LOCAL == LOCALS
-					TCVAR:ARG:弱点コマンドフラグ = 1
-					CALL 弱点の欠片取得処理(LOCALS)
-					IF 弱点看破:ARG:LOCAL == 0
-						弱点看破:ARG:LOCAL = 1
-						弱点コマンド欄表示名 = 
-						CALLFORMF COMNAME%LOCALS%
-						SIF 弱点コマンド欄表示名 != ""
-							TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-						CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-						CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-						LOCAL:4 = 0
-						LOCAL:2 = FINDLASTELEMENT(弱点コマンド枠:ARG:0, ".")
-						FOR LOCAL:3, 0, LOCAL:2 + 1
-							SIF 弱点看破:ARG:(LOCAL:3) == 0
-								LOCAL:4 ++
-						NEXT
-						IF LOCAL:4 == 0
-							CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-							CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-						ENDIF
-					ENDIF
+		LOCAL = 弱点番号算出(ARG, LOCALS)
+		IF LOCAL >= 0
+			TCVAR:ARG:弱点コマンドフラグ = 1
+			CALL 弱点の欠片取得処理(LOCALS)
+			IF 弱点看破:ARG:LOCAL == 0
+				弱点看破:ARG:LOCAL = 1
+				弱点コマンド欄表示名 = 
+				CALLFORMF COMNAME%LOCALS%
+				SIF 弱点コマンド欄表示名 != ""
+					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
+				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
+				IF 弱点全看破チェック(ARG)
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
+					CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
 				ENDIF
-			NEXT
+			ENDIF
+		ELSE
+			LOCAL = 追加弱点番号算出(ARG, LOCALS)
+			IF LOCAL >= 0
+				TCVAR:ARG:弱点コマンドフラグ = 1
+				CALL 弱点の欠片取得処理(LOCALS)
+			ENDIF
+		ENDIF
 		; ENDIF
 	ENDIF
 	RETURN LOCAL:1
