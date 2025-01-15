@@ -3,6 +3,7 @@
 #DIMS 行動候補文字列, 500
 #DIM 同室者番号
 #DIM キャラ番号
+#DIM 候補総数
 #DIMS AUTOCOM_候補情報, キャラクタ数上限
 #DIMS 候補者_AUTO番号_文字列分割, 3
 #DIM ランダム格納
@@ -16,8 +17,36 @@
 #DIM TARGET保存
 #DIM PLAYER保存
 #DIM 行動対象キャラ
+#DIM うふふのみフラグ
 
+;行動対象をセット
+うふふのみフラグ = 0
 行動対象キャラ = MASTER
+IF OPTION変数:キャラ同士オートコマンド禁止 == 0
+	IF CFLAG:PLAYER:うふふ && ((TFLAG:オートコマンドフラグ > 0 && TFLAG:オートコマンドフラグ < 100000) || RAND:2)
+		;通常オートの直後はキャラ＞キャラの行動パターンを判定する、うふふ時のみ発動
+		VARSET 行動候補
+		候補総数 = 0
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			IF CFLAG:(TARGET:LOCAL):うふふ
+				;うふふキャラのみ
+				行動候補:候補総数 = TARGET:LOCAL
+				候補総数 ++
+			ENDIF
+		NEXT
+		;２人以上必須、かつ発生率は50%
+		IF 候補総数 >= 2 && RAND:2
+			うふふのみフラグ = 1
+			行動対象キャラ = 行動候補:(RAND:候補総数)
+			;処理を動作させるため現在のフラグをリセット
+			TFLAG:オートコマンドフラグ = 0
+			;連続発動の数を維持するため＋
+			TFLAG:オートコマンド連続発動 ++
+		ENDIF
+	ENDIF
+ENDIF
 
 VARSET AUTOCOM_候補情報
 PREAUTO候補者数 = 0
@@ -64,11 +93,22 @@ TARGET保存 = TARGET
 PLAYER保存 = PLAYER
 
 FOR 同室者番号, 1, GET_TARGETNUM() + 1
+
+	;保存を戻す
+	TARGET = TARGET:同室者番号
+	PLAYER = 行動対象キャラ
+
 	;あなたは動かない
 	SIF TARGET:同室者番号 == MASTER
 		CONTINUE
+	;指示モード時、PLYAERは動かない
+	SIF TARGET:同室者番号 == PLAYER
+		CONTINUE
 	;行動対象もスキップ
 	SIF TARGET:同室者番号 == 行動対象キャラ
+		CONTINUE
+	;うふふのみフラグ時はうふふキャラのみ
+	SIF うふふのみフラグ && CFLAG:(TARGET:同室者番号):うふふ == 0
 		CONTINUE
 	;相手が寝てる場合は次へ
 	SIF CFLAG:(TARGET:同室者番号):睡眠
@@ -91,10 +131,6 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;全裸散歩
 	SIF MODE_存在判定_ターゲット側("全裸散歩", TARGET:同室者番号)
 		CONTINUE
-
-	;保存を戻す
-	TARGET = TARGET保存
-	PLAYER = PLAYER保存
 
 	;オプション制御
 	SIF GETBIT(FLAG:オートコマンド切り替えオプション, 0)
