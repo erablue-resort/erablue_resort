@@ -1,23 +1,26 @@
 ﻿
 @デートルーチンセット決定()
-#DIM DB番号
+#DIM DB番号, 500
 #DIMS 関係性保存
 #DIM デートキャラ１
 #DIM デートキャラ２
 #DIMS CONST デート置き換えルーチン = "プールで遊ぶ", "外で遊ぶ", "遊戯室で遊ぶ", "空艇港でショッピング", "海で遊ぶ", "学校で勉強", "居住区エリアで日常生活", "あなた自宅で日常生活"
 
 
+
 ;まずは成立してる関係性から
-FOR DB番号, 0, DT_ROW_LENGTH("関係性データベース")
+VARSET DB番号
+DT_SELECT "関係性データベース", , "関係数比率 ASC", DB番号
+FOR LOCAL, 0, DT_ROW_LENGTH("関係性データベース")
 	;恋慕でもセフレでもないならスキップ
-	関係性保存 '= DT_CELL_GETS("関係性データベース", DB番号, "関係性種別")
+	関係性保存 '= DT_CELL_GETS("関係性データベース", (DB番号:LOCAL), "関係性種別", 1)
 	SIF 関係性保存 != "恋慕" && 関係性保存 != "セフレ"
 		CONTINUE
 	;デート発生率は50％
 	SIF RAND:2
 		CONTINUE
-	デートキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", DB番号, "対象キャラ１"))
-	デートキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", DB番号, "対象キャラ２"))
+	デートキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", (DB番号:LOCAL), "対象キャラ１", 1))
+	デートキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", (DB番号:LOCAL), "対象キャラ２", 1))
 	;滞在期間チェック
 	SIF CFLAG:デートキャラ１:滞在期間 < 0
 		CONTINUE
@@ -34,7 +37,7 @@ FOR DB番号, 0, DT_ROW_LENGTH("関係性データベース")
 	SIF MATCH(デート置き換えルーチン, 移動ルーチン:デートキャラ２:ルーチンID) == 0
 		CONTINUE
 	;他に関係を持っているキャラが居るのに連続でデートし過ぎてたらスキップ 
-	SIF 連続デート判定(デートキャラ１, デートキャラ２, DB番号)
+	SIF 連続デート判定(デートキャラ１, デートキャラ２, (DB番号:LOCAL))
 		CONTINUE
 	;デートフラグをセット
 	IF RAND:2
@@ -68,16 +71,18 @@ NEXT
 
 ;縁結び関係
 ;縁結びからの成立関係は二重判定になるけどまあいいか……eraの縁結びパワーってことで……
-FOR DB番号, 0, DT_ROW_LENGTH("縁結びデータベース")
+VARSET DB番号
+DT_SELECT "縁結びデータベース", , "関係数比率 ASC", DB番号
+FOR LOCAL, 0, DT_ROW_LENGTH("縁結びデータベース")
 	;恋慕でもセフレでもないならスキップ
-	関係性保存 '= DT_CELL_GETS("縁結びデータベース", DB番号, "縁結び種別")
+	関係性保存 '= DT_CELL_GETS("縁結びデータベース", (DB番号:LOCAL), "縁結び種別", 1)
 	SIF 関係性保存 != "恋慕" && 関係性保存 != "セフレ"
 		CONTINUE
 	;デート発生率は33％
 	SIF RAND:3
 		CONTINUE
-	デートキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", DB番号, "対象キャラ１"))
-	デートキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", DB番号, "対象キャラ２"))
+	デートキャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", (DB番号:LOCAL), "対象キャラ１", 1))
+	デートキャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", (DB番号:LOCAL), "対象キャラ２", 1))
 	;滞在期間チェック
 	SIF CFLAG:デートキャラ１:滞在期間 < 0
 		CONTINUE
@@ -94,7 +99,7 @@ FOR DB番号, 0, DT_ROW_LENGTH("縁結びデータベース")
 	SIF MATCH(デート置き換えルーチン, 移動ルーチン:デートキャラ２:ルーチンID) == 0
 		CONTINUE
 	;他に関係を持っているキャラが居るのに連続でデートし過ぎてたらスキップ
-	SIF 連続デート判定(デートキャラ１, デートキャラ２, DB番号, 1)
+	SIF 連続デート判定(デートキャラ１, デートキャラ２, (DB番号:LOCAL), 1)
 		CONTINUE
 	;デートフラグをセット
 	IF RAND:2
