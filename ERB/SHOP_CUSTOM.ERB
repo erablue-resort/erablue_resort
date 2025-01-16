@@ -34,6 +34,10 @@ PRINTBUTTON "[11] ジータちゃんスタイル", 11
 PRINTL
 PRINTL 　　…あなた＝ジータとして設定するスタイル。開発中につき想定外の挙動をする可能性があります。
 PRINTL
+PRINTBUTTON "[20] 任意キャラスタイル", 20
+PRINTL
+PRINTL 　　…あなた＝その他のキャラとして設定するスタイル。開発中につき想定外の挙動をする可能性があります。
+PRINTL
 BINPUT
 スタイル記録 = RESULT
 SELECTCASE スタイル記録
@@ -72,6 +76,15 @@ SELECTCASE スタイル記録
 		PRINTL
 		PRINTL ※開発中なので想定外の不具合が発生することがあります。
 		PRINTL ※イベント文章などは通常スタイルを想定しているので、話の流れがおかしくなる場合があります。
+	CASE 20
+		PRINTL ■任意キャラスタイル
+		PRINTL 　あなたを任意のキャラとして設定するスタイル。
+		PRINTL 　あなたのステータスが該当キャラと同じになり、リゾートに該当キャラが登場しなくなる。
+		PRINTL 　あなたが戦闘に参加できないのは通常と同一。
+		PRINTL 　その他のボーナスなどは存在しない。
+		PRINTL
+		PRINTL ※開発中なので想定外の不具合が発生することがあります。
+		PRINTL ※イベント文章などは通常スタイルを想定しているので、話の流れがおかしくなる場合があります。
 ENDSELECT
 PRINTL
 PRINTL このスタイルで開始してもよろしいですか？
@@ -96,6 +109,9 @@ IF RESULT == 0
 			SAVESTR:あなたスタイル = グランくんスタイル
 		CASE 11
 			SAVESTR:あなたスタイル = ジータちゃんスタイル
+		CASE 20
+			SAVESTR:あなたスタイル = 任意キャラスタイル
+			PRINTFORMW 任意キャラは初回設定が全て終わった後に選択します。
 	ENDSELECT
 ELSE
 	RESTART
@@ -573,4 +589,272 @@ NEXT
 PRINTL
 
 
+@任意キャラスタイル_キャラ選定()
+#DIM 候補配列, キャラクタ数上限
+#DIM 候補数
+#DIM キャラ番号
+#DIM ページ数
 
+;キャラを選んだ後、キャラのNOを返す
+VARSET 候補配列
+候補数 = 0
+FOR キャラ番号, 1, CHARANUM
+	;ランダムキャラはダメ
+	SIF NO:キャラ番号 == 999
+		CONTINUE
+	;ジータとグランはダメ
+	SIF NO:キャラ番号 == 27
+		CONTINUE
+	SIF NO:キャラ番号 == 146
+		CONTINUE
+	候補配列:候補数 = キャラ番号
+	候補数 ++
+NEXT
+CALL キャラ配列フィルタ処理(候補配列)
+候補数 = RESULT
+
+
+$表示位置
+
+;キャラ一覧を表示
+DRAWLINE
+PRINTL 誰をオーナーとして開始しますか？
+PRINTL ※全キャラを対象として選択することが出来ます。
+PRINTL ※対象キャラによってはイベント・シナリオの展開に矛盾が出る場合があります。
+DRAWLINE
+
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	SIF 候補配列:LOCAL < 1
+		BREAK
+	IF ページ数 == LOCAL:1 / 30
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:(候補配列:LOCAL)), "]", 1),41,LEFT%</button>　　%ソート情報表示(候補配列:LOCAL)%"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[9000] 前のページへ", 9000
+ELSE
+	PRINTC   
+ENDIF
+IF ページ数 < (LOCAL:1 + 1) / 30
+	PRINTBUTTONLC "[9001] 次のページへ", 9001
+ELSE
+	PRINTC   
+ENDIF
+PRINTL
+DRAWLINE
+PRINTBUTTON "[9020]フィルタ機能", 9020
+PRINTL
+PRINTBUTTON "[9030]ソート機能", 9030
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 9031
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 9032
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[9040]素質絞り込み機能", 9040
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+DRAWLINE
+PRINTBUTTON "[9999] 戻る", 9999
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 9020
+		CALL SHOW_CHARADATA_FILTA
+		ページ数 = 0
+		RESTART
+	CASE 9030
+		CALL SHOW_CHARADATA_SORT
+		ページ数 = 0
+		RESTART
+	CASE 9031
+		キャラ一覧ソート:1 = 降順
+		ページ数 = 0
+		RESTART
+	CASE 9032
+		キャラ一覧ソート:1 = 昇順
+		ページ数 = 0
+		RESTART
+	CASE 9040
+		CALL SHOW_CHARADATA_素質絞り込み
+		ページ数 = 0
+		RESTART
+	CASE 9999
+		ページ数 = 0
+		RETURN 0
+	CASE 9000
+		ページ数 --
+		GOTO 表示位置
+	CASE 9001
+		ページ数 ++
+		GOTO 表示位置
+	CASEELSE
+		WHILE 1
+			CALL 任意キャラスタイル_セット確認(候補配列:LOCAL)
+			SELECTCASE RESULT
+				CASE 0
+					;- キャンセル
+					; リスト表示へ戻る
+					GOTO 表示位置
+				CASE 1
+					;- キャラ選択
+					COPYCHARA 候補配列:LOCAL, MASTER
+					NO:MASTER = 0
+					CFLAG:(候補配列:LOCAL):招待不可フラグ = -1
+					RETURN NO:(候補配列:LOCAL)
+				CASE 10
+					;- 前のキャラ
+					; 候補番号を更新、ループして前のキャラを表示
+					LOCAL -=  1
+					SIF LOCAL < 0
+						LOCAL = 候補数 - 1
+				CASE 11
+					;- 次のキャラ
+					; 候補番号を更新、ループして次のキャラを表示
+					LOCAL +=  1
+					SIF LOCAL >= 候補数
+						LOCAL = 0
+			ENDSELECT
+		WEND
+ENDSELECT
+
+RESTART
+
+@任意キャラスタイル_セット確認(対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 対象キャラ
+#DIM 返り値
+#DIM 描画開始行
+#DIM 対象画像数
+#DIM リロールボタン有効
+#DIM 実行結果
+#DIM セットフラグ
+#DIM リスタートフラグ
+#DIM TFLAG保存
+#DIM DYNAMIC 初回フラグ = 1
+
+IF 初回フラグ
+	初回フラグ = 0
+	; 番号の範囲チェック
+	SIF !INRANGE(対象キャラ, 0, CHARANUM - 1)
+		RETURN -1
+	描画開始行 = LINECOUNT
+ENDIF
+
+PRINTL
+; キャラ確認用の簡易紹介
+CALL キャラ簡易紹介(対象キャラ)
+対象画像数 = RESULT
+リロールボタン有効 = 対象画像数 > 5
+PRINTL
+; 確認メッセージ
+PRINTFORML %NAME:対象キャラ%をオーナーとして始めますか？
+; ボタン表示
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+PRINTBUTTONLC "[10]詳細能力を表示", 10
+PRINTL
+PRINTBUTTONLC "[2]前のキャラ", 2
+PRINTBUTTONLC "[3]次のキャラ", 3
+SIF リロールボタン有効
+	PRINTBUTTONLC "[4]画像のランダム表示をリロール", 4
+PRINTL
+
+; 入力ループ
+WHILE 1
+	BINPUT
+	SELECTCASE RESULT
+		CASE 0
+			返り値 = 1
+			BREAK
+		CASE 1
+			返り値 = 0
+			BREAK
+		CASE 4
+			RESTART
+		CASE 2
+			;- [2]前のキャラ
+			返り値 = 10
+			BREAK
+		CASE 3
+			;- [3]次のキャラ
+			返り値 = 11
+			BREAK
+		CASE 10
+			TFLAG保存 = TFLAG:調教モード
+			TFLAG:調教モード = -2
+			CALL PRINT_STATE(対象キャラ, 3)
+			TFLAG:調教モード = TFLAG保存
+			SELECTCASE RESULT
+				CASE 100
+					;前のキャラへ
+					返り値 = 10
+					BREAK
+				CASE 101
+					;次のキャラへ
+					返り値 = 11
+					BREAK
+				CASE 1
+					;はい
+					返り値 = 1
+					BREAK
+				CASE 0
+					;いいえ
+					返り値 = 0
+					BREAK
+			ENDSELECT
+		CASEELSE
+			; 入力エラー
+	ENDSELECT
+	; 入力エラー時は消してやり直し
+	CLEARLINE 1
+	REUSELASTLINE 
+WEND
+
+; 表示した内容を消去
+CLEARLINE LINECOUNT - 描画開始行
+
+; 簡易紹介で使用したリソースを解放
+CALL ランダム画像表示_リソース解放(1)
+
+RETURN 返り値

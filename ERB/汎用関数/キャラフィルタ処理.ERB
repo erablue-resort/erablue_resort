@@ -18,15 +18,28 @@
 #DIM アビ奥義関数
 #DIMS フィルタマッチ配列, 50
 #DIM フィルタマッチ配列番号
+#DIM 基準数値
+
+REDRAW 0
 
 VARSET 返し配列, 配列初期値
 候補人数 = 0
 VARSET フィルタマッチ配列
 SPLIT キャラ一覧フィルタ:弱点コマンド, "+++", フィルタマッチ配列
+基準数値 = CHARANUM / 10
+PRINTL フィルタ処理進行度……0%
 
 ;まずはフィルタ
 ;固有の条件は関数外で処理されているはずのため、フィルタしか勘案しない
 FOR 配列番号, 0, CHARANUM
+	
+	IF (配列番号 + 1) % 基準数値 == 0
+		CLEARLINE 1
+		PRINTFORML フィルタ処理進行度……{((配列番号 + 1) / 基準数値) * 10}\%
+		AWAIT
+		;TWAIT 100, 1
+	ENDIF
+
 	;基本的にあなたは処理しないのでスキップ
 	SIF 対象キャラ配列:配列番号 < 1
 		CONTINUE
@@ -163,8 +176,26 @@ FOR 配列番号, 0, CHARANUM
 		CONTINUE
 
 	返し配列:候補人数 = 対象キャラ配列:配列番号
+	ソート基準値:候補人数 = ソート情報登録(返し配列:候補人数, 候補人数)
 	候補人数 += 1
 NEXT
+
+;ソート実行
+ARRAYMSORT ソート基準値, 返し配列
+
+ARRAYCOPY "返し配列", "対象キャラ配列"
+
+CLEARLINE 1
+PRINTL フィルタ処理進行度……100%
+
+RETURN 候補人数
+
+
+@ソート情報登録(キャラ番号, 登録番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 登録番号
+#DIM ソート順
 
 ソート順 = 1
 ;ソート処理
@@ -175,56 +206,25 @@ IF キャラ一覧ソート:0 != ""
 		ソート順 = -1
 	ENDIF
 	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
-		LOCALS = CFLAG
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((CFLAG:(返し配列:LOCAL):好感度レベル * 1000) * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF ((CFLAG:キャラ番号:好感度レベル * 1000) * ソート順) + LOCAL + 1
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((CFLAG:(返し配列:LOCAL):恋慕レベル * 1000) * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF ((CFLAG:キャラ番号:恋慕レベル * 1000) * ソート順) + LOCAL + 1
 	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((ABL:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF ((ABL:キャラ番号:(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
 	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF ((基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:キャラ番号:(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (基礎BATTLE_STATE:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF (基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
 	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (知識素質:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF (知識素質:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (CFLAG:(返し配列:LOCAL):コマンドタゲ回数記録 * 1000 * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF (CFLAG:キャラ番号:コマンドタゲ回数記録 * 1000 * ソート順) + LOCAL + 1
 	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (性癖素質:(返し配列:LOCAL):(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF (性癖素質:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (MAX(ENUMFILES(@"resources/%CSTR:(返し配列:LOCAL):画像フォルダ%"), 0) * 1000 * ソート順) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 返し配列
+		RETURNF (MAX(ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%"), 0) * 1000 * ソート順) + LOCAL + 1
 	ENDIF
 ENDIF
-
-ARRAYCOPY "返し配列", "対象キャラ配列"
-RETURN 候補人数
 
 @ソート情報表示(対象キャラ)
 #FUNCTIONS
