@@ -1,0 +1,166 @@
+﻿;-------------------------------------------------
+;乳腺吸引リップカッピング
+;-------------------------------------------------
+@MASSAGE_COMNAME33
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳腺吸引リップカッピング
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_33
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_33
+LOCALS = <br>■乳腺吸引リップカッピング<br>
+LOCALS += "乳首吸いモードには突入しない単発コマンド。"
+LOCALS += "<br>お客様の乳首の奥――乳腺に溜まってしまった老廃物を、あなたの唇で『吸い出して』あげる。"
+LOCALS += "<br>ちなみに、カッピングとは搾乳器のようなカップ（吸玉）を腹などに吸着させて、"
+LOCALS += "<br>血管内に滞っている血（於血）を体表近くまで吸い出してやる、実在するマッサージである。"
+LOCALS += "<br>当然口なんて使うわけがないのだが細かいことは気にしてはいけない。"
+LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM33
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+RCVAR:乳首開発フラグ = 1
+;基盤ができたあとで理性を削る処理を入れる
+;強く吸うと乳首コリほぐしを参考に調整
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 50)
+
+;せっかくだから男性相手にはさらに効果が増すように。
+;男への性感マッサージコマンドは数が少なめだから……
+SIF TALENT:TARGET:性別 == 2
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+
+;母乳体質ならさらに快感アップ
+IF TALENT:TARGET:母乳体質
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 50)
+ENDIF
+
+;上半身下着を脱がす。
+IF TEQUIP:上半身下着あり
+	TEQUIP:上半身下着あり = 0
+	TEQUIP:上半身服あり = 0
+	SIF TEQUIP:上下一体服
+		TEQUIP:下半身服あり = 0
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+;乳首をいじるため性欲を煽る。
+BASE:TARGET:性欲 += 100
+
+;警戒は理性の倍回復する。
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:警戒 -= 40
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;コリほぐしより理性は削るが警戒削りはやや低くなる
+	BASE:TARGET:理性 -= 60
+	BASE:TARGET:警戒 -= 40
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 700
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒140で理性が70回復するも、煽られる性欲と与えられる刺激で理性が100削られて理性変動は-30。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒56で理性28回復、そこから理性80低下でこの数字となる。理性と警戒の合計値はほんの少しだけ上がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 -= 72
+	BASE:TARGET:警戒 += 56
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSEIF BASE:TARGET:理性 <= 200
+;理性がグズグズに煮詰まっちゃってると、警戒及び理性の回復は半分になる。理性200警戒800とかの場合これ。
+	BASE:TARGET:理性 += 35
+	BASE:TARGET:警戒 += 70
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSEIF TALENT:TARGET:バストサイズ <= -1
+;相手が貧乳以下の場合、実行可能であるならば「これもおっぱい大きくするため……？」ってしぶしぶ受け入れるイメージ。
+	BASE:TARGET:理性 += 50
+	BASE:TARGET:警戒 += 100
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 40)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSE
+;基本値
+	BASE:TARGET:理性 += 70
+	BASE:TARGET:警戒 += 140
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ENDIF
+
+BASE:TARGET:ちんイラ = MAX(0, BASE:TARGET:ちんイラ - 100)
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE33
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+SIF GLOBAL_MASSAGE_COMABLE(33)
+	RETURN RESULT
+
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+
+;乳首が勃起するくらいの欲情が必要
+SIF PALAM:欲情 <= PALAMLV:3
+	RETURN 0
+
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+;陥没乳首なら露出させてからでないとダメ
+SIF TALENT:TARGET:陥没乳首 && !TCVAR:TARGET:陥没乳首露出フラグ
+	RETURN 0
+
+;理性警戒の合計が1000以下じゃないとダメ
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1000
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM33
+PRINTFORM %CALLNAME:PLAYER%は、%CALLNAME:TARGET%の
+SIF RFLAG:コマンド結果受渡し変数 == 1
+	PRINTFORM 胸の施術着を脱がせ、
+PRINTFORML %TEXTR("ビンビンにとがった/硬くしこった")%%CALLNAME:TARGET%の乳首を%TEXTR("口に含む/口に咥える/唇で包み込む/舌で摘み取る")%と、%TEXTR("ゴムが軋むような音を立てて/頬と舌を蠢動させながら/唇で乳輪から搾り出すように/乳腺に詰まっているモノごと")%丹念に吸い上げた。
+
+;削りが十分な時は追加のメッセージ
+IF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 700
+	PRINTW 
+	SELECTCASE RAND:2
+	CASE 0
+		PRINTFORM %CALLNAME:TARGET%は%TEXTR("とろんと目元を蕩けさせ/蕩けた顔でだらしなく口をあけて/法悦に目元を蕩けさせて")%、
+	CASE 1
+		PRINTFORM %CALLNAME:TARGET%はだらしなく緩んだ口から%TEXTR("あられもない声/快楽に染まった嬌声/淫らな声")%を%TEXTR("あげて/こぼして/こぼしながら")%、
+	ENDSELECT
+	PRINTFORML %CALLNAME:PLAYER%%TEXTR("の『マッサージ』/の口技/が与える快楽")%%TEXTR("に乳首を差し出してしまっている/に酔いしれている/にされるがままになっている/を受け入れている/を甘受している")%…
+ENDIF
