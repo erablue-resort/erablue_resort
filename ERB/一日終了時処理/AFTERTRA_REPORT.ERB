@@ -1189,15 +1189,18 @@ IF 滞在キャラ数算出関数() > 0
 			LOCAL = LOCAL * 11 / 10
 			RSTR:リゾート収支計算_記録文字列 += @"『%発動中コンボ名%』の効果でルピ収入UP！<br>"
 		ENDIF
-		IF 料理セット判定("寿司盛り合わせ")
-			LOCAL:1 = LOCAL:1 * 11 / 10
-			RSTR:リゾート収支計算_記録文字列 += @"『寿司盛り合わせ』の効果でZP収入UP！<br>"
-		ENDIF
-		;補正による減少
-		IF 料理セット判定("失敗料理")
-			LOCAL = LOCAL / 2
-			RSTR:リゾート収支計算_記録文字列 += @"『失敗料理』の効果でルピ収入DOWN…<br>"
-		ENDIF
+		;料理セットによる補正
+		一時ルピ計算 = 0
+		一時ZP計算 = 0
+		FOR LOCAL, 1, 6
+			VARSET RESULT
+			料理名 '= DT_CELL_GETS("料理メニューデータベース",  現在設定メニュー:LOCAL, "メニュー名", 1)
+			TRYCALLFORM 料理効果_メニュー効果収入補正_%料理名%(LOCAL, LOCAL:1)
+			一時ルピ計算 += RESULT:0
+			一時ZP計算 += RESULT:1
+		NEXT
+		LOCAL = MAX(0, 一時ルピ計算 + LOCAL)
+		LOCAL:1 = MAX(0, 一時ZP計算 + LOCAL:1)
 		;従業員の効果
 		LOCAL = LOCAL * (MIN(滞在キャラ数算出関数(1) / 10, 料理ルピ補正保存) + 100) / 100
 		LOCAL:1 = LOCAL:1 * (MIN(滞在キャラ数算出関数(1) / 10, 料理ZP補正保存) + 100) / 100
@@ -1217,6 +1220,7 @@ IF 滞在キャラ数算出関数() > 0
 	LOCAL = 0
 	LOCAL:1 = 0
 	FOR LOCAL:2, 3, 9
+		VARSET RESULT
 		表示フラグ = 0
 		TRYCALLFORM 空艇港店舗効果_{空艇港店舗状況:(LOCAL:2):0}("一日終了時のルピ収入")
 		LOCAL += RESULT
