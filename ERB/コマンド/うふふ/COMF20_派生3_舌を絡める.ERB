@@ -1,0 +1,368 @@
+﻿
+@COMNAME_S20_3
+#FUNCTIONS
+TSTR:コマンド名受渡 = 舌で触れ合う
+SIF MODE_存在判定_順不同("ディープキス", PLAYER, TARGET)
+	TSTR:コマンド名受渡 = 舌を絡める
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_20_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
+弱点コマンドカテゴリ = S
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S20_3
+LOCALS = <br>■舌を絡める<br>
+LOCALS += "キス系モード中、集中して相手と舌を絡め合わせるコマンド。<br>[舌使い][猫舌]によって効果が増減。"
+LOCALS += "<br>COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：露出・接触・快Ｓ・不潔・苦痛(一定条件時)"
+LOCALS += "<br>固有の取得経験：キス経験(PLAYER＆TARGET)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S20_3
+#DIM 舌を絡め合わせるフラグ
+#DIM 必要実行値
+#DIM 実行値
+
+舌を絡め合わせるフラグ = 0
+実行値 = 0
+必要実行値 = 25
+
+;すべての命令に共通の要素を考慮
+CALL COM_ORDER2
+実行値 = RESULT
+
+;ABL:欲望
+IF ABL:欲望
+	実行値 += ABL:欲望 * 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	実行値 += ABL:奉仕精神 * 4
+ENDIF
+
+IF MARK:快楽刻印
+	実行値 += MARK:快楽刻印 * 2
+ENDIF
+
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情, 5)
+	実行値 += GETPALAMLV(PALAM:欲情, 5) * 1
+ENDIF
+
+;恥じらい
+IF TALENT:羞恥心 > 0
+	実行値 -= 1
+ENDIF
+;汚臭鈍感
+IF TALENT:汚臭耐性 > 0
+	実行値 += 3
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	実行値 -= 1
+ENDIF
+;献身的
+IF TALENT:献身的
+	実行値 += 6
+ENDIF
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	実行値 -= 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	実行値 += 15
+ENDIF
+;親愛
+IF TALENT:恋慕 > 1
+	実行値 += 20
+ENDIF
+;キス嗜好
+IF TALENT:キス嗜好 == 1
+	実行値 += 10
+ELSEIF TALENT:キス嗜好 == 2
+	実行値 += 999
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	実行値 += 999
+ENDIF
+
+IF 実行値 >= 必要実行値
+	舌を絡め合わせるフラグ = 1
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+;奉仕コマンドフラグ
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+IF MODE_存在判定_順不同("ディープキス", PLAYER, TARGET)
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+	
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 250)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 250)
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 200)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 50)
+	
+	CALL SOURCE_CALC_不潔(TARGET, PLAYER, 150)
+	
+	IF 舌を絡め合わせるフラグ
+		CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+		CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 100)
+		CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+		CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 100)
+	ENDIF
+ELSE
+
+	CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+	
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 300)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 300)
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 250)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 150)
+	
+	CALL SOURCE_CALC_不潔(TARGET, PLAYER, 100)
+
+ENDIF
+
+
+;-------------------------------------------------
+;特殊ソース処理
+;-------------------------------------------------
+
+;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+IF TALENT:PLAYER:舌使い
+	CALL SOURCE_CALC_接触(TARGET, PLAYER, 100)
+	CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 200)
+ENDIF
+
+IF TALENT:TARGET:舌使い && 舌を絡め合わせるフラグ
+	CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 150)
+ENDIF
+
+;猫舌では減少
+SIF TALENT:PLAYER:猫舌
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 3
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 3
+
+
+SIF TALENT:恋慕
+	EXP:愛情経験 += 1
+
+SIF TALENT:TARGET:猫舌
+	EXP:嗜虐快楽経験 += 1
+
+EXP:キス経験 ++
+EXP:PLAYER:キス経験 ++
+RETURN 1
+
+
+@CAN_COM_S20_3(ARG)
+#DIM 必要実行値
+#DIM 実行値
+#DIM ＋表示フラグ
+
+IF MODE_存在判定_順不同("ディープキス", PLAYER, TARGET)
+	必要実行値 = 20
+ELSE
+	必要実行値 = 25
+ENDIF
+
+SKIPDISP ARG
+PRINTFORML 唾液交換(%CALLNAME:TARGET%)
+;-------------------------------------------------
+;実行できるかの判定
+;-------------------------------------------------
+実行値 = 0
+＋表示フラグ = 0
+
+;すべての命令に共通の要素を考慮
+CALL COM_ORDER
+実行値 = RESULT
+＋表示フラグ = RESULT:1
+
+;ABL:欲望
+IF ABL:欲望
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += ABL:欲望 * 1
+	PRINTFORM 欲望LV{ABL:欲望}({ABL:欲望 * 1})
+	＋表示フラグ = 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += ABL:奉仕精神 * 4
+	PRINTFORM 奉仕精神LV{ABL:奉仕精神}({ABL:奉仕精神 * 4})
+	＋表示フラグ = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += MARK:快楽刻印 * 2
+	PRINTFORM 快楽刻印LV{MARK:快楽刻印}({MARK:快楽刻印 * 2})
+	＋表示フラグ = 1
+ENDIF
+
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情, 5)
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += GETPALAMLV(PALAM:欲情, 5) * 1
+	PRINTFORM 欲情LV{GETPALAMLV(PALAM:欲情, 5)}({GETPALAMLV(PALAM:欲情, 5) * 1})
+	＋表示フラグ = 1
+ENDIF
+
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	実行値 -= 1
+	PRINT 恥じらい(1)
+	＋表示フラグ = 1
+ENDIF
+;汚臭鈍感
+IF TALENT:汚臭耐性 > 0
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 3
+	PRINT 汚臭鈍感(3)
+	＋表示フラグ = 1
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	PRINT  - 
+	実行値 -= 1
+	PRINT 汚臭敏感(1)
+	＋表示フラグ = 1
+ENDIF
+;献身的
+IF TALENT:献身的
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 6
+	PRINT 献身的(6)
+	＋表示フラグ = 1
+ENDIF
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	PRINT  - 
+	実行値 -= 1
+	PRINT 快感の否定(1)
+	＋表示フラグ = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 15
+	PRINT 恋慕(5)
+	＋表示フラグ = 1
+ENDIF
+;親愛
+IF TALENT:恋慕 > 1
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 20
+	PRINT 親愛(10)
+	＋表示フラグ = 1
+ENDIF
+;キス嗜好
+IF TALENT:キス嗜好 == 1
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 10
+	PRINT キス好き(10)
+	＋表示フラグ = 1
+ELSEIF TALENT:キス嗜好 == 2
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 999
+	PRINT キス魔(999)
+	＋表示フラグ = 1
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 999
+	PRINT あなたの言いなり(999)
+	＋表示フラグ = 1
+ENDIF
+
+;合計を表示(20以上で実行)
+PRINTFORM  = {実行値}
+
+SIF 実行値 < 必要実行値
+	PRINT  < 
+SIF 実行値 == 必要実行値
+	PRINT  = 
+SIF 実行値 > 必要実行値
+	PRINT  > 
+PRINTFORM 実行値{必要実行値}
+
+WAIT
+SKIPDISP 0
+
+;実行できない
+SIF 実行値 < 必要実行値
+	RETURN 0
+
+RETURN 1
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S20_3
+;舌を絡める実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("20_3")
+	RETURN RESULT
+;ボールギャグ使用中は不可
+; SIF TEQUIP:ボールギャグ
+; 	RETURN 0
+;猫舌の調教者の場合は技巧Lv2以上必要
+SIF TALENT:PLAYER:猫舌 && ABL:PLAYER:技巧 < 2
+	RETURN 0
+;キスモードじゃない時はアウト
+SIF !MODE_存在判定_順不同("キス系", PLAYER, TARGET)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S20_3
+
+IF MODE_存在判定_順不同("ディープキス", PLAYER, TARGET)
+	IF RFLAG:コマンド結果受渡し変数
+		PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%はまるで性交の如く濃厚に舌を絡め合わせた…
+	ELSE
+		PRINTFORML %CALLNAME:PLAYER%は舌で%CALLNAME:TARGET%の舌を捕え引き込み丹念に愛撫した…
+	ENDIF
+ELSE
+	PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%は口外で互いの舌を触れ合わせ舐め合った…
+ENDIF

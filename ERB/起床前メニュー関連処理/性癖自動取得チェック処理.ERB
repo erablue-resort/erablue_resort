@@ -169,6 +169,104 @@ SIF GETBIT(TALENT:MASTER:性別, 1) == 0
 RETURN 1
 
 
+@自動取得性癖_キス(キャラ番号)
+#DIM キャラ番号
+
+SELECTCASE 性癖素質:キャラ番号:キス
+	CASE 0
+		;経験が足りないとダメ
+		;キス愛好があると必要値ダウン
+		IF TALENT:キャラ番号:キス嗜好 >= 2
+			SIF EXP:キャラ番号:キス経験 < 1
+				RETURN 0
+		ELSEIF TALENT:キャラ番号:キス嗜好 >= 1
+			SIF EXP:キャラ番号:キス経験 < 50
+				RETURN 0
+		ELSE
+			SIF EXP:キャラ番号:キス経験 < 200
+				RETURN 0
+		ENDIF
+	CASE 1
+		;興味があると必要経験値が大幅ダウン
+		;経験が足りないとダメ
+		IF TALENT:キャラ番号:キス嗜好 >= 2
+			SIF EXP:キャラ番号:キス経験 < 1
+				RETURN 0
+		ELSE 
+			SIF EXP:キャラ番号:キス経験 < 50
+				RETURN 0
+		ENDIF
+	CASEELSE
+		;既に取得してるとダメ
+		RETURN 0
+ENDSELECT
+
+性癖素質:キャラ番号:キス = 2
+SIF TALENT:キャラ番号:キス嗜好 < 1
+	TALENT:キャラ番号:キス嗜好 = 1
+
+;取得メッセージ
+CALL 自動取得性癖メッセージ_キス(キャラ番号)
+CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[キス(愛好)]を取得した</font>","うふふ")
+
+RETURN 1
+
+@自動取得性癖メッセージ_キス(キャラ番号)
+#DIM キャラ番号
+
+DRAWLINE
+PRINTFORML %CALLNAME:キャラ番号%の様子がおかしい……
+PRINTL どうやらキスの感覚にハマり込んでしまったようだ。
+PRINTL 
+PRINTFORML %CALLNAME:キャラ番号%は性癖素質[キス(愛好)]を取得した
+PRINTL
+
+
+@性癖段階成長_キス(キャラ番号)
+#DIM キャラ番号
+
+;既に中毒だとダメ
+SIF 性癖素質:キャラ番号:キス == 3
+	RETURN 0
+SIF 性癖素質:キャラ番号:キス < 0
+	RETURN 0
+;経験が足りないとダメ
+
+IF TALENT:キャラ番号:キス嗜好 >= 2
+	SIF EXP:キャラ番号:キス経験 < 250
+		RETURN 0
+ELSE
+	SIF EXP:キャラ番号:キス経験 < 500
+		RETURN 0
+ENDIF
+
+CALL 性癖段階成長メッセージ_キス(キャラ番号, 性癖素質:キャラ番号:キス)
+性癖素質:キャラ番号:キス = 3
+SIF TALENT:キャラ番号:キス嗜好 < 2
+	TALENT:キャラ番号:キス嗜好 = 2
+
+;取得メッセージ
+CALL 履歴データベース登録(CFLAG:キャラ番号:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>性癖素質[キス(愛好)]が[キス(中毒)]に成長した</font>","うふふ")
+PRINTL
+
+RETURN 2
+
+@性癖段階成長メッセージ_キス(キャラ番号, 表示段階)
+#DIM キャラ番号
+#DIM 表示段階
+
+SELECTCASE 表示段階
+	CASE 2
+		;取得メッセージ
+		DRAWLINE
+		PRINTFORML %CALLNAME:キャラ番号%の様子がおかしい……
+		PRINTL どうやらキスの感覚と快楽か忘れられず唇と舌がキスを求めて疼くようになってしまったようだ。
+		PRINTL 
+		PRINTFORML %CALLNAME:キャラ番号%の性癖素質[キス(愛好)]は[キス(中毒)]に成長した
+		PRINTL
+ENDSELECT
+
+
 @自動取得性癖_膣内射精(キャラ番号)
 #DIM キャラ番号
 
