@@ -1,0 +1,164 @@
+﻿;------------------------------------------------------------------------------
+;合意済みの相手
+;ムード・性欲一定以上で二人きりだとうふふのお誘いが来る
+;------------------------------------------------------------------------------
+@AUTOCOM13
+;チラ見せと時間共通
+DRAWLINE
+IF (TALENT:AUTOCOM_実行番号保存:恋慕 || (CFLAG:AUTOCOM_実行番号保存:恋心度 > 経験値テーブル:(関係閾値:3) && DT_SELECT("初体験データベース", @"体験キャラ人物番号 = {CFLAG:AUTOCOM_実行番号保存:人物番号} And 相手キャラ人物番号 = {CFLAG:MASTER:人物番号} And 体験名 = 'キス'"))) && 性癖素質:AUTOCOM_実行番号保存:キス < 3
+	PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%は少し恥ずかしそうに顔を赤らめ%CALLNAME:PLAYER%に向けて、キスをしたいと言ってきた……
+ELSE
+	PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%は欲情の籠った吐息を吐き唇の隙間から濡れた舌を覗かせ
+	PRINTFORML %CALLNAME:PLAYER%へと向けて、キスをしたいとねだってきた……
+ENDIF
+TRYCALLFORM KOJO_AUTOCOM_キス乞い口上_{NO:AUTOCOM_実行番号保存}(AUTOCOM_実行番号保存)
+PRINTL
+PRINTL 要求にを答えますか？
+PRINTBUTTON "[0] はい", 0
+PRINTL
+PRINTBUTTON "[1] いいえ", 1
+PRINTL
+TIME_キス乞い:AUTOCOM_実行番号保存:0 = TIME
+BINPUT
+IF RESULT == 0
+	;許可
+	RFLAG:コマンド結果受渡し変数 = 1
+	IF TFLAG:調教モード == 3
+		CALL 飲み会終了処理
+	ENDIF
+	
+	IF (TALENT:AUTOCOM_実行番号保存:恋慕 || (CFLAG:AUTOCOM_実行番号保存:恋心度 > 経験値テーブル:(関係閾値:3) && DT_SELECT("初体験データベース", @"体験キャラ人物番号 = {CFLAG:AUTOCOM_実行番号保存:人物番号} And 相手キャラ人物番号 = {CFLAG:MASTER:人物番号} And 体験名 = 'キス'"))) && 性癖素質:AUTOCOM_実行番号保存:キス < 3
+		LOCAL = TARGET
+		TARGET = AUTOCOM_実行番号保存
+		CALL COM20
+		TARGET = LOCAL
+	ELSE
+		CALL MODE_CHANGE("ディープキス", MASTER, AUTOCOM_実行番号保存)
+		;奉仕コマンドフラグ
+		RCVAR:AUTOCOM_実行番号保存:奉仕コマンドフラグ = 1
+		;ソース追加処理
+		CALL SOURCE_CALC_露出_反感無し(AUTOCOM_実行番号保存, PLAYER, 50)
+		CALL SOURCE_CALC_接触_不快無し(AUTOCOM_実行番号保存, PLAYER, 250)
+		CALL SOURCE_CALC_快Ｓ(AUTOCOM_実行番号保存, PLAYER, 250)
+		CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_実行番号保存, 250)
+		;特殊ソース処理
+		;舌を使う調教では、調教者の舌使いによって、快感のソース増加
+		IF TALENT:PLAYER:舌使い
+			CALL SOURCE_CALC_接触_不快無し(AUTOCOM_実行番号保存, PLAYER, 50)
+			CALL SOURCE_CALC_快Ｓ(AUTOCOM_実行番号保存, PLAYER, 150)
+		ENDIF
+		
+		IF TALENT:AUTOCOM_実行番号保存:舌使い
+			CALL SOURCE_CALC_快Ｓ(PLAYER, AUTOCOM_実行番号保存, 150)
+		ENDIF
+		
+		;猫舌では減少
+		SIF TALENT:PLAYER:猫舌
+			CALL SOURCE_CALC_苦痛(AUTOCOM_実行番号保存, PLAYER, 20)
+		;経験の処理
+		;同性愛　レズなら戻り値1ゲイなら戻り値2
+		IF HETEROSEX(AUTOCOM_実行番号保存,PLAYER)
+			EXP:AUTOCOM_実行番号保存:同性愛経験 += 3
+			EXP:PLAYER:同性愛経験 += 3
+		ENDIF
+		
+		SIF TALENT:AUTOCOM_実行番号保存:恋慕
+			EXP:AUTOCOM_実行番号保存:愛情経験 += 1
+		
+		SIF TALENT:AUTOCOM_実行番号保存:猫舌
+			EXP:AUTOCOM_実行番号保存:嗜虐快楽経験 += 1
+		
+		EXP:AUTOCOM_実行番号保存:キス経験 ++
+		EXP:PLAYER:キス経験 ++
+		RETURN 1
+	ENDIF
+	
+	;管理フラグを初期化
+	FLAG:モード管理 = 0
+ELSE
+	;拒否
+	RFLAG:コマンド結果受渡し変数 = 0
+ENDIF
+
+RETURN 1
+
+@AUTOCOM_ABLE13(対象キャラ)
+#DIM 対象キャラ
+#DIM 必要性欲値
+;あなたが必要
+SIF GETBIT(AUTOCOM_相手判別関数(対象キャラ), 0) == 0
+	RETURN 0
+;恋慕じゃないなら初キス済のみ
+SIF !DT_SELECT("初体験データベース", @"体験キャラ人物番号 = {CFLAG:対象キャラ:人物番号} And 相手キャラ人物番号 = {CFLAG:MASTER:人物番号} And 体験名 = 'キス'") && !TALENT:対象キャラ:恋慕
+	RETURN 0
+;キス性癖が無いなら二人っきりのみ
+SIF GET_TARGETNUM() > 1 && 性癖素質:対象キャラ:キス < 2
+	RETURN 0
+;隠密一致
+SIF CFLAG:MASTER:隠密 != CFLAG:対象キャラ:隠密
+	RETURN 0
+;馴れ合い強度1
+SIF TCVAR:MASTER:馴れ合い強度 < 1
+	RETURN 0
+;キス系をしてない時のみ
+SIF MODE_存在判定_いずれか側("キス系", 対象キャラ)
+	RETURN 0
+;うふふ中ではない
+SIF CFLAG:対象キャラ:うふふ
+	RETURN 0
+;２時間に１回のみ発動
+SIF TIME - TIME_キス乞い:対象キャラ:0 < 120
+	RETURN 0
+	
+IF (TALENT:対象キャラ:恋慕 || (CFLAG:対象キャラ:恋心度 > 経験値テーブル:(関係閾値:3) && DT_SELECT("初体験データベース", @"体験キャラ人物番号 = {CFLAG:対象キャラ:人物番号} And 相手キャラ人物番号 = {CFLAG:MASTER:人物番号} And 体験名 = 'キス'"))) && 性癖素質:対象キャラ:キス < 3
+	CALL CAN_COM20(対象キャラ)
+	SIF RESULT == 0
+	RETURN 0
+ELSE
+	CALL CAN_COM_S20_1(対象キャラ)
+	SIF RESULT == 0
+	RETURN 0
+ENDIF
+	
+;恋慕を持っているか恋心が想い人以上、もしくはキス性癖を持っている。
+SIF 性癖素質:対象キャラ:キス < 2 && !(TALENT:AUTOCOM_実行番号保存:恋慕 || CFLAG:AUTOCOM_実行番号保存:恋心度 > 経験値テーブル:(関係閾値:3))
+	RETURN 0
+;性欲一定以上
+
+SELECTCASE 性癖素質:対象キャラ:キス
+	CASE IS < 2
+		必要性欲値 = 500
+	CASE IS < 3
+		必要性欲値 = 300
+	CASEELSE
+		必要性欲値 = 100
+ENDSELECT
+
+;無関心、恥じらいは必要性欲値2倍
+SIF TALENT:対象キャラ:無関心 > 0 || TALENT:対象キャラ:羞恥心 > 0 
+	必要性欲値 = 必要性欲値 * 2
+
+SIF BASE:対象キャラ:性欲 < 必要性欲値
+	RETURN 0
+
+RETURN 1
+
+@MESSAGE_AUTOCOM13
+
+IF RFLAG:コマンド結果受渡し変数
+	;許可時
+	IF (TALENT:AUTOCOM_実行番号保存:恋慕 || (CFLAG:AUTOCOM_実行番号保存:恋心度 > 経験値テーブル:(関係閾値:3) && DT_SELECT("初体験データベース", @"体験キャラ人物番号 = {CFLAG:AUTOCOM_実行番号保存:人物番号} And 相手キャラ人物番号 = {CFLAG:MASTER:人物番号} And 体験名 = 'キス'"))) && 性癖素質:AUTOCOM_実行番号保存:キス < 3
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%の誘いに快く応じた
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%のほんのり紅く染まった頬に手を当て、唇へと己の唇を重ねた……
+	ELSE
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%の誘いに快く応じた
+		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%の期待に震える唇へと唇を落とし、%CALLNAME:AUTOCOM_実行番号保存%の舌を迎え舌を絡めた……
+	ENDIF
+ELSE
+	;拒否時
+	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%の誘いを断った
+	PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%は残念そうにしている……
+ENDIF
+
+
+
