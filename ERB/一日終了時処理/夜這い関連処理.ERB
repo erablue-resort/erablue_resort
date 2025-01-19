@@ -9,6 +9,7 @@
 #DIM 候補配列, 500
 #DIM 候補数
 #DIM 関係数
+#DIM 恋慕ありフラグ
 #DIM 夜這い条件性欲
 #DIMS 関係性種別
 ;0を返すとオナニー判定へ進む
@@ -51,6 +52,8 @@ SIF TALENT:対象キャラ:豪快
 SIF BASE:対象キャラ:性欲 < 夜這い条件性欲
 	RETURN 0
 
+恋慕ありフラグ = 恋慕ありチェック(対象キャラ)
+
 ;相手の選定
 VARSET 候補配列
 VARSET 対象配列
@@ -81,11 +84,16 @@ IF 関係数 > 0
 			候補数 ++
 		ELSE
 			;セフレ
+			SIF 恋慕ありフラグ && OPTION変数:恋慕時セフレ夜這い禁止
+				CONTINUE
 			LOCAL:1 = 関係性_相手人物番号取得(CFLAG:対象キャラ:人物番号, 対象配列:LOCAL)
 			SIF LOCAL:1 <= 0
 				CONTINUE
 			夜這い相手 = FIND_CHARA_FROM_PERSON_ID(LOCAL:1)
 			SIF 夜這い相手 < 0
+				CONTINUE
+			恋慕ありフラグ = 恋慕ありチェック(夜這い相手)
+			SIF 恋慕ありフラグ && OPTION変数:恋慕時セフレ夜這い禁止
 				CONTINUE
 			;既に夜這いしてるか対象になってる相手はキャンセル
 			SIF TCVAR:夜這い相手:夜這い済み
@@ -107,7 +115,7 @@ IF TALENT:対象キャラ:恋慕 && (TCVAR:MASTER:夜這い済み == 0 || (TCVAR
 	候補配列:候補数 = CFLAG:MASTER:人物番号
 	候補数 ++
 ENDIF
-IF TALENT:対象キャラ:セフレ && TCVAR:MASTER:夜這い済み == 0
+IF TALENT:対象キャラ:セフレ && TCVAR:MASTER:夜這い済み == 0 && (恋慕ありフラグ == 0 || OPTION変数:セフレ夜這い禁止 == 0)
 	候補配列:候補数 = CFLAG:MASTER:人物番号
 	候補数 ++
 ENDIF
