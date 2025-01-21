@@ -18,6 +18,7 @@ FOR LOCAL, 1, CHARANUM
 	表示候補:表示最大数 = LOCAL
 	表示最大数 ++
 NEXT
+CALL キャラ配列フィルタ処理(表示候補, -1)
 
 $表示_LOOP
 ;広告対象の表示
@@ -26,7 +27,7 @@ PRINTL 誰の素質を強化しますか？
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
 
-PRINTBUTTON @"[998] %NAME:MASTER%", 998
+PRINTBUTTON @"[9998] %NAME:MASTER%", 9998
 PRINTL
 DRAWLINE
 ;キャラの表示（15人まで）
@@ -43,31 +44,92 @@ DRAWLINE
 
 ;ページめくり表示
 IF 現在ページ > 0
-	PRINTBUTTONLC "[900]前ページへ", 900
+	PRINTBUTTONLC "[9000]前ページへ", 9000
 ELSE
 	PRINTLC 　
 ENDIF
 PRINTFORM - {現在ページ + 1} -
 IF 表示候補:((現在ページ * 15) + 15) > -1
-	PRINTBUTTONC "[901]次ページへ", 901
+	PRINTBUTTONC "[9001]次ページへ", 9001
 ENDIF
 PRINTL 
-PRINTBUTTON "[999]戻る", 999
+DRAWLINE
+PRINTBUTTON "[9020]フィルタ機能", 9020
+PRINTL
+PRINTBUTTON "[9030]ソート機能", 9030
+PRINT 　　　　　現在のソート設定：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%
+ENDIF
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINT (昇順)
+	PRINT 　　　　　
+	PRINTBUTTON "[降順にする]", 9031
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINT (降順)
+	PRINT 　　　　　
+	PRINTBUTTON "[昇順にする]", 9032
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINTL
+PRINTBUTTON "[9040]素質絞り込み機能", 9040
+PRINT 　　現在の絞り込み設定：
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT (AND条件)：
+	ELSE
+		PRINT (OR条件)：
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
+	NEXT
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+DRAWLINE
+PRINTBUTTON "[9999]戻る", 9999
 
 $INPUT_LOOP
 BINPUT
 
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE 900
+	CASE 9020
+		CALL SHOW_CHARADATA_FILTA
+		現在ページ = 0
+		RESTART
+	CASE 9030
+		CALL SHOW_CHARADATA_SORT
+		現在ページ = 0
+		RESTART
+	CASE 9031
+		キャラ一覧ソート:1 = 降順
+		現在ページ = 0
+		RESTART
+	CASE 9032
+		キャラ一覧ソート:1 = 昇順
+		現在ページ = 0
+		RESTART
+	CASE 9040
+		CALL SHOW_CHARADATA_素質絞り込み
+		現在ページ = 0
+		RESTART
+	CASE 9000
 		現在ページ = MAX(現在ページ - 1, 0)
 		GOTO 表示_LOOP
-	CASE 901
+	CASE 9001
 		現在ページ += 1
 		GOTO 表示_LOOP
-	CASE 999
+	CASE 9999
 		RETURN -1
-	CASE 998
+	CASE 9998
 		CALL ZP_素質変化(MASTER)
 		SIF RESULT == -1
 			RESTART
@@ -141,11 +203,13 @@ IF TALENT:キャラ番号:性欲 != -2
 		PRINTL
 	ENDIF
 ENDIF
+PRINTBUTTONLC "[9]体格・体型を変化させる", 9
+PRINTL
 IF フレーバー素質:キャラ番号:フレーバー素質_素質表示設定 == 0 || フレーバー素質:キャラ番号:フレーバー素質_素質表示設定 == 1
-	PRINTBUTTONLC "[9]フレーバー素質を再設定する", 9
+	PRINTBUTTONLC "[20]フレーバー素質を再設定する", 20
 	PRINTL
 ENDIF
-PRINTBUTTONLC "[10]弱点コマンドを追加する", 10
+PRINTBUTTONLC "[30]弱点コマンドを追加する", 30
 PRINTL
 
 PRINTL
@@ -190,9 +254,12 @@ SELECTCASE RESULT
 		CALL 発情期素質設定(キャラ番号)
 		RESTART
 	CASE 9
+		CALL 体格・体型素質設定(キャラ番号)
+		RESTART
+	CASE 20
 		CALL フレーバー素質再設定(キャラ番号)
 		RESTART
-	CASE 10
+	CASE 30
 		CALL 弱点コマンド追加(キャラ番号)
 		RESTART
 	CASE 995
@@ -1651,3 +1718,168 @@ SELECTCASE 入力値
 ENDSELECT
 
 RESTART
+
+@体格・体型素質設定(対象キャラ)
+#DIM 対象キャラ
+#DIMS CONST 見出し文字色 = "959595"
+#DIM 身長保存
+#DIM 体格保存
+#DIM 体型保存
+#DIM 下半身保存
+#DIM 身長数値設定フラグ
+#DIM 素質番号
+#DIMS HTML文字列
+#DIMS 一時文字列
+#DIM 変動位置
+#DIM 消費ZP
+
+;初期数値
+身長保存 = BASE:対象キャラ:身長
+体格保存 = TALENT:対象キャラ:体格
+体型保存 = TALENT:対象キャラ:体型
+下半身保存 = TALENT:対象キャラ:下半身
+
+消費ZP = 60
+
+$表示部分
+DRAWLINE
+PRINTFORML %NAME:対象キャラ% の体格・体型設定を行います。
+PRINTFORML 変更時に{消費ZP}ZP消費します。
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+HTML文字列 = <font color='#%見出し文字色%'>身長：</font>
+IF 身長数値設定フラグ
+	一時文字列 = %DECIMAL_STRING(身長保存, 1)%cm
+
+	HTML文字列 += @"<button value='{12025}'>[%一時文字列%]</button>"
+	HTML文字列 += " " * (12 - MIN(12-1, STRLENS(一時文字列)))
+	HTML文字列 += @"　<button value='{12998}'>[大まかに設定する]</button>"
+	HTML文字列 += @"　<button value='{12996}'>[リロール]</button>"
+ELSE
+	HTML文字列 += @"%GET_TALENTNAME(161, 体格保存), 14, LEFT%"
+	HTML文字列 += @"　<button value='{12998}'>[数値で設定する]</button>"
+ENDIF
+HTML文字列 += "<br>"
+HTML文字列 += @"<font color='#%見出し文字色%'>体格：</font>"
+FOR 素質番号, -3, 3
+	IF 体格保存 == 素質番号
+		IF 身長数値設定フラグ
+			一時文字列 = FFFF00
+		ELSE
+			一時文字列 = C0C0C0
+		ENDIF
+	ELSE
+		一時文字列 = 333333
+	ENDIF
+	HTML文字列 += @"<font color='#%一時文字列%'><button value='{12050 + 素質番号}'>[%GET_TALENTNAME(161, 素質番号)%]</button></font>"
+NEXT
+HTML文字列 += "<br>"
+
+HTML文字列 += @"<font color='#%見出し文字色%'>体型：</font>"
+FOR 素質番号, -3, 4
+	IF 体型保存 == 素質番号
+		一時文字列 = C0C0C0
+	ELSE
+		一時文字列 = 333333
+	ENDIF
+	HTML文字列 += @"<font color='#%一時文字列%'><button value='{12080 + 素質番号}'>[%GET_TALENTNAME(163, 素質番号)%]</button></font>"
+NEXT
+HTML文字列 += "<br>"
+
+HTML文字列 += @"<font color='#%見出し文字色%'>下半身：</font>"
+FOR 素質番号, -1, 2
+	IF 下半身保存 == 素質番号
+		一時文字列 = C0C0C0
+	ELSE
+		一時文字列 = 333333
+	ENDIF
+	HTML文字列 += @"<font color='#%一時文字列%'><button value='{12090 + 素質番号}' title='%GET_TALENTNAME(210, 素質番号, 1)%'>[%GET_TALENTNAME(210, 素質番号)%]</button></font>"
+NEXT
+HTML文字列 += "<br>"
+HTML_PRINT HTML文字列
+DRAWLINE
+PRINTBUTTONLC "[999] 変更せず戻る", 999
+IF FLAG:ZP所持量 < 消費ZP
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] これで変更する（ZP不足）
+	RESETCOLOR
+
+ELSEIF 身長保存 != BASE:対象キャラ:身長 || 体格保存 != TALENT:対象キャラ:体格 || 体型保存 != TALENT:対象キャラ:体型 || 下半身保存 != TALENT:対象キャラ:下半身
+	PRINTBUTTONLC "[998] これで変更する", 998
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] これで変更する（変動なし）
+	RESETCOLOR
+ENDIF
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 998
+		PRINTL 以上の設定で変更してよろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL 
+		BINPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= 消費ZP
+			;変更情報をセットし、スリーサイズを再設定
+			変動位置 = 0
+			IF 身長数値設定フラグ
+				IF 身長保存 != BASE:対象キャラ:身長
+					BASE:対象キャラ:身長 = 身長保存
+					TALENT:対象キャラ:体格 = 0
+					CALL INIT_BODYSIZE_HEIGHT(対象キャラ)
+					SETBIT 変動位置, 1
+					SETBIT 変動位置, 2
+					SETBIT 変動位置, 3
+				ENDIF
+			ELSE
+				IF 体格保存 != TALENT:対象キャラ:体格
+					TALENT:対象キャラ:体格 = 体格保存
+					BASE:対象キャラ:身長 = 0
+					CALL SET_BODYSIZE_HEIGHT(対象キャラ)
+					SETBIT 変動位置, 1
+					SETBIT 変動位置, 2
+					SETBIT 変動位置, 3
+				ENDIF
+			ENDIF
+			IF 体型保存 != TALENT:対象キャラ:体型
+				TALENT:対象キャラ:体型 = 体型保存
+				SETBIT 変動位置, 1
+				SETBIT 変動位置, 2
+				SETBIT 変動位置, 3
+			ENDIF
+			IF 下半身保存 != TALENT:対象キャラ:下半身
+				TALENT:対象キャラ:下半身 = 下半身保存
+				SETBIT 変動位置, 3
+			ENDIF
+			IF 変動位置 != 0
+				CALL SET_BODYSIZE(対象キャラ, 変動位置)
+			ENDIF
+			PRINTW 変更が完了しました。
+			RETURN 0
+		ENDIF
+	CASE 12996
+		身長保存 = EDIT用身長算出(TALENT:対象キャラ:性別, TALENT:対象キャラ:種族, 体格保存)
+	CASE 12998
+		INVERTBIT 身長数値設定フラグ, 0
+	CASE 12025
+		DRAWLINE
+		PRINTL 身長をmm単位で入力してください。
+		SETTEXTBOX TOSTR(身長保存)
+		INPUT
+		身長保存 = RESULT
+		体格保存 = EDIT用体格算出(TALENT:対象キャラ:性別, 身長保存)
+	CASE 12047 TO 12052
+		体格保存 = LOCAL - 12050
+		身長保存 = EDIT用身長算出(TALENT:対象キャラ:性別, TALENT:対象キャラ:種族, 体格保存)
+	CASE 12077 TO 12083
+		体型保存 = LOCAL - 12080
+	CASE 12089 TO 12091
+		下半身保存 = LOCAL - 12090
+ENDSELECT
+
+GOTO 表示部分
