@@ -101,63 +101,70 @@ RETURNF LOCAL
 ;性交渉をお願いする
 @COM353
 #DIM 下降基準値
+#DIM 今回成功度
+#DIM 成功度上限
+#DIM 成功度下限
 
 ;まず成功度の蓄積量を判定、蓄積100で成功
 ;想定としては有利素質を盛りに盛って２回目（つまり上限は99）
 ;不利素質をどれだけ持っていても蓄積可能に（つまり下限は1）、ただ100回交渉するのは現実的じゃないのでZPショップで下限上昇出来るようにする
 
-LOCAL = CFLAG:好感度レベル / 2
+今回成功度 = CFLAG:好感度レベル / 2
 IF CFLAG:TARGET:発情期フラグ < 0
-	LOCAL += 恋慕_性愛比較(TARGET) * 2
+	今回成功度 += 恋慕_性愛比較(TARGET) * 2
 ELSE
-	LOCAL += 恋慕_性愛比較(TARGET) / 2
+	今回成功度 += 恋慕_性愛比較(TARGET) / 2
 ENDIF
-LOCAL += COM353_SUB(TARGET)
-SIF フィールド展開:欲情強化 && LOCAL > 0
-	LOCAL = LOCAL * 3 / 2
-LOCAL += (ABL:PLAYER:話術技能 - 3) * 5
-LOCAL += CFLAG:TARGET:お願いックス回数 * 30
-LOCAL += CFLAG:TARGET:泥酔ックス回数 * 10
+今回成功度 += COM353_SUB(TARGET)
+SIF フィールド展開:欲情強化 && 今回成功度 > 0
+	今回成功度 = 今回成功度 * 3 / 2
+今回成功度 += (ABL:PLAYER:話術技能 - 3) * 5
+今回成功度 += COM_353_性交渉回数取得(TARGET) * 30
 ;遊び人素質による補正 （下限の底上げ）
 SELECTCASE あなた特殊能力:遊び人
 	CASE IS >= 5
-		LOCAL:1 = 50
+		成功度下限 = 50
 	CASE 4
-		LOCAL:1 = 33
+		成功度下限 = 33
 	CASE 3
-		LOCAL:1 = 20
+		成功度下限 = 20
 	CASE 2
-		LOCAL:1 = 15
+		成功度下限 = 15
 	CASE 1
-		LOCAL:1 = 9
+		成功度下限 = 9
 	CASEELSE
-		LOCAL:1 = 0
+		成功度下限 = 0
 ENDSELECT
 ;好感度が無二の友未満である場合、大きく成功度と下限が減少
 SELECTCASE CFLAG:好感度レベル
 	CASE IS <= 関係閾値:2
 		;顔見知り以下
-		LOCAL -= 55
-		SIF LOCAL > 0
-			LOCAL /= 2
-		LOCAL:1 = -1
+		今回成功度 -= 55
+		SIF 今回成功度 > 0
+			今回成功度 /= 2
+		成功度下限 = -1
 	CASE IS <= 関係閾値:3
 		;友人
-		LOCAL -= 40
-		SIF LOCAL > 0
-			LOCAL /= 2
-		LOCAL:1 /= 8
+		今回成功度 -= 40
+		SIF 今回成功度 > 0
+			今回成功度 /= 2
+		成功度下限 /= 8
 	CASE IS <= 関係閾値:4
 		;親友
-		LOCAL -= 20
-		SIF LOCAL > 0
-			LOCAL /= 2
-		LOCAL:1 /= 2
+		今回成功度 -= 20
+		SIF 今回成功度 > 0
+			今回成功度 /= 2
+		成功度下限 /= 2
 ENDSELECT
 
 ;二回目以降は一発OKもアリ
-RFLAG:コマンド結果受渡し変数２ = MIN(LOCAL, 99 + CFLAG:TARGET:お願いックス回数)
-RFLAG:コマンド結果受渡し変数２ = MAX(RFLAG:コマンド結果受渡し変数２, 1 + LOCAL:1)
+成功度上限 = 99 + CFLAG:TARGET:お願いックス回数
+
+RFLAG:コマンド結果受渡し変数２ = 今回成功度
+;今回セフレ取得可能な場合は上限判定しない
+SIF !COM_353_セフレ取得判定(TARGET)
+	RFLAG:コマンド結果受渡し変数２ = MIN(RFLAG:コマンド結果受渡し変数２, 成功度上限)
+RFLAG:コマンド結果受渡し変数２ = MAX(RFLAG:コマンド結果受渡し変数２, 1 + 成功度下限)
 
 CFLAG:TARGET:お願いックス蓄積値 += RFLAG:コマンド結果受渡し変数２
 ;性知識-2の場合、無二の友以上なら基本OK
@@ -193,7 +200,7 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:PLAYER%に頼み込まれて身体を許してしまった</font><img src='えっちハート'>","うふふ")
 	ENDIF
 	IF 初体験日取得("初うふふ", TARGET, MASTER) == 0
-		IF TALENT:TARGET:恋人持ち > 0
+		IF TALENT:TARGET:恋人持ち > 0 && !TALENT:TARGET:浮気
 			TALENT:TARGET:浮気 = 1
 			RFLAG:コマンド結果受渡し変数３ = 1
 			CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"素質[浮気]を得た","うふふ実績")
@@ -207,6 +214,18 @@ IF CFLAG:TARGET:お願いックス蓄積値 > 99
 	ENDIF
 	TCVAR:TARGET:性交渉成功フラグ = 1
 	CALL うふふ開始キャラ処理(TARGET, "性交渉お願い")
+
+	IF COM_353_セフレ取得判定(TARGET)
+		;セフレ取得処理
+		;・セフレ取得済の場合はコマンドが実行できなくなるので二重取得の考慮は不要
+		SETBIT CFLAG:1 , 0
+		TALENT:TARGET:セフレ = 1
+		初体験日:セフレ = DAY
+		RFLAG:コマンド結果受渡し変数４ = TALENT:陥落不可
+		CLEARBIT TALENT:陥落不可, 1
+		CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[セフレ]陥落させた</font><img src='えっちハート'>","うふふ")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[セフレ]を得た</font><img src='えっちハート'>","うふふ")
+	ENDIF
 ELSE
 	RFLAG:コマンド結果受渡し変数 = 0
 
@@ -254,16 +273,6 @@ ELSE
 	CFLAG:TARGET:恋慕度 = MIN(CFLAG:TARGET:恋慕度, 経験値テーブル:(CFLAG:TARGET:恋慕レベル))
 ENDIF
 
-IF (CFLAG:TARGET:お願いックス回数 + CFLAG:TARGET:泥酔ックス回数 / 3) >= 4 || TALENT:淫乱
-	SETBIT CFLAG:1 , 0
-	TALENT:セフレ = 1
-	初体験日:セフレ = DAY
-	RFLAG:コマンド結果受渡し変数４ = TALENT:陥落不可
-	CLEARBIT TALENT:陥落不可, 1
-	CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[セフレ]陥落させた</font><img src='えっちハート'>","うふふ")
-	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[セフレ]を得た</font><img src='えっちハート'>","うふふ")
-ENDIF
-
 RETURN 1
 
 ;-------------------------------------------------
@@ -304,6 +313,11 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM353
+; RFLAG:コマンド結果受渡し変数    お願い判定結果(1でお願い成功/うふふ移行)
+; RFLAG:コマンド結果受渡し変数２  成功度の蓄積量
+; RFLAG:コマンド結果受渡し変数３  [浮気]素質の取得有無(1で[浮気]素質取得)
+; RFLAG:コマンド結果受渡し変数４  [セフレ]素質取得前の陥落不可状態判定
+
 IF RFLAG:コマンド結果受渡し変数
 	PRINTFORM %CALLNAME:TARGET%は
 	IF 知識素質:TARGET:性知識 < 0
@@ -328,6 +342,27 @@ IF RFLAG:コマンド結果受渡し変数
 		PRINT [浮気]
 		RESETCOLOR
 		PRINT を得た……
+		PRINTL
+	ENDIF
+	IF TALENT:TARGET:セフレ
+		PRINTL
+		;淫乱のキャラは1回でセフレになって文章と齟齬が出るので表示しない
+		SIF !TALENT:TARGET:淫乱
+			PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%と幾度か体を重ね、抵抗感が薄れてきたようだ…
+		PRINTFORM %CALLNAME:TARGET%は
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [セフレ]
+		RESETCOLOR
+		PRINT を得た
+		PRINTL
+		IF GETBIT(RFLAG:コマンド結果受渡し変数４, 1)
+			;
+			IF GETBIT(TALENT:TARGET:陥落不可, 0)
+				PRINTFORML %CALLNAME:TARGET%の[陥落不可]が[恋慕不可]に変化しました。
+			ELSE
+				PRINTFORML %CALLNAME:TARGET%の[セフレ不可]が消滅しました。
+			ENDIF
+		ENDIF
 	ENDIF
 ELSE
 	PRINTFORM %CALLNAME:TARGET%は%CALLNAME:PLAYER%の願いを
@@ -370,15 +405,21 @@ ELSE
 	ENDIF
 ENDIF
 
-IF (CFLAG:TARGET:お願いックス回数 + CFLAG:TARGET:泥酔ックス回数 / 3) >= 4
-	PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%と幾度か体を重ね、抵抗感が薄れてきたようだ…
-	PRINTFORML %CALLNAME:TARGET%は[セフレ]を得た
-	IF GETBIT(RFLAG:コマンド結果受渡し変数４, 1)
-		IF GETBIT(TALENT:TARGET:陥落不可, 0)
-			PRINTFORML %CALLNAME:TARGET%の[陥落不可]が[恋慕不可]に変化しました。
-		ELSE
-			PRINTFORML %CALLNAME:TARGET%の[セフレ不可]が消滅しました。
-		ENDIF
-	ENDIF
-ENDIF
+@COM_353_性交渉回数取得(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 性交渉回数
+性交渉回数  = CFLAG:対象キャラ:お願いックス回数
+性交渉回数 += CFLAG:対象キャラ:泥酔ックス回数 / 3
+性交渉回数 += EXP:対象キャラ:貸出経験 / 2
+RETURNF 性交渉回数
+
+@COM_353_セフレ取得判定(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+SIF TALENT:対象キャラ:淫乱
+	RETURNF 1
+SIF COM_353_性交渉回数取得(対象キャラ) >= 4 
+	RETURNF 1
+RETURNF 0
 

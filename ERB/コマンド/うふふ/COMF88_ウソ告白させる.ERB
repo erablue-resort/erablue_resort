@@ -6,8 +6,6 @@
 TSTR:コマンド名受渡 = 嘘告白させる
 
 
-
-
 ;===================================================
 ;コマンドタイプ
 ;===================================================
@@ -66,12 +64,14 @@ CASEELSE
 	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 280)
 ENDSELECT
 
+性愛レベル保存 = 100 / 2
 FOR LOCAL, 0, 100
 	IF 経験値テーブル:LOCAL >= CFLAG:TARGET:性愛度
 		性愛レベル保存 = LOCAL / 2
 		BREAK
 	ENDIF
 NEXT
+恋心レベル保存 = 100
 FOR LOCAL, 0, 100
 	IF 経験値テーブル:LOCAL >= CFLAG:TARGET:恋心度
 		恋心レベル保存 = LOCAL
@@ -79,9 +79,13 @@ FOR LOCAL, 0, 100
 	ENDIF
 NEXT
 
-;性愛度の半分と恋心度の合計が80以上(性愛度100だと恋心30、性愛度80だと恋心40)だと特殊ギミックへ
-IF 性愛レベル保存 + 恋心レベル保存 >= 80
+;特殊イベント発生判定
+;・性愛度の半分と恋心度の合計が80以上(性愛度100だと恋心30、性愛度80だと恋心40)で発生
+;・1度発生するとそのうふふ中は再発生しない
+IF 性愛レベル保存 + 恋心レベル保存 >= 80 && !TALENT:TARGET:恋慕 && !寝取らせ_嘘告白特殊イベント発生済
 	RFLAG:コマンド結果受渡し変数 = 1
+ELSE
+	RFLAG:コマンド結果受渡し変数 = 0
 ENDIF
 
 ;-------------------------------------------------
@@ -317,7 +321,7 @@ RETURN 1
 ;嘘告白時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM88
-#DIM 同時キャラ番号
+#DIM 入力値
 
 PRINTFORM %CALLNAME:PLAYER%は
 
@@ -533,30 +537,34 @@ CASEELSE
 				PRINTFORM %CALLNAME:PLAYER%と交わって喘ぐ吐息を漏らしながら、
 			ENDIF
 			PRINTFORM %TEXTR("すっかり蕩けた声で/快楽に蕩け切った甘い声で/堕落に堕ちきった雌媚び声で/快楽に堕落しきった媚び声で/甘い声で媚びるように/「これが本心だ」と確信できる甘えきった声で")%、
-			IF RFLAG:コマンド結果受渡し変数 == 1 && TALENT:恋慕 < 1 && RAND:3 == 0
-			;性愛度の半分と恋心度の合計が80以上(性愛度100だと恋心30、性愛度80だと恋心40)かつ恋慕がない場合
-			;刷り込みが完了して、性愛快楽を恋慕感情と脳が勘違いしてしまった哀れな末路
-			;一度断るを選んでももう一度このイベントが発生するようにしたけど、毎回選択はそれはそれでダルいので確率ちょい落とす
+			IF RFLAG:コマンド結果受渡し変数
+				;刷り込みが完了して、性愛快楽を恋慕感情と脳が勘違いしてしまった哀れな末路
+				;・発生判定はソース追加処理参照
+				;イベントが発生したことを記憶(一度発生するとそのうふふ中は再発生しない)
+				寝取らせ_嘘告白特殊イベント発生済 = 1
 				PRINTFORMW %CALLNAME:寝取らせ_主導キャラ%が見ている前で「%TEXTR("大好きな/愛している")%ので%CALLNAME:PLAYER%のモノにしてください」と口にしてしまった。
 				PRINTL
 				PRINTFORML ──どうしようか？
 				PRINTL
-				PRINTBUTTON "[恋人として受け入れてやる]", 0
-				PRINTL 
-				PRINTBUTTON "[断る]", 1
-				PRINTL 
-				INPUT
-				SELECTCASE RESULT
-				CASE 0
+				PRINTBUTTON "[0]恋人として受け入れてやる", 0
+				PRINTL
+				IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:TARGET:人物番号} Or 対象キャラ１ = {CFLAG:寝取らせ_主導キャラ:人物番号}) And (対象キャラ２ = {CFLAG:TARGET:人物番号} Or 対象キャラ２ = {CFLAG:寝取らせ_主導キャラ:人物番号}) And (関係性種別 = '恋慕')")
+					;対象と寝取らせ主導キャラが恋慕関係だった場合のみ関係を破棄させる選択肢を追加
+					PRINTBUTTON @"[1]%CALLNAME:寝取らせ_主導キャラ%との関係を断つことを条件に受け入れる", 1
+					PRINTL
+				ENDIF
+				PRINTBUTTON "[2]断る", 2
+				PRINTL
+				BINPUT
+				入力値 = RESULT
+				SELECTCASE 入力値
+				CASE 0, 1
 					PRINTFORML ──せっかく縁を結んでやったが、どうやら%CALLNAME:寝取らせ_主導キャラ%は%CALLNAME:TARGET%の運命の相手ではなかったようだ。
 					PRINTFORML 圧倒的な優越感を抱きながら、%CALLNAME:PLAYER%は%CALLNAME:TARGET%を%CALLNAME:寝取らせ_主導キャラ%から寝取り、自分のモノとした……。
 					PRINTL
 					PRINTFORM %CALLNAME:PLAYER%の与える快楽で高鳴った鼓動を『恋』と勘違いしてしまった哀れな%CALLNAME:TARGET%は、%CALLNAME:PLAYER%に［恋慕］陥落して
 					CALL PRINT_STRW("しまった……_H__H_")
-					TALENT:恋慕 = 1
-					初体験日:TARGET:恋慕 = DAY
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[恋慕]陥落させ、%CALLNAME:寝取らせ_主導キャラ%から寝取った</font><img src='えっちハート'>","うふふ実績")
-					CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%によって%CALLNAME:寝取らせ_主導キャラ%から寝取られ、陥落素質[恋慕]を得た</font><img src='えっちハート'>","うふふ実績")
+					CALL COM88_嘘告白_恋慕陥落処理(TARGET, 寝取らせ_主導キャラ, 入力値)
 				CASEELSE
 					PRINTFORML せっかくの申し出だが、%CALLNAME:TARGET%にはまだ%CALLNAME:寝取らせ_主導キャラ%との関係を保っていてもらおう。
 					PRINTFORML %CALLNAME:PLAYER%はその申し出を一蹴し、再びプレイに戻った……
@@ -716,3 +724,100 @@ CASEELSE
 		ENDSELECT
 	ENDIF
 ENDSELECT
+
+@COM88_嘘告白_恋慕陥落処理(対象キャラ, 寝取られ元キャラ, 関係破棄フラグ)
+#DIM 対象キャラ
+#DIM 寝取られ元キャラ
+#DIM 関係破棄フラグ
+#DIM 恋慕対象数
+#DIM 恋慕レベル初期値
+#DIM 恋慕レベル補正基準値
+#DIM CONST 嘘告白回数下限 = 24
+
+;恋慕対象に登録する処理
+;ゲージ区分を恋慕に変更(恋慕レベルが上がるようにする)
+CFLAG:対象キャラ:ゲージ起動分類 = 1
+
+;恋慕レベルの設定
+;・嘘告白すればするほど初期レベルが上がりやすくなる感じに
+;基本値：告白が成功するようになるレベル(Lv50)
+恋慕レベル初期値  = 50
+;補正値1：下限値から10回ごとに+1
+恋慕レベル補正基準値 = MAX(CFLAG:対象キャラ:嘘告白カウント - 嘘告白回数下限, 1)
+恋慕レベル初期値 += 恋慕レベル補正基準値 / 10
+;補正値2：0～[嘘告白回数 - 下限値]の乱数
+恋慕レベル初期値 += RAND:恋慕レベル補正基準値
+;上限100
+CFLAG:対象キャラ:恋慕レベル = MIN(恋慕レベル初期値, 100)
+
+IF !INRANGEARRAY(恋慕対象フラグ, 対象キャラ, 対象キャラ)
+	;リストに登録
+	;・このタイミングで「実はリスト上限なんだけどどうする？やめる？」って聞かれると興が醒めると思うので上限無視して登録しちゃう
+	;恋慕対象数をカウントして登録位置を決定
+	恋慕対象数 = INRANGEARRAY(恋慕対象フラグ, 1, キャラクタ数上限)
+	恋慕対象フラグ:恋慕対象数 = 対象キャラ
+ENDIF
+
+;- 恋慕陥落したときの処理(COM352_告白するの処理をベースに調整)
+;恋慕陥落素質を取得
+TALENT:対象キャラ:恋慕 = 1
+;恋慕陥落した日付を記憶
+初体験日:対象キャラ:恋慕 = DAY
+SETBIT CFLAG:対象キャラ:関係性, 0
+
+IF TALENT:対象キャラ:恋人持ち > 0
+	IF !TALENT:対象キャラ:浮気
+		;浮気素質の取得(寝取らせ時に取得済だと思うけど一応)
+		TALENT:対象キャラ:浮気 = 1
+		PRINTFORM %CALLNAME:対象キャラ%は
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [浮気]
+		RESETCOLOR
+		PRINT を得た……
+	ENDIF
+ELSEIF TALENT:対象キャラ:恋人持ち == -1
+	; 想い人ありの消失
+	TALENT:TARGET:恋人持ち = 0
+	PRINTFORM %CALLNAME:対象キャラ%は
+	SETCOLOR カラーパレット("えっちな色")
+	PRINT [想い人あり]
+	RESETCOLOR
+	PRINT を失った……
+ENDIF
+
+;履歴登録
+CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:対象キャラ%を[恋慕]陥落させ、%CALLNAME:寝取られ元キャラ%から寝取った</font><img src='えっちハート'>","うふふ実績")
+CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%によって%CALLNAME:寝取られ元キャラ%から寝取られ、陥落素質[恋慕]を得た</font><img src='えっちハート'>","うふふ実績")
+CALL 履歴データベース登録(CFLAG:寝取られ元キャラ:人物番号, @"%CALLNAME:対象キャラ%を%CALLNAME:PLAYER%に寝取られた","うふふ実績")
+
+;寝取られ元キャラとの関係破棄
+SIF 関係破棄フラグ
+	CALL COM88_嘘告白_関係破棄処理(対象キャラ, 寝取られ元キャラ)
+
+@COM88_嘘告白_関係破棄処理(対象キャラ, 寝取られ元キャラ)
+#DIM 対象キャラ
+#DIM 寝取られ元キャラ
+#DIM 人物番号1 
+#DIM 人物番号2
+#DIMS 関係性種別
+#DIMS DT_NAME
+#DIMS DT_FILT_EXP ; FILT_EXP > FILTER EXPRESSION
+#DIM  DT_ID
+
+DT_NAME = 関係性データベース
+人物番号1 = CFLAG:対象キャラ:人物番号
+人物番号2 = CFLAG:寝取られ元キャラ:人物番号
+{
+DT_FILT_EXP = (対象キャラ１ = {人物番号1} Or 対象キャラ１ = {人物番号2})
+          And (対象キャラ２ = {人物番号1} Or 対象キャラ２ = {人物番号2})
+          And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')
+}
+IF DT_SELECT(DT_NAME, DT_FILT_EXP, , DT_ID)
+	人物番号1 = DT_CELL_GET(DT_NAME, DT_ID, "対象キャラ１", 1)
+	人物番号2 = DT_CELL_GET(DT_NAME, DT_ID, "対象キャラ２", 1)
+	関係性種別 '= DT_CELL_GETS(DT_NAME, DT_ID, "関係性種別", 1)
+	DEBUGPRINTFORML {DT_ID}/{人物番号1}/{人物番号2}/%関係性種別%
+	DT_ROW_REMOVE DT_NAME, DT_ID
+ENDIF
+CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"%CALLNAME:寝取られ元キャラ%との%関係性種別%関係を解消した","うふふ実績")
+

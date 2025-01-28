@@ -201,34 +201,13 @@ IF LOCAL:0 <= 妊娠確率 && !TALENT:ARG:妊娠
 		CSTR:ARG:妊娠報告_記録文字列 += @"%CALLNAME:種親%の子供を"
 		LOCALS = 
 		IF 種親 == MASTER
+			;あなたが父親
 			SIF CFLAG:ARG:MASTERの子供妊娠回数 > 1
 				CSTR:ARG:妊娠報告_記録文字列 += "また"
-			IF TALENT:ARG:恋慕
-				LOCALS = 恋人の
-			ELSEIF TALENT:ARG:セフレ
-				LOCALS = セフレの
-			ELSE
-				LOCALS = 知り合いの
-			ENDIF
-		ELSEIF ARG == MASTER
-			IF GETBIT(陥落チェック(種親), 0)
-				LOCALS = 恋人の
-			ELSEIF GETBIT(陥落チェック(種親), 1)
-				LOCALS = セフレの
-			ELSE
-				LOCALS = 知り合いの
-			ENDIF
-		ELSE
-			IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And 関係性種別 = '恋慕'")
-				LOCALS = 恋人の
-			ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And 関係性種別 = 'セフレ'")
-				LOCALS = セフレの
-			ELSE
-				LOCALS = 知り合いの
-			ENDIF
 		ENDIF
-		CALL 履歴データベース登録(CFLAG:種親:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:ARG%に子供を孕ませた</font><img src='えっちハート'>","うふふ実績")
-		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:種親%との子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
+		CALL 関係性テキスト取得(ARG, 種親)
+		CALL 履歴データベース登録(CFLAG:種親:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:0%%CALLNAME:ARG%に子供を孕ませた</font><img src='えっちハート'>","うふふ実績")
+		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:1%%CALLNAME:種親%との子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
 	ELSE
 		CSTR:ARG:妊娠報告_記録文字列 += "得体のしれぬ相手の子供を"
 		CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>父親不明の子供を妊娠した</font><img src='えっちハート'>","うふふ実績")
@@ -269,6 +248,114 @@ ELSE
 	RETURN -1
 ENDIF
 
+@関係性テキスト取得(母親, 種親)
+;<実行結果>
+; RESULTS:0 = 種親から見た母親との関係
+; RESULTS:1 = 母親から見た種親との関係
+#DIM 母親
+#DIM 種親
+#DIMS DYNAMIC 関係性1F
+#DIMS DYNAMIC 関係性1M
+#DIMS DYNAMIC 関係性2
+#DIMS DYNAMIC 関係性F
+#DIMS DYNAMIC 関係性M
+#DIM PERSON_ID
+
+;種親と母親の関係1(血縁関係)
+IF GET_PERSON_父親(CFLAG:母親:人物番号) == CFLAG:種親:人物番号
+	;種親が父/母親が子供
+	関係性1F = 子供
+	関係性1M = 父親
+ELSEIF GET_PERSON_母親(CFLAG:母親:人物番号) == CFLAG:種親:人物番号
+	;種親が母/母親が子供
+	関係性1F = 子供
+	関係性1M = 母親
+ELSEIF GET_PERSON_父親(CFLAG:種親:人物番号) == CFLAG:母親:人物番号
+	;母親が父/種親が子供
+	関係性1F = 父親
+	関係性1M = 子供
+ELSEIF GET_PERSON_母親(CFLAG:種親:人物番号) == CFLAG:母親:人物番号
+	;母親が母/種親が子供
+	関係性1F = 母親
+	関係性1M = 子供
+ENDIF
+; 子供の性別による表記の変更
+; ・発情による性転換を考慮して現在の性別ではなく「元性別」で判定する
+; ・不明のときは「子供」のまま
+; ・ふたなりは…とりあえず「娘」にしておこう
+IF 関係性1F == "子供"
+	;母親が子供
+	SELECTCASE CFLAG:母親:元性別保存
+		CASE 2
+			関係性1F = 息子
+		CASE 1, 3
+			関係性1F = 娘
+	ENDSELECT
+ENDIF
+IF 関係性1M == "子供"
+	;種親が子供
+	SELECTCASE CFLAG:種親:元性別保存
+		CASE 2
+			関係性1M = 息子
+		CASE 1, 3
+			関係性1M = 娘
+	ENDSELECT
+ENDIF
+
+;種親と母親の関係2(交際状態)
+IF 種親 == MASTER
+	;種親(あなた)と母親
+	IF TALENT:母親:恋慕
+		関係性2 = 恋人
+	ELSEIF TALENT:母親:セフレ
+		関係性2 = セフレ
+	ELSEIF TALENT:母親:浮気
+		関係性2 = 浮気相手
+	ENDIF
+ELSEIF 母親 == MASTER
+	;種親と母親(あなた)
+	IF TALENT:種親:恋慕
+		関係性2 = 恋人
+	ELSEIF TALENT:種親:セフレ
+		関係性2 = セフレ
+	ELSEIF TALENT:種親:浮気
+		関係性2 = 浮気相手
+	ENDIF
+ELSE
+	;あなたは無関係
+	IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:母親:人物番号} Or 対象キャラ２ = {CFLAG:母親:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And 関係性種別 = '恋慕'")
+		関係性2 = 恋人
+	ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:母親:人物番号} Or 対象キャラ２ = {CFLAG:母親:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And 関係性種別 = 'セフレ'")
+		関係性2 = セフレ
+	ENDIF
+ENDIF
+
+;表示する関係性の決定
+;・特に関係性がない場合は「知り合い」
+IF 0
+;併記するのは長いのでやめておく
+;ELSEIF 関係性1F != "" && 関係性2 != ""
+;	関係性F = %関係性1F%で%関係性2%の
+ELSEIF 関係性2 != ""
+	関係性F = %関係性2%の
+ELSEIF 関係性1F != ""
+	関係性F = %関係性1F%の
+ELSE
+	関係性F = 知り合いの
+ENDIF
+IF 0
+;併記するのは長いのでやめておく
+;ELSEIF 関係性1M != "" && 関係性2 != ""
+;	関係性M = %関係性1M%で%関係性2%の
+ELSEIF 関係性2 != ""
+	関係性M = %関係性2%の
+ELSEIF 関係性1M != ""
+	関係性M = %関係性1M%の
+ELSE
+	関係性M = 知り合いの
+ENDIF
+RESULTS:0 '= 関係性F
+RESULTS:1 '= 関係性M
 
 ;出産 とりあえずの実装
 @BIRTHING(MOTHER)
@@ -428,26 +515,9 @@ CFLAG:MOTHER:産後経過日 = 1
 IF FATHER < 0
 	CALL 履歴データベース登録(CFLAG:MOTHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>父親不明の子供を%TOFULL(TOSTR(子供人数))%人出産した</font><img src='えっちハート'>","うふふ実績")
 ELSE
-	LOCALS = 
-	IF FATHER == MASTER
-		IF TALENT:MOTHER:恋慕
-			LOCALS = 恋人の
-		ELSEIF TALENT:MOTHER:セフレ
-			LOCALS = セフレの
-		ELSE
-			LOCALS = 知り合いの
-		ENDIF
-	ELSE
-		IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:MOTHER:人物番号} Or 対象キャラ２ = {CFLAG:MOTHER:人物番号}) And (対象キャラ１ = {CFLAG:FATHER:人物番号} Or 対象キャラ２ = {CFLAG:FATHER:人物番号}) And 関係性種別 = '恋慕'")
-			LOCALS = 恋人の
-		ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:MOTHER:人物番号} Or 対象キャラ２ = {CFLAG:MOTHER:人物番号}) And (対象キャラ１ = {CFLAG:FATHER:人物番号} Or 対象キャラ２ = {CFLAG:FATHER:人物番号}) And 関係性種別 = 'セフレ'")
-			LOCALS = セフレの
-		ELSE
-			LOCALS = 知り合いの
-		ENDIF
-	ENDIF
-	CALL 履歴データベース登録(CFLAG:FATHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:MOTHER%との子供が%TOFULL(TOSTR(子供人数))%人産まれた</font><img src='えっちハート'>","うふふ実績")
-	CALL 履歴データベース登録(CFLAG:MOTHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%LOCALS%%CALLNAME:FATHER%との子供を%TOFULL(TOSTR(子供人数))%人出産した</font><img src='えっちハート'>","うふふ実績")
+	CALL 関係性テキスト取得(MOTHER, FATHER)
+	CALL 履歴データベース登録(CFLAG:FATHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:0%%CALLNAME:MOTHER%との子供が%TOFULL(TOSTR(子供人数))%人産まれた</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:MOTHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:1%%CALLNAME:FATHER%との子供を%TOFULL(TOSTR(子供人数))%人出産した</font><img src='えっちハート'>","うふふ実績")
 ENDIF
 
 
