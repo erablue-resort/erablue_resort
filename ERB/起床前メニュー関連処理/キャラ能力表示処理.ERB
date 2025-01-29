@@ -9,6 +9,7 @@
 #DIM アビ奥義関数, キャラクタ数上限
 #DIM 得意武器番号
 #DIM スキップフラグ
+#DIM 文字色フラグ
 #DIM 表示人数 = 50
 #DIM L_TIME,2
 VARSET ページ数
@@ -47,15 +48,26 @@ VARSET LOCALS
 FOR LOCAL, ページ数 * 表示人数, 候補人数
 	SIF 表示候補:LOCAL < 1
 		BREAK
-	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+	IF 文字色グループ取得(表示候補:LOCAL) >= 0
+		LOCALS += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL)))%'>"
+		文字色フラグ = 1
+	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
+		LOCALS += @"<font color='#%十六進数文字列化(CFLAG:(表示候補:LOCAL):同室文字色)%'>"
+		文字色フラグ = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
 		LOCALS += "<font color='#FF3399'>"
+		文字色フラグ = 2
+	ELSE
+		文字色フラグ = 0
 	ENDIF
 	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1), 50),51,LEFT%</button>"
+	SIF 文字色フラグ == 1
+		LOCALS += "</font>"
 	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
 		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
 		LOCALS += @"　恋慕Lv：{CFLAG:(表示候補:LOCAL):恋慕レベル, 3}　 "
-		SIF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		SIF 文字色フラグ == 2
 			LOCALS += "</font>"
 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
 		LOCALS += @"　回数：{CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録, 5}　 "
@@ -539,6 +551,24 @@ IF 表示フィルタ種類 == ""
 	PRINTBUTTON "[全て非表示]", "固有アビ奥義：全て非表示"
 	PRINTL
 	DRAWLINE
+	PRINTL ■ 表示色設定
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[名前着色あり]", "名前着色：あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[名前着色なし]", "名前着色：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "名前着色：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "名前着色：全て非表示"
+	PRINTL
+	PRINTL
+	PRINTL
 	PRINTBUTTONLC "[999]戻る", 999
 	PRINTBUTTONLC "[1000]戦闘系フィルタへ", 1000
 	PRINTL
@@ -643,6 +673,8 @@ IF RESULTS != ""
 		LOCAL = 11
 	ELSEIF STRCOUNT(LOCALS, "タイプ")
 		LOCAL = 12
+	ELSEIF STRCOUNT(LOCALS, "名前着色")
+		LOCAL = 13
 	ELSEIF STRCOUNT(LOCALS, "固有アビ奥義")
 		LOCAL = 18
 	ELSEIF STRCOUNT(LOCALS, "口上")
@@ -676,6 +708,8 @@ IF RESULTS != ""
 				キャラ一覧フィルタ:得意武器 = "得意武器：剣_得意武器：短剣_得意武器：斧_得意武器：槍_得意武器：弓_得意武器：銃_得意武器：楽器_得意武器：格闘_得意武器：刀_得意武器：杖_"
 			CASE 12
 				キャラ一覧フィルタ:タイプ = "タイプ：バランス_タイプ：攻撃_タイプ：防御_タイプ：回復_タイプ：サポート_タイプ：連撃_タイプ：回避_タイプ：奥義_"
+			CASE 13
+				キャラ一覧フィルタ:名前着色 = "名前着色：あり_名前着色：なし"
 			CASE 18
 				キャラ一覧フィルタ:固有アビ奥義 = "固有アビ奥義：あり_固有アビ奥義：なし_"
 			CASE 19
