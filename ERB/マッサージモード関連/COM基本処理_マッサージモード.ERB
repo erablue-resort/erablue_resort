@@ -776,6 +776,20 @@ ELSE
 		CFLAG:TARGET:コマンドタゲ回数記録 ++
 		CALL コマンド回数履歴記録(TARGET, 回数保存)
 	ENDIF
+
+	;経験値の獲得
+	IF RSTR:SELECTCOM_S受け渡し != ""
+		CALLFORMF MASSAGE_COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+	ELSE
+		CALLFORMF MASSAGE_COMTYPE_{SELECTCOM}
+	ENDIF
+	IF TFLAG:コマンドタイプ受渡 < 100
+		EXP:PLAYER:マッサージ施術経験 += TFLAG:コマンドタイプ受渡 + 1
+		;通常１，微エロ２，エロ３の経験値を得る
+	ELSE
+		EXP:PLAYER:マッサージ施術経験 += 2
+		;複合は２とする
+	ENDIF
 ENDIF
 
 ;リセット前に次ターン自動行動をするか判定
@@ -1125,3 +1139,287 @@ IF GETMETH(@"固有COMABLE_ターゲット側_MASSAGE_{COM番号}_{NO:TARGET}", 
 	RETURNF 1
 ENDIF
 
+@理性変動値算出(対象キャラ, 変動基礎値)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 変動基礎値
+#DIM 初期値
+#DIM 上限値
+#DIM 下限値
+
+初期値 = 変動基礎値
+
+IF 変動基礎値 < 0
+	;変動値がマイナスの場合、マッサージ技能が低いと０に近づく
+	;０にはならない
+	変動基礎値 = MIN(-1, 変動基礎値 + (5 - ABL:PLAYER:マッサージ技能) * 10)
+ENDIF
+;プラス側の補正はない
+
+;弱点コマンド
+SIF TCVAR:対象キャラ:弱点コマンドフラグ
+	変動基礎値 -= MIN(10, ABS(初期値) / 3)
+
+;初期値が小さいと素質での変動幅も小さくなる
+SIF TALENT:対象キャラ:プライド > 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+
+IF TALENT:対象キャラ:精神的余裕 < 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ELSEIF TALENT:対象キャラ:精神的余裕 > 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SIF TALENT:対象キャラ:自制心 > 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+
+IF TALENT:対象キャラ:性的興味 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:性的興味 > 0
+	変動基礎値 -= MIN(3, ABS(初期値) / 10)
+ENDIF
+
+SIF TALENT:対象キャラ:経験豊富 > 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+
+SIF TALENT:対象キャラ:淫乱 > 0
+	変動基礎値 -= MIN(30, ABS(初期値))
+
+IF TALENT:対象キャラ:貞操 < 0
+	変動基礎値 -= MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:貞操 > 0
+	変動基礎値 += MIN(6, ABS(初期値) / 5)
+ENDIF
+
+IF TALENT:対象キャラ:快感応答 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:快感応答 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SELECTCASE TALENT:対象キャラ:性別嗜好
+	CASE 1
+		SIF TALENT:PLAYER:性別 == 2
+			変動基礎値 += MIN(10, ABS(初期値) / 3)
+	CASE 2
+		SIF TALENT:PLAYER:性別 == 1
+			変動基礎値 += MIN(10, ABS(初期値) / 3)
+	CASE 3
+		変動基礎値 += MIN(10, ABS(初期値) / 3)
+ENDSELECT
+
+SIF TALENT:PLAYER:印象 == 3 || TALENT:PLAYER:印象 == 4
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+IF TALENT:対象キャラ:豪快 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:豪快 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+IF TALENT:対象キャラ:感情的 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:感情的 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SIF TALENT:対象キャラ:恋人持ち
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+
+SIF TALENT:対象キャラ:浮気
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+;警戒に応じた上限下限を掛ける
+;通常は初期値の３倍まで
+上限値 = ABS(初期値) * 300
+;理性０だと１倍までになる
+上限値 -= (MAXBASE:対象キャラ:警戒 - BASE:対象キャラ:警戒) / 5
+上限値 = 上限値 / 100
+
+;下限は通常１倍まで
+下限値 = ABS(初期値) * 100
+;警戒０だと３倍までになる
+下限値 += (MAXBASE:対象キャラ:警戒 - BASE:対象キャラ:警戒) / 10
+下限値 = 下限値 / 100 * -1
+
+変動基礎値 = LIMIT(変動基礎値, 下限値, 上限値)
+
+;最後に好感度による補正
+IF 変動基礎値 >= 0
+	SIF 陥落チェック(対象キャラ) || CFLAG:対象キャラ:好感度レベル >= 関係閾値:4
+		変動基礎値 = 変動基礎値 / 2
+ELSE
+	SIF 陥落チェック(対象キャラ) || CFLAG:対象キャラ:好感度レベル >= 関係閾値:4
+		変動基礎値 = 変動基礎値 * 3 / 2
+ENDIF
+
+RETURNF 変動基礎値
+
+
+
+@警戒変動値算出(対象キャラ, 変動基礎値)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 変動基礎値
+#DIM 初期値
+#DIM 上限値
+#DIM 下限値
+
+初期値 = 変動基礎値
+
+IF 変動基礎値 < 0
+	;変動値がマイナスの場合、マッサージ技能が低いと０に近づく
+	;０にはならない
+	変動基礎値 = MIN(-1, 変動基礎値 + (5 - ABL:PLAYER:マッサージ技能) * 10)
+ELSE
+	;プラスの場合、低いと増えるが初期値の倍が上限
+	変動基礎値 = MIN(初期値 * 2, 変動基礎値 + ABL:PLAYER:マッサージ技能 * 5)
+ENDIF
+
+;弱点コマンド
+SIF TCVAR:対象キャラ:弱点コマンドフラグ
+	変動基礎値 -= MIN(10, ABS(初期値) / 3)
+
+;初期値が小さいと素質での変動幅も小さくなる
+SIF TALENT:対象キャラ:度胸 < 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+
+IF TALENT:対象キャラ:態度 < 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ELSEIF TALENT:対象キャラ:態度 > 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+ENDIF
+
+IF TALENT:対象キャラ:応答 < 0
+	変動基礎値 -= MIN(4, ABS(初期値) / 8)
+ELSEIF TALENT:対象キャラ:応答 > 0
+	変動基礎値 += MIN(4, ABS(初期値) / 8)
+ENDIF
+
+SIF TALENT:対象キャラ:プライド < 0
+	変動基礎値 -= MIN(4, ABS(初期値) / 8)
+
+IF TALENT:対象キャラ:マイペース < 0
+	変動基礎値 -= MIN(7, ABS(初期値) / 4)
+ELSEIF TALENT:対象キャラ:マイペース > 0
+	変動基礎値 += MIN(7, ABS(初期値) / 4)
+ENDIF
+
+IF TALENT:対象キャラ:精神的余裕 > 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ENDIF
+
+IF TALENT:対象キャラ:自制心 < 0
+	変動基礎値 -= MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:自制心 > 0
+	変動基礎値 += MIN(7, ABS(初期値) / 4)
+ENDIF
+
+SIF TALENT:対象キャラ:無関心 > 0
+	変動基礎値 -= MIN(10, ABS(初期値) / 3)
+
+SIF TALENT:対象キャラ:感情乏しい > 0
+	変動基礎値 -= MIN(10, ABS(初期値) / 3)
+
+IF TALENT:対象キャラ:性的興味 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:性的興味 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SIF TALENT:対象キャラ:経験豊富 > 0
+	変動基礎値 -= MIN(3, ABS(初期値) / 10)
+
+SIF TALENT:対象キャラ:淫乱 > 0
+	変動基礎値 -= MIN(30, ABS(初期値))
+
+IF TALENT:対象キャラ:貞操 < 0
+	変動基礎値 -= MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:貞操 > 0
+	変動基礎値 += MIN(7, ABS(初期値) / 4)
+ENDIF
+
+IF TALENT:対象キャラ:羞恥心 < 0
+	変動基礎値 -= MIN(2, ABS(初期値) / 15)
+ELSEIF TALENT:対象キャラ:貞操 > 0
+	変動基礎値 += MIN(6, ABS(初期値) / 5)
+ENDIF
+
+IF TALENT:対象キャラ:快感応答 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:快感応答 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SIF TALENT:対象キャラ:即落ち > 0
+	変動基礎値 -= MIN(15, ABS(初期値) / 2)
+
+SELECTCASE TALENT:対象キャラ:性別嗜好
+	CASE 1
+		SIF TALENT:PLAYER:性別 == 2
+			変動基礎値 += MIN(15, ABS(初期値) / 2)
+	CASE 2
+		SIF TALENT:PLAYER:性別 == 1
+			変動基礎値 += MIN(15, ABS(初期値) / 2)
+	CASE 3
+		変動基礎値 += MIN(15, ABS(初期値) / 2)
+ENDSELECT
+
+SIF TALENT:対象キャラ:性転換 == TALENT:PLAYER:性別
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+SIF TALENT:対象キャラ:従業員 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+SIF TALENT:対象キャラ:常連 > 0
+	変動基礎値 -= MIN(4, ABS(初期値) / 7)
+
+SIF TALENT:対象キャラ:定住者 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+SIF TALENT:対象キャラ:人気 > 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+
+SIF TALENT:PLAYER:印象 == 1 || TALENT:PLAYER:印象 == 2
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+IF TALENT:対象キャラ:楽観的 < 0
+	変動基礎値 += MIN(5, ABS(初期値) / 6)
+ELSEIF TALENT:対象キャラ:楽観的 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+IF TALENT:対象キャラ:豪快 < 0
+	変動基礎値 += MIN(3, ABS(初期値) / 10)
+ELSEIF TALENT:対象キャラ:豪快 > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+ENDIF
+
+SIF TALENT:対象キャラ:ギャル > 0
+	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+;理性に応じた上限下限を掛ける
+;通常は初期値の３倍まで
+上限値 = ABS(初期値) * 300
+;理性０だと１倍までになる
+上限値 -= (MAXBASE:対象キャラ:理性 - BASE:対象キャラ:理性) / 5
+上限値 = 上限値 / 100
+
+;下限は通常１倍まで
+下限値 = ABS(初期値) * 100
+;理性０だと３倍までになる
+下限値 += (MAXBASE:対象キャラ:理性 - BASE:対象キャラ:理性) / 10
+下限値 = 下限値 / 100 * -1
+
+変動基礎値 = LIMIT(変動基礎値, 下限値, 上限値)
+
+;最後に好感度による補正
+IF 変動基礎値 >= 0
+	SIF 陥落チェック(対象キャラ) || CFLAG:対象キャラ:好感度レベル >= 関係閾値:4
+		変動基礎値 = 変動基礎値 / 2
+ELSE
+	SIF 陥落チェック(対象キャラ) || CFLAG:対象キャラ:好感度レベル >= 関係閾値:4
+		変動基礎値 = 変動基礎値 * 3 / 2
+ENDIF
+
+RETURNF 変動基礎値
