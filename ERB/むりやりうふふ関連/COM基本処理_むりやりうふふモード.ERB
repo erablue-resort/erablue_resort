@@ -44,6 +44,8 @@ DRAWLINE
 RESETCOLOR
 PRINTC 能力表示(マスター)[804]
 PRINTC 　　むりやりうふふを終える[999]
+SIF CSTR:TARGET:うふふシチュ記録 == "むりやりうふふごっこ"
+	PRINTC 　　通常うふふに戻る[998]
 
 PRINTL
 PRINTC OPTION[809]
@@ -325,6 +327,8 @@ NEXT
 ;#DIM ページ番号
 #DIM 数値変換用
 #DIM TARGET何人目？
+#DIM TARGET保存
+#DIM COM保存
 
 ;ページ番号 = 0
 ;RETURN 0でSOURCE_CHECK以降に進む
@@ -445,6 +449,23 @@ ELSEIF RESULT == 892
 	RETURN 1
 ELSEIF RESULT == 999
 	CALL ゲームフェイズ変更("通常モード")
+	RETURN 1
+ELSEIF RESULT == 998
+	;通常に戻る
+	LOCALS '= CSTR:TARGET:コスプレ前の服
+	LOCALS:1 '= CSTR:TARGET:着せ替え服
+	TARGET保存 = TARGET
+	;ゲームフェイズ変更でリセットされるのでSELECTCOM保存
+	SWAP SELECTCOM, COM保存
+	CALL ゲームフェイズ変更("通常モード")
+	;SELECTCOM復帰
+	SWAP SELECTCOM, COM保存
+	TARGET = TARGET保存
+	CSTR:TARGET:コスプレ前の服 '= LOCALS
+	CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+	;うふふに移行
+	CALL うふふ開始キャラ処理(TARGET, TSTR:むりやりごっこ時シチュ保存)
+	CFLAG:PLAYER:うふふ = 1
 	RETURN 1
 ELSE
 	RETURN 1
