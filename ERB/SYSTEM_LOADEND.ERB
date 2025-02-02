@@ -15,6 +15,7 @@
 #DIM 部屋番号
 #DIM 得意武器記録
 #DIM 対象キャラ
+#DIM ループ番号
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -325,6 +326,65 @@ FOR 対象キャラ, 1, CHARANUM
 		SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
 		CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, 対象キャラ)
 		TRYCALLFORM 戦闘初期ステータス設定_{NO:対象キャラ}(対象キャラ)
+	ENDIF
+
+	;招待不可の場合、CSVの変更を自動適用
+	IF CFLAG:LOCAL:招待不可フラグ > 0
+		;同行キャラは別の場所で処理しているはずなので見ない
+		NAME:対象キャラ = %CSVNAME(NO:対象キャラ)%
+		CALLNAME:対象キャラ = %CSVCALLNAME(NO:対象キャラ)%
+		CSTR:対象キャラ:出演作品 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
+		CSTR:対象キャラ:プレゼント好み = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "プレゼント好み"))%
+
+		IF EXISTFUNCTION(@"戦闘初期ステータス設定_{NO:LOCAL}") == 0 && CSTR:対象キャラ:戦闘基礎ステータス設定 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "戦闘基礎ステータス設定"))
+			VARSET CSTR切り分け文字列格納
+			VARSET LOCALS
+			VARSET RESULTS
+
+			CSTR:対象キャラ:戦闘基礎ステータス設定 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "戦闘基礎ステータス設定"))%
+			SUBSTRING CSTR:対象キャラ:戦闘基礎ステータス設定, 1, -1
+			SPLIT RESULTS, " ", LOCALS
+			;属性
+			SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
+			基礎BATTLE_STATE:対象キャラ:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
+			;得意武器
+			SPLIT LOCALS:1, "_", CSTR切り分け文字列格納
+			VARSET RESULTS
+			SPLIT CSTR切り分け文字列格納:1, "・", RESULTS
+			得意武器記録 = 0
+			FOR ループ番号, 0, RESULT
+				SETBIT 得意武器記録, 得意武器文字列数値変換(RESULTS:ループ番号)
+			NEXT
+			基礎BATTLE_STATE:対象キャラ:得意武器 = 得意武器記録
+			
+			SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
+			CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, 対象キャラ)
+			TRYCALLFORM 戦闘初期ステータス設定_{NO:対象キャラ}(対象キャラ)
+		ENDIF
+		
+		CALL 肉体情報比較処理(対象キャラ, 1)
+		CALL 素質比較処理(対象キャラ, 1)
+		CALL 知識素質比較処理(対象キャラ, 1)
+		CALL 性癖素質比較処理(対象キャラ, 1)
+		
+		FOR ループ番号, 0, 10
+			CSTR:対象キャラ:(ループ番号 + 80) = %CSVCSTR(NO:対象キャラ, ループ番号 + 80)%
+		NEXT
+		
+		FOR ループ番号, 0, VARSIZE("ABL")
+			ABL:対象キャラ:ループ番号 = CSVABL(NO:対象キャラ, ループ番号)
+		NEXT
+		
+		FOR ループ番号, 0, VARSIZE("EXP")
+			EXP:対象キャラ:ループ番号 = CSVEXP(NO:対象キャラ, ループ番号)
+		NEXT
+		
+		FOR ループ番号, 0, VARSIZE("EQUIP")
+			EQUIP:対象キャラ:ループ番号 = CSVEQUIP(NO:対象キャラ, ループ番号)
+		NEXT
+
+		CSTR:対象キャラ:服名称 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))%
+		CSTR:対象キャラ:普段着解説 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))%
 	ENDIF
 NEXT
 

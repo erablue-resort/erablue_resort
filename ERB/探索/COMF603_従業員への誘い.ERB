@@ -4,6 +4,9 @@
 @COMNAME603
 #FUNCTIONS
 TSTR:コマンド名受渡 = 従業員への誘い
+IF TALENT:TARGET:店持ち
+	TSTR:コマンド名受渡 = 公式店舗の誘い
+ENDIF
 
 ;===================================================
 ;コマンドタイプ
@@ -16,17 +19,13 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("探索")
 LOCALS = <br>■従業員への誘い<br>
 LOCALS += "相手を雇用し、本格的にリゾートで働いてもらう契約を結ぶ。<br>"
 LOCALS += "相手はリゾートの正式な従業員となる。<br>"
+LOCALS += "相手が店舗を持っている場合、開いている店舗はリゾート公式店舗となり、制服が設定出来るようになる。<br>"
 LOCALS += "<br>COMタイプ：探索<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM603
-
-IF TALENT:TARGET:店持ち
-	PRINTW 店を持っているので従業員に出来ません。
-	RETURN -1
-ENDIF
 
 IF TALENT:TARGET:定住者 < 1
 	LOCAL:2 = 0
@@ -43,7 +42,12 @@ IF TALENT:TARGET:定住者 < 1
 ENDIF
 
 DRAWLINE
-PRINTFORML %CALLNAME:TARGET%を正式に従業員として雇いますか？　（必要ルピ：１日 / 2000ルピ）
+IF TALENT:TARGET:店持ち
+	PRINTFORML %CALLNAME:TARGET%の店「%商業区店割り配列:(店持ちキャラ店検索(TARGET)):店舗名%」をリゾートの公式店舗にしますか？
+	PRINTL ※公式店舗にすると、その店に所属するキャラの制服を設定出来るようになります。　（必要ルピ：１日 / 2000ルピ）
+ELSE
+	PRINTFORML %CALLNAME:TARGET%を正式に従業員として雇いますか？　（必要ルピ：１日 / 2000ルピ）
+ENDIF
 
 
 
@@ -71,6 +75,8 @@ SELECTCASE RESULT
 					BREAK
 				ENDIF
 			NEXT
+		ELSEIF TALENT:TARGET:店持ち
+			現在仕事:TARGET:0 = -1
 		ENDIF
 		CALL 従業員人数チェック()
 	CASE 1
