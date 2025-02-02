@@ -127,14 +127,18 @@ SIF !INRANGE(ARG, 0, CHARANUM-1)
 SIF CSTR:ARG:画像フォルダ == ""
 	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
 
+;DEBUGPRINTFORML %CALLNAME:ARG%の衣装%PATRN%,%PATRN:1%を探すよ
 VARSET 妊娠用PATRN保存
 IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2
 	妊娠用PATRN保存 '= PATRN
 	PATRN '= "妊娠" + PATRN
-	IF PATRN:1 != ""
+;	DEBUGPRINTFORM 妊娠中なので%PATRN%
+	IF PATRN:1 != "" && !STRCOUNT(PATRN:1, "差分")
 		妊娠用PATRN保存:1 '= PATRN:1
 		PATRN:1 '= "妊娠" + PATRN:1
+;		DEBUGPRINTFORM と%PATRN:1%
 	ENDIF
+;	DEBUGPRINTFORM で探すよ…
 ENDIF
 
 $妊娠差分用_LOOP
@@ -167,26 +171,36 @@ LOCAL = LOCAL:10
 LOCAL:1 = LOCAL:11 - LOCAL:10
 IF LOCAL + LOCAL:1 < 1
 	IF PATRN == "妊娠デフォルト"
+;		DEBUGPRINTFORM %PATRN%無し…
 		;妊娠デフォルトが無いならデフォルトに戻してもういっかい
 		PATRN = デフォルト
 		;分岐用に一時保存にも入れておく
 		妊娠用PATRN保存 = デフォルト
+		IF STRCOUNT(PATRN:1, "妊娠") > 0
+;			DEBUGPRINTFORM %PATRN:1%も無し…
+			;追加パターンの妊娠差分もないなら戻す
+			PATRN:1 '= 妊娠用PATRN保存:1
+			妊娠用PATRN保存:1 = 
+		ENDIF
 		GOTO 妊娠差分用_LOOP
 	ELSEIF STRCOUNT(PATRN, "妊娠") > 0
+;		DEBUGPRINTFORM %PATRN%無し…
 		;着せ替えの妊娠差分がないなら戻して最初から
 		PATRN '= 妊娠用PATRN保存
 		妊娠用PATRN保存 = 
-		GOTO 妊娠差分用_LOOP
-	ELSEIF STRCOUNT(PATRN:1, "妊娠") > 0
-		;着せ替えの妊娠差分がないなら戻して最初から
-		PATRN:1 '= 妊娠用PATRN保存:1
-		妊娠用PATRN保存:1 = 
+		IF STRCOUNT(PATRN:1, "妊娠") > 0
+;			DEBUGPRINTFORM %PATRN:1%も無し…
+			;追加パターンの妊娠差分もないなら戻す
+			PATRN:1 '= 妊娠用PATRN保存:1
+			妊娠用PATRN保存:1 = 
+		ENDIF
 		GOTO 妊娠差分用_LOOP
 	ELSE
 		IF TALENT:ARG:妊娠 && PREGNANCY_SIZE(ARG) >= 2 && 妊娠用PATRN保存 == "" && 妊娠用PATRN保存:1 == ""
 			;妊娠しててPATRN保存が空っぽ = 現在衣装のグラが妊娠も通常も無いパターン
 			;なので通常妊娠画像を見に行く
 			PATRN = 妊娠デフォルト
+;			DEBUGPRINTFORM %PATRN%に変更…
 			GOTO 妊娠差分用_LOOP
 		ELSE
 			RETURNF "デフォルト"
@@ -205,6 +219,8 @@ ENDIF
 SUBSTRING RESULTS, 1 +STRLENS(FOLDER) + STRLENS(TYPE), -1
 REPLACE RESULTS, "\.png", ""
 REPLACE RESULTS, "\.webp", ""
+;		DEBUGPRINTFORML %RESULTS%に決定
+
 
 RETURNF RESULTS
 
