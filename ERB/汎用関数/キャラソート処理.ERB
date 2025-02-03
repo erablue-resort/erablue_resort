@@ -1,0 +1,321 @@
+﻿;---------------------------------------------------------
+;ソート情報登録
+;---------------------------------------------------------
+@ソート情報登録(キャラ番号, 登録番号)
+#FUNCTION
+#DIM キャラ番号
+#DIM 登録番号
+#DIM ソート順
+#DIM ソート値
+
+;ソート順 = 1
+;ソート処理
+;SIF キャラ一覧ソート:0 == ""
+;	RETURNF 0
+
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	ソート順 = 1
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	ソート順 = -1
+ELSE
+	ソート順 = 1
+ENDIF
+
+IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+	ソート値 = CFLAG:キャラ番号:好感度レベル
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+	ソート値 = CFLAG:キャラ番号:恋慕レベル
+ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+	ソート値 = ABL:キャラ番号:(キャラ一覧ソート:0)
+ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+	ソート値 = 基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0) + 装備ステータス補正保存:キャラ番号:(キャラ一覧ソート:0)
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+	ソート値 = 基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0)
+ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+	ソート値 = 知識素質:キャラ番号:(キャラ一覧ソート:0)
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+	ソート値 = CFLAG:キャラ番号:コマンドタゲ回数記録
+ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+	ソート値 = 性癖素質:キャラ番号:(キャラ一覧ソート:0)
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
+	ソート値 = GET_RESOURCES_COUNT(キャラ番号)
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "呼び名")
+	ソート値 = ソート値取得_呼び名(キャラ番号)
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "感覚合計")
+	ソート値 = ソート値取得_感覚合計(キャラ番号)
+ELSE
+	ソート値 = 0
+ENDIF
+RETURNF (ソート値 * 10000 * ソート順)+ キャラ番号 + 1
+
+;---------------------------------------------------------
+;ソート情報表示
+;---------------------------------------------------------
+@ソート情報表示(対象キャラ, 短縮フラグ = 0)
+#FUNCTIONS
+#DIM 対象キャラ
+#DIM 短縮フラグ
+
+;ソート条件に応じた対象キャラの情報を文字列として返す
+
+SIF キャラ一覧ソート:0 == ""
+	RETURNF ""
+
+IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
+	RETURNF @"好感度レベル：Lv{CFLAG:対象キャラ:好感度レベル, 3}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
+	RETURNF @"恋慕レベル：Lv{CFLAG:対象キャラ:恋慕レベル, 3}"
+ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ABLNAME:(GETNUM(ABL, キャラ一覧ソート:0))%：{ABL:対象キャラ:(キャラ一覧ソート:0), 2}"
+ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ERDNAME(装備ステータス補正保存, GETNUM(装備ステータス補正保存, キャラ一覧ソート:0))%：{基礎BATTLE_STATE:対象キャラ:(キャラ一覧ソート:0) + 装備ステータス補正保存:対象キャラ:(キャラ一覧ソート:0), 4}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
+	RETURNF @"Lv{基礎BATTLE_STATE:対象キャラ:Lv, 3}"
+ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
+	RETURNF @"%ERDNAME(知識素質, GETNUM(知識素質, キャラ一覧ソート:0))%：{知識素質:対象キャラ:(キャラ一覧ソート:0)}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
+	RETURNF @"コマンド回数：{CFLAG:対象キャラ:コマンドタゲ回数記録, 4}"
+ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
+	RETURNF @"%ERDNAME(性癖素質, GETNUM(性癖素質, キャラ一覧ソート:0))%：{性癖素質:対象キャラ:(キャラ一覧ソート:0)}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
+	RETURNF @"画像数：{GET_RESOURCES_COUNT(対象キャラ), 4}"
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "呼び名")
+	IF 短縮フラグ
+		RETURNF @"呼び名：%NAME表示省略(CALLNAME:対象キャラ, 10), 10, LEFT%"
+	ELSE
+		RETURNF @"呼び名：%CALLNAME:対象キャラ%"
+	ENDIF
+ELSEIF STRCOUNT(キャラ一覧ソート:0, "感覚合計")
+	LOCALS '= GET_TALENTNAME(GETNUM(TALENT, "イキやすさ"), TALENT:対象キャラ:イキやすさ)
+	IF LOCALS != ""
+		LOCALS '= @"＋ %LOCALS%"
+	ELSE
+		LOCALS '= @"   　　　"
+	ENDIF
+	RETURNF @"感覚合計：{ソート値取得_感覚合計(対象キャラ, 1), 2} %LOCALS%"
+ENDIF
+
+;---------------------------------------------------------
+;ソート設定画面表示
+;---------------------------------------------------------
+;日本語の関数も用意
+@ソート設定画面表示()
+JUMP SHOW_CHARADATA_SORT()
+
+;本体
+@SHOW_CHARADATA_SORT
+DRAWLINE
+PRINTL キャラクターの表示を任意の条件でソートします。
+PRINT 現在のソート条件：
+IF キャラ一覧ソート:0 != ""
+	PRINTFORM %キャラ一覧ソート:0%(%キャラ一覧ソート:1%)
+ELSE
+	PRINT なし(キャラ番号順)
+ENDIF
+PRINT 　　　
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	PRINTBUTTON "[降順にする]", "降順"
+ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+	PRINTBUTTON "[昇順にする]", "昇順"
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL ■ ソート条件一覧
+PRINTBUTTONLC "[なし(キャラ番号順)]", "なし"
+PRINTBUTTONLC "[好感度レベル]", "好感度レベル"
+PRINTBUTTONLC "[恋慕レベル]", "恋慕レベル"
+PRINTBUTTONLC "[コマンド回数]", "コマンド回数"
+PRINTBUTTONLC "[画像数]", "画像数"
+PRINTBUTTONLC "[呼び名]", "呼び名"
+;#;PRINTBUTTONLC "[チョロさ]", "チョロさ"
+PRINTL
+DRAWLINE
+PRINTBUTTONLC "[Ｃ感覚]", "Ｃ感覚"
+PRINTBUTTONLC "[Ｖ感覚]", "Ｖ感覚"
+PRINTBUTTONLC "[Ａ感覚]", "Ａ感覚"
+PRINTBUTTONLC "[Ｂ感覚]", "Ｂ感覚"
+PRINTBUTTONLC "[Ｓ感覚]", "Ｓ感覚"
+PRINTBUTTONLC "[感覚合計]", "感覚合計"
+PRINTL
+PRINTBUTTONLC "[欲望]", "欲望"
+PRINTBUTTONLC "[露出癖]", "露出癖"
+PRINTBUTTONLC "[奉仕精神]", "奉仕精神"
+PRINTBUTTONLC "[マゾ性感]", "マゾ性感"
+PRINTBUTTONLC "[サド性感]", "サド性感"
+PRINTBUTTONLC "[同性愛]", "同性愛"
+PRINTBUTTONLC "[玩具嗜好]", "玩具嗜好"
+PRINTBUTTONLC "[技巧]", "技巧"
+PRINTBUTTONLC "[道具扱い]", "道具扱い"
+PRINTL
+DRAWLINE
+PRINTBUTTONLC "[Lv]", "Lv"
+PRINTBUTTONLC "[最大ＨＰ]", "最大ＨＰ"
+PRINTBUTTONLC "[最大ＭＰ]", "最大ＭＰ"
+PRINTBUTTONLC "[攻撃力]", "攻撃力"
+PRINTBUTTONLC "[防御力]", "防御力"
+PRINTBUTTONLC "[回復力]", "回復力"
+PRINTBUTTONLC "[行動速度]", "行動速度"
+PRINTBUTTONLC "[DA率]", "DA率"
+PRINTBUTTONLC "[TA率]", "TA率"
+PRINTBUTTONLC "[命中率]", "命中率"
+PRINTBUTTONLC "[回避率]", "回避率"
+PRINTL
+DRAWLINE
+FOR LOCAL, 1, 100
+	SIF ERDNAME(知識素質, LOCAL) == ""
+		BREAK
+	PRINTBUTTONLC @"[%ERDNAME(知識素質, LOCAL)%]", @"%ERDNAME(知識素質, LOCAL)%"
+NEXT
+PRINTL
+DRAWLINE
+FOR LOCAL, 1, 100
+	SIF ERDNAME(性癖素質, LOCAL) == ""
+		BREAK
+	PRINTBUTTONLC @"[%ERDNAME(性癖素質, LOCAL)%]", @"%ERDNAME(性癖素質, LOCAL)%"
+NEXT
+PRINTL
+DRAWLINE
+
+PRINTBUTTON "[999]戻る", 999
+PRINTL
+$INPUT_LOOP_ANY
+RESULT = 0
+RESULTS = 
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ENDIF
+LOCALS = %RESULTS%
+SELECTCASE LOCALS
+	CASE "なし"
+		キャラ一覧ソート:0 = 
+		キャラ一覧ソート:1 = 
+		RETURN 0
+	CASE "昇順"
+		IF STRCOUNT(キャラ一覧ソート:1, "降順")
+			キャラ一覧ソート:1 = 昇順
+		ENDIF
+		RETURN 0
+	CASE "降順"
+		IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+			キャラ一覧ソート:1 = 降順
+		ENDIF
+		RETURN 0
+	CASEELSE
+		DO
+			IF GROUPMATCH(LOCALS, "好感度レベル", "恋慕レベル", "Lv", "コマンド回数", "画像数", "呼び名", "感覚合計")
+				;非能力系ソート
+			ELSEIF GETNUM(ABL, LOCALS) >= 0
+				;ABLソート
+			ELSEIF GETNUM(装備ステータス補正保存, LOCALS) >= 0
+				;戦闘ステータスソート
+			ELSEIF GETNUM(知識素質, LOCALS) >= 0
+				;知識素質ソート
+			ELSEIF GETNUM(性癖素質, LOCALS) > 0
+				;性癖素質ソート
+			[IF_DEBUG]
+			ELSEIF LOCALS == "チョロさ"
+				;[DEBUG用]チョロさソート
+			[ENDIF]
+			ELSE
+				;どれにも当てはまらない場合は×
+				BREAK
+			ENDIF
+			キャラ一覧ソート:0 = %LOCALS%
+			IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+				キャラ一覧ソート:1 = 昇順
+			ELSE
+				キャラ一覧ソート:1 = 降順
+			ENDIF
+			RETURN 0
+		LOOP 1
+ENDSELECT
+REUSELASTLINE 
+GOTO INPUT_LOOP_ANY
+
+;---------------------------------------------------------
+;ソート順反転処理
+;---------------------------------------------------------
+@ソート順反転処理()
+IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+	キャラ一覧ソート:1 = 降順
+ELSE
+	キャラ一覧ソート:1 = 昇順
+ENDIF
+
+;---------------------------------------------------------
+;ソート用情報取得関数 感覚合計値取得
+;---------------------------------------------------------
+@ソート値取得_感覚合計(対象キャラ, 表示用 = 0)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 表示用
+#DIM 感度合計
+#DIM 素質番号
+#DIM L_CNT
+;第1キー:ＣＶＡＢＳ感度の合計
+;第2キー:イキやすさ
+
+感度合計 = 0
+FOR L_CNT, 0, 部位絶頂経験
+	素質番号 = 部位感度 + L_CNT
+	感度合計 += TALENT:対象キャラ:素質番号
+NEXT
+;- 表示用の場合は合計値をそのまま返す
+SIF 表示用
+	RETURNF 感度合計
+
+;- ソート値用の補正
+; 合計値が負の値にならないように補正(-2→0の補正を5項目分)
+感度合計 += 2 * 部位絶頂経験
+; 第2キーとしてイキやすさを加算(負の値にならないように-1→0の補正)
+感度合計 *= 10
+感度合計 += TALENT:対象キャラ:イキやすさ + 1
+RETURNF 感度合計
+
+
+;---------------------------------------------------------
+;ソート用情報取得関数 呼び名ソート値取得
+;---------------------------------------------------------
+@ソート値取得_呼び名(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+#DIM 呼び名ソート値リスト, キャラクタ数上限
+#DIM CHARANUM記憶
+
+IF CHARANUM > CHARANUM記憶
+	;キャラ数が増えたらリスト更新
+	;・現状キャラが減ることはないので増えた時だけ更新する。
+	;　キャラが減るケースが追加された場合は更新タイミングの修正が必要。
+	CHARANUM記憶 = CHARANUM
+	CALLF 呼び名ソート値リスト更新(呼び名ソート値リスト)
+ENDIF
+
+RETURNF 呼び名ソート値リスト:対象キャラ
+
+
+;---------------------------------------------------------
+;ソート用情報取得関数 呼び名ソート値用のリスト更新
+;---------------------------------------------------------
+@呼び名ソート値リスト更新(呼び名ソート値リスト)
+#FUNCTION
+#DIM  REF 呼び名ソート値リスト
+#DIMS DYNAMIC 呼び名リスト    , キャラクタ数上限
+#DIM  DYNAMIC キャラ番号リスト, キャラクタ数上限
+#DIM  キャラ番号
+#DIM  L_CNT
+
+;全キャラを呼び名でソートした順番をリストに保存して使用
+VARSET 呼び名ソート値リスト
+FOR キャラ番号, 0, CHARANUM
+	;同名キャラがキャラ番号順に並ぶように名前の後ろにキャラ番号を付与
+	呼び名リスト:キャラ番号 '= @"%CALLNAME:キャラ番号%_%TOSTR(キャラ番号, "0000")%}"
+	キャラ番号リスト:キャラ番号 = キャラ番号
+NEXT
+ARRAYMSORT 呼び名リスト, キャラ番号リスト
+
+FOR L_CNT, 0, CHARANUM
+	キャラ番号 = キャラ番号リスト:L_CNT
+	呼び名ソート値リスト:キャラ番号 = L_CNT
+NEXT
+RETURNF 0

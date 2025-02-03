@@ -4,18 +4,17 @@
 @ZP_SHOP_EXキャラ()
 #LOCALSIZE 1
 #LOCALSSIZE 1
+#DIM 招待不可キャラリスト, キャラクタ数上限
 #DIM 表示候補, キャラクタ数上限
 #DIM 現在ページ
 #DIM ページ数記憶
 #DIM ページ判定
-#DIM 表示数
 #DIM 候補番号
 #DIM 入力番号
 #DIM 描画開始行
 #DIM 対象キャラ
 #DIM 候補キャラ数
 #DIM 候補キャラ数_シリーズ
-#DIM 最終ページフラグ
 #DIM START_NO
 #DIM END_NO
 #DIM NO_LEN
@@ -40,38 +39,47 @@
 #DIM ソートモード前回値
 #DIMS 招待後作品保存
 #DIMS ソートキー, 2
-; 内部変数:「キャラ番号配列_初期化_フィルタソート」用
-#DIMS フィルタソート関数名
-#DIM  オプション変数   ; 参照渡し用のダミー変数
-#DIMS オプション文字列 ; 参照渡し用のダミー変数
-#DIM  シャッフル判定
+#DIM BTN_NUM
+#DIMS BTN_TEXT
+#DIM CONST LINE_LEN  = 80
+#DIM CONST SPACE_LEN = 56
+#DIMS ページ番号文字列
+#DIM ページ番号文字列長
+#DIM 最大ページ
+#DIMS ソート情報
+; 内部変数：フィルタソートボタンセット用
+#DIM フィルタボタン番号
+#DIM ソートボタン番号
+#DIM ソート順ボタン番号
+#DIM 素質絞込ボタン番号
 
 ; RESTART時に現在ページをリセットしない
 IF 初回実行フラグ
-	選択シリーズ = -1
 	初回実行フラグ = 0
-	ZPキャラリストフィルタ = 0xFFFF
+	選択シリーズ = -1
 	リスト更新判定 = 1
 	現在ページ = 0
 	ページ数記憶 = 0
 	描画開始行 = LINECOUNT
-	REDRAW_TEMP = CURRENTREDRAW()
 	ソートモード = 0
 	ソートモード前回値 = -1
 	招待後作品保存 = 
-	REDRAW 0
+	;招待不可キャラを抽出
+	;・フィルタ/ソート操作時に毎回抽出すると処理速度が遅くなるためリストを作って使いまわす
+	候補キャラ数 = 0
+	FOR 対象キャラ, 1, CHARANUM
+		CALL ZP_SHOP_EXキャラ_招待不可判定(対象キャラ)
+		SIF !RESULT
+			CONTINUE
+		招待不可キャラリスト:候補キャラ数 = 対象キャラ
+		候補キャラ数 ++
+	NEXT
+	;ソート設定をEXキャラ用に入れ替え
+	CALL ZP_SHOP_EXキャラ_ソート設定入替()
+	;描画設定を変更
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 1
 ENDIF
-
-;広告対象の表示
-DRAWLINE
-PRINTL ZPを消費し、本来ならばリゾートを訪れることが出来ないキャラを導きます。
-PRINTL どのキャラを導きますか？
-IF ZPキャラ無料回数
-	SETCOLOR カラーパレット("黄")
-	PRINTFORML 残り{ZPキャラ無料回数, 2}回無料！
-	RESETCOLOR
-ENDIF
-PRINTFORML 所持ZP:%ZP所持量全文字列()%
 
 ;表示キャラを登録
 ;・フィルタ処理の追加でリスト処理が重くなったので必要なタイミングでのみ更新するようにする
@@ -88,9 +96,9 @@ IF リスト更新判定
 	候補キャラ数 = 0
 	出典番号 = 1
 	出展作品配列:0 = グランブルーファンタジー
-	フィルタソート関数名 '= "ZP_SHOP_EXキャラ_フィルタソート"
-	シャッフル判定 = 0
-	CALL キャラ番号配列_初期化_フィルタソート(表示候補, フィルタソート関数名, オプション変数, オプション文字列, シャッフル判定)
+	;表示キャラを登録
+	ARRAYCOPY "招待不可キャラリスト", "表示候補"
+	CALL キャラ配列フィルタ処理(表示候補, -1)
 	候補キャラ数 = RESULT
 	
 	;-リスト表示対象の出典作品を記録
@@ -131,9 +139,22 @@ IF 招待後作品保存 != ""
 	選択シリーズ = FINDELEMENT(出展作品配列, 招待後作品保存)
 ENDIF
 
+;広告対象の表示
+PRINTL
+DRAWLINE
+PRINTL ZPを消費し、本来ならばリゾートを訪れることが出来ないキャラを導きます。
+PRINTL どのキャラを導きますか？
+IF ZPキャラ無料回数
+	SETCOLOR カラーパレット("黄")
+	PRINTFORML 残り{ZPキャラ無料回数, 2}回無料！
+	RESETCOLOR
+ENDIF
+PRINTFORML 所持ZP:%ZP所持量全文字列()%
 DRAWLINE
 IF 選択モード
-	PRINTBUTTON "[シリーズ選択]", 1000
+	; 個別選択
+	最大ページ = MAX((候補キャラ数 + 表示人数 - 1) / 表示人数, 1) - 1
+	PRINTBUTTON "[シリーズ選択]", 9100
 	PRINT / 
 	SETCOLOR カラーパレット("黄")
 	PRINTPLAIN [個別選択]
@@ -149,38 +170,29 @@ IF 選択モード
 	NO_LEN = LOG10(END_NO) + 1
 
 	; キャラ表示ループ
-	最終ページフラグ = 0
 	FOR L_CNT, START_NO, END_NO + 1
 		対象キャラ = 表示候補:L_CNT
 		; 表示するキャラがいなくなったら表示終了
 		IF 対象キャラ == -1
-			最終ページフラグ = 1
-			BREAK
+			PRINTL
+			CONTINUE
 		ENDIF
 		; ZPショップ値段の設定がないキャラは50に設定
 		SIF CFLAG:対象キャラ:ZPショップ値段 == 0
 			CFLAG:対象キャラ:ZPショップ値段 = 50
 		; ボタン表示
-		BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME表示省略(NAME:対象キャラ), "]"), 41, LEFT%"
+		BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %GET_NAME(対象キャラ, 1)%"
 		BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
 		SIF ZPキャラ無料回数
 			BUTTON_TEXT += " → 0"
-		SELECTCASE ZPキャラリストソート
-			CASE 1
-				;画像数順
-				BUTTON_TEXT += @"　　画像数：{MAX(ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%", "*.*", 0), 0)}"
-			CASE 2
-				;バスト順、男は０扱い
-				IF GETBIT(TALENT:対象キャラ:性別, 0)
-					BUTTON_TEXT += @"　　バスト：%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm"
-				ELSE
-					BUTTON_TEXT += "　　バスト：なし"
-				ENDIF
-		ENDSELECT
+		ソート情報 '= ソート情報表示(対象キャラ)
+		SIF ソート情報 != ""
+			BUTTON_TEXT += "　　" + ソート情報
 		PRINTBUTTON BUTTON_TEXT, L_CNT
 		PRINTL
 	NEXT
 ELSE
+	; シリーズ選択
 	SETCOLOR カラーパレット("黄")
 	PRINTPLAIN [シリーズ選択
 	IF 選択シリーズ >= 0
@@ -189,10 +201,12 @@ ELSE
 	PRINT ]
 	RESETCOLOR
 	PRINT / 
-	PRINTBUTTON "[個別選択]", 1000
+	PRINTBUTTON "[個別選択]", 9100
 	PRINTL
 	DRAWLINE
 	IF 選択シリーズ >= 0
+		; シリーズ選択/キャラ表示
+		最大ページ = MAX((候補キャラ数_シリーズ + 表示人数 - 1) / 表示人数, 1) - 1
 		;- キャラの表示
 		; 現在のページで表示する番号を計算
 		START_NO = (現在ページ * 表示人数)
@@ -202,171 +216,233 @@ ELSE
 		NO_LEN = LOG10(END_NO) + 1
 
 		; キャラ表示ループ
-		最終ページフラグ = 0
 		FOR L_CNT, START_NO, END_NO + 1
 			対象キャラ = 出展表示候補:L_CNT
 			; 表示するキャラがいなくなったら表示終了
 			IF 対象キャラ == -1
-				最終ページフラグ = 1
-				BREAK
+				PRINTL
+				CONTINUE
 			ENDIF
 			; ZPショップ値段の設定がないキャラは50に設定
 			SIF CFLAG:対象キャラ:ZPショップ値段 == 0
 				CFLAG:対象キャラ:ZPショップ値段 = 50
 			; ボタン表示
-			BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %ADD_STR_SPACE(NAME表示省略(NAME:対象キャラ), "]"), 41, LEFT%"
+			BUTTON_TEXT '= @"[{L_CNT, NO_LEN}] %GET_NAME(対象キャラ, 1)%"
 			BUTTON_TEXT += @"：消費ZP{CFLAG:対象キャラ:ZPショップ値段, 4, RIGHT}"
 			SIF ZPキャラ無料回数
 				BUTTON_TEXT += " → 0"
-			SELECTCASE ZPキャラリストソート
-				CASE 1
-					;画像数順
-					BUTTON_TEXT += @"　　画像数：{MAX(ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%", "*.*", 0), 0)}"
-				CASE 2
-					;バスト順、男は０扱い
-					IF GETBIT(TALENT:対象キャラ:性別, 0)
-						BUTTON_TEXT += @"　　バスト：%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm"
-					ELSE
-						BUTTON_TEXT += "　　バスト：なし"
-					ENDIF
-			ENDSELECT
+			ソート情報 '= ソート情報表示(対象キャラ)
+			SIF ソート情報 != ""
+				BUTTON_TEXT += "　　" + ソート情報
 			PRINTBUTTON BUTTON_TEXT, L_CNT
 			PRINTL
 		NEXT
 	ELSE
-		最終ページフラグ = 1
-		表示数 = 0
+		; シリーズ選択/シリーズ表示
+		最大ページ = MAX((出典番号 + 表示人数 - 1) / 表示人数, 1) - 1
 		;シリーズの表示（15作品まで）
-		FOR LOCAL, 0, VARSIZE("出展情報配列")
-			IF 表示数 < 現在ページ * 15
-				SKIPDISP 1
-			ELSEIF 表示数 == 現在ページ * 15 + 15
-				SKIPDISP 1
-			ELSEIF 表示数 > 現在ページ * 15 + 15
-				SKIPDISP 0
-				最終ページフラグ = 0
-				BREAK
-			ELSE
-				SKIPDISP 0
-			ENDIF
+		START_NO = (現在ページ * 表示人数)
+		END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+		FOR LOCAL, START_NO, END_NO + 1
 			IF 出展作品配列:LOCAL == ""
+				PRINTL
+				CONTINUE
 				;登録が終わったら表示終了
 				BREAK
 			ENDIF
 			PRINTBUTTON @"[{LOCAL, 3}] %出展作品配列:LOCAL, 41, LEFT%：残{出展情報配列:LOCAL, 3}名", LOCAL
 			PRINTL 
-			表示数 ++
 		NEXT
 		SKIPDISP 0
 	ENDIF
 ENDIF
 
-
-DRAWLINE
+;- ページ操作ボタン
+PRINTSL "-" * LINE_LEN
 
 ;ページめくり表示
+BTN_NUM   = 9001
+BTN_TEXT '= @"[前ページへ]"
 IF 現在ページ > 0
-	PRINTBUTTONLC "[900]前ページへ", 900
+	PRINTBUTTON BTN_TEXT, BTN_NUM
 ELSE
-	PRINTLC 　
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
 ENDIF
-PRINTFORM - {現在ページ + 1} -
-IF 選択モード && 表示候補:(END_NO + 1) > -1
-	PRINTBUTTONC "[901]次ページへ", 901
-ELSEIF 選択モード == 0 && 最終ページフラグ == 0
-	PRINTBUTTONC "[901]次ページへ", 901
-;ELSEIF 選択モード == 0
-;	SIF 最終ページフラグ == 0
-;		PRINTBUTTONC "[901]次ページへ", 901
-;	IF 選択シリーズ >= 0
-;		PRINTL 
-;		PRINTL 
-;		PRINTBUTTON "[997] シリーズ選択を解除", 997
-;		PRINT 　　　
-;		PRINTBUTTON "[998] このシリーズのキャラを全員呼ぶ", 998
-;	ENDIF
-ELSE
-	PRINTLC 　
-ENDIF
-;- フィルタ設定ボタン表示
-; シリーズ選択中はフィルタ設定不可(フィルタを切り替えた際のリスト更新がうまくいかないので)
-IF !(選択モード == 0 && 選択シリーズ >= 0)
-	PRINTBUTTONC "[910] フィルタ設定", 910
-	PRINTBUTTONC "[911] ソート設定", 911
-ENDIF
+; ページ数
+ページ番号文字列  '= @"- {現在ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1}/{最大ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1} -"
+ページ番号文字列長 =SPACE_LEN - STRLENS(ページ番号文字列)
+PRINTS " " * (ページ番号文字列長 / 2)
+PRINTFORM %ページ番号文字列%
+; 割り切れなかった分のスペースは後半に足す
+PRINTS " " * (ページ番号文字列長 / 2 + (ページ番号文字列長 % 2))
 
+; 1ページ次へ
+BTN_NUM   = 9011
+BTN_TEXT '= @"[次ページへ]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTL
+
+; 最初のページへ
+BTN_NUM   = 9009
+BTN_TEXT '= "[|≪]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTS " " * 1
+; 5ページ前へ
+BTN_NUM   = 9005
+BTN_TEXT '= "[－５]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+; 余白
+PRINTS " " * SPACE_LEN
+
+; 5ページ次へ
+BTN_NUM   = 9015
+BTN_TEXT '= "[＋５]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTS " " * 1
+; 最後のページへ
+BTN_NUM   = 9019
+BTN_TEXT '= "[≫|]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTL
+
+;- その他ボタン
+;フィルタソートボタン
+フィルタボタン番号 = 9020
+ソートボタン番号   = 9030
+ソート順ボタン番号 = 9031
+素質絞込ボタン番号 = 9040
+PRINTSL "-" * LINE_LEN
 IF 選択モード == 0 && 選択シリーズ >= 0
-	PRINTL 
-	PRINTBUTTON "[997] シリーズ選択を解除", 997
+	; シリーズ選択中はフィルタ設定不可(フィルタを切り替えた際のリスト更新がうまくいかないので)
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTL ※ シリーズ選択中はフィルタ/ソート設定を変更できません
+	PRINTL
+	PRINTL
+	RESETCOLOR
+ELSE
+	CALL フィルタソートボタンセット表示(フィルタボタン番号, ソートボタン番号, ソート順ボタン番号, 素質絞込ボタン番号)
+ENDIF
+;戻る系ボタン
+PRINTSL "-" * LINE_LEN
+IF 選択モード == 0 && 選択シリーズ >= 0
+	PRINTBUTTON "[9997]シリーズ選択を解除", 9997
 	PRINT 　　　
-	PRINTBUTTON "[998] このシリーズのキャラを全員呼ぶ", 998
+	PRINTBUTTON "[9998]このシリーズのキャラを全員呼ぶ", 9998
+	PRINTL
 ENDIF
 
-PRINTL 
 IF 選択シリーズ < 0
-	PRINTBUTTONLC "[999] 戻る", 999
+	PRINTBUTTONLC "[9999]戻る", 9999
 	IF 選択モード == 0
 		SELECTCASE ソートモード
 			CASE 0
-				PRINTBUTTONLC "[996] シリーズ名順にする", 996
+				PRINTBUTTON "[9996]シリーズ名順にする", 9996
 			CASE 1
-				PRINTBUTTONLC "[996] 登録キャラ数順にする", 996
+				PRINTBUTTON "[9996]登録キャラ数順にする", 9996
 		ENDSELECT
 	ENDIF
 ENDIF
+REDRAW 0
 
+;入力処理
 WHILE 1
 	BINPUT
-
 	入力番号 = RESULT
 	SELECTCASE 入力番号
-		CASE 1000
+		CASE 9100
 			;- [個別選択]
 			INVERTBIT 選択モード, 0
 			選択シリーズ = -1
 			現在ページ = 0
 			リスタートフラグ = 1
 			BREAK
-		CASE 900
+		CASE 9001, 9005
 			;- 前ページへ
 			; ページ番号を更新後、リスタートしてリスト表示へ戻る
-			現在ページ = MAX(現在ページ - 1, 0)
+			現在ページ = MAX(現在ページ - (入力番号 - 9000), 0)
 			リスタートフラグ = 1
 			BREAK
-		CASE 901
+		CASE 9011, 9015
 			;- 次ページへ
-			; ページ番号を更新後、リスタートしてリスト表示へ戻る
-			SIF !最終ページフラグ
-				現在ページ += 1
+			現在ページ = MIN(現在ページ + (入力番号 - 9010), 最大ページ)
 			リスタートフラグ = 1
 			BREAK
-		CASE 910
-			;- フィルタ設定
-			; リスタートしてリスト表示へ戻る
-			CALL EXキャラリストフィルタ設定()
-			IF RESULT
-				; フィルタ変更時は表示内容が変化するのでリスト更新＆現在ページリセット
-				リスト更新判定 = 1
-				現在ページ = 0
-			ENDIF
+		CASE 9009
+			; 最初のページ
+			現在ページ = 0
 			リスタートフラグ = 1
 			BREAK
-		CASE 911
-			;- ソート設定
-			; リスタートしてリスト表示へ戻る
-			CALL EXキャラリストソート設定()
-			IF RESULT
-				; ソート変更時は表示内容が変化するのでリスト更新
-				リスト更新判定 = 1
-			ENDIF
+		CASE 9019
+			; 最後のページ
+			現在ページ = 最大ページ
 			リスタートフラグ = 1
 			BREAK
-		CASE 999
+		CASE フィルタボタン番号
+			;- キャラフィルタ設定
+			CALL フィルタ設定画面表示()
+			リスト更新判定 = 1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE ソートボタン番号
+			;- キャラソート設定
+			CALL ソート設定画面表示()
+			リスト更新判定 = 1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE ソート順ボタン番号
+			;- キャラソート順設定
+			CALL ソート順反転処理()
+			リスト更新判定 = 1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 素質絞込ボタン番号
+			;- キャラフィルタ設定：素質絞り込み
+			CALL 素質絞り込み設定画面表示()
+			リスト更新判定 = 1
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 9999
 			;- 戻る
 			; リスタートせずにZPショップメニューへ戻る
 			リスタートフラグ = 0
 			BREAK
-		CASE 997
+		CASE 9997
 			;- シリーズ選択解除処理
 			選択シリーズ = -1
 			現在ページ = ページ数記憶
@@ -374,13 +450,13 @@ WHILE 1
 			リスタートフラグ = 1
 			招待後作品保存 = 
 			BREAK
-		CASE 996
-			;- ソートモード切替処理
+		CASE 9996
+			;- 作品ソートモード切替処理
 			INVERTBIT ソートモード, 0
 			現在ページ = 0
 			リスタートフラグ = 1
 			BREAK
-		CASE 998
+		CASE 9998
 			;- シリーズまとめて招待処理
 			PRINTFORML %出展作品配列:選択シリーズ%のキャラクター{出展情報配列:選択シリーズ}名を導きます。
 			PRINTL よろしいですか？
@@ -468,6 +544,8 @@ WHILE 1
 								;表示維持用
 								招待後作品保存 '= 出展作品配列:選択シリーズ
 							ENDIF
+							; 招待したキャラを招待不可キャラリストから削除
+							ARRAYREMOVE 招待不可キャラリスト, FINDELEMENT(招待不可キャラリスト, 対象キャラ), 1
 							; 人数が減るのでリスト更新
 							リスト更新判定 = 1
 							リスタートフラグ = 1
@@ -531,33 +609,50 @@ IF リスタートフラグ
 	CLEARLINE LINECOUNT - 描画開始行
 	RESTART
 ENDIF
+;ソート設定を戻す
+CALL ZP_SHOP_EXキャラ_ソート設定入替()
+;描画設定を戻す
 REDRAW REDRAW_TEMP
 RETURN -1
 
 ;-------------------------------------------------
-;EXキャラのリスト登録判定
+;EXキャラ用のソート設定入れ替え
 ;-------------------------------------------------
-;- 戻り値
-; RETURN 0    :リスト登録なし
-; RETURN 0以外:リスト登録あり。数値でソート順指定(昇順)
-@ZP_SHOP_EXキャラ_フィルタソート(キャラ番号, オプション変数, オプション文字列)
-#DIM  キャラ番号
-#DIM  オプション変数    ; 未使用
-#DIMS オプション文字列  ; 未使用
+@ZP_SHOP_EXキャラ_ソート設定入替()
+#DIM L_CNT
+
+FOR L_CNT, 0, VARSIZE("キャラ一覧フィルタ")
+	SWAP キャラ一覧フィルタ:L_CNT, キャラ一覧フィルタ_EXキャラ:L_CNT
+NEXT
+SWAP 弱点コマンド検索タイプ, 弱点コマンド検索タイプ_EXキャラ
+FOR L_CNT, 0, VARSIZE("キャラ一覧ソート")
+	SWAP キャラ一覧ソート:L_CNT, キャラ一覧ソート_EXキャラ:L_CNT
+NEXT
+FOR L_CNT, 0, VARSIZE("キャラ一覧ソート")
+	SWAP キャラ一覧素質絞り込み:L_CNT, キャラ一覧素質絞り込み_EXキャラ:L_CNT
+NEXT
+
+;-------------------------------------------------
+;招待不可判定
+;-------------------------------------------------
+@ZP_SHOP_EXキャラ_招待不可判定(キャラ番号)
+#DIM キャラ番号
 ;- リスト表示対象チェック
 ; 招待不可フラグのチェック
 SELECTCASE CFLAG:キャラ番号:招待不可フラグ
-	; 招待可能キャラ
 	CASE 0
+		;- 招待可能キャラ
+		; 表示対象外
 		RETURN 0
-	; 招待不可キャラ
 	CASE 1
-		; 処理なし
-	; 招待不可キャラ (ZPショップ対象外)
+		;- 招待不可キャラ
+		; 無条件で表示対象
 	CASE 2
+		;- 招待不可キャラ (ZPショップ対象外)
+		; 表示対象外
 		RETURN 0
-	; 招待不可キャラ (他作品キャラ)
 	CASE 3
+		;- 招待不可キャラ (他作品キャラ)
 		; 前提イベントをクリアしていない場合は不可
 		SIF イベント完了フラグ確認("「平行世界」という場所") < 1
 			RETURN 0
@@ -568,32 +663,8 @@ TRYCCALLFORM EXキャラ_表示条件_{NO:キャラ番号}
 		RETURN 0
 CATCH
 ENDCATCH
-; フィルタ判定NGの場合は不可
-SIF !EXキャラリストフィルタ判定(キャラ番号)
-	RETURN 0
+RETURN 1
 
-; リスト登録確定。ソート順はキャラ番号順
-; → 要は追加順なのでソート不要なのだが、仕組み上ソートが必ず実行される＆安定ソートではないので
-;    順番指定しないと(RETURN 1で固定したりすると)キャラの並びがグチャグチャになるので指定必須
-
-SELECTCASE ZPキャラリストソート
-	CASE 0
-		;登録順
-		RETURN キャラ番号
-	CASE 1
-		;画像数順
-		RETURN (ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%", "*.*", 0) * 10000 + キャラ番号) * -1
-	CASE 2
-		;バスト順、男は０扱い
-		IF GETBIT(TALENT:キャラ番号:性別, 0)
-			RETURN (BASE:キャラ番号:バスト * 10000 + キャラ番号) * -1
-		ELSE
-			RETURN キャラ番号
-		ENDIF
-ENDSELECT
-
-;ないはずだが変な値が入ってる場合はキャラ番号
-RETURN キャラ番号
 
 ;-------------------------------------------------
 ;EXキャラの招待確認
@@ -636,7 +707,7 @@ CALL キャラ簡易紹介(対象キャラ)
 リロールボタン有効 = 対象画像数 > 5
 PRINTL
 ; 確認メッセージ
-PRINTFORML %ADD_STR_SPACE(NAME:対象キャラ, "]")%を導きます。
+PRINTFORML %GET_NAME(対象キャラ)%を導きます。
 PRINTL よろしいですか？
 ; ボタン表示
 PRINTBUTTONLC "[0]はい", 0
@@ -759,7 +830,7 @@ RETURN 実行結果
 #DIM 対象キャラ
 #DIM L_CNT
 
-PRINTFORML %ADD_STR_SPACE(NAME:対象キャラ, "]")%が導かれました。
+PRINTFORML %GET_NAME(対象キャラ)%が導かれました。
 
 ;- 招待したEXキャラを今日の招待枠に追加
 ;・既に上限まで滞在/招待している場合は不可
@@ -786,647 +857,4 @@ IF !ZPキャラ無料回数
 ELSE
 	; 無料招待回数を減らす
 	ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
-ENDIF
-
-;-------------------------------------------------
-;EXキャラリストのフィルタ設定
-;-------------------------------------------------
-@EXキャラリストフィルタ設定()
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM CONST B_LEN = 14
-#DIM L_CNT
-#DIM 入力結果
-#DIM 分類番号
-#DIM 項目番号
-#DIM ビット位置
-#DIM DYNAMIC 初回実行フラグ = 1
-#DIM 変更前フィルタ設定
-#DIM 描画開始行
-#DIMS ボタンテキスト
-#DIMS CONST フィルタ分類 = "性別フィルタ", "画像フィルタ", "口上フィルタ", "固有アビ奥義フィルタ"
-{
-#DIMS CONST フィルタ項目 = 
-	"女性", "男性", "ふたなり", "その他",
-	"画像なし", "画像あり", "", "",
-	"口上なし", "口上あり", "", "",
-	"固有設定なし", "固有設定あり", "", ""
-}
-
-;- 設定モード
-IF 初回実行フラグ
-	初回実行フラグ = 0
-	描画開始行 = LINECOUNT
-	変更前フィルタ設定 = ZPキャラリストフィルタ
-ENDIF
-
-PRINTL
-DRAWLINE
-PRINTL フィルタ設定
-DRAWLINE
-FOR 分類番号, 0, 4
-	PRINTFORML <%フィルタ分類:分類番号%>
-	PRINTS "　"
-	ボタンテキスト = [RESET]
-	PRINTBUTTON @"%ボタンテキスト, B_LEN, LEFT%", (分類番号 + 1) * -1
-	FOR 項目番号, 0, 4
-		ビット位置 = 項目番号 + (4 * 分類番号)
-		SIF フィルタ項目:ビット位置 == ""
-			BREAK
-		PRINTS "　"
-		IF GETBIT(ZPキャラリストフィルタ, ビット位置)
-			SETCOLOR カラーパレット("青緑")
-		ELSE
-			SETCOLOR カラーパレット("グレーアウト")
-		ENDIF
-		ボタンテキスト = [%フィルタ項目:ビット位置%]
-		PRINTBUTTON @"%ボタンテキスト, B_LEN, LEFT%", ビット位置
-		RESETCOLOR
-	NEXT
-	PRINTL
-	PRINTL
-NEXT
-DRAWLINE
-PRINTBUTTON "[確定]", 999
-BINPUT
-入力結果 = RESULT
-
-;- 確定
-IF 入力結果 == 999
-	IF ZPキャラリストフィルタ != 変更前フィルタ設定
-		RETURN 1
-	ELSE
-		RETURN 0
-	ENDIF
-ENDIF
-
-IF 入力結果 < 0
-	;- 分類単位のリセット処理
-	分類番号 = ABS(入力結果) - 1
-	; 分類番号に対応した4bitをONにする(例.0x000FとのORを取って0～3bitをON)
-	ZPキャラリストフィルタ |= 0xF << (4 * 分類番号)
-ELSE
-	;- フィルタON/OFF切替
-	INVERTBIT ZPキャラリストフィルタ, 入力結果
-ENDIF
-; 表示した内容を消去してリスタート
-CLEARLINE LINECOUNT - 描画開始行
-RESTART
-
-@EXキャラリストソート設定()
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM CONST B_LEN = 14
-#DIM L_CNT
-#DIM 入力結果
-#DIM 分類番号
-#DIM 項目番号
-#DIM ビット位置
-#DIM DYNAMIC 初回実行フラグ = 1
-#DIM 変更前ソート設定
-#DIM 描画開始行
-#DIMS ボタンテキスト
-#DIMS CONST ソート項目 = "登録順", "画像数", "バスト"
-
-;- 設定モード
-IF 初回実行フラグ
-	初回実行フラグ = 0
-	描画開始行 = LINECOUNT
-	変更前ソート設定 = ZPキャラリストソート
-ENDIF
-
-PRINTL
-DRAWLINE
-PRINTL ソート設定
-DRAWLINE
-FOR 分類番号, 0, 3
-	PRINTFORM <%ソート項目:分類番号%>
-	PRINTS "　"
-	IF ZPキャラリストソート == 分類番号
-		SETCOLOR カラーパレット("黄")
-		PRINT （選択中）
-		RESETCOLOR
-	ELSE
-		ボタンテキスト = [選択する]
-		PRINTBUTTON @"%ボタンテキスト, B_LEN, LEFT%", 分類番号
-	ENDIF
-	PRINTL
-	PRINTL
-NEXT
-DRAWLINE
-PRINTBUTTON "[確定]", 999
-BINPUT
-入力結果 = RESULT
-
-;- 確定
-IF 入力結果 == 999
-	IF ZPキャラリストソート != 変更前ソート設定
-		RETURN 1
-	ELSE
-		RETURN 0
-	ENDIF
-ENDIF
-
-ZPキャラリストソート = 入力結果
-; 表示した内容を消去してリスタート
-CLEARLINE LINECOUNT - 描画開始行
-RESTART
-
-;-------------------------------------------------
-;EXキャラリストのフィルタ判定
-;-------------------------------------------------
-@EXキャラリストフィルタ判定(対象キャラ)
-#FUNCTION
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM 対象キャラ
-#DIM 分類番号
-#DIM 項目番号
-#DIM ビット位置
-#DIM フィルタ適合
-
-FOR 分類番号, 0, 4
-	フィルタ適合 = 0
-	FOR 項目番号, 0, 4
-		ビット位置 = 項目番号 + (4 * 分類番号)
-		; OFFの項目はスキップ
-		SIF !GETBIT(ZPキャラリストフィルタ, ビット位置)
-			CONTINUE
-
-		; ONの項目でフィルタ条件に適合するものがあるかチェック
-		SELECTCASE ビット位置
-			; bit0～3:性別フィルタ
-			CASE 0
-				;- 女性
-				SIF TALENT:対象キャラ:性別 == 1
-					フィルタ適合 = 1
-			CASE 1
-				;- 男性
-				SIF TALENT:対象キャラ:性別 == 2
-					フィルタ適合 = 1
-			CASE 2
-				;- ふたなり
-				SIF TALENT:対象キャラ:性別 == 3
-					フィルタ適合 = 1
-			CASE 3
-				;- その他
-				SIF !INRANGE(TALENT:対象キャラ:性別, 1, 3)
-					フィルタ適合 = 1
-			; bit4～7:画像フィルタ
-			CASE 4
-				;- 画像なし
-				SIF !HAS_RESOURCES(対象キャラ)
-					フィルタ適合 = 1
-			CASE 5
-				;- 画像あり
-				SIF HAS_RESOURCES(対象キャラ)
-					フィルタ適合 = 1
-			CASE 6, 7
-				; 未使用
-			; bit8～11:口上フィルタ
-			CASE 8
-				;- 口上なし
-				SIF !HAS_KOJO(対象キャラ)
-					フィルタ適合 = 1
-			CASE 9
-				;- 口上あり
-				SIF HAS_KOJO(対象キャラ)
-					フィルタ適合 = 1
-			CASE 10, 11
-				; 未使用
-			; bit12～15:画像フィルタ
-			CASE 12
-				;- 固有設定なし
-				SIF !HAS_SKILLS(対象キャラ)
-					フィルタ適合 = 1
-			CASE 13
-				;- 固有設定あり
-				SIF HAS_SKILLS(対象キャラ)
-					フィルタ適合 = 1
-			CASE 14, 15
-				; 未使用
-		ENDSELECT
-		; 1個でも適合するものがあればOKなのでスキップ
-		SIF フィルタ適合
-			BREAK
-	NEXT
-	; 適合するものがない場合はNG
-	SIF !フィルタ適合
-		RETURNF 0
-NEXT
-; 全分類に適合するものがある場合はOK
-RETURNF 1
-
-;-------------------------------------------------
-;キャラの簡易紹介
-;-------------------------------------------------
-@キャラ簡易紹介(対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIM  対象キャラ
-#DIMS 画像フォルダ名
-#DIM  画像フォルダ数
-#DIMS 顔グラ表示文字列
-#DIMS 種族テキスト, 2
-#DIMS 性別テキスト, 2
-#DIMS 身長テキスト, 2
-#DIMS 年齢テキスト, 2
-#DIMS Ｂテキスト, 2
-#DIMS Ｗテキスト, 2
-#DIMS Ｈテキスト, 2
-#DIMS 口上テキスト, 2
-#DIMS 固有アビテキスト, 2
-#DIM  対象画像数
-#DIM  解説行数
-#DIM  スリーサイズ表示
-#DIM  L_CNT
-#DIMS 見出し
-#DIM  CONST LINE_LEN = 80
-#DIM  LEN1, 2
-#DIM  LEN2, 2
-#DIM  LEN3, 2
-#DIM  LEN_MIN, 3
-#DIM  CONST 表示位置_左 = 0
-#DIM  CONST 表示位置_右 = 1
-
-;- 表示用情報の取得
-CALL GET_TEXT_種族(種族テキスト, 対象キャラ)
-CALL GET_TEXT_性別(性別テキスト, 対象キャラ)
-CALL GET_TEXT_身長(身長テキスト, 対象キャラ)
-CALL GET_TEXT_年齢(年齢テキスト, 対象キャラ)
-; スリーサイズは基本女性のみ表示。設定次第で男性も表示する
-スリーサイズ表示 = TALENT:対象キャラ:性別 != 2 || GETBIT(OPTION変数:身体項目表示切り替え, 4)
-CALL GET_TEXT_バスト  (Ｂテキスト, 対象キャラ)
-CALL GET_TEXT_ウエスト(Ｗテキスト, 対象キャラ)
-CALL GET_TEXT_ヒップ  (Ｈテキスト, 対象キャラ)
-口上テキスト:0 '= "口上"
-IF HAS_KOJO(対象キャラ)
-	口上テキスト:1 '= "あり"
-	口上テキスト:1 += " (交流:"       + \@ HAS_KOJO(対象キャラ, 1) ? ○ # × \@
-	口上テキスト:1 += ", ダンジョン:" + \@ HAS_KOJO(対象キャラ, 2) ? ○ # × \@ + ")"
-ELSE
-	口上テキスト:1 '= "なし"
-ENDIF
-
-固有アビテキスト:0 '= "固有アビ・奥義"
-固有アビテキスト:1 '= \@ HAS_SKILLS(対象キャラ) + HAS_CHARGE_ATTACK(対象キャラ) ? あり # なし \@
-
-; 列ごとのテキスト長取得
-; 頻繁に表示されるパターンで一番長いものを基準値にする
-LEN_MIN:0 = STRLENS("女性（処女,Ａ処女）")
-LEN_MIN:1 = STRLENS("長命者(大人)")
-LEN_MIN:2 = STRLENS("ハーヴィン並")
-; 項目名の長さ
-LEN1:0 = MAX(           STRLENS(性別テキスト:0), STRLENS(Ｂテキスト:0)) + 0
-LEN2:0 = MAX(           STRLENS(年齢テキスト:0), STRLENS(Ｗテキスト:0)) + 0
-LEN3:0 = MAX(           STRLENS(身長テキスト:0), STRLENS(Ｈテキスト:0)) + 0
-; 本文の長さ
-LEN1:1 = MAX(LEN_MIN:0, STRLENS(性別テキスト:1), STRLENS(Ｂテキスト:1)) + 2
-LEN2:1 = MAX(LEN_MIN:1, STRLENS(年齢テキスト:1), STRLENS(Ｗテキスト:1)) + 2
-LEN3:1 = MAX(LEN_MIN:2, STRLENS(身長テキスト:1), STRLENS(Ｈテキスト:1)) + 2
-
-;- 基本情報
-PRINTS "-" * LINE_LEN
-PRINTL
-
-; 名前
-PRINTFORM ■%ADD_STR_SPACE(NAME:対象キャラ, "]")%
-PRINTL
-
-; デバッグ用追加情報：各種番号
-[IF_DEBUG]
-PRINTPLAINFORM 　%"[DEBUG]", 8%：登録番号[{対象キャラ}] / CSV番号[{NO:対象キャラ}]
-PRINTL
-[ENDIF]
-
-; 出演作品
-IF CSTR:対象キャラ:出演作品 != ""
-	PRINTFORML 　出演作品：%CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
-ELSE
-	PRINTL
-ENDIF
-
-;- キャラ解説
-IF サイド領域非表示オプション
-	CALL 簡易紹介_解説表示(対象キャラ, 表示位置_左)
-ELSE
-	CALL 簡易紹介_解説表示(対象キャラ, 表示位置_右)
-	; 解説を表示しなかった(HTML_PRINTしなかった)場合は位置調整で改行する
-	SIF !RESULT
-		PRINTL
-ENDIF
-
-;- 身体情報
-見出し = □ プロフィール □
-PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
-
-; 1行目：種族
-PRINT 　
-PRINTFORM %種族テキスト:0, LEN1:0%：%種族テキスト:1, LEN1:1, LEFT%
-PRINTL
-
-; 2行目：性別、年齢、身長/体格
-PRINT 　
-PRINTFORM %性別テキスト:0, LEN1:0%：%性別テキスト:1, LEN1:1, LEFT%
-PRINTFORM %年齢テキスト:0, LEN2:0%：%年齢テキスト:1, LEN2:1, LEFT%
-PRINTFORM %身長テキスト:0, LEN3:0%：%身長テキスト:1, LEN3:1, LEFT%
-PRINTL
-
-; 3行目：スリーサイズ
-IF スリーサイズ表示
-	PRINT 　
-	PRINTFORM %Ｂテキスト:0, LEN1:0%：%Ｂテキスト:1, LEN1:1, LEFT%
-	PRINTFORM %Ｗテキスト:0, LEN2:0%：%Ｗテキスト:1, LEN2:1, LEFT%
-	PRINTFORM %Ｈテキスト:0, LEN3:0%：%Ｈテキスト:1, LEN3:1, LEFT%
-	PRINTL
-ELSE
-	PRINTL
-ENDIF
-PRINTL
-
-;- 個別ファイル情報
-見出し = □ 個別ファイル □
-PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
-; 固有アビ/奥義有無
-PRINT 　
-PRINTFORM %固有アビテキスト:0%：%固有アビテキスト:1%
-
-; 口上有無
-PRINT 　　
-PRINTFORM %口上テキスト:0%：%口上テキスト:1%
-PRINTL
-
-PRINTL
-
-;- 画像
-IF HAS_RESOURCES(対象キャラ)
-	見出し = □ 画像 □
-	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
-	PRINT 　
-	画像フォルダ名 '= CSTR:対象キャラ:画像フォルダ
-	画像フォルダ数  = 1
-	CALL ランダム画像表示(画像フォルダ名, 画像フォルダ数, 0)
-	対象画像数 = RESULT
-	IF 対象画像数 > 5
-		PRINTL ※サンプルとしてデフォルト画像＋ランダムな画像を４つ表示中
-	ELSE
-		PRINTL
-	ENDIF
-ELSE
-	見出し = □ 画像 □
-	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
-	PRINTL 　画像数：顔  0枚 / 短冊  0枚 / その他  0枚
-	対象画像数 = 0
-	; 画像分の余白
-	FOR L_CNT, 0, 14
-		PRINTL
-	NEXT
-	PRINTL
-ENDIF
-
-PRINTSL "-" * LINE_LEN
-RETURN 対象画像数
-
-;-------------------------------------------------
-;簡易紹介キャラ解説表示
-;-------------------------------------------------
-@簡易紹介_解説表示(対象キャラ, 表示位置)
-#DIM 対象キャラ
-#DIM 表示位置
-#DIM 解説行数
-#DIM L_CNT
-#DIM  CONST LINE_LEN_L = 80
-#DIM  CONST LINE_LEN_R = 78
-#DIMS 見出し
-
-#DIM CONST 表示位置_左 = 0
-#DIM CONST 表示位置_右 = 1
-#DIM CONST POS_X = (80 + 2) * 100 / 2
-#DIM       POS_Y
-POS_Y = -350
-[IF_DEBUG]
-; デバッグモード中は表示が1行多い
-POS_Y -= 100
-[ENDIF]
-SIF !HAS_INTRODUCTION(対象キャラ)
-	RETURN 0
-
-見出し = □ 解説 □
-SELECTCASE 表示位置
-	CASE 表示位置_左
-		PRINTSL 見出し + "-" * (LINE_LEN_L - STRLENS(見出し))
-		CALL 口上_キャラ解説表示(対象キャラ)
-		解説行数 = RESULT
-		; 余白追加
-		; ・解説の行数だけ余白を開けないと表示が被る
-		FOR L_CNT, 0, 解説行数
-			PRINTL
-		NEXT
-	CASE 表示位置_右
-		; 口上変数の初期化
-		CALL 口上変数初期化
-		; 見出し追加
-		KSTR:(K++) '= 見出し + "-" * (LINE_LEN_R - STRLENS(見出し))
-		; 解説本文追加
-		CALLFORM 口上_ステータス画面_キャラ解説_{NO:対象キャラ}(対象キャラ)
-		; 区切り線追加
-		KSTR:(K++) '= "-" * LINE_LEN_R
-		; 所定の位置に解説表示
-		CALL キャラ解説表示用(対象キャラ, POS_X, POS_Y)
-ENDSELECT
-RETURN 1
-
-;-------------------------------------------------
-;表示用テキストの取得：種族
-;-------------------------------------------------
-@GET_TEXT_種族(結果格納先, 対象キャラ, オプション表示 = 1)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-#DIM      オプション表示
-#DIMS 種族テキスト
-
-種族テキスト '= @"%GET_TALENTNAME(200, TALENT:対象キャラ:種族,,対象キャラ)%"
-IF CSTR:対象キャラ:特殊種族 != ""
-	種族テキスト += @" [%CSTR:対象キャラ:特殊種族%]"
-ENDIF
-IF オプション表示
-	SIF TALENT:対象キャラ:角あり
-		種族テキスト += "（角あり）"
-	SIF TALENT:対象キャラ:尻尾あり
-		種族テキスト += "（尻尾）"
-	SIF TALENT:対象キャラ:エルーン耳
-		種族テキスト += "（エルーン耳）"
-	SIF TALENT:対象キャラ:ハーヴィン耳
-		種族テキスト += "（ハーヴィン耳）"
-	SIF TALENT:対象キャラ:発情期あり > 0
-		種族テキスト += "（発情期あり）"
-	SIF TALENT:対象キャラ:発情期あり < 0
-		種族テキスト += "（発情期なし）"
-ENDIF
-結果格納先:0 '= "種族"
-結果格納先:1 '= 種族テキスト
-
-;-------------------------------------------------
-;表示用テキストの取得：性別
-;-------------------------------------------------
-@GET_TEXT_性別(結果格納先, 対象キャラ, 追加表記 = 1)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-#DIM      追加表記
-#DIM  L_CNT
-#DIMS 性別テキスト
-#DIMS 追加テキスト, 5 ; 0:まとめ, 1:性転換, 2:童貞, 3:処女, 4:Ａ処女
-
-VARSET 性別テキスト
-VARSET 追加テキスト
-IF CSTR:対象キャラ:性別表記 != ""
-	; 性別表記指定あり
-	性別テキスト += CSTR:対象キャラ:性別表記
-	SIF TALENT:対象キャラ:非童貞 == 0 && CFLAG:対象キャラ:童貞表示
-		追加テキスト:2 = 童貞
-	SIF TALENT:対象キャラ:処女 && CFLAG:対象キャラ:処女表示
-		追加テキスト:3 = 処女
-	SIF TALENT:対象キャラ:Ａ処女 && CFLAG:対象キャラ:Ａ処女表示
-		追加テキスト:4 = Ａ処女
-ELSE
-	性別テキスト += GET_TALENTNAME(GETNUM(TALENT, "性別"), TALENT:対象キャラ:性別,,対象キャラ)
-	SELECTCASE TALENT:対象キャラ:性別
-		CASE 1
-			; 女性
-			SIF TALENT:対象キャラ:処女
-				追加テキスト:3 = 処女
-			SIF TALENT:対象キャラ:Ａ処女
-				追加テキスト:4 = Ａ処女
-		CASE 2
-			; 男性
-			SIF TALENT:対象キャラ:非童貞 == 0
-				追加テキスト:2 = 童貞
-			SIF TALENT:対象キャラ:Ａ処女
-				追加テキスト:4 = Ａ処女
-		CASE 3
-			; ふたなり
-			SIF TALENT:対象キャラ:非童貞 == 0
-				追加テキスト:2 = 童貞
-			SIF TALENT:対象キャラ:処女
-				追加テキスト:3 = 処女
-			SIF TALENT:対象キャラ:Ａ処女
-				追加テキスト:4 = Ａ処女
-		CASEELSE
-			; その他
-	ENDSELECT
-ENDIF
-; 性転換情報(元男、元女)
-追加テキスト:1 '= GET_TALENTNAME(GETNUM(TALENT, "性転換"), TALENT:対象キャラ:性転換,,対象キャラ)
-
-; 追加表記の追加
-IF 追加表記
-	FOR L_CNT, 1, VARSIZE("追加テキスト")
-		SIF 追加テキスト:L_CNT == ""
-			CONTINUE
-		SIF 追加テキスト != ""
-			追加テキスト += ","
-		追加テキスト += 追加テキスト:L_CNT
-	NEXT
-	SIF 追加テキスト != ""
-		性別テキスト += @"（%追加テキスト%）"
-ENDIF
-結果格納先:0 '= "性別"
-結果格納先:1 '= 性別テキスト
-
-;-------------------------------------------------
-;表示用テキストの取得：年齢
-;-------------------------------------------------
-@GET_TEXT_年齢(結果格納先, 対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-
-;設定「身体項目表示切り替え」に合わせて内容を切替
-結果格納先:0 '= "年齢"
-; 特殊設定がある場合は優先
-IF CSTR:対象キャラ:特殊年齢 != ""
-	結果格納先:1 '= CSTR:対象キャラ:特殊年齢
-; 年齢表示設定が年齢表示＆年齢設定がある場合
-ELSEIF GETBIT(OPTION変数:身体項目表示切り替え, 5) && BASE:対象キャラ:年齢 > 0
-	結果格納先:1 '= @"{BASE:対象キャラ:年齢}歳"
-; 年齢設定が年齢層表示 or 年齢設定がない場合
-ELSE
-	結果格納先:1 '= GET_年齢文字列(TALENT:対象キャラ:性別, TALENT:対象キャラ:年齢層, TALENT:対象キャラ:外見年齢, BASE:対象キャラ:年齢)
-ENDIF
-
-;-------------------------------------------------
-;表示用テキストの取得：身長
-;-------------------------------------------------
-@GET_TEXT_身長(結果格納先, 対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-
-;設定「身体項目表示切り替え」に合わせて内容を切替
-IF GETBIT(OPTION変数:身体項目表示切り替え, 0)
-	結果格納先:0 '=  "身長"
-	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:身長, 1)%cm"
-ELSE
-	結果格納先:0 '=  "体格"
-	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体格"), TALENT:対象キャラ:体格,,対象キャラ)%"
-ENDIF
-
-;-------------------------------------------------
-;表示用テキストの取得：バスト
-;-------------------------------------------------
-@GET_TEXT_バスト(結果格納先, 対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-
-;設定「身体項目表示切り替え」に合わせて内容を切替
-IF GETBIT(OPTION変数:身体項目表示切り替え, 1)
-	結果格納先:0 '=  "バスト"
-	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm%GET_CUPSIZE(対象キャラ)%"
-ELSE
-	結果格納先:0 '=  "バスト"
-	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "バストサイズ"), TALENT:対象キャラ:バストサイズ,,対象キャラ)%"
-ENDIF
-
-;-------------------------------------------------
-;表示用テキストの取得：ウエスト
-;-------------------------------------------------
-@GET_TEXT_ウエスト(結果格納先, 対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-
-;設定「身体項目表示切り替え」に合わせて内容を切替
-IF GETBIT(OPTION変数:身体項目表示切り替え, 2)
-	結果格納先:0 '=  "ウエスト"
-	結果格納先:1 '= @"%DECIMAL_STRING(補正込みウエストサイズ(対象キャラ), 1)%cm"
-ELSE
-	結果格納先:0 '=  "体型"
-	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体型"), TALENT:対象キャラ:体型,,対象キャラ)%"
-ENDIF
-
-;-------------------------------------------------
-;表示用テキストの取得：ヒップ
-;-------------------------------------------------
-@GET_TEXT_ヒップ(結果格納先, 対象キャラ)
-#LOCALSIZE 1
-#LOCALSSIZE 1
-#DIMS REF 結果格納先
-#DIM      対象キャラ
-
-;設定「身体項目表示切り替え」に合わせて内容を切替
-IF GETBIT(OPTION変数:身体項目表示切り替え, 3)
-	結果格納先:0 '=  "ヒップ"
-	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:ヒップ, 1)%cm"
-ELSE
-	結果格納先:0 '=  "下半身"
-	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "下半身"),TALENT:対象キャラ:下半身,,対象キャラ)%"
 ENDIF

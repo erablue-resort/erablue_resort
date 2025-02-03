@@ -1,161 +1,268 @@
-﻿@ZP_SHOP_素質変化
+﻿;-------------------------------------------------
+;ZPショップキャラの素質変化メニュー(キャラ選択)
+;-------------------------------------------------
+@ZP_SHOP_素質変化
 ;現在滞在しているキャラ一覧
 #DIM 表示候補, キャラクタ数上限
 #DIM 現在ページ
+#DIM 最大ページ
 #DIM 広告対象
-#DIM 表示最大数
+#DIM 表示候補人数
+#DIM CONST ページ表示人数 = 15
+#DIM 表示番号
+#DIM 入力値
+#DIM 対象キャラ
+#DIM BTN_NUM
+#DIMS BTN_TEXT
+#DIMS 表示用判定値
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM DYNAMIC リスト生成フラグ = 1
+#DIM DYNAMIC フィルタ適用フラグ = 1
+#DIM 描画開始行
+#DIM RETURN_VAL
+#DIM REDRAW_TEMP
+#DIM NO_LEN
+#DIM PAGE_LEN
+#DIM CONST LINE_LEN  = 80
+#DIM CONST SPACE_LEN = 56
+#DIMS ページ番号文字列
+#DIM ページ番号文字列長
+; 内部変数：フィルタソートボタンセット用
+#DIM フィルタボタン番号
+#DIM ソートボタン番号
+#DIM ソート順ボタン番号
+#DIM 素質絞込ボタン番号
 
-VARSET 表示候補, -1
-現在ページ = 0
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	VARSET 表示候補, -1
+	現在ページ = 0
+	描画開始行 = LINECOUNT
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 1
+ENDIF
+IF リスト生成フラグ
+	リスト生成フラグ = 0
+	;表示キャラを登録
+	表示候補人数 = 0
+	FOR 対象キャラ, 1, CHARANUM
+		;滞在してないキャラは出さない
+		SIF CFLAG:対象キャラ:滞在期間 < 0
+			CONTINUE
+		表示候補:表示候補人数 = 対象キャラ
+		表示候補人数 ++
+	NEXT
+	フィルタ適用フラグ = 1
+ENDIF
+IF フィルタ適用フラグ
+	フィルタ適用フラグ = 0
+	CALL キャラ配列フィルタ処理(表示候補, -1)
+	表示候補人数 = RESULT
+	; 人数からページ数計算(切り上げ除算)
+	; 最小ページ番号が1ではなく0なので最大ページを-1
+	最大ページ = MAX((表示候補人数 + ページ表示人数 - 1) / ページ表示人数, 1) - 1
 
+	; 表示する数値の長さを測定
+	NO_LEN   = LOG10(MAX(表示候補人数 , 1)) + 1
+	PAGE_LEN = LOG10(MAX(最大ページ +1, 1)) + 1
+	; 表示ページの補正
+	SIF 現在ページ > 最大ページ
+		現在ページ = 最大ページ
+ENDIF
 
-;表示キャラを登録
-表示最大数 = 0
-FOR LOCAL, 1, CHARANUM
-	;滞在してないキャラは出さない
-	SIF CFLAG:LOCAL:滞在期間 < 0
-		CONTINUE
-	表示候補:表示最大数 = LOCAL
-	表示最大数 ++
-NEXT
-CALL キャラ配列フィルタ処理(表示候補, -1)
-表示最大数 = RESULT
-
-$表示_LOOP
-;広告対象の表示
+;変更対象の表示
+PRINTL
 DRAWLINE
 PRINTL 誰の素質を強化しますか？
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
-DRAWLINE
+PRINTSL "-" * LINE_LEN
 
+; あなたは別枠で常に表示
 PRINTBUTTON @"[9998] %NAME:MASTER%", 9998
 PRINTL
-DRAWLINE
-;キャラの表示（15人まで）
-FOR LOCAL, (現在ページ * 15), ((現在ページ * 15) + 15)
+PRINTSL "-" * LINE_LEN
+;キャラの表示
+FOR 表示番号, (現在ページ * ページ表示人数), (現在ページ + 1) * ページ表示人数
+	対象キャラ = 表示候補:表示番号
 	;登録が終わったら表示終了
-	IF 表示候補:LOCAL == -1
-		BREAK
+	IF 対象キャラ == -1
+		PRINTL
+		CONTINUE
 	ENDIF
-	IF 文字色グループ取得(表示候補:LOCAL) >= 0
-		SETCOLOR 同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL))
-	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
-		SETCOLOR CFLAG:(表示候補:LOCAL):同室文字色
+	表示用判定値 '= ソート情報表示(対象キャラ)
+	IF 表示用判定値 != ""
+		PRINTBUTTON @"[{表示番号, NO_LEN}] %GET_NAME(対象キャラ, 1)%", 表示番号
+		PRINTFORM  %表示用判定値%
+	ELSE
+		PRINTBUTTON @"[{表示番号, NO_LEN}] %GET_NAME(対象キャラ)%", 表示番号
 	ENDIF
-	PRINTBUTTON @"[{LOCAL}] %ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]")%", LOCAL
-	RESETCOLOR
-	PRINTL 
+	PRINTL
 NEXT
 
-DRAWLINE
-
-;ページめくり表示
+;- ページ操作ボタン
+PRINTSL "-" * LINE_LEN
+; 1ページ前へ
+BTN_NUM   = 9001
+BTN_TEXT '= @"[前ページへ]"
 IF 現在ページ > 0
-	PRINTBUTTONLC "[9000]前ページへ", 9000
+	PRINTBUTTON BTN_TEXT, BTN_NUM
 ELSE
-	PRINTLC 　
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
 ENDIF
-PRINTFORM - {現在ページ + 1} -
-IF 表示候補:((現在ページ * 15) + 15) > -1
-	PRINTBUTTONC "[9001]次ページへ", 9001
-ENDIF
-PRINTL 
-DRAWLINE
-PRINTBUTTON "[9020]フィルタ機能", 9020
-PRINTL
-PRINTBUTTON "[9030]ソート機能", 9030
-PRINT 　　　　　現在のソート設定：
-IF キャラ一覧ソート:0 != ""
-	PRINTFORM %キャラ一覧ソート:0%
-ENDIF
-IF STRCOUNT(キャラ一覧ソート:1, "昇順")
-	PRINT (昇順)
-	PRINT 　　　　　
-	PRINTBUTTON "[降順にする]", 9031
-ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
-	PRINT (降順)
-	PRINT 　　　　　
-	PRINTBUTTON "[昇順にする]", 9032
+; ページ数
+ページ番号文字列  '= @"- {現在ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1}/{最大ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1} -"
+ページ番号文字列長 =SPACE_LEN - STRLENS(ページ番号文字列)
+PRINTS " " * (ページ番号文字列長 / 2)
+PRINTFORM %ページ番号文字列%
+; 割り切れなかった分のスペースは後半に足す
+PRINTS " " * (ページ番号文字列長 / 2 + (ページ番号文字列長 % 2))
+; 1ページ次へ
+BTN_NUM   = 9011
+BTN_TEXT '= @"[次ページへ]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
 ELSE
-	PRINT なし(キャラ番号順)
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
 ENDIF
 PRINTL
-PRINTBUTTON "[9040]素質絞り込み機能", 9040
-PRINT 　　現在の絞り込み設定：
-IF キャラ一覧素質絞り込み:0 != ""
-	IF キャラ一覧素質絞り込み:99 == "AND"
-		PRINT (AND条件)：
-	ELSE
-		PRINT (OR条件)：
-	ENDIF
-	FOR LOCAL, 0, 99
-		SIF キャラ一覧素質絞り込み:LOCAL == ""
-			BREAK
-		LOCALS:0 = 
-		LOCALS:1 = 
-		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
-	NEXT
+; 最初のページへ
+BTN_NUM   = 9009
+BTN_TEXT '= "[|≪]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
 ELSE
-	PRINT なし
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
 ENDIF
-PRINTL
-DRAWLINE
-PRINTBUTTON "[9999]戻る", 9999
+PRINTS " " * 1
+; 5ページ前へ
+BTN_NUM   = 9005
+BTN_TEXT '= "[－５]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+; 余白
+PRINTS " " * SPACE_LEN
 
-$INPUT_LOOP
+; 5ページ次へ
+BTN_NUM   = 9015
+BTN_TEXT '= "[＋５]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTS " " * 1
+; 最後のページへ
+BTN_NUM   = 9019
+BTN_TEXT '= "[≫|]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTL
+
+PRINTSL "-" * LINE_LEN
+;- その他ボタン
+;フィルタソートボタン
+フィルタボタン番号 = 9020
+ソートボタン番号   = 9030
+ソート順ボタン番号 = 9031
+素質絞込ボタン番号 = 9040
+CALL フィルタソートボタンセット表示(フィルタボタン番号, ソートボタン番号, ソート順ボタン番号, 素質絞込ボタン番号)
+
+PRINTSL "-" * LINE_LEN
+; 戻るボタン
+BTN_NUM   = 9999
+BTN_TEXT '= @"[{BTN_NUM}]戻る"
+PRINTBUTTON BTN_TEXT, BTN_NUM
+PRINTS " " * 5
+PRINTL
+REDRAW 0
+
 BINPUT
-
-LOCAL = RESULT
-SELECTCASE LOCAL
-	CASE 9020
+入力値 = RESULT
+RETURN_VAL = 0
+SELECTCASE 入力値
+	CASE フィルタボタン番号
 		CALL SHOW_CHARADATA_FILTA
 		現在ページ = 0
-		RESTART
-	CASE 9030
+		リスト生成フラグ = 1
+	CASE ソートボタン番号
 		CALL SHOW_CHARADATA_SORT
 		現在ページ = 0
-		RESTART
-	CASE 9031
-		キャラ一覧ソート:1 = 降順
+		フィルタ適用フラグ = 1
+	CASE ソート順ボタン番号
+		CALL ソート順反転処理()
 		現在ページ = 0
-		RESTART
-	CASE 9032
-		キャラ一覧ソート:1 = 昇順
-		現在ページ = 0
-		RESTART
-	CASE 9040
+		フィルタ適用フラグ = 1
+	CASE 素質絞込ボタン番号
 		CALL SHOW_CHARADATA_素質絞り込み
 		現在ページ = 0
-		RESTART
-	CASE 9000
-		現在ページ = MAX(現在ページ - 1, 0)
-		GOTO 表示_LOOP
-	CASE 9001
-		現在ページ += 1
-		GOTO 表示_LOOP
+		リスト生成フラグ = 1
+	CASE 9001, 9005
+		; ページ戻し
+		現在ページ = MAX(現在ページ - (入力値 - 9000), 0)
+	CASE 9011, 9015
+		; ページ送り
+		現在ページ = MIN(現在ページ + (入力値 - 9010), 最大ページ)
+	CASE 9009
+		; 最初のページ
+		現在ページ = 0
+	CASE 9019
+		; 最後のページ
+		現在ページ = 最大ページ
 	CASE 9999
-		RETURN -1
+		; 戻る
+		RETURN_VAL = -1
 	CASE 9998
+		; キャラ選択：あなた
 		CALL ZP_素質変化(MASTER)
-		SIF RESULT == -1
-			RESTART
+
 	CASEELSE
+		; キャラ選択
+		表示番号 = 入力値
 		DO
-		CALL ZP_素質変化(表示候補:LOCAL)
-		IF RESULT == 1
-			LOCAL --
-			SIF LOCAL < 0
-				LOCAL = 表示最大数 - 1
-		ELSEIF RESULT == 2
-			LOCAL ++
-			SIF 表示最大数 <= LOCAL
-				LOCAL = 0
-		ENDIF
-		SIF RESULT == -1
-			RESTART
+			CALL ZP_素質変化(表示候補:表示番号)
+			SELECTCASE RESULT
+				CASE 1
+					; 前のキャラ
+					表示番号 --
+					SIF 表示番号 < 0
+						表示番号 = 表示候補人数 - 1
+				CASE 2
+					; 次のキャラ
+					表示番号 ++
+					SIF 表示候補人数 <= 表示番号
+						表示番号 = 0
+				CASE -1
+					; 終了
+					リスト生成フラグ = 1
+					BREAK
+			ENDSELECT
 		LOOP 1
 ENDSELECT
+IF !RETURN_VAL
+	CLEARLINE LINECOUNT - 描画開始行
+	RESTART
+ENDIF
+REDRAW REDRAW_TEMP
+RETURN RETURN_VAL
+
 
 @ZP_素質変化(キャラ番号)
 #DIM キャラ番号

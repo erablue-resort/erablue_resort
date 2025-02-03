@@ -1,0 +1,413 @@
+﻿;-------------------------------------------------
+;キャラの簡易紹介
+;-------------------------------------------------
+@キャラ簡易紹介(対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM  対象キャラ
+#DIMS 画像フォルダ名
+#DIM  画像フォルダ数
+#DIMS 顔グラ表示文字列
+#DIMS 種族テキスト, 2
+#DIMS 性別テキスト, 2
+#DIMS 身長テキスト, 2
+#DIMS 年齢テキスト, 2
+#DIMS Ｂテキスト, 2
+#DIMS Ｗテキスト, 2
+#DIMS Ｈテキスト, 2
+#DIMS 口上テキスト, 2
+#DIMS 固有アビテキスト, 2
+#DIM  対象画像数
+#DIM  解説行数
+#DIM  スリーサイズ表示
+#DIM  L_CNT
+#DIMS 見出し
+#DIM  CONST LINE_LEN = 80
+#DIM  LEN1, 2
+#DIM  LEN2, 2
+#DIM  LEN3, 2
+#DIM  LEN_MIN, 3
+#DIM  CONST 表示位置_左 = 0
+#DIM  CONST 表示位置_右 = 1
+
+;- 表示用情報の取得
+CALL GET_TEXT_種族(種族テキスト, 対象キャラ)
+CALL GET_TEXT_性別(性別テキスト, 対象キャラ)
+CALL GET_TEXT_身長(身長テキスト, 対象キャラ)
+CALL GET_TEXT_年齢(年齢テキスト, 対象キャラ)
+; スリーサイズは基本女性のみ表示。設定次第で男性も表示する
+スリーサイズ表示 = TALENT:対象キャラ:性別 != 2 || GETBIT(OPTION変数:身体項目表示切り替え, 4)
+CALL GET_TEXT_バスト  (Ｂテキスト, 対象キャラ)
+CALL GET_TEXT_ウエスト(Ｗテキスト, 対象キャラ)
+CALL GET_TEXT_ヒップ  (Ｈテキスト, 対象キャラ)
+口上テキスト:0 '= "口上"
+IF HAS_KOJO(対象キャラ)
+	口上テキスト:1 '= "あり"
+	口上テキスト:1 += " (交流:"       + \@ HAS_KOJO(対象キャラ, 1) ? ○ # × \@
+	口上テキスト:1 += ", ダンジョン:" + \@ HAS_KOJO(対象キャラ, 2) ? ○ # × \@ + ")"
+ELSE
+	口上テキスト:1 '= "なし"
+ENDIF
+
+固有アビテキスト:0 '= "固有アビ・奥義"
+固有アビテキスト:1 '= \@ HAS_SKILLS(対象キャラ) + HAS_CHARGE_ATTACK(対象キャラ) ? あり # なし \@
+
+; 列ごとのテキスト長取得
+; 頻繁に表示されるパターンで一番長いものを基準値にする
+LEN_MIN:0 = STRLENS("女性（処女,Ａ処女）")
+LEN_MIN:1 = STRLENS("長命者(大人)")
+LEN_MIN:2 = STRLENS("ハーヴィン並")
+; 項目名の長さ
+LEN1:0 = MAX(           STRLENS(性別テキスト:0), STRLENS(Ｂテキスト:0)) + 0
+LEN2:0 = MAX(           STRLENS(年齢テキスト:0), STRLENS(Ｗテキスト:0)) + 0
+LEN3:0 = MAX(           STRLENS(身長テキスト:0), STRLENS(Ｈテキスト:0)) + 0
+; 本文の長さ
+LEN1:1 = MAX(LEN_MIN:0, STRLENS(性別テキスト:1), STRLENS(Ｂテキスト:1)) + 2
+LEN2:1 = MAX(LEN_MIN:1, STRLENS(年齢テキスト:1), STRLENS(Ｗテキスト:1)) + 2
+LEN3:1 = MAX(LEN_MIN:2, STRLENS(身長テキスト:1), STRLENS(Ｈテキスト:1)) + 2
+
+;- 基本情報
+PRINTS "-" * LINE_LEN
+PRINTL
+
+; 名前
+PRINTFORM ■%GET_NAME(対象キャラ)%
+PRINTL
+
+; デバッグ用追加情報：各種番号
+[IF_DEBUG]
+PRINTPLAINFORM 　%"[DEBUG]", 8%：登録番号[{対象キャラ}] / CSV番号[{NO:対象キャラ}]
+PRINTL
+[ENDIF]
+
+; 出演作品
+IF CSTR:対象キャラ:出演作品 != ""
+	PRINTFORML 　出演作品：%CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
+ELSE
+	PRINTL
+ENDIF
+
+;- キャラ解説
+IF サイド領域非表示オプション
+	CALL 簡易紹介_解説表示(対象キャラ, 表示位置_左)
+ELSE
+	CALL 簡易紹介_解説表示(対象キャラ, 表示位置_右)
+	; 解説を表示しなかった(HTML_PRINTしなかった)場合は位置調整で改行する
+	SIF !RESULT
+		PRINTL
+ENDIF
+
+;- 身体情報
+見出し = □ プロフィール □
+PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+
+; 1行目：種族
+PRINT 　
+PRINTFORM %種族テキスト:0, LEN1:0%：%種族テキスト:1, LEN1:1, LEFT%
+PRINTL
+
+; 2行目：性別、年齢、身長/体格
+PRINT 　
+PRINTFORM %性別テキスト:0, LEN1:0%：%性別テキスト:1, LEN1:1, LEFT%
+PRINTFORM %年齢テキスト:0, LEN2:0%：%年齢テキスト:1, LEN2:1, LEFT%
+PRINTFORM %身長テキスト:0, LEN3:0%：%身長テキスト:1, LEN3:1, LEFT%
+PRINTL
+
+; 3行目：スリーサイズ
+IF スリーサイズ表示
+	PRINT 　
+	PRINTFORM %Ｂテキスト:0, LEN1:0%：%Ｂテキスト:1, LEN1:1, LEFT%
+	PRINTFORM %Ｗテキスト:0, LEN2:0%：%Ｗテキスト:1, LEN2:1, LEFT%
+	PRINTFORM %Ｈテキスト:0, LEN3:0%：%Ｈテキスト:1, LEN3:1, LEFT%
+	PRINTL
+ELSE
+	PRINTL
+ENDIF
+PRINTL
+
+;- 個別ファイル情報
+見出し = □ 個別ファイル □
+PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+; 固有アビ/奥義有無
+PRINT 　
+PRINTFORM %固有アビテキスト:0%：%固有アビテキスト:1%
+
+; 口上有無
+PRINT 　　
+PRINTFORM %口上テキスト:0%：%口上テキスト:1%
+PRINTL
+
+PRINTL
+
+;- 画像
+IF HAS_RESOURCES(対象キャラ)
+	見出し = □ 画像 □
+	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+	PRINT 　
+	画像フォルダ名 '= CSTR:対象キャラ:画像フォルダ
+	画像フォルダ数  = 1
+	CALL ランダム画像表示(画像フォルダ名, 画像フォルダ数, 0)
+	対象画像数 = RESULT
+	IF 対象画像数 > 5
+		PRINTL ※サンプルとしてデフォルト画像＋ランダムな画像を４つ表示中
+	ELSE
+		PRINTL
+	ENDIF
+ELSE
+	見出し = □ 画像 □
+	PRINTSL 見出し + "-" * (LINE_LEN - STRLENS(見出し))
+	PRINTL 　画像数：顔  0枚 / 短冊  0枚 / その他  0枚
+	対象画像数 = 0
+	; 画像分の余白
+	FOR L_CNT, 0, 14
+		PRINTL
+	NEXT
+	PRINTL
+ENDIF
+
+PRINTSL "-" * LINE_LEN
+RETURN 対象画像数
+
+;-------------------------------------------------
+;簡易紹介キャラ解説表示
+;-------------------------------------------------
+@簡易紹介_解説表示(対象キャラ, 表示位置)
+#DIM 対象キャラ
+#DIM 表示位置
+#DIM 解説行数
+#DIM L_CNT
+#DIM  CONST LINE_LEN_L = 80
+#DIM  CONST LINE_LEN_R = 78
+#DIMS 見出し
+
+#DIM CONST 表示位置_左 = 0
+#DIM CONST 表示位置_右 = 1
+#DIM CONST POS_X = (80 + 2) * 100 / 2
+#DIM       POS_Y
+POS_Y = -350
+[IF_DEBUG]
+; デバッグモード中は表示が1行多い
+POS_Y -= 100
+[ENDIF]
+SIF !HAS_INTRODUCTION(対象キャラ)
+	RETURN 0
+
+見出し = □ 解説 □
+SELECTCASE 表示位置
+	CASE 表示位置_左
+		PRINTSL 見出し + "-" * (LINE_LEN_L - STRLENS(見出し))
+		CALL 口上_キャラ解説表示(対象キャラ)
+		解説行数 = RESULT
+		; 余白追加
+		; ・解説の行数だけ余白を開けないと表示が被る
+		FOR L_CNT, 0, 解説行数
+			PRINTL
+		NEXT
+	CASE 表示位置_右
+		; 口上変数の初期化
+		CALL 口上変数初期化
+		; 見出し追加
+		KSTR:(K++) '= 見出し + "-" * (LINE_LEN_R - STRLENS(見出し))
+		; 解説本文追加
+		CALLFORM 口上_ステータス画面_キャラ解説_{NO:対象キャラ}(対象キャラ)
+		; 区切り線追加
+		KSTR:(K++) '= "-" * LINE_LEN_R
+		; 所定の位置に解説表示
+		CALL キャラ解説表示用(対象キャラ, POS_X, POS_Y)
+ENDSELECT
+RETURN 1
+
+;-------------------------------------------------
+;表示用テキストの取得：種族
+;-------------------------------------------------
+@GET_TEXT_種族(結果格納先, 対象キャラ, オプション表示 = 1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+#DIM      オプション表示
+#DIMS 種族テキスト
+
+種族テキスト '= @"%GET_TALENTNAME(200, TALENT:対象キャラ:種族,,対象キャラ)%"
+IF CSTR:対象キャラ:特殊種族 != ""
+	種族テキスト += @" [%CSTR:対象キャラ:特殊種族%]"
+ENDIF
+IF オプション表示
+	SIF TALENT:対象キャラ:角あり
+		種族テキスト += "（角あり）"
+	SIF TALENT:対象キャラ:尻尾あり
+		種族テキスト += "（尻尾）"
+	SIF TALENT:対象キャラ:エルーン耳
+		種族テキスト += "（エルーン耳）"
+	SIF TALENT:対象キャラ:ハーヴィン耳
+		種族テキスト += "（ハーヴィン耳）"
+	SIF TALENT:対象キャラ:発情期あり > 0
+		種族テキスト += "（発情期あり）"
+	SIF TALENT:対象キャラ:発情期あり < 0
+		種族テキスト += "（発情期なし）"
+ENDIF
+結果格納先:0 '= "種族"
+結果格納先:1 '= 種族テキスト
+
+;-------------------------------------------------
+;表示用テキストの取得：性別
+;-------------------------------------------------
+@GET_TEXT_性別(結果格納先, 対象キャラ, 追加表記 = 1)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+#DIM      追加表記
+#DIM  L_CNT
+#DIMS 性別テキスト
+#DIMS 追加テキスト, 5 ; 0:まとめ, 1:性転換, 2:童貞, 3:処女, 4:Ａ処女
+
+VARSET 性別テキスト
+VARSET 追加テキスト
+IF CSTR:対象キャラ:性別表記 != ""
+	; 性別表記指定あり
+	性別テキスト += CSTR:対象キャラ:性別表記
+	SIF TALENT:対象キャラ:非童貞 == 0 && CFLAG:対象キャラ:童貞表示
+		追加テキスト:2 = 童貞
+	SIF TALENT:対象キャラ:処女 && CFLAG:対象キャラ:処女表示
+		追加テキスト:3 = 処女
+	SIF TALENT:対象キャラ:Ａ処女 && CFLAG:対象キャラ:Ａ処女表示
+		追加テキスト:4 = Ａ処女
+ELSE
+	性別テキスト += GET_TALENTNAME(GETNUM(TALENT, "性別"), TALENT:対象キャラ:性別,,対象キャラ)
+	SELECTCASE TALENT:対象キャラ:性別
+		CASE 1
+			; 女性
+			SIF TALENT:対象キャラ:処女
+				追加テキスト:3 = 処女
+			SIF TALENT:対象キャラ:Ａ処女
+				追加テキスト:4 = Ａ処女
+		CASE 2
+			; 男性
+			SIF TALENT:対象キャラ:非童貞 == 0
+				追加テキスト:2 = 童貞
+			SIF TALENT:対象キャラ:Ａ処女
+				追加テキスト:4 = Ａ処女
+		CASE 3
+			; ふたなり
+			SIF TALENT:対象キャラ:非童貞 == 0
+				追加テキスト:2 = 童貞
+			SIF TALENT:対象キャラ:処女
+				追加テキスト:3 = 処女
+			SIF TALENT:対象キャラ:Ａ処女
+				追加テキスト:4 = Ａ処女
+		CASEELSE
+			; その他
+	ENDSELECT
+ENDIF
+; 性転換情報(元男、元女)
+追加テキスト:1 '= GET_TALENTNAME(GETNUM(TALENT, "性転換"), TALENT:対象キャラ:性転換,,対象キャラ)
+
+; 追加表記の追加
+IF 追加表記
+	FOR L_CNT, 1, VARSIZE("追加テキスト")
+		SIF 追加テキスト:L_CNT == ""
+			CONTINUE
+		SIF 追加テキスト != ""
+			追加テキスト += ","
+		追加テキスト += 追加テキスト:L_CNT
+	NEXT
+	SIF 追加テキスト != ""
+		性別テキスト += @"（%追加テキスト%）"
+ENDIF
+結果格納先:0 '= "性別"
+結果格納先:1 '= 性別テキスト
+
+;-------------------------------------------------
+;表示用テキストの取得：年齢
+;-------------------------------------------------
+@GET_TEXT_年齢(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+結果格納先:0 '= "年齢"
+; 特殊設定がある場合は優先
+IF CSTR:対象キャラ:特殊年齢 != ""
+	結果格納先:1 '= CSTR:対象キャラ:特殊年齢
+; 年齢表示設定が年齢表示＆年齢設定がある場合
+ELSEIF GETBIT(OPTION変数:身体項目表示切り替え, 5) && BASE:対象キャラ:年齢 > 0
+	結果格納先:1 '= @"{BASE:対象キャラ:年齢}歳"
+; 年齢設定が年齢層表示 or 年齢設定がない場合
+ELSE
+	結果格納先:1 '= GET_年齢文字列(TALENT:対象キャラ:性別, TALENT:対象キャラ:年齢層, TALENT:対象キャラ:外見年齢, BASE:対象キャラ:年齢)
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：身長
+;-------------------------------------------------
+@GET_TEXT_身長(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(OPTION変数:身体項目表示切り替え, 0)
+	結果格納先:0 '=  "身長"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:身長, 1)%cm"
+ELSE
+	結果格納先:0 '=  "体格"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体格"), TALENT:対象キャラ:体格,,対象キャラ)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：バスト
+;-------------------------------------------------
+@GET_TEXT_バスト(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(OPTION変数:身体項目表示切り替え, 1)
+	結果格納先:0 '=  "バスト"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:バスト, 1)%cm%GET_CUPSIZE(対象キャラ)%"
+ELSE
+	結果格納先:0 '=  "バスト"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "バストサイズ"), TALENT:対象キャラ:バストサイズ,,対象キャラ)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：ウエスト
+;-------------------------------------------------
+@GET_TEXT_ウエスト(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(OPTION変数:身体項目表示切り替え, 2)
+	結果格納先:0 '=  "ウエスト"
+	結果格納先:1 '= @"%DECIMAL_STRING(補正込みウエストサイズ(対象キャラ), 1)%cm"
+ELSE
+	結果格納先:0 '=  "体型"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "体型"), TALENT:対象キャラ:体型,,対象キャラ)%"
+ENDIF
+
+;-------------------------------------------------
+;表示用テキストの取得：ヒップ
+;-------------------------------------------------
+@GET_TEXT_ヒップ(結果格納先, 対象キャラ)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIMS REF 結果格納先
+#DIM      対象キャラ
+
+;設定「身体項目表示切り替え」に合わせて内容を切替
+IF GETBIT(OPTION変数:身体項目表示切り替え, 3)
+	結果格納先:0 '=  "ヒップ"
+	結果格納先:1 '= @"%DECIMAL_STRING(BASE:対象キャラ:ヒップ, 1)%cm"
+ELSE
+	結果格納先:0 '=  "下半身"
+	結果格納先:1 '= @"%GET_TALENTNAME(GETNUM(TALENT, "下半身"),TALENT:対象キャラ:下半身,,対象キャラ)%"
+ENDIF

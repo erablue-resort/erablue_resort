@@ -1,5 +1,4 @@
-﻿
-;=========================================================
+﻿;=========================================================
 ;	・キャラフィルタ処理
 ;	配列をREFで渡して現在のフィルタやソートに応じた配列を返す
 ;	返し配列と配列数を統一するため、渡す配列の配列数は「キャラクタ数上限」を設定することを推奨
@@ -21,6 +20,8 @@
 #DIMS 出典フィルタマッチ配列, 50
 #DIM 出典フィルタマッチ配列番号
 #DIM 基準数値
+#DIM DYNAMIC WAIT基準時間
+#DIM 対象キャラ
 
 REDRAW 0
 
@@ -40,94 +41,111 @@ FOR 配列番号, 0, CHARANUM
 	IF (配列番号 + 1) % 基準数値 == 0
 		CLEARLINE 1
 		PRINTFORML フィルタ処理進行度……{((配列番号 + 1) / 基準数値) * 10}\%
-		AWAIT
-		;TWAIT 100, 1
+		REDRAW 2
 	ENDIF
-
+	IF GETTIME() > WAIT基準時間 + 1000
+		;無限ループ判定対策で1秒に1回AWAITする
+		WAIT基準時間 = GETTIME()
+		AWAIT
+	ENDIF
+	対象キャラ = 対象キャラ配列:配列番号
 	;基本的にあなたは処理しないのでスキップ
-	SIF 対象キャラ配列:配列番号 < 1
+	SIF 対象キャラ < 1
 		CONTINUE
 	;フィルタリングは何らかのフィルタが有効な場合のみ行う
 	IF MATCH(キャラ一覧フィルタ, "") != VARSIZE("キャラ一覧フィルタ")
-		SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, TALENT:(対象キャラ配列:配列番号):性別)%")
+		SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, TALENT:対象キャラ:性別)%")
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:(対象キャラ配列:配列番号):種族)%")
+		SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:対象キャラ:種族)%")
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:(対象キャラ配列:配列番号):バストサイズ)%") && TALENT:(対象キャラ配列:配列番号):性別 != 2
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:対象キャラ:バストサイズ)%") && TALENT:対象キャラ:性別 != 2
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:(対象キャラ配列:配列番号):性別 == 2
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:対象キャラ:性別 == 2
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:(対象キャラ配列:配列番号):男性器サイズ)%") && GETBIT(TALENT:(対象キャラ配列:配列番号):性別, 1) != 0
+		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:対象キャラ:男性器サイズ)%") && GETBIT(TALENT:対象キャラ:性別, 1) != 0
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:(対象キャラ配列:配列番号):性別, 1) == 0
+		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:対象キャラ:性別, 1) == 0
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:(対象キャラ配列:配列番号):性知識, 対象キャラ配列:配列番号)%")
+		SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:対象キャラ:性知識, 対象キャラ)%")
 			CONTINUE
-		IF 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号, "変更属性", 1) != ""
-			SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:(対象キャラ配列:配列番号):装備耳飾り番号, "変更属性", 1)%")
+		IF 装備ステータス補正保存:対象キャラ:装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:対象キャラ:装備耳飾り番号, "変更属性", 1) != ""
+			SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:対象キャラ:装備耳飾り番号, "変更属性", 1)%")
 				CONTINUE
 		ELSE
-			SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:(対象キャラ配列:配列番号):属性)%")
+			SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:対象キャラ:属性)%")
 				CONTINUE
 		ENDIF
 		スキップフラグ = 0
 		FOR LOCAL, 0, 10
-			IF GETBIT(基礎BATTLE_STATE:(対象キャラ配列:配列番号):得意武器, LOCAL) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(LOCAL)%")
+			IF GETBIT(基礎BATTLE_STATE:対象キャラ:得意武器, LOCAL) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(LOCAL)%")
 				スキップフラグ = 1
 				BREAK
 			ENDIF
 		NEXT
 		SIF スキップフラグ
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:(対象キャラ配列:配列番号):ステータスタイプ保存)%")
+		SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:対象キャラ:ステータスタイプ保存)%")
 			CONTINUE
 		;発情期はちょっと面倒だけどオール手打ち
-		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(対象キャラ配列:配列番号)
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(対象キャラ)
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(対象キャラ配列:配列番号) && CFLAG:(対象キャラ配列:配列番号):発情期フラグ < 0
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(対象キャラ) && CFLAG:対象キャラ:発情期フラグ < 0
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(対象キャラ配列:配列番号) && CFLAG:(対象キャラ配列:配列番号):発情期フラグ > -1
+		SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(対象キャラ) && CFLAG:対象キャラ:発情期フラグ > -1
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:(対象キャラ配列:配列番号):妊娠
+		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:対象キャラ:妊娠
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:(対象キャラ配列:配列番号):妊娠
+		SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:対象キャラ:妊娠
 			CONTINUE
-		口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:(対象キャラ配列:配列番号)}_%CALLNAME:(対象キャラ配列:配列番号)%", "口上_*.ERB", 1)
+		口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:(対象キャラ)}_%CALLNAME:(対象キャラ)%", "口上_*.ERB", 1)
 		SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
 			CONTINUE
 		SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
 			CONTINUE
-		アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(対象キャラ配列:配列番号)}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:(対象キャラ配列:配列番号)}")
+
+		スキップフラグ = 1
+		SIF !STRCOUNT(キャラ一覧フィルタ:画像, @"画像：あり") && HAS_RESOURCES(対象キャラ)
+			スキップフラグ = 0
+		SIF !STRCOUNT(キャラ一覧フィルタ:画像, @"画像：水着あり") && HAS_COSTUME(対象キャラ, "水着")
+			スキップフラグ = 0
+		SIF !STRCOUNT(キャラ一覧フィルタ:画像, @"画像：裸あり") && HAS_COSTUME(対象キャラ, "全裸")
+			スキップフラグ = 0
+		SIF !STRCOUNT(キャラ一覧フィルタ:画像, @"画像：なし") && !HAS_RESOURCES(対象キャラ)
+			スキップフラグ = 0
+		SIF スキップフラグ
+			CONTINUE
+
+		アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(対象キャラ)}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:(対象キャラ)}")
 		SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数 > 0
 			CONTINUE
 		SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:(対象キャラ配列:配列番号):恋慕
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:対象キャラ:恋慕
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:(対象キャラ配列:配列番号):セフレ
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:対象キャラ:セフレ
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:(対象キャラ配列:配列番号):セフレ && !TALENT:(対象キャラ配列:配列番号):恋慕
+		SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:対象キャラ:セフレ && !TALENT:対象キャラ:恋慕
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：あり") && (文字色グループ取得(対象キャラ配列:配列番号) > -1 || CFLAG:(対象キャラ配列:配列番号):同室文字色)
+		SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：あり") && (文字色グループ取得(対象キャラ) > -1 || CFLAG:対象キャラ:同室文字色)
 			CONTINUE
-		SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：なし") && (文字色グループ取得(対象キャラ配列:配列番号) < 0 && !CFLAG:(対象キャラ配列:配列番号):同室文字色)
+		SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：なし") && (文字色グループ取得(対象キャラ) < 0 && !CFLAG:対象キャラ:同室文字色)
 			CONTINUE
 		IF キャラ一覧フィルタ:弱点コマンド != ""
 			IF 弱点コマンド検索タイプ == 0
 				スキップフラグ = 1
 				FOR 弱点フィルタマッチ配列番号, 0, 弱点コマンド数上限
-					SIF 弱点コマンド枠:(対象キャラ配列:配列番号):弱点フィルタマッチ配列番号 == ""
+					SIF 弱点コマンド枠:対象キャラ:弱点フィルタマッチ配列番号 == ""
 						CONTINUE
-					IF MATCH(弱点フィルタマッチ配列, 弱点コマンド枠:(対象キャラ配列:配列番号):弱点フィルタマッチ配列番号) && 弱点看破:(対象キャラ配列:配列番号):弱点フィルタマッチ配列番号
+					IF MATCH(弱点フィルタマッチ配列, 弱点コマンド枠:対象キャラ:弱点フィルタマッチ配列番号) && 弱点看破:対象キャラ:弱点フィルタマッチ配列番号
 						スキップフラグ = 0
 						BREAK
 					ENDIF
 				NEXT
 				IF スキップフラグ
 					FOR 弱点フィルタマッチ配列番号, 0, 追加弱点コマンド数上限
-						SIF 追加弱点コマンド枠:(対象キャラ配列:配列番号):弱点フィルタマッチ配列番号 == ""
+						SIF 追加弱点コマンド枠:対象キャラ:弱点フィルタマッチ配列番号 == ""
 							CONTINUE
-						IF MATCH(弱点フィルタマッチ配列, 追加弱点コマンド枠:(対象キャラ配列:配列番号):弱点フィルタマッチ配列番号)
+						IF MATCH(弱点フィルタマッチ配列, 追加弱点コマンド枠:対象キャラ:弱点フィルタマッチ配列番号)
 							スキップフラグ = 0
 							BREAK
 						ENDIF
@@ -138,10 +156,10 @@ FOR 配列番号, 0, CHARANUM
 				FOR 弱点フィルタマッチ配列番号, 0, 50
 					SIF 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号 == ""
 						BREAK
-					IF MATCH(弱点コマンド枠:(対象キャラ配列:配列番号):0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号) == 0
+					IF MATCH(弱点コマンド枠:対象キャラ:0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号) == 0
 						スキップフラグ = 1
 						BREAK
-					ELSEIF 弱点看破:(対象キャラ配列:配列番号):(FINDELEMENT(弱点コマンド枠:(対象キャラ配列:配列番号):0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号, , , 1)) == 0
+					ELSEIF 弱点看破:対象キャラ:(FINDELEMENT(弱点コマンド枠:対象キャラ:0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号, , , 1)) == 0
 						スキップフラグ = 1
 						BREAK
 					ENDIF
@@ -150,7 +168,7 @@ FOR 配列番号, 0, CHARANUM
 					FOR 弱点フィルタマッチ配列番号, 0, 50
 						SIF 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号 == ""
 							BREAK
-						IF MATCH(追加弱点コマンド枠:(対象キャラ配列:配列番号):0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号) == 0
+						IF MATCH(追加弱点コマンド枠:対象キャラ:0, 弱点フィルタマッチ配列:弱点フィルタマッチ配列番号) == 0
 							スキップフラグ = 1
 							BREAK
 						ENDIF
@@ -161,11 +179,11 @@ FOR 配列番号, 0, CHARANUM
 				CONTINUE
 		ENDIF
 		IF キャラ一覧フィルタ:出典 != ""
-			IF CSTR:(対象キャラ配列:配列番号):出演作品 == ""
+			IF CSTR:対象キャラ:出演作品 == ""
 				SIF MATCH(出典フィルタマッチ配列, "グランブルーファンタジー") == 0
 					CONTINUE
 			ELSE
-				SIF MATCH(出典フィルタマッチ配列, CSTR:(対象キャラ配列:配列番号):出演作品) == 0
+				SIF MATCH(出典フィルタマッチ配列, CSTR:対象キャラ:出演作品) == 0
 					CONTINUE
 			ENDIF
 		ENDIF
@@ -178,14 +196,14 @@ FOR 配列番号, 0, CHARANUM
 			BREAK
 		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
 		IF キャラ一覧素質絞り込み:99 == "AND"
-			IF TALENT:(対象キャラ配列:配列番号):(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
 				;ANDの場合は一個でもアウトだとNG
 				合致フラグ = 0
 				BREAK
 			ENDIF
 		ELSE
 			合致フラグ = 0
-			IF TALENT:(対象キャラ配列:配列番号):(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
 				;OR条件の場合は一個当てはまればOK
 				合致フラグ = 1
 				BREAK
@@ -195,7 +213,7 @@ FOR 配列番号, 0, CHARANUM
 	SIF 合致フラグ == 0
 		CONTINUE
 
-	返し配列:候補人数 = 対象キャラ配列:配列番号
+	返し配列:候補人数 = 対象キャラ
 	ソート基準値:候補人数 = ソート情報登録(返し配列:候補人数, 候補人数)
 	候補人数 += 1
 NEXT
@@ -210,67 +228,1018 @@ PRINTL フィルタ処理進行度……100%
 
 RETURN 候補人数
 
+;---------------------------------------------------------
+;フィルタ設定画面表示
+;---------------------------------------------------------
+;日本語の関数も用意
+@フィルタ設定画面表示()
+JUMP SHOW_CHARADATA_FILTA()
 
-@ソート情報登録(キャラ番号, 登録番号)
-#FUNCTION
-#DIM キャラ番号
-#DIM 登録番号
-#DIM ソート順
+;本体
+@SHOW_CHARADATA_FILTA
+#DIMS 表示フィルタ種類
+#DIMS 弱点フィルタマッチ配列, 50
+#DIM 弱点フィルタマッチ配列番号
+#DIMS 出典フィルタマッチ配列, 50
+#DIM 出典フィルタマッチ配列番号
 
-ソート順 = 1
-;ソート処理
+PRINTL
+DRAWLINE
+PRINTL キャラクターの表示に以下の条件でフィルタを掛けます。
+PRINTL 暗い色で表示されている条件が非表示設定になっています。
+DRAWLINE
+
+IF 表示フィルタ種類 == ""
+	PRINTL ■ 性別
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:性別, "性別：女性")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[女性]", "性別：女性"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:性別, "性別：男性")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[男性]", "性別：男性"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:性別, "性別：ふたなり")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[ふたなり]", "性別：ふたなり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:性別, "性別：その他")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[その他]", "性別：その他"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "性別：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "性別：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 陥落
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：恋慕")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[恋慕]", "陥落：恋慕"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：セフレ")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[セフレ]", "陥落：セフレ"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:陥落, "陥落：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON "[なし]", "陥落：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "陥落：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "陥落：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 種族
+	PRINT 　 
+	FOR LOCAL, 1, 7
+		SIF STRCOUNT(キャラ一覧フィルタ:種族, GET_TALENTNAME(200, LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%GET_TALENTNAME(200, LOCAL)%]", @"種族：%GET_TALENTNAME(200, LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 6
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "種族：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "種族：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ バストサイズ
+	PRINT 　 
+	FOR LOCAL, -2, 4
+		SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, GET_TALENTNAME(205, LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%GET_TALENTNAME(205, LOCAL)%]", @"バストサイズ：%GET_TALENTNAME(205, LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 3
+			PRINT / 
+			SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし")
+				SETCOLOR 0x666666
+			PRINTBUTTON "[バストなし]", "バストサイズ：なし"
+			RESETCOLOR
+			PRINT 　　　　　　　　　　
+			PRINTBUTTON "[全て表示]", "バストサイズ：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "バストサイズ：全て非表示"
+			PRINTL
+		ELSEIF LOCAL == 1
+			PRINTL 
+			PRINT 　 
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 男性器サイズ
+	PRINT 　 
+	FOR LOCAL, -2, 3
+		SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, GET_TALENTNAME(162, LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%GET_TALENTNAME(162, LOCAL)%]", @"男性器サイズ：%GET_TALENTNAME(162, LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 2
+			PRINT / 
+			SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし")
+				SETCOLOR 0x666666
+			PRINTBUTTON "[男性器なし]", "男性器サイズ：なし"
+			RESETCOLOR
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "男性器サイズ：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "男性器サイズ：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 性知識Lv
+	PRINT 　 
+	FOR LOCAL, -2, 4
+		SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, 性知識段階表示(LOCAL, 0))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%性知識段階表示(LOCAL, 0)%]", @"性知識Lv：%性知識段階表示(LOCAL, 0)%"
+		RESETCOLOR
+		IF LOCAL == 0
+			PRINT  / 
+			SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, 性知識段階表示(0, 3))
+				SETCOLOR 0x666666
+			PRINTBUTTON @"[%性知識段階表示(0, 3)%]", @"性知識Lv：%性知識段階表示(0, 3)%"
+			RESETCOLOR
+		ENDIF
+		IF LOCAL == 3
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "性知識Lv：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "性知識Lv：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 発情期
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情期なし]", @"発情期フラグ：発情期なし"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情中]", @"発情期フラグ：発情中"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[発情期ではない]", @"発情期フラグ：発情期ではない"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "発情期フラグ：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "発情期フラグ：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 弱点コマンド
+	PRINT 　
+	PRINTBUTTON "[弱点コマンドフィルタを起動]", "弱点コマンドフィルタ"
+	PRINT  / 
+	IF 弱点コマンド検索タイプ == 0
+		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[OR検索 / <font color='#%カラーパレット_HTML("グレーアウト")%'>AND検索</font>]</button>", 1
+	ELSEIF 弱点コマンド検索タイプ == 1
+		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[<font color='#%カラーパレット_HTML("グレーアウト")%'>OR検索</font> / AND検索]</button>", 1
+	ENDIF
+	PRINTL
+	IF キャラ一覧フィルタ:弱点コマンド != ""
+		PRINT 　 
+		VARSET 弱点フィルタマッチ配列
+		SPLIT キャラ一覧フィルタ:弱点コマンド, "+++", 弱点フィルタマッチ配列
+		FOR LOCAL, 0, RESULT
+			SIF LOCAL > 0
+				PRINT ・
+			PRINTFORM %弱点の欠片名前表示(弱点フィルタマッチ配列:LOCAL)%
+		NEXT
+		PRINTL
+	ENDIF
+	DRAWLINE
+	PRINTL ■ 妊娠
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[妊娠中]", @"妊娠フラグ：妊娠中"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[妊娠していない]", @"妊娠フラグ：妊娠していない"
+	RESETCOLOR
+
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "妊娠フラグ：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "妊娠フラグ：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 口上有無
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[口上あり]", "口上：口上あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[口上なし]", "口上：口上なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "口上：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "口上：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 固有アビ奥義有無
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[固有アビ奥義あり]", "固有アビ奥義：あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[固有アビ奥義なし]", "固有アビ奥義：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "固有アビ奥義：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "固有アビ奥義：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 画像有無
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:画像, @"画像：あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[画像あり]", "画像：あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:画像, @"画像：水着あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[画像あり(水着)]", "画像：水着あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:画像, @"画像：裸あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[画像あり(裸)]", "画像：裸あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:画像, @"画像：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[画像なし]", "画像：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "画像：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "画像：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ 表示色設定
+	PRINT 　 
+	SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：あり")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[名前着色あり]", "名前着色：あり"
+	RESETCOLOR
+	PRINT  / 
+	SIF STRCOUNT(キャラ一覧フィルタ:名前着色, @"名前着色：なし")
+		SETCOLOR 0x666666
+	PRINTBUTTON @"[名前着色なし]", "名前着色：なし"
+	RESETCOLOR
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "名前着色：全て表示"
+	PRINT /
+	PRINTBUTTON "[全て非表示]", "名前着色：全て非表示"
+	PRINTL
+	DRAWLINE
+	PRINTL ■ キャラクター出典・原作
+	PRINT 　 
+	PRINTBUTTON "[出典フィルタを起動]", "出典フィルタ"
+	PRINTL
+	IF キャラ一覧フィルタ:出典 != ""
+		PRINT 　 
+		VARSET 出典フィルタマッチ配列
+		SPLIT キャラ一覧フィルタ:出典, "+++", 出典フィルタマッチ配列
+		FOR LOCAL, 0, RESULT
+			SIF LOCAL > 0
+				PRINT ・
+			PRINTFORM %出典フィルタマッチ配列:LOCAL%
+		NEXT
+		PRINTL
+	ENDIF
+	PRINTL
+	PRINTL
+	PRINTBUTTONLC "[999]戻る", 999
+	PRINTBUTTONLC "[1000]戦闘系フィルタへ", 1000
+	PRINTL
+ELSEIF 表示フィルタ種類 == "戦闘系フィルタ"
+	PRINTL ■ 属性
+	PRINT 　 
+	FOR LOCAL, 0, 6
+		SIF STRCOUNT(キャラ一覧フィルタ:属性, 属性数値文字列変換(LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%属性数値文字列変換(LOCAL)%]", @"属性：%属性数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 5
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "属性：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "属性：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ 得意武器
+	PRINT 　 
+	FOR LOCAL, 0, 10
+		SIF STRCOUNT(キャラ一覧フィルタ:得意武器, @"：%得意武器数値文字列変換(LOCAL)%")
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%得意武器数値文字列変換(LOCAL)%]", @"得意武器：%得意武器数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 9
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "得意武器：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "得意武器：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTL ■ タイプ
+	PRINT 　 
+	FOR LOCAL, 0, 8
+		SIF STRCOUNT(キャラ一覧フィルタ:タイプ, タイプ数値文字列変換(LOCAL))
+			SETCOLOR 0x666666
+		PRINTBUTTON @"[%タイプ数値文字列変換(LOCAL)%]", @"タイプ：%タイプ数値文字列変換(LOCAL)%"
+		RESETCOLOR
+		IF LOCAL == 7
+			PRINT 　　　　　
+			PRINTBUTTON "[全て表示]", "タイプ：全て表示"
+			PRINT /
+			PRINTBUTTON "[全て非表示]", "タイプ：全て非表示"
+			PRINTL
+		ELSE
+			PRINT  / 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTBUTTONLC "[999]戻る", 999
+	PRINTBUTTONLC "[1001]通常フィルタへ", 1001
+	PRINTL
+ENDIF
+
+$INPUT_LOOP_ANY
+RESULT = 0
+RESULTS = 
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ELSEIF RESULT == 1000
+	表示フィルタ種類 = 戦闘系フィルタ
+	RESTART
+ELSEIF RESULT == 1001
+	表示フィルタ種類 = 
+	RESTART
+ENDIF
+IF RESULTS != ""
+	LOCALS = %RESULTS%
+	IF LOCALS == "弱点コマンドフィルタ"
+		CALL 弱点コマンド_FILTA()
+	ELSEIF LOCALS == "弱点コマンド検索タイプ"
+		INVERTBIT 弱点コマンド検索タイプ, 0
+	ELSEIF LOCALS == "出典フィルタ"
+		CALL 出典_FILTA()
+	ELSEIF STRCOUNT(LOCALS, "種族")
+		LOCAL = 0
+	ELSEIF STRCOUNT(LOCALS, "バストサイズ")
+		LOCAL = 1
+	ELSEIF STRCOUNT(LOCALS, "性知識Lv")
+		LOCAL = 2
+	ELSEIF STRCOUNT(LOCALS, "発情期フラグ")
+		LOCAL = 3
+	ELSEIF STRCOUNT(LOCALS, "妊娠フラグ")
+		LOCAL = 4
+	ELSEIF STRCOUNT(LOCALS, "男性器サイズ")
+		LOCAL = 5
+	ELSEIF STRCOUNT(LOCALS, "陥落")
+		LOCAL = 6
+	ELSEIF STRCOUNT(LOCALS, "性別")
+		LOCAL = 7
+	ELSEIF STRCOUNT(LOCALS, "属性")
+		LOCAL = 10
+	ELSEIF STRCOUNT(LOCALS, "得意武器")
+		LOCAL = 11
+	ELSEIF STRCOUNT(LOCALS, "タイプ")
+		LOCAL = 12
+	ELSEIF STRCOUNT(LOCALS, "名前着色")
+		LOCAL = 13
+	ELSEIF STRCOUNT(LOCALS, "固有アビ奥義")
+		LOCAL = 18
+	ELSEIF STRCOUNT(LOCALS, "口上")
+		LOCAL = 19
+	ELSEIF STRCOUNT(LOCALS, "画像")
+		LOCAL = GETNUM(キャラ一覧フィルタ, "画像")
+	ELSE
+		GOTO INPUT_LOOP_ANY
+	ENDIF
+	IF STRCOUNT(LOCALS, "全て表示")
+		キャラ一覧フィルタ:LOCAL =
+	ELSEIF STRCOUNT(LOCALS, "全て非表示")
+		SELECTCASE LOCAL
+			CASE 0
+				キャラ一覧フィルタ:種族 = "種族：ヒューマン_種族：エルーン_種族：ドラフ_種族：ハーヴィン_種族：星晶獣_種族：その他_"
+			CASE 1
+				キャラ一覧フィルタ:バストサイズ = "バストサイズ：絶壁（AAA～AA）_バストサイズ：貧乳（A～B）_バストサイズ：並乳（C～D）_バストサイズ：巨乳（E～F）_バストサイズ：爆乳（G～I）_バストサイズ：魔乳（J↑）_バストサイズ：なし_"
+			CASE 2
+				キャラ一覧フィルタ:性知識Lv = "性知識Lv：無知_性知識Lv：獣並み_性知識Lv：疎い_性知識Lv：耳年増_性知識Lv：必要十分_性知識Lv：有識者_性知識Lv：百戦錬磨_"
+			CASE 3
+				キャラ一覧フィルタ:発情期 = "発情期フラグ：発情期なし_発情期フラグ：発情中_発情期フラグ：発情期ではない_"
+			CASE 4
+				キャラ一覧フィルタ:妊娠 = "妊娠フラグ：妊娠中_妊娠フラグ：妊娠していない_"
+			CASE 5
+				キャラ一覧フィルタ:男性器サイズ = "男性器サイズ：こどもちんこ_男性器サイズ：短小_男性器サイズ：平凡_男性器サイズ：巨根_男性器サイズ：規格外_男性器サイズ：なし_"
+			CASE 6
+				キャラ一覧フィルタ:陥落 = "陥落：恋慕_陥落：セフレ_陥落：なし_"
+			CASE 7
+				キャラ一覧フィルタ:性別 = "性別：女性_性別：男性_性別：ふたなり_性別：その他_"
+			CASE 10
+				キャラ一覧フィルタ:属性 = "属性：火_属性：水_属性：風_属性：土_属性：光_属性：闇_"
+			CASE 11
+				キャラ一覧フィルタ:得意武器 = "得意武器：剣_得意武器：短剣_得意武器：斧_得意武器：槍_得意武器：弓_得意武器：銃_得意武器：楽器_得意武器：格闘_得意武器：刀_得意武器：杖_"
+			CASE 12
+				キャラ一覧フィルタ:タイプ = "タイプ：バランス_タイプ：攻撃_タイプ：防御_タイプ：回復_タイプ：サポート_タイプ：連撃_タイプ：回避_タイプ：奥義_"
+			CASE 13
+				キャラ一覧フィルタ:名前着色 = "名前着色：あり_名前着色：なし"
+			CASE 18
+				キャラ一覧フィルタ:固有アビ奥義 = "固有アビ奥義：あり_固有アビ奥義：なし_"
+			CASE 19
+				キャラ一覧フィルタ:口上 = "口上：口上あり_口上：口上なし"
+			CASE 20
+				キャラ一覧フィルタ:画像 = "画像：あり_画像：水着あり_画像：裸あり_画像：なし"
+		ENDSELECT
+	ELSEIF STRCOUNT(キャラ一覧フィルタ:LOCAL, LOCALS)
+		REPLACE キャラ一覧フィルタ:LOCAL, @"%LOCALS%_", ""
+		キャラ一覧フィルタ:LOCAL = %RESULTS%
+	ELSE
+		キャラ一覧フィルタ:LOCAL += @"%LOCALS%_"
+	ENDIF
+ENDIF
+RESTART
+
+;---------------------------------------------------------
+;フィルタ設定画面表示 素質フィルタ
+;---------------------------------------------------------
+@素質絞り込み設定画面表示()
+JUMP SHOW_CHARADATA_素質絞り込み
+
+@SHOW_CHARADATA_素質絞り込み
+DRAWLINE
+PRINTL キャラクターの表示を素質の有無で絞り込みします。
+PRINTL 複数選択時はAND条件とOR条件を切り替えることができます。
+DRAWLINE
+VARSET LOCAL
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		PRINT 現在の複数選択時設定：
+		PRINTBUTTON "[AND条件]", 201
+		PRINTL 
+	ELSE
+		PRINT 現在の複数選択時設定：
+		PRINTBUTTON "[OR条件]", 201
+		PRINTL 
+	ENDIF
+	PRINT 現在の絞り込み素質：
+	FOR LOCAL, 0, 99
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			CONTINUE
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		PRINTBUTTON @"[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]", LOCAL
+		LOCAL:10 += STRLENS(GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)))
+		IF LOCAL:10 > 50
+			PRINTL
+		ENDIF
+	NEXT
+	PRINTL
+	PRINTBUTTON "[全消去]", 200
+ELSE
+	PRINT 現在の絞り込み素質：なし
+ENDIF
+PRINTL
+DRAWLINE
+FOR LOCAL, 0, 1000
+	SIF TALENTNAME:LOCAL == ""
+		CONTINUE
+	SIF LOCAL >= 200 && LOCAL <= 219
+		CONTINUE
+	SIF GROUPMATCH(LOCAL, 162, 164, 165)
+		CONTINUE
+	SIF LOCAL < 5
+		CONTINUE
+	FOR LOCAL:1 , -10, 11
+		IF GET_TALENTNAME(LOCAL, LOCAL:1) != ""
+			SIF MATCH(キャラ一覧素質絞り込み, @"{LOCAL}_{LOCAL:1}")
+				SETCOLOR カラーパレット("黄")
+			LOCALS = [%GET_TALENTNAME(LOCAL, LOCAL:1)%]
+			PRINTBUTTON @"%LOCALS, 20, LEFT%", @"{LOCAL}_{LOCAL:1}"
+			RESETCOLOR
+		ENDIF
+	NEXT
+NEXT
+PRINTL
+DRAWLINE
+PRINTBUTTON "[999]戻る", 999
+
+$INPUT_LOOP_ANY
+RESULT = -1
+RESULTS = 
+VARSET LOCALS
+INPUTANY
+IF RESULT == 999
+	RETURN 0
+ELSEIF RESULT == 201
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		キャラ一覧素質絞り込み:99 = 
+		RESTART
+	ELSE
+		キャラ一覧素質絞り込み:99 = AND
+		RESTART
+	ENDIF
+ELSEIF RESULT == 200
+	VARSET キャラ一覧素質絞り込み
+	RESTART
+ELSEIF RESULT >= 0 && RESULT < 99
+	LOCAL:1 = RESULT
+	IF キャラ一覧素質絞り込み:(LOCAL:1) != ""
+		FOR LOCAL, (LOCAL:1), 99
+			キャラ一覧素質絞り込み:LOCAL = %キャラ一覧素質絞り込み:(LOCAL + 1)%
+			SIF キャラ一覧素質絞り込み:LOCAL == ""
+				BREAK
+		NEXT
+		RESTART
+	ENDIF
+ENDIF
+LOCALS = %RESULTS%
+IF STRCOUNT(LOCALS, "_")
+	IF MATCH(キャラ一覧素質絞り込み, LOCALS)
+		キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, LOCALS)) = 
+		RESTART
+	ELSE
+		SPLIT LOCALS, "_", LOCALS
+		IF GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)) != ""
+			キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, "", , , 1)) = %LOCALS:0%_%LOCALS:1%
+			RESTART
+		ENDIF
+	ENDIF
+ENDIF
+REUSELASTLINE 
+GOTO INPUT_LOOP_ANY
+
+;---------------------------------------------------------
+;フィルタ/ソートボタンセット表示
+;---------------------------------------------------------
+@フィルタソートボタンセット表示(フィルタボタン番号, ソートボタン番号, ソート順ボタン番号, 素質絞込ボタン番号, 追加フィルタボタン番号 = -1, 追加フィルタボタンテキスト = "")
+#DIM フィルタボタン番号
+#DIM ソートボタン番号
+#DIM ソート順ボタン番号
+#DIM 素質絞込ボタン番号
+#DIM 追加フィルタボタン番号
+#DIMS 追加フィルタボタンテキスト
+#DIMS ソート設定
+
+;フィルタボタン
+PRINTBUTTON @"[{フィルタボタン番号}]フィルタ機能", フィルタボタン番号
+PRINTL
+IF 追加フィルタボタン番号 != -1 && 追加フィルタボタンテキスト != ""
+	PRINT 　└
+	PRINTBUTTON @"[{追加フィルタボタン番号}]%追加フィルタボタンテキスト%", 追加フィルタボタン番号
+	PRINTL
+ENDIF
+;ソートボタン
+PRINTBUTTON @"[{ソートボタン番号}]ソート機能", ソートボタン番号
+PRINT 　　　　　現在のソート設定　：
 IF キャラ一覧ソート:0 != ""
-	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
-		ソート順 = 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
-		ソート順 = -1
+	ソート設定 '= @"%キャラ一覧ソート:0%(%キャラ一覧ソート:1%)"
+	PRINTFORM %ソート設定, 21, LEFT%
+	IF ソート順ボタン番号 != -1
+		IF STRCOUNT(キャラ一覧ソート:1, "昇順")
+			PRINTBUTTON "[降順にする]", ソート順ボタン番号
+		ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
+			PRINTBUTTON "[昇順にする]", ソート順ボタン番号
+		ENDIF
 	ENDIF
-	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
-		RETURNF ((CFLAG:キャラ番号:好感度レベル * 1000) * ソート順) + LOCAL + 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
-		RETURNF ((CFLAG:キャラ番号:恋慕レベル * 1000) * ソート順) + LOCAL + 1
-	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
-		RETURNF ((ABL:キャラ番号:(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
-	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
-		RETURNF ((基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:キャラ番号:(キャラ一覧ソート:0) * 1000) * ソート順) + LOCAL + 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
-		RETURNF (基礎BATTLE_STATE:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
-		RETURNF (知識素質:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
-		RETURNF (CFLAG:キャラ番号:コマンドタゲ回数記録 * 1000 * ソート順) + LOCAL + 1
-	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
-		RETURNF (性癖素質:キャラ番号:(キャラ一覧ソート:0) * 1000 * ソート順) + LOCAL + 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
-		RETURNF (MAX(ENUMFILES(@"resources/%CSTR:キャラ番号:画像フォルダ%"), 0) * 1000 * ソート順) + LOCAL + 1
-	ENDIF
+ELSE
+	PRINT なし(キャラ番号順)
 ENDIF
+PRINTL
+;素質絞り込みボタン
+PRINTBUTTON @"[{素質絞込ボタン番号}]素質絞り込み機能", 素質絞込ボタン番号
+PRINTFORML 　　現在の絞り込み設定：%素質絞り込み設定内容取得()%
 
-@ソート情報表示(対象キャラ)
+;---------------------------------------------------------
+;フィルタ設定画面表示 素質フィルタ内容取得
+;---------------------------------------------------------
+@素質絞り込み設定内容取得()
 #FUNCTIONS
-#DIM 対象キャラ
+#DIMS DYNAMIC 設定内容
 
-;ソート条件に応じた対象キャラの情報を文字列として返す
-
-SIF キャラ一覧ソート:0 == ""
-	RETURNF ""
-
-IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
-	RETURNF @"好感度レベル：Lv{CFLAG:対象キャラ:好感度レベル, 3}"
-ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
-	RETURNF @"恋慕レベル：Lv{CFLAG:対象キャラ:恋慕レベル, 3}"
-ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
-	RETURNF @"%ABLNAME:(GETNUM(ABL, キャラ一覧ソート:0))%：{ABL:対象キャラ:(キャラ一覧ソート:0), 2}"
-ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
-	RETURNF @"%ERDNAME(装備ステータス補正保存, GETNUM(装備ステータス補正保存, キャラ一覧ソート:0))%：{基礎BATTLE_STATE:対象キャラ:(キャラ一覧ソート:0) + 装備ステータス補正保存:対象キャラ:(キャラ一覧ソート:0), 4}"
-ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
-	RETURNF @"Lv{基礎BATTLE_STATE:対象キャラ:Lv, 3}"
-ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
-	RETURNF @"%ERDNAME(知識素質, GETNUM(知識素質, キャラ一覧ソート:0))%：{知識素質:対象キャラ:(キャラ一覧ソート:0)}"
-ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
-	RETURNF @"コマンド回数：{CFLAG:対象キャラ:コマンドタゲ回数記録, 4}"
-ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
-	RETURNF @"%ERDNAME(性癖素質, GETNUM(性癖素質, キャラ一覧ソート:0))%：{性癖素質:対象キャラ:(キャラ一覧ソート:0)}"
-ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
-	RETURNF @"画像数：{MAX(ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%"), 0), 4}　"
+IF キャラ一覧素質絞り込み:0 != ""
+	IF キャラ一覧素質絞り込み:99 == "AND"
+		設定内容 += "(AND条件)："
+	ELSE
+		設定内容 += "(OR条件)："
+	ENDIF
+	FOR LOCAL, 0, 99
+		SIF キャラ一覧素質絞り込み:LOCAL == ""
+			BREAK
+		LOCALS:0 = 
+		LOCALS:1 = 
+		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		設定内容 += @"[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]"
+	NEXT
+ELSE
+	設定内容 += "なし"
 ENDIF
+RETURNF 設定内容
+
+;---------------------------------------------------------
+;フィルタ設定画面表示 弱点コマンドフィルタ
+;---------------------------------------------------------
+@弱点コマンド_FILTA()
+#DIMS 設定フィルタ配列, 50
+#DIM 弱点フィルタマッチ配列番号
+#DIM 現在ページ
+#DIMS 表示カテゴリ
+#DIM 行カウント
+#DIM モード数
+#DIMS 弱点候補, 10000
+#DIM 弱点候補数
+#DIM CONST 表示行数 = 40
+
+;既存の設定を配列に突っ込む
+SPLIT キャラ一覧フィルタ:弱点コマンド, "+++", 設定フィルタ配列
+
+VARSET 弱点候補
+弱点候補数 = 0
+;現在のページに該当するコマンドを取得
+SELECTCASE 表示カテゴリ
+	CASE "モード"
+		VARSET RESULTS
+		モード数 = ENUMFUNCBEGINSWITH("MODETYPE_")
+		FOR LOCAL, 0, モード数
+			;モード
+			弱点候補:弱点候補数 '= REPLACE(RESULTS:LOCAL, "MODETYPE_", "MODE_")
+			弱点候補数 += 1
+		NEXT
+	CASE "シチュエーション"
+		;自動で取る手段がないので力技で全部直接書く
+		;キャラ固有のシチュなどは取らない
+		弱点候補:弱点候補数 = SITUATION_マッサージモード
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_むりやりうふふモード
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_キャラからお誘い
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_物陰連れ込み
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_キャラからお誘い
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_あなたの自慰目撃
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_呼び出す
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_押し倒す
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_性交渉お願い
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_あなたの挑発に乗る
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_睡姦からなし崩し
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_キャラ同士うふふ乱入
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_キャラの野外オナニー目撃
+		弱点候補数 += 1
+		弱点候補:弱点候補数 = SITUATION_寝取らせ
+		弱点候補数 += 1
+	CASE "マッサージ"
+		FOR LOCAL, 0, 500
+			;通常コマンド
+			IF GETBIT(マッサージコマンド存在フラグ:LOCAL, 0)
+				弱点候補:弱点候補数 = MASSAGE_{LOCAL}
+				弱点候補数 += 1
+				;派生コマンド
+				FOR LOCAL:1, 0, 20
+					SIF !GETBIT(マッサージコマンド存在フラグ:LOCAL, LOCAL:1 + 1)
+						CONTINUE
+					弱点候補:弱点候補数 = MASSAGE_{LOCAL}_{LOCAL:1}
+					弱点候補数 += 1
+				NEXT
+			ENDIF
+		NEXT
+	CASE "むりやりうふふ"
+		FOR LOCAL, 0, 500
+			;通常コマンド
+			IF GETBIT(むりやりうふふコマンド存在フラグ:LOCAL, 0)
+				弱点候補:弱点候補数 = RAPE_{LOCAL}
+				弱点候補数 += 1
+				;派生コマンド
+				FOR LOCAL:1, 0, 20
+					SIF !GETBIT(むりやりうふふコマンド存在フラグ:LOCAL, LOCAL:1 + 1)
+						CONTINUE
+					弱点候補:弱点候補数 = RAPE_{LOCAL}_{LOCAL:1}
+					弱点候補数 += 1
+				NEXT
+			ENDIF
+		NEXT
+	CASEELSE
+		FOR LOCAL, 0, 1000
+			;お祭りコマンドは弱点候補にしない
+			SIF INRANGE(LOCAL, 385, 389)
+				CONTINUE
+			;専用コマンドはフィルタリングに不適なので飛ばす
+			IF INRANGE(LOCAL, 370, 374)
+				CONTINUE
+			;場所固有コマンドはフィルタリングに不適なので飛ばす
+			ELSEIF INRANGE(LOCAL, 380, 384)
+				CONTINUE
+				; FOR LOCAL:1, 0, 20
+				; 	FOR LOCAL:2, 0, 20
+				; 		SIF !GETBIT(場所固有コマンド存在フラグ:(LOCAL - 380):(LOCAL:5):(LOCAL:1), LOCAL:2)
+				; 			CONTINUE
+				; 		LOCAL:3 = LOCAL:1 * 100 + LOCAL : 2 + 1
+				; 		弱点候補:弱点候補数 = {LOCAL}_{LOCAL:5}_{LOCAL:3}
+				; 		弱点候補数 += 1
+				; 	NEXT
+				; NEXT
+			ENDIF
+			;通常コマンド
+			IF GETBIT(通常コマンド存在フラグ:LOCAL, 0)
+				弱点候補:弱点候補数 = {LOCAL}
+				弱点候補数 += 1
+				;派生コマンド
+				FOR LOCAL:1, 0, 20
+					SIF !GETBIT(通常コマンド存在フラグ:LOCAL, LOCAL:1 + 1)
+						CONTINUE
+					弱点候補:弱点候補数 = {LOCAL}_{LOCAL:1}
+					弱点候補数 += 1
+				NEXT
+			ENDIF
+		NEXT
+ENDSELECT
+
+$表示処理
+DRAWLINE
+PRINTL 表示したい弱点コマンドを選択してください。
+DRAWLINE
+PRINTL
+
+FOR 行カウント, 現在ページ * 表示行数, 現在ページ * 表示行数 + 表示行数
+	SIF 行カウント >= 弱点候補数
+		BREAK
+	SIF 行カウント != 現在ページ * 表示行数 && 行カウント % 4 == 0
+		PRINTL
+	SIF MATCH(設定フィルタ配列, 弱点候補:行カウント)
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"%@"[%弱点の欠片名前表示(弱点候補:行カウント)%]", 32, LEFT%", 行カウント
+	RESETCOLOR
+NEXT
+PRINTL
+DRAWLINE
+
+IF 現在ページ > 0
+	PRINTBUTTON "[900] 前ページへ", 900
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+IF 弱点候補数 > 現在ページ * 表示行数 + 表示行数
+	PRINTBUTTON "[901] 次ページへ", 901
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+PRINTBUTTON "[902] 選択全解除", 902
+PRINTL 
+PRINTL 
+
+IF 表示カテゴリ == ""
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1014] 通常コマンド　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1014] 通常コマンド　", 1014
+ENDIF
+PRINT  / 
+IF 表示カテゴリ == "モード"
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1015] モード弱点　　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1015] モード弱点　　", 1015
+ENDIF
+PRINT  / 
+IF 表示カテゴリ == "シチュエーション"
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1016] シチュ弱点　　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1016] シチュ弱点　　", 1016
+ENDIF
+PRINT  / 
+IF 表示カテゴリ == "マッサージ"
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1017] マッサージ弱点
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1017] マッサージ弱点", 1017
+ENDIF
+PRINT  / 
+IF 表示カテゴリ == "むりやりうふふ"
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [1018] むりやり弱点　
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1018] むりやり弱点　", 1018
+ENDIF
+PRINTL
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		現在ページ = 0
+		表示カテゴリ = 
+		;フィルタ配列を全部セット
+		キャラ一覧フィルタ:弱点コマンド = 
+		FOR 行カウント, 0, 50
+			SIF 設定フィルタ配列:行カウント == ""
+				CONTINUE
+			SIF 行カウント > 0
+				キャラ一覧フィルタ:弱点コマンド += "+++"
+			キャラ一覧フィルタ:弱点コマンド += @"%設定フィルタ配列:行カウント%"
+		NEXT
+		RETURN 0
+	CASE 1014
+		表示カテゴリ = 
+	CASE 1015
+		表示カテゴリ = モード
+	CASE 1016
+		表示カテゴリ = シチュエーション
+	CASE 1017
+		表示カテゴリ = マッサージ
+	CASE 1018
+		表示カテゴリ = むりやりうふふ
+	CASE 900
+		現在ページ --
+		GOTO 表示処理
+	CASE 901
+		現在ページ ++
+		GOTO 表示処理
+	CASE 902
+		VARSET 設定フィルタ配列
+		GOTO 表示処理
+	CASEELSE
+		IF MATCH(設定フィルタ配列, 弱点候補:RESULT)
+			ARRAYREMOVE 設定フィルタ配列, FINDELEMENT(設定フィルタ配列, 弱点候補:RESULT, , , 1), 1
+		ELSE
+			設定フィルタ配列:(FINDELEMENT(設定フィルタ配列, "", , , 1)) '= 弱点候補:RESULT
+		ENDIF
+		GOTO 表示処理
+ENDSELECT
+
+RESTART
+
+
+;---------------------------------------------------------
+;フィルタ設定画面表示 出典フィルタ
+;---------------------------------------------------------
+@出典_FILTA()
+#DIMS 設定フィルタ配列, 50
+#DIM フィルタマッチ配列番号
+#DIM 現在ページ
+#DIM 対象キャラ
+#DIM 行カウント
+#DIM モード数
+#DIMS 出典候補, 10000
+#DIM 出典候補数
+#DIM CONST 表示行数 = 40
+
+;既存の設定を配列に突っ込む
+SPLIT キャラ一覧フィルタ:出典, "+++", 設定フィルタ配列
+
+VARSET 出典候補
+出典候補:0 = グランブルーファンタジー
+出典候補数 = 1
+;存在する出典種類を取得、解放しているキャラのみ対象
+FOR 対象キャラ, 1, CHARANUM
+	SIF CFLAG:対象キャラ:招待不可フラグ > 0
+		CONTINUE
+	SIF CSTR:対象キャラ:出演作品 == "" || CSTR:対象キャラ:出演作品 == "グランブルーファンタジー"
+		CONTINUE
+	IF MATCH(出典候補, CSTR:対象キャラ:出演作品) == 0
+		出典候補:出典候補数 '= CSTR:対象キャラ:出演作品
+		出典候補数 ++
+	ENDIF
+NEXT
+
+$表示処理
+DRAWLINE
+PRINTL 表示したい出典のタイトルを選択してください。
+DRAWLINE
+PRINTL
+
+FOR 行カウント, 現在ページ * 表示行数, 現在ページ * 表示行数 + 表示行数
+	SIF 行カウント >= 出典候補数
+		BREAK
+	IF 行カウント != 現在ページ * 表示行数 && 行カウント % 3 == 0
+		PRINTL
+	ENDIF
+	SIF MATCH(設定フィルタ配列, 出典候補:行カウント)
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"%@"[%出典候補:行カウント%]", 40, LEFT%", 行カウント
+	RESETCOLOR
+NEXT
+PRINTL
+DRAWLINE
+
+IF 現在ページ > 0
+	PRINTBUTTON "[900] 前ページへ", 900
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+IF 出典候補数 > 現在ページ * 表示行数 + 表示行数
+	PRINTBUTTON "[901] 次ページへ", 901
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+PRINTBUTTON "[902] 選択全解除", 902
+PRINTL 
+PRINTL
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		現在ページ = 0
+		;フィルタ配列を全部セット
+		キャラ一覧フィルタ:出典 = 
+		FOR 行カウント, 0, 50
+			SIF 設定フィルタ配列:行カウント == ""
+				CONTINUE
+			SIF 行カウント > 0
+				キャラ一覧フィルタ:出典 += "+++"
+			キャラ一覧フィルタ:出典 += @"%設定フィルタ配列:行カウント%"
+		NEXT
+		RETURN 0
+	CASE 900
+		現在ページ --
+		GOTO 表示処理
+	CASE 901
+		現在ページ ++
+		GOTO 表示処理
+	CASE 902
+		VARSET 設定フィルタ配列
+		GOTO 表示処理
+	CASEELSE
+		IF MATCH(設定フィルタ配列, 出典候補:RESULT)
+			ARRAYREMOVE 設定フィルタ配列, FINDELEMENT(設定フィルタ配列, 出典候補:RESULT, , , 1), 1
+		ELSE
+			設定フィルタ配列:(FINDELEMENT(設定フィルタ配列, "", , , 1)) '= 出典候補:RESULT
+		ENDIF
+		GOTO 表示処理
+ENDSELECT
+
+RESTART
