@@ -567,6 +567,11 @@ IF 表示フィルタ種類 == ""
 	PRINT /
 	PRINTBUTTON "[全て非表示]", "名前着色：全て非表示"
 	PRINTL
+	DRAWLINE
+	PRINTL ■ キャラクター出典・原作
+	PRINT 　 
+	PRINTBUTTON "[出典フィルタを起動]", "出典フィルタ"
+	PRINTL
 	PRINTL
 	PRINTL
 	PRINTBUTTONLC "[999]戻る", 999
@@ -651,6 +656,8 @@ IF RESULTS != ""
 		CALL 弱点コマンド_FILTA()
 	ELSEIF LOCALS == "弱点コマンド検索タイプ"
 		INVERTBIT 弱点コマンド検索タイプ, 0
+	ELSEIF LOCALS == "出典フィルタ"
+		CALL 出典_FILTA()
 	ELSEIF STRCOUNT(LOCALS, "種族")
 		LOCAL = 0
 	ELSEIF STRCOUNT(LOCALS, "バストサイズ")
@@ -1188,7 +1195,115 @@ SELECTCASE RESULT
 		VARSET 設定フィルタ配列
 		GOTO 表示処理
 	CASEELSE
-		設定フィルタ配列:(FINDELEMENT(設定フィルタ配列, "", , , 1)) '= 弱点候補:RESULT
+		IF MATCH(設定フィルタ配列, 弱点候補:RESULT)
+			ARRAYREMOVE 設定フィルタ配列, FINDELEMENT(設定フィルタ配列, 弱点候補:RESULT, , , 1), 1
+		ELSE
+			設定フィルタ配列:(FINDELEMENT(設定フィルタ配列, "", , , 1)) '= 弱点候補:RESULT
+		ENDIF
+		GOTO 表示処理
+ENDSELECT
+
+RESTART
+
+
+@出典_FILTA()
+#DIMS 設定フィルタ配列, 50
+#DIM フィルタマッチ配列番号
+#DIM 現在ページ
+#DIM 対象キャラ
+#DIM 行カウント
+#DIM モード数
+#DIMS 出典候補, 10000
+#DIM 出典候補数
+#DIM CONST 表示行数 = 40
+
+;既存の設定を配列に突っ込む
+SPLIT キャラ一覧フィルタ:出典, "+++", 設定フィルタ配列
+
+VARSET 出典候補
+出典候補:0 = グランブルーファンタジー
+出典候補数 = 1
+;存在する出典種類を取得、解放しているキャラのみ対象
+FOR 対象キャラ, 1, CHARANUM
+	SIF CFLAG:対象キャラ:招待不可フラグ > 0
+		CONTINUE
+	SIF CSTR:対象キャラ:出演作品 == "" || CSTR:対象キャラ:出演作品 == "グランブルーファンタジー"
+		CONTINUE
+	IF MATCH(出典候補, CSTR:対象キャラ:出演作品) == 0
+		出典候補:出典候補数 '= CSTR:対象キャラ:出演作品
+		出典候補数 ++
+	ENDIF
+NEXT
+
+$表示処理
+DRAWLINE
+PRINTL 表示したい出典のタイトルを選択してください。
+DRAWLINE
+PRINTL
+
+FOR 行カウント, 現在ページ * 表示行数, 現在ページ * 表示行数 + 表示行数
+	SIF 行カウント >= 出典候補数
+		BREAK
+	IF 行カウント != 現在ページ * 表示行数 && 行カウント % 3 == 0
+		PRINTL
+	ENDIF
+	SIF MATCH(設定フィルタ配列, 出典候補:行カウント)
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"%@"[%出典候補:行カウント%]", 40, LEFT%", 行カウント
+	RESETCOLOR
+NEXT
+PRINTL
+DRAWLINE
+
+IF 現在ページ > 0
+	PRINTBUTTON "[900] 前ページへ", 900
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+IF 出典候補数 > 現在ページ * 表示行数 + 表示行数
+	PRINTBUTTON "[901] 次ページへ", 901
+ELSE
+	PRINT 　　　　　　　　
+ENDIF
+PRINT 　　　
+PRINTBUTTON "[902] 選択全解除", 902
+PRINTL 
+PRINTL
+PRINTL
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+DRAWLINE
+
+BINPUT
+SELECTCASE RESULT
+	CASE 999
+		現在ページ = 0
+		;フィルタ配列を全部セット
+		キャラ一覧フィルタ:出典 = 
+		FOR 行カウント, 0, 50
+			SIF 設定フィルタ配列:行カウント == ""
+				CONTINUE
+			SIF 行カウント > 0
+				キャラ一覧フィルタ:出典 += "+++"
+			キャラ一覧フィルタ:出典 += @"%設定フィルタ配列:行カウント%"
+		NEXT
+		RETURN 0
+	CASE 900
+		現在ページ --
+		GOTO 表示処理
+	CASE 901
+		現在ページ ++
+		GOTO 表示処理
+	CASE 902
+		VARSET 設定フィルタ配列
+		GOTO 表示処理
+	CASEELSE
+		IF MATCH(設定フィルタ配列, 出典候補:RESULT)
+			ARRAYREMOVE 設定フィルタ配列, FINDELEMENT(設定フィルタ配列, 出典候補:RESULT, , , 1), 1
+		ELSE
+			設定フィルタ配列:(FINDELEMENT(設定フィルタ配列, "", , , 1)) '= 出典候補:RESULT
+		ENDIF
 		GOTO 表示処理
 ENDSELECT
 
