@@ -4,28 +4,28 @@
 #DIM  対象キャラ
 #DIMS コマンド名
 #DIMS コマンド画像名称
-#DIMS 画像カテゴリ
+#DIMS コマンド派生名称
+#DIMS キャラ衣装識別
 
-DEBUGPRINTFORML @コマンド実行時画像名称変換処理(%CALLNAME:対象キャラ%, %コマンド名%)
+;DEBUGPRINTFORML @コマンド実行時画像名称変換処理(%CALLNAME:対象キャラ%, %コマンド名%)
 
-画像カテゴリ '= CSTR:対象キャラ:顔グラ表示切り替え用文字列
-SIF TYPE == "短冊_"
-	画像カテゴリ '= CSTR:対象キャラ:短冊グラ表示切り替え用文字列
-
-IF 画像カテゴリ == ""
-	SIF CSTR:対象キャラ:表示グラフィックカテゴリ == ""
-		CSTR:対象キャラ:表示グラフィックカテゴリ = デフォルト
-	画像カテゴリ = %CSTR:対象キャラ:表示グラフィックカテゴリ%
-ENDIF
-
+;"表示グラフィックカテゴリ"だと表示が怪しい
 コマンド画像名称 '= ""
-コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", 画像カテゴリ, コマンド名)
 
-DEBUGPRINTFORML  1 / コマンド画像名称 == %コマンド画像名称%
+キャラ衣装識別 '= ""
+
+キャラ衣装識別 '= REPLACE(CSTR:対象キャラ:顔グラ表示切り替え用文字列, "顔_", "")
+SIF キャラ衣装識別 == ""
+	キャラ衣装識別 '= REPLACE(CSTR:対象キャラ:短冊グラ表示切り替え用文字列, "短冊_", "")
+SIF キャラ衣装識別 == ""
+	キャラ衣装識別 '= CSTR:対象キャラ:表示グラフィックカテゴリ
+SIF キャラ衣装識別 == ""
+	キャラ衣装識別 = デフォルト
+
+コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", キャラ衣装識別, コマンド名)
 
 SIF コマンド画像名称 != ""
 	RETURNF コマンド画像名称
-
 
 SELECTCASE 1
 	CASE GROUPMATCH(コマンド名, "Ｖ挿入する", "Ｇスポ責め", "ポルチオ責め", "種付けプレス", "子宮口挿入", "角ハンドル", "尻尾ひっぱり後背位", "首筋甘噛み交尾", "おっぱい手綱正常位") > 0
@@ -37,25 +37,15 @@ SELECTCASE 1
 	CASEELSE
 ENDSELECT
 
-DEBUGPRINTFORML  2 / コマンド画像名称 == %コマンド画像名称%
+;★%名称%%体位%だと意図しない動作になる(最初の判定で別の体位の画像を呼んでしまう場合がある)ので%体位%%名称%にする
+コマンド派生名称 '= ""
+コマンド派生名称 '= REPLACE(コマンド画像名称, @"コマンド実行時_%キャラ衣装識別%_", "") + @"%コマンド名%"
 
-コマンド画像名称 '= REPLACE(コマンド画像名称, "顔_", "")
-コマンド画像名称 '= REPLACE(コマンド画像名称, "短冊_", "")
-コマンド画像名称 '= REPLACE(コマンド画像名称, "差分_", "")
-;コマンド画像名称 '= REPLACE(コマンド画像名称, @"%CSTR:対象キャラ:表示グラフィックカテゴリ%_", "")
-
-DEBUGPRINTFORML  3 / コマンド画像名称 == %コマンド画像名称%
-
-IF コマンド画像名称 != "" && GRAP_COM_RAND(対象キャラ, "コマンド実行時_", CSTR:対象キャラ:表示グラフィックカテゴリ, @"%コマンド名%%コマンド画像名称%") != ""
-	コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", CSTR:対象キャラ:表示グラフィックカテゴリ, @"%コマンド名%%コマンド画像名称%")
-
-	DEBUGPRINTFORML  4 / コマンド画像名称 == %コマンド画像名称%
-
+IF コマンド画像名称 != "" && GRAP_COM_RAND(対象キャラ, "コマンド実行時_", キャラ衣装識別, @"%コマンド派生名称%") != ""
+	コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", キャラ衣装識別, @"%コマンド派生名称%")
 	SIF コマンド画像名称 == ""
-		コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", CSTR:対象キャラ:表示グラフィックカテゴリ, コマンド画像名称)
+		コマンド画像名称 '= GRAP_COM_RAND(対象キャラ, "コマンド実行時_", キャラ衣装識別, コマンド画像名称)
 ENDIF
-
-DEBUGPRINTFORML  5 / コマンド画像名称 == %コマンド画像名称%
 
 RETURNF コマンド画像名称
 
@@ -83,8 +73,8 @@ ENDIF
 
 LOCALS '= LOCALS + "_"
 
-DEBUGPRINTFORML LOCALS == %LOCALS%
-DEBUGPRINTFORML CSTR:対象キャラ:表示グラフィックカテゴリ == %CSTR:対象キャラ:表示グラフィックカテゴリ%
+;;DEBUGPRINTFORML LOCALS == %LOCALS%
+;;DEBUGPRINTFORML CSTR:対象キャラ:表示グラフィックカテゴリ == %CSTR:対象キャラ:表示グラフィックカテゴリ%
 
 IF MODE_存在判定_ターゲット側("Ｖ挿入系", 対象キャラ)
 	;各体位の挿入差分があればそれを表示する
@@ -93,7 +83,7 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", 対象キャラ)
 			LOCAL:1 ++
 			SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, V_FRONT:LOCAL, "", "") && D_NAME == ""
 				D_NAME '= RESULTS
-			DEBUGPRINTFORML  D_NAME == %D_NAME%
+			;;DEBUGPRINTFORML  D_NAME == %D_NAME%
 		ENDIF
 	NEXT
 	FOR LOCAL, 0, VARSIZE("V_BACK")
@@ -101,7 +91,7 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", 対象キャラ)
 			LOCAL:2 ++
 			SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, V_BACK:LOCAL, "", "") && D_NAME == ""
 				D_NAME '= RESULTS
-			DEBUGPRINTFORML  D_NAME == %D_NAME%
+			;;DEBUGPRINTFORML  D_NAME == %D_NAME%
 		ENDIF
 	NEXT
 	;なければ正面体位は正常位を、背面体位は後背位を表示する
@@ -109,13 +99,13 @@ IF MODE_存在判定_ターゲット側("Ｖ挿入系", 対象キャラ)
 		VARSET 差分エフェクト
 		IF コマンド画像差分抽出(対象キャラ, "", LOCALS, "正常位", "", "") && D_NAME == ""
 			D_NAME '= RESULTS
-			DEBUGPRINTFORML  D_NAME == %D_NAME%
+			;;DEBUGPRINTFORML  D_NAME == %D_NAME%
 		ENDIF
 	ELSEIF LOCAL:2 && D_NAME == ""
 		VARSET 差分エフェクト
 		IF コマンド画像差分抽出(対象キャラ, "", LOCALS, "後背位", "", "") && D_NAME == ""
 			D_NAME '= RESULTS
-			DEBUGPRINTFORML  D_NAME == %D_NAME%
+			;;DEBUGPRINTFORML  D_NAME == %D_NAME%
 		ENDIF
 	ENDIF
 ENDIF
@@ -157,8 +147,8 @@ RETURNF ""
 #DIMS TYPE, 3
 #DIMS DIFF, 4
 
-DEBUGPRINTFORML @コマンド画像差分抽出(対象キャラ, %TYPE%, %TYPE:1%, %DIFF%, %DIFF:1%, %DIFF:2%, %TYPE:2%, %DIFF:3%)
-DEBUGPRINTFORML  
+;;DEBUGPRINTFORML @コマンド画像差分抽出(対象キャラ, %TYPE%, %TYPE:1%, %DIFF%, %DIFF:1%, %DIFF:2%, %TYPE:2%, %DIFF:3%)
+;;DEBUGPRINTFORML  
 IF ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%/", @"%TYPE:1 + TYPE:2 +DIFF%*.*")
 	;現在表示してるグラの差分があるか見る
 	RESULTS '= TYPE:1 + コマンド画像ランダム処理(対象キャラ, TYPE:1, TYPE:2 + DIFF)

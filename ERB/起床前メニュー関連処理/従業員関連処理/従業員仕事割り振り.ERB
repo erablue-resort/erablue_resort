@@ -8,6 +8,10 @@
 #DIMS 改行判定文字列
 #DIM 空き店舗あり
 #DIMS 常駐業務名
+#DIM 固有仕事数
+#DIMS 固有仕事配列, 50
+#DIMS 固有仕事名
+#DIM 固有仕事キー
 
 変更キャラ = -1
 
@@ -20,7 +24,7 @@ DRAWLINE
 PRINTL 従業員が行う仕事の設定を行います。
 PRINTL ※開発中のため、仕事が正しく挙動しないことがあります。
 DRAWLINE
-LOCALS = <div rect='81,31,1937,3612' border='31' bcolor='#C0C0C0'></div><div rect='2050,560,3875,3080' border='31' bcolor='#C0C0C0'></div>
+LOCALS = <div rect='81,31,1937,3762' border='31' bcolor='#C0C0C0'></div><div rect='2050,710,3875,3080' border='31' bcolor='#C0C0C0'></div>
 
 ;現在いる従業員を配列へ
 従業員一覧:0 = 0
@@ -31,7 +35,7 @@ FOR LOCAL, 1, CHARANUM
 	SIF TALENT:LOCAL:従業員 == 0
 		CONTINUE
 	従業員一覧:(LOCAL:1) = LOCAL
-	SIF 現在仕事:LOCAL:0 >= 0
+	SIF 現在仕事:LOCAL:0 >= 0 && 現在仕事:LOCAL:0 < 10000
 		仕事人数表示用:(現在仕事:(従業員一覧:(LOCAL:1)):0) += 1
 	IF 現在仕事:LOCAL:0 == -1
 		ソート配列:(LOCAL:1) = 99999
@@ -45,7 +49,7 @@ IF ソートタイプ
 ENDIF
 
 ;一覧表示
-LOCALS += "<div rect='156,156,1737,3512'><nobr>"
+LOCALS += "<div rect='156,156,1737,3662'><nobr>"
 FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	IF 従業員一覧:LOCAL < 0
 		LOCALS += "<br>"
@@ -56,7 +60,7 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	ELSE
 		SIF 変更キャラ == 従業員一覧:LOCAL
 			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>"
-		LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0)%"
+		LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[%現在仕事数字文字列変換(現在仕事:(従業員一覧:LOCAL):0, 0, 従業員一覧:LOCAL)%"
 		IF 現在仕事:(従業員一覧:LOCAL):0 == 2
 			LOCALS = %SUBSTRING(LOCALS, 0, STRLENS(LOCALS) - 4)%
 			IF 現在仕事:(従業員一覧:LOCAL):1 >= 10003 && 現在仕事:(従業員一覧:LOCAL):1 <= 10010
@@ -98,17 +102,17 @@ LOCALS += "</nobr></div>"
 
 
 ;仕事の種類と現在そこに従事している人数を表示
-LOCALS += "<div rect='2125,620,3675,2812'><nobr>"
+LOCALS += "<div rect='2125,770,3675,2812'><nobr>"
 IF 変更キャラ > -1
 	LOCALS += @"現在従事している業務：%NAME:変更キャラ%<br>"
-	LOCALS += @"■%現在仕事数字文字列変換(現在仕事:変更キャラ:0), 16, LEFT%<br><br>"
+	LOCALS += @"■%現在仕事数字文字列変換(現在仕事:変更キャラ:0, 0, 変更キャラ), 16, LEFT%<br><br>"
 	LOCALS += @"%現在仕事数字文字列変換(現在仕事:変更キャラ:0, 1, 変更キャラ)%<br><br>"
 	;仕事レベルが存在するなら表示
 	IF 現在仕事:変更キャラ:0 == 2 && 現在仕事:変更キャラ:1 > 0
 		常駐業務名 '= MAP_GET("常駐業務名", REPLACE(GETPLACENAME(現在仕事:変更キャラ:1 / 10000, 現在仕事:変更キャラ:1 % 10000), "『.*』", ""))
 		LOCALS += @"現在の%常駐業務名%レベル：{常駐業務レベル:変更キャラ:(GETNUM(常駐業務レベル, 常駐業務名))}"
 	ELSEIF 仕事レベル存在チェック(現在仕事:変更キャラ:0)
-		LOCALS += @"現在の%現在仕事数字文字列変換(現在仕事:変更キャラ:0)%レベル：{仕事レベル:変更キャラ:(現在仕事:変更キャラ:0)}"
+		LOCALS += @"現在の%現在仕事数字文字列変換(現在仕事:変更キャラ:0, 0, 変更キャラ)%レベル：{仕事レベル:変更キャラ:(現在仕事:変更キャラ:0)}"
 	ELSEIF 現在仕事:変更キャラ:0 == 9
 		LOCALS += @"現在の知識素質：料理人レベル：{知識素質:変更キャラ:料理人}"
 	ELSE
@@ -125,7 +129,7 @@ ENDIF
 LOCALS += "</nobr></div>"
 
 ;仕事切り替え用枠
-LOCALS += "<div rect='2050,31,3875,500' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+LOCALS += "<div rect='2050,31,3875,650' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
 IF 変更キャラ > -1
 	改行判定文字列 = 
 	FOR LOCAL, 0, 50
@@ -151,6 +155,35 @@ IF 変更キャラ > -1
 		ENDIF
 	NEXT
 
+	VARSET RESULTS
+	固有仕事数 = ENUMFUNCBEGINSWITH(@"固有仕事設定_{NO:変更キャラ}_")
+	ARRAYCOPY "RESULTS", "固有仕事配列"
+	IF 固有仕事数 > 0
+		FOR LOCAL, 0, 固有仕事数
+			SIF GETMETH(固有仕事配列:LOCAL, 0, 変更キャラ, "条件判定") == 0
+				CONTINUE
+			CALLFORMF %固有仕事配列:LOCAL%(変更キャラ, "仕事名")
+			固有仕事名 '= TSTR:コマンド名受渡
+			固有仕事キー = TOINT(REPLACE(固有仕事配列:LOCAL, @"固有仕事設定_{NO:変更キャラ}_", ""))
+			SIF 固有仕事キー < 0
+				CONTINUE
+			IF STRLENS(改行判定文字列 + 固有仕事名) > 75
+				LOCALS += "<br>"
+				改行判定文字列 = 
+			ELSE
+				LOCALS += " / "
+				改行判定文字列 += " / "
+			ENDIF
+			IF 現在仕事:変更キャラ:0 == 固有仕事キー + 10000
+				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[%固有仕事名%]</font>"
+				改行判定文字列 += @"[%固有仕事名%]"
+			ELSE
+				LOCALS += @"<button value='{固有仕事キー + 10000}'>[%固有仕事名%]</button>"
+				改行判定文字列 += @"[%固有仕事名%]"
+			ENDIF
+		NEXT
+	ENDIF
+
 	空き店舗あり = 0
 	;空き店舗を検索
 	FOR LOCAL, 0, VARSIZE("商業区店割り配列", 1)
@@ -168,7 +201,7 @@ LOCALS += "</div>"
 
 
 HTML_PRINT LOCALS
-FOR LOCAL, 0, 32
+FOR LOCAL, 0, 34
 	PRINTL
 NEXT
 DRAWLINE
@@ -177,6 +210,9 @@ BINPUT
 
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE IS >= 10000
+		現在仕事:変更キャラ:0 = LOCAL
+		現在仕事:変更キャラ:1 = 0
 	CASE IS >= 3000
 		CALL 仕事追加処理関数(変更キャラ, LOCAL)
 	CASE IS >= 2000
@@ -321,14 +357,14 @@ LOCALS += "</div>"
 ;仕事の説明を表示
 LOCALS:1 = <div rect='2125,156,3675,2812'>
 LOCALS:1 += "現在従事している業務<br>"
-LOCALS:1 += @"■%現在仕事数字文字列変換(現在仕事:ARG:0), 16, LEFT%"
+LOCALS:1 += @"■%現在仕事数字文字列変換(現在仕事:ARG:0, 0, ARG), 16, LEFT%"
 LOCALS:1 += "</div>"
 LOCALS:1 += "<div rect='2312,437,3675,2812'>"
 LOCALS:1 += @"<nobr>%現在仕事数字文字列変換(現在仕事:ARG:0, 1, ARG)%</nobr>"
 LOCALS:1 += "<br><br>"
 ;仕事レベルが存在するなら表示
 IF 仕事レベル存在チェック(現在仕事:ARG:0)
-	LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
+	LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0, 0, ARG)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
 ELSEIF 現在仕事:ARG:0 == 9
 	LOCALS:1 += @"現在の知識素質：料理人レベル：{知識素質:ARG:料理人}"
 ELSE
@@ -410,6 +446,16 @@ ENDSELECT
 @現在仕事数字文字列変換(ARG, ARG:1 = 0, キャラ番号 = 0)
 #FUNCTIONS
 #DIM キャラ番号
+
+;固有業務
+IF ARG >= 10000
+	IF ARG:1
+		CALLFORMF 固有仕事設定_{NO:キャラ番号}_{ARG - 10000}(キャラ番号, "仕事解説")
+		RETURNF TSTR:ツールチップ受渡
+	ENDIF
+	CALLFORMF 固有仕事設定_{NO:キャラ番号}_{ARG - 10000}(キャラ番号, "仕事名")
+	RETURNF TSTR:コマンド名受渡
+ENDIF
 
 SELECTCASE ARG
 	CASE -1
