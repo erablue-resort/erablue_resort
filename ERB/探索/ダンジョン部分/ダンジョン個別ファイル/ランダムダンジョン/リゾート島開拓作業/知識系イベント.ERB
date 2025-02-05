@@ -601,7 +601,7 @@ ELSE
 			ELSEIF RESULT == 0
 				;勝利時
 				WSTR:(K++) = %CALLNAME:PLAYER%たちは無事に魔物を討伐した。
-				KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に戻る。
+				KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に探索に戻った。
 			ENDIF
 		CASE "[慎重を期して一旦ここから離れる]"
 			WSTR:(K++) = いや、まずは準備をしよう。
@@ -615,7 +615,99 @@ ELSE
 			WSTR:(K++) = %CALLNAME:PLAYER%たちはそのルートの近くで待ち伏せ……
 			KSTR:(K++) = …………魔物が通りがかった瞬間に一斉攻撃を仕掛けた！_PAGE
 			WSTR:(K++) = 魔物はなすすべもなく倒れ、駆除することに成功した。
-			KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に戻る。
+			KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に探索に戻った。
+		CASEELSE
+			CLEARLINE 1
+			REUSELASTLINE  
+			GOTO LOOP_MESSAGE
+	ENDSELECT
+	ランダムダンジョン配列:(ダンジョン現在位置:0):(ダンジョン現在位置:1):イベント状態 = イベント完了
+	CALL メッセージ欄表示用関数()
+	CALL 接続ルート全開放処理((ダンジョン現在位置:0), (ダンジョン現在位置:1))
+	CALL 口上変数初期化
+ENDIF
+CALL 画面再描画
+
+@イベント_リゾート島開拓作業_ランダム_魔物知識イベ２
+#DIMS ドロップアイテム
+#DIM 知識１
+#DIM 弱点
+#DIM 成功フラグ
+#DIM レベルアップフラグ
+
+CALL 口上変数初期化
+IF ランダムダンジョン配列:(ダンジョン現在位置:0):(ダンジョン現在位置:1):イベント状態 == "イベント完了"
+	KSTR:(K++) = 特に変わった様子はない。
+	CALL メッセージ欄表示用関数(,,,0)
+ELSE
+	;最初に訪れた時
+	弱点 = RAND:2
+	WSTR:(K++) = %CALLNAME:PLAYER%たちが探索していると、特徴的な赤と青の甲殻を持つ魔物が現れた！
+	WSTR:(K++) = この魔物は火、もしくは水に弱いが……弱点を間違えると強力な反撃をしてくる習性がある。
+	$選択ループ
+	KSTR:(K++) = どちらで攻撃すべきだろうか？
+	KSTR:(K++) = BUTTON_[火で攻撃だ！]
+	KSTR:(K++) = BUTTON_[水で攻撃だ！]
+	CALL 知識技能所持者検索("魔物知識", 1)
+	知識１ = RESULT
+	IF 知識１ >= 0
+		KSTR:(K++) = BUTTON_[魔物知識で弱点を看破する]
+	ENDIF
+	CALL メッセージ欄表示用関数(,,,0)
+	CALL 口上変数初期化
+	$LOOP_MESSAGE
+	BINPUTS
+	SELECTCASE RESULTS
+		CASE "[火で攻撃だ！]", "[水で攻撃だ！]"
+			成功フラグ = 0
+			IF RESULTS == "[火で攻撃だ！]"
+				WSTR:(K++) = %CALLNAME:PLAYER%たちは火属性で攻撃した！
+				SIF 弱点 == 0
+					成功フラグ = 1
+			ELSE
+				WSTR:(K++) = %CALLNAME:PLAYER%たちは水属性で攻撃した！
+				SIF 弱点 == 1
+					成功フラグ = 1
+			ENDIF
+			IF 成功フラグ
+				WSTR:(K++) = 魔物は大きな叫び声を上げ、ゆっくりとその場に倒れた。
+				WSTR:(K++) = どうやら正しい弱点を突くことが出来たようだ。
+				KSTR:(K++) = 魔物を倒した%CALLNAME:PLAYER%たちは、経験値を{ダンジョン階層記録 * 200}手に入れた！
+				CALL メッセージ欄表示用関数()
+				CALL 口上変数初期化
+				レベルアップフラグ = 0
+				FOR LOCAL, 0, 14
+					SIF LOCAL > 3 && LOCAL < 10
+						CONTINUE
+					SIF BATTLE_STATE:LOCAL:キャラ登録番号 < 1
+						CONTINUE
+					基礎BATTLE_STATE:(BATTLE_STATE:LOCAL:キャラ登録番号):蓄積EXP += ダンジョン階層記録 * 200
+					CALL レベルアップ処理(BATTLE_STATE:LOCAL:キャラ登録番号)
+					SIF レベルアップフラグ < RESULT
+						レベルアップフラグ = RESULT
+				NEXT
+				IF レベルアップフラグ
+					;ステータス代入
+					CALL 戦闘初期処理_味方
+					CALL メッセージ欄表示用関数(,,,0)
+					CALL 口上変数初期化
+				ENDIF
+				KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に戻った。
+			ELSE
+				WSTR:(K++) = 魔物は大きな叫び声を上げ、興奮した様子で%CALLNAME:PLAYER%たちに襲いかかってきた！
+				KSTR:(K++) = %CALLNAME:PLAYER%たちのＨＰが{ダンジョン階層記録 * 30, 4}減少した！
+				CALL メッセージ欄表示用関数()
+				CALL 口上変数初期化
+				
+				CALL 探索中全体ダメージ_ＨＰ_非致死(ダンジョン階層記録 * 30)
+				WSTR:(K++) = その後、なんとかもう片方の属性を使って魔物を倒すことに成功した。
+				KSTR:(K++) = 思わぬ痛手を食らってしまった……次は気をつけよう。%CALLNAME:PLAYER%たちは気を取り直し、探索に戻った。
+			ENDIF
+		CASE "[魔物知識で弱点を看破する]"
+			WSTR:(K++) = %CALLNAME:知識１%は魔物の立ち回りを観察し、%属性数値文字列変換(弱点)%属性が弱点だと見破った！
+			WSTR:(K++) = %CALLNAME:PLAYER%たちが正しい属性で攻撃すると、魔物は大きな叫び声を上げてゆっくりとその場に倒れる。
+			WSTR:(K++) = 魔物はなすすべもなく倒れ、駆除することに成功した。
+			KSTR:(K++) = これで幾らか周囲は安全になっただろう。%CALLNAME:PLAYER%たちは探索に戻った。
 		CASEELSE
 			CLEARLINE 1
 			REUSELASTLINE  
