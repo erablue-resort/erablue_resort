@@ -1,217 +1,221 @@
-﻿; ;-------------------------------------------------
-; ;助手を呼ぶ
-; ;-------------------------------------------------
-; @MASSAGE_COMNAME60
-; #FUNCTIONS
+﻿;-------------------------------------------------
+;助手を呼ぶ
+;-------------------------------------------------
+@MASSAGE_COMNAME60
+#FUNCTIONS
 
-; TSTR:コマンド名受渡 = 助手を呼ぶ
+TSTR:コマンド名受渡 = 助手を呼ぶ
 
-; ;===================================================
-; ;コマンドタイプ
-; ;===================================================
-; @MASSAGE_COMTYPE_60
-; #FUNCTION
-; TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("通常マッサージ")
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_60
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("通常マッサージ")
 
-; @MASSAGE_COM_TOOLTIP_60
-; LOCALS = <br>■助手を呼ぶ<br>
-; LOCALS += "マッサージの補助をする助手を一人呼び出す。助手が存在する時、マッサージの効果が上昇する。"
-; LOCALS += "<br>呼び出した助手とマッサージを施術する役を交代することが出来る。"
-; LOCALS += "<br>COMタイプ：通常マッサージ<br>取得ソース：なし"
-; LOCALS += "<br>固有の取得経験：なし<br>"
-; TSTR:ツールチップ受渡 = %LOCALS%
+@MASSAGE_COM_TOOLTIP_60
+LOCALS = <br>■助手を呼ぶ<br>
+LOCALS += "マッサージの補助をする助手を一人呼び出す。助手が存在する時、マッサージの効果が上昇する。"
+LOCALS += "<br>呼び出した助手とマッサージを施術する役を交代することが出来る。"
+LOCALS += "<br>COMタイプ：通常マッサージ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
 
 
-; @MASSAGE_COM60
-; #DIM 表示候補, 5000
-; #DIM 現在ページ
-; #DIM 呼び出し人数
-; #DIM 対象キャラ
-; #DIM DYNAMIC 初回実行フラグ = 1
-; #DIM リスタートフラグ
-; #DIM 実行結果
-; #DIM 入力内容
-; #DIM REDRAW_TEMP
-; #DIM 描画開始行
-; #DIM CONST 表示人数 = 15
+@MASSAGE_COM60
+#DIM 表示候補, 5000
+#DIM 現在ページ
+#DIM 呼び出し人数
+#DIM 対象キャラ
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM リスタートフラグ
+#DIM 実行結果
+#DIM 入力内容
+#DIM REDRAW_TEMP
+#DIM 描画開始行
+#DIM CONST 表示人数 = 15
 
-; IF 初回実行フラグ
-; 	初回実行フラグ = 0
-; 	; 呼び出しキャラ情報を初期化
-; 	VARSET 表示候補, -1
-; 	現在ページ = 0
-; 	VARSET 呼び出し対象
-; 	呼び出し人数 = 0
-; 	CALL マッサージ助手候補キャラ登録(表示候補)
-; 	; 描画周りの初期状態を記憶
-; 	描画開始行 =LINECOUNT
-; 	REDRAW_TEMP = CURRENTREDRAW()
-; 	REDRAW 0
-; ENDIF
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	; 呼び出しキャラ情報を初期化
+	VARSET 表示候補, -1
+	現在ページ = 0
+	VARSET 呼び出し対象
+	呼び出し人数 = 0
+	CALL マッサージ助手候補キャラ登録(表示候補)
+	; 描画周りの初期状態を記憶
+	描画開始行 =LINECOUNT
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 0
+ENDIF
 
-; PRINTL
-; DRAWLINE
-; PRINTL 誰を呼び出しますか？
-; DRAWLINE
-; LOCAL:1 = 0
-; ;キャラの表示
-; FOR LOCAL, (現在ページ * 表示人数), ((現在ページ * 表示人数) + 表示人数)
-; 	;登録が終わったら表示終了
-; 	IF 表示候補:LOCAL == -1
-; 		BREAK
-; 	ENDIF
-; 	;選択中のキャラの色を変更
-; 	SIF MATCH(呼び出し対象, 表示候補:LOCAL)
-; 		SETCOLOR カラーパレット("黄")
-; 	PRINTBUTTONLC @"[{LOCAL, 2}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]"), 41, LEFT%", LOCAL
-; 	RESETCOLOR
-; 	; 体力の状態に合わせて体力の色を変更
-; 	IF MAXBASE:(表示候補:LOCAL):体力 == BASE:(表示候補:LOCAL):体力
-; 		SETCOLOR 0x50B050
-; 	ELSEIF MAXBASE:(表示候補:LOCAL):体力 < BASE:(表示候補:LOCAL):体力 / 3
-; 		SETCOLOR カラーパレット("赤")
-; 	ENDIF
-; 	PRINTFORM 体力：{BASE:(表示候補:LOCAL):体力, 4} / {MAXBASE:(表示候補:LOCAL):体力, 4}　
-; 	RESETCOLOR
-; 	; 性欲の状態に合わせて性欲の色を変更
-; 	IF BASE:(表示候補:LOCAL):性欲 > 2000
-; 		SETCOLOR カラーパレット("ピンク")
-; 	ELSEIF BASE:(表示候補:LOCAL):性欲 > 1000
-; 		SETCOLOR カラーパレット("薄ピンク")
-; 	ENDIF
-; 	PRINTFORM 性欲：{BASE:(表示候補:LOCAL):性欲, 4}　
-; 	RESETCOLOR
-; 	; 発情期表示
-; 	IF CFLAG:(表示候補:LOCAL):発情期フラグ < 0
-; 		SETCOLOR カラーパレット("えっちな色")
-; 		PRINT 発情期
-; 		PRINT_IMG "えっちハート"
-; 		PRINT 　
-; 		RESETCOLOR
-; 	ELSE
-; 		PRINT 　　　　　
-; 	ENDIF
-; 	; 陥落状態表示
-; 	IF TALENT:(表示候補:LOCAL):恋慕
-; 		SETCOLOR カラーパレット("えっちな色")
-; 		PRINT 恋慕
-; 		RESETCOLOR
-; 	ELSEIF TALENT:(表示候補:LOCAL):セフレ
-; 		PRINT セフレ
-; 	ENDIF
-; 	PRINTL
-; NEXT
+PRINTL
+DRAWLINE
+PRINTL 誰を呼び出しますか？
+DRAWLINE
+LOCAL:1 = 0
+;キャラの表示
+FOR LOCAL, (現在ページ * 表示人数), ((現在ページ * 表示人数) + 表示人数)
+	;登録が終わったら表示終了
+	IF 表示候補:LOCAL == -1
+		BREAK
+	ENDIF
+	;選択中のキャラの色を変更
+	SIF MATCH(呼び出し対象, 表示候補:LOCAL)
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTONLC @"[{LOCAL, 2}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]"), 41, LEFT%", LOCAL
+	RESETCOLOR
+	; 体力の状態に合わせて体力の色を変更
+	IF MAXBASE:(表示候補:LOCAL):体力 == BASE:(表示候補:LOCAL):体力
+		SETCOLOR 0x50B050
+	ELSEIF MAXBASE:(表示候補:LOCAL):体力 < BASE:(表示候補:LOCAL):体力 / 3
+		SETCOLOR カラーパレット("赤")
+	ENDIF
+	PRINTFORM 体力：{BASE:(表示候補:LOCAL):体力, 4} / {MAXBASE:(表示候補:LOCAL):体力, 4}　
+	RESETCOLOR
+	; 性欲の状態に合わせて性欲の色を変更
+	IF BASE:(表示候補:LOCAL):性欲 > 2000
+		SETCOLOR カラーパレット("ピンク")
+	ELSEIF BASE:(表示候補:LOCAL):性欲 > 1000
+		SETCOLOR カラーパレット("薄ピンク")
+	ENDIF
+	PRINTFORM 性欲：{BASE:(表示候補:LOCAL):性欲, 4}　
+	RESETCOLOR
+	; 発情期表示
+	IF CFLAG:(表示候補:LOCAL):発情期フラグ < 0
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT 発情期
+		PRINT_IMG "えっちハート"
+		PRINT 　
+		RESETCOLOR
+	ELSE
+		PRINT 　　　　　
+	ENDIF
+	; 陥落状態表示
+	IF TALENT:(表示候補:LOCAL):恋慕
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT 恋慕
+		RESETCOLOR
+	ELSEIF TALENT:(表示候補:LOCAL):セフレ
+		PRINT セフレ
+	ENDIF
+	PRINTL
+NEXT
 
-; DRAWLINE
-; ;ページめくり表示
-; IF 現在ページ > 0
-; 	PRINTBUTTONLC "[900] 前ページへ", 900
-; ELSE
-; 	PRINTLC 　
-; ENDIF
-; PRINTFORM - {現在ページ + 1} -
-; IF 表示候補:((現在ページ * 表示人数) + 表示人数) > 0
-; 	PRINTBUTTONC "[901] 次ページへ", 901
-; ENDIF
-; PRINTL
-; ;確定と選択解除ボタン
-; IF 呼び出し人数
-; 	PRINTBUTTONLC @"[998] %CALLNAME:呼び出し対象:0%を呼び出す", 998
-; ELSE
-; 	SETCOLOR カラーパレット("グレーアウト")
-; 	PRINTFORMLC [---] ---を呼び出す
-; 	RESETCOLOR
-; ENDIF
-; PRINTBUTTONLC @"[996] 選択解除", 996
-; PRINTL 
-; PRINTBUTTONLC "[999] やめる", 999
+DRAWLINE
+;ページめくり表示
+IF 現在ページ > 0
+	PRINTBUTTONLC "[900] 前ページへ", 900
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTFORM - {現在ページ + 1} -
+IF 表示候補:((現在ページ * 表示人数) + 表示人数) > 0
+	PRINTBUTTONC "[901] 次ページへ", 901
+ENDIF
+PRINTL
+;確定と選択解除ボタン
+IF 呼び出し人数
+	PRINTBUTTONLC @"[998] %CALLNAME:(呼び出し対象:0)%を呼び出す", 998
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTFORMLC [---] ---を呼び出す
+	RESETCOLOR
+ENDIF
+PRINTBUTTONLC @"[996] 選択解除", 996
+PRINTL 
+PRINTBUTTONLC "[999] やめる", 999
 
-; BINPUT
-; 入力内容 = RESULT
-; リスタートフラグ = 0
-; 実行結果 = 0
-; SELECTCASE 入力内容
-; 	CASE 900
-; 		現在ページ = MAX(現在ページ - 1, 0)
-; 		リスタートフラグ = 1
-; 	CASE 901
-; 		SIF LOCAL:1 == 0
-; 			現在ページ += 1
-; 		リスタートフラグ = 1
-; 	CASE 999
-; 		実行結果 = -1
-; 	CASE 998
-; 		; 呼び出し対象確定
-; 		対象キャラ = 呼び出し対象:0
-; 		CFLAG:対象キャラ:現在位置 = CFLAG:PLAYER:現在位置
-; 		CFLAG:対象キャラ:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
-; 		CFLAG:対象キャラ:マッサージ助手 = 1
-; 		;野外オナニー時に備えて隠密を消す
-; 		CALL 野外オナニー途中終了(対象キャラ)
-; 		CFLAG:対象キャラ:隠密 = 0
-; 		;先に同室フラグを建てることで発覚口上をスキップする
-; 		CFLAG:対象キャラ:同室 = 1
-; 		RFLAG:コマンド結果受渡し変数 = 対象キャラ
-; 		実行結果 = 0
-; 	CASEELSE
-; 		対象キャラ = 表示候補:入力内容
-; 		IF 呼び出し対象:0 == 対象キャラ
-; 			呼び出し対象:0 = 0
-; 			呼び出し人数 = 0
-; 		ELSE
-; 			呼び出し対象:0 = 対象キャラ
-; 			呼び出し人数 = 1
-; 		ENDIF
-; 		リスタートフラグ = 1
-; ENDSELECT
-; CLEARLINE LINECOUNT - 描画開始行
-; SIF リスタートフラグ == 1
-; 	RESTART
-; REDRAW REDRAW_TEMP
-; RETURN 実行結果
+BINPUT
+入力内容 = RESULT
+リスタートフラグ = 0
+実行結果 = 0
+SELECTCASE 入力内容
+	CASE 900
+		現在ページ = MAX(現在ページ - 1, 0)
+		リスタートフラグ = 1
+	CASE 901
+		SIF LOCAL:1 == 0
+			現在ページ += 1
+		リスタートフラグ = 1
+	CASE 999
+		実行結果 = -1
+	CASE 998
+		; 呼び出し対象確定
+		対象キャラ = 呼び出し対象:0
+		CFLAG:対象キャラ:現在位置 = CFLAG:PLAYER:現在位置
+		CFLAG:対象キャラ:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+		CFLAG:対象キャラ:マッサージ助手 = 1
+		;野外オナニー時に備えて隠密を消す
+		CALL 野外オナニー途中終了(対象キャラ)
+		CFLAG:対象キャラ:隠密 = 0
+		;先に同室フラグを建てることで発覚口上をスキップする
+		CFLAG:対象キャラ:同室 = 1
+		RFLAG:コマンド結果受渡し変数 = 対象キャラ
+		実行結果 = 0
+	CASEELSE
+		対象キャラ = 表示候補:入力内容
+		IF 呼び出し対象:0 == 対象キャラ
+			呼び出し対象:0 = 0
+			呼び出し人数 = 0
+		ELSE
+			呼び出し対象:0 = 対象キャラ
+			呼び出し人数 = 1
+		ENDIF
+		リスタートフラグ = 1
+ENDSELECT
+CLEARLINE LINECOUNT - 描画開始行
+SIF リスタートフラグ == 1
+	RESTART
+REDRAW REDRAW_TEMP
+RETURN 実行結果
 
-; ;-------------------------------------------------
-; ;マッサージ助手候補キャラ登録
-; ;-------------------------------------------------
-; @マッサージ助手候補キャラ登録(表示候補)
-; #DIM REF 表示候補
-; LOCAL:1 = 0
-; FOR LOCAL, 1, CHARANUM
-; 	;滞在してないキャラは出さない
-; 	SIF CFLAG:LOCAL:滞在期間 < 0
-; 		CONTINUE
-; 	;セフレでも恋慕でもないキャラは出さない
-; 	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
-; 		CONTINUE
-; 	;睡眠中はアウト
-; 	SIF CFLAG:LOCAL:睡眠
-; 		CONTINUE
-; 	;既に同室者はアウト
-; 	SIF MATCH(TARGET, LOCAL)
-; 		CONTINUE
-; 	表示候補:(LOCAL:1) = LOCAL
-; 	LOCAL:1 += 1
-; NEXT
+;-------------------------------------------------
+;マッサージ助手候補キャラ登録
+;-------------------------------------------------
+@マッサージ助手候補キャラ登録(表示候補)
+#DIM REF 表示候補
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	;滞在してないキャラは出さない
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	;セフレでも恋慕でもないキャラは出さない
+	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
+		CONTINUE
+	;睡眠中はアウト
+	SIF CFLAG:LOCAL:睡眠
+		CONTINUE
+	;既に同室者はアウト
+	SIF MATCH(TARGET, LOCAL)
+		CONTINUE
+	表示候補:(LOCAL:1) = LOCAL
+	LOCAL:1 += 1
+NEXT
 
-; RETURN LOCAL:1
+RETURN LOCAL:1
 
-; ;-------------------------------------------------
-; ;実行判定
-; ;-------------------------------------------------
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
 
-; @MASSAGE_COM_ABLE60
-; SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
-; 	RETURN 0
+@MASSAGE_COM_ABLE60
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
 
-; SIF GLOBAL_MASSAGE_COMABLE(60)
-; 	RETURN RESULT
+SIF GLOBAL_MASSAGE_COMABLE(60)
+	RETURN RESULT
 
-; RETURN 1
+;二人きりのみ（＝助手は一人まで）
+SIF GET_TARGETNUM() > 1
+	RETURN 0
 
-; ;-------------------------------------------------
-; ;実行時メッセージ
-; ;-------------------------------------------------
-; @MASSAGE_MESSAGE_COM60
-; #DIM 対象キャラ
+RETURN 1
 
-; PRINTFORML %CALLNAME:PLAYER%は助手として%CALLNAME:(RFLAG:コマンド結果受渡し変数)%を呼び出した
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM60
+#DIM 対象キャラ
+
+PRINTFORML %CALLNAME:PLAYER%は助手として%CALLNAME:(RFLAG:コマンド結果受渡し変数)%を呼び出した

@@ -30,6 +30,15 @@ RETURNF LOCALS:ARG
 
 @SHOW_INFO_マッサージモード
 #DIMS ゲージ表示文
+#DIMS HTML文字列
+
+IF OPTION変数:PLAYER画像オフ
+ELSE
+	HTML文字列 = %顔グラ表示用文字列関数(PLAYER, 1000)%
+	IF STRFIND(HTML文字列, "顔ノーイメ") < 0
+		HTML_PRINT @"<div rect='4300, -650, 1125, 1350'>%HTML文字列%</div>", 1
+	ENDIF
+ENDIF
 
 SIF GETBIT(画像サイズ切り替えOPTION記憶, 0) || (GETBIT(画像サイズ切り替えOPTION記憶, 4) && 二人目画像表示用())
 	PRINT 　　　　　　　　　　　 
@@ -355,19 +364,19 @@ ELSEIF RESULT == 9100
 ;9100でINFO格納フィルタ
 	INVERTBIT INFO格納フィルタ:(RESULT - 9100), 0
 	RETURN 1
-ELSEIF RESULT > 2000
+ELSEIF RESULT >= 2000
 ;2000番以降は相手変えのショートカットに使う
 	数値変換用 = RESULT - 2000
-	IF 数値変換用 <= 0 || 数値変換用 >= CHARANUM
+	IF 数値変換用 < 0 || 数値変換用 >= CHARANUM
 		RETURN 1
+	ELSEIF 数値変換用 == MASTER
+		PLAYER = MASTER
+		FLAG:モード管理 = 0
 	ELSEIF CFLAG:数値変換用:同室
-		IF FLAG:モード管理 == 2 && !MATCH(同時モード_選択キャラ, 数値変換用)
-			FLAG:モード管理 = 0
-			VARSET 同時モード_選択キャラ, -1
-			同時モード_選択数 = 0
+		IF CFLAG:数値変換用:マッサージ助手
+			PLAYER = 数値変換用
+			SETBIT FLAG:モード管理, モードビット_指示
 		ENDIF
-		TFLAG:TARGET変更用 = 数値変換用
-		TFLAG:あなたターゲット用 = 0
 		PREVCOM = RESULT
 	ENDIF
 	RETURN 1
@@ -1152,13 +1161,28 @@ ENDIF
 #DIM 初期値
 #DIM 上限値
 #DIM 下限値
+#DIM 技能値
+#DIM 同室者
 
 初期値 = 変動基礎値
+
+技能値 = ABL:PLAYER:マッサージ技能
+
+FOR 同室者, 1, CHARANUM
+	SIF TARGET:同室者 < 0
+		BREAK
+	SIF TARGET:同室者 == TARGET
+		CONTINUE
+	IF CFLAG:(TARGET:同室者):マッサージ助手
+		技能値 += MAX(1, ABL:PLAYER:マッサージ技能 / 3 + 1)
+	ENDIF
+NEXT
+
 
 IF 変動基礎値 < 0
 	;変動値がマイナスの場合、マッサージ技能が低いと０に近づく
 	;０にはならない
-	変動基礎値 = MIN(-1, 変動基礎値 + (5 - ABL:PLAYER:マッサージ技能) * 10)
+	変動基礎値 = MIN(-1, 変動基礎値 + (5 - 技能値) * 10)
 ENDIF
 ;プラス側の補正はない
 
@@ -1235,6 +1259,11 @@ SIF TALENT:対象キャラ:恋人持ち
 SIF TALENT:対象キャラ:浮気
 	変動基礎値 -= MIN(5, ABS(初期値) / 6)
 
+IF 初期値 < 0
+	;初期値がマイナスの時、もっかい-1の制限ラインを掛けとく
+	変動基礎値 = MIN(-1, 変動基礎値)
+ENDIF
+
 ;警戒に応じた上限下限を掛ける
 ;通常は初期値の３倍まで
 上限値 = ABS(初期値) * 300
@@ -1270,16 +1299,19 @@ RETURNF 変動基礎値
 #DIM 初期値
 #DIM 上限値
 #DIM 下限値
+#DIM 技能値
 
 初期値 = 変動基礎値
+
+技能値 = ABL:PLAYER:マッサージ技能
 
 IF 変動基礎値 < 0
 	;変動値がマイナスの場合、マッサージ技能が低いと０に近づく
 	;０にはならない
-	変動基礎値 = MIN(-1, 変動基礎値 + (5 - ABL:PLAYER:マッサージ技能) * 10)
+	変動基礎値 = MIN(-1, 変動基礎値 + (5 - 技能値) * 10)
 ELSE
 	;プラスの場合、低いと増えるが初期値の倍が上限
-	変動基礎値 = MIN(初期値 * 2, 変動基礎値 + ABL:PLAYER:マッサージ技能 * 5)
+	変動基礎値 = MIN(初期値 * 2, 変動基礎値 + 技能値 * 5)
 ENDIF
 
 ;弱点コマンド
@@ -1403,6 +1435,11 @@ ENDIF
 
 SIF TALENT:対象キャラ:ギャル > 0
 	変動基礎値 -= MIN(5, ABS(初期値) / 6)
+
+IF 初期値 < 0
+	;初期値がマイナスの時、もっかい-1の制限ラインを掛けとく
+	変動基礎値 = MIN(-1, 変動基礎値)
+ENDIF
 
 ;理性に応じた上限下限を掛ける
 ;通常は初期値の３倍まで
