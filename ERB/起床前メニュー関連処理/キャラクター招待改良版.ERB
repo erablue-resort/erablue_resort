@@ -344,6 +344,7 @@ ENDIF
 #DIM 表示候補, キャラクタ数上限
 #DIM 現在ページ
 #DIM 広告対象
+#DIMS ソート情報
 
 VARSET 表示候補, -1
 現在ページ = 0
@@ -400,7 +401,13 @@ FOR LOCAL, (現在ページ * 30), ((現在ページ * 30) + 30)
 	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
 		SETCOLOR CFLAG:(表示候補:LOCAL):同室文字色
 	ENDIF
-	PRINTBUTTON @"[{LOCAL,3,RIGHT}]%NAME:(表示候補:LOCAL), 50, LEFT%", LOCAL
+	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
+	IF ソート情報 == ""
+		PRINTBUTTON @"[{LOCAL, 3}] %GET_NAME(表示候補:LOCAL, 1, 50)%", LOCAL
+	ELSE
+		PRINTBUTTON @"[{LOCAL, 3}] %GET_NAME(表示候補:LOCAL, 1, 40)%", LOCAL
+		PRINTFORM 　%ソート情報%　
+	ENDIF
 	RESETCOLOR
 	SIF LOCAL % 2 != 0 && LOCAL
 		PRINTL 
@@ -421,45 +428,7 @@ IF 表示候補:((現在ページ * 30) + 30) > 0
 ENDIF
 PRINTL
 DRAWLINE
-PRINTBUTTON "[9020]フィルタ機能", 9020
-PRINTL
-PRINTBUTTON "[9030]ソート機能", 9030
-PRINT 　　　　　現在のソート設定：
-IF キャラ一覧ソート:0 != ""
-	PRINTFORM %キャラ一覧ソート:0%
-ENDIF
-IF STRCOUNT(キャラ一覧ソート:1, "昇順")
-	PRINT (昇順)
-	PRINT 　　　　　
-	PRINTBUTTON "[降順にする]", 9031
-ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
-	PRINT (降順)
-	PRINT 　　　　　
-	PRINTBUTTON "[昇順にする]", 9032
-ELSE
-	PRINT なし(キャラ番号順)
-ENDIF
-PRINTL
-PRINTBUTTON "[9040]素質絞り込み機能", 9040
-PRINT 　　現在の絞り込み設定：
-IF キャラ一覧素質絞り込み:0 != ""
-	IF キャラ一覧素質絞り込み:99 == "AND"
-		PRINT (AND条件)：
-	ELSE
-		PRINT (OR条件)：
-	ENDIF
-	FOR LOCAL, 0, 99
-		SIF キャラ一覧素質絞り込み:LOCAL == ""
-			BREAK
-		LOCALS:0 = 
-		LOCALS:1 = 
-		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
-	NEXT
-ELSE
-	PRINT なし
-ENDIF
-PRINTL
+CALL フィルタソートボタンセット表示(9020, 9030, 9031, 9040)
 DRAWLINE
 PRINTL 
 PRINTBUTTON "[9999] 戻る", 9999
@@ -469,24 +438,8 @@ BINPUT
 
 ;広告対象のINPUT
 SELECTCASE RESULT
-	CASE 9020
-		CALL SHOW_CHARADATA_FILTA
-		現在ページ = 0
-		RESTART
-	CASE 9030
-		CALL SHOW_CHARADATA_SORT
-		現在ページ = 0
-		RESTART
-	CASE 9031
-		キャラ一覧ソート:1 = 降順
-		現在ページ = 0
-		RESTART
-	CASE 9032
-		キャラ一覧ソート:1 = 昇順
-		現在ページ = 0
-		RESTART
-	CASE 9040
-		CALL SHOW_CHARADATA_素質絞り込み
+	CASE 9020, 9030, 9031, 9040
+		CALL フィルタソートボタンセット実行部(RESULT, 9020, 9030, 9031, 9040)
 		現在ページ = 0
 		RESTART
 	CASE 9000

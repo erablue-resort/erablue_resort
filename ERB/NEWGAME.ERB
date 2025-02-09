@@ -2095,7 +2095,7 @@ VARSET LOCAL
 VARSET LOCALS
 ;表示処理
 FOR LOCAL, 現在ページ * 30, 候補人数
-	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %ADD_STR_SPACE(NAME表示省略(NAME:(表示候補:LOCAL)), "]"),41,LEFT%</button>"
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,3}] %GET_NAME(表示候補:LOCAL, 1)%</button>"
 	LOCALS += "　　　　　　　　"
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
@@ -2435,6 +2435,7 @@ RETURN 返り値
 #DIM スキップフラグ
 #DIM 得意武器番号
 #DIM 配列番号
+#DIMS ソート情報
 現在ページ = 0
 VARSET 追加候補, -1
 
@@ -2445,7 +2446,7 @@ VARSET 表示候補
 VARSET ソート基準値
 VARSET LOCALS
 
-LOCAL:1 = 0
+候補人数 = 0
 ;フィルタ処理・絞り込み処理
 FOR LOCAL, 1, CHARANUM
 	CALL 装備再計算処理(LOCAL)
@@ -2455,6 +2456,7 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF 滞在者のみフィルタ == 1 && CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
+[SKIPSTART]
 	SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, TALENT:LOCAL:性別)%")
 		CONTINUE
 	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
@@ -2537,10 +2539,13 @@ FOR LOCAL, 1, CHARANUM
 	NEXT
 	SIF LOCAL:3 == 0
 		CONTINUE
-
-	表示候補:(LOCAL:1) = LOCAL
-	LOCAL:1 += 1
+[SKIPEND]
+	表示候補:候補人数 = LOCAL
+	候補人数 += 1
 NEXT
+CALL キャラ配列フィルタ処理(表示候補)
+候補人数 = RESULT
+[SKIPSTART]
 候補人数 = LOCAL:1
 LOCAL:1 = 1
 ;ソート処理
@@ -2598,6 +2603,7 @@ IF キャラ一覧ソート:0 != ""
 			ARRAYMSORT ソート基準値, 表示候補
 	ENDIF
 ENDIF
+[SKIPEND]
 
 $表示処理_LOOP
 DRAWLINE
@@ -2605,6 +2611,12 @@ VARSET LOCAL
 VARSET LOCALS
 ;表示処理
 FOR LOCAL, 現在ページ * 30, 候補人数
+	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 4}] %GET_NAME(表示候補:LOCAL, 1)%</button>"
+	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
+	SIF ソート情報 != ""
+		LOCALS += @"　%ソート情報%"
+	LOCALS += "　"
+[SKIPSTART]
 	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
 		LOCALS += "<font color='#FF3399'>"
 	ENDIF
@@ -2653,6 +2665,7 @@ FOR LOCAL, 現在ページ * 30, 候補人数
 			LOCALS += "　　　　　　　　"
 		ENDIF
 	ENDIF
+[SKIPEND]
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
 		HTML_PRINT LOCALS
@@ -2676,47 +2689,7 @@ IF 現在ページ < 候補人数 / 30
 ENDIF
 PRINTL
 DRAWLINE
-
-PRINTBUTTON "[2000]フィルタ機能", 2000
-PRINTL
-PRINTBUTTON "[3000]ソート機能", 3000
-PRINT 　　　　　現在のソート設定：
-IF キャラ一覧ソート:0 != ""
-	PRINTFORM %キャラ一覧ソート:0%
-ENDIF
-IF STRCOUNT(キャラ一覧ソート:1, "昇順")
-	PRINT (昇順)
-	PRINT 　　　　　
-	PRINTBUTTON "[降順にする]", 3100
-ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
-	PRINT (降順)
-	PRINT 　　　　　
-	PRINTBUTTON "[昇順にする]", 3200
-ELSE
-	PRINT なし(キャラ番号順)
-ENDIF
-PRINTL
-PRINTBUTTON "[4000]素質絞り込み機能", 4000
-PRINT 　　現在の絞り込み設定：
-IF キャラ一覧素質絞り込み:0 != ""
-	IF キャラ一覧素質絞り込み:99 == "AND"
-		PRINT (AND条件)：
-	ELSE
-		PRINT (OR条件)：
-	ENDIF
-	FOR LOCAL, 0, 99
-		SIF キャラ一覧素質絞り込み:LOCAL == ""
-			BREAK
-		LOCALS:0 = 
-		LOCALS:1 = 
-		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		PRINTFORM [%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]
-	NEXT
-ELSE
-	PRINT なし
-ENDIF
-PRINTL
-
+CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000)
 DRAWLINE
 PRINTL ・現在の選択キャラ
 FOR LOCAL, 0, 追加人数
@@ -2724,7 +2697,7 @@ FOR LOCAL, 0, 追加人数
 		PRINTL 未選択
 	ELSE
 		PRINTBUTTON "[外す]", 9900 + LOCAL
-		PRINTFORML 　%NAME:(追加候補:LOCAL), 24, LEFT%
+		PRINTFORML 　%GET_NAME(追加候補:LOCAL, 1, 24)%
 	ENDIF
 NEXT
 PRINTL 
@@ -2745,29 +2718,14 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 9900 TO 9910
 		追加候補:(LOCAL - 9900) = -1
-	CASE 2000
-		CALL SHOW_CHARADATA_FILTA
+	CASE 2000, 3000, 3100, 4000
+		;出典フィルタに全作品を強制表示させる(通常表示だとグラブルしか表示されないため)
+		出典フィルタ強制全表示フラグ = 1
+		CALL フィルタソートボタンセット実行部(LOCAL, 2000, 3000, 3100, 4000)
+		;他処理に影響しないようにすぐにOFF
+		出典フィルタ強制全表示フラグ = 0
 		現在ページ = 0
-		GOTO 最初から
-	CASE 2001
-		INVERTBIT 滞在者のみフィルタ, 0
-		現在ページ = 0
-		GOTO 最初から
-	CASE 3000
-		CALL SHOW_CHARADATA_SORT
-		現在ページ = 0
-		GOTO 最初から
-	CASE 3100
-		キャラ一覧ソート:1 = 降順
-		現在ページ = 0
-		GOTO 最初から
-	CASE 3200
-		キャラ一覧ソート:1 = 昇順
-		現在ページ = 0
-		GOTO 最初から
-	CASE 4000
-		CALL SHOW_CHARADATA_素質絞り込み
-		現在ページ = 0
+		;最初に戻ってリスト再生成
 		GOTO 最初から
 	CASE -1
 		現在ページ --
