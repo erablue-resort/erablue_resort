@@ -3,8 +3,17 @@
 ;-------------------------------------------------
 @MASSAGE_COMNAME60
 #FUNCTIONS
+#DIM 同室
 
 TSTR:コマンド名受渡 = 助手を呼ぶ
+
+FOR 同室, 1, CHARANUM
+	SIF TARGET:同室 < 1
+		BREAK
+	IF CFLAG:(TARGET:同室):マッサージ助手
+		TSTR:コマンド名受渡 = 助手を帰す
+	ENDIF
+NEXT
 
 ;===================================================
 ;コマンドタイプ
@@ -33,7 +42,32 @@ TSTR:ツールチップ受渡 = %LOCALS%
 #DIM 入力内容
 #DIM REDRAW_TEMP
 #DIM 描画開始行
+#DIM 助手キャラ
+#DIM 同室
 #DIM CONST 表示人数 = 15
+
+助手キャラ = 0
+FOR 同室, 1, CHARANUM
+	SIF TARGET:同室 < 1
+		BREAK
+	IF CFLAG:(TARGET:同室):マッサージ助手
+		助手キャラ = TARGET:同室
+	ENDIF
+NEXT
+
+IF 助手キャラ
+	;助手を帰すコマンドになっているはず
+	PLAYER = MASTER
+	FLAG:モード管理 = 0
+	CFLAG:助手キャラ:マッサージ助手 = 0
+	RFLAG:コマンド結果受渡し変数 = 助手キャラ * -1
+	CFLAG:助手キャラ:同行 = 0
+	;あんまり行儀よくないけど現在位置を直接どっかにやる
+	CFLAG:助手キャラ:現在位置 = 2
+	;同行を消すためTARGET配列から消す
+	ARRAYREMOVE TARGET, FINDELEMENT(TARGET, 助手キャラ), 1
+	RETURN 0
+ENDIF
 
 IF 初回実行フラグ
 	初回実行フラグ = 0
@@ -206,10 +240,6 @@ SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
 SIF GLOBAL_MASSAGE_COMABLE(60)
 	RETURN RESULT
 
-;二人きりのみ（＝助手は一人まで）
-SIF GET_TARGETNUM() > 1
-	RETURN 0
-
 RETURN 1
 
 ;-------------------------------------------------
@@ -218,4 +248,8 @@ RETURN 1
 @MASSAGE_MESSAGE_COM60
 #DIM 対象キャラ
 
-PRINTFORML %CALLNAME:PLAYER%は助手として%CALLNAME:(RFLAG:コマンド結果受渡し変数)%を呼び出した
+IF RFLAG:コマンド結果受渡し変数 > 0
+	PRINTFORML %CALLNAME:PLAYER%は助手として%CALLNAME:(RFLAG:コマンド結果受渡し変数)%を呼び出した
+ELSE
+	PRINTFORML %CALLNAME:MASTER%は助手の%CALLNAME:ABS(RFLAG:コマンド結果受渡し変数)%を帰した
+ENDIF
