@@ -1,0 +1,85 @@
+﻿
+
+
+@起床時告白キャラ判定()
+#FUNCTION
+#DIM キャラ番号
+#DIM 候補配列, 2000
+#DIM 候補数
+
+;まずオプション
+IF OPTION変数:起床時告白禁止
+	RETURNF 0
+ENDIF
+
+候補数 = 0
+;恋慕候補で恋慕条件を満たしてるが恋慕でないキャラを探す
+FOR キャラ番号, 1, CHARANUM
+	SIF CFLAG:キャラ番号:ゲージ起動分類 != 1
+		CONTINUE
+	SIF TALENT:キャラ番号:恋慕
+		CONTINUE
+	SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:キャラ番号:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号:人物番号}) And 関係性種別 = '恋慕'")
+		CONTINUE
+	;本来恋慕50が告白条件だが、あっちから言ってくるのは勇気がいるので70制限
+	SIF CFLAG:キャラ番号:恋慕レベル <= 70
+		CONTINUE
+	SIF GETBIT(TALENT:キャラ番号:陥落不可, 0)
+		CONTINUE
+	SIF 恋愛対象外チェック(キャラ番号, MASTER)
+		CONTINUE
+	;人妻系はあっちからは来ない
+	SIF TALENT:キャラ番号:恋人持ち
+		CONTINUE
+	;一回したらもう来ない
+	SIF CFLAG:キャラ番号:起床時告白済み
+		CONTINUE
+	候補配列:候補数 = キャラ番号
+	候補数 ++
+NEXT
+
+IF 候補数 > 0
+	RETURNF 候補配列:(RAND:候補数)
+ELSE
+	RETURNF 0
+ENDIF
+
+
+@起床時告白処理(告白キャラ)
+#DIM 告白キャラ
+DRAWLINE
+;あっちから告白してくる処理
+
+;口上があるならそっちを表示
+TRYCCALLFORM KOJO_EVENT_起床時告白_開始時_{NO:告白キャラ}(告白キャラ)
+CATCH
+	;汎用告白処理
+	PRINTFORMW %CALLNAME:MASTER%が起きて朝の支度をしていると、自室に来客があった。
+	PRINTFORMW 訪ねてきた%CALLNAME:告白キャラ%を出迎え、お茶を出してもてなす。どうやら話があるようだ。
+	PRINTL
+	PRINTFORMW %CALLNAME:告白キャラ%は赤い顔をして少し躊躇いながら、%CALLNAME:MASTER%への愛の言葉を告げる。
+	PRINTFORMW 恋人同士になりたくて、告白をしに%CALLNAME:MASTER%の部屋を訪れたらしい。
+ENDCATCH
+
+PRINTFORML %CALLNAME:告白キャラ%の想いに、%CALLNAME:MASTER%は……
+PRINTBUTTONLC "[0] 想いに応える", 0
+PRINTBUTTONLC "[1] 少し考えさせて欲しいと言う", 1
+PRINTL
+
+BINPUT
+IF RESULT == 0
+	TRYCCALLFORM KOJO_EVENT_起床時告白_成功_{NO:告白キャラ}(告白キャラ)
+	CATCH
+		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME:告白キャラ%は笑顔を浮かべて喜んだ。
+	ENDCATCH
+	SETCOLOR カラーパレット("えっちな色")
+	PRINTFORMW %CALLNAME:告白キャラ%は［恋慕］を得た。
+	RESETCOLOR
+ELSE
+	TRYCCALLFORM KOJO_EVENT_起床時告白_保留_{NO:告白キャラ}(告白キャラ)
+	CATCH
+		PRINTFORMW %CALLNAME:MASTER%が少し考えさせて欲しいと返すと、%CALLNAME:告白キャラ%は答えは急がないからと帰っていった……
+	ENDCATCH
+	CFLAG:告白キャラ:起床時告白済み = 1
+ENDIF
+
