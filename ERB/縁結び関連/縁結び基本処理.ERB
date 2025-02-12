@@ -299,6 +299,7 @@ RESTART
 #DIM 表示数
 #DIM 初期進展度
 #DIM セットモード
+#DIM 非滞在非表示
 #DIM 既に恋慕フラグ
 #DIM 候補配列, キャラクタ数上限
 #DIM 汎用セット不可フラグ
@@ -349,6 +350,9 @@ FOR 対象キャラ, 1, CHARANUM
 	;優先条件
 	;招待可能フラグによる制御
 	SIF CFLAG:対象キャラ:招待不可フラグ
+		CONTINUE
+	;非滞在非表示
+	SIF 非滞在非表示 && CFLAG:対象キャラ:滞在期間 < 0
 		CONTINUE
 	;同じ相手はダメ
 	SIF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:左キャラ:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ:人物番号}")
@@ -462,6 +466,11 @@ IF 全キャラランダムモード == 0
 	PRINTL ※リゾートにいないキャラも選択出来ます。
 	PRINTL ※恋愛対象外のキャラについては選択出来ません。
 	PRINTL 　（特定のキャラについては選択出来ることがあります）
+	IF 非滞在非表示
+		HTML_PRINT @"<button value='9002'>[9002] リゾートに滞在していないキャラを<font color='#%カラーパレット_HTML("グレーアウト")%'>表示</font> / 非表示</button>"
+	ELSE
+		HTML_PRINT @"<button value='9002'>[9002] リゾートに滞在していないキャラを表示 / <font color='#%カラーパレット_HTML("グレーアウト")%'>非表示</font></button>"
+	ENDIF
 	DRAWLINE
 	IF セットモード == 0
 		HTML_PRINT @"　　<font color='#%カラーパレット_HTML("黄")%'>[恋慕の縁]</font>　　<button value='9011'>[セフレの縁]</button>"
@@ -534,6 +543,9 @@ ELSE
 	対象キャラ = 9100
 ENDIF
 SELECTCASE 対象キャラ
+	CASE 9002
+		INVERTBIT 非滞在非表示, 0
+		RESTART
 	CASE 9100
 		対象キャラ = 候補配列:(RAND:表示数)
 		;データベースにセット
