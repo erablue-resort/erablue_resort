@@ -1,0 +1,329 @@
+﻿@MOVE_ROUTINE_FESTIVAL_歳旦祭(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+#DIM CONST 開催費用 = 15000
+;衣装が２つ手に入るのでお高め
+
+SELECTCASE ARGS
+	CASE "お祭り説明"
+		LOCALS = <div rect='2125,500,3762,2812'>
+		LOCALS += "■歳旦祭<br>"
+		LOCALS += "<br>"
+		LOCALS += "特設会場にて、新年を祝うお祭りです。<br>"
+		LOCALS += "厳かな雰囲気を共有することで、参加者の距離はより近づくでしょう。<br>"
+		LOCALS += "<br>"
+		LOCALS += "賑やかな場所では好感度要素：友情の上昇率が1.3倍になります。<br>"
+		LOCALS += "静かな場所では好感度要素：信頼の上昇率が1.3倍になります。<br>"
+		LOCALS += "女性従業員の制服が巫女装束となります。<br>"
+		LOCALS += "一定条件を満たしたキャラが晴れ着を着ることがあります。<br>"
+		LOCALS += "<br>"
+		IF 開催費用 > MONEY
+			LOCALS += @"ルピが不足しています。（必要ルピ：%NUM_FORMAT(開催費用)%）<br>"
+		ELSE
+			LOCALS += @"<button value='0'>[0] このお祭りを企画する（必要ルピ：%NUM_FORMAT(開催費用)%）</button><br>"
+		ENDIF
+		LOCALS += "</div>"
+		HTML_PRINT LOCALS, 1
+	CASE "出現条件"
+		;既に予定に入ってたらアウト
+		SIF 開催予定祭り名 == "FESTIVAL_歳旦祭"
+			RETURN 0
+		;春の月1～10日限定
+		SIF DAY % 120 > 10
+			RETURN -1
+		RETURN 1
+	CASE "参加判定"
+		;とりあえず全員参加
+		RETURN 1
+	CASE "特設マップ"
+		;存在する
+		RETURN 1
+	CASE "起床時刻"
+		時間計算 = 480 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	CASE "就寝時刻"
+		時間計算 = 1350 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	CASE "就寝場所"
+		RETURN 0
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = 6
+		CFLAG:キャラ番号:現在マップ種別 = 0
+	CASE "お祭り補正条件"
+		;歳旦祭マップに居る時
+		IF CFLAG:キャラ番号:現在マップ種別 == 100
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "お祭り補正内容"
+		IF GROUPMATCH(CFLAG:キャラ番号:現在位置, 1, 2)
+			;入り口、出店だと好感度要素：友情に補正
+			NOWEX:キャラ番号:友情度上昇格納 = MAX(NOWEX:キャラ番号:友情度上昇格納 * 13 / 10, 0)
+		ELSEIF GROUPMATCH(CFLAG:キャラ番号:現在位置, 3, 4, 5, 6)
+			;池のほとり、拝殿、鎮守の森、静かな場所だと恋心に補正
+			NOWEX:キャラ番号:信頼度上昇格納 = MAX(NOWEX:キャラ番号:信頼度上昇格納 * 13 / 10, 0)
+		ENDIF
+	CASE "服装変更"
+		;お祭り開催で服入手
+		CALL 制服登録処理("巫女装束")
+		CALL 制服登録処理("晴れ着")
+		IF TALENT:キャラ番号:従業員 && GETBIT(TALENT:キャラ番号:性別, 0)
+			;制服がセクシー巫女服の場合、そのまま
+			SIF 現在制服:キャラ番号:0 == "セクシー巫女服"
+				RETURN
+			;女性従業員は巫女装束を着る
+			RSTR:服装名受け渡し = 巫女装束
+			RETURN
+		ELSEIF TALENT:キャラ番号:従業員
+			;男性従業員は晴れ着を着る
+		ELSEIF TALENT:キャラ番号:目立ちたがり || TALENT:キャラ番号:芸達者
+			;目立ちたがり、芸達者は全員着る
+		ELSE
+			;基本的に他人時は着ない
+			SIF CFLAG:キャラ番号:好感度レベル < 関係閾値:1
+				RETURN 0
+			;恥じらい持ちは友人から
+			SIF TALENT:キャラ番号:羞恥心 > 0 && CFLAG:キャラ番号:好感度レベル < 関係閾値:2
+				RETURN 0
+			;無関心は着ない
+			SIF TALENT:キャラ番号:無関心 > 0
+				RETURN 0
+			;陰気は友人から
+			SIF TALENT:キャラ番号:陽気／陰気 < 0 && CFLAG:キャラ番号:好感度レベル < 関係閾値:2
+				RETURN 0
+		ENDIF
+		RSTR:服装名受け渡し = 晴れ着
+ENDSELECT
+
+
+@ROUTINE_SCHEDULE_FESTIVAL_歳旦祭(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
+
+;起床後はお祭りへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "歳旦祭を楽しむ", "所要時間", "150")
+スケジュール番号++
+
+;12時から昼休憩
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;13時からお祭りへ
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 780 + TCVAR:キャラ番号:行動時間ゆらぎ, "歳旦祭を楽しむ", "所要時間", "180")
+スケジュール番号++
+
+;18時半から夕休憩
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1110 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;19時半からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1170 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは21時の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1245 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ELSE
+	;21時からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;22時00分から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1320 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ENDIF
+
+@SCHEDULE_歳旦祭を楽しむ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+	CASE "経過処理"
+		SIF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+			RETURN
+
+		スケジュール状態:キャラ番号:目的マップ = 100
+		スケジュール状態:キャラ番号:目的地 = RAND:5 + 1
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(60, 120)
+	CASE "終了処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+ENDSELECT
+
+@マップ移動初期位置_FESTIVAL_歳旦祭(移動前マップ, 移動後マップ)
+#FUNCTION
+#DIM 移動前マップ
+#DIM 移動後マップ
+
+RESULT = 1
+
+@MAP_RESORT_100_FESTIVAL_歳旦祭(AA)
+#DIMS REF AA, 0
+
+LOCAL = 0
+AA:(LOCAL++) = 杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉
+AA:(LOCAL++) = 杉楠榊杉楠榊杉楠榊杉　　　杉楠榊　　　　　　　　　　　　杉楠榊杉楠榊杉楠榊杉
+AA:(LOCAL++) = 杉榊杉楠榊楠　　　　　　　　　　　　　　　　杉榊　　　　　　　　杉楠榊杉楠榊
+AA:(LOCAL++) = 杉楠榊　　　　　　　　　　　　　　　　　　杉楠榊杉榊　　　　　　杉　　杉楠榊
+AA:(LOCAL++) = 杉榊　　　　　　　　　　杉榊　　　　　　　　　杉榊　　　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉榊　　　　　杉楠榊　　　　　　　　　　　　　　　　　　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉　　　杉榊　　杉楠榊　　　杉榊　　　　　　　　　　　　　　　　　杉榊　　杉
+AA:(LOCAL++) = 杉　　　　　　　┌───────┐　┌─┬─┬─┬─┬─┬─┐　杉榊　　　杉
+AA:(LOCAL++) = 杉榊　　　　杉榊│　　　　　　　│　│　│　│　│　│　│　│　　　　　　　　
+AA:(LOCAL++) = 杉　　　　　　杉│　　　　　　　│　└─┴─┴─┴─┴─┴─┘
+AA:(LOCAL++) = 杉　　　　　　杉│　　　　　　　│　　　　　　　　　　　　　　　　　01　　
+AA:(LOCAL++) = 杉榊　　　　杉　│　　　03　　　│　　　　　　02　　　　　　　　　　　　　　　
+AA:(LOCAL++) = 杉楠榊　　　　　│　　　　　　　│　┌─┬─┐　┌─┬─┬─┐　　　　　　杉
+AA:(LOCAL++) = 杉　　　　杉楠榊│　　　　　　　│　│　│　│　│　│　│　│　　　杉　　杉
+AA:(LOCAL++) = 杉榊　　杉楠榊　│　　　　　　　│　└─┼─┤　├─┼─┴─┘　　　　　杉榊
+AA:(LOCAL++) = 杉榊　　　　杉榊└───────┘　　　│　│　│　│　杉　　　　　　　杉榊
+AA:(LOCAL++) = 杉　　　　　　　　　　　　杉榊　　　　　├─┤　├─┤　　杉　　　　杉楠榊杉
+AA:(LOCAL++) = 杉　杉楠榊杉　　　　　　　　　　　　　　│　│　│　│　　　　　　　　杉楠榊
+AA:(LOCAL++) = 杉　楠榊杉楠榊杉榊杉　　　　　　杉榊　杉├─┤　├─┤　　　　　　　　　杉
+AA:(LOCAL++) = 杉　榊杉楠榊杉楠榊杉榊杉楠　　　　　　　│　│　│　│　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉　　杉楠榊杉楠榊杉楠榊杉楠榊　　　　　└─┘　└─┘　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉榊　楠榊杉楠榊杉楠榊杉榊杉　　杉　杉　　　　　　　　　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉榊　榊杉楠榊杉榊杉楠　　　　杉榊　　　杉　　　　　　　　　　　　　　　　杉
+AA:(LOCAL++) = 杉榊　杉楠榊杉楠榊　　　杉榊　　　杉　杉榊　　　　　　　　　　　　　　　杉榊
+AA:(LOCAL++) = 杉榊　楠榊杉楠榊杉　　杉　　　　05　杉　　杉榊　　　　　　04　　　　　杉楠榊
+AA:(LOCAL++) = 杉榊　　杉楠榊杉榊　　杉　杉　杉　　　杉　　　　　　　　　　　　　　池池池池
+AA:(LOCAL++) = 杉　　　榊杉楠榊杉楠　　　　杉　杉　　　　　杉　　　　　　　池池池池池池池池
+AA:(LOCAL++) = 杉　06　楠榊杉楠榊杉杉　杉　　　　杉榊　　杉　　　　　池池池池池池池池池池池
+AA:(LOCAL++) = 杉　　　杉楠榊杉楠榊杉楠榊杉楠榊杉楠榊杉楠榊　　　池池池池池池池池池池池池池
+AA:(LOCAL++) = 杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉杉池池池池池池池池池池池池池
+AA:(LOCAL++) = 　
+AA:(LOCAL++) = 01：会場入口　　02：出店通り　　03：拝殿　　　04：池のほとり　05：鎮守の森
+AA:(LOCAL++) = 06：静かな場所
+
+@GETPLACENAME_100_FESTIVAL_歳旦祭(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 1
+		TSTR:場所名受渡 = 会場入口
+	CASE 2
+		TSTR:場所名受渡 = 出店通り
+	CASE 3
+		TSTR:場所名受渡 = 拝殿
+	CASE 4
+		TSTR:場所名受渡 = 池のほとり
+	CASE 5
+		TSTR:場所名受渡 = 鎮守の森
+	CASE 6
+		TSTR:場所名受渡 = 静かな場所
+ENDSELECT
+
+@SKIP_MOVE_100_FESTIVAL_歳旦祭(ARG, ARG:1)
+#DIM スタート地点
+#DIM スタートマップ
+#DIM 目的マップ
+#DIM 移動キャラ = 0
+
+;現在位置取得
+移動キャラ = 0
+スタート地点 = CFLAG:MASTER:現在位置
+IF ARG:1
+	移動キャラ = ARG:1
+	スタート地点 = CFLAG:移動キャラ:現在位置
+ENDIF
+
+$LOOP
+
+;暫定目的地に直接移動できる場合
+IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
+	;そこに移動
+	RETURN ARG
+ENDIF
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE スタート地点
+	CASE 6
+		RETURN 3
+ENDSELECT
+
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;地点追加時要フォロー（全ケース修正すること）
+SELECTCASE ARG
+	CASE 6
+	;静かな場所へは拝殿経由
+		RETURN 3
+ENDSELECT
+GOTO LOOP
+
+@DRAW_MAP_BG_100_FESTIVAL_歳旦祭(SLICED, 表示文字列)
+#DIMS REF 表示文字列
+#DIMS SLICED
+SELECTCASE SLICED
+	CASE "杉", "榊", "楠"
+		表示文字列 += @"<font color='#2C7046'>%SLICED%</font>"
+	CASE "池"
+		表示文字列 += @"<font color='#0067C0'>%SLICED%</font>"
+	CASEELSE
+		表示文字列 += @"%SLICED%"
+ENDSELECT
+
+@CAN_MOVE_FESTIVAL_歳旦祭(ARG, ARG:1)
+;ARG 移動元
+;ARG:1 移動先
+#FUNCTION
+
+SELECTCASE ARG
+	CASE 1
+		;静かな場所以外はOK
+		IF GROUPMATCH(ARG:1, 1, 2, 3, 4, 5)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 2
+		;静かな場所以外はOK
+		IF GROUPMATCH(ARG:1, 1, 2, 3, 4, 5)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 3
+		;静かな場所以外は見通しヨシ
+		IF GROUPMATCH(ARG:1, 1, 2, 3, 4, 5)
+			RESULT = 3
+			RETURNF 3
+		ELSEIF ARG:1 == 6
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+	CASE 4
+		;静かな場所以外はOK
+		IF GROUPMATCH(ARG:1, 1, 2, 3, 4, 5)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 5
+		;静かな場所以外はOK
+		IF GROUPMATCH(ARG:1, 1, 2, 3, 4, 5)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 6
+		;拝殿のみ
+		IF ARG:1 == 3
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+ENDSELECT
+RESULT = 0
+
+@存在しない移動先_FESTIVAL_歳旦祭(ARG)
+#FUNCTION
+IF ARG < 1 || ARG > 6
+	RESULT = 1
+	RETURNF 1
+ELSE
+	RESULT = 0
+	RETURNF 0
+ENDIF
