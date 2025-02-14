@@ -367,7 +367,9 @@ ARRAYCOPY @"固有%TYPE%CSV"           , "作業用CSV"
 ; 固有要素ありのフォルダと一致する場合は固有要素をまとめて結果として返す
 リスト結合テキスト '= ""
 FOR L_CNT, 0, VARSIZE(@"デバッグ用_キャラ固有%TYPE%名定義")
-	SIF 作業用フォルダリスト:L_CNT != FOLDER_NAME
+;	SIF 作業用フォルダリスト:L_CNT != FOLDER_NAME
+	;サブフォルダは親フォルダのリストを使用
+	SIF !STRCOUNT(FOLDER_NAME, 作業用フォルダリスト:L_CNT)
 		CONTINUE
 	SPLIT 作業用CSV:L_CNT, ",", RESULTS
 	要素数 = RESULT
@@ -399,6 +401,9 @@ FOLDER_PATH '= @"%フォルダベース%/%FOLDER_NAME%"
 REGEX_TEXT '= @"顔_.*\.webp"
 IF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	;- 顔画像
+	; 奥義ゲージMAX差分は短冊画像を使用しないのでスキップ
+	SIF STRCOUNT(FILE_NAME, "奥義ゲージMAX")
+		RETURNF 1
 	; 対応する短冊画像があるかチェック
 	CHK_FILE_NAME '= REPLACE(FILE_NAME, "^顔_", "短冊_")
 	SIF ENUMFILES(FOLDER_PATH, CHK_FILE_NAME) <= 0
