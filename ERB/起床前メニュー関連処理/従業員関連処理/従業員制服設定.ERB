@@ -93,7 +93,8 @@ LOOP 1
 #DIMS 分割文字列配列, 2
 #DIMS 衣装合算
 #DIM 文字長さ
-ページ数 = 0
+#DIM 表示許可数
+#DIM CONST 表示数 = 15
 
 DRAWLINE
 PRINTL 従業員が着用する制服の設定を行います。
@@ -124,6 +125,7 @@ IF フィールド展開:エロ制服許可
 ELSE
 	SPLIT 所持制服文字列, "_", 制服一時配列
 ENDIF
+
 文字長さ = 18
 FOR LOCAL, 0, 100
 	SIF 制服一時配列:LOCAL == ""
@@ -133,15 +135,28 @@ FOR LOCAL, 0, 100
 NEXT
 
 LOCALS:1 = <div rect='2125,156,3675,2812'>
-LOCALS:1 += @"<button value='100'>[100] %"普段着", 文字長さ, LEFT%に変更</button>"
-IF 対象キャラ != 9999
-	SIF CSTR:対象キャラ:画像フォルダ == ""
-		CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
-	IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_デフォルト")
-		LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
+表示許可数 = 0
+IF ページ数 == 0
+	LOCALS:1 += @"<button value='100'>[100] %"普段着", 文字長さ, LEFT%に変更</button>"
+	IF 対象キャラ != 9999
+		SIF CSTR:対象キャラ:画像フォルダ == ""
+			CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+		IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_デフォルト")
+			LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
+		ENDIF
 	ENDIF
+	LOCALS:1 += "<br>"
+	IF フィールド展開:エロ制服許可
+		LOCALS:1 += @"<button value='997'>[997] %"全裸", 文字長さ, LEFT%に変更</button>"
+		IF 対象キャラ != 9999
+			IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_全裸")
+				LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
+			ENDIF
+		ENDIF
+		LOCALS:1 += "<br>"
+	ENDIF
+	表示許可数 = 2
 ENDIF
-LOCALS:1 += "<br>"
 FOR LOCAL, 0, 100
 	IF 制服一時配列:LOCAL == ""
 		BREAK
@@ -157,6 +172,9 @@ FOR LOCAL, 0, 100
 		SIF EXISTFUNCTION(@"CLOTHES_着用条件_%分割文字列配列:1%")
 			CONTINUE
 	ENDIF
+	表示許可数 ++
+	SIF ページ数 != (表示許可数 - 1) / 表示数
+		CONTINUE
 	IF 分割文字列配列:1 == "浴衣"
 		LOCALS:2 = ユカタヴィラ
 	ELSE
@@ -170,14 +188,22 @@ FOR LOCAL, 0, 100
 	ENDIF
 	LOCALS:1 += "<br>"
 NEXT
-IF フィールド展開:エロ制服許可
-	LOCALS:1 += @"<button value='997'>[997] %"全裸", 文字長さ, LEFT%に変更</button>"
-	IF 対象キャラ != 9999
-		IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_全裸")
-			LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
-		ENDIF
-	ENDIF
-	LOCALS:1 += "<br>"
+IF 表示許可数 < (ページ数 + 1) * 表示数
+	FOR LOCAL, 0, 表示数 - (表示許可数 % 表示数)
+		LOCALS:1 += "<br>"
+	NEXT
+ENDIF
+LOCALS:1 += "<br>"
+IF ページ数 > 0
+	LOCALS:1 += @"<button value='1000'>[1000] 前ページへ</button>"
+ELSE
+	LOCALS:1 += @"　　　 　　　　　"
+ENDIF
+LOCALS:1 += @"　　　"
+IF ページ数 < (表示許可数 - 1) / 表示数
+	LOCALS:1 += @"<button value='1001'>[1001] 次ページへ</button>"
+ELSE
+	LOCALS:1 += @"　　　 　　　　　"
 ENDIF
 LOCALS:1 += "</div>"
 
@@ -193,7 +219,14 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 1000
+		ページ数 --
+		RESTART
+	CASE 1001
+		ページ数 ++
+		RESTART
 	CASE 999
+		ページ数 = 0
 		RETURN 0
 	CASE 998
 		RETURN 0
@@ -211,6 +244,7 @@ SELECTCASE LOCAL
 			CALL CLOTHES_RESET(対象キャラ)
 			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
+		ページ数 = 0
 		RETURN 0
 	CASE 100
 		IF 対象キャラ == 9999
@@ -226,6 +260,7 @@ SELECTCASE LOCAL
 			CALL CLOTHES_RESET(対象キャラ)
 			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
+		ページ数 = 0
 		RETURN 0
 	CASE 0 TO 99
 		SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
@@ -246,6 +281,7 @@ SELECTCASE LOCAL
 			CALL CLOTHES_RESET(対象キャラ)
 			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
+		ページ数 = 0
 		RETURN 0
 ENDSELECT
 LOOP 1
