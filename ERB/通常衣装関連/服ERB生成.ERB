@@ -198,7 +198,7 @@ SELECTCASE RESULT
 		SETTEXTBOX 出典元
 		PRINTL 衣装の出典元を入力してください
 		INPUTS
-		連動衣装 '= RESULTS
+		出典元 '= RESULTS
 	CASE 105
 		SETTEXTBOX 連動衣装
 		PRINTL 入手を連動させる衣装名を入力してください
@@ -238,31 +238,85 @@ SELECTCASE RESULT
 		;ERBファイル生成
 		CLEARLINE LINECOUNT
 		;記述データPRINT
-		PRINTFORML @CLOTHES_CHANGE_%服名保存%(キャラ番号)
-		PRINTL #DIM キャラ番号
-		PRINTL 
-		PRINTL ;一個前の服装を保持
-		PRINTFORML SIF CSTR:キャラ番号:着せ替え服 != "%服名保存%"
-		PRINTL 	CSTR:キャラ番号:脱ぐ前の服 = %CSTR:キャラ番号:着せ替え服%
-		PRINTL 
 
-		PRINTFORML CSTR:キャラ番号:着せ替え服 = %服名保存%
-		PRINTFORML CSTR:キャラ番号:着せ替え服追加名 = 
-		FOR LOCAL, 1, 23
-			PRINTFORML TEQUIP:キャラ番号:%EQUIPNAME:LOCAL% = {服構造保存:LOCAL}
-		NEXT
-		PRINTL
-
-		IF 服種別設定保存 == 1
-			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
-			PRINTFORML CALL 制服登録処理("%服名保存%")
-			PRINTL
-		ELSEIF 服種別設定保存 == 2
-			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
-			PRINTFORML CALL エロ衣装登録処理("%服名保存%")
-			PRINTL
+		IF 入手手段設定保存 == 1 || 入手手段設定保存 == 3
+			PRINTFORML @CLOTHES_初期所持関数_%服名保存%()
+			IF 入手手段設定保存 == 3 && 連動衣装 != ""
+				PRINTFORML SIF STRCOUNT(所持制服文字列, @"汎用/%連動衣装%_") || STRCOUNT(所持エロ衣装文字列, @"エロ/%連動衣装%_")
+			ENDIF
+			PRINTFORML CALL \@ 服種別設定保存 % 2 ? エロ衣装 # 制服 \@登録処理("%服名保存%")
+			HTML_PRINT "<br>"
+		ELSEIF 入手手段設定保存 == 2
+			PRINTFORML @CLOTHES_販売説明_%服名保存%()
+			PRINTL #DIMS 説明文章
+			PRINTL #DIMS 出典元
+			PRINTL #DIM 販売価格
+			PRINTL #DIMS 販売分類
+			HTML_PRINT "<br>"
+			PRINTL ;単位はルピ
+			PRINTFORML 販売価格 = {販売価格}
+			PRINTL ;通常衣装、もしくはエロ衣装のどちらか
+			PRINTFORML 販売分類 = \@ 服種別設定保存 % 2 ? エロ衣装 # 通常衣装 \@
+			PRINTL ;販売させない服はこれに1を入れる
+			IF 連動衣装 != ""
+				PRINTFORML ;%連動衣装%を入手後に販売開始
+				PRINTFORML 販売禁止フラグ = !(STRCOUNT(所持制服文字列, @"汎用/%連動衣装%_") + STRCOUNT(所持エロ衣装文字列, @"エロ/%連動衣装%_"))
+			ELSE
+				PRINTL 販売禁止フラグ = 0
+			ENDIF
+			HTML_PRINT "<br>"
+			PRINTL 説明文章 = 
+			FOR LOCAL, 0, VARSIZE("説明文章")
+				IF 説明文章:LOCAL == ""
+					BREAK
+				ELSE
+					PRINTFORML 説明文章 += "%説明文章:LOCAL%<br>"
+				ENDIF
+			NEXT
+			HTML_PRINT "<br>"
+			IF 出典元 != ""
+				PRINTL ;出典元がある場合、それを記載
+				PRINTFORML 出典元 = %出典元%
+				HTML_PRINT "<br>"
+			ENDIF
+			PRINTL RESULTS = %説明文章%
+			PRINTL RESULTS:1 = %出典元%
+			PRINTL RESULTS:2 = %販売分類%
+			HTML_PRINT "<br>"
+			PRINTL RETURN 販売価格
+			HTML_PRINT "<br>"
 		ENDIF
-		PRINTL
+		PRINTFORML @CLOTHES_CHANGE_%服名保存%(対象キャラ)
+		PRINTL #DIM 対象キャラ
+		HTML_PRINT "<br>"
+		PRINTL ;一個前の服装を保持
+		PRINTFORML SIF CSTR:対象キャラ:着せ替え服 != "%服名保存%"
+		PRINTL 	CSTR:対象キャラ:脱ぐ前の服 = %CSTR:対象キャラ:着せ替え服%
+		HTML_PRINT "<br>"
+
+		PRINTFORML CSTR:対象キャラ:着せ替え服 = %服名保存%
+		PRINTFORML CSTR:対象キャラ:着せ替え服追加名 = 
+		FOR LOCAL, 1, 23
+			PRINTFORML TEQUIP:対象キャラ:%EQUIPNAME:LOCAL% = {服構造保存:LOCAL}
+		NEXT
+		HTML_PRINT "<br>"
+		IF 服種別設定保存 >= 2
+			PRINTFORML @CLOTHES_着用条件_%服名保存%(対象キャラ)
+			PRINTL #DIM 対象キャラ
+			HTML_PRINT "<br>"
+			PRINTL ;条件を満たさない場合はNG
+			PRINTL ;SIF NG条件
+			PRINTL ;	RETURN 0
+			HTML_PRINT "<br>"
+			PRINTL ;条件を満たす場合はOK
+			PRINTL ;SIF OK条件
+			PRINTL ;	RETURN 1
+			HTML_PRINT "<br>"
+			PRINTL ;条件をくぐり抜けたキャラはOK
+			PRINTL RETURN 1
+			HTML_PRINT "<br>"
+		ENDIF
+		HTML_PRINT "<br>"
 
 		OUTPUTLOG @"ERB_EDITFILE/CLOTHES_%服名保存%.ERB", 1
 		CLEARLINE LINECOUNT
