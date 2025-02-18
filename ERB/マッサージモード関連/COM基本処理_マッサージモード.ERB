@@ -36,7 +36,11 @@ IF OPTION変数:PLAYER画像オフ
 ELSE
 	HTML文字列 = %顔グラ表示用文字列関数(PLAYER, 1000)%
 	IF STRFIND(HTML文字列, "顔ノーイメ") < 0
-		HTML_PRINT @"<div rect='4300, -650, 1125, 1350'>%HTML文字列%</div>", 1
+		IF TARGET == MASTER
+			HTML_PRINT @"<div rect='4300, -870, 1125, 1350'>%HTML文字列%</div>", 1
+		ELSE
+			HTML_PRINT @"<div rect='4300, -650, 1125, 1350'>%HTML文字列%</div>", 1
+		ENDIF
 	ENDIF
 ENDIF
 
@@ -1005,6 +1009,12 @@ IF CFLAG:MASTER:起床予定時刻 > TIME && CFLAG:MASTER:起床予定時刻 - 1
 		CFLAG:MASTER:現在マップ種別 = 0
 		CFLAG:現在位置 = CFLAG:MASTER:自室位置
 		CFLAG:現在マップ種別 = 0
+	ELSEIF TARGET == MASTER && PLAYER != MASTER && TALENT:PLAYER:恋慕 && BASE:PLAYER:体力 >= 1
+		PRINTFORMW %CALLNAME:PLAYER%が%CALLNAME:MASTER%を私室へと運んでくれた…
+		CFLAG:MASTER:現在位置 = CFLAG:MASTER:自室位置
+		CFLAG:MASTER:現在マップ種別 = 0
+		CFLAG:現在位置 = CFLAG:MASTER:自室位置
+		CFLAG:現在マップ種別 = 0
 	ENDIF
 	CALL うふふ終了処理("眠気限界")
 	CALL 飲み会終了処理
@@ -1070,7 +1080,12 @@ NEXT
 ;--------------------------------------------------
 ;警戒度上昇によるマッサージ中断
 ;--------------------------------------------------
-IF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
+IF TARGET == MASTER
+	;あなた対象の場合は中断しない
+	;ついでに警戒と理性の値を固定
+	BASE:TARGET:警戒 = 0
+	BASE:TARGET:理性 = 0
+ELSEIF BASE:TARGET:警戒 >= MAXBASE:TARGET:警戒
 	SETCOLOR カラーパレット("黄")
 	DRAWLINE
 	PRINTL 警戒度が上限に到達しました
@@ -1143,6 +1158,12 @@ TCVAR:対象キャラ:前ターン警戒度 = BASE:対象キャラ:警戒
 ;ついでにちんイラもセット
 BASE:(TARGET:LOCAL):ちんイラ = 0
 MAXBASE:(TARGET:LOCAL):ちんイラ = 1000
+
+;あなたはどっちも０
+IF 対象キャラ == MASTER
+	BASE:対象キャラ:警戒 = 0
+	BASE:対象キャラ:理性 = 0
+ENDIF
 
 
 @GLOBAL_MASSAGE_COMABLE(COM番号)

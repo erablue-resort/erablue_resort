@@ -1,0 +1,100 @@
+﻿
+;-------------------------------------------------
+;07_711_02マッサージをしてもらう
+;-------------------------------------------------
+@COMNAME_PLACE_381_0_711
+#FUNCTION
+
+IF 施設改造度:7:0 == 0
+	TSTR:コマンド名受渡 = 
+	RETURNF 0
+ENDIF
+TSTR:コマンド名受渡 = マッサージをしてもらう
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_381_0_711
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+		
+@COM381_0_711
+
+IF チュートリアルフラグ:マッサージモード == 0
+	CALL マッサージチュートリアル
+ENDIF
+
+;移動しないように同行セット
+SIF CFLAG:TARGET:同行 < 1
+	CFLAG:TARGET:同行 = 1
+
+あなた追跡キャラ = 0
+
+;ターンエンドまでいかないのでメッセージはここで処理
+SELECTCOM = 381
+CALL KOJO_MESSAGE_COM_通常モード
+
+;マッサージモードに移行
+LOCAL = TARGET
+LOCAL:1 = PLAYER
+サイド描画表示種類 = 能力表示
+CALL ゲームフェイズ変更("マッサージモード")
+PLAYER = LOCAL
+TARGET = LOCAL:1
+SETBIT FLAG:モード管理, モードビット_指示
+CALL 警戒度初期値セット(LOCAL:1)
+;服着替え
+;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
+SIF CSTR:(LOCAL:1):コスプレ前の服 == "" && CSTR:(LOCAL:1):表示グラフィックカテゴリ != ""
+	CSTR:(LOCAL:1):コスプレ前の服 '= CSTR:(LOCAL:1):表示グラフィックカテゴリ
+
+TRYCALLFORM マッサージ時固有着替え処理_{NO:(LOCAL:1)}(LOCAL:1)
+IF RSTR:服装名受け渡し != ""
+	CALL CLOTHES_CHANGE(LOCAL:1, RSTR:服装名受け渡し)
+ELSE
+	IF フィールド展開:水泳時全裸化
+		CALL CLOTHES_CHANGE(LOCAL:1, "全裸")
+	ELSEIF EXIST画像FILE("resources/" + CSTR:LOCAL:画像フォルダ + "/短冊_マッサージ着")
+		CALL CLOTHES_CHANGE(LOCAL:1, "マッサージ着")
+	ELSE
+		CALL CLOTHES_CHANGE(LOCAL:1, "水着")
+	ENDIF
+ENDIF
+
+RETURN -2
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE381_0_711
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(381)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;二人きりのみ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;禁止
+SIF TCVAR:PLAYER:マッサージ禁止
+	RETURN 0
+;ちゃんと性別合わせて
+SIF 施設利用性別(PLAYER) == 性別_女性
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM381_0_711
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%へマッサージをお願いした。
+
+IF PREGNANCY_SIZE(PLAYER) >= 2 && EXIST画像FILE("resources/" + CSTR:PLAYER:画像フォルダ + "/マッサージ開始_妊娠")
+	CALL PRINT_STRW(@"IMAGEPATH_%CSTR:PLAYER:画像フォルダ%/マッサージ開始_妊娠")
+ELSEIF EXIST画像FILE("resources/" + CSTR:PLAYER:画像フォルダ + "/マッサージ開始")
+	CALL PRINT_STRW(@"IMAGEPATH_%CSTR:PLAYER:画像フォルダ%/マッサージ開始")
+ENDIF

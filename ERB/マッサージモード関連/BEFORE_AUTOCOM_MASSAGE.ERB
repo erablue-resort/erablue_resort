@@ -1,8 +1,14 @@
 ﻿@MASSAGE_BEFORE_AUTOCOM
 #DIM 行動候補, 500
 #DIM COM番号
+#DIM 判定キャラ
 
 AUTOCOM_派生保存 = 
+IF TARGET == MASTER
+	判定キャラ = PLAYER
+ELSE
+	判定キャラ = TARGET
+ENDIF
 
 ;オプションによる制御
 SIF GETBIT(FLAG:オートコマンド切り替えオプション, 0)
@@ -13,13 +19,13 @@ SIF TFLAG:マッサージ_鬼灯の香使用時間 != 0
 	RETURN 0
 
 ;相手が強い絶頂してる時は動かない
-SIF NOWEX:TARGET:多重絶頂 > 1
+SIF NOWEX:判定キャラ:多重絶頂 > 1
 	RETURN 0
 ;食いしばり中は動かない
-SIF TCVAR:TARGET:食いしばりフラグ
+SIF TCVAR:判定キャラ:食いしばりフラグ
 	RETURN 0
 ;体力限界中も動かない
-SIF CFLAG:TARGET:体力限界
+SIF CFLAG:判定キャラ:体力限界
 	RETURN 0
 
 VARSET 行動候補
@@ -32,7 +38,7 @@ LOCAL:1 = 0
 ;反応コマンドの有無（通常優先度の反応コマンド）
 ;AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
 FOR COM番号, 1, 100
-	TRYCCALLFORM MASSAGE_AUTOCOM_ABLE{COM番号}(TARGET)
+	TRYCCALLFORM MASSAGE_AUTOCOM_ABLE{COM番号}(判定キャラ)
 		IF RESULT
 			行動候補:(LOCAL:1) = COM番号
 			LOCAL:1 += 1
@@ -43,7 +49,7 @@ NEXT
 
 ;登録したCOM番号からランダムで選出
 IF 行動候補:0
-	AUTOCOM_実行番号保存 = TARGET
+	AUTOCOM_実行番号保存 = 判定キャラ
 	RETURN 行動候補:(RAND:(LOCAL:1))
 ENDIF
 
