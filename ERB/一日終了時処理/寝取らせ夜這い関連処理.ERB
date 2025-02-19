@@ -208,7 +208,13 @@ ELSE
 	ENDIF
 	PRINTL
 ENDIF
-PRINTL
+PRINTL 
+
+RESULT = 0
+TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_訪問_{NO:寝取らせ_主導キャラ}(寝取らせ_主導キャラ, 寝取らせ_献上品キャラ)
+SIF RESULT > 0
+	GOTO 訪問ラベル
+
 PRINTFORM 欲望の宿った%CALLNAME:寝取らせ_主導キャラ%の瞳は廊下の夜闇に爛々と輝くようで、
 ;訪問キャラふたりの間では事前に話がついているので、これからの事に対する反応
 IF EXP:寝取らせ_献上品キャラ:貸出経験 >= 3
@@ -331,7 +337,7 @@ ELSE
 	ENDIF
 ENDIF
 $訪問ラベル
-PRINTL
+PRINTL 
 PRINTFORML ────さて、どうしようか？
 DRAWLINE
 PRINTBUTTON "[0] 受け入れる", 0
@@ -347,45 +353,40 @@ RFLAG:コマンド結果受渡し変数２ = RESULT
 選択結果 = RESULT
 SELECTCASE 選択結果
 	CASE 0
+		RESULT = 0
+		TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_受諾_{NO:寝取らせ_主導キャラ}(寝取らせ_主導キャラ, 寝取らせ_献上品キャラ)
+		SIF RESULT != 0
+			GOTO 寝取らせ夜這い受諾_テキスト表示スキップ
+		
+		;貸出回数で分岐
 		IF EXP:寝取らせ_献上品キャラ:貸出経験 >= 1
 			PRINTFORML せっかく%CALLNAME:寝取らせ_主導キャラ%が用意してくれた据え膳だ。断る理由もない。
-			PRINTL
+			PRINTL 
 			PRINTFORML 以前%TEXTR("たっぷりと/心ゆくまで")%%TEXTR("味わった/堪能させてもらった/楽しんだ")%%CALLNAME:寝取らせ_献上品キャラ%の抱き心地を思い出しながら、%CALLNAME:PLAYER%は%CALLNAME:寝取らせ_献上品キャラ%に手を伸ばした……。
 		ELSE
 			PRINTFORML %CALLNAME:寝取らせ_主導キャラ%のたっての頼みだ。合意の上でのことであるなら、何を遠慮することもない。
-			PRINTL
+			PRINTL 
 			PRINTFORML ……それに、%CALLNAME:寝取らせ_献上品キャラ%と%CALLNAME:寝取らせ_主導キャラ%が今の関係になれたのだって、%CALLNAME:PLAYER%の仲立ちあってこそだ。
 			PRINTFORMW %CALLNAME:PLAYER%にはこの、「正当な報酬」を受け取る権利があるだろう。
-			PRINTL
+			PRINTL 
 			PRINTFORML ──今はただ、楽しめばいい。思う存分、欲望のままに。
 			PRINTFORMW 倒錯的な性癖に破壊された脳で%CALLNAME:寝取らせ_献上品キャラ%を差し出してくれる%CALLNAME:寝取らせ_主導キャラ%の姿に内心でほくそ笑みながら、%CALLNAME:PLAYER%は%CALLNAME:寝取らせ_献上品キャラ%を抱き寄せた……
 		ENDIF
+		;関係性で分岐
 		IF カップリング関係性 != "セフレ"
 		;なんかあなたとの関係性も参照されちゃったっぽくて恋慕じゃ発生しなかったので
-			IF TALENT:寝取らせ_献上品キャラ:浮気 == 0
+			PRINTL 
 			;ふたりの関係が恋慕で、差し出される側が浮気を持っていない場合。必然、献上品にとってはこれが初めての貸出になるはず
-				TALENT:寝取らせ_献上品キャラ:浮気 = 1
+			IF TALENT:寝取らせ_献上品キャラ:浮気 == 0
 				IF TALENT:寝取らせ_献上品キャラ:処女 && GETBIT(TALENT:寝取らせ_献上品キャラ:性別, 0)
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:寝取らせ_主導キャラ%からの願いで、まだ処女だった%CALLNAME:寝取らせ_献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
-					CALL 履歴データベース登録(CFLAG:寝取らせ_献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>まだ処女だったのに、恋人の%CALLNAME:寝取らせ_主導キャラ%のお願いで%CALLNAME:PLAYER%と[浮気]えっちさせられてしまった</font><img src='えっちハート'>","うふふ")
-					CALL 履歴データベース登録(CFLAG:寝取らせ_主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:寝取らせ_献上品キャラ%の処女を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
-					PRINTL
 					PRINTFORM 愛する%CALLNAME:寝取らせ_主導キャラ%にまだ処女も捧げられていないのに、%CALLNAME:寝取らせ_主導キャラ%が見守るその目の前で、%CALLNAME:寝取らせ_献上品キャラ%は望まぬ
-					SETCOLOR カラーパレット("えっちな色")
-					PRINT [浮気]
-					RESETCOLOR
-					PRINTFORMW へと足を踏み入れさせられてしまった……
 				ELSE
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:寝取らせ_主導キャラ%の願いで%CALLNAME:寝取らせ_献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
-					CALL 履歴データベース登録(CFLAG:寝取らせ_献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>恋人の%CALLNAME:寝取らせ_主導キャラ%にお願いされて、%CALLNAME:PLAYER%と[浮気]えっちさせられてしまった</font><img src='えっちハート'>","うふふ")
-					CALL 履歴データベース登録(CFLAG:寝取らせ_主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に、恋人の%CALLNAME:寝取らせ_献上品キャラ%の自分ではまだ触れたこともない体を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
-					PRINTL
 					PRINTFORM 愛する%CALLNAME:寝取らせ_主導キャラ%が見守るその目の前で、%CALLNAME:寝取らせ_献上品キャラ%は望まぬ
-					SETCOLOR カラーパレット("えっちな色")
-					PRINT [浮気]
-					RESETCOLOR
-					PRINTFORMW へと足を踏み入れさせられてしまった……
 				ENDIF
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT [浮気]
+				RESETCOLOR
+				PRINTFORMW へと足を踏み入れさせられてしまった……
 			ELSE
 				PRINTL
 				PRINTFORM 愛する%CALLNAME:寝取らせ_主導キャラ%が見守るその目の前でまた、%CALLNAME:寝取らせ_献上品キャラ%の望まぬ
@@ -393,6 +394,33 @@ SELECTCASE 選択結果
 				PRINT [浮気]
 				RESETCOLOR
 				PRINTFORMW の幕が上がる……
+			ENDIF
+		ENDIF
+		PRINTL 
+		PRINTFORM %CALLNAME:寝取らせ_主導キャラ%の願いを叶えるために、%CALLNAME:寝取らせ_献上品キャラ%はこの一晩%CALLNAME:PLAYER%の
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [言いなり]
+		RESETCOLOR
+		PRINTFORMW だ。望めばなんだってしてくれるだろう……
+		PRINTL 
+		$寝取らせ夜這い受諾_テキスト表示スキップ
+		
+		RESULT = 0
+		TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_履歴登録_{NO:寝取らせ_主導キャラ}(寝取らせ_主導キャラ, 寝取らせ_献上品キャラ)
+		SIF RESULT != 0
+			GOTO 寝取らせ夜這い受諾_履歴登録スキップ
+		IF カップリング関係性 != "セフレ"
+			;ふたりの関係が恋慕で、差し出される側が浮気を持っていない場合。必然、献上品にとってはこれが初めての貸出になるはず
+			IF TALENT:寝取らせ_献上品キャラ:浮気 == 0
+				IF TALENT:寝取らせ_献上品キャラ:処女 && GETBIT(TALENT:寝取らせ_献上品キャラ:性別, 0)
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:寝取らせ_主導キャラ%からの願いで、まだ処女だった%CALLNAME:寝取らせ_献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:寝取らせ_献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>まだ処女だったのに、恋人の%CALLNAME:寝取らせ_主導キャラ%のお願いで%CALLNAME:PLAYER%と[浮気]えっちさせられてしまった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:寝取らせ_主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:寝取らせ_献上品キャラ%の処女を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+				ELSE
+					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:寝取らせ_主導キャラ%の願いで%CALLNAME:寝取らせ_献上品キャラ%を抱いてやった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:寝取らせ_献上品キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>恋人の%CALLNAME:寝取らせ_主導キャラ%にお願いされて、%CALLNAME:PLAYER%と[浮気]えっちさせられてしまった</font><img src='えっちハート'>","うふふ")
+					CALL 履歴データベース登録(CFLAG:寝取らせ_主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に、恋人の%CALLNAME:寝取らせ_献上品キャラ%の自分ではまだ触れたこともない体を差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
+				ENDIF
 			ENDIF
 		ELSEIF EXP:寝取らせ_献上品キャラ:貸出経験 == 0
 			;はじめて貸し出される時
@@ -406,16 +434,13 @@ SELECTCASE 選択結果
 				CALL 履歴データベース登録(CFLAG:寝取らせ_主導キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:PLAYER%に%CALLNAME:寝取らせ_献上品キャラ%を初めて差し出し、寝取ってもらった</font><img src='えっちハート'>","うふふ")
 			ENDIF
 		ENDIF
-		PRINTL
+		$寝取らせ夜這い受諾_履歴登録スキップ
+		
+		SIF TALENT:寝取らせ_献上品キャラ:浮気 == 0
+			TALENT:寝取らせ_献上品キャラ:浮気 = 1
 		EXP:寝取らせ_主導キャラ:寝取られ経験 += 1
 		EXP:寝取らせ_献上品キャラ:貸出経験 += 1
 		TCVAR:寝取らせ_献上品キャラ:言いなり = 1
-		PRINTFORM %CALLNAME:寝取らせ_主導キャラ%の願いを叶えるために、%CALLNAME:寝取らせ_献上品キャラ%はこの一晩%CALLNAME:PLAYER%の
-		SETCOLOR カラーパレット("えっちな色")
-		PRINT [言いなり]
-		RESETCOLOR
-		PRINTFORMW だ。望めばなんだってしてくれるだろう……
-		PRINTL
 		;これが事実上の夜這いなので、あなたへの夜這いを抑制
 		TCVAR:PLAYER:夜這い済み = 2
 		;全員寝かせる
@@ -449,7 +474,11 @@ SELECTCASE 選択結果
 		;うふふ終了後の処理
 		CALL 寝取られオナニー処理(寝取らせ_主導キャラ, 寝取らせ_献上品キャラ)
 	CASE 1
-		PRINTFORMW %CALLNAME:PLAYER%が今日は気分じゃないと伝えると、%CALLNAME:寝取らせ_主導キャラ%は残念そうな顔で%CALLNAME:寝取らせ_献上品キャラ%と一緒に帰っていった……
+		RESULT = 0
+		TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_拒否_{NO:寝取らせ_主導キャラ}(寝取らせ_主導キャラ, 寝取らせ_献上品キャラ)
+		IF RESULT == 0
+			PRINTFORMW %CALLNAME:PLAYER%が今日は気分じゃないと伝えると、%CALLNAME:寝取らせ_主導キャラ%は残念そうな顔で%CALLNAME:寝取らせ_献上品キャラ%と一緒に帰っていった……
+		ENDIF
 		;断られるとしばらく対象キャラが主導の寝取らせ発生率が減少
 		;・3日は発生しない値を設定
 		;　補正値が残ってる状態で断られた場合は加算
@@ -486,7 +515,13 @@ RETURN 1
 #DIM オナニー射精回数
 #DIMS 射精語
 
-PRINTL
+PRINTL 
+
+RESULT = 0
+TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_寝取られオナニー口上_{NO:オナニーキャラ}(オナニーキャラ, 寝取られキャラ)
+SIF RESULT != 0
+	GOTO 寝取らせ夜這い_寝取られオナニーテキスト表示スキップ
+
 PRINTFORM %CALLNAME:PLAYER%に抱かれて乱れ、
 IF EXP:寝取られキャラ:貸出経験 >= 4
 	SELECTCASE RAND:3
@@ -504,6 +539,12 @@ ELSE
 ENDIF
 PRINTFORMW %CALLNAME:寝取られキャラ%の姿を隠れて見ていた%CALLNAME:オナニーキャラ%は、寝取られオナニーがとてもはかどったようだ……
 PRINTL 
+$寝取らせ夜這い_寝取られオナニーテキスト表示スキップ
+
+RESULT = 0
+TRYCALLFORM KOJO_EVENT_寝取らせ夜這い_寝取られオナニー実処理_{NO:オナニーキャラ}(オナニーキャラ, 寝取られキャラ)
+SIF RESULT != 0
+	GOTO 寝取らせ夜這い_寝取られオナニー処理スキップ
 
 IF TALENT:オナニーキャラ:性別 == 2
 ;Ｖなしのオトコなら、絶頂は射精のみ
@@ -692,6 +733,7 @@ ELSE
 	FLAG:ZP所持量 += オナニー絶頂回数
 	PRINTFORML ZP所持量 + {オナニー絶頂回数}
 ENDIF
+$寝取らせ夜這い_寝取られオナニー処理スキップ
 IF CFLAG:オナニーキャラ:リゾート内オナニー回数 < 1
 	CALL 履歴データベース登録(CFLAG:オナニーキャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>初めてリゾート内で[オナニー]をした</font>","うふふ")
 ELSEIF CFLAG:オナニーキャラ:リゾート内オナニー回数 == 9
