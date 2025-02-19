@@ -3,14 +3,27 @@
 #DIM 表示番号, 20
 #DIMS 服名保存
 #DIM 服種別設定保存
+#DIM 入手手段設定保存
 #DIM 編集モード
-
+#DIMS 説明文章, 10
+#DIMS 出典元
+#DIM 販売価格 = 10000
+#DIMS 連動衣装
+#DIMS CONST 服種別 = "汎用衣装", "エロ衣装", "条件付き汎用", "条件付きエロ"
+#DIMS CONST 入手手段 = "別途設定", "初期制服", "購入", "他の衣装に連動"
 
 LOCALS = 
 ;左ウインドウ表示
 LOCALS += "<div rect='81,375,1937,2812' padding='75' border='31' bcolor='#C0C0C0'>"
 LOCALS += "<button value='100'>[100] 名前を設定する</button><br>"
 LOCALS += "<button value='101'>[101] 服種別を設定する</button><br>"
+LOCALS += "<button value='102'>[102] 入手手段を設定する</button><br>"
+IF 入手手段設定保存 == 2
+	LOCALS += "<button value='103'>[103] 販売設定を設定する</button><br>"
+ENDIF
+IF 入手手段設定保存 >= 2
+	LOCALS += "<button value='104'>[104] 連動衣装を設定する</button><br>"
+ENDIF
 LOCALS += "<br>"
 IF 服名保存 == ""
 	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 生成不能（名称未設定）</font><br>"
@@ -28,32 +41,44 @@ LOCALS += "</div>"
 LOCALS += "<div rect='2050,375,3875,2812' padding='75' border='31' bcolor='#C0C0C0'>"
 LOCALS += @"%"■服名称", 24, LEFT%："
 IF 服名保存 == ""
-	LOCALS += "（未設定）"
+	LOCALS += "（未設定）　　　　　　　　　　"
 ELSE
-	LOCALS += 服名保存
+	LOCALS += @"%服名保存, 30, LEFT%"
 ENDIF
 LOCALS += "　　<button value='100'>[変更]</button><br>"
-LOCALS += @"%"■服種別設定", 24, LEFT%："
-SELECTCASE 服種別設定保存
-	CASE 0
-		LOCALS += "設定なし"
-	CASE 1
-		LOCALS += "制服として初期所持"
-	CASE 2
-		LOCALS += "エロ衣装として初期所持"
-ENDSELECT
+LOCALS += @"%"■服種別設定", 24, LEFT%：%服種別:服種別設定保存, 30, LEFT%"
 LOCALS += "　　<button value='101'>[変更]</button><br>"
+
+LOCALS += @"%"■入手手段", 24, LEFT%：%入手手段:入手手段設定保存, 30, LEFT%"
+LOCALS += "　　<button value='102'>[変更]</button><br>"
 LOCALS += "-------------------------------------------------------------------------<br>"
 
-IF 編集モード == 0
-	LOCALS += "■上半身設定<br>"
-	VARSET 表示番号
-	表示番号 = 1,2,3,4,5,6,7,8,9,10,19,20,21
-ELSE
-	LOCALS += "■下半身設定<br>"
-	VARSET 表示番号
-	表示番号 = 11,12,13,14,15,16,17,18,19,20,22
-ENDIF
+SELECTCASE 編集モード
+	CASE 0
+		LOCALS += "■上半身設定<br>"
+		VARSET 表示番号
+		表示番号 = 1,2,3,4,5,6,7,8,9,10,19,20,21
+	CASE 1
+		LOCALS += "■下半身設定<br>"
+		VARSET 表示番号
+		表示番号 = 11,12,13,14,15,16,17,18,19,20,22
+	CASE 2
+		LOCALS += "■販売設定<br>"
+		VARSET 表示番号
+		LOCALS += @"<button value='103'>%"　販売価格", 24, LEFT%：{販売価格, 8, LEFT}ルピ</button><br>"
+		LOCALS += @"<button value='104'>%"　出典元", 24, LEFT%：<font color='#\@ !STRLENS(出典元) ? 808080'>（なし）# C0C0C0'>%出典元% \@</font></button><br>"
+		LOCALS += @"<button value='105'>%"　連動衣装", 24, LEFT%：<font color='#\@ !STRLENS(連動衣装) ? 808080'>（なし）# C0C0C0'>%連動衣装% \@</font></button><br>"
+		LOCALS += @"%"　説明文", 24, LEFT%<br>"
+		FOR LOCAL, 0, VARSIZE("説明文章")
+			LOCALS += @"　 <button value='{200 + LOCAL}'>[{200 + LOCAL}] "
+			IF 説明文章:LOCAL == ""
+				LOCALS += @"<font color='#808080'>\@ LOCAL ? （行を増やす） # （未設定） \@</font></button><br>"
+				BREAK
+			ELSE
+				LOCALS += @"%説明文章:LOCAL%</button><br>"
+			ENDIF
+		NEXT
+ENDSELECT
 
 FOR LOCAL, 1, 23
 	SIF !MATCH(表示番号, LOCAL)
@@ -82,11 +107,18 @@ FOR LOCAL, 1, 23
 NEXT
 LOCALS += "</div>"
 LOCALS += "<div rect='2250,2975,3875,2812'>"
-IF 編集モード == 0
-	LOCALS += "<button value='200'>[200] 下半身設定へ</button>"
-ELSE
-	LOCALS += "<button value='200'>[200] 上半身設定へ</button>"
-ENDIF
+FOR LOCAL, 0, 3
+	LOCALS += @"<font color='#\@ 編集モード == LOCAL ? 666666'> # C0C0C0'><button value='{300 + LOCAL}'> \@[{300 + LOCAL}] "
+	SELECTCASE LOCAL
+		CASE 0
+			LOCALS += "上半身設定へ"
+		CASE 1
+			LOCALS += "下半身設定へ"
+		CASE 2
+			LOCALS += "販売設定へ"
+	ENDSELECT
+	LOCALS += @"</font>\@ 編集モード == LOCAL ? # </button> \@　　"
+NEXT
 LOCALS += "</div>"
 
 HTML_PRINT LOCALS
@@ -111,22 +143,14 @@ SELECTCASE RESULT
 		DRAWLINE
 		PRINTL 服の種別を設定してください。
 		DRAWLINE
-		FOR LOCAL, 0, 3
-			SELECTCASE LOCAL
-				CASE 0
-					LOCALS = 設定なし
-				CASE 1
-					LOCALS = 制服として初期所持
-				CASE 2
-					LOCALS = エロ衣装として初期所持
-			ENDSELECT
+		FOR LOCAL, 0, VARSIZE("服種別")
 			IF 服種別設定保存 == LOCAL
 				SETCOLOR カラーパレット("黄")
-				PRINTPLAINFORM [{LOCAL}] %LOCALS%
+				PRINTPLAINFORM [{LOCAL}] %服種別:LOCAL%
 				RESETCOLOR
 				PRINTL
 			ELSE
-				PRINTBUTTON @"[{LOCAL}] %LOCALS%", LOCAL
+				PRINTBUTTON @"[{LOCAL}] %服種別:LOCAL%", LOCAL
 				PRINTL
 			ENDIF
 		NEXT
@@ -136,69 +160,183 @@ SELECTCASE RESULT
 		BINPUT
 		IF RESULT != 999
 			服種別設定保存 = RESULT
-			SELECTCASE RESULT
-				CASE 0
-					LOCALS = 設定なし
-				CASE 1
-					LOCALS = 制服として初期所持
-				CASE 2
-					LOCALS = エロ衣装として初期所持
-			ENDSELECT
-			PRINTFORMW 服種別を「%LOCALS%」に変更しました。
-			IF 服種別設定保存 == 0
-				PRINTFORMW 設定なしの場合、入手処理を別に記述しない限りゲーム中に登場しないので注意してください。
-			ENDIF
+			PRINTFORMW 服種別を「%服種別:RESULT%」に変更しました。
+			SIF RESULT >= 2
+				PRINTFORMW ERB出力後、改めて着用条件を記述してください
 		ENDIF
-	CASE 200
-		INVERTBIT 編集モード, 0
+	CASE 102
+		DRAWLINE
+		PRINTL 服の入手手段を設定してください。
+		DRAWLINE
+		FOR LOCAL, 0, VARSIZE("入手手段")
+			IF 入手手段設定保存 == LOCAL
+				SETCOLOR カラーパレット("黄")
+				PRINTPLAINFORM [{LOCAL}] %入手手段:LOCAL%
+				RESETCOLOR
+				PRINTL
+			ELSE
+				PRINTBUTTON @"[{LOCAL}] %入手手段:LOCAL%", LOCAL
+				PRINTL
+			ENDIF
+		NEXT
+		PRINTL
+		PRINTBUTTON @"[999] 戻る", 999
+		PRINTL
+		BINPUT
+		IF RESULT != 999
+			入手手段設定保存 = RESULT
+			PRINTFORMW 服種別を「%入手手段:RESULT%」に変更しました。
+			SIF !入手手段設定保存
+				PRINTFORMW 何らかの形で入手方法を設定しない限り、ゲーム中に登場しないので注意してください。
+		ENDIF
+	CASE 103
+		SETTEXTBOX TOSTR(販売価格)
+		PRINTL 販売価格を入力してください
+		INPUT
+		販売価格 = RESULT
+	CASE 104
+		SETTEXTBOX 出典元
+		PRINTL 衣装の出典元を入力してください
+		INPUTS
+		出典元 '= RESULTS
+	CASE 105
+		SETTEXTBOX 連動衣装
+		PRINTL 入手を連動させる衣装名を入力してください
+		IF 入手手段設定保存 == 2
+			PRINTL （該当する衣装を所持している場合、購入可能になります）
+		ELSE
+			PRINTL （該当する衣装が初期制服として設定されている場合、自動的に使用可能になります
+			PRINTL 　該当する衣装自体に入手手段がある場合、そちらに改めて
+			PRINTFORML 　『CALL \@ 服種別設定保存 % 2 ? エロ衣装 # 制服 \@登録処理("%服名保存%")』と追記してください）
+			PRINTL 　
+		ENDIF
+		INPUTS
+		LOCALS:1 '= RESULTS
+		IF RESULTS != "" && ENUMFUNCENDSWITH(@"CLOTHES_CHANGE_%RESULTS%") < 1
+			CALL CHOICE("その名前の衣装はまだ存在しませんが、よろしいですか？", "はい", "いいえ")
+			SIF RESULT
+				RESTART
+		ENDIF
+		連動衣装 '= LOCALS:1
+	CASE 200 TO 209
+		LOCAL = RESULT - 200
+		SETTEXTBOX 説明文章:LOCAL
+		PRINTL 説明文を入力してください
+		INPUTS
+		説明文章:LOCAL '= RESULTS
+	CASE 300 TO 302
+		編集モード = RESULT - 300
 	CASE 999
-		VARSET 服構造保存
-		服名保存 = 
-		服種別設定保存 = 0
-		編集モード = 0
-		RETURN 0
+		CALL CHOICE("服ERBエディタを終了しますか？（作成中のデータは失われます）", "はい", "いいえ")
+		SIF RESULT
+			RESTART
+		GOTO 終了処理
 	CASE 998
+		CALL CHOICE("服ERBを出力し、終了しますか？", "はい", "いいえ")
+		SIF RESULT
+			RESTART
 		;ERBファイル生成
 		CLEARLINE LINECOUNT
 		;記述データPRINT
-		PRINTFORML @CLOTHES_CHANGE_%服名保存%(キャラ番号)
-		PRINTL #DIM キャラ番号
-		PRINTL 
-		PRINTL ;一個前の服装を保持
-		PRINTFORML SIF CSTR:キャラ番号:着せ替え服 != "%服名保存%"
-		PRINTL 	CSTR:キャラ番号:脱ぐ前の服 = %CSTR:キャラ番号:着せ替え服%
-		PRINTL 
 
-		PRINTFORML CSTR:キャラ番号:着せ替え服 = %服名保存%
-		PRINTFORML CSTR:キャラ番号:着せ替え服追加名 = 
-		FOR LOCAL, 1, 23
-			PRINTFORML TEQUIP:キャラ番号:%EQUIPNAME:LOCAL% = {服構造保存:LOCAL}
-		NEXT
-		PRINTL
-
-		IF 服種別設定保存 == 1
-			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
-			PRINTFORML CALL 制服登録処理("%服名保存%")
-			PRINTL
-		ELSEIF 服種別設定保存 == 2
-			PRINTFORML @CLOTHES_初期所持関数_%服名保存%
-			PRINTFORML CALL エロ衣装登録処理("%服名保存%")
-			PRINTL
+		IF 入手手段設定保存 == 1 || 入手手段設定保存 == 3
+			PRINTFORML @CLOTHES_初期所持関数_%服名保存%()
+			IF 入手手段設定保存 == 3 && 連動衣装 != ""
+				PRINTFORML SIF STRCOUNT(所持制服文字列, @"汎用/%連動衣装%_") || STRCOUNT(所持エロ衣装文字列, @"エロ/%連動衣装%_")
+			ENDIF
+			PRINTFORML CALL \@ 服種別設定保存 % 2 ? エロ衣装 # 制服 \@登録処理("%服名保存%")
+			HTML_PRINT "<br>"
+		ELSEIF 入手手段設定保存 == 2
+			PRINTFORML @CLOTHES_販売説明_%服名保存%()
+			PRINTL #DIMS 説明文章
+			PRINTL #DIMS 出典元
+			PRINTL #DIM 販売価格
+			PRINTL #DIMS 販売分類
+			HTML_PRINT "<br>"
+			PRINTL ;単位はルピ
+			PRINTFORML 販売価格 = {販売価格}
+			PRINTL ;通常衣装、もしくはエロ衣装のどちらか
+			PRINTFORML 販売分類 = \@ 服種別設定保存 % 2 ? エロ衣装 # 通常衣装 \@
+			PRINTL ;販売させない服はこれに1を入れる
+			IF 連動衣装 != ""
+				PRINTFORML ;%連動衣装%を入手後に販売開始
+				PRINTFORML 販売禁止フラグ = !(STRCOUNT(所持制服文字列, @"汎用/%連動衣装%_") + STRCOUNT(所持エロ衣装文字列, @"エロ/%連動衣装%_"))
+			ELSE
+				PRINTL 販売禁止フラグ = 0
+			ENDIF
+			HTML_PRINT "<br>"
+			PRINTL 説明文章 = 
+			FOR LOCAL, 0, VARSIZE("説明文章")
+				IF 説明文章:LOCAL == ""
+					BREAK
+				ELSE
+					PRINTFORML 説明文章 += "%説明文章:LOCAL%<br>"
+				ENDIF
+			NEXT
+			HTML_PRINT "<br>"
+			IF 出典元 != ""
+				PRINTL ;出典元がある場合、それを記載
+				PRINTFORML 出典元 = %出典元%
+				HTML_PRINT "<br>"
+			ENDIF
+			PRINTL RESULTS = %説明文章%
+			PRINTL RESULTS:1 = %出典元%
+			PRINTL RESULTS:2 = %販売分類%
+			HTML_PRINT "<br>"
+			PRINTL RETURN 販売価格
+			HTML_PRINT "<br>"
 		ENDIF
-		PRINTL
+		PRINTFORML @CLOTHES_CHANGE_%服名保存%(対象キャラ)
+		PRINTL #DIM 対象キャラ
+		HTML_PRINT "<br>"
+		PRINTL ;一個前の服装を保持
+		PRINTFORML SIF CSTR:対象キャラ:着せ替え服 != "%服名保存%"
+		PRINTL 	CSTR:対象キャラ:脱ぐ前の服 = %CSTR:対象キャラ:着せ替え服%
+		HTML_PRINT "<br>"
+
+		PRINTFORML CSTR:対象キャラ:着せ替え服 = %服名保存%
+		PRINTFORML CSTR:対象キャラ:着せ替え服追加名 = 
+		FOR LOCAL, 1, 23
+			PRINTFORML TEQUIP:対象キャラ:%EQUIPNAME:LOCAL% = {服構造保存:LOCAL}
+		NEXT
+		HTML_PRINT "<br>"
+		IF 服種別設定保存 >= 2
+			PRINTFORML @CLOTHES_着用条件_%服名保存%(対象キャラ)
+			PRINTL #DIM 対象キャラ
+			HTML_PRINT "<br>"
+			PRINTL ;条件を満たさない場合はNG
+			PRINTL ;SIF NG条件
+			PRINTL ;	RETURN 0
+			HTML_PRINT "<br>"
+			PRINTL ;条件を満たす場合はOK
+			PRINTL ;SIF OK条件
+			PRINTL ;	RETURN 1
+			HTML_PRINT "<br>"
+			PRINTL ;条件をくぐり抜けたキャラはOK
+			PRINTL RETURN 1
+			HTML_PRINT "<br>"
+		ENDIF
+		HTML_PRINT "<br>"
 
 		OUTPUTLOG @"ERB_EDITFILE/CLOTHES_%服名保存%.ERB", 1
 		CLEARLINE LINECOUNT
 		PRINTL ERB_EDITFILEフォルダに出力しました。ERBフォルダに移動して再起動してください
 		WAIT
-
-		VARSET 服構造保存
-		服名保存 = 
-		服種別設定保存 = 0
-		編集モード = 0
-		RETURN 0
+		GOTO 終了処理
 	CASEELSE
 		服構造保存:((RESULT - 1000) / 10) = RESULT % 10
 ENDSELECT
 
 RESTART
+
+$終了処理
+VARSET 服構造保存
+VARSET 説明文章
+服名保存 = 
+服種別設定保存 = 0
+入手手段設定保存 = 0
+編集モード = 0
+出典元 = 
+販売価格 = 10000
+連動衣装 = 
+RETURN 0
