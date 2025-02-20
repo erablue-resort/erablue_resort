@@ -19,11 +19,17 @@ LOCALS += "<button value='100'>[100] 名前を設定する</button><br>"
 LOCALS += "<button value='101'>[101] 服種別を設定する</button><br>"
 LOCALS += "<button value='102'>[102] 入手手段を設定する</button><br>"
 IF 入手手段設定保存 == 2
-	LOCALS += "<button value='103'>[103] 販売設定を設定する</button><br>"
+	LOCALS += "<button value='103'>[103] 販売価格を設定する</button><br>"
+ELSE
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[103] 販売価格を設定する</font><br>"
 ENDIF
 IF 入手手段設定保存 >= 2
 	LOCALS += "<button value='104'>[104] 連動衣装を設定する</button><br>"
+ELSE
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[104] 連動衣装を設定する</font><br>"
 ENDIF
+LOCALS += "<button value='105'>[105] 出典元を設定する</button><br>"
+LOCALS += "<button value='20'>[ 20] 説明文を編集する</button><br>"
 LOCALS += "<br>"
 IF 服名保存 == ""
 	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[998] 生成不能（名称未設定）</font><br>"
@@ -63,14 +69,14 @@ SELECTCASE 編集モード
 		VARSET 表示番号
 		表示番号 = 11,12,13,14,15,16,17,18,19,20,22
 	CASE 2
-		LOCALS += "■販売設定<br>"
+		LOCALS += "■販売・解説設定<br>"
 		VARSET 表示番号
-		LOCALS += @"<button value='103'>%"　販売価格", 24, LEFT%：{販売価格, 8, LEFT}ルピ</button><br>"
-		LOCALS += @"<button value='104'>%"　出典元", 24, LEFT%：<font color='#\@ !STRLENS(出典元) ? 808080'>（なし）# C0C0C0'>%出典元% \@</font></button><br>"
-		LOCALS += @"<button value='105'>%"　連動衣装", 24, LEFT%：<font color='#\@ !STRLENS(連動衣装) ? 808080'>（なし）# C0C0C0'>%連動衣装% \@</font></button><br>"
+		LOCALS += @"<button value='103'>%"　販売価格", 24, LEFT%：<font color='#\@ 入手手段設定保存 != 2 ? 808080 # C0C0C0 \@'> {販売価格, 8, LEFT}</font>ルピ</button><br>"
+		LOCALS += @"<button value='104'>%"　連動衣装", 24, LEFT%：<font color='#\@ !STRLENS(連動衣装) ? 808080'>（なし）# C0C0C0'>%連動衣装% \@</font></button><br>"
+		LOCALS += @"<button value='105'>%"　出典元", 24, LEFT%：<font color='#\@ !STRLENS(出典元) ? 808080'>（なし）# C0C0C0'>%出典元% \@</font></button><br>"
 		LOCALS += @"%"　説明文", 24, LEFT%<br>"
 		FOR LOCAL, 0, VARSIZE("説明文章")
-			LOCALS += @"　 <button value='{200 + LOCAL}'>[{200 + LOCAL}] "
+			LOCALS += @"<button value='{20 + LOCAL}'>[{20 + LOCAL}] "
 			IF 説明文章:LOCAL == ""
 				LOCALS += @"<font color='#808080'>\@ LOCAL ? （行を増やす） # （未設定） \@</font></button><br>"
 				BREAK
@@ -115,7 +121,7 @@ FOR LOCAL, 0, 3
 		CASE 1
 			LOCALS += "下半身設定へ"
 		CASE 2
-			LOCALS += "販売設定へ"
+			LOCALS += "販売・解説設定へ"
 	ENDSELECT
 	LOCALS += @"</font>\@ 編集モード == LOCAL ? # </button> \@　　"
 NEXT
@@ -195,11 +201,6 @@ SELECTCASE RESULT
 		INPUT
 		販売価格 = RESULT
 	CASE 104
-		SETTEXTBOX 出典元
-		PRINTL 衣装の出典元を入力してください
-		INPUTS
-		出典元 '= RESULTS
-	CASE 105
 		SETTEXTBOX 連動衣装
 		PRINTL 入手を連動させる衣装名を入力してください
 		IF 入手手段設定保存 == 2
@@ -218,8 +219,14 @@ SELECTCASE RESULT
 				RESTART
 		ENDIF
 		連動衣装 '= LOCALS:1
-	CASE 200 TO 209
-		LOCAL = RESULT - 200
+	CASE 105
+		SETTEXTBOX 出典元
+		PRINTL 衣装の出典元を入力してください
+		INPUTS
+		出典元 '= RESULTS
+	CASE 20 TO 29
+		編集モード = 2
+		LOCAL = RESULT - 20
 		SETTEXTBOX 説明文章:LOCAL
 		PRINTL 説明文を入力してください
 		INPUTS
@@ -246,7 +253,7 @@ SELECTCASE RESULT
 			ENDIF
 			PRINTFORML CALL \@ 服種別設定保存 % 2 ? エロ衣装 # 制服 \@登録処理("%服名保存%")
 			HTML_PRINT "<br>"
-		ELSEIF 入手手段設定保存 == 2
+		ELSEIF 入手手段設定保存 == 2 || 説明文章:0 != ""
 			PRINTFORML @CLOTHES_販売説明_%服名保存%()
 			PRINTL #DIMS 説明文章
 			PRINTL #DIMS 出典元
@@ -254,7 +261,7 @@ SELECTCASE RESULT
 			PRINTL #DIMS 販売分類
 			HTML_PRINT "<br>"
 			PRINTL ;単位はルピ
-			PRINTFORML 販売価格 = {販売価格}
+			PRINTFORML 販売価格 = { 入手手段設定保存 == 2 ? 販売価格 # 0 }
 			PRINTL ;通常衣装、もしくはエロ衣装のどちらか
 			PRINTFORML 販売分類 = \@ 服種別設定保存 % 2 ? エロ衣装 # 通常衣装 \@
 			PRINTL ;販売させない服はこれに1を入れる
