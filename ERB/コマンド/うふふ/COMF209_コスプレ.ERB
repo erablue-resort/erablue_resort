@@ -172,6 +172,7 @@ PRINTFORML %CALLNAME:TARGET%に%RSTR:コマンド結果受渡し文字列%に着
 #DIM 実行難易度
 #DIMS コスプレ一時配列, 200
 #DIMS 分割文字列配列, 2
+#DIMS 解説文
 #DIMS CONST アクセサリ文字列 = "付け角", "付け尻尾", "付け耳（エルーン）", "付け耳（ハーヴィン）"
 ページ数 = 0
 
@@ -194,7 +195,24 @@ FOR LOCAL, 0, 100
 			CONTINUE
 	CATCH
 	ENDCATCH
-	LOCALS += @"<button value='{LOCAL+1}'>[{LOCAL+1, 3}] %分割文字列配列:1, 30, LEFT%に変更</button>"
+	VARSET RESULTS
+	IF OPTION変数:ツールチップ切り替え == 0
+		解説文 = 
+		TRYCCALLFORM CLOTHES_販売説明_%分割文字列配列:1%()
+			LOCAL:1 = HTML_STRINGLEN(RESULTS)
+			IF RESULTS != ""
+				解説文 += @"<br>%RESULTS%"
+			ENDIF
+			IF RESULTS:1 != ""
+				解説文 += @"%"出典元：" + RESULTS:1, MAX(LOCAL:1, 40)%<br>"
+			ENDIF
+			解説文 '= REPLACE(解説文, "<(?!br).*?>", "")
+		CATCH
+		ENDCATCH
+		LOCALS += @"<button value='{LOCAL+1}' title='%解説文%'>[{LOCAL+1, 3}] %分割文字列配列:1, 30, LEFT%に変更</button>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL+1}'>[{LOCAL+1, 3}] %分割文字列配列:1, 30, LEFT%に変更</button>"
+	ENDIF
 	SIF CSTR:キャラ番号:画像フォルダ == ""
 		CSTR:キャラ番号:画像フォルダ = {NO:キャラ番号}%CALLNAME:キャラ番号%
 	IF EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/顔_%分割文字列配列:1%") || EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/短冊_%分割文字列配列:1%")
