@@ -215,6 +215,10 @@ FOR 配列番号, 0, CHARANUM
 					CONTINUE
 			ENDIF
 		ENDIF
+		IF キャラ一覧フィルタ:名前検索 != ""
+			SIF STRFIND(NAME:対象キャラ, キャラ一覧フィルタ:名前検索) < 0
+				CONTINUE
+		ENDIF
 	ENDIF
 
 	;条件を満たす場合は合致フラグに１以上が入る
@@ -445,32 +449,6 @@ IF 表示フィルタ種類 == ""
 	PRINTBUTTON "[全て非表示]", "発情期フラグ：全て非表示"
 	PRINTL
 	DRAWLINE
-	PRINTL ■ 弱点コマンド
-	PRINT 　
-	PRINTBUTTON "[弱点コマンドフィルタを起動]", "弱点コマンドフィルタ"
-	PRINT  / 
-	IF 弱点コマンド検索タイプ == 0
-		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[OR検索 / <font color='#%カラーパレット_HTML("グレーアウト")%'>AND検索</font>]</button>", 1
-	ELSEIF 弱点コマンド検索タイプ == 1
-		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[<font color='#%カラーパレット_HTML("グレーアウト")%'>OR検索</font> / AND検索]</button>", 1
-	ENDIF
-	PRINT 　　　　　
-	PRINTBUTTON "[全て表示]", "弱点コマンド：全て表示"
-	PRINTL
-	IF キャラ一覧フィルタ:弱点コマンド != ""
-		PRINT 　 
-		VARSET 弱点フィルタマッチ配列
-		SPLIT キャラ一覧フィルタ:弱点コマンド, "+++", 弱点フィルタマッチ配列
-		FOR LOCAL, 0, RESULT
-			SIF LOCAL > 0
-				PRINT ・
-			PRINTFORM %弱点の欠片名前表示(弱点フィルタマッチ配列:LOCAL)%
-		NEXT
-		PRINTL
-	ELSE
-		PRINTL 　 フィルタ設定なし
-	ENDIF
-	DRAWLINE
 	PRINTL ■ 妊娠
 	PRINT 　 
 	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中")
@@ -482,7 +460,6 @@ IF 表示フィルタ種類 == ""
 		SETCOLOR 0x666666
 	PRINTBUTTON @"[妊娠していない]", @"妊娠フラグ：妊娠していない"
 	RESETCOLOR
-
 	PRINT 　　　　　
 	PRINTBUTTON "[全て表示]", "妊娠フラグ：全て表示"
 	PRINT /
@@ -567,7 +544,31 @@ IF 表示フィルタ種類 == ""
 	PRINTBUTTON "[全て非表示]", "名前着色：全て非表示"
 	PRINTL
 	DRAWLINE
-	PRINTL ■ キャラクター出典・原作
+	PRINTL ■ 外部フィルタ
+	PRINT 　 
+	PRINTBUTTON "[弱点コマンドフィルタを起動]", "弱点コマンドフィルタ"
+	PRINT  / 
+	IF 弱点コマンド検索タイプ == 0
+		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[OR検索 / <font color='#%カラーパレット_HTML("グレーアウト")%'>AND検索</font>]</button>", 1
+	ELSEIF 弱点コマンド検索タイプ == 1
+		HTML_PRINT @"<button value='弱点コマンド検索タイプ'>[<font color='#%カラーパレット_HTML("グレーアウト")%'>OR検索</font> / AND検索]</button>", 1
+	ENDIF
+	PRINT 　　　　　
+	PRINTBUTTON "[全て表示]", "弱点コマンド：全て表示"
+	PRINTL
+	IF キャラ一覧フィルタ:弱点コマンド != ""
+		PRINT 　 
+		VARSET 弱点フィルタマッチ配列
+		SPLIT キャラ一覧フィルタ:弱点コマンド, "+++", 弱点フィルタマッチ配列
+		FOR LOCAL, 0, RESULT
+			SIF LOCAL > 0
+				PRINT ・
+			PRINTFORM %弱点の欠片名前表示(弱点フィルタマッチ配列:LOCAL)%
+		NEXT
+		PRINTL
+	ELSE
+		PRINTL 　 フィルタ設定なし
+	ENDIF
 	PRINT 　 
 	PRINTBUTTON "[出典フィルタを起動]", "出典フィルタ"
 	PRINT 　　　　　
@@ -585,6 +586,18 @@ IF 表示フィルタ種類 == ""
 		PRINTL
 	ELSE
 		PRINTL 　 フィルタ設定なし
+	ENDIF
+	PRINT 　 
+	PRINTBUTTON "[名前検索を起動]", "名前検索フィルタ"
+	PRINTL
+	IF キャラ一覧フィルタ:名前検索 != ""
+		PRINT 　 
+		PRINTFORM [%キャラ一覧フィルタ:名前検索%]
+		PRINT 　　　　　
+		PRINTBUTTON "[検索を解除]", "名前検索：全て表示"
+		PRINTL
+	ELSE
+		PRINTL 　 検索設定なし
 	ENDIF
 	PRINTL
 	PRINTL
@@ -687,13 +700,16 @@ IF 入力_文字 != ""
 	ELSEIF 入力_文字 == "出典フィルタ"
 		CALL 出典_FILTA()
 		RESTART
+	ELSEIF 入力_文字 == "名前検索フィルタ"
+		CALL 名前検索_FILTA()
+		RESTART
 	ENDIF
 	;通常フィルタ操作
 	;操作するリスト位置の決定
 	リスト番号 = -1
 	FOR LOCAL, 0, VARSIZE("キャラ一覧フィルタ")
 		; 未使用/未定義の項目はスキップ
-		SIF GROUPMATCH(LOCAL, 9, 15, 16, 17)
+		SIF GROUPMATCH(LOCAL, 9, 16, 17)
 			CONTINUE
 		IF STRCOUNT(入力_文字, ERDNAME(キャラ一覧フィルタ, LOCAL))
 			リスト番号 = LOCAL
@@ -1353,3 +1369,19 @@ SELECTCASE 入力値
 ENDSELECT
 
 RESTART
+
+
+@名前検索_FILTA()
+
+DRAWLINE
+PRINTL 検索する文字列を入力してください。
+PRINTL ※検索対象はキャラクターのNAME（二つ名＋フルネーム）です。
+PRINTL ※部分一致検索です。
+PRINTL ※スペースなどの区切りによる複数検索には対応していません。
+DRAWLINE
+PRINTL
+INPUTS
+
+キャラ一覧フィルタ:名前検索 '= RESULTS
+
+RETURN 0
