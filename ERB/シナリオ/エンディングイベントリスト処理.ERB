@@ -35,32 +35,61 @@ IF FLAG:クリア済み視聴フラグ
 		SIF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント発生フラグ") == 0
 			CONTINUE
 		IF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント完了フラグ") == 1
-			LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button><br>"
+			IF 表示キー == LOCAL
+				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button></font><br>"
+			ELSE
+				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button><br>"
+			ENDIF
 		ENDIF
 	NEXT
 ELSE
-	FOR LOCAL, 0, 表示候補数
-		SIF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント発生フラグ") == 0
-			CONTINUE
-		LOCALS:10 = 
-		LOCALS:11 = 
-		IF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント完了フラグ") == 1
-			LOCALS:11 += "　視聴済"
-		ELSEIF MATCH(NEWフラグ用リスト, @"EVENT%TOSTR(LOCAL)%")
-			LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
-			LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
-		ENDIF
-		LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
-	NEXT
+	IF FLAG:エンディング後フラグ
+		LOCALS:1 += "エンディング到達済"
+	ELSE
+		FOR LOCAL, 0, 表示候補数
+			SIF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント発生フラグ") == 0
+				CONTINUE
+			LOCALS:10 = 
+			LOCALS:11 = 
+			IF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント完了フラグ") == 1
+				LOCALS:11 += "　視聴済"
+			ELSEIF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(LOCAL)%")
+				LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
+				LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
+			ENDIF
+			IF 表示キー == LOCAL
+				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%</font><br>"
+			ELSE
+				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+			ENDIF
+		NEXT
+	ENDIF
 ENDIF
 
 LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='156,156,1837,2712'><nobr>%LOCALS:1%</nobr></div>
 LOCALS += "<div width='1050' height='125' xpos='337' ypos='0' color='#101010'>エンディングイベント</div>"
 LOCALS += "<div rect='2081,31,3937,2812' border='31' bcolor='#C0C0C0' padding='50,25,50'>"
-IF 表示キー == -1
+IF FLAG:エンディング後フラグ && !FLAG:クリア済み視聴フラグ
+	LOCALS += "この周回では既にエンディングに到達しました。<br>"
+	LOCALS += "他の結末を望む場合、「強くてNEWGAME」から周回してください。<br>"
+ELSEIF 表示キー == -1
 	LOCALS += "左のリストから任意のエンディングを選択してください。<br>"
 	LOCALS += "この欄にはエンディングの詳細と、エンディングを視聴するかどうかの確認ボタンが表示されます。<br>"
 ELSE
+	CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("設定取得", 表示キー)
+	LOCALS += TSTR:ツールチップ受渡
+	LOCALS += "<br>"
+	IF FLAG:クリア済み視聴フラグ
+		LOCALS += "<button value='10000'>[10000]このエンディングを再視聴する</button><br>"
+	ELSE
+		RESULT = 0
+		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("実行条件", 表示キー)
+		IF RESULT
+			LOCALS += "<button value='10000'>[10000]このエンディングに決定する</button><br>"
+		ELSE
+			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[10000]このエンディングに決定する　　※実行条件未達</font><br>"
+		ENDIF
+	ENDIF
 ENDIF
 LOCALS += "</div>"
 
@@ -69,8 +98,8 @@ HTML_PRINT LOCALS
 FOR LOCAL, 0, 25
 	PRINTL
 NEXT
-PRINTBUTTON "[9997]システムの説明", 9997
-PRINTL
+; PRINTBUTTON "[9997]システムの説明", 9997
+; PRINTL
 PRINTBUTTON "[9999]戻る", 9999
 PRINTL
 
@@ -82,22 +111,42 @@ ELSE
 ENDIF
 SELECTCASE LOCAL
 	CASE IS < 表示候補数
-		CALLFORM イベント関数_メインシナリオ_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("実処理", LOCAL)
 		IF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(LOCAL)%")
 			REPLACE TSTR:NEWイベントフラグ, @"ENDHING%TOSTR(LOCAL)%_", ""
 			TSTR:NEWイベントフラグ = %RESULTS%
 		ENDIF
+		表示キー = LOCAL
 		RESTART
 	CASE 9997
 		CALL エンディングリストチュートリアル()
 		RESTART
 	CASE 9998
 		INVERTBIT FLAG:クリア済み視聴フラグ, 0
+		表示キー = -1
 		RESTART
 	CASE 9999
 		FLAG:クリア済み視聴フラグ = 0
 		表示キー = -1
 		RETURN 0
+	CASE 10000
+		DRAWLINE
+		IF !FLAG:クリア済み視聴フラグ
+			PRINTFORML 『%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%』のエンディングを迎えます。
+			PRINTL よろしいですか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			PRINTL
+			BINPUT
+			SIF RESULT != 0
+				RESTART
+		ENDIF
+		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("実処理", 表示キー)
+		IF !FLAG:クリア済み視聴フラグ
+			FLAG:エンディング後フラグ = 1
+			CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("設定取得", 表示キー)
+			STR:エンド後_エンディング番号 '= TSTR:コマンド名受渡
+			DT_CELL_SET "エンディング用変数配列", 表示キー, "イベント完了フラグ", 1
+		ENDIF
 ENDSELECT
 
 @エンディングイベント完了フラグ汎用処理(ARGS)
