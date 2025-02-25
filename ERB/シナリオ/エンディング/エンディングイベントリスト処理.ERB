@@ -1,21 +1,29 @@
 ﻿
-@エンディングイベントリスト
-#DIMS 表示用リスト, 100
+@エンディングイベントリスト(クリア済み視聴)
+#DIM 表示用リスト, 200
 #DIMS NEWフラグ用リスト, 100
 #DIM 表示候補数
+#DIM 配列番号
 #DIM 表示キー
 #DIM 周回フラグ
+#DIM クリア済み視聴
+#DIM 表示カテゴリ
+#DIMS CONST エンドカテゴリ = "" ,"MA", "CH", "EX", "GE"
 #DIM DYNAMIC 初回起動
 VARSET LOCAL
 VARSET LOCALS
 VARSET NEWフラグ用リスト
 
+FLAG:クリア済み視聴フラグ = クリア済み視聴
 IF 初回起動 == 0
+	;存在するエンディングをソートして突っ込む
+	表示候補数 = DT_ROW_LENGTH("エンディング用変数配列")
+	DT_SELECT "エンディング用変数配列", "", "ソート値 ASC", 表示用リスト
+	表示カテゴリ = 0
 	表示キー = -1
 	初回起動 = 1
 ENDIF
 
-表示候補数 = DT_ROW_LENGTH("エンディング用変数配列")
 SPLIT TSTR:NEWイベントフラグ, "_", NEWフラグ用リスト
 
 DRAWLINE
@@ -23,24 +31,53 @@ IF FLAG:クリア済み視聴フラグ
 	PRINTL 再視聴するクリア済みエンディングイベントを選んでください。
 	PRINTL ※基本的に再視聴では報酬などが取得出来ません。イベント中に「◯◯を入手した」と出ても取得されません。
 	PRINTL ※再視聴ではエンディング処理はされません。強くてニューゲームの条件も満たしません。
-	PRINTBUTTON "[9998] イベントリストへ戻る", 9998
 ELSE
 	PRINTL 開始するイベントを選んでください。
-	PRINTBUTTON "[9998] クリア済みイベントを再視聴する", 9998
 ENDIF
-PRINTL
+DRAWLINE
+PRINT 表示カテゴリ：
+SIF 表示カテゴリ == 0
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[ALL]", 10001
+RESETCOLOR
+PRINT  / 
+SIF 表示カテゴリ == 1
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[MA]", 10002
+RESETCOLOR
+PRINT  / 
+SIF 表示カテゴリ == 2
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[CH]", 10003
+RESETCOLOR
+PRINT  / 
+SIF 表示カテゴリ == 3
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[EX]", 10004
+RESETCOLOR
+PRINT  / 
+SIF 表示カテゴリ == 4
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[GE]", 10005
+RESETCOLOR
+PRINTL 
 DRAWLINE
 IF FLAG:クリア済み視聴フラグ
 	FOR LOCAL, 0, 表示候補数
-		;発生してないものは出さない
-		SIF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント発生フラグ") == 0
-			CONTINUE
-		IF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント完了フラグ") == 1
+		TSTR:コマンド名受渡 = 
+		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%("設定取得", 表示用リスト:LOCAL)
+		IF 表示カテゴリ
+			SIF STRFIND(TSTR:コマンド名受渡, エンドカテゴリ:表示カテゴリ) < 0
+				CONTINUE
+		ENDIF
+		IF DT_CELL_GET("エンディング用変数配列", 表示用リスト:LOCAL, "イベント完了フラグ", 1) == 1
 			IF 表示キー == LOCAL
-				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button></font><br>"
+				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%TSTR:コマンド名受渡% %DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%</button></font><br>"
 			ELSE
-				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button><br>"
+				LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL}]%TSTR:コマンド名受渡% %DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%</button><br>"
 			ENDIF
+		ELSE
+			LOCALS:1 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'><nonbutton>[{LOCAL}]%TSTR:コマンド名受渡% ？？？？？</nonbutton></font><br>"
 		ENDIF
 	NEXT
 ELSE
@@ -48,20 +85,26 @@ ELSE
 		LOCALS:1 += "エンディング到達済"
 	ELSE
 		FOR LOCAL, 0, 表示候補数
-			SIF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント発生フラグ") == 0
+			SIF DT_CELL_GET("エンディング用変数配列", 表示用リスト:LOCAL, "イベント発生フラグ", 1) == 0
 				CONTINUE
+			TSTR:コマンド名受渡 = 
+			CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%("設定取得", 表示用リスト:LOCAL)
+			IF 表示カテゴリ
+				SIF STRFIND(TSTR:コマンド名受渡, エンドカテゴリ:表示カテゴリ) < 0
+					CONTINUE
+			ENDIF
 			LOCALS:10 = 
 			LOCALS:11 = 
-			IF DT_CELL_GET("エンディング用変数配列", LOCAL, "イベント完了フラグ") == 1
+			IF DT_CELL_GET("エンディング用変数配列", 表示用リスト:LOCAL, "イベント完了フラグ", 1) == 1
 				LOCALS:11 += "　視聴済"
-			ELSEIF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(LOCAL)%")
+			ELSEIF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(表示用リスト:LOCAL)%")
 				LOCALS:10 += @"<font color='#%カラーパレット_HTML("黄")%'>"
 				LOCALS:11 += @"</font><font color='#FF5555'> NEW!!</font>"
 			ENDIF
 			IF 表示キー == LOCAL
-				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%</font><br>"
+				LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%TSTR:コマンド名受渡% %DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%</button>%LOCALS:11%</font><br>"
 			ELSE
-				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%</button>%LOCALS:11%<br>"
+				LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%TSTR:コマンド名受渡% %DT_CELL_GETS("エンディング用変数配列", 表示用リスト:LOCAL, "イベント名", 1)%</button>%LOCALS:11%<br>"
 			ENDIF
 		NEXT
 	ENDIF
@@ -77,14 +120,14 @@ ELSEIF 表示キー == -1
 	LOCALS += "左のリストから任意のエンディングを選択してください。<br>"
 	LOCALS += "この欄にはエンディングの詳細と、エンディングを視聴するかどうかの確認ボタンが表示されます。<br>"
 ELSE
-	CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("設定取得", 表示キー)
+	CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:表示キー, "イベント名", 1)%("設定取得", 表示用リスト:表示キー)
 	LOCALS += TSTR:ツールチップ受渡
 	LOCALS += "<br>"
 	IF FLAG:クリア済み視聴フラグ
 		LOCALS += "<button value='10000'>[10000]このエンディングを再視聴する</button><br>"
 	ELSE
 		RESULT = 0
-		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("実行条件", 表示キー)
+		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:表示キー, "イベント名", 1)%("実行条件", 表示用リスト:表示キー)
 		IF RESULT
 			LOCALS += "<button value='10000'>[10000]このエンディングに決定する</button><br>"
 		ELSE
@@ -111,9 +154,13 @@ ELSE
 	LOCAL = RESULT
 ENDIF
 SELECTCASE LOCAL
+	CASE 10001 TO 100005
+		表示カテゴリ = LOCAL - 10001
+		表示キー = -1
+		RESTART
 	CASE IS < 表示候補数
-		IF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(LOCAL)%")
-			REPLACE TSTR:NEWイベントフラグ, @"ENDHING%TOSTR(LOCAL)%_", ""
+		IF MATCH(NEWフラグ用リスト, @"ENDHING%TOSTR(表示用リスト:LOCAL)%")
+			REPLACE TSTR:NEWイベントフラグ, @"ENDHING%TOSTR(表示用リスト:LOCAL)%_", ""
 			TSTR:NEWイベントフラグ = %RESULTS%
 		ENDIF
 		表示キー = LOCAL
@@ -121,18 +168,15 @@ SELECTCASE LOCAL
 	CASE 9997
 		CALL エンディングリストチュートリアル()
 		RESTART
-	CASE 9998
-		INVERTBIT FLAG:クリア済み視聴フラグ, 0
-		表示キー = -1
-		RESTART
 	CASE 9999
 		FLAG:クリア済み視聴フラグ = 0
+		表示カテゴリ = 0
 		表示キー = -1
 		RETURN 0
 	CASE 10000
 		DRAWLINE
 		IF !FLAG:クリア済み視聴フラグ
-			PRINTFORML 『%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%』のエンディングを迎えます。
+			PRINTFORML 『%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:表示キー, "イベント名", 1)%』のエンディングを迎えます。
 			PRINTL よろしいですか？
 			PRINTBUTTONLC "[0] はい", 0
 			PRINTBUTTONLC "[1] いいえ", 1
@@ -141,13 +185,13 @@ SELECTCASE LOCAL
 			SIF RESULT != 0
 				RESTART
 		ENDIF
-		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("実処理", 表示キー)
+		CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:表示キー, "イベント名", 1)%("実処理", 表示用リスト:表示キー)
 		IF !FLAG:クリア済み視聴フラグ
 			周回フラグ = RESULT
 			FLAG:エンディング後フラグ = 1
-			CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示キー, "イベント名")%("設定取得", 表示キー)
+			CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", 表示用リスト:表示キー, "イベント名", 1)%("設定取得", 表示用リスト:表示キー)
 			STR:エンド後_エンディング番号 '= TSTR:コマンド名受渡
-			DT_CELL_SET "エンディング用変数配列", 表示キー, "イベント完了フラグ", 1
+			DT_CELL_SET "エンディング用変数配列", 表示用リスト:表示キー, "イベント完了フラグ", 1, 1
 			
 			IF 周回フラグ
 				CALL 周回引き継ぎ処理(1)

@@ -1354,6 +1354,7 @@ DT_CREATE "エンディング用変数配列"
 DT_COLUMN_ADD "エンディング用変数配列", "イベント名"
 DT_COLUMN_ADD "エンディング用変数配列", "イベント発生フラグ", 3
 DT_COLUMN_ADD "エンディング用変数配列", "イベント完了フラグ", 3
+DT_COLUMN_ADD "エンディング用変数配列", "ソート値", 4
 DT_COLUMN_ADD "エンディング用変数配列", "フリー変数１", 3
 DT_COLUMN_ADD "エンディング用変数配列", "フリー変数２", 3
 DT_COLUMN_ADD "エンディング用変数配列", "フリー変数３", 3
@@ -1364,6 +1365,7 @@ DT_COLUMN_ADD "エンディング用変数配列", "フリー文字列３"
 
 @イベント追加チェック
 #DIM イベント数
+#DIM ソート計算値
 #DIMS イベント名保存
 VARSET LOCAL
 VARSET LOCALS
@@ -1433,13 +1435,37 @@ VARSET LOCALS
 
 FOR LOCAL, 0, DT_ROW_LENGTH("エンディング用変数配列")
 	LOCALS:LOCAL = %DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%
+	;ここでついでにソートキーを再セット
+	CALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("設定取得", DT_CELL_GET("エンディング用変数配列", LOCAL, "id"))
+	IF STRFIND(TSTR:コマンド名受渡, "MA") > -1
+		ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2))
+	ELSEIF STRFIND(TSTR:コマンド名受渡, "CH") > -1
+		ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 10000
+	ELSEIF STRFIND(TSTR:コマンド名受渡, "EX") > -1
+		ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 20000
+	ELSEIF STRFIND(TSTR:コマンド名受渡, "GE") > -1
+		ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 30000
+	ENDIF
+	IF ソート計算値 != DT_CELL_GET("エンディング用変数配列", LOCAL, "ソート値")
+		DT_CELL_SET "エンディング用変数配列", LOCAL, "ソート値", ソート計算値
+	ENDIF
 NEXT
 
 イベント数 = ENUMFUNCBEGINSWITH("イベント関数_エンディングイベント_")
 FOR LOCAL, 0, イベント数
 	イベント名保存 = %SUBSTRING(RESULTS:LOCAL, 34)%
 	IF FINDELEMENT(LOCALS, イベント名保存, , , 1) < 0
-		DT_ROW_ADD "エンディング用変数配列", "イベント名", イベント名保存
+		CALLFORM イベント関数_エンディングイベント_%イベント名保存%("設定取得")
+		IF STRFIND(TSTR:コマンド名受渡, "MA") > -1
+			ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2))
+		ELSEIF STRFIND(TSTR:コマンド名受渡, "CH") > -1
+			ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 10000
+		ELSEIF STRFIND(TSTR:コマンド名受渡, "EX") > -1
+			ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 20000
+		ELSEIF STRFIND(TSTR:コマンド名受渡, "GE") > -1
+			ソート計算値 = TOINT(SUBSTRING(TSTR:コマンド名受渡, 2)) + 30000
+		ENDIF
+		DT_ROW_ADD "エンディング用変数配列", "イベント名", イベント名保存, "ソート値", ソート計算値
 	ENDIF
 NEXT
 
