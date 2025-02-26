@@ -209,10 +209,11 @@ ELSE
 	LOCALS += @"搭載可能人数：{DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1), 2}人<br>"
 	IF DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1) > 0
 		FOR LOCAL, 0, DT_CELL_GET("所持乗機データベース", 装備乗機ID, "サブ搭乗数_強化後", 1)
-			LOCALS += @"<button value='{LOCAL + 100}'>[サブパイロット{LOCAL + 1}："
 			IF BATTLE_STATE:(LOCAL + 10):キャラ登録番号 < 1
+				LOCALS += @"<button value='{LOCAL + 100}'>[サブパイロット{LOCAL + 1}："
 				LOCALS += "未設定]</button><br>"
 			ELSE
+				LOCALS += @"<button value='{LOCAL + 110}'>[能力]</button> <button value='{LOCAL + 100}'>[サブパイロット{LOCAL + 1}："
 				LOCALS += @"%NAME:(BATTLE_STATE:(LOCAL + 10):キャラ登録番号)%]</button><br>"
 			ENDIF
 		NEXT
@@ -288,6 +289,9 @@ SELECTCASE LOCAL
 		初期選択 = LOCAL - 90
 		VARSET 表示用ステータス格納配列:0:0
 		表示切り替え文字列 = 探索集約_サブメンバー編成
+		RETURN 0
+	CASE 110 TO 114
+		CALL 探索個別ステータス表示(LOCAL - 100)
 		RETURN 0
 	CASE 9998
 		PRINTL 
@@ -397,7 +401,7 @@ IF ARG > 0
 ELSE
 	PRINTLC  
 ENDIF
-IF BATTLE_STATE:(ARG + 1):キャラ登録番号 > 0
+IF BATTLE_STATE:(ARG + 1):キャラ登録番号 > 0 || (ARG == 3 && BATTLE_STATE:10:キャラ登録番号 > 0)
 	PRINTBUTTONLC "[101]次のキャラへ", 101
 ELSE
 	PRINTLC  
@@ -425,9 +429,21 @@ SELECTCASE RESULT
 			GOTO INPUT_LOOP
 		ENDIF
 		ARG -= 1
+		IF ARG > 3 && ARG < 10
+			FOR LOCAL, 3, -1, -1
+				IF BATTLE_STATE:LOCAL:キャラ登録番号 > 0
+					ARG = LOCAL
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
 		RESTART
 	CASE 101
 		IF BATTLE_STATE:(ARG + 1):キャラ登録番号 < 1
+			IF ARG <= 3 && BATTLE_STATE:10:キャラ登録番号 > 0
+				ARG = 10
+				RESTART
+			ENDIF
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
 		ENDIF
@@ -526,7 +542,7 @@ SIF 最大レベル保存_周回 > 最大レベル保存
 #DIM y軸位置
 #DIM メインサブ
 #DIM 番号管理
-#DIM 昇順降順
+#DIM 昇順降順 = -1
 #DIM リスト表示位置
 #DIM 入れ替え候補_メンバー = -1
 #DIM 入れ替え候補_リスト = -1
@@ -589,7 +605,6 @@ FOR LOCAL, 1, CHARANUM
 
 	SIF ソート法則 < 1 && ソート法則 > 3
 		ソート法則 = 1
-	昇順降順 = -1
 	FOR リスト表示位置, 1, 4
 		SELECTCASE メンバーリスト表示欄:リスト表示位置
 			CASE "属性"
@@ -599,8 +614,6 @@ FOR LOCAL, 1, CHARANUM
 				ELSE
 					表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:属性
 				ENDIF
-				SIF リスト表示位置 == ソート法則
-					昇順降順 = 1
 			CASE "Ｌｖ"
 				表示用ステータス格納配列:(LOCAL:1):リスト表示位置 = 基礎BATTLE_STATE:LOCAL:Lv
 			CASE "固有"
@@ -887,14 +900,32 @@ SELECTCASE LOCAL
 			ENDIF
 		ENDIF
 	CASE 50
-		ソート法則 = 1
-		入れ替え候補_リスト = -1
+		IF ソート法則 == 1
+			昇順降順 = 昇順降順 * -1
+		ELSE
+			ソート法則 = 1
+			入れ替え候補_リスト = -1
+			SIF メンバーリスト表示欄:1 == "属性"
+				昇順降順 = 1
+		ENDIF
 	CASE 51
-		ソート法則 = 2
-		入れ替え候補_リスト = -1
+		IF ソート法則 == 2
+			昇順降順 = 昇順降順 * -1
+		ELSE
+			ソート法則 = 2
+			入れ替え候補_リスト = -1
+			SIF メンバーリスト表示欄:2 == "属性"
+				昇順降順 = 1
+		ENDIF
 	CASE 52
-		ソート法則 = 3
-		入れ替え候補_リスト = -1
+		IF ソート法則 == 3
+			昇順降順 = 昇順降順 * -1
+		ELSE
+			ソート法則 = 3
+			入れ替え候補_リスト = -1
+			SIF メンバーリスト表示欄:3 == "属性"
+				昇順降順 = 1
+		ENDIF
 	CASE 9999
 		入れ替え候補_メンバー = -1
 		入れ替え候補_リスト = -1

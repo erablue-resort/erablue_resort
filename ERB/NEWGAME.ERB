@@ -339,24 +339,26 @@ ELSEIF SAVESTR:あなたスタイル == "スタートダッシュモード"
 	PRINTW 初期追加する従業員を設定します。
 	CALL 初期従業員選択(4)
 	
-	PRINTL メインシナリオ進行度を特定のところまでスキップできます
-	PRINTL 
-	PRINTL ※注意※
-	PRINTL 後から変更することはできません
-	PRINTBUTTON "[0] スキップしない", 0
-	PRINTL 
-	PRINTBUTTON "[1] 人食い鳥の島 クリアまでスキップ（ＥＸキャラ解放可能）", 1
-	PRINTL 
-	PRINTBUTTON "[2] 温泉解放までスキップ（マッサージ解放可能）", 2
-	$INPUT_LOOP_Q
-	BINPUT
-	SELECTCASE RESULT
-	CASE 0
-	CASE 1 TO 2
-		CALL QUICK_START(RESULT)
-	CASEELSE
-		GOTO INPUT_LOOP_Q
-	ENDSELECT
+	IF 引き継ぎ中フラグ == 0
+		PRINTL メインシナリオ進行度を特定のところまでスキップできます
+		PRINTL 
+		PRINTL ※注意※
+		PRINTL 後から変更することはできません
+		PRINTBUTTON "[0] スキップしない", 0
+		PRINTL 
+		PRINTBUTTON "[1] 人食い鳥の島 クリアまでスキップ（ＥＸキャラ解放可能）", 1
+		PRINTL 
+		PRINTBUTTON "[2] 温泉解放までスキップ（マッサージ解放可能）", 2
+		$INPUT_LOOP_Q
+		BINPUT
+		SELECTCASE RESULT
+		CASE 0
+		CASE 1 TO 2
+			CALL QUICK_START(RESULT)
+		CASEELSE
+			GOTO INPUT_LOOP_Q
+		ENDSELECT
+	ENDIF
 	
 	CALL シナリオ_OP
 ELSE
@@ -416,12 +418,17 @@ IF 引き継ぎ中フラグ
 	最大レベル保存_周回 = 最大レベル引き継ぎ
 	;最大レベルに応じて経験値アイテム配布
 	CALL 素材入手処理("星晶の欠片", 最大レベル保存_周回, 1)
+
+	;引き継ぎ時のクイックスタート処理
+	SIF 周回後スタート地点
+		CALL QUICK_START(周回後スタート地点 + 100)
 ENDIF
 
 ;バージョンアップ時の処理を不要としてマーク
 FOR LOCAL:1, GAMEBASE_ALLOWVERSION, GAMEBASE_VERSION + 1
 	CALLFORM VERUP_{LOCAL:1}_FINISH()
 NEXT
+
 
 ;変数リセット
 CALL TURN_RESET
@@ -3248,108 +3255,3 @@ SELECTCASE 動作モード
 		追加候補:3 = キャラ検索("[炎姫の母君]アリシア")
 ENDSELECT
 
-
-
-@QUICK_START(ARG)
-#DIM 初期レベル
-#DIM 追加信頼度
-
-;ARG:クイックスタート番号
-;どこらへんから始めるか
-;1:人食い鳥の島クリア
-;2:温泉解放
-
-SELECTCASE ARG
-	CASE 1
-		初期レベル = 4
-		追加信頼度 = 1500
-	CASE 2
-		初期レベル = 8
-		追加信頼度 = 2500
-	CASEELSE
-		RETURN
-ENDSELECT
-
-
-
-FOR LOCAL,1, CHARANUM
-	IF TALENT:LOCAL:従業員
-		CFLAG:LOCAL:信頼度 += 追加信頼度
-		;非戦闘員なのにレベル上がるのはバグの元になりそうなのでひとまず上げない
-		IF !TALENT:LOCAL:非戦闘キャラ
-			基礎BATTLE_STATE:LOCAL:蓄積EXP = 戦闘経験値テーブル:初期レベル
-			CALL レベルアップ処理(LOCAL, 1)
-		ENDIF
-	ENDIF
-	
-NEXT
-;沿岸部の森クリア
-CALL イベント完了フラグ汎用処理("森に住み着いた魔物")
-CALL イベント完了フラグ汎用処理("航路開拓計画")
-空艇港初来訪イベントフラグ = 1
-ダンジョン出現フラグ_沿岸部の森 = 1
-ダンジョンクリアフラグ_沿岸部の森 = 1
-CALL 汎用指輪取得処理("栄冠の指輪・力", 2)
-CALL 汎用耳飾り取得処理("火の耳飾り")
-
-
-;人食い鳥の島クリア
-SETVAR @"ダンジョン構造配列_人食い鳥の島:0:0", 3
-ダンジョン出現フラグ_人食い鳥の島 = 1
-ダンジョンクリアフラグ_人食い鳥の島 = 1
-CALL 汎用指輪取得処理("飛翔の指輪", 2)
-CALL 汎用耳飾り取得処理("猛禽の耳飾り")
-残り巣の数_人食い鳥の島 = 0
-
-SETBIT ダンジョン構造配列_人食い鳥の島:14:0, 4
-SETBIT ダンジョン構造配列_人食い鳥の島:21:3, 4
-SETBIT ダンジョン構造配列_人食い鳥の島:31:1, 4
-SETBIT ダンジョン構造配列_人食い鳥の島:30:5, 4
-;ジョブの証
-SETBIT ダンジョン構造配列_人食い鳥の島:31:1, 1
-CALL 汎用証取得処理("ファイターの証")
-CALL 汎用証取得処理("ナイトの証")
-CALL 汎用証取得処理("プリーストの証")
-CALL 汎用証取得処理("ウィザードの証")
-;門
-SETBIT ダンジョン構造配列_人食い鳥の島:11:4, 2
-
-;人食い鳥の島クリアから開始ならここで抜ける
-IF ARG == 1
-	CALL RESET_GRAPH_0
-	CALL RESET_GRAPH_1
-	RETURN
-ENDIF
-
-;前提のあれこれ
-CALL イベント完了フラグ汎用処理("渡りに船の定期便")
-CALL イベント完了フラグ汎用処理("大拡張！空艇港")
-
-;ゆぐゆぐダンジョンクリア
-SETVAR @"ダンジョン構造配列_名前を亡くした遺跡:0:4", 3
-ダンジョン出現フラグ_名前を亡くした遺跡 = 1
-ダンジョンクリアフラグ_名前を亡くした遺跡 = 1
-SETBIT ダンジョン構造配列_名前を亡くした遺跡:22:5, 4
-CALL 汎用耳飾り取得処理("猛禽の耳飾り")
-
-;ゆぐゆぐ解禁
-LOCAL = GETCHARA(124)
-CFLAG:LOCAL:招待不可フラグ = 0
-CFLAG:LOCAL:信頼度 = 1000
-
-
-;温泉追加
-温泉作成許可フラグ = 1
-
-施設改造度:7:0 = 1
-施設改造度:8:0 = 1
-CALL 滞在可能キャラ数再計算
-CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"大浴場を温泉施設Lv1に改造した","実績")
-CALL イベント完了フラグ汎用処理("温泉を作るために")
-CALL イベント完了フラグ汎用処理("【条件確認】温泉を作るために")
-CALL RESET_GRAPH_0
-CALL RESET_GRAPH_1
-
-;維持費が辛くなるだろうからお金と人気度追加
-MONEY += 100000
-リゾート人気度 = 1000
