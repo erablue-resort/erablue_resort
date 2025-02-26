@@ -1,0 +1,60 @@
+﻿[IF_DEBUG]
+;---------------------------------------------------------------------
+;【デバッグ用】初期同行率のチェック処理
+;---------------------------------------------------------------------
+@デバッグ用_初期同行率チェック()
+;すべてのCSVの同行率を見て存在しない相手がいる場合記述
+#DIMS エラー記録
+#DIM CSV番号
+#DIMS 同行文字列
+#DIMS 同行文字列展開, 200
+#DIMS CSTR切り分け文字列格納, 2
+#DIM 同行数
+#DIM 配列番号
+#DIM 進行チェック
+#DIM チェック先CSV
+#DIM 不一致フラグ
+
+
+エラー記録 = 
+VARSET 同行文字列展開
+
+進行チェック = キャラクタ数上限 / 10
+REDRAW 0
+FOR CSV番号, 1, キャラクタ数上限
+	IF CSV番号 % 進行チェック == 0
+		CLEARLINE 1
+		PRINTFORML 進行度……{CSV番号 / 進行チェック * 10}\%
+		AWAIT
+	ENDIF
+	SIF EXISTCSV(CSV番号) == 0
+		CONTINUE
+	;招待時同行キャラ
+	REPLACE CSVCSTR(CSV番号, GETNUM(CSTR, "同行キャラ")), " ", ""
+	SPLIT RESULTS, "%", 同行文字列展開
+	同行数 = RESULT - 1
+	FOR 配列番号, 0, 同行数
+		SPLIT 同行文字列展開:配列番号, "_", CSTR切り分け文字列格納
+		;CSTR切り分け文字列格納:0に名前、CSTR切り分け文字列格納:1に確率が入っているはず
+		不一致フラグ = 1
+		FOR チェック先CSV, 1, キャラクタ数上限
+			SIF EXISTCSV(チェック先CSV) == 0
+				CONTINUE
+			IF CSVNAME(チェック先CSV) == CSTR切り分け文字列格納:0
+				不一致フラグ = 0
+				BREAK
+			ENDIF
+		NEXT
+		IF 不一致フラグ
+			エラー記録 += @"{CSV番号}：%CSVNAME(CSV番号)%＞%CSTR切り分け文字列格納:0%<br>"
+		ENDIF
+	NEXT
+NEXT
+CLEARLINE 1
+PRINTL 進行度……100%
+REDRAW 1
+
+PRINTL ・記述ミス一覧
+HTML_PRINT エラー記録
+FORCEWAIT
+[ENDIF]
