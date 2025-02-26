@@ -3,6 +3,7 @@
 #DIMS 行動候補文字列, 500
 #DIM 同室者番号
 #DIM キャラ番号
+#DIM 候補者数
 #DIM 候補総数
 #DIMS AUTOCOM_候補情報, キャラクタ数上限
 #DIMS 候補者_AUTO番号_文字列分割, 3
@@ -88,45 +89,55 @@ SIF FLAG:オートコマンド切り替えオプション == 15
 ; 	RETURN TFLAG:オートコマンドフラグ
 ; ENDIF
 
+;飲み会時は飲み会TARGETが動く
+IF CFLAG:PLAYER:飲み会
+	候補者数 = GET_飲み会TARGETNUM() + 1
+ELSE
+	候補者数 = GET_TARGETNUM() + 1
+ENDIF
 
-FOR 同室者番号, 1, GET_TARGETNUM() + 1
+FOR 同室者番号, 1, 候補者数
 
 	;判定用に代入
-	TARGET = TARGET:同室者番号
+	IF CFLAG:PLAYER:飲み会
+		TARGET = 飲み会TARGET:同室者番号
+	ELSE
+		TARGET = TARGET:同室者番号
+	ENDIF
 	PLAYER = 行動対象キャラ
 
 	;あなたは動かない
-	SIF TARGET:同室者番号 == MASTER
+	SIF TARGET == MASTER
 		CONTINUE
 	;指示モード時、PLYAERは動かない
-	SIF TARGET:同室者番号 == PLAYER
+	SIF TARGET == PLAYER
 		CONTINUE
 	;行動対象もスキップ
-	SIF TARGET:同室者番号 == 行動対象キャラ
+	SIF TARGET == 行動対象キャラ
 		CONTINUE
 	;うふふのみフラグ時はうふふキャラのみ
-	SIF うふふのみフラグ && CFLAG:(TARGET:同室者番号):うふふ == 0
+	SIF うふふのみフラグ && CFLAG:(TARGET):うふふ == 0
 		CONTINUE
 	;相手が寝てる場合は次へ
-	SIF CFLAG:(TARGET:同室者番号):睡眠
+	SIF CFLAG:(TARGET):睡眠
 		CONTINUE
 	;相手が緊縛されてる場合は次へ
-	SIF MODE_存在判定_ターゲット側("触手緊縛", TARGET:同室者番号)
+	SIF MODE_存在判定_ターゲット側("触手緊縛", TARGET)
 		CONTINUE
 	;相手が強い絶頂してる時は動かない
-	SIF NOWEX:(TARGET:同室者番号):多重絶頂 > 1
+	SIF NOWEX:(TARGET):多重絶頂 > 1
 		CONTINUE
 	;食いしばり中は動かない
-	SIF TCVAR:(TARGET:同室者番号):食いしばりフラグ
+	SIF TCVAR:(TARGET):食いしばりフラグ
 		CONTINUE
 	;体力限界中も動かない
-	SIF CFLAG:(TARGET:同室者番号):体力限界
+	SIF CFLAG:(TARGET):体力限界
 		CONTINUE
 	;ハーヴィンオナホ
-	SIF MODE_存在判定_ターゲット側("ハーヴィンオナホ系", TARGET:同室者番号)
+	SIF MODE_存在判定_ターゲット側("ハーヴィンオナホ系", TARGET)
 		CONTINUE
 	;全裸散歩
-	SIF MODE_存在判定_ターゲット側("全裸散歩", TARGET:同室者番号)
+	SIF MODE_存在判定_ターゲット側("全裸散歩", TARGET)
 		CONTINUE
 
 	;オプション制御
@@ -140,7 +151,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
 	;PRE_AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
 	FOR COM番号, 1, 100
-		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
+		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(TARGET)
 			IF RESULT
 				;既に現在のサイクルが優先オートコマンドだった場合、連続で同じものは発動しない
 				SIF TFLAG:オートコマンドフラグ == COM番号
@@ -161,7 +172,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			REVERSEAUTO候補者数 = 0
 		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
-		AUTOCOM_候補情報:PREAUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		AUTOCOM_候補情報:PREAUTO候補者数 = {TARGET}_{行動候補:ランダム格納}
 		PREAUTO候補者数 += 1
 	ENDIF
 
@@ -177,7 +188,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
 	FOR COM番号, 1, 100
-		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(TARGET:同室者番号)
+		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(TARGET)
 			IF RESULT
 				行動候補:(LOCAL:1) = COM番号 + 1000
 				LOCAL:1 += 1
@@ -194,7 +205,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 			REVERSEAUTO候補者数 = 0
 		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
-		AUTOCOM_候補情報:AUTO候補者数 = {TARGET:同室者番号}_{行動候補:ランダム格納}
+		AUTOCOM_候補情報:AUTO候補者数 = {TARGET}_{行動候補:ランダム格納}
 		AUTO候補者数 += 1
 	ENDIF
 
@@ -208,16 +219,16 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		CONTINUE
 
 	;現状うふふでしか動かないように制限
-	SIF CFLAG:(TARGET:同室者番号):うふふ == 0
+	SIF CFLAG:(TARGET):うふふ == 0
 		CONTINUE
 	;恋愛対象性別の時のみ動かす
-	SIF 恋愛対象外チェック(TARGET:同室者番号, 行動対象キャラ, 1)
+	SIF 恋愛対象外チェック(TARGET, 行動対象キャラ, 1)
 		CONTINUE
 
-	自慰ターゲット保存 = TARGET:同室者番号
+	自慰ターゲット保存 = TARGET
 	LOCAL:1 = 0
 	TARGET = 行動対象キャラ
-	PLAYER = TARGET:同室者番号
+	PLAYER = TARGET
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;許可されたCOMを全部見て行って条件とマッチしたCOM番号+3000を登録しておく
 	FOR COM番号, 0, 500
@@ -410,22 +421,22 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 				SIF MATCH(行動候補文字列, "3081")
 					REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3081", , , 1)
 			CASEELSE
-				IF 性癖素質:(TARGET:同室者番号):膣内射精 > 1
+				IF 性癖素質:(TARGET):膣内射精 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "4060")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4060", , , 1)
 				ENDIF
-				IF 性癖素質:(TARGET:同室者番号):腸内射精 > 1
+				IF 性癖素質:(TARGET):腸内射精 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "4062")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4062", , , 1)
 				ENDIF
-				IF 性癖素質:(TARGET:同室者番号):精飲 > 1
+				IF 性癖素質:(TARGET):精飲 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "3081")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3081", , , 1)
 				ENDIF
-				IF GETBIT(TALENT:(TARGET:同室者番号):非童貞, 0) == 0
+				IF GETBIT(TALENT:(TARGET):非童貞, 0) == 0
 					;童貞はとりあえず入れようとしてくる
 					SIF MATCH(行動候補文字列, "3060")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3060", , , 1)
@@ -433,7 +444,7 @@ FOR 同室者番号, 1, GET_TARGETNUM() + 1
 		ENDSELECT
 
 		ランダム格納 = REVERSECOM番号
-		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET:同室者番号}_%行動候補文字列:ランダム格納%
+		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {TARGET}_%行動候補文字列:ランダム格納%
 		REVERSEAUTO候補者数 += 1
 	ENDIF
 NEXT
