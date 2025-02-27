@@ -97,11 +97,13 @@ RETURN 1
 
 @デート採点処理(対象キャラ)
 #DIM 対象キャラ
+#DIM スコア記録
 
+スコア記録 = CFLAG:対象キャラ:デートスコア
 DRAWLINE
 PRINTW デートの時間が終わった……
-PRINTFORML 今回のデートは{CFLAG:対象キャラ:デートスコア, 6}点くらいの出来だった。
-SELECTCASE CFLAG:対象キャラ:デートスコア
+PRINTFORML 今回のデートは{スコア記録, 6}点くらいの出来だった。
+SELECTCASE スコア記録
 	CASE IS < 7500
 		PRINTFORML %CALLNAME:対象キャラ%を退屈させてしまったかもしれない……
 		PRINTL 次はもう少しプランを練ってから誘おう
@@ -121,9 +123,11 @@ ENDSELECT
 FORCEWAIT
 DRAWLINE
 
-DT_ROW_ADD "デートスコアデータベース", "デート相手人物番号", CFLAG:対象キャラ:人物番号, "デートスコア", CFLAG:対象キャラ:デートスコア, "デート日時", DAY * 1440 + TIME
+DT_ROW_ADD "デートスコアデータベース", "デート相手人物番号", CFLAG:対象キャラ:人物番号, "デートスコア", スコア記録, "デート日時", DAY * 1440 + TIME
 CALL デートリセット処理(対象キャラ)
 
+;スコアに応じて逆告白発生
+CALL デート後逆告白処理(対象キャラ, スコア記録)
 
 @デートリセット処理(対象キャラ)
 #DIM 対象キャラ
@@ -275,3 +279,99 @@ IF ソートフラグ == 2
 ELSE
 	PRINTBUTTON "[1016] スコア順", 1016
 ENDIF
+
+
+@デート後逆告白処理(対象キャラ, スコア記録)
+#DIM 対象キャラ
+#DIM スコア記録
+
+;まずオプション
+IF OPTION変数:デート後告白禁止
+	RETURNF 0
+ENDIF
+
+;前提条件
+;二人きりのみ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;恋慕候補のみ
+SIF CFLAG:対象キャラ:ゲージ起動分類 != 1
+	RETURN 0
+;相手にとってあなたが恋愛対象であること
+SIF 恋愛対象外チェック(対象キャラ, PLAYER)
+	RETURN 0
+;既に恋慕はダメ
+SIF TALENT:対象キャラ:恋慕
+	RETURN 0
+;誰かと恋慕でもダメ
+SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And 関係性種別 = '恋慕'")
+	RETURN 0
+;恋慕不可
+SIF GETBIT(TALENT:対象キャラ:陥落不可, 0)
+	RETURN 0
+;人妻系はあっちからは来ない
+SIF TALENT:対象キャラ:恋人持ち
+	RETURN 0
+;一回したらしばらく来ない
+SIF CFLAG:対象キャラ:前回デート後告白日 + 3 > DAY
+	RETURN 0
+;恋慕レベル50で足切り、実際の必要レベルはスコアによって上下
+SIF CFLAG:対象キャラ:恋慕レベル <= 50
+	RETURN 0
+
+;スコアからの算出
+SELECTCASE スコア記録
+	CASE IS < 15000
+		;平凡以下だと恋慕MAXのみ
+		SIF CFLAG:対象キャラ:恋慕レベル < 100
+			RETURN 0
+	CASE IS < 30000
+		;成功時
+		SIF CFLAG:対象キャラ:恋慕レベル < 70
+			RETURN 0
+	CASE IS < 60000
+		;大成功時
+		SIF CFLAG:対象キャラ:恋慕レベル < 60
+			RETURN 0
+	CASEELSE
+		;最高値なら足切りクリアだけでOK
+ENDSELECT
+DRAWLINE
+;あっちから告白してくる処理
+
+;口上があるならそっちを表示
+TRYCCALLFORM KOJO_EVENT_デート後告白_開始時_{NO:対象キャラ}(対象キャラ)
+CATCH
+	;汎用告白処理
+	PRINTFORMW %CALLNAME:MASTER%が%CALLNAME:対象キャラ%とのデートを終えた後、%CALLNAME:対象キャラ%はどうやら話したいことがあるようだ。
+	PRINTL
+	PRINTFORMW %CALLNAME:対象キャラ%は赤い顔をして少し躊躇いながら、%CALLNAME:MASTER%への愛の言葉を告げる。
+	PRINTFORMW 恋人同士になりたくて、%CALLNAME:MASTER%とのデートの後に思い切って告白したようだ。
+ENDCATCH
+
+PRINTFORML %CALLNAME:対象キャラ%の想いに、%CALLNAME:MASTER%は……
+PRINTBUTTONLC "[0] 想いに応える", 0
+PRINTBUTTONLC "[1] 少し考えさせて欲しいと言う", 1
+PRINTL
+
+BINPUT
+IF RESULT == 0
+	TRYCCALLFORM KOJO_EVENT_デート後告白_成功_{NO:対象キャラ}(対象キャラ)
+	CATCH
+		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME:対象キャラ%は笑顔を浮かべて喜んだ。
+	ENDCATCH
+	SETCOLOR カラーパレット("えっちな色")
+	PRINTFORMW %CALLNAME:対象キャラ%は［恋慕］を得た。
+	RESETCOLOR
+	TALENT:対象キャラ:恋慕 = 1
+ELSE
+	TRYCCALLFORM KOJO_EVENT_デート後告白_保留_{NO:対象キャラ}(対象キャラ)
+	CATCH
+		PRINTFORMW %CALLNAME:MASTER%が少し考えさせて欲しいと返すと、%CALLNAME:対象キャラ%は答えは急がないからと帰っていった……
+	ENDCATCH
+	;フラグを起床時告白と共通して使う
+	CFLAG:対象キャラ:起床時告白済み = 1
+ENDIF
+
+
+

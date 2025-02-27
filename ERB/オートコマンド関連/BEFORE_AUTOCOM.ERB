@@ -15,6 +15,7 @@
 #DIM ALLAUTOCOM番号
 #DIM COM番号
 #DIM 派生番号
+#DIM オート行動キャラ
 #DIM 行動対象キャラ
 #DIM うふふのみフラグ
 
@@ -100,44 +101,44 @@ FOR 同室者番号, 1, 候補者数
 
 	;判定用に代入
 	IF CFLAG:MASTER:飲み会
-		TARGET = 飲み会TARGET:同室者番号
+		オート行動キャラ = 飲み会TARGET:同室者番号
 	ELSE
-		TARGET = TARGET:同室者番号
+		オート行動キャラ = TARGET:同室者番号
 	ENDIF
 	PLAYER = 行動対象キャラ
 
 	;あなたは動かない
-	SIF TARGET == MASTER
+	SIF オート行動キャラ == MASTER
 		CONTINUE
 	;指示モード時、PLYAERは動かない
-	SIF TARGET == PLAYER
+	SIF オート行動キャラ == PLAYER
 		CONTINUE
 	;行動対象もスキップ
-	SIF TARGET == 行動対象キャラ
+	SIF オート行動キャラ == 行動対象キャラ
 		CONTINUE
 	;うふふのみフラグ時はうふふキャラのみ
-	SIF うふふのみフラグ && CFLAG:(TARGET):うふふ == 0
+	SIF うふふのみフラグ && CFLAG:オート行動キャラ:うふふ == 0
 		CONTINUE
 	;相手が寝てる場合は次へ
-	SIF CFLAG:(TARGET):睡眠
+	SIF CFLAG:オート行動キャラ:睡眠
 		CONTINUE
 	;相手が緊縛されてる場合は次へ
-	SIF MODE_存在判定_ターゲット側("触手緊縛", TARGET)
+	SIF MODE_存在判定_ターゲット側("触手緊縛", オート行動キャラ)
 		CONTINUE
 	;相手が強い絶頂してる時は動かない
-	SIF NOWEX:(TARGET):多重絶頂 > 1
+	SIF NOWEX:オート行動キャラ:多重絶頂 > 1
 		CONTINUE
 	;食いしばり中は動かない
-	SIF TCVAR:(TARGET):食いしばりフラグ
+	SIF TCVAR:オート行動キャラ:食いしばりフラグ
 		CONTINUE
 	;体力限界中も動かない
-	SIF CFLAG:(TARGET):体力限界
+	SIF CFLAG:オート行動キャラ:体力限界
 		CONTINUE
 	;ハーヴィンオナホ
-	SIF MODE_存在判定_ターゲット側("ハーヴィンオナホ系", TARGET)
+	SIF MODE_存在判定_ターゲット側("ハーヴィンオナホ系", オート行動キャラ)
 		CONTINUE
 	;全裸散歩
-	SIF MODE_存在判定_ターゲット側("全裸散歩", TARGET)
+	SIF MODE_存在判定_ターゲット側("全裸散歩", オート行動キャラ)
 		CONTINUE
 
 	;オプション制御
@@ -151,7 +152,7 @@ FOR 同室者番号, 1, 候補者数
 	;優先コマンドの有無（あらゆる反応に優先して発生する特殊オートコマンド）
 	;PRE_AUTOCOMを全部見て行って条件とマッチしたCOM番号を登録しておく
 	FOR COM番号, 1, 100
-		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(TARGET)
+		TRYCCALLFORM PRE_AUTOCOM_ABLE{COM番号}(オート行動キャラ)
 			IF RESULT
 				;既に現在のサイクルが優先オートコマンドだった場合、連続で同じものは発動しない
 				SIF TFLAG:オートコマンドフラグ == COM番号
@@ -172,7 +173,7 @@ FOR 同室者番号, 1, 候補者数
 			REVERSEAUTO候補者数 = 0
 		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
-		AUTOCOM_候補情報:PREAUTO候補者数 = {TARGET}_{行動候補:ランダム格納}
+		AUTOCOM_候補情報:PREAUTO候補者数 = {オート行動キャラ}_{行動候補:ランダム格納}
 		PREAUTO候補者数 += 1
 	ENDIF
 
@@ -188,7 +189,7 @@ FOR 同室者番号, 1, 候補者数
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;AUTOCOMを全部見て行って条件とマッチしたCOM番号+1000を登録しておく
 	FOR COM番号, 1, 100
-		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(TARGET)
+		TRYCCALLFORM AUTOCOM_ABLE{COM番号}(オート行動キャラ)
 			IF RESULT
 				行動候補:(LOCAL:1) = COM番号 + 1000
 				LOCAL:1 += 1
@@ -205,7 +206,7 @@ FOR 同室者番号, 1, 候補者数
 			REVERSEAUTO候補者数 = 0
 		ENDIF
 		ランダム格納 = RAND:(LOCAL:1)
-		AUTOCOM_候補情報:AUTO候補者数 = {TARGET}_{行動候補:ランダム格納}
+		AUTOCOM_候補情報:AUTO候補者数 = {オート行動キャラ}_{行動候補:ランダム格納}
 		AUTO候補者数 += 1
 	ENDIF
 
@@ -219,15 +220,15 @@ FOR 同室者番号, 1, 候補者数
 		CONTINUE
 
 	;現状うふふでしか動かないように制限
-	SIF CFLAG:(TARGET):うふふ == 0
+	SIF CFLAG:オート行動キャラ:うふふ == 0
 		CONTINUE
 	;恋愛対象性別の時のみ動かす
-	SIF 恋愛対象外チェック(TARGET, 行動対象キャラ, 1)
+	SIF 恋愛対象外チェック(オート行動キャラ, 行動対象キャラ, 1)
 		CONTINUE
 
-	自慰ターゲット保存 = TARGET
+	自慰ターゲット保存 = オート行動キャラ
 	LOCAL:1 = 0
-	PLAYER = TARGET
+	PLAYER = オート行動キャラ
 	TARGET = 行動対象キャラ
 	;反応コマンドの有無（通常優先度の反応コマンド）
 	;許可されたCOMを全部見て行って条件とマッチしたCOM番号+3000を登録しておく
@@ -421,22 +422,22 @@ FOR 同室者番号, 1, 候補者数
 				SIF MATCH(行動候補文字列, "3081")
 					REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3081", , , 1)
 			CASEELSE
-				IF 性癖素質:(PLAYER):膣内射精 > 1
+				IF 性癖素質:オート行動キャラ:膣内射精 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "4060")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4060", , , 1)
 				ENDIF
-				IF 性癖素質:(PLAYER):腸内射精 > 1
+				IF 性癖素質:オート行動キャラ:腸内射精 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "4062")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "4062", , , 1)
 				ENDIF
-				IF 性癖素質:(PLAYER):精飲 > 1
+				IF 性癖素質:オート行動キャラ:精飲 > 1
 					;愛好以上だととりあえず挿入させようとしてくる
 					SIF MATCH(行動候補文字列, "3081")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3081", , , 1)
 				ENDIF
-				IF GETBIT(TALENT:(PLAYER):非童貞, 0) == 0
+				IF GETBIT(TALENT:オート行動キャラ:非童貞, 0) == 0
 					;童貞はとりあえず入れようとしてくる
 					SIF MATCH(行動候補文字列, "3060")
 						REVERSECOM番号 = FINDELEMENT(行動候補文字列, "3060", , , 1)
@@ -444,7 +445,7 @@ FOR 同室者番号, 1, 候補者数
 		ENDSELECT
 
 		ランダム格納 = REVERSECOM番号
-		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {PLAYER}_%行動候補文字列:ランダム格納%
+		AUTOCOM_候補情報:REVERSEAUTO候補者数 = {オート行動キャラ}_%行動候補文字列:ランダム格納%
 		REVERSEAUTO候補者数 += 1
 	ENDIF
 NEXT
