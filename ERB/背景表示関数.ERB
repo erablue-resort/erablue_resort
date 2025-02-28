@@ -1,0 +1,63 @@
+﻿;-------------------------------------------------
+;背景表示
+;-------------------------------------------------
+@BackGround(背景用行数保存)
+#DIM 背景用行数保存
+
+IF CFLAG:MASTER:現在位置 == CFLAG:MASTER:自室位置 && CFLAG:MASTER:現在マップ種別 == 0
+	LOCALS = 背景_あなたの部屋
+ELSEIF CFLAG:MASTER:現在マップ種別 == 999
+	LOCALS = 背景_客室
+ELSE
+	LOCALS = 背景_%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%
+ENDIF
+
+DEBUGPRINTFORML %LOCALS%
+CALL リゾート背景表示(LOCALS,背景用行数保存)
+
+
+
+@リゾート背景表示(画像名, 表示基準行)
+#DIMS 画像名				;リソース名
+#DIM  表示基準行
+#DIM  縦幅行
+#DIMS  表示HTML
+#DIM 背景カラーマトリクス, 5, 5
+
+背景カラーマトリクス:0:0 = 256,   0,   0,   0,   0
+背景カラーマトリクス:1:0 =   0, 256,   0,   0,   0
+背景カラーマトリクス:2:0 =   0,   0, 256,   0,   0
+背景カラーマトリクス:3:0 =   0,   0,   0,  76,   0
+背景カラーマトリクス:4:0 =   0,   0,   0,   0, 256
+
+縦幅行 = LINECOUNT - 表示基準行
+
+IF EXIST画像FILE(@"resources/リゾート背景/%画像名%")
+	;何番でもいいけどとりあえず19998,9を使用
+	GDISPOSE 19998
+	GDISPOSE 19999
+	SPRITEDISPOSE @"%画像名%"
+	CALL GCREATE_拡張子(19998, @"リゾート背景/%画像名%")
+	
+	GCREATE 19999, GWIDTH(19998), GHEIGHT(19998)
+	GDRAWG 19999, 19998, 0, 0, GWIDTH(19998), GHEIGHT(19998), 0, 0, GWIDTH(19998), GHEIGHT(19998), 背景カラーマトリクス:0:0
+
+	SPRITECREATE @"%画像名%", 19999
+
+	表示HTML = <div rect='0,{縦幅行 * -115}, 5400, {縦幅行 * 119}' depth='999'>
+	表示HTML += @"<img src='%画像名%' height='{縦幅行 * 119}'>"
+	表示HTML += "</div>"
+	HTML_PRINT 表示HTML
+ELSE
+	RETURN 0
+ENDIF
+
+; IF SPRITECREATED(画像名)
+; 	表示HTML = <div rect='0,{縦幅行 * -115}, 5400, {縦幅行 * 119}' depth='999'>
+; 	表示HTML += @"<img src='%画像名%' height='{縦幅行 * 119}'>"
+; 	表示HTML += "</div>"
+; 	HTML_PRINT 表示HTML
+; ELSE
+; 	RETURN 0
+; ENDIF
+RETURN 1

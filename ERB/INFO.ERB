@@ -8,6 +8,8 @@
 #DIM 追い出されフラグ
 #DIM 改行フラグ
 #DIM ツールチップフラグ
+#DIM 背景用行数保存
+#DIMS divHTML
 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
@@ -384,7 +386,6 @@ ENDIF
 ;-------------------------------------------------
 ;フィールド表示
 ;-------------------------------------------------
-改行フラグ = 0
 SETCOLOR カラーパレット("えっちな色")
 ;PRINT フィールド効果：
 RESETCOLOR
@@ -411,6 +412,7 @@ HTML_PRINT LOCALS
 RESETCOLOR
 ;DRAWLINE
 PRINTL ------------------------------------------------------------------------------------------------------------
+背景用行数保存 = LINECOUNT
 ;-------------------------------------------------
 ;TARGET情報とモード切り替え
 ;-------------------------------------------------
@@ -433,15 +435,15 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 		TFLAG:調教モード = 1
 	ENDIF
 	文字数カウント = 8
-	PRINT 同室者：
+	divHTML = 同室者：
+	改行フラグ = 0
 	FOR LOCAL,1,CHARANUM
 	;同室一覧から即座に相手を変えられるようにする
 		SIF TARGET:LOCAL < 1
 			BREAK
 		IF TARGET:LOCAL == PLAYER
 			IF TARGET != MASTER && GETBIT(FLAG:モード管理, モードビット_指示)
-				PRINTBUTTON @"[%CALLNAME:MASTER%]", 2000
-				PRINT  
+				divHTML += @"<button value='2000'>[%CALLNAME:MASTER%]</button> "
 			ENDIF
 		ELSEIF TARGET:LOCAL == TARGET
 			CONTINUE
@@ -496,31 +498,33 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 			ボタン表示格納用 += "]"
 			文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
 			IF 文字数カウント > 85
-				PRINTL
+				divHTML += "<br>"
 				文字数カウント = 0
+				改行フラグ ++
 			ENDIF
 			IF TFLAG:調教モード == 3 && CFLAG:(TARGET:LOCAL):同室文字色 == 0 && 文字色グループ取得(TARGET:LOCAL) < 0
-				HTML_PRINT @"%ボタン表示格納用%", 1
+				divHTML += ボタン表示格納用
 				;PRINTPLAINFORM %ボタン表示格納用%
 			ELSE
 				IF 文字色グループ取得(TARGET:LOCAL) >= 0
-					HTML_PRINT @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(TARGET:LOCAL)))%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+					divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(TARGET:LOCAL)))%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
 				ELSEIF CFLAG:(TARGET:LOCAL):同室文字色
-					HTML_PRINT @"<font color='#%十六進数文字列化(CFLAG:(TARGET:LOCAL):同室文字色)%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+					divHTML += @"<font color='#%十六進数文字列化(CFLAG:(TARGET:LOCAL):同室文字色)%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
 				ELSEIF フォント格納用 != ""
-					HTML_PRINT @"<font color='#%フォント格納用%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
+					divHTML += @"<font color='#%フォント格納用%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
 				ELSE
-					HTML_PRINT @"<button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>", 1
+					divHTML += @"<button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
 				ENDIF
 				;PRINTBUTTON ボタン表示格納用, (TARGET:LOCAL)+2000
 			ENDIF
-			RESETCOLOR
-			PRINT  
+			divHTML += " "
 		ENDIF
 	NEXT
 	IF TFLAG:調教モード == 3
-		PRINTL
-		PRINT 飲み会参加者：
+		divHTML += "<br>"
+		改行フラグ ++
+		文字数カウント = 14
+		divHTML += "飲み会参加者："
 		FOR LOCAL,1,CHARANUM
 		;同室一覧から即座に相手を変えられるようにする
 			SIF 飲み会TARGET:LOCAL < 1
@@ -566,22 +570,31 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 					ENDIF
 				ENDIF
 				ボタン表示格納用 += "]"
-				IF 文字色グループ取得(飲み会TARGET:LOCAL) >= 0
-					HTML_PRINT @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(飲み会TARGET:LOCAL)))%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
-				ELSEIF CFLAG:(飲み会TARGET:LOCAL):同室文字色
-					HTML_PRINT @"<font color='#%十六進数文字列化(CFLAG:(飲み会TARGET:LOCAL):同室文字色)%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
-				ELSEIF フォント格納用 != ""
-					HTML_PRINT @"<font color='#%フォント格納用%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>", 1
-				ELSE
-					HTML_PRINT @"<button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>", 1
+				文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
+				IF 文字数カウント > 85
+					divHTML += "<br>"
+					文字数カウント = 0
+					改行フラグ ++
 				ENDIF
-				;PRINTBUTTON ボタン表示格納用, (飲み会TARGET:LOCAL)+2000
-				RESETCOLOR
+				IF 文字色グループ取得(飲み会TARGET:LOCAL) >= 0
+					divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(飲み会TARGET:LOCAL)))%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+				ELSEIF CFLAG:(飲み会TARGET:LOCAL):同室文字色
+					divHTML += @"<font color='#%十六進数文字列化(CFLAG:(飲み会TARGET:LOCAL):同室文字色)%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+				ELSEIF フォント格納用 != ""
+					divHTML += @"<font color='#%フォント格納用%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+				ELSE
+					divHTML += @"<button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
+				ENDIF
 			ENDIF
-			PRINT  
+			divHTML += " "
 		NEXT
 	ENDIF
-	PRINTL
+	divHTML += "<br>"
+	改行フラグ ++
+	HTML_PRINT @"<div rect='0,0,5400,5000'>%divHTML%</div>", 1
+	FOR LOCAL, 0, 改行フラグ + 1
+		PRINTL
+	NEXT
 	LOCAL:1 = 0
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
@@ -845,18 +858,18 @@ IF TARGET > 0
 	ENDIF
 	PRINTL
 	PRINT 　　　　　　　　　　　 
-	SETCOLOR 0xffd900
-	PRINTBUTTONLC "[能力表示]", 803
+	divHTML = 
+	divHTML += "<font color='#FFD900'><button value='803'>[能力表示]</button>　　　　　　 　"
 	IF CFLAG:PLAYER:うふふ == 0
 		PRINT 　　　
 		IF あなた追跡キャラ
-			PRINTBUTTON @"[追跡中：%CALLNAME:あなた追跡キャラ%]", 805
+			divHTML += @"　　　<button value='805'>[追跡中：%CALLNAME:あなた追跡キャラ%]</button>"
 		ELSE
-			PRINTBUTTON "[このキャラを追跡]", 805
+			divHTML += @"　　　<button value='805'>[このキャラを追跡]</button>"
 		ENDIF
 	ENDIF
+	HTML_PRINT @"<div rect='0,0,5400,200'>%divHTML%</font></div>", 1
 	PRINTL
-	RESETCOLOR
 	IF CFLAG:TARGET:うふふ == 0
 		TRYCCALLFORM 口上_INFO画面_一言コメント_{NO:TARGET}(TARGET)
 		CATCH
@@ -917,10 +930,25 @@ ELSEIF GETBIT(FLAG:モード管理, モードビット_指示) && TARGET == MAST
 	PRINTL 
 	PRINTL 
 	PRINT 　　　　　　　　　　　 
-	SETCOLOR 0xffd900
-	PRINTBUTTON "[能力表示]", 804
+	divHTML = 
+	divHTML += "<font color='#FFD900'><button value='804'>[能力表示]</button>　　　　　　 　"
+	HTML_PRINT @"<div rect='0,0,5400,200'>%divHTML%</font></div>", 1
 	PRINTL
 	RESETCOLOR
+	PRINTL 
+	PRINTL 
+ELSE
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
+	PRINTL 
 	PRINTL 
 	PRINTL 
 ENDIF
@@ -938,8 +966,9 @@ IF 行数保存 < 21
 		PRINTL
 	NEXT
 ENDIF
-SIF サイド領域_同室者表示フラグ && サイド描画表示種類 == "同室者"
-	PRINTL
+;背景画像表示
+SIF FLAG:150 == 0
+	CALL BackGround(背景用行数保存)
 
 ; LOCAL = 10000
 ; SIF TALENT:MASTER:絶倫
@@ -1193,11 +1222,9 @@ IF TALENT:PLAYER:性別 & 2
 ENDIF
 IF PLAYER == MASTER
 	IF あなた射精我慢フラグ
-		SETCOLOR カラーパレット("黄")
-		PRINTBUTTON "絶頂我慢:[ON]", 890
-		RESETCOLOR
+		HTML_PRINT @"<div rect='0,0,900,150'><font color='#%カラーパレット_HTML("黄")%'><button value='890'>絶頂我慢:[ON]</button></font></div>", 1
 	ELSE
-		PRINTBUTTON "絶頂我慢:[OFF]", 890
+		HTML_PRINT @"<div rect='0,0,900,150'><button value='890'>絶頂我慢:[OFF]</button></div>", 1
 	ENDIF
 ENDIF
 
@@ -1210,7 +1237,7 @@ IF 射精可能(PLAYER)
 	CALL PRINT_COLORBAR, BASE:PLAYER:精力, MAXBASE:PLAYER:精力, 600, 100, BARCOLORSET("青緑"), RESULT:1
 	LOCALS = ({BASE:PLAYER:精力,4}/{MAXBASE:PLAYER:精力,4})
 	PRINTFORM %LOCALS,14,LEFT%　
-	PRINTBUTTON "[射精先設定]", 891
+	HTML_PRINT @"<div rect='0,0,900,150'><button value='891'>[射精先設定]</button></div>", 1
 ENDIF
 PRINTL
 
@@ -1336,13 +1363,13 @@ ELSE
 		LOCAL:1 ++
 		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 	NEXT
-	IF TARGET保存 >= CHARANUM
-		TARGET = TARGET:1
-	ELSEIF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
-		;元のTARGETがいるならそれ
-		TARGET = TARGET保存
-	ELSE
-		TARGET = TARGET:1
+IF TARGET保存 >= CHARANUM
+	TARGET = TARGET:1
+ELSEIF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
+	;元のTARGETがいるならそれ
+	TARGET = TARGET保存
+ELSE
+	TARGET = TARGET:1
 	ENDIF
 ENDIF
 
