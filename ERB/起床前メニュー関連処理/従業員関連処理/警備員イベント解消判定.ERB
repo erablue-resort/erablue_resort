@@ -1,0 +1,53 @@
+﻿@警備員イベント解消判定(撃退値)
+#DIM 撃退値
+;撃退値０は呼ばれないはずなので分岐しない
+#DIMS CONST 対象イベント名 = "魔物襲撃", "ならず者の来訪"
+#DIM 撃退難易度
+#DIM 発生フラグ
+
+
+;対象イベントが発生しているか？
+発生フラグ = 0
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	SIF MATCH(対象イベント名, DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")) == 0
+		CONTINUE
+	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -2
+		CONTINUE
+	SIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 0
+		CONTINUE
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0 || DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント再発生CT") == -2
+		;発生中なので撃退出来たかを判定
+		;発生フラグをセット、-1で成功なし、1で成功あり、0で発生なし
+		発生フラグ = -1
+		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")
+			CASE "魔物襲撃"
+				;撃退難易度と撃退値が同じ以上なら100%、という意味
+				撃退難易度 = 6
+			CASE "ならず者の来訪"
+				撃退難易度 = 10
+		ENDSELECT
+		IF RAND:撃退難易度 < 撃退値
+			;成功
+			発生フラグ = 1
+			レポート強調フラグ:従業員業務報告 = 1
+			業務別報告文字列:12 += @"従業員たちは『%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%』の撃退に成功した！"
+			CALL イベント完了フラグ汎用処理(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"))
+			
+			;成功時に全員追加で経験値取得、レベル上がるのは明日
+			FOR LOCAL, 0, CHARANUM
+				SIF TALENT:LOCAL:従業員 == 0 && LOCAL != MASTER
+					CONTINUE
+				SIF TCVAR:LOCAL:休暇中
+					CONTINUE
+				IF 現在仕事:LOCAL:0 == 12
+					仕事経験値:LOCAL:仕事変数 += 3
+				ENDIF
+			NEXT
+		ELSE
+			;失敗
+			業務別報告文字列:12 += @"従業員たちは『%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%』への対応に奮闘している……！"
+		ENDIF
+	ENDIF
+NEXT
+
+RETURN 発生フラグ
