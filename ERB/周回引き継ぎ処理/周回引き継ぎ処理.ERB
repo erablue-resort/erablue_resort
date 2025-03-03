@@ -2,6 +2,13 @@
 #DIM 引き継ぎ枠
 #DIM 同行枠
 #DIM 戻れないフラグ
+#DIMS HTML文
+#DIM DYNAMIC 起動直後
+
+IF 起動直後 == 0
+	VARSET 引き継ぎキャラ番号
+	起動直後 = 1
+ENDIF
 
 DRAWLINE
 PRINTL 一部のデータを引き継ぎ、新しいゲームを開始します。
@@ -32,11 +39,32 @@ ENDIF
 PRINT 　　
 PRINTBUTTON "[説明]", 101
 PRINTL
-IF あなた引き継ぎフラグ
-	HTML_PRINT @"<button value='102'>[102] %CALLNAME:MASTER%の能力・履歴を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
-ELSE
-	HTML_PRINT @"<button value='102'>[102] %CALLNAME:MASTER%の能力・履歴を<font color='#%カラーパレット_HTML("グレーアウト")%'>引き継ぐ</font> / 引き継がない</button>", 1
-ENDIF
+SELECTCASE あなた引き継ぎフラグ
+	CASE 0
+		HTML文 = %CALLNAME:MASTER%の能力・履歴を
+		HTML文 += @"<button value='202'><font color='#%カラーパレット_HTML("グレーアウト")%'>全て引き継ぐ</font></button>"
+		HTML文 += " / "
+		HTML文 += @"<button value='201'><font color='#%カラーパレット_HTML("グレーアウト")%'>能力のみ引き継ぐ</font></button>"
+		HTML文 += " / "
+		HTML文 += "引き継がない"
+		HTML_PRINT HTML文, 1
+	CASE 1
+		HTML文 = %CALLNAME:MASTER%の能力・履歴を
+		HTML文 += @"<button value='202'><font color='#%カラーパレット_HTML("グレーアウト")%'>全て引き継ぐ</font></button>"
+		HTML文 += " / "
+		HTML文 += "能力のみ引き継ぐ"
+		HTML文 += " / "
+		HTML文 += @"<button value='200'><font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>"
+		HTML_PRINT HTML文, 1
+	CASE 2
+		HTML文 = %CALLNAME:MASTER%の能力・履歴を
+		HTML文 += @"全て引き継ぐ"
+		HTML文 += " / "
+		HTML文 += @"<button value='201'><font color='#%カラーパレット_HTML("グレーアウト")%'>能力のみ引き継ぐ</font></button>"
+		HTML文 += " / "
+		HTML文 += @"<button value='200'><font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>"
+		HTML_PRINT HTML文, 1
+ENDSELECT
 PRINT 　　
 PRINTBUTTON "[説明]", 103
 PRINTL
@@ -91,8 +119,8 @@ SELECTCASE LOCAL
 		PRINTL このオプションをOFFにした場合でも個別に引き継ぎキャラに選んだ場合、次周に引き継がれます。
 		WAIT
 		RESTART
-	CASE 102
-		INVERTBIT あなた引き継ぎフラグ, 0
+	CASE 200 TO 202
+		あなた引き継ぎフラグ = LOCAL - 200
 		RESTART
 	CASE 103
 		DRAWLINE
@@ -366,16 +394,29 @@ ARRAYCOPY "OPTION変数", "オプション引き継ぎ"
 ARRAYCOPY "素質切り替えOPTION記憶", "素質切り替え引き継ぎ"
 ARRAYCOPY "画像サイズ切り替えOPTION記憶", "画像サイズ切り替え引き継ぎ"
 ARRAYCOPY "一日終了時オナニーOPTION", "一日終了時オナニー引き継ぎ"
+ARRAYCOPY "ITEM", "アイテム引き継ぎ"
 
 
 
 VARSET あなた特殊能力引き継ぎ
+VARSET あなた技巧引き継ぎ
 ;あなたの退避
-IF あなた引き継ぎフラグ
+IF あなた引き継ぎフラグ == 2
 	SAVECHARA "あなた", "あなた", 0
+	あなた引き継ぎ = 2
+	FOR LOCAL, 0, 100
+		あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
+	NEXT
+	FOR LOCAL, 0, 20
+		あなた技巧引き継ぎ:LOCAL = ABL:MASTER:(LOCAL + 20)
+	NEXT
+ELSEIF あなた引き継ぎフラグ == 1
 	あなた引き継ぎ = 1
 	FOR LOCAL, 0, 100
 		あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
+	NEXT
+	FOR LOCAL, 0, 20
+		あなた技巧引き継ぎ:LOCAL = ABL:MASTER:(LOCAL + 20)
 	NEXT
 ENDIF
 

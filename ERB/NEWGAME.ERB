@@ -140,14 +140,14 @@ ENDIF
 
 初期設定中 = 1
 RFLAG:キャラ初期登録済み = 0
-LOCAL:1 = 0
-LOCAL:2 = 0
-IF あなた引き継ぎ
+IF あなた引き継ぎ == 2
 	;あなた登録
 	LOADCHARA "あなた"
-	引き継いだキャラ人数 = LOCAL:1
 	FOR LOCAL, 0, 100
 		あなた特殊能力:LOCAL = あなた特殊能力引き継ぎ:LOCAL
+	NEXT
+	FOR LOCAL, 0, 20
+		ABL:MASTER:(LOCAL + 20) = あなた技巧引き継ぎ:LOCAL
 	NEXT
 ELSE
 	;あなた登録
@@ -156,9 +156,18 @@ ELSE
 	CALL CUSTOM_CHARAMAKE(MASTER)
 	SIF TALENT:MASTER:2 & 2
 		MAXBASE:MASTER:5 = 1500
+	IF あなた引き継ぎ == 1
+		FOR LOCAL, 0, 100
+			あなた特殊能力:LOCAL = あなた特殊能力引き継ぎ:LOCAL
+		NEXT
+		FOR LOCAL, 0, 20
+			ABL:MASTER:(LOCAL + 20) = あなた技巧引き継ぎ:LOCAL
+		NEXT
+	ENDIF
 ENDIF
 
 CALL キャラクター初期登録()
+引き継いだキャラ人数 = RESULT
 CALL コマンド存在チェック
 
 
@@ -207,6 +216,7 @@ IF 引き継ぎ中フラグ
 	ARRAYCOPY "素質切り替え引き継ぎ", "素質切り替えOPTION記憶"
 	ARRAYCOPY "画像サイズ切り替え引き継ぎ", "画像サイズ切り替えOPTION記憶"
 	ARRAYCOPY "一日終了時オナニー引き継ぎ", "一日終了時オナニーOPTION"
+	ARRAYCOPY "アイテム引き継ぎ", "ITEM"
 ELSE
 
 	CALL アイテムデータベースセット
@@ -460,10 +470,12 @@ CALL VERSION_UP
 #DIMS 大分割文字列, 10
 #DIMS 小分割文字列, 1000
 #DIM 引き継いだランダムキャラ, 10
+#DIM 引き継いだキャラ人数
 
 VARSET 引き継いだランダムキャラ, -1
 VARSET 大分割文字列
 VARSET 小分割文字列
+引き継いだキャラ人数 = 0
 
 IF 引き継ぎ中フラグ
 	キャラ番号 = 0
@@ -478,6 +490,7 @@ IF 引き継ぎ中フラグ
 				ランダム引き継ぎ番号 += 1
 			ENDIF
 			VARSET 現在仕事:キャラ番号:0
+			引き継いだキャラ人数 ++
 		ENDIF
 	NEXT
 ENDIF
@@ -583,7 +596,7 @@ IF 引き継ぎ中フラグ
 ENDIF
 
 RFLAG:キャラ初期登録済み = 1
-
+RETURN 引き継いだキャラ人数
 
 
 @キャラクター初期化(ARG, 引き継ぎキャラフラグ = 0)
@@ -814,8 +827,6 @@ ELSE
 		同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
 		LOCAL:1 += 1
 	NEXT
-	;レベルアップ処理を挟む
-	CALL レベルアップ処理(ARG, 1)
 ENDIF
 CALL 口上変数初期化
 
