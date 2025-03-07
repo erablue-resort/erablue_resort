@@ -34,6 +34,7 @@
 #DIM 値段保存
 #DIM 選択シリーズ
 #DIM 選択モード
+#DIM シリーズモード
 #DIM リスト更新判定
 #DIM ソートモード
 #DIM ソートモード前回値
@@ -107,6 +108,17 @@ IF リスト更新判定
 		IF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")) == ""
 			;出典なし＝グラブルキャラとしてカウント
 			出典情報配列:0 ++
+		ELSEIF シリーズモード && MAP_HAS("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
+			IF MATCH(出典作品配列, MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))))
+				;出典あり＆リストに登録済みの場合は人数をカウント
+				配列番号 = FINDELEMENT(出典作品配列, MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))), , , 1)
+				出典情報配列:配列番号 ++
+			ELSE
+				;出典あり＆リストに未登録の場合は新規登録
+				出典作品配列:出典番号 = %MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))%
+				出典情報配列:出典番号 ++
+				出典番号 ++
+			ENDIF
 		ELSEIF MATCH(出典作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
 			;出典あり＆リストに登録済みの場合は人数をカウント
 			配列番号 = FINDELEMENT(出典作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")), , , 1)
@@ -202,6 +214,14 @@ ELSE
 	RESETCOLOR
 	PRINT / 
 	PRINTBUTTON "[個別選択]", 9100
+	PRINT 　　　
+	IF 選択シリーズ < 0
+		IF シリーズモード
+			PRINTBUTTON "[シリーズを個別表示]", 9101
+		ELSE
+			PRINTBUTTON "[シリーズをまとめて表示]", 9101
+		ENDIF
+	ENDIF
 	PRINTL
 	DRAWLINE
 	IF 選択シリーズ >= 0
@@ -386,6 +406,14 @@ WHILE 1
 			INVERTBIT 選択モード, 0
 			選択シリーズ = -1
 			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 9101
+			;- [シリーズをまとめる]
+			INVERTBIT シリーズモード, 0
+			選択シリーズ = -1
+			現在ページ = 0
+			リスト更新判定 = 1
 			リスタートフラグ = 1
 			BREAK
 		CASE 9001, 9005
@@ -573,7 +601,10 @@ WHILE 1
 				FOR 対象キャラ, 0, CHARANUM
 					SIF 表示候補:対象キャラ == -1
 						BREAK
-					IF CSVCSTR(NO:(表示候補:対象キャラ), GETNUM(CSTR, "出演作品")) == 出典作品配列:選択シリーズ
+					IF シリーズモード && MAP_GET("シリーズ出典", CSVCSTR(NO:(表示候補:対象キャラ), GETNUM(CSTR, "出演作品"))) == 出典作品配列:選択シリーズ
+						出典表示候補:候補キャラ数_シリーズ = 表示候補:対象キャラ
+						候補キャラ数_シリーズ ++
+					ELSEIF CSVCSTR(NO:(表示候補:対象キャラ), GETNUM(CSTR, "出演作品")) == 出典作品配列:選択シリーズ
 						出典表示候補:候補キャラ数_シリーズ = 表示候補:対象キャラ
 						候補キャラ数_シリーズ ++
 					ELSEIF CSVCSTR(NO:(表示候補:対象キャラ), GETNUM(CSTR, "出演作品")) == "" && 出典作品配列:選択シリーズ == "グランブルーファンタジー"
