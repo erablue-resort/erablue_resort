@@ -1,0 +1,106 @@
+﻿;-------------------------------------------------
+;ZPショップ：EXシナリオの解放
+;-------------------------------------------------
+@ZP_SHOP_EXシナリオ()
+#DIMS 表示用リスト, 200
+#DIM 表示候補数
+#DIMS 一時イベント名
+#DIM 配列番号
+#DIM 表示キー
+#DIM ZP消費量
+#DIM DYNAMIC 初回起動
+VARSET LOCALS
+
+PRINTL
+DRAWLINE
+PRINTL ZPを消費し、本来ならば発生しないはずの出来事を発生させます。
+PRINTL どのイベントを発生させますか？
+PRINTFORML 所持ZP:%ZP所持量全文字列()%
+DRAWLINE
+
+IF 初回起動 == 0
+	;存在するEXシナリオを突っ込む
+	表示候補数 = ENUMFUNCBEGINSWITH("ZP開放時イベント解説_")
+	ARRAYCOPY "RESULTS", "表示用リスト"
+	表示キー = -1
+	初回起動 = 1
+ENDIF
+
+DRAWLINE
+PRINTL ZPを消費し、本来ならば発生しないはずの出来事を発生させます。
+PRINTL どのイベントを発生させますか？
+PRINTFORML 所持ZP:%ZP所持量全文字列()%
+DRAWLINE
+FOR 配列番号, 0, 表示候補数
+	一時イベント名 '= REPLACE(表示用リスト:配列番号, "ZP開放時イベント解説_", "")
+	SIF STRFIND(EXシナリオ解放記録, @"___%一時イベント名%___") >= 0
+		CONTINUE
+	CALLFORM %表示用リスト:配列番号%()
+	SIF RESULT == 0
+		CONTINUE
+
+	IF 表示キー == 配列番号
+		LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{配列番号}'>[{配列番号}]%一時イベント名%</button></font><br>"
+	ELSE
+		LOCALS:1 += @"%LOCALS:10%<button value='{配列番号}'>[{配列番号}]%一時イベント名%</button><br>"
+	ENDIF
+NEXT
+
+LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='156,156,1837,2712'><nobr>%LOCALS:1%</nobr></div>
+LOCALS += "<div width='1050' height='125' xpos='337' ypos='0' color='#101010'>エンディングイベント</div>"
+LOCALS += "<div rect='2081,31,3937,2812' border='31' bcolor='#C0C0C0' padding='50,25,50'>"
+IF 表示キー == -1
+	LOCALS += "左のリストから任意のイベントを選択してください。<br>"
+	LOCALS += "この欄にはイベントの詳細と、イベントを解放するかどうかの確認ボタンが表示されます。<br>"
+ELSE
+	CALLFORM %表示用リスト:表示キー%
+	ZP消費量 = RESULT
+	LOCALS += TSTR:ツールチップ受渡
+	LOCALS += "<br>"
+
+	一時イベント名 '= REPLACE(表示用リスト:表示キー, "ZP開放時イベント解説_", "")
+	IF EXISTFUNCTION(@"ZP開放時イベント詳細解説_%一時イベント名%")
+		LOCALS += "<button value='-1'>[-1]解説詳細</button><br><br>"
+	ENDIF
+	IF ZP消費量 <= FLAG:ZP所持量
+		LOCALS += @"<button value='10000'>[10000]このイベントを解放する</button>　必要ZP：%NUM_FORMAT(ZP消費量)%<br>"
+	ELSE
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[10000]このイベントを解放する</font>　必要ZP：%NUM_FORMAT(ZP消費量)%<br>"
+	ENDIF
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+
+FOR 配列番号, 0, 25
+	PRINTL
+NEXT
+
+PRINTBUTTON "[9999]戻る", 9999
+PRINTL
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE -1
+		DRAWLINE
+		CALLFORM %REPLACE(表示用リスト:表示キー, "ZP開放時イベント解説_", "ZP開放時イベント詳細解説_")%
+		WAIT
+		RESTART
+	CASE IS < 表示候補数
+		表示キー = LOCAL
+		RESTART
+	CASE 9999
+		表示キー = -1
+		RETURN 0
+	CASE 10000
+		IF ZP消費量 > FLAG:ZP所持量
+			PRINTW ZPが足りません。
+			RESTART
+		ENDIF
+		一時イベント名 '= REPLACE(表示用リスト:表示キー, "ZP開放時イベント解説_", "")
+		EXシナリオ解放記録 += @"%一時イベント名%___"
+		PRINTFORMW イベント「%一時イベント名%」を解放しました。
+		FLAG:ZP所持量 -= ZP消費量
+		RESTART
+ENDSELECT
