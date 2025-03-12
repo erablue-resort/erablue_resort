@@ -1,6 +1,7 @@
 ﻿@EVENTTRAIN0
 #DIM 定住フラグ
 #DIM 同行配列番号
+#DIM デート件数
 #DIM 判定値
 #DIM 店増加数
 #DIMS 属性登録
@@ -195,6 +196,36 @@ FOR LOCAL,0,CHARANUM
 			SPLIT 開催予定祭り名, "_", LOCALS
 			CALL 履歴データベース登録(CFLAG:LOCAL:人物番号, "ーーーーー" + LOCALS:1 + "を開催したーーーーー","日常リゾート")
 		ENDIF
+	ENDIF
+	;デートお誘い用の判定を設定
+	;平凡以上のデートを経験した事があるキャラは、最大スコアに応じて確率UP
+	デート件数 = DT_SELECT("デートスコアデータベース", @"デート相手人物番号 = {CFLAG:LOCAL:人物番号}", "デートスコア DESC")
+	IF デート件数
+		;デートスコア降順で並んでるはずなので、一個目のスコアを見る
+		SELECTCASE DT_CELL_GET("デートスコアデータベース", RESULT:1, "デートスコア", 1)
+			CASE IS < 7500
+				;失敗のみの場合は来ない
+				TCVAR:LOCAL:キャラからデート誘いフラグ = -1
+			CASE IS < 15000
+				;平凡時10％
+				SIF RAND:10
+					TCVAR:LOCAL:キャラからデート誘いフラグ = -1
+			CASE IS < 30000
+				;成功時20％
+				SIF RAND:5
+					TCVAR:LOCAL:キャラからデート誘いフラグ = -1
+			CASE IS < 60000
+				;大成功時40％
+				SIF RAND:5 > 1
+					TCVAR:LOCAL:キャラからデート誘いフラグ = -1
+			CASEELSE
+				;それ以外は60％
+				SIF RAND:5 > 2
+					TCVAR:LOCAL:キャラからデート誘いフラグ = -1
+		ENDSELECT
+	ELSE
+		;デートがない場合はデート誘いを封印するためフラグに代入
+		TCVAR:LOCAL:キャラからデート誘いフラグ = -1
 	ENDIF
 NEXT
 

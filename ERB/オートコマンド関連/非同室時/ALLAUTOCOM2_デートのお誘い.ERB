@@ -1,0 +1,101 @@
+﻿;------------------------------------------------------------------------------
+;キャラからのデートお誘い_日中イベント
+;------------------------------------------------------------------------------
+@ALLAUTOCOM2
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+;同行者は解除
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL < 1
+		BREAK
+	IF CFLAG:(TARGET:LOCAL):同行
+		CFLAG:(TARGET:LOCAL):同行 = 0
+	ENDIF
+NEXT
+
+PRINTFORMW %CALLNAME:AUTOCOM_実行番号保存%がデートのお誘いに来ました。
+TRYCALLFORM KOJO_ALLAUTOCOM_{NO:AUTOCOM_実行番号保存}_2_お誘い時(AUTOCOM_実行番号保存)
+PRINTL
+PRINTL 誘いに応じてデートを開始しますか？
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+PRINTL
+
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW %CALLNAME:AUTOCOM_実行番号保存%と一緒にデートすることにしました。
+		TRYCALLFORM KOJO_ALLAUTOCOM_{NO:AUTOCOM_実行番号保存}_2_承諾時(AUTOCOM_実行番号保存)
+
+		CFLAG:AUTOCOM_実行番号保存:デート = PLAYER + 100
+		CFLAG:PLAYER:デート = AUTOCOM_実行番号保存 + 100
+
+		CFLAG:AUTOCOM_実行番号保存:デート残り時間 = 360
+		CFLAG:AUTOCOM_実行番号保存:デートスコア = 0
+		CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
+		CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = CFLAG:PLAYER:現在マップ種別
+		CFLAG:AUTOCOM_実行番号保存:同室 = 1
+		TFLAG:TARGET変更用 = AUTOCOM_実行番号保存
+		TIME += 1
+		CALL 初体験日登録処理(AUTOCOM_実行番号保存, PLAYER, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+		CALL 初体験日登録処理(AUTOCOM_実行番号保存, PLAYER, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+		IF RESULT
+			;相手とのデートが初の場合にここに入る
+			CALL 履歴データベース登録(CFLAG:AUTOCOM_実行番号保存:人物番号, @"初めて%CALLNAME:PLAYER%とデートをした","日常")
+		ENDIF
+		CALL 初体験日登録処理(PLAYER, AUTOCOM_実行番号保存, "初デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 1)
+		CALL 初体験日登録処理(PLAYER, AUTOCOM_実行番号保存, "デート", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "", "", 0)
+		IF RESULT
+			;相手とのデートが初の場合にここに入る
+			CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"初めて%CALLNAME:AUTOCOM_実行番号保存%とデートをした","日常")
+		ENDIF
+	CASE 1
+		PRINTFORMW 今日は用事があると、%CALLNAME:AUTOCOM_実行番号保存%の誘いを断りました。
+		TRYCALLFORM KOJO_ALLAUTOCOM_{NO:AUTOCOM_実行番号保存}_2_断り時(AUTOCOM_実行番号保存)
+ENDSELECT
+
+TCVAR:AUTOCOM_実行番号保存:キャラからデート誘いフラグ = 1
+
+RETURN 1
+
+@ALLAUTOCOM_ABLE2(キャラ番号)
+#DIM キャラ番号
+
+;一日１回まで
+SIF TCVAR:キャラ番号:キャラからデート誘いフラグ
+	RETURN 0
+;キャラの好感度レベル
+SIF CFLAG:キャラ番号:好感度レベル < 1 + 関係閾値:3
+	RETURN 0
+;なんかやってるとダメ
+SIF CFLAG:キャラ番号:うふふ || CFLAG:キャラ番号:キャラ同士うふふ || CFLAG:キャラ番号:飲み会 || CFLAG:キャラ番号:隠密
+	RETURN 0
+;従業員の場合は非番のみ
+IF TALENT:キャラ番号:従業員
+	SIF TCVAR:キャラ番号:休暇中 == 0
+		RETURN 0
+ENDIF
+;デート中はダメ
+SIF CFLAG:キャラ番号:デート
+	RETURN 0
+SIF CFLAG:PLAYER:デート
+	RETURN 0
+;相手にとってあなたが恋愛対象であること
+SIF 恋愛対象外チェック(キャラ番号, PLAYER)
+	RETURN 0
+;午前中のみ
+SIF TIME >= 720
+	RETURN 0
+;基礎確率1/4
+LOCAL = 4
+SIF RAND:LOCAL
+	RETURN 0
+
+;成功以上のデートを経験した事がある、の条件は一日開始時に存在
+
+RETURN 1
+
+
+
