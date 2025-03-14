@@ -3,7 +3,11 @@
 ;-------------------------------------------------
 @COMNAME205
 #FUNCTIONS
-TSTR:コマンド名受渡 = タイツを脱がす
+IF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
+	TSTR:コマンド名受渡 = タイツを破く
+ELSE
+	TSTR:コマンド名受渡 = タイツを脱がす
+ENDIF
 
 ;===================================================
 ;コマンドタイプ
@@ -17,8 +21,15 @@ SIF CFLAG:TARGET:睡眠
 オートコマンド許可 = 3
 
 @COM_TOOLTIP_205
-LOCALS = <br>■タイツを脱がす<br>
-LOCALS += "相手の下半身タイツを脱がせるコマンド。<br>上下一体タイツの場合、上半身タイツも脱がす。"
+IF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
+	LOCALS:1 = 破く
+	LOCALS:2 = 破く
+ELSE
+	LOCALS:1 = 脱がす
+	LOCALS:2 = 脱がせる
+ENDIF
+LOCALS = <br>■タイツを%LOCALS:1%<br>
+LOCALS += @"相手の下半身タイツを%LOCALS:2%コマンド。<br>上下一体タイツの場合、上半身タイツも%LOCALS:1%。"
 LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
@@ -29,8 +40,12 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;オートコマンドだけここでやる
 IF TFLAG:オートコマンドフラグ
 	RFLAG:オートコマンド脱衣用フラグ = 1
-	TEQUIP:下タイツあり = 0
-	TEQUIP:下タイツ破れ = 0
+	IF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
+		TEQUIP:下タイツ破れ = 1
+	ELSE
+		TEQUIP:下タイツあり = 0
+		TEQUIP:下タイツ破れ = 0
+	ENDIF
 ENDIF
 ;野外
 IF BEDROOM(CFLAG:TARGET:現在マップ種別, CFLAG:TARGET:現在位置) == 0 && GET_TARGETNUM() > 1
@@ -63,7 +78,12 @@ SIF RFLAG:指示モード対象あなたフラグ
 	RETURN 1
 
 SKIPDISP ARG
-PRINTFORML タイツ脱衣(%CALLNAME:TARGET%)
+IF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
+	LOCALS = 破き
+ELSE
+	LOCALS = 脱衣
+ENDIF
+PRINTFORML タイツ%LOCALS%(%CALLNAME:TARGET%)
 ;-------------------------------------------------
 ;実行判定処理
 ;-------------------------------------------------
@@ -197,8 +217,12 @@ SIF TALENT:脱衣不可
 SIF TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり
 	RETURN 0
 ;服がある
-SIF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
-	RETURN 0
+IF TEQUIP:下半身服あり
+	SIF !TEQUIP:スカートめくり可 && !TEQUIP:ずらし可
+		RETURN 0
+	SIF TEQUIP:下タイツ破れ && !TEQUIP:下半身下着抜き取り可
+		RETURN 0
+ENDIF
 ;上下一体服は上半身にまとめてある
 SIF TEQUIP:上下一体タイツ
 	RETURN 0
@@ -210,9 +234,16 @@ RETURN 1
 ;-------------------------------------------------
 
 @MESSAGE_COM205
-PRINTFORML %CALLNAME:TARGET%のタイツを脱がせた…
+IF TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可
+	LOCALS = 破いた
+	LOCALS:1 = 破かれた
+ELSE
+	LOCALS = 脱がせた
+	LOCALS:1 = 脱いだ
+ENDIF
+PRINTFORML %CALLNAME:TARGET%のタイツを%LOCALS%…
 
 
 IF RFLAG:コマンド結果受渡し変数
-	PRINTFORML 人目のあるところで脱いだことで、%CALLNAME:TARGET%はどこか落ち着かないようだ…
+	PRINTFORML 人目のあるところで%LOCALS:1%ことで、%CALLNAME:TARGET%はどこか落ち着かないようだ…
 ENDIF

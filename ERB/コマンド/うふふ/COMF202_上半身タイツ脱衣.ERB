@@ -3,10 +3,16 @@
 ;------------------------------------------------
 @COMNAME202
 #FUNCTIONS
-IF TEQUIP:上下一体タイツ
-	TSTR:コマンド名受渡 = タイツを脱がす
+IF TEQUIP:上半身服あり || (EQUIP:上下一体タイツ && (TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || (TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可)))
+	LOCALS = 破く
 ELSE
-	TSTR:コマンド名受渡 = インナーを脱がす
+	LOCALS = 脱がす
+ENDIF
+
+IF TEQUIP:上下一体タイツ
+	TSTR:コマンド名受渡 = タイツを%LOCALS%
+ELSE
+	TSTR:コマンド名受渡 = インナーを%LOCALS%
 ENDIF
 
 ;===================================================
@@ -21,8 +27,15 @@ SIF CFLAG:TARGET:睡眠
 オートコマンド許可 = 3
 
 @COM_TOOLTIP_202
-LOCALS = <br>■インナーを脱がす<br>
-LOCALS += "相手の上半身のインナーを脱がせるコマンド。<br>上下一体タイツの場合、[タイツを脱がす]に合流する。"
+IF TEQUIP:上半身服あり || (EQUIP:上下一体タイツ && (TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || (TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可)))
+	LOCALS:1 = 破く
+	LOCALS:2 = 破く
+ELSE
+	LOCALS:1 = 脱がす
+	LOCALS:2 = 脱がせる
+ENDIF
+LOCALS = <br>■インナーを%LOCALS:1%<br>
+LOCALS += @"相手の上半身のインナーを%LOCALS:2%コマンド。<br>上下一体タイツの場合、[タイツを%LOCALS:1%]に合流する。"
 LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
@@ -33,13 +46,19 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;オートコマンドだけここでやる
 IF TFLAG:オートコマンドフラグ
 	RFLAG:オートコマンド脱衣用フラグ = 1
-	TEQUIP:上タイツあり = 0
-	TEQUIP:上タイツ破れ = 0
-	;上下一体の場合ここで下も脱がす
-	IF TEQUIP:上下一体タイツ
-		TEQUIP:下タイツあり = 0
-		TEQUIP:下タイツ破れ = 0
-		TEQUIP:上下一体タイツ = 0
+	IF TEQUIP:上半身服あり || (EQUIP:上下一体タイツ && (TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || (TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可)))
+		TEQUIP:上タイツ破れ = 1
+		SIF TEQUIP:上下一体タイツ
+			TEQUIP:下タイツ破れ = 1
+	ELSE
+		TEQUIP:上タイツあり = 0
+		TEQUIP:上タイツ破れ = 0
+		;上下一体の場合ここで下も脱がす
+		IF TEQUIP:上下一体タイツ
+			TEQUIP:下タイツあり = 0
+			TEQUIP:下タイツ破れ = 0
+			TEQUIP:上下一体タイツ = 0
+		ENDIF
 	ENDIF
 ENDIF
 ;野外
@@ -73,10 +92,15 @@ SIF RFLAG:指示モード対象あなたフラグ
 	RETURN 1
 
 SKIPDISP ARG
-IF TEQUIP:上下一体タイツ
-	PRINTFORML タイツ脱衣(%CALLNAME:TARGET%)
+IF TEQUIP:上半身服あり || (EQUIP:上下一体タイツ && (TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || (TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可)))
+	LOCALS = 破き
 ELSE
-	PRINTFORML インナー脱衣(%CALLNAME:TARGET%)
+	LOCALS = 脱衣
+ENDIF
+IF TEQUIP:上下一体タイツ
+	PRINTFORML タイツ%LOCALS%(%CALLNAME:TARGET%)
+ELSE
+	PRINTFORML インナー%LOCALS%(%CALLNAME:TARGET%)
 ENDIF
 ;-------------------------------------------------
 ;実行判定処理
@@ -213,13 +237,13 @@ SIF !TEQUIP:上タイツあり
 SIF TEQUIP:上半身鎧あり
 	RETURN 0
 ;服があるとダメ
-SIF TEQUIP:上半身服あり
+SIF TEQUIP:上半身服あり && (!TEQUIP:はだけ可 || TEQUIP:上タイツ破れ)
 	RETURN 0
 ;上下一体だと下の服や鎧も影響
 IF TEQUIP:上下一体タイツ
 	SIF TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり
 		RETURN 0
-	SIF TEQUIP:下半身服あり
+	SIF TEQUIP:下半身服あり && (!TEQUIP:スカートめくり可 && !TEQUIP:ずらし可)
 		RETURN 0
 ENDIF
 RETURN 1
@@ -228,14 +252,21 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM202
-IF TEQUIP:上下一体タイツ
-	PRINTFORML %CALLNAME:TARGET%のタイツを脱がせた…
+IF TEQUIP:上半身服あり || (EQUIP:上下一体タイツ && (TEQUIP:下腹部後鎧あり || TEQUIP:下腹部前鎧あり || (TEQUIP:下半身服あり && !TEQUIP:下半身下着抜き取り可)))
+	LOCALS = 破いた
+	LOCALS:1 = 破かれた
 ELSE
-	PRINTFORML %CALLNAME:TARGET%のインナーを脱がせた…
+	LOCALS = 脱がせた
+	LOCALS:1 = 脱いだ
+ENDIF
+IF TEQUIP:上下一体タイツ
+	PRINTFORML %CALLNAME:TARGET%のタイツを%LOCALS%…
+ELSE
+	PRINTFORML %CALLNAME:TARGET%のインナーを%LOCALS%…
 ENDIF
 
 IF RFLAG:コマンド結果受渡し変数
-	PRINTFORML 人目のあるところで脱いだことで、%CALLNAME:TARGET%はどこか落ち着かないようだ…
+	PRINTFORML 人目のあるところで%LOCALS:1%ことで、%CALLNAME:TARGET%はどこか落ち着かないようだ…
 ENDIF
 
 
