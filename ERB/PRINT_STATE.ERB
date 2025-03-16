@@ -172,7 +172,17 @@ IF ARG != MASTER && TFLAG:調教モード != -2
 				PRINTBUTTONLC "[123]経験値増加アイテムを使う", 123
 				PRINTL
 				PRINTBUTTONLC "[124]カットイン個別設定変更", 124
-				PRINTL
+				IF EXISTFUNCTION(@"スタイル変更_{NO:ARG}")
+					;とりあえず陥落済みを仮条件に
+					PRINT 　　　
+					IF TALENT:ARG:恋慕 > 0 || TALENT:ARG:セフレ > 0
+						PRINTBUTTONLC "[115]スタイル変更", 115
+					ELSE
+						SETCOLOR 0x666666
+						PRINTPLAIN [115]スタイル変更(陥落後解放)
+						RESETCOLOR
+					ENDIF
+				ENDIF
 				PRINTL
 			ENDIF
 		ELSE
@@ -240,6 +250,9 @@ SELECTCASE RESULT
 		RESTART
 	CASE 124
 		CALL 奥義カットイン個別設定画面(ARG)
+		RESTART
+	CASE 115
+		CALL スタイル変更(ARG)
 		RESTART
 	CASE 130
 		IF TFLAG:調教モード == -1
@@ -397,6 +410,17 @@ SELECTCASE RESULT
 ENDSELECT
 LOOP 1
 
+@NAME表示(対象キャラ)
+#FUNCTIONS
+#DIM 対象キャラ
+
+IF CSTR:対象キャラ:スタイル管理文字列 != ""
+	RETURNF CSTR:対象キャラ:スタイル管理文字列
+ELSE
+	RETURNF NAME:対象キャラ
+ENDIF
+
+
 @通常能力表示画面(ARG)
 #DIM L_C, 2
 #DIM 同行キャラ番, 100
@@ -450,7 +474,7 @@ ELSE
 	HTML_PRINT @"<div rect = '4000, 1269, 2500, 4375'>%LOCALS%</div>", 1
 ENDIF
 L_C:1 = LINECOUNT
-PRINTFORML ■%NAME:ARG%
+PRINTFORML ■%NAME表示(ARG)%
 IF CSTR:ARG:出演作品 != ""
 	PRINTFORML 　出演作品：%CSTR:ARG:出演作品%
 ENDIF
@@ -541,7 +565,7 @@ NEXT
 LOCALS += "</div>"
 HTML_PRINT LOCALS
 
-PRINTFORM ■%NAME:ARG%
+PRINTFORM ■%NAME表示(ARG)%
 PRINTL
 PRINTL
 LOCALS = <div rect='0,0,1125,2387'>□ ステータス □------<br>
@@ -759,7 +783,7 @@ ELSE
 	HTML_PRINT @"<div rect='4062, 237, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
 ENDIF
 PRINTL
-PRINTFORM ■%NAME:ARG%
+PRINTFORM ■%NAME表示(ARG)%
 PRINTL
 IF ARG != MASTER
 	PRINT 　
@@ -1002,7 +1026,7 @@ IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
 ELSE
 	HTML_PRINT @"<div rect='4062, 37, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
 ENDIF
-PRINTFORM ■%NAME:ARG%
+PRINTFORM ■%NAME表示(ARG)%
 PRINTL
 IF ARG != MASTER
 	PRINT 　
@@ -1049,7 +1073,7 @@ ELSE
 	HTML_PRINT @"<div rect='4062, 237, 1125, 1125'>%顔グラ表示用文字列関数(ARG)%</div>", 1
 ENDIF
 PRINTL
-PRINTFORM ■%NAME:ARG%
+PRINTFORM ■%NAME表示(ARG)%
 PRINTL
 IF ARG != MASTER
 	PRINT 　
@@ -2093,7 +2117,7 @@ IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:�
 	ELSE
 		恋慕相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:1, "対象キャラ１", 1))
 	ENDIF
-	PRINTFORML 　恋慕成立相手：%NAME:恋慕相手%
+	PRINTFORML 　恋慕成立相手：%NAME表示(恋慕相手)%
 ELSE
 	IF CFLAG:ARG:ゲージ起動分類 == 1
 		PRINTFORM 　恋慕度:Lv{CFLAG:ARG:恋慕レベル}　
@@ -2117,7 +2141,7 @@ ELSE
 		ENDIF
 	ENDIF
 	IF TALENT:ARG:恋慕
-		PRINTFORML 　恋慕成立相手：%NAME:MASTER%
+		PRINTFORML 　恋慕成立相手：%NAME表示(MASTER)%
 	ENDIF
 ENDIF
 
@@ -2149,7 +2173,7 @@ ENDIF
 
 IF TALENT:ARG:セフレ
 	PRINTL
-	PRINTFORML 　セフレ成立相手：%NAME:MASTER% 
+	PRINTFORML 　セフレ成立相手：%NAME表示(MASTER)% 
 ENDIF
 
 VARSET RESULT
@@ -2165,7 +2189,7 @@ FOR LOCAL, 1, 関係数 + 1
 	ELSE
 		セフレ相手 = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:LOCAL, "対象キャラ１", 1))
 	ENDIF
-	PRINTFORML 　セフレ成立相手：%NAME:セフレ相手%
+	PRINTFORML 　セフレ成立相手：%NAME表示(セフレ相手)%
 	IF LOCAL > 3 && OPTION変数:セフレ相手全表示 == 0
 		PRINTFORM 他、セフレ{関係数 - 3}名
 		BREAK

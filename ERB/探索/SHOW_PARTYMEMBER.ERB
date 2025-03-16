@@ -218,7 +218,7 @@ ELSE
 				LOCALS += "未設定]</button><br>"
 			ELSE
 				LOCALS += @"<button value='{LOCAL + 110}'>[能力]</button> <button value='{LOCAL + 100}'>[サブパイロット{LOCAL + 1}："
-				LOCALS += @"%NAME:(BATTLE_STATE:(LOCAL + 10):キャラ登録番号)%]</button><br>"
+				LOCALS += @"%NAME表示((BATTLE_STATE:(LOCAL + 10):キャラ登録番号))%]</button><br>"
 			ENDIF
 		NEXT
 	ENDIF
@@ -419,7 +419,17 @@ PRINTL
 PRINTBUTTONLC "[113]経験値増加アイテムを使う", 113
 PRINTL
 PRINTBUTTONLC "[114]カットイン個別設定変更", 114
-PRINTL
+IF EXISTFUNCTION(@"スタイル変更_{NO:(BATTLE_STATE:ARG:キャラ登録番号)}")
+	;とりあえず陥落済みを仮条件に
+	PRINT 　　　
+	IF TALENT:(BATTLE_STATE:ARG:キャラ登録番号):恋慕 > 0 || TALENT:(BATTLE_STATE:ARG:キャラ登録番号):セフレ > 0
+		PRINTBUTTONLC "[115]スタイル変更", 115
+	ELSE
+		SETCOLOR 0x666666
+		PRINTPLAIN [115]スタイル変更(陥落後解放)
+		RESETCOLOR
+	ENDIF
+ENDIF
 PRINTL
 PRINTBUTTONLC "[998]PTから外す", 998
 PRINTBUTTONLC "[999]戻る", 999
@@ -471,6 +481,9 @@ SELECTCASE RESULT
 		RESTART
 	CASE 114
 		CALL 奥義カットイン個別設定画面(BATTLE_STATE:ARG:キャラ登録番号)
+		RESTART
+	CASE 115
+		CALL スタイル変更(BATTLE_STATE:ARG:キャラ登録番号)
 		RESTART
 	CASE 998
 		PRINTFORML %CALLNAME:(BATTLE_STATE:ARG:キャラ登録番号)%を探索メンバーから外しますか？
@@ -714,15 +727,15 @@ FOR LOCAL, ページ番号 * 28, ページ番号 * 28 + 28
 		BREAK
 	IF メインサブ == 0
 		IF GROUPMATCH(表示用ステータス格納配列:LOCAL:0, BATTLE_STATE:10:キャラ登録番号, BATTLE_STATE:11:キャラ登録番号, BATTLE_STATE:12:キャラ登録番号, BATTLE_STATE:13:キャラ登録番号)
-			LOCALS:1 = %NAME:(表示用ステータス格納配列:LOCAL:0)%（サブ編成）
+			LOCALS:1 = %NAME表示((表示用ステータス格納配列:LOCAL:0))%（サブ編成）
 		ELSE
-			LOCALS:1 = %NAME:(表示用ステータス格納配列:LOCAL:0)%
+			LOCALS:1 = %NAME表示((表示用ステータス格納配列:LOCAL:0))%
 		ENDIF
 	ELSE
 		IF GROUPMATCH(表示用ステータス格納配列:LOCAL:0, BATTLE_STATE:0:キャラ登録番号, BATTLE_STATE:1:キャラ登録番号, BATTLE_STATE:2:キャラ登録番号, BATTLE_STATE:3:キャラ登録番号)
-			LOCALS:1 = %NAME:(表示用ステータス格納配列:LOCAL:0)%（メイン編成）
+			LOCALS:1 = %NAME表示((表示用ステータス格納配列:LOCAL:0))%（メイン編成）
 		ELSE
-			LOCALS:1 = %NAME:(表示用ステータス格納配列:LOCAL:0)%
+			LOCALS:1 = %NAME表示((表示用ステータス格納配列:LOCAL:0))%
 		ENDIF
 	ENDIF
 	IF 表示用ステータス格納配列:LOCAL:9 == 1
@@ -1113,3 +1126,191 @@ SELECTCASE メンバーリスト表示欄:リスト表示位置
 		ENDIF
 ENDSELECT
 
+@スタイル変更(対象キャラ)
+#DIM 対象キャラ
+#DIMS 表示配列, 30
+#DIM DYNAMIC 初回起動
+#DIM 表示キー
+
+IF 初回起動 == 0
+	CALLFORM スタイル変更_{NO:対象キャラ}(対象キャラ, "スタイル名取得")
+	ARRAYCOPY "RESULTS", "表示配列"
+	IF CSTR:対象キャラ:スタイル管理文字列 != ""
+		表示キー = FINDELEMENT(表示配列, CSTR:対象キャラ:スタイル管理文字列)
+	ELSE
+		表示キー = 0
+	ENDIF
+	初回起動 = 1
+ENDIF
+
+DRAWLINE
+PRINTFORML %NAME表示(対象キャラ)%のスタイル変更をします。
+PRINTL スタイルに応じてステータスが変動することがあります。
+DRAWLINE
+
+LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0' padding='50,25,50'><nobr>
+;左側
+FOR LOCAL, 0,10
+	SIF 表示配列:LOCAL == ""
+		BREAK
+	IF LOCAL == 表示キー
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL}] %表示配列:(LOCAL + 10)%スタイル</font>"
+	ELSE
+		LOCALS += @"<button value='{LOCAL}'>[{LOCAL}] %表示配列:(LOCAL + 10)%スタイル</button>"
+	ENDIF
+	LOCALS += "<br>"
+NEXT
+LOCALS += "</nobr></div>"
+
+LOCALS += "<div rect='2081,31,3937,2812' border='31' bcolor='#C0C0C0' padding='50,25,50'>"
+;右側
+IF 表示キー == -1
+	LOCALS += "ここにスタイルの解説が表示されます。"
+ELSE
+	CALLFORM スタイル変更_{NO:対象キャラ}(対象キャラ, @"スタイル解説_%表示配列:表示キー%")
+	LOCALS += TSTR:スタイル解説
+	LOCALS += "<br>"
+	IF CSTR:対象キャラ:スタイル管理文字列 == 表示配列:表示キー || (CSTR:対象キャラ:スタイル管理文字列 == "" && 表示キー == 0)
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[100] このスタイルに変更する</font>　　※現在のスタイルです"
+	ELSE
+		LOCALS += "<button value='100'>[100] このスタイルに変更する</button>"
+	ENDIF
+ENDIF
+LOCALS += "</div>"
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 26
+	PRINTL
+NEXT
+
+PRINTBUTTONLC "[999]戻る", 999
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 
+	CASE 100
+		IF 表示配列:表示キー == NAME:対象キャラ
+			CSTR:対象キャラ:スタイル管理文字列 = 
+		ELSE
+			CSTR:対象キャラ:スタイル管理文字列 = %表示配列:表示キー%
+		ENDIF
+		CALLFORM スタイル変更_{NO:対象キャラ}(対象キャラ, "変更後処理")
+		CALL 装備再計算処理(対象キャラ)
+		PRINTFORMW %表示配列:表示キー%(%表示配列:(表示キー + 10)%)にスタイルを変更しました
+	CASEELSE
+		表示キー = LOCAL
+		RESTART
+ENDSELECT
+
+
+@スタイル奥義アビ表示_汎用文章(対象キャラ, スタイル名)
+#DIM 対象キャラ
+#DIMS スタイル名
+
+TSTR:スタイル解説 += "・使用奥義<br>"
+CALL スタイル奥義取得(対象キャラ, スタイル名)
+TSTR:スタイル解説 += @"%RESULTS%<br>"
+TSTR:スタイル解説 += "・使用アビリティ<br>"
+CALL スタイルアビ取得(対象キャラ, スタイル名)
+TSTR:スタイル解説 += @"%RESULTS%<br>"
+
+RETURN 0
+
+@スタイル奥義取得(対象キャラ, スタイル名)
+#DIM 対象キャラ
+#DIMS スタイル名
+#DIM スタイル一時フラグ
+#DIMS スタイル一時保存
+
+LOCALS = 
+スタイル一時フラグ = 0
+IF CSTR:対象キャラ:スタイル管理文字列 != スタイル名
+	スタイル一時保存 '= CSTR:対象キャラ:スタイル管理文字列
+	IF スタイル名 == NAME:対象キャラ
+		CSTR:対象キャラ:スタイル管理文字列 = 
+	ELSE
+		CSTR:対象キャラ:スタイル管理文字列 '= スタイル名
+	ENDIF
+	スタイル一時フラグ = 1
+ENDIF
+
+CALL 奥義名呼び出し(対象キャラ)
+CALL 奥義威力呼び出し(対象キャラ)
+IF OPTION変数:ツールチップ切り替え == 0
+	LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>"
+ELSE
+	LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>"
+ENDIF
+
+SIF スタイル一時フラグ
+	SWAP スタイル一時保存, CSTR:対象キャラ:スタイル管理文字列
+
+RESULTS '= LOCALS
+RETURN 0
+
+@スタイルアビ取得(対象キャラ, スタイル名)
+#DIM 対象キャラ
+#DIMS スタイル名
+#DIM スタイル一時フラグ
+#DIMS スタイル一時保存
+#DIM 表示アビ数
+#DIM アビ番号
+
+LOCALS = 
+スタイル一時フラグ = 0
+IF CSTR:対象キャラ:スタイル管理文字列 != スタイル名
+	スタイル一時保存 '= CSTR:対象キャラ:スタイル管理文字列
+	IF スタイル名 == NAME:対象キャラ
+		CSTR:対象キャラ:スタイル管理文字列 = 
+	ELSE
+		CSTR:対象キャラ:スタイル管理文字列 '= スタイル名
+	ENDIF
+	スタイル一時フラグ = 1
+ENDIF
+
+VARSET RESULTS
+表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:対象キャラ}_")
+IF 表示アビ数
+	LOCAL = 0
+	FOR アビ番号, 0, 表示アビ数
+		CALLFORM %RESULTS:アビ番号%("アビ名", 対象キャラ)
+		IF TSTR:コマンド名受渡 != ""
+			LOCAL += STRLENS(TSTR:コマンド名受渡) + 2
+			IF LOCAL > 100
+				LOCALS += "<br>"
+				LOCAL = 0
+			ENDIF
+			IF OPTION変数:ツールチップ切り替え == 0
+				CALLFORM %RESULTS:アビ番号%("アビ説明文", 対象キャラ)
+				詳細文文字列受け渡し変数 '= REPLACE(詳細文文字列受け渡し変数, "<(?!br).*?>", "")
+				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>"
+			ELSE
+				LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>"
+			ENDIF
+		ENDIF
+	NEXT
+	LOCALS += "<br>"
+ELSE
+	VARSET RESULTS
+	LOCALS += "汎用アビリティ："
+	表示アビ数 = ENUMFUNCBEGINSWITH("汎用固有アビ_")
+	FOR アビ番号, 0, 表示アビ数
+		TSTR:コマンド名受渡 = 
+		CALLFORM %RESULTS:アビ番号%("アビ名", 対象キャラ)
+		IF TSTR:コマンド名受渡 != ""
+			IF OPTION変数:ツールチップ切り替え == 0
+				CALLFORM %RESULTS:アビ番号%("アビ説明文", 対象キャラ)
+				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>　"
+			ELSE
+				LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>　"
+			ENDIF
+		ENDIF
+	NEXT
+	LOCALS += "<br>"
+ENDIF
+
+SIF スタイル一時フラグ
+	SWAP スタイル一時保存, CSTR:対象キャラ:スタイル管理文字列
+
+RESULTS '= LOCALS
+RETURN 0
