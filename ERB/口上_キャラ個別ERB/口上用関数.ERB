@@ -95,10 +95,14 @@ RETURNF 0
 @コメント文頭処理(対象キャラ = -1, 処理モード = 0)
 #DIM 対象キャラ
 #DIM 処理モード
+#DIM 文字数カウント
+#DIMS 一時保存文字列
+#DIM 一時カウント
+#DIM 区切り位置, 2
 
 SIF 対象キャラ == -1
 	対象キャラ = TARGET
-LOCAL:1 = 1
+LOCAL:2 = 1
 LOCALS '= "│"
 SIF 処理モード == 1
 	LOCALS '= " "
@@ -110,19 +114,45 @@ SIF 処理モード == 2
 ;ELSEIF 処理モード == 2
 ;	RETURN 0
 ;ENDIF
+文字数カウント = 0
 FOR LOCAL, 0, 1000
 	IF !(NSTR:LOCAL == "")
-		SIF LOCAL:1
+		一時カウント = 文字数カウント + STRLENS(NSTR:LOCAL)
+		IF 文字数カウント + STRLENS(NSTR:LOCAL) > 66
+			FOR LOCAL:1, 0, (文字数カウント + STRLENS(NSTR:LOCAL)) / 66
+				区切り位置 = (LOCAL:1 + 1) * 66 + (LOCAL:1 * (15 + STRLENS(LOCALS))) - 文字数カウント
+				NSTR:LOCAL '= SUBSTRING(NSTR:LOCAL, 0, 区切り位置) + "_改行_　　" + LOCALS + " 　　" + SUBSTRING(NSTR:LOCAL, 区切り位置, -1)
+			NEXT
+			文字数カウント = 一時カウント % 66
+		ENDIF
+		IF LOCAL:2
 			NSTR:LOCAL '= "　　" + LOCALS + " 　　" + NSTR:LOCAL
-		LOCAL:1 = 0
+		ENDIF
+		LOCAL:2 = 0
 	ELSEIF !(WSTR:LOCAL == "")
-		SIF LOCAL:1
+		IF 文字数カウント + STRLENS(WSTR:LOCAL) > 66
+			FOR LOCAL:1, 0, (文字数カウント + STRLENS(WSTR:LOCAL)) / 66
+				区切り位置 = (LOCAL:1 + 1) * 66 + (LOCAL:1 * (15 + STRLENS(LOCALS))) - 文字数カウント
+				WSTR:LOCAL '= SUBSTRING(WSTR:LOCAL, 0, 区切り位置) + "_改行_　　" + LOCALS + " 　　" + SUBSTRING(WSTR:LOCAL, 区切り位置, -1)
+			NEXT
+		ENDIF
+		IF LOCAL:2
 			WSTR:LOCAL '= "　　" + LOCALS + " 　　" + WSTR:LOCAL
-		LOCAL:1 = 1
+		ENDIF
+		文字数カウント = 0
+		LOCAL:2 = 1
 	ELSEIF !(KSTR:LOCAL == "")
-		SIF LOCAL:1
+		IF 文字数カウント + STRLENS(KSTR:LOCAL) > 66
+			FOR LOCAL:1, 0, (文字数カウント + STRLENS(KSTR:LOCAL)) / 66
+				区切り位置 = (LOCAL:1 + 1) * 66 + (LOCAL:1 * (15 + STRLENS(LOCALS))) - 文字数カウント
+				KSTR:LOCAL '= SUBSTRING(KSTR:LOCAL, 0, 区切り位置) + "_改行_　　" + LOCALS + " 　　" + SUBSTRING(KSTR:LOCAL, 区切り位置, -1)
+			NEXT
+		ENDIF
+		IF LOCAL:2
 			KSTR:LOCAL '= "　　" + LOCALS + " 　　" + KSTR:LOCAL
-		LOCAL:1 = 1
+		ENDIF
+		文字数カウント = 0
+		LOCAL:2 = 1
 	ELSE
 		BREAK
 	ENDIF
