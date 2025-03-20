@@ -523,6 +523,8 @@ ENDIF
 #DIM アビ番号
 #DIM L_C
 #DIM ループ用
+#DIM 縦幅調整
+#DIM 表示位置調整
 
 ;立ち絵表示
 CALL 画像描画終了
@@ -619,36 +621,45 @@ LOCALS += @"TA率　　　：{基礎BATTLE_STATE:ARG:TA率 + 装備ステータ�
 LOCALS += @"命中率　　：{基礎BATTLE_STATE:ARG:命中率 + 装備ステータス補正保存:ARG:命中率, 5}\%<br>"
 LOCALS += @"回避率　　：{基礎BATTLE_STATE:ARG:回避率 + 装備ステータス補正保存:ARG:回避率, 5}\%<br></div>"
 
+縦幅調整 = 787
+表示位置調整 = 0
 詳細文文字列受け渡し変数 = 
-LOCALS += "<div rect='1250,0,3750,787'>□ 装備指輪 □--------------------------------------------------<br>"
+LOCALS:1 = 
 IF 装備ステータス補正保存:ARG:装備指輪番号 == 0
-	LOCALS += "なし<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
+	LOCALS:1 += "なし<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
 ELSE
 	TRYCALLFORM 指輪基礎効果文章表示_%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名", 1)%(装備ステータス補正保存:ARG:装備指輪番号)
-	LOCALS += @"■%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
+	LOCALS:1 += @"■%DT_CELL_GETS("所持指輪データベース", 装備ステータス補正保存:ARG:装備指輪番号, "指輪名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
+	縦幅調整 = 787 + (MAX(0, HTML_STRINGLINES(LOCALS:1, 72) - 6) * 110)
 ENDIF
+LOCALS += @"<div rect='1250,{表示位置調整},3750,{縦幅調整}'>□ 装備指輪 □--------------------------------------------------<br>%LOCALS:1%"
 LOCALS += "<br></div>"
 詳細文文字列受け渡し変数 = 
-LOCALS += "<div rect='1250,787,3750,787'>□ 装備耳飾り □------------------------------------------------<br>"
+表示位置調整 = 縦幅調整
+縦幅調整 = 787
+LOCALS:1 = 
 IF 装備ステータス補正保存:ARG:装備耳飾り番号 == 0
-	LOCALS += "なし<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
-	LOCALS += "<br>"
+	LOCALS:1 += "なし<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
+	LOCALS:1 += "<br>"
 ELSE
 	TRYCALLFORM 耳飾り基礎効果文章表示_%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名", 1)%(装備ステータス補正保存:ARG:装備耳飾り番号)
-	LOCALS += @"■%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
+	LOCALS:1 += @"■%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:ARG:装備耳飾り番号, "耳飾り名", 1)%<br>%詳細文文字列受け渡し変数%<br>"
+	縦幅調整 = 787 + (MAX(0, HTML_STRINGLINES(LOCALS:1, 72) - 6) * 110)
 ENDIF
+LOCALS += @"<div rect='1250,{表示位置調整},3750,{縦幅調整}'>□ 装備耳飾り □------------------------------------------------<br>%LOCALS:1%"
 LOCALS += "<br></div>"
 
+表示位置調整 += 縦幅調整
 詳細文文字列受け渡し変数 = 
 装備証名 = %DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:ARG:装備証番号, "ジョブ証名", 1)%
-LOCALS += "<div rect='1250,1575,3750,787'>□ ジョブの証 □------------------------------------------------<br>"
+LOCALS += @"<div rect='1250,{表示位置調整},3750,787'>□ ジョブの証 □------------------------------------------------<br>"
 IF 装備ステータス補正保存:ARG:装備証番号
 	RESULT = 0
 	TRYCALLFORM 証関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:ARG:装備証番号, "ジョブ証名", 1)%("クラス名", ARG)
@@ -669,9 +680,18 @@ ELSE
 	LOCALS += "<br>"
 	LOCALS += "<br></div>"
 ENDIF
+LOCALS:1 = 
+HTML_PRINT LOCALS, 1
 
-LOCALS += "<div rect='0,2375,5000,900'>□ 奥義・アビリティ □-------------------------------------------------------------------<br>"
+FOR LOCAL, 0, (表示位置調整 + 787) / 100
+	PRINTL 
+NEXT
+L_C = LINECOUNT
+LOCALS =
+
+LOCALS += "<div rect='0,0,5000,900'>□ 奥義・アビリティ □-------------------------------------------------------------------<br>"
 VARSET RESULTS
+縦幅調整 = 1
 
 CALL 奥義名呼び出し(ARG)
 CALL 奥義威力呼び出し(ARG)
@@ -682,6 +702,8 @@ ELSE
 	LOCALS += @"<nonbutton>[%TSTR:コマンド名受渡%]</nonbutton>"
 ENDIF
 LOCALS += "<br>"
+;HTML_STRINGLINESだとツールチップの中身も拾っちゃうので手動で行計算
+縦幅調整 ++
 
 VARSET RESULTS
 表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:ARG}_")
@@ -694,6 +716,7 @@ IF 表示アビ数
 			LOCAL += STRLENS(TSTR:コマンド名受渡) + 2
 			IF LOCAL > 100
 				LOCALS += "<br>　　　　　　　　"
+				縦幅調整 ++
 				LOCAL = 16
 			ENDIF
 			IF OPTION変数:ツールチップ切り替え == 0
@@ -706,14 +729,22 @@ IF 表示アビ数
 		ENDIF
 	NEXT
 	LOCALS += "<br>"
+	縦幅調整 ++
 ELSE
 	VARSET RESULTS
 	LOCALS += "汎用アビリティ："
+	LOCAL = 16
 	表示アビ数 = ENUMFUNCBEGINSWITH("汎用固有アビ_")
 	FOR アビ番号, 0, 表示アビ数
 		TSTR:コマンド名受渡 = 
 		CALLFORM %RESULTS:アビ番号%("アビ名", ARG)
 		IF TSTR:コマンド名受渡 != ""
+			LOCAL += STRLENS(TSTR:コマンド名受渡) + 2
+			IF LOCAL > 100
+				LOCALS += "<br>　　　　　　　　"
+				縦幅調整 ++
+				LOCAL = 16
+			ENDIF
 			IF OPTION変数:ツールチップ切り替え == 0
 				CALLFORM %RESULTS:アビ番号%("アビ説明文", ARG)
 				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>　"
@@ -723,6 +754,7 @@ ELSE
 		ENDIF
 	NEXT
 	LOCALS += "<br>"
+	縦幅調整 ++
 ENDIF
 
 IF 装備証名 == ""
@@ -737,6 +769,11 @@ ELSE
 		TSTR:コマンド名受渡 = 
 		CALLFORM %RESULTS:LOCAL%(@"アビ名", ARG)
 		IF TSTR:コマンド名受渡 != ""
+			IF LOCAL:1 == 3
+				LOCALS:1 += "<br>　　　　　　　　"
+				縦幅調整 ++
+				LOCAL:1 = 0
+			ENDIF
 			IF OPTION変数:ツールチップ切り替え == 0
 				CALLFORM %RESULTS:LOCAL%(@"アビ説明文", ARG)
 				LOCALS += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>[%TSTR:コマンド名受渡%]</nonbutton>　"
@@ -745,28 +782,21 @@ ELSE
 			ENDIF
 			LOCAL:1 += 1
 		ENDIF
-		IF LOCAL:1 == 4
-			LOCALS:1 += "<br>　　　　　　　　"
-			LOCAL:1 = 0
-		ENDIF
 	NEXT
 ENDIF
-LOCALS += "<br>"
-LOCALS += "<br>"
-LOCALS += "<br>"
 LOCALS += "<br></div>"
-
+縦幅調整 ++
 HTML_PRINT LOCALS, 1
 
-FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+FOR LOCAL, 0, 縦幅調整 + 1
 	PRINTL
 NEXT
 
 TRYCALLFORM 口上_ステータス画面_固有特性解説_{NO:ARG}(ARG)
 ;★EDIT
-FOR LOCAL, 0, 40 - (LINECOUNT - L_C)
-	PRINTL
-NEXT
+; FOR LOCAL, 0, 40 - (LINECOUNT - L_C)
+; 	PRINTL
+; NEXT
 
 
 @性的能力表示画面(ARG)
@@ -1800,7 +1830,7 @@ HTML_TEXT = □ 弱点コマンド □---------------------<br>
 グレーアウト中 = 0
 FOR L_CNT, 0, 弱点コマンド表示数
 	; 途中で空になったら終了
-	DEBUGPRINTFORML %弱点コマンドリスト:L_CNT%
+	;DEBUGPRINTFORML %弱点コマンドリスト:L_CNT%
 	SIF 弱点コマンドリスト:L_CNT == ""
 		BREAK
 	; グレーアウト判定
