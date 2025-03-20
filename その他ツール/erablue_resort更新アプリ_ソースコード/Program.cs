@@ -8,6 +8,7 @@ using Spectre.Console;
 using System.Collections.Generic;
 using System.Resources;
 using System.Globalization;
+using erablue_resort更新アプリ;
 
 class Program
 {
@@ -74,10 +75,10 @@ class Program
         }
         else
         {
-            throw new ArgumentException(rm.GetString("URLerror", CultureInfo.CurrentCulture));
+            throw new ArgumentException(Resources.URLerror);
         }
 
-        Console.WriteLine(rm.GetString("DownloadMessage") ?? "リポジトリをダウンロード中: {0}", zipUrl);
+        Console.WriteLine(Resources.DownloadMessage ?? "リポジトリをダウンロード中: {0}", zipUrl);
 
         // ZIPを一時ファイルにダウンロード
         string tempZipPath = Path.Combine(Path.GetTempPath(), "repo_temp.zip");
@@ -98,7 +99,7 @@ class Program
         }
 
         // ZIPを展開
-        Console.WriteLine(rm.GetString("zipopen") ?? "ZIPファイルを展開中...");
+        Console.WriteLine(Resources.zipopen?? "ZIPファイルを展開中...");
         ZipFile.ExtractToDirectory(tempZipPath, workdirPath);
 
         // 一時ファイルを削除
@@ -116,7 +117,7 @@ class Program
         }
         Directory.Delete(extractedDir, true);
 
-        Console.WriteLine(rm.GetString("downloadok") ?? "最新データの取得が完了しました");
+        Console.WriteLine(Resources.downloadok ?? "最新データの取得が完了しました");
     }
 
     private static void SyncWithPreservation(string sourceUrl, string basePath, IEnumerable<string> overwriteFolderNames, IEnumerable<string> noActionFolderNames)
@@ -127,7 +128,7 @@ class Program
 
         try
         {
-            Console.WriteLine(rm.GetString("startnew") ?? "同期処理を開始します");
+            Console.WriteLine(Resources.startnew ?? "同期処理を開始します");
 
             // 1. 既存の overwrite と noaction を退避
             foreach (string overwritePath in overwritePaths)
@@ -141,7 +142,7 @@ class Program
                         Directory.CreateDirectory(dirName);
                     }
                     CopyDirectory(overwritePath, tempExistingOverwrite);
-                    Console.WriteLine(rm.GetString("foldersave") ?? "{0} を退避しました", Path.GetRelativePath(basePath, overwritePath));
+                    Console.WriteLine(Resources.foldersave ?? "{0} を退避しました", Path.GetRelativePath(basePath, overwritePath));
                 }
             }
             foreach (string noActionPath in noActionPaths)
@@ -155,7 +156,7 @@ class Program
                         Directory.CreateDirectory(dirName);
                     }
                     CopyFileOrDirectory(noActionPath, tempExistingNoAction);
-                    Console.WriteLine(rm.GetString("foldersave") ?? "{0} を退避しました", Path.GetRelativePath(basePath, noActionPath));
+                    Console.WriteLine(Resources.foldersave ?? "{0} を退避しました", Path.GetRelativePath(basePath, noActionPath));
                 }
             }
 
@@ -205,7 +206,7 @@ class Program
                         Directory.CreateDirectory(dirName);
                     }
                     CopyDirectory(tempExistingOverwrite, overwritePath);
-                    Console.WriteLine(rm.GetString("folderload") ?? "{0} を退避から復元しました", Path.GetRelativePath(basePath, overwritePath));
+                    Console.WriteLine(Resources.folderload ?? "{0} を退避から復元しました", Path.GetRelativePath(basePath, overwritePath));
                 }
             }
             foreach (string noActionPath in noActionPaths)
@@ -219,7 +220,7 @@ class Program
                         Directory.CreateDirectory(dirName);
                     }
                     CopyFileOrDirectory(tempExistingNoAction, noActionPath);
-                    Console.WriteLine(rm.GetString("folderload") ?? "{0} を退避から復元しました", Path.GetRelativePath(basePath, noActionPath));
+                    Console.WriteLine(Resources.folderload ?? "{0} を退避から復元しました", Path.GetRelativePath(basePath, noActionPath));
                 }
             }
 
@@ -235,14 +236,14 @@ class Program
                         Directory.CreateDirectory(dirName);
                     }
                     CopyDirectory(tempNewOverwrite, overwritePath);
-                    Console.WriteLine(rm.GetString("folderoverwrite") ?? "{0} を最新版で上書きしました", Path.GetRelativePath(basePath, overwritePath));
+                    Console.WriteLine(Resources.folderoverwrite ?? "{0} を最新版で上書きしました", Path.GetRelativePath(basePath, overwritePath));
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine(rm.GetString("Exceptionerror1") ?? "同期処理中にエラーが発生しました: {0}", ex.Message);
-            Console.WriteLine(basePath, rm.GetString("Exceptionerror2") ?? " を確認し、必要に応じて削除してください。");
+            Console.WriteLine(Resources.Exceptionerror1 ?? "同期処理中にエラーが発生しました: {0}", ex.Message);
+            Console.WriteLine(basePath, Resources.Exceptionerror2 ?? " を確認し、必要に応じて削除してください。");
             throw;
         }
         finally
@@ -252,12 +253,12 @@ class Program
                 try
                 {
                     Directory.Delete(tempDir, true);
-                    Console.WriteLine(rm.GetString("tempDirok") ?? " 一時ディレクトリを削除しました");
+                    Console.WriteLine(Resources.tempDirok ?? " 一時ディレクトリを削除しました");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(tempDir, rm.GetString("tempDirerror1") ?? "一時ディレクトリの削除に失敗しました: {0}", ex.Message);
-                    Console.WriteLine(rm.GetString("tempDirerror2") ?? "手動で削除してください。");
+                    Console.WriteLine(tempDir, Resources.tempDirerror1 ?? "一時ディレクトリの削除に失敗しました: {0}", ex.Message);
+                    Console.WriteLine(Resources.tempDirerror2 ?? "手動で削除してください。");
                 }
             }
         }
@@ -348,12 +349,12 @@ class Program
             SyncWithPreservation("https://github.com/erablue-resort/erablue_resort", basePath, overwriteFolderNames, noActionFolderNames);
 
             await Task.Delay(3000);
-            Console.WriteLine(rm.GetString("Allok") ?? " すべての更新を完了しました");
+            Console.WriteLine(Resources.Allok ?? " すべての更新を完了しました");
         }
         catch (Exception ex)
         {
             AnsiConsole.WriteException(ex);
-            Console.WriteLine(rm.GetString("writeerror") ?? "エラーが発生しました。問題のあるフォルダを消してリトライしてください");
+            Console.WriteLine(Resources.writeerror ?? "エラーが発生しました。問題のあるフォルダを消してリトライしてください");
             Console.ReadLine();
         }
 
