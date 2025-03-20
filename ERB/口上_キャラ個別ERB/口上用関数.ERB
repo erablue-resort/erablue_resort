@@ -171,3 +171,161 @@ CALLFORM 口上_ステータス画面_キャラ解説_{NO:対象キャラ}(対�
 CALL キャラ解説表示用(対象キャラ)
 ; 表示行数を返す
 RETURN RESULT
+
+@PRINT_STATEコメント表示(対象キャラ = -1, 処理モード = 0)
+#DIM 対象キャラ
+#DIM 処理モード
+#DIM 縦幅
+#DIM LCOUNT
+#DIMS 文章保存
+#DIMS 文頭文字列
+#DIMS 表示文字列
+
+文頭文字列 '= "│"
+SELECTCASE 処理モード
+	CASE 0
+	CASE 1
+		文頭文字列 '= " "
+ENDSELECT
+
+文頭文字列 '= "　　" + 文頭文字列 + " 　　"
+
+;非表示フラグがある時は何もしない
+SIF RFLAG:口上非表示フラグ
+	RETURN 0
+;SKIPDISP中もなんもしない
+SIF ISSKIP()
+	RETURN 0
+SIF !口上有無確認(0,1)
+	RETURN 0
+SIF 対象キャラ == -1
+	対象キャラ = TARGET
+文章保存 = 
+FOR LOCAL,0,1000
+	SIF !口上有無確認(LOCAL,1)
+		BREAK
+	IF !(WSTR:LOCAL == "")
+		CALL PRINT_STATEコメント表示_実処理(WSTR:LOCAL,対象キャラ)
+	ELSEIF !(KSTR:LOCAL == "")
+		CALL PRINT_STATEコメント表示_実処理(KSTR:LOCAL,対象キャラ)
+	ELSEIF !(NSTR:LOCAL == "")
+		CALL PRINT_STATEコメント表示_実処理(NSTR:LOCAL,対象キャラ)
+	ELSEIF !(WNSTR:LOCAL == "")
+		CALL PRINT_STATEコメント表示_実処理(WNSTR:LOCAL,対象キャラ)
+	ENDIF
+	文章保存 += RESULTS
+NEXT
+
+縦幅 = HTML_STRINGLINES(文章保存, 66)
+;文頭表示
+表示文字列 = 
+表示文字列 += @"<div rect='0,0,600,{縦幅 * 200}'>"
+FOR LCOUNT, 0, 縦幅
+	表示文字列 += @"%文頭文字列%<br>"
+NEXT
+表示文字列 += "</div>"
+;文字列表示
+表示文字列 += @"<div rect='600,0,3380,{縦幅 * 200}'>"
+表示文字列 += @"%文章保存%"
+表示文字列 += "</div>"
+
+HTML_PRINT 表示文字列, 1
+DEBUGPRINTFORML %表示文字列%
+FOR LCOUNT, 0, 縦幅
+	PRINTL
+NEXT
+
+RETURN 1
+
+@PRINT_STATEコメント表示_実処理(処理文章, 対象キャラ)
+#DIM LCOUNT
+#DIM 返し数
+#DIM 対象キャラ
+#DIMS 返し文
+#DIM 文字色
+#DIM 書式
+#DIM 改行数
+#DIMS 文章保存
+#DIMS 処理文章
+
+SIF 対象キャラ == -1
+	対象キャラ = TARGET
+VARSET LOCALS
+
+;文字列を分解する
+LOCAL = 0
+LOCAL:1 = 0
+文章保存 = 
+SPLIT 処理文章, "_", LOCALS
+FOR LCOUNT, 0, RESULT
+	;特殊な操作
+	SELECTCASE LOCALS:LCOUNT
+	CASE "CALLNAME:TARGET","調教対象","被調教者"
+		文章保存 += CALLNAME:TARGET
+		CONTINUE
+	CASE "CALLNAME:PLAYER","調教者"
+		文章保存 += CALLNAME:PLAYER
+		CONTINUE
+	CASE "CALLNAME:MASTER","主人","主人公"
+		文章保存 += CALLNAME:MASTER
+		CONTINUE
+	CASE "一人称","1st"
+		文章保存 += CSTR:対象キャラ:一人称
+		CONTINUE
+	CASE "二人称","2nd"
+		文章保存 += CSTR:対象キャラ:二人称
+		CONTINUE
+	CASE "呼び名","CALLNAME"
+		文章保存 += CALLNAME:対象キャラ
+		CONTINUE
+	CASE "名前","NAME"
+		文章保存 += NAME表示(対象キャラ)
+		CONTINUE
+	CASE "CALL"
+		;次の文字をCALLで呼び出す(引数なし)
+		LCOUNT += 1
+		CALLFORM %LOCALS:LCOUNT%
+		CONTINUE
+	CASE "COLOR"
+		;次の文字の色を変更する
+		LCOUNT += 1
+		文章保存 += @"<font color='#%LOCALS:LCOUNT%'>"
+		LCOUNT += 1
+		文章保存 += @"%LOCALS:LCOUNT%</font>"
+		CONTINUE
+	CASE "-"
+		;次の文字に打消し線を引く
+		LCOUNT += 1
+		文章保存 += @"<s>%LOCALS:LCOUNT%</s>"
+		CONTINUE
+	CASE "B"
+		;次の文字を太字にする
+		LCOUNT += 1
+		文章保存 += @"<b>%LOCALS:LCOUNT%</b>"
+		CONTINUE
+	CASE "I"
+		;次の文字を斜体にする
+		LCOUNT += 1
+		文章保存 += @"<i>%LOCALS:LCOUNT%</i>"
+		CONTINUE
+	CASE "LINE"
+		;次の文字に下線を引く
+		LCOUNT += 1
+		文章保存 += @"<u>%LOCALS:LCOUNT%</u>"
+		CONTINUE
+	CASE "L","改行"
+		文章保存 += "<br>"
+		CONTINUE
+	CASE "H"
+		文章保存 += "<img src='えっちハート'>"
+		CONTINUE
+	CASE "A"
+		文章保存 += "<img src='怒りマーク'>"
+		CONTINUE
+	CASEELSE
+		文章保存 += LOCALS:LCOUNT
+	ENDSELECT
+NEXT
+RESULTS '= 文章保存
+
+
