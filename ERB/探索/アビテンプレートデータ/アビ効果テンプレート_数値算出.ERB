@@ -240,7 +240,13 @@ SIF 判定対象能力 != "ALL" && DT_CELL_GETS("戦闘効果データベース"
 	RETURNF 0
 
 
-IF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠") != ""
+IF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠") == "パッシブ"
+	;パッシブ効果の場合、対象隊列が存在するだけで効果を発揮する
+	;パッシブである以上、必ず付随先は設定されているはず
+	IF キャラNO生存_存在判定(DT_CELL_GET("戦闘効果データベース", 判定行数, "パッシブ付随先NO")) == 0
+		RETURNF 0
+	ENDIF
+ELSEIF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠") != ""
 	;付随枠が設定されている時、該当の効果が存在するかどうかを見る
 	;基本的に効果なし効果か固有効果のはずなので、バフ・デバフの分岐は見ない
 	IF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠_対象隊列") != ""
@@ -258,7 +264,7 @@ IF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠
 ENDIF
 
 LOCALS '= DT_CELL_GETS("戦闘効果データベース", 判定行数, "適用範囲")
-IF LOCALS == @"{判定隊列}"
+IF LOCALS == @"{判定隊列}" || LOCALS == @"NO{NO:(BATTLE_STATE:判定隊列:0)}"
 	RETURNF 1
 ELSE
 	;特殊範囲の分を判定
@@ -282,8 +288,13 @@ ELSE
 				SPLIT LOCALS, "_", RESULTS
 				FOR LOCAL, 0, RESULT
 					;引っかかったらOKを返す
-					SIF RESULTS:LOCAL == @"{判定隊列}"
+					IF STRFIND(RESULTS:LOCAL, "NO") >= 0
+						;特定キャラ指定の場合
+						SIF REPLACE(RESULTS:LOCAL, "NO", "") == @"{NO:(BATTLE_STATE:判定隊列:0)}"
+							RETURNF 1
+					ELSEIF RESULTS:LOCAL == @"{判定隊列}"
 						RETURNF 1
+					ENDIF
 				NEXT
 				;引っかからなかったら0
 				RETURNF 0
@@ -320,7 +331,13 @@ FOR 検索番号, 0, DT_ROW_LENGTH("戦闘効果データベース")
 				CONTINUE
 		ENDIF
 	ENDIF
-	IF DT_CELL_GETS("戦闘効果データベース", 検索番号, "付随効果枠") != ""
+	IF DT_CELL_GETS("戦闘効果データベース", 判定行数, "付随効果枠") == "パッシブ"
+		;パッシブ効果の場合、対象隊列が存在するだけで効果を発揮する
+		;パッシブである以上、必ず付随先は設定されているはず
+		IF キャラNO生存_存在判定(DT_CELL_GET("戦闘効果データベース", 判定行数, "パッシブ付随先NO")) == 0
+			RETURNF 0
+		ENDIF
+	ELSEIF DT_CELL_GETS("戦闘効果データベース", 検索番号, "付随効果枠") != ""
 		;付随枠が設定されている時、該当の効果が存在するかどうかを見る
 		;基本的に効果なし効果か固有効果のはずなので、バフ・デバフの分岐は見ない
 		IF DT_CELL_GETS("戦闘効果データベース", 検索番号, "付随効果枠_対象隊列") != ""
@@ -338,7 +355,7 @@ FOR 検索番号, 0, DT_ROW_LENGTH("戦闘効果データベース")
 	ENDIF
 
 	LOCALS '= DT_CELL_GETS("戦闘効果データベース", 検索番号, "適用範囲")
-	IF LOCALS == @"{判定隊列}"
+	IF LOCALS == @"{判定隊列}" || LOCALS == @"NO{NO:(BATTLE_STATE:判定隊列:0)}"
 		RETURNF 検索番号
 	ELSE
 		;特殊範囲の分を判定
@@ -362,8 +379,13 @@ FOR 検索番号, 0, DT_ROW_LENGTH("戦闘効果データベース")
 					SPLIT LOCALS, "_", RESULTS
 					FOR LOCAL, 0, RESULT
 						;引っかかったらOKを返す
-						SIF RESULTS:LOCAL == @"{判定隊列}"
+						IF STRFIND(RESULTS:LOCAL, "NO") >= 0
+							;特定キャラ指定の場合
+							SIF REPLACE(RESULTS:LOCAL, "NO", "") == @"{NO:(BATTLE_STATE:判定隊列:0)}"
+								RETURNF 検索番号
+						ELSEIF RESULTS:LOCAL == @"{判定隊列}"
 							RETURNF 検索番号
+						ENDIF
 					NEXT
 					;引っかからなかったら次へ
 					CONTINUE
@@ -452,6 +474,9 @@ RETURNF 計算値
 ;ないはずだけど一応枠があるかどうかを見る
 SIF DT_CELL_GETS("戦闘効果データベース", 判定行, "付随効果枠") == ""
 	RETURNF 0
+;パッシブ付随はもとのバフ・デバフが存在しないので無視
+SIF DT_CELL_GETS("戦闘効果データベース", 判定行, "付随効果枠") == "パッシブ"
+	RETURNF 0
 
 ;付随バフが誰のとこにあるのかを取得
 IF ISNUMERIC(DT_CELL_GETS("戦闘効果データベース", 判定行, "付随効果枠_対象隊列"))
@@ -473,6 +498,30 @@ IF 判定種別 == "割合"
 ELSEIF 判定種別 == "固定値"
 	RETURNF 計算値 * DT_CELL_GET("戦闘効果データベース", 判定行, "付随効果量_固定値")
 ENDIF
+
+
+@キャラNO生存_存在判定(対象キャラNO)
+#FUNCTION
+;特定のNOのキャラが生存し、隊列内にいるかを判定
+#DIM 対象キャラNO
+#DIM 対象キャラ
+#DIM LCOUNT
+
+;あなたは指定不可
+SIF 対象キャラNO <= 0
+	RETURNF 0
+
+対象キャラ = GETCHARA(対象キャラNO)
+
+FOR LCOUNT, 0, 3
+	SIF BATTLE_STATE:LCOUNT:0 != 対象キャラ
+		CONTINUE
+	SIF BATTLE_STATE:LCOUNT:ＨＰ < 1
+		CONTINUE
+	RETURNF 1
+NEXT
+
+RETURNF 0
 
 
 

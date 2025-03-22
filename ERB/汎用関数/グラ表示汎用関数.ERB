@@ -126,7 +126,7 @@ SIF !INRANGE(ARG, 0, CHARANUM-1)
 	RETURNF
 
 SIF CSTR:ARG:画像フォルダ == ""
-	CSTR:ARG:画像フォルダ = {NO:ARG}%CALLNAME:ARG%
+	CSTR:ARG:画像フォルダ = GET_RESOURCES_BASE_FOLDER(ARG)
 
 ;DEBUGPRINTFORML %CALLNAME:ARG%の衣装%PATRN%,%PATRN:1%を探すよ
 VARSET 妊娠用PATRN保存
@@ -254,7 +254,7 @@ SIF !INRANGE(対象キャラ, 0, CHARANUM-1)
 	RETURNF
 
 SIF CSTR:対象キャラ:画像フォルダ == ""
-	CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
+	CSTR:対象キャラ:画像フォルダ = GET_RESOURCES_BASE_FOLDER(対象キャラ)
 
 妊娠用PATRN保存 = 
 IF TALENT:対象キャラ:妊娠 && PREGNANCY_SIZE(対象キャラ) >= 2
@@ -943,48 +943,6 @@ SPRITECREATE 元スプライト, グラフィックID, 0, 0, 元横幅, 元縦�
 ;CBGSETSPRITE  元スプライト, 元横幅, 0, 1
 
 RETURNF
-
-@画像フォルダ有効チェック(対象キャラ)
-#DIM 対象キャラ
-#DIM F_NUM
-#DIMS FOLDER
-
-IF CSTR:対象キャラ:画像フォルダ != ""
-	;CSTRに入ってるフォルダ名は有効か？
-	LOCALS '= "resources/" + CSTR:対象キャラ:画像フォルダ
-	F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*")
-	IF F_NUM > 0
-		;デフォルト画像があるなら有効と見なす
-		RETURN 1
-	ENDIF
-ENDIF
-
-;この下はCSTRに文字列が入ってないor入ってるフォルダ名が有効ではないパターン
-;仮に一番上のフォルダを見に行く
-CSTR:対象キャラ:画像フォルダ = {NO:対象キャラ}%CALLNAME:対象キャラ%
-
-LOCALS '= "resources/" + CSTR:対象キャラ:画像フォルダ
-F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*")
-IF F_NUM > 0
-	;デフォルト画像があるなら有効と見なしてこのまま帰る
-	RETURN 1
-ENDIF
-
-;ないならサブフォルダを見に行く
-LOCALS '= "resources/" + TOSTR(NO:対象キャラ) + CALLNAME:対象キャラ
-F_NUM = ENUMFILES(LOCALS, "顔_デフォルト.*", 1)
-IF F_NUM < 1
-	;そもそも画像がないので帰る、CSTRはそのまま
-	RETURN 0
-ENDIF
-;見つかったら一番最初のフォルダを選択しておく
-IF STRFIND(RESULTS:0, "png") >= 0
-	FOLDER '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-28)
-ELSE
-	FOLDER '= SUBSTRING(RESULTS:0, 10, STRLENS(RESULTS:0)-29)
-ENDIF
-CSTR:対象キャラ:画像フォルダ '= FOLDER
-
 
 @GCREATE_拡張子(作成レイヤー, ファイルパス)
 #DIMS ファイルパス
