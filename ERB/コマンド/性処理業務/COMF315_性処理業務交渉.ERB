@@ -218,6 +218,7 @@ TRYCALLFORM MESSAGE_性処理_%RSTR:コマンド結果受渡し文字列%_非口
 @性処理業務交渉処理(対象キャラ, 実行性処理)
 #DIM 対象キャラ
 #DIM 値段計算
+#DIM 余裕金額
 #DIMS 実行性処理
 
 CALLFORM CAN_性処理_%実行性処理%(対象キャラ)
@@ -232,13 +233,24 @@ ENDIF
 
 ;地の文もオプションが勝手につく仕様にしたので、すまんがハードルを上げさせてもらう。
 ;高貴処女とかの相手を考えるとこれでも多分借金まで到達する可能性がある。
-IF MONEY < (値段計算 + 100000)
+PRINTFORML 所持ルピ：%MON_FORMAT(MONEY)%
+IF STRCOUNT(実行性処理, "セックス")
+	余裕金額 = 値段計算 + 100000
+	IF 知識素質:対象キャラ:高貴 > 0
+		余裕金額 += 50000
+		IF 初体験済みチェック("ファーストキス", 対象キャラ) == 0
+			余裕金額 += 100000
+		ENDIF
+	ENDIF
+ELSE
+	余裕金額 = 値段計算 + 20000
+ENDIF
+IF MONEY < 余裕金額
 	PRINTL オプションのことを考えると軍資金はもう少しあったほうがいいだろう。
-	PRINTFORMW おおよそ%NUM_FORMAT(値段計算 + 100000)%ルピ程度は持っておいた方が良さそうだ……
+	PRINTFORMW おおよそ%MON_FORMAT(余裕金額)%程度は持っておいた方が良さそうだ……
 	RETURN -1
 ENDIF
 
-PRINTFORML 所持ルピ：%NUM_FORMAT(MONEY)%ルピ
 PRINTL
 PRINTFORML %実行性処理%を%CALLNAME:対象キャラ%にお願いしますか？
 PRINTBUTTON "[0] はい", 0
