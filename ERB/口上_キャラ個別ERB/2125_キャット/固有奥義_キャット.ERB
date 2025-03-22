@@ -1,0 +1,739 @@
+﻿
+@固有奥義_2125(ARGS, キャラ番号)
+#DIM キャラ番号
+#DIM 奥義威力
+#DIMS 奥義名
+#DIM 連携参加可能人数
+#DIM CONST 連携倍率 = 100
+#DIM 連携数
+#DIM 味方番号, 4
+#DIM 番号保存
+#DIM CNT, 2
+#DIM 味方行動速度, 4
+#DIM 行動速度保存
+#DIM 連携内容, 5
+#DIMS 連携名
+#DIM 術者隊列番号
+#DIM 戦闘行動内容保存
+#DIM スキップフラグ保存
+
+奥義名 = 連携 -Overdrive-
+奥義威力 = 0
+
+SELECTCASE ARGS
+	CASE "奥義名"
+		TSTR:コマンド名受渡 = %奥義名%
+	CASE "奥義説明文"
+		詳細文文字列受け渡し変数 = <br>パーティメンバーと共に連携攻撃する
+		詳細文文字列受け渡し変数 += @"<br>現最大連携可能数：{戦闘中カウント:キャラ隊列検索(GETCHARA(2125)):0+2}"
+		詳細文文字列受け渡し変数 += "<br>◆連携の発動には自分を含めて2人以上の未行動キャラが必要"
+		RETURN 奥義威力
+	CASE "奥義追加効果"
+		連携参加可能人数 = 0
+		FOR LOCAL, 0, 4
+			SIF BATTLE_STATE:LOCAL:キャラ登録番号 < 1
+				CONTINUE
+			SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+				CONTINUE
+			SIF BATTLE_STATE:LOCAL:行動済みフラグ == 1
+				CONTINUE
+			連携参加可能人数++
+		NEXT
+		IF 連携参加可能人数 < 2
+			KSTR:(K++) = <font color='#%カラーパレット_HTML("真っ赤")%'>連携の発動には自分を含めて2人以上の未行動キャラが必要</font>
+			CALL メッセージ欄表示用関数
+			CALL 口上変数初期化
+			アビテンプレート用_キャンセルフラグ = 1
+			RETURN -1
+		ENDIF
+		アビテンプレート用_アビ名表示済フラグ = 1
+		
+		;テスト用
+		;CALL アビ対象選択テンプレート_自己のみ
+		;アビ汎用変数:効果量 = 100
+		;CALL アビテンプレート_有利効果_奥義ゲージUP
+		
+		;連携順決定
+		VARSET 味方番号, -1
+		VARSET 味方行動速度
+		連携名 = 
+		連携数 = 0
+		連携中 = 1
+		術者隊列番号 = キャラ隊列検索(GETCHARA(2125))
+		FOR CNT:0, 0, 4
+			SIF BATTLE_STATE:(CNT:0):キャラ登録番号 < 1
+				BREAK
+			SIF BATTLE_STATE:(CNT:0):ＨＰ < 1
+				CONTINUE
+			SIF BATTLE_STATE:(CNT:0):行動済みフラグ == 1
+				CONTINUE
+			味方番号:(CNT:0) = CNT:0
+			CALL バフ・デバフ測定(CNT:0, "行動速度")
+			味方行動速度:(CNT:0) = RESULT
+			連携数++
+			IF CNT:0 != 0
+				REPEAT CNT:0
+					FOR CNT:1, 0, CNT:0
+						IF 味方行動速度:(CNT:1) < 味方行動速度:(CNT:1 + 1)
+							行動速度保存 = 味方行動速度:(CNT:1)
+							味方行動速度:(CNT:1) = 味方行動速度:(CNT:1 + 1)
+							味方行動速度:(CNT:1 + 1) = 行動速度保存
+							番号保存 = 味方番号:(CNT:1)
+							味方番号:(CNT:1) = 味方番号:(CNT:1 + 1)
+							味方番号:(CNT:1 + 1) = 番号保存
+						ENDIF
+					NEXT
+				REND
+			ENDIF
+		NEXT
+		SIF 連携数 > (戦闘中カウント:術者隊列番号:0 + 2)
+			連携数 = (戦闘中カウント:術者隊列番号:0 + 2)
+		;WSTR:(K++) = END味方番号:{味方番号:0 + 1},{味方番号:1 + 1},{味方番号:2 + 1},{味方番号:3 + 1},連携数{連携数},連携参加可能人数{連携参加可能人数}
+		;FOR CNT:0, 0, 4
+		;	CALL バフ・デバフ測定(CNT:0, "行動速度")
+		;	WSTR:(K++) = {CNT:0 + 1}%CALLNAME:(BATTLE_STATE:(CNT:0):キャラ登録番号)%行動速度:{RESULT}
+		;NEXT
+		
+		;連携行動決定
+		FOR CNT:0, 0, 連携数
+			CALL 連携行動内容入力(味方番号:(CNT:0))
+			連携内容:(CNT:0) = RESULT
+			SELECTCASE 連携内容:(CNT:0)
+				CASE 100
+					IF CNT:0 == 0
+						連携名 = 通常
+					ELSE
+						連携名 += "攻撃"
+					ENDIF
+				CASE 101
+					CALL 奥義名呼び出し(BATTLE_STATE:(味方番号:(CNT:0)):キャラ登録番号)
+					連携名 += @"%TSTR:コマンド名受渡%"
+				CASE 110 TO 119
+					CALLFORM %アビ関数名保存:(連携内容:(CNT:0) - 110)%("アビ名", BATTLE_STATE:(味方番号:(CNT:0)):キャラ登録番号)
+					連携名 += @"%TSTR:コマンド名受渡%"
+				CASE 120 TO 129
+					CALLFORM %証アビ関数名保存:(連携内容:(CNT:0) - 120)%(@"アビ名", BATTLE_STATE:(味方番号:(CNT:0)):キャラ登録番号)
+					連携名 += @"%TSTR:コマンド名受渡%"
+			ENDSELECT
+		NEXT
+		
+		;WSTR:(K++) = {連携内容:0},{連携内容:1},{連携内容:2},{連携内容:3},{連携内容:4}
+		
+		SELECTCASE RAND:2
+			CASE 0
+				WSTR:(K++) = 「いっきにいくわよ！」
+			CASE 1
+				WSTR:(K++) = 「たたみかける！」
+		ENDSELECT
+		CALL メッセージ欄表示用関数(@"探索用_{術者隊列番号}_顔", CALLNAME:GETCHARA(2125))
+		CALL 口上変数初期化
+		
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("水属性")%'>連携 -Overdrive-</font>
+		KSTR:(K++) = %連携名%!!
+		CALL メッセージ欄表示用関数()
+		CALL 口上変数初期化
+		;背景色変更
+		SETBGCOLOR 0x1064FF
+		
+		;連携実行
+		戦闘行動内容保存 = 戦闘行動内容
+		SIF アビ使用確認スキップフラグ == 1
+			スキップフラグ保存 = 1
+		アビ使用確認スキップフラグ = 1
+		
+		CALL アビ汎用変数文字列リセット
+		CALL アビ対象選択テンプレート_味方全体_生者のみ
+		アビ汎用文字列:バフ・デバフ枠 = 与ダメージ_連携
+		アビ汎用文字列:バフ・デバフ対象能力 = 与ダメージ
+		アビ汎用変数:特殊表示オプション = -1
+		アビ汎用変数:持続ターン = 1
+		アビ汎用変数:効果割合 = 連携倍率
+		CALL アビテンプレート_有利効果_バフ効果セット
+		アビ汎用文字列:バフ・デバフ枠 = 回復力_連携
+		アビ汎用文字列:バフ・デバフ対象能力 = 回復力
+		CALL アビテンプレート_有利効果_バフ効果セット
+		アビ汎用文字列:バフ・デバフ枠 = 命中率_連携
+		アビ汎用文字列:バフ・デバフ対象能力 = 命中率
+		CALL アビテンプレート_有利効果_バフ効果セット
+		
+		FOR CNT:0, 0, 連携数
+			CALL チェイン表示(CNT:0 + 1)
+			戦闘行動キャラ = 味方番号:(CNT:0)
+			CALL アビ関数名格納_連携(味方番号:(CNT:0))
+			戦闘行動内容 = 連携内容:(CNT:0)
+			CALL 戦闘行動実処理関数_連携
+			CALL 全滅チェック 
+			SIF アビテンプレート用_敵全滅フラグ
+				BREAK
+		NEXT
+		
+		RESETBGCOLOR
+		戦闘行動キャラ = 術者隊列番号
+		戦闘行動内容 = 戦闘行動内容保存
+		SIF スキップフラグ保存 == 0
+			アビ使用確認スキップフラグ = 0
+		FOR LOCAL, 0, 4
+			SIF BATTLE_STATE:LOCAL:キャラ登録番号 < 1
+				CONTINUE
+			SIF BATTLE_STATE:LOCAL:ＨＰ < 1
+				CONTINUE
+			CALL 戦闘効果削除(バフ番号取得_枠("与ダメージ_連携", LOCAL))
+			CALL 戦闘効果削除(バフ番号取得_枠("回復力_連携", LOCAL))
+			CALL 戦闘効果削除(バフ番号取得_枠("命中率_連携", LOCAL))
+		NEXT
+		SIF 戦闘中カウント:術者隊列番号:0 < 2
+			戦闘中カウント:術者隊列番号:0++
+		連携中 = 0
+		
+		WSTR:(K++) = 「素敵なアンサンブルね」
+		CALL メッセージ欄表示用関数(@"探索用_{術者隊列番号}_顔", CALLNAME:GETCHARA(2125))
+		CALL 口上変数初期化
+ENDSELECT
+
+@連携行動内容入力(味方番号)
+#DIM 表示アビ数
+#DIM アビ番号
+#DIM 味方番号
+#DIM 表示不可フラグ
+#DIM 消費ＭＰ
+#DIM 連携内容
+
+VARSET LOCALS
+;上メニュー操作許可フラグ = 1
+CALL 画面再描画
+CALL 口上変数初期化
+
+;エネミー画像ボタン化フラグ = 1
+;キャラ画像ボタン化フラグ = 1
+
+CALL 奥義名呼び出し(BATTLE_STATE:味方番号:キャラ登録番号)
+表示不可フラグ = RESULT
+
+IF デバフ番号取得("奥義封印", 味方番号) >= 0 || 表示不可フラグ == -1 || TSTR:コマンド名受渡 == "連携 -Overdrive-"
+	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>　　　<font color='#%カラーパレット_HTML("グレーアウト")%'>[101] 奥義：%TSTR:コマンド名受渡%</font>
+ELSEIF 表示不可フラグ == 0
+	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>　　　<button value = '101'>[101] 奥義：%TSTR:コマンド名受渡%</button>
+ELSE
+	KSTR:(K++) = <button value = '100'>[100] 通常攻撃</button>
+ENDIF
+
+VARSET RESULTS
+VARSET アビ関数名保存
+LOCAL:1 = 0
+表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(BATTLE_STATE:味方番号:キャラ登録番号)}_")
+IF 表示アビ数 == 0
+	VARSET RESULTS
+	表示アビ数 = ENUMFUNCBEGINSWITH("汎用固有アビ_")
+ENDIF
+
+FOR アビ番号, 0, 表示アビ数
+	TSTR:コマンド名受渡 = 
+	アビテンプレート用_アビ封印用フラグ = 0
+	CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:味方番号:キャラ登録番号)
+	CALLFORM %RESULTS:アビ番号%("アビ説明文", BATTLE_STATE:味方番号:キャラ登録番号)
+	消費ＭＰ = 0
+	IF TSTR:コマンド名受渡 != ""
+		IF デバフ番号取得("アビリティ封印", 味方番号) >= 0 || アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:味方番号:ＭＰ
+			NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 24, LEFT%</font>
+		ELSE
+			NSTR:(K++) = <button value = '{110 + アビ番号}'>[{110 + アビ番号}] %TSTR:コマンド名受渡, 24, LEFT%</button>
+		ENDIF
+		アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
+		LOCAL:1 += 1
+		IF LOCAL:1 % 3 == 0
+			NSTR:(K++) = <br>
+		ENDIF
+	ENDIF
+NEXT
+IF LOCAL:1 % 3 != 0
+	NSTR:(K++) = <br>
+ENDIF
+
+IF 装備ステータス補正保存:(BATTLE_STATE:味方番号:キャラ登録番号):装備証番号 < 1
+	;証装備なし
+ELSE
+	VARSET 証アビ関数名保存
+	VARSET RESULTS
+	LOCAL:1 = 0
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:(BATTLE_STATE:味方番号:キャラ登録番号):装備証番号, "ジョブ証名", 1)%_")
+	FOR LOCAL, 0, 表示アビ数
+		TSTR:コマンド名受渡 = 
+		アビテンプレート用_アビ封印用フラグ = 0
+		CALLFORM %RESULTS:LOCAL%(@"アビ名", BATTLE_STATE:味方番号:キャラ登録番号)
+		CALLFORM %RESULTS:LOCAL%(@"アビ説明文", BATTLE_STATE:味方番号:キャラ登録番号)
+		消費ＭＰ = 0
+		IF TSTR:コマンド名受渡 != ""
+			IF アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:味方番号:ＭＰ
+				NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 24, LEFT%</font>
+			ELSE
+				NSTR:(K++) = <button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 24, LEFT%</button>
+			ENDIF
+			証アビ関数名保存:LOCAL = %RESULTS:LOCAL%
+			LOCAL:1 += 1
+			IF LOCAL:1 % 3 == 0
+				NSTR:(K++) = <br>
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+CALL メッセージ欄表示用関数(@"探索用_{味方番号}_顔", @"%CALLNAME:(BATTLE_STATE:味方番号:キャラ登録番号)%の連携内容を選択",,0,1)
+		
+クイック行動フラグ_TARGET = 0
+BINPUTS "デフォルト文字列"
+SIF RESULTS == "デフォルト文字列"
+	RETURN -999
+IF STRCOUNT(RESULTS, "サイド領域") > 0
+	CALL サイド領域_実行処理_戦闘中
+	RESTART
+ENDIF
+連携内容 = TOINT(RESULTS)
+
+CALL アビテンプレ変数リセット
+CALL 口上変数初期化
+口上用技名保存 = 
+詳細文文字列受け渡し変数 = 
+
+RETURN 連携内容
+
+@アビ関数名格納_連携(味方番号)
+#DIM 表示アビ数
+#DIM アビ番号
+#DIM 味方番号
+
+VARSET RESULTS
+VARSET アビ関数名保存
+LOCAL:1 = 0
+表示アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:(BATTLE_STATE:味方番号:キャラ登録番号)}_")
+IF 表示アビ数 == 0
+	VARSET RESULTS
+	表示アビ数 = ENUMFUNCBEGINSWITH("汎用固有アビ_")
+ENDIF
+
+FOR アビ番号, 0, 表示アビ数
+	TSTR:コマンド名受渡 = 
+	CALLFORM %RESULTS:アビ番号%("アビ名", BATTLE_STATE:味方番号:キャラ登録番号)
+	CALLFORM %RESULTS:アビ番号%("アビ説明文", BATTLE_STATE:味方番号:キャラ登録番号)
+	SIF TSTR:コマンド名受渡 != ""
+		アビ関数名保存:アビ番号 = %RESULTS:アビ番号%
+NEXT
+
+IF 装備ステータス補正保存:(BATTLE_STATE:味方番号:キャラ登録番号):装備証番号 < 1
+	;証装備なし
+ELSE
+	VARSET 証アビ関数名保存
+	VARSET RESULTS
+	LOCAL:1 = 0
+	表示アビ数 = ENUMFUNCBEGINSWITH(@"証アビ関数_%DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:(BATTLE_STATE:味方番号:キャラ登録番号):装備証番号, "ジョブ証名", 1)%_")
+	FOR LOCAL, 0, 表示アビ数
+		TSTR:コマンド名受渡 = 
+		アビテンプレート用_アビ封印用フラグ = 0
+		CALLFORM %RESULTS:LOCAL%(@"アビ名", BATTLE_STATE:味方番号:キャラ登録番号)
+		CALLFORM %RESULTS:LOCAL%(@"アビ説明文", BATTLE_STATE:味方番号:キャラ登録番号)
+		SIF TSTR:コマンド名受渡 != ""
+			証アビ関数名保存:LOCAL = %RESULTS:LOCAL%
+	NEXT
+ENDIF
+
+@戦闘行動実処理関数_連携
+#DIM 証番号
+#DIM バフ番号
+#DIM データベース行数
+#DIM 奥義威力保存
+#DIM 消費ゲージ
+#DIM 消費前ゲージ
+#DIM 追撃数
+#DIM 総ダメージ
+#DIM 追撃ダメージ
+#DIMS 効果種類
+#DIM 追撃効果量, 10
+#DIM 追撃効果割合, 10
+#DIM 確認スキップ
+#DIM 先頭得意武器
+#DIMS 説明保存
+
+CALL アビテンプレ変数リセット
+CALL 口上変数初期化
+口上用技名保存 = 
+詳細文文字列受け渡し変数 = 
+
+SELECTCASE 戦闘行動内容
+	CASE 100
+		;通常攻撃
+		口上用技名保存 = 通常攻撃
+		アビテンプレート用_アビ名 = 攻撃
+		TRYCCALLFORM 固有通常攻撃_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}
+		CATCH
+			IF クイック行動フラグ_TARGET >= 10
+				CALL アビ対象選択テンプレート_指定(クイック行動フラグ_TARGET)
+			ELSE
+				アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+				CALL アビ対象選択テンプレート_敵単体
+			ENDIF
+			アビ汎用変数:効果割合 = 100
+			CALL アビテンプレート_通常攻撃処理
+		ENDCATCH
+		IF アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			CALL アビテンプレート用_表示メッセージ変換処理
+		ENDIF
+	CASE 101
+		;奥義
+		CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		消費ゲージ = アビ汎用変数:消費奥義ゲージ量
+		口上用技名保存 = %TSTR:コマンド名受渡%
+		アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
+		CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		奥義威力保存 = RESULT
+		;説明保存 = %詳細文文字列受け渡し変数%
+		;最後が改行だった場合、それは消しとく
+		;IF STRFIND(説明保存, "<br>", STRLENS(説明保存) - 4) > -1
+		;	説明保存 = %SUBSTRING(説明保存, 0, STRLENS(説明保存) - 4)%
+		;ENDIF
+		;KSTR:(K++) = ■%口上用技名保存%　　%説明保存%
+		;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+		;STRCOUNT 説明保存, "<br>"
+		;IF RESULT < 4
+		;	FOR LOCAL, 0, 4 - RESULT
+		;		KSTR:(K++) = 　
+		;	NEXT
+		;ENDIF
+;		IF 奥義使用確認スキップフラグ == 0 || 奥義威力保存 < 1
+		;奥義使用確認ON、または威力0の奥義の場合使用確認が挟まる
+		確認スキップ = !(奥義使用確認スキップフラグ == 0 || 奥義威力保存 < 1)
+		エネミー画像ボタン化フラグ = 確認スキップ
+		;KSTR:(K++) = \@ 確認スキップ? 攻撃対象を選んで下さい# <button value='0'>[0]使用する</button>\@　　　　　<button value='999'>[999]戻る</button>
+		詳細文文字列受け渡し変数 = 
+		;TRYCCALLFORM 固有奥義_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}("奥義説明文_詳細", (BATTLE_STATE:戦闘行動キャラ:キャラ登録番号))
+		;CATCH
+		;	FOR LOCAL, 0, 10
+		;		IF GETBIT(基礎BATTLE_STATE:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号):得意武器, LOCAL)
+		;			先頭得意武器 = LOCAL
+		;			BREAK
+		;		ENDIF
+		;	NEXT
+		;	TRYCALLFORM 汎用奥義_%得意武器数値文字列変換(先頭得意武器)%("奥義説明文_詳細", (BATTLE_STATE:戦闘行動キャラ:キャラ登録番号))
+		;ENDCATCH
+		;IF 詳細文文字列受け渡し変数 != ""
+		;	KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+		;ENDIF
+		CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+		行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}
+		;IF 確認スキップ
+		;	CALL 口上変数初期化
+		;	GOTO 直接選択_奥義
+		;ENDIF
+		;$INPUT_LOOP_奥義
+		;BINPUTS
+		;IF STRCOUNT(RESULTS, "サイド領域") > 0
+		;	CALL サイド領域_実行処理_戦闘中
+		;	CALL 画面再描画
+		;	GOTO INPUT_LOOP_奥義
+		;ENDIF
+		;RESULT = TOINT(RESULTS)
+		;SELECTCASE RESULT
+		;	CASE 0
+		;		;使用する場合は下の処理へ移行
+		;		CALL 口上変数初期化
+		;	CASE 998
+		;		DRAWLINE
+		;		HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+		;		DRAWLINE
+		;		WAIT
+		;		CALL 画面再描画
+		;		GOTO INPUT_LOOP_奥義
+		;	CASE 999
+		;		RETURN -1
+		;	CASEELSE
+		;		REUSELASTLINE 
+		;		GOTO INPUT_LOOP_奥義
+		;ENDSELECT
+;			行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}
+			;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
+			IF 奥義威力保存 > 0
+				;IF アビ汎用文字列:選択時メッセージ１ == ""
+				;	アビ汎用文字列:選択時メッセージ１ = 誰を攻撃しますか？
+				;ENDIF
+				;奥義仕様先登録のため、ダメージ種類設定
+				$直接選択_奥義
+				アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+				;CALL アビ対象選択テンプレート_敵単体(確認スキップ)
+				;IF アビテンプレート用_キャンセルフラグ
+				;	アビテンプレート用_キャンセルフラグ = 0
+				;	RETURN -1
+				;ENDIF
+
+				;奥義対象指定先 = アビテンプレート用_対象保存:0
+
+				CALL 奥義前効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+				CALL アビ対象選択テンプレート_敵ランダムＸ体(1)
+				アビ汎用変数:効果割合 = 奥義威力保存
+				アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+				CALL アビテンプレート_ダメージ処理_自属性
+				CALL アビ汎用変数文字列リセット
+			ENDIF
+		;奥義ゲージ増加の追加効果に備えてここでゲージを減らす
+		消費前ゲージ = BATTLE_STATE:戦闘行動キャラ:奥義ゲージ
+		BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = MAX(0, BATTLE_STATE:戦闘行動キャラ:奥義ゲージ - 消費ゲージ)
+
+
+		CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		IF アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			;キャンセル時に奥義ゲージを戻す
+			BATTLE_STATE:戦闘行動キャラ:奥義ゲージ = 消費前ゲージ
+			RETURN -1
+		ELSE
+			CALL 奥義後処理関数
+			CALL アビテンプレート用_表示メッセージ変換処理
+			戦闘中カウント:戦闘行動キャラ:奥義回数 += 1
+			FOR LOCAL, 0, ターン中奥義回数保存
+				IF チェンバ基準キャラ保存:LOCAL == 戦闘行動キャラ
+					RESULT = 1
+					BREAK
+				ENDIF
+			NEXT
+			IF RESULT == 0
+				チェンバ基準キャラ保存:ターン中奥義回数保存 = 戦闘行動キャラ
+				ターン中奥義回数保存 += 1
+			ENDIF
+		ENDIF
+		
+		;再発動処理
+		FOR LOCAL:1, 0, DT_ROW_LENGTH("戦闘効果データベース")
+			IF バフ・デバフ効果適用判定_行指定(LOCAL:1, "バフ", "奥義再発動", 戦闘行動キャラ)
+				CALL メッセージ欄表示用関数(,,,0)
+				
+				CALL 奥義名呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+				消費ゲージ = アビ汎用変数:消費奥義ゲージ量
+				口上用技名保存 = %TSTR:コマンド名受渡%
+				アビテンプレート用_アビ名 = 奥義：%TSTR:コマンド名受渡%
+				CALL 奥義威力呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+				奥義威力保存 = RESULT
+				行動口上呼び出し用文字列 = KOJO_DUNGEON_奥義発動時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}
+				;奥義威力０の時はダメージ無し奥義として攻撃部分はスキップ
+				CALL 口上変数初期化
+				IF 奥義威力保存 > 0
+					;奥義仕様先登録のため、ダメージ種類設定
+					アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+					CALL アビ対象選択テンプレート_指定(奥義対象指定先)
+					IF アビテンプレート用_キャンセルフラグ
+						アビテンプレート用_キャンセルフラグ = 0
+						RETURN -1
+					ENDIF
+
+					CALL 奥義前効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+					アビ汎用変数:効果割合 = 奥義威力保存
+					アビ汎用文字列:ダメージ種類 = 奥義ダメージ
+					CALL アビテンプレート_ダメージ処理_自属性
+				ENDIF
+				;再発動時はゲージ減らさない
+
+				CALL 奥義追加効果呼び出し(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+				CALL 奥義後処理関数
+				CALL アビテンプレート用_表示メッセージ変換処理
+				戦闘中カウント:戦闘行動キャラ:奥義回数 += 1
+				;チェンバ基準キャラ保存:ターン中奥義回数保存 = 戦闘行動キャラ
+				;ターン中奥義回数保存 += 1
+				
+				CALL バフ回数経過処理(戦闘行動キャラ, "奥義再発動")
+				BREAK
+			ENDIF
+		NEXT
+		
+	CASE 110 TO 119
+		CALL 口上変数初期化
+		アビテンプレート用_アビ封印用フラグ = 0
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
+		口上用技名保存 = %TSTR:コマンド名受渡%
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		説明保存 = %詳細文文字列受け渡し変数%
+		消費MP一時保存 = 0
+		IF アビ使用確認スキップフラグ == 0
+			KSTR:(K++) = ■%TSTR:コマンド名受渡%
+			KSTR:(K++) = %説明保存%
+			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+			STRCOUNT 説明保存, "<br>"
+			IF RESULT < 4
+				FOR LOCAL, 0, 4 - RESULT
+					KSTR:(K++) = 　
+				NEXT
+			ENDIF
+			IF アビテンプレート用_アビ封印用フラグ
+				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+			ELSE
+				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			ENDIF
+			詳細文文字列受け渡し変数 = 
+			CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+			IF 詳細文文字列受け渡し変数 != ""
+				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+			ENDIF
+			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+			$INPUT_LOOP2
+			BINPUTS
+			IF STRCOUNT(RESULTS, "サイド領域") > 0
+				CALL サイド領域_実行処理_戦闘中
+				CALL 画面再描画
+				GOTO INPUT_LOOP2
+			ENDIF
+			RESULT = TOINT(RESULTS)
+			SELECTCASE RESULT
+				CASE 0
+					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+						REUSELASTLINE 
+						GOTO INPUT_LOOP2
+					ENDIF
+					CALL 口上変数初期化
+				CASE 998
+					DRAWLINE
+					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+					DRAWLINE
+					WAIT
+					CALL 画面再描画
+					GOTO INPUT_LOOP2
+				CASE 999
+					RETURN -1
+				CASEELSE
+					REUSELASTLINE 
+					GOTO INPUT_LOOP2
+			ENDSELECT
+		ELSE
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = ＭＰが足りません。
+				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
+				RETURN -1
+			ENDIF
+		ENDIF
+		CALL 口上変数初期化
+		行動口上呼び出し用文字列 = KOJO_DUNGEON_固有アビ発動時_%REPLACE(アビ関数名保存:(戦闘行動内容 - 110), "固有アビ_", "")%
+		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		IF アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			;MP消費
+			;TRYCALLFORM KOJO_DUNGEON_固有アビ発動時_%口上用アビ関数キー保存%(口上用技名保存)
+			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
+			CALL アビテンプレート用_表示メッセージ変換処理
+		ENDIF
+	CASE 120 TO 129
+		CALL 口上変数初期化
+		VARSET RESULTS
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ名", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		アビテンプレート用_アビ名 = %TSTR:コマンド名受渡%
+		口上用技名保存 = %TSTR:コマンド名受渡%
+		;ここに来てる時点で存在しないアビが選ばれてことは無いはずなので例外規定は作らない
+		証番号 = 装備ステータス補正保存:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号):装備証番号
+		;消費MP算出
+		RESULT = 0
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		説明保存 = %詳細文文字列受け渡し変数%
+		消費MP一時保存 = 0
+		IF アビ使用確認スキップフラグ == 0
+			KSTR:(K++) = %説明保存%
+			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+			STRCOUNT 説明保存, "<br>"
+			IF RESULT < 4
+				FOR LOCAL, 0, 4 - RESULT
+					KSTR:(K++) = 　
+				NEXT
+			ENDIF
+			IF アビテンプレート用_アビ封印用フラグ
+				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+			ELSE
+				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+			ENDIF
+			詳細文文字列受け渡し変数 = 
+			CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+			IF 詳細文文字列受け渡し変数 != ""
+				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+			ENDIF
+			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+			$INPUT_LOOP3
+			BINPUTS
+			IF STRCOUNT(RESULTS, "サイド領域") > 0
+				CALL サイド領域_実行処理_戦闘中
+				CALL 画面再描画
+				GOTO INPUT_LOOP3
+			ENDIF
+			RESULT = TOINT(RESULTS)
+			SELECTCASE RESULT
+				CASE 0
+					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+						REUSELASTLINE 
+						GOTO INPUT_LOOP3
+					ENDIF
+				CASE 998
+					DRAWLINE
+					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+					DRAWLINE
+					WAIT
+					CALL 画面再描画
+					GOTO INPUT_LOOP3
+				CASE 999
+					RETURN -1
+				CASEELSE
+					REUSELASTLINE 
+					GOTO INPUT_LOOP3
+			ENDSELECT
+		ELSE
+			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+				KSTR:(K++) = ＭＰが足りません。
+				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
+				RETURN -1
+			ENDIF
+		ENDIF
+		CALL 口上変数初期化
+		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		IF アビテンプレート用_キャンセルフラグ
+			アビテンプレート用_キャンセルフラグ = 0
+			RETURN -1
+		ELSE
+			;MP消費
+			BATTLE_STATE:戦闘行動キャラ:ＭＰ -= 消費MP一時保存
+			CALL アビテンプレート用_表示メッセージ変換処理
+		ENDIF
+	CASE 2000
+		;兵装使用部分の処理は完全に切り離す
+		CALL 乗機兵装使用実処理
+		口上用技名保存 = 
+		口上用トドメフラグ = 0
+		RETURN 0 
+ENDSELECT
+
+CALL メッセージ欄表示用関数(,,,0)
+CALL 行動済みフラグチェック処理(戦闘行動キャラ)
+
+IF 口上用トドメフラグ
+	TRYCALLFORM KOJO_DUNGEON_トドメ時_{NO:(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)}(BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+ENDIF
+口上用技名保存 = 
+口上用トドメフラグ = 0
+CALL 口上変数初期化
+
+@チェイン表示(チェイン数)
+#DIM チェイン数
+
+SELECTCASE チェイン数
+	CASE 1
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("緑")%'>_I_1CHAIN</font>
+	CASE 2
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("青")%'>_I_2CHAIN</font>
+	CASE 3
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("黄")%'>_I_3CHAIN</font>
+	CASE 4
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("真っ赤")%'>_I_4CHAIN</font>
+	CASE 5
+		KSTR:(K++) = <font color='#%カラーパレット_HTML("紫")%'>_I_5CHAIN</font>
+ENDSELECT
+KSTR:(K++) = _I_DAMAGE✕2.0
+CALL メッセージ欄表示用関数()
+CALL 口上変数初期化
