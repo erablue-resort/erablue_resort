@@ -671,17 +671,15 @@ IF TALENT:セフレ == 1 && GET_TARGETNUM() > 1 && TALENT:対象キャラ２:性
 	KSTR:(K++) = DRAWLINE
 	
 	;最終的な料金　1ルピ＝10円程度という想定で書いてる
-
-	値段計算 = RFLAG:コマンド結果受渡し変数２
-
-	IF 値段計算 > 0
-		KSTR:(K++) = %"基本料金", 25, LEFT%：　%NUM_FORMAT(RFLAG:コマンド結果受渡し変数２), 8%ルピ
+	IF RFLAG:コマンド結果受渡し変数２ > 0
+		KSTR:(K++) = %"基本価格", 25, LEFT%：　%NUM_FORMAT(RFLAG:コマンド結果受渡し変数２), 8%ルピ
 	ELSE
-		KSTR:(K++) = %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%_H_
+		KSTR:(K++) = %"基本価格", 25, LEFT%：　%"無料", 8%_H_
 	ENDIF
 
 	KSTR:(K++) = DRAWLINE
 
+	値段計算 = 0
 	KSTR:(K++) = コース設定
 
 	IF レイプごっこ == 1
@@ -1298,31 +1296,37 @@ IF TALENT:セフレ == 1 && GET_TARGETNUM() > 1 && TALENT:対象キャラ２:性
 	;何も言わずとも勝手にお持ち帰りする
 	値段計算 += 500
 	KSTR:(K++) = %"精液お持ち帰り", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
-	KSTR:(K++) = DRAWLINE
-	KSTR:(K++) =  割引き
+
 	IF たとえ姿が違っても == 1
-		KSTR:(K++) =  姿が違っても「アンチラ」って呼んでくれた_H_：　　　1000000％オフ_H__H__H_
+		KSTR:(K++) = DRAWLINE
+		KSTR:(K++) = 特別割引き
+		KSTR:(K++) = 姿が違っても「アンチラ」って呼んでくれた_H_：　　　1000000％オフ_H__H__H_
 		値段計算 *= 0
-	ENDIF
 	;恋慕は完全無料
-	IF TALENT:対象キャラ:恋慕
+	ELSEIF TALENT:対象キャラ:恋慕
+		KSTR:(K++) = DRAWLINE
+		KSTR:(K++) = 割引き
 		KSTR:(K++) = %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ_H_
 		値段計算 *= 0
 	ENDIF
 	KSTR:(K++) = DRAWLINE
-	値段計算 = MAX(0, 値段計算)
+
 	IF 値段計算 > 0
+		オプション込み最終価格 = RFLAG:コマンド結果受渡し変数２ + 値段計算
 		KSTR:(K++) =  %"オプション込み最終価格", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 		;オプション分のMONEY処理
 		MONEY -= 値段計算
 	ELSE
+		;オプション料金が非正のときは基本料金込みで0ルピにする
+		オプション込み最終価格 = 0
 		KSTR:(K++) =  %"オプション込み最終価格", 25, LEFT%：　%"無料", 8%_H_
+		;非恋慕の場合, 業務を頼んだ時点で既にMONEYから引かれているので無料になったら戻す必要がある
+		;恋慕の場合でも元々0なのでこの処理でまとめてOK
+		MONEY += RFLAG:コマンド結果受渡し変数２
 	ENDIF
 	KSTR:(K++) = DRAWLINE
 
-	オプション込み最終価格 = 値段計算
-
-	KSTR:(K++) = %NUM_FORMAT(MONEY + RFLAG:コマンド結果受渡し変数２ + 値段計算)% - %NUM_FORMAT(オプション込み最終価格)% = %NUM_FORMAT(MONEY)%ルピ
+	KSTR:(K++) = %NUM_FORMAT(MONEY + オプション込み最終価格)% - %NUM_FORMAT(オプション込み最終価格)% = %NUM_FORMAT(MONEY)%ルピ
 ELSE
 	KSTR:(K++) = 
 ENDIF
