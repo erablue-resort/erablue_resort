@@ -15,7 +15,7 @@
 #DIMS 連携名
 #DIM 術者隊列番号
 #DIM 戦闘行動内容保存
-#DIM スキップフラグ保存
+;#DIM スキップフラグ保存
 
 奥義名 = 連携 -Overdrive-
 奥義威力 = 0
@@ -69,7 +69,7 @@ SELECTCASE ARGS
 			SIF BATTLE_STATE:(CNT:0):行動済みフラグ == 1
 				CONTINUE
 			味方番号:(CNT:0) = CNT:0
-			CALL バフ・デバフ測定(CNT:0, "行動速度")
+			CALL バフ・デバフ測定(CNT:0, "行動速度",, 1)
 			味方行動速度:(CNT:0) = RESULT
 			連携数++
 			IF CNT:0 != 0
@@ -87,11 +87,19 @@ SELECTCASE ARGS
 				REND
 			ENDIF
 		NEXT
+		;自分以外がこの関数を呼んだ場合の対応
+		SIF 味方番号:3 == 術者隊列番号
+			SWAP 味方番号:2, 味方番号:3
+		SIF 味方番号:2 == 術者隊列番号
+			SWAP 味方番号:1, 味方番号:2
+		SIF 味方番号:1 == 術者隊列番号
+			SWAP 味方番号:0, 味方番号:1
+			
 		SIF 連携数 > (戦闘中カウント:術者隊列番号:0 + 2)
 			連携数 = (戦闘中カウント:術者隊列番号:0 + 2)
 		;WSTR:(K++) = END味方番号:{味方番号:0 + 1},{味方番号:1 + 1},{味方番号:2 + 1},{味方番号:3 + 1},連携数{連携数},連携参加可能人数{連携参加可能人数}
 		;FOR CNT:0, 0, 4
-		;	CALL バフ・デバフ測定(CNT:0, "行動速度")
+		;	CALL バフ・デバフ測定(CNT:0, "行動速度",, 1)
 		;	WSTR:(K++) = {CNT:0 + 1}%CALLNAME:(BATTLE_STATE:(CNT:0):キャラ登録番号)%行動速度:{RESULT}
 		;NEXT
 		
@@ -138,9 +146,9 @@ SELECTCASE ARGS
 		
 		;連携実行
 		戦闘行動内容保存 = 戦闘行動内容
-		SIF アビ使用確認スキップフラグ == 1
-			スキップフラグ保存 = 1
-		アビ使用確認スキップフラグ = 1
+		;SIF アビ使用確認スキップフラグ == 1
+		;	スキップフラグ保存 = 1
+		;アビ使用確認スキップフラグ = 1
 		
 		CALL アビ汎用変数文字列リセット
 		CALL アビ対象選択テンプレート_味方全体_生者のみ
@@ -171,8 +179,8 @@ SELECTCASE ARGS
 		RESETBGCOLOR
 		戦闘行動キャラ = 術者隊列番号
 		戦闘行動内容 = 戦闘行動内容保存
-		SIF スキップフラグ保存 == 0
-			アビ使用確認スキップフラグ = 0
+		;SIF スキップフラグ保存 == 0
+		;	アビ使用確認スキップフラグ = 0
 		FOR LOCAL, 0, 4
 			SIF BATTLE_STATE:LOCAL:キャラ登録番号 < 1
 				CONTINUE
@@ -554,64 +562,64 @@ SELECTCASE 戦闘行動内容
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
 		説明保存 = %詳細文文字列受け渡し変数%
 		消費MP一時保存 = 0
-		IF アビ使用確認スキップフラグ == 0
-			KSTR:(K++) = ■%TSTR:コマンド名受渡%
-			KSTR:(K++) = %説明保存%
-			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-			STRCOUNT 説明保存, "<br>"
-			IF RESULT < 4
-				FOR LOCAL, 0, 4 - RESULT
-					KSTR:(K++) = 　
-				NEXT
-			ENDIF
-			IF アビテンプレート用_アビ封印用フラグ
-				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
-			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
-				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
-			ELSE
-				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
-			ENDIF
-			詳細文文字列受け渡し変数 = 
-			CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
-			IF 詳細文文字列受け渡し変数 != ""
-				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
-			ENDIF
-			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
-			$INPUT_LOOP2
-			BINPUTS
-			IF STRCOUNT(RESULTS, "サイド領域") > 0
-				CALL サイド領域_実行処理_戦闘中
-				CALL 画面再描画
-				GOTO INPUT_LOOP2
-			ENDIF
-			RESULT = TOINT(RESULTS)
-			SELECTCASE RESULT
-				CASE 0
-					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
-						REUSELASTLINE 
-						GOTO INPUT_LOOP2
-					ENDIF
-					CALL 口上変数初期化
-				CASE 998
-					DRAWLINE
-					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
-					DRAWLINE
-					WAIT
-					CALL 画面再描画
-					GOTO INPUT_LOOP2
-				CASE 999
-					RETURN -1
-				CASEELSE
-					REUSELASTLINE 
-					GOTO INPUT_LOOP2
-			ENDSELECT
-		ELSE
+		;IF アビ使用確認スキップフラグ == 0
+		;	KSTR:(K++) = ■%TSTR:コマンド名受渡%
+		;	KSTR:(K++) = %説明保存%
+		;	;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+		;	STRCOUNT 説明保存, "<br>"
+		;	IF RESULT < 4
+		;		FOR LOCAL, 0, 4 - RESULT
+		;			KSTR:(K++) = 　
+		;		NEXT
+		;	ENDIF
+		;	IF アビテンプレート用_アビ封印用フラグ
+		;		KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+		;	ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+		;		KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+		;	ELSE
+		;		KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+		;	ENDIF
+		;	詳細文文字列受け渡し変数 = 
+		;	CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		;	IF 詳細文文字列受け渡し変数 != ""
+		;		KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+		;	ENDIF
+		;	CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+		;	$INPUT_LOOP2
+		;	BINPUTS
+		;	IF STRCOUNT(RESULTS, "サイド領域") > 0
+		;		CALL サイド領域_実行処理_戦闘中
+		;		CALL 画面再描画
+		;		GOTO INPUT_LOOP2
+		;	ENDIF
+		;	RESULT = TOINT(RESULTS)
+		;	SELECTCASE RESULT
+		;		CASE 0
+		;			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+		;				REUSELASTLINE 
+		;				GOTO INPUT_LOOP2
+		;			ENDIF
+		;			CALL 口上変数初期化
+		;		CASE 998
+		;			DRAWLINE
+		;			HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+		;			DRAWLINE
+		;			WAIT
+		;			CALL 画面再描画
+		;			GOTO INPUT_LOOP2
+		;		CASE 999
+		;			RETURN -1
+		;		CASEELSE
+		;			REUSELASTLINE 
+		;			GOTO INPUT_LOOP2
+		;	ENDSELECT
+		;ELSE
 			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = ＭＰが足りません。
 				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
 				RETURN -1
 			ENDIF
-		ENDIF
+		;ENDIF
 		CALL 口上変数初期化
 		行動口上呼び出し用文字列 = KOJO_DUNGEON_固有アビ発動時_%REPLACE(アビ関数名保存:(戦闘行動内容 - 110), "固有アビ_", "")%
 		CALLFORM %アビ関数名保存:(戦闘行動内容 - 110)%("アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
@@ -637,62 +645,62 @@ SELECTCASE 戦闘行動内容
 		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
 		説明保存 = %詳細文文字列受け渡し変数%
 		消費MP一時保存 = 0
-		IF アビ使用確認スキップフラグ == 0
-			KSTR:(K++) = %説明保存%
-			;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
-			STRCOUNT 説明保存, "<br>"
-			IF RESULT < 4
-				FOR LOCAL, 0, 4 - RESULT
-					KSTR:(K++) = 　
-				NEXT
-			ENDIF
-			IF アビテンプレート用_アビ封印用フラグ
-				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
-			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
-				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
-			ELSE
-				KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
-			ENDIF
-			詳細文文字列受け渡し変数 = 
-			CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
-			IF 詳細文文字列受け渡し変数 != ""
-				KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
-			ENDIF
-			CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
-			$INPUT_LOOP3
-			BINPUTS
-			IF STRCOUNT(RESULTS, "サイド領域") > 0
-				CALL サイド領域_実行処理_戦闘中
-				CALL 画面再描画
-				GOTO INPUT_LOOP3
-			ENDIF
-			RESULT = TOINT(RESULTS)
-			SELECTCASE RESULT
-				CASE 0
-					IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
-						REUSELASTLINE 
-						GOTO INPUT_LOOP3
-					ENDIF
-				CASE 998
-					DRAWLINE
-					HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
-					DRAWLINE
-					WAIT
-					CALL 画面再描画
-					GOTO INPUT_LOOP3
-				CASE 999
-					RETURN -1
-				CASEELSE
-					REUSELASTLINE 
-					GOTO INPUT_LOOP3
-			ENDSELECT
-		ELSE
+		;IF アビ使用確認スキップフラグ == 0
+		;	KSTR:(K++) = %説明保存%
+		;	;改行の数をカウントし、必要数を改行して戻るボタンを表示行の最後に入れ込む
+		;	STRCOUNT 説明保存, "<br>"
+		;	IF RESULT < 4
+		;		FOR LOCAL, 0, 4 - RESULT
+		;			KSTR:(K++) = 　
+		;		NEXT
+		;	ENDIF
+		;	IF アビテンプレート用_アビ封印用フラグ
+		;		KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
+		;	ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+		;		KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
+		;	ELSE
+		;		KSTR:(K++) = <button value='0'>[0]使用する</button>　　　　　<button value='999'>[999]戻る</button>
+		;	ENDIF
+		;	詳細文文字列受け渡し変数 = 
+		;	CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ説明文_詳細", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
+		;	IF 詳細文文字列受け渡し変数 != ""
+		;		KSTR:(K - 1) += "　　　　　<button value='998'>[998]詳細を見る</button>"
+		;	ENDIF
+		;	CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔",,,0,1)
+		;	$INPUT_LOOP3
+		;	BINPUTS
+		;	IF STRCOUNT(RESULTS, "サイド領域") > 0
+		;		CALL サイド領域_実行処理_戦闘中
+		;		CALL 画面再描画
+		;		GOTO INPUT_LOOP3
+		;	ENDIF
+		;	RESULT = TOINT(RESULTS)
+		;	SELECTCASE RESULT
+		;		CASE 0
+		;			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
+		;				REUSELASTLINE 
+		;				GOTO INPUT_LOOP3
+		;			ENDIF
+		;		CASE 998
+		;			DRAWLINE
+		;			HTML_PRINT @"■%アビテンプレート用_アビ名%<br><br>%詳細文文字列受け渡し変数%"
+		;			DRAWLINE
+		;			WAIT
+		;			CALL 画面再描画
+		;			GOTO INPUT_LOOP3
+		;		CASE 999
+		;			RETURN -1
+		;		CASEELSE
+		;			REUSELASTLINE 
+		;			GOTO INPUT_LOOP3
+		;	ENDSELECT
+		;ELSE
 			IF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = ＭＰが足りません。
 				CALL メッセージ欄表示用関数(@"探索用_{戦闘行動キャラ}_顔")
 				RETURN -1
 			ENDIF
-		ENDIF
+		;ENDIF
 		CALL 口上変数初期化
 		CALLFORM %証アビ関数名保存:(戦闘行動内容 - 120)%(@"アビ効果", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
 		IF アビテンプレート用_キャンセルフラグ
