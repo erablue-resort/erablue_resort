@@ -312,6 +312,8 @@ ENDIF
 @周回実処理
 #DIM 弱点配列
 #DIM 同行枠
+#DIM 候補数
+#DIM 相手キャラ
 ; ・引き継ぐデータ
 ; あなた特殊能力・ランダムキャラの存在（従業員ではなくなります）
 ; 各キャラへの肉体熟知及び弱点開示状況・所持ルピ・指輪・耳飾り・素材アイテム
@@ -421,6 +423,7 @@ ELSEIF あなた引き継ぎフラグ == 1
 ENDIF
 
 ;選択したキャラの退避
+キャラ同士関係性データ = 
 FOR LOCAL, 0, 10
 	IF 引き継ぎキャラ番号:LOCAL > 0
 		;関係性は一旦リセットする
@@ -446,6 +449,26 @@ FOR LOCAL, 0, 10
 		TALENT:(引き継ぎキャラ番号:LOCAL):店持ち = 0
 		;SAVECHARAメモにキャラのNOを入れておく
 		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
+
+		;キャラ同士恋慕セフレの記録
+		VARSET RESULT
+		候補数 = DT_SELECT("関係性データベース", @"対象キャラ１ = {CFLAG:(引き継ぎキャラ番号:LOCAL):人物番号} Or 対象キャラ２ = {CFLAG:(引き継ぎキャラ番号:LOCAL):人物番号}")
+		IF 候補数
+			FOR LOCAL:1, 1, 候補数 + 1
+				相手キャラ = FIND_CHARA_FROM_PERSON_ID(関係性_相手人物番号取得(引き継ぎキャラ番号:LOCAL, RESULT:(LOCAL:1)))
+				SIF 相手キャラ <= 0
+					CONTINUE
+				SIF MATCH(引き継ぎキャラ番号, 相手キャラ) < 1
+					CONTINUE
+				;既にあるならスルー
+				SIF STRFIND(キャラ同士関係性データ, @"%NAME:(引き継ぎキャラ番号:LOCAL)%_%NAME:相手キャラ%_%DT_CELL_GETS("関係性データベース", RESULT:(LOCAL:1), "関係性種別", 1)%") >= 0
+					CONTINUE
+				SIF STRFIND(キャラ同士関係性データ, @"%NAME:相手キャラ%_%NAME:(引き継ぎキャラ番号:LOCAL)%_%DT_CELL_GETS("関係性データベース", RESULT:(LOCAL:1), "関係性種別", 1)%") >= 0
+					CONTINUE
+				;引き継ぎ用に登録
+				キャラ同士関係性データ += @"%NAME:(引き継ぎキャラ番号:LOCAL)%_%NAME:相手キャラ%_%DT_CELL_GETS("関係性データベース", RESULT:(LOCAL:1), "関係性種別", 1)%+++"
+			NEXT
+		ENDIF
 	ENDIF
 NEXT
 

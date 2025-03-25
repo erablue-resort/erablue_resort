@@ -289,7 +289,9 @@ IF CSVエディタフラグ && GETBIT(表示モード:1, 0)
 	LOCALS += "<br>"
 	LOCALS += "<button value='105'>├[105] 同行者候補を設定する</button>"
 	LOCALS += "<br>"
-	LOCALS += "<button value='106'>└[106] 招待可能・不可能を設定する</button>"
+	LOCALS += "<button value='106'>├[106] 招待可能・不可能を設定する</button>"
+	LOCALS += "<br>"
+	LOCALS += "<button value='111'>└[111] 初期関係性を設定する</button>"
 	LOCALS += "<br>"
 ELSEIF CSVエディタフラグ
 	LOCALS += "<button value='99'><font color='#808080'>└ 展開する</font></button>"
@@ -1577,6 +1579,74 @@ SELECTCASE 表示モード
 		IF ページ数 < LOCAL:1 / 20
 			LOCALS += "<button value='29999'>[次のページ]</button>"
 		ENDIF
+	CASE 111
+		IF !DT_EXIST("DT_CHARA_REL")
+			DT_CREATE "DT_CHARA_REL"
+			DT_COLUMN_ADD "DT_CHARA_REL", "NO", 2
+			DT_COLUMN_ADD "DT_CHARA_REL", "NAME"
+			DT_COLUMN_ADD "DT_CHARA_REL", "REL"
+			FOR LOCAL, 1, キャラクタ数上限
+				SIF !EXISTCSV(LOCAL)
+					CONTINUE
+				;ランダムキャラ排除
+				SIF LOCAL == 999
+					CONTINUE
+				DT_ROW_ADD "DT_CHARA_REL", "NO", LOCAL, "NAME", CSVNAME(LOCAL), "REL", ""
+			NEXT
+		ENDIF
+		LOCALS += "■恋慕キャラは１人まで、セフレキャラは９９人まで設定出来ます■<button value='199999'>[詳細]</button><br>"
+		LOCAL:1 = DT_ROW_LENGTH("DT_CHARA_REL")
+		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
+			SIF LOCAL >= LOCAL:1
+				BREAK
+			LOCALS += @"<button value='{200000 + LOCAL * 10}'>[{DT_CELL_GET("DT_CHARA_REL", LOCAL, "NO"), LOG10(キャラクタ数上限)+1, RIGHT}] %ADD_STR_SPACE(NAME表示省略(DT_CELL_GETS("DT_CHARA_REL", LOCAL, "NAME")), "]"), 41, LEFT%</button>"
+			IF DT_CELL_GETS("DT_CHARA_REL", LOCAL, "REL") == "恋慕"
+				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{200000 + LOCAL * 10}'>[恋慕]</button></font>"
+			ELSEIF DT_SELECT("DT_CHARA_REL", "REL = '恋慕'")
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[恋慕]</font>"
+			ELSE
+				LOCALS += @"<button value='{200000 + LOCAL * 10}'>[恋慕]</button>"
+			ENDIF
+			IF DT_CELL_GETS("DT_CHARA_REL", LOCAL, "REL") == "セフレ"
+				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{200000 + LOCAL * 10 + 1}'>[セフレ]</button></font>"
+			ELSEIF DT_SELECT("DT_CHARA_REL", "REL = 'セフレ'") >= 99
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[セフレ]</font>"
+			ELSE
+				LOCALS += @"<button value='{200000 + LOCAL * 10 + 1}'>[セフレ]</button>"
+			ENDIF
+			LOCALS += "<br>"
+		NEXT
+		LOCALS += "</div>"
+		LOCALS += "<div rect='2125,3406,3675,2962'>"
+		IF ページ数 > 0
+			LOCALS += "<button value='29994'>[|≪]</button>"
+		ELSE
+			LOCALS += "     "
+		ENDIF
+		IF ページ数 > 5
+			LOCALS += "<button value='29996'> [－５]</button>"
+		ELSE
+			LOCALS += " 　　　"
+		ENDIF
+		LOCALS += @"　　　　　　　{ページ数, 4, RIGHT}/{LOCAL:1 / 20, 4, RIGHT}　　　　　 　　"
+		IF ページ数 < LOCAL:1 / 20 - 5
+			LOCALS += "<button value='29997'>[＋５] </button>"
+		ELSE
+			LOCALS += " 　　　"
+		ENDIF
+		IF ページ数 < LOCAL:1 / 20
+			LOCALS += "<button value='29995'>[≫|]</button>"
+		ENDIF
+		LOCALS += "<br>"
+		IF ページ数 > 0
+			LOCALS += "<button value='29998'>[前のページ]</button>"
+		ELSE
+			LOCALS += "　　　　　　"
+		ENDIF
+		LOCALS += "　　　　<button value='11100'>[ステータス画面に戻る]</button>　　　　"
+		IF ページ数 < LOCAL:1 / 20
+			LOCALS += "<button value='29999'>[次のページ]</button>"
+		ENDIF
 ENDSELECT
 LOCALS += "</div>"
 IF CSVエディタフラグ && 表示モード < VARSIZE("表示切替") && 表示モード != 3
@@ -1993,6 +2063,29 @@ SELECTCASE LOCAL
 			LOCAL:2 += TOINT(同行確率一覧:(LOCAL % 10 - 1))
 			DT_CELL_SET "DT_CHARA", (LOCAL - 100000) / 10, "VALUE", LIMIT(LOCAL:2, 0, 100)
 		ENDIF
+	CASE 199999
+		PRINTL ■同行率が自動で８０％に設定されますが、同行率設定をしている場合そちらが優先されます
+		PRINTL ■複数CSVで設定が衝突する場合、若い番号のCSVが優先されます
+		PRINTL 　（キャラAのCSVにキャラBとの恋慕、キャラCのCSVにキャラBとの恋慕がある場合、ABの恋慕が優先）
+		PRINTL ■つまり、カップルを設定する場合は片方のキャラだけ設定すれば問題ありません
+		WAIT
+	CASE 200000 TO 200000 + キャラクタ数上限 * 10 + 1
+		SELECTCASE LOCAL % 10
+			CASE 0
+				;恋慕
+				IF DT_CELL_GETS("DT_CHARA_REL", (LOCAL - 200000) / 10, "REL") == "恋慕"
+					DT_CELL_SET "DT_CHARA_REL", (LOCAL - 200000) / 10, "REL", ""
+				ELSE
+					DT_CELL_SET "DT_CHARA_REL", (LOCAL - 200000) / 10, "REL", "恋慕"
+				ENDIF
+			CASE 1
+				;セフレ
+				IF DT_CELL_GETS("DT_CHARA_REL", (LOCAL - 200000) / 10, "REL") == "セフレ"
+					DT_CELL_SET "DT_CHARA_REL", (LOCAL - 200000) / 10, "REL", ""
+				ELSE
+					DT_CELL_SET "DT_CHARA_REL", (LOCAL - 200000) / 10, "REL", "セフレ"
+				ENDIF
+		ENDSELECT
 ;メイン画面--------------------------------------------------------
 	CASE 99
 		表示モード = 0
@@ -2290,6 +2383,9 @@ SELECTCASE LOCAL
 	CASE 105
 		ページ数 = 0
 		表示モード = 105
+	CASE 111
+		ページ数 = 0
+		表示モード = 111
 	CASE 170
 		CALL 汎用立ち絵選択処理(汎用画像キー)
 	CASE 171
@@ -2466,8 +2562,25 @@ SELECTCASE LOCAL
 			PRINTFORML CSTR,プレゼント好み,%SUBSTRINGU(好物一時保存, 0, STRLENSU(好物一時保存) - 1)%
 			HTML_PRINT "<br>"
 			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL ;初期関係性設定
+			PRINTL ;「キャラのフルネーム_関係性種別」で記述すること。フルネームは二つ名込みで記述。（被り防止のため）
+			PRINTL ;関係性種別は現状「恋慕」「セフレ」の２種のみ、文末の%は区切り処理のため使うので必須
+			PRINTL ;設定相手との同行率80％が自動でセットされる
+			PRINTL ;-------------------------------------------------------------------------------------------
+			PRINTL {
+			PRINTL CSTR,初期関係性,
+			FOR LOCAL, 0, キャラクタ数上限
+				IF DT_CELL_GETS("DT_CHARA_REL", LOCAL, "REL") != ""
+					PRINTFORM %DT_CELL_GETS("DT_CHARA_REL", LOCAL, "NAME")%_
+					PRINTFORM %DT_CELL_GETS("DT_CHARA_REL", LOCAL, "REL")%
+					PRINTL %
+				ENDIF
+			NEXT
+			PRINTL }
+			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL ;同行キャラ設定
 			PRINTL ;「キャラのフルネーム_同行確率%」で記述すること。フルネームは二つ名込みで記述。（被り防止のため）
+			PRINTL ;初期関係性と同じキャラを指定した場合、同行率はこちらが優先される
 			PRINTL ;-------------------------------------------------------------------------------------------
 			PRINTL {
 			PRINTL CSTR,同行キャラ,
