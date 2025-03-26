@@ -106,6 +106,15 @@ namespace erablue_resort更新アプリ {
         }
         
         /// <summary>
+        ///   更新前のフォルダを削除しました に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        internal static string Floderdel {
+            get {
+                return ResourceManager.GetString("Floderdel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   {0} を退避から復元しました に類似しているローカライズされた文字列を検索します。
         /// </summary>
         internal static string folderload {

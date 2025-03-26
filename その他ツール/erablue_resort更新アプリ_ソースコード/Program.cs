@@ -92,14 +92,15 @@ class Program
             }
         }
 
-        // 既存のディレクトリを削除
+        // 既存のディレクトリを一旦保存
+        string savePath = workdirPath + "_バックアップ用";
         if (Directory.Exists(workdirPath))
         {
-            Directory.Delete(workdirPath, true);
+            Directory.Move(workdirPath, savePath);
         }
 
         // ZIPを展開
-        Console.WriteLine(Resources.zipopen?? "ZIPファイルを展開中...");
+        Console.WriteLine(Resources.zipopen ?? "ZIPファイルを展開中...");
         ZipFile.ExtractToDirectory(tempZipPath, workdirPath);
 
         // 一時ファイルを削除
@@ -350,6 +351,12 @@ class Program
 
             await Task.Delay(3000);
             Console.WriteLine(Resources.Allok ?? " すべての更新を完了しました");
+            string savePath = basePath + "_バックアップ用";
+            if (Directory.Exists(savePath))
+            {
+                Directory.Delete(savePath, true);
+                Console.WriteLine(Resources.Floderdel ?? " 更新前のフォルダを削除しました");
+            }
         }
         catch (Exception ex)
         {
