@@ -4,6 +4,7 @@
 #DIMS 条件性癖, 50
 #DIM 性欲閾値
 #DIM 性癖カウント
+#DIM 隠密不要
 
 ;OPTION変数:連れ込み制御
 SIF OPTION変数:連れ込み制御
@@ -29,14 +30,23 @@ SIF CFLAG:MASTER:隠密
 SIF CFLAG:MASTER:飲み会
 	RETURN 0
 
+;隠密が必要か？　の判定
+IF MYROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置) || フィールド展開:うふふ目撃スルー || (CFLAG:MASTER:現在マップ種別 == 999 && CFLAG:MASTER:現在位置 < 2000)
+	隠密不要 = 1
+ELSE
+	隠密不要 = 0
+ENDIF
+
 ;既に誰かが隠密してたら発動しない
-FOR 対象キャラ, 1, CHARANUM
-	SIF TARGET:対象キャラ < 1
-		BREAK
-	IF CFLAG:(TARGET:対象キャラ):隠密
-		RETURN 0
-	ENDIF
-NEXT
+IF 隠密不要 == 0
+	FOR 対象キャラ, 1, CHARANUM
+		SIF TARGET:対象キャラ < 1
+			BREAK
+		IF CFLAG:(TARGET:対象キャラ):隠密
+			RETURN 0
+		ENDIF
+	NEXT
+ENDIF
 
 連れ込みキャラ = 0
 連れ込みパターン = 
@@ -116,8 +126,10 @@ CALL 特定キャラモードリセット(MASTER, 連れ込みキャラ)
 DRAWLINE
 IF 陥落チェック(連れ込みキャラ)
 	;共通処理部分
-	CFLAG:MASTER:隠密 = 1
-	CFLAG:連れ込みキャラ:隠密 = 1
+	IF 隠密不要 == 0
+		CFLAG:MASTER:隠密 = 1
+		CFLAG:連れ込みキャラ:隠密 = 1
+	ENDIF
 	IF 連れ込みパターン == "キス"
 		CALL MODE_CHANGE("ディープキス", 連れ込みキャラ, MASTER)
 		あなた追跡キャラ = 0
