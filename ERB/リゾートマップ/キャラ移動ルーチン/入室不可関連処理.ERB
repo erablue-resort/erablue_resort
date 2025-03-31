@@ -9,7 +9,50 @@
 #DIM 移動先位置
 #DIM 移動先マップ種別
 #DIM 自動移動フラグ
+#DIM ROOMSEX数値
 
+ROOMSEX数値 = ROOM_SEX(移動先マップ種別, 移動先位置)
+IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
+	VARSET LOCAL
+	VARSET LOCALS
+	SIF TALENT:MASTER:性別 != ROOMSEX数値 && (TALENT:MASTER:性別 != 0 && TALENT:MASTER:性別 != 3)
+		LOCAL:1 = 1
+	FOR LOCAL,1,CHARANUM
+		SIF TARGET:LOCAL <= 0
+			BREAK
+		IF !陥落チェック(TARGET:LOCAL) && (CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):デート残り時間)
+			SIF LOCALS != ""
+				LOCALS +=  "、"
+			LOCALS += CALLNAME:(TARGET:LOCAL)
+			LOCAL:2 = CFLAG:(TARGET:LOCAL):現在マップ種別
+			LOCAL:3 = CFLAG:(TARGET:LOCAL):現在位置
+		ENDIF
+		SIF TALENT:(TARGET:LOCAL):性別 != ROOMSEX数値 && (TALENT:(TARGET:LOCAL):性別 != 0 && TALENT:(TARGET:LOCAL):性別 != 3)
+			LOCAL:1 = 1
+	NEXT
+	IF LOCAL:1 && LOCALS != ""
+		IF 自動移動フラグ
+			DRAWLINE
+			PRINTFORMW %LOCALS%に%GETPLACENAME(移動先マップ種別, 移動先位置)%へ行くのを止められてしまった……。
+			あなた追跡キャラ = 0
+			IF 移動先マップ種別 == 0
+				SELECTCASE 移動先位置
+					;女湯
+					CASE 11, 12, 801 TO 809
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 6
+					CASEELSE
+						CFLAG:PLAYER:現在マップ種別 = LOCAL:2
+						CFLAG:PLAYER:現在位置 = LOCAL:3
+				ENDSELECT
+			ELSE
+				CFLAG:PLAYER:現在マップ種別 = LOCAL:2
+				CFLAG:PLAYER:現在位置 = LOCAL:3
+			ENDIF
+		ENDIF
+		RETURN 1
+	ENDIF
+ENDIF
 SELECTCASE 移動先マップ種別
 	CASE 999
 		IF 移動先位置 < 1000
