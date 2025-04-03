@@ -1,0 +1,274 @@
+﻿;===================================================
+;泡踊り
+;===================================================
+@COMNAME92
+#FUNCTIONS
+TSTR:コマンド名受渡 = 泡踊り
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_92
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+同時モード許可 = 3
+オートコマンド許可 = 3
+反転オート許可 = 3
+
+
+;===================================================
+;ツールチップ文章
+;===================================================
+@COM_TOOLTIP_92
+TSTR:ツールチップ受渡 '= "<br>■泡踊り<br>"
+TSTR:ツールチップ受渡 += "相手に体中を泡に包んだ状態で全身に密着してもらうコマンド。"
+TSTR:ツールチップ受渡 += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・快Ｂ・快Ｓ・露出・接触・奉仕"
+TSTR:ツールチップ受渡 += "<br>固有の取得経験：なし<br>"
+
+
+;===================================================
+;コマンド実行処理
+;===================================================
+@COM92
+;-------------------------------------------------
+;COM別FLAGの設定
+;-------------------------------------------------
+
+;奉仕快楽
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_快Ｃ(PLAYER, TARGET, 150)
+IF TALENT:TARGET:性別 == 2
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 40)
+ELSE
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 100)
+ENDIF
+IF TALENT:PLAYER:性別 == 2
+	CALL SOURCE_CALC_快Ｂ(PLAYER, TARGET, 40)
+ELSE
+	CALL SOURCE_CALC_快Ｂ(PLAYER, TARGET, 100)
+ENDIF
+CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_快Ｓ(PLAYER, TARGET, 200)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 200)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 250)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 7
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 7
+
+RETURN 1
+
+
+
+;===================================================
+;実行許可判定
+;===================================================
+@CAN_COM92(ARG)
+#DIM CONST 必要実行値 = 16
+#DIM 実行値
+#DIM ＋表示フラグ
+
+SKIPDISP ARG
+PRINTFORML 泡踊り(%CALLNAME:TARGET%)
+;-------------------------------------------------
+;実行判定処理
+;-------------------------------------------------
+実行値 = 0
+＋表示フラグ = 0
+
+;すべての命令に共通の要素を考慮
+CALL COM_ORDER
+実行値 = RESULT
+＋表示フラグ = RESULT:1
+
+;ABL:欲望
+IF ABL:欲望
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += ABL:欲望 * 1
+	PRINTFORM 欲望LV{ABL:欲望}({ABL:欲望 * 1})
+	＋表示フラグ = 1
+ENDIF
+;ABL:奉仕精神
+IF ABL:奉仕精神
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += ABL:奉仕精神 * 4
+	PRINTFORM 奉仕精神LV{ABL:奉仕精神}({ABL:奉仕精神 * 4})
+	＋表示フラグ = 1
+ENDIF
+
+IF MARK:快楽刻印
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += MARK:快楽刻印 * 1
+	PRINTFORM 快楽刻印LV{MARK:快楽刻印}({MARK:快楽刻印 * 1})
+	＋表示フラグ = 1
+ENDIF
+;PALAM:欲情
+IF GETPALAMLV(PALAM:欲情, 5)
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += GETPALAMLV(PALAM:欲情, 5) * 1
+	PRINTFORM 欲情LV{GETPALAMLV(PALAM:欲情, 5)}({GETPALAMLV(PALAM:欲情, 5) * 1})
+	＋表示フラグ = 1
+ENDIF
+;恥じらい
+IF TALENT:羞恥心 > 0
+	PRINT  - 
+	実行値 -= 1
+	PRINT 恥じらい(1)
+	＋表示フラグ = 1
+ENDIF
+;献身的
+IF TALENT:献身的
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 6
+	PRINT 献身的(6)
+	＋表示フラグ = 1
+ENDIF
+;快感の否定（淫乱、娼婦で無効）
+IF TALENT:快感応答 < 0 && !TALENT:淫乱
+	PRINT  - 
+	実行値 -= 1
+	PRINT 快感の否定(1)
+	＋表示フラグ = 1
+ENDIF
+;恋慕
+IF TALENT:恋慕
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 5
+	PRINT 恋慕(5)
+	＋表示フラグ = 1
+;セフレ
+ELSEIF TALENT:セフレ
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 5
+	PRINT セフレ(5)
+	＋表示フラグ = 1
+ELSE
+	;男嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 1 && TALENT:PLAYER:性別 == 2
+		PRINT  - 
+		実行値 -= 7
+		PRINT 男嫌い(7)
+		＋表示フラグ = 1
+	ENDIF
+	;女嫌い（恋慕で無効）
+	IF TALENT:性別嗜好 & 2 && TALENT:PLAYER:性別 == 1
+		PRINT  - 
+		実行値 -= 7
+		PRINT 女嫌い(7)
+		＋表示フラグ = 1
+	ENDIF
+ENDIF
+
+;言いなり
+IF TCVAR:言いなり
+	SIF ＋表示フラグ
+		PRINT  + 
+	実行値 += 999
+	PRINT あなたの言いなり(999)
+	＋表示フラグ = 1
+ENDIF
+
+;合計を表示(16以上で実行)
+PRINTFORM  = {実行値}
+
+SIF 実行値 < 必要実行値
+	PRINT  < 
+SIF 実行値 == 必要実行値
+	PRINT  = 
+SIF 実行値 > 必要実行値
+	PRINT  > 
+PRINTFORM 実行値{必要実行値}
+
+WAIT
+SKIPDISP 0
+
+;実行できない
+SIF 実行値 < 必要実行値
+	RETURN 0
+
+RETURN 1
+
+
+;===================================================
+;実行可能判定
+;===================================================
+@COM_ABLE92
+;泡踊り実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(92)
+	RETURN RESULT
+
+;風呂場限定
+SIF !BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+;プレイマットいるよね？　床は痛そうだし……
+SIF !ITEM:プレイマット
+	RETURN 0
+;両方全裸
+SIF TEQUIP:TARGET:上半身鎧あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:上半身服あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:上タイツあり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:上半身下着あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:下腹部後鎧あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:下腹部前鎧あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:下半身服あり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:下タイツあり != 0
+	RETURN 0
+SIF TEQUIP:TARGET:下半身下着あり != 0
+	RETURN 0
+	
+SIF TEQUIP:PLAYER:上半身鎧あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:上半身服あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:上タイツあり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:上半身下着あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:下腹部後鎧あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:下腹部前鎧あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:下半身服あり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:下タイツあり != 0
+	RETURN 0
+SIF TEQUIP:PLAYER:下半身下着あり != 0
+	RETURN 0
+	
+RETURN 1
+
+
+;===================================================
+;実行時メッセージ
+;===================================================
+@MESSAGE_COM92
+PRINTFORML %CALLNAME:TARGET%は体を石鹸で泡だらけにしてから、%CALLNAME:PLAYER%の体に抱きついた……

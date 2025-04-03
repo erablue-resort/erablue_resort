@@ -162,9 +162,11 @@ ELSE
 	DRAWLINE
 	PRINTL ■体位を選んでください
 	PRINTL
+	LOCAL:1 = 0
 	FOR LOCAL, 0, 20
 		TRYCCALLFORM COM_ABLE62_{LOCAL}
 			IF RESULT
+				LOCAL:1 ++
 				SELECTCASE LOCAL
 					CASE 0
 						PRINTBUTTONLC "[0]Ａ正常位", 0
@@ -196,6 +198,10 @@ ELSE
 			CONTINUE
 		ENDCATCH
 	NEXT
+	IF !LOCAL:1
+		PRINTW 現在選べる体位がないのでキャンセルします
+		RETURN -1
+	ENDIF
 
 	PRINTL
 	PRINTL
@@ -257,6 +263,28 @@ ELSE
 				TRYCALLFORM COM62_{LOCAL}(強さ初期値記録, 速さ初期値記録)
 				;メッセージ用に体位の種類を保存
 				RFLAG:コマンド結果受渡し変数 = LOCAL
+				
+				;Ｖ挿入中
+				IF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+					LOCAL = DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
+					SELECTCASE RFLAG:コマンド結果受渡し変数
+						;Ａ後背位
+						CASE 1
+							CALL MODE_CHANGE("騎乗位", LOCAL, TARGET)
+						;背面座位
+						CASE 4
+							CALL MODE_CHANGE("対面座位", LOCAL, TARGET)
+						;騎乗位
+						CASE 5
+							CALL MODE_CHANGE("正常位", LOCAL, TARGET)
+						;背面駅弁
+						CASE 9
+							CALL MODE_CHANGE("対面立位", LOCAL, TARGET)
+						;立ちバック
+						CASE 11
+							CALL MODE_CHANGE("駅弁", LOCAL, TARGET)
+					ENDSELECT
+				ENDIF
 				RETURN 1
 			ENDIF
 			GOTO INPUT_LOOP
@@ -825,6 +853,15 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が挿入しているとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET)
+	RETURN 0
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
 
 RETURN 1
 
@@ -834,6 +871,9 @@ RETURN 1
 
 ;睡眠中ダメ
 SIF CFLAG:TARGET:睡眠
+	RETURN 0
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	RETURN 0
 
 RETURN 1
@@ -849,6 +889,13 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_3
@@ -865,6 +912,16 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が挿入しているとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET)
+	RETURN 0
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_4
@@ -881,6 +938,10 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_5
@@ -898,6 +959,10 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_6
@@ -911,6 +976,13 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_7
@@ -928,6 +1000,13 @@ ELSE
 	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		RETURN 0
 ENDIF
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が挿入しているとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET)
+	RETURN 0
+
 RETURN 1
 
 @COM_ABLE62_8
@@ -938,6 +1017,15 @@ SIF CFLAG:TARGET:睡眠
 	RETURN 0
 ;TARGETのほうが3サイズ大きいと抱えきれない
 SIF 体格差計算(PLAYER, TARGET) >= 3
+	RETURN 0
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が挿入しているとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET)
+	RETURN 0
+;相手が別人と非立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ非立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	RETURN 0
 
 RETURN 1
@@ -951,6 +1039,9 @@ SIF CFLAG:TARGET:睡眠
 ;TARGETのほうが3サイズ大きいと抱えきれない
 SIF 体格差計算(PLAYER, TARGET) >= 3
 	RETURN 0
+;相手が別人と非立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ非立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
 
 RETURN 1
 
@@ -963,6 +1054,15 @@ SIF CFLAG:TARGET:睡眠
 ;TARGETのほうが4サイズ大きいと届かない
 SIF 体格差計算(PLAYER, TARGET) >= 4
 	RETURN 0
+;Ｖ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ｖ挿入系", TARGET)
+	RETURN 0
+;相手が挿入しているとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET)
+	RETURN 0
+;相手が別人と非立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ非立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	RETURN 0
 
 RETURN 1
 
@@ -974,6 +1074,9 @@ SIF CFLAG:TARGET:睡眠
 	RETURN 0
 ;TARGETのほうが4サイズ大きいと届かない
 SIF 体格差計算(PLAYER, TARGET) >= 4
+	RETURN 0
+;相手が別人と非立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ非立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	RETURN 0
 
 RETURN 1
@@ -994,6 +1097,9 @@ IF 体格差計算(PLAYER, TARGET) >= 4
 			RETURN 0
 	ENDIF
 ENDIF
+;Ａ挿入中ダメ
+SIF MODE_存在判定_ターゲット側("Ａ挿入系", TARGET)
+	RETURN 0
 
 RETURN 1
 
