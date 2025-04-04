@@ -221,11 +221,39 @@ SIF !TEQUIP:上半身服あり
 SIF TEQUIP:上半身鎧あり
 	RETURN 0
 ;上下一体の場合は下鎧があってもダメ
+;IF TEQUIP:上下一体服
+;	SIF TEQUIP:下腹部後鎧あり
+;		RETURN 0
+;	SIF TEQUIP:下腹部前鎧あり
+;		RETURN 0
+;ENDIF
+
+;指を何かに使ってるなら無理
+SIF TEQUIP:TARGET:指２
+	RETURN 0
+IF !TEQUIP:はだけ可
+	;口を何かに使ってるなら無理(下から脱がす上下一体服ならOK)
+	SIF TEQUIP:TARGET:口 && (!TEQUIP:上下一体服 || (TEQUIP:上下一体服 && TEQUIP:スカートめくり可))
+		RETURN 0
+	;胸をニプルキャップ以外で使ってると駄目
+	SIF TEQUIP:TARGET:胸 && !MODE_存在判定_ターゲット側("ニプルキャップ", TARGET)
+		RETURN 0
+ENDIF
+;上下一体の場合は下半身も見る
 IF TEQUIP:上下一体服
-	SIF TEQUIP:下腹部後鎧あり
-		RETURN 0
-	SIF TEQUIP:下腹部前鎧あり
-		RETURN 0
+	;めくれる＝ワンピース型なら上から脱がせる？
+	IF TEQUIP:スカートめくり可
+		SIF TEQUIP:下腹部後鎧あり
+			RETURN 0
+		SIF TEQUIP:下腹部前鎧あり
+			RETURN 0
+	ELSE
+		TFLAG:コマンド条件制御用 = 1
+		CALL COM_ABLE204
+		TFLAG:コマンド条件制御用 = 0
+		SIF !RESULT
+			RETURN 0
+	ENDIF
 ENDIF
 RETURN 1
 
