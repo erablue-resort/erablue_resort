@@ -10,6 +10,9 @@
 ;まずオプション
 IF OPTION変数:起床時告白禁止
 	RETURNF 0
+;自室にいなかったらダメ
+ELSEIF CFLAG:MASTER:自室位置 != CFLAG:MASTER:現在位置 || CFLAG:MASTER:現在マップ種別
+	RETURNF 0
 ENDIF
 
 候補数 = 0
@@ -68,14 +71,28 @@ PRINTL
 
 BINPUT
 IF RESULT == 0
-	TRYCCALLFORM KOJO_EVENT_起床時告白_成功_{NO:告白キャラ}(告白キャラ)
+	TARGET = 告白キャラ
+	TRYCCALLFORM KOJO_EVENT_起床時告白_成功_{NO:TARGET}(TARGET)
 	CATCH
-		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME:告白キャラ%は笑顔を浮かべて喜んだ。
+		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME%は笑顔を浮かべて喜んだ。
 	ENDCATCH
 	SETCOLOR カラーパレット("えっちな色")
-	PRINTFORMW %CALLNAME:告白キャラ%は［恋慕］を得た。
+	PRINTFORMW %CALLNAME%は［恋慕］を得た。
 	RESETCOLOR
-	TALENT:告白キャラ:恋慕 = 1
+	TALENT:恋慕 = 1
+	CFLAG:現在位置 = CFLAG:MASTER:現在位置
+	CFLAG:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+	CFLAG:睡眠 = 0
+	SIF BASE:酩酊
+		CFLAG:酔いすぎ = 2
+	;野外オナニー時に備えて隠密を消す
+	CALL 野外オナニー途中終了(TARGET)
+	CFLAG:隠密 = 0
+	;先に同室フラグを建てることで発覚口上をスキップする
+	CFLAG:同室 = 1
+	CALL 特定キャラモードリセット(TARGET)
+	CFLAG:同行 = 60 + (CFLAG:好感度レベル - 関係閾値:2) * 5
+
 ELSE
 	TRYCCALLFORM KOJO_EVENT_起床時告白_保留_{NO:告白キャラ}(告白キャラ)
 	CATCH
