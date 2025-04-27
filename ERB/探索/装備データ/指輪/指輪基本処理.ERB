@@ -105,6 +105,11 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		ソート番号 = 0
 		RETURN 0
+	CASE 2010
+		ページ番号 = 0
+		ソート番号 = 10
+		VARSET 表示用ステータス格納配列:0:0
+		RESTART
 	CASE 2001 TO 2008
 		ページ番号 = 0
 		ソート番号 = LOCAL - 2000
@@ -141,8 +146,11 @@ LOOP 1
 #DIM y軸位置
 #DIM テンプレフラグ
 #DIM ソート基準配列, 500
+#DIMS 名前ソート基準配列, 500
 
 IF ソート番号
+	VARSET 名前ソート基準配列
+	名前ソート基準配列:0 = 00000000000
 	VARSET ソート基準配列
 	;基本降順で表示するので使用しない０番目配列が動かないようにする
 	ソート基準配列:0 = -999999999
@@ -206,17 +214,25 @@ IF 表示用ステータス格納配列:1:0 == 0
 		表示用ステータス格納配列:LOCAL:9 = DT_CELL_GET("所持指輪データベース", LOCAL, "装備キャラ番号")
 		;０で処理を止めないために＋１を入れて、降順にするためマイナスを掛ける
 		;補正が-1の場合は逆に0になっちゃうけどそんな指輪は作らない
-		SIF ソート番号
+		IF ソート番号 == 10
+			;名前ソート
+			名前ソート基準配列:LOCAL '= DT_CELL_GETS("所持指輪データベース", LOCAL, "指輪名")
+		ELSEIF ソート番号
 			ソート基準配列:LOCAL = (表示用ステータス格納配列:LOCAL:ソート番号 + 1) * -1
+		ENDIF
 	NEXT
 ENDIF
 
-SIF ソート番号
+IF ソート番号 == 10
+	;名前ソート
+	ARRAYMSORT 名前ソート基準配列, 表示用ステータス格納配列
+ELSEIF ソート番号
 	ARRAYMSORT ソート基準配列, 表示用ステータス格納配列
+ENDIF
 
 VARSET LOCALS
 LOCALS = <div rect='262,{y軸位置},5537,3625'><nobr>
-LOCALS += "　　　 指輪名　　　　　　　　　　<button value='2001'>ＨＰ</button>　　<button value='2002'>ＭＰ</button>　　<button value='2003'>攻撃力</button>　<button value='2004'>防御力</button>　<button value='2005'>回復力</button>　<button value='2006'>行動速度</button>　<button value='2007'>DA率</button>　<button value='2008'>TA率</button>　装備者<br>"
+LOCALS += "　　　 <button value='2010'>指輪名</button>　　　　　　　　　　<button value='2001'>ＨＰ</button>　　<button value='2002'>ＭＰ</button>　　<button value='2003'>攻撃力</button>　<button value='2004'>防御力</button>　<button value='2005'>回復力</button>　<button value='2006'>行動速度</button>　<button value='2007'>DA率</button>　<button value='2008'>TA率</button>　装備者<br>"
 LOCALS += "--------------------------------------------------------------------------------------------------------------<br>"
 IF 選択中指輪id > 0
 	;まずキャラが装備している指輪の本来の行数を取る
@@ -387,6 +403,10 @@ SELECTCASE LOCAL
 		ページ番号 = 0
 		ソート番号 = 0
 		RETURN -1
+	CASE 2010
+		ページ番号 = 0
+		ソート番号 = 10
+		VARSET 表示用ステータス格納配列:0:0
 	CASE 2001 TO 2008
 		ページ番号 = 0
 		ソート番号 = LOCAL - 2000
