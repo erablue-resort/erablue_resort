@@ -7,6 +7,7 @@
 
 IF 起動直後 == 0
 	VARSET 引き継ぎキャラ番号
+	VARSET キャラ妊娠引き継ぎ
 	起動直後 = 1
 ENDIF
 
@@ -24,6 +25,22 @@ PRINTFORML ■引き継ぎ予定キャラ（最大{引き継ぎ枠}名）
 FOR LOCAL, 0, 引き継ぎ枠
 	IF 引き継ぎキャラ番号:LOCAL
 		PRINTBUTTON @"{LOCAL, 2}：%NAME表示((引き継ぎキャラ番号:LOCAL))%", LOCAL
+		IF TALENT:(引き継ぎキャラ番号:LOCAL):妊娠
+			PRINT 　　
+			IF キャラ妊娠引き継ぎ:LOCAL
+				SETCOLOR カラーパレット("黄")
+				PRINTPLAIN [妊娠状態を引き継ぐ]
+				RESETCOLOR
+				PRINT  / 
+				PRINTBUTTON "[妊娠状態を引き継がない]", LOCAL + 200
+			ELSE
+				PRINTBUTTON "[妊娠状態を引き継ぐ]", LOCAL + 200
+				PRINT  / 
+				SETCOLOR カラーパレット("黄")
+				PRINTPLAIN [妊娠状態を引き継がない]
+				RESETCOLOR
+			ENDIF
+		ENDIF
 		PRINTL
 	ELSE
 		PRINTBUTTON @"{LOCAL, 2}：--------------------", LOCAL
@@ -170,6 +187,9 @@ SELECTCASE LOCAL
 	CASE 998
 		CALL 周回実処理()
 		RETURN -1
+	CASE 200 TO 299
+		INVERTBIT キャラ妊娠引き継ぎ:(LOCAL - 200), 0
+		RESTART
 	CASEELSE
 		CALL 陥落キャラ選択()
 		引き継ぎキャラ番号:LOCAL = RESULT
@@ -447,6 +467,13 @@ FOR LOCAL, 0, 10
 		CFLAG:(引き継ぎキャラ番号:LOCAL):長期雇用 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):定住者 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):店持ち = 0
+		IF キャラ妊娠引き継ぎ:LOCAL == 0
+			TALENT:(引き継ぎキャラ番号:LOCAL):妊娠 = 0
+			CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠経過日 = 0
+			CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = -1
+			CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠発覚 = 0
+			CFLAG:(引き継ぎキャラ番号:LOCAL):今回受胎人数 = 0
+		ENDIF
 		;SAVECHARAメモにキャラのNOを入れておく
 		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
 
