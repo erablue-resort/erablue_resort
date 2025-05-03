@@ -1,5 +1,7 @@
 ﻿@ZP_SHOP_能力
 #DIM 表示数
+#DIM 実際表示数
+#DIM ページ数
 #DIM 選択中番号
 #DIMS 能力名保存, 50
 #DIM ソート用配列, 50
@@ -28,10 +30,14 @@ LOCALS += @"<div rect='156,125,1862,312'>%LOCALS:2%</div>"
 
 LOCALS += "<div rect='81,412,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,412,4000,2812' border='31' bcolor='#C0C0C0'></div>"
 LOCALS += "<div rect='156,540,1937,2812'>"
+実際表示数 = 0
 FOR LOCAL, 0, 表示数
 	詳細文文字列受け渡し変数２ '= ""
 	CALLFORM %能力名保存:LOCAL%
 	SIF RESULT == -1
+		CONTINUE
+	実際表示数 ++
+	SIF (実際表示数 - 1) / 18 != ページ数
 		CONTINUE
 	SIF 詳細文文字列受け渡し変数２ != ""
 		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>"
@@ -40,8 +46,26 @@ FOR LOCAL, 0, 表示数
 		LOCALS += @"</font>"
 	LOCALS += "<br>"
 NEXT
+IF 実際表示数 % 18 && (実際表示数 - 1) / 18 == ページ数
+	FOR LOCAL, 0, 18 - 実際表示数 % 18
+		LOCALS += "<br>"
+	NEXT
+ENDIF
 LOCALS += "<br>"
-LOCALS += @"<button value='999'>[999] 戻る</button>"
+IF 実際表示数 > 18
+	IF ページ数 > 0
+		LOCALS += "<button value='997'>[＜前ページ]</button>"
+	ELSE
+		LOCALS += "　　　　　　"
+	ENDIF
+	LOCALS += @" - {ページ数}/{(実際表示数 - 1) / 18} - "
+	IF (実際表示数 - 1) / 18 > ページ数
+		LOCALS += "<button value='998'>[次ページ＞]</button>"
+	ENDIF
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
 
@@ -68,8 +92,15 @@ NEXT
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 997
+		選択中番号 = -1
+		ページ数 --
+	CASE 998
+		選択中番号 = -1
+		ページ数 ++
 	CASE 999
 		選択中番号 = -1
+		ページ数 = 0
 		RETURN 0
 	CASE 100
 		SIF 選択中番号 < 0
