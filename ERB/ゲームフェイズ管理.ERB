@@ -1,4 +1,5 @@
 ﻿@ゲームフェイズ変更(変更先フェイズ)
+#DIM モード中キャラカウント
 #DIMS 変更先フェイズ
 
 ;色々リセットしてフェイズ変更
@@ -10,17 +11,51 @@ VARSET SELECTCOM, 0
 
 TFLAG:マッサージ_鬼灯の香使用時間 = 0
 FLAG:モード管理 = 0
+モード中キャラカウント = 0
 
-FOR LOCAL, 0, CHARANUM
+FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
 	BASE:(TARGET:LOCAL):警戒 = 0
 	TCVAR:(TARGET:LOCAL):前ターン警戒度 = 0
+	
+	;食いしばり状態チェック
+	IF TCVAR:(TARGET:LOCAL):食いしばりフラグ > 1
+		;食いしばり時にモード変更すると、即座に体力限界に移行させる
+		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
+		SELECTCASE SAVESTR:ゲームフェイズ管理
+			CASE "マッサージモード"
+				TRYCALLFORM KOJO_EVENT_マッサージ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+			CASE "むりやりうふふモード"
+				TRYCALLFORM KOJO_EVENT_むりやりうふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+			CASE "通常モード"
+				TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		ENDSELECT
+		FORCEWAIT
+		IF CFLAG:(TARGET:LOCAL):デート == MASTER + 100
+			CALL デート採点処理(TARGET:LOCAL)
+		ENDIF
+		TCVAR:(TARGET:LOCAL):食いしばりフラグ = 0
+		CFLAG:(TARGET:LOCAL):体力限界 = 1
+		EXP:(TARGET:LOCAL):ダウン経験 += 1
+		;経験取得表示スキップ用
+		TCVAR:(TARGET:LOCAL):436 = EXP:(TARGET:LOCAL):ダウン経験
+		;モードもリセット
+		CALL 特定キャラモードリセット(TARGET:LOCAL)
+	ENDIF
+	;マッサージ助手は対象としてカウントしない
+	SIF !CFLAG:(TARGET:LOCAL):体力限界 && !CFLAG:(TARGET:LOCAL):マッサージ助手
+		モード中キャラカウント += 1
 
 	;マッサージ関連フラグリセット
 	CFLAG:(TARGET:LOCAL):マッサージ助手 = 0
 	TCVAR:(TARGET:LOCAL):エロマッサージ施術フラグ = 0
 NEXT
+
+IF モード中キャラカウント == 0
+	;誰も対象がいない場合、通常モードに切り替え
+	変更先フェイズ = 通常モード
+ENDIF
 
 CALL うふふ終了処理
 CALL 飲み会終了処理
