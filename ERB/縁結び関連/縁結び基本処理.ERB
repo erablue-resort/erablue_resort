@@ -700,10 +700,12 @@ RESTART
 
 @縁結び詳細処理(表示id)
 #DIM 表示id
+#DIM 関連id
 #DIM 対象キャラ１
 #DIM 対象キャラ２
 #DIMS 表示文字列１
 #DIMS 表示文字列２
+#DIMS 設定文字
 
 対象キャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", 表示id, "対象キャラ１", 1))
 対象キャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("縁結びデータベース", 表示id, "対象キャラ２", 1))
@@ -750,17 +752,8 @@ DRAWLINE
 
 PRINTL
 IF GETBIT(TALENT:対象キャラ１:性別, 1) == GETBIT(TALENT:対象キャラ２:性別, 1)
-	IF DT_CELL_GET("縁結びデータベース", 表示id, "完遂フラグ", 1)
-		SETCOLOR カラーパレット("グレーアウト")
-		PRINTPLAIN [0] 受けと攻めを設定する
-		PRINTL
-		RESETCOLOR
-		PRINTL ※関係成立済みの縁結びは受け攻めの変更が出来ません。
-		PRINTL
-	ELSE
-		PRINTBUTTON "[0] 受けと攻めを設定する", 0
-		PRINTL
-	ENDIF
+	PRINTBUTTON "[0] 受けと攻めを設定する", 0
+	PRINTL
 ENDIF
 PRINTBUTTON "[999] 戻る", 999
 IF DT_CELL_GET("縁結びデータベース", 表示id, "完遂フラグ", 1)
@@ -800,15 +793,22 @@ SELECTCASE LOCAL
 		BINPUT
 		SELECTCASE RESULT
 			CASE 0
-				DT_CELL_SET "縁結びデータベース", 表示id, "受け攻め設定", "順", 1
+				設定文字 = 順
 				PRINTFORMW %NAME表示(対象キャラ１)%を攻めに設定しました。
 			CASE 1
-				DT_CELL_SET "縁結びデータベース", 表示id, "受け攻め設定", "逆", 1
+				設定文字 = 逆
 				PRINTFORMW %NAME表示(対象キャラ２)%を攻めに設定しました。
 			CASE 2
-				DT_CELL_SET "縁結びデータベース", 表示id, "受け攻め設定", "", 1
+				設定文字 = 
 				PRINTFORMW 受け攻め設定を削除しました。
 		ENDSELECT
+		DT_CELL_SET "縁結びデータベース", 表示id, "受け攻め設定", 設定文字, 1
+		IF DT_CELL_GET("縁結びデータベース", 表示id, "完遂フラグ", 1)
+			;完遂時、同じ組み合わせの関係性データがあるはずなのでそっちも修正
+			DT_SELECT "関係性データベース", @"対象キャラ１ = {CFLAG:対象キャラ１:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ２:人物番号} And 関係性種別 = '%DT_CELL_GETS("縁結びデータベース", 表示id, "縁結び種別", 1)%'"
+			関連id = RESULT:1
+			DT_CELL_SET "関係性データベース", 関連id, "受け攻め設定", 設定文字, 1
+		ENDIF
 	CASE 999
 		RETURN 0
 	CASE 10
@@ -829,10 +829,12 @@ RESTART
 
 @関係性詳細処理(表示id)
 #DIM 表示id
+#DIM 関連id
 #DIM 対象キャラ１
 #DIM 対象キャラ２
 #DIMS 表示文字列１
 #DIMS 表示文字列２
+#DIMS 設定文字
 
 対象キャラ１ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", 表示id, "対象キャラ１", 1))
 対象キャラ２ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", 表示id, "対象キャラ２", 1))
@@ -868,9 +870,68 @@ IF STRFIND(CSTR:対象キャラ１:初期関係性, @"%NAME:対象キャラ２%_
 	PRINTL 初期成立
 ELSEIF DT_SELECT("縁結びデータベース", @"(対象キャラ１ = {CFLAG:対象キャラ１:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ１:人物番号}) And (対象キャラ１ = {CFLAG:対象キャラ２:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ２:人物番号}) And 縁結び種別 = '%DT_CELL_GETS("関係性データベース", 表示id, "縁結び種別", 1)%' And 完遂フラグ = 1")
 	PRINTL 縁結びによる成立
+ELSE
+	PRINTL 
+ENDIF
+IF GETBIT(TALENT:対象キャラ１:性別, 1) == GETBIT(TALENT:対象キャラ２:性別, 1)
+	PRINT 受け攻め設定：
+	SELECTCASE DT_CELL_GETS("関係性データベース", 表示id, "受け攻め設定", 1)
+		CASE ""
+			PRINTL なし（リバ可）
+		CASE "順"
+			PRINTFORML %CALLNAME:対象キャラ１%攻め ✕ %CALLNAME:対象キャラ２%受け
+		CASE "逆"
+			PRINTFORML %CALLNAME:対象キャラ２%攻め ✕ %CALLNAME:対象キャラ１%受け
+	ENDSELECT
 ENDIF
 DRAWLINE
-WAIT
+
+PRINTL
+IF GETBIT(TALENT:対象キャラ１:性別, 1) == GETBIT(TALENT:対象キャラ２:性別, 1)
+	PRINTBUTTON "[0] 受けと攻めを設定する", 0
+	PRINTL
+ENDIF
+PRINTBUTTON "[999] 戻る", 999
+PRINTL
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0
+		DRAWLINE
+		PRINTBUTTON @"[0] %NAME表示(対象キャラ１)%を攻めにする", 0
+		PRINTL
+		PRINTBUTTON @"[1] %NAME表示(対象キャラ２)%を攻めにする", 1
+		PRINTL
+		PRINTBUTTON @"[2] 受け攻め設定を削除する", 2
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[999] 戻る", 999
+		PRINTL
+		DRAWLINE
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				設定文字 = 順
+				PRINTFORMW %NAME表示(対象キャラ１)%を攻めに設定しました。
+			CASE 1
+				設定文字 = 逆
+				PRINTFORMW %NAME表示(対象キャラ２)%を攻めに設定しました。
+			CASE 2
+				設定文字 = 
+				PRINTFORMW 受け攻め設定を削除しました。
+		ENDSELECT
+		DT_CELL_SET "関係性データベース", 表示id, "受け攻め設定", 設定文字, 1
+		IF DT_SELECT("縁結びデータベース", @"対象キャラ１ = {CFLAG:対象キャラ１:人物番号} And 対象キャラ２ = {CFLAG:対象キャラ２:人物番号} And 縁結び種別 = '%DT_CELL_GETS("関係性データベース", 表示id, "関係性種別", 1)%'")
+			;まったく同じ組み合わせがある時、そちらも修正
+			関連id = RESULT:1
+			DT_CELL_SET "縁結びデータベース", 関連id, "受け攻め設定", 設定文字, 1
+		ENDIF
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+RESTART
 
 
 @縁結び進展しない判定(実行キャラ, 対象キャラ, 縁結び種別)
