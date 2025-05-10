@@ -51,8 +51,11 @@ SIF 同行者フラグ && !CFLAG:MASTER:隠密
 	PRINTC 一緒に隠れる[840]
 SIF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() == 同行者フラグ)
 	PRINTC 物陰から出る[841]
-SIF TARGET
-	PRINTC アイテムを使う[850]
+IF TARGET
+	PRINTC アイテム使用[850]
+ELSE
+	PRINTC 自分にアイテム使用[850]
+ENDIF
 PRINTL
 PRINTC 写真一覧[856]
 PRINTC OPTION[809]
@@ -547,7 +550,7 @@ ELSEIF RESULT == 860
 ELSEIF RESULT == 861
 	CALL 雇用レポート表示
 	RETURN 1
- ELSEIF RESULT == 889
+ELSEIF RESULT == 889
 ; 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
 ; 		INVERTBIT 画像サイズ切り替えOPTION記憶, 0
 ; 		IF 二人目画像表示用()
@@ -1169,7 +1172,7 @@ ELSEIF RISKY_DAY(対象キャラ) == -2
 	SETCOLOR 0x666666
 	PRINTFORML %CALLNAME:対象キャラ%は妊娠しません。
 	RESETCOLOR
-ELSEIF 陥落チェック(対象キャラ) == 0 && 知識素質:対象キャラ:性知識 != -2
+ELSEIF 陥落チェック(対象キャラ) == 0 && 知識素質:対象キャラ:性知識 != -2 && 対象キャラ != MASTER
 	SETCOLOR 0x666666
 	PRINTFORML %CALLNAME:対象キャラ%が無知でも陥落状態でもないため■危険日変動薬は使用出来ません。
 	RESETCOLOR
@@ -1208,7 +1211,7 @@ ELSEIF RISKY_DAY(対象キャラ) == -2
 	SETCOLOR 0x666666
 	PRINTFORML %CALLNAME:対象キャラ%は妊娠しません。
 	RESETCOLOR
-ELSEIF 陥落チェック(対象キャラ) == 0 && 知識素質:対象キャラ:性知識 != -2
+ELSEIF 陥落チェック(対象キャラ) == 0 && 知識素質:対象キャラ:性知識 != -2 && 対象キャラ != MASTER
 	SETCOLOR 0x666666
 	PRINTFORML %CALLNAME:対象キャラ%が無知でも陥落状態でもないため■排卵誘発薬は使用出来ません。
 	RESETCOLOR
@@ -1225,28 +1228,9 @@ ELSE
 	PRINTL 
 ENDIF
 DRAWLINE
-; IF ITEM:豊胸薬 < 1
-; 	SETCOLOR 0x666666
-; 	PRINTFORML ■豊胸薬を所持していません。
-; 	RESETCOLOR
-; ;男の子に乳を盛るのも一興なのでいったんコメントアウト
-; ;ELSEIF TALENT:TALENT:対象キャラ:性別 == 2 || TALENT:対象キャラ:性別 == 0
-; ;	SETCOLOR 0x666666
-; ;	PRINTFORML %CALLNAME:対象キャラ%は育つ胸がありません。
-; ;	RESETCOLOR
-; ELSEIF TALENT:対象キャラ:Ｂ感度 == -2
-; 	SETCOLOR 0x666666
-; 	PRINTFORML %CALLNAME:対象キャラ%は育つ胸がありません。
-; 	RESETCOLOR
-; ELSEIF TCVAR:対象キャラ:豊胸薬
-; 	SETCOLOR 0x666666
-; 	PRINTFORML %CALLNAME:対象キャラ%は既に■豊胸薬を使用中です。
-; 	RESETCOLOR
-; ELSE
-; 	PRINTBUTTON @"■豊胸薬 × {ITEM:豊胸薬}", 107
-; 	PRINTL 
-; ENDIF
-; DRAWLINE
+
+SIF 対象キャラ == MASTER
+	GOTO INPUT部分
 
 IF ITEM:eraの友情アニマ > 0
 	PRINTBUTTON @"■eraの友情アニマ × {ITEM:eraの友情アニマ}", 100
@@ -1331,6 +1315,8 @@ IF LOCAL:1 > 0
 	ENDIF
 ENDIF
 PRINTL ※プロトタイプ開発中はバランス未調整のため、好感度と恋慕度を直接増加させるアイテムを仮実装しています。
+
+$INPUT部分
 PRINTL 
 PRINTBUTTON "[999]戻る", 999
 BINPUT
@@ -1419,10 +1405,6 @@ SELECTCASE RESULT:0
 		SIF CFLAG:対象キャラ:危険日 == 0
 			CFLAG:対象キャラ:危険日 = PREG_CYCLE(対象キャラ)
 		ITEM:104 -= 1
-	CASE 107
-		PRINTFORMW %CALLNAME:対象キャラ%が豊胸薬を服用しました。
-		TCVAR:対象キャラ:豊胸薬 = 1
-		ITEM:豊胸薬 -= 1
 	CASE 999
 		RETURN
 	CASEELSE

@@ -94,8 +94,8 @@ ELSE
 			ENDIF
 		NEXT
 	ENDIF
-	;もしうふふ中なら相手にTARGETを固定
-	IF CFLAG:PLAYER:うふふ && !CFLAG:TARGET:うふふ && GETBIT(FLAG:モード管理, モードビット_指示) == 0
+	;もし隠密うふふ中なら相手にTARGETを固定
+	IF CFLAG:PLAYER:隠密 && CFLAG:PLAYER:うふふ && (!CFLAG:TARGET:隠密 || !CFLAG:TARGET:うふふ) && GETBIT(FLAG:モード管理, モードビット_指示) == 0
 		FOR LOCAL,1,CHARANUM
 			SIF TARGET:LOCAL < 1
 				BREAK
@@ -1403,12 +1403,12 @@ ELSE
 		LOCAL:1 ++
 		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
 	NEXT
-IF TARGET保存 >= CHARANUM
-	TARGET = TARGET:1
-ELSEIF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
-	;元のTARGETがいるならそれ
-	TARGET = TARGET保存
-ELSE
+	IF TARGET保存 >= CHARANUM
+		TARGET = TARGET:1
+	ELSEIF MATCH(TARGET, TARGET保存) && TARGET保存 > 0
+		;元のTARGETがいるならそれ
+		TARGET = TARGET保存
+	ELSE
 	TARGET = TARGET:1
 	ENDIF
 ENDIF
@@ -1424,7 +1424,7 @@ FOR LOCAL,1,CHARANUM
 	LOCAL:1 = TALENT:LOCAL:恋慕 * 10 + MARK:LOCAL:屈服刻印 * 3 + MARK:LOCAL:快楽刻印 * 3 + MIN(ABL:LOCAL:欲望 * 10,50) + GETPALAMLV(PALAM:LOCAL:欲情,5) * 5 + BASE:LOCAL:ムード / 50 + (1000 - BASE:LOCAL:理性) / 30 + BASE:LOCAL:酩酊 / 20
 	LOCAL:1 += CFLAG:LOCAL:好感度レベル / 10 + 恋慕_恋心比較(LOCAL)
 	;既成事実
-	SIF GETBIT (CFLAG:LOCAL:1 ,1)
+	SIF 陥落チェック(LOCAL) && 初体験日取得("初うふふ", LOCAL, MASTER)
 		LOCAL:1 += 5
 	;欲情補正
 	LOCAL:1 = LOCAL:1 * (5000 + MAX(PALAM:LOCAL:欲情,5000)) / 10000
@@ -1763,6 +1763,9 @@ IF CFLAG:キャラ番号:うふふ && !ゲージのみ
 	LOCALS:2 = 満足度{BASE:キャラ番号:満足 * 100 / MAX(BASE:キャラ番号:性欲, 1), 3}\%
 	IF 連れ込みパターン != ""
 		LOCALS:2 = <img src='えっちハート'>欲求不満<img src='えっちハート'>：%連れ込みパターン%
+	ELSEIF BASE:キャラ番号:満足 * 100 / MAX(BASE:キャラ番号:性欲, 1) > 999
+		;4桁満足度の場合は表示を変更
+		LOCALS:2 = <img src='えっちハート'>大満足<img src='えっちハート'>
 	ENDIF
 	ゲージ表示文 += @"<div rect='{LIMIT((BASE:キャラ番号:満足 * ゲージ幅 / MAXBASE:キャラ番号:満足) - 80, 1, 1350)},145,3000,250'>%LOCALS:2%</div>"
 
