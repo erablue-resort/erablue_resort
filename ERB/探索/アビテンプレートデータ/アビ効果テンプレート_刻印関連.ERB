@@ -214,32 +214,44 @@ NEXT
 ;属性を指定せずキャラを指定した場合、そのキャラの属性の汎用刻印の名前を返す
 ;属性もキャラも指定しない場合、ターゲットか戦闘行動キャラの属性の汎用刻印の名前を返す
 ;------------------------------------------------------------------------
-@属性刻印名(属性番号=-1, 対象キャラ=-1)
+@属性刻印名(属性番号=-1, 対象キャラ=-1, 着色=0)
 #FUNCTIONS
 #DIM 属性番号
 #DIM 対象キャラ
+#DIM 着色
 
-SIF INRANGE(属性番号, 0, 6)
-	RETURNF 属性刻印:属性番号
-
-IF ダンジョン表示モード == "" && !INRANGE(対象キャラ, 0, CHARANUM-1) && INRANGE(TARGET, 0, CHARANUM-1)
-	対象キャラ = TARGET
-ELSEIF ダンジョン表示モード != "" && !INRANGE(キャラ隊列検索(対象キャラ), 0, 14)
-	対象キャラ = 戦闘行動キャラ
-ELSEIF 対象キャラ == -1
-	RETURNF "虚無の刻印"
-ENDIF
-
-IF ダンジョン表示モード == ""
-	属性番号 = 基礎BATTLE_STATE:対象キャラ:属性
-	IF 装備ステータス補正保存:対象キャラ:属性
-		;0を火属性にしちゃったので数値そのままだと属性変更してるかどうか判別がつかないため、装備による属性変更は属性番号+10で保存している
-		属性番号 = 装備ステータス補正保存:対象キャラ:属性 - 10
+IF !INRANGE(属性番号, 0, 6)
+	IF ダンジョン表示モード == "" && !INRANGE(対象キャラ, 0, CHARANUM-1) && INRANGE(TARGET, 0, CHARANUM-1)
+		対象キャラ = TARGET
+	ELSEIF ダンジョン表示モード != "" && !INRANGE(キャラ隊列検索(対象キャラ), 0, 14)
+		対象キャラ = 戦闘行動キャラ
+	ELSEIF 対象キャラ == -1
+		属性番号 = 6
+		GOTO 着色
 	ENDIF
-ELSE
-	属性番号 = BATTLE_STATE:対象キャラ:属性
+
+	IF ダンジョン表示モード == ""
+		属性番号 = 基礎BATTLE_STATE:対象キャラ:属性
+		IF 装備ステータス補正保存:対象キャラ:属性
+			;0を火属性にしちゃったので数値そのままだと属性変更してるかどうか判別がつかないため、装備による属性変更は属性番号+10で保存している
+			属性番号 = 装備ステータス補正保存:対象キャラ:属性 - 10
+		ENDIF
+	ELSE
+		属性番号 = BATTLE_STATE:対象キャラ:属性
+	ENDIF
 ENDIF
 
+$着色
+IF 着色 == 1
+	;HTML構文
+	RETURNF @"<font color='#%属性数値文字色変換_HTML(属性番号)%'>%属性刻印:属性番号%</font>"
+ELSEIF 着色 == 2
+	;KSTR構文
+	RETURNF @"_COLOR_{属性数値文字色変換(属性番号)}_%属性刻印:属性番号%_"
+ELSEIF 着色 == 3
+	;RESULTにカラーコードを代入して返す
+	RESULT = 属性数値文字色変換(属性番号)
+ENDIF
 RETURNF 属性刻印:属性番号
 
 ;------------------------------------------------------------------------
@@ -251,7 +263,7 @@ RETURNF 属性刻印:属性番号
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("業火の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(0)%'>業火の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(0, , 1)%<br>"
 LOCALS += @"火の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -261,7 +273,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("玉水の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(1)%'>玉水の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(1, , 1)%<br>"
 LOCALS += @"水の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -271,7 +283,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("狂風の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(2)%'>狂風の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(2, , 1)%<br>"
 LOCALS += @"風の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -281,7 +293,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("荒土の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(3)%'>荒土の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(3, , 1)%<br>"
 LOCALS += @"土の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -291,7 +303,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("極光の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(4)%'>極光の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(4, , 1)%<br>"
 LOCALS += @"光の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -301,7 +313,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("幽闇の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(5)%'>幽闇の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(5, , 1)%<br>"
 LOCALS += @"闇の魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
@@ -311,7 +323,7 @@ HTML_PRINT LOCALS
 #DIM バフ・デバフ行数
 VARSET LOCAL
 LOCAL = バフ番号取得_枠("虚無の刻印", 隊列番号)
-LOCALS '= @"属性刻印：<font color='#%属性数値文字色変換_HTML(6)%'>虚無の刻印</font><br>"
+LOCALS '= @"属性刻印：%属性刻印名(6, , 1)%<br>"
 LOCALS += @"属性を持たぬ魔力が増幅している状態。<br>"
 LOCALS += @"効果値［{DT_CELL_GET("戦闘効果データベース", バフ・デバフ行数, "効果量_固定値")}］（最大5/消去不可）"
 HTML_PRINT LOCALS
