@@ -386,6 +386,8 @@ NEXT
 #DIM 初期設定フラグ
 #DIM 表示兵装数
 #DIM 兵装番号
+#DIM 計算値
+#DIM 兵器id
 
 
 ;キャラ追加
@@ -450,12 +452,32 @@ NEXT
 
 ;乗機装備時、９にPLAYERのステータスを入れる
 BATTLE_STATE:9:キャラ登録番号 = PLAYER
-BATTLE_STATE:9:攻撃力 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機攻撃力", 1)
-BATTLE_STATE:9:命中率 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機命中率", 1)
+計算値 = 0
+FOR LOCAL, 0, 6
+	IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{LOCAL}", 1))
+		兵器id = TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{LOCAL}", 1))
+		計算値 += DT_CELL_GET("所持兵器データベース", 兵器id, "攻撃力変動値_強化後", 1)
+	ENDIF
+NEXT
+BATTLE_STATE:9:攻撃力 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機攻撃力_強化後", 1) + 計算値
+
+;マイナスにはしない
 SIF BATTLE_STATE:9:攻撃力 < 1
-	BATTLE_STATE:9:攻撃力 = 100
+	BATTLE_STATE:9:攻撃力 = 1
+
+;計算値入れる前にデフォ値フォロー
+BATTLE_STATE:9:命中率 = DT_CELL_GET("所持乗機データベース", 装備乗機ID, "乗機命中率_強化後", 1)
 SIF BATTLE_STATE:9:命中率 < 1
 	BATTLE_STATE:9:命中率 = 100
+
+計算値 = 0
+FOR LOCAL, 0, 6
+	IF ISNUMERIC(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{LOCAL}", 1))
+		兵器id = TOINT(DT_CELL_GETS("所持乗機データベース", 装備乗機ID, @"武装{LOCAL}", 1))
+		計算値 += DT_CELL_GET("所持兵器データベース", 兵器id, "命中率変動値_強化後", 1)
+	ENDIF
+NEXT
+BATTLE_STATE:9:命中率 += 計算値
 BATTLE_STATE:9:クリティカルダメージ率 = 150
 
 ;初期設定時に残弾のリセット
