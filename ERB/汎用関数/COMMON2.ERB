@@ -648,7 +648,30 @@ ENDIF
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
 		BREAK
-	IF CFLAG:(TARGET:LOCAL):うふふ
+	IF TCVAR:(TARGET:LOCAL):食いしばりフラグ > 1
+		;食いしばり時にうふふ終了すると、即座に体力限界に移行させる
+		PRINTFORML （%CALLNAME:(TARGET:LOCAL)%の体力が限界に来ています）
+		;限界口上
+		TRYCALLFORM KOJO_EVENT_うふふ体力限界_{NO:(TARGET:LOCAL)}(TARGET:LOCAL)
+		FORCEWAIT
+
+		;うふふ時間で履歴登録
+		時間保存 = (TIME + 1440 * DAY) - CFLAG:(TARGET:LOCAL):うふふ開始時間記録
+		IF 時間保存 > 300 && CFLAG:(TARGET:LOCAL):うふふ開始時間記録 > 0
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:(TARGET:LOCAL)%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+			CALL 履歴データベース登録(CFLAG:(TARGET:LOCAL):人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%と%TOFULL(TOSTR(時間保存 / 60))%時間%TOFULL(TOSTR(時間保存 % 60))%分えっちした</font><img src='えっちハート'>","うふふ")
+		ENDIF
+		
+		;その他変数セット
+		IF CFLAG:(TARGET:LOCAL):デート == MASTER + 100
+			CALL デート採点処理(TARGET:LOCAL)
+		ENDIF
+		TCVAR:(TARGET:LOCAL):食いしばりフラグ = 0
+		CFLAG:(TARGET:LOCAL):体力限界 = 1
+		EXP:(TARGET:LOCAL):ダウン経験 += 1
+		;経験取得表示スキップ用
+		TCVAR:(TARGET:LOCAL):436 = EXP:(TARGET:LOCAL):ダウン経験
+	ELSEIF CFLAG:(TARGET:LOCAL):うふふ
 		;うふふ終了口上
 		TRYCALLFORM KOJO_EVENT_うふふ終了_{NO:(TARGET:LOCAL)}(TARGET:LOCAL, 終了原因)
 
@@ -665,7 +688,7 @@ FOR LOCAL, 1, CHARANUM
 	TCVAR:(TARGET:LOCAL):初うふふフラグ = 0
 	;モードもリセット
 	CALL 特定キャラモードリセット(TARGET:LOCAL)
-	IF CSTR:(TARGET:LOCAL):コスプレ前の服 != ""
+	IF CSTR:(TARGET:LOCAL):コスプレ前の服 != "" && !CFLAG:(TARGET:LOCAL):体力限界
 		CALL CLOTHES_RESET(TARGET:LOCAL)
 		CSTR:(TARGET:LOCAL):コスプレ前の服 '= ""
 	ENDIF

@@ -156,3 +156,89 @@ IF 海初来訪イベントフラグ == 0
 	CALL 制服登録処理("浴衣")
 	海初来訪イベントフラグ = 1
 ENDIF
+
+
+@海改造メニュー()
+#FUNCTIONS
+;100~199と999は大本のメニュー操作で使うため、使用しないこと
+
+LOCALS = 海エリアを発展させ、エリアの機能や施設を増やします。<br><br>
+LOCALS += @"■[海エリアの発展] Lv{海改造度:0:0}：上限<br>"
+LOCALS += "└■沖合エリアを活用する"
+LOCALS += "　├"
+IF 海改造度:6:0 < 1
+	LOCALS += "<button value='260'>[漁船を購入する]</button>"
+ELSE
+	LOCALS += "[漁船を購入する]　購入済み"
+ENDIF
+; LOCALS += @"　├"
+; IF 海改造度:6:1 < 1
+; 	LOCALS += "<button value='261'>[遊覧船を購入する]</button>"
+; ELSE
+; 	LOCALS += "[遊覧船を購入する]　購入済み"
+; ENDIF
+; LOCALS += @"　└"
+; IF 海改造度:6:2 < 1
+; 	LOCALS += "<button value='262'>[海底散歩を実用化する]</button>"
+; ELSE
+; 	LOCALS += "[海底散歩を実用化する]　実用化済み"
+; ENDIF
+
+
+RETURNF LOCALS
+
+
+@海系列改造実行関数(ARG)
+
+SELECTCASE ARG
+	CASE 260
+		DRAWLINE
+		PRINTL 漁船を購入し、沖合に漁に出るようになります。
+		PRINTL 毎日ランダムな魚素材を入手します。
+		PRINTL 
+		PRINTL 漁船を購入しますか？（必要:30,000ルピ）
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		INPUT
+		SELECTCASE RESULT
+			CASE 0
+				IF MONEY < 30000
+					PRINTW ルピが足りません。
+					RETURN
+				ENDIF
+				海改造度:6:0 = 1
+				MONEY -= 30000
+				PRINTL 漁船を購入しました！
+				PRINTW (毎日ランダムな魚素材を入手)
+				;沖合マップ作ったらここ解除
+				;CALL RESET_GRAPH_3
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"海エリアで漁船を購入した","実績")
+				RETURN
+			CASE 1
+				RETURN
+		ENDSELECT
+		RESTART
+ENDSELECT
+
+
+@海エリア漁処理()
+#DIM 入手量
+#DIM 入手カウント
+#DIM 候補数
+#DIMS 入手名
+
+VARSET RESULT
+;ランダムに魚をランダムな数入手
+入手量 = RAND:5 + 3
+候補数 = DT_SELECT("所持素材データベース", "素材カテゴリ = '食物素材' And 食材分類 = '魚'")
+
+RSTR:その他報告_記録文字列 += @"漁船による漁で"
+FOR 入手カウント, 0, 入手量
+	;とりあえず完全ランダム
+	入手名 '= DT_CELL_GETS("所持素材データベース", RESULT:(RAND:候補数), "素材アイテム名", 1)
+	CALL 素材入手処理(入手名, 1)
+	SIF 入手カウント > 0
+		RSTR:その他報告_記録文字列 += "、"
+	RSTR:その他報告_記録文字列 += @"%入手名%"
+NEXT
+RSTR:その他報告_記録文字列 += @"を手に入れた！"
