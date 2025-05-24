@@ -273,6 +273,8 @@ SELECTCASE LOCAL
 			REPLACE TSTR:NEWイベントフラグ, @"EVENT%TOSTR(LOCAL)%_", ""
 			TSTR:NEWイベントフラグ = %RESULTS%
 		ENDIF
+		DRAWLINE
+		CALL イベント発生条件チェック()
 		RESTART
 	CASE 10000 TO 10004
 		カテゴリ別ページ数:(LOCAL - 10000) --
@@ -443,6 +445,34 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	ENDIF
 NEXT
 DT_CELL_SET "各イベント用変数配列", 行番号, "イベント完了フラグ", 1
+
+;再発生確率渡しを見て、存在するなら入れ込む
+イベント消滅日数渡し = 0
+イベント消滅確率渡し = 0
+イベント再発生日数渡し = 0
+イベント再発生確率渡し = 0
+TRYCALLFORM イベント発生条件_%DT_CELL_GETS("各イベント用変数配列", 行番号, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", 行番号, "イベント名")%
+IF イベント再発生確率渡し
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント再発生CT", イベント再発生日数渡し
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント再発生確率", イベント再発生確率渡し
+	;再発生処理を毎日呼ぶために消失CTを-2にセット
+	DT_CELL_SET "各イベント用変数配列", 行番号, "イベント消滅CT", -2
+ENDIF
+
+@イベント完了フラグ汎用処理_再視聴不可(ARGS)
+#DIM 行番号
+
+SIF FLAG:クリア済み視聴フラグ
+	RETURN 0
+
+FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+	LOCALS = %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+	IF LOCALS == ARGS
+		行番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+DT_CELL_SET "各イベント用変数配列", 行番号, "イベント完了フラグ", 2
 
 ;再発生確率渡しを見て、存在するなら入れ込む
 イベント消滅日数渡し = 0
