@@ -1,0 +1,314 @@
+﻿
+; ;-------------------------------------------------
+; ;子供に会う
+; ;-------------------------------------------------
+; @COMNAME_PLACE_380_2_6
+; #FUNCTION
+; TSTR:コマンド名受渡 = 手紙を出す
+; RETURNF 1
+
+; ;===================================================
+; ;コマンドタイプ
+; ;===================================================
+; @COMTYPE_380_2_6
+; #FUNCTION
+; TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+; @COM_TOOLTIP_380_2_6
+; LOCALS = <br>■手紙を出す<br>
+; LOCALS += "リゾートに滞在しておらず、一定以上の好感度を持つキャラに手紙を出すコマンド。"
+; LOCALS += "<br>キャラクターの好感度が上昇し、翌日の朝に返事が来る。"
+; LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+; LOCALS += "<br>固有の取得経験：なし<br>"
+; TSTR:ツールチップ受渡 = %LOCALS%
+
+; @COM380_2_6
+; #DIM ページ数, 2
+; #DIM 表示候補, キャラクタ数上限
+; #DIM 候補人数
+; #DIM 口上ファイル数, キャラクタ数上限
+; #DIM アビ奥義関数, キャラクタ数上限
+; #DIM 得意武器番号
+; #DIM スキップフラグ
+; #DIM 文字色フラグ
+; #DIM 表示人数 = 50
+; #DIM L_TIME,2
+; #DIMS ソート情報
+; #DIMS ボタンテキスト
+; VARSET ページ数
+; VARSET 口上ファイル数, -1
+; VARSET アビ奥義関数, -1
+
+; $最初から
+
+; ;表示候補選定＆ソート処理
+; VARSET 表示候補
+; 候補人数 = 0
+; ;フィルタ処理・絞り込み処理
+; FOR LOCAL, 1, CHARANUM
+; 	CALL 装備再計算処理(LOCAL)
+; 	SIF CFLAG:LOCAL:好感度レベル < 関係閾値:2
+; 		CONTINUE
+; 	SIF CFLAG:LOCAL:滞在期間 > 0
+; 		CONTINUE
+; 	表示候補:候補人数 = LOCAL
+; 	候補人数 ++
+; NEXT
+; CALL キャラ配列フィルタ処理(表示候補)
+; 候補人数 = RESULT
+
+; LOCAL:1 = 1
+
+; $表示処理_LOOP
+; ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
+; DRAWLINE
+; PRINTL 誰に手紙を出しますか？
+; DRAWLINE
+; VARSET LOCAL
+; VARSET LOCALS
+; ;表示処理
+; FOR LOCAL, ページ数 * 表示人数, 候補人数
+; 	SIF 表示候補:LOCAL < 1
+; 		BREAK
+; 	IF 文字色グループ取得(表示候補:LOCAL) >= 0
+; 		LOCALS += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL)))%'>"
+; 		文字色フラグ = 1
+; 	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
+; 		LOCALS += @"<font color='#%十六進数文字列化(CFLAG:(表示候補:LOCAL):同室文字色)%'>"
+; 		文字色フラグ = 1
+; 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+; 		LOCALS += "<font color='#FF3399'>"
+; 		文字色フラグ = 2
+; 	ELSE
+; 		文字色フラグ = 0
+; 	ENDIF
+; 	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %GET_NAME(表示候補:LOCAL, 1, 50)%</button>　"
+; 	SIF 文字色フラグ == 1
+; 		LOCALS += "</font>"
+; 	SIF 文字色フラグ == 2
+; 		LOCALS += "</font>"
+; 	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
+; 	IF ソート情報 != ""
+; 		LOCALS += ソート情報 + "　"
+; 	ELSE
+; 		LOCALS += "　　　　　　　　"
+; 	ENDIF
+; 	LOCAL:1 += 1
+; 	IF LOCAL:1 % 2 == 0
+; 		HTML_PRINT LOCALS
+; 		LOCALS = 
+; 	ENDIF
+; 	SIF LOCAL:1 > 表示人数 - 1
+; 		BREAK
+; NEXT
+; IF LOCALS != ""
+; 	HTML_PRINT LOCALS
+; 	LOCALS = 
+; ENDIF
+; PRINTL 
+; LOCALS:2 = 
+; IF ページ数 > 0
+; 	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
+; ELSE
+; 	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
+; ENDIF
+; LOCALS:2 += " " * 24
+; LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+; LOCALS:2 += " " * 23
+; IF ページ数 < ページ数:1
+; 	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
+; ENDIF
+; LOCALS:2 += "<br>"
+; IF ページ数 > 0
+; 	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+; ELSE
+; 	LOCALS:2 += "     "
+; ENDIF
+; IF ページ数 > 4
+; 	LOCALS:2 += "<button value='9003'> [－５]</button>"
+; ELSE
+; 	LOCALS:2 += " 　　　"
+; ENDIF
+; LOCALS:2 += " " * 26
+; LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+; LOCALS:2 += " " * (56-20-20)
+; IF ページ数 <= ページ数:1 - 5
+; 	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+; ELSE
+; 	LOCALS:2 += " 　　　"
+; ENDIF
+; LOCALS:2 += " " * 5
+; IF ページ数 < ページ数:1
+; 	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+; ENDIF
+; HTML_PRINT LOCALS:2
+; DRAWLINE
+; CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000, 2001, ボタンテキスト)
+; DRAWLINE
+; ; PRINTBUTTONLC "[9998]システムの説明", 9998
+; ; PRINTL
+; PRINTBUTTONLC "[9999]戻る", 9999
+; PRINTL
+
+; $INPUT_LOOP
+; IF チュートリアルフラグ:能力表示 == 0
+; 	RESULT = 9998
+; ELSE
+; 	BINPUT
+; ENDIF
+; IF RESULT == 9999
+; 	RETURN 0
+; ELSEIF RESULT == 9998
+; 	;CALL 能力表示チュートリアル()
+; 	GOTO 表示処理_LOOP
+; ELSEIF GROUPMATCH(RESULT, 2000, 3000, 3100, 4000)
+; 	CALL フィルタソートボタンセット実行部(RESULT, 2000, 3000, 3100, 4000)
+; 	ページ数 = 0
+; 	RESTART
+; ELSEIF RESULT == 2001
+; 	INVERTBIT 滞在者のみフィルタ, 0
+; 	ページ数 = 0
+; 	RESTART
+; ELSEIF RESULT == 9000
+; 	ページ数 = MAX(ページ数 - 1, 0)
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9001
+; 	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9002
+; 	ページ数 = 0
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9003
+; 	ページ数 = MAX(ページ数 - 5, 0)
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9004
+; 	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9005
+; 	ページ数 = ページ数:1
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9006
+; 	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+; 	INPUT
+; 	SIF INRANGE(RESULT, 1, 1+ページ数:1)
+; 		ページ数 = RESULT - 1
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT == 9007
+; 	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+; 	INPUT
+; 	IF INRANGE(RESULT, 1, 100)
+; 		表示人数 = RESULT
+; 		ページ数 = 0
+; 	ENDIF
+; 	GOTO 表示処理_LOOP
+; ELSEIF RESULT < 0 || RESULT >= CHARANUM
+; 	REUSELASTLINE 
+; 	GOTO INPUT_LOOP
+; ENDIF
+; LOCAL = RESULT
+; $再表示
+; IF 候補人数 == 1
+; 	CALL 手紙送付キャラ確認(LOCAL, 0)
+; ELSEIF 表示候補:0 == LOCAL
+; 	CALL 手紙送付キャラ確認(LOCAL, 2)
+; ELSEIF 表示候補:(候補人数 - 1) == LOCAL
+; 	CALL 手紙送付キャラ確認(LOCAL, 1)
+; ELSE
+; 	CALL 手紙送付キャラ確認(LOCAL, 3)
+; ENDIF
+; IF RESULT == 100
+; 	FOR LOCAL:1, 0, 候補人数
+; 		IF 表示候補:(LOCAL:1) == LOCAL
+; 			LOCAL = 表示候補:(LOCAL:1 - 1)
+; 			BREAK
+; 		ENDIF
+; 	NEXT
+; 	GOTO 再表示
+; ELSEIF RESULT == 101
+; 	FOR LOCAL:1, 0, 候補人数
+; 		IF 表示候補:(LOCAL:1) == LOCAL
+; 			LOCAL = 表示候補:(LOCAL:1 + 1)
+; 			BREAK
+; 		ENDIF
+; 	NEXT
+; 	GOTO 再表示
+; ENDIF
+
+; GOTO 表示処理_LOOP
+
+
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行判定
+; ;-------------------------------------------------
+; @COM_ABLE380_2_6
+; ;条件に合う場合0（不許可）を返す
+; ;どの条件にも引っかからないなら1（許可）を返す
+; ;一括管理
+; SIF GLOBAL_COMABLE(380)
+; 	RETURN RESULT
+; ;隠密中はダメ
+; SIF CFLAG:PLAYER:隠密
+; 	RETURN 0
+; RETURN 1
+
+; ;-------------------------------------------------
+; ;実行時メッセージ
+; ;-------------------------------------------------
+; @MESSAGE_COM380_2_6
+; #DIM MASTERの子
+
+; SIF RFLAG:コマンド結果受渡し変数 == -999
+; 	RETURN 1
+
+; MASTERの子 = (GET_PERSON_母親(RFLAG:コマンド結果受渡し変数２) == CFLAG:MASTER:人物番号) || (GET_PERSON_父親(RFLAG:コマンド結果受渡し変数２) == CFLAG:MASTER:人物番号)
+; IF TARGET > 0 && MASTERの子
+; 	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と子供に会いに行った。
+; 	SELECTCASE RFLAG:コマンド結果受渡し変数
+; 		CASE -1
+; 			;失敗
+; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、慌てて二人であやした…
+; 		CASE 0
+; 			;成功
+; 			PRINTFORML 元気に遊ぶ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を眺めながら、しばらく二人で語り合った…
+; 		CASE 1
+; 			;大成功
+; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、二人も嬉しい気持ちになった…
+; 		CASE 9
+; 			;眠っていた
+; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、二人は穏やかな気持ちになった…
+; 	ENDSELECT
+; ELSEIF TARGET > 0
+; 	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と子供に会いに行った。
+; 	SELECTCASE RFLAG:コマンド結果受渡し変数
+; 		CASE -1
+; 			;失敗
+; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、%CALLNAME:TARGET%に怒られてしまった…
+; 		CASE 0
+; 			;成功
+; 			PRINTFORML はしゃぐ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を優しく撫でる%CALLNAME:TARGET%の姿に、%CALLNAME:PLAYER%は生命のすばらしさを感じた…
+; 		CASE 1
+; 			;大成功
+; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:TARGET%から感謝された…
+; 		CASE 9
+; 			;眠っていた
+; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を優しく撫でる%CALLNAME:TARGET%の姿に、%CALLNAME:PLAYER%は生命のすばらしさを感じた…
+; 	ENDSELECT
+; ELSE
+; 	PRINTFORML %CALLNAME:PLAYER%は子供に会いに行った。
+; 	SELECTCASE RFLAG:コマンド結果受渡し変数
+; 		CASE -1
+; 			;失敗
+; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、慌ててあやした…
+; 		CASE 0
+; 			;成功
+; 			PRINTFORML 元気に遊ぶ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%をしばらく眺めて楽しんだ…
+; 		CASE 1
+; 			;大成功
+; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:PLAYER%も嬉しい気持ちになった…
+; 		CASE 9
+; 			;眠っていた
+; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:PLAYER%は穏やかな気持ちになった…
+; 	ENDSELECT
+; ENDIF
