@@ -1,0 +1,82 @@
+﻿@複数人一枚絵_表示処理(判定のみフラグ = 0)
+#DIM 組み合わせ数
+#DIM 組み合わせ配列, 100
+#DIM ループ用
+#DIMS 候補配列, 100
+#DIM キャラ指定, 5
+#DIM 候補数
+#DIM 判定のみフラグ
+
+SIF TARGET < 1
+	RETURN 0
+
+VARSET RESULT
+VARSET 候補配列
+VARSET 組み合わせ配列
+候補数 = 0
+;組み合わせデータテーブルにTARGETを含む組み合わせがあるかを見る
+組み合わせ数 = DT_SELECT("複数人一枚絵データベース", @"キャラNO0 = {NO:TARGET} Or キャラNO1 = {NO:TARGET} Or キャラNO2 = {NO:TARGET} Or キャラNO3 = {NO:TARGET} Or キャラNO4 = {NO:TARGET}", , 組み合わせ配列)
+
+FOR ループ用, 0, 組み合わせ数
+	VARSET キャラ指定
+	;キャラ組み合わせを配列にセット、誰か一人でも同室状態でない時には次の組み合わせへ
+	IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO0", 1) > 0
+		キャラ指定:0 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO0", 1))
+		SIF IS_SAME_ROOM(指定キャラ:0) == 0
+			CONTINUE
+	ENDIF
+	IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO1", 1) > 0
+		キャラ指定:1 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO1", 1))
+		SIF IS_SAME_ROOM(指定キャラ:1) == 0
+			CONTINUE
+	ENDIF
+	IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO2", 1) > 0
+		キャラ指定:2 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO2", 1))
+		SIF IS_SAME_ROOM(指定キャラ:2) == 0
+			CONTINUE
+	ENDIF
+	IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO3", 1) > 0
+		キャラ指定:3 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO3", 1))
+		SIF IS_SAME_ROOM(指定キャラ:3) == 0
+			CONTINUE
+	ENDIF
+	IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO4", 1) > 0
+		キャラ指定:4 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO4", 1))
+		SIF IS_SAME_ROOM(指定キャラ:4) == 0
+			CONTINUE
+	ENDIF
+
+	RESULTS = 
+	TRYCALLFORM %DT_CELL_GETS("複数人一枚絵データベース", 組み合わせ配列:ループ用, "呼び出し関数名", 1)%("画像指定", キャラ指定)
+	IF RESULTS != "" && EXIST画像FILE(@"resources/%RESULTS%")
+		候補配列:候補数 '= RESULTS
+		候補数 ++
+		SIF 判定のみフラグ
+			RETURN 1
+	ENDIF
+NEXT
+
+IF 候補数 > 0
+	;表示可能性があるものからランダムで返す
+	RESULTS '= 候補配列:(RAND:候補数)
+	RETURN 1
+ENDIF
+
+RETURN 0
+
+
+@複数人一枚絵_組み合わせ登録処理()
+#DIM ループ用
+#DIM 指定キャラ, 5
+VARSET RESULTS
+
+ENUMFUNCBEGINSWITH "複数人一枚絵_登録データ_"
+
+FOR ループ用, 0, RESULT
+	IF DT_SELECT("複数人一枚絵データベース", @"呼び出し関数名 = '%RESULTS:ループ用%'") < 1
+		;データベースにない関数がある場合、新規追加する
+		VARSET 指定キャラ
+		CALLFORM %RESULTS:ループ用%("初期登録", 指定キャラ)
+		DT_ROW_ADD "複数人一枚絵データベース", "キャラNO0", NO:(指定キャラ:0), "キャラNO1", NO:(指定キャラ:1), "キャラNO2", NO:(指定キャラ:2), "キャラNO3", NO:(指定キャラ:3), "キャラNO4", NO:(指定キャラ:4), "呼び出し関数名", RESULTS:ループ用
+	ENDIF
+NEXT
