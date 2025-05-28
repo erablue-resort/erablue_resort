@@ -1,314 +1,626 @@
 ﻿
-; ;-------------------------------------------------
-; ;子供に会う
-; ;-------------------------------------------------
-; @COMNAME_PLACE_380_2_6
-; #FUNCTION
-; TSTR:コマンド名受渡 = 手紙を出す
-; RETURNF 1
+;-------------------------------------------------
+;子供に会う
+;-------------------------------------------------
+@COMNAME_PLACE_380_2_6
+#FUNCTION
+TSTR:コマンド名受渡 = 手紙を出す
+RETURNF 1
 
-; ;===================================================
-; ;コマンドタイプ
-; ;===================================================
-; @COMTYPE_380_2_6
-; #FUNCTION
-; TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_2_6
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
 
-; @COM_TOOLTIP_380_2_6
-; LOCALS = <br>■手紙を出す<br>
-; LOCALS += "リゾートに滞在しておらず、一定以上の好感度を持つキャラに手紙を出すコマンド。"
-; LOCALS += "<br>キャラクターの好感度が上昇し、翌日の朝に返事が来る。"
-; LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
-; LOCALS += "<br>固有の取得経験：なし<br>"
-; TSTR:ツールチップ受渡 = %LOCALS%
+@COM_TOOLTIP_380_2_6
+LOCALS = <br>■手紙を出す<br>
+LOCALS += "一定以上の好感度を持つキャラに手紙を出すコマンド。観光客に対しては出すことが出来ない。"
+LOCALS += "<br>キャラクターの好感度が上昇し、翌日の朝に返事が来る。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
 
-; @COM380_2_6
-; #DIM ページ数, 2
-; #DIM 表示候補, キャラクタ数上限
-; #DIM 候補人数
-; #DIM 口上ファイル数, キャラクタ数上限
-; #DIM アビ奥義関数, キャラクタ数上限
-; #DIM 得意武器番号
-; #DIM スキップフラグ
-; #DIM 文字色フラグ
-; #DIM 表示人数 = 50
-; #DIM L_TIME,2
-; #DIMS ソート情報
-; #DIMS ボタンテキスト
-; VARSET ページ数
-; VARSET 口上ファイル数, -1
-; VARSET アビ奥義関数, -1
+@COM380_2_6
+#DIM 最初から詳細
+#DIM ページ数, 2
+#DIM 表示候補, キャラクタ数上限
+#DIM 候補人数
+#DIM 口上ファイル数, キャラクタ数上限
+#DIM アビ奥義関数, キャラクタ数上限
+#DIM 得意武器番号
+#DIM スキップフラグ
+#DIM 文字色フラグ
+#DIM 表示人数 = 50
+#DIM L_TIME,2
+#DIMS ソート情報
+#DIMS ボタンテキスト
+VARSET ページ数
+VARSET 口上ファイル数, -1
+VARSET アビ奥義関数, -1
 
-; $最初から
+$最初から
 
-; ;表示候補選定＆ソート処理
-; VARSET 表示候補
-; 候補人数 = 0
-; ;フィルタ処理・絞り込み処理
-; FOR LOCAL, 1, CHARANUM
-; 	CALL 装備再計算処理(LOCAL)
-; 	SIF CFLAG:LOCAL:好感度レベル < 関係閾値:2
-; 		CONTINUE
-; 	SIF CFLAG:LOCAL:滞在期間 > 0
-; 		CONTINUE
-; 	表示候補:候補人数 = LOCAL
-; 	候補人数 ++
-; NEXT
-; CALL キャラ配列フィルタ処理(表示候補)
-; 候補人数 = RESULT
+;表示候補選定＆ソート処理
+VARSET 表示候補
+候補人数 = 0
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	CALL 装備再計算処理(LOCAL)
+	SIF CFLAG:LOCAL:好感度レベル < 関係閾値:2
+		CONTINUE
+	SIF CFLAG:LOCAL:滞在期間 > 0 && !TALENT:LOCAL:定住者 && !TALENT:LOCAL:従業員
+		CONTINUE
+	表示候補:候補人数 = LOCAL
+	候補人数 ++
+NEXT
+CALL キャラ配列フィルタ処理(表示候補)
+候補人数 = RESULT
 
-; LOCAL:1 = 1
+LOCAL:1 = 1
 
-; $表示処理_LOOP
-; ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
-; DRAWLINE
-; PRINTL 誰に手紙を出しますか？
-; DRAWLINE
-; VARSET LOCAL
-; VARSET LOCALS
-; ;表示処理
-; FOR LOCAL, ページ数 * 表示人数, 候補人数
-; 	SIF 表示候補:LOCAL < 1
-; 		BREAK
-; 	IF 文字色グループ取得(表示候補:LOCAL) >= 0
-; 		LOCALS += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL)))%'>"
-; 		文字色フラグ = 1
-; 	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
-; 		LOCALS += @"<font color='#%十六進数文字列化(CFLAG:(表示候補:LOCAL):同室文字色)%'>"
-; 		文字色フラグ = 1
-; 	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
-; 		LOCALS += "<font color='#FF3399'>"
-; 		文字色フラグ = 2
-; 	ELSE
-; 		文字色フラグ = 0
-; 	ENDIF
-; 	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %GET_NAME(表示候補:LOCAL, 1, 50)%</button>　"
-; 	SIF 文字色フラグ == 1
-; 		LOCALS += "</font>"
-; 	SIF 文字色フラグ == 2
-; 		LOCALS += "</font>"
-; 	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
-; 	IF ソート情報 != ""
-; 		LOCALS += ソート情報 + "　"
-; 	ELSE
-; 		LOCALS += "　　　　　　　　"
-; 	ENDIF
-; 	LOCAL:1 += 1
-; 	IF LOCAL:1 % 2 == 0
-; 		HTML_PRINT LOCALS
-; 		LOCALS = 
-; 	ENDIF
-; 	SIF LOCAL:1 > 表示人数 - 1
-; 		BREAK
-; NEXT
-; IF LOCALS != ""
-; 	HTML_PRINT LOCALS
-; 	LOCALS = 
-; ENDIF
-; PRINTL 
-; LOCALS:2 = 
-; IF ページ数 > 0
-; 	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
-; ELSE
-; 	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
-; ENDIF
-; LOCALS:2 += " " * 24
-; LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
-; LOCALS:2 += " " * 23
-; IF ページ数 < ページ数:1
-; 	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
-; ENDIF
-; LOCALS:2 += "<br>"
-; IF ページ数 > 0
-; 	LOCALS:2 += "<button value='9002'>[|≪]</button>"
-; ELSE
-; 	LOCALS:2 += "     "
-; ENDIF
-; IF ページ数 > 4
-; 	LOCALS:2 += "<button value='9003'> [－５]</button>"
-; ELSE
-; 	LOCALS:2 += " 　　　"
-; ENDIF
-; LOCALS:2 += " " * 26
-; LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
-; LOCALS:2 += " " * (56-20-20)
-; IF ページ数 <= ページ数:1 - 5
-; 	LOCALS:2 += "<button value='9004'>[＋５] </button>"
-; ELSE
-; 	LOCALS:2 += " 　　　"
-; ENDIF
-; LOCALS:2 += " " * 5
-; IF ページ数 < ページ数:1
-; 	LOCALS:2 += "<button value='9005'>[≫|]</button>"
-; ENDIF
-; HTML_PRINT LOCALS:2
-; DRAWLINE
-; CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000, 2001, ボタンテキスト)
-; DRAWLINE
-; ; PRINTBUTTONLC "[9998]システムの説明", 9998
-; ; PRINTL
-; PRINTBUTTONLC "[9999]戻る", 9999
+$表示処理_LOOP
+ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
+DRAWLINE
+PRINTL 誰に手紙を出しますか？
+DRAWLINE
+VARSET LOCAL
+VARSET LOCALS
+;表示処理
+FOR LOCAL, ページ数 * 表示人数, 候補人数
+	SIF 表示候補:LOCAL < 1
+		BREAK
+	IF 文字色グループ取得(表示候補:LOCAL) >= 0
+		LOCALS += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL)))%'>"
+		文字色フラグ = 1
+	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
+		LOCALS += @"<font color='#%十六進数文字列化(CFLAG:(表示候補:LOCAL):同室文字色)%'>"
+		文字色フラグ = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "<font color='#FF3399'>"
+		文字色フラグ = 2
+	ELSE
+		文字色フラグ = 0
+	ENDIF
+	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL,4}] %GET_NAME(表示候補:LOCAL, 1, 50)%</button>　"
+	SIF 文字色フラグ == 1
+		LOCALS += "</font>"
+	SIF 文字色フラグ == 2
+		LOCALS += "</font>"
+	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
+	IF ソート情報 != ""
+		LOCALS += ソート情報 + "　"
+	ELSE
+		LOCALS += "　　　　　　　　"
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 表示人数 - 1
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+PRINTL 
+LOCALS:2 = 
+IF ページ数 > 0
+	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
+ELSE
+	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
+ENDIF
+LOCALS:2 += " " * 24
+LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+LOCALS:2 += " " * 23
+IF ページ数 < ページ数:1
+	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
+ENDIF
+LOCALS:2 += "<br>"
+IF ページ数 > 0
+	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+ELSE
+	LOCALS:2 += "     "
+ENDIF
+IF ページ数 > 4
+	LOCALS:2 += "<button value='9003'> [－５]</button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 26
+LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+LOCALS:2 += " " * (56-20-20)
+IF ページ数 <= ページ数:1 - 5
+	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 5
+IF ページ数 < ページ数:1
+	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+ENDIF
+HTML_PRINT LOCALS:2
+DRAWLINE
+CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000, 2001, ボタンテキスト)
+DRAWLINE
+; PRINTBUTTONLC "[9998]システムの説明", 9998
 ; PRINTL
+PRINTBUTTONLC "[9999]戻る", 9999
+PRINTL
 
-; $INPUT_LOOP
+$INPUT_LOOP
 ; IF チュートリアルフラグ:能力表示 == 0
 ; 	RESULT = 9998
 ; ELSE
-; 	BINPUT
+	BINPUT
 ; ENDIF
-; IF RESULT == 9999
-; 	RETURN 0
-; ELSEIF RESULT == 9998
-; 	;CALL 能力表示チュートリアル()
-; 	GOTO 表示処理_LOOP
-; ELSEIF GROUPMATCH(RESULT, 2000, 3000, 3100, 4000)
-; 	CALL フィルタソートボタンセット実行部(RESULT, 2000, 3000, 3100, 4000)
-; 	ページ数 = 0
-; 	RESTART
-; ELSEIF RESULT == 2001
-; 	INVERTBIT 滞在者のみフィルタ, 0
-; 	ページ数 = 0
-; 	RESTART
-; ELSEIF RESULT == 9000
-; 	ページ数 = MAX(ページ数 - 1, 0)
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9001
-; 	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9002
-; 	ページ数 = 0
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9003
-; 	ページ数 = MAX(ページ数 - 5, 0)
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9004
-; 	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9005
-; 	ページ数 = ページ数:1
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9006
-; 	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
-; 	INPUT
-; 	SIF INRANGE(RESULT, 1, 1+ページ数:1)
-; 		ページ数 = RESULT - 1
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT == 9007
-; 	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
-; 	INPUT
-; 	IF INRANGE(RESULT, 1, 100)
-; 		表示人数 = RESULT
-; 		ページ数 = 0
-; 	ENDIF
-; 	GOTO 表示処理_LOOP
-; ELSEIF RESULT < 0 || RESULT >= CHARANUM
-; 	REUSELASTLINE 
-; 	GOTO INPUT_LOOP
-; ENDIF
-; LOCAL = RESULT
-; $再表示
-; IF 候補人数 == 1
-; 	CALL 手紙送付キャラ確認(LOCAL, 0)
-; ELSEIF 表示候補:0 == LOCAL
-; 	CALL 手紙送付キャラ確認(LOCAL, 2)
-; ELSEIF 表示候補:(候補人数 - 1) == LOCAL
-; 	CALL 手紙送付キャラ確認(LOCAL, 1)
-; ELSE
-; 	CALL 手紙送付キャラ確認(LOCAL, 3)
-; ENDIF
-; IF RESULT == 100
-; 	FOR LOCAL:1, 0, 候補人数
-; 		IF 表示候補:(LOCAL:1) == LOCAL
-; 			LOCAL = 表示候補:(LOCAL:1 - 1)
-; 			BREAK
-; 		ENDIF
-; 	NEXT
-; 	GOTO 再表示
-; ELSEIF RESULT == 101
-; 	FOR LOCAL:1, 0, 候補人数
-; 		IF 表示候補:(LOCAL:1) == LOCAL
-; 			LOCAL = 表示候補:(LOCAL:1 + 1)
-; 			BREAK
-; 		ENDIF
-; 	NEXT
-; 	GOTO 再表示
-; ENDIF
+IF RESULT == 9999
+	RETURN 0
+ELSEIF RESULT == 9998
+	;CALL 能力表示チュートリアル()
+	GOTO 表示処理_LOOP
+ELSEIF GROUPMATCH(RESULT, 2000, 3000, 3100, 4000)
+	CALL フィルタソートボタンセット実行部(RESULT, 2000, 3000, 3100, 4000)
+	ページ数 = 0
+	RESTART
+ELSEIF RESULT == 2001
+	INVERTBIT 滞在者のみフィルタ, 0
+	ページ数 = 0
+	RESTART
+ELSEIF RESULT == 9000
+	ページ数 = MAX(ページ数 - 1, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9001
+	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9002
+	ページ数 = 0
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9003
+	ページ数 = MAX(ページ数 - 5, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9004
+	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9005
+	ページ数 = ページ数:1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9006
+	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+	INPUT
+	SIF INRANGE(RESULT, 1, 1+ページ数:1)
+		ページ数 = RESULT - 1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9007
+	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+	INPUT
+	IF INRANGE(RESULT, 1, 100)
+		表示人数 = RESULT
+		ページ数 = 0
+	ENDIF
+	GOTO 表示処理_LOOP
+ELSEIF RESULT < 0 || RESULT >= CHARANUM
+	REUSELASTLINE 
+	GOTO INPUT_LOOP
+ENDIF
+LOCAL = RESULT
+$再表示
+CALL 手紙送付キャラ確認(表示候補:LOCAL, 最初から詳細)
+最初から詳細 = 0
+SELECTCASE RESULT
+	CASE -1
+		;- キャンセル
+		; リスタートしてリスト表示へ戻る
+		GOTO 表示処理_LOOP
+	CASE 1
+		;- キャラ招待実行後
+		; 手紙は一日１回なのでRETURN 1
+		RETURN 1
+	CASE 2
+		;- 前のキャラ
+		; 候補番号を更新、ループして前のキャラを表示
+		LOCAL -=  1
+		SIF LOCAL < 0
+			LOCAL = 候補人数 - 1
+		GOTO 再表示
+	CASE 3
+		;- 次のキャラ
+		; 候補番号を更新、ループして次のキャラを表示
+		LOCAL +=  1
+		SIF LOCAL >= 候補人数
+			LOCAL = 0
+		GOTO 再表示
+	CASE 12
+		;- 前のキャラ
+		; 候補番号を更新、ループして前のキャラを表示
+		最初から詳細 = 1
+		LOCAL -=  1
+		SIF LOCAL < 0
+			LOCAL = 候補人数 - 1
+		GOTO 再表示
+	CASE 13
+		;- 次のキャラ
+		; 候補番号を更新、ループして次のキャラを表示
+		最初から詳細 = 1
+		LOCAL +=  1
+		SIF LOCAL >= 候補人数
+			LOCAL = 0
+		GOTO 再表示
+ENDSELECT
 
-; GOTO 表示処理_LOOP
+GOTO 表示処理_LOOP
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE380_2_6
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_2_6
+#DIMS 手紙文字列
+
+SELECTCASE FLAG:手紙種類記録
+	CASE 0
+		手紙文字列 = 普通の手紙
+	CASE 1
+		手紙文字列 = ラブレター
+	CASE 2
+		手紙文字列 = 秘密の手紙
+ENDSELECT
+
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:(RFLAG:コマンド結果受渡し変数)%に%手紙文字列%を出した。
+PRINTL （返事は明日の朝に来ます）
 
 
-; RETURN 1
+@手紙送付キャラ確認(対象キャラ, 最初から詳細)
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 対象キャラ
+#DIM 入力番号
+#DIM 描画開始行
+#DIM 対象画像数
+#DIM 最初から詳細
+#DIM リロールボタン有効
+#DIM 実行結果
+#DIM TFLAG保存
+#DIM リスタートフラグ
+#DIM DYNAMIC 初回フラグ = 1
 
-; ;-------------------------------------------------
-; ;実行判定
-; ;-------------------------------------------------
-; @COM_ABLE380_2_6
-; ;条件に合う場合0（不許可）を返す
-; ;どの条件にも引っかからないなら1（許可）を返す
-; ;一括管理
-; SIF GLOBAL_COMABLE(380)
-; 	RETURN RESULT
-; ;隠密中はダメ
-; SIF CFLAG:PLAYER:隠密
-; 	RETURN 0
-; RETURN 1
+IF 初回フラグ
+	初回フラグ = 0
+	; 番号の範囲チェック
+	SIF !INRANGE(対象キャラ, 0, CHARANUM - 1)
+		RETURN -1
+	描画開始行 = LINECOUNT
+ENDIF
 
-; ;-------------------------------------------------
-; ;実行時メッセージ
-; ;-------------------------------------------------
-; @MESSAGE_COM380_2_6
-; #DIM MASTERの子
+SIF 最初から詳細
+	GOTO 最初から詳細_場所
 
-; SIF RFLAG:コマンド結果受渡し変数 == -999
-; 	RETURN 1
+PRINTL
+; キャラ確認用の簡易紹介
+CALL キャラ簡易紹介(対象キャラ)
+対象画像数 = RESULT
+リロールボタン有効 = 対象画像数 > 5
+PRINTL
+; 確認メッセージ
+PRINTFORML %GET_NAME(対象キャラ)%に手紙を送ります。
+PRINTL よろしいですか？
+; ボタン表示
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+PRINTBUTTONLC "[10]詳細能力", 10
+PRINTL
+PRINTBUTTONLC "[2]前のキャラ", 2
+PRINTBUTTONLC "[3]次のキャラ", 3
+SIF リロールボタン有効
+	PRINTBUTTONLC "[4]画像のランダム表示をリロール", 4
+PRINTL
 
-; MASTERの子 = (GET_PERSON_母親(RFLAG:コマンド結果受渡し変数２) == CFLAG:MASTER:人物番号) || (GET_PERSON_父親(RFLAG:コマンド結果受渡し変数２) == CFLAG:MASTER:人物番号)
-; IF TARGET > 0 && MASTERの子
-; 	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と子供に会いに行った。
-; 	SELECTCASE RFLAG:コマンド結果受渡し変数
-; 		CASE -1
-; 			;失敗
-; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、慌てて二人であやした…
-; 		CASE 0
-; 			;成功
-; 			PRINTFORML 元気に遊ぶ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を眺めながら、しばらく二人で語り合った…
-; 		CASE 1
-; 			;大成功
-; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、二人も嬉しい気持ちになった…
-; 		CASE 9
-; 			;眠っていた
-; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、二人は穏やかな気持ちになった…
-; 	ENDSELECT
-; ELSEIF TARGET > 0
-; 	PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%と子供に会いに行った。
-; 	SELECTCASE RFLAG:コマンド結果受渡し変数
-; 		CASE -1
-; 			;失敗
-; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、%CALLNAME:TARGET%に怒られてしまった…
-; 		CASE 0
-; 			;成功
-; 			PRINTFORML はしゃぐ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を優しく撫でる%CALLNAME:TARGET%の姿に、%CALLNAME:PLAYER%は生命のすばらしさを感じた…
-; 		CASE 1
-; 			;大成功
-; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:TARGET%から感謝された…
-; 		CASE 9
-; 			;眠っていた
-; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%を優しく撫でる%CALLNAME:TARGET%の姿に、%CALLNAME:PLAYER%は生命のすばらしさを感じた…
-; 	ENDSELECT
-; ELSE
-; 	PRINTFORML %CALLNAME:PLAYER%は子供に会いに行った。
-; 	SELECTCASE RFLAG:コマンド結果受渡し変数
-; 		CASE -1
-; 			;失敗
-; 			PRINTFORML %GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%がぐずりだし、慌ててあやした…
-; 		CASE 0
-; 			;成功
-; 			PRINTFORML 元気に遊ぶ%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%をしばらく眺めて楽しんだ…
-; 		CASE 1
-; 			;大成功
-; 			PRINTFORML 嬉しそうな%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:PLAYER%も嬉しい気持ちになった…
-; 		CASE 9
-; 			;眠っていた
-; 			PRINTFORML 安らかに眠る%GET_PERSON_呼び名(RFLAG:コマンド結果受渡し変数２)%の様子に、%CALLNAME:PLAYER%は穏やかな気持ちになった…
-; 	ENDSELECT
-; ENDIF
+; 入力ループ
+WHILE 1
+	BINPUT
+	入力番号 = RESULT
+	SELECTCASE 入力番号
+		CASE 0
+			;- [0]はい
+			;お手紙処理へ
+			CALL 手紙送付実処理(対象キャラ)
+			IF RESULT
+				実行結果 = 1
+				リスタートフラグ = 0
+			ELSE
+				実行結果 = 0
+				リスタートフラグ = 1
+			ENDIF
+			BREAK
+		CASE 1
+			;- [1]いいえ
+			; 何もせず処理終了
+			実行結果 = -1
+			リスタートフラグ = 0
+			BREAK
+		CASE 4
+			;- [4]画像のランダム表示をリロール
+			; リスタートして再表示
+			IF リロールボタン有効
+				実行結果 = 0
+				リスタートフラグ = 1
+				BREAK
+			ENDIF
+		CASE 2
+			;- [2]前のキャラ
+			; 何もせず処理終了(キャラ変更処理は関数外で実行)
+			実行結果 = 2
+			リスタートフラグ = 0
+			BREAK
+		CASE 3
+			;- [3]次のキャラ
+			; 何もせず処理終了(キャラ変更処理は関数外で実行)
+			実行結果 = 3
+			リスタートフラグ = 0
+			BREAK
+		CASE 10
+			;- [10]詳細能力
+			; 詳細画面を読んでからリスタートして再表示
+			$最初から詳細_場所
+			TFLAG保存 = TFLAG:調教モード
+			TFLAG:調教モード = -2
+			CALL PRINT_STATE(対象キャラ, 3)
+			TFLAG:調教モード = TFLAG保存
+			SELECTCASE RESULT
+				CASE 100
+					;前のキャラへ
+					; 何もせず処理終了(キャラ変更処理は関数外で実行)
+					実行結果 = 12
+					リスタートフラグ = 0
+				CASE 101
+					;次のキャラへ
+					; 何もせず処理終了(キャラ変更処理は関数外で実行)
+					実行結果 = 13
+					リスタートフラグ = 0
+				CASE 1
+					;はい
+					;ルピチェックは最初にやってるのでそのまま手紙実行して戻す
+					CALL 手紙送付実処理(対象キャラ)
+					実行結果 = 1
+					リスタートフラグ = 0
+				CASE 0
+					;いいえ
+					; 何もせず処理終了
+					実行結果 = -1
+					リスタートフラグ = 0
+			ENDSELECT
+			BREAK
+		CASEELSE
+			; 入力エラー
+	ENDSELECT
+	; 入力エラー時は消してやり直し
+	CLEARLINE 1
+	REUSELASTLINE 
+WEND
+
+; 表示した内容を消去
+CLEARLINE LINECOUNT - 描画開始行
+
+; リスタート or 終了
+SIF リスタートフラグ
+	RESTART
+
+; 簡易紹介で使用したリソースを解放
+CALL ランダム画像表示_リソース解放(1)
+RETURN 実行結果
+
+
+@手紙送付実処理(対象キャラ)
+#DIM 対象キャラ
+#DIMS 手紙文字列
+
+;手紙種類を決定
+DRAWLINE
+PRINTFORML %NAME:対象キャラ%にどんな手紙を出しますか？
+DRAWLINE
+;通常手紙は条件なし
+手紙文字列 = [0] 普通の手紙を出す
+PRINTBUTTON @"%手紙文字列, 30, LEFT%", 0
+PRINTL ：友情度↑↑　信頼度↑
+;ラブレター
+手紙文字列 = [1] ラブレターを出す
+IF CFLAG:対象キャラ:恋慕レベル >= 関係閾値:2
+	PRINTBUTTON @"%手紙文字列, 30, LEFT%", 1
+	PRINTL ：恋心度↑↑　恋慕度↑
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %手紙文字列, 30, LEFT%
+	PRINTFORML ：恋慕レベル{関係閾値:2}必要
+	RESETCOLOR
+ENDIF
+;秘密の手紙
+手紙文字列 = [2] 秘密の手紙を出す
+IF 陥落チェック_性的(対象キャラ)
+	PRINTBUTTON @"%手紙文字列, 30, LEFT%", 2
+	PRINTL ：性愛度↑↑　性欲↑
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %手紙文字列, 30, LEFT%
+	PRINTFORML ：恋慕系陥落orセフレ系陥落必要
+	RESETCOLOR
+ENDIF
+DRAWLINE
+PRINTBUTTON "[999] 戻る", 999
+DRAWLINE
+PRINTL
+BINPUT
+
+SELECTCASE RESULT
+	CASE 999
+		RETURN 0
+	CASEELSE
+		;口上用と返事用変数にセット
+		RFLAG:コマンド結果受渡し変数 = 対象キャラ
+		FLAG:手紙相手記録 = 対象キャラ
+		FLAG:手紙種類記録 = RESULT
+		RETURN 1
+ENDSELECT
+
+
+@手紙お返事処理()
+#DIM 対象キャラ
+#DIM 上昇基礎値
+;起床時に呼び出す
+
+IF FLAG:手紙相手記録 < 1
+	FLAG:手紙相手記録 = 0
+	FLAG:手紙種類記録 = 0
+	RETURN 0
+ENDIF
+
+対象キャラ = FLAG:手紙相手記録
+
+;上昇基礎値
+上昇基礎値 = 250
+;性別嗜好
+SELECTCASE TALENT:対象キャラ:性別嗜好
+	CASE 1
+		SIF TALENT:MASTER:性別 == 2
+			上昇基礎値 += -100
+	CASE 2
+		SIF TALENT:MASTER:性別 == 1
+			上昇基礎値 += -100
+	CASE 3
+		上昇基礎値 += -100
+ENDSELECT
+
+SELECTCASE FLAG:手紙種類記録
+	CASE 0
+		;普通
+		SELECTCASE CFLAG:対象キャラ:友情度
+			CASE IS < 10000
+				;なんもなし
+			CASE IS < 25000
+				上昇基礎値 = 上昇基礎値 * 12 / 10
+			CASE IS < 60000
+				上昇基礎値 = 上昇基礎値 * 14 / 10
+			CASEELSE
+				上昇基礎値 = 上昇基礎値 * 16 / 10
+		ENDSELECT
+		NOWEX:対象キャラ:友情度上昇格納 += 上昇基礎値 * 2
+		NOWEX:対象キャラ:信頼度上昇格納 += 上昇基礎値
+
+		DRAWLINE
+		PRINTFORML %CALLNAME:対象キャラ%から手紙の返事が来た。
+		PRINTL
+		;口上呼び出し
+		TRYCALLFORM KOJO_EVENT_手紙返事_普通の手紙_{NO:対象キャラ}(対象キャラ)
+		IF KSTR:0 == ""
+			;口上がない場合の汎用
+			PRINTDATA
+				DATAFORM 手紙のお礼と、
+				DATAFORM 季節の挨拶と、
+				DATAFORM 丁寧な挨拶と、
+			ENDDATA
+			PRINTDATAL
+				DATAFORM %CALLNAME:対象キャラ%の近況が綴られている。
+				DATAFORM %CALLNAME:対象キャラ%が最近始めた趣味のことが綴られている。
+				DATAFORM %CALLNAME:MASTER%は最近どうしているのかと気にする言葉が綴られている。
+			ENDDATA
+		ENDIF
+		DRAWLINE
+	CASE 1
+		;ラブレター
+		SELECTCASE CFLAG:対象キャラ:恋心度
+			CASE IS < 10000
+				;なんもなし
+			CASE IS < 25000
+				上昇基礎値 = 上昇基礎値 * 12 / 10
+			CASE IS < 60000
+				上昇基礎値 = 上昇基礎値 * 14 / 10
+			CASEELSE
+				上昇基礎値 = 上昇基礎値 * 16 / 10
+		ENDSELECT
+		NOWEX:対象キャラ:恋心度上昇格納 += 上昇基礎値 * 2
+		NOWEX:対象キャラ:恋慕度上昇格納 += 上昇基礎値
+
+		DRAWLINE
+		PRINTFORML %CALLNAME:対象キャラ%からラブレターの返事が来た。
+		PRINTL
+		;口上呼び出し
+		TRYCALLFORM KOJO_EVENT_手紙返事_ラブレター_{NO:対象キャラ}(対象キャラ)
+		IF KSTR:0 == ""
+			;口上がない場合の汎用
+			PRINTDATA
+				DATAFORM 手紙のお礼と、
+				DATAFORM 季節の挨拶と、
+				DATAFORM 丁寧な挨拶と、
+			ENDDATA
+			PRINTDATAL
+				DATAFORM %CALLNAME:MASTER%に会いたいという気持ちが綴られている。
+				DATAFORM 最近つい%CALLNAME:MASTER%の顔を思い浮かべてしまう、と綴られている。
+				DATAFORM %CALLNAME:対象キャラ%も%CALLNAME:MASTER%と同じ気持ちかもしれない、と綴られている。
+			ENDDATA
+		ENDIF
+		DRAWLINE
+	CASE 2
+		;秘密の手紙
+		SELECTCASE CFLAG:対象キャラ:性愛度
+			CASE IS < 10000
+				;なんもなし
+			CASE IS < 25000
+				上昇基礎値 = 上昇基礎値 * 12 / 10
+			CASE IS < 60000
+				上昇基礎値 = 上昇基礎値 * 14 / 10
+			CASEELSE
+				上昇基礎値 = 上昇基礎値 * 16 / 10
+		ENDSELECT
+		NOWEX:対象キャラ:性愛度上昇格納 += 上昇基礎値 * 2
+		BASE:対象キャラ:性欲 = MIN(BASE:対象キャラ:性欲 + (MAXBASE:対象キャラ:性欲 / 10), MAXBASE:対象キャラ:性欲)
+
+		DRAWLINE
+		PRINTFORML %CALLNAME:対象キャラ%から秘密の手紙の返事が来た。
+		PRINTL
+		;口上呼び出し
+		TRYCALLFORM KOJO_EVENT_手紙返事_秘密の手紙_{NO:対象キャラ}(対象キャラ)
+		IF KSTR:0 == ""
+			;口上がない場合の汎用
+			PRINTDATA
+				DATAFORM 手紙のお礼と、
+				DATAFORM 季節の挨拶と、
+				DATAFORM 丁寧な挨拶と、
+			ENDDATA
+			PRINTDATAL
+				DATAFORM 自分も%CALLNAME:MASTER%とえっちなことをしたい、と綴られている。
+				DATAFORM いつなら夜の予定が空いているかが綴られている。
+				DATAFORM 淫らな言葉で%CALLNAME:MASTER%を誘う言葉が綴られている。
+			ENDDATA
+		ENDIF
+		DRAWLINE
+ENDSELECT
+
+CALL FAVOR_CALC(対象キャラ, 1)
+CALL Love_CALC(対象キャラ, 1)
+IF FLAG:手紙種類記録 == 2
+	PRINTFORML 性欲＋{MIN(キMAXBASE:対象キャラ:性欲 / 10, MAXBASE:対象キャラ:性欲 - BASE:対象キャラ:性欲)}
+	BASE:対象キャラ:性欲 = MIN(BASE:対象キャラ:性欲 + (MAXBASE:対象キャラ:性欲 / 10), MAXBASE:対象キャラ:性欲)
+ENDIF
+WAIT
+DRAWLINE
+
+VARSET NOWEX:対象キャラ:0, 0
+FLAG:手紙相手記録 = 0
+FLAG:手紙種類記録 = 0
+
+
