@@ -67,7 +67,7 @@ IF 居住区改造度:0:0
 	AA:(MAP++) = ┃　┃┏━┓┏━━┓┏━┓┏━━┓┏━┓│　│┃　┃┃　┃│　│　　　‖　　‖
 	AA:(MAP++) = ┗━┛┗━┛┗━━┛┗━┛┗━━┛┗━┛│　│┗━┛┗━┛│　│　　　‖川　‖
 	AA:(MAP++) = ────────────────────┘　└──────┘　└───────
-	AA:(MAP++) = 　　　　　　　　　　　　　　　　　　　　　01
+	AA:(MAP++) = 　　　　　　　　　　　　　　　　　　　　　01　　　　　　　　　　　　　　　14→
 	AA:(MAP++) = ────────────────────┐　┌────────────────
 	AA:(MAP++) = 　┏━┓┏━━━━━━━┓┏━━━━━┓│　│　　　　　　　┏━━━┓‖川　‖
 	AA:(MAP++) = 　┃　┃┃　　　05　　　┃┃　　06　　┃│　│　　　　　　　┃　　　┃‖川川‖
@@ -77,7 +77,7 @@ IF 居住区改造度:0:0
 	AA:(MAP++) = 　┃　　　┃┗━━━┛┗━━┛┃　　　┃│　│　　　　　　　　　　　　‖川川‖
 	AA:(MAP++) = 　┗━━━┛┏━━━━━━━┓┗━━━┛│　│　　　　　　　　　　　　‖　川‖
 	AA:(MAP++) = 
-	AA:(MAP++) = 01：ア
+	AA:(MAP++) = 01：ア　　14：二丁目へ
 	AA:(MAP++) = 02：公園　　　　　03：地元向け商店　04：保育所　　　　05：診療所
 	AA:(MAP++) = 06：郵便局　　　　07：酒呑処　　　　08：路地裏　　　　09：村役場
 	AA:(MAP++) = 10：純喫茶店　　　11：自警団詰め所　12：イ　　　　13：学校
@@ -140,6 +140,8 @@ SELECTCASE ARG
 		TSTR:場所名受渡 = 河川敷
 	CASE 13
 		TSTR:場所名受渡 = 学校
+	CASE 14
+		TSTR:場所名受渡 = 二丁目へ
 ENDSELECT
 
 @GETPLACENAME_2_10(ARG)
@@ -175,6 +177,31 @@ CALLF GETPLACENAME_2_10(ARG)
 CALLF GETPLACENAME_2_10(ARG)
 
 @GETPLACENAME_2_14(ARG)
+#FUNCTION
+
+CALLF GETPLACENAME_2_10(ARG)
+
+@GETPLACENAME_2_15(ARG)
+#FUNCTION
+
+CALLF GETPLACENAME_2_10(ARG)
+
+@GETPLACENAME_2_16(ARG)
+#FUNCTION
+
+CALLF GETPLACENAME_2_10(ARG)
+
+@GETPLACENAME_2_17(ARG)
+#FUNCTION
+
+CALLF GETPLACENAME_2_10(ARG)
+
+@GETPLACENAME_2_18(ARG)
+#FUNCTION
+
+CALLF GETPLACENAME_2_10(ARG)
+
+@GETPLACENAME_2_19(ARG)
 #FUNCTION
 
 CALLF GETPLACENAME_2_10(ARG)
@@ -239,6 +266,11 @@ IF 居住区改造度:0:0 < 1
 	LOCALS += @"■<button value='200'>[居住区の発展]</button> Lv{居住区改造度:0:0}>{居住区改造度:0:0 + 1} （必要:2,000,000ルピ）<br>"
 ELSE
 	LOCALS += @"■[居住区の発展] Lv{居住区改造度:0:0}：上限<br>"
+	IF 居住区改造度:14:0 < 1
+		LOCALS += @"■<button value='201'>[居住区拡張：二丁目]</button> Lv{居住区改造度:14:0}>{居住区改造度:14:0 + 1} （必要:2,000,000ルピ）<br>"
+	ELSE
+		LOCALS += @"■[居住区拡張：二丁目] Lv{居住区改造度:14:0}：上限<br>"
+	ENDIF
 ENDIF
 
 RETURNF LOCALS
@@ -265,9 +297,9 @@ SELECTCASE コマンド数値
 					PRINTW ルピが足りません。
 					RETURN
 				ENDIF
+				ARRAYSHIFT 定住者部屋割り配列, 住宅街広さ(), "", 住宅街広さ() + 30
 				居住区改造度:0:0 = 1
 				MONEY -= 2000000
-				ARRAYSHIFT 定住者部屋割り配列, 30, "", 50
 				PRINTL 居住区エリアを発展させました！
 				CALL RESET_GRAPH_2
 				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @" 居住区エリアをLv1に発展させた","実績")
@@ -283,6 +315,46 @@ SELECTCASE コマンド数値
 				DRAWLINE
 				PRINTL 新たに7つの施設が追加されます。
 				PRINTL （酒呑処、路地裏、村役場、純喫茶店、自警団詰め所、河川敷、学校）
+				PRINTL 現在はこれらの施設に特別な機能はありませんが、今後実装される可能性があります。
+				PRINTW
+		ENDSELECT
+		RESTART
+	CASE 201
+		DRAWLINE
+		PRINTL 居住区エリアに以下の変更が導入されます。
+		PRINTBUTTON "■二丁目個別マップの解放", 500
+		PRINTL 
+		PRINTBUTTON "■施設の追加", 501
+		PRINTL 
+		PRINTL 
+		PRINTL 居住区に二丁目を作成しますか？（必要:2,000,000ルピ）
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				IF MONEY < 2000000
+					PRINTW ルピが足りません。
+					RETURN
+				ENDIF
+				ARRAYSHIFT 定住者部屋割り配列, 住宅街広さ(), "", 住宅街広さ() + 20
+				居住区改造度:14:0 = 1
+				MONEY -= 2000000
+				PRINTL 居住区に二丁目を作成させました！
+				CALL RESET_GRAPH_2
+				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @" 居住区エリアに二丁目を作成した","実績")
+				RETURN
+			CASE 1
+				RETURN
+			CASE 500
+				DRAWLINE
+				PRINTL 居住区の枠が20枠分追加で拡大されます。
+				PRINTL これにより、より多くのキャラクターを定住させることが出来るようになります。
+				PRINTW
+			CASE 501
+				DRAWLINE
+				PRINTL 新たに2つの施設が追加されます。
+				PRINTL （結婚式場、美術館）
 				PRINTL 現在はこれらの施設に特別な機能はありませんが、今後実装される可能性があります。
 				PRINTW
 		ENDSELECT
