@@ -190,10 +190,14 @@ IF RSTR:SELECTCOM_S受け渡し != ""
 	CALLFORMF COMNAME_S%RSTR:SELECTCOM_S受け渡し%
 	SELECTCOM_NAME '= TSTR:コマンド名受渡
 	TRYCALLFORMF COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+	LOCALS = %RSTR:SELECTCOM_S受け渡し%
+	SIF 弱点チェック(ARG, LOCALS)
+		TCVAR:ARG:弱点コマンドフラグ = 1
+	SIF 弱点チェック(PLAYER, @"%LOCALS%_PLAYER側")
+		TCVAR:PLAYER:弱点コマンドフラグ = 1
 	TRYCALLFORM COM_S%RSTR:SELECTCOM_S受け渡し%
 	LOCAL:1 = RESULT
 	IF LOCAL:1 >= 0
-		LOCALS = %RSTR:SELECTCOM_S受け渡し%
 		IF STRFIND(コマンド初回フラグ:ARG:0, @"-%LOCALS%-") < 0
 			コマンド初回フラグ_一時保存:ARG:0 += @"-%LOCALS%-"
 		ENDIF
@@ -204,30 +208,10 @@ IF RSTR:SELECTCOM_S受け渡し != ""
 		IF STRFIND(弱点コマンドカテゴリ, "リダイレクト") >= 0
 			LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 		ENDIF
-		LOCAL = 弱点番号算出(ARG, LOCALS)
-		IF LOCAL >= 0
-			TCVAR:ARG:弱点コマンドフラグ = 1
-			CALL 弱点の欠片取得処理(LOCALS)
-			IF 弱点看破:ARG:LOCAL == 0
-				弱点看破:ARG:LOCAL = 1
-				弱点コマンド欄表示名 = 
-				CALLFORMF COMNAME_S%LOCALS%
-				SIF 弱点コマンド欄表示名 != ""
-					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-				IF 弱点全看破チェック(ARG)
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-					CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-				ENDIF
-			ENDIF
-		ELSE
-			LOCAL = 追加弱点番号算出(ARG, LOCALS)
-			IF LOCAL >= 0
-				TCVAR:ARG:弱点コマンドフラグ = 1
-				CALL 弱点の欠片取得処理(LOCALS)
-			ENDIF
-		ENDIF
+		CALL 弱点看破処理(ARG, LOCALS)
+		CALL 弱点看破処理(PLAYER, @"%LOCALS%_PLAYER側")
+	ELSE
+		TCVAR:ARG:弱点コマンドフラグ = 0
 	ENDIF
 	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
 	RETURN LOCAL:1
@@ -247,23 +231,29 @@ ELSE
 	CALLFORMF COMNAME{SELECTCOM}
 	SELECTCOM_NAME '= TSTR:コマンド名受渡
 	TRYCALLFORMF COMTYPE_{SELECTCOM}
+	SELECTCASE SELECTCOM
+		CASE 370 TO 374
+			LOCALS = {SELECTCOM}_{NO:ARG}
+		CASE 380 TO 384
+			LOCALS = {SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
+		CASE 385 TO 389
+			LOCALS = {SELECTCOM}_%開催予定祭り名%
+		CASE 400
+			LOCALS = {SELECTCOM}
+		CASEELSE
+			LOCALS = {SELECTCOM}
+	ENDSELECT
+	SIF 弱点チェック(ARG, LOCALS)
+		TCVAR:ARG:弱点コマンドフラグ = 1
+	SIF 弱点チェック(PLAYER, @"%LOCALS%_PLAYER側")
+		TCVAR:PLAYER:弱点コマンドフラグ = 1
 	TRYCALLFORM COM{SELECTCOM}
 	LOCAL:1 = RESULT
 	IF LOCAL:1 >= 0
-		SELECTCASE SELECTCOM
-			CASE 370 TO 374
-				LOCALS = {SELECTCOM}_{NO:ARG}
-			CASE 380 TO 384
-				LOCALS = {SELECTCOM}_{CFLAG:MASTER:現在マップ種別}_{CFLAG:MASTER:現在位置}
-			CASE 385 TO 389
-				LOCALS = {SELECTCOM}_%開催予定祭り名%
-			CASE 400
-				LOCALS = {SELECTCOM}
-				;追い出され・入室不可判定
-				CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
-			CASEELSE
-				LOCALS = {SELECTCOM}
-		ENDSELECT
+		IF SELECTCOM == 400
+			;追い出され・入室不可判定
+			CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
+		ENDIF
 		IF STRFIND(コマンド初回フラグ:ARG:0, @"-%LOCALS%-") < 0
 			コマンド初回フラグ_一時保存:ARG:0 += @"-%LOCALS%-"
 		ENDIF
@@ -274,31 +264,11 @@ ELSE
 		; 	LOCALS = %SUBSTRING(弱点コマンドカテゴリ, 12)%
 		; ENDIF
 		; IF 弱点コマンドカテゴリ != ""
-		LOCAL = 弱点番号算出(ARG, LOCALS)
-		IF LOCAL >= 0
-			TCVAR:ARG:弱点コマンドフラグ = 1
-			CALL 弱点の欠片取得処理(LOCALS)
-			IF 弱点看破:ARG:LOCAL == 0
-				弱点看破:ARG:LOCAL = 1
-				弱点コマンド欄表示名 = 
-				CALLFORMF COMNAME%LOCALS%
-				SIF 弱点コマンド欄表示名 != ""
-					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-				CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-				IF 弱点全看破チェック(ARG)
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:ARG%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-					CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-				ENDIF
-			ENDIF
-		ELSE
-			LOCAL = 追加弱点番号算出(ARG, LOCALS)
-			IF LOCAL >= 0
-				TCVAR:ARG:弱点コマンドフラグ = 1
-				CALL 弱点の欠片取得処理(LOCALS)
-			ENDIF
-		ENDIF
+		CALL 弱点看破処理(ARG, LOCALS)
+		CALL 弱点看破処理(PLAYER, @"%LOCALS%_PLAYER側")
 		; ENDIF
+	ELSE
+		TCVAR:ARG:弱点コマンドフラグ = 0
 	ENDIF
 	RETURN LOCAL:1
 ENDIF

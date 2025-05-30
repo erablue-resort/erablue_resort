@@ -33,6 +33,66 @@ RETURNF 弱点番号
 
 RETURNF 弱点番号
 
+@弱点看破処理(対象キャラ, 弱点キー)
+#DIM 対象キャラ
+#DIMS 弱点キー
+#DIM プレイヤー側フラグ
+
+プレイヤー側フラグ = 0
+LOCAL = 弱点番号算出(対象キャラ, 弱点キー)
+IF LOCAL >= 0
+	CALL 弱点の欠片取得処理(弱点キー)
+	IF 弱点看破:対象キャラ:LOCAL == 0
+		;看破フラグ立てる、以下は履歴登録処理
+		弱点看破:対象キャラ:LOCAL = 1
+		弱点コマンド欄表示名 = 
+		;プレイヤー側判断、フラグ立てた後は邪魔なので削除
+		IF STRFIND(弱点キー, "_PLAYER側") >= 0
+			プレイヤー側フラグ = 1
+		ENDIF
+		弱点キー '= REPLACE(弱点キー, "_PLAYER側", "")
+		;キーを見てどこの関数から名前を持ってくるかを決定
+		IF STRFIND(弱点キー, "RAPE_") >= 0
+			IF STRCOUNT(弱点キー, "_") > 1
+				CALLFORMF RAPE_COMNAME_S%REPLACE(弱点キー, "RAPE_", "")%
+			ELSE
+				CALLFORMF RAPE_COMNAME%REPLACE(弱点キー, "RAPE_", "")%
+			ENDIF
+		ELSEIF STRFIND(弱点キー, "MASSAGE_") >= 0
+			IF STRCOUNT(弱点キー, "_") > 1
+				CALLFORMF MASSAGE_COMNAME_S%REPLACE(弱点キー, "MASSAGE_", "")%
+			ELSE
+				CALLFORMF MASSAGE_COMNAME%REPLACE(弱点キー, "MASSAGE_", "")%
+			ENDIF
+		ELSE
+			IF STRCOUNT(弱点キー, "_") > 0
+				CALLFORMF COMNAME_S%弱点キー%
+			ELSE
+				CALLFORMF COMNAME%弱点キー%
+			ENDIF
+		ENDIF
+		SIF 弱点コマンド欄表示名 != ""
+			TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
+		IF プレイヤー側フラグ
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%は%TSTR:コマンド名受渡%（PLAYER側）に弱いとわかった</font>","うふふ")
+			CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%（PLAYER側）に弱いと知られてしまった</font>","うふふ")
+		ELSE
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
+			CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
+		ENDIF
+		IF 弱点全看破チェック(対象キャラ)
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
+			CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
+		ENDIF
+	ENDIF
+ELSE
+	LOCAL = 追加弱点番号算出(対象キャラ, 弱点キー)
+	IF LOCAL >= 0
+		CALL 弱点の欠片取得処理(弱点キー)
+	ENDIF
+ENDIF
+
+
 
 @判明済み弱点チェック(対象キャラ, 弱点キー)
 #FUNCTION

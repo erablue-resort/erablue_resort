@@ -485,40 +485,24 @@ IF RSTR:SELECTCOM_S受け渡し != ""
 	CALLFORMF RAPE_COMNAME_S%RSTR:SELECTCOM_S受け渡し%
 	SELECTCOM_NAME '= TSTR:コマンド名受渡
 	TRYCALLFORMF RAPE_COMTYPE_S_%RSTR:SELECTCOM_S受け渡し%
+	LOCALS = %RSTR:SELECTCOM_S受け渡し%
+	SIF 弱点チェック(対象キャラ, @"RAPE_%LOCALS%")
+		TCVAR:対象キャラ:弱点コマンドフラグ = 1
+	SIF 弱点チェック(PLAYER, @"RAPE_%LOCALS%_PLAYER側")
+		TCVAR:PLAYER:弱点コマンドフラグ = 1
 	TRYCALLFORM RAPE_COM_S%RSTR:SELECTCOM_S受け渡し%
 	LOCAL:1 = RESULT
 	IF LOCAL:1 >= 0
-		LOCALS = %RSTR:SELECTCOM_S受け渡し%
 		IF STRFIND(コマンド初回フラグ:対象キャラ:0, @"-RAPE_%LOCALS%-") < 0
 			コマンド初回フラグ_一時保存:対象キャラ:0 += @"-RAPE_%LOCALS%-"
 		ENDIF
 		IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-RAPE_%LOCALS%-") < 0
 			コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-RAPE_%LOCALS%-"
 		ENDIF
-		LOCAL = 弱点番号算出(対象キャラ, @"RAPE_%LOCALS%")
-		IF LOCAL >= 0
-			TCVAR:対象キャラ:弱点コマンドフラグ = 1
-			CALL 弱点の欠片取得処理(@"RAPE_%LOCALS%")
-			IF 弱点看破:対象キャラ:LOCAL == 0
-				弱点看破:対象キャラ:LOCAL = 1
-				弱点コマンド欄表示名 = 
-				CALLFORMF RAPE_COMNAME_S%LOCALS%
-				SIF 弱点コマンド欄表示名 != ""
-					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-				IF 弱点全看破チェック(対象キャラ)
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-					CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-				ENDIF
-			ENDIF
-		ELSE
-			LOCAL = 追加弱点番号算出(対象キャラ, @"RAPE_%LOCALS%")
-			IF LOCAL >= 0
-				TCVAR:TARGET:弱点コマンドフラグ = 1
-				CALL 弱点の欠片取得処理(@"RAPE_%LOCALS%")
-			ENDIF
-		ENDIF
+		CALL 弱点看破処理(対象キャラ, @"RAPE_%LOCALS%")
+		CALL 弱点看破処理(PLAYER, @"RAPE_%LOCALS%_PLAYER側")
+	ELSE
+		TCVAR:対象キャラ:弱点コマンドフラグ = 0
 	ENDIF
 	SPLIT RSTR:SELECTCOM_S受け渡し, "_", RESULTS
 	RETURN LOCAL:1
@@ -530,6 +514,11 @@ ELSE
 	CALLFORMF RAPE_COMNAME{SELECTCOM}
 	SELECTCOM_NAME '= TSTR:コマンド名受渡
 	TRYCALLFORMF RAPE_COMTYPE_{SELECTCOM}
+	LOCALS = {SELECTCOM}
+	SIF 弱点チェック(対象キャラ, @"RAPE_%LOCALS%")
+		TCVAR:対象キャラ:弱点コマンドフラグ = 1
+	SIF 弱点チェック(PLAYER, @"RAPE_%LOCALS%_PLAYER側")
+		TCVAR:PLAYER:弱点コマンドフラグ = 1
 	TRYCALLFORM RAPE_COM{SELECTCOM}
 	LOCAL:1 = RESULT
 	IF LOCAL:1 >= 0
@@ -540,30 +529,10 @@ ELSE
 		IF STRFIND(コマンド初回フラグ_PLAYER:PLAYER:0, @"-RAPE_%LOCALS%-") < 0
 			コマンド初回フラグ_PLAYER_一時保存:PLAYER:0 += @"-RAPE_%LOCALS%-"
 		ENDIF
-		LOCAL = 弱点番号算出(対象キャラ, @"RAPE_%LOCALS%")
-		IF LOCAL >= 0
-			TCVAR:対象キャラ:弱点コマンドフラグ = 1
-			CALL 弱点の欠片取得処理(@"RAPE_%LOCALS%")
-			IF 弱点看破:対象キャラ:LOCAL == 0
-				弱点看破:対象キャラ:LOCAL = 1
-				弱点コマンド欄表示名 = 
-				CALLFORMF RAPE_COMNAME%LOCALS%
-				SIF 弱点コマンド欄表示名 != ""
-					TSTR:コマンド名受渡 '= 弱点コマンド欄表示名
-				CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%は%TSTR:コマンド名受渡%に弱いとわかった</font>","うふふ")
-				CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%に%TSTR:コマンド名受渡%に弱いと知られてしまった</font>","うふふ")
-				IF 弱点全看破チェック(対象キャラ)
-					CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:対象キャラ%の弱点をすべて看破した</font><img src='えっちハート'>","うふふ実績")
-					CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%CALLNAME:MASTER%にすべての弱点を看破された</font><img src='えっちハート'>","うふふ実績")
-				ENDIF
-			ENDIF
-		ELSE
-			LOCAL = 追加弱点番号算出(対象キャラ, @"RAPE_%LOCALS%")
-			IF LOCAL >= 0
-				TCVAR:TARGET:弱点コマンドフラグ = 1
-				CALL 弱点の欠片取得処理(@"RAPE_%LOCALS%")
-			ENDIF
-		ENDIF
+		CALL 弱点看破処理(対象キャラ, @"RAPE_%LOCALS%")
+		CALL 弱点看破処理(PLAYER, @"RAPE_%LOCALS%_PLAYER側")
+	ELSE
+		TCVAR:対象キャラ:弱点コマンドフラグ = 0
 	ENDIF
 	RETURN LOCAL:1
 ENDIF
@@ -578,18 +547,36 @@ VARSET LOCAL
 TFLAG:コマンドタイプ受渡 = 0
 
 IF FLAG:汎用文章表示切り替えオプション > 0
-	IF TCVAR:TARGET:弱点コマンドフラグ
-		DRAWLINE
-		SETCOLOR カラーパレット("えっちな色")
-		PRINTW <<<弱点コマンド！！>>>
-		RESETCOLOR
-	ELSEIF TCVAR:TARGET:弱点シチュフラグ
-		SETCOLOR カラーパレット("えっちな色")
-		PRINT <<<弱点シチュエーション
-		PRINT_IMG "えっちハート"
-		PRINTL >>>
-		RESETCOLOR
+	IF PLAYER == MASTER
+		IF TCVAR:PLAYER:弱点コマンドフラグ
+			DRAWLINE
+			SETCOLOR カラーパレット("えっちな色")
+			PRINTFORMW <<<弱点コマンド！！（%CALLNAME:PLAYER%）>>>
+			RESETCOLOR
+		ELSEIF TCVAR:PLAYER:弱点シチュフラグ
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT <<<弱点シチュエーション
+			PRINT_IMG "えっちハート"
+			PRINTFORML （%CALLNAME:PLAYER%）>>>
+			RESETCOLOR
+		ENDIF
 	ENDIF
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		IF TCVAR:(TARGET:LOCAL):弱点コマンドフラグ
+			DRAWLINE
+			SETCOLOR カラーパレット("えっちな色")
+			PRINTFORMW <<<弱点コマンド！！（%CALLNAME:(TARGET:LOCAL)%）>>>
+			RESETCOLOR
+		ELSEIF TCVAR:(TARGET:LOCAL):弱点シチュフラグ
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT <<<弱点シチュエーション
+			PRINT_IMG "えっちハート"
+			PRINTFORML （%CALLNAME:(TARGET:LOCAL)%）>>>
+			RESETCOLOR
+		ENDIF
+	NEXT
 	DRAWLINE
 	IF SELECTCOM_S != ""
 		地の文MOD_関数名 = %SELECTCOM_S%
