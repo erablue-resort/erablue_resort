@@ -1439,13 +1439,16 @@ ENDSELECT
 RESTART
 
 
-@オート縁結び処理()
+@オート縁結び処理(順番シャッフル用配列)
 #DIM 設定カップル数
 #DIM 許可フラグ
 #DIM 対象キャラ１
 #DIM 候補配列, キャラクタ数上限
 #DIM 候補総数
 #DIM 縁結び組数
+#DIM ループ用
+#DIM 候補カウント
+#DIM REF 順番シャッフル用配列
 
 ;オプションで禁止なら戻す
 SIF OPTION変数:オート縁結び == 0
@@ -1459,10 +1462,13 @@ SIF GETBIT(OPTION変数:オート縁結び詳細, 0) == 0 && GETBIT(OPTION変数
 SIF 設定カップル数 <= 0
 	RETURN 0
 
-候補総数 = 0
+候補カウント = 0
 VARSET 候補配列
 ;滞在キャラを全員見て候補配列に登録
-FOR 対象キャラ１, 1, CHARANUM
+FOR ループ用, 1, CHARANUM
+	SIF 候補カウント >= 設定カップル数
+		BREAK
+	対象キャラ１ = 順番シャッフル用配列:ループ用
 	SIF CFLAG:対象キャラ１:滞在期間 <= 0
 		CONTINUE
 	;特殊条件チェック
@@ -1494,8 +1500,8 @@ FOR 対象キャラ１, 1, CHARANUM
 		CALL 縁結び候補存在判定(対象キャラ１, "恋慕")
 		IF RESULT
 			;相手候補がいるなら配列にセットして次へ
-			候補配列:候補総数 = 対象キャラ１
-			候補総数 ++
+			候補配列:候補カウント = 対象キャラ１
+			候補カウント ++
 			CONTINUE
 		ENDIF
 	ENDIF
@@ -1509,8 +1515,8 @@ FOR 対象キャラ１, 1, CHARANUM
 		CALL 縁結び候補存在判定(対象キャラ１, "セフレ")
 		IF RESULT
 			;相手候補がいるなら配列にセットして次へ
-			候補配列:候補総数 = 対象キャラ１
-			候補総数 ++
+			候補配列:候補カウント = 対象キャラ１
+			候補カウント ++
 			CONTINUE
 		ENDIF
 	ENDIF
@@ -1518,53 +1524,27 @@ NEXT
 
 縁結び組数 = 0
 ;候補から選出
-IF 候補総数 <= 設定カップル数
-	FOR LOCAL, 0, 設定カップル数
-		RESULT = 0
-		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
-			;恋慕が入る確率の方がやや高い
-			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
-				CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
-				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1)
-					CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
-			ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
-				CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
-				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 0)
-					CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
-			ENDIF
-		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 0)
-			CALL 縁結び右キャラセット(候補配列:LOCAL, 1)
+FOR LOCAL, 0, 候補カウント
+	対象キャラ１ = 候補配列:LOCAL
+	RESULT = 0
+	IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
+		;恋慕が入る確率の方がやや高い
+		IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+			CALL 縁結び右キャラセット(対象キャラ１, 1)
+			SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1)
+				CALL 縁結び右キャラセット(対象キャラ１, 2)
 		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
-			CALL 縁結び右キャラセット(候補配列:LOCAL, 2)
+			CALL 縁結び右キャラセット(対象キャラ１, 2)
+			SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 0)
+				CALL 縁結び右キャラセット(対象キャラ１, 1)
 		ENDIF
-		SIF RESULT
-			縁結び組数 ++
-	NEXT
-ELSE
-	FOR LOCAL, 0, 設定カップル数
-		対象キャラ１ = RAND:候補総数
-		RESULT = 0
-		IF GETBIT(OPTION変数:オート縁結び詳細, 0) && GETBIT(OPTION変数:オート縁結び詳細, 1)
-			;恋慕が入る確率の方がやや高い
-			IF RAND:3 && GETBIT(OPTION変数:オート縁結び詳細, 0)
-				CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
-				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 1)
-					CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
-			ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
-				CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
-				SIF RESULT == 0 && GETBIT(OPTION変数:オート縁結び詳細, 0)
-					CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
-			ENDIF
-		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 0)
-			CALL 縁結び右キャラセット(候補配列:対象キャラ１, 1)
-		ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
-			CALL 縁結び右キャラセット(候補配列:対象キャラ１, 2)
-		ENDIF
-		SIF RESULT
-			縁結び組数 ++
-		ARRAYREMOVE 候補配列, 対象キャラ１, 1
-		候補総数 --
-	NEXT
-ENDIF
+	ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 0)
+		CALL 縁結び右キャラセット(対象キャラ１, 1)
+	ELSEIF GETBIT(OPTION変数:オート縁結び詳細, 1)
+		CALL 縁結び右キャラセット(対象キャラ１, 2)
+	ENDIF
+	SIF RESULT
+		縁結び組数 ++
+NEXT
 RETURN 縁結び組数
 
