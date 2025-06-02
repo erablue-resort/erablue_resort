@@ -111,6 +111,7 @@ ENDSELECT
 #DIMS 動作モード
 #DIMS 入手名
 #DIM 候補数
+#DIM 改行カウント
 #DIM DYNAMIC レベルアップ判定
 
 SELECTCASE 動作モード
@@ -125,12 +126,21 @@ SELECTCASE 動作モード
 		ENDSELECT
 		候補数 = DT_SELECT("所持素材データベース", "素材カテゴリ = '食物素材' And 食材分類 = '魚'")
 		RSTR:漁師結果一時保存 += @"<br>%CALLNAME:対象キャラ%が更に"
+		改行カウント = STRLENS(@"%CALLNAME:対象キャラ%が更に")
 		FOR LOCAL, 0, 常駐業務レベル:対象キャラ:漁師 + 1
 			;とりあえず完全ランダム
 			入手名 '= DT_CELL_GETS("所持素材データベース", RESULT:(RAND:候補数 + 1), "素材アイテム名", 1)
 			CALL 素材入手処理(入手名, 1)
-			SIF LOCAL > 0
-				RSTR:漁師結果一時保存 += "、"
+			IF LOCAL > 0
+				RSTR:その他報告_記録文字列 += "、"
+				改行カウント += STRLENS(入手名) + 2
+			ELSE
+				改行カウント += STRLENS(入手名)
+			ENDIF
+			IF 改行カウント >= 55
+				改行カウント = 0
+				RSTR:その他報告_記録文字列 += "<br>"
+			ENDIF
 			RSTR:漁師結果一時保存 += @"%入手名%"
 		NEXT
 		RSTR:漁師結果一時保存 += "を釣り上げた！"
