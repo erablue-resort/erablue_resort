@@ -262,6 +262,8 @@ SELECTCASE LOCAL
 						CALL 汎用イベント関数_キャライベント_恋慕不可解除(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
 					ELSEIF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "セフレ不可]解除")
 						CALL 汎用イベント関数_キャライベント_セフレ不可解除(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
+					ELSEIF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "結婚イベント")
+						CALL 汎用イベント関数_キャライベント_結婚イベント(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
 					ENDIF
 				ELSE
 					CALLFORM イベント関数_キャライベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%(LOCAL)
@@ -317,6 +319,8 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 							CALL 汎用イベント発生条件_キャライベント_恋慕不可解除(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
 						ELSEIF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "セフレ不可]解除")
 							CALL 汎用イベント発生条件_キャライベント_セフレ不可解除(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
+						ELSEIF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "結婚イベント")
+							CALL 汎用イベント発生条件_キャライベント_結婚イベント(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
 						ENDIF
 					ENDIF
 				ENDCATCH
@@ -379,7 +383,14 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
 		;条件消失チェック、単純にフラグを戻すだけなので条件が整った時に即再発生する
 		RESULT = 0
-		TRYCALLFORM イベント消滅条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		TRYCCALLFORM イベント消滅条件_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")%_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		CATCH
+			IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "【汎用】")
+				IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "結婚イベント")
+					CALL 汎用イベント消滅条件_キャライベント_結婚イベント(DT_CELL_GET("各イベント用変数配列", LOCAL, "汎用イベ用_キャラNO保存"))
+				ENDIF
+			ENDIF
+		ENDCATCH
 		IF RESULT
 			;消失文章は出さない
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント発生フラグ", 0
@@ -529,7 +540,7 @@ ENDIF
 #DIMS 表示文字列
 
 ;汎用恋慕・セフレ解除時の調整
-IF STRFIND(表示文字列, "【汎用】") >= 0 && (STRFIND(表示文字列, "[恋慕不可]解除") >= 0 || STRFIND(表示文字列, "[セフレ不可]解除") >= 0)
+IF STRFIND(表示文字列, "【汎用】") >= 0 && (STRFIND(表示文字列, "[恋慕不可]解除") >= 0 || STRFIND(表示文字列, "[セフレ不可]解除") >= 0 || STRFIND(表示文字列, "結婚イベント") >= 0)
 	;二つ名部分を削除
 	RETURNF "【汎用】" + SUBSTRING(表示文字列, STRFIND(表示文字列, "]") + 1, -1)
 ENDIF

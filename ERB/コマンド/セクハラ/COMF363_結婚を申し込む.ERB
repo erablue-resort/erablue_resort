@@ -1,0 +1,145 @@
+﻿
+@COMNAME363
+#FUNCTIONS
+TSTR:コマンド名受渡 = 結婚を申し込む
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_363
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
+
+@COM_TOOLTIP_363
+LOCALS = <br>■告白する<br>
+LOCALS += "相手と婚姻状態になるためのコマンド。以下の条件を全て満たす必要がある。<br>１．相手の恋慕レベルが100、かつ恋慕陥落状態である。<br>２．同棲状態であること。"
+LOCALS += "<br>３．リゾートに結婚式場があり、プロポーズ用のアイテムを所持していること。"
+LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+;結婚を申し込む。とりあえず失敗なし
+@COM363
+#DIM 部屋上限
+
+IF ITEM:婚姻アイテムカッコカリ < 1
+	PRINTW プロポーズ用のアイテムを所持していない！
+	RETURN -1
+ENDIF
+
+DRAWLINE
+PRINTFORML %CALLNAME:TARGET%に結婚を申し込もうとしている。
+PRINTL 本当によろしいですか？
+DRAWLINE
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+PRINTL
+PRINTL
+
+BINPUT
+IF RESULT
+	PRINTW もう少しよく考えてみることにした。
+	RETURN -1
+ENDIF
+
+ITEM:婚姻アイテムカッコカリ -= 1
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 1500)
+CALL SOURCE_CALC_征服(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 1500)
+IF CFLAG:PLAYER:現在マップ種別 == 100 ;お祭り会場
+	TRYCALLFORMF GETPLACENAME_100_%開催予定祭り名%(CFLAG:MASTER:現在位置)
+	IF TSTR:場所名受渡 != ""
+		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"%CALLNAME:TARGET%に%TSTR:場所名受渡%でプロポーズした","日常")
+		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"%CALLNAME:MASTER%に%TSTR:場所名受渡%でプロポーズされた","日常")
+	ENDIF
+ENDIF
+CFLAG:TARGET:結婚イベント解放 = 1
+;イベントを登録
+
+IF NO:TARGET == 999
+	DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%NAME:TARGET%結婚イベント", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", TARGET + 90000
+ELSE
+	DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%NAME:TARGET%結婚イベント", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", NO:TARGET
+ENDIF
+
+
+
+; CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[伴侶]陥落させた</font><img src='えっちハート'>","うふふ実績")
+; CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[伴侶]を得た</font><img src='えっちハート'>","うふふ実績")
+; IF TALENT:TARGET:浮気 > 0
+; 	SETBIT RFLAG:コマンド結果受渡し変数３, 0
+; 	TALENT:TARGET:浮気 = 0
+; ENDIF
+; IF TALENT:TARGET:恋人持ち != 2
+; 	SETBIT RFLAG:コマンド結果受渡し変数３, 1
+; 	TALENT:TARGET:恋人持ち = 2
+; ENDIF
+
+	
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@COM_ABLE363
+#DIM 部屋上限
+#DIM ループ用
+
+;告白する実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(363)
+	RETURN RESULT
+;二人きりでないとだめ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;恋慕でない時、既に結婚済みはだめ
+SIF TALENT:恋慕 == 0
+	RETURN 0
+SIF TALENT:恋慕 == 2
+	RETURN 0
+;恋慕100必須
+SIF CFLAG:恋慕レベル < 100
+	RETURN 0
+;恋慕100必須
+SIF CFLAG:恋慕レベル < 100
+	RETURN 0
+;同棲条件
+SIF TALENT:TARGET:定住者 != 2
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM363
+
+PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%にプロポーズした。
+PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%の想いを受け入れてくれた…
+PRINTFORML ※%NAME:TARGET%との結婚イベントが解放されました。
+; PRINTFORML %CALLNAME:TARGET%は［伴侶］を得ました。
+; IF GETBIT(RFLAG:コマンド結果受渡し変数３, 0)
+; 	PRINTFORM %CALLNAME:TARGET%は
+; 	SETCOLOR カラーパレット("えっちな色")
+; 	PRINT [浮気]
+; 	RESETCOLOR
+; 	PRINT を失った……
+; ENDIF
+; IF GETBIT(RFLAG:コマンド結果受渡し変数３, 0)
+; 	PRINTFORM %CALLNAME:TARGET%は
+; 	SETCOLOR カラーパレット("えっちな色")
+; 	IF TALENT:TARGET:性別 == 1 || TALENT:TARGET:性別 == 3
+; 		PRINT [人妻]
+; 	ELSE
+; 		PRINT [既婚者]
+; 	ENDIF
+; 	RESETCOLOR
+; 	PRINT を得た！
+; ENDIF
+
+

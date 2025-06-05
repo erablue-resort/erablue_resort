@@ -88,3 +88,116 @@ FORCEWAIT
 
 CALL イベント完了フラグ汎用処理(@"【汎用】%NAME:対象キャラ%[セフレ不可]解除")
 
+
+
+
+@汎用イベント発生条件_キャライベント_結婚イベント(対象キャラ)
+#DIM 対象キャラ
+IF 対象キャラ > 90000
+	対象キャラ = 対象キャラ - 90000
+ELSE
+	対象キャラ = GETCHARA(対象キャラ)
+ENDIF
+
+SIF CFLAG:対象キャラ:結婚イベント解放 < 1
+	RETURN 0
+
+RETURN 1
+
+@汎用イベント消滅条件_キャライベント_結婚イベント(対象キャラ)
+#DIM 対象キャラ
+IF 対象キャラ > 90000
+	対象キャラ = 対象キャラ - 90000
+ELSE
+	対象キャラ = GETCHARA(対象キャラ)
+ENDIF
+
+;結婚相手は滞在していること
+SIF CFLAG:対象キャラ:滞在期間 > 0
+	RETURN 0
+
+RETURN 1
+
+@汎用イベント関数_キャライベント_結婚イベント(対象キャラ)
+#DIM 対象キャラ
+#DIM 花嫁キャラ
+#DIM 花婿キャラ
+IF 対象キャラ > 90000
+	対象キャラ = 対象キャラ - 90000
+ELSE
+	対象キャラ = GETCHARA(対象キャラ)
+ENDIF
+
+IF TALENT:MASTER:性別 == 2 && TALENT:対象キャラ:性別 != 2
+	花嫁キャラ = 対象キャラ
+	花婿キャラ = MASTER
+ELSEIF TALENT:MASTER:性別 != 2 && TALENT:対象キャラ:性別 == 2
+	花嫁キャラ = MASTER
+	花婿キャラ = 対象キャラ
+ELSEIF RAND:2
+	花嫁キャラ = 対象キャラ
+	花婿キャラ = MASTER
+ELSE
+	花嫁キャラ = MASTER
+	花婿キャラ = 対象キャラ
+ENDIF
+
+
+DRAWLINE
+PRINTFORML ［【汎用】%NAME:対象キャラ%結婚イベント］
+DRAWLINE
+PRINTW
+PRINTFORMW 快晴の吉日、午前の日差しの中。
+PRINTFORMW 結婚式場の扉が開くと、%CALLNAME:花嫁キャラ%が白いドレスに身を包み、柔らかな光の中を歩み始めた。
+PRINTFORMW 祭壇には%CALLNAME:花婿キャラ%が微笑み、緊張と喜びが入り混じった表情で相手を見つめる。
+PRINTL 
+PRINTFORMW ステンドグラスの色鮮やかな光が、木のベンチに座る参列者たちを温かく照らす。
+PRINTFORMW オルガンの荘厳な音色が響き合い、%CALLNAME:花嫁キャラ%のベールがそよ風に揺れている。
+PRINTFORMW %CALLNAME:花嫁キャラ%の手には、純白のバラと淡いピンクの芍薬のブーケ。
+PRINTL 
+PRINTFORMW 牧師の穏やかな声が誓いの言葉を導き、二人の愛を祝福する。
+PRINTFORMW 指輪交換の瞬間、会場は静寂に包まれ、ただ二人の呼吸だけが聞こえる。
+PRINTFORMW %CALLNAME:花婿キャラ%が%CALLNAME:花嫁キャラ%の手を取り、優しくキスを交わすと、拍手と歓声が一斉に沸き起こった。
+PRINTL 
+PRINTFORMW 花びらが舞い、鐘の音が鳴り響き、新たな門出を告げる。
+PRINTFORMW %CALLNAME:花婿キャラ%と%CALLNAME:花嫁キャラ%は、末永く幸せな未来を築くことだろう────。
+PRINTL 
+SETCOLOR 0xFFFF00
+PRINTFORMW %CALLNAME:対象キャラ%は［伴侶］を得ました。
+RESETCOLOR
+IF TALENT:対象キャラ:浮気 > 0
+	PRINTFORM %CALLNAME:対象キャラ%は
+	SETCOLOR カラーパレット("えっちな色")
+	PRINT [浮気]
+	RESETCOLOR
+	PRINT を失った……
+ENDIF
+IF TALENT:対象キャラ:恋人持ち != 2
+	SIF TALENT:対象キャラ:浮気 > 0
+		WAIT
+	PRINTFORM %CALLNAME:対象キャラ%は
+	SETCOLOR カラーパレット("えっちな色")
+	IF TALENT:対象キャラ:性別 == 1 || TALENT:対象キャラ:性別 == 3
+		PRINT [人妻]
+	ELSE
+		PRINT [既婚者]
+	ENDIF
+	RESETCOLOR
+	PRINT を得た！
+ENDIF
+IF !FLAG:クリア済み視聴フラグ
+	TALENT:対象キャラ:恋慕 = 2
+	初体験日:対象キャラ:伴侶 = DAY
+	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:対象キャラ%を[伴侶]陥落させた</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[伴侶]を得た</font><img src='えっちハート'>","うふふ実績")
+	IF TALENT:対象キャラ:浮気 > 0
+		TALENT:対象キャラ:浮気 = 0
+	ENDIF
+	IF TALENT:対象キャラ:恋人持ち != 2
+		TALENT:対象キャラ:恋人持ち = 2
+	ENDIF
+ENDIF
+FORCEWAIT
+
+CALL イベント完了フラグ汎用処理(@"【汎用】%NAME:対象キャラ%結婚イベント")
+
