@@ -1,0 +1,134 @@
+﻿;特定のキャラをメインにするイベントカテゴリ
+;YYYYを任意のイベント名に変えて使うこと、他との重複不可
+
+@イベントカテゴリ登録_キャライベント_YYYY
+;汎用結婚イベントを発生させず、代わりにこのイベントを発生させる時に使用する。
+;XXXXを任意のキャラのNOに変更すること
+
+RESULTS = 結婚イベントXXXX_
+
+
+@イベント発生条件_キャライベント_YYYY
+#DIM 対象キャラ
+
+対象キャラ = GETCHARA(XXXX) ;任意のキャラのNOを入れる
+
+;開放条件を満たしたら1を返すこと
+IF 開放条件式
+	RETURN 0
+ENDIF
+;結婚周りのフラグチェック、理由がないなら残しておくことを推奨
+SIF CFLAG:対象キャラ:結婚イベント解放 < 1
+	RETURN 0
+SIF CFLAG:対象キャラ:結婚イベント禁止 > 0
+	RETURN 0
+
+RETURN 1
+
+@イベント消滅条件_キャライベント_YYYY
+#DIM 対象キャラ
+
+対象キャラ = GETCHARA(XXXX) ;任意のキャラのNOを入れる
+
+;この条件を満たした時、イベントは発生してない扱いとなる
+;発生条件＞消滅条件で見るので、発生と消滅を両方満たしている時は「発生した！」というメッセージが出るが発生していない扱いになる
+;そのため条件には注意すること
+
+;消滅条件を満たしたら1を返す
+; IF 消滅条件式
+; 	RETURN 1
+; ENDIF
+; RETURN 0
+
+;結婚相手は滞在していること
+SIF CFLAG:対象キャラ:滞在期間 < 1
+	RETURN 1
+;結婚周りのフラグチェック、理由がないなら残しておくことを推奨
+SIF CFLAG:対象キャラ:結婚イベント解放 < 1
+	RETURN 1
+SIF CFLAG:対象キャラ:結婚イベント禁止 > 0
+	RETURN 1
+
+RETURN 0
+
+;例えば、「発生条件を満たしている時のみ出現させたい」のなら以下のようになる
+; CALL イベント発生条件_キャライベント_YYYY
+; IF RESULT
+; 	;発生条件OKなので0を返す
+; 	RETURN 0
+; ELSE
+; 	;発生条件アウトなので1を返す
+; 	RETURN 1
+; ENDIF
+
+@イベント関数_キャライベント_YYYY(ARG)
+#DIM 対象キャラ
+
+対象キャラ = GETCHARA(XXXX) ;任意のキャラのNOを入れる
+
+
+DRAWLINE
+PRINTL ［YYYY］
+DRAWLINE
+PRINTW
+PRINTFORMW イベント文章
+PRINTFORMW イベント文章
+PRINTFORMW イベント文章
+
+;以下は汎用結婚イベで表示される、素質変化の文章。必要ないなら消しても良い
+;-----------ここから
+PRINTL 
+SETCOLOR 0xFFFF00
+PRINTFORMW %CALLNAME:対象キャラ%は［伴侶］を得ました。
+RESETCOLOR
+IF TALENT:対象キャラ:浮気 > 0
+	PRINTFORM %CALLNAME:対象キャラ%は
+	SETCOLOR カラーパレット("えっちな色")
+	PRINT [浮気]
+	RESETCOLOR
+	PRINT を失った……
+ENDIF
+IF TALENT:対象キャラ:恋人持ち != 2
+	SIF TALENT:対象キャラ:浮気 > 0
+		WAIT
+	PRINTFORM %CALLNAME:対象キャラ%は
+	SETCOLOR カラーパレット("えっちな色")
+	IF TALENT:対象キャラ:性別 == 1 || TALENT:対象キャラ:性別 == 3
+		PRINT [人妻]
+	ELSE
+		PRINT [既婚者]
+	ENDIF
+	RESETCOLOR
+	PRINT を得た！
+ENDIF
+PRINTL
+PRINTL
+FORCEWAIT
+;-----------ここまで
+
+;イベント中にアイテムやステータスの変動が起こる場合、以下の分岐の中に記述すること
+;イベント再視聴で無限に稼ぎが出来たりしないようにする措置
+IF !FLAG:クリア済み視聴フラグ
+	;結婚イベントなので、伴侶素質を付与して履歴に登録する
+	;何かの理由があるなら消しても良いが、残すことを推奨
+	;-----------ここから
+	TALENT:対象キャラ:恋慕 = 2
+	初体験日:対象キャラ:伴侶 = DAY
+	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:対象キャラ%を[伴侶]陥落させた</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:対象キャラ:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[伴侶]を得た</font><img src='えっちハート'>","うふふ実績")
+	IF TALENT:対象キャラ:浮気 > 0
+		TALENT:対象キャラ:浮気 = 0
+	ENDIF
+	IF TALENT:対象キャラ:恋人持ち != 2
+		TALENT:対象キャラ:恋人持ち = 2
+	ENDIF
+	;-----------ここまで
+ENDIF
+
+CALL イベント完了フラグ汎用処理("YYYY")
+
+
+
+
+
+
