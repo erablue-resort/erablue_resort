@@ -21,15 +21,18 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @CHARACOM370_1042
 ;だいたいが「押し倒す」そのまま
-IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
+IF フィールド展開:うふふ目撃スルー
 	CALL うふふ開始キャラ処理(TARGET, "フェルン_性教育")
 ELSE
 	FOR LOCAL,1,CHARANUM
 		SIF TARGET:LOCAL <= 0
 			BREAK
+		SIF CFLAG:PLAYER:隠密 != CFLAG:(TARGET:LOCAL):隠密
+			CONTINUE
 		CALL うふふ開始キャラ処理(TARGET:LOCAL, "フェルン_性教育")
 	NEXT
 ENDIF
+
 TCVAR:TARGET:言いなり = 1
 CFLAG:MASTER:うふふ = 1
 
@@ -72,19 +75,31 @@ SIF フェルン性教育イベフラグ != 2
 ;睡眠中
 SIF CFLAG:睡眠
 	RETURN 0
-;隠密中は素通し
-IF CFLAG:MASTER:隠密 && CFLAG:TARGET:隠密
-	RETURN 1
+;隠密中は一緒に隠密してるキャラを見る
+IF フィールド展開:うふふ目撃スルー == 0
+	IF CFLAG:PLAYER:隠密
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF !CFLAG:(TARGET:LOCAL):隠密 && TARGET:LOCAL == GETCHARA(1042)
+				CONTINUE
+			SIF CFLAG:(TARGET:LOCAL):隠密 && 陥落チェック_性的(TARGET:LOCAL) == 0
+				RETURN 0
+		NEXT
+	ELSE
+		;非隠密時は全員陥落済みでないとだめ
+		FOR LOCAL,1,CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF TARGET:LOCAL == GETCHARA(1042)
+				CONTINUE
+			SIF 陥落チェック_性的(TARGET:LOCAL) == 0
+				RETURN 0
+		NEXT
+	ENDIF
 ELSE
-	;非隠密時はフェルン以外全員陥落済みでないとだめ
-	FOR LOCAL,1,CHARANUM
-		SIF TARGET:LOCAL < 1
-			BREAK
-		SIF TARGET:LOCAL == GETCHARA(1042)
-			CONTINUE
-		SIF 陥落チェック_性的(TARGET:LOCAL) == 0
-			RETURN 0
-	NEXT
+	SIF 陥落チェック_性的(TARGET) == 0
+		RETURN 0
 ENDIF
 
 RETURN 1
