@@ -1,0 +1,109 @@
+﻿
+@COMNAME_S82_10
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳首にいたずらする
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_82_10
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+;複数人を対象に同時にできるか、出来るなら上限人数を入れる
+;同時モード許可 = 
+
+;ランダム弱点の候補にするかを設定。敏感素質を考慮に入れるため、CVABSを入れること
+;また特定部位が必要な場合、「_ちんこ」や「_角」などのように追加で表記する
+;弱点コマンドカテゴリ = 
+
+;キャラが自動で使用しても良い場合に入れる
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S82_10
+LOCALS = <br>■乳首にいたずらする<br>
+LOCALS += "パイズリ中の相手の乳首を愛撫する。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｂ・露出・接触"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S82_10
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 150)
+
+RCVAR:乳首開発フラグ = 1
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 4
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 4
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S82_10
+;乳首亀頭責め実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("82_10")
+	RETURN RESULT
+;パイズリ系モードじゃない時はアウト
+SIF !MODE_存在判定_完全一致("パイズリ系", TARGET, PLAYER)
+	RETURN 0
+	
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+	
+;上半身着衣
+;鎧、差し込めないorはだけない服、タイツ、ブラ等があると無理
+SIF TEQUIP:上半身鎧あり
+	RETURN 0
+SIF TEQUIP:上半身服あり && (!TEQUIP:手差し込み可 && !TEQUIP:はだけ可)
+	RETURN 0
+SIF TEQUIP:上タイツあり && !TEQUIP:上タイツ破れ
+	RETURN 0
+SIF TEQUIP:上半身下着あり
+	RETURN 0
+;指を何かに使ってるなら無理
+SIF TEQUIP:PLAYER:指
+	RETURN 0
+;胸を何かに使ってるなら無理（パイズリ中は許可）
+IF !MODE_存在判定_プレイヤー側("パイズリ系", TARGET)
+	SIF TEQUIP:TARGET:胸
+		RETURN 0
+ENDIF
+;胸に届かないなら無理
+CALL MODE_部位届く判定(部位_胸, PLAYER, TARGET)
+SIF RESULT == 0
+	RETURN 0
+	
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S82_10
+
+
+
+SELECTCASE RAND:3
+	CASE 0
+		PRINTFORML %CALLNAME:PLAYER%はパイズリ中の%CALLNAME:TARGET%の乳首を弄り、ちょっかいを掛けた。
+	CASE 1
+		PRINTFORML %CALLNAME:PLAYER%はパイズリ中の%CALLNAME:TARGET%の乳首を弄っていたずらしている。
+	CASE 2
+		PRINTFORML %CALLNAME:TARGET%は動く%CALLNAME:PLAYER%の乳首を軽く弄って、パイズリの邪魔をしている……。
+ENDSELECT
