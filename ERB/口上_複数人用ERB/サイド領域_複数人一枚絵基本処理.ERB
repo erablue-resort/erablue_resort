@@ -8,7 +8,7 @@
 #DIM 判定のみフラグ
 
 SIF TARGET < 1
-	RETURN 0
+	GOTO あなた判定
 
 VARSET RESULT
 VARSET 候補配列
@@ -67,6 +67,89 @@ IF 候補数 > 0
 	;表示可能性があるものからランダムで返す
 	RESULTS '= 候補配列:(RAND:候補数)
 	RETURN 1
+ENDIF
+
+$あなた判定
+;あなたがキャラ化してる時、あなたについても判定する
+IF FLAG:あなたキャラ化記録 > 0
+	VARSET RESULT
+	VARSET 候補配列
+	VARSET 組み合わせ配列
+	候補数 = 0
+	;組み合わせデータテーブルにTARGETを含む組み合わせがあるかを見る
+	組み合わせ数 = DT_SELECT("複数人一枚絵データベース", @"キャラNO0 = {FLAG:あなたキャラ化記録} Or キャラNO1 = {FLAG:あなたキャラ化記録} Or キャラNO2 = {FLAG:あなたキャラ化記録} Or キャラNO3 = {FLAG:あなたキャラ化記録} Or キャラNO4 = {FLAG:あなたキャラ化記録}", , 組み合わせ配列)
+
+	FOR ループ用, 0, 組み合わせ数
+		VARSET キャラ指定, -999
+		;キャラ組み合わせを配列にセット、誰か一人でも同室状態でない時にはスキップ
+		IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO0", 1) > 0
+			IF FLAG:あなたキャラ化記録 == DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO0", 1)
+				キャラ指定:0 = 0
+			ELSE
+				キャラ指定:0 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO0", 1))
+				SIF IS_SAME_ROOM(キャラ指定:0) == 0
+					CONTINUE
+			ENDIF
+		ENDIF
+		IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO1", 1) > 0
+			IF FLAG:あなたキャラ化記録 == DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO1", 1)
+				キャラ指定:1 = 0
+			ELSE
+				キャラ指定:1 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO1", 1))
+				SIF IS_SAME_ROOM(キャラ指定:1) == 0
+					CONTINUE
+			ENDIF
+		ENDIF
+		IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO2", 1) > 0
+			IF FLAG:あなたキャラ化記録 == DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO2", 1)
+				キャラ指定:2 = 0
+			ELSE
+				キャラ指定:2 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO2", 1))
+				SIF IS_SAME_ROOM(キャラ指定:2) == 0
+					CONTINUE
+			ENDIF
+		ENDIF
+		IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO3", 1) > 0
+			IF FLAG:あなたキャラ化記録 == DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO3", 1)
+				キャラ指定:3 = 0
+			ELSE
+				キャラ指定:3 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO3", 1))
+				SIF IS_SAME_ROOM(キャラ指定:3) == 0
+					CONTINUE
+			ENDIF
+		ENDIF
+		IF DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO4", 1) > 0
+			IF FLAG:あなたキャラ化記録 == DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO4", 1)
+				キャラ指定:4 = 0
+			ELSE
+				キャラ指定:4 = GETCHARA(DT_CELL_GET("複数人一枚絵データベース", 組み合わせ配列:ループ用, "キャラNO4", 1))
+				SIF IS_SAME_ROOM(キャラ指定:4) == 0
+					CONTINUE
+			ENDIF
+		ENDIF
+
+		;キャラが一人も登録されてない場合はスキップ
+		SIF MAXARRAY(キャラ指定) < 0
+			CONTINUE
+
+		;関数を読んで画像表示条件をクリアしてるかをチェック
+		RESULTS = 
+		TRYCALLFORM %DT_CELL_GETS("複数人一枚絵データベース", 組み合わせ配列:ループ用, "呼び出し関数名", 1)%("画像指定", キャラ指定)
+		IF RESULTS != "" && EXIST画像FILE(@"resources/%RESULTS%")
+			;指定画像が存在するなら候補配列に挿入
+			候補配列:候補数 '= RESULTS
+			候補数 ++
+			;判定のみフラグがある場合、一個でも画像が存在するならRETURN（タブの色付けに使う）
+			SIF 判定のみフラグ
+				RETURN 1
+		ENDIF
+	NEXT
+
+	IF 候補数 > 0
+		;表示可能性があるものからランダムで返す
+		RESULTS '= 候補配列:(RAND:候補数)
+		RETURN 1
+	ENDIF
 ENDIF
 
 RETURN 0
