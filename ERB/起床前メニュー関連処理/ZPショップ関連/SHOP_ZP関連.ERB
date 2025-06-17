@@ -105,9 +105,11 @@ GOTO INPUT_LOOP
 @ZP_SHOP_アイテム
 #DIM 危険日変動薬購入数
 #DIM 鬼灯の香購入数
+#DIM レディキラー購入数
 #DIM 婚姻アイテムカッコカリ購入数
 #DIM CONST 価格_危険日変動薬 = 5
 #DIM CONST 価格_鬼灯の香     = 100
+#DIM CONST 価格_レディキラー     = 5
 #DIM DYNAMIC 初回実行フラグ = 1
 #DIM 開始行数
 #DIM REDRAW退避
@@ -127,6 +129,8 @@ ENDIF
 危険日変動薬購入数 = LIMIT(危険日変動薬購入数, 1, MAX(購入限界, 1))
 購入限界 = FLAG:ZP所持量 / 価格_鬼灯の香
 鬼灯の香購入数 = LIMIT(鬼灯の香購入数, 1, MAX(購入限界, 1))
+購入限界 = FLAG:ZP所持量 / 価格_レディキラー
+レディキラー購入数 = LIMIT(レディキラー購入数, 1, MAX(購入限界, 1))
 
 PRINTL
 DRAWLINE
@@ -207,6 +211,27 @@ ENDIF
 PRINT 　　
 PRINTBUTTON "[+1]", 23
 PRINTBUTTON "[+10]", 24
+PRINTL
+
+PRINTSL "-" * 90
+PRINTFORML 　レディキラー　値段：1個{価格_レディキラー}ZP　所持数：{ITEM:レディキラー}
+PRINTL 　　　　　…すっきりと甘くて飲みやすいが度数が高いお酒。消耗品。
+PRINTL 　　　　　　ZPを使ってちょっとした加工を施しており、この酒で酔うと前後不覚に陥りがち。
+PRINTL
+PRINT 　
+PRINTBUTTON "[-10]", 31
+PRINTBUTTON "[-1]", 32
+PRINT 　　
+IF レディキラー購入数 * 価格_レディキラー > FLAG:ZP所持量
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM [10]{レディキラー購入数}個購入する(%TOSTR(レディキラー購入数 * 価格_レディキラー, "#,##0")%ZP)
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"[10]{レディキラー購入数}個購入する(%TOSTR(レディキラー購入数 * 価格_レディキラー, "#,##0")%ZP)", 30
+ENDIF
+PRINT 　　
+PRINTBUTTON "[+1]", 33
+PRINTBUTTON "[+10]", 34
 PRINTL
 
 PRINTSL "-" * 90
@@ -322,6 +347,30 @@ SELECTCASE RESULT
 		RESTART
 	CASE 24
 		婚姻アイテムカッコカリ購入数 += 10
+		RESTART
+	CASE 31
+		レディキラー購入数 -= 10
+		RESTART
+	CASE 32
+		レディキラー購入数 -= 1
+		RESTART
+	CASE 30
+		PRINTFORML {レディキラー購入数 * 価格_レディキラー}ZPを支払い、レディキラーを{レディキラー購入数}個取得しますか？
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			FLAG:ZP所持量 -= レディキラー購入数 * 価格_レディキラー
+			ITEM:レディキラー += レディキラー購入数
+			PRINTFORMW レディキラーを{レディキラー購入数}個購入しました。
+		ENDIF
+		レディキラー購入数 = 1
+		RESTART
+	CASE 33
+		レディキラー購入数 += 1
+		RESTART
+	CASE 34
+		レディキラー購入数 += 10
 		RESTART
 	CASE 999
 		REDRAW REDRAW退避
