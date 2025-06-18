@@ -3,6 +3,7 @@
 #DIM CONST デフォ色 = 12632256
 #DIM 対象キャラ
 #DIM 変更文字色
+#DIMS DYNAMIC 変更表示名
 #DIM R値
 #DIM G値
 #DIM B値
@@ -19,6 +20,7 @@ ELSE
 	変更文字色 = デフォ色
 ENDIF
 
+変更表示名 '= CSTR:対象キャラ:同室者一覧表示名
 
 $表示LOOP
 PRINTL
@@ -26,8 +28,23 @@ PRINTL
 PRINTL
 PRINTL
 DRAWLINE
-PRINTL 同室者一覧、及びキャラ居場所表示画面にて使用する文字色を設定することが出来ます。
+PRINTL 同室者一覧、及びキャラ居場所表示画面にて使用する表示名・文字色を設定することが出来ます。
+PRINTL 表示名に関しては適用される場面とされない場面があります。口上など、シナリオ内では適用されません。二つ名込の表示時は適用されません。
 PRINTL この文字色は恋慕やセフレ、発情や妊娠よりも優先して表示されるので注意してください。
+DRAWLINE
+IF 変更表示名 == ""
+	PRINTFORML ・%NAME表示(対象キャラ)%の現在の表示名：%CALLNAME:対象キャラ%（デフォルト）
+	PRINTPLAIN [995] デフォルトに戻す
+	PRINTL
+	PRINTBUTTON "[996] 表示名を変更する", 996
+	PRINTL
+ELSE
+	PRINTFORML ・%NAME表示(対象キャラ)%の現在の表示名：%CSTR:対象キャラ:同室者一覧表示名%
+	PRINTBUTTON @"[995] デフォルト（%CALLNAME:対象キャラ%）に戻す", 995
+	PRINTL
+	PRINTBUTTON "[996] 表示名を変更する", 996
+	PRINTL
+ENDIF
 DRAWLINE
 PRINTFORM ・%NAME表示(対象キャラ)%の現在の設定文字色：
 IF 文字色グループ取得(対象キャラ) > -1
@@ -113,10 +130,10 @@ ELSE
 	NEXT
 ENDIF
 DRAWLINE
-PRINTBUTTONLC "[999] 変更せず戻る", 999
+PRINTBUTTONLC "[999] 表示名・文字色を変更せず戻る", 999
 PRINTL
 PRINTL
-PRINTBUTTONLC "[990] 保存して戻る", 990
+PRINTBUTTONLC "[990] 表示名・文字色を保存して戻る", 990
 
 BINPUT
 LOCAL = RESULT
@@ -130,6 +147,15 @@ SELECTCASE LOCAL
 			同室時_グループ所属キャラ:(LOCAL - 1000) = _
 		ENDIF
 		同室時_グループ所属キャラ:(LOCAL - 1000) += @"{対象キャラ}_"
+	CASE 995
+		変更表示名 = 
+	CASE 996
+		DRAWLINE
+		PRINTL 表示したい文字列を入力してください。
+		PRINTL
+		INPUTS
+		変更表示名 '= RESULTS
+		PRINTFORMW 表示名を%変更表示名%に設定しました。
 	CASE 990
 		IF 変更文字色 == デフォ色
 			CFLAG:対象キャラ:同室文字色 = 0
@@ -138,6 +164,7 @@ SELECTCASE LOCAL
 			CFLAG:対象キャラ:同室文字色 += G値 * 256
 			CFLAG:対象キャラ:同室文字色 += B値
 		ENDIF
+		CSTR:対象キャラ:同室者一覧表示名 '= 変更表示名
 		RETURN 1
 	CASE 997
 		IF CFLAG:対象キャラ:同室文字色 == 0
