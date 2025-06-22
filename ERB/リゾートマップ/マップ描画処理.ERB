@@ -1,0 +1,319 @@
+﻿
+;-----------------------------------------------------------
+;マップ描画処理
+;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
+;-----------------------------------------------------------
+@DRAW_MAP(表示幅 = -1, 表示開始数_横 = 0, 表示開始数_縦 = 0)
+#DIMS 表示文字列
+#DIMS 一時文字列
+#DIM 改行数
+#DIM 最大横サイズ
+#DIM 表示開始数_横
+#DIM 表示開始数_縦
+#DIM 描画横幅カウント
+#DIM 表示幅
+#DIMS AA, 50
+#DIM SPOT
+#DIM MODE
+#DIM LOCATION
+
+#DIM LINENUM
+#DIM X_POINT
+#DIM FOUND_INT
+
+;AAを取得、なければそのまま帰る
+VARSET AA
+VARSET RESULTS
+表示文字列 = 
+一時文字列 = 
+改行数 = 0
+
+TRYCCALLFORM MAP_VIEWING_{CFLAG:PLAYER:現在マップ種別}(AA)
+CATCH
+	RETURN 0
+ENDCATCH
+
+;-----------------------------------------------------------
+;描画処理
+;-----------------------------------------------------------
+FOR LINENUM, 表示開始数_縦, VARSIZE("AA")
+	SIF AA:LINENUM == ""
+		CONTINUE
+	;行ごとに初期化
+	X_POINT = 0
+	RESULTS = I
+	描画横幅カウント = 0
+	;行の終端までループ
+	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
+		;指定幅まで描画
+		SIF 表示幅 > 0 && 描画横幅カウント > 表示幅 + 表示開始数_横
+			BREAK
+		;1文字取り出す
+		SUBSTRINGU AA:LINENUM, X_POINT, 1
+		;数字ならボタンにする
+		IF ISNUMERIC(RESULTS)
+			;分岐めんどいから必ず2ケタ取る
+			SUBSTRINGU AA:LINENUM, X_POINT, 2
+			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
+			SIF TOINT(RESULTS) == 0
+				FOUND_INT = 0
+			SELECTCASE CFLAG:PLAYER:現在マップ種別
+				CASE 1, 2
+					;空艇港
+					IF 表示開始数_横 > 描画横幅カウント
+						;表示開始未満なら描画しない
+					ELSEIF CFLAG:PLAYER:現在位置 < 1000 && TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+						一時文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+					ELSE
+						一時文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+					ENDIF
+				CASEELSE
+					;リゾート
+					IF 表示開始数_横 > 描画横幅カウント
+						;表示開始未満なら描画しない
+					ELSEIF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+						一時文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+					ELSE
+						一時文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+					ENDIF
+			ENDSELECT
+			X_POINT += 2
+		;ふつうの文字
+		ELSE
+			IF 表示開始数_横 <= 描画横幅カウント
+				RESULT = LINENUM
+				TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 一時文字列)
+			ENDIF
+			X_POINT ++
+		ENDIF
+		;幅をカウント
+		描画横幅カウント += STRLENS(RESULTS)
+	WEND
+	SIF 最大横サイズ < STRLENS(AA:LINENUM)
+		最大横サイズ = STRLENS(AA:LINENUM)
+	SIF STRCOUNT(一時文字列, "<font") > STRCOUNT(一時文字列, "</font")
+		一時文字列 += "</font>"
+	表示文字列 += @"%一時文字列%<br>"
+	改行数 += 1
+	一時文字列 = 
+NEXT
+
+RESULTS = %表示文字列%
+サイド描画_クイック移動マップ縦幅保存 = 改行数
+RETURN 最大横サイズ
+
+@DRAW_簡易MAP()
+#DIMS 表示文字列
+
+表示文字列 = 
+LOCAL:1 = 0
+LOCAL:2 = 0
+FOR LOCAL, 0, マップ部屋番号上限
+	IF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, LOCAL) == 0
+		IF LOCAL:2 && LOCAL:1
+			表示文字列 += "<br>"
+			表示文字列 += "<br>"
+			LOCAL:1 = 0
+			LOCAL:2 = 0
+		ELSEIF LOCAL:2
+			表示文字列 += "<br>"
+			LOCAL:2 = 0
+		ENDIF
+		;存在する場所を順番に並べる
+		表示文字列 += @"<button value='{LOCAL}'>[{LOCAL, 4}] %GETPLACENAME(CFLAG:PLAYER:現在マップ種別, LOCAL), 20, LEFT%</button>"
+		LOCAL:1 ++ 
+		IF LOCAL:1 % 3 == 0
+			表示文字列 += "<br>"
+			LOCAL:1 = 0
+		ENDIF
+	ENDIF
+	SIF LOCAL % 100 == 0
+		LOCAL:2 ++
+NEXT
+
+RESULTS = %表示文字列%
+
+
+
+;-------------------------------------------------
+;エリア移動
+;-------------------------------------------------
+@エリア移動選択画面表示
+DRAWLINE
+PRINTL どのエリアに移動しますか？
+DRAWLINE
+CALL リゾート遠景表示処理("移動処理")
+
+FOR LOCAL, 0, 10
+	TSTR:場所名受渡 = 
+	SIF CFLAG:PLAYER:現在マップ種別 == LOCAL
+		CONTINUE
+	TRYCCALLFORM エリア情報登録_{LOCAL}("エリア名")
+		IF TSTR:場所名受渡 != ""
+			SIF ENUMFUNCENDSWITH(@"大規模エリア建設条件_%TSTR:場所名受渡%") > 0 && MATCH(開拓エリア開発番号, LOCAL) < 1
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL}]%TSTR:場所名受渡%へ移動する", LOCAL
+			;工事中表示
+			IF TSTR:場所名受渡 == "空艇港エリア" && イベント完了フラグ確認("渡りに船の定期便") && 渡りに船の定期便_受諾日付 + 3 > DAY
+				PRINTFORM 　（現在工事中！　残り%TOFULL(TOSTR(3 - (DAY - 渡りに船の定期便_受諾日付)))%日）
+			ENDIF
+			;NEW表示
+			IF エリアNEW表示判定(TSTR:場所名受渡)
+				;存在するけど訪れたことのないエリアがあるなら強調表示
+				SETCOLOR カラーパレット("黄")
+				PRINT 　NEW！
+				RESETCOLOR
+			ENDIF
+			PRINTL 
+		ENDIF
+	CATCH
+		BREAK
+	ENDCATCH
+NEXT
+
+;お祭りエリア
+IF 開催予定日取り == DAY
+	;特設エリアある？
+	TRYCALLFORM MOVE_ROUTINE_%開催予定祭り名%(0, "特設マップ")
+	;1が帰ってきたらある！
+	IF RESULT
+		PRINTBUTTON @"[100]%SUBSTRING(開催予定祭り名, 9)%マップへ移動する", 100
+		PRINTL 
+	ENDIF
+ENDIF
+
+PRINTBUTTON "[999]戻る", 999
+PRINTL 
+$INPUT_LOOP
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0
+		IF CFLAG:PLAYER:現在マップ種別 == 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		;０を入れると移動してない時と見分けがつかないため+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = 100
+	CASE 100
+		IF CFLAG:PLAYER:現在マップ種別 == 100
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TRYCALLFORM エリア情報登録_100("エリア名")
+		;０を入れると移動してない時と見分けがつかないため+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = 200
+	CASE 999
+		RETURN -1
+	CASEELSE
+		IF CFLAG:PLAYER:現在マップ種別 == LOCAL
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		TRYCALLFORM エリア情報登録_{LOCAL}("エリア名")
+		IF TSTR:場所名受渡 == ""
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		;+100した数値を入れる
+		TFLAG:エリア切り替え時_目的地格納 = LOCAL + 100
+ENDSELECT
+
+RETURN 1
+
+
+;-------------------------------------------------
+;その他移動関連補助関数
+;-------------------------------------------------
+;キャラがPLAYERと一緒に移動している場合は1を返す
+@追従中キャラ(キャラ番号)
+#FUNCTION
+#DIM キャラ番号
+
+SIF CFLAG:キャラ番号:同行
+	RETURNF 1
+SIF CFLAG:キャラ番号:デート残り時間
+	RETURNF 1
+SIF MODE_存在判定_完全一致("ハーヴィンオナホ系", PLAYER, キャラ番号)
+	RETURNF 1
+SIF MODE_存在判定_完全一致("同行系", PLAYER, キャラ番号)
+	RETURNF 1
+SIF MODE_存在判定_完全一致("全裸散歩", PLAYER, キャラ番号)
+	RETURNF 1
+
+;マッサージ助手は追従じゃないが移動封印のために入れる
+SIF CFLAG:キャラ番号:マッサージ助手
+	RETURNF 1
+
+RETURNF 0
+
+;あなたと一緒に移動しているキャラがいなければ1を返す
+@あなた単独()
+#FUNCTION
+
+FOR LOCAL, 1, VARSIZE("TARGET")
+	SIF TARGET:LOCAL <= 0
+		BREAK
+	SIF 追従中キャラ(TARGET:LOCAL)
+		RETURNF 0
+NEXT
+RETURNF 1
+
+;追跡設定されている時、追跡を行う
+@追跡処理()
+
+IF あなた追跡キャラ
+	IF CFLAG:あなた追跡キャラ:現在位置 == 998 || CFLAG:あなた追跡キャラ:現在位置 == 999
+		;リゾートにいないパターン
+		PRINTFORMW %CALLNAME:あなた追跡キャラ%がリゾート外にいるため、自動追跡を中止します。
+		あなた追跡キャラ = 0
+	ELSEIF IS_SAME_ROOM(MASTER, あなた追跡キャラ) == 0
+		;コマンド入力をスキップし移動処理を入れる
+		RFLAG:追跡フラグ = あなた追跡キャラ
+		RSTR:追跡時サイド記録 = %サイド描画表示種類%
+		サイド描画表示種類 = クイック移動
+		IF CFLAG:MASTER:現在マップ種別 == 999
+			IF CFLAG:MASTER:現在マップ種別 == CFLAG:あなた追跡キャラ:現在マップ種別
+				CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+			ELSE
+				CFLAG:MASTER:現在マップ種別 = CFLAG:あなた追跡キャラ:現在マップ種別
+				CALLFORM エリア情報登録_{CFLAG:MASTER:現在マップ種別}("エリア移動可能場所")
+				CFLAG:MASTER:現在位置 = RESULT
+			ENDIF
+			サイド描画表示種類 = %RSTR:追跡時サイド記録%
+			RETURN 1
+		ELSEIF CFLAG:あなた追跡キャラ:現在マップ種別 == 999
+			CALLFORM エリア情報登録_{CFLAG:MASTER:現在マップ種別}("エリア移動可能場所")
+			IF CFLAG:MASTER:現在位置 != RESULT
+				RESULTS = サイド領域_{RESULT}
+			ELSE
+				CFLAG:MASTER:現在マップ種別 = CFLAG:あなた追跡キャラ:現在マップ種別
+				CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+				CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
+				サイド描画表示種類 = %RSTR:追跡時サイド記録%
+				RETURN 1
+			ENDIF
+		ELSE
+			IF CFLAG:MASTER:現在マップ種別 == CFLAG:あなた追跡キャラ:現在マップ種別
+				IF CFLAG:あなた追跡キャラ:現在マップ種別 == 1 || CFLAG:あなた追跡キャラ:現在マップ種別 == 2
+					IF CFLAG:あなた追跡キャラ:現在位置 >= 1000
+						;店舗か居住区なので直接移動
+						CFLAG:MASTER:現在位置 = CFLAG:あなた追跡キャラ:現在位置
+						CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
+						サイド描画表示種類 = %RSTR:追跡時サイド記録%
+						RETURN 1
+					ELSE
+						RESULTS = サイド領域_{CFLAG:あなた追跡キャラ:現在位置}
+					ENDIF
+				ELSE
+					RESULTS = サイド領域_{CFLAG:あなた追跡キャラ:現在位置}
+				ENDIF
+			ELSE
+				TFLAG:エリア切り替え時_目的地格納 = CFLAG:あなた追跡キャラ:現在マップ種別 + 100
+				RESULTS = サイド領域_99
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURN 0
