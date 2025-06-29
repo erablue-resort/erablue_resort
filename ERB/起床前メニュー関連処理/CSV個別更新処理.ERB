@@ -53,7 +53,7 @@ RESTART
 #DIM 得意武器記録
 #DIM ボタン結果
 #DIMS CSTR切り分け文字列格納, 2
-#DIMS CONST カテゴリ一覧 = "名前", "出演作品", "プレゼント好み", "戦闘タイプ", "肉体情報", "素質", "知識素質", "性癖素質", "固有素質", "能力", "経験", "初期服装"
+#DIMS CONST カテゴリ一覧 = "名前", "出演作品", "プレゼント好み", "戦闘タイプ", "肉体情報", "素質", "知識素質", "性癖素質", "固有素質", "能力", "経験", "初期服装","奥義名設定"
 
 ; 画像フォルダ設定の修正
 CALL FIX_RESOURCES_FOLDER(対象キャラ)
@@ -227,6 +227,22 @@ ELSE
 	PRINTL
 ENDIF
 
+RESULT = 0
+IF CSTR:対象キャラ:表示奥義設定 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "表示奥義設定"))
+	RESULT = 1
+ENDIF
+IF CSTR:対象キャラ:陥落奥義設定 != CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "陥落奥義設定"))
+	RESULT = 1
+ENDIF
+IF RESULT
+	PRINTBUTTON "[12] 奥義名設定の変更を適用する", 12
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [12] 奥義名設定の変更を適用する（変更なし）
+	RESETCOLOR
+	PRINTL
+ENDIF
+
 
 
 PRINTL
@@ -299,6 +315,53 @@ SELECTCASE ボタン結果
 				PRINTFORML %EQUIPNAME:LOCAL%：{EQUIP:対象キャラ:LOCAL} > {CSVEQUIP(NO:対象キャラ, LOCAL)}
 			ENDIF
 		NEXT
+	CASE 12
+		VARSET LOCALS
+		IF CSTR:対象キャラ:表示奥義設定 != ""
+			SPLIT CSTR:対象キャラ:表示奥義設定, "_", LOCALS
+			PRINTL ■通常奥義：変更前
+			PRINTFORML %LOCALS:0%
+			PRINTFORML %LOCALS:1%
+			PRINTFORML %LOCALS:2%
+		ELSE
+			PRINTL ■通常奥義：変更前
+			PRINTL 設定なし
+		ENDIF
+		PRINTL
+		VARSET LOCALS
+		IF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "表示奥義設定")) != ""
+			SPLIT CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "表示奥義設定")), "_", LOCALS
+			PRINTL ■通常奥義：変更後
+			PRINTFORML %LOCALS:0%
+			PRINTFORML %LOCALS:1%
+			PRINTFORML %LOCALS:2%
+		ELSE
+			PRINTL ■通常奥義：変更後
+			PRINTL 設定なし
+		ENDIF
+		VARSET LOCALS
+		IF CSTR:対象キャラ:陥落奥義設定 != ""
+			SPLIT CSTR:対象キャラ:陥落奥義設定, "_", LOCALS
+			PRINTL ■陥落奥義：変更前
+			PRINTFORML %LOCALS:0%
+			PRINTFORML %LOCALS:1%
+			PRINTFORML %LOCALS:2%
+		ELSE
+			PRINTL ■陥落奥義：変更前
+			PRINTL 設定なし
+		ENDIF
+		PRINTL
+		VARSET LOCALS
+		IF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "陥落奥義設定")) != ""
+			SPLIT CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "陥落奥義設定")), "_", LOCALS
+			PRINTL ■陥落奥義：変更後
+			PRINTFORML %LOCALS:0%
+			PRINTFORML %LOCALS:1%
+			PRINTFORML %LOCALS:2%
+		ELSE
+			PRINTL ■陥落奥義：変更後
+			PRINTL 設定なし
+		ENDIF
 ENDSELECT
 DRAWLINE
 PRINTFORML %カテゴリ一覧:ボタン結果%にCSV設定を適用してよろしいですか？
@@ -373,6 +436,23 @@ SELECTCASE ボタン結果
 		NEXT
 		CSTR:対象キャラ:服名称 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "服名称"))%
 		CSTR:対象キャラ:普段着解説 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "普段着解説"))%
+	CASE 12
+		CSTR:対象キャラ:表示奥義設定 '= CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "表示奥義設定"))
+		CSTR:対象キャラ:陥落奥義設定 '= CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "陥落奥義設定"))
+		VARSET LOCALS
+		IF CSTR:対象キャラ:表示奥義設定 != ""
+			SPLIT CSTR:対象キャラ:表示奥義設定, "_", LOCALS
+			表示奥義:対象キャラ:0 '= LOCALS:0
+			表示奥義:対象キャラ:1 '= LOCALS:1
+			表示奥義:対象キャラ:2 '= LOCALS:2
+		ENDIF
+		VARSET LOCALS
+		IF CSTR:対象キャラ:陥落奥義設定 != ""
+			SPLIT CSTR:対象キャラ:陥落奥義設定, "_", LOCALS
+			陥落奥義:対象キャラ:0 '= LOCALS:0
+			陥落奥義:対象キャラ:1 '= LOCALS:1
+			陥落奥義:対象キャラ:2 '= LOCALS:2
+		ENDIF
 ENDSELECT
 PRINTFORMW %カテゴリ一覧:ボタン結果%にCSV設定を適用しました
 RESTART
@@ -739,4 +819,21 @@ FOR 対象キャラ, 1, CHARANUM
 		TALENT:対象キャラ:年齢層 = CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "年齢層"))
 	ENDIF
 	TALENT:対象キャラ:外見年齢 = CSVTALENT(NO:対象キャラ, GETNUM(TALENT, "外見年齢"))
+	;奥義名設定
+	CSTR:対象キャラ:表示奥義設定 '= CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "表示奥義設定"))
+	CSTR:対象キャラ:陥落奥義設定 '= CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "陥落奥義設定"))
+	VARSET LOCALS
+	IF CSTR:対象キャラ:表示奥義設定 != ""
+		SPLIT CSTR:対象キャラ:表示奥義設定, "_", LOCALS
+		表示奥義:対象キャラ:0 '= LOCALS:0
+		表示奥義:対象キャラ:1 '= LOCALS:1
+		表示奥義:対象キャラ:2 '= LOCALS:2
+	ENDIF
+	VARSET LOCALS
+	IF CSTR:対象キャラ:陥落奥義設定 != ""
+		SPLIT CSTR:対象キャラ:陥落奥義設定, "_", LOCALS
+		陥落奥義:対象キャラ:0 '= LOCALS:0
+		陥落奥義:対象キャラ:1 '= LOCALS:1
+		陥落奥義:対象キャラ:2 '= LOCALS:2
+	ENDIF
 NEXT
