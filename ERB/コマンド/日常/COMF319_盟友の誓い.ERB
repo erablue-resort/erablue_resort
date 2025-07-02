@@ -1,0 +1,71 @@
+﻿@COMNAME319
+#FUNCTIONS
+TSTR:コマンド名受渡 = 盟友の誓い
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_319
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("日常")
+
+@COM_TOOLTIP_319
+LOCALS = <br>■盟友の誓い<br>
+LOCALS += "相手と強い信頼関係を結ぶためのコマンド。<br>好感度要素：信頼が一定値以上の時に使用可能。<br>キャラクターによってはコマンド名・取得する素質名が変動する場合がある。<br>キャラクターによっては好感度要素：信頼以外の条件が存在することがある。"
+LOCALS += "<br>COMタイプ：日常<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM319
+
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 1000)
+CALL SOURCE_CALC_好感度要素_信頼度UP(TARGET, PLAYER, 1000)
+TALENT:非エロ陥落 = 1
+初体験日:TARGET:非エロ陥落 = DAY
+CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<font color='#%カラーパレット_HTML("黄")%'>%CALLNAME:TARGET%を[盟友]陥落させた</font>","実績")
+CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("黄")%'>陥落素質[盟友]を得た</font>","実績")
+
+RETURN 1
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE319
+
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(319)
+	RETURN RESULT
+;スケベ陥落してたらダメ
+SIF 陥落チェック_性的(TARGET)
+	RETURN 0
+;信頼度一定以上
+SIF CFLAG:信頼度 < 経験値テーブル:79
+	RETURN 0
+;二人きりでないとだめ
+SIF GET_TARGETNUM() > 1
+	RETURN 0
+;飲み会時はだめ
+SIF TFLAG:調教モード == 3
+	RETURN 0
+;馴れ合い強度1
+SIF TCVAR:MASTER:馴れ合い強度 < 1
+	RETURN 0
+;すでに非エロ陥落を得ている場合はだめ
+SIF TALENT:非エロ陥落
+	RETURN 0
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM319
+PRINTFORML %CALLNAME:PLAYER%と%CALLNAME:TARGET%は強い絆で結ばれている……！
+PRINTFORML 二人は改めて互いの信頼を確かめあった！
+PRINTFORML %CALLNAME:TARGET%は［盟友］を得た！
+
