@@ -2929,9 +2929,10 @@ ENDSELECT
 
 
 
-@OPTION_招待制御例外規定
+@OPTION_招待制御例外規定()
 #DIM 表示候補, キャラクタ数上限
 #DIM 表示数
+#DIM キャラカウント
 #DIM 対象キャラ
 #DIM 現在ページ
 #DIM フラグ保存
@@ -2964,7 +2965,8 @@ $表示_LOOP
 ;広告対象の表示
 DRAWLINE
 PRINTL 招待キャラのOPTION制御で例外に設定するキャラを選択出来ます。
-PRINTL 現在のOPTION制御で例外になっているキャラのみ表示されています。
+PRINTL 現在のOPTION制御で招待禁止対象になっているキャラのみ表示されています。
+PRINTL このOPTIONは招待時の制御を行うのみであり、既にリゾートにいるキャラには影響しません。
 DRAWLINE
 LOCAL:1 = 0
 ;キャラの表示（15人まで）
@@ -3015,8 +3017,21 @@ PRINTL
 DRAWLINE
 CALL フィルタソートボタンセット表示(9020, 9030, 9031, 9040)
 DRAWLINE
+PRINTBUTTON "[9990] 表示キャラ全員を例外に設定する", 9990
+PRINT 　　　　　
+PRINTBUTTON "[9991] 表示キャラ全員の例外設定を外す", 9991
 PRINTL 
-PRINTBUTTON "[9999] 戻る", 9999
+PRINTBUTTON "[9992] 表示対象外キャラ全員を例外に設定する", 9992
+PRINT 　　
+PRINTBUTTON "[9993] 表示対象外キャラ全員の例外設定を外す", 9993
+PRINTL 
+PRINTL ※フィルタ機能と併用することで細かい設定が可能になります
+PRINTL ※「表示対象外キャラ」とは、招待禁止対象になっているキャラのうちフィルタで非表示になっているキャラを指します
+DRAWLINE
+PRINTBUTTONLC "[9999] 戻る", 9999
+PRINTBUTTONLC "[9998] 作品別例外設定へ", 9998
+PRINT 　　
+PRINTBUTTONLC "[9997] 例外設定のSAVE/LOAD", 9997
 
 $INPUT_LOOP
 BINPUT
@@ -3035,8 +3050,137 @@ SELECTCASE 入力値
 		SIF LOCAL:1 == 0
 			現在ページ += 1
 		GOTO 表示_LOOP
+	CASE 9990, 9991
+		FOR LOCAL, 0, VARSIZE("表示候補")
+			;登録キャラが終わったら処理終了
+			IF 表示候補:LOCAL == -1
+				BREAK
+			ENDIF
+			CFLAG:(表示候補:LOCAL):例外招待 = 9991 - 入力値
+		NEXT
+		GOTO 表示_LOOP
+	CASE 9992, 9993
+		FOR 対象キャラ, 1, CHARANUM
+			;招待不可キャラは排除
+			SIF CFLAG:対象キャラ:招待不可フラグ
+				CONTINUE
+
+			;オプションでオフになってるキャラのみ
+			SWAP CFLAG:対象キャラ:例外招待, フラグ保存
+			CFLAG:対象キャラ:例外招待 = 0
+			SIF 性別招待制御_実処理(対象キャラ) == 0
+				CONTINUE
+			SWAP CFLAG:対象キャラ:例外招待, フラグ保存
+
+			IF MATCH(表示候補, 対象キャラ) == 0
+				;表示候補にないなら例外招待を操作
+				CFLAG:対象キャラ:例外招待 = 9993 - 入力値
+			ENDIF
+		NEXT
+		GOTO 表示_LOOP
 	CASE 9999
 		RETURN -1
+	CASE 9998
+		CALL OPTION_招待制御例外規定_作品別()
+		GOTO 表示_LOOP
+	CASE 9997
+		$セーブループ
+		PRINTL
+		DRAWLINE
+		PRINTL 例外設定を保存・呼び出しすることが出来ます。
+		PRINTL 任意の操作を選んでください。
+		PRINTL
+		PRINT ・セーブ１　例外設定キャラ：
+		キャラカウント = 0
+		FOR 対象キャラ, 1, CHARANUM
+			SIF CFLAG:対象キャラ:例外招待_セーブ1
+				キャラカウント++
+		NEXT
+		PRINTFORML {キャラカウント}名
+		PRINT 　　
+		IF SAVESTR:例外設定セーブコメント1 == ""
+			PRINTL コメント：なし
+		ELSE
+			PRINTFORML コメント：%SAVESTR:例外設定セーブコメント1%
+		ENDIF
+		PRINT 　　
+		PRINTBUTTONLC "[0] ここに設定をセーブする", 0
+		PRINT 　　
+		PRINTBUTTONLC "[1] ここの設定をロードする", 1
+		PRINT 　　
+		PRINTBUTTONLC "[2] コメントを付ける", 2
+		PRINTL
+		PRINTL
+
+		PRINT ・セーブ２　例外設定キャラ：
+		キャラカウント = 0
+		FOR 対象キャラ, 1, CHARANUM
+			SIF CFLAG:対象キャラ:例外招待_セーブ2
+				キャラカウント++
+		NEXT
+		PRINTFORML {キャラカウント}名
+		PRINT 　　
+		IF SAVESTR:例外設定セーブコメント2 == ""
+			PRINTL コメント：なし
+		ELSE
+			PRINTFORML コメント：%SAVESTR:例外設定セーブコメント2%
+		ENDIF
+		PRINT 　　
+		PRINTBUTTONLC "[10] ここに設定をセーブする", 10
+		PRINT 　　
+		PRINTBUTTONLC "[11] ここの設定をロードする", 11
+		PRINT 　　
+		PRINTBUTTONLC "[12] コメントを付ける", 12
+		PRINTL
+		PRINTL
+
+		PRINT ・セーブ３　例外設定キャラ：
+		キャラカウント = 0
+		FOR 対象キャラ, 1, CHARANUM
+			SIF CFLAG:対象キャラ:例外招待_セーブ3
+				キャラカウント++
+		NEXT
+		PRINTFORML {キャラカウント}名
+		PRINT 　　
+		IF SAVESTR:例外設定セーブコメント3 == ""
+			PRINTL コメント：なし
+		ELSE
+			PRINTFORML コメント：%SAVESTR:例外設定セーブコメント3%
+		ENDIF
+		PRINT 　　
+		PRINTBUTTONLC "[20] ここに設定をセーブする", 20
+		PRINT 　　
+		PRINTBUTTONLC "[21] ここの設定をロードする", 21
+		PRINT 　　
+		PRINTBUTTONLC "[22] コメントを付ける", 22
+		PRINTL
+		PRINTL
+		PRINTL 
+		PRINTBUTTONLC "[999] 戻る", 999
+		PRINTL
+		BINPUT
+		フラグ保存 = RESULT
+		SELECTCASE フラグ保存
+			CASE 0, 10, 20
+				FOR 対象キャラ, 1, CHARANUM
+					SETVAR @"CFLAG:対象キャラ:例外招待_セーブ{フラグ保存 / 10 + 1}", CFLAG:対象キャラ:例外招待
+				NEXT
+				PRINTFORMW セーブ{フラグ保存 / 10 + 1}に例外設定を保存しました。
+			CASE 1, 11, 21
+				FOR 対象キャラ, 1, CHARANUM
+					CFLAG:対象キャラ:例外招待 = GETVAR(@"CFLAG:対象キャラ:例外招待_セーブ{フラグ保存 / 10 + 1}")
+				NEXT
+				PRINTFORMW セーブ{フラグ保存 / 10 + 1}から例外設定を読み出しました。
+			CASE 2, 12, 22
+				PRINTL 任意のコメントを入力してください。
+				PRINTL
+				INPUTS
+				SETVAR @"SAVESTR:例外設定セーブコメント{フラグ保存 / 10 + 1}", RESULTS
+				PRINTFORMW セーブ{フラグ保存 / 10 + 1}にコメントを設定しました。
+			CASE 999
+				GOTO 表示_LOOP
+		ENDSELECT
+		GOTO セーブループ
 	CASE IS >= CHARANUM, IS < 0
 		REUSELASTLINE 
 		GOTO INPUT_LOOP
@@ -3051,4 +3195,350 @@ SELECTCASE 入力値
 		PRINTL 
 		GOTO 表示_LOOP
 ENDSELECT
+
+@OPTION_招待制御例外規定_作品別()
+#LOCALSIZE 1
+#LOCALSSIZE 1
+#DIM 表示候補, キャラクタ数上限
+#DIM 現在ページ
+#DIM 入力番号
+#DIM 描画開始行
+#DIM 対象キャラ
+#DIM START_NO
+#DIM END_NO
+#DIM REDRAW_TEMP
+#DIM リスタートフラグ
+#DIMS BUTTON_TEXT
+#DIM DYNAMIC 初回実行フラグ = 1
+#DIM CONST 表示人数 = 15
+#DIMS 判定作品名
+#DIMS 出典作品配列, 500
+#DIM 出典情報配列, 500
+#DIM 出典例外表示フラグ, 500
+#DIM 出典番号
+#DIM 配列番号
+#DIM 動作モード
+#DIM シリーズモード
+#DIM リスト更新判定
+#DIM ソートモード
+#DIM ソートモード前回値
+#DIMS 招待後作品保存
+#DIMS ソートキー, 3
+#DIM BTN_NUM
+#DIMS BTN_TEXT
+#DIM CONST LINE_LEN  = 80
+#DIM CONST SPACE_LEN = 56
+#DIMS ページ番号文字列
+#DIM ページ番号文字列長
+#DIM 最大ページ
+#DIMS ソート情報
+
+; RESTART時に現在ページをリセットしない
+IF 初回実行フラグ
+	初回実行フラグ = 0
+	リスト更新判定 = 1
+	動作モード = 1
+	現在ページ = 0
+	描画開始行 = LINECOUNT
+	ソートモード = 0
+	ソートモード前回値 = -1
+	;描画設定を変更
+	REDRAW_TEMP = CURRENTREDRAW()
+	REDRAW 1
+ENDIF
+
+;表示キャラを登録
+;・フィルタ処理の追加でリスト処理が重くなったので必要なタイミングでのみ更新するようにする
+IF リスト更新判定
+	リスト更新判定 = 0
+	
+	VARSET 表示候補, -1
+	VARSET 出典作品配列
+	VARSET 出典情報配列
+	ソートキー:0 = 出典情報配列
+	ソートキー:1 = 出典作品配列
+	ソートキー:2 = 出典例外表示フラグ
+	; リスト更新後にソートを実行するように前回値をリセット
+	ソートモード前回値 = -1
+	出典番号 = 1
+	出典作品配列:0 = グランブルーファンタジー
+	出典例外表示フラグ:0 = 1
+	
+	;-リスト表示対象の出典作品を記録
+	FOR 対象キャラ, 1, CHARANUM
+		IF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")) == ""
+			;出典なし＝グラブルキャラとしてカウント
+			出典情報配列:0 ++
+			IF CFLAG:対象キャラ:例外招待 == 0
+				;例外設定されてないキャラがいるなら表示フラグOFF
+				出典例外表示フラグ:0 = 0
+			ENDIF
+		ELSEIF シリーズモード && MAP_HAS("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
+			IF MATCH(出典作品配列, MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))))
+				;出典あり＆リストに登録済みの場合は人数をカウント
+				配列番号 = FINDELEMENT(出典作品配列, MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))), , , 1)
+				出典情報配列:配列番号 ++
+				IF CFLAG:対象キャラ:例外招待 == 0
+					;例外設定されてないキャラがいるなら表示フラグOFF
+					出典例外表示フラグ:配列番号 = 0
+				ENDIF
+			ELSE
+				;出典あり＆リストに未登録の場合は新規登録
+				出典作品配列:出典番号 = %MAP_GET("シリーズ出典", CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))%
+				出典情報配列:出典番号 ++
+				出典例外表示フラグ:出典番号 = 1
+				IF CFLAG:対象キャラ:例外招待 == 0
+					;例外設定されてないキャラがいるなら表示フラグOFF
+					出典例外表示フラグ:出典番号 = 0
+				ENDIF
+				出典番号 ++
+			ENDIF
+		ELSEIF MATCH(出典作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
+			;出典あり＆リストに登録済みの場合は人数をカウント
+			配列番号 = FINDELEMENT(出典作品配列, CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")), , , 1)
+			出典情報配列:配列番号 ++
+			IF CFLAG:対象キャラ:例外招待 == 0
+				;例外設定されてないキャラがいるなら表示フラグOFF
+				出典例外表示フラグ:配列番号 = 0
+			ENDIF
+		ELSE
+			;出典あり＆リストに未登録の場合は新規登録
+			出典作品配列:出典番号 = %CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品"))%
+			出典情報配列:出典番号 ++
+			出典例外表示フラグ:出典番号 = 1
+			IF CFLAG:対象キャラ:例外招待 == 0
+				;例外設定されてないキャラがいるなら表示フラグOFF
+				出典例外表示フラグ:出典番号 = 0
+			ENDIF
+			出典番号 ++
+		ENDIF
+	NEXT
+ENDIF
+
+;ソートモードが切り替わった場合はソートする
+;・ARRAYMSORTEXが安定ソートではないようで、モード切替、リスト更新時のみソートを実行
+;　(制限しないと人数順ソートでリストを表示するごとに人数が同じの作品の順番が変わる)
+IF ソートモード != ソートモード前回値
+	ソートモード前回値 = ソートモード
+	SELECTCASE ソートモード
+		CASE 0
+			;人数順
+			ARRAYMSORTEX "出典情報配列", ソートキー, 0, 出典番号
+		CASE 1
+			;シリーズ名順
+			ARRAYMSORT 出典作品配列, 出典情報配列, 出典例外表示フラグ
+	ENDSELECT
+ENDIF
+
+;広告対象の表示
+PRINTL
+DRAWLINE
+PRINTL 招待キャラのOPTION制御で例外に設定するシリーズを選択出来ます。
+PRINTL 使用例としては「全ての性別を「リゾートを訪問しない」にする」→「特定の作品のみ例外設定する」ことで
+PRINTL その作品のキャラのみを招待することが可能です。
+PRINTL このOPTIONは招待時の制御を行うのみであり、既にリゾートにいるキャラには影響しません。
+DRAWLINE
+; 動作モード
+IF 動作モード
+	PRINTPLAIN [例外を設定するモード]
+	PRINT  / 
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTBUTTON "[例外を解除するモード]", 9998
+	RESETCOLOR
+	PRINTL 
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTBUTTON "[例外を設定するモード]", 9998
+	RESETCOLOR
+	PRINT  / 
+	PRINTPLAIN [例外を解除するモード]
+	PRINTL 
+ENDIF
+DRAWLINE
+; シリーズ選択/シリーズ表示
+最大ページ = MAX((出典番号 + 表示人数 - 1) / 表示人数, 1) - 1
+;シリーズの表示（15作品まで）
+START_NO = (現在ページ * 表示人数)
+END_NO   = (現在ページ * 表示人数) + 表示人数 - 1
+FOR LOCAL, START_NO, END_NO + 1
+	IF 出典作品配列:LOCAL == ""
+		PRINTL
+		CONTINUE
+		;登録が終わったら表示終了
+		BREAK
+	ENDIF
+	PRINTBUTTON @"[{LOCAL, 3}] %出典作品配列:LOCAL, 41, LEFT%：全{出典情報配列:LOCAL, 3}名", LOCAL
+	IF 出典例外表示フラグ:LOCAL
+		SETCOLOR カラーパレット("黄")
+		PRINT 　　全員例外設定済み
+		RESETCOLOR
+	ENDIF
+	PRINTL 
+NEXT
+SKIPDISP 0
+
+;- ページ操作ボタン
+PRINTSL "-" * LINE_LEN
+
+;ページめくり表示
+BTN_NUM   = 9001
+BTN_TEXT '= @"[前ページへ]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+; ページ数
+ページ番号文字列  '= @"- {現在ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1}/{最大ページ + 1, LOG10(MAX(最大ページ +1, 1)) + 1} -"
+ページ番号文字列長 = SPACE_LEN - STRLENS(ページ番号文字列)
+PRINTS " " * (ページ番号文字列長 / 2)
+PRINTFORM %ページ番号文字列%
+; 割り切れなかった分のスペースは後半に足す
+PRINTS " " * (ページ番号文字列長 / 2 + (ページ番号文字列長 % 2))
+
+; 1ページ次へ
+BTN_NUM   = 9011
+BTN_TEXT '= @"[次ページへ]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTL
+
+; 最初のページへ
+BTN_NUM   = 9009
+BTN_TEXT '= "[|≪]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTS " " * 1
+; 5ページ前へ
+BTN_NUM   = 9005
+BTN_TEXT '= "[－５]"
+IF 現在ページ > 0
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+; 余白
+PRINTS " " * SPACE_LEN
+
+; 5ページ次へ
+BTN_NUM   = 9015
+BTN_TEXT '= "[＋５]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTS " " * 1
+; 最後のページへ
+BTN_NUM   = 9019
+BTN_TEXT '= "[≫|]"
+IF 現在ページ < 最大ページ
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM %BTN_TEXT%
+	RESETCOLOR
+ENDIF
+PRINTL
+
+;- その他ボタン
+PRINTBUTTONLC "[9999]戻る", 9999
+SELECTCASE ソートモード
+	CASE 0
+		PRINTBUTTON "[9996]シリーズ名順にする", 9996
+	CASE 1
+		PRINTBUTTON "[9996]登録キャラ数順にする", 9996
+ENDSELECT
+REDRAW 0
+
+;入力処理
+WHILE 1
+	BINPUT
+	入力番号 = RESULT
+	SELECTCASE 入力番号
+		CASE 9101
+			;- [シリーズをまとめる]
+			INVERTBIT シリーズモード, 0
+			現在ページ = 0
+			リスト更新判定 = 1
+			リスタートフラグ = 1
+			BREAK
+		CASE 9001, 9005
+			;- 前ページへ
+			; ページ番号を更新後、リスタートしてリスト表示へ戻る
+			現在ページ = MAX(現在ページ - (入力番号 - 9000), 0)
+			リスタートフラグ = 1
+			BREAK
+		CASE 9011, 9015
+			;- 次ページへ
+			現在ページ = MIN(現在ページ + (入力番号 - 9010), 最大ページ)
+			リスタートフラグ = 1
+			BREAK
+		CASE 9009
+			; 最初のページ
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 9019
+			; 最後のページ
+			現在ページ = 最大ページ
+			リスタートフラグ = 1
+			BREAK
+		CASE 9998
+			INVERTBIT 動作モード, 0
+			リスタートフラグ = 1
+			BREAK
+		CASE 9999
+			;- 戻る
+			; リスタートせずにZPショップメニューへ戻る
+			リスタートフラグ = 0
+			BREAK
+		CASE 9996
+			;- 作品ソートモード切替処理
+			INVERTBIT ソートモード, 0
+			現在ページ = 0
+			リスタートフラグ = 1
+			BREAK
+		CASEELSE
+			;- シリーズ選択時処理
+			判定作品名 '= 出典作品配列:入力番号
+			FOR 対象キャラ, 1, CHARANUM
+				IF 判定作品名 == "グランブルーファンタジー" && CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")) == ""
+					CFLAG:対象キャラ:例外招待 = 動作モード
+				ELSEIF CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")) == 判定作品名
+					CFLAG:対象キャラ:例外招待 = 動作モード
+				ENDIF
+			NEXT
+			リスト更新判定 = 1
+			リスタートフラグ = 1
+			BREAK
+	ENDSELECT
+WEND
+IF リスタートフラグ
+	CLEARLINE LINECOUNT - 描画開始行
+	RESTART
+ENDIF
+;描画設定を戻す
+REDRAW REDRAW_TEMP
+RETURN -1
+
+
+
+
 
