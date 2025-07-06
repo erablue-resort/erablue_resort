@@ -1,0 +1,496 @@
+﻿;-------------------------------------------------
+;定住の誘い
+;-------------------------------------------------
+@性処理NAME_手コキ味見
+#FUNCTIONS
+TSTR:コマンド名受渡 = 手コキ味見
+
+@性処理_TOOLTIP_手コキ味見
+LOCALS = <br>■手コキ味見<br>
+LOCALS += @"%CALLNAME:TARGET%のペニスを%CALLNAME:PLAYER%が手でしごく性処理。<br>"
+LOCALS += "本格的な性処理ではない、ちょっとした味見。<br>"
+LOCALS += "<br>COMタイプ：性処理<br>取得ソース：露出・接触・奉仕・不潔"
+LOCALS += "<br>固有の取得経験：手淫経験(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@性処理_手コキ味見
+#DIM 行為回数
+
+;射精するまで刺激する
+行為回数 = 0
+DO
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
+	SIF TALENT:TARGET:器用な指
+		CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 50)
+	行為回数++
+LOOP CUP:TARGET:快Ｃ + PALAM:TARGET:快Ｃ < 10000
+TIME += 経過時間算出(行為回数)
+
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 20)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_奉仕(TARGET, PLAYER, 250)
+CALL SOURCE_CALC_不潔(TARGET, PLAYER, 100)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;手淫経験
+EXP:PLAYER:手淫経験 += 3
+
+;同性愛
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 8
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 8
+
+;売春経験がない相手に交渉を成立させた場合、あなたの買春カウントが進む
+;これにより「あなたが何人買ったか」の記録とする。
+;最初から売春経験を持ってるキャラに関しては……知らん！！！
+SIF EXP:TARGET:売春経験 == 0
+	EXP:PLAYER:買春経験 += 1
+
+EXP:TARGET:売春経験 += 1
+
+RETURN 1
+
+
+@性処理_射精時処理_手コキ味見
+;射精時にどこに出すかを呼び出す
+;とはいってもフィニッシュ場所を入れて関数呼ぶだけ
+CALL 射精実処理(TARGET, PLAYER, 9)
+RETURN 1
+
+
+;-------------------------------------------------
+;値段設定
+;-------------------------------------------------
+@CAN_性処理_手コキ味見(対象キャラ)
+#DIM 対象キャラ
+#DIM 値段計算
+#DIMS 素質名
+
+PRINTFORML 手コキ味見計算(%CALLNAME:TARGET%)
+DRAWLINE
+;基礎値段
+;手マン処理と同等
+IF NO:TARGET > 1000
+;EXキャラ
+;元いた世界でのカラダの価値はわかっても、空の世界での売春相場を知らない。おまけにルピもたいして持ってないのでまとまったお金がありがたい。
+;現実の一般JKが空の世界に来て1万円のつもりで1000ルピでカラダを売るイメージ。総じてリゾート内の価格帯から見ると格安。
+;……グラブルキャラたちの基本料金が高いだけ？それはそう。
+	SELECTCASE RAND:2
+	CASE 0
+	;15000円のつもり。これでもちょっと吹っ掛けたつもりで強気の値段交渉してる。
+		値段計算 = 1000
+	CASE 1
+	;5000円のつもり。これでも相場よりちょい高めのつもりで値段交渉してる。
+		値段計算 = 500
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:幼稚
+	;幼稚
+	;性知識うんぬん以前に、そもそもお金の価値に対する理解が足りていない。
+	;自分のカラダの価値も理解していないので、「お菓子いっぱいあげるから」とかでも許しちゃったりするイメージ。でも値段表示する仕様上お菓子たくさんとかでは買えない。
+	;本人は精一杯吹っ掛けているつもりで「じゅーまんえんくれるならいいよ」って言っても、他キャラの相場から見れば格安だったりする。
+	;でもちょいちょい「ひゃくまんえん！」とか言いはじめる。
+	SELECTCASE RAND:10
+	;４割で超高額提示
+	CASE 0
+		PRINTFORML %"基本料金", 25, LEFT%：　じゅーまんルピ！
+		値段計算 = 100000
+	CASE 1 TO 3
+		PRINTFORML %"基本料金", 25, LEFT%：　いちまんルピ！
+		値段計算 = 10000
+	CASE 4 TO 6
+		PRINTFORML %"基本料金", 25, LEFT%：　せんルピ！
+		値段計算 = 1000
+	CASE 7 TO 9
+		PRINTFORML %"基本料金", 25, LEFT%：　ひゃくルピでいいよ！
+		値段計算 = 100
+	ENDSELECT
+ELSEIF 知識素質:高貴 > 0
+;高貴
+;基本的に実家が太い子らなので、そもそも目先の金銭のために体を売っているわけではない。
+;お金が欲しいからではなくあなたが頼むから、あなたに喜んでんでほしいから売ってくれているのである。つまり純愛。
+	IF 知識素質:性知識 < 0
+	;性知識がなくとも、自身のカラダは民草のそれよりも価値があるということを知っている。
+	;……のだが、相場知識がないため結局吹っ掛けたつもりでも高貴キャラとしてはお安めの価格設定
+		値段計算 = 1500
+	ELSE
+	;王侯貴族に連なるような高貴なおくちを10万円で堪能できると考えるとこれでも結構リーズナブル。良心的な価格設定でございます。
+		値段計算 = 3000
+	ENDIF
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF 知識素質:性知識 < 0
+;性知識マイナス勢
+;お金の価値が分からないわけではないが、カラダの価値の相場を知らないので直感的にいま欲しい金額を言ってくる。
+;幼稚ほどブッ飛んだ値段は提示してこないが結局値段はブレる。
+	SELECTCASE RAND:4
+	;４割で高額提示
+	CASE 0
+		値段計算 = 3000
+	CASE 1
+		値段計算 = 1500
+	CASE 2
+		値段計算 = 1000
+	CASE 3
+		値段計算 = 800
+	CASE 4
+		値段計算 = 500
+	ENDSELECT
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:非戦闘キャラ
+;非戦闘キャラは、「戦うことで稼げる」キャラより相対的に肉体の価値が安く、「カラダを売って稼ぐ」ことへの抵抗感が戦闘キャラより薄いイメージ
+	値段計算 = 800
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSEIF TALENT:性転換 == 1
+;元女だと嫌がって値段を高めに設定する
+	値段計算 = 2000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSE
+;「基本的にみんな美女である」「普段売っていないので市場価値が高い」「戦闘能力のあるキャラは相応のプライドというものがある」などの理由から
+;補正抜きで3000ルピ≒3万円とする。ここに素質で補正がかかり、地の文や口上でのプレイ内容に応じてオプションが上乗せされていく。
+;さすがにフェラで30万円は高すぎるんよ……3万ですらかなり高いのに
+	値段計算 = 1000
+	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ENDIF
+;好感度
+;好感度閾値の表現からして、親友あたりからお友達料金にしてくれるんじゃないかなと
+LOCAL = (50 - CFLAG:好感度レベル) * -2
+IF LOCAL < 0
+	IF CFLAG:好感度レベル <= 20
+	;友達未満だと大きく値上げ。初対面で4000円上乗せされるイメージ。普段身売りしてない美女に値段交渉するんだからそんくらい吹っ掛けてきてもおかしくないと思う。なお従業員採用に必要な好感度……
+		PRINTFORML %"まだ親しくない", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -4), 8%ルピ
+		値段計算 -= LOCAL * 4
+	ELSE
+	;ただの友達だと若干の値上げ。値上げっていうかここまで含めて基本料金みたいなとこがある
+		PRINTFORML %"ただの友達", 25, LEFT%：＋%NUM_FORMAT(LOCAL * -1), 8%ルピ
+		値段計算 -= LOCAL
+	ENDIF
+ELSE
+	;親友以上で値下げしてくれる。基本料金1万円で、好感度100で100ルピ≒1000円引きならまぁ妥当っちゃ妥当か
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"お友達料金", 25, LEFT%：－%NUM_FORMAT(LOCAL), 8%ルピ
+	RESETCOLOR
+	値段計算 -= LOCAL
+ENDIF
+
+;容姿
+IF TALENT:容姿 == -1
+;あなたがブサイクの場合。あえてつけてる素質のはずだけど、ストレートに「醜い」だの「ブサイク」だの書くとプレイヤーの心にトゲが刺さりそうなため表現はマイルドに
+;ブサイクに対する奉仕行為はプライドが傷つくだろうから値段高め
+	値段計算 += 300
+	PRINTFORML %"好みの顔じゃない", 25, LEFT%：＋%NUM_FORMAT(300), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 1
+;イケメン
+	値段計算 -= 50
+	PRINTFORML %"顔がいい", 25, LEFT%：－%NUM_FORMAT(50), 8%ルピ
+ENDIF
+IF TALENT:容姿 == 2
+;絶世
+	値段計算 -= 100
+	PRINTFORML %"めっちゃ顔がいい！", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+
+;体力
+;疲れてる時に顎とか疲れそうな奉仕を頼まれたら当然吹っ掛ける
+IF BASE:TARGET:体力 < MAXBASE:TARGET:体力 / 4
+	値段計算 += 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"体力低下", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;酩酊は値段ではなくむしろ実行判定にかかわったほうがいい気がするので移動。
+;「安く売ってしまう」よりも、「ね、いいでしょ？」ってあなたのお願いに頷いてしまうほうがイメージに近い。
+
+;恋人持ち
+IF TALENT:恋人持ち == 2
+	値段計算 += 1500
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"伴侶がいる", 25, LEFT%：＋%NUM_FORMAT(1500), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF TALENT:恋人持ち == 1
+	値段計算 += 1000
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORML %"恋人がいる", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+IF TALENT:恋人持ち == -1
+;別に恋人になってるワケでもないのに「好きな人がいるから」ってだけで生意気にも値段を釣り上げてくるし、上昇幅は恋人持ちと同じ。
+;「ゆ、許せねぇよ……絶対買って俺のものにしてやる……！」
+;＊ あなたにケツイがみなぎった。
+	値段計算 += 1000
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"好きな人がいる", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+;淫乱
+IF TALENT:淫乱
+	値段計算 -= 2500
+	PRINTFORML %"淫乱", 16, LEFT%：－%NUM_FORMAT(2500), 8%ルピ
+ENDIF
+
+;同性愛
+IF 同性愛性癖判定(TARGET,PLAYER) == 1
+	;性癖素質:同性愛
+	IF TALENT:TARGET:性愛傾向 == 1 ||TALENT:TARGET:性愛傾向 == 2
+		素質名 = 異性愛
+	ELSE
+		素質名 = 同性愛
+	ENDIF
+	SELECTCASE 性癖素質:同性愛
+		CASE 1
+			;補正なし
+		CASE 2
+			値段計算 -= 100
+			PRINTFORML %@"%素質名%(愛好)", 16, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+		CASE 3
+			値段計算 -= 250
+			PRINTFORML %@"%素質名%(中毒)", 16, LEFT%：－%NUM_FORMAT(250), 8%ルピ
+		CASEELSE
+			;好奇心
+			IF TALENT:性的興味 > 0
+				値段計算 -= 50
+				PRINTFORML %@"好奇心(%素質名%)", 16, LEFT%：－%NUM_FORMAT(50), 8%ルピ
+			ENDIF
+			;保守的
+			IF TALENT:性的興味 < 0
+				値段計算 += 150
+				SETCOLOR カラーパレット("薄ピンク")
+				PRINTFORML %@"保守的(%素質名%)", 16, LEFT%：＋%NUM_FORMAT(150), 8%ルピ
+				RESETCOLOR
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;気丈
+;「物怖じせず値段交渉に臨む」とするなら基本料金の一割増しくらいで吹っ掛けそう
+IF TALENT:度胸 > 0
+	値段計算 += 100
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"気丈", 25, LEFT%：＋%NUM_FORMAT(100), 8%ルピ
+	RESETCOLOR
+ENDIF
+;臆病
+;気丈の逆で「高値を吹っ掛けて値段交渉するのが苦手」とするならば一割くらいまけてくれないかな……
+IF TALENT:度胸 < 0
+	値段計算 -= 100
+	PRINTFORML %"臆病", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+
+;プライド
+;処女のとこでも参照しているが、こちらは基本料金にかかるので別枠。
+;プライド高い
+IF TALENT:プライド > 0
+	値段計算 += 100
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"プライド高い", 25, LEFT%：＋%NUM_FORMAT(100), 8%ルピ
+	RESETCOLOR
+ENDIF
+;プライド低い
+IF TALENT:プライド < 0
+	値段計算 -= 100
+	PRINTFORML %"プライド低い", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+
+;謎の魅力
+IF TALENT:PLAYER:謎の魅力
+	値段計算 -= 100
+	PRINTFORML %"謎の魅力", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+
+;汚臭鈍感
+;鈍感だろうと奉仕内容自体に変わりはないので大した値引きにはならない
+IF TALENT:汚臭耐性 > 0
+	値段計算 -= TALENT:汚臭耐性 * 50
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性,,TARGET), 25, LEFT%：－%NUM_FORMAT(TALENT:汚臭耐性 * 50), 8%ルピ
+ENDIF
+;汚臭敏感
+IF TALENT:汚臭耐性 < 0
+	値段計算 -= TALENT:汚臭耐性 * 100
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %GET_TALENTNAME(61, TALENT:汚臭耐性,,TARGET), 25, LEFT%：＋%NUM_FORMAT(ABS(TALENT:汚臭耐性) * 100), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;献身的
+IF TALENT:献身的
+	値段計算 -= 100
+	PRINTFORML %"献身的", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
+ENDIF
+
+;貞操観念による売春への抵抗感。これは値段高めのほうが「らしさ」が出る
+IF TALENT:貞操 == 1
+	値段計算 += 500
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORML %"貞操観念", 25, LEFT%：＋%NUM_FORMAT(500), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;嫌い
+IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
+	値段計算 += 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"男嫌い", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+IF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
+	値段計算 += 1000
+	SETCOLOR カラーパレット("薄ピンク")
+	PRINTFORML %"女嫌い", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
+	RESETCOLOR
+ENDIF
+
+;この時点で値段がマイナスになっていた場合、強制的に0まで戻す。買ってるはずなのに買われてんじゃねぇ！
+SIF 値段計算 < 0
+	値段計算 = 0
+
+;割引クーポンはひとつまでです！
+IF TALENT:対象キャラ:恋慕
+	DRAWLINE
+	PRINTFORML 割引き
+;恋慕は完全無料
+	SETCOLOR カラーパレット("ピンク")
+	PRINTFORM %"だいすき割", 25, LEFT%：　　　　　%CALLNAME:PLAYER%限定100％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 *= 0
+ELSEIF TALENT:対象キャラ:弱味
+	DRAWLINE
+	PRINTFORML 割引き
+;弱みを握ってはした金で体を売らせたい！という鉄の意志
+;せっかく値段が出るんだしタダで抱かせてもらうよりも「100円で買ってあげた」みたいののほうが尊厳を性的搾取できている感が出るので
+;本来は30,000ルピ……ですが！なんと！今回に限り！お客様だけに！99%オフの300ルピで！！のほうが絶対にシコれる。古事記にもそう書かれている。
+	SETCOLOR カラーパレット("赤ピンク")
+	PRINTFORM %"弱み", 25, LEFT%：　　　　　99％オフ
+	CALL PRINT_STRL(@"_H_")
+	RESETCOLOR
+	値段計算 /= 100
+;ELSEIF TALENT:金欠 || TALENT:貧乏
+;お金に困っているときはちょっとお安くなるが、発情期のムラムラは値段に適用されなくなる。買っては欲しいがお金も欲しいため。
+;	SETCOLOR カラーパレット("薄ピンク")
+;	PRINTFORM %"金欠中", 25, LEFT%：　　　　　25％オフ
+;	CALL PRINT_STRL(@"_H_")
+;	RESETCOLOR
+;	値段計算 /= 4 *= 3
+ELSEIF CFLAG:TARGET:発情期フラグ < 0 && BASE:TARGET:性欲 >= 500
+	DRAWLINE
+	PRINTFORML 割引き
+;発情期
+	IF BASE:TARGET:性欲 >= 1000
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　30％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 7
+	ELSE
+		SETCOLOR カラーパレット("ピンク")
+		PRINTFORM %"発情期でムラムラ中", 25, LEFT%：　　　　　10％オフ
+		CALL PRINT_STRL(@"_H_")
+		RESETCOLOR
+		値段計算 /= 10
+		値段計算 *= 9
+	ENDIF
+ENDIF
+DRAWLINE
+IF TALENT:対象キャラ:恋慕
+	値段計算 = -1
+ELSE
+	値段計算 = MAX(0, 値段計算)
+ENDIF
+IF 値段計算 > 0
+	PRINTFORML %"合計値段", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
+ELSE
+	PRINTFORM %"合計値段", 25, LEFT%：　%"無料", 8%
+	CALL PRINT_STRL(@"_H_")
+ENDIF
+
+
+RETURN 値段計算
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@性処理_ABLE_手コキ味見
+#DIM ループ用
+#DIM 許可好感度
+#DIM 補正後好感度
+
+;RETURN 0は非表示
+SIF GETBIT(TALENT:PLAYER:性別, 1) == 0
+	RETURN 0
+SIF TALENT:PLAYER:Ｃ感度 == -2
+	RETURN 0
+SIF TALENT:PLAYER:射精不可
+	RETURN 0
+
+;RETURN -1は表示するが選択出来ない
+許可好感度 = 40
+補正後好感度 = 補正後好感度算出(TARGET)
+SIF BASE:酩酊 > MAXBASE:酩酊 / 2
+	補正後好感度 += 20
+;経験があなたを強くする
+LOCAL = EXP:PLAYER:買春経験
+補正後好感度 += LOCAL
+IF あなた特殊能力:ルピえっち交渉術
+;口がうまくなったことで未陥落の一般客に通りやすくなった、ということで補正をかけておく。習得にかかった労力ぶんのリワード。
+;だ、だって……パパ活って一期一会みたいなイメージだし……好感度高くなくても通るイメージだし……
+;かわりに低好感度だと補正によってルピ消費ががっつり増える。
+	補正後好感度 += 50
+ENDIF
+TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_手コキ味見(TARGET, 補正後好感度)
+	補正後好感度 = RESULT
+CATCH
+ENDCATCH
+SIF 許可好感度 > 補正後好感度
+	RETURN -1
+
+RETURN 1
+
+;-------------------------------------------------
+;メッセージ
+;-------------------------------------------------
+
+@MESSAGE_性処理_手コキ味見
+#DIM 対象キャラ
+
+対象キャラ = TARGET
+
+PRINTFORM %CALLNAME:TARGET%は
+IF TALENT:TARGET:恋慕
+	PRINTFORM 求められるのが嬉しいのか笑顔で
+ELSEIF TALENT:TARGET:弱味 || (TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1)
+;これだけ露骨に浮かぶバリエーションが多い……なんでやろな？
+	PRINTFORM %TEXTR("渋々といった感じで/嫌そうに顔をしかめながらも渋々/不快そうに眉をひそめながらも渋々/嫌そうにこちらを睨みつけながらも渋々")%
+ELSEIF TALENT:TARGET:恋人持ち == 3
+	PRINTFORM 今は亡き伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 2
+	PRINTFORM 伴侶に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == 1
+	PRINTFORM 恋人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:恋人持ち == -1
+	PRINTFORM 想い人に小さく謝罪を口にしながらも
+ELSEIF TALENT:TARGET:セフレ
+	PRINTFORM ニヤニヤとからかうような笑みを浮かべて
+ELSEIF TALENT:TARGET:精神的余裕 == 2
+	PRINTFORM はしたないとため息をつきながらも
+ELSEIF TALENT:TARGET:ギャル
+	PRINTFORM あっけらかんと
+ELSEIF TALENT:TARGET:羞恥心
+	PRINTFORM %TEXTR("顔を真っ赤にし/恥じらって俯き")%ながら
+ELSEIF TALENT:TARGET:性的興味
+	PRINTFORM %TEXTR("興味しんしんな/期待に満ちた")%様子で
+ELSEIF TALENT:TARGET:性欲 <= -1
+	PRINTFORM あくまで事務的に
+ELSE
+	PRINTFORM 恥じらいながらも
+ENDIF
+PRINTFORMW %TEXTR("了承/承諾")%し、%CALLNAME:PLAYER%%TEXTR("と手近な物陰へと隠れた/を近くの物陰へと導いた/に連れられて近くの物陰に隠れた")%……
+PRINTL
+PRINTFORMW ────
+PRINTL
+
