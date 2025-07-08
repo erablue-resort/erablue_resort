@@ -1,29 +1,33 @@
 ﻿;-------------------------------------------------
-;クンニ味見
+;フェラチオ味見
 ;-------------------------------------------------
-@性処理NAME_クンニ味見
+@性処理NAME_フェラチオ味見
 #FUNCTIONS
-TSTR:コマンド名受渡 = クンニ味見
+TSTR:コマンド名受渡 = フェラチオ味見
 
-@性処理_TOOLTIP_クンニ味見
-LOCALS = <br>■クンニ味見<br>
-LOCALS += @"%CALLNAME:TARGET%の膣口やクリを%CALLNAME:PLAYER%が舐める性処理。<br>"
+@性処理_TOOLTIP_フェラチオ味見
+LOCALS = <br>■フェラチオ味見<br>
+LOCALS += @"%CALLNAME:TARGET%のペニスを%CALLNAME:PLAYER%がしゃぶる性処理。<br>"
+LOCALS += "文字通りの味見。<br>"
 LOCALS += "汚臭敏感・潔癖症の場合、要求好感度・要求金額が大幅に上昇する。<br>"
 LOCALS += "<br>COMタイプ：性処理<br>取得ソース：露出・接触・奉仕・不潔"
-LOCALS += "<br>固有の取得経験：口淫経験(TARGET)<br>"
+LOCALS += "<br>固有の取得経験：口淫経験(PLAYER)<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
-@性処理_クンニ味見
+@性処理_フェラチオ味見
+#DIM 行為回数
 
 ;射精するまで刺激する
+行為回数 = 0
 DO
-CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 300)
-SIF TALENT:PLAYER:舌使い
-	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 150)
-SIF TALENT:PLAYER:猫舌
-	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
-TIME += 10
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 300)
+	SIF TALENT:PLAYER:舌使い
+		CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 150)
+	SIF TALENT:PLAYER:猫舌
+		CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 20)
+	行為回数++
 LOOP CUP:TARGET:快Ｃ + PALAM:TARGET:快Ｃ < 10000
+TIME += 経過時間算出(行為回数)
 
 CALL SOURCE_CALC_露出(TARGET, PLAYER, 30)
 CALL SOURCE_CALC_接触(TARGET, PLAYER, 120)
@@ -34,7 +38,7 @@ CALL SOURCE_CALC_不潔(TARGET, PLAYER, 250)
 ;経験の処理
 ;-------------------------------------------------
 ;手淫経験
-EXP:口淫経験 += 3
+EXP:PLAYER:口淫経験 += 3
 
 ;同性愛
 SIF 同性愛性癖判定(PLAYER,TARGET)
@@ -43,10 +47,10 @@ SIF 同性愛性癖判定(TARGET,PLAYER)
 	EXP:TARGET:同性愛経験 += 8
 
 ;履歴登録はMESSAGEに移動
-CALL 初体験日登録処理(PLAYER, TARGET, "ファーストキス", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "クリトリス", "", 1)
+CALL 初体験日登録処理(PLAYER, TARGET, "ファーストキス", DAY * 1440 + TIME, GETPLACENAME(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置), "陰茎", "", 1)
 IF RESULT
+	RCVAR:TARGET:ファーストキス中フラグ = 1
 	RFLAG:コマンド結果受渡し変数３ = 1
-	RCVAR:PLAYER:ファーストキス中フラグ = 1
 ENDIF
 
 ;売春経験がない相手に交渉を成立させた場合、あなたの買春カウントが進む
@@ -57,29 +61,28 @@ SIF EXP:TARGET:売春経験 == 0
 
 EXP:TARGET:売春経験 += 1
 
-
 RETURN 1
 
 
-@性処理_射精時処理_クンニ味見
+@性処理_射精時処理_フェラチオ味見
 ;射精時にどこに出すかを呼び出す
 ;とはいってもフィニッシュ場所を入れて関数呼ぶだけ
-IF GETBIT(TALENT:TARGET:性別, 1)
-	CALL 射精実処理(TARGET, PLAYER, 5)
-ENDIF
+CALL 射精実処理(TARGET, PLAYER, 2)
 RETURN 1
 
 
 ;-------------------------------------------------
 ;値段設定
 ;-------------------------------------------------
-@CAN_性処理_クンニ味見(対象キャラ)
+@CAN_性処理_フェラチオ味見(対象キャラ)
 #DIM 対象キャラ
 #DIM 値段計算
 #DIMS 素質名
 
-PRINTFORML クンニ味見計算(%CALLNAME:TARGET%)
+PRINTFORML フェラチオ味見計算(%CALLNAME:TARGET%)
 DRAWLINE
+
+;価格設定は基本的にクンニと同じ
 
 ;基礎値段
 IF NO:TARGET > 1000
@@ -152,8 +155,8 @@ ELSEIF TALENT:非戦闘キャラ
 ;非戦闘キャラは、「戦うことで稼げる」キャラより相対的に肉体の価値が安く、「カラダを売って稼ぐ」ことへの抵抗感が戦闘キャラより薄いイメージ
 	値段計算 = 2000
 	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
-ELSEIF TALENT:性転換 == 1
-;元女だと嫌がって値段を高めに設定する(でも結局買われてしゃぶらされてしまう)
+ELSEIF TALENT:性転換 == 2
+;元男だと嫌がって値段を高めに設定する(でも結局買われてしゃぶらされてしまう)
 	値段計算 = 5000
 	PRINTFORML %"基本料金", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ELSE
@@ -313,6 +316,7 @@ IF TALENT:PLAYER:謎の魅力
 	PRINTFORML %"謎の魅力", 25, LEFT%：－%NUM_FORMAT(100), 8%ルピ
 ENDIF
 
+
 ;汚臭鈍感
 ;鈍感だろうと奉仕内容自体に変わりはないので大した値引きにはならない
 IF TALENT:汚臭耐性 > 0
@@ -341,7 +345,7 @@ IF TALENT:貞操 == 1
 	RESETCOLOR
 ENDIF
 
-;女嫌い
+;男嫌い
 IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
 	値段計算 += 1000
 	SETCOLOR カラーパレット("薄ピンク")
@@ -353,6 +357,7 @@ ELSEIF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
 	PRINTFORML %"女嫌い", 25, LEFT%：＋%NUM_FORMAT(1000), 8%ルピ
 	RESETCOLOR
 ENDIF
+
 
 ;この時点で値段がマイナスになっていた場合、強制的に0まで戻す。買ってるはずなのに買われてんじゃねぇ！
 SIF 値段計算 < 0
@@ -407,11 +412,7 @@ ELSEIF CFLAG:TARGET:発情期フラグ < 0 && BASE:TARGET:性欲 >= 500
 	ENDIF
 ENDIF
 DRAWLINE
-IF TALENT:対象キャラ:恋慕
-	値段計算 = -1
-ELSE
-	値段計算 = MAX(0, 値段計算)
-ENDIF
+値段計算 = MAX(0, 値段計算)
 IF 値段計算 > 0
 	PRINTFORML %"合計値段", 25, LEFT%：　%NUM_FORMAT(値段計算), 8%ルピ
 ELSE
@@ -424,20 +425,18 @@ RETURN 値段計算
 ;-------------------------------------------------
 ;実行判定
 ;-------------------------------------------------
-@性処理_ABLE_クンニ味見
+@性処理_ABLE_フェラチオ味見
 #DIM ループ用
 #DIM 許可好感度
 #DIM 補正後好感度
 
 ;RETURN 0は非表示
-SIF GETBIT(TALENT:TARGET:性別, 0) == 0
+SIF GETBIT(TALENT:TARGET:性別, 1) == 0
 	RETURN 0
 SIF TALENT:TARGET:Ｃ感度 == -2
 	RETURN 0
-IF GETBIT(TALENT:TARGET:性別, 1)
-	SIF TALENT:TARGET:射精不可
-		RETURN 0
-ENDIF
+SIF TALENT:TARGET:射精不可
+	RETURN 0
 
 ;RETURN -1は表示するが選択出来ない
 許可好感度 = 70
@@ -446,9 +445,16 @@ ENDIF
 IF TALENT:汚臭耐性 < 0
 	補正後好感度 -= TALENT:汚臭耐性 * -10
 ENDIF
-SIF BASE:酩酊 > MAXBASE:酩酊 / 2
-	補正後好感度 += 20
-TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_クンニ味見(TARGET, 補正後好感度)
+;経験があなたを強くする
+LOCAL = EXP:PLAYER:買春経験
+補正後好感度 += LOCAL
+IF あなた特殊能力:ルピえっち交渉術
+;口がうまくなったことで未陥落の一般客に通りやすくなった、ということで補正をかけておく。習得にかかった労力ぶんのリワード。
+;だ、だって……パパ活って一期一会みたいなイメージだし……好感度高くなくても通るイメージだし……
+;かわりに低好感度だと補正によってルピ消費ががっつり増える。
+	補正後好感度 += 50
+ENDIF
+TRYCCALLFORM 性処理業務固有補正_可不可_{NO:TARGET}_フェラチオ味見(TARGET, 補正後好感度)
 	補正後好感度 = RESULT
 CATCH
 ENDCATCH
@@ -461,9 +467,8 @@ RETURN 1
 ;メッセージ
 ;-------------------------------------------------
 
-@MESSAGE_性処理_クンニ味見
+@MESSAGE_性処理_フェラチオ味見
 #DIM 対象キャラ
-
 
 対象キャラ = TARGET
 
@@ -500,5 +505,4 @@ PRINTFORMW %TEXTR("了承/承諾")%し、%CALLNAME:PLAYER%%TEXTR("と手近な�
 PRINTL
 PRINTFORMW ────
 PRINTL
-PRINTFORMW %CALLNAME:PLAYER%は舌で%CALLNAME:TARGET%の秘所を舐め弄り、絶頂する様子を楽しんだ。
-
+PRINTFORMW %CALLNAME:PLAYER%は舌で%CALLNAME:TARGET%の陰茎を舐め弄り、絶頂する様子を楽しんだ。
