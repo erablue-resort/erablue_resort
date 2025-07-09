@@ -307,6 +307,17 @@ IF TALENT:キャラ番号:性欲 != -2
 ENDIF
 PRINTBUTTONLC "[9]体格・体型を変化させる", 9
 PRINTL
+IF あなた特殊能力:ハーレム >= 2
+	IF TALENT:キャラ番号:ハーレムの心得
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAIN [10]ハーレムの心得を取得させる（取得済み）
+		RESETCOLOR
+	ELSE
+		;ハーレム一人前以上だと他者にハーレムの心得を付与可能
+		PRINTBUTTONLC "[10]ハーレムの心得を取得させる", 10
+	ENDIF
+	PRINTL
+ENDIF
 IF フレーバー素質:キャラ番号:フレーバー素質_素質表示設定 == 0 || フレーバー素質:キャラ番号:フレーバー素質_素質表示設定 == 1
 	PRINTBUTTONLC "[20]フレーバー素質を再設定する", 20
 	PRINTL
@@ -357,6 +368,9 @@ SELECTCASE RESULT
 		RESTART
 	CASE 9
 		CALL 体格・体型素質設定(キャラ番号)
+		RESTART
+	CASE 10
+		CALL ハーレムの心得素質設定(キャラ番号)
 		RESTART
 	CASE 20
 		CALL フレーバー素質再設定(キャラ番号)
@@ -1990,3 +2004,43 @@ SELECTCASE LOCAL
 ENDSELECT
 
 GOTO 表示部分
+
+
+@ハーレムの心得素質設定(対象キャラ)
+#DIM 対象キャラ
+#DIM CONST 消費ZP = 200
+
+
+
+$表示部分
+DRAWLINE
+PRINTFORML %NAME表示(対象キャラ)% にハーレムの心得を取得させます。
+PRINTFORML 恋慕の縁結びをする際、自身が恋慕を既に持っていても縁結びが進行するようになります。
+PRINTFORML 変更時に{消費ZP}ZP消費します。
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+IF FLAG:ZP所持量 < 消費ZP
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [0] 取得する（ZP不足）
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[0] 取得する", 0
+ENDIF
+PRINTL
+PRINTBUTTON "[999] 取得せず戻る", 999
+PRINTL
+PRINTL
+
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 0
+		TALENT:対象キャラ:ハーレムの心得 = 1
+		FLAG:ZP所持量 -= 消費ZP
+		PRINTL
+		PRINTL
+		PRINTFORMW %NAME表示(対象キャラ)% がハーレムの心得を取得しました！
+ENDSELECT
