@@ -415,6 +415,7 @@ RETURN
 #DIMS TYPE
 #DIMS 文字列記憶
 #DIMS D_NAME
+#DIMS 射精先文字列
 
 VARSET LOCAL
 VARSET 差分エフェクト
@@ -710,46 +711,81 @@ IF MODE_存在判定_プレイヤー側("Ａ挿入系", ARG)
 ENDIF
 
 IF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) || MODE_存在判定_プレイヤー側("パイズリ系", ARG)
-	IF TCVAR:ARG:前ターン被射精位置 == 3 && 差分抽出(ARG, TYPE, LOCALS, "口内射精", "口内射精") && D_NAME == ""
-		文字列記憶 '= RESULTS
-		IF OPTION変数:射精後のモード時立ち絵制御 && 立ち絵乱数
-			差分エフェクト:0 '= "エフェクト_" + TYPE + "口内射精"
-			SIF MODE_存在判定_プレイヤー側("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}")
-				D_NAME '= RESULTS
-			SIF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ", "フェラチオ") && D_NAME == ""
+	射精先文字列 = 
+	SELECTCASE TCVAR:ARG:前ターン被射精位置
+		CASE 3
+			射精先文字列 = 口内射精
+		CASE 4
+			射精先文字列 = 乳内射精
+		CASE 5
+			射精先文字列 = 顔射
+	ENDSELECT
+	IF 射精先文字列 != "" && D_NAME == ""
+		IF MODE_存在判定_プレイヤー側("パイズリ系", ARG)
+			FOR LOCAL, 0, VARSIZE("PAIZURI")
+				IF MODE_存在判定_ターゲット側(PAIZURI:LOCAL, ARG)
+					LOCAL:1 ++
+					IF TCVAR:ARG:前ターン被射精位置 == 1 && D_NAME == ""
+						文字列記憶 = 
+						IF 差分抽出(ARG, TYPE, LOCALS, @"%PAIZURI:LOCAL%%射精先文字列%", "")
+							文字列記憶 '= RESULTS
+							IF OPTION変数:射精後のモード時立ち絵制御 && 立ち絵乱数
+								IF 差分抽出(ARG, TYPE, LOCALS, PAIZURI:LOCAL, "")
+									D_NAME '= RESULTS
+									差分エフェクト:0 '= "エフェクト_" + TYPE + 射精先文字列
+								ELSEIF 差分抽出(ARG, TYPE, LOCALS, 射精先文字列, "")
+									D_NAME '= RESULTS
+								ENDIF
+							ENDIF
+							SIF D_NAME == ""
+								D_NAME '= 文字列記憶
+						ELSEIF 差分抽出(ARG, TYPE, LOCALS, 射精先文字列, 射精先文字列)
+							IF !OPTION変数:射精後のモード時立ち絵制御 || !立ち絵乱数
+								D_NAME '= RESULTS
+							ELSE
+								差分エフェクト:0 '= "エフェクト_" + TYPE + 射精先文字列
+							ENDIF
+						ENDIF
+					ENDIF
+					SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, PAIZURI:LOCAL, @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}")
+						D_NAME '= RESULTS
+				ENDIF
+			NEXT
+			SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}")
 				D_NAME '= RESULTS
 		ENDIF
-		IF D_NAME == ""
-			D_NAME '= 文字列記憶
-			VARSET 差分エフェクト
-		ENDIF
-	ENDIF
-	IF TCVAR:ARG:前ターン被射精位置 == 4 && 差分抽出(ARG, TYPE, LOCALS, "乳内射精", @"乳内射精{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}") && D_NAME == ""
-		文字列記憶 '= RESULTS
-		IF OPTION変数:射精後のモード時立ち絵制御 && 立ち絵乱数
-			差分エフェクト:0 '= "エフェクト_" + TYPE + "乳内射精"
-			SIF MODE_存在判定_プレイヤー側("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}")
+		IF MODE_存在判定_プレイヤー側("フェラチオ系", ARG)
+			FOR LOCAL, 0, VARSIZE("FERATIO")
+				IF MODE_存在判定_ターゲット側(FERATIO:LOCAL, ARG)
+					LOCAL:1 ++
+					IF TCVAR:ARG:前ターン被射精位置 == 1 && D_NAME == ""
+						文字列記憶 = 
+						IF 差分抽出(ARG, TYPE, LOCALS, @"%FERATIO:LOCAL%%射精先文字列%", "")
+							文字列記憶 '= RESULTS
+							IF OPTION変数:射精後のモード時立ち絵制御 && 立ち絵乱数
+								IF 差分抽出(ARG, TYPE, LOCALS, FERATIO:LOCAL, "")
+									D_NAME '= RESULTS
+									差分エフェクト:0 '= "エフェクト_" + TYPE + 射精先文字列
+								ELSEIF 差分抽出(ARG, TYPE, LOCALS, 射精先文字列, "")
+									D_NAME '= RESULTS
+								ENDIF
+							ENDIF
+							SIF D_NAME == ""
+								D_NAME '= 文字列記憶
+						ELSEIF 差分抽出(ARG, TYPE, LOCALS, 射精先文字列, 射精先文字列)
+							IF !OPTION変数:射精後のモード時立ち絵制御 || !立ち絵乱数
+								D_NAME '= RESULTS
+							ELSE
+								差分エフェクト:0 '= "エフェクト_" + TYPE + 射精先文字列
+							ENDIF
+						ENDIF
+					ENDIF
+					SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, FERATIO:LOCAL, "フェラチオ")
+						D_NAME '= RESULTS
+				ENDIF
+			NEXT
+			SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ", "フェラチオ")
 				D_NAME '= RESULTS
-			SIF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ", "フェラチオ") && D_NAME == ""
-				D_NAME '= RESULTS
-		ENDIF
-		IF D_NAME == ""
-			D_NAME '= 文字列記憶
-			VARSET 差分エフェクト
-		ENDIF
-	ENDIF
-	IF TCVAR:ARG:前ターン被射精位置 == 5 && 差分抽出(ARG, TYPE, LOCALS, "顔射") && D_NAME == ""
-		文字列記憶 '= RESULTS
-		IF OPTION変数:射精後のモード時立ち絵制御 && 立ち絵乱数
-			差分エフェクト:0 '= "エフェクト_" + TYPE + "顔射"
-			SIF MODE_存在判定_プレイヤー側("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}")
-				D_NAME '= RESULTS
-			SIF MODE_存在判定_プレイヤー側("フェラチオ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "フェラチオ", "フェラチオ") && D_NAME == ""
-				D_NAME '= RESULTS
-		ENDIF
-		IF D_NAME == ""
-			D_NAME '= 文字列記憶
-			VARSET 差分エフェクト
 		ENDIF
 	ENDIF
 	SIF MODE_存在判定_プレイヤー側("パイズリ系", ARG) && 差分抽出(ARG, TYPE, LOCALS, "パイズリ", @"パイズリ{LIMIT(TALENT:ARG:バストサイズ, 0, 4)}") && D_NAME == ""
