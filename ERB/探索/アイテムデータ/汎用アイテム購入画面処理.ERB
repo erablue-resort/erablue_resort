@@ -12,6 +12,7 @@
 #DIM 売却許可フラグ
 #DIM 売却モード
 #DIM 売価
+#DIM アイテムフラグ
 
 VARSET LOCALS
 選択アイテム番号 = -1
@@ -89,10 +90,12 @@ IF 売却モード == 0
 		SPLIT 汎用アイテム購入用_品揃え登録:選択アイテム番号, ",", 商売文字列保存
 		詳細文文字列受け渡し変数 = 
 		TRYCCALLFORM アイテム個別文章表示_%商売文字列保存:0%
+			アイテムフラグ = 1
 			LOCALS:3 = %詳細文文字列受け渡し変数%<br>
 			LOCALS:3 += @"購入額：{購入個数, 2}個 / "
 		CATCH
 			;アイテムにない場合素材を見る
+			アイテムフラグ = 0
 			CALLFORM 素材性能記述_%商売文字列保存:0%
 			LOCALS:3 = ■%商売文字列保存:0%　　　所持数:{素材アイテム数量算出(商売文字列保存:0)}<br>
 			LOCALS:3 += @"　カテゴリ：%素材性能_カテゴリ%<br>"
@@ -120,11 +123,17 @@ IF 売却モード == 0
 		ELSE
 			LOCALS:3 += @"{TOINT(商売文字列保存:1) * 購入個数, 6}%商売文字列保存:2%<br><br>"
 		ENDIF
-		LOCALS:3 += @"<button value='1011'>[+10]</button> "
-		LOCALS:3 += @"<button value='1001'>[+1]</button>"
-		LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個購入する</button>　"
-		LOCALS:3 += @"<button value='1002'>[-1]</button> "
-		LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		IF アイテムフラグ && DT_CELL_GET("所持アイテムデータベース", 0, 商売文字列保存:0) >= 127
+			LOCALS:3 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>　　　　　"
+			LOCALS:3 += @"　このアイテムを%TOFULL(TOSTR(購入個数)), 4%個購入する　"
+			LOCALS:3 += @"（所持上限）</font>"
+		ELSE
+			LOCALS:3 += @"<button value='1011'>[+10]</button> "
+			LOCALS:3 += @"<button value='1001'>[+1]</button>"
+			LOCALS:3 += @"　<button value='1000'>このアイテムを%TOFULL(TOSTR(購入個数)), 4%個購入する</button>　"
+			LOCALS:3 += @"<button value='1002'>[-1]</button> "
+			LOCALS:3 += @"<button value='1012'>[-10]</button>"
+		ENDIF
 		LOCALS += @"<div rect='2125,537,3800,2687'>%LOCALS:3%</div>"
 	ENDIF
 ELSE
@@ -182,13 +191,21 @@ SELECTCASE RESULT
 		RETURN 0
 	CASE 1011
 		IF 売却モード == 0
-			購入個数 = MIN(購入個数 + 10, 99) 
+			IF アイテムフラグ
+				購入個数 = MIN(購入個数 + 10, MIN(99, 127 - DT_CELL_GET("所持アイテムデータベース", 0, 商売文字列保存:0)))
+			ELSE
+				購入個数 = MIN(購入個数 + 10, 99)
+			ENDIF
 		ELSE
 			購入個数 = MIN(購入個数 + 10, DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:選択アイテム番号)) 
 		ENDIF
 	CASE 1001
 		IF 売却モード == 0
-			購入個数 = MIN(購入個数 + 1, 99) 
+			IF アイテムフラグ
+				購入個数 = MIN(購入個数 + 1, MIN(99, 127 - DT_CELL_GET("所持アイテムデータベース", 0, 商売文字列保存:0)))
+			ELSE
+				購入個数 = MIN(購入個数 + 1, 99)
+			ENDIF
 		ELSE
 			購入個数 = MIN(購入個数 + 1, DT_CELL_GET("所持アイテムデータベース", 0, 表示アイテム名:選択アイテム番号)) 
 		ENDIF
