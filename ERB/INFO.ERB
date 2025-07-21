@@ -450,176 +450,183 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 	文字数カウント = 8
 	divHTML = 同室者：
 	改行フラグ = 0
-	FOR LOCAL,1,CHARANUM
-	;同室一覧から即座に相手を変えられるようにする
-		SIF TARGET:LOCAL < 1
-			BREAK
-		IF TARGET:LOCAL == PLAYER
-			IF TARGET != MASTER && GETBIT(FLAG:モード管理, モードビット_指示)
-				divHTML += @"<button value='2000'>[%CALLNAME:MASTER%]</button> "
-			ENDIF
-		ELSEIF TARGET:LOCAL == TARGET
-			CONTINUE
-		ELSE
-			フォント格納用 = 
-			IF CSTR:(TARGET:LOCAL):同室者一覧表示名 != ""
-				ボタン表示格納用 = [%CSTR:(TARGET:LOCAL):同室者一覧表示名%
-			ELSE
-				ボタン表示格納用 = [%CALLNAME:(TARGET:LOCAL)%
-			ENDIF
-			IF CFLAG:(TARGET:LOCAL):体力限界
-				RESETCOLOR
-				ボタン表示格納用 += "(ダウン)"
-			ELSE
-				IF TALENT:(TARGET:LOCAL):恋慕 == 1
-					フォント格納用 = %カラーパレット_HTML("えっちな色")%
-					ボタン表示格納用 += "(恋<img src='えっちハート'>)"
-				ELSEIF TALENT:(TARGET:LOCAL):恋慕 == 2
-					フォント格納用 = %カラーパレット_HTML("えっちな色")%
-					IF TALENT:(TARGET:LOCAL):性別 == 2
-						ボタン表示格納用 += "(夫<img src='えっちハート'>)"
-					ELSE
-						ボタン表示格納用 += "(妻<img src='えっちハート'>)"
-					ENDIF
-				ELSEIF CFLAG:(TARGET:LOCAL):ゲージ起動分類 == 1
-					フォント格納用 = %カラーパレット_HTML("薄ピンク")%
-					ボタン表示格納用 += "(恋)"
-				ENDIF
-				IF TALENT:(TARGET:LOCAL):セフレ
-					SIF フォント格納用 != カラーパレット_HTML("えっちな色")
-						フォント格納用 = %カラーパレット_HTML("ピンク")%
-					ボタン表示格納用 += "(セ)"
-				ENDIF
-				IF TALENT:(TARGET:LOCAL):妊娠
-					IF PREGNANCY_PROGRESS(TARGET:LOCAL) == 5
-						ボタン表示格納用 += "(臨)"
-					ELSE
-						ボタン表示格納用 += "(妊)"
-					ENDIF
-					SIF フォント格納用 != カラーパレット_HTML("えっちな色")
-						フォント格納用 = %カラーパレット_HTML("ピンク")%
-				ELSEIF CFLAG:(TARGET:LOCAL):発情期フラグ < 0
-					SIF フォント格納用 != カラーパレット_HTML("えっちな色")
-						フォント格納用 = %カラーパレット_HTML("ピンク")%
-					ボタン表示格納用 += "(発)"
-				ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:(TARGET:LOCAL):性別, 0) && TALENT:(TARGET:LOCAL):Ｖ感度 > -2
-					IF RISKY_DAY(TARGET:LOCAL) == 2
-						ボタン表示格納用 += "(危)"
-						SIF フォント格納用 != カラーパレット_HTML("えっちな色")
-							フォント格納用 = %カラーパレット_HTML("ピンク")%
-					ELSEIF RISKY_DAY(TARGET:LOCAL) == 1
-						ボタン表示格納用 += "(危)"
-						SIF フォント格納用 != カラーパレット_HTML("えっちな色")
-							フォント格納用 = %カラーパレット_HTML("薄ピンク")%
-					ENDIF
-				ENDIF
-				IF CFLAG:(TARGET:LOCAL):デート
-					ボタン表示格納用 += "(デ)"
-				ENDIF
-			ENDIF
-			SIF CFLAG:(TARGET:LOCAL):マッサージ助手
-				ボタン表示格納用 += "(助)"
-			ボタン表示格納用 += "]"
-			文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
-			IF 文字数カウント > 101
-				divHTML += "<br>"
-				文字数カウント = STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
-				改行フラグ ++
-			ENDIF
-			IF TFLAG:調教モード == 3 && CFLAG:(TARGET:LOCAL):同室文字色 == 0 && 文字色グループ取得(TARGET:LOCAL) < 0
-				divHTML += ボタン表示格納用
-				;PRINTPLAINFORM %ボタン表示格納用%
-			ELSE
-				IF 文字色グループ取得(TARGET:LOCAL) >= 0
-					divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(TARGET:LOCAL)))%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
-				ELSEIF CFLAG:(TARGET:LOCAL):同室文字色
-					divHTML += @"<font color='#%十六進数文字列化(CFLAG:(TARGET:LOCAL):同室文字色)%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
-				ELSEIF フォント格納用 != ""
-					divHTML += @"<font color='#%フォント格納用%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
-				ELSE
-					divHTML += @"<button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
-				ENDIF
-				;PRINTBUTTON ボタン表示格納用, (TARGET:LOCAL)+2000
-			ENDIF
-			divHTML += " "
-			文字数カウント ++
-		ENDIF
-	NEXT
-	IF TFLAG:調教モード == 3
-		divHTML += "<br>"
-		改行フラグ ++
-		文字数カウント = 14
-		divHTML += "飲み会参加者："
+	IF OPTION変数:同室者非表示 == 0
 		FOR LOCAL,1,CHARANUM
 		;同室一覧から即座に相手を変えられるようにする
-			SIF 飲み会TARGET:LOCAL < 1
+			SIF TARGET:LOCAL < 1
 				BREAK
-			IF 飲み会TARGET:LOCAL == TARGET
-			ELSEIF 飲み会TARGET:LOCAL
+			IF TARGET:LOCAL == PLAYER
+				IF TARGET != MASTER && GETBIT(FLAG:モード管理, モードビット_指示)
+					divHTML += @"<button value='2000'>[%CALLNAME:MASTER%]</button> "
+				ENDIF
+			ELSEIF TARGET:LOCAL == TARGET
+				CONTINUE
+			ELSE
 				フォント格納用 = 
-				ボタン表示格納用 = [%CALLNAME:(飲み会TARGET:LOCAL)%
+				IF CSTR:(TARGET:LOCAL):同室者一覧表示名 != ""
+					ボタン表示格納用 = [%CSTR:(TARGET:LOCAL):同室者一覧表示名%
+				ELSE
+					ボタン表示格納用 = [%CALLNAME:(TARGET:LOCAL)%
+				ENDIF
 				IF CFLAG:(TARGET:LOCAL):体力限界
 					RESETCOLOR
 					ボタン表示格納用 += "(ダウン)"
 				ELSE
-					IF TALENT:(飲み会TARGET:LOCAL):恋慕 == 1
+					IF TALENT:(TARGET:LOCAL):恋慕 == 1
 						フォント格納用 = %カラーパレット_HTML("えっちな色")%
 						ボタン表示格納用 += "(恋<img src='えっちハート'>)"
-					ELSEIF TALENT:(飲み会TARGET:LOCAL):恋慕 == 2
+					ELSEIF TALENT:(TARGET:LOCAL):恋慕 == 2
 						フォント格納用 = %カラーパレット_HTML("えっちな色")%
-						IF TALENT:(飲み会TARGET:LOCAL):性別 == 2
+						IF TALENT:(TARGET:LOCAL):性別 == 2
 							ボタン表示格納用 += "(夫<img src='えっちハート'>)"
 						ELSE
 							ボタン表示格納用 += "(妻<img src='えっちハート'>)"
 						ENDIF
-					ELSEIF CFLAG:(飲み会TARGET:LOCAL):ゲージ起動分類 == 1
+					ELSEIF CFLAG:(TARGET:LOCAL):ゲージ起動分類 == 1
 						フォント格納用 = %カラーパレット_HTML("薄ピンク")%
 						ボタン表示格納用 += "(恋)"
 					ENDIF
-					IF TALENT:(飲み会TARGET:LOCAL):セフレ
+					IF TALENT:(TARGET:LOCAL):セフレ
+						SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+							フォント格納用 = %カラーパレット_HTML("ピンク")%
 						ボタン表示格納用 += "(セ)"
 					ENDIF
-					IF TALENT:(飲み会TARGET:LOCAL):妊娠
-						IF PREGNANCY_PROGRESS(飲み会TARGET:LOCAL) == 5
+					IF TALENT:(TARGET:LOCAL):妊娠
+						IF PREGNANCY_PROGRESS(TARGET:LOCAL) == 5
 							ボタン表示格納用 += "(臨)"
 						ELSE
 							ボタン表示格納用 += "(妊)"
 						ENDIF
 						SIF フォント格納用 != カラーパレット_HTML("えっちな色")
 							フォント格納用 = %カラーパレット_HTML("ピンク")%
-					ELSEIF CFLAG:(飲み会TARGET:LOCAL):発情期フラグ < 0
-						フォント格納用 = %カラーパレット_HTML("えっちな色")%
+					ELSEIF CFLAG:(TARGET:LOCAL):発情期フラグ < 0
+						SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+							フォント格納用 = %カラーパレット_HTML("ピンク")%
 						ボタン表示格納用 += "(発)"
-					ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:(飲み会TARGET:LOCAL):性別, 0) && TALENT:(飲み会TARGET:LOCAL):Ｖ感度 > -2
-						IF RISKY_DAY(飲み会TARGET:LOCAL) == 2
+					ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:(TARGET:LOCAL):性別, 0) && TALENT:(TARGET:LOCAL):Ｖ感度 > -2
+						IF RISKY_DAY(TARGET:LOCAL) == 2
 							ボタン表示格納用 += "(危)"
-							フォント格納用 = %カラーパレット_HTML("赤ピンク")%
-						ELSEIF RISKY_DAY(飲み会TARGET:LOCAL) == 1
+							SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+								フォント格納用 = %カラーパレット_HTML("ピンク")%
+						ELSEIF RISKY_DAY(TARGET:LOCAL) == 1
 							ボタン表示格納用 += "(危)"
 							SIF フォント格納用 != カラーパレット_HTML("えっちな色")
 								フォント格納用 = %カラーパレット_HTML("薄ピンク")%
 						ENDIF
 					ENDIF
+					IF CFLAG:(TARGET:LOCAL):デート
+						ボタン表示格納用 += "(デ)"
+					ENDIF
 				ENDIF
+				SIF CFLAG:(TARGET:LOCAL):マッサージ助手
+					ボタン表示格納用 += "(助)"
 				ボタン表示格納用 += "]"
 				文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
-				IF 文字数カウント > 85
+				IF 文字数カウント > 101
 					divHTML += "<br>"
-					文字数カウント = 0
+					文字数カウント = STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
 					改行フラグ ++
 				ENDIF
-				IF 文字色グループ取得(飲み会TARGET:LOCAL) >= 0
-					divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(飲み会TARGET:LOCAL)))%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
-				ELSEIF CFLAG:(飲み会TARGET:LOCAL):同室文字色
-					divHTML += @"<font color='#%十六進数文字列化(CFLAG:(飲み会TARGET:LOCAL):同室文字色)%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
-				ELSEIF フォント格納用 != ""
-					divHTML += @"<font color='#%フォント格納用%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+				IF TFLAG:調教モード == 3 && CFLAG:(TARGET:LOCAL):同室文字色 == 0 && 文字色グループ取得(TARGET:LOCAL) < 0
+					divHTML += ボタン表示格納用
+					;PRINTPLAINFORM %ボタン表示格納用%
 				ELSE
-					divHTML += @"<button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
+					IF 文字色グループ取得(TARGET:LOCAL) >= 0
+						divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(TARGET:LOCAL)))%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSEIF CFLAG:(TARGET:LOCAL):同室文字色
+						divHTML += @"<font color='#%十六進数文字列化(CFLAG:(TARGET:LOCAL):同室文字色)%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSEIF フォント格納用 != ""
+						divHTML += @"<font color='#%フォント格納用%'><button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSE
+						divHTML += @"<button value='{(TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
+					ENDIF
+					;PRINTBUTTON ボタン表示格納用, (TARGET:LOCAL)+2000
 				ENDIF
+				divHTML += " "
+				文字数カウント ++
 			ENDIF
-			divHTML += " "
 		NEXT
+		divHTML += "<button value='807'>[同室者を非表示]</button>"
+	ELSE
+		divHTML += "<button value='807'>[同室者を表示]</button>"
+	ENDIF
+	IF TFLAG:調教モード == 3
+		divHTML += "<br>"
+		改行フラグ ++
+		文字数カウント = 14
+		divHTML += "飲み会参加者："
+		IF OPTION変数:同室者非表示 == 0
+			FOR LOCAL,1,CHARANUM
+			;同室一覧から即座に相手を変えられるようにする
+				SIF 飲み会TARGET:LOCAL < 1
+					BREAK
+				IF 飲み会TARGET:LOCAL == TARGET
+				ELSEIF 飲み会TARGET:LOCAL
+					フォント格納用 = 
+					ボタン表示格納用 = [%CALLNAME:(飲み会TARGET:LOCAL)%
+					IF CFLAG:(TARGET:LOCAL):体力限界
+						RESETCOLOR
+						ボタン表示格納用 += "(ダウン)"
+					ELSE
+						IF TALENT:(飲み会TARGET:LOCAL):恋慕 == 1
+							フォント格納用 = %カラーパレット_HTML("えっちな色")%
+							ボタン表示格納用 += "(恋<img src='えっちハート'>)"
+						ELSEIF TALENT:(飲み会TARGET:LOCAL):恋慕 == 2
+							フォント格納用 = %カラーパレット_HTML("えっちな色")%
+							IF TALENT:(飲み会TARGET:LOCAL):性別 == 2
+								ボタン表示格納用 += "(夫<img src='えっちハート'>)"
+							ELSE
+								ボタン表示格納用 += "(妻<img src='えっちハート'>)"
+							ENDIF
+						ELSEIF CFLAG:(飲み会TARGET:LOCAL):ゲージ起動分類 == 1
+							フォント格納用 = %カラーパレット_HTML("薄ピンク")%
+							ボタン表示格納用 += "(恋)"
+						ENDIF
+						IF TALENT:(飲み会TARGET:LOCAL):セフレ
+							ボタン表示格納用 += "(セ)"
+						ENDIF
+						IF TALENT:(飲み会TARGET:LOCAL):妊娠
+							IF PREGNANCY_PROGRESS(飲み会TARGET:LOCAL) == 5
+								ボタン表示格納用 += "(臨)"
+							ELSE
+								ボタン表示格納用 += "(妊)"
+							ENDIF
+							SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+								フォント格納用 = %カラーパレット_HTML("ピンク")%
+						ELSEIF CFLAG:(飲み会TARGET:LOCAL):発情期フラグ < 0
+							フォント格納用 = %カラーパレット_HTML("えっちな色")%
+							ボタン表示格納用 += "(発)"
+						ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:(飲み会TARGET:LOCAL):性別, 0) && TALENT:(飲み会TARGET:LOCAL):Ｖ感度 > -2
+							IF RISKY_DAY(飲み会TARGET:LOCAL) == 2
+								ボタン表示格納用 += "(危)"
+								フォント格納用 = %カラーパレット_HTML("赤ピンク")%
+							ELSEIF RISKY_DAY(飲み会TARGET:LOCAL) == 1
+								ボタン表示格納用 += "(危)"
+								SIF フォント格納用 != カラーパレット_HTML("えっちな色")
+									フォント格納用 = %カラーパレット_HTML("薄ピンク")%
+							ENDIF
+						ENDIF
+					ENDIF
+					ボタン表示格納用 += "]"
+					文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
+					IF 文字数カウント > 85
+						divHTML += "<br>"
+						文字数カウント = 0
+						改行フラグ ++
+					ENDIF
+					IF 文字色グループ取得(飲み会TARGET:LOCAL) >= 0
+						divHTML += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(飲み会TARGET:LOCAL)))%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSEIF CFLAG:(飲み会TARGET:LOCAL):同室文字色
+						divHTML += @"<font color='#%十六進数文字列化(CFLAG:(飲み会TARGET:LOCAL):同室文字色)%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSEIF フォント格納用 != ""
+						divHTML += @"<font color='#%フォント格納用%'><button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button></font>"
+					ELSE
+						divHTML += @"<button value='{(飲み会TARGET:LOCAL)+2000}'>%ボタン表示格納用%</button>"
+					ENDIF
+				ENDIF
+				divHTML += " "
+			NEXT
+		ENDIF
 	ENDIF
 	divHTML += "<br>"
 	改行フラグ ++
