@@ -1,0 +1,93 @@
+﻿
+@COMNAME502
+#FUNCTIONS
+TSTR:コマンド名受渡 = 「おいしいお酒」を勧める
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_502
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("飲み会")
+
+@COM_TOOLTIP_502
+LOCALS = <br>「おいしいお酒」を勧める<br>
+LOCALS += "飲みやすく度数の高い、通称「レディキラー」と呼ばれるお酒を勧める。<br>"
+LOCALS += "<br>レディキラーを消費するかわりに、普通の酒を飲むよりも相手の酩酊ゲージをより多く増加させられる。"
+LOCALS += "<br>COMタイプ：飲み会<br>取得ソース：歓楽"
+LOCALS += "<br>固有の取得経験：飲酒経験(全員)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM502
+
+
+	IF BASE:TARGET:酩酊 < 0
+		BASE:TARGET:酩酊 += RAND:100 + 10
+		IF TALENT:TARGET:酒に強い == 2
+			BASE:TARGET:酩酊 = 0
+		ELSEIF TALENT:TARGET:酒に強い == 1
+			BASE:TARGET:酩酊 += 40
+		ELSEIF TALENT:TARGET:酒に強い == 0
+			BASE:TARGET:酩酊 += 10
+		ENDIF
+	ELSE
+		IF !初体験日:TARGET:初飲酒
+			初体験日:TARGET:初飲酒 = DAY
+			TCVAR:TARGET:初飲酒フラグ = 1
+			CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"初めてリゾートでお酒を飲んだ","日常")
+		ENDIF
+		EXP:TARGET:飲酒経験 += RAND:5 + 1
+		BASE:TARGET:酩酊 += RAND:100 + RAND:100 + 250
+		IF TALENT:TARGET:酒に強い == 2
+			BASE:TARGET:酩酊 = MIN(700, BASE:TARGET:酩酊 - 70)
+		ELSEIF TALENT:TARGET:酒に強い == 1
+			BASE:TARGET:酩酊 -= 40
+		ELSEIF TALENT:TARGET:酒に強い == -1
+			BASE:TARGET:酩酊 += 40
+		ENDIF
+		SIF BASE:TARGET:酩酊 >= 1000
+			CFLAG:TARGET:酔いすぎ = 1
+	ENDIF
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 500)
+CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 150)
+
+
+ITEM:レディキラー -= 1
+SIF TCVAR:TARGET:レディキラー != 1
+	TCVAR:TARGET:レディキラー = 1
+
+EXP:MASTER:飲酒経験 += RAND:5 + 1
+
+;酔い強度
+BASE:MASTER:酩酊 += RAND:100 + RAND:100 + 100
+SIF BASE:MASTER:酩酊 >= 1000
+	CFLAG:MASTER:酔いすぎ = 1
+
+TIME += 15
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE502
+;会話実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(502)
+	RETURN RESULT
+SIF TALENT:TARGET:飲食不可
+	RETURN 0
+SIF ITEM:レディキラー <= 0
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM502
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%に「すっきり甘くておいしいお酒」を勧めた……。
+PRINTL
+PRINTFORMW %TEXTR("楽しそう/おいしそう")%に飲む%CALLNAME:TARGET%の姿に、思わず%CALLNAME:PLAYER%も笑みがこぼれた。
+

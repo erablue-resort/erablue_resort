@@ -267,6 +267,10 @@ SIF CFLAG:ARG:酔いすぎ == 1
 ;体力限界時は眠る
 SIF CFLAG:ARG:体力限界 == 1
 	寝る = 0
+;泥酔眠姦とかに使う分岐
+SIF TCVAR:ARG:言いなり == 1
+	寝る = 0
+
 
 ;PLAYERがうふふ、同じ部屋にいる、隠密状態が同じ場合は寝ない
 SIF CFLAG:MASTER:うふふ && CFLAG:MASTER:隠密 == CFLAG:ARG:隠密 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置 && CFLAG:MASTER:現在マップ種別 == CFLAG:ARG:現在マップ種別
@@ -329,7 +333,13 @@ RETURNF TIME + DAY * 1440 - ARG
 #DIM 睡眠マップ
 #DIM 睡眠場所
 #DIM 部屋割
+#DIM TARGET保存
+#DIM COM保存
+#DIM 泥酔勘違い
+
 VARSET LOCAL
+
+泥酔勘違い = 0
 
 ;現在、キャラごとの個室がないのでまるごとオミット、寝る時にどっか行くだけ
 
@@ -374,10 +384,176 @@ IF !CFLAG:ARG:睡眠
 				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
 			ELSEIF CFLAG:ARG:現在位置 == LOCAL && CFLAG:ARG:現在マップ種別 == 部屋検索_マップ種別
 				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
+			ELSEIF TALENT:ARG:性別 == 1 && TCVAR:ARG:レディキラー >= 1
+				;書いた人は男あなたで男が酔いつぶれた時にも選択肢が出てしまうのが嫌で女に限定した。あなたの性別嗜好が取れる手段があるならそれで。
+				;女前提なら地の文でも女性的な表現使えて楽！
+				CFLAG:ARG:現在位置 = LOCAL
+				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+				PRINTFORMW %CALLNAME:ARG%は酔いつぶれてしまったようだ……。
+				PRINTL
+				PRINTBUTTONLC "[0] 紳士的に部屋まで送る", 0
+				PRINTBUTTONLC "[1] 送り狼になる", 1
+				BINPUT
+				IF RESULT == 0
+					PRINTL
+					PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと送ってあげた……。
+				ELSE
+				;泥酔レイプ！野獣と化したオーナー
+					PRINTL
+					PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%に肩を貸し、部屋まで送ってあげることにした。
+					PRINTL
+					PRINTFORMW 酔いに火照った体に腕を回し、半身に%CALLNAME:ARG%の柔らかさを感じながらゆっくりと部屋へ歩みを進める……。
+					PRINTL
+					IF 陥落チェック_性的(TARGET) >= 2
+						PRINTFORML %CALLNAME:PLAYER%の前で油断しきり、ベロベロになるまで酔いつぶれた%CALLNAME:ARG%は、%CALLNAME:PLAYER%が体を抱くと嬉しそうに体を摺り寄せてくる。
+					ELSEIF TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 ||TALENT:ARG:恋人持ち == 2
+						IF TALENT:ARG:恋人持ち == -1
+							PRINTFORM 想い人
+						ELSEIF TALENT:ARG:恋人持ち == 1
+							PRINTFORM 恋人
+						ELSEIF TALENT:ARG:恋人持ち == 2
+							PRINTFORM 伴侶
+						ENDIF
+						PRINTFORML がいるというのに、%CALLNAME:MASTER%の前で酔いつぶれるとはいささか不用心だ。
+					ELSEIF 知識素質:高貴 > 0
+						PRINTFORML やんごとない身分でありながら、%CALLNAME:MASTER%の前で酔いつぶれるとはいささか不用心だ。
+					ELSEIF TALENT:ARG:性別嗜好 == 1 && TALENT:MASTER:性別 == 2
+						PRINTFORML %CALLNAME:ARG%が男嫌いと言えど、こうして酔いつぶれてしまっては可愛いものだ。
+					ELSEIF TALENT:TARGET:年齢層 == 10 || (BASE:TARGET:年齢 <= 15 && BASE:TARGET:年齢 != 0)
+						PRINTFORML 年齢的にダメだと分かっているだろうに、勧めるままに酒を飲んでしまうなんて……%TEXTR("悪い/いけない")%子だ。
+					ELSE
+						PRINTFORML 酔いに浮かされ、%CALLNAME:PLAYER%に体を預けて夢心地な%CALLNAME:ARG%は、
+					ENDIF
+					PRINTFORMW 「転ばないように」などと理由をつけて%CALLNAME:MASTER%が%TEXTR("際どい部分を触っ/抱き寄せる腕でこっそり胸を揉みしだい/腰に回した手でこっそり尻を触っ")%ても%TEXTR("、何をされているのかすらわかっていない様子だ/嫌がる様子はない")%。
+					PRINTL
+					IF (TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 || TALENT:ARG:恋人持ち == 2 || TALENT:ARG:恋人持ち == 3) && 陥落チェック_性的(TARGET) <= 1 && RAND:3 == 0
+						PRINTFORML 手のひらで介抱の役得を楽しみながら鍵を開けて薄暗い部屋に入り、%CALLNAME:ARG%をベッドの上へと横たえると、
+						PRINTFORMW %CALLNAME:ARG%はぼんやりとした目で%CALLNAME:MASTER%に甘えてくる。
+						PRINTL
+						PRINTFORML どうやら目の前の相手が誰なのかもわからないほどに酔いつぶれた%CALLNAME:ARG%は、
+						PRINTFORM 介抱している%CALLNAME:MASTER%を
+						IF TALENT:ARG:恋人持ち == -1
+							PRINTFORM 意中の相手
+						ELSEIF TALENT:ARG:恋人持ち == 1
+							PRINTFORM 恋人
+						ELSEIF TALENT:ARG:恋人持ち == 2
+							PRINTFORM 伴侶
+						ELSEIF TALENT:ARG:恋人持ち == 3
+							PRINTFORM 既にいないはずのかつての伴侶
+						ENDIF
+						PRINTFORMW と勘違いしているようだ……。
+						PRINTL
+						PRINTFORMW 前後不覚に酔いつぶれたうえ、思い込みでガードがゆるゆるになった%CALLNAME:ARG%の姿に思わず%CALLNAME:MASTER%の口角が上がる。
+						PRINTL
+						PRINTFORMW ──またとない機会だ。利用させてもらおう。
+						PRINTL
+						PRINTFORM %CALLNAME:MASTER%は%CALLNAME:ARG%の、寝言にも似た胡乱な言葉に
+						IF TALENT:ARG:恋人持ち == -1
+							PRINTFORM 意中の相手のふりをして
+						ELSEIF TALENT:ARG:恋人持ち == 1
+							PRINTFORM 恋人のふりをして
+						ELSEIF TALENT:ARG:恋人持ち == 2
+							PRINTFORM 伴侶のふりをして
+						ENDIF
+						PRINTFORML 適当に相槌を打ちながら、
+						PRINTFORMW ひとときのラブラブ%TEXTR("気分/交尾/セックス")%を楽しませてもらうべく%CALLNAME:ARG%をそっと押し倒した……。
+						泥酔勘違い = 1
+						TCVAR:ARG:泥酔眠姦 = 1
+						TCVAR:ARG:言いなり = 1
+						CFLAG:MASTER:うふふ = 1
+						CFLAG:MASTER:現在位置 = LOCAL
+						CFLAG:MASTER:現在マップ種別 = 部屋検索_マップ種別
+						CFLAG:TARGET:泥酔ックス回数 += 1
+						;EVENTCOMENDからそのままもってきた。正直よくわかってない。
+						LOCALS '= CSTR:ARG:コスプレ前の服
+						LOCALS:1 '= CSTR:ARG:着せ替え服
+						TARGET保存 = ARG
+						TARGET = TARGET保存
+						CSTR:TARGET:コスプレ前の服 '= LOCALS
+						CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+						;うふふに移行
+						CALL うふふ開始キャラ処理(TARGET, "泥酔姦")
+;						TSTR:むりやりごっこ時シチュ保存 '= CSTR:TARGET:うふふシチュ記録
+						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:TARGET%の勘違いに付け込み、想い人のふりをしてその体をこっそり楽しませてもらった</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて%CALLNAME:MASTER%を想い人と勘違いし、体を許してしまった</font><img src='えっちハート'>","うふふ")
+						TIME += 10
+					ELSE
+						PRINTFORML 手のひらで介抱の役得を楽しみながら鍵を開けて部屋に入り、%CALLNAME:ARG%をベッドの上へと横たえる。
+						IF 知識素質:高貴 > 0
+							PRINTW
+							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、本来の身分では触れることすら許されないはずの、%TEXTR("高貴な/貴い")%血筋に連なる%CALLNAME:ARG%の玉体。
+						ELSEIF アイドル判定(TARGET)
+							PRINTW
+							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、アイドルとして数多のファンを魅了すべく磨かれ、しかしその誰も触れることすら叶わない%CALLNAME:ARG%の体。
+						ELSEIF TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 || TALENT:ARG:恋人持ち == 2 || TALENT:ARG:恋人持ち == 3
+							PRINTFORM アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、
+							IF TALENT:ARG:恋人持ち == -1
+								PRINTFORML 意中の相手に捧げたかっただろう%CALLNAME:ARG%のカラダ。
+							ELSEIF TALENT:ARG:恋人持ち == 1
+								PRINTFORML 本来恋人%TEXTR("だけが味わえる/にしか許すつもりなどない/しか楽しめない")%はずの%CALLNAME:ARG%のカラダ。
+							ELSEIF TALENT:ARG:恋人持ち == 2 && TALENT:ARG:恋慕 != 2
+								PRINTFORML 伴侶にだけ捧げることを誓ったはずの人妻のカラダ。
+							ELSEIF TALENT:ARG:恋人持ち == 3
+							;未亡人なら熟れとるやろ(適当)
+								PRINTFORML 男日照りだっただろう未亡人の熟れたカラダ。
+							ENDIF
+						ELSEIF 十天衆判定(TARGET)
+							PRINTW
+							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、十天衆の一人に数えられる%CALLNAME:ARG%の、全空最強の力を秘めた体。
+						ENDIF
+						PRINTFORMW 横になるや気持ちよさそうにすやすやと寝息をたてはじめた%CALLNAME:ARG%の無防備な姿は、まるで%CALLNAME:MASTER%を誘っているようだ……。
+						PRINTL
+						SELECTCASE RAND:4
+						CASE 0
+							PRINTFORMW 酔いつぶれて当分は目覚めない今なら、この無防備な体を%TEXTR("少々/こっそり")%%TEXTR("楽しませて/つまみ食いさせて")%貰ったとしてもきっとバレやしないだろう。
+							PRINTL
+							PRINTFORMW %CALLNAME:MASTER%は寝込みを襲うスリルに胸を躍らせながら、寝息を乱さないよう静かに%CALLNAME:ARG%に覆いかぶさった……。
+						CASE 1
+							PRINTFORMW %CALLNAME:MASTER%の前で酔いつぶれた%CALLNAME:ARG%が悪いのだ。これでは何をされようとも文句は言えまい。
+							PRINTL
+							PRINTFORMW 脳裏で身勝手に欲望を正当化しながら%CALLNAME:MASTER%はほくそ笑み、油断して酔いつぶれるとどうなるか、その体にたっぷりと%TEXTR("教えて/刻み付けて")%やるべく%CALLNAME:ARG%に覆いかぶさった……。
+						CASE 2
+							PRINTFORMW ──きっとこのままでは寝苦しいだろう。服を脱がしてやるのは、あくまで善意の「介抱」だ。
+							;卑猥は一切ない。いいね？
+							PRINTL
+							PRINTFORMW 脳裏でわざとらしく理由をつけながら%CALLNAME:MASTER%はそっと%CALLNAME:ARG%の服に手をかけ、その下にある柔らかな肢体へと滾る欲望を向けた……。
+						CASE 3
+							PRINTFORMW ──いや、これはもう誘っているに違いない。ならばこの据え膳、手を出さないほうがかえって失礼というものだろう。
+							PRINTL
+							PRINTFORMW 脳裏で身勝手な解釈をつけた%CALLNAME:MASTER%はほくそ笑み、寝息を乱さないよう静かに%CALLNAME:ARG%に覆いかぶさった……。
+						ENDSELECT
+						CFLAG:MASTER:現在位置 = LOCAL
+						CFLAG:MASTER:現在マップ種別 = 部屋検索_マップ種別
+						CFLAG:ARG:泥酔ックス回数 += 1
+						TCVAR:ARG:泥酔眠姦 = 1
+						TCVAR:ARG:言いなり = 1
+						CFLAG:(TARGET:LOCAL):睡眠 = 1
+						;EVENTCOMENDからそのままもってきた。正直よくわかってない。
+						;むりやりうふふごっこのとこ
+						LOCALS '= CSTR:ARG:コスプレ前の服
+						LOCALS:1 '= CSTR:ARG:着せ替え服
+						TARGET保存 = ARG
+						;ゲームフェイズ変更でリセットされるのでSELECTCOM保存
+						SWAP SELECTCOM, COM保存
+						CALL ゲームフェイズ変更("むりやりうふふモード")
+						;SELECTCOM復帰
+						SWAP SELECTCOM, COM保存
+						TARGET = TARGET保存
+						CSTR:TARGET:コスプレ前の服 '= LOCALS
+						CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+						;うふふに移行
+						CALL うふふ開始キャラ処理(TARGET, "泥酔眠姦")
+;						TSTR:むりやりごっこ時シチュ保存 '= CSTR:TARGET:うふふシチュ記録
+						CFLAG:MASTER:うふふ = 1
+						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:TARGET%を部屋に送り、無防備に眠るその体をこっそり楽しんだ</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて寝ているあいだに%CALLNAME:MASTER%に襲われてしまった</font><img src='えっちハート'>","うふふ")
+						TIME += 10
+					ENDIF
+				ENDIF
 			ELSE
 				CFLAG:ARG:現在位置 = LOCAL
 				CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
-				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと運びました。
+				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%を部屋へと送りました。
 			ENDIF
 		ENDIF
 	ELSEIF CFLAG:ARG:体力限界 && TALENT:ARG:分身 == 0
@@ -473,11 +649,17 @@ IF !CFLAG:ARG:睡眠
 ENDIF
 
 CFLAG:ARG:同行 = 0
-CFLAG:ARG:睡眠 = 1
+IF 泥酔勘違い == 1
+	CFLAG:ARG:睡眠 = 0
+ELSEIF TCVAR:ARG:泥酔眠姦 == 1
+	CFLAG:ARG:睡眠 = 1
+ELSE
+	CFLAG:ARG:睡眠 = 1
+	CFLAG:ARG:うふふ = 0
+	TCVAR:ARG:初うふふフラグ = 0
+ENDIF
 CFLAG:ARG:飲み会 = 0
-CFLAG:ARG:うふふ = 0
 CALL 性欲ゲージ減少処理(ARG)
-TCVAR:ARG:初うふふフラグ = 0
 
 
 ;SIF LOCAL == 3
