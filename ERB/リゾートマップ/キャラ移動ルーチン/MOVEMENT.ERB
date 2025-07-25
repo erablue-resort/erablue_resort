@@ -194,22 +194,25 @@ FOR LOCAL,0,CHARANUM
 			CONTINUE
 	ENDIF
 
-	SIF あなた追従中
-		CONTINUE
-	SIF CFLAG:LOCAL:うふふ
-		CONTINUE
-	SIF CFLAG:LOCAL:飲み会
-		CONTINUE
-	SIF CFLAG:LOCAL:一緒に遊ぶ
-		CONTINUE
-	SIF モード実行中フラグ && !CFLAG:LOCAL:睡眠
-		CONTINUE
-	SIF CFLAG:LOCAL:添い寝フラグ
-		CONTINUE
-	SIF FLAG:イベントうふふ中フラグ
-		CONTINUE
-	SIF TCVAR:LOCAL:デートちょっかい値 > 0
-		CONTINUE
+	IF !CFLAG:LOCAL:酔いすぎ && !CFLAG:LOCAL:体力限界
+		;泥酔か体力限界時は眠る処理に飛ばすため分岐
+		SIF あなた追従中
+			CONTINUE
+		SIF CFLAG:LOCAL:うふふ
+			CONTINUE
+		SIF CFLAG:LOCAL:飲み会
+			CONTINUE
+		SIF CFLAG:LOCAL:一緒に遊ぶ
+			CONTINUE
+		SIF モード実行中フラグ && !CFLAG:LOCAL:睡眠
+			CONTINUE
+		SIF CFLAG:LOCAL:添い寝フラグ
+			CONTINUE
+		SIF FLAG:イベントうふふ中フラグ
+			CONTINUE
+		SIF TCVAR:LOCAL:デートちょっかい値 > 0
+			CONTINUE
+	ENDIF
 	;部屋移動
 	CALL CHARA_MOVEMENT_T(LOCAL, 追従モード)
 NEXT
@@ -384,7 +387,7 @@ IF !CFLAG:ARG:睡眠
 				PRINTFORMW %CALLNAME:MASTER%は疲れ果ててしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
 			ELSEIF CFLAG:ARG:現在位置 == LOCAL && CFLAG:ARG:現在マップ種別 == 部屋検索_マップ種別
 				PRINTFORMW %CALLNAME:MASTER%は酔いつぶれてしまった%CALLNAME:ARG%をベッドに寝かせ、布団を掛けた。
-			ELSEIF TALENT:ARG:性別 == 1 && TCVAR:ARG:レディキラー >= 1
+			ELSEIF GETBIT(TALENT:ARG:性別, 0) && TCVAR:ARG:レディキラー >= 1
 				;書いた人は男あなたで男が酔いつぶれた時にも選択肢が出てしまうのが嫌で女に限定した。あなたの性別嗜好が取れる手段があるならそれで。
 				;女前提なら地の文でも女性的な表現使えて楽！
 				CFLAG:ARG:現在位置 = LOCAL
@@ -404,7 +407,7 @@ IF !CFLAG:ARG:睡眠
 					PRINTL
 					PRINTFORMW 酔いに火照った体に腕を回し、半身に%CALLNAME:ARG%の柔らかさを感じながらゆっくりと部屋へ歩みを進める……。
 					PRINTL
-					IF 陥落チェック_性的(TARGET) >= 2
+					IF TALENT:ARG:恋慕 >= 1
 						PRINTFORML %CALLNAME:PLAYER%の前で油断しきり、ベロベロになるまで酔いつぶれた%CALLNAME:ARG%は、%CALLNAME:PLAYER%が体を抱くと嬉しそうに体を摺り寄せてくる。
 					ELSEIF TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 ||TALENT:ARG:恋人持ち == 2
 						IF TALENT:ARG:恋人持ち == -1
@@ -419,14 +422,14 @@ IF !CFLAG:ARG:睡眠
 						PRINTFORML やんごとない身分でありながら、%CALLNAME:MASTER%の前で酔いつぶれるとはいささか不用心だ。
 					ELSEIF TALENT:ARG:性別嗜好 == 1 && TALENT:MASTER:性別 == 2
 						PRINTFORML %CALLNAME:ARG%が男嫌いと言えど、こうして酔いつぶれてしまっては可愛いものだ。
-					ELSEIF TALENT:TARGET:年齢層 == 10 || (BASE:TARGET:年齢 <= 15 && BASE:TARGET:年齢 != 0)
+					ELSEIF TALENT:ARG:年齢層 == 10 || (BASE:ARG:年齢 <= 15 && BASE:ARG:年齢 != 0)
 						PRINTFORML 年齢的にダメだと分かっているだろうに、勧めるままに酒を飲んでしまうなんて……%TEXTR("悪い/いけない")%子だ。
 					ELSE
 						PRINTFORML 酔いに浮かされ、%CALLNAME:PLAYER%に体を預けて夢心地な%CALLNAME:ARG%は、
 					ENDIF
 					PRINTFORMW 「転ばないように」などと理由をつけて%CALLNAME:MASTER%が%TEXTR("際どい部分を触っ/抱き寄せる腕でこっそり胸を揉みしだい/腰に回した手でこっそり尻を触っ")%ても%TEXTR("、何をされているのかすらわかっていない様子だ/嫌がる様子はない")%。
 					PRINTL
-					IF (TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 || TALENT:ARG:恋人持ち == 2 || TALENT:ARG:恋人持ち == 3) && 陥落チェック_性的(TARGET) <= 1 && RAND:3 == 0
+					IF (TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 || TALENT:ARG:恋人持ち == 2 || TALENT:ARG:恋人持ち == 3) && TALENT:ARG:恋慕 < 1 && RAND:3 == 0
 						PRINTFORML 手のひらで介抱の役得を楽しみながら鍵を開けて薄暗い部屋に入り、%CALLNAME:ARG%をベッドの上へと横たえると、
 						PRINTFORMW %CALLNAME:ARG%はぼんやりとした目で%CALLNAME:MASTER%に甘えてくる。
 						PRINTL
@@ -463,26 +466,26 @@ IF !CFLAG:ARG:睡眠
 						CFLAG:MASTER:うふふ = 1
 						CFLAG:MASTER:現在位置 = LOCAL
 						CFLAG:MASTER:現在マップ種別 = 部屋検索_マップ種別
-						CFLAG:TARGET:泥酔ックス回数 += 1
+						CFLAG:ARG:現在位置 = LOCAL
+						CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
+						CFLAG:ARG:泥酔ックス回数 += 1
 						;EVENTCOMENDからそのままもってきた。正直よくわかってない。
 						LOCALS '= CSTR:ARG:コスプレ前の服
 						LOCALS:1 '= CSTR:ARG:着せ替え服
-						TARGET保存 = ARG
-						TARGET = TARGET保存
-						CSTR:TARGET:コスプレ前の服 '= LOCALS
-						CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+						CSTR:ARG:コスプレ前の服 '= LOCALS
+						CALL CLOTHES_CHANGE(ARG, LOCALS:1)
 						;うふふに移行
-						CALL うふふ開始キャラ処理(TARGET, "泥酔姦")
+						CALL うふふ開始キャラ処理(ARG, "泥酔姦")
 ;						TSTR:むりやりごっこ時シチュ保存 '= CSTR:TARGET:うふふシチュ記録
-						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:TARGET%の勘違いに付け込み、想い人のふりをしてその体をこっそり楽しませてもらった</font><img src='えっちハート'>","うふふ")
-						CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて%CALLNAME:MASTER%を想い人と勘違いし、体を許してしまった</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:ARG%の勘違いに付け込み、想い人のふりをしてその体をこっそり楽しませてもらった</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて%CALLNAME:MASTER%を想い人と勘違いし、体を許してしまった</font><img src='えっちハート'>","うふふ")
 						TIME += 10
 					ELSE
 						PRINTFORML 手のひらで介抱の役得を楽しみながら鍵を開けて部屋に入り、%CALLNAME:ARG%をベッドの上へと横たえる。
 						IF 知識素質:高貴 > 0
 							PRINTW
 							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、本来の身分では触れることすら許されないはずの、%TEXTR("高貴な/貴い")%血筋に連なる%CALLNAME:ARG%の玉体。
-						ELSEIF アイドル判定(TARGET)
+						ELSEIF アイドル判定(ARG)
 							PRINTW
 							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、アイドルとして数多のファンを魅了すべく磨かれ、しかしその誰も触れることすら叶わない%CALLNAME:ARG%の体。
 						ELSEIF TALENT:ARG:恋人持ち == -1 || TALENT:ARG:恋人持ち ==1 || TALENT:ARG:恋人持ち == 2 || TALENT:ARG:恋人持ち == 3
@@ -497,7 +500,7 @@ IF !CFLAG:ARG:睡眠
 							;未亡人なら熟れとるやろ(適当)
 								PRINTFORML 男日照りだっただろう未亡人の熟れたカラダ。
 							ENDIF
-						ELSEIF 十天衆判定(TARGET)
+						ELSEIF 十天衆判定(ARG)
 							PRINTW
 							PRINTFORML アルコールの匂いを振りまきながらシーツの上に力なくごろんと転がる、十天衆の一人に数えられる%CALLNAME:ARG%の、全空最強の力を秘めた体。
 						ENDIF
@@ -524,29 +527,26 @@ IF !CFLAG:ARG:睡眠
 						ENDSELECT
 						CFLAG:MASTER:現在位置 = LOCAL
 						CFLAG:MASTER:現在マップ種別 = 部屋検索_マップ種別
+						CFLAG:ARG:現在位置 = LOCAL
+						CFLAG:ARG:現在マップ種別 = 部屋検索_マップ種別
 						CFLAG:ARG:泥酔ックス回数 += 1
 						TCVAR:ARG:泥酔眠姦 = 1
 						TCVAR:ARG:言いなり = 1
-						CFLAG:(TARGET:LOCAL):睡眠 = 1
+						CFLAG:ARG:睡眠 = 1
 						;EVENTCOMENDからそのままもってきた。正直よくわかってない。
 						;むりやりうふふごっこのとこ
 						LOCALS '= CSTR:ARG:コスプレ前の服
 						LOCALS:1 '= CSTR:ARG:着せ替え服
-						TARGET保存 = ARG
-						;ゲームフェイズ変更でリセットされるのでSELECTCOM保存
-						SWAP SELECTCOM, COM保存
 						CALL ゲームフェイズ変更("むりやりうふふモード")
-						;SELECTCOM復帰
-						SWAP SELECTCOM, COM保存
-						TARGET = TARGET保存
-						CSTR:TARGET:コスプレ前の服 '= LOCALS
-						CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+						CSTR:ARG:コスプレ前の服 '= LOCALS
+						CALL CLOTHES_CHANGE(ARG, LOCALS:1)
 						;うふふに移行
-						CALL うふふ開始キャラ処理(TARGET, "泥酔眠姦")
+						CALL うふふ開始キャラ処理(ARG, "泥酔眠姦")
+						CALL TARGET_SET()
 ;						TSTR:むりやりごっこ時シチュ保存 '= CSTR:TARGET:うふふシチュ記録
 						CFLAG:MASTER:うふふ = 1
-						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:TARGET%を部屋に送り、無防備に眠るその体をこっそり楽しんだ</font><img src='えっちハート'>","うふふ")
-						CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて寝ているあいだに%CALLNAME:MASTER%に襲われてしまった</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:PLAYER:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれた%CALLNAME:ARG%を部屋に送り、無防備に眠るその体をこっそり楽しんだ</font><img src='えっちハート'>","うふふ")
+						CALL 履歴データベース登録(CFLAG:ARG:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>酔いつぶれて寝ているあいだに%CALLNAME:MASTER%に襲われてしまった</font><img src='えっちハート'>","うふふ")
 						TIME += 10
 					ENDIF
 				ENDIF
