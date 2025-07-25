@@ -29,13 +29,14 @@ TSTR:ツールチップ受渡 = %LOCALS%
 #DIM 変更後数値, 4
 #DIM CONST 変更箇所 = 161, 205, 163, 210, 2, 200, 162
 #DIM L_COUNT
-#DIM CONST 身長 = 0
+#DIM CONST 全長 = 0
 #DIM CONST 胸囲 = 1
 #DIM CONST 腹囲 = 2
 #DIM CONST 臀囲 = 3
 #DIM CONST 雌雄 = 4
 #DIM CONST 人種 = 5 
 #DIM CONST 竿長 = 6
+#DIMS CONST 変更フラグ名 = "全長", "胸囲", "腹囲","臀囲","雌雄","人種","竿長"
 
 DEBUGCLEAR
 LOCAL = GETCHARA(25)
@@ -95,18 +96,18 @@ PRINTL
 
 PRINT 体格：　
 FOR LOCAL, -3, 3
-	IF TALENT:体格 == LOCAL && (変更フラグ:身長 == LOCAL || 変更フラグ:身長 == -5)
+	IF TALENT:体格 == LOCAL && (変更フラグ:全長 == LOCAL || 変更フラグ:全長 == -5)
 		SETCOLOR 0x666666
-		PRINTPLAINFORM [{LOCAL+44}]%GET_TALENTNAME(変更箇所:身長, LOCAL, 0,TARGET)+"（現在）", 23, LEFT%
+		PRINTPLAINFORM [{LOCAL+44}]%GET_TALENTNAME(変更箇所:全長, LOCAL, 0,TARGET)+"（現在）", 23, LEFT%
 		RESETCOLOR
-	ELSEIF 変更フラグ:身長 == LOCAL
+	ELSEIF 変更フラグ:全長 == LOCAL
 		SETCOLOR 0xFFFFCC
-		PRINTPLAINFORM [{LOCAL+44}]%GET_TALENTNAME(変更箇所:身長, LOCAL, 0,TARGET)+"（予定）", 23, LEFT%
+		PRINTPLAINFORM [{LOCAL+44}]%GET_TALENTNAME(変更箇所:全長, LOCAL, 0,TARGET)+"（予定）", 23, LEFT%
 		RESETCOLOR
 	ELSEIF TALENT:体格 == LOCAL
-		PRINTBUTTON @"[{LOCAL+44}]%GET_TALENTNAME(変更箇所:身長, LOCAL, 0,TARGET)+"（現在）", 23, LEFT%", LOCAL+44
+		PRINTBUTTON @"[{LOCAL+44}]%GET_TALENTNAME(変更箇所:全長, LOCAL, 0,TARGET)+"（現在）", 23, LEFT%", LOCAL+44
 	ELSE
-		PRINTBUTTON @"[{LOCAL+44}]%GET_TALENTNAME(変更箇所:身長, LOCAL, 0,TARGET), 23, LEFT%", LOCAL+44
+		PRINTBUTTON @"[{LOCAL+44}]%GET_TALENTNAME(変更箇所:全長, LOCAL, 0,TARGET), 23, LEFT%", LOCAL+44
 	ENDIF
 NEXT
 PRINTL
@@ -219,7 +220,7 @@ SELECTCASE RESULT
 		;体格・身長
 		IF RESULT == 47
 		ELSEIF RESULT < 47
-			変更フラグ:身長 = RESULT - 44
+			変更フラグ:全長 = RESULT - 44
 		ENDIF
 				GOTO LOOP_START
 	CASE 50 TO 59
@@ -245,7 +246,7 @@ SELECTCASE RESULT
 		;デフォルトの状態に戻す
 		変更フラグ:人種 = 種族_ヒューマン
 		変更フラグ:雌雄 = 性別_女性
-		変更フラグ:身長 = 体格_小柄
+		変更フラグ:全長 = 体格_小柄
 		変更フラグ:胸囲 = バストサイズ_貧乳
 		変更フラグ:腹囲 = 体型_普通
 		変更フラグ:臀囲 = 下半身_普通
@@ -280,7 +281,7 @@ PRINTL 」
 
 PRINTFORM 性別【%GET_TALENTNAME(2, (変更フラグ:雌雄 > -5 ? 変更フラグ:雌雄 # TALENT:性別), 0,TARGET)%】　
 PRINTFORM 種族【%GET_TALENTNAME(変更箇所:人種, (変更フラグ:人種 > -5 ? 変更フラグ:人種 # TALENT:種族), 0,TARGET)%】　
-PRINTFORM 体格【%GET_TALENTNAME(変更箇所:身長, (変更フラグ:身長 > -5 ? 変更フラグ:身長 # TALENT:体格), 0,TARGET)%】　
+PRINTFORM 体格【%GET_TALENTNAME(変更箇所:全長, (変更フラグ:全長 > -5 ? 変更フラグ:全長 # TALENT:体格), 0,TARGET)%】　
 PRINTFORM 体型【%GET_TALENTNAME(変更箇所:腹囲, (変更フラグ:腹囲 > -5 ? 変更フラグ:腹囲 # TALENT:体型), 0,TARGET)%】　
 PRINTFORM 下半身【%GET_TALENTNAME(変更箇所:臀囲, (変更フラグ:臀囲 > -5 ? 変更フラグ:臀囲 # TALENT:下半身), 0,TARGET)%】
 
@@ -290,9 +291,9 @@ SIF GETBIT(TALENT:性別, 1) || (変更フラグ:雌雄 > -1 && GETBIT(変更フ
 	PRINTFORM 男性器の大きさ【%GET_TALENTNAME(変更箇所:竿長, (変更フラグ:竿長 > -5 ? 変更フラグ:竿長# TALENT:男性器サイズ), 0,TARGET)%】
 PRINTL
 
-DEBUGPRINTFORM 処理前:
+DEBUGPRINTFORM 処理前
 FOR LOCAL, 0, VARSIZE("変更フラグ")
-	DEBUGPRINTFORM 変更フラグ:{LOCAL} = {変更フラグ:LOCAL} : 
+	DEBUGPRINTFORM  : %変更フラグ名:LOCAL% = {変更フラグ:LOCAL}
 NEXT
 DEBUGPRINTL
 
@@ -310,184 +311,90 @@ IF RESULT == 2
 ENDIF
 
 FOR LOCAL, 0, 7
-	RFLAG:(GETNUM(RFLAG, "コマンド結果受渡し変数")+LOCAL) = 変更フラグ:LOCAL
 	IF 変更フラグ:LOCAL != -5 && TALENT:(変更箇所:LOCAL) != 変更フラグ:LOCAL
-		IF GROUPMATCH(LOCAL, 人種, 雌雄)
-			;性別・種族は元の数値が必要なので保存
-			SWAP TALENT:(変更箇所:LOCAL), 変更フラグ:LOCAL
-		ELSE
-			;バスト・ペニスサイズは性別・種族変更処理で上書きされるので変更後を保持
-			TALENT:(変更箇所:LOCAL) = 変更フラグ:LOCAL
-		ENDIF
-		IF LOCAL == 人種 && TALENT:(変更箇所:LOCAL) == 6
-			$INPUT_EXRACE
-			LOCAL:1 = LINECOUNT
-			CALL CHOICE("「サンプル数の少ない種族ね。どれにしよっか？」", "クリスタリア", "ヴァンパイア", "ワーウルフ", "その他")
-			SELECTCASE RESULT
-				CASE 0
-					;クリスタリア
-					CSTR:特殊種族 = クリスタリア
-				CASE 1
-					;ヴァンパイア
-					CSTR:特殊種族 = ヴァンパイア
-				CASE 2
-					;ワーウルフ
-					CSTR:特殊種族 = ワーウルフ
-				CASE 3
-					;自由選択（名前のみ）
-					PRINT 「
-					FONTITALIC
-					PRINT 言っとくが、さすがのオレ様もレアすぎる種族は殆ど再現出来ないぞ？
-					FONTSTYLE 0
-					PRINTL 」
-					PRINTL 追加種族名を任意で入力してください
-					INPUTS
-					IF RESULTS != ""
-						CSTR:特殊種族 = %RESULTS%
-					ELSE
-						CLEARLINE LINECOUNT - LOCAL:1
-						GOTO INPUT_EXRACE
-					ENDIF
-			ENDSELECT
-			CALL CHOICE(@"「いわゆる異人の中でも【%CSTR:特殊種族%】に併せる…これでいい？」", "ＯＫ！", "選び直す")
-			IF RESULT == 1
-				CLEARLINE LINECOUNT - LOCAL:1
-				GOTO INPUT_EXRACE
-			ENDIF
-		ELSEIF LOCAL == 人種
+		TALENT:(変更箇所:LOCAL) = 変更フラグ:LOCAL
+		IF LOCAL == 人種
 			TALENT:ハーヴィン耳 = 0
 			TALENT:吸血鬼 = 0
 			TALENT:発情期あり = 0
 			TALENT:尻尾あり = 0
 			TALENT:エルーン耳 = 0
+			TALENT:角あり = 0
 			CSTR:特殊種族 = 
-		ENDIF
-;(7/24)↓これ必要？
-	ELSEIF !GROUPMATCH(LOCAL, 人種, 雌雄) && 変更フラグ:LOCAL == -5
-		;種族・性別変更時にバスト・ペニスサイズが上書きされるので変更前を保持
-		変更フラグ:LOCAL = TALENT:(変更箇所:LOCAL)
-	ENDIF
-NEXT
-
-DEBUGPRINTFORM 処理後：
-FOR LOCAL, 0, VARSIZE("変更フラグ")
-	DEBUGPRINTFORM %TALENTNAME:(変更箇所:LOCAL)% / 変更フラグ:{LOCAL} = {TALENT:(変更箇所:LOCAL)} / {変更フラグ:LOCAL} : 
-NEXT
-DEBUGPRINTL
-PRINTW 一度止まる
-
-;変更処理により上書きされるのを防ぐため、性別→種族→身長→それ以外の順に変更する
-IF 変更フラグ:雌雄 != -5 && 変更フラグ:雌雄 != TALENT:(変更箇所:雌雄)
-	CALL ZP_SHOP_性別特徴変換(TARGET, 変更フラグ:雌雄, TALENT:(変更箇所:雌雄))
-	IF TALENT:性別 == 1
-		TALENT:性転換 = 2
-	ELSE
-		TALENT:性転換 = -2
-	ENDIF
-ENDIF
-
-PRINTW 性転換処理終了
-
-IF 変更フラグ:人種 != -5
-	IF 変更フラグ:人種 != TALENT:(変更箇所:人種)
-		DEBUGPRINTFORML ZP_SHOP_種族特徴変換({TARGET}, {変更フラグ:人種}, {TALENT:(変更箇所:人種)})
-		CALL ZP_SHOP_種族特徴変換(TARGET, 変更フラグ:人種, TALENT:(変更箇所:人種))
-		SIF RESULT == 0
-			CALL SET_BODYSIZE(TARGET, 0)
-	ENDIF
-	SIF TALENT:(変更箇所:人種) != 6
-		CONTINUE
-	SELECTCASE CSTR:特殊種族
-		CASE "クリスタリア"
-			;クリスタリア
-			TALENT:ハーヴィン耳 = 1
-			TALENT:吸血鬼 = 0
-			TALENT:発情期あり = 0
-			TALENT:尻尾あり = 0
-			TALENT:エルーン耳 = 0
-		CASE "ヴァンパイア"
-			;ヴァンパイア
-			TALENT:ハーヴィン耳 = 0
-			TALENT:吸血鬼 = 1
-			TALENT:発情期あり = 0
-			TALENT:尻尾あり = 0
-			TALENT:エルーン耳 = 0
-		CASE "ワーウルフ"
-			;ワーウルフ
-			TALENT:ハーヴィン耳 = 0
-			TALENT:吸血鬼 = 0
-			TALENT:発情期あり = 1
-			TALENT:尻尾あり = 1
-			TALENT:エルーン耳 = 1
-		CASEELSE
-			TALENT:ハーヴィン耳 = 0
-			TALENT:吸血鬼 = 0
-			TALENT:発情期あり = 0
-			TALENT:尻尾あり = 0
-			TALENT:エルーン耳 = 0
-	ENDSELECT
-ENDIF
-
-PRINTW 種族変換処理終了
-
-FOR LOCAL, 0, 7
-	SIF 変更フラグ:LOCAL == -5
-		CONTINUE
-	SIF GROUPMATCH(LOCAL, 雌雄, 人種)
-		CONTINUE
-	TALENT:(変更箇所:LOCAL) = 変更フラグ:LOCAL
-	[SKIPSTART]
-	SELECTCASE LOCAL
-		CASE 0
-			CALL ZP_SHOP_性別特徴変換(TARGET, 変更フラグ:LOCAL, TALENT:(変更箇所:LOCAL))
-			CALL SET_BODYSIZE(TARGET, 3)
-			IF TALENT:性別 == 1
-				TALENT:性転換 = 2
-			ELSE
-				TALENT:性転換 = -2
+			IF TALENT:(変更箇所:LOCAL) == 種族_エルーン
+				CALL CHOICE("「エルーンかぁ……　ね、尻尾は欲しい？」", "はい", "いいえ")
+				TALENT:尻尾あり = !RESULT
+				PRINTL 「おっけー♪」
+			ELSEIF TALENT:(変更箇所:LOCAL) == 種族_その他
+				$INPUT_EXRACE
+				LOCAL:1 = LINECOUNT
+				CALL CHOICE("「サンプル数の少ない種族ね。どれにしよっか？」", "クリスタリア", "ヴァンパイア", "ワーウルフ", "その他")
+				SELECTCASE RESULT
+					CASE 0
+						;クリスタリア
+						CSTR:特殊種族 = クリスタリア
+					CASE 1
+						;ヴァンパイア
+						CSTR:特殊種族 = ヴァンパイア
+					CASE 2
+						;ワーウルフ
+						CSTR:特殊種族 = ワーウルフ
+					CASE 3
+						;自由選択（名前のみ）
+						PRINT 「
+						FONTITALIC
+						PRINT 言っとくが、さすがのオレ様もレアすぎる種族は殆ど再現出来ないぞ？
+						FONTSTYLE 0
+						PRINTL 」
+						PRINTL 追加種族名を任意で入力してください
+						INPUTS
+						IF RESULTS != ""
+							CSTR:特殊種族 = %RESULTS%
+						ELSE
+							CLEARLINE LINECOUNT - LOCAL:1
+							GOTO INPUT_EXRACE
+						ENDIF
+				ENDSELECT
+				CALL CHOICE(@"「いわゆる亜人の中でも【%CSTR:特殊種族%】に併せる…これでいい？」", "ＯＫ！", "選び直す")
+				IF RESULT == 1
+					CLEARLINE LINECOUNT - LOCAL:1
+					GOTO INPUT_EXRACE
+				ENDIF
 			ENDIF
-		CASE 1
-			CALL ZP_SHOP_種族特徴変換(TARGET, 変更フラグ:LOCAL, TALENT:(変更箇所:LOCAL))
-			SIF RESULT == 0
-				CALL SET_BODYSIZE(TARGET,0)
-			SIF TALENT:(変更箇所:LOCAL) != 6
-				CONTINUE
-			SELECTCASE CSTR:特殊種族
-				CASE "クリスタリア"
-					;クリスタリア
-					TALENT:ハーヴィン耳 = 1
-					TALENT:吸血鬼 = 0
-					TALENT:発情期あり = 0
-					TALENT:尻尾あり = 0
-					TALENT:エルーン耳 = 0
-				CASE "ヴァンパイア"
-					;ヴァンパイア
-					TALENT:ハーヴィン耳 = 0
-					TALENT:吸血鬼 = 1
-					TALENT:発情期あり = 0
-					TALENT:尻尾あり = 0
-					TALENT:エルーン耳 = 0
-				CASE "ワーウルフ"
-					;ワーウルフ
-					TALENT:ハーヴィン耳 = 0
-					TALENT:吸血鬼 = 0
-					TALENT:発情期あり = 1
-					TALENT:尻尾あり = 1
+			;種族ごとに特徴を設定し直す
+			SELECTCASE TALENT:(変更箇所:人種)
+				CASE 種族_ヒューマン
+					;特徴なし
+				CASE 種族_エルーン
 					TALENT:エルーン耳 = 1
-				CASEELSE
-					TALENT:ハーヴィン耳 = 0
-					TALENT:吸血鬼 = 0
-					TALENT:発情期あり = 0
-					TALENT:尻尾あり = 0
-					TALENT:エルーン耳 = 0
+				CASE 種族_ドラフ
+					TALENT:角あり = 1
+				CASE 種族_ハーヴィン
+					TALENT:ハーヴィン耳 = 1
+				CASE 種族_星晶獣
+					;特徴なし
+				CASE 種族_その他
+					SELECTCASE CSTR:特殊種族
+						CASE "クリスタリア"
+							;クリスタリア
+							TALENT:ハーヴィン耳 = 1
+						CASE "ヴァンパイア"
+							;ヴァンパイア
+							TALENT:吸血鬼 = 1
+						CASE "ワーウルフ"
+							;ワーウルフ
+							TALENT:ハーヴィン耳 = 0
+							TALENT:発情期あり = 1
+							TALENT:尻尾あり = 1
+							TALENT:エルーン耳 = 1
+						CASEELSE
+							;特徴なし
+					ENDSELECT
 			ENDSELECT
-		CASE 2
-			TALENT:(変更箇所:LOCAL) = 変更フラグ:LOCAL
-		CASE 3
-			TALENT:(変更箇所:LOCAL) = 変更フラグ:LOCAL
-	ENDSELECT
-	[SKIPEND]
+		ENDIF
+	ENDIF
 NEXT
+
 ;素質を元に再計算させるため、一旦0にする
 BASE:身長 = 0
 BASE:バスト = 0
@@ -495,7 +402,7 @@ BASE:ウエスト = 0
 BASE:ヒップ = 0
 CALL SET_BODYSIZE(TARGET, 0)
 
-IF TALENT:種族 == 種族_ヒューマン && TALENT:体格 >= 体格_普通 && TALENT:バストサイズ >= バストサイズ_巨乳
+IF GROUPMATCH(TALENT:性別, 性別_女性, 性別_ふたなり) && TALENT:種族 == 種族_ヒューマン && TALENT:体格 >= 体格_普通 && TALENT:バストサイズ >= バストサイズ_巨乳
 	;肉体条件を満たした場合、大人スタイル
 	IF CSTR:スタイル管理文字列 != "[天才美人錬金術師]カリオストロ"
 		;スタイル変更していない場合、変更させる
@@ -513,7 +420,7 @@ IF TALENT:種族 == 種族_ヒューマン && TALENT:体格 >= 体格_普通 && 
 		FONTITALIC
 		PRINT なるほど、つまり……
 		FONTSTYLE 0
-		PRINTL こういうのがお好み、ってわけね
+		PRINT こういうのがお好み、ってわけね
 		PRINT_IMG "えっちハート"
 		PRINTL 」
 		PRINTFORMW そう言うと、%CALLNAME:TARGET%は面影を残したまま、大人の魅力を蓄えた姿へと変貌した
@@ -521,31 +428,26 @@ IF TALENT:種族 == 種族_ヒューマン && TALENT:体格 >= 体格_普通 && 
 		KSTR:(K++) = IMAGEPATH_%CSTR:画像フォルダ%/短冊_デフォルト
 		CALL 口上変数表示(, 0)
 		PRINTL
-		PRINTFORM 「どう？　これがカリオストロの新しい側面、年長者としての慈愛と包容力の体現だよ☆
-		PRINTFORM 　衣装もキュートかつエレガントを基調として、少しコケティッシュな面も取り入れてみたけど……
+		PRINTFORML 「どう？　これがカリオストロの新しい側面、年長者としての慈愛と包容力の体現だよ☆
+		PRINTFORML 　衣装もキュートかつエレガントを基調として、少しコケティッシュな面も取り入れてみたけど……
 		PRINTFORM 　（ニンマリ）%CSTR:二人称%さんも、お気に召したようね
 		PRINT_IMG "えっちハート"
 		PRINTW 」
 		PRINTL
-		;PRINTFORML %CALLNAME:TARGET%が『スタイル変更：[天才美人錬金術師]カリオストロ』を選択可能になりました。
-		;PRINTFORML 以後、起床前メニューの　[121]能力表示→[92]戦闘能力表示画面→[115]スタイル変更　から変更できます（戦闘能力に変化はありません）。
+		PRINTFORML %CALLNAME:TARGET%が『[天才美人錬金術師]カリオストロ』にスタイル変更しました。
+		PRINTFORML 起床前メニューの　[121]能力表示→[92]戦闘能力表示画面→[115]スタイル変更　からも変更できます（戦闘能力に変化はありません）。
 	ENDIF
-ELSEIF CSTR:スタイル管理文字列 != ""
-	;別スタイルの維持条件を満たさない場合、デフォルトスタイルに戻る
-	CSTR:スタイル管理文字列 '= ""
-	CALL スタイル変更_25(TARGET, "変更後処理", 1)
-	CALL 口上変数初期化
-	KSTR:(K++) = IMAGEPATH_%CSTR:画像フォルダ%/短冊_デフォルト
-	CALL 口上変数表示(, 0)
+ELSE
+	IF CSTR:スタイル管理文字列 != ""
+		;別スタイルの維持条件を満たさない場合、デフォルトスタイルに戻る
+		CSTR:スタイル管理文字列 '= ""
+		CALL スタイル変更_25(TARGET, "変更後処理", 1)
+		CALL 口上変数初期化
+		KSTR:(K++) = IMAGEPATH_%CSTR:画像フォルダ%/短冊_デフォルト
+		CALL 口上変数表示(, 0)
+	ENDIF
 	IF TALENT:種族 == 種族_ヒューマン && TALENT:性別 == 性別_女性 && TALENT:体格 == 体格_小柄 && TALENT:バストサイズ == バストサイズ_貧乳 && TALENT:体型 == 体型_普通 && TALENT:下半身 == 下半身_普通
 		;身長を元に戻し再計算
-;		BASE:身長 = CSVBASE(NO:TARGET, GETNUM(BASE, "身長"))
-;		MAXBASE:身長 = BASE:身長
-;		BASE:バスト = 0
-;		BASE:ウエスト = 0
-;		BASE:ヒップ = 0
-;		DEBUGPRINTFORM 身長:{BASE:身長}→
-;		CALL SET_BODYSIZE(TARGET,0b1110)
 		BASE:身長 = 0
 		BASE:バスト = 0
 		BASE:ウエスト = 0
@@ -553,23 +455,25 @@ ELSEIF CSTR:スタイル管理文字列 != ""
 		CALL INIT_BODYSIZE(TARGET)
 		PRINTL 「やっぱり、いつものカリオストロが一番っ☆ ってことだよね♪」
 	ELSE
+		IF CSTR:スタイル管理文字列 != ""
+			;別スタイルの維持条件を満たさない場合、デフォルトスタイルに戻る
+			CSTR:スタイル管理文字列 '= ""
+			CALL スタイル変更_25(TARGET, "変更後処理", 1)
+			CALL 口上変数初期化
+			KSTR:(K++) = IMAGEPATH_%CSTR:画像フォルダ%/短冊_デフォルト
+			CALL 口上変数表示(, 0)
+		ENDIF
 		PRINT 「
 		FONTITALIC
 		PRINT 今回はこの姿での実証実験、てことか。いいぜ、付き合ってやるよ
 		FONTSTYLE 0
 		PRINTL 」
 	ENDIF
-ELSE
-	PRINT 「
-	FONTITALIC
-	PRINT 今回はこの姿での実証実験、てことか。いいぜ、付き合ってやるよ
-	FONTSTYLE 0
-	PRINTL 」
 ENDIF
 PRINT カリオストロは現在の肉体を
 PRINTFORM 性別【%GET_TALENTNAME(2, TALENT:性別, 0,TARGET)%】　
 PRINTFORM 種族【%GET_TALENTNAME(変更箇所:人種, TALENT:種族, 0,TARGET)%\@ TALENT:種族 == 6? (%CSTR:特殊種族%)# \@】　
-PRINTFORM 体格【%GET_TALENTNAME(変更箇所:身長, TALENT:体格, 0,TARGET)%】　
+PRINTFORM 体格【%GET_TALENTNAME(変更箇所:全長, TALENT:体格, 0,TARGET)%】　
 PRINTFORM 体型【%GET_TALENTNAME(変更箇所:腹囲, TALENT:体型, 0,TARGET)%】　
 PRINTFORML 下半身【%GET_TALENTNAME(変更箇所:臀囲, TALENT:下半身, 0,TARGET)%】
 PRINTFORM 身長:%DECIMAL_STRING(BASE:身長, 1), 6, RIGHT%cm/ 
@@ -584,8 +488,9 @@ SIF GETBIT(TALENT:性別, 1)
 PRINTW へと再錬成しました
 
 
-TIME += 60
+TIME += 0
 
+RETURN 1
 
 ;-------------------------------------------------
 ;実行判定
