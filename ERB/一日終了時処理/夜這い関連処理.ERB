@@ -285,6 +285,7 @@ RETURN 夜這い相手 + 100
 #DIMS 関係性種別
 #DIM 場所保存
 #DIM 現在位置保存, 4
+#DIMS 口上保存
 
 逆フラグ_夜這い = 0
 VARSET ZP量保存_夜這い
@@ -321,9 +322,11 @@ IF RESULT
 ENDIF
 
 ;まずは組み合わせ不問で発生する愛撫関連
-IF 関係性種別 == "恋慕"
+IF 関係性種別 == "恋慕" || TALENT:実行キャラ:キス嗜好 || TALENT:夜這い相手:キス嗜好
 	;恋慕だとキス経験増加
 	CALL 夜這い時プレイ_キス(実行キャラ, 夜這い相手, 実行キャラ_快楽基礎値, 夜這い相手_快楽基礎値)
+	SIF RESULT
+		CSTR:実行キャラ:夜這い報告_記録文字列 += @"%RSTR:コマンド結果受渡し文字列%<br>"
 ENDIF
 
 ;基本愛撫セット
@@ -345,7 +348,23 @@ FOR LOCAL, 0, 2
 	CALL 夜這い時プレイ_基本Ａ愛撫(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
 NEXT
 ;基本愛撫は必ず発動するため、メッセージは関数ではなくここで入力
-CSTR:実行キャラ:夜這い報告_記録文字列 += @"%CALLNAME:実行キャラ%と%CALLNAME:夜這い相手%はベッドの中で互いを愛撫している……<br>"
+;両方のキャラについて口上をチェック
+口上保存 = 
+TRYCCALLFORM KOJO_夜這い時プレイ_基本愛撫_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+	CALL 口上文字列変換関数(対象キャラ)
+	口上保存 += @"%RESULTS%"
+CATCH
+ENDCATCH
+TRYCCALLFORM KOJO_夜這い時プレイ_基本愛撫_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+	CALL 口上文字列変換関数(相手キャラ)
+	口上保存 += @"%RESULTS%"
+CATCH
+ENDCATCH
+IF 口上保存 == ""
+	CSTR:実行キャラ:夜這い報告_記録文字列 += @"%CALLNAME:実行キャラ%と%CALLNAME:夜這い相手%はベッドの中で互いを愛撫している……<br>"
+ELSE
+	CSTR:実行キャラ:夜這い報告_記録文字列 += @"%口上保存%<br>"
+ENDIF
 
 ;次に組み合わせが必要な性交関連
 逆フラグ_夜這い = 0
@@ -668,6 +687,34 @@ SWAP CFLAG:夜這い相手:現在位置, 現在位置保存:3
 
 
 
+
+@口上文字列変換関数(ARG)
+VARSET LOCALS
+VARSET LOCAL
+
+FOR LOCAL,0,1000
+	SIF KCOLOR:LOCAL > -1
+		SETCOLOR KCOLOR:LOCAL
+	IF !(WSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(WSTR:LOCAL, ARG)
+		LOCALS += @"%RESULTS%<br>"
+	ELSEIF !(KSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(KSTR:LOCAL, ARG)
+		LOCALS += @"%RESULTS%<br>"
+	ELSEIF !(WNSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(WNSTR:LOCAL, ARG)
+		LOCALS += @"%RESULTS%"
+	ELSEIF !(NSTR:LOCAL == "")
+		CALL PRINT_STR_メッセージ用(NSTR:LOCAL, ARG)
+		LOCALS += @"%RESULTS%"
+	ENDIF
+NEXT
+
+RESULTS = %LOCALS%
+RETURN 1
+
+
+
 @夜這い時プレイ_基本Ｃ愛撫(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
 #DIM 対象キャラ
 #DIM 相手キャラ
@@ -849,6 +896,7 @@ ENDIF
 #DIM 相手キャラ
 #DIM 対象キャラ_快楽基礎値
 #DIM 相手キャラ_快楽基礎値
+#DIMS 口上保存
 
 
 LOCAL = RAND:(MAX(相手キャラ_快楽基礎値 + ABL:対象キャラ:舌技, 対象キャラ_快楽基礎値 + ABL:相手キャラ:舌技)) + 5
@@ -890,6 +938,24 @@ ENDIF
 CALL 初体験日登録処理(対象キャラ, 相手キャラ, "キス", DAY * 1440 + TIME, GETPLACENAME(CFLAG:対象キャラ:現在マップ種別, CFLAG:対象キャラ:現在位置), "唇", "", 0)
 CALL 初体験日登録処理(相手キャラ, 対象キャラ, "キス", DAY * 1440 + TIME, GETPLACENAME(CFLAG:対象キャラ:現在マップ種別, CFLAG:対象キャラ:現在位置), "唇", "", 0)
 
+;両方のキャラについて口上をチェック
+口上保存 = 
+TRYCCALLFORM KOJO_夜這い時プレイ_キス_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+	CALL 口上文字列変換関数(対象キャラ)
+	口上保存 += @"%RESULTS%"
+CATCH
+ENDCATCH
+TRYCCALLFORM KOJO_夜這い時プレイ_キス_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+	CALL 口上文字列変換関数(相手キャラ)
+	口上保存 += @"%RESULTS%"
+CATCH
+ENDCATCH
+IF 口上保存 == ""
+	RSTR:コマンド結果受渡し文字列 = %CALLNAME:対象キャラ%と%CALLNAME:相手キャラ%は互いの唇を合わせ、キスを繰り返している……
+ELSE
+	RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+ENDIF
+
 ;実行時は1を返す
 RETURN 1
 
@@ -899,6 +965,7 @@ RETURN 1
 #DIM 対象キャラ_快楽基礎値
 #DIM 相手キャラ_快楽基礎値
 #DIM 精液量保存
+#DIMS 口上保存
 
 IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 != -2
 	;EXPに応じて快楽基礎値を減算する
@@ -996,7 +1063,25 @@ IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 
 				BASE:対象キャラ:性欲 = MAX(0, BASE:相手キャラ:性欲 - (絶頂保存_夜這い * 性癖素質:対象キャラ:膣内射精 * 3))
 			ENDIF
 		ENDIF
-		RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の膣に挿入し、性交を楽しんでいる……
+
+		;両方のキャラについて口上をチェック
+		口上保存 = 
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ｖ性交攻め_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(相手キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ｖ性交受け_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(対象キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		IF 口上保存 == ""
+			RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の膣に挿入し、性交を楽しんでいる……
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+		ENDIF
+
 	ELSEIF TALENT:相手キャラ:Ｃ感度 != -2
 		;EXPに応じて快楽基礎値を減算する
 		SELECTCASE EXP:対象キャラ:Ｖ経験
@@ -1021,7 +1106,25 @@ IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 
 		ELSE
 			ZP量保存_夜這い:0 += 絶頂保存_夜這い
 		ENDIF
-		RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%はペニバンを使い、%CALLNAME:対象キャラ%との性交を楽しんでいる……
+
+		;両方のキャラについて口上をチェック
+		口上保存 = 
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ｖ性交攻め_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(相手キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ｖ性交受け_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(対象キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		IF 口上保存 == ""
+			RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%はペニバンを使い、%CALLNAME:対象キャラ%との性交を楽しんでいる……
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+		ENDIF
+
 	ENDIF
 
 	SIF 同性愛性癖判定(対象キャラ,相手キャラ)
@@ -1040,6 +1143,7 @@ ENDIF
 #DIM 対象キャラ_快楽基礎値
 #DIM 相手キャラ_快楽基礎値
 #DIM 精液量保存
+#DIMS 口上保存
 
 ;A経験が両方低いないなら発動しない
 IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験_Ａ挿入 + EXP:対象キャラ:Ａ経験 > 80
@@ -1134,7 +1238,25 @@ IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験
 				ENDIF
 			ENDIF
 		ENDIF
-		RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の尻穴に挿入し、アナルセックスを楽しんでいる……
+
+		;両方のキャラについて口上をチェック
+		口上保存 = 
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ａ性交攻め_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(相手キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ａ性交受け_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(対象キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		IF 口上保存 == ""
+			RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の尻穴に挿入し、アナルセックスを楽しんでいる……
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+		ENDIF
+
 	ELSEIF TALENT:相手キャラ:Ｃ感度 != -2
 		;EXPに応じて快楽基礎値を減算する
 		SELECTCASE EXP:対象キャラ:Ｖ経験
@@ -1159,7 +1281,25 @@ IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:相手キャラ:Ｃ性交経験
 		ELSE
 			ZP量保存_夜這い:0 += 絶頂保存_夜這い
 		ENDIF
-		RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%はペニバンを使い、%CALLNAME:対象キャラ%とのアナルセックスを楽しんでいる……
+
+		;両方のキャラについて口上をチェック
+		口上保存 = 
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ａ性交攻め_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(相手キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		TRYCCALLFORM KOJO_夜這い時プレイ_Ａ性交受け_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+			CALL 口上文字列変換関数(対象キャラ)
+			口上保存 += @"%RESULTS%"
+		CATCH
+		ENDCATCH
+		IF 口上保存 == ""
+			RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%はペニバンを使い、%CALLNAME:対象キャラ%とのアナルセックスを楽しんでいる……
+		ELSE
+			RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+		ENDIF
+
 	ENDIF
 
 	SIF 同性愛性癖判定(対象キャラ,相手キャラ)
@@ -1176,6 +1316,7 @@ ENDIF
 #DIM 相手キャラ
 #DIM 対象キャラ_快楽基礎値
 #DIM 相手キャラ_快楽基礎値
+#DIMS 口上保存
 
 ;母乳プレイ、通常のB愛撫よりやや快楽効果は低い
 IF TALENT:対象キャラ:Ｂ感度 != -2 && (TALENT:対象キャラ:性別 != 2 || !OPTION変数:男性への愛撫禁止)
@@ -1204,7 +1345,24 @@ IF TALENT:対象キャラ:Ｂ感度 != -2 && (TALENT:対象キャラ:性別 != 2
 	JUEL:対象キャラ:快Ｂ += 絶頂保存_夜這い * 5
 	ZP量保存_夜這い:LOCAL += 絶頂保存_夜這い
 
-	RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の乳首から出る母乳を舐め取り、ミルクプレイを楽しんでいる……
+	;両方のキャラについて口上をチェック
+	口上保存 = 
+	TRYCCALLFORM KOJO_夜這い時プレイ_母乳出す側_{NO:対象キャラ}(対象キャラ, 相手キャラ, 対象キャラ_快楽基礎値, 相手キャラ_快楽基礎値)
+		CALL 口上文字列変換関数(対象キャラ)
+		口上保存 += @"%RESULTS%"
+	CATCH
+	ENDCATCH
+	TRYCCALLFORM KOJO_夜這い時プレイ_母乳吸う側_{NO:相手キャラ}(相手キャラ, 対象キャラ, 相手キャラ_快楽基礎値, 対象キャラ_快楽基礎値)
+		CALL 口上文字列変換関数(相手キャラ)
+		口上保存 += @"%RESULTS%"
+	CATCH
+	ENDCATCH
+	IF 口上保存 == ""
+		RSTR:コマンド結果受渡し文字列 = %CALLNAME:相手キャラ%は%CALLNAME:対象キャラ%の乳首から出る母乳を舐め取り、ミルクプレイを楽しんでいる……
+	ELSE
+		RSTR:コマンド結果受渡し文字列 += @"%口上保存%"
+	ENDIF
+
 	;実行時は1を返す
 	RETURN 1
 ENDIF
