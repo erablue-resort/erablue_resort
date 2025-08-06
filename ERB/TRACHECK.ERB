@@ -1000,9 +1000,20 @@ NOWEX:ARG:恋心度上昇格納 = MIN(NOWEX:ARG:恋心度上昇格納, NOWEX:ARG
 NOWEX:ARG:性愛度上昇格納 = MIN(NOWEX:ARG:性愛度上昇格納, NOWEX:ARG:好感度上昇格納)
 
 ;恋愛対象外だと恋心を友情に、性愛を０に
-IF 恋愛対象外チェック(ARG)
-	NOWEX:ARG:友情度上昇格納 += NOWEX:ARG:恋心度上昇格納
-	NOWEX:ARG:恋心度上昇格納 = 0
+SELECTCASE 恋愛対象外チェック(ARG)
+	CASE 0
+		;何もしない
+	CASE 1
+		NOWEX:ARG:友情度上昇格納 += NOWEX:ARG:恋心度上昇格納
+		NOWEX:ARG:恋心度上昇格納 = 0
+		NOWEX:ARG:性愛度上昇格納 = 0
+	CASE 2
+		NOWEX:ARG:友情度上昇格納 += NOWEX:ARG:恋心度上昇格納
+		;微量残す
+		NOWEX:ARG:恋心度上昇格納 = NOWEX:ARG:恋心度上昇格納 / 6
+		NOWEX:ARG:性愛度上昇格納 = 0
+ENDSELECT
+IF RFLAG:性愛対象外
 	NOWEX:ARG:性愛度上昇格納 = 0
 ENDIF
 IF CFLAG:ARG:キャラ同士うふふ
@@ -1059,9 +1070,20 @@ FOR ループ用, 0, CHARANUM
 		NOWEX:ループ用:性愛度上昇格納 = MIN(NOWEX:ループ用:性愛度上昇格納, NOWEX:ループ用:好感度上昇格納)
 
 		;恋愛対象外だと恋心を友情に、性愛を０に
-		IF 恋愛対象外チェック(ループ用)
-			NOWEX:ループ用:友情度上昇格納 += NOWEX:ループ用:恋心度上昇格納
-			NOWEX:ループ用:恋心度上昇格納 = 0
+		SELECTCASE 恋愛対象外チェック(ループ用)
+			CASE 0
+				;何もしない
+			CASE 1
+				NOWEX:ループ用:友情度上昇格納 += NOWEX:ループ用:恋心度上昇格納
+				NOWEX:ループ用:恋心度上昇格納 = 0
+				NOWEX:ループ用:性愛度上昇格納 = 0
+			CASE 2
+				NOWEX:ループ用:友情度上昇格納 += NOWEX:ループ用:恋心度上昇格納
+				;微量残す
+				NOWEX:ループ用:恋心度上昇格納 = NOWEX:ループ用:恋心度上昇格納 / 6
+				NOWEX:ループ用:性愛度上昇格納 = 0
+		ENDSELECT
+		IF RFLAG:性愛対象外
 			NOWEX:ループ用:性愛度上昇格納 = 0
 		ENDIF
 		IF CFLAG:ループ用:キャラ同士うふふ
@@ -1255,10 +1277,23 @@ SIF 判定キャラ == MASTER
 SIF 相手キャラ == -1
 	相手キャラ = MASTER
 
+RFLAG:性愛対象外 = 0
 ;性知識がマイナスなら恋愛という概念がないので対象外
 IF 知識素質:判定キャラ:性知識 < 0 && 性別のみチェック == 0
-	;ただし、あなたの手で絶頂したことがあるなら対象になる
-	IF 初体験日:判定キャラ:あなたの手で初絶頂 && 相手キャラ == MASTER
+	IF 相手キャラ == MASTER
+		IF 初体験日:判定キャラ:あなたの手で初絶頂
+			;ただし、あなたの手で絶頂したことがあるなら対象になる
+		ELSEIF CFLAG:判定キャラ:ゲージ起動分類 == 1 && CFLAG:判定キャラ:恋心度 > 経験値テーブル:(関係閾値:2)
+			;恋慕枠対象であり、かつ恋心度がLv20以上なら対象になる
+			RFLAG:性愛対象外 = 1
+		ELSE
+			IF CFLAG:判定キャラ:ゲージ起動分類 == 1
+				;通常の対象外と区別する
+				対象外フラグ = 2
+			ELSE
+				対象外フラグ = 1
+			ENDIF
+		ENDIF
 	ELSE
 		対象外フラグ = 1
 	ENDIF
