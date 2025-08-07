@@ -77,7 +77,7 @@ ELSE
 		CALLFORM %RESULTS:LOCAL%(@"アビ説明文", BATTLE_STATE:戦闘行動キャラ:キャラ登録番号)
 		消費ＭＰ = RESULT
 		IF TSTR:コマンド名受渡 != ""
-			IF アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:戦闘行動キャラ:ＭＰ
+			IF デバフ番号取得("アビリティ封印", 戦闘行動キャラ) >= 0 || アビテンプレート用_アビ封印用フラグ || 消費ＭＰ > BATTLE_STATE:戦闘行動キャラ:ＭＰ
 				IF アビ使用確認スキップフラグ == 0
 					NSTR:(K++) = <font color='#%カラーパレット_HTML("グレーアウト")%'><button value = '{120 + LOCAL}'>[{120 + LOCAL}] %TSTR:コマンド名受渡, 24, LEFT%</button></font>
 				ELSE
@@ -552,7 +552,7 @@ SELECTCASE 戦闘行動内容
 					KSTR:(K++) = 　
 				NEXT
 			ENDIF
-			IF アビテンプレート用_アビ封印用フラグ
+			IF デバフ番号取得("アビリティ封印", 戦闘行動キャラ) >= 0 || アビテンプレート用_アビ封印用フラグ
 				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
 			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
@@ -639,7 +639,7 @@ SELECTCASE 戦闘行動内容
 					KSTR:(K++) = 　
 				NEXT
 			ENDIF
-			IF アビテンプレート用_アビ封印用フラグ
+			IF デバフ番号取得("アビリティ封印", 戦闘行動キャラ) >= 0 || アビテンプレート用_アビ封印用フラグ
 				KSTR:(K++) = <nonbutton>使用できません</nonbutton> 　　　<button value='999'>[999]戻る</button>
 			ELSEIF BATTLE_STATE:戦闘行動キャラ:ＭＰ < 消費MP一時保存
 				KSTR:(K++) = <nonbutton>ＭＰが足りません</nonbutton> 　　<button value='999'>[999]戻る</button>
@@ -722,6 +722,8 @@ VARSET 攻撃対象
 IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 	CALL バフ・デバフ測定(戦闘行動キャラ, "最大ＣＴ増加")
 	IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン >= 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン + RESULT
+		;仮の技名を入れておく
+		アビテンプレート用_アビ名 = 特殊技
 		TRYCCALLFORM 敵チャージ行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー関数キー%
 			敵BATTLE_STATE:(戦闘行動キャラ - 10):チャージターン = 0
 			CALL アビテンプレート用_表示メッセージ変換処理
@@ -733,12 +735,16 @@ IF 敵BATTLE_STATE:(戦闘行動キャラ - 10):最大チャージターン > 0
 			CALL 口上変数初期化
 			RETURN 0
 		CATCH
+			;チャージ行動がない場合、仮の技名を外す
+			アビテンプレート用_アビ名 = 
 		ENDCATCH
 	ENDIF
 ENDIF
 
 ;通常攻撃
 RESULT = 0
+;仮の技名を入れておく
+アビテンプレート用_アビ名 = トリガー行動
 TRYCALLFORM 敵トリガー行動_%敵BATTLE_STATE_STR:(戦闘行動キャラ - 10):エネミー関数キー%
 ;何か動いたなら１が返る、何も動いてないなら通常攻撃をさせる
 IF RESULT == 0

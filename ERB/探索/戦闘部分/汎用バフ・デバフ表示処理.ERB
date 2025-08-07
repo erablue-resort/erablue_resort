@@ -151,6 +151,7 @@ NEXT
 
 @戦闘時ツールチップ埋め込み(説明文文字列)
 #DIMS REF 説明文文字列
+#DIMS 退避文字列
 
 ;文字列を検索してヒットしたらツールチップ付きに入れ替える。
 FOR LOCAL, 0, VARSIZE("登録済バフ種類")
@@ -166,9 +167,18 @@ FOR LOCAL, 0, VARSIZE("登録済デバフ種類")
 	SIF 登録済デバフ種類:LOCAL == ""
 		BREAK
 	IF STRFIND(説明文文字列, @"%登録済デバフ種類:LOCAL%効果") >= 0
+		;例外処理（劇毒効果、に毒効果が引っかからないようにするなど）
+		SELECTCASE 登録済デバフ種類:LOCAL
+			CASE "毒"
+				説明文文字列 '= REPLACE(説明文文字列, "劇毒効果", "退避用文字列-劇毒")
+				退避文字列 = 退避用文字列-劇毒
+		ENDSELECT
 		バフ・デバフ説明文 = 
 		CALLFORM デバフ説明文_%登録済デバフ種類:LOCAL%("", 0, 0)
 		説明文文字列 '= REPLACE(説明文文字列, @"%登録済デバフ種類:LOCAL%効果", @"<font color='#%カラーパレット_HTML("紫")%'><nonbutton title='<br>%バフ・デバフ説明文%'>%登録済デバフ種類:LOCAL%</nonbutton></font>効果")
+		IF STRFIND(説明文文字列, "退避用文字列") >= 0
+			説明文文字列 '= REPLACE(説明文文字列, "退避用文字列-劇毒", "劇毒効果")
+		ENDIF
 	ENDIF
 NEXT
 
