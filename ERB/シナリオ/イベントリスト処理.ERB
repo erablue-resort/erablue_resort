@@ -251,6 +251,12 @@ ELSE
 ENDIF
 SELECTCASE LOCAL
 	CASE IS < 表示候補数
+		IF DT_CELL_GETS("各イベント用変数配列", LOCAL, "特殊イベント") != "" && !FLAG:クリア済み視聴フラグ
+			;特殊カテゴリが設定されている場合、確認を出す
+			CALL 特殊カテゴリイベント_視聴確認(LOCAL)
+			SIF RESULT == -1
+				RESTART
+		ENDIF
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
 			CASE "メインシナリオ"
 				CALLFORM イベント関数_メインシナリオ_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%(LOCAL)
@@ -546,3 +552,49 @@ IF STRFIND(表示文字列, "【汎用】") >= 0 && (STRFIND(表示文字列, "[
 ENDIF
 
 RETURNF 表示文字列
+
+
+@特殊カテゴリイベント_視聴確認(行番号)
+#DIM 行番号
+#DIM 候補番号
+#DIM 候補数
+#DIMS カテゴリキー
+
+カテゴリキー '= DT_CELL_GETS("各イベント用変数配列", 行番号, "特殊イベント")
+
+候補数 = DT_SELECT("各イベント用変数配列", @"特殊イベント = '%カテゴリキー%'")
+IF 候補数 < 2
+	;同カテゴリがほかにないなら戻す
+	RETURN 0
+ENDIF
+
+;警告を出す
+PRINTL ※このイベントを視聴すると、以下のイベントが視聴出来なくなります。
+FOR 候補番号, 1, 候補数 + 1
+	;選択イベントは飛ばす
+	SIF RESULT:候補番号 == DT_CELL_GET("各イベント用変数配列", 行番号, "id")
+		CONTINUE
+	;選択イベント以外のものの名前を出す
+	PRINTFORML 　「%DT_CELL_GETS("各イベント用変数配列", RESULT:候補番号, "イベント名", 1)%」
+NEXT
+PRINTL
+PRINTL よろしいですか？
+
+PRINTBUTTONLC "[0] 視聴する", 0
+PRINTBUTTONLC "[1] 戻る", 1
+PRINTL
+
+BINPUT
+IF RESULT == 1
+	RETURN -1
+ENDIF
+
+;再視聴出来ない完了状態にする
+FOR 候補番号, 1, 候補数 + 1
+	;選択イベントは飛ばす
+	SIF RESULT:候補番号 == DT_CELL_GET("各イベント用変数配列", 行番号, "id")
+		CONTINUE
+	;選択イベント以外のものの名前を出す
+	DT_CELL_SET "各イベント用変数配列", RESULT:候補番号, "イベント完了フラグ", 2, 1
+NEXT
+
