@@ -22,14 +22,16 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 ;告白する
 @COM352
-IF 告白成功判定(TARGET) > 0
-	RFLAG:コマンド結果受渡し変数 = 1
-ELSE
-	RFLAG:コマンド結果受渡し変数 = 告白成功判定(TARGET)
+#DIM 疑似恋慕素質名
+
+RFLAG:コマンド結果受渡し変数 = 告白成功判定(TARGET)
+
+IF RFLAG:コマンド結果受渡し変数 < 1
 	RETURN 1
 ENDIF
 
 IF RFLAG:コマンド結果受渡し変数 == 1
+	;通常告白
 	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 1000)
 	CALL SOURCE_CALC_征服(TARGET, PLAYER, 500)
 	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 1000)
@@ -44,6 +46,36 @@ IF RFLAG:コマンド結果受渡し変数 == 1
 	ENDIF
 	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[恋慕]陥落させた</font><img src='えっちハート'>","うふふ実績")
 	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>陥落素質[恋慕]を得た</font><img src='えっちハート'>","うふふ実績")
+	IF TALENT:TARGET:恋人持ち > 0
+		RFLAG:コマンド結果受渡し変数３ = 1
+		TALENT:TARGET:浮気 = 1
+	ELSEIF TALENT:TARGET:恋人持ち == -1
+		RFLAG:コマンド結果受渡し変数３ = 2
+		TALENT:TARGET:恋人持ち = 0
+	ENDIF
+ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+	;無知告白、疑似恋慕
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 1000)
+	CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 1000)
+	TALENT:疑似恋慕 = 1
+	初体験日:TARGET:疑似恋慕 = DAY
+	IF CFLAG:PLAYER:現在マップ種別 == 100 ;お祭り会場
+		TRYCALLFORMF GETPLACENAME_100_%開催予定祭り名%(CFLAG:MASTER:現在位置)
+		IF TSTR:場所名受渡 != ""
+			CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"%CALLNAME:TARGET%に%TSTR:場所名受渡%で告白した","日常")
+			CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"%CALLNAME:MASTER%に%TSTR:場所名受渡%で告白された","日常")
+		ENDIF
+	ENDIF
+	;固有の疑似恋慕素質名を取得、ない場合はデフォルト名
+	;一応該当文字列を空っぽにしてから呼ぶ
+	CSTR:TARGET:擬似恋慕陥落名称 = 
+	TRYCALLFORM 固有擬似恋慕陥落_陥落名変更_{NO:TARGET}(TARGET)
+	IF CSTR:TARGET:擬似恋慕陥落名称 == ""
+		CSTR:TARGET:擬似恋慕陥落名称 = こいびと
+	ENDIF
+
+	CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>%CALLNAME:TARGET%を[疑似恋慕（%CSTR:TARGET:擬似恋慕陥落名称%）]陥落させた</font><img src='えっちハート'>","うふふ実績")
+	CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"<img src='えっちハート'><font color='#%カラーパレット_HTML("赤ピンク")%'>疑似恋慕陥落素質[%CSTR:TARGET:擬似恋慕陥落名称%]を得た</font><img src='えっちハート'>","うふふ実績")
 	IF TALENT:TARGET:恋人持ち > 0
 		RFLAG:コマンド結果受渡し変数３ = 1
 		TALENT:TARGET:浮気 = 1
@@ -80,6 +112,8 @@ SIF TCVAR:MASTER:馴れ合い強度 < 1
 ;すでに恋慕を得ている場合はだめ
 SIF TALENT:恋慕
 	RETURN 0
+SIF TALENT:疑似恋慕
+	RETURN 0
 ;睡眠中
 SIF CFLAG:睡眠
 	RETURN 0
@@ -113,10 +147,28 @@ ELSEIF CFLAG:TARGET:起床時告白済み
 		RESETCOLOR
 		PRINT を失った……
 	ENDIF
-ELSEIF RFLAG:コマンド結果受渡し変数 > 0
+ELSEIF RFLAG:コマンド結果受渡し変数 == 1
 	PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%に恋情を伝えた…
 	PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%の想いを受け入れてくれた…
 	PRINTFORML %CALLNAME:TARGET%は［恋慕］を得ました。
+	IF RFLAG:コマンド結果受渡し変数３ == 1
+		PRINTFORM %CALLNAME:TARGET%は
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [浮気]
+		RESETCOLOR
+		PRINT を得た……
+	ELSEIF RFLAG:コマンド結果受渡し変数３ == 2
+		PRINTFORM %CALLNAME:TARGET%は
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [想い人あり]
+		RESETCOLOR
+		PRINT を失った……
+	ENDIF
+ELSEIF RFLAG:コマンド結果受渡し変数 == 2
+	PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%に恋情を伝えた…
+	PRINTFORML %CALLNAME:TARGET%はまだ恋を理解しきれていないようだが、%CALLNAME:PLAYER%のことは何だか特別な人のように感じていたようだ
+	PRINTFORML この気持ちが恋であることを知り、%CALLNAME:TARGET%は%CALLNAME:PLAYER%の想いを受け入れてくれた…
+	PRINTFORML %CALLNAME:TARGET%は［%CSTR:TARGET:擬似恋慕陥落名称%］を得ました。
 	IF RFLAG:コマンド結果受渡し変数３ == 1
 		PRINTFORM %CALLNAME:TARGET%は
 		SETCOLOR カラーパレット("えっちな色")
@@ -136,13 +188,24 @@ ENDIF
 @告白成功判定(対象キャラ)
 #FUNCTION
 #DIM 対象キャラ
+#DIM 返り値
+
+返り値 = 1
 
 SIF TALENT:対象キャラ:恋慕
 	RETURNF 0
 SIF !CFLAG:対象キャラ:ゲージ起動分類
 	RETURNF 0
-SIF CFLAG:対象キャラ:恋慕レベル <= 50
-	RETURNF 0
+;無知分岐
+IF 知識素質:対象キャラ:性知識 < 0
+	SIF CFLAG:対象キャラ:恋心度 < 経験値テーブル:(関係閾値:2)
+		RETURNF 0
+	;返す値をズラす
+	返り値 = 2
+ELSE
+	SIF CFLAG:対象キャラ:恋慕レベル <= 50
+		RETURNF 0
+ENDIF
 SIF GETBIT(TALENT:対象キャラ:陥落不可, 0)
 	RETURNF 0
 ; SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And 関係性種別 = '恋慕'")
@@ -152,5 +215,5 @@ TRYCALLFORMF 告白成功判定_キャラ個別条件_{NO:対象キャラ}(対�
 SIF RESULT > 0
 	RETURNF 0
 
-RETURNF 1
+RETURNF 返り値
 
