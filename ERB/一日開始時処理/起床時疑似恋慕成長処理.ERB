@@ -1,0 +1,81 @@
+﻿
+
+
+@起床時_疑似恋慕成長処理()
+#DIM キャラ番号
+#DIM 候補配列, 2000
+#DIM 候補数
+#DIM 成長キャラ
+
+候補数 = 0
+;疑似恋慕所持で性知識が０以上のキャラを探す
+FOR キャラ番号, 1, CHARANUM
+	SIF CFLAG:キャラ番号:滞在期間 < 1
+		CONTINUE
+	SIF CFLAG:キャラ番号:ゲージ起動分類 != 1
+		CONTINUE
+	SIF !TALENT:キャラ番号:疑似恋慕
+		CONTINUE
+	SIF 知識素質:キャラ番号:性知識 < 0
+		CONTINUE
+	候補配列:候補数 = キャラ番号
+	候補数 ++
+NEXT
+
+SIF 候補数 < 1
+	RETURN 0
+
+
+;全員発動させる
+FOR キャラ番号, 0, 候補数
+	成長キャラ = 候補配列:キャラ番号
+	;先にステータス置き換えておく
+	TALENT:成長キャラ:恋慕 = TALENT:成長キャラ:疑似恋慕
+	TALENT:成長キャラ:疑似恋慕 = 0
+	PRINTL
+	DRAWLINE
+	;口上があるならそっちを表示
+	TRYCCALLFORM KOJO_EVENT_起床時疑似恋慕成長_{NO:成長キャラ}(成長キャラ)
+	CATCH
+		;汎用告白処理
+		PRINTFORMW %CALLNAME:MASTER%が起きて朝の支度をしていると、自室に来客があった。
+		PRINTFORML 訪ねてきた%CALLNAME:成長キャラ%を出迎え、お茶を出してもてなす。どうやら話があるようだ。
+		FORCEWAIT
+		PRINTL
+		PRINTFORMW %CALLNAME:成長キャラ%は赤い顔をして少し躊躇いながら、これまでの自分の知識不足を謝ってきた。
+		SELECTCASE TALENT:成長キャラ:恋慕
+			CASE 1
+				PRINTFORMW 正しい知識を得た今、改めて%CALLNAME:MASTER%と恋人同士になりたくて、告白をしに来たらしい。
+			CASE 2
+				PRINTFORMW 正しい知識を得た今、改めて%CALLNAME:MASTER%の結婚相手になりたくて、告白をしに来たらしい。
+		ENDSELECT
+		PRINTL
+
+		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME:成長キャラ%は笑顔を浮かべて喜んだ。
+		
+		PRINTFORML %CALLNAME:MASTER%は……
+		PRINTBUTTONLC @"[0] 一旦%CALLNAME:成長キャラ%を帰らせる", 0
+		PRINTL
+		SELECTCASE TALENT:成長キャラ:恋慕
+			CASE 1
+				PRINTBUTTONLC @"[1] 恋人らしい行為をしようか、と%CALLNAME:成長キャラ%をベッドに招く", 1
+			CASE 2
+				PRINTBUTTONLC @"[1] 夫婦らしい行為をしようか、と%CALLNAME:成長キャラ%をベッドに招く", 1
+		ENDSELECT
+		PRINTL
+		PRINTL
+
+		BINPUT
+		IF RESULT == 0
+			PRINTFORMW 嬉しそうに笑う%CALLNAME:成長キャラ%としばらくお話をし、満足した%CALLNAME:成長キャラ%は一旦自分の部屋に帰っていった……
+		ELSE
+			PRINTFORMW 顔を赤く染めた%CALLNAME:成長キャラ%は言葉の意味を理解しているのか、緊張した顔で%CALLNAME:MASTER%の誘いに応じた……
+			PRINTL
+			PRINTL
+			STR:イベントうふふ場所名 '= GETPLACENAME(0, CFLAG:MASTER:自室位置)
+			FLAG:イベントうふふベッドルーム = 1
+			CFLAG:成長キャラ:イベントうふふ対象フラグ = 1
+			CALL イベント中うふふ移行処理("疑似恋慕成長")
+		ENDIF
+	ENDCATCH
+NEXT
