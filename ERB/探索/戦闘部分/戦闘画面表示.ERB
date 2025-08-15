@@ -152,7 +152,7 @@ FOR LOCAL, 0, 10
 			CONTINUE
 		SIF DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "適用範囲") != @"{LOCAL + 10}"
 			CONTINUE
-		GDRAWSPRITE レイヤー番号, 状態変化アイコン文字列算出(バフ・デバフ番号), 表示位置 * 15, 0,  15, 15
+		GDRAWSPRITE レイヤー番号, 状態変化アイコン文字列算出(バフ・デバフ番号, 敵BATTLE_STATE_STR:LOCAL:エネミー名), 表示位置 * 15, 0,  15, 15
 		表示位置 ++
 	NEXT
 	FOR バフ・デバフ番号, 0, DT_ROW_LENGTH("戦闘効果データベース")
@@ -162,7 +162,7 @@ FOR LOCAL, 0, 10
 			CONTINUE
 		SIF DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "適用範囲") != @"{LOCAL + 10}"
 			CONTINUE
-		GDRAWSPRITE レイヤー番号, 状態変化アイコン文字列算出(バフ・デバフ番号), 表示位置 * 15, 0,  15, 15
+		GDRAWSPRITE レイヤー番号, 状態変化アイコン文字列算出(バフ・デバフ番号, 敵BATTLE_STATE_STR:LOCAL:エネミー名), 表示位置 * 15, 0,  15, 15
 		表示位置 ++
 	NEXT
 
@@ -237,10 +237,53 @@ HTML_PRINT LOCALS, 1
 RETURN 46
 
 
-@状態変化アイコン文字列算出(バフ・デバフ番号)
+@状態変化アイコン文字列算出(バフ・デバフ番号, 表示キャラキー = "")
 #FUNCTIONS
 #DIM バフ・デバフ番号
+#DIMS 表示キャラキー
 #DIMS DYNAMIC アイコン名
+
+
+IF 表示キャラキー != ""
+	RSTR:リソース名受け渡し = 
+	IF ISNUMERIC(表示キャラキー)
+		;味方キャラの場合、NOが入ってくる
+		TRYCALLFORMF 固有状態変化アイコン_{NO:(TOINT(表示キャラキー))}(TOINT(表示キャラキー), DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "効果枠"), DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "バフ・デバフフラグ"))
+	ELSE
+		;敵キャラの場合、名前が入ってくる
+		TRYCALLFORMF 固有状態変化アイコン_%表示キャラキー%(DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "効果枠"), DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "バフ・デバフフラグ"))
+	ENDIF
+	DEBUGPRINTFORML %RSTR:リソース名受け渡し%
+	IF RSTR:リソース名受け渡し != ""
+		;スプライトの生成
+		;何番でもいいけどとりあえず口上に合わせて20000以降を使用
+		アイコン名 = 口上用画像{20000 + TFLAG:口上用画像表示番号}
+		GDISPOSE 20000 + TFLAG:口上用画像表示番号
+		SPRITEDISPOSE アイコン名
+		GCREATEFROMFILE 20000 + TFLAG:口上用画像表示番号, RSTR:リソース名受け渡し
+		SPRITECREATE アイコン名, 20000 + TFLAG:口上用画像表示番号
+		TFLAG:口上用画像表示番号 ++
+		IF SPRITECREATED(アイコン名)
+			RETURNF アイコン名
+		ENDIF
+	ENDIF
+ENDIF
+
+RSTR:リソース名受け渡し = 
+TRYCALLFORMF 固有状態変化アイコン_%DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "効果枠")%(DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "バフ・デバフフラグ"))
+IF RSTR:リソース名受け渡し != ""
+	;スプライトの生成
+	;何番でもいいけどとりあえず口上に合わせて20000以降を使用
+	アイコン名 = 口上用画像{20000 + TFLAG:口上用画像表示番号}
+	GDISPOSE 20000 + TFLAG:口上用画像表示番号
+	SPRITEDISPOSE アイコン名
+	GCREATEFROMFILE 20000 + TFLAG:口上用画像表示番号, RSTR:リソース名受け渡し
+	SPRITECREATE アイコン名, 20000 + TFLAG:口上用画像表示番号
+	TFLAG:口上用画像表示番号 ++
+	IF SPRITECREATED(アイコン名)
+		RETURNF アイコン名
+	ENDIF
+ENDIF
 
 IF GETNUM(BATTLE_STATE, DT_CELL_GETS("戦闘効果データベース", バフ・デバフ番号, "対象能力"), 2) > 0
 	;ステータス系
