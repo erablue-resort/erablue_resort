@@ -14,7 +14,20 @@
 > 合計12パターンに対応しています。  
 > トップレスと胸部露出、ミニスカートとスカートは画像がない場合それぞれ相互互換で使用されます。  
 > トップレス・ボトムレス改造のとき、リゾート従業員制服の画像ファイル自体がない場合は全裸画像が使用されます。  
-> 
+* AIイラストで用意する場合のプロンプト例
+> [共通]
+> black sleeves, long sleeves, red necktie, 
+> [X} 上半身
+> black suit, white shirt, dress shirt, business suit
+> black suit, navel, center opening, necktie between breasts
+> topless, black sleeves, long sleeves, nipples, navel
+> topless, black sleeves, long sleeves, nipples, navel,<lora:Safety_Pin_NAI_v1:1> 5afety pin, nipple safety pin piercing, name tag attached
+> [Y] 下半身
+> black pants
+> black skirt, miniskirt, pencil skirt
+> black skirt, long skirt, pencil skirt
+> bottomless, cleft of venus, black kneehighs, (black shoes:0.8)
+
 
 ### 25/05/19  
 * アビテンプレートで使用できる特殊バフ・デバフ「与回復量／被回復量」を追加
