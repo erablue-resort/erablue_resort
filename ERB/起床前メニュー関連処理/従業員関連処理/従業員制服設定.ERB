@@ -72,6 +72,29 @@ SELECTCASE LOCAL
 		RESTART
 	CASE 999
 		ページ数 = 0
+		LOCAL:1 = 0
+		LOCALS:2 = 
+		FOR LOCAL, 1, CHARANUM
+			SIF TALENT:LOCAL:従業員 == 0
+				CONTINUE
+			SIF 現在制服:LOCAL:0 != "リゾート従業員制服"
+				CONTINUE
+			CSTR:LOCAL:着せ替え服 = リゾート従業員制服
+			今日の服装:LOCAL:従業員制服 '= 従業員制服グラ選定(LOCAL)
+			CALL CLOTHES_RESET(LOCAL)
+			CALL CLOTHES_RESET_TRAIN(LOCAL)
+			[IF_DEBUG]
+				LOCAL:1 ++
+				LOCALS:2 += 顔グラ表示用文字列関数(LOCAL,LOCAL:1, (LOCAL:1/5)*1130,,,0)
+			[ENDIF]
+		NEXT
+		[IF_DEBUG]
+			IF LOCAL:1
+				HTML_PRINT LOCALS:2
+				描画開始行数 = LINECOUNT
+				CALL ピクセル自動改行(180 * (1+LOCAL:1/5))
+			ENDIF
+		[ENDIF]
 		RETURN 0
 	CASE 998
 		CALL 従業員制服設定_切り替え(9999)
@@ -358,7 +381,7 @@ IF 改造対象 < 0
 ELSE
 	SIF !制服改造:改造対象:改造状況フラグ
 		CALLFORM 制服改造初期化_%対象衣装名%()
-	CALL パターン改造素質逆引き(改造対象, 改造パターン名_上, 改造パターン名_下, 改造パターン名_その他)
+	CALLF パターン改造素質逆引き(改造対象, 改造パターン名_上, 改造パターン名_下, 改造パターン名_その他)
 	IF 詳細改造フラグ == 0
 		;個別の関数を作ろうかと思ったけどめんどくせぇので直記述
 		;現状の改造説明
@@ -525,6 +548,8 @@ SELECTCASE LOCAL
 				CONTINUE
 			SIF GETNUM(制服改造, 現在制服:LOCAL:0, 1) == -1
 				CONTINUE
+			SIF 現在制服:LOCAL:0 == "リゾート従業員制服"
+				今日の服装:LOCAL:従業員制服 '= 従業員制服グラ選定(LOCAL)
 			CALL CLOTHES_RESET_TRAIN(LOCAL)
 		NEXT
 		RETURN 0
@@ -779,6 +804,7 @@ ENDIF
 制服改造:改造対象:改造状況フラグ = LOCAL
 
 @パターン改造素質逆引き(改造対象, 改造パターン名_上, 改造パターン名_下, 改造パターン名_その他)
+#FUNCTION
 #DIM 改造対象
 #DIMS REF 改造パターン名_上
 #DIMS REF 改造パターン名_下
@@ -842,4 +868,91 @@ IF 制服改造:改造対象:下タイツあり
 	LOCAL = 1
 ENDIF
 
-RETURN LOCAL
+RETURNF LOCAL
+
+@制服追加名設定()
+#FUNCTIONS
+#DIMS 改造パターン名_上
+#DIMS 改造パターン名_下
+#DIMS 改造パターン名_その他
+
+LOCALS '= "スーツ・ロングパンツ"
+改造パターン名_上 = 
+改造パターン名_下 = 
+改造パターン名_その他 = 
+
+IF パターン改造素質逆引き(GETNUM(制服改造, "リゾート従業員制服", 1), 改造パターン名_上, 改造パターン名_下, 改造パターン名_その他)
+	IF STRFIND(改造パターン名_上, "エロ改造：トップレス_") > -1
+		LOCALS = トップレス・
+	ELSEIF STRFIND(改造パターン名_上, "谷間露出_") > -1 || STRFIND(改造パターン名_上, "横乳露出_") > -1
+		LOCALS = 胸部露出・
+	ELSE
+		LOCALS = スーツ・
+	ENDIF
+	IF STRFIND(改造パターン名_下, "エロ改造：ボトムレス_") > -1
+		LOCALS += "ボトムレス"
+	ELSEIF STRFIND(改造パターン名_下, "ミニスカ") > -1
+		LOCALS += "ミニスカート"
+	ELSEIF STRFIND(改造パターン名_下, "スカート") > -1
+		LOCALS += "スカート"
+	ELSE
+		LOCALS += "ロングパンツ"
+	ENDIF
+ENDIF
+RETURNF LOCALS
+
+@従業員制服グラ選定(対象キャラ)
+#FUNCTIONS
+#DIM 対象キャラ
+
+LOCALS:1 '= 制服追加名設定()
+
+SELECTCASE LOCALS:1
+	CASE "スーツ・ロングパンツ"
+		;無改造なのは追加名無しを使用
+		LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服.")
+	CASE "トップレス・ボトムレス"
+		;トップレス・ボトムレスは専用グラなければ全裸に置き換え
+		LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-トップレス・ボトムレス")
+		SIF STRFIND(LOCALS, "トップレス・ボトムレス") < 0
+			LOCALS '= GRAP_RAND(対象キャラ, "顔_", "全裸")
+	CASEELSE
+		LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-" + LOCALS:1)
+		IF STRFIND(LOCALS, LOCALS:1) < 0
+			;スカート←→ミニスカ相互入れ替えで再検索
+			IF STRFIND(LOCALS:1, "ミニスカート") > -1
+				LOCALS:2 '= REPLACE(LOCALS:1, "ミニスカート", "スカート")
+			ELSEIF STRFIND(LOCALS:1, "スカート") > -1
+				LOCALS:2 '= REPLACE(LOCALS:1, "スカート", "ミニスカート")
+			ENDIF
+			LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-" + LOCALS:2)
+			SIF STRFIND(LOCALS, LOCALS:2) > -1
+				RETURNF LOCALS
+
+			;胸部露出←→トップレス相互入れ替えで再検索
+			IF STRFIND(LOCALS:1, "胸部露出") > -1
+				LOCALS:2 '= REPLACE(LOCALS:1, "胸部露出", "トップレス")
+			ELSEIF STRFIND(LOCALS:1, "トップレス") > -1
+				LOCALS:2 '= REPLACE(LOCALS:1, "トップレス", "胸部露出")
+			ENDIF
+			LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-" + LOCALS:2)
+			SIF STRFIND(LOCALS, LOCALS:2) > -1
+				RETURNF LOCALS
+
+			IF STRFIND(LOCALS:1, "スーツ・") > -1
+				;上半身改造なしなら下半身自由で再検索
+				LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-スーツ・")
+				SIF STRFIND(LOCALS, LOCALS:2) > -1
+					RETURNF LOCALS
+			ELSEIF STRFIND(LOCALS:1, "ロングパンツ") > -1
+				;下半身改造なしなら上半身自由で再検索
+				LOCALS '= GRAP_RAND(対象キャラ, "顔_", "リゾート従業員制服-*・ロングパンツ")
+				SIF STRFIND(LOCALS, LOCALS:2) > -1
+					RETURNF LOCALS
+			ENDIF
+			;どれも存在しなければ無改造を返す
+			LOCALS '= "スーツ・ロングパンツ"
+		ENDIF
+		
+ENDSELECT
+RETURNF LOCALS
