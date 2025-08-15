@@ -1,5 +1,252 @@
 ﻿
 @所持ミルク一覧表示
+#DIM ページ数
+#DIM 表示数カウント
+#DIM ボタン記録
+#DIM 一括削除モード
+#DIM 一括削除件数
+#DIMS 削除番号
+#DIMS 削除番号配列, 101
+#DIMS ミルク名
+#DIMS 消費期限
+
+DRAWLINE
+PRINTL 所持しているミルクの一覧です
+IF 一括削除モード
+	PRINTL 選択したミルクを一括で廃棄出来ます（１００件まで）
+ELSE
+	PRINTL 選択すると廃棄することが可能です
+ENDIF
+DRAWLINE
+
+FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
+	IF DT_ROW_LENGTH("ミルクデータベース") > 表示数カウント
+		SIF DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態") == "フタ"
+			CONTINUE
+		SIF 一括削除モード && STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", 表示数カウント, "id")}_")
+			SETCOLOR カラーパレット("黄")
+		ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%のミルク
+		SELECTCASE DAY - DT_CELL_GET("ミルクデータベース", 表示数カウント, "生産日")
+			CASE 0
+				消費期限 = あと３日
+			CASE 1
+				消費期限 = あと２日
+			CASE 2
+				消費期限 = あと１日
+			CASE 3
+				消費期限 = 本日まで
+			CASEELSE
+				消費期限 = 期限切れ
+		ENDSELECT
+		PRINTBUTTON @"[{表示数カウント, 3}] - %ミルク名, 50, LEFT% - 消費期限：%消費期限%", 表示数カウント
+		RESETCOLOR
+		PRINTL
+	ELSE
+		PRINTL
+	ENDIF
+NEXT
+
+DRAWLINE
+IF ページ数 > 0
+	PRINTBUTTONLC "[1000] 前のページ", 1000
+ELSE
+	PRINTC  
+ENDIF
+IF DT_ROW_LENGTH("ミルクデータベース") > ページ数 * 15 + 15
+	PRINTBUTTONLC "[1001] 次のページ", 1001
+ELSE
+	PRINTC  
+ENDIF
+PRINTBUTTONLC "[999] 戻る", 999
+IF 一括削除モード && 削除番号 != ""
+	PRINTBUTTONLC "[998] 廃棄する", 998
+ELSEIF 一括削除モード
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [998] 廃棄する
+	PRINT            
+	RESETCOLOR
+ELSE
+	PRINTBUTTONLC "[998] 一括削除", 998
+ENDIF
+
+BINPUT
+
+ボタン記録 = RESULT
+SELECTCASE ボタン記録
+	CASE 999
+		IF 一括削除モード
+			一括削除件数 = 0
+			一括削除モード = 0
+			削除番号 = 
+			RESTART
+		ENDIF
+		ページ数 = 0
+		RETURN 0
+	CASE 998
+		;一括削除へ
+		IF 一括削除モード
+			VARSET 削除番号配列
+			SPLIT 削除番号, "_", 削除番号配列
+			FOR 表示数カウント, 1, 一括削除件数 + 1
+				DT_CELL_SET "ミルクデータベース", TOINT(削除番号配列:表示数カウント), "状態", "フタ", 1
+			NEXT
+			PRINTFORMW {一括削除件数}枚のミルクを削除しました
+			一括削除モード = 0
+			一括削除件数 = 0
+			削除番号 = 
+		ELSE
+			一括削除モード = 1
+			一括削除件数 = 0
+			削除番号 = 
+		ENDIF
+		RESTART
+	CASE 1000
+		ページ数 -= 1
+		RESTART
+	CASE 1001
+		ページ数 += 1
+		RESTART
+	CASEELSE
+		IF 一括削除モード
+			SIF 一括削除件数 > 99
+				RESTART
+			IF STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", ボタン記録, "id")}_") == 0
+				IF 削除番号 != ""
+					削除番号 += @"{DT_CELL_GET("ミルクデータベース", ボタン記録, "id")}_"
+				ELSE
+					削除番号 += @"_{DT_CELL_GET("ミルクデータベース", ボタン記録, "id")}_"
+				ENDIF
+				一括削除件数 += 1
+			ELSE
+				VARSET 削除番号配列
+				SPLIT 削除番号, @"_{DT_CELL_GET("ミルクデータベース", ボタン記録, "id")}_", 削除番号配列
+				削除番号 = %削除番号配列:0%_%削除番号配列:1%
+				一括削除件数 -= 1
+			ENDIF
+		ELSE
+			DO
+			LOCAL = 0
+			SIF ボタン記録 < DT_ROW_LENGTH("ミルクデータベース") - 1
+				LOCAL = 1
+			CALL ミルク詳細表示(DT_CELL_GET("ミルクデータベース", ボタン記録, "id"), ボタン記録, LOCAL)
+			IF RESULT == 0
+				RESTART
+			ELSE
+				ボタン記録 += RESULT
+			ENDIF
+			LOOP 1
+		ENDIF
+		RESTART
+ENDSELECT
+
+@ミルク詳細表示(ボタン記録, 前フラグ, 次フラグ)
+#DIMS ミルク名
+#DIM ボタン記録
+#DIM 前フラグ
+#DIM 次フラグ
+#DIM DAY算出
+#DIM TIME算出
+#DIM CONST レイヤー番号 = 1500
+#DIM size
+#DIMS 画像リソース保存
+#DIM 対象キャラ
+
+ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), STRFIND(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), "]") + 1, -1)%のミルク
+対象キャラ = キャラ検索(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1))
+
+;ミルク詳細表示
+$ミルク表示
+DRAWLINE
+PRINTL
+PRINTFORML ■%ミルク名%
+PRINTL
+
+;グラフィック表示
+
+;デフォ立ち絵を表示する
+画像リソース保存 = 
+IF 差分抽出(対象キャラ, "短冊_", "短冊_デフォルト", "表情")
+	画像リソース保存 '= RESULTS
+ENDIF
+IF 画像リソース保存 != ""
+	CALL PRINT_STRL(@"IMAGEPATH_%CSTR:対象キャラ:画像フォルダ%/コマンド実行時_%画像文字列%")
+ENDIF
+
+
+
+;データベースに保存しといた文字列を引っ張ってくる
+; 画像リソース保存 = %DT_CELL_GETS("ミルクデータベース", ボタン記録,  "撮影対象画像リソース", 1)%
+; VARSET RESULTS
+; ;エフェクト保存分を分割
+; SPLIT 画像リソース保存, "+++", RESULTS
+; IF RESULTS:0 != ""
+; 	CALL GCREATE_拡張子(レイヤー番号, RESULTS:0)
+; 	;画像生成に成功したら次へ
+; 	IF RESULT
+; 		LOCAL = 0
+; 		IF STRFIND(RESULTS:0, "短冊_") > -1
+; 			LOCAL = スプライト作成("ミルクグラ", レイヤー番号, 1)
+; 			size = 2250
+; 		ELSE
+; 			LOCAL = スプライト作成("ミルクグラ", レイヤー番号, 0)
+; 			size = 1125
+; 		ENDIF
+; 		;スプライト生成に成功したら表示へ
+; 		IF LOCAL
+; 			SIF RESULTS:1 != ""
+; 				LOCAL = スプライト合成("ミルクグラ", レイヤー番号, RESULTS:1)
+; 			SIF RESULTS:2 != ""
+; 				LOCAL = スプライト合成("ミルクグラ", レイヤー番号, RESULTS:2)
+; 			SIF RESULTS:3 != ""
+; 				LOCAL = スプライト合成("ミルクグラ", レイヤー番号, RESULTS:3)
+; 			HTML_PRINT @"　　<img src='ミルクグラ' width='1125' height='{size}'>"
+; 			FOR LOCAL, 0, size / 100
+; 				PRINTL
+; 			NEXT
+; 		ENDIF
+; 	ENDIF
+; ENDIF
+
+DAY算出 = DT_CELL_GET("ミルクデータベース", ボタン記録, "生産日", 1)
+PRINTFORML 　　生産日時：{DAY算出 / 120 + 1}年目　%月登録:((DAY算出 / 30) % 4)%　{DAY算出 % 30 + 1}日(%曜日登録:(DAY算出 % 7)%)
+PRINTFORML 　　生産元：%DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1)%
+PRINTL
+
+PRINTBUTTONLC "[999] 戻る", 999
+PRINTL
+PRINTBUTTONLC "[1000] このミルクを廃棄する", 1000
+PRINTL 
+IF 前フラグ
+	PRINTBUTTONLC "[4] 前のミルクへ", 4
+ELSE
+	PRINTC 　
+ENDIF
+IF 次フラグ
+	PRINTBUTTONLC "[6] 次のミルクへ", 6
+ENDIF
+
+BINPUT
+SELECTCASE RESULT
+	CASE 1000
+		DRAWLINE
+		PRINTFORML 『%ミルク名%』を廃棄してよろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			PRINTFORMW 『%ミルク名%』を廃棄しました。
+			DT_CELL_SET "ミルクデータベース", ボタン記録, "状態", "フタ", 1
+		ELSE
+			GOTO ミルク表示
+		ENDIF
+	CASE 4
+		RETURN -1
+	CASE 6
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
 
 
 
