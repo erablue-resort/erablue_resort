@@ -6,6 +6,28 @@
 > 条件：性的に陥落済み（恋慕orセフレ取得）
 > 通常のスタイル変更の他、肉体再錬成やZPショップで「種族：ヒューマン」、「体格：普通」以上、「バスト：巨乳」以上の3条件を満たす変更を行うとスタイル変更  
 > 戦闘能力には（今のところ）一切影響ありません  
+* リゾート従業員制服の改造度合いに応じて、追加衣装名が変化し、それに対応した立ち絵が表示される機能を追加  
+> 命名規則は「リゾート従業員制服」（未改造時、及び対応する画像がない場合に使用）
+> あるいは「リゾート従業員制服-（トップス）・（ボトムス）」です。  
+（例：「顔_リゾート従業員制服-胸部露出・ロングパンツ.webp」「顔_リゾート従業員制服-スーツ・ミニスカート.webp」）  s
+> 上半身は「トップレス」「胸部露出」「スーツ」の3通り、下半身は「ボトムレス」「ミニスカート」「スカート」「ロングパンツ」の4通りで  
+> 合計12パターンに対応しています。  
+> トップレスと胸部露出、ミニスカートとスカートは画像がない場合それぞれ相互互換で使用されます。  
+> トップレス・ボトムレス改造のとき、リゾート従業員制服の画像ファイル自体がない場合は全裸画像が使用されます。  
+* AIイラストで用意する場合のプロンプト例
+> [共通]
+> black sleeves, long sleeves, red necktie, 
+> [X} 上半身
+> black suit, white shirt, dress shirt, business suit
+> black suit, navel, center opening, necktie between breasts
+> topless, black sleeves, long sleeves, nipples, navel
+> topless, black sleeves, long sleeves, nipples, navel,<lora:Safety_Pin_NAI_v1:1> 5afety pin, nipple safety pin piercing, name tag attached
+> [Y] 下半身
+> black pants
+> black skirt, miniskirt, pencil skirt
+> black skirt, long skirt, pencil skirt
+> bottomless, cleft of venus, black kneehighs, (black shoes:0.8)
+
 
 ### 25/05/19  
 * アビテンプレートで使用できる特殊バフ・デバフ「与回復量／被回復量」を追加
