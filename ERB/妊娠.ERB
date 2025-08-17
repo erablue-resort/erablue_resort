@@ -7,6 +7,7 @@
 #DIM 命中強度2
 #DIM 危険度
 #DIM 異種フラグ
+#DIM 異種時カウント
 
 IF GETBIT(CFLAG:ARG:妊娠個別設定フラグ, 0)
 	SIF GETBIT(CFLAG:ARG:妊娠個別設定フラグ, 1)
@@ -66,35 +67,52 @@ ELSE
 ENDIF
 
 異種フラグ = 0
+異種時カウント = 0
 ;妊娠可能な種かどうかの判定
 IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族 == 種族_その他 && CSTR:ARG:特殊種族 != CSTR:種親:特殊種族)
 	;同じ種族でない場合は条件がある
 	IF ARG == MASTER
 		;あなたが母親の場合 種親が恋慕・セフレでなく、あなたが特異胎質を持たない場合は不可
 		IF !あなた特殊能力:特異胎質 && (種親 < 0 || !陥落チェック(種親))
-			異種フラグ = 1
+			SIF !異種フラグ
+				異種フラグ = 1
 		ELSE
-			異種フラグ = 2
+			SIF !異種フラグ
+				異種フラグ = 2
+			異種時カウント ++
 		ENDIF
-	ELSEIF 干渉強化変数:ARG:干渉種類 != 0
+	ENDIF
+	IF 干渉強化変数:ARG:干渉種類 != 0
 		;era様が母体に干渉している場合は種側のコンディションに関わらず可
-		異種フラグ = 2
-	ELSEIF 種親 == MASTER
+		SIF !異種フラグ
+			異種フラグ = 2
+		異種時カウント ++
+	ENDIF
+	IF 種親 == MASTER
 		;あなたが種親の場合 母親が恋慕・セフレでなければ不可
 		IF !陥落チェック(ARG)
-			異種フラグ = 1
+			SIF !異種フラグ
+				異種フラグ = 1
 		ELSE
-			異種フラグ = 2
+			SIF !異種フラグ
+				異種フラグ = 2
+			異種時カウント ++
 		ENDIF
-	ELSEIF 種親 < 0
+	ENDIF
+	IF 種親 < 0
 		;種親が不明の場合 原則不可
-		異種フラグ = 1
-	ELSE
+		SIF !異種フラグ
+			異種フラグ = 1
+	ENDIF
+	IF ARG != MASTER && 種親 != MASTER
 		;キャラ同士の場合 両者に恋慕・セフレの関係性が無い場合は不可
 		IF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:ARG:人物番号} Or 対象キャラ２ = {CFLAG:ARG:人物番号}) And (対象キャラ１ = {CFLAG:種親:人物番号} Or 対象キャラ２ = {CFLAG:種親:人物番号}) And (関係性種別 = '恋慕' Or 関係性種別 = 'セフレ')") == 0
-			異種フラグ = 1
+			SIF !異種フラグ
+				異種フラグ = 1
 		ELSE
-			異種フラグ = 2
+			SIF !異種フラグ
+				異種フラグ = 2
+			異種時カウント ++
 		ENDIF
 	ENDIF
 ENDIF
@@ -111,6 +129,20 @@ SIF CSTR:ARG:着せ替え服 == "逆バニー"
 	妊娠確率 -= 3
 
 妊娠確率 += TCVAR:ARG:妊娠率補正 + 種親妊娠補正
+
+;異種フラグ２（異種だが妊娠する）時、条件達成数に応じて妊娠確率変動
+IF 異種フラグ == 2
+	SELECTCASE 異種時カウント
+		CASE 1
+			TIMES 妊娠確率, 0.5
+		CASE 2
+			TIMES 妊娠確率, 1.0
+		CASE 3
+			TIMES 妊娠確率, 1.5
+		CASEELSE
+			TIMES 妊娠確率, 2.5
+	ENDSELECT
+ENDIF
 
 危険度 = RISKY_DAY(ARG) + TCVAR:ARG:排卵誘発薬
 SIF TCVAR:ARG:排卵誘発薬 && 危険度 <= 0
