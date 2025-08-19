@@ -456,6 +456,7 @@ WAIT
 @TURN_RESET
 #DIM 同室番号
 #DIM 登録番号
+#DIM 分身番号
 #DIM TARGET保存
 #DIM COM保存
 #DIMS キャラ衣装識別
@@ -627,11 +628,24 @@ FOR LOCAL,0,CHARANUM
 			キャラ衣装識別 '= CSTR:LOCAL:表示グラフィックカテゴリ
 		SIF キャラ衣装識別 == ""
 			キャラ衣装識別 = デフォルト
+		;分身だった場合は本体のミルク扱いになる
+		TARGET保存 = -1
+		IF CFLAG:LOCAL:分身
+			TARGET保存 
+			FOR 分身番号, 0, 分身最大数
+				IF 分身登録:分身番号:0 == LOCAL
+					TARGET保存 = 分身登録:分身番号:1
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		SIF TARGET保存 < 0
+			TARGET保存 = LOCAL
 		;基礎情報を突っ込む
-		DT_ROW_ADD "ミルクデータベース", "生産元No", NO:LOCAL, "生産元名称", NAME:LOCAL, "生産日", DAY, "効果基礎値", 100, "状態", "通常", "グラフィック保存", @"ミルク生産者表示_%GRAP_COM_RAND(LOCAL, "ミルク生産者表示_", キャラ衣装識別, "")%"
+		DT_ROW_ADD "ミルクデータベース", "生産元No", NO:TARGET保存, "生産元名称", NAME:TARGET保存, "生産日", DAY, "効果基礎値", 100, "状態", "通常", "グラフィック保存", @"ミルク生産者表示_%GRAP_COM_RAND(TARGET保存, "ミルク生産者表示_", キャラ衣装識別, "")%"
 		DRAWLINE
 		SETCOLOR カラーパレット("えっちな色")
-		PRINTFORMW %CALLNAME:LOCAL%の母乳が溜まったため、「%CALLNAME:LOCAL%のミルク」を入手した。
+		PRINTFORMW %CALLNAME:TARGET保存%の母乳が溜まったため、「%CALLNAME:TARGET保存%のミルク」を入手した。
 		RESETCOLOR
 		TCVAR:LOCAL:母乳カウント = 0
 	ENDIF
