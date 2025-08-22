@@ -102,7 +102,7 @@ IF !BASE:対象:バスト
 	CALL SET_BODYSIZE_BUST(対象)
 ELSEIF !TALENT:対象:バストサイズ
 	;バストがありバストサイズ素質がない場合再設定
-	計算値 = BASE:対象:バスト
+	計算値 = 補正込みバストサイズ(対象)
 
 	;ドラフ補正
 	SIF TALENT:対象:種族 == 種族_ドラフ && IS_FEMALE(対象)
@@ -329,7 +329,7 @@ IF !BASE:対象:ウエスト
 	CALL SET_BODYSIZE_WAIST(対象)
 ELSEIF !TALENT:対象:体型
 	;ウエストがあり体型素質がない場合再設定
-	計算値 = BASE:対象:ウエスト
+	計算値 = BASE:対象:ウエスト + BASE:対象:変動ウエスト
 
 	SELECTCASE TALENT:対象:体格
 		CASE 体格_ハーヴィン並
@@ -427,7 +427,7 @@ IF !BASE:対象:ヒップ
 	CALL SET_BODYSIZE_HIP(対象)
 ELSEIF !TALENT:対象:下半身
 	;ヒップがあり下半身素質がない場合再設定
-	計算値 = BASE:対象:ヒップ
+	計算値 = 補正込みヒップサイズ(対象)
 
 	;体型補正
 	SELECTCASE TALENT:対象:体型
@@ -548,7 +548,7 @@ RETURNF 基礎値
 @SHOW_BODYSIZE(対象)
 #FUNCTIONS
 #DIM 対象
-LOCALS = 身長:%DECIMAL_STRING(BASE:対象:身長, 1), 6, RIGHT%cm/   B:%DECIMAL_STRING(BASE:対象:バスト, 1), 6, RIGHT%cm %GET_CUPSIZE(対象)%
+LOCALS = 身長:%DECIMAL_STRING(BASE:対象:身長, 1), 6, RIGHT%cm/   B:%DECIMAL_STRING(補正込みバストサイズ(対象), 1), 6, RIGHT%cm %GET_CUPSIZE(対象)%
 
 RETURNF LOCALS
 
@@ -566,7 +566,7 @@ PRINTFORM %GET_CUPSIZE(対象)%
 #DIMS CONST 表記 = "(-)","(AAA)","(AA)","(A)","(B)","(C)","(D)","(E)","(F)","(G)","(H)","(I)","(J)","(K)","(L)","(M)","(N)","(O)","(P)","(Q)","(R)","(S)","(T)","(U)","(V)","(W)","(X)","(Y)","(Z)","(Z+) "
 #DIM CONST 補正 = 1, 2, 4, 6, 8, 11, 29
 
-LOCAL = (BASE:対象:バスト - CALC_BODYSIZE_UNDERBUST(対象) + 10) / 25 - 1
+LOCAL = (BASE:対象:バスト + BASE:対象:変動バスト - CALC_BODYSIZE_UNDERBUST(対象) + 10) / 25 - 1
 
 ;文字列変数が若干不自由なので無理やり作成
 LOCAL = MAX(LOCAL , 1)
@@ -737,7 +737,7 @@ ENDIF
 #DIM 測定前サイズ
 
 測定前サイズ = TALENT:対象:バストサイズ
-巨乳指数 = BASE:対象:バスト * 100 / CALC_BODYSIZE_BUST(対象)
+巨乳指数 = (BASE:対象:バスト + BASE:対象:変動バスト) * 100 / CALC_BODYSIZE_BUST(対象)
 
 SELECTCASE 巨乳指数
 	CASE IS < 90
@@ -752,6 +752,108 @@ SELECTCASE 巨乳指数
 		TALENT:対象:バストサイズ = バストサイズ_爆乳
 	CASEELSE
 		TALENT:対象:バストサイズ = バストサイズ_魔乳
+ENDSELECT
+
+;----------------------------------------------
+;キャラの数値から素質を設定し直す関数
+;BASEを直接変動させたときにこの関数を使う
+;----------------------------------------------
+@RESET_WAISTSIZE(対象)
+#DIM 対象
+#DIM 計算値
+
+計算値 = BASE:対象:ウエスト + BASE:対象:変動ウエスト
+
+SELECTCASE TALENT:対象:体格
+	CASE 体格_ハーヴィン並
+		TIMES 計算値, 0.82
+	CASE 体格_子供
+		TIMES 計算値, 0.93
+	CASE 体格_小柄
+		TIMES 計算値, 0.97
+	CASE 体格_普通
+	CASE 体格_長身
+		TIMES 計算値, 1.02
+	CASE 体格_男ドラフ並
+		TIMES 計算値, 1.03
+ENDSELECT
+
+計算値 = 計算値 * 10000 / (!HAS_VAGINA(対象) ? 43 # 38) / BASE:対象:身長
+
+SELECTCASE 計算値
+	CASE IS > 110
+		TALENT:対象:体型 = 体型_肥満
+	CASE IS > 105
+		TALENT:対象:体型 = 体型_豊満
+	CASE IS > 100
+		TALENT:対象:体型 = 体型_グラマー
+	CASE IS > 95
+		TALENT:対象:体型 = 体型_普通
+	CASE IS > 90
+		TALENT:対象:体型 = 体型_スレンダー
+	CASE IS > 85
+		TALENT:対象:体型 = 体型_細身
+	CASEELSE
+		TALENT:対象:体型 = 体型_痩せすぎ
+ENDSELECT
+;----------------------------------------------
+;キャラの数値から素質を設定し直す関数
+;BASEを直接変動させたときにこの関数を使う
+;----------------------------------------------
+@RESET_HIPSIZE(対象)
+#DIM 対象
+#DIM 計算値
+#DIM 測定前サイズ
+
+;ヒップがあり下半身素質がない場合再設定
+計算値 = 補正込みヒップサイズ(対象)
+
+;体型補正
+SELECTCASE TALENT:対象:体型
+	CASE 体型_痩せすぎ
+		TIMES 計算値, 1.08
+	CASE 体型_細身
+		TIMES 計算値, 1.05
+	CASE 体型_スレンダー
+		TIMES 計算値, 1.02
+	CASE 体型_グラマー
+		TIMES 計算値, 0.96
+	CASE 体型_豊満
+		TIMES 計算値, 0.92
+	CASE 体型_肥満
+		TIMES 計算値, 0.89
+ENDSELECT
+
+;体格補正
+SELECTCASE TALENT:対象:体格
+	CASE 体格_ハーヴィン並
+		TIMES 計算値, 0.83
+	CASE 体格_子供
+		TIMES 計算値, 0.95
+	CASE 体格_小柄
+		TIMES 計算値, 0.98
+	CASE 体格_普通
+	CASE 体格_長身
+		TIMES 計算値, 1.01
+	CASE 体格_男ドラフ並
+		TIMES 計算値, 1.02
+ENDSELECT
+
+;身長補正
+計算値 = 計算値 * 10000 / BASE:対象:身長 / (!HAS_VAGINA(対象) ? 47 # 54)
+SELECTCASE 計算値
+	CASE IS > 103
+		TALENT:対象:下半身 = 下半身_安産型
+	CASE IS > 95
+		TALENT:対象:下半身 = 下半身_普通
+	CASE IS > 90
+		IF IS_MALE(対象)
+			TALENT:対象:下半身 = 下半身_逆三角形
+		ELSE
+			TALENT:対象:下半身 = 下半身_普通
+		ENDIF
+	CASEELSE
+		TALENT:対象:下半身 = 下半身_逆三角形
 ENDSELECT
 
 ;----------------------------------------------
