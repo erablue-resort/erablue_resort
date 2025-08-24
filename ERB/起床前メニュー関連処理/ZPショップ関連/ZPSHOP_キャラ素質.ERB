@@ -661,6 +661,8 @@ SELECTCASE LOCAL:1
 			FLAG:ZP所持量 -= ABS(TALENT:対象キャラ:バストサイズ - LOCAL:1) * COST_胸定数
 			PRINTFORMW %CALLNAME:対象キャラ%のバストサイズが%GET_TALENTNAME(205, TALENT:対象キャラ:バストサイズ,,対象キャラ)%から%GET_TALENTNAME(205, LOCAL:1,,対象キャラ)%に変化しました。
 			TALENT:対象キャラ:バストサイズ = LOCAL:1
+			;愛撫などでの変動をリセット
+			BASE:対象キャラ:変動バスト = 0
 			CALL SET_BODYSIZE(対象キャラ,2)
 		ENDIF
 		RETURN 0
@@ -953,6 +955,8 @@ IF GETBIT(変更先性別, 0) != GETBIT(変更元性別, 0)
 		;元の性別・種族に戻ったのなら初期化
 		BASE:キャラ番号:身長 = 0
 		BASE:キャラ番号:バスト = 0
+		BASE:キャラ番号:変動バスト = 0
+
 		CALL INIT_BODYSIZE(キャラ番号)
 		RETURN 1
 	ELSEIF 変更先性別 == 2
@@ -982,12 +986,14 @@ IF GETBIT(変更先性別, 0) != GETBIT(変更元性別, 0)
 				;他は体格を－０～１する
 				TALENT:キャラ番号:体格 = MAX(-3, TALENT:キャラ番号:体格 - RAND:2)
 		ENDSELECT
+		BASE:キャラ番号:変動バスト = 0
 		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(TALENT:キャラ番号:種族, TALENT:キャラ番号:年齢層)
 		RETURN 0
 	ELSE
 		;その他＞女・ふたなりパターン
 		SIF 変更先性別 == 3
 			TALENT:キャラ番号:男性器サイズ = ランダム男性器サイズ(TALENT:キャラ番号:種族, 変更先性別, TALENT:キャラ番号:年齢層)
+		BASE:キャラ番号:変動バスト = 0
 		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(TALENT:キャラ番号:種族, TALENT:キャラ番号:年齢層)
 		RETURN 0
 	ENDIF
@@ -1182,6 +1188,9 @@ IF 変更先種族 == 5 || 変更先種族 == 6 || (!TALENT:キャラ番号:ラ�
 	TALENT:キャラ番号:バストサイズ = CSVTALENT(NO:キャラ番号, GETNUM(TALENT, "バストサイズ"))
 	BASE:キャラ番号:身長 = 0
 	BASE:キャラ番号:バスト = 0
+	BASE:キャラ番号:変動バスト = 0
+	BASE:キャラ番号:変動ウエスト = 0
+	BASE:キャラ番号:変動ヒップ = 0
 	CALL INIT_BODYSIZE(キャラ番号)
 	RETURN 1
 ENDIF
@@ -1204,8 +1213,10 @@ SIF TALENT:キャラ番号:Ｓ感度 == -2
 
 IF !((変更元種族 == 1 && 変更先種族 == 2) || (変更元種族 == 2 && 変更先種族 == 1))
 	;ヒューマン←→エルーンの場合を除き、ランダムでバスト・体格変化
-	SIF GETBIT(TALENT:キャラ番号:性別, 0)
+	IF GETBIT(TALENT:キャラ番号:性別, 0)
+		BASE:キャラ番号:変動バスト = 0
 		TALENT:キャラ番号:バストサイズ = ランダムバストサイズ(変更先種族, TALENT:キャラ番号:年齢層)
+	ENDIF
 	TALENT:キャラ番号:体格 = ランダム体格(変更先種族, TALENT:キャラ番号:性別, キャラ見た目年齢(キャラ番号), TALENT:キャラ番号:バストサイズ, (TALENT:キャラ番号:年齢層>=年齢層_老年))
 ENDIF
 
