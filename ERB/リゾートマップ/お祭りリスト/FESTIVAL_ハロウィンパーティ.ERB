@@ -1,6 +1,8 @@
 ﻿@MOVE_ROUTINE_FESTIVAL_ハロウィンパーティ(対象キャラ, ARGS)
 #DIM 対象キャラ
 #DIM 時間計算
+#DIM 候補数
+#DIMS 候補配列, 500
 #DIM CONST 開催費用 = 10000
 
 SELECTCASE ARGS
@@ -54,9 +56,22 @@ SELECTCASE ARGS
 		;口上設定があればそれ
 		TRYCCALLFORM KOJO_CLOTHES_FESTIVAL_ハロウィンパーティ_{NO:対象キャラ}(対象キャラ)
 		CATCH
-			;ない場合はトリック・オア・トリートメントの画像を見る
-			IF EXIST画像FILE("resources/" + CSTR:対象キャラ:画像フォルダ + "/短冊_トリック・オア・トリートメント")
-				RSTR:服装名受け渡し = トリック・オア・トリートメント
+			;ない場合はハロウィン属性を持った衣装の画像を見る
+			VARSET 候補配列
+			LOCAL:1 = 0
+			候補数 = ENUMFUNCBEGINSWITH("CLOTHES_衣装属性_")
+			FOR LOCAL, 0, 候補数
+				TSTR:衣装属性受け渡し = 
+				TRYCALLFORM %RESULTS:LOCAL%
+				SIF STRFIND(TSTR:衣装属性受け渡し, "ハロウィン") < 0
+					CONTINUE
+				SIF !EXIST画像FILE("resources/" + CSTR:対象キャラ:画像フォルダ + "/短冊_" + REPLACE(RESULTS:LOCAL, "CLOTHES_衣装属性_", ""))
+					CONTINUE
+				候補配列:(LOCAL:1) '= REPLACE(RESULTS:LOCAL, "CLOTHES_衣装属性_", "")
+				LOCAL:1 ++
+			NEXT
+			IF LOCAL:1
+				RSTR:服装名受け渡し '= 候補配列:(RAND:(LOCAL:1))
 			ENDIF
 		ENDCATCH
 ENDSELECT

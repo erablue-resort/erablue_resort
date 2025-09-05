@@ -733,26 +733,74 @@ ENDIF
 ;----------------------------------------------
 @RESET_BUSTSIZE(対象)
 #DIM 対象
-#DIM 巨乳指数
-#DIM 測定前サイズ
+#DIM 計算値
 
-測定前サイズ = TALENT:対象:バストサイズ
-巨乳指数 = (補正込みバストサイズ(対象)) * 100 / CALC_BODYSIZE_BUST(対象)
+;バストがありバストサイズ素質がない場合再設定
+計算値 = 補正込みバストサイズ(対象)
 
-SELECTCASE 巨乳指数
-	CASE IS < 90
-		TALENT:対象:バストサイズ = バストサイズ_絶壁
-	CASE IS < 98
-		TALENT:対象:バストサイズ = バストサイズ_貧乳
-	CASE IS < 104
-		TALENT:対象:バストサイズ = バストサイズ_並乳
-	CASE IS < 110
-		TALENT:対象:バストサイズ = バストサイズ_巨乳
-	CASE IS < 116
-		TALENT:対象:バストサイズ = バストサイズ_爆乳
-	CASEELSE
-		TALENT:対象:バストサイズ = バストサイズ_魔乳
+;ドラフ補正
+SIF TALENT:対象:種族 == 種族_ドラフ && IS_FEMALE(対象)
+	TIMES 計算値, 0.89
+
+;体型補正
+SELECTCASE TALENT:対象:体型
+	CASE 体型_痩せすぎ
+		SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+			TIMES 計算値, 1.11
+	CASE 体型_細身
+		SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+			TIMES 計算値, 1.06
+	CASE 体型_スレンダー
+		SIF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+			TIMES 計算値, 1.03
+	CASE 体型_グラマー
+		TIMES 計算値, 0.97
+	CASE 体型_豊満
+		TIMES 計算値, 0.96
+	CASE 体型_肥満
+		TIMES 計算値, 0.95
 ENDSELECT
+
+;体格補正
+SELECTCASE TALENT:対象:体格
+	CASE 体格_ハーヴィン並
+		TIMES 計算値, 0.83
+	CASE 体格_子供
+		IF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+			TIMES 計算値, 0.94
+		ELSE
+			TIMES 計算値, 0.93
+		ENDIF
+	CASE 体格_小柄
+		IF TALENT:対象:種族 != 種族_ドラフ || !HAS_VAGINA(対象)
+			TIMES 計算値, 0.98
+		ELSE
+			TIMES 計算値, 0.97
+		ENDIF
+	CASE 体格_普通
+	CASE 体格_長身
+	CASE 体格_男ドラフ並
+		TIMES 計算値, 1.02
+ENDSELECT
+
+;身長補正
+計算値 = 計算値 * 10000 / BASE:対象:身長 / (!HAS_VAGINA(対象) ? 52 # 53)
+
+SELECTCASE 計算値
+	CASE IS > 116
+		TALENT:対象:バストサイズ = バストサイズ_魔乳
+	CASE IS > 110
+		TALENT:対象:バストサイズ = バストサイズ_爆乳
+	CASE IS > 101
+		TALENT:対象:バストサイズ = バストサイズ_巨乳
+	CASE IS > 96
+		TALENT:対象:バストサイズ = バストサイズ_並乳
+	CASE IS > 90
+		TALENT:対象:バストサイズ = バストサイズ_貧乳
+	CASEELSE
+		TALENT:対象:バストサイズ = バストサイズ_絶壁
+ENDSELECT
+
 
 ;----------------------------------------------
 ;キャラの数値から素質を設定し直す関数
