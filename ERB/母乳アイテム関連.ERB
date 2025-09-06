@@ -15,7 +15,7 @@ PRINTL 所持しているミルクの一覧です
 IF 一括削除モード
 	PRINTL 選択したミルクを一括で廃棄出来ます（１００件まで）
 ELSE
-	PRINTL 選択すると廃棄することが可能です
+	PRINTL 選択すると使用・廃棄することが可能です
 ENDIF
 DRAWLINE
 
@@ -25,7 +25,11 @@ FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
 			CONTINUE
 		SIF 一括削除モード && STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", 表示数カウント, "id")}_")
 			SETCOLOR カラーパレット("黄")
-		ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%のミルク
+		IF DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態") == "通常"
+			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%のミルク
+		ELSE
+			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%の%DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態")%ミルク
+		ENDIF
 		SELECTCASE DAY - DT_CELL_GET("ミルクデータベース", 表示数カウント, "生産日")
 			CASE 0
 				消費期限 = あと３日
@@ -150,8 +154,13 @@ ENDSELECT
 #DIM size
 #DIMS 画像リソース保存
 #DIM 対象キャラ
+#DIM 使用キャラ
 
-ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), STRFIND(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), "]") + 1, -1)%のミルク
+IF DT_CELL_GETS("ミルクデータベース", ボタン記録, "状態", 1) == "通常"
+	ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), STRFIND(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), "]") + 1, -1)%のミルク
+ELSE
+	ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), STRFIND(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1), "]") + 1, -1)%の%DT_CELL_GETS("ミルクデータベース", ボタン記録, "状態", 1)%ミルク
+ENDIF
 対象キャラ = キャラ検索(DT_CELL_GETS("ミルクデータベース", ボタン記録, "生産元名称", 1))
 
 ;ミルク詳細表示
@@ -249,8 +258,13 @@ ENDIF
 
 BINPUT
 SELECTCASE RESULT
-	CASE 1000
-		PRINTFORML %CALLNAME:MASTER%は%ミルク名%を飲み干した。
+	CASE 1000, 1001
+		IF RESULT == 1000
+			使用キャラ = MASTER
+		ELSE
+			使用キャラ = TARGET
+		ENDIF
+		PRINTFORML %CALLNAME:使用キャラ%は%ミルク名%を飲み干した。
 		PRINTDATA
 			DATA まろやかでコクのある味だ。
 			DATA すっきりとして雑味のない味だ。
@@ -258,20 +272,24 @@ SELECTCASE RESULT
 			DATA 後味が爽やかな癖がない味だ。
 		ENDDATA
 		PRINTL 
-		PRINTFORMW %CALLNAME:MASTER%の精力が回復した！
-		BASE:MASTER:精力 = MAXBASE:MASTER:精力
-		DT_CELL_SET "ミルクデータベース", ボタン記録, "状態", "フタ", 1
-	CASE 1001
-		PRINTFORML %CALLNAME:TARGET%は%ミルク名%を飲み干した。
-		PRINTDATA
-			DATA まろやかでコクのある味だ。
-			DATA すっきりとして雑味のない味だ。
-			DATA 濃厚で甘みのある味だ。
-			DATA 後味が爽やかな癖がない味だ。
-		ENDDATA
-		PRINTL 
-		PRINTFORMW %CALLNAME:TARGET%の精力が回復した！
-		BASE:TARGET:精力 = MAXBASE:TARGET:精力
+		PRINTFORMW %CALLNAME:使用キャラ%の精力が回復した！
+		SELECTCASE DT_CELL_GET("ミルクデータベース", ボタン記録, "状態", 1)
+			CASE "特濃"
+				BASE:使用キャラ:精力 = MAXBASE:使用キャラ:精力
+				;濃厚率補正は100％まで
+				SIF TCVAR:使用キャラ:ミルク濃厚率補正 < 100
+					TCVAR:使用キャラ:ミルク濃厚率補正 += 50
+			CASE "濃厚"
+				BASE:使用キャラ:精力 = MAXBASE:使用キャラ:精力
+				;濃厚率補正は50％まで
+				SIF TCVAR:使用キャラ:ミルク濃厚率補正 < 50
+					TCVAR:使用キャラ:ミルク濃厚率補正 += 25
+			CASEELSE
+				BASE:使用キャラ:精力 = MIN(BASE:使用キャラ:精力 + MAXBASE:使用キャラ:精力 / 2, MAXBASE:使用キャラ:精力)
+				;濃厚率補正は30％まで
+				SIF TCVAR:使用キャラ:ミルク濃厚率補正 < 30
+					TCVAR:使用キャラ:ミルク濃厚率補正 += 10
+		ENDSELECT
 		DT_CELL_SET "ミルクデータベース", ボタン記録, "状態", "フタ", 1
 	CASE 1010
 		DRAWLINE

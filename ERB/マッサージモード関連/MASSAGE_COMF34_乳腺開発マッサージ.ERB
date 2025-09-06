@@ -1,0 +1,143 @@
+﻿;-------------------------------------------------
+;乳腺開発マッサージ
+;-------------------------------------------------
+@MASSAGE_COMNAME34
+#FUNCTIONS
+TSTR:コマンド名受渡 = 乳腺開発マッサージ
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@MASSAGE_COMTYPE_34
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = MASSAGE_COMTYPE("エロマッサージ")
+
+@MASSAGE_COM_TOOLTIP_34
+LOCALS = <br>■乳腺開発マッサージ<br>
+LOCALS += "乳腺を丹念に刺激し、母乳の生産・噴出をサポートするマッサージ。"
+LOCALS += "<br>バストアップ効果も期待できる。"
+LOCALS += "<br>[母乳体質]を持つキャラに使用した時、その日一日の母乳生産量が上昇する。"
+LOCALS += "<br>また、ミルクが濃厚になりやすくなる。"
+LOCALS += "<br>COMタイプ：エロマッサージ<br>取得ソース：快Ｂ・露出・接触・歓楽"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@MASSAGE_COM34
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 100)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 80)
+CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 150)
+CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 50)
+
+;母乳体質ならさらに快感アップ
+IF TALENT:TARGET:母乳体質
+	CALL SOURCE_CALC_快Ｂ(TARGET, PLAYER, 50)
+	CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 50)
+	TCVAR:TARGET:母乳マッサージ = 1
+	;濃厚率補正は30％まで
+	SIF TCVAR:TARGET:ミルク濃厚率補正 < 30
+		TCVAR:TARGET:ミルク濃厚率補正 += 10
+ENDIF
+
+;上半身下着を脱がす。
+IF TEQUIP:上半身下着あり
+	TEQUIP:上半身下着あり = 0
+	TEQUIP:上半身服あり = 0
+	SIF TEQUIP:上下一体服
+		TEQUIP:下半身服あり = 0
+	RFLAG:コマンド結果受渡し変数 = 1
+ENDIF
+
+;乳首をいじるため性欲を煽る。
+BASE:TARGET:性欲 += 100
+
+;警戒は理性の倍回復する。
+
+IF BASE:TARGET:理性 <= 1
+;理性がおしまいになってしまった場合、快楽に流されて警戒が下がっていく。
+	BASE:TARGET:警戒 += 警戒変動値算出(TARGET, -40)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+
+ELSEIF 知識素質:TARGET:性知識 <= -1
+;性知識がない場合、そもそも警戒することができない。そういうもんかって受け入れるため理性は下がり続けるし、快感を伴うから警戒も下がり続ける。
+;コリほぐしより理性は削るが警戒削りはやや低くなる
+	BASE:TARGET:理性 += 理性変動値算出(TARGET, -60)
+	BASE:TARGET:警戒 += 警戒変動値算出(TARGET, -40)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 80)
+
+ELSEIF (BASE:TARGET:理性 + BASE:TARGET:警戒) < 700
+;実行に際し十分な理性・警戒削りがなされている場合。
+;警戒140で理性が70回復するも、煽られる性欲と与えられる刺激で理性が100削られて理性変動は-30。
+;……というのが平常時における挙動だが、ここまで削られていると与えられる快感に警戒心が塗りつぶされてしまう。
+;よって警戒56で理性28回復、そこから理性80低下でこの数字となる。理性と警戒の合計値はほんの少しだけ上がり、そのまま次のコマンドへ。
+	BASE:TARGET:理性 += 理性変動値算出(TARGET, -72)
+	BASE:TARGET:警戒 +=警戒変動値算出(TARGET, 56)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSEIF BASE:TARGET:理性 <= 200
+;理性がグズグズに煮詰まっちゃってると、警戒及び理性の回復は半分になる。理性200警戒800とかの場合これ。
+	BASE:TARGET:理性 +=理性変動値算出(TARGET, 35)
+	BASE:TARGET:警戒 +=警戒変動値算出(TARGET, 70)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSEIF TALENT:TARGET:バストサイズ <= -1
+;相手が貧乳以下の場合、実行可能であるならば「これもおっぱい大きくするため……？」ってしぶしぶ受け入れるイメージ。
+	BASE:TARGET:理性 +=理性変動値算出(TARGET, 50)
+	BASE:TARGET:警戒 +=警戒変動値算出(TARGET, 100)
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 40)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+
+ELSE
+;基本値
+	BASE:TARGET:理性 +=理性変動値算出(TARGET, 70)
+	BASE:TARGET:警戒 +=警戒変動値算出(TARGET, 140)
+	CALL SOURCE_CALC_好感度要素_性愛度UP(TARGET, PLAYER, 100)
+ENDIF
+
+BASE:TARGET:ちんイラ = MAX(0, BASE:TARGET:ちんイラ - 100)
+CALL バスト変動処理(TARGET, "愛撫", 2)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+
+@MASSAGE_COM_ABLE34
+SIF SAVESTR:ゲームフェイズ管理 != "マッサージモード"
+	RETURN 0
+
+SIF GLOBAL_MASSAGE_COMABLE(34)
+	RETURN RESULT
+
+;Bがない場合駄目
+SIF TALENT:TARGET:Ｂ感度 == -2
+	RETURN 0
+
+;うつ伏せだとダメ
+SIF TCVAR:TARGET:マッサージ_うつ伏せフラグ == 1
+	RETURN 0
+
+;理性警戒の合計が1000以下じゃないとダメ
+SIF (BASE:TARGET:理性 + BASE:TARGET:警戒) > 1000
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MASSAGE_MESSAGE_COM34
+PRINTFORM %CALLNAME:PLAYER%は、%CALLNAME:TARGET%の
+SIF RFLAG:コマンド結果受渡し変数 == 1
+	PRINTFORM 胸の施術着を脱がせ、
+PRINTFORML 乳房全体を揉みほぐすように乳腺を刺激した。
+

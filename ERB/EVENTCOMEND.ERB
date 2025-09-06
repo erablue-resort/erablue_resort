@@ -466,6 +466,7 @@ WAIT
 #DIM TARGET保存
 #DIM COM保存
 #DIMS キャラ衣装識別
+#DIMS 母乳種別
 
 SIF !TFLAG:オートコマンドフラグ
 	自慰ターゲット保存 = -1
@@ -622,6 +623,8 @@ FOR LOCAL,0,CHARANUM
 	;母乳の収集
 	IF TALENT:LOCAL:母乳体質 && NOWEX:LOCAL:Ｂ絶頂 && MODE_確認_ターゲット側("搾乳機", LOCAL) > -1
 		TCVAR:LOCAL:母乳カウント += 300
+		SIF TCVAR:LOCAL:母乳マッサージ
+			TCVAR:LOCAL:母乳カウント += 150
 	ENDIF
 	;母乳のアイテム化
 	IF TCVAR:LOCAL:母乳カウント > 5000
@@ -646,11 +649,23 @@ FOR LOCAL,0,CHARANUM
 		ENDIF
 		SIF TARGET保存 < 0
 			TARGET保存 = LOCAL
+		SELECTCASE RAND:100 + TCVAR:TARGET保存:ミルク濃厚率補正
+			CASE IS < 70
+				母乳種別 = 通常
+			CASE IS < 110
+				母乳種別 = 濃厚
+			CASEELSE
+				母乳種別 = 特濃
+		ENDSELECT
 		;基礎情報を突っ込む
-		DT_ROW_ADD "ミルクデータベース", "生産元No", NO:TARGET保存, "生産元名称", NAME:TARGET保存, "生産日", DAY, "効果基礎値", 100, "状態", "通常", "グラフィック保存", @"ミルク生産者表示_%GRAP_COM_RAND(TARGET保存, "ミルク生産者表示_", キャラ衣装識別, "")%"
+		DT_ROW_ADD "ミルクデータベース", "生産元No", NO:TARGET保存, "生産元名称", NAME:TARGET保存, "生産日", DAY, "効果基礎値", 100, "状態", 母乳種別, "グラフィック保存", @"ミルク生産者表示_%GRAP_COM_RAND(TARGET保存, "ミルク生産者表示_", キャラ衣装識別, "")%"
 		DRAWLINE
 		SETCOLOR カラーパレット("えっちな色")
-		PRINTFORML %CALLNAME:TARGET保存%の母乳が溜まったため、「%CALLNAME:TARGET保存%のミルク」を入手した。
+		IF 母乳種別 == "通常"
+			PRINTFORML %CALLNAME:TARGET保存%の母乳が溜まったため、「%CALLNAME:TARGET保存%のミルク」を入手した。
+		ELSE
+			PRINTFORML %CALLNAME:TARGET保存%の母乳が溜まったため、「%CALLNAME:TARGET保存%の%母乳種別%ミルク」を入手した。
+		ENDIF
 		PRINTW ※消費カロリー：100kcal
 		TCVAR:LOCAL:摂取カロリー -= 100
 		RESETCOLOR
