@@ -1,0 +1,409 @@
+﻿;==================================================================================================
+@覗き見一覧表示
+;--------------------------------------------------------------------------------------------------
+#DIM 終了フラグ
+#DIM ループ用
+;--------------------------------------------------------------------------------------------------
+
+;このタイミングで覗き見対象が滞在中でなければ覗き見対象から外し、使い魔フラグを消す
+FOR ループ用, 0, 4
+	IF 覗き見対象:ループ用 && CFLAG:(覗き見対象:ループ用):滞在期間 < 0
+		覗き見対象:ループ用 = 0
+		TCVAR:(覗き見対象:ループ用):使い魔対象 = 0
+	ENDIF
+NEXT
+
+DRAWLINE
+PRINTFORML 使い魔を差し向けている人物の一覧です
+PRINTFORML 選択するとその人物の行動を覗き見る事ができます
+DRAWLINE
+
+CALL SHOW_覗き見対象表示
+
+DRAWLINE
+LOCALS = <button value='9999'>[9999]戻る</button>
+CALL 画像表示("使い魔エラ","LEFT",-200,,,,)
+HTML_PRINT LOCALS, 1
+
+BINPUTS
+IF ISNUMERIC(RESULTS) == 0
+	VARSET 表示用ステータス格納配列:0:0
+	表示切り替え文字列 = %RESULTS%
+	RETURN 0
+ENDIF
+
+LOCAL = TOINT(RESULTS)
+
+SELECTCASE LOCAL
+	CASE 0 TO 3
+		IF 覗き見対象:LOCAL > 0
+			;各イベント
+			
+			CALL 覗き見イベント(LOCAL)
+			SIF RESULT
+				CALL 覗き見対象選択(LOCAL)
+			
+			RESTART
+		ELSE
+			CALL 覗き見対象選択(LOCAL)
+			RESTART
+		ENDIF
+		
+		RETURN 0
+		
+	CASE 9999
+		VARSET 表示用ステータス格納配列:0:0
+		RETURN -1
+ENDSELECT
+
+;==================================================================================================
+@SHOW_覗き見対象表示
+;--------------------------------------------------------------------------------------------------
+#DIM x軸位置 = 650
+#DIM y軸位置 = 0
+#DIM ループ用
+#DIM 縦幅 = 2250
+#DIM 横幅 = 1125
+#DIMS 枠色
+#DIM tmp
+;--------------------------------------------------------------------------------------------------
+CALL 画像描画終了
+
+LOCALS = 
+FOR ループ用, 0, 4
+	
+	tmp = 覗き見対象:ループ用
+	
+	
+	;枠
+	IF tmp > 0
+		;うふふ中、オナニー中、ゆきずりセックス中は枠をピンク。通常時は白色に
+		IF CFLAG:tmp:うふふ || CFLAG:tmp:キャラ同士うふふ || IS_野外オナニー中(tmp) || IS_ゆきずりセックス中(tmp) 
+			枠色 = #FF69B4
+		ELSE
+			枠色 = #FFFFFF
+		ENDIF
+	ELSE
+		枠色 = #C0C0C0
+	ENDIF
+	;枠を描画
+	LOCALS += @"<div rect='{x軸位置 + ループ用 * 1250}, {y軸位置}, {横幅 + 100}, {縦幅 + 100}' border='31' bcolor='%枠色%'></div>"
+	
+	
+	;キャラクター画像
+	LOCALS:1 = {(x軸位置+50) + ループ用 * 1250}, {y軸位置 + 50}, {横幅}, {縦幅}
+	IF tmp > 0
+		LOCALS:2 '= 短冊グラ表示用文字列関数((tmp), ループ用)
+		LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}' title='%RESULTS:(2 + ループ用)%'>%LOCALS:2%</button></div>"
+		LOCALS += @"<div rect='{x軸位置 + ループ用 * 1250}, {縦幅 + y軸位置 + 120}, {横幅 + 100}, 200' border='31' bcolor='%枠色%'></div>"
+		RESULTS:(2 + ループ用) '= ""
+	ELSE
+		LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'><shape type='rect' param='%LOCALS:1%' color='#%TOSTR(GETBGCOLOR(), "X")%'></button></div>"
+		LOCALS += @"<div rect='{x軸位置 + ループ用 * 1250}, {縦幅 + y軸位置 + 120}, {横幅 + 100}, 200' border='31' bcolor='#C0C0C0'></div>"
+	ENDIF
+	
+	LOCALS:1 = {x軸位置 + 50 + ループ用 * 1250}, {縦幅 + y軸位置 + 170}, {横幅}, 200
+	
+	
+	;キャラクターの名前
+	IF tmp
+		;うふふ中、オナニー中、ゆきずりセックス中は枠をピンク。通常時は白色に
+		IF CFLAG:tmp:うふふ || CFLAG:tmp:キャラ同士うふふ || IS_野外オナニー中(tmp) || IS_ゆきずりセックス中(tmp) 
+			LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'>♥%CALLNAME:(tmp)%</button></div>"
+		ELSE
+			LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'>■%CALLNAME:(tmp)%</button></div>"
+		ENDIF
+	ELSE
+		LOCALS += @"<div rect='%LOCALS:1%'><button value='{ループ用}'>ENPTY</button></div>"
+	ENDIF
+NEXT
+
+HTML_PRINT LOCALS, 1
+
+FOR ループ用, 0, 24 + (y軸位置 / 100)
+	PRINTL 
+NEXT
+
+
+;==================================================================================================
+@覗き見イベント(ARG)
+;--------------------------------------------------------------------------------------------------
+#DIM キャラ番号
+#DIM デート相手
+#DIMS ボタン文字列
+
+;-------------------------------------------------------------------------------------------------
+
+
+キャラ番号 = 覗き見対象:ARG
+デート相手 = ABS(CFLAG:キャラ番号:デート) - 100
+
+;使い魔覗き中フラグを立てる
+TCVAR:キャラ番号:使い魔覗き中 = 1
+
+PRINTFORML
+
+IF CFLAG:キャラ番号:うふふ
+	PRINTFORML 
+		
+ELSEIF CFLAG:キャラ番号:デート
+	IF CFLAG:キャラ番号:キャラ同士うふふ
+		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%と性行為を愉しんでいるようだ……
+	ELSE
+		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%とのデートを楽しんでいるようだ
+	ENDIF
+	
+ELSEIF IS_野外オナニー中(キャラ番号)
+	PRINTFORML %CALLNAME:キャラ番号%はどこかの物陰でオナニーに励んでいるようだ……
+	
+ELSEIF IS_ゆきずりセックス中(キャラ番号)
+	PRINTFORML 
+	PRINTFORML %CALLNAME:キャラ番号%はどこかの物陰でゆきずりの性行為を愉しんでいるようだ……
+	
+	CALL ゆきずりセックス_覗く(キャラ番号)
+ELSE
+	SELECTCASE 移動ルーチン:キャラ番号:ルーチンID
+		CASE "商業区で店番"
+			PRINTFORML %CALLNAME:キャラ番号%は自分の店で忙しそうにしている
+		CASEELSE
+			IF STRFIND(移動ルーチン:キャラ番号:ルーチンID,"業務_") >= 0
+				;業務中
+				PRINTFORML %CALLNAME:キャラ番号%は業務に勤しんでいる
+			ELSE
+				PRINTFORML %CALLNAME:キャラ番号%はリゾートを満喫しているようだ
+			ENDIF
+	ENDSELECT
+	
+ENDIF
+
+PRINTFORML
+
+
+;使い魔覗き中フラグを閉じる
+TCVAR:キャラ番号:使い魔覗き中 = 0
+
+ボタン文字列 = <button value='9998'>[9998]対象を変更する</button>
+HTML_PRINT ボタン文字列, 0
+
+DRAWLINE
+ボタン文字列 = <button value='9999'>[9999]戻る</button>
+HTML_PRINT ボタン文字列, 0
+
+BINPUT
+SIF RESULT == 9998
+	RETURN 1
+SIF RESULT == 9999
+	RETURN 0
+
+
+;==================================================================================================
+@覗き見対象選択(ARG)
+;--------------------------------------------------------------------------------------------------
+#DIM ページ数, 2
+#DIM 表示候補, キャラクタ数上限
+#DIM 候補人数
+#DIM 文字色フラグ
+#DIM 表示人数 = 50
+#DIMS ソート情報
+VARSET ページ数
+;-------------------------------------------------------------------------------------------------
+$最初から
+
+;表示候補選定＆ソート処理
+VARSET 表示候補
+候補人数 = 0
+
+;フィルタ処理・絞り込み処理
+FOR LOCAL, 1, CHARANUM
+	CALL 装備再計算処理(LOCAL)
+	;招待できない人はスキップ
+	SIF CFLAG:LOCAL:招待不可フラグ
+		CONTINUE
+	;滞在者でない場合はスキップ
+	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	表示候補:候補人数 = LOCAL
+	候補人数 ++
+NEXT
+CALL キャラ配列フィルタ処理(表示候補)
+候補人数 = RESULT
+
+LOCAL:1 = 1
+
+$表示処理_LOOP
+ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
+
+VARSET LOCAL
+VARSET LOCALS
+
+DRAWLINE
+;表示処理
+FOR LOCAL, ページ数 * 表示人数, 候補人数
+	SIF 表示候補:LOCAL < 1
+		BREAK
+	IF 文字色グループ取得(表示候補:LOCAL) >= 0
+		LOCALS += @"<font color='#%十六進数文字列化(同室時_グループ文字色:(文字色グループ取得(表示候補:LOCAL)))%'>"
+		文字色フラグ = 1
+	ELSEIF CFLAG:(表示候補:LOCAL):同室文字色
+		LOCALS += @"<font color='#%十六進数文字列化(CFLAG:(表示候補:LOCAL):同室文字色)%'>"
+		文字色フラグ = 1
+	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
+		LOCALS += "<font color='#FF3399'>"
+		文字色フラグ = 2
+	ELSE
+		文字色フラグ = 0
+	ENDIF
+	LOCALS += @"<button value = '{表示候補:LOCAL}'>[{表示候補:LOCAL,4}] %GET_NAME(表示候補:LOCAL, 1, 50)%</button>　"
+	SIF 文字色フラグ == 1
+		LOCALS += "</font>"
+	SIF 文字色フラグ == 2
+		LOCALS += "</font>"
+	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
+	IF ソート情報 != ""
+		LOCALS += ソート情報 + "　"
+	ELSE
+		IF CFLAG:(表示候補:LOCAL):長期雇用
+			LOCALS += "　　長期雇用中　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 1
+			LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
+			LOCALS += "　　　常時滞在　"
+		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
+			LOCALS += @"　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
+		ELSE
+			LOCALS += "　　　　　　　　"
+		ENDIF
+	ENDIF
+	LOCAL:1 += 1
+	IF LOCAL:1 % 2 == 0
+		HTML_PRINT LOCALS
+		LOCALS = 
+	ENDIF
+	SIF LOCAL:1 > 表示人数 - 1
+		BREAK
+NEXT
+IF LOCALS != ""
+	HTML_PRINT LOCALS
+	LOCALS = 
+ENDIF
+
+PRINTL 
+LOCALS:2 = 
+IF ページ数 > 0
+	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
+ELSE
+	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
+ENDIF
+LOCALS:2 += " " * 24
+LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+LOCALS:2 += " " * 23
+IF ページ数 < ページ数:1
+	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
+ENDIF
+LOCALS:2 += "<br>"
+IF ページ数 > 0
+	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+ELSE
+	LOCALS:2 += "     "
+ENDIF
+IF ページ数 > 4
+	LOCALS:2 += "<button value='9003'> [－５]</button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+
+LOCALS:2 += " " * 26
+LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+LOCALS:2 += " " * (56-20-20)
+IF ページ数 <= ページ数:1 - 5
+	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+ELSE
+	LOCALS:2 += " 　　　"
+ENDIF
+LOCALS:2 += " " * 5
+IF ページ数 < ページ数:1
+	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+ENDIF
+HTML_PRINT LOCALS:2
+DRAWLINE
+
+PRINTBUTTONLC "[9999]戻る", 9999
+PRINTL
+
+;●入力処理
+$INPUT_LOOP
+BINPUT
+IF RESULT == 9999
+	RETURN 0
+ELSEIF RESULT == 9000
+	ページ数 = MAX(ページ数 - 1, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9001
+	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9002
+	ページ数 = 0
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9003
+	ページ数 = MAX(ページ数 - 5, 0)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9004
+	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9005
+	ページ数 = ページ数:1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9006
+	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+	INPUT
+	SIF INRANGE(RESULT, 1, 1+ページ数:1)
+		ページ数 = RESULT - 1
+	GOTO 表示処理_LOOP
+ELSEIF RESULT == 9007
+	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+	INPUT
+	IF INRANGE(RESULT, 1, 100)
+		表示人数 = RESULT
+		ページ数 = 0
+	ENDIF
+	GOTO 表示処理_LOOP
+;例外処理
+ELSEIF RESULT < 0 || RESULT >= CHARANUM
+	REUSELASTLINE 
+	GOTO INPUT_LOOP
+ELSE
+	CALL 覗き見対象適用処理(ARG,RESULT)
+	RETURN 0
+	
+ENDIF
+
+
+GOTO 表示処理_LOOP
+
+
+;==================================================================================================
+@覗き見対象適用処理(ARG,キャラ番号)
+;--------------------------------------------------------------------------------------------------
+#DIM キャラ番号
+#DIM ループ用
+;-------------------------------------------------------------------------------------------------
+
+;選択した枠に既に人がいるならその人のフラグを消す
+IF 覗き見対象:ARG
+	;対象位置にいるキャラの使い魔対象のフラグを消す
+	TCVAR:(覗き見対象:ARG):使い魔対象 = 0
+ENDIF
+
+;すでに他の位置に存在しているなら元居た位置を空にする
+FOR ループ用, 0, 7
+	SIF 覗き見対象:ループ用 == キャラ番号
+		覗き見対象:ループ用 = 0
+NEXT
+
+;キャラ番号をそのまま挿入する
+覗き見対象:ARG = キャラ番号
+
+;使い魔対象のフラグを立てる
+TCVAR:キャラ番号:使い魔対象 = 1
+
+RETURN 0
