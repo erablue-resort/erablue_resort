@@ -8,6 +8,10 @@
 ;このタイミングで覗き見対象が滞在中でなければ覗き見対象から外し、使い魔フラグを消す
 FOR ループ用, 0, 4
 	IF 覗き見対象:ループ用 && CFLAG:(覗き見対象:ループ用):滞在期間 < 0
+		
+		DRAWLINE
+		PRINTFORMW %CALLNAME:(覗き見対象:ループ用)%の滞在期間が過ぎた為、つけていた使い魔が戻ってきた。
+		
 		覗き見対象:ループ用 = 0
 		TCVAR:(覗き見対象:ループ用):使い魔対象 = 0
 	ENDIF
@@ -138,8 +142,10 @@ NEXT
 キャラ番号 = 覗き見対象:ARG
 デート相手 = ABS(CFLAG:キャラ番号:デート) - 100
 
+
 ;使い魔覗き中フラグを立てる
 TCVAR:キャラ番号:使い魔覗き中 = 1
+
 
 PRINTFORML
 
@@ -148,32 +154,44 @@ IF CFLAG:キャラ番号:うふふ
 		
 ELSEIF CFLAG:キャラ番号:デート
 	IF CFLAG:キャラ番号:キャラ同士うふふ
-		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%と性行為を愉しんでいるようだ……
+		SETCOLOR カラーパレット("えっちな色")
+		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%と%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%で性行為を愉しんでいるようだ……
+		RESETCOLOR
+		
 	ELSE
-		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%とのデートを楽しんでいるようだ
+		PRINTFORML %CALLNAME:キャラ番号%は%CALLNAME:デート相手%とのデートを楽しんでいる
+		PRINTFORML どうやら%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%に居るようだ
+		
 	ENDIF
 	
 ELSEIF IS_野外オナニー中(キャラ番号)
+	SETCOLOR カラーパレット("えっちな色")
 	PRINTFORML %CALLNAME:キャラ番号%はどこかの物陰でオナニーに励んでいるようだ……
+	RESETCOLOR
 	
 ELSEIF IS_ゆきずりセックス中(キャラ番号)
-	PRINTFORML 
+	SETCOLOR カラーパレット("えっちな色")
 	PRINTFORML %CALLNAME:キャラ番号%はどこかの物陰でゆきずりの性行為を愉しんでいるようだ……
+	PRINTFORML 
+	RESETCOLOR
 	
+	;ゆきずりセックスの覗き処理を行う
 	CALL ゆきずりセックス_覗く(キャラ番号)
-ELSE
-	SELECTCASE 移動ルーチン:キャラ番号:ルーチンID
-		CASE "商業区で店番"
-			PRINTFORML %CALLNAME:キャラ番号%は自分の店で忙しそうにしている
-		CASEELSE
-			IF STRFIND(移動ルーチン:キャラ番号:ルーチンID,"業務_") >= 0
-				;業務中
-				PRINTFORML %CALLNAME:キャラ番号%は業務に勤しんでいる
-			ELSE
-				PRINTFORML %CALLNAME:キャラ番号%はリゾートを満喫しているようだ
-			ENDIF
-	ENDSELECT
 	
+	;経過時間を表示しておく
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML {TIME_PROGRESS(TFLAG:行動前時刻)}分 経過
+
+ELSEIF STRFIND(移動ルーチン:キャラ番号:ルーチンID,"業務_") >= 0
+	;業務別のイベントへ
+	CALL 覗き見業務イベント(キャラ番号)
+
+ELSE
+	;リゾート客
+	PRINTFORML %CALLNAME:キャラ番号%はリゾートを満喫している
+	PRINTFORML どうやら%GETPLACENAME(CFLAG:キャラ番号:現在マップ種別, CFLAG:キャラ番号:現在位置)%に居るようだ
+
 ENDIF
 
 PRINTFORML
@@ -194,6 +212,196 @@ SIF RESULT == 9998
 	RETURN 1
 SIF RESULT == 9999
 	RETURN 0
+
+
+;==================================================================================================
+@覗き見業務イベント(ARG)
+;--------------------------------------------------------------------------------------------------
+;業務ごとに異なる文章を表示させる処理
+;--------------------------------------------------------------------------------------------------
+#DIMS 現在の行動
+#DIM セクハラフラグ
+;--------------------------------------------------------------------------------------------------
+
+;セクハラフラグの初期化
+セクハラフラグ = 0
+
+;30%の確率でセクハラが発生する
+SIF RAND:100 < 30
+	セクハラフラグ = 1
+	
+;男ならフラグを折る
+SIF GETBIT(TALENT:ARG:性別, 0) == 0
+	セクハラフラグ = 0
+		
+;現在の行動と場所を取得
+現在の行動 = %移動スケジュール文字列:ARG:(スケジュール状態:ARG:現在スケジュール):スケジュール%
+
+;業務内容で分岐
+SELECTCASE 現在の行動
+	
+	;***********************************************************************************************
+	; リゾート外ルーチン
+	CASE "自動探索前"
+		PRINTFORML %CALLNAME:ARG%は出発の支度をしている
+				
+	CASE "自動探索"
+		IF 移動ルーチン:ARG:ルーチンID == "業務_自動探索"
+				;自動探索
+				PRINTFORML %CALLNAME:ARG%はダンジョン内を警戒しながら探索している
+				
+			ELSE
+				;高速船員
+				PRINTFORML %CALLNAME:ARG%は派遣先で業務に精を出している
+				
+			ENDIF
+		
+		
+	;***********************************************************************************************
+	; 学校ルーチン
+	CASE "学校に滞在" ;"業務_知識習得","業務_教師"
+		IF 目的地に到着してる？(ARG)
+			IF 移動ルーチン:ARG:ルーチンID == "業務_知識習得"
+				;知識習得
+				PRINTFORML %CALLNAME:ARG%は教室で学友たちと戯れている
+				
+			ELSE
+				;教師
+				PRINTFORML %CALLNAME:ARG%は教鞭を執っている
+				
+			ENDIF
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+	
+	CASE "学校で勉強" 
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は勉学に励んでいる
+			
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+			
+		ENDIF
+	
+	;***********************************************************************************************
+	; リゾート内ルーチン
+	CASE "雑務" ;"業務_雑務","業務_警備員","業務_秘書"
+		IF 目的地に到着してる？(ARG)
+			;雑務と警備員とで文章を変える
+			IF 移動ルーチン:ARG:ルーチンID == "業務_雑務"
+				;雑務
+				PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%で雑務をこなしている
+				
+				IF セクハラフラグ
+					SETCOLOR カラーパレット("えっちな色")
+					PRINTFORML 隙を見せてしまった%CALLNAME:ARG%は客に尻を%TEXTR("いやらしく撫でられ/ぎゅむっと鷲掴みされ")%、思わず上擦った悲鳴を上げてしまった……
+					RESETCOLOR
+				ENDIF
+				
+			ELSEIF 移動ルーチン:ARG:ルーチンID == "業務_警備員"
+				;警備員
+				PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%で警備の目を光らせている
+				
+			ELSE
+				;秘書
+				PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%で業務状況をまとめている
+				
+			ENDIF
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+		
+	CASE "常駐業務" ;"業務_常駐業務"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は自分の店で忙しそうにしている
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は自分の店へ向かっているようだ
+		ENDIF
+	
+	CASE "宣伝" ;"業務_宣伝"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は%TEXTR("リゾートへの招待状/リゾートの広告")%を作成している
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は自室へ向かっているようだ
+		ENDIF
+		
+	CASE "訓練" ;"業務_訓練"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は訓練場で汗を流している
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+	
+	CASE "調理業務" ;"業務_調理師"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は厨房で料理を作っている
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+	
+	CASE "食堂業務" ;"業務_給仕"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は忙しなく注文を承っている
+			
+			IF セクハラフラグ
+				SETCOLOR カラーパレット("えっちな色")
+				PRINTFORML 隙を見せてしまった%CALLNAME:ARG%は客に尻を%TEXTR("いやらしく撫でられ/ぎゅむっと鷲掴みされ")%、思わず上擦った悲鳴を上げてしまった……
+				RESETCOLOR
+			ENDIF
+			
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+		
+	;***********************************************************************************************
+	; 共通ルーチン
+	CASE "休憩"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は自室でゆっくりしている
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は自室へ向かっているようだ
+		ENDIF
+		
+	CASE "食事", "自炊"
+		IF 目的地に到着してる？(ARG)
+			PRINTFORML %CALLNAME:ARG%は食事を摂っている
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, スケジュール状態:ARG:目的地)%へ向かっているようだ
+		ENDIF
+		
+	CASE "お風呂", "自室入浴"
+		IF 目的地に到着してる？(ARG)
+			;脱衣所かどうかで分岐
+			IF CFLAG:ARG:現在位置 == 702 || CFLAG:ARG:現在位置 == 802
+				;脱衣所
+				PRINTFORML %CALLNAME:ARG%は脱衣所で着替えている……
+			ELSE
+				;風呂
+				PRINTFORML %CALLNAME:ARG%は%GETPLACENAME(CFLAG:ARG:現在マップ種別, CFLAG:ARG:現在位置)%で一日の疲れを癒している
+			ENDIF
+		ELSE
+			PRINTFORML %CALLNAME:ARG%は風呂へ向かっているようだ
+		ENDIF
+		
+	CASEELSE
+		;リゾート内業務
+		PRINTFORML %CALLNAME:ARG%は業務に勤しんでいる
+		
+ENDSELECT
+
+
+;==================================================================================================
+@目的地に到着してる？(ARG)
+#FUNCTION
+;--------------------------------------------------------------------------------------------------
+;目的地への移動中かの判定を返す
+;0で移動中、1で目的地へ到達
+;-------------------------------------------------------------------------------------------------
+IF スケジュール状態:ARG:目的地 == CFLAG:ARG:現在位置
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
 
 
 ;==================================================================================================
