@@ -1,117 +1,77 @@
 ﻿
-; ;-----------------------------------------------------------
-; ;遠距離移動処理
-; ;-----------------------------------------------------------
+;-----------------------------------------------------------
+;遠距離移動処理
+;-----------------------------------------------------------
 
-; @SKIP_MOVE_200(目的地, 移動キャラ = 0)
-; #DIM スタート地点
-; #DIM 目的地
-; #DIM 移動キャラ
-; #DIM 経由地
+@SKIP_MOVE_200(目的地, 移動キャラ = 0)
+#DIM スタート地点
+#DIM 目的地
+#DIM 移動キャラ
+#DIM 経由地
 
-; ;現在位置取得
-; SIF 移動キャラ <= 0
-; 	移動キャラ = MASTER
-; スタート地点 = CFLAG:移動キャラ:現在位置
+;現在位置取得
+SIF 移動キャラ <= 0
+	移動キャラ = MASTER
+スタート地点 = CFLAG:移動キャラ:現在位置
 
-; ;経由地の取得
-; 経由地 = GET_DEST(スタート地点, 目的地, NODE_MAP200, NODE_REVERSE_MAP200, NEXT_MAP200)
-; IF 経由地 == -1
-; 	PRINTFORML %RESULTS%
-; 	JUMP 移動エラー文章表示(移動キャラ, 目的地)
-; ENDIF
-; ;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{目的地}を目指し、経由地点:{経由地}へ移動…
-; RETURN 経由地
+;経由地の取得
+経由地 = GET_DEST(スタート地点, 目的地, NODE_MAP200, NODE_REVERSE_MAP200, NEXT_MAP200)
+IF 経由地 == -1
+	PRINTFORML %RESULTS%
+	JUMP 移動エラー文章表示(移動キャラ, 目的地)
+ENDIF
+;PRINTFORML 【%CALLNAME:移動キャラ%】が、スタート地点:{スタート地点}からゴール地点:{目的地}を目指し、経由地点:{経由地}へ移動…
+RETURN 経由地
 
-; @CAN_MOVE_200(ARG, ARG:1)
-; ;部屋の構造
-; ;ARG 移動元
-; ;ARG:1 移動先
-; ;戻り値はビット管理 & 1で移動可能、 & 2で見通し可能
-; ;RETURNF 1 移動可能
-; ;RETURNF 2 移動不可だが見通せる
-; ;RETURNF 3 直通（移動可能＆見通せる）
+@CAN_MOVE_200(ARG, ARG:1)
+;部屋の構造
+;ARG 移動元
+;ARG:1 移動先
+;戻り値はビット管理 & 1で移動可能、 & 2で見通し可能
+;RETURNF 1 移動可能
+;RETURNF 2 移動不可だが見通せる
+;RETURNF 3 直通（移動可能＆見通せる）
 
-; #FUNCTION
+#FUNCTION
 
-; SELECTCASE ARG
-; 	CASE 1
-; 		;砂浜と海の家にいける
-; 		SIF GROUPMATCH(ARG:1, 2, 3)
-; 			RETURNF 1
-; 	CASE 2
-; 		;砂浜と入口にいける
-; 		SIF GROUPMATCH(ARG:1, 1, 3)
-; 			RETURNF 1
-; 	CASE 3
-; 		;全部いける
-; 		SIF GROUPMATCH(ARG:1, 1, 2, 4, 5, 6, 7)
-; 			RETURNF 1
-; 	CASE 4
-; 		;砂浜に一回出る
-; 		SIF GROUPMATCH(ARG:1, 3)
-; 			RETURNF 1
-; 	CASE 5
-; 		;砂浜に一回出る
-; 		SIF GROUPMATCH(ARG:1, 3)
-; 			RETURNF 1
-; 	CASE 6
-; 		;砂浜に一回出る
-; 		SIF GROUPMATCH(ARG:1, 3)
-; 			RETURNF 1
-; 		;沖合にはどこにでも行ける
-; 		SIF GROUPMATCH(ARG:1, 102, 103, 104, 105)
-; 			RETURNF 1
-; 	CASE 7
-; 		;砂浜に一回出る
-; 		SIF GROUPMATCH(ARG:1, 3)
-; 			RETURNF 1
-; 	CASE 102
-; 		;船着き場に一回出る
-; 		SIF GROUPMATCH(ARG:1, 6)
-; 			RETURNF 1
-; 		;沖合にはどこにでも行ける
-; 		SIF GROUPMATCH(ARG:1, 103, 104, 105)
-; 			RETURNF 1
-; 	CASE 103
-; 		;船着き場に一回出る
-; 		SIF GROUPMATCH(ARG:1, 6)
-; 			RETURNF 1
-; 		;沖合にはどこにでも行ける
-; 		SIF GROUPMATCH(ARG:1, 102, 104, 105)
-; 			RETURNF 1
-; 	CASE 104
-; 		;船着き場に一回出る
-; 		SIF GROUPMATCH(ARG:1, 6)
-; 			RETURNF 1
-; 		;沖合にはどこにでも行ける
-; 		SIF GROUPMATCH(ARG:1, 102, 103, 105)
-; 			RETURNF 1
-; 	CASE 105
-; 		;船着き場に一回出る
-; 		SIF GROUPMATCH(ARG:1, 6)
-; 			RETURNF 1
-; 		;沖合にはどこにでも行ける
-; 		SIF GROUPMATCH(ARG:1, 102, 103, 104)
-; 			RETURNF 1
-; ENDSELECT
-; RETURNF 0
+SELECTCASE ARG
+	CASE 1
+		;全部いける
+		IF GROUPMATCH(ARG:1, 2, 3, 4)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+	CASE 2
+		;全部いける
+		IF GROUPMATCH(ARG:1, 1, 3, 4)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+	CASE 3
+		;全部いける
+		IF GROUPMATCH(ARG:1, 2, 1, 4)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+	CASE 4
+		;全部いける
+		IF GROUPMATCH(ARG:1, 2, 3, 1)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+ENDSELECT
+RESULT = 0
+RETURNF 0
 
 
 
-; @存在しない移動先_200(場所番号)
-; #FUNCTION
-; #DIM 場所番号
+@存在しない移動先_200(場所番号)
+#FUNCTION
+#DIM 場所番号
 
-; IF 場所番号 >= 1 && 場所番号 <= 8
-; 	RETURNF 0
-; ENDIF
-; SIF 場所番号 == 101 || 場所番号 == 102
-; 	RETURNF 0
-; SIF 海改造度:6:0 && 場所番号 == 103
-; 	RETURNF 0
-; SIF 海改造度:6:1 && 場所番号 == 104
-; 	RETURNF 0
-; SIF 海改造度:6:2 && 場所番号 == 105
-; 	RETURNF 0
-; RETURNF 1
+IF 場所番号 >= 1 && 場所番号 <= 4
+	RESULT = 0
+	RETURNF 0
+ENDIF
+RESULT = 1
+RETURNF 1
