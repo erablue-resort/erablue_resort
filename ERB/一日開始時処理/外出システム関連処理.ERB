@@ -1,0 +1,27 @@
+﻿@外出共通初期処理()
+#DIM 対象キャラ
+
+;あなたの居場所変更
+CFLAG:MASTER:現在マップ種別 = FLAG:お出かけ先フラグ
+RESULT = 1
+TRYCALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("エリア移動可能場所")
+CFLAG:MASTER:現在位置 = RESULT
+
+;キャラの滞在期間を保存＆新規セット
+FOR 対象キャラ, 1, CHARANUM
+	CFLAG:対象キャラ:滞在期間_外出時保存 = CFLAG:対象キャラ:滞在期間
+
+	RESULT = 0
+	TRYCALLFORM 外出先_登場キャラ設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+	IF CFLAG:対象キャラ:滞在期間 > 0
+		;リゾートに今いるキャラは基本出てこない
+		CFLAG:対象キャラ:滞在期間 = -1
+	ELSEIF RESULT
+		;登場条件を満たしてれば出る
+		CFLAG:対象キャラ:滞在期間 = 999
+		;外出時用ルーチンをセット
+		TRYCALLFORM 外出先_ルーチン設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+	ELSE
+		CFLAG:対象キャラ:滞在期間 = -1
+	ENDIF
+NEXT
