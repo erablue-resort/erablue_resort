@@ -437,3 +437,107 @@ SIF LOCAL
 	RETURNF "Ａ後背位"
 
 RETURNF ""
+
+;=========================================================
+;	指定フォルダの連番画像をアニメーション表示
+;
+;	指定フォルダ	：連番画像を保存してあるフォルダ、resources以下から指定
+;	X位置, Y位置, X幅, Y幅	：字の通り
+;	WAITあり	：アニメーション終わりにWAITするかどうか
+;
+;	フォルダ内の画像の命名規則は[(連番)_(表示ミリ秒)]で統一
+;	最初の画像かつ100ミリ秒表示なら[0_100]、表示ミリ秒が指定されてない時は100ミリ秒
+;=========================================================
+@PRINT_IMAGE_ANIMATION_GIF(指定フォルダ, X位置 = 0, Y位置 = 0, WAITあり = 1)
+#DIMS 指定フォルダ
+#DIM X位置
+#DIM Y位置
+#DIM X幅
+#DIM Y幅
+#DIM 連番
+#DIM 表示ミリ秒
+#DIM WAITあり
+#DIM 画像枚数
+#DIMS 画像名分割, 2
+#DIMS 一時文字列
+#DIM ソート用番号, 500
+;レイヤー番号が被るとまずいので、十分に大きくかつ被らなさそうな番号を使う
+#DIM CONST レイヤー番号 = 7200
+
+SIF 指定フォルダ == ""
+	RETURN -1
+
+;画像ファイル名をRESULTSに格納
+画像枚数 = ENUMFILES(@"resources/%指定フォルダ%", "*.webp")
+;png非対応
+
+;RESULTSを並び替え
+VARSET ソート用番号, 999
+FOR 連番, 0, 画像枚数
+	一時文字列 '= REPLACE(REPLACE(RESULTS:連番, ESCAPE("\\"), "/"), @"resources/%指定フォルダ%/", "")
+	一時文字列 '= REPLACE(一時文字列, ".webp", "")
+	SPLIT 一時文字列, "_", 画像名分割
+	ソート用番号:連番 = TOINT(画像名分割:0) + 1
+NEXT
+ARRAYMSORT ソート用番号, RESULTS
+
+;縦横幅を取るため最初の一枚を読み込み
+GDISPOSE レイヤー番号
+SPRITEDISPOSE "汎用アニメスプライト"
+GCREATEFROMFILE レイヤー番号, REPLACE(REPLACE(RESULTS:0, ESCAPE("\\"), "/"), "resources/", "")
+
+;画像サイズを取得
+X幅 = GWIDTH(レイヤー番号)
+Y幅 = GHEIGHT(レイヤー番号)
+
+;アニメーションスプライトを生成
+SPRITEANIMECREATE "汎用アニメスプライト", X幅, Y幅
+
+;表示ミリ秒を画像ファイル名から取得
+VARSET 画像名分割
+一時文字列 '= REPLACE(REPLACE(RESULTS:0, ESCAPE("\\"), "/"), @"resources/%指定フォルダ%/", "")
+一時文字列 '= REPLACE(一時文字列, ".webp", "")
+SPLIT 一時文字列, "_", 画像名分割
+IF ISNUMERIC(画像名分割:1)
+	表示ミリ秒 = TOINT(画像名分割:1)
+ELSE
+	表示ミリ秒 = 100
+ENDIF
+
+;アニメーションフレームを追加、全画像は同じサイズであることを想定
+SPRITEANIMEADDFRAME "汎用アニメスプライト", レイヤー番号, 0, 0, X幅, Y幅, 0, 0, 表示ミリ秒
+
+FOR 連番, 1, 画像枚数
+	;連番の画像を全部登録していく
+	GDISPOSE レイヤー番号 + 連番
+	GCREATEFROMFILE レイヤー番号 + 連番, REPLACE(REPLACE(RESULTS:連番, ESCAPE("\\"), "/"), "resources/", "")
+	
+	;表示ミリ秒を画像ファイル名から取得
+	VARSET 画像名分割
+	一時文字列 '= REPLACE(REPLACE(RESULTS:連番, ESCAPE("\\"), "/"), @"resources/%指定フォルダ%/", "")
+	一時文字列 '= REPLACE(一時文字列, ".webp", "")
+	SPLIT 一時文字列, "_", 画像名分割
+	IF ISNUMERIC(画像名分割:1)
+		表示ミリ秒 = TOINT(画像名分割:1)
+	ELSE
+		表示ミリ秒 = 100
+	ENDIF
+
+	;アニメーションフレームを追加、全画像は同じサイズであることを想定
+	IF 連番 == 画像枚数 - 1
+		;最後だけは設定を無視して10秒ほど出す
+		SPRITEANIMEADDFRAME "汎用アニメスプライト", レイヤー番号 + 連番, 0, 0, X幅, Y幅, 0, 0, 10000
+	ELSE
+		SPRITEANIMEADDFRAME "汎用アニメスプライト", レイヤー番号 + 連番, 0, 0, X幅, Y幅, 0, 0, 表示ミリ秒
+	ENDIF
+NEXT
+
+CBGSETSPRITE "汎用アニメスプライト", X位置, (Y幅 + Y位置) - GETCONFIG("ウィンドウ高さ"), -1
+SETANIMETIMER 50
+SIF WAITあり
+	FORCEWAIT
+
+SETANIMETIMER -1
+CBGREMOVERANGE -1, 0
+
+RETURN 1
