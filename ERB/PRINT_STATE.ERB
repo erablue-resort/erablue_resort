@@ -812,6 +812,8 @@ ENDIF
 @性的能力表示画面(ARG)
 #DIM L_C
 #DIM 改行チェック
+#DIM 危険日感知フラグ
+#DIM 危険日サイクル
 
 ;ここで立ち絵表示
 CALL 画像描画終了
@@ -848,126 +850,81 @@ ENDIF
 ; 	PRINT_MARK ARG
 ; ENDIF
 
-IF あなた特殊能力:発情鑑定術 || あなた特殊能力:危険日感知
-	IF あなた特殊能力:発情鑑定術 && あなた特殊能力:危険日感知
-		PRINTL □ 発情期/危険日 □------------------------------------------------------------
-	ELSEIF あなた特殊能力:発情鑑定術
-		PRINTL □ 発情期 □-------------------------------------------------------------------
-	ELSE
+危険日感知フラグ = 0
+SIF あなた特殊能力:朔望鑑定術 >= 1 && 発情期判定(ARG)
+	SETBIT 危険日感知フラグ, 0
+SIF あなた特殊能力:朔望鑑定術 >= 2 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+	SETBIT 危険日感知フラグ, 1
+
+IF 危険日感知フラグ
+	IF GETBIT(危険日感知フラグ, 1)
 		PRINTL □ 危険日 □-------------------------------------------------------------------
+	ELSE
+		PRINTL □ 発情期 □-------------------------------------------------------------------
 	ENDIF
-	; IF あなた特殊能力:発情鑑定術
-	; 	PRINTFORM 　\@あなた特殊能力:発情鑑定術 && あなた特殊能力:危険日感知?発情期：#\@
-	; 	IF 発情期判定(ARG)
-	; 		IF CFLAG:ARG:発情期フラグ < 0
-	; 			SETCOLOR カラーパレット("えっちな色")
-	; 			PRINT 発情中
-	; 			PRINT_IMG "えっちハート"
-	; 			RESETCOLOR
-	; 			PRINTFORML 　残り：{4 + TALENT:ARG:性欲 + CFLAG:ARG:発情期フラグ, 2}日
-	; 		ELSE
-	; 			PRINTFORML 発情期まであと{CFLAG:ARG:発情期フラグ + 1, 2}日
-	; 		ENDIF
-	; 	ELSE
-	; 		PRINTL なし
-	; 	ENDIF
-	; ENDIF
-	IF あなた特殊能力:危険日感知
-		PRINT 　
-		LOCAL = CFLAG:ARG:危険日 - DAY % PREG_CYCLE(ARG)
-		SIF LOCAL < 0
-			LOCAL = PREG_CYCLE(ARG) - ABS(LOCAL)
-		IF TALENT:ARG:妊娠
-			SETCOLOR カラーパレット("ピンク")
-			PRINT 妊娠中
-			PRINT_IMG "えっちハート"
-		ELSEIF RISKY_DAY(ARG) == 2
-			LOCALS = 
-			LOCAL = 0
-			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
-				LOCALS += "超危険日"
-				SETBIT LOCAL, 0
-			ENDIF
-			IF 発情期判定(ARG)
-				SIF LOCAL
-					LOCALS += "・"
-				LOCALS += "強発情中"
-				SETBIT LOCAL, 1
-			ENDIF
-			IF LOCAL
+	PRINT 　
+	危険日サイクル = CFLAG:ARG:危険日 - DAY % PREG_CYCLE(ARG)
+	SIF 危険日サイクル < 0
+		危険日サイクル = PREG_CYCLE(ARG) - ABS(危険日サイクル)
+	IF TALENT:ARG:妊娠
+		SETCOLOR カラーパレット("ピンク")
+		PRINT 妊娠中
+		PRINT_IMG "えっちハート"
+	ELSE
+		SELECTCASE RISKY_DAY(ARG)
+			CASE -2
+				PRINT 妊娠不可
+			CASE 2
+				IF GETBIT(危険日感知フラグ, 1)
+					LOCALS '= "超危険日"
+					SIF 発情期判定(ARG)
+						LOCALS += "・強発情中"
+				ELSEIF 発情期判定(ARG)
+					LOCALS '= "強発情中"
+				ENDIF
+
 				SETCOLOR カラーパレット("赤ピンク")
 				PRINT_IMG "えっちハート"
 				PRINTFORM %LOCALS%
 				PRINT_IMG "えっちハート"
 				RESETCOLOR
-				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
-					PRINTFORM 　発情期終了まであと 2日
-				ELSE
-					PRINTFORM 　危険日終了まであと 2日
+				PRINTFORM 　\@ GETBIT(危険日感知フラグ, 1) ? 危険日 # 発情期 \@終了まであと 2日
+			CASE 1
+				IF GETBIT(危険日感知フラグ, 1)
+					LOCALS '= "危険日"
+					SIF 発情期判定(ARG)
+						LOCALS += "・発情中"
+				ELSEIF 発情期判定(ARG)
+					LOCALS '= "発情中"
 				ENDIF
-			ENDIF
-		ELSEIF RISKY_DAY(ARG) == 1
-			LOCALS = 
-			LOCAL = 0
-			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
-				LOCALS += "危険日"
-				SETBIT LOCAL, 0
-			ENDIF
-			IF 発情期判定(ARG)
-				SIF LOCAL
-					LOCALS += "・"
-				LOCALS += "発情中"
-				SETBIT LOCAL, 1
-			ENDIF
-			IF LOCAL
+
 				SETCOLOR カラーパレット("薄ピンク")
 				PRINTFORM %LOCALS%
 				PRINT_IMG "えっちハート"
 				RESETCOLOR
-				IF GETBIT(LOCAL, 1) == 1 && GETBIT(LOCAL, 0) == 0
-					PRINTFORM 　発情期終了まであと{1 + (LOCAL / 9 *2), 2}日
-				ELSE
-					PRINTFORM 　危険日終了まであと{1 + (LOCAL / 9 *2), 2}日
+				PRINTFORM 　\@ GETBIT(危険日感知フラグ, 1) ? 危険日 # 発情期 \@終了まであと{1 + (危険日サイクル / 9 * 2), 2}日
+			CASE -1
+				IF GETBIT(危険日感知フラグ, 1) && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+					SETCOLOR 0xccffff
+					PRINT 安全日
+					RESETCOLOR
 				ENDIF
-			ENDIF
-		ELSEIF RISKY_DAY(ARG) == -1
-			LOCALS = 
-			LOCAL = 0
-			IF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
-				LOCALS += "安全日"
-				SETBIT LOCAL, 0
-			ENDIF
-			IF LOCAL
-				SETCOLOR 0xccffff
-				PRINTFORM %LOCALS%
-				RESETCOLOR
-				IF 発情期判定(ARG) && GETBIT(LOCAL, 0) == 0
-					PRINTFORM 　発情期まであと{LOCAL, 2}日
-				ELSE
-					PRINTFORM 　危険日まであと{LOCAL, 2}日
-				ENDIF
-			ENDIF
-		ELSEIF RISKY_DAY(ARG) == -2
-			PRINTFORM 妊娠不可
-		ELSE
-			IF 発情期判定(ARG)
-				PRINTFORM 発情期まであと{LOCAL, 2}日
-			ELSEIF GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
-				PRINTFORM 危険日まであと{LOCAL, 2}日
-			ENDIF
-		ENDIF
-		RESETCOLOR
-		IF TCVAR:ARG:排卵誘発薬
-			SETCOLOR カラーパレット("えっちな色")
-			PRINT （排卵誘発中！）
-			RESETCOLOR
-		ELSEIF TCVAR:ARG:避妊薬
-			SETCOLOR 0xccffff
-			PRINT （避妊中）
-			RESETCOLOR
-		ENDIF
-		PRINTL
+				PRINTFORM 　\@ GETBIT(危険日感知フラグ, 1) ? 危険日 # 発情期 \@まであと{危険日サイクル, 2}日
+			CASEELSE
+				PRINTFORM 　\@ GETBIT(危険日感知フラグ, 1) ? 危険日 # 発情期 \@まであと{危険日サイクル, 2}日
+		ENDSELECT
 	ENDIF
+	RESETCOLOR
+	IF TCVAR:ARG:排卵誘発薬
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT （排卵誘発中！）
+		RESETCOLOR
+	ELSEIF TCVAR:ARG:避妊薬
+		SETCOLOR 0xccffff
+		PRINT （避妊中）
+		RESETCOLOR
+	ENDIF
+	PRINTL
 	PRINTL
 ENDIF
 IF ARG != MASTER
@@ -1693,7 +1650,7 @@ IF TALENT:ARG:妊娠
 		LOCALS += "（妊娠中"
 	ENDIF
 	LOCALS += "<img src='えっちハート'>）</font>"
-ELSEIF あなた特殊能力:危険日感知 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
+ELSEIF あなた特殊能力:朔望鑑定術 >= 2 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
 	SELECTCASE RISKY_DAY(ARG)
 		CASE 1
 			LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（危険日<img src='えっちハート'>）</font>"
