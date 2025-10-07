@@ -442,13 +442,16 @@ RETURNF ""
 ;	指定フォルダの連番画像をアニメーション表示
 ;
 ;	指定フォルダ	：連番画像を保存してあるフォルダ、resources以下から指定
-;	X位置, Y位置, X幅, Y幅	：字の通り
-;	WAITあり	：アニメーション終わりにWAITするかどうか
+;	自動改行	：非0の時、画像の高さだけ自動で改行し、そこに画像を表示するフラグ
+;				性質上X位置, Y位置は無効化される
+;	X位置, Y位置	：字の通り
+;	画像残り	：アニメーション終わりにラストの画像を残すかどうか
+;				自動改行ONの時のみ働く（表示場所がどうやってもズレるので）
 ;
 ;	フォルダ内の画像の命名規則は[(連番)_(表示ミリ秒)]で統一
 ;	最初の画像かつ100ミリ秒表示なら[0_100]、表示ミリ秒が指定されてない時は100ミリ秒
 ;=========================================================
-@PRINT_IMAGE_ANIMATION_GIF(指定フォルダ, X位置 = 0, Y位置 = 0, WAITあり = 1)
+@PRINT_IMAGE_ANIMATION_GIF(指定フォルダ, 自動改行 = 1, X位置 = 0, Y位置 = 0, 画像残り = 1, ループ = 0)
 #DIMS 指定フォルダ
 #DIM X位置
 #DIM Y位置
@@ -456,7 +459,9 @@ RETURNF ""
 #DIM Y幅
 #DIM 連番
 #DIM 表示ミリ秒
-#DIM WAITあり
+#DIM ループ
+#DIM 自動改行
+#DIM 画像残り
 #DIM 画像枚数
 #DIMS 画像名分割, 2
 #DIMS 一時文字列
@@ -471,6 +476,9 @@ SIF 指定フォルダ == ""
 画像枚数 = ENUMFILES(@"resources/%指定フォルダ%", "*.webp")
 ;png非対応
 
+SIF 画像枚数 < 1
+	RETURN -1
+
 ;RESULTSを並び替え
 VARSET ソート用番号, 999
 FOR 連番, 0, 画像枚数
@@ -484,11 +492,19 @@ ARRAYMSORT ソート用番号, RESULTS
 ;縦横幅を取るため最初の一枚を読み込み
 GDISPOSE レイヤー番号
 SPRITEDISPOSE "汎用アニメスプライト"
+SPRITEDISPOSE "画像残りスプライト"
 GCREATEFROMFILE レイヤー番号, REPLACE(REPLACE(RESULTS:0, ESCAPE("\\"), "/"), "resources/", "")
 
 ;画像サイズを取得
 X幅 = GWIDTH(レイヤー番号)
 Y幅 = GHEIGHT(レイヤー番号)
+
+;自動改行
+IF 自動改行
+	FOR 連番, 0, (Y幅 / GETCONFIG("一行の高さ")) + 1
+		PRINTL 
+	NEXT
+ENDIF
 
 ;アニメーションスプライトを生成
 SPRITEANIMECREATE "汎用アニメスプライト", X幅, Y幅
@@ -524,20 +540,37 @@ FOR 連番, 1, 画像枚数
 	ENDIF
 
 	;アニメーションフレームを追加、全画像は同じサイズであることを想定
-	IF 連番 == 画像枚数 - 1
-		;最後だけは設定を無視して10秒ほど出す
+	IF 連番 == 画像枚数 - 1 && ループ == 0
+		;ループしない場合、最後だけは設定を無視して10秒ほど出す
 		SPRITEANIMEADDFRAME "汎用アニメスプライト", レイヤー番号 + 連番, 0, 0, X幅, Y幅, 0, 0, 10000
 	ELSE
 		SPRITEANIMEADDFRAME "汎用アニメスプライト", レイヤー番号 + 連番, 0, 0, X幅, Y幅, 0, 0, 表示ミリ秒
 	ENDIF
 NEXT
 
-CBGSETSPRITE "汎用アニメスプライト", X位置, (Y幅 + Y位置) - GETCONFIG("ウィンドウ高さ"), -1
-SETANIMETIMER 50
-SIF WAITあり
-	FORCEWAIT
+IF 自動改行
+	CBGSETSPRITE "汎用アニメスプライト", 10, -10, -1
+ELSE
+	CBGSETSPRITE "汎用アニメスプライト", X位置, (Y幅 + Y位置) - GETCONFIG("ウィンドウ高さ"), -1
+ENDIF
+SETANIMETIMER 25
+FORCEWAIT
 
 SETANIMETIMER -1
 CBGREMOVERANGE -1, 0
+
+;自動改行後、改行部分を消す
+IF 自動改行
+	CLEARLINE (Y幅 / GETCONFIG("一行の高さ")) + 1
+
+	IF 画像残り == 1
+		;画像残りがある場合、最後の画像を表示しなおす
+		SPRITECREATE "画像残りスプライト", レイヤー番号 + 画像枚数 - 1
+		HTML_PRINT @"<div rect='60, 60, {(X幅 / GETCONFIG("フォントサイズ")) * 100 + 100}, {(Y幅 / GETCONFIG("フォントサイズ")) * 100 + 100}'><img src='画像残りスプライト' height='{(Y幅 / GETCONFIG("フォントサイズ")) * 100}'></div>"
+		FOR 連番, 0, (Y幅 / GETCONFIG("一行の高さ"))
+			PRINTL 
+		NEXT
+	ENDIF
+ENDIF
 
 RETURN 1
