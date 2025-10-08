@@ -18,6 +18,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM316
 #DIM 基礎時間
+#DIM 同行者保存
+#DIM 同行数値記録
+同行者保存 = 0
+同行数値記録 = 0
 
 基礎時間 = ABL:MASTER:話術技能 * 20
 ;素質補正
@@ -32,6 +36,45 @@ ENDIF
 ;何分までOKかを格納
 TCVAR:TARGET:デートちょっかい値 = 基礎時間
 TCVAR:TARGET:ちょっかい経過時間 = 0
+
+;一度に連れ歩けるのは二人まで,八面六臂があれば無視
+IF !あなた特殊能力:八面六臂
+	FOR LOCAL,1,CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		;TARGETに関してカウントする必要なし
+		SIF TARGET:LOCAL == TARGET
+			CONTINUE
+		IF CFLAG:(TARGET:LOCAL):同行
+			IF 同行数値記録
+				;既に同行者が2人いるパターン
+				IF 同行数値記録 > CFLAG:(TARGET:LOCAL):同行
+					CALL 同行解除処理(TARGET:LOCAL)
+					CFLAG:(TARGET:LOCAL):デート = 0
+				ELSE
+					CALL 同行解除処理(同行者保存)
+					CFLAG:同行者保存:デート = 0
+					同行数値記録 = CFLAG:(TARGET:LOCAL):同行
+					同行者保存 = TARGET:LOCAL
+				ENDIF
+			ELSE
+				同行数値記録 = CFLAG:(TARGET:LOCAL):同行
+				同行者保存 = TARGET:LOCAL
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+SIF CFLAG:TARGET:同行 < 基礎時間
+	CFLAG:TARGET:同行 = 基礎時間
+TFLAG:TARGET変更用 = TARGET
+TIME += 1
+
+;SOURCEまで回さないのでここで口上を表示させる
+RESULT = 0
+RESULTS =
+IF FLAG:口上表示切り替えオプション > 0
+	TRYCALLFORM KOJO_COM_{NO:TARGET}_316(TARGET)
+ENDIF
 
 RETURN 1
 
