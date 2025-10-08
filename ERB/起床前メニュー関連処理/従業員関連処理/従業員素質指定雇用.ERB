@@ -3573,7 +3573,7 @@ ENDSELECT
 #DIMS Row_page
 #DIMS Row_filter
 #DIM フィルタフラグ, 2
-#DIMS フィルタ文字列,2;  0:出演作品 1:名前
+#DIMS フィルタ文字列,3;  0:出演作品 1:名前 2:出演作品検索
 #DIMS 出演作品, 500
 #DIM 出演作品数
 #DIM L_COUNT
@@ -3612,6 +3612,7 @@ FOR CSV番号, 1, キャラクタ数上限
 		出演作品:出演作品数 '= HTML_ESCAPE(CSVCSTR(CSV番号, GETNUM(CSTR, "出演作品")))
 		出演作品数 ++
 	ENDIF
+	ARRAYSORT 出演作品, FORWARD, 1, 出演作品数-1
 	表示数 ++
 NEXT
 表示数:1 = 表示数
@@ -3649,7 +3650,7 @@ ELSE
 ENDIF
 Row_page += " " * 22
 
-Row_page += @"{CSVページ数, 4, RIGHT}/{存在ページ数, 4, RIGHT}"
+Row_page += @"{CSVページ数+1, 4, RIGHT}/{存在ページ数+1, 4, RIGHT}"
 Row_page += " " * 25
 IF CSVページ数 < 存在ページ数
 	Row_page += "<button value='9998'>[次のページ]</button>"
@@ -3711,12 +3712,12 @@ IF フィルタフラグ
 	Row_filter += @"　■出演作品　"
 	Row_filter += @"<font color='#\@  STRCOUNT(フィルタ文字列:0, @"出演作品：%出演作品:0%")? 666666# B0B0B0\@'>"
 	Row_filter += @"<button value='出演作品：%出演作品:0%'>[%出演作品:0%]</button></font> "
-	Row_filter += @"／<button value='出演作品：全て表示'>[全て表示]</button> <button value='出演作品：全て非表示'>[全て非表示]</button>"
-	Row_filter += @"<button value='9001'>[EX個別選択表示（<font color='#\@ フィルタフラグ:1? B0B0B0'> ON# 666666'>OFF\@</font>）]</button>"
 	IF フィルタフラグ:1
 		Row_filter += "<br>"
 		LOCALS '= " " * 14
 		FOR LOCAL, 1, 出演作品数
+			SIF フィルタ文字列:2 != "" && !STRCOUNT(出演作品:LOCAL, フィルタ文字列:2)
+				CONTINUE
 			LOCALS:1 '= @"<font color='#\@  STRCOUNT(フィルタ文字列, @"出演作品：%出演作品:LOCAL%")? 666666# B0B0B0\@'>"
 			LOCALS:1 += @"<button value='出演作品：%出演作品:LOCAL%'>[%出演作品:LOCAL%]</button></font> "
 			IF STRLENS(HTML_TOPLAINTEXT(LOCALS+LOCALS:1)) / (5850/50) > 0
@@ -3726,8 +3727,21 @@ IF フィルタフラグ
 			LOCALS += LOCALS:1
 		NEXT
 		Row_filter += LOCALS
+		Row_filter += "<br>" +  "　□"
+	ELSE
+		Row_filter += "／"
 	ENDIF
+	Row_filter += @"<button value='出演作品：全て表示'>[全て表示]</button> <button value='出演作品：全て非表示'>[全て非表示]</button>"
+	Row_filter += @"<button value='9001'>[EX個別選択表示（<font color='#\@ フィルタフラグ:1? B0B0B0'> ON# 666666'>OFF\@</font>）]</button>"
 	Row_filter += "<br>"
+	IF フィルタフラグ:1
+		Row_filter += "　■出演作品名フィルタ　"
+		Row_filter += @"<font color='#\@  フィルタ文字列:2 == ""? 666666# B0B0B0\@'>"
+		Row_filter += @"<button value='出演作品名フィルタ'>\@ フィルタ文字列:2 == ""? （なし）# %フィルタ文字列:2%\@</button></font> "
+		SIF フィルタ文字列:1 != ""
+		Row_filter += @"<button value='出演作品名フィルタ消去'>[出演作品名フィルタ消去]</button> "
+		Row_filter += "<br>"
+	ENDIF
 	Row_filter += "　■名前検索　"
 	Row_filter += @"<font color='#\@  フィルタ文字列:1 == ""? 666666# B0B0B0\@'>"
 	Row_filter += @"<button value='直接入力'>\@ フィルタ文字列:1 == ""? （なし）# %フィルタ文字列:1%\@</button></font> "
@@ -3757,6 +3771,15 @@ IF !ISNUMERIC(RESULTS)
 		SETTEXTBOX フィルタ文字列:1
 		INPUTS
 		フィルタ文字列:1 '= RESULTS
+		GOTO 処理部分
+	ELSEIF LOCALS == "出演作品名フィルタ消去"
+		フィルタ文字列:2 =
+		GOTO 処理部分
+	ELSEIF LOCALS == "出演作品名フィルタ"
+		PRINTL 検索したい出演作品名を入力してください
+		SETTEXTBOX フィルタ文字列:2
+		INPUTS
+		フィルタ文字列:2 '= RESULTS
 		GOTO 処理部分
 	ELSE
 		GOTO 処理部分

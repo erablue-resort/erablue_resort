@@ -1,0 +1,142 @@
+﻿;=========================================================
+;	・ページ送り処理の共通化
+;	キャラ配列フィルタ処理と併用することで、最大表示数を個別に指定する必要がなくなります。
+;=========================================================
+
+;ボタン 0:前ページ, 1:次ページ, 2:最初, 3:最後, 4:＋５, 5:－５, 6:表示数変更, 7:ページ指定
+@ページ送り共通表示(現在ページ, 項目表示数, 最大表示数, ボタン:0, ボタン:1, ボタン:2, ボタン:3, ボタン:4, ボタン:5, ボタン:6, ボタン:7, 項目名 = "人")
+#DIM 現在ページ
+#DIM DYNAMIC ボタン, 8
+#DIMS 項目名
+#DIM 最大ページ数
+
+;前のページと次のページのボタン番号がない場合は何もしない
+SIF !ボタン:0 || !ボタン:1
+	RETURN
+
+;最大人数を最大ページ数に変換
+最大ページ数 = MAX(最大表示数 / 項目表示数 - (最大表示数%項目表示数 ? 0# 1), 0)
+
+IF 現在ページ > 0
+	PRINTBUTTON @"[{ボタン:0, 4}] 前のページへ", ボタン:0
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM [{ボタン:0, 4}] 前のページへ
+	RESETCOLOR
+;	PRINTS " " * STRLENS(@"[{ボタン:0, 4}] 前のページへ")
+ENDIF
+PRINTS " " * 22
+IF ボタン:7
+	PRINTBUTTON @"{1+現在ページ, 4, RIGHT}/{1+最大ページ数, 4, RIGHT}", ボタン:7
+ELSE
+	PRINTFORM {1+現在ページ, 4, RIGHT}/{1+最大ページ数, 4, RIGHT}
+ENDIF
+PRINTS " " * 25
+IF 現在ページ < 最大ページ数
+	PRINTBUTTON @"[{ボタン:1, 4}] 次のページへ", ボタン:1
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAINFORM [{ボタン:1, 4}] 次のページへ
+	RESETCOLOR
+ENDIF
+PRINTL
+IF ボタン:2 || ボタン:3 || ボタン:4 || ボタン:5 || ボタン:6
+	IF 現在ページ > 0 && ボタン:2
+		PRINTBUTTON "[|≪]", ボタン:2
+	ELSEIF ボタン:2
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAINFORM [|≪]
+		RESETCOLOR
+	ELSE
+		PRINTS "     "
+	ENDIF
+	IF 現在ページ > 5 && ボタン:5
+		PRINTBUTTON "[－５]", ボタン:5
+	ELSEIF ボタン:5
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAINFORM [－５]
+		RESETCOLOR
+	ELSE
+		PRINTS " 　　　"
+	ENDIF
+	PRINTS " " * (30 - STRLENS(項目名))
+	IF ボタン:6
+		PRINTBUTTON @"{項目表示数, 3, RIGHT}%項目名%/ページ", ボタン:6
+	ELSE
+		PRINTFORM {項目表示数, 3, RIGHT}%項目名%/ページ
+	ENDIF 
+	PRINTS " " * 30
+	IF 現在ページ <= 最大ページ数 - 5 && ボタン:4
+		PRINTBUTTON "[＋５] ", ボタン:4
+	ELSEIF ボタン:4
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAINFORM [＋５]
+		RESETCOLOR
+	ELSE
+		PRINTS " 　　　"
+	ENDIF
+	IF 現在ページ < 最大ページ数 && ボタン:3
+		PRINTBUTTON "[≫|]", ボタン:3
+	ELSEIF ボタン:3
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAINFORM [≫|]
+		RESETCOLOR
+	ENDIF
+	PRINTL
+ENDIF
+
+@ページ送り共通実行(ARG, 現在ページ, 項目表示数, 最大表示数, ボタン:0, ボタン:1, ボタン:2, ボタン:3, ボタン:4, ボタン:5, ボタン:6, ボタン:7, 項目名 = "人")
+#DIM REF 現在ページ
+#DIM DYNAMIC ボタン, 8
+#DIMS 項目名
+#DIM 最大ページ数
+
+;ボタン 0:前ページ, 1:次ページ, 2:最初, 3:最後, 4:＋５, 5:－５, 6:表示数変更, 7:ページ指定
+;最大人数を最大ページ数に変換
+最大ページ数 = MAX(最大表示数 / 項目表示数 - (最大表示数%項目表示数 ? 0# 1), 0)
+
+SELECTCASE ARG
+	CASE ボタン:0
+		現在ページ --
+	CASE ボタン:1
+		現在ページ ++
+	CASE ボタン:2
+		現在ページ = 0
+	CASE ボタン:3
+		現在ページ = 最大ページ数
+	CASE ボタン:4
+		現在ページ += 5
+	CASE ボタン:5
+		現在ページ -= 5
+	CASE ボタン:6
+		PRINTFORML 表示したい%項目名%数を入力してください（2～100）
+		SETTEXTBOX TOSTR(項目表示数)
+		INPUT
+		IF INRANGE(RESULT, 2, 100)
+			項目表示数 = RESULT
+		ELSEIF RESULT < 2
+			項目表示数 = 2
+		ELSE
+			項目表示数 = 100
+		ENDIF
+		現在ページ = LIMIT(現在ページ, 0, MAX(最大表示数 / 項目表示数 - (最大表示数%項目表示数 ? 0# 1), 0))
+	CASE ボタン:7
+		PRINTFORML 表示したいページ数を入力してください（1～{最大ページ数+1}）
+		SETTEXTBOX TOSTR(現在ページ+1)
+		INPUT
+		IF INRANGE(RESULT, 1, 最大ページ数)
+			現在ページ = RESULT-1
+		ELSEIF RESULT < 1
+			現在ページ = 0
+		ELSE
+			現在ページ = 最大ページ数
+		ENDIF
+ENDSELECT
+
+[SKIPSTART]
+;ページめくり表示
+CALL ページ送り共通表示(現在ページ, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
+	CASE 9000 TO 9007
+		CALL ページ送り共通実行(RESULT, 現在ページ, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
+		GOTO 表示_LOOP
+[SKIPEND]

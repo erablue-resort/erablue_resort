@@ -2139,6 +2139,7 @@ RETURN 返り値
 #DIM 得意武器番号
 #DIM 配列番号
 #DIMS ソート情報
+#DIM 表示キャラ数 = 30
 現在ページ = 0
 VARSET 追加候補, -1
 
@@ -2159,222 +2160,29 @@ FOR LOCAL, 1, CHARANUM
 		CONTINUE
 	SIF 滞在者のみフィルタ == 1 && CFLAG:LOCAL:滞在期間 < 0
 		CONTINUE
-[SKIPSTART]
-	SIF STRCOUNT(キャラ一覧フィルタ:性別, @"性別：%GET_TALENTNAME(2, TALENT:LOCAL:性別)%")
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:種族, @"種族：%GET_TALENTNAME(200, TALENT:LOCAL:種族)%")
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, @"バストサイズ：%GET_TALENTNAME(205, TALENT:LOCAL:バストサイズ)%") && TALENT:LOCAL:性別 != 2
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:バストサイズ, "バストサイズ：なし") && TALENT:LOCAL:性別 == 2
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, @"男性器サイズ：%GET_TALENTNAME(162, TALENT:LOCAL:男性器サイズ)%") && GETBIT(TALENT:LOCAL:性別, 1) != 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:男性器サイズ, "男性器サイズ：なし") && GETBIT(TALENT:LOCAL:性別, 1) == 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:性知識Lv, @"性知識Lv：%性知識段階表示(知識素質:LOCAL:性知識, LOCAL)%")
-		CONTINUE
-	IF 装備ステータス補正保存:LOCAL:装備耳飾り番号 > 0 && DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1) != ""
-		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%DT_CELL_GETS("所持耳飾りデータベース", 装備ステータス補正保存:LOCAL:装備耳飾り番号, "変更属性", 1)%")
-			CONTINUE
-	ELSE
-		SIF STRCOUNT(キャラ一覧フィルタ:属性, @"属性：%属性数値文字列変換(基礎BATTLE_STATE:LOCAL:属性)%")
-			CONTINUE
-	ENDIF
-	スキップフラグ = 0
-	FOR 得意武器番号, 0, 10
-		IF GETBIT(基礎BATTLE_STATE:LOCAL:得意武器, 得意武器番号) && STRCOUNT(キャラ一覧フィルタ:得意武器, @"得意武器：%得意武器数値文字列変換(得意武器番号)%")
-			スキップフラグ = 1
-			BREAK
-		ENDIF
-	NEXT
-	SIF スキップフラグ
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:タイプ, @"タイプ：%タイプ数値文字列変換(基礎BATTLE_STATE:LOCAL:ステータスタイプ保存)%")
-		CONTINUE
-	;発情期はちょっと面倒だけどオール手打ち
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期なし") && !発情期判定(LOCAL)
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情中") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ < 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:発情期, @"発情期フラグ：発情期ではない") && 発情期判定(LOCAL) && CFLAG:LOCAL:発情期フラグ > -1
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠中") && TALENT:LOCAL:妊娠
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:妊娠, @"妊娠フラグ：妊娠していない") && !TALENT:LOCAL:妊娠
-		CONTINUE
-	口上ファイル数 = ENUMFILES(@"ERB/口上_キャラ個別ERB/{NO:LOCAL}_%CALLNAME:LOCAL%", "口上_*.ERB", 1)
-	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上あり") && 口上ファイル数 > 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:口上, @"口上：口上なし") && 口上ファイル数 < 1
-		CONTINUE
-	アビ奥義関数 = ENUMFUNCBEGINSWITH(@"固有アビ_{NO:LOCAL}_") + ENUMFUNCENDSWITH(@"固有奥義_{NO:LOCAL}")
-	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：あり") && アビ奥義関数 > 0
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:固有アビ奥義, @"固有アビ奥義：なし") && アビ奥義関数 < 1
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：恋慕") && TALENT:LOCAL:恋慕
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：セフレ") && TALENT:LOCAL:セフレ
-		CONTINUE
-	SIF STRCOUNT(キャラ一覧フィルタ:陥落, @"陥落：なし") && !TALENT:LOCAL:セフレ && !TALENT:LOCAL:恋慕
-		CONTINUE
-	;条件を満たす場合はLOCAL:3に１以上が入る
-	LOCAL:3 = 1
-	FOR LOCAL:2, 0, 99
-		SIF キャラ一覧素質絞り込み:(LOCAL:2) == ""
-			BREAK
-		SPLIT キャラ一覧素質絞り込み:(LOCAL:2), "_", LOCALS
-		IF キャラ一覧素質絞り込み:99 == "AND"
-			IF TALENT:LOCAL:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
-				;ANDの場合は一個でもアウトだとNG
-				LOCAL:3 = 0
-				BREAK
-			ENDIF
-		ELSE
-			LOCAL:3 = 0
-			IF TALENT:LOCAL:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
-				;OR条件の場合は一個当てはまればOK
-				LOCAL:3 = 1
-				BREAK
-			ENDIF
-		ENDIF
-	NEXT
-	SIF LOCAL:3 == 0
-		CONTINUE
-[SKIPEND]
 	表示候補:候補人数 = LOCAL
 	候補人数 += 1
 NEXT
 CALL キャラ配列フィルタ処理(表示候補)
 候補人数 = RESULT
-[SKIPSTART]
-候補人数 = LOCAL:1
-LOCAL:1 = 1
-;ソート処理
-IF キャラ一覧ソート:0 != ""
-	IF STRCOUNT(キャラ一覧ソート:1, "昇順")
-		LOCAL:1 = 1
-	ELSEIF STRCOUNT(キャラ一覧ソート:1, "降順")
-		LOCAL:1 = -1
-	ENDIF
-	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
-		LOCALS = CFLAG
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):好感度レベル * 1000) * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((CFLAG:(表示候補:LOCAL):恋慕レベル * 1000) * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((ABL:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = ((基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000) * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (知識素質:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録 * 1000 * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) > 0
-		FOR LOCAL, 0, 候補人数
-			ソート基準値:LOCAL = (性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0) * 1000 * LOCAL:1) + LOCAL + 1
-		NEXT
-		ARRAYMSORT ソート基準値, 表示候補
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
-			FOR LOCAL, 0, 候補人数
-				ソート基準値:LOCAL = (ENUMFILES(@"resources/%CSTR:(表示候補:LOCAL):画像フォルダ%") * 1000 * LOCAL:1) + LOCAL + 1
-			NEXT
-			ARRAYMSORT ソート基準値, 表示候補
-	ENDIF
-ENDIF
-[SKIPEND]
 
 $表示処理_LOOP
 DRAWLINE
 VARSET LOCAL
 VARSET LOCALS
 ;表示処理
-FOR LOCAL, 現在ページ * 30, 候補人数
+FOR LOCAL, 現在ページ * 項目表示数, 候補人数
 	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL, 4}] %GET_NAME(表示候補:LOCAL, 1)%</button>"
 	ソート情報 '= ソート情報表示(表示候補:LOCAL, 1)
 	SIF ソート情報 != ""
 		LOCALS += @"　%ソート情報%"
 	LOCALS += "　"
-[SKIPSTART]
-	IF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル") && CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
-		LOCALS += "<font color='#FF3399'>"
-	ENDIF
-	LOCALS += @"<button value = '{LOCAL}'>[{LOCAL,3}] %NAME表示省略(ADD_STR_SPACE(NAME:(表示候補:LOCAL), "]", 1)),41,LEFT%</button>"
-	IF STRCOUNT(キャラ一覧ソート:0, "好感度レベル")
-		LOCALS += @"好感度Lv：{CFLAG:(表示候補:LOCAL):好感度レベル, 3}　 "
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "恋慕レベル")
-		LOCALS += @"　恋慕Lv：{CFLAG:(表示候補:LOCAL):恋慕レベル, 3}　 "
-		SIF CFLAG:(表示候補:LOCAL):ゲージ起動分類 == 1
-			LOCALS += "</font>"
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "コマンド回数")
-		LOCALS += @"　回数：{CFLAG:(表示候補:LOCAL):コマンドタゲ回数記録, 5}　 "
-	ELSEIF GETNUM(ABL, キャラ一覧ソート:0) >= 0
-		LOCALS += @"%キャラ一覧ソート:0, 8%：{ABL:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
-	ELSEIF GETNUM(装備ステータス補正保存, キャラ一覧ソート:0) >= 0
-		LOCALS += @"%キャラ一覧ソート:0, 8%：{基礎BATTLE_STATE:(表示候補:LOCAL):(キャラ一覧ソート:0) + 装備ステータス補正保存:(表示候補:LOCAL):(キャラ一覧ソート:0), 3}　 "
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "Lv")
-		LOCALS += @"Lv：{基礎BATTLE_STATE:(表示候補:LOCAL):Lv, 3}　 "
-	ELSEIF GETNUM(知識素質, キャラ一覧ソート:0) >= 0
-		LOCALS += @"%キャラ一覧ソート:0, 8%：{知識素質:(表示候補:LOCAL):(キャラ一覧ソート:0)}　 "
-	ELSEIF GETNUM(性癖素質, キャラ一覧ソート:0) >= 0
-		SELECTCASE 性癖素質:(表示候補:LOCAL):(キャラ一覧ソート:0)
-			CASE 0
-				LOCALS += @"%キャラ一覧ソート:0, 8%：なし　 "
-			CASE 1
-				LOCALS += @"%キャラ一覧ソート:0, 8%：興味　 "
-			CASE 2
-				LOCALS += @"%キャラ一覧ソート:0, 8%：愛好　 "
-			CASE 3
-				LOCALS += @"%キャラ一覧ソート:0, 8%：中毒　 "
-		ENDSELECT
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "画像数")
-		LOCALS += @"画像数：{MAX(ENUMFILES(@"resources/%CSTR:(表示候補:LOCAL):画像フォルダ%"), 0), 4}　"
-	ELSEIF STRCOUNT(キャラ一覧ソート:0, "チョロさ")
-		LOCALS += @"チョロさ：{COM353_SUB(表示候補:LOCAL), 3}　 "
-	ELSE
-		IF CFLAG:(表示候補:LOCAL):長期雇用
-			LOCALS += "　　長期雇用中　"
-		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 1
-			LOCALS += @"　　　<font color='#%カラーパレット_HTML("黄")%'>本日帰宅</font>　"
-		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 == 999
-			LOCALS += "　　　常時滞在　"
-		ELSEIF CFLAG:(表示候補:LOCAL):滞在期間 > 1
-			LOCALS += @"　残滞在：{CFLAG:(表示候補:LOCAL):滞在期間 - 1, 2}日　"
-		ELSE
-			LOCALS += "　　　　　　　　"
-		ENDIF
-	ENDIF
-[SKIPEND]
 	LOCAL:1 += 1
 	IF LOCAL:1 % 2 == 0
 		HTML_PRINT LOCALS
 		LOCALS = 
 	ENDIF
-	SIF LOCAL:1 > 29
+	SIF LOCAL:1 > 項目表示数 - 1
 		BREAK
 NEXT
 IF LOCALS != ""
@@ -2382,15 +2190,17 @@ IF LOCALS != ""
 	LOCALS = 
 ENDIF
 PRINTL 
-IF 現在ページ > 0
-	PRINTLC  [-1]前のページへ
-ELSE
-	PRINTLC  
-ENDIF
-IF 現在ページ < 候補人数 / 30
-	PRINTLC  [-2]次のページへ
-ENDIF
-PRINTL
+;IF 現在ページ > 0
+;	PRINTLC  [-1]前のページへ
+;ELSE
+;	PRINTLC  
+;ENDIF
+;IF 現在ページ < 候補人数 / 30
+;	PRINTLC  [-2]次のページへ
+;ENDIF
+;PRINTL
+;ページめくり表示
+CALL ページ送り共通表示(現在ページ, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
 DRAWLINE
 CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000)
 DRAWLINE
@@ -2421,6 +2231,8 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 9900 TO 9910
 		追加候補:(LOCAL - 9900) = -1
+	CASE 9000 TO 9007
+		CALL ページ送り共通実行(LOCAL, 現在ページ, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
 	CASE 2000, 3000, 3100, 4000
 		;出典フィルタに全作品を強制表示させる(通常表示だとグラブルしか表示されないため)
 		出典フィルタ強制全表示フラグ = 1
