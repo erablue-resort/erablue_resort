@@ -1,0 +1,283 @@
+﻿@ランダムキャラデータベースセット(ＤＢ名 = Ｒキャラ初期値記録)
+#DIMS ＤＢ名
+
+;基本構造は従来の変数"従業員初期値記録"に似たイメージ。
+;配列番号の代わりにidと"管理番号"列を用いて複数キャラを管理する
+DT_CREATE ＤＢ名
+
+;どのキャラのデータかを判別する部分
+DT_COLUMN_ADD ＤＢ名, "管理番号", 4, 0
+
+;大分割。CSVと似た感じで素質とか能力とか入れる
+DT_COLUMN_ADD ＤＢ名, "カテゴリ", 5, 0
+
+;小分割
+DT_COLUMN_ADD ＤＢ名, "項目", 4, 0
+
+DT_COLUMN_ADD ＤＢ名, "値_数値", 4
+DT_COLUMN_ADD ＤＢ名, "値_文字列"
+
+
+@ランダムキャラデータ_NEW(ＤＢ名 = Ｒキャラ初期値記録, 人物番号)
+#DIMS ＤＢ名
+#DIM 人物番号
+#DIM DT_ID
+#DIM 管理番号
+
+管理番号 = ランダムキャラデータ_GET_KEY_FROM_PERSON(ＤＢ名, 人物番号)
+SIF 管理番号 != 0
+	THROW ランダムキャラデータベース：%ＤＢ名%には既に人物番号データ（{人物番号}）に対する管理データセットが存在しています
+
+管理番号 = ランダムキャラデータ_CREATE_KEY(ＤＢ名)
+DT_ROW_ADD ＤＢ名, "管理番号", 管理番号, "カテゴリ", "人物番号", "項目", 0, "値_数値", 人物番号
+;そうそう Utils.TimePoint() が0になることはないはず
+SIF RESULT == 0
+	THROW ランダムキャラデータの登録に失敗しました
+RETURN 管理番号
+
+
+@ランダムキャラデータ_CREATE_KEY(ＤＢ名 = Ｒキャラ初期値記録)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM TMP_RANDCHARA, 1
+
+SELECTCASE DT_SELECT(ＤＢ名, @"カテゴリ = '人物番号' And 項目 = 0", "管理番号 Desc", TMP_RANDCHARA)
+	CASE 0
+		RETURNF 1
+	CASE IS >= 1
+		RETURNF MAX(0, DT_CELL_GET(ＤＢ名, TMP_RANDCHARA:0, "管理番号", 1)) + 1
+	CASEELSE
+		THROW ランダムキャラデータベース：%ＤＢ名%は存在しません
+ENDSELECT
+
+@ランダムキャラデータ_IGNORE_KEY(ＤＢ名 = Ｒキャラ初期値記録, 管理番号)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIM ランダムキャラレコード, ランダムキャラレコード最大数
+#DIM ランダムキャラレコード行数
+#DIM ループ用
+
+ランダムキャラレコード行数 = DT_SELECT(ＤＢ名, @"管理番号 = {管理番号}", , ランダムキャラレコード)
+FOR ループ用, 0, MIN(ランダムキャラレコード行数, ランダムキャラレコード最大数)
+	IF DT_CELL_GETS(ＤＢ名, ランダムキャラレコード:ループ用, "カテゴリ", 1) == "人物番号" && DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) == 0
+		DT_CELL_SET ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", , 1
+		DT_CELL_SET ＤＢ名, ランダムキャラレコード:ループ用, "値_文字列", ランダムキャラデータ_無効, 1
+	ELSE
+		DT_ROW_REMOVE ＤＢ名, ランダムキャラレコード:ループ用
+	ENDIF
+NEXT
+SIF ランダムキャラレコード行数 > ランダムキャラレコード最大数
+	RESTART
+RETURN
+
+
+@ランダムキャラデータ_IS_KEY_EXIST(ＤＢ名 = Ｒキャラ初期値記録, 管理番号)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIM TMP_RANDCHARA, 1
+
+SELECTCASE DT_SELECT(ＤＢ名, @"管理番号 = {管理番号} And カテゴリ = '人物番号' And 項目 = 0", , TMP_RANDCHARA)
+	CASE 0
+		RETURNF 0
+	CASE 1
+		RETURNF 1
+	CASE IS > 1
+		THROW ランダムキャラデータベース：%ＤＢ名%のデータ（管理番号:{管理番号}, カテゴリ, '人物番号', 項目, 0）が複数存在しています
+	CASEELSE
+		THROW ランダムキャラデータベース：%ＤＢ名%は存在しません
+ENDSELECT
+
+@ランダムキャラデータ_IS_KEY_IGNORED(ＤＢ名 = Ｒキャラ初期値記録, 管理番号)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIM TMP_RANDCHARA, 1
+
+SELECTCASE DT_SELECT(ＤＢ名, @"管理番号 = {管理番号} And カテゴリ = '人物番号' And 項目 = 0", , TMP_RANDCHARA)
+	CASE 0
+		RETURNF 0
+	CASE 1
+		SIF DT_CELL_ISNULL(ＤＢ名, TMP_RANDCHARA:0, "値_数値", 1) == 1 && DT_CELL_GETS(ＤＢ名, TMP_RANDCHARA:0, "値_文字列", 1) == ランダムキャラデータ_無効
+			RETURNF 1
+		RETURNF 0
+	CASE IS > 1
+		THROW ランダムキャラデータベース：%ＤＢ名%のデータ（管理番号:{管理番号}, カテゴリ, '人物番号', 項目, 0）が複数存在しています
+	CASEELSE
+		THROW ランダムキャラデータベース：%ＤＢ名%は存在しません
+ENDSELECT
+
+
+@ランダムキャラデータ_GET_KEY_FROM_PERSON(ＤＢ名 = Ｒキャラ初期値記録, 人物番号)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 人物番号
+#DIM TMP_RANDCHARA, 1
+
+SELECTCASE DT_SELECT(ＤＢ名, @"カテゴリ = '人物番号' And 項目 = 0 And 値_数値 = {人物番号}", , TMP_RANDCHARA)
+	CASE 0
+		RETURNF 0
+	CASE 1
+		RETURNF DT_CELL_GET(ＤＢ名, TMP_RANDCHARA:0, "管理番号", 1)
+	CASE IS > 1
+		THROW ランダムキャラデータベース：%ＤＢ名%に人物番号データ（{人物番号}）に対する管理データセットが複数存在しています
+	CASEELSE
+		THROW ランダムキャラデータベース：%ＤＢ名%は存在しません
+ENDSELECT
+
+
+@ランダムキャラデータ_FIND(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIM TMP_RANDCHARA, 1
+
+SELECTCASE DT_SELECT(ＤＢ名, @"管理番号 = {管理番号} And カテゴリ = '%カテゴリ%' And 項目 = {項目}", , TMP_RANDCHARA)
+	CASE 1
+		RETURNF TMP_RANDCHARA:0
+	CASE 0
+		RETURNF 0
+	CASE IS > 1
+		THROW ランダムキャラデータベース：%ＤＢ名%のデータ（管理番号:{管理番号}, カテゴリ, '%カテゴリ%', 項目, {項目}）が複数存在しています
+	CASEELSE
+		THROW ランダムキャラデータベース：%ＤＢ名%は存在しません
+ENDSELECT
+
+
+@ランダムキャラデータ_GET(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIM DT_ID
+
+DT_ID = ランダムキャラデータ_FIND(ＤＢ名, 管理番号, カテゴリ, 項目)
+SIF DT_ID == 0
+	RETURNF 0
+
+SIF DT_CELL_ISNULL(ＤＢ名, DT_ID, "値_数値", 1) == 1
+	THROW ランダムキャラデータベース：%ＤＢ名%から取得しようとしているデータ（管理番号:{管理番号}, カテゴリ, '%カテゴリ%', 項目, {項目}）は数値型ではありません
+
+RETURNF DT_CELL_GET(ＤＢ名, DT_ID, "値_数値", 1)
+
+@ランダムキャラデータ_GETS(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0)
+#FUNCTIONS
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIM DT_ID
+
+DT_ID = ランダムキャラデータ_FIND(ＤＢ名, 管理番号, カテゴリ, 項目)
+SIF DT_ID == 0
+	RETURNF ""
+
+SIF DT_CELL_ISNULL(ＤＢ名, DT_ID, "値_文字列", 1) == 1
+	THROW ランダムキャラデータベース：%ＤＢ名%から取得しようとしているデータ（管理番号:{管理番号}, カテゴリ, '%カテゴリ%', 項目, {項目}）は文字列型ではありません
+
+RETURNF DT_CELL_GETS(ＤＢ名, DT_ID, "値_文字列", 1)
+
+
+@ランダムキャラデータ_SET(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0, 設定値 = 0)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIM 設定値
+#DIM DT_ID
+
+DT_ID = ランダムキャラデータ_FIND(ＤＢ名, 管理番号, カテゴリ, 項目)
+IF DT_ID == 0
+	DT_ROW_ADD ＤＢ名, "管理番号", 管理番号, "カテゴリ", カテゴリ, "項目", 項目, "値_数値", 設定値
+	SIF RESULT == 0
+		THROW ランダムキャラデータの登録に失敗しました
+ELSE
+	DT_CELL_SET ＤＢ名, DT_ID, "値_数値", 設定値, 1
+	DT_CELL_SET ＤＢ名, DT_ID, "値_文字列", , 1
+ENDIF
+
+@ランダムキャラデータ_SETS(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0, 設定値 = "")
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIMS 設定値
+#DIM DT_ID
+
+DT_ID = ランダムキャラデータ_FIND(ＤＢ名, 管理番号, カテゴリ, 項目)
+IF DT_ID == 0
+	DT_ROW_ADD ＤＢ名, "管理番号", 管理番号, "カテゴリ", カテゴリ, "項目", 項目, "値_文字列", 設定値
+	SIF RESULT == 0
+		THROW ランダムキャラデータの登録に失敗しました
+ELSE
+	DT_CELL_SET ＤＢ名, DT_ID, "値_数値", , 1
+	DT_CELL_SET ＤＢ名, DT_ID, "値_文字列", 設定値, 1
+ENDIF
+
+
+@ランダムキャラデータ_REMOVE(ＤＢ名 = Ｒキャラ初期値記録, 管理番号, カテゴリ, 項目 = 0)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS カテゴリ
+#DIM 項目
+#DIM DT_ID
+
+DT_ID = ランダムキャラデータ_FIND(ＤＢ名, 管理番号, カテゴリ, 項目)
+IF DT_ID != 0
+	DT_ROW_REMOVE ＤＢ名, DT_ID
+ENDIF
+
+
+@ランダムキャラデータ復元(ＤＢ名 = Ｒキャラ初期値記録, キャラ番号, 管理番号)
+#DIMS ＤＢ名
+#DIM キャラ番号
+#DIM 管理番号
+#DIM ランダムキャラレコード, ランダムキャラレコード最大数
+#DIM ランダムキャラレコード行数
+#DIM ループ用
+
+;データベースの情報をキャラに対して反映する処理
+;他の処理は関数の外側で行う
+ランダムキャラレコード行数 = DT_SELECT(ＤＢ名, @"管理番号 = {管理番号}", , ランダムキャラレコード)
+SIF ランダムキャラレコード行数 > ランダムキャラレコード最大数
+	THROW ランダムキャラレコードの行数が多すぎます。開発者に連絡し、要素数の拡張を依頼してください。
+
+FOR ループ用, 0, ランダムキャラレコード行数
+	SELECTCASE DT_CELL_GETS(ＤＢ名, ランダムキャラレコード:ループ用, "カテゴリ", 1)
+		CASE "人物番号"
+			;NOOP
+		CASE "番号"
+			;普通は999しかないはずなので無視
+		CASE "名前"
+			NAME:キャラ番号 '= DT_CELL_GETS(ＤＢ名, ランダムキャラレコード:ループ用, "値_文字列", 1)
+		CASE "呼び名"
+			CALLNAME:キャラ番号 '= DT_CELL_GETS(ＤＢ名, ランダムキャラレコード:ループ用, "値_文字列", 1)
+		CASE "基礎"
+			MAXBASE:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+			BASE:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "素質"
+			TALENT:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "能力"
+			ABL:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "経験"
+			EXP:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "装着物"
+			EQUIP:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "フラグ", "CFLAG"
+			CFLAG:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "CSTR"
+			CSTR:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) '= DT_CELL_GETS(ＤＢ名, ランダムキャラレコード:ループ用, "値_文字列", 1)
+
+		CASE "知識素質"
+			知識素質:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "性癖素質"
+			性癖素質:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "フレーバー素質"
+			フレーバー素質:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+		CASE "基礎BATTLE_STATE"
+			基礎BATTLE_STATE:キャラ番号:DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "項目", 1) = DT_CELL_GET(ＤＢ名, ランダムキャラレコード:ループ用, "値_数値", 1)
+	ENDSELECT
+NEXT

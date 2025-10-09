@@ -397,6 +397,23 @@ NEXT
 DT_TOXML "ミルクデータベース"
 SAVETEXT RESULTS:0, "dat/ミルクDT_XML.txt"
 SAVETEXT RESULTS:1, "dat/ミルクDT_schema.txt"
+;ランダムキャラを引き継がないなら、不要なキャラデータを無効化する
+IF !ランダムキャラ引き継ぎフラグ
+	LOCAL:1 = 1
+	WHILE ランダムキャラデータ_IS_KEY_EXIST(, LOCAL:1)
+		IF ランダムキャラデータ_IS_KEY_IGNORED(, LOCAL:1)
+			LOCAL:1 ++
+			CONTINUE
+		ENDIF
+		SIF !MATCH(引き継ぎキャラ番号, FIND_CHARA_FROM_PERSON_ID(ランダムキャラデータ_GET(, LOCAL:1, "人物番号")))
+			CALL ランダムキャラデータ_IGNORE_KEY(, LOCAL:1)
+
+		LOCAL:1 ++
+	WEND
+ENDIF
+DT_TOXML Ｒキャラ初期値記録
+SAVETEXT RESULTS:0, "dat/Rキャラ初期値DT_XML.txt"
+SAVETEXT RESULTS:1, "dat/Rキャラ初期値DT_schema.txt"
 
 ;変数を退避
 制服引き継ぎ = %所持制服文字列%
@@ -408,7 +425,7 @@ LOCAL:1 = 0
 FOR LOCAL, 1, CHARANUM
 	キャラ変数引き継ぎ:(LOCAL):キャラナンバー = NO:LOCAL
 	IF NO:LOCAL == 999
-		キャラ変数引き継ぎ:(LOCAL):キャラナンバー = ランダムキャラ記録位置判別(LOCAL) * -1
+		キャラ変数引き継ぎ:(LOCAL):キャラナンバー = ランダムキャラデータ_GET_KEY_FROM_PERSON(, CFLAG:LOCAL:人物番号) * -1
 	ENDIF
 	キャラ変数引き継ぎ:(LOCAL):肉体熟知 = EXP:LOCAL:肉体熟知
 	IF キャラ弱点引き継ぎフラグ
@@ -520,25 +537,5 @@ CALL 最大レベル算出保存()
 リゾート名引き継ぎ '= リゾート名称
 
 ARRAYCOPY "周回回数累計", "周回回数累計_退避"
-IF ランダムキャラ引き継ぎフラグ
-	ARRAYCOPY "従業員初期値記録", "従業員初期値記録_退避"
-	RESETDATA
-	ARRAYCOPY "従業員初期値記録_退避", "従業員初期値記録"
-ELSE
-	RESETDATA
-ENDIF
+RESETDATA
 ARRAYCOPY "周回回数累計_退避", "周回回数累計"
-
-
-@ランダムキャラ記録位置判別(キャラ番号)
-#FUNCTION
-#DIM キャラ番号
-#DIM 記録位置
-#DIMS 分割文字列, 2
-
-FOR 記録位置, 0, 従業員初期値最大記録数
-	SPLIT 従業員初期値記録:記録位置, "_", 分割文字列
-	IF TOINT(分割文字列:1) == キャラ番号
-		RETURNF 記録位置
-	ENDIF
-NEXT

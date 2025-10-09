@@ -147,11 +147,17 @@ IF 引き継ぎ中フラグ
 	LOADTEXT "dat/エンディングDT_schema.txt"
 	LOCALS:1 = %RESULTS%
 	DT_FROMXML "エンディング用変数配列", LOCALS:1, LOCALS:0
+	LOADTEXT "dat/Rキャラ初期値DT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/Rキャラ初期値DT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML Ｒキャラ初期値記録, LOCALS:1, LOCALS:0
 	SIF リゾート名引き継ぎ != ""
 		リゾート名称 '= リゾート名引き継ぎ
 ELSE
 	CALL 人物データベースセット
 	CALL 履歴データベース作成
+	CALL ランダムキャラデータベースセット(Ｒキャラ初期値記録)
 ENDIF
 
 初期設定中 = 1
@@ -465,7 +471,6 @@ IF 引き継ぎ中フラグ
 	所持ルピ引き継ぎ = 0
 	VARSET 引き継ぎキャラ番号
 	VARSET あなた特殊能力引き継ぎ
-	VARSET 従業員初期値記録_退避
 	引き継ぎ中フラグ = 0
 	あなた引き継ぎ = 0
 	キャラ同士関係性データ = 
@@ -533,7 +538,7 @@ IF 引き継ぎ中フラグ
 			LOADCHARA TOSTR(引き継ぎ番号)
 			キャラ番号 += 1
 			IF NO:キャラ番号 == 999
-				引き継いだランダムキャラ:ランダム引き継ぎ番号 = ランダムキャラ記録位置判別(引き継ぎ番号)
+				引き継いだランダムキャラ:ランダム引き継ぎ番号 = ランダムキャラデータ_GET_KEY_FROM_PERSON(, CFLAG:キャラ番号:人物番号)
 				ランダム引き継ぎ番号 += 1
 			ENDIF
 			VARSET 現在仕事:キャラ番号:0
@@ -556,7 +561,7 @@ FOR キャラ番号, 1, キャラクタ数上限
 	設定中キャラ番号 = CHARANUM - 1
 	CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
 	IF 引き継ぎ中フラグ && キャラ番号 != 0
-		FOR 引き継ぎ番号, 0, 500
+		FOR 引き継ぎ番号, 0, キャラクタ数上限
 			IF キャラ変数引き継ぎ:引き継ぎ番号:キャラナンバー == NO:設定中キャラ番号
 				EXP:設定中キャラ番号:肉体熟知 = キャラ変数引き継ぎ:引き継ぎ番号:肉体熟知
 				FOR 弱点配列, 0, 50
@@ -572,74 +577,37 @@ NEXT
 
 ;引き継ぎランダムキャラの追加
 IF 引き継ぎ中フラグ
-	FOR LOCAL, 0, 従業員初期値最大記録数
-		SIF MATCH(引き継いだランダムキャラ, LOCAL) > 0
+	LOCAL = 1
+	WHILE ランダムキャラデータ_IS_KEY_EXIST(, LOCAL)
+		IF MATCH(引き継いだランダムキャラ, LOCAL) > 0 || ランダムキャラデータ_IS_KEY_IGNORED(, LOCAL)
+			LOCAL ++
 			CONTINUE
-		IF 従業員初期値記録:LOCAL != ""
-			VARSET 大分割文字列
-			VARSET 小分割文字列
-			ADDCHARA 999
-			設定中キャラ番号 = CHARANUM - 1
-			SPLIT 従業員初期値記録:LOCAL, "^^^", 大分割文字列
-			;弱点
-			FOR LOCAL:1, 0, 500
-				IF キャラ変数引き継ぎ:(LOCAL:1):キャラナンバー == LOCAL * -1
-					EXP:設定中キャラ番号:肉体熟知 = キャラ変数引き継ぎ:(LOCAL:1):肉体熟知
-					FOR 弱点配列, 0, 50
-						弱点看破:設定中キャラ番号:弱点配列 = キャラ変数引き継ぎ:(LOCAL:1):(弱点配列 + 2)
-						弱点コマンド枠:設定中キャラ番号:弱点配列 = %キャラ文字列引き継ぎ:(LOCAL:1):弱点配列%
-					NEXT
-					BREAK
-				ENDIF
-			NEXT
-			;名前
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:1, "_", 小分割文字列
-			NAME:設定中キャラ番号 = [一般人]%小分割文字列:1%
-			CALLNAME:設定中キャラ番号 = %小分割文字列:1%
-			;素質
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:2, "_", 小分割文字列
-			FOR LOCAL:1, 0, 900, 3
-				SIF 小分割文字列:(LOCAL:1) == ""
-					BREAK
-				TALENT:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
-			NEXT
-			;フレーバー素質
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:3, "_", 小分割文字列
-			FOR LOCAL:1, 0, 30, 3
-				SIF 小分割文字列:(LOCAL:1) == ""
-					BREAK
-				フレーバー素質:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
-			NEXT
-			;ABL
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:4, "_", 小分割文字列
-			FOR LOCAL:1, 0, 150, 3
-				SIF 小分割文字列:(LOCAL:1) == ""
-					BREAK
-				ABL:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
-			NEXT
-			;ABL
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:5, "_", 小分割文字列
-			FOR LOCAL:1, 0, 300, 3
-				SIF 小分割文字列:(LOCAL:1) == ""
-					BREAK
-				EXP:設定中キャラ番号:(TOINT(小分割文字列:(LOCAL:1 + 1))) = TOINT(小分割文字列:(LOCAL:1 + 2))
-			NEXT
-			;戦闘系
-			VARSET 小分割文字列
-			SPLIT 大分割文字列:6, "_", 小分割文字列
-			基礎BATTLE_STATE:設定中キャラ番号:属性 = TOINT(小分割文字列:1)
-			基礎BATTLE_STATE:設定中キャラ番号:得意武器 = TOINT(小分割文字列:3)
-			CALL 初期ステータス設定_テンプレート適用(タイプ数値文字列変換(TOINT(小分割文字列:5)), 設定中キャラ番号)
-			知識素質:設定中キャラ番号:性知識 = TOINT(小分割文字列:7)
-			CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
-			CFLAG:設定中キャラ番号:招待不可フラグ = 0
 		ENDIF
-	NEXT
+		ADDCHARA 999
+		設定中キャラ番号 = CHARANUM - 1
+		FOR 引き継ぎ番号, 0, キャラクタ数上限
+			IF キャラ変数引き継ぎ:引き継ぎ番号:キャラナンバー == LOCAL * -1
+				EXP:設定中キャラ番号:肉体熟知 = キャラ変数引き継ぎ:引き継ぎ番号:肉体熟知
+				FOR 弱点配列, 0, 50
+					弱点看破:設定中キャラ番号:弱点配列 = キャラ変数引き継ぎ:引き継ぎ番号:(弱点配列 + 2)
+					弱点コマンド枠:設定中キャラ番号:弱点配列 = %キャラ文字列引き継ぎ:引き継ぎ番号:弱点配列%
+				NEXT
+				BREAK
+			ENDIF
+		NEXT
+		CALL ランダムキャラデータ復元(, 設定中キャラ番号, LOCAL)
+		CALL 初期ステータス設定_テンプレート適用(タイプ数値文字列変換(基礎BATTLE_STATE:設定中キャラ番号:ステータスタイプ保存), 設定中キャラ番号)
+		CALL ADD_PERSON_FROM_CHARA(設定中キャラ番号)
+		CALL ランダムキャラデータ_SET(, LOCAL, "人物番号", 0, CFLAG:設定中キャラ番号:人物番号)
+
+		;素質の調整
+		NAME:設定中キャラ番号 = [一般人]%CALLNAME:設定中キャラ番号%
+		TALENT:設定中キャラ番号:従業員 = 0
+		TALENT:設定中キャラ番号:定住者 = 0
+		CFLAG:設定中キャラ番号:招待不可フラグ = 0
+
+		LOCAL ++
+	WEND
 ENDIF
 
 RFLAG:キャラ初期登録済み = 1
