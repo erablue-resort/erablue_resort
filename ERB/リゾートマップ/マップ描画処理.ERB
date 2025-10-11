@@ -1,7 +1,84 @@
 ﻿
+; ;-----------------------------------------------------------
+; ;マップ描画用の文字列の格納
+; ;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
+; ;-----------------------------------------------------------
+; @SET_MAP(格納先, AA)
+; #DIMS 格納先
+; #DIMS 表示文字列
+; #DIMS 一時文字列
+; #DIM 表示幅
+; #DIMS REF AA, 0
+; #DIM SPOT
+; #DIM MODE
+; #DIM LOCATION
+
+; #DIM LINENUM
+; #DIM X_POINT
+; #DIM FOUND_INT
+
+; VARSET RESULTS
+; 表示文字列 = 
+; 一時文字列 = 
+; 改行数 = 0
+
+; ;-----------------------------------------------------------
+; ;描画処理
+; ;-----------------------------------------------------------
+; FOR LINENUM, 0, VARSIZE("AA")
+; 	SIF AA:LINENUM == ""
+; 		CONTINUE
+; 	;行ごとに初期化
+; 	X_POINT = 0
+; 	RESULTS = I
+; 	;行の終端までループ
+; 	WHILE RESULTS != "" && STRLENSU(RESULTS) < 3
+; 		;1文字取り出す
+; 		SUBSTRINGU AA:LINENUM, X_POINT, 1
+; 		;数字ならボタンにする
+; 		IF ISNUMERIC(RESULTS)
+; 			;分岐めんどいから必ず2ケタ取る
+; 			SUBSTRINGU AA:LINENUM, X_POINT, 2
+; 			FOUND_INT = TOINT(RESULTS) + (TFLAG:マップ種別 * 100)
+; 			SIF TOINT(RESULTS) == 0
+; 				FOUND_INT = 0
+; 			SELECTCASE CFLAG:PLAYER:現在マップ種別
+; 				CASE 1, 2
+; 					;空艇港
+; 					IF CFLAG:PLAYER:現在位置 < 1000 && TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+; 						一時文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+; 					ELSE
+; 						一時文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+; 					ENDIF
+; 				CASEELSE
+; 					;リゾート
+; 					IF TOSTR_ニ桁化(CFLAG:PLAYER:現在位置 % 100) == RESULTS && 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == TFLAG:マップ種別
+; 						一時文字列 += @"<font color='#%カラーパレット_HTML("真っ赤")%'>%RESULTS%</font>"
+; 					ELSE
+; 						一時文字列 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{FOUND_INT}'>%RESULTS%</button></font>"
+; 					ENDIF
+; 			ENDSELECT
+; 			X_POINT += 2
+; 		;ふつうの文字
+; 		ELSE
+; 			RESULT = LINENUM
+; 			TRYCALLFORM DRAW_MAP_BG_{CFLAG:PLAYER:現在マップ種別}_{TFLAG:マップ種別}(RESULTS, 一時文字列)
+; 			X_POINT ++
+; 		ENDIF
+; 	WEND
+; 	SIF STRCOUNT(一時文字列, "<font") > STRCOUNT(一時文字列, "</font")
+; 		一時文字列 += "</font>"
+; 	表示文字列 += @"%一時文字列%<br>"
+; 	改行数 += 1
+; 	一時文字列 = 
+; NEXT
+
+; SETVAR @"%格納先%", 表示文字列
+
+
 ;-----------------------------------------------------------
 ;マップ描画処理
-;2文字セットの半角数字(01とか)は自動でボタン化、全角数字は認識しない
+;表示する文字列を判定し、返すだけ
 ;-----------------------------------------------------------
 @DRAW_MAP(表示幅 = -1, 表示開始数_横 = 0, 表示開始数_縦 = 0)
 #DIMS 表示文字列
