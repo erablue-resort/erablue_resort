@@ -73,7 +73,7 @@ IF 種親 < 0 || TALENT:ARG:種族 != TALENT:種親:種族 || (TALENT:ARG:種族
 	;同じ種族でない場合は条件がある
 	IF ARG == MASTER
 		;あなたが母親の場合 種親が恋慕・セフレでなく、あなたが特異胎質を持たない場合は不可
-		IF !あなた特殊能力:特異胎質 && (種親 < 0 || !陥落チェック(種親))
+		IF あなた特殊能力:特異胎質 <= 0 && (種親 < 0 || !陥落チェック(種親))
 			SIF !異種フラグ
 				異種フラグ = 1
 		ELSE
@@ -417,7 +417,7 @@ ELSE
 ENDIF
 
 ;子供の性別・種族の決定
-IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血
+IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血 > 0
 	;潜性のあなたの場合、常にもう片方の親と同じ性別・種族
 	子供性別 = TALENT:DOMINANT:性別
 	子供種族 = TALENT:DOMINANT:種族
@@ -903,7 +903,7 @@ SIF !子供名前表示
 DRAWLINE
 SELECTCASE OPTION変数:オート名付け関連
 	CASE 0
-		;★EDIT:選択肢表示はオート選択をしない場合のみ
+		;オート選択をしない
 		PRINTFORML \@ (子供順番 > 0) ? {子供順番}人目の # \@名前は…
 		PRINTBUTTON "[0]自分で考える", 0
 		IF PARENT:0 != MASTER
@@ -920,22 +920,17 @@ SELECTCASE OPTION変数:オート名付け関連
 		PRINTL 
 		BINPUT
 	CASE 1
-		;★EDIT:自分で名付ける場合は0が正しい？
-		;RESULT = 1
+		;常に自分で名付ける
 		RESULT = 0
 	CASE 2
-		;★EDIT:片親に-1が入っている場合の分岐を追加　自動的にもう片方を指定する
-		IF 0
-		ELSEIF PARENT:1 == -1
-			RESULT = 1
-		ELSEIF PARENT:0 == -1
-			RESULT = 2
-		ELSEIF PARENT:0 != MASTER && PARENT:1 != MASTER
-			RESULT = RAND:2 + 1
-		ELSEIF PARENT:0 != MASTER
+		;常にキャラが名付ける
+		; PARENT:0 < 0       … 母親が必ず存在する都合、起こりえない。あなた母親＋父親不明の場合も最初の分岐に優先して入る
+		; PARENT:0 == MASTER … あなたの自己受粉の場合しか発生しえない。この場合、PARENT:1も必ず-1になるので特別な分岐は必要ない
+		; PARENT:1 == MASTER … キャラ母親＋あなた父親の場合、最初の分岐に優先して入るようになっているためこれも起こりえない
+		IF PARENT:1 < 0
 			RESULT = 1
 		ELSE
-			RESULT = 2
+			RESULT = RAND:2 + 1
 		ENDIF
 ENDSELECT
 SELECTCASE RESULT
