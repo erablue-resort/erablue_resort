@@ -136,6 +136,10 @@ ELSEIF 宿泊エリア表示種別 == 2
 ELSEIF 宿泊エリア表示種別 == 1
 	LOCALS += "<button value='999'>[999] 空艇港に戻る</button>"
 ELSE
+	IF CFLAG:GETCHARA(998):滞在期間 > 0
+		LOCALS += "<button value='990'>[990] eraの部屋に行く</button>"
+		LOCALS += "<br>"
+	ENDIF
 	LOCALS += "<button value='999'>[999] 自室に戻る</button>"
 ENDIF
 LOCALS += "<br>"
@@ -302,7 +306,10 @@ SELECTCASE LOCAL
 			GOTO RESTART_LABEL
 		ENDIF
 
-		IF 宿泊エリア表示種別 == 2
+		IF LOCAL == 990
+			;eraの部屋
+			CALL 入室不可処理(999, 999)
+		ELSEIF 宿泊エリア表示種別 == 2
 			CALL 入室不可処理(2, LOCAL)
 		ELSEIF 宿泊エリア表示種別 == 1
 			CALL 入室不可処理(1, LOCAL)
@@ -318,7 +325,18 @@ SELECTCASE LOCAL
 		IF RESULT
 			GOTO RESTART_LABEL
 		ENDIF
-		IF 表示エリア種類 == 200
+		IF LOCAL == 990
+			;eraの部屋
+			CFLAG:PLAYER:現在マップ種別 = 999
+			CFLAG:MASTER:現在位置 = 999
+			CALL 移動時モード消去(PLAYER)
+			FOR LOCAL,1,CHARANUM
+				IF 追従中キャラ(LOCAL)
+					CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
+					CFLAG:LOCAL:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+				ENDIF
+			NEXT
+		ELSEIF 表示エリア種類 == 200
 			CFLAG:PLAYER:現在マップ種別 = 999
 			CFLAG:MASTER:現在位置 = LOCAL
 			CALL 移動時モード消去(PLAYER)
@@ -725,6 +743,12 @@ IF 対象キャラ == MASTER
 	RETURNF CFLAG:MASTER:自室位置
 ENDIF
 
+;eraの部屋
+IF NO:対象キャラ == 998
+	部屋検索_マップ種別 = 999
+	RETURNF 999
+ENDIF
+
 部屋検索_マップ種別 = 999
 IF TALENT:対象キャラ:定住者 == 1
 	;定住者は基本居住区エリア
@@ -973,6 +997,10 @@ RETURNF LOCAL
 #DIM 部屋セットチェック
 
 SIF TALENT:対象キャラ:分身
+	RETURN 0
+
+;eraは見ない
+SIF NO:対象キャラ == 998
 	RETURN 0
 
 ;部屋の無いキャラがいないかチェック

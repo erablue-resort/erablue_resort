@@ -10,6 +10,7 @@
 #DIM 移動先マップ種別
 #DIM 自動移動フラグ
 #DIM ROOMSEX数値
+#DIM era番号
 
 ROOMSEX数値 = ROOM_SEX(移動先マップ種別, 移動先位置)
 IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
@@ -55,7 +56,37 @@ IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 ENDIF
 SELECTCASE 移動先マップ種別
 	CASE 999
-		IF 移動先位置 < 1000
+		IF 移動先位置 == 999
+			era番号 = GETCHARA(998)
+			;睡眠時
+			IF CFLAG:era番号:現在マップ種別 == 999 && CFLAG:era番号:現在位置 == 999
+				IF CFLAG:era番号:睡眠 && 陥落チェック(era番号) == 0
+					あなた追跡キャラ = 0
+					PRINTFORML %CALLNAME:era番号%の部屋には鍵が掛かっている。
+					CALL 睡眠時表示文章(era番号)
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					RETURN 1
+				ELSEIF CFLAG:era番号:キャラ同士うふふ
+					;相手を探す
+					うふふ相手 = ABS(CFLAG:era番号:デート) - 100
+					IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 999 && CFLAG:うふふ相手:現在位置 == 999
+						あなた追跡キャラ = 0
+						PRINTFORML %CALLNAME:era番号%の部屋には鍵が掛かっている。
+						CALL キャラ同士うふふ時表示文章(era番号, うふふ相手)
+						SIF RESULT
+							RETURN 0
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						RETURN 1
+					ENDIF
+				ENDIF
+			ENDIF
+		ELSEIF 移動先位置 < 1000
 			LOCAL = 移動先位置
 			IF 滞在者部屋割り配列:LOCAL > 0
 				;睡眠時
