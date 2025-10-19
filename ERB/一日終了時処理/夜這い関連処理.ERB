@@ -151,7 +151,9 @@ LOCAL = キャラクター部屋検索(対象キャラ)
 IF 夜這い相手 == MASTER && CFLAG:MASTER:現在マップ種別 == 部屋検索_マップ種別 && CFLAG:MASTER:現在位置 == LOCAL
 	;同じ部屋で寝てる場合、失敗パターンなし
 ELSE
-	IF EXP:対象キャラ:夜這い経験 < 10 && TALENT:対象キャラ:経験豊富 == 0 && RAND:2
+	IF 夜這い相手 == MASTER && あなた特殊能力:来る者拒まず > 0
+		;あなたが受け入れてくれると確信できる度量持ちの場合、まごまごを回避
+	ELSEIF EXP:対象キャラ:夜這い経験 < 10 && TALENT:対象キャラ:経験豊富 == 0 && RAND:2
 		;夜這い経験がないとまごまごする
 		CSTR:対象キャラ:夜這い報告_記録文字列 += @"しかし、夜這いをする勇気が出ないようだ……<br>"
 		CSTR:対象キャラ:夜這い報告_記録文字列 += @"しばらく%CALLNAME:夜這い相手%の部屋の前でまごまごした後、自分の部屋へと帰っていった。<br>"
@@ -491,11 +493,16 @@ ELSE
 	ENDSELECT
 ENDIF
 
+;ＥＤ、挿入系コマンドができない。
+IF TALENT:実行キャラ:ＥＤ || TALENT:夜這い相手:ＥＤ
+	GOTO 結果フェイズ
+ENDIF
+
 ;V快楽算出処理
-IF OPTION変数:夜這い処女・童貞 && HETEROSEX(実行キャラ, 夜這い相手) == 0
+IF OPTION変数:夜這い処女・童貞
 	SIF TALENT:対象キャラ:処女
 		GOTO A挿入フェイズ
-	SIF GETBIT(TALENT:相手キャラ:非童貞, 0) == 0
+	SIF GETBIT(TALENT:相手キャラ:非童貞, 0) == 0 && GETBIT(TALENT:相手キャラ:性別, 1)
 		GOTO A挿入フェイズ
 ENDIF
 IF OPTION変数:同性愛処女・童貞
@@ -522,7 +529,7 @@ ENDIF
 
 $A挿入フェイズ
 ;A快楽算出処理
-IF OPTION変数:夜這い処女・童貞 && HETEROSEX(実行キャラ, 夜這い相手) == 0
+IF OPTION変数:夜這い処女・童貞
 	SIF TALENT:対象キャラ:Ａ処女
 		GOTO 結果フェイズ
 	SIF GETBIT(TALENT:相手キャラ:非童貞, 1) == 0
@@ -855,7 +862,7 @@ ENDIF
 #DIM 相手キャラ_快楽基礎値
 
 ;両方にA経験がないなら発動しない
-IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:対象キャラ:Ａ経験 > 0 && EXP:相手キャラ:Ａ経験 > 0
+IF TALENT:対象キャラ:Ａ感度 != -2 && EXP:対象キャラ:Ａ経験 > 0 && EXP:相手キャラ:Ａ経験 > 0 && (TALENT:対象キャラ:性別 != 2 || !OPTION変数:男性への愛撫禁止)
 	SELECTCASE EXP:対象キャラ:Ａ経験
 		CASE IS < 100
 			IF TALENT:相手キャラ:性別 != 2 && TALENT:対象キャラ:性別 == 2
@@ -1043,8 +1050,16 @@ IF GETBIT(TALENT:対象キャラ:性別, 0) && TALENT:対象キャラ:Ｖ感度 
 				SIF GETBIT(CFLAG:対象キャラ:妊娠個別設定フラグ, 3) == 0
 					CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
 			ELSE
-				SIF OPTION変数:夜這い時妊娠 == 0
-					CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
+				SELECTCASE OPTION変数:夜這い時妊娠 == 0
+					CASE 0
+						CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
+					CASE 1
+						SIF 相手キャラ == MASTER
+							CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
+					CASE 2
+						SIF 相手キャラ != MASTER
+							CALL TAKE_SPERM(対象キャラ, 相手キャラ, 精液量保存)
+				ENDSELECT
 			ENDIF
 
 			SELECTCASE EXP:対象キャラ:膣内射精絶頂経験

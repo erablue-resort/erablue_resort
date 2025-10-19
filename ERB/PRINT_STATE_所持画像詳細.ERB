@@ -4,11 +4,14 @@
 #DIM 対象キャラ
 #DIM 画像数
 #DIM 衣装数
+#DIM 関数総数
 #DIM 配列番号
 #DIM 画像番号
 #DIMS 衣装登録, 500
 #DIMS 判定衣装
+#DIM 表示人数
 #DIM 判定数, 4
+#DIM 複数人一枚絵キャラ, 5
 
 ;画像フォルダに所持している画像を分類わけして表示する
 
@@ -63,5 +66,39 @@ FOR 配列番号, 0, 衣装数
 		PRINTL
 	ENDIF
 NEXT
+
+IF 対象キャラ != MASTER
+	画像数 = 0
+	VARSET RESULTS
+	ENUMFUNCBEGINSWITH "複数人一枚絵_登録データ_"
+	関数総数 = RESULT
+
+	FOR 配列番号, 0, 関数総数
+		;複数人一枚絵関数を全部見る
+		VARSET 複数人一枚絵キャラ
+		CALLFORM %RESULTS:配列番号%("初期登録", 複数人一枚絵キャラ)
+		;キャラが条件内に含まれていたら表示
+		IF MATCH(複数人一枚絵キャラ, 対象キャラ)
+			IF 画像数 < 1
+				PRINTL
+				PRINTL ■複数人一枚絵
+			ENDIF
+			PRINTFORM 　　組み合わせ%TOFULL(TOSTR(画像数 + 1))%：
+			表示人数 = 0
+			FOR 画像番号, 0, VARSIZE("複数人一枚絵キャラ")
+				SIF 複数人一枚絵キャラ:画像番号 < 1
+					CONTINUE
+				SIF 複数人一枚絵キャラ:画像番号 == 対象キャラ
+					CONTINUE
+				PRINTFORM %NAME:(複数人一枚絵キャラ:画像番号)%　
+				表示人数 ++
+			NEXT
+			SIF 表示人数 < 1
+				PRINTFORM %CALLNAME:対象キャラ%単独
+			PRINTL 
+			画像数 ++
+		ENDIF
+	NEXT
+ENDIF
 
 WAIT

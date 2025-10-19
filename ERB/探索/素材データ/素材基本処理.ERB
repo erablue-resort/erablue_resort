@@ -88,24 +88,10 @@ RETURN -1
 #DIM ソート後ページ登録, 1000
 #DIM 行数カウント
 #DIM 現在表示ランク
+#DIMS 実表示文字列
+#DIMS ツールチップ文字列
 VARSET ソート後素材順, -1
 VARSET ソート後ページ登録, -1
-
-;表示条件がプレゼントカテゴリを含む場合補正
-IF STRFIND(表示条件, "プレゼントカテゴリ") >= 0
-	IF STRFIND(表示条件, "'飲食系'") >= 0
-		表示条件 '= REPLACE(表示条件, "'飲食系'", "'肉','魚','野菜','お菓子','珍味','酒','茶類','飲食系'")
-	ENDIF
-	IF STRFIND(表示条件, "'芸術品'") >= 0
-		表示条件 '= REPLACE(表示条件, "'芸術品'", "'宝石','絵画','彫刻',詩','芸術品'")
-	ENDIF
-	IF STRFIND(表示条件, "'美容系'") >= 0
-		表示条件 '= REPLACE(表示条件, "'美容系'", "'アクセサリ','化粧品','美容系'")
-	ENDIF
-	IF STRFIND(表示条件, "'実用品'") >= 0
-		表示条件 '= REPLACE(表示条件, "'実用品'", "'文房具','健康器具','日用品','調理器具','工具','実用品'")
-	ENDIF
-ENDIF
 
 ;データベースをランク順にソート
 DT_SELECT "所持素材データベース", 表示条件, "素材ランク ASC, 素材属性 ASC", ソート後素材順
@@ -158,6 +144,7 @@ DO
 
 	現在表示ランク = -1
 	FOR COUNT, 0, 1000
+		ツールチップ文字列 = 
 		IF ソート後素材順:COUNT < 0
 			BREAK
 		ENDIF
@@ -176,14 +163,26 @@ DO
 		ENDIF
 		LOCALS:1 = %属性数値文字色変換_HTML(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%
 		IF STRFIND(表示条件, "プレゼントカテゴリ") > -1
-			LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1)%
+			IF STRFIND(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1), "_") > -1
+				VARSET RESULTS
+				SPLIT DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1), "_", RESULTS
+				LOCALS:2 = %RESULTS:0% 他{RESULT - 1}
+				ツールチップ文字列 += REPLACE(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1), "_", "・")
+			ELSE
+				LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "プレゼントカテゴリ", 1)%
+			ENDIF
 		ELSE
 			LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1)%
 		ENDIF
-		IF ボタン化フラグ
-			LOCALS += @"　<font color='#%LOCALS:1%'><button value='{COUNT}'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</button></font>　　"
+		IF STRLENS(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1)) > 26
+			実表示文字列 '= SUBSTRING(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 0, 26)
 		ELSE
-			LOCALS += @"　<font color='#%LOCALS:1%'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</font>　　"
+			実表示文字列 '= DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1)
+		ENDIF
+		IF ボタン化フラグ
+			LOCALS += @"　<font color='#%LOCALS:1%'><button value='{COUNT}' title='%ツールチップ文字列%'>%LOCALS:2, 14, LEFT%：%実表示文字列, 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</button></font>　　"
+		ELSE
+			LOCALS += @"　<font color='#%LOCALS:1%'><nonbutton title='%ツールチップ文字列%'>%LOCALS:2, 14, LEFT%：%実表示文字列, 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</nonbutton></font>　　"
 		ENDIF
 		LOCAL += 1
 		IF LOCAL % 2 == 0
@@ -231,6 +230,8 @@ DO
 			ページ番号 -= 1
 		CASE 1001
 			ページ番号 += 1
+		CASE IS <= -100
+			RETURN RESULT
 		CASEELSE
 			ページ番号 = 0
 			選択用変数 = 0
@@ -248,6 +249,8 @@ LOOP 1
 #DIM ソート後ページ登録, 1000
 #DIM 行数カウント
 #DIM ページ登録
+#DIMS 実表示文字列
+#DIMS ツールチップ文字列
 VARSET ソート後素材順, -1
 VARSET ソート後ページ登録, -1
 
@@ -291,6 +294,7 @@ LOCALS += @"<div rect='262,{y軸位置 + 75},5537,3625'><nobr>"
 
 現在表示ランク = -1
 FOR COUNT, 0, 1000
+	ツールチップ文字列 = 
 	IF ソート後素材順:COUNT < 0
 		BREAK
 	ENDIF
@@ -309,7 +313,12 @@ FOR COUNT, 0, 1000
 	ENDIF
 	LOCALS:1 = %属性数値文字色変換_HTML(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "素材属性", 1))%
 	LOCALS:2 = %DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材カテゴリ", 1)%
-	LOCALS += @"　<font color='#%LOCALS:1%'>%LOCALS:2, 14, LEFT%：%DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</font>　　"
+	IF STRLENS(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1)) > 26
+		実表示文字列 '= SUBSTRING(DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1), 0, 26)
+	ELSE
+		実表示文字列 '= DT_CELL_GETS("所持素材データベース", ソート後素材順:COUNT, "素材アイテム名", 1)
+	ENDIF
+	LOCALS += @"　<font color='#%LOCALS:1%'><nonbutton title='%ツールチップ文字列%'>%LOCALS:2, 14, LEFT%：%実表示文字列, 26, LEFT%×%TOFULL(TOSTR(DT_CELL_GET("所持素材データベース", ソート後素材順:COUNT, "所持素材数", 1))), 6%</nonbutton></font>　　"
 	LOCAL += 1
 	IF LOCAL % 2 == 0
 		LOCALS += "<br>"

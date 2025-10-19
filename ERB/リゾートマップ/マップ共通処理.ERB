@@ -179,6 +179,7 @@ JUMPFORM SKIP_MOVE_{マップ種別}(目的地, 移動キャラ)
 ;地点関連性応答処理
 ;-----------------------------------------------------------
 @CAN_MOVE(ARG:2, ARG, ARG:1)
+#DIM RESULT保存
 ;部屋の構造
 ;ARG 移動元
 ;ARG:1 移動先
@@ -198,6 +199,12 @@ SELECTCASE ARG:2
 		RETURNF CAN_MOVE_3(ARG, ARG:1)
 	CASE 100
 		RETURNF CAN_MOVE_100(ARG, ARG:1)
+	CASE 200 TO 499
+		RESULT保存 = RESULT
+		RESULT = 1
+		TRYCALLFORMF CAN_MOVE_{ARG:2}(ARG, ARG:1)
+		SWAP RESULT, RESULT保存
+		RETURNF RESULT保存
 ENDSELECT
 
 ;---------------------------------------------------------------
@@ -220,6 +227,12 @@ SELECTCASE ARG:1
 		RESULT保存 = RESULT
 		RESULT = 1
 		TRYCALLFORMF 存在しない移動先_%開催予定祭り名%(ARG)
+		SWAP RESULT, RESULT保存
+		RETURNF RESULT保存
+	CASE 200 TO 499
+		RESULT保存 = RESULT
+		RESULT = 1
+		TRYCALLFORMF 存在しない移動先_{ARG:1}(ARG)
 		SWAP RESULT, RESULT保存
 		RETURNF RESULT保存
 ENDSELECT
@@ -254,7 +267,9 @@ SIF ARG:1 < 0
 	RETURNF TSTR:場所名受渡
 
 IF ARG == 999
-	IF ARG:1 < 1000
+	IF ARG:1 == 999
+		RETURNF "eraの部屋"
+	ELSEIF ARG:1 < 1000
 		IF 滞在者部屋割り配列:(ARG:1) < 1
 			LOCALS = 滞在者なし
 		ELSE

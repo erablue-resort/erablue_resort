@@ -1,0 +1,192 @@
+﻿@外出共通初期処理()
+#DIM 対象キャラ
+
+;あなたの居場所変更
+CFLAG:MASTER:現在マップ種別 = FLAG:お出かけ先フラグ
+RESULT = 1
+TRYCALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("エリア移動可能場所")
+CFLAG:MASTER:現在位置 = RESULT
+
+;キャラの滞在期間を保存＆新規セット
+FOR 対象キャラ, 1, CHARANUM
+	CFLAG:対象キャラ:滞在期間_外出時保存 = CFLAG:対象キャラ:滞在期間
+
+	RESULT = 0
+	TRYCALLFORM 外出先_登場キャラ設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+	IF CFLAG:対象キャラ:滞在期間 > 0
+		;リゾートに今いるキャラは基本出てこない
+		CFLAG:対象キャラ:滞在期間 = -1
+	ELSEIF RESULT
+		;登場条件を満たしてれば出る
+		CFLAG:対象キャラ:滞在期間 = 999
+		;外出時用ルーチンをセット
+		TRYCALLFORM 外出先_ルーチン設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+	ELSE
+		CFLAG:対象キャラ:滞在期間 = -1
+	ENDIF
+NEXT
+
+;移動メッセージ
+PRINTL
+PRINTL
+PRINTL
+DRAWLINE
+
+TSTR:場所名受渡 = 
+CALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("選択肢名")
+IF TSTR:場所名受渡 == ""
+	CALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("エリア名")
+ENDIF
+PRINTL 今日は外出をする予定だ。
+PRINTFORMW %CALLNAME:MASTER%は出かける準備を整え、%TSTR:場所名受渡%に向けて出発した。
+PRINTL 
+PRINTW ………
+PRINTW ……
+PRINTW …
+PRINTL 
+PRINTFORML %TSTR:場所名受渡%に無事到着した！
+FORCEWAIT
+
+;外出後に来訪イベントを挟む
+TRYCALLFORM エリア来訪時イベント_{FLAG:お出かけ先フラグ}
+
+
+@外出共通終了処理()
+#DIM 対象キャラ
+
+;あなたの居場所変更
+CFLAG:MASTER:現在位置 =  キャラクター部屋検索(MASTER)
+CFLAG:MASTER:現在マップ種別 = 部屋検索_マップ種別
+
+;キャラの滞在期間を戻す
+FOR 対象キャラ, 1, CHARANUM
+	CFLAG:対象キャラ:滞在期間 = CFLAG:対象キャラ:滞在期間_外出時保存
+	CFLAG:対象キャラ:滞在期間_外出時保存 = -1
+NEXT
+
+FLAG:お出かけ先フラグ = 0
+
+
+@外出先一覧表示()
+#DIM 表示用リスト, 200
+#DIM 表示候補数
+#DIM 配列番号
+#DIM 表示キー
+#DIM 周回フラグ
+#DIM DYNAMIC 初回起動
+VARSET LOCAL
+VARSET LOCALS
+
+IF 初回起動 == 0
+	;存在する外出先をソートして突っ込む
+	VARSET 表示用リスト
+	表示候補数 = 0
+	ENUMFUNCBEGINSWITH "エリア情報登録_"
+
+	FOR 配列番号, 0, RESULT
+		RESULT = 0
+		TRYCALLFORM %RESULTS:配列番号%("外出先出現条件")
+		SIF RESULT == 0
+			CONTINUE
+		表示用リスト:表示候補数 = TOINT(REPLACE(RESULTS:配列番号, "エリア情報登録_", ""))
+		表示候補数 ++
+	NEXT
+
+	表示キー = -1
+	初回起動 = 1
+ENDIF
+
+DRAWLINE
+PRINTL お出かけする外出先を選んでください。
+DRAWLINE
+FOR LOCAL, 0, 表示候補数
+	TSTR:場所名受渡 = 
+	TRYCALLFORM エリア情報登録_{表示用リスト:LOCAL}("選択肢名")
+	IF TSTR:場所名受渡 == ""
+		TRYCALLFORM エリア情報登録_{表示用リスト:LOCAL}("エリア名")
+	ENDIF
+	IF 表示キー == LOCAL
+		LOCALS:1 += @"<font color='#%カラーパレット_HTML("黄")%'><button value='{LOCAL}'>[{LOCAL}]%TSTR:場所名受渡%</button></font><br>"
+	ELSE
+		LOCALS:1 += @"%LOCALS:10%<button value='{LOCAL}'>[{LOCAL}]%TSTR:場所名受渡%</button><br>"
+	ENDIF
+NEXT
+
+LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='156,156,1837,2712'><nobr>%LOCALS:1%</nobr></div>
+LOCALS += "<div width='350' height='125' xpos='337' ypos='0' color='#101010'>外出先</div>"
+LOCALS += "<div rect='2081,31,3937,2812' border='31' bcolor='#C0C0C0' padding='50,25,50'>"
+IF 表示キー == -1
+	LOCALS += "左のリストから任意の外出先を選択してください。<br>"
+	LOCALS += "この欄には外出先の詳細と、お出かけするかどうかの確認ボタンが表示されます。<br>"
+ELSE
+	TSTR:ツールチップ受渡 = 
+	TRYCALLFORM エリア情報登録_{表示用リスト:表示キー}("外出先説明")
+	LOCALS += TSTR:ツールチップ受渡
+	LOCALS += "<br>"
+	RESULT = 0
+	LOCALS += "<button value='10000'>[10000] この場所に外出する</button><br>"
+ENDIF
+LOCALS += "</div>"
+
+HTML_PRINT LOCALS
+
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+PRINTBUTTON "[9997]システムの説明", 9997
+PRINTL
+PRINTBUTTON "[9999]戻る", 9999
+PRINTL
+
+IF チュートリアルフラグ:外出システム == 0
+	LOCAL = 9997
+ELSE
+	BINPUT
+	LOCAL = RESULT
+ENDIF
+SELECTCASE LOCAL
+	CASE IS < 表示候補数
+		表示キー = LOCAL
+		RESTART
+	CASE 9997
+		CALL 外出システムチュートリアル()
+		RESTART
+	CASE 9999
+		表示キー = -1
+		RETURN 0
+	CASE 10000
+		DRAWLINE
+		TSTR:場所名受渡 = 
+		TRYCALLFORM エリア情報登録_{表示用リスト:表示キー}("選択肢名")
+		IF TSTR:場所名受渡 == ""
+			TRYCALLFORM エリア情報登録_{表示用リスト:表示キー}("エリア名")
+		ENDIF
+		PRINTFORML 『%TSTR:場所名受渡%』へお出かけします。
+		PRINTL よろしいですか？
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		PRINTL
+		BINPUT
+		IF RESULT == 0
+			RETURN 表示用リスト:表示キー
+		ELSE
+			RESTART
+		ENDIF
+ENDSELECT
+
+
+@外出先存在チェック()
+#DIM 配列番号
+
+ENUMFUNCBEGINSWITH "エリア情報登録_"
+
+FOR 配列番号, 0, RESULT
+	RESULT = 0
+	TRYCALLFORM %RESULTS:配列番号%("外出先出現条件")
+	SIF RESULT == 0
+		CONTINUE
+	
+	;一個でも出現してるならフラグセット
+	FLAG:外出解放フラグ = 1
+	BREAK
+NEXT
