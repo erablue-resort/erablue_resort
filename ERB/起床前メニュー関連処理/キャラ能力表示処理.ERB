@@ -7,7 +7,6 @@
 #DIM 得意武器番号
 #DIM スキップフラグ
 #DIM 文字色フラグ
-#DIM 表示人数 = 50
 #DIM L_TIME,2
 #DIMS ソート情報
 #DIMS ボタンテキスト
@@ -35,14 +34,14 @@ CALL キャラ配列フィルタ処理(表示候補)
 LOCAL:1 = 1
 
 $表示処理_LOOP
-ページ数:1 = MAX(候補人数 / 表示人数 - (候補人数%表示人数 ? 0# 1), 0)
+ページ数:1 = MAX(候補人数 / 項目表示数 - (候補人数%項目表示数 ? 0# 1), 0)
 DRAWLINE
 PRINTFORML 　 [0] %NAME表示(MASTER)%
 DRAWLINE
 VARSET LOCAL
 VARSET LOCALS
 ;表示処理
-FOR LOCAL, ページ数 * 表示人数, 候補人数
+FOR LOCAL, ページ数 * 項目表示数, 候補人数
 	SIF 表示候補:LOCAL < 1
 		BREAK
 	IF 文字色グループ取得(表示候補:LOCAL) >= 0
@@ -83,7 +82,7 @@ FOR LOCAL, ページ数 * 表示人数, 候補人数
 		HTML_PRINT LOCALS
 		LOCALS = 
 	ENDIF
-	SIF LOCAL:1 > 表示人数 - 1
+	SIF LOCAL:1 > 項目表示数 - 1
 		BREAK
 NEXT
 IF LOCALS != ""
@@ -116,7 +115,7 @@ ELSE
 	LOCALS:2 += " 　　　"
 ENDIF
 LOCALS:2 += " " * 26
-LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+LOCALS:2 += @"<button value='9007'>項目表示数：{項目表示数, 3}人/page</button>"
 LOCALS:2 += " " * (56-20-20)
 IF ページ数 <= ページ数:1 - 5
 	LOCALS:2 += "<button value='9004'>[＋５] </button>"
@@ -130,7 +129,7 @@ ENDIF
 HTML_PRINT LOCALS:2
 [SKIPEND]
 ;ページめくり表示
-CALL ページ送り共通表示(ページ数, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
+CALL ページ送り共通表示(ページ数, 項目表示数, 最大表示数, 9000, 9003)
 DRAWLINE
 IF 滞在者のみフィルタ
 	ボタンテキスト '= "滞在者と非滞在者を表示する"
@@ -160,8 +159,8 @@ ELSEIF GROUPMATCH(RESULT, 2000, 3000, 3100, 4000)
 	ページ数 = 0
 	RESTART
 ELSEIF INRANGE(RESULT, 9000, 9007)
-	CALL ページ送り共通実行(RESULT, ページ数, 項目表示数, 最大表示数, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007)
-	GOTO 表示_LOOP
+	CALL ページ送り共通実行(RESULT, ページ数, 項目表示数, 最大表示数, 9000, 9003)
+	GOTO 表示処理_LOOP
 ELSEIF RESULT == 2001
 	INVERTBIT 滞在者のみフィルタ, 0
 	ページ数 = 0
@@ -171,7 +170,7 @@ ELSEIF RESULT == 9000
 	ページ数 = MAX(ページ数 - 1, 0)
 	GOTO 表示処理_LOOP
 ELSEIF RESULT == 9001
-	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+	ページ数 = MIN(ページ数 + 1, 候補人数 / 項目表示数)
 	GOTO 表示処理_LOOP
 ELSEIF RESULT == 9002
 	ページ数 = 0
@@ -180,7 +179,7 @@ ELSEIF RESULT == 9003
 	ページ数 = MAX(ページ数 - 5, 0)
 	GOTO 表示処理_LOOP
 ELSEIF RESULT == 9004
-	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+	ページ数 = MIN(ページ数 + 5, 候補人数 / 項目表示数)
 	GOTO 表示処理_LOOP
 ELSEIF RESULT == 9005
 	ページ数 = ページ数:1
@@ -195,7 +194,7 @@ ELSEIF RESULT == 9007
 	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
 	INPUT
 	IF INRANGE(RESULT, 1, 100)
-		表示人数 = RESULT
+		項目表示数 = RESULT
 		ページ数 = 0
 	ENDIF
 	GOTO 表示処理_LOOP
