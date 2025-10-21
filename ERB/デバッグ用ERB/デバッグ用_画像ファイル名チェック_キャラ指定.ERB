@@ -1,0 +1,149 @@
+﻿[IF_DEBUG]
+;---------------------------------------------------------------------
+;【デバッグ用】画像ファイル名のチェック処理＠キャラ指定版
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_キャラ指定()
+#DIM  CSV_NO
+#DIM  L_CNT
+#DIM  L_CNT_F
+#DIMS FOLDER_NAME
+#DIMS DYNAMIC FOLDER_LIST, VARSIZE("RESULTS") ; 取得したフォルダリストの格納先
+#DIM  FOLDER_CNT
+#DIM  DYNAMIC FOLDER_CNT_ALL
+#DIM  CSV_NO_F
+#DIMS CHARA_NAME_F
+
+;- 対象入力
+PRINTL
+PRINTL 【デバッグ用】画像ファイル名のチェック＠キャラ指定版
+PRINTL 　※ pngファイルはチェックされません。
+PRINTL
+CALL デバッグ用_画像ファイル名チェック_キャラ指定_CSV番号入力()
+CSV_NO = RESULT
+SIF CSV_NO == -1
+	RETURN
+PRINTL
+REDRAW 0
+
+;- ファイル名チェック実行
+; チェック前に情報をリセット
+CALL デバッグ用_エラー画像情報管理("リセット")
+
+; フォルダ名のチェック
+CALL デバッグ用_画像フォルダ名チェック(CSV_NO)
+
+; CSV番号＋CSV記載のCALLNAMEからフォルダ名を生成
+FOLDER_NAME '= TOSTR(CSV_NO) + CSVCALLNAME(CSV_NO)
+FOLDER_CNT = デバッグ用_画像ファイル名チェック_フォルダ取得(FOLDER_NAME, FOLDER_LIST)
+FOLDER_CNT_ALL += FOLDER_CNT
+
+FOR L_CNT_F, 0, FOLDER_CNT
+	CALL デバッグ用_画像ファイル名チェック_フォルダ(FOLDER_LIST:L_CNT_F)
+NEXT
+
+; 命名規則から外れたリソースフォルダのチェック(0あなた等)
+FOR L_CNT, 0, VARSIZE("デバッグ用_特殊リソースフォルダ")
+	FOLDER_NAME '= デバッグ用_特殊リソースフォルダ:L_CNT
+	;CSV番号が一致するものだけチェック
+	CALL デバッグ用_画像ファイル名チェック_画像フォルダ名分解(FOLDER_NAME, CSV_NO_F, CHARA_NAME_F)
+	SIF CSV_NO_F != CSV_NO
+		CONTINUE
+	FOLDER_CNT= デバッグ用_画像ファイル名チェック_フォルダ取得(FOLDER_NAME, FOLDER_LIST)
+	FOLDER_CNT_ALL += FOLDER_CNT
+	FOR L_CNT_F, 0, FOLDER_CNT
+		CALL デバッグ用_画像ファイル名チェック_フォルダ(FOLDER_LIST:L_CNT_F)
+	NEXT
+NEXT
+
+;- 結果の表示
+REDRAW 1
+AWAIT
+;画像フォルダがない場合は結果表示なしで終了
+IF FOLDER_CNT_ALL == 0
+	PRINTW 指定されたキャラの画像フォルダが見つかりませんでした。
+	RETURN
+ENDIF
+
+CALL デバッグ用_エラー画像情報管理("結果出力")
+
+;- 結果のファイル出力
+PRINTL
+PRINTL 結果をファイルに出力しますか？
+PRINTL
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+BINPUT
+SIF RESULT == 1
+	RETURN
+
+; ファイル保存実行
+; RESULT:保存成否 RESULTS:保存したファイルのパス
+FOLDER_NAME '= TOSTR(CSV_NO) + CSVCALLNAME(CSV_NO)
+CALL デバッグ用_エラー画像情報管理("ファイル保存", FOLDER_NAME)
+IF RESULT
+	; ファイル保存成功
+	PRINTFORML 結果を「%RESULTS%」に保存しました
+ELSE
+	; ファイル保存失敗
+	PRINTL ファイルの保存に失敗しました
+ENDIF
+PRINTW
+
+;---------------------------------------------------------------------
+;【デバッグ用】チェック対象のCSV番号入力処理
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_キャラ指定_CSV番号入力()
+#DIM CSV_NO
+
+;- チェック対象の指定
+PRINTL
+PRINTL
+PRINTL チェックしたいキャラのCSV番号を入力してください(0でキャンセル)
+
+;入力処理
+INPUT
+CSV_NO = RESULT
+;0でキャンセル
+SIF CSV_NO == 0
+	RETURN 0
+;対応するキャラが居ない場合は再入力
+IF !EXISTCSV(CSV_NO)
+	PRINTW 入力されたCSV番号のキャラは存在しません。
+	RESTART
+ENDIF
+
+;- チェック対象の確認
+PRINTL
+PRINTL
+PRINTFORML チェックするのは下記のキャラでよろしいですか？
+DRAWLINE
+PRINTFORML <CSV番号>
+PRINTFORML {CSV_NO}
+PRINTL
+PRINTFORML <名前>
+PRINTFORML %CSVNAME(CSV_NO)%
+PRINTL
+PRINTFORML <呼び名>
+PRINTFORML %CSVCALLNAME(CSV_NO)%
+PRINTL
+PRINTFORML <画像フォルダ名>
+PRINTFORML {CSV_NO}%CSVCALLNAME(CSV_NO)%
+DRAWLINE
+PRINTBUTTONLC "[0] はい", 0
+PRINTBUTTONLC "[1] いいえ", 1
+PRINTBUTTONLC "[2] チェックをやめる", 2
+
+;入力処理
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		; はい
+		RETURN CSV_NO
+	CASE 1
+		; いいえ
+		RESTART
+	CASE 2
+		; やめる
+		RETURN -1
+ENDSELECT
+[ENDIF]
