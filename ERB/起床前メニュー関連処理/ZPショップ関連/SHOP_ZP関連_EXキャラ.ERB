@@ -53,6 +53,7 @@
 #DIM ソートボタン番号
 #DIM ソート順ボタン番号
 #DIM 素質絞込ボタン番号
+#DIM 陥落数
 
 ; RESTART時に現在ページをリセットしない
 IF 初回実行フラグ
@@ -474,6 +475,7 @@ WHILE 1
 			IF RESULT == 0
 				PRINTL 
 				PRINTL 
+				陥落数 = 同作品陥落キャラカウント(出典作品配列:選択シリーズ)
 				FOR 対象キャラ, 0, CHARANUM
 					SIF 出典表示候補:対象キャラ == -1
 						BREAK
@@ -494,6 +496,16 @@ WHILE 1
 					CFLAG:(出典表示候補:対象キャラ):招待不可フラグ = 0
 					IF OPTION変数:ZPキャラ自動例外追加 == 0
 						CFLAG:(出典表示候補:対象キャラ):例外招待 = 1
+					ENDIF
+					;同作品の解放数に応じて好感度ボーナス
+					IF 陥落数 > 0
+						陥落数 = MIN(15, 陥落数 * 3)
+						IF CFLAG:(出典表示候補:対象キャラ):信頼度 < 経験値テーブル:陥落数
+							CFLAG:(出典表示候補:対象キャラ):信頼度 = 経験値テーブル:陥落数
+							SKIPDISP 1
+							CALL FAVOR_LvUPCheck(出典表示候補:対象キャラ)
+							SKIPDISP 0
+						ENDIF
 					ENDIF
 					IF ZPキャラ無料回数
 						ZPキャラ無料回数 = MAX(0, ZPキャラ無料回数 - 1)
@@ -844,6 +856,7 @@ RETURN 実行結果
 #DIM L_CNT
 #DIM 滞在フラグ
 #DIM 解放のみフラグ
+#DIM 陥落数
 
 ;解放のみは文章を全部出さない
 SIF 解放のみフラグ
@@ -871,6 +884,16 @@ ENDIF
 CFLAG:対象キャラ:招待不可フラグ = 0
 IF OPTION変数:ZPキャラ自動例外追加 == 0
 	CFLAG:対象キャラ:例外招待 = 1
+ENDIF
+;同作品の解放数に応じて好感度ボーナス
+陥落数 = 同作品陥落キャラカウント(CSVCSTR(NO:対象キャラ, GETNUM(CSTR, "出演作品")))
+IF 陥落数 > 0
+	陥落数 = MIN(15, 陥落数 * 3)
+	IF CFLAG:対象キャラ:信頼度 < 経験値テーブル:陥落数
+		CFLAG:対象キャラ:信頼度 = 経験値テーブル:陥落数
+		SKIPDISP 1
+		CALL FAVOR_LvUPCheck(対象キャラ)
+	ENDIF
 ENDIF
 ; ZPの支払い
 IF 解放のみフラグ

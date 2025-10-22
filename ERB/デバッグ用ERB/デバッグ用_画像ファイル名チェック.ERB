@@ -104,20 +104,16 @@ PRINTW
 VARSET RESULTS
 VARSET FOLDER_LIST
 フォルダ数 = ENUMFILES(フォルダベース + FOLDER_NAME, 対象ファイル, サブフォルダ検索あり)
-
-SIF フォルダ数 == 0
+;ENUMFILESの結果は1件も見つからなかった場合は-1
+SIF フォルダ数 == -1
 	RETURNF 0
 
 ; 取得結果(resources\***キャラ名\ファイル名)から不要部分(resources\と\ファイル名)を削除して保存
 FOR L_CNT, 0, フォルダ数
-	DEBUGPRINTL
 	FOLDER_LIST:L_CNT '= RESULTS:L_CNT
-	DEBUGPRINTFORML 1.%FOLDER_LIST:L_CNT%
 	; "\"を"/"に置換(REPLACEは二重にエスケープ処理されるようなので"\\"ではなく"\\\\")
 	FOLDER_LIST:L_CNT '= REPLACE(FOLDER_LIST:L_CNT, "\\\\", "/")
-	DEBUGPRINTFORML 2.%FOLDER_LIST:L_CNT%
 	FOLDER_LIST:L_CNT '= SUBSTRING(FOLDER_LIST:L_CNT, STRLENS(フォルダベース), STRLENS(FOLDER_LIST:L_CNT) - (STRLENS(フォルダベース) + STRLENS("/" + 対象ファイル)))
-	DEBUGPRINTFORML 3.%FOLDER_LIST:L_CNT%
 NEXT
 RETURNF フォルダ数
 
@@ -278,8 +274,15 @@ SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	RETURNF 1
 
 ; 水着特殊差分
-; ・顔_水着-ビキニ-0.webp、顔_水着-ビキニ-0_差分_表情.webp等
-REGEX_TEXT '= @"(顔|短冊)_(妊娠)?水着-[^-]*-[0-3](_差分_(%REGEX_差分名%)[0-9]*)?\.webp"
+; ・顔_水着-ビキニ-.webp、顔_水着-ビキニ-0_差分_表情.webp等
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?水着-[^-]*-[0-3]?(_差分_(%REGEX_差分名%)[0-9]*)?\.webp"
+SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
+	RETURNF 1
+
+; リゾート従業員制服特殊差分
+; ・顔_リゾート従業員制服-スーツ・スカート.webp等
+; 　差分はある程度パターンがあるけど(組み合わせ一覧作るのが大変なので)細かい指定なし
+REGEX_TEXT '= @"(顔|短冊)_(妊娠)?リゾート従業員制服-[^-]*(_差分_(%REGEX_差分名%)[0-9]*)?\.webp"
 SIF FINDELEMENT(FILE_NAME, REGEX_TEXT, , , 1) > -1
 	RETURNF 1
 
@@ -450,6 +453,7 @@ RETURNF 1
 #DIM  SAVE_TEXT_DATA_SET
 ; 内部変数:その他
 #DIMS DYNAMIC TIME_STAMP
+#DIMS DYNAMIC SAVE_FILE_PATH
 #DIM  DYNAMIC SPLIT_CNT
 #DIM  DYNAMIC L_CNT
 #DIM  CONST フォルダ名 = 0
@@ -525,8 +529,16 @@ SELECTCASE TYPE
 			TIME_STAMP '= REPLACE(TIME_STAMP, "/", "")
 			TIME_STAMP '= REPLACE(TIME_STAMP, ":", "")
 			TIME_STAMP '= REPLACE(TIME_STAMP, " ", "_")
+			; ファイルパスの生成
+			IF FOLDER_NAME == ""
+				; 全体チェック時
+				SAVE_FILE_PATH '= @"dat/画像ファイル名チェック結果_%TIME_STAMP%_全体.txt"
+			ELSE
+				; キャラ指定チェック時
+				SAVE_FILE_PATH '= @"dat/画像ファイル名チェック結果_%TIME_STAMP%_%FOLDER_NAME%.txt"
+			ENDIF
 			; ファイルパスを受け渡し用にRESULTに格納
-			RESULTS '= @"dat/画像ファイル名チェック結果_%TIME_STAMP%.txt"
+			RESULTS '= SAVE_FILE_PATH
 			SAVETEXT SAVE_TEXT_DATA, RESULTS
 			RETURN RESULT
 		ENDIF
@@ -604,7 +616,9 @@ RETURNF SAVE_TEXT_DATA
 ;---------------------------------------------------------------------
 ;画像フォルダ名のチェック
 ;---------------------------------------------------------------------
-@デバッグ用_画像フォルダ名チェック()
+@デバッグ用_画像フォルダ名チェック(出力指定CSV_NO = -1)
+; 引数
+#DIM 出力指定CSV_NO
 ; 内部変数:フォルダ名リスト関連
 #DIMS DYNAMIC フォルダ名リスト  , VARSIZE("RESULTS")
 #DIM  フォルダ件数
@@ -629,11 +643,6 @@ RETURNF SAVE_TEXT_DATA
 #DIM  CONST 変換前 = 0
 #DIM  CONST 変換後 = 1
 ; 内部変数:正規表現検索用
-#DIMS RE_PATTERN
-#DIM  RE_GRP_CNT
-#DIMS RE_MATCHES, 3
-#DIM  RE_CNT
-#DIMS RE_TARGET
 ; 内部変数:その他
 #DIMS ERR_TEXT
 #DIM  L_CNT
@@ -645,8 +654,6 @@ RETURNF SAVE_TEXT_DATA
 #DIM CONST 不明_キャラ名       = 3
 #DIM CONST 不明_両方           = 4
 
-; 正規表現テキスト「(番号)(文字列)」
-RE_PATTERN '= "^([0-9]+)([^0-9].*)$"
 
 ; CSV番号変換表の作成
 ; 処理中に内容が変化しないので取得は1回だけ
@@ -655,16 +662,15 @@ IF !番号変換表取得済
 	番号変換表件数 = VARSIZE("デバッグ用_CSV番号変換キャラ定義")
 	FOR L_CNT_EX, 0, 番号変換表件数
 		;- 変換前の番号の取得
-		; 変換表の番号部分と名前部分の区切り文字を削除して合体
-		RE_TARGET '= REPLACE(デバッグ用_CSV番号変換キャラ定義:L_CNT_EX, "_", "")
-		; 正規表現して番号(誤)を取得
-		RE_CNT = REGEXPMATCH(RE_TARGET, RE_PATTERN, RE_GRP_CNT, RE_MATCHES)
-		; 正規表現一致数が0→ヘッダの記載がおかしいのでエラー通知
-		SIF RE_CNT == 0
-			THROW デバッグ用_画像ファイル名チェック.ERHの「デバッグ用_CSV番号変換キャラ定義」の内容に誤りがあります
 
-		; 正規表現検索結果を変数へ格納
-		番号変換表:L_CNT_EX:変換前 = TOINT(RE_MATCHES:1)
+		フォルダ名 '= REPLACE(デバッグ用_CSV番号変換キャラ定義:L_CNT_EX, "_", "")
+		; フォルダ名を分解して番号(誤)を取得
+		CALL デバッグ用_画像ファイル名チェック_画像フォルダ名分解(フォルダ名, CSV番号, キャラ名)
+		; CSV番号が取得できない場合はヘッダの記載がおかしいのでエラー通知
+		SIF CSV番号 == -1
+			THROW デバッグ用_画像ファイル名チェック.ERHの「デバッグ用_CSV番号変換キャラ定義」の内容に誤りがあります
+		; 分解結果を変数へ格納
+		番号変換表:L_CNT_EX:変換前 = CSV番号
 		
 		;- 変換後の番号の取得
 		; 変換表の番号部分を取得
@@ -699,25 +705,17 @@ FOR L_CNT, 0, フォルダ件数
 	;- 基本パターンチェック
 	;・フォルダ名を「CSV番号」と「キャラ名」に分割してCSVの内容と一致するかチェック
 	; 正規表現検索でフォルダ名を「CSV番号」と「キャラ名」に分割
-	VARSET RE_MATCHES
-	RE_TARGET '= フォルダ名
-	RE_CNT = REGEXPMATCH(RE_TARGET, RE_PATTERN, RE_GRP_CNT, RE_MATCHES)
-	
-	;- パターンと一致しないフォルダ
-	IF RE_CNT == 0
-		; 数値ならCSV番号、数値以外ならキャラ名として扱ってチェックする
+	CALL デバッグ用_画像ファイル名チェック_画像フォルダ名分解(フォルダ名, CSV番号, キャラ名)
+	;- 分解できなかった場合
+	IF CSV番号 == -1
+		; フォルダ名が数値ならCSV番号、数値以外ならキャラ名として扱ってチェックする
 		IF ISNUMERIC(フォルダ名)
 			CSV番号 = TOINT(フォルダ名)
 			キャラ名 '= ""
 		ELSE
 			CSV番号 = デバッグ用_CSV番号_MAX + 不明_CSV番号
-			キャラ名   '= フォルダ名
+			キャラ名 '= フォルダ名
 		ENDIF
-	;- パターンと一致するフォルダ
-	ELSE
-		; 正規表現検索結果を変数へ格納
-		CSV番号     = TOINT(RE_MATCHES:1)
-		キャラ名   '= RE_MATCHES:2
 	ENDIF
 	
 	;- 例外パターン処理1
@@ -791,7 +789,11 @@ FOR L_CNT, 0, フォルダ件数
 		ENDIF
 		正フォルダ名 '= @"不明"
 	ENDIF
-	
+
+	;出力CSV番号が指定されている場合はそれ以外のCSV番号はリストに追加しない
+	SIF 出力指定CSV_NO != -1 && CSV番号 != 出力指定CSV_NO
+		CONTINUE
+
 	; 表示調整用に誤フォルダ名の長さを測りつつリストに追加
 	誤フォルダ番号リスト:誤フォルダ件数 = CSV番号
 	誤フォルダ名リスト:誤フォルダ件数  '= フォルダ名
@@ -808,4 +810,35 @@ FOR L_CNT, 0, 誤フォルダ件数
 	ERR_TEXT '= @"%誤フォルダ名リスト:L_CNT, 誤フォルダ名長, LEFT%　候補:%正フォルダ名リスト:L_CNT%"
 	CALL デバッグ用_エラー画像情報管理("フォルダ名エラー", ERR_TEXT)
 NEXT
+
+;---------------------------------------------------------------------
+;画像フォルダ名をCSV番号とキャラ名に分解
+;---------------------------------------------------------------------
+@デバッグ用_画像ファイル名チェック_画像フォルダ名分解(FOLDER_NAME, CSV_NO, CHARA_NAME)
+#DIMS FOLDER_NAME
+#DIM  REF CSV_NO
+#DIMS REF CHARA_NAME
+
+; 内部変数:正規表現検索用
+#DIMS RE_PATTERN
+#DIM  RE_GRP_CNT
+#DIMS RE_MATCHES, 3
+#DIM  RE_CNT
+#DIMS RE_TARGET
+
+VARSET RE_MATCHES
+RE_TARGET '= FOLDER_NAME
+RE_PATTERN '= "^([0-9]+)([^0-9].*)$"
+RE_CNT = REGEXPMATCH(RE_TARGET, RE_PATTERN, RE_GRP_CNT, RE_MATCHES)
+
+;- パターンと一致しないフォルダ
+IF RE_CNT == 0
+	CSV_NO = -1
+	CHARA_NAME '= ""
+;- パターンと一致するフォルダ
+ELSE
+	; 正規表現検索結果を変数へ格納
+	CSV_NO = TOINT(RE_MATCHES:1)
+	CHARA_NAME '= RE_MATCHES:2
+ENDIF
 [ENDIF]

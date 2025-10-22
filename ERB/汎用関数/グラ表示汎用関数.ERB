@@ -409,25 +409,38 @@ NEXT
 
 SELECTCASE F_NUM
 	CASE IS < 1
-		PRINTL 有効な画像フォルダがありません
-		; 画像フォルダ設定の修正
-		CALL FIX_RESOURCES_FOLDER(対象キャラ)
-		SIF RESULT
-			PRINTFORMW 画像フォルダの設定を%CSTR:対象キャラ:画像フォルダ%に変更しました
-		; 表示するものがないので終了
-		RETURN
-	CASE 1
+		;- 有効な画像フォルダなし
 		; 画像フォルダ設定の修正
 		CALL FIX_RESOURCES_FOLDER(対象キャラ)
 		IF RESULT
+			; 有効な画像フォルダなしでデフォルト設定に変更した場合
+			PRINTL 有効な画像フォルダがありません
+			PRINTFORMW 画像フォルダの設定を%CSTR:対象キャラ:画像フォルダ%に変更しました
+		ELSE
+			; 有効な画像フォルダなしで元々デフォルト設定だった場合
+			PRINTW 有効な画像フォルダがありません
+		ENDIF
+		; 以降の処理で表示する画像フォルダがないので終了
+		RETURN
+	CASE 1
+		;- 有効な画像フォルダが1個
+		; 画像フォルダ設定の修正
+		CALL FIX_RESOURCES_FOLDER(対象キャラ)
+		IF RESULT
+			; 設定中の画像フォルダを修正した場合
 			PRINTL 現在設定されている画像フォルダが無効なため、
 			PRINTFORMW 画像フォルダの設定を%CSTR:対象キャラ:画像フォルダ%に変更しました
+		ELSE
+			; 設定中の画像フォルダを修正していない場合
+			; 表示なし
 		ENDIF
 	CASE 2 TO FOLDER_NUM_MAX
+		;- 有効な画像フォルダが複数
 		; 処理なし
 	CASE IS > FOLDER_NUM_MAX
-		; 画像フォルダが多すぎるので一部のみ表示
-		PRINTFORML 有効な画像フォルダが多すぎます。最初に見つかった{FOLDER_NUM_MAX}個のみが有効となります。
+		;- 有効な画像フォルダが多すぎる
+		; 表示するフォルダ数を制限
+		PRINTFORMW 有効な画像フォルダが多すぎます。最初に見つかった{FOLDER_NUM_MAX}個のみが有効となります。
 		F_NUM = FOLDER_NUM_MAX
 ENDSELECT
 
@@ -947,6 +960,10 @@ ENDIF
 SIF OPTION変数:射精エフェクト制御 && D_NAME != ""
 	VARSET 差分エフェクト
 
+IF MODE_存在判定_ターゲット側("キス", ARG)
+	SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, "キス")
+		D_NAME '= RESULTS
+ENDIF
 
 IF MODE_存在判定_ターゲット側("肩組み乳揉み", ARG)
 	SIF D_NAME == "" && 差分抽出(ARG, TYPE, LOCALS, "肩組み乳揉み")
