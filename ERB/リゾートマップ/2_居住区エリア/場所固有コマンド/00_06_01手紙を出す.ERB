@@ -1,6 +1,6 @@
 ﻿
 ;-------------------------------------------------
-;子供に会う
+;手紙を出す
 ;-------------------------------------------------
 @COMNAME_PLACE_380_2_6
 #FUNCTION
@@ -107,42 +107,43 @@ IF LOCALS != ""
 	LOCALS = 
 ENDIF
 PRINTL 
-LOCALS:2 = 
-IF ページ数 > 0
-	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
-ELSE
-	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
-ENDIF
-LOCALS:2 += " " * 24
-LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
-LOCALS:2 += " " * 23
-IF ページ数 < ページ数:1
-	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
-ENDIF
-LOCALS:2 += "<br>"
-IF ページ数 > 0
-	LOCALS:2 += "<button value='9002'>[|≪]</button>"
-ELSE
-	LOCALS:2 += "     "
-ENDIF
-IF ページ数 > 4
-	LOCALS:2 += "<button value='9003'> [－５]</button>"
-ELSE
-	LOCALS:2 += " 　　　"
-ENDIF
-LOCALS:2 += " " * 26
-LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
-LOCALS:2 += " " * (56-20-20)
-IF ページ数 <= ページ数:1 - 5
-	LOCALS:2 += "<button value='9004'>[＋５] </button>"
-ELSE
-	LOCALS:2 += " 　　　"
-ENDIF
-LOCALS:2 += " " * 5
-IF ページ数 < ページ数:1
-	LOCALS:2 += "<button value='9005'>[≫|]</button>"
-ENDIF
-HTML_PRINT LOCALS:2
+;LOCALS:2 = 
+;IF ページ数 > 0
+;	LOCALS:2 += @"<button value='9000'>[9000] 前のページ </button>"
+;ELSE
+;	LOCALS:2 += " " * STRLENS("[9000] 前のページ ")
+;ENDIF
+;LOCALS:2 += " " * 24
+;LOCALS:2 += @"<button value='9006'>{1+ページ数, 4, RIGHT}/{1+ページ数:1, 4, RIGHT}</button>"
+;LOCALS:2 += " " * 23
+;IF ページ数 < ページ数:1
+;	LOCALS:2 += @"<button value='9001'>[9001] 次のページ </button>"
+;ENDIF
+;LOCALS:2 += "<br>"
+;IF ページ数 > 0
+;	LOCALS:2 += "<button value='9002'>[|≪]</button>"
+;ELSE
+;	LOCALS:2 += "     "
+;ENDIF
+;IF ページ数 > 4
+;	LOCALS:2 += "<button value='9003'> [－５]</button>"
+;ELSE
+;	LOCALS:2 += " 　　　"
+;ENDIF
+;LOCALS:2 += " " * 26
+;LOCALS:2 += @"<button value='9007'>表示人数：{表示人数, 3}人/page</button>"
+;LOCALS:2 += " " * (56-20-20)
+;IF ページ数 <= ページ数:1 - 5
+;	LOCALS:2 += "<button value='9004'>[＋５] </button>"
+;ELSE
+;	LOCALS:2 += " 　　　"
+;ENDIF
+;LOCALS:2 += " " * 5
+;IF ページ数 < ページ数:1
+;	LOCALS:2 += "<button value='9005'>[≫|]</button>"
+;ENDIF
+;HTML_PRINT LOCALS:2
+CALL ページ送り共通表示(ページ数, 表示人数, 最大表示数, 9000, 9003)
 DRAWLINE
 CALL フィルタソートボタンセット表示(2000, 3000, 3100, 4000, 2001, ボタンテキスト)
 DRAWLINE
@@ -152,61 +153,63 @@ PRINTBUTTONLC "[9999]戻る", 9999
 PRINTL
 
 $INPUT_LOOP
-; IF チュートリアルフラグ:能力表示 == 0
-; 	RESULT = 9998
-; ELSE
-	BINPUT
-; ENDIF
-IF RESULT == 9999
-	RETURN 0
-ELSEIF RESULT == 9998
-	;CALL 能力表示チュートリアル()
-	GOTO 表示処理_LOOP
-ELSEIF GROUPMATCH(RESULT, 2000, 3000, 3100, 4000)
-	CALL フィルタソートボタンセット実行部(RESULT, 2000, 3000, 3100, 4000)
-	ページ数 = 0
-	RESTART
-ELSEIF RESULT == 2001
-	INVERTBIT 滞在者のみフィルタ, 0
-	ページ数 = 0
-	RESTART
-ELSEIF RESULT == 9000
-	ページ数 = MAX(ページ数 - 1, 0)
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9001
-	ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9002
-	ページ数 = 0
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9003
-	ページ数 = MAX(ページ数 - 5, 0)
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9004
-	ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9005
-	ページ数 = ページ数:1
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9006
-	PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
-	INPUT
-	SIF INRANGE(RESULT, 1, 1+ページ数:1)
-		ページ数 = RESULT - 1
-	GOTO 表示処理_LOOP
-ELSEIF RESULT == 9007
-	PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
-	INPUT
-	IF INRANGE(RESULT, 1, 100)
-		表示人数 = RESULT
-		ページ数 = 0
-	ENDIF
-	GOTO 表示処理_LOOP
-ELSEIF RESULT < 0 || RESULT >= CHARANUM
-	REUSELASTLINE 
-	GOTO INPUT_LOOP
-ENDIF
+BINPUT
 LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 9999
+		RETURN 0
+	CASE 9998
+		;CALL 能力表示チュートリアル()
+		GOTO 表示処理_LOOP
+	CASE 2000, 3000, 3100, 4000
+		CALL フィルタソートボタンセット実行部(LOCAL, 2000, 3000, 3100, 4000)
+		ページ数 = 0
+		RESTART
+	CASE 9000 TO 9007
+		CALL ページ送り共通実行(LOCAL, ページ数, 表示人数, 最大表示数, 9000, 9003)
+		GOTO 表示処理_LOOP
+	CASE 2001
+		INVERTBIT 滞在者のみフィルタ, 0
+		ページ数 = 0
+		RESTART
+;	CASE 9000
+;		ページ数 = MAX(ページ数 - 1, 0)
+;		GOTO 表示処理_LOOP
+;	CASE 9001
+;		ページ数 = MIN(ページ数 + 1, 候補人数 / 表示人数)
+;		GOTO 表示処理_LOOP
+;	CASE 9002
+;		ページ数 = 0
+;		GOTO 表示処理_LOOP
+;	CASE 9003
+;		ページ数 = MAX(ページ数 - 5, 0)
+;		GOTO 表示処理_LOOP
+;	CASE 9004
+;		ページ数 = MIN(ページ数 + 5, 候補人数 / 表示人数)
+;		GOTO 表示処理_LOOP
+;	CASE 9005
+;		ページ数 = ページ数:1
+;		GOTO 表示処理_LOOP
+;	CASE 9006
+;		PRINTFORML 飛びたいページ数を入力してください（1～{1+ページ数:1}）
+;		INPUT
+;		SIF INRANGE(RESULT, 1, 1+ページ数:1)
+;			ページ数 = RESULT - 1
+;		GOTO 表示処理_LOOP
+;	CASE 9007
+;		PRINTFORML 1ページ辺りに表示したい人数を入力してください（1～100）
+;		INPUT
+;		IF INRANGE(RESULT, 1, 100)
+;			表示人数 = RESULT
+;			ページ数 = 0
+;		ENDIF
+;		GOTO 表示処理_LOOP
+	CASE 0 TO CHARANUM-1
+	CASEELSE
+		REUSELASTLINE 
+		GOTO INPUT_LOOP
+ENDSELECT
+
 $再表示
 CALL 手紙送付キャラ確認(表示候補:LOCAL, 最初から詳細)
 最初から詳細 = 0

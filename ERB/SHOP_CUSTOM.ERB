@@ -58,7 +58,7 @@ SELECTCASE スタイル記録
 		PRINTL 　これを選択してもイベントやシナリオに影響が出ることはない。
 	CASE 10
 		PRINTL ■グランくんスタイル
-		PRINTL 　あなたをグランくんとして設定するスタイル。
+		PRINTL 　グランくんを「あなた」として設定するスタイル。
 		PRINTL 　あなたのステータスがグランと同じになり、リゾートにグランが登場しなくなる。
 		PRINTL 　初期従業員として「ルリア」「ビィ」が登録される。素質「命のリンク」の所持者があなたとルリアとして設定される。
 		PRINTL 　一部キャラの初期好感度が上昇し、常連素質を付与する。
@@ -68,7 +68,7 @@ SELECTCASE スタイル記録
 		PRINTL ※イベント文章などは通常スタイルを想定しているので、話の流れがおかしくなる場合があります。
 	CASE 11
 		PRINTL ■ジータちゃんスタイル
-		PRINTL 　あなたをジータちゃんとして設定するスタイル。
+		PRINTL 　ジータちゃんを「あなた」として設定するスタイル。
 		PRINTL 　あなたのステータスがジータと同じになり、リゾートにジータが登場しなくなる。
 		PRINTL 　初期従業員として「ルリア」「ビィ」が登録される。素質「命のリンク」の所持者があなたとルリアとして設定される。
 		PRINTL 　一部キャラの初期好感度が上昇し、常連素質を付与する。
@@ -78,7 +78,7 @@ SELECTCASE スタイル記録
 		PRINTL ※イベント文章などは通常スタイルを想定しているので、話の流れがおかしくなる場合があります。
 	CASE 20
 		PRINTL ■任意キャラスタイル
-		PRINTL 　あなたを任意のキャラとして設定するスタイル。
+		PRINTL 　任意のキャラを「あなた」として設定するスタイル。
 		PRINTL 　あなたのステータスが該当キャラと同じになり、リゾートに該当キャラが登場しなくなる。
 		PRINTL 　あなたが戦闘に参加できないのは通常と同一。
 		PRINTL 　その他のボーナスなどは存在しない。
@@ -643,7 +643,7 @@ $表示位置
 ;キャラ一覧を表示
 DRAWLINE
 PRINTL 誰をオーナーとして開始しますか？
-PRINTL ※全キャラを対象として選択することが出来ます。
+PRINTL ※ジータ・グランを除く全キャラを対象として選択することが出来ます。
 PRINTL ※対象キャラによってはイベント・シナリオの展開に矛盾が出る場合があります。
 DRAWLINE
 
@@ -651,7 +651,7 @@ LOCAL:1 = 0
 FOR LOCAL, 0, CHARANUM
 	SIF 候補配列:LOCAL < 1
 		BREAK
-	IF ページ数 == LOCAL:1 / 30
+	IF ページ数 == LOCAL:1 / 項目表示数
 		LOCALS += @"<button value='{LOCAL}'>[{LOCAL,3}] %GET_NAME(候補配列:LOCAL, 1)%</button>　%ソート情報表示(候補配列:LOCAL, 1)%　"
 	ENDIF
 	LOCAL:1 += 1
@@ -665,17 +665,19 @@ IF LOCALS != ""
 	LOCALS = 
 ENDIF
 DRAWLINE
-IF ページ数 > 0
-	PRINTBUTTONLC "[9000] 前のページへ", 9000
-ELSE
-	PRINTC   
-ENDIF
-IF ページ数 < (LOCAL:1 + 1) / 30
-	PRINTBUTTONLC "[9001] 次のページへ", 9001
-ELSE
-	PRINTC   
-ENDIF
-PRINTL
+;IF ページ数 > 0
+;	PRINTBUTTONLC "[9000] 前のページへ", 9000
+;ELSE
+;	PRINTC   
+;ENDIF
+;IF ページ数 < (LOCAL:1 + 1) / 30
+;	PRINTBUTTONLC "[9001] 次のページへ", 9001
+;ELSE
+;	PRINTC   
+;ENDIF
+;PRINTL
+;ページめくり表示
+CALL ページ送り共通表示(ページ数, 項目表示数, 最大表示数, 9000, 9003)
 DRAWLINE
 CALL フィルタソートボタンセット表示(9020, 9030, 9031, 9040)
 DRAWLINE
@@ -688,15 +690,41 @@ SELECTCASE LOCAL
 		CALL フィルタソートボタンセット実行部(LOCAL, 9020, 9030, 9031, 9040)
 		ページ数 = 0
 		RESTART
+	CASE 9000 TO 9007
+		CALL ページ送り共通実行(LOCAL, ページ数, 項目表示数, 最大表示数, 9000, 9003)
+		GOTO 表示位置
 	CASE 9999
-		ページ数 = 0
-		RETURN 0
-	CASE 9000
-		ページ数 --
-		GOTO 表示位置
-	CASE 9001
-		ページ数 ++
-		GOTO 表示位置
+		WHILE 1
+			CALL 任意キャラスタイル_セット確認(候補配列:LOCAL)
+			SELECTCASE RESULT
+				CASE 0
+					;- キャンセル
+					; リスト表示へ戻る
+					GOTO 表示位置
+				CASE 1
+					;- あなたで始める
+					ページ数 = 0
+					RETURN 0
+				CASE 10
+					;- 前のキャラ
+					; 候補番号を更新、ループして前のキャラを表示
+					LOCAL -=  1
+					SIF LOCAL < 0
+						LOCAL = 候補数 - 1
+				CASE 11
+					;- 次のキャラ
+					; 候補番号を更新、ループして次のキャラを表示
+					LOCAL +=  1
+					SIF LOCAL >= 候補数
+						LOCAL = 0
+			ENDSELECT
+		WEND
+;	CASE 9000
+;		ページ数 --
+;		GOTO 表示位置
+;	CASE 9001
+;		ページ数 ++
+;		GOTO 表示位置
 	CASEELSE
 		WHILE 1
 			CALL 任意キャラスタイル_セット確認(候補配列:LOCAL)
