@@ -20,36 +20,28 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM306
-#DIMS CONST 選択先順番制御 = "背中に触れる", "耳を触る"
 #DIM 選択先保存
+#DIMS 選択肢リスト, 100
+#DIM 選択肢数
+#DIM ループ用
 ;身体に触れる
 
 IF RFLAG:サイドボタン受渡し変数
 	;サイドボタンから来た時は選択処理挟まず直接コマンド実行に飛ぶ
 	選択先保存 = RFLAG:サイドボタン受渡し変数
 ELSE
+	;まずは選択肢のリストを作る
+	CALL 触れ合い選択肢リスト(選択肢リスト)
+	選択肢数 = RESULT
+
 	DRAWLINE
 	PRINTL どこに触れますか？
 	DRAWLINE
-	FOR LOCAL, 0, VARSIZE("選択先順番制御")
-		CALLFORM 身体に触れる_ABLE_%選択先順番制御:LOCAL%
+	FOR ループ用, 0, 選択肢数
+		CALLFORM 身体に触れる_ABLE_%選択肢リスト:ループ用%
 		IF RESULT
 			CALLFORMF COMNAME_S306_{RESULT}
-			LOCALS '= TSTR:コマンド名受渡
-			PRINTBUTTON @"[{LOCAL}] %LOCALS%", LOCAL
-			PRINTL 
-		ENDIF
-	NEXT
-	VARSET RESULTS
-	ENUMFUNCBEGINSWITH "身体に触れる_ABLE_"
-	FOR LOCAL, 0, RESULT
-		CALLFORM %RESULTS:LOCAL%
-		IF RESULT
-			CALLFORMF COMNAME_S306_{RESULT}
-			LOCALS '= TSTR:コマンド名受渡
-			SIF MATCH(選択先順番制御, LOCALS)
-				CONTINUE
-			PRINTBUTTON @"[{LOCAL + 100}] %LOCALS%", LOCAL + 100
+			PRINTBUTTON @"[{ループ用}] %TSTR:コマンド名受渡%", ループ用
 			PRINTL 
 		ENDIF
 	NEXT
@@ -58,16 +50,14 @@ ELSE
 	PRINTL 
 	DRAWLINE
 	BINPUT
-	LOCAL = RESULT
-	IF LOCAL == 999
-		RETURN -1
-	ELSEIF LOCAL < 100
-		CALLFORM 身体に触れる_ABLE_%選択先順番制御:LOCAL%
-		選択先保存 = RESULT
-	ELSE
-		CALLFORM %RESULTS:(LOCAL - 100)%
-		選択先保存 = RESULT
-	ENDIF
+	選択先保存 = RESULT
+	SELECTCASE 選択先保存
+		CASE 999
+			RETURN -1
+		CASE 0 TO 99
+			CALLFORM 身体に触れる_ABLE_%選択肢リスト:選択先保存%
+			選択先保存 = RESULT
+	ENDSELECT
 ENDIF
 
 ;COM実行処理
@@ -76,6 +66,35 @@ RSTR:SELECTCOM_S受け渡し = 306_{選択先保存}
 SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
 CALL CALL_COM(TARGET)
 RETURN RESULT
+
+;触れ合いの選択肢をソートした状態で渡すための関数
+@触れ合い選択肢リスト(選択肢リスト変数)
+#DIM CONST 関数接頭辞長さ = STRLENSU("身体に触れる_ABLE_")
+#DIMS REF 選択肢リスト変数, 0
+#DIM 選択肢数
+#DIMS 選択肢名
+#DIM 関数総数
+#DIM ループ用
+
+#DIMS CONST 選択先順番制御 = "背中に触れる", "耳を触る"
+
+VARSET 選択肢リスト変数
+選択肢数 = 0
+FOR ループ用, 0, VARSIZE("選択先順番制御")
+	SIF EXISTFUNCTION(@"身体に触れる_ABLE_%選択先順番制御:ループ用%") == 1
+		選択肢リスト変数:(選択肢数++) '= 選択先順番制御:ループ用
+NEXT
+
+VARSET RESULTS
+関数総数 = ENUMFUNCBEGINSWITH("身体に触れる_ABLE_")
+FOR ループ用, 0, 関数総数
+	選択肢名 '= SUBSTRINGU(RESULTS:ループ用, 関数接頭辞長さ, -1)
+	SIF MATCH(選択先順番制御, 選択肢名)
+		CONTINUE
+	選択肢リスト変数:(選択肢数++) '= 選択肢名
+NEXT
+
+RETURN 選択肢数
 
 ;-------------------------------------------------
 ;実行判定
