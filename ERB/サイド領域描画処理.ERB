@@ -38,19 +38,19 @@ IF SAVESTR:ゲームフェイズ管理 == "通常モード"
 	SIF サイド描画表示種類 == "同室者"
 		表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
 ENDIF
-; IF CFLAG:PLAYER:うふふ && CFLAG:TARGET:うふふ
-; 	LOCAL += LOCAL:1 + 50
-; 	LOCAL:1 = 700
-; 	表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック自慰'>クイック自慰</button></div>"
-; 	SIF サイド描画表示種類 == "クイック自慰"
-; 		表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
-; ELSE
 IF SAVESTR:ゲームフェイズ管理 == "通常モード"
 	LOCAL += LOCAL:1 + 50
-	LOCAL:1 = 900
-	表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック触れ合い'>クイック触れ合い</button></div>"
-	SIF サイド描画表示種類 == "クイック触れ合い"
-		表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
+	IF CFLAG:PLAYER:うふふ && CFLAG:TARGET:うふふ
+		LOCAL:1 = 700
+		表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック自慰'>クイック自慰</button></div>"
+		SIF サイド描画表示種類 == "クイック自慰"
+			表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
+	ELSE
+		LOCAL:1 = 900
+		表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_クイック触れ合い'>クイック触れ合い</button></div>"
+		SIF サイド描画表示種類 == "クイック触れ合い"
+			表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
+	ENDIF
 ENDIF
 IF SAVESTR:ゲームフェイズ管理 == "マッサージモード"
 	LOCAL += LOCAL:1 + 50
@@ -258,8 +258,14 @@ SELECTCASE サイド描画表示種類
 		RFLAG:サイドボタン受渡し変数 = RESULT
 		RFLAG:サイドボタン操作 = 0
 		RESULT = 306
-		CALL USERCOM
-		RETURN RESULT
+		JUMP USERCOM
+	CASE "クイック自慰"
+		自慰ターゲット保存 = TARGET
+		CALLFORM 自慰_ABLE_%REPLACE(RESULTS, "サイド領域_", "")%
+		RFLAG:サイドボタン受渡し変数 = RESULT
+		RFLAG:サイドボタン操作 = 0
+		RESULT = 9
+		JUMP USERCOM
 	CASE "おさわりモード"
 		IF RESULTS == "サイド領域_おさわりモード"
 			RFLAG:おさわりモード中 = 1
@@ -516,47 +522,104 @@ ENDIF
 
 
 @サイド描画表示種類_クイック触れ合い(表示文字列, 追加表示文字列)
+#DIM CONST 関数接頭辞長さ = STRLENSU("身体に触れる_ABLE_")
 #DIMS REF 表示文字列
 #DIMS REF 追加表示文字列
+#DIMS コマンド候補保存, 33 ;フォントサイズが弄られてても溢れない行数はこのくらいが限界
+#DIM 候補数
+#DIM コマンドありフラグ
+#DIM ループ用
 
-; IF CFLAG:PLAYER:うふふ && CFLAG:TARGET:うふふ
-; 	サイド描画表示種類 = クイック自慰
-; 	CALL サイド描画表示種類_クイック自慰(表示文字列, 追加表示文字列)
-; 	RETURN 0
-; ENDIF
-
-IF TARGET
-	CALL COM_ABLE306
-	IF RESULT
-		表示文字列 += "配置先整理中のため、単純に並べて表示<br>"
-
-		LOCAL:1 = 0
-		VARSET RESULTS
-		ENUMFUNCBEGINSWITH "身体に触れる_ABLE_"
-		FOR LOCAL, 0, RESULT
-			CALLFORM %RESULTS:LOCAL%
-			IF RESULT
-				LOCALS = %REPLACE(RESULTS:LOCAL, "身体に触れる_ABLE_", "")%
-				表示文字列 += @"<button value='サイド領域_%LOCALS%'>[%LOCALS, 16, LEFT%]</button><br>"
-				LOCAL:1 ++
-			ENDIF
-		NEXT
-		; 表示文字列 += "</nobr></div>"
-		; 表示文字列 += "<div rect='5600, 1000, 1000, 3000'><nobr><img src='汎用人型' height='2000' width='500'>"
-
-		;-------------------おさわりモード　
-		;セクハラ可能なら常に表示して、画像がないから実行できない旨をモード側で説明する
-		;とりあえず下の方に離して配置
-		LOCAL:2 = 33 - LOCAL:1
-		FOR LOCAL, 0, LOCAL:2
-			表示文字列 += @"<br>"
-		NEXT
-		表示文字列 += @"<button value='サイド領域_おさわりモード'>[%"おさわりモード", 16, LEFT%]</button>"
-		;----------------------
-	ELSE
-		表示文字列 += "セクハラ不能状態のためコマンド非表示<br>"
-	ENDIF
+SIF !TARGET
+	RETURN 0
+IF CFLAG:PLAYER:うふふ && CFLAG:TARGET:うふふ
+	表示文字列 += "セクハラ不能状態のためコマンド非表示<br>"
+	RETURN 0
 ENDIF
+
+CALL COM_ABLE306
+IF RESULT
+	;まずは選択肢のリストを作る
+	CALL 触れ合い選択肢リスト(コマンド候補保存)
+	候補数 = RESULT
+
+	;配置先整理中のため、単純に並べて表示
+	コマンドありフラグ = 0
+	FOR ループ用, 0, 候補数
+		CALLFORM 身体に触れる_ABLE_%コマンド候補保存:ループ用%
+		IF RESULT
+			;CALLFORMF COMNAME_S306_{RESULT}
+			表示文字列 += @"<button value='サイド領域_%コマンド候補保存:ループ用%'>[%コマンド候補保存:ループ用, 20, LEFT%]</button><br>"
+			コマンドありフラグ = 1
+		ENDIF
+	NEXT
+	; 表示文字列 += "</nobr></div>"
+	; 表示文字列 += "<div rect='5600, 1000, 1000, 3000'><nobr><img src='汎用人型' height='2000' width='500'>"
+
+	IF コマンドありフラグ == 0
+		表示文字列 += "現在可能なセクハラはありません<br>"
+	ELSE
+		;-------------------おさわりモード
+		;セクハラ可能なら常に表示して、画像がないから実行できない旨をモード側で説明する
+		;とりあえず下の方に独立して配置
+		追加表示文字列 += "<div rect='5600, 4125, 4225, 100'>"
+		追加表示文字列 += @"<button value='サイド領域_おさわりモード'>[おさわりモード]</button>"
+		追加表示文字列 += "</div>"
+		;----------------------
+	ENDIF
+ELSE
+	表示文字列 += "セクハラ不能状態のためコマンド非表示<br>"
+ENDIF
+
+
+@サイド描画表示種類_クイック自慰(表示文字列, 追加表示文字列)
+#DIM CONST 関数接頭辞長さ = STRLENSU("自慰_ABLE_")
+#DIMS REF 表示文字列
+#DIMS REF 追加表示文字列
+#DIMS コマンド候補保存, 33 ;フォントサイズが弄られてても溢れない行数はこのくらいが限界
+#DIM 候補数
+#DIM コマンドありフラグ
+#DIM 自慰ターゲット退避
+#DIM ループ用
+
+
+SIF !TARGET
+	RETURN 0
+IF !CFLAG:PLAYER:うふふ || !CFLAG:TARGET:うふふ
+	表示文字列 += "自慰不能状態のためコマンド非表示<br>"
+	RETURN 0
+ENDIF
+
+自慰ターゲット退避 = 自慰ターゲット保存
+自慰ターゲット保存 = TARGET
+CALL COM_ABLE9
+IF RESULT
+	;まずは選択肢のリストを作る
+	CALL 自慰選択肢リスト(コマンド候補保存)
+	候補数 = RESULT
+
+	;配置先整理中のため、単純に並べて表示
+	コマンドありフラグ = 0
+	FOR ループ用, 0, 候補数
+		CALLFORM 自慰_ABLE_%コマンド候補保存:ループ用%
+		IF RESULT
+			表示文字列 += @"<button value='サイド領域_%コマンド候補保存:ループ用%'>[%コマンド候補保存:ループ用, 20, LEFT%]</button><br>"
+			コマンドありフラグ = 1
+		ENDIF
+	NEXT
+	; 表示文字列 += "</nobr></div>"
+	; 表示文字列 += "<div rect='5600, 1000, 1000, 3000'><nobr><img src='汎用人型' height='2000' width='500'>"
+
+	IF コマンドありフラグ == 0
+		表示文字列 += "現在指示可能な自慰はありません<br>"
+	ELSE
+		;NOOP
+	ENDIF
+ELSE
+	表示文字列 += "自慰不能状態のためコマンド非表示<br>"
+ENDIF
+自慰ターゲット保存 = 自慰ターゲット退避
+
 
 @サイド描画表示種類_おさわりモード(表示文字列, 追加表示文字列)
 #DIMS REF 表示文字列
@@ -581,45 +644,14 @@ IF TARGET
 	表示文字列 += @"<br>橙：警戒度減少量の増加"
 	表示文字列 += @"<br>青：理性を抑制方向に補正"
 	表示文字列 += @"<br>桃：警戒度上昇の抑制"
+
 	;セクハラ可能なら常に表示して、画像がないから実行できない旨をモード側で説明する
-	;とりあえず下の方に離して配置
-	LOCAL:2 = 18
-	FOR LOCAL, 0, LOCAL:2
-		表示文字列 += @"<br>"
-	NEXT
-	表示文字列 += @"<button value='サイド領域_おさわりモード'>[%"おさわりモードを開始する", 16, LEFT%]</button>"
+	;開始ボタンは下の方に独立して配置
+	追加表示文字列 += "<div rect='5600, 4125, 4225, 100'>"
+	追加表示文字列 += @"<button value='サイド領域_おさわりモード'>[おさわりモードを開始する]</button>"
+	追加表示文字列 += "</div>"
 	;----------------------
 ENDIF
-; @サイド描画表示種類_クイック自慰(表示文字列, 追加表示文字列)
-; #DIMS REF 表示文字列
-; #DIMS REF 追加表示文字列
-
-; IF !CFLAG:PLAYER:うふふ || !CFLAG:TARGET:うふふ
-; 	サイド描画表示種類 = クイック触れ合い
-; 	CALL サイド描画表示種類_クイック触れ合い(表示文字列, 追加表示文字列)
-; 	RETURN 0
-; ENDIF
-
-; IF TARGET
-; 	CALL COM_ABLE306
-; 	IF RESULT
-; 		表示文字列 += "配置先整理中のため、単純に並べて表示<br>"
-
-; 		VARSET RESULTS
-; 		ENUMFUNCBEGINSWITH "身体に触れる_ABLE_"
-; 		FOR LOCAL, 0, RESULT
-; 			CALLFORM %RESULTS:LOCAL%
-; 			IF RESULT
-; 				LOCALS = %REPLACE(RESULTS:LOCAL, "身体に触れる_ABLE_", "")%
-; 				表示文字列 += @"<button value='サイド領域_%LOCALS%'>[%LOCALS, 16, LEFT%]</button><br>"
-; 			ENDIF
-; 		NEXT
-; 		; 表示文字列 += "</nobr></div>"
-; 		; 表示文字列 += "<div rect='5600, 1000, 1000, 3000'><nobr><img src='汎用人型' height='2000' width='500'>"
-; 	ELSE
-; 		表示文字列 += "セクハラ不能状態のためコマンド非表示<br>"
-; 	ENDIF
-; ENDIF
 
 
 @サイド描画表示種類_複数人一枚絵(表示文字列, 追加表示文字列)

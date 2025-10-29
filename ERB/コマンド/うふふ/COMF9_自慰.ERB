@@ -21,62 +21,39 @@ LOCALS += "<br>固有の取得経験：自慰経験・調教自慰経験<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM9
-#DIMS CONST 選択先順番制御 = "クリオナ"
 #DIM 選択先保存
-#DIM PLAYER保存
-#DIMS PLAYER自慰選択肢, 100
-#DIMS TARGET自慰選択肢, 100
-;身体に触れる
+#DIMS 選択肢リスト, 100
+#DIM 選択肢数
+#DIM ループ用
+;自慰
 
 IF RFLAG:サイドボタン受渡し変数
 	;サイドボタンから来た時は選択処理挟まず直接コマンド実行に飛ぶ
 	選択先保存 = RFLAG:サイドボタン受渡し変数
 ELSE
+	;まずは選択肢のリストを作る
+	CALL 自慰選択肢リスト(選択肢リスト)
+	選択肢数 = RESULT
+
 	DRAWLINE
 	PRINTL どの自慰を行いますか？
 	DRAWLINE
 	PRINTFORML ■%CALLNAME:PLAYER%
 	自慰ターゲット保存 = PLAYER
-	FOR LOCAL, 0, VARSIZE("選択先順番制御")
-		CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
+	FOR ループ用, 0, 選択肢数
+		CALLFORM 自慰_ABLE_%選択肢リスト:ループ用%
 		IF RESULT
-			PRINTBUTTON @"[{LOCAL}] %選択先順番制御:LOCAL%", LOCAL
-			PRINTL 
-		ENDIF
-	NEXT
-	VARSET RESULTS
-	ENUMFUNCBEGINSWITH "自慰_ABLE_"
-	ARRAYCOPY "RESULTS", "PLAYER自慰選択肢"
-	FOR LOCAL, 0, RESULT
-		CALLFORM %PLAYER自慰選択肢:LOCAL%
-		IF RESULT
-			LOCALS = %REPLACE(PLAYER自慰選択肢:LOCAL, "自慰_ABLE_", "")%
-			SIF MATCH(選択先順番制御, LOCALS)
-				CONTINUE
-			PRINTBUTTON @"[{LOCAL + 100}] %LOCALS%", LOCAL + 100
+			PRINTBUTTON @"[{ループ用}] %選択肢リスト:ループ用%", ループ用
 			PRINTL 
 		ENDIF
 	NEXT
 	PRINTL 
 	PRINTFORML ■%CALLNAME:TARGET%
 	自慰ターゲット保存 = TARGET
-	FOR LOCAL, 0, VARSIZE("選択先順番制御")
-		CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
+	FOR ループ用, 0, 選択肢数
+		CALLFORM 自慰_ABLE_%選択肢リスト:ループ用%
 		IF RESULT
-			PRINTBUTTON @"[{LOCAL + 200}] %選択先順番制御:LOCAL%", LOCAL + 200
-			PRINTL 
-		ENDIF
-	NEXT
-	VARSET RESULTS
-	ENUMFUNCBEGINSWITH "自慰_ABLE_"
-	ARRAYCOPY "RESULTS", "TARGET自慰選択肢"
-	FOR LOCAL, 0, RESULT
-		CALLFORM %TARGET自慰選択肢:LOCAL%
-		IF RESULT
-			LOCALS = %REPLACE(TARGET自慰選択肢:LOCAL, "自慰_ABLE_", "")%
-			SIF MATCH(選択先順番制御, LOCALS)
-				CONTINUE
-			PRINTBUTTON @"[{LOCAL + 300}] %LOCALS%", LOCAL + 300
+			PRINTBUTTON @"[{ループ用 + 200}] %選択肢リスト:ループ用%", ループ用 + 200
 			PRINTL 
 		ENDIF
 	NEXT
@@ -85,25 +62,17 @@ ELSE
 	PRINTL 
 	DRAWLINE
 	BINPUT
-	LOCAL = RESULT
-	SELECTCASE LOCAL
+	選択先保存 = RESULT
+	SELECTCASE 選択先保存
 		CASE 999
 			RETURN -1
 		CASE 0 TO 99
 			自慰ターゲット保存 = PLAYER
-			CALLFORM 自慰_ABLE_%選択先順番制御:LOCAL%
-			選択先保存 = RESULT
-		CASE 100 TO 199
-			自慰ターゲット保存 = PLAYER
-			CALLFORM %PLAYER自慰選択肢:(LOCAL - 100)%
+			CALLFORM 自慰_ABLE_%選択肢リスト:選択先保存%
 			選択先保存 = RESULT
 		CASE 200 TO 299
 			自慰ターゲット保存 = TARGET
-			CALLFORM 自慰_ABLE_%選択先順番制御:(LOCAL - 200)%
-			選択先保存 = RESULT
-		CASE 300 TO 399
-			自慰ターゲット保存 = TARGET
-			CALLFORM %TARGET自慰選択肢:(LOCAL - 300)%
+			CALLFORM 自慰_ABLE_%選択肢リスト:(選択先保存 - 200)%
 			選択先保存 = RESULT
 	ENDSELECT
 ENDIF
@@ -114,6 +83,35 @@ RSTR:SELECTCOM_S受け渡し = 9_{選択先保存}
 SELECTCOM_S = %RSTR:SELECTCOM_S受け渡し%
 CALL CALL_COM(自慰ターゲット保存)
 RETURN RESULT
+
+;自慰の選択肢をソートした状態で渡すための関数
+@自慰選択肢リスト(選択肢リスト変数)
+#DIM CONST 関数接頭辞長さ = STRLENSU("自慰_ABLE_")
+#DIMS REF 選択肢リスト変数, 0
+#DIM 選択肢数
+#DIMS 選択肢名
+#DIM 関数総数
+#DIM ループ用
+
+#DIMS CONST 選択先順番制御 = "クリオナ"
+
+VARSET 選択肢リスト変数
+選択肢数 = 0
+FOR ループ用, 0, VARSIZE("選択先順番制御")
+	SIF EXISTFUNCTION(@"自慰_ABLE_%選択先順番制御:ループ用%") == 1
+		選択肢リスト変数:(選択肢数++) '= 選択先順番制御:ループ用
+NEXT
+
+VARSET RESULTS
+関数総数 = ENUMFUNCBEGINSWITH("自慰_ABLE_")
+FOR ループ用, 0, 関数総数
+	選択肢名 '= SUBSTRINGU(RESULTS:ループ用, 関数接頭辞長さ, -1)
+	SIF MATCH(選択先順番制御, 選択肢名)
+		CONTINUE
+	選択肢リスト変数:(選択肢数++) '= 選択肢名
+NEXT
+
+RETURN 選択肢数
 
 ;-------------------------------------------------
 ;実行判定
