@@ -3,11 +3,26 @@
 #DIM キャラ番号
 #DIM 候補番号
 #DIM 候補数
+#DIM モブ客
 ;マッサージ客待ち時、キャラがマッサージを受けに来る処理
 
-;客待ち時に誰か来るのは1/2の確率
-SIF RAND:2
-	RETURN -1
+
+;客待ち時に誰か来るのは2/3の確率。ただしモブとネームドで半々。
+;敏腕マッサージ師になったら、客待ちすれば必ず誰か来るように。
+モブ客 = 0
+IF ABL:MASTER:マッサージ技能 >= 4
+	SELECTCASE RAND:2
+	CASE 0
+		モブ客 = 1
+	ENDSELECT	
+ELSE
+	SELECTCASE RAND:3
+	CASE 0
+		RETURN -1
+	CASE 1
+		モブ客 = 1
+	ENDSELECT
+ENDIF
 
 ;候補者リスト作成
 候補番号 = 0
@@ -29,6 +44,12 @@ FOR キャラ番号, 1, CHARANUM
 		CONTINUE
 	;体力限界
 	SIF CFLAG:キャラ番号:体力限界
+		CONTINUE
+	;男湯側にいるときに性別が女
+	SIF CFLAG:MASTER:現在位置 == 711 && TALENT:キャラ番号:性別 != 2
+		CONTINUE
+	;女湯側にいるときに性別が男
+	SIF CFLAG:MASTER:現在位置 == 811 && TALENT:キャラ番号:性別 == 2
 		CONTINUE
 	来店候補者:候補番号 = キャラ番号
 	候補番号 += 1
@@ -57,7 +78,23 @@ TCVAR:AUTOCOM_実行番号保存:マッサージ来店フラグ = 1
 
 ;来店処理
 $来店ラベル
-DRAWLINE
+IF モブ客 == 1
+	DRAWLINE
+		PRINTFORM %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた
+		IF CFLAG:MASTER:現在位置 == 811
+			PRINTFORM %TEXTR("若い/")%%TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の女性客
+		ELSE
+			PRINTFORM %TEXTR("若い//中年の/年老いた")%%TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の男性客
+		ENDIF
+		PRINTFORMW がマッサージ室に入ってきた。
+		PRINTL
+		PRINTFORML %CALLNAME:PLAYER%が%TEXTR("普段通りのマッサージを施す/肩と腰のコリ解消コースを施術する/骨盤を中心に骨格矯正の指圧マッサージを施術する/肌ケアオイルエステを施す")%と、
+		PRINTFORML 満足した客は笑顔を浮かべ、%CALLNAME:PLAYER%にお礼を言ってリゾートへと戻っていった…
+		PRINTFORMW 料金として1000ルピ手に入れた！
+		MONEY += 1000
+		EXP:PLAYER:マッサージ施術経験 += 10
+ELSE
+	DRAWLINE
 		PRINTFORML %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた%CALLNAME:AUTOCOM_実行番号保存%がマッサージ室に入ってきた。
 		PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%を施術台に案内しながら%CALLNAME:PLAYER%はマッサージの方針を考える…
 		DRAWLINE
@@ -66,73 +103,77 @@ DRAWLINE
 		PRINTBUTTON "[1] 普段通りマッサージする（簡易版）", 1
 		PRINTL
 		PRINTBUTTON "[100] 選択肢について説明", 100
-BINPUT
-;口上用に選択肢を記録
-RFLAG:コマンド結果受渡し変数２ = RESULT
+	BINPUT
+	;口上用に選択肢を記録
+	RFLAG:コマンド結果受渡し変数２ = RESULT
 
-SELECTCASE RFLAG:コマンド結果受渡し変数２
-		CASE 0
-			CFLAG:PLAYER:現在マップ種別 = 0
-			CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
-			CFLAG:AUTOCOM_実行番号保存:同室 = 1
-			CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
-			;処理のためTARGET配列をセット
-			CALL TARGET_SET()
+	SELECTCASE RFLAG:コマンド結果受渡し変数２
+			CASE 0
+				CFLAG:PLAYER:現在マップ種別 = 0
+				CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
+				CFLAG:AUTOCOM_実行番号保存:同室 = 1
+				CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
+				;処理のためTARGET配列をセット
+				CALL TARGET_SET()
 
-			;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
-			IF チュートリアルフラグ:マッサージモード == 0
-				CALL マッサージチュートリアル
-			ENDIF
-				
-			;移動しないように同行セット
-			SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
-				CFLAG:AUTOCOM_実行番号保存:同行 = 1
-			
-			あなた追跡キャラ = 0
-			
-			;ターンエンドまでいかないのでメッセージはここで処理
-			;SELECTCOM = 382
-			CALL KOJO_MESSAGE_COM_通常モード
-			
-			;マッサージモードに移行
-			LOCAL = AUTOCOM_実行番号保存
-			サイド描画表示種類 = 能力表示
-			CALL ゲームフェイズ変更("マッサージモード")
-			CALL 警戒度初期値セット(LOCAL)
-			;服着替え
-			;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
-			SIF CSTR:LOCAL:コスプレ前の服 == "" && CSTR:LOCAL:表示グラフィックカテゴリ != ""
-				CSTR:LOCAL:コスプレ前の服 '= CSTR:LOCAL:表示グラフィックカテゴリ
-		
-			TRYCALLFORM マッサージ時固有着替え処理_{NO:LOCAL}(LOCAL)
-			IF RSTR:服装名受け渡し != ""
-				CALL CLOTHES_CHANGE(LOCAL, RSTR:服装名受け渡し)
-			ELSE
-				IF フィールド展開:水泳時全裸化
-					CALL CLOTHES_CHANGE(LOCAL, "全裸")
-				ELSEIF EXIST画像FILE("resources/" + CSTR:LOCAL:画像フォルダ + "/短冊_マッサージ着")
-					CALL CLOTHES_CHANGE(LOCAL, "マッサージ着")
-				ELSE
-					CALL CLOTHES_CHANGE(LOCAL, "水着")
+				;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
+				IF チュートリアルフラグ:マッサージモード == 0
+					CALL マッサージチュートリアル
 				ENDIF
-			ENDIF
-			RETURN -1
-		CASE 1
-			TIME += 30
-			TARGET = AUTOCOM_実行番号保存
-			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%に普段通りのマッサージを施した。
-			PRINTFORMW 満足した%CALLNAME:AUTOCOM_実行番号保存%はリゾートへと戻っていった。
-			CALL SOURCE_CALC_歓楽(AUTOCOM_実行番号保存, PLAYER, 500)
-			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_実行番号保存, PLAYER, 250)
-		CASE 100
-			DRAWLINE
-			PRINTL 念入りにマッサージする：マッサージモードに移行します
-			PRINTL 　　　　　　その後の行動について制限はありません。
-			PRINTL
-			PRINT 普段通りマッサージする（簡易版）：
-			PRINTL 簡単な描写と一定の好感度変化が実行されます。（未調整）
-			PRINTL 
-			WAIT
-			GOTO 来店ラベル
-ENDSELECT
+					
+				;移動しないように同行セット
+				SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
+					CFLAG:AUTOCOM_実行番号保存:同行 = 1
+				
+				あなた追跡キャラ = 0
+				
+				;ターンエンドまでいかないのでメッセージはここで処理
+				;SELECTCOM = 382
+				CALL KOJO_MESSAGE_COM_通常モード
+				
+				;マッサージモードに移行
+				LOCAL = AUTOCOM_実行番号保存
+				サイド描画表示種類 = 能力表示
+				CALL ゲームフェイズ変更("マッサージモード")
+				CALL 警戒度初期値セット(LOCAL)
+				;服着替え
+				;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
+				SIF CSTR:LOCAL:コスプレ前の服 == "" && CSTR:LOCAL:表示グラフィックカテゴリ != ""
+					CSTR:LOCAL:コスプレ前の服 '= CSTR:LOCAL:表示グラフィックカテゴリ
+			
+				TRYCALLFORM マッサージ時固有着替え処理_{NO:LOCAL}(LOCAL)
+				IF RSTR:服装名受け渡し != ""
+					CALL CLOTHES_CHANGE(LOCAL, RSTR:服装名受け渡し)
+				ELSE
+					IF フィールド展開:水泳時全裸化
+						CALL CLOTHES_CHANGE(LOCAL, "全裸")
+					ELSEIF EXIST画像FILE("resources/" + CSTR:LOCAL:画像フォルダ + "/短冊_マッサージ着")
+						CALL CLOTHES_CHANGE(LOCAL, "マッサージ着")
+					ELSE
+						CALL CLOTHES_CHANGE(LOCAL, "水着")
+					ENDIF
+				ENDIF
+				RETURN -1
+			CASE 1
+				TIME += 30
+				TARGET = AUTOCOM_実行番号保存
+				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%に%TEXTR("普段通りのマッサージを施した/肩と腰のコリ解消コースを施術した/骨盤を中心に骨格矯正の指圧マッサージを施術した/肌ケアオイルエステを施した")%。
+				PRINTFORML 満足した%CALLNAME:AUTOCOM_実行番号保存%はリゾートへと戻っていった。
+				PRINTFORMW 料金として1000ルピ手に入れた！
+				MONEY += 1000
+				CALL SOURCE_CALC_歓楽(AUTOCOM_実行番号保存, PLAYER, 500)
+				CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_実行番号保存, PLAYER, 250)
+				EXP:PLAYER:マッサージ施術経験 += 10
+			CASE 100
+				DRAWLINE
+				PRINTL 念入りにマッサージする：マッサージモードに移行します
+				PRINTL 　　　　　　その後の行動について制限はありません。
+				PRINTL
+				PRINT 普段通りマッサージする（簡易版）：
+				PRINTL 簡単な描写と一定の好感度変化が実行されます。（未調整）
+				PRINTL 
+				WAIT
+				GOTO 来店ラベル
+	ENDSELECT
+ENDIF
