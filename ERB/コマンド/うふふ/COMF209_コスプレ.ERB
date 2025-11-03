@@ -203,12 +203,13 @@ ENDIF
 @コスプレ実処理(キャラ番号)
 #DIM キャラ番号
 #DIM ページ数
+#DIM 表示許可数
+#DIM CONST 表示数 = 44
 #DIM 実行難易度
-#DIMS コスプレ一時配列, 200
+#DIMS コスプレ一時配列, 1980
 #DIMS 分割文字列配列, 2
 #DIMS 解説文
 #DIMS CONST アクセサリ文字列 = "付け角", "付け尻尾", "付け耳（エルーン）", "付け耳（ハーヴィン）"
-ページ数 = 0
 
 DRAWLINE
 PRINTFORML %CALLNAME:キャラ番号%に着せたい服を選んでください
@@ -224,7 +225,9 @@ ELSE
 	コスプレ一時配列:0 = %所持制服文字列%%所持エロ衣装文字列%
 ENDIF
 SPLIT コスプレ一時配列:0, "_", コスプレ一時配列
-FOR LOCAL, 0, 100
+VARSET LOCAL
+表示許可数 = 0
+FOR LOCAL, 0, 990
 	IF コスプレ一時配列:LOCAL == ""
 		BREAK
 	ENDIF
@@ -234,6 +237,9 @@ FOR LOCAL, 0, 100
 			CONTINUE
 	CATCH
 	ENDCATCH
+	表示許可数 ++
+	SIF ページ数 != (表示許可数 - 1) / 表示数
+		CONTINUE
 	VARSET RESULTS
 	IF OPTION変数:ツールチップ切り替え == 0
 		解説文 = 
@@ -259,16 +265,27 @@ FOR LOCAL, 0, 100
 	ELSE
 		LOCALS += "　　　　　　　"
 	ENDIF
-	SIF LOCAL % 2
+	SIF !表示許可数 % 2
 		LOCALS += "<br>"
 NEXT
 LOCALS += "</div>"
 ;LOCALS += "<div rect='5000,2625,3675,312'>"
-LOCALS += "<div rect='2500,2625,3675,312'>"
+;LOCALS += "<div rect='2500,2625,3675,312'>"
+LOCALS += "<div rect='400,2625,7200,312'>"
 LOCALS += "<button value='0'>[0] 元の衣装に戻す</button>　"
 IF TFLAG:調教モード == 2
 	;うふふ時のみ
-	LOCALS += "<button value='998'>[998] アクセサリを付ける</button>　"
+	LOCALS += "<button value='996'>[996] アクセサリを付ける</button>　"
+ENDIF
+IF ページ数 > 0
+	LOCALS += "<button value='997'>[997] 前ページへ</button>　"
+ELSE
+	LOCALS += "　　　 　　　　　　"
+ENDIF
+IF ページ数 < (表示許可数 - 1) / 表示数
+	LOCALS += "<button value='998'>[998] 次ページへ</button>　"
+ELSE
+	LOCALS += "　　　 　　　　　　"
 ENDIF
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
@@ -285,6 +302,7 @@ BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 999
+		ページ数 = 0
 		RETURN -1
 	CASE 0
 		CALL CLOTHES_RESET(キャラ番号)
@@ -292,7 +310,13 @@ SELECTCASE LOCAL
 		CSTR:キャラ番号:コスプレ前の服 '= ""
 		RSTR:コマンド結果受渡し文字列 = 元の衣装
 		RETURN 1
+	CASE 997
+		ページ数 --
+		RESTART
 	CASE 998
+		ページ数 ++
+		RESTART
+	CASE 996
 		$アクセサリLOOP
 		PRINTL
 		PRINTL
@@ -355,6 +379,7 @@ SELECTCASE LOCAL
 		ENDIF
 		CSTR:キャラ番号:脱ぐ前の服 '= LOCALS
 		RSTR:コマンド結果受渡し文字列 = %分割文字列配列:1%
+		ページ数 = 0
 		RETURN 1
 ENDSELECT
 LOOP 1
