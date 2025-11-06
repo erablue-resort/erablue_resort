@@ -314,7 +314,9 @@ CALL 素材アイテム登録処理
 従業員部屋数 = 2
 従業員部屋_増築数 = 0
 施設改造度:0:0 = 1
+AWAIT
 CALL RESET_GRAPH_0
+AWAIT
 
 PRINTW パラメータの初期化処理を行います
 PRINTL 
@@ -323,7 +325,7 @@ LOCAL:1 = CHARANUM / 10
 REDRAW 0
 IF 引き継ぎ中フラグ && キャラ同士関係性データ != ""
 	VARSET LOCALS
-	SPLIT キャラ同士関係性データ, "%", LOCALS
+	SPLIT キャラ同士関係性データ, "+++", LOCALS
 	FOR LOCAL, 0, RESULT
 		SPLIT LOCALS:LOCAL, "_", 分割文字列
 		LOCAL:2 = キャラ検索(分割文字列:0)
@@ -481,6 +483,16 @@ ENDIF
 
 初期設定中 = 0
 IF 引き継ぎ中フラグ
+
+	;あなた以外をMASTERにして、そのキャラが引き継ぎキャラを妊娠させていた場合の処理
+	;@キャラクター初期化内でやるようにしたのでコメアウト
+	;IF !GROUPMATCH(SAVESTR:あなたスタイル, "","スタートダッシュモード") && 引き継いだキャラ人数
+	;	FOR LOCAL, 1, 引き継いだキャラ人数 + 1
+	;		SIF TALENT:LOCAL:妊娠 && CFLAG:LOCAL:子の父親 > 0 && NO:(CFLAG:LOCAL:子の父親) == FLAG:あなたキャラ化記録
+	;			CFLAG:LOCAL:子の父親 = 0
+	;	NEXT
+	;ENDIF
+
 	;使用する変数を掃除
 	VARSET 周回回数累計_退避
 	VARSET キャラ変数引き継ぎ
@@ -864,6 +876,27 @@ ELSE
 		同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
 		LOCAL:1 += 1
 	NEXT
+	;キャラ妊娠引き継ぎ時
+	IF TALENT:ARG:妊娠
+		;引き継ぎキャラが種親の場合、-10000するとキャラIDになるようにいじってある
+		IF CFLAG:ARG:子の父親 > 10000
+			CFLAG:ARG:子の父親 -= 10000
+		;引き継ぎありでランダムキャラの場合
+		ELSEIF CFLAG:ARG:子の父親 < 0
+			CFLAG:ARG:子の父親 = FIND_CHARA_FROM_PERSON_ID(CFLAG:ARG:子の父親 * -1)
+		;あなたかつMASTERを別キャラにした場合、不明にしようとも思ったけどそのキャラにしたのでコメアウト
+		;ELSEIF !CFLAG:ARG:子の父親 && !GROUPMATCH(SAVESTR:あなたスタイル, "","スタートダッシュモード")
+		;	CFLAG:ARG:子の父親 = -1
+		;いないキャラ(引き継がなかったランダムキャラなど)が種親の場合、-1(親不明？)に
+		ELSEIF CFLAG:ARG:子の父親 == 999
+			CFLAG:ARG:子の父親 = -1
+		;MASTERにしたキャラだった場合
+		ELSEIF FLAG:あなたキャラ化記録 == CFLAG:ARG:子の父親
+			CFLAG:ARG:子の父親 = 0
+		ELSEIF CFLAG:ARG:子の父親 > 0
+			CFLAG:ARG:子の父親 = GETCHARA(CFLAG:ARG:子の父親)
+		ENDIF
+	ENDIF
 ENDIF
 CALL 口上変数初期化
 

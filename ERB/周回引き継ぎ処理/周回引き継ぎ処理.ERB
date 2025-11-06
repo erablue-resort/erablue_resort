@@ -185,7 +185,6 @@ SELECTCASE LOCAL
 			RESTART
 		ENDIF
 	CASE 998
-		PRINTFORML %CALLNAME:MASTER%の能力全てを引き継ぐ選んだ場合、無限ループのエラーが出る場合がありますが[いいえ]を選んで続けると多分正常動作します
 		CALL 周回実処理(引き継ぎ枠)
 		RETURN -1
 	CASE 200 TO 299
@@ -229,10 +228,10 @@ RETURNF 引き継ぎ枠
 #FUNCTION
 #DIM キャラ番号
 
-IF TALENT:キャラ番号:妊娠
-	RESULTS '= "妊娠中のキャラは引き継ぎできません"
-	RETURNF 1
-ENDIF
+;IF TALENT:キャラ番号:妊娠
+;	RESULTS '= "妊娠中のキャラは引き継ぎできません"
+;	RETURNF 1
+;ENDIF
 
 RESULTS '= ""
 RETURNF 0
@@ -454,6 +453,7 @@ VARSET あなた技巧引き継ぎ
 ;あなたの退避
 IF あなた引き継ぎフラグ == 2
 	SAVECHARA "あなた", "あなた", 0
+	AWAIT
 	あなた引き継ぎ = 2
 	FOR LOCAL, 0, 100
 		あなた特殊能力引き継ぎ:LOCAL = あなた特殊能力:LOCAL
@@ -497,22 +497,67 @@ FOR LOCAL, 0, 引き継ぎ枠
 		CFLAG:(引き継ぎキャラ番号:LOCAL):長期雇用 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):定住者 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):店持ち = 0
-		IF キャラ妊娠引き継ぎ:LOCAL == 0
-			TALENT:(引き継ぎキャラ番号:LOCAL):妊娠 = 0
-			CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠経過日 = 0
-			CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = -1
-			CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠発覚 = 0
-			CFLAG:(引き継ぎキャラ番号:LOCAL):今回受胎人数 = 0
+		IF TALENT:(引き継ぎキャラ番号:LOCAL):妊娠
+			IF キャラ妊娠引き継ぎ:LOCAL == 0
+				TALENT:(引き継ぎキャラ番号:LOCAL):妊娠 = 0
+				CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠経過日 = 0
+				CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = -1
+				CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠発覚 = 0
+				CFLAG:(引き継ぎキャラ番号:LOCAL):今回受胎人数 = 0
+				IF CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠時バストサイズ増加
+					;元が魔乳未満の場合、TALENTも小さくする（魔乳の場合は下駄履かせて計算させてるのでそのままでOK）
+					SIF CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠時バストサイズ増加 == 1
+						TALENT:(引き継ぎキャラ番号:LOCAL):バストサイズ --
+					;BASEが実際に小さくなるまでループ
+					LOCAL:1 = BASE:(引き継ぎキャラ番号:LOCAL):バスト
+					LOCAL:2 = 0
+					DO
+						CALL SET_BODYSIZE((引き継ぎキャラ番号:LOCAL),2)
+						;なんか知らんけどここで無限ループになるパターンがあるっぽいので１００回ループしてもダメなら-1する
+						LOCAL:2 ++
+						IF LOCAL:2 > 100
+							BASE:(引き継ぎキャラ番号:LOCAL):バスト = LOCAL:1 - 1
+							BREAK
+						ENDIF
+					LOOP BASE:(引き継ぎキャラ番号:LOCAL):バスト > LOCAL:1
+					TALENT:(引き継ぎキャラ番号:LOCAL):バストサイズ = LIMIT(TALENT:(引き継ぎキャラ番号:LOCAL):バストサイズ, バストサイズ_最小, バストサイズ_最大)
+					CFLAG:(引き継ぎキャラ番号:LOCAL):妊娠時バストサイズ増加 = 0
+					SIF TALENT:(引き継ぎキャラ番号:LOCAL):母乳体質 != 1
+						TALENT:(引き継ぎキャラ番号:LOCAL):母乳体質 = 0
+				ENDIF
+			ELSE
+				;MASTERの場合
+				IF CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 == 0
+					CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = FLAG:あなたキャラ化記録
+				ELSE
+					FOR LOCAL:1, 0, 引き継ぎ枠
+						;引き継ぎキャラの場合、LOCAL:1 + 10001(次週のキャラID+10000)を入れる
+						IF CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 == 引き継ぎキャラ番号:(LOCAL:1)
+							CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = LOCAL:1 + 10001
+							BREAK
+						ENDIF
+						;引き継ぎキャラ以外の場合
+						IF LOCAL:1 == 引き継ぎ枠 - 1
+							IF NO:(CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親) == 999 && !ランダムキャラ引き継ぎフラグ
+								CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = 999
+							ELSE
+								CFLAG:(引き継ぎキャラ番号:LOCAL):子の父親 = キャラ変数引き継ぎ:(引き継ぎキャラ番号:LOCAL):キャラナンバー
+							ENDIF
+						ENDIF
+					NEXT
+				ENDIF
+			ENDIF
 		ENDIF
 		;SAVECHARAメモにキャラのNOを入れておく
 		SAVECHARA TOSTR(LOCAL), TOSTR(NO:(引き継ぎキャラ番号:LOCAL)), 引き継ぎキャラ番号:LOCAL
+		AWAIT
 
 		;キャラ同士恋慕セフレの記録
 		VARSET RESULT
 		候補数 = DT_SELECT("関係性データベース", @"対象キャラ１ = {CFLAG:(引き継ぎキャラ番号:LOCAL):人物番号} Or 対象キャラ２ = {CFLAG:(引き継ぎキャラ番号:LOCAL):人物番号}")
 		IF 候補数
 			FOR LOCAL:1, 1, 候補数 + 1
-				相手キャラ = FIND_CHARA_FROM_PERSON_ID(関係性_相手人物番号取得(引き継ぎキャラ番号:LOCAL, RESULT:(LOCAL:1)))
+				相手キャラ = FIND_CHARA_FROM_PERSON_ID(関係性_相手人物番号取得(CFLAG:(引き継ぎキャラ番号:LOCAL):人物番号, RESULT:(LOCAL:1)))
 				SIF 相手キャラ <= 0
 					CONTINUE
 				SIF MATCH(引き継ぎキャラ番号, 相手キャラ) < 1
