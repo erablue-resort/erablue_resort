@@ -483,7 +483,7 @@ LOCALS += @"%(EXPNAME:10), 16%:{LOCAL:3}"
 LOCALS += "</div>"
 
 $表示_LOOP
-汎用画像キー '= 汎用立ち絵取得処理(ランダムキャラネーム, ランダムキャラ素質:0, ランダムキャラ素質:3, ランダムキャラ素質:52, ランダムキャラ種族)
+汎用画像キー '= 汎用立ち絵取得処理(ランダムキャラネーム, ランダムキャラ素質:0, ランダムキャラ素質:1, ランダムキャラ素質:52, ランダムキャラ素質:3, ランダムキャラ種族)
 LOCALS:1 = <div rect='81,31,5860,1200' padding='6' border='31' bcolor='#C0C0C0'>
 LOCALS:1 += "<br>"
 IF OPTION変数:汎用立ち絵制御
@@ -498,9 +498,8 @@ ENDIF
 LOCALS:1 += "</div>"
 IF OPTION変数:汎用立ち絵制御
 	LOCALS:1 += "<div rect='2050,31,2400,1200' padding='6' border='31' bcolor='#C0C0C0'>"
-	IF ランダムキャラ素質:1 == 2
+	IF 汎用画像キー == ""
 		LOCALS:1 += "<img src='顔ノーイメ' height='1125'>"
-		汎用画像キー = 
 	ELSE
 		SPRITEDISPOSE @"顔グラ3000"
 		GDISPOSE 3000
@@ -706,81 +705,3 @@ SELECTCASE LOCAL
 		RETURN 0
 	CASEELSE
 ENDSELECT
-
-
-@名前重複チェック(ARGS)
-#FUNCTION
-
-FOR LOCAL, 0, CHARANUM
-	SIF CALLNAME:LOCAL == ARGS
-		RETURNF 1
-NEXT
-RETURNF 0
-
-
-@ランダムキャラ名前生成(ARG, ARG:1 = 1)
-#FUNCTIONS
-
-FOR LOCAL, 0, 200
-	SELECTCASE ARG
-		CASE 2
-			LOCALS '= ランダムキャラ名_エルーン()
-		CASE 3
-			LOCALS '= ランダムキャラ名_ドラフ()
-		CASE 4
-			LOCALS '= ランダムキャラ名_ハーヴィン()
-		CASEELSE
-			LOCALS '= ランダムキャラ名()
-	ENDSELECT
-	;100回重複した場合または男性の場合、完全ランダム作成に切り替える
-	SIF LOCAL > 99 || ARG:1 == 2
-		LOCALS '= ランダムキャラ名ジェネレータ(ARG, ARG:1)
-	;200回重複した場合さすがに諦める
-	SIF LOCAL == 199
-		BREAK
-
-	SIF !名前重複チェック(LOCALS)
-		BREAK
-NEXT
-RETURNF LOCALS
-
-
-@汎用立ち絵取得処理(名前, 種族, バスト, 体格, 特殊種族="")
-#FUNCTIONS
-#DIMS 名前
-#DIM 種族
-#DIM バスト
-#DIM 体格
-#DIM バスト種別
-#DIMS 特殊種族
-
-;しょっちゅう使うので先に出しちゃう
-SELECTCASE バスト
-	CASE -2
-		バスト種別 = 0
-	CASE -1, 0
-		バスト種別 = 1
-	CASE 1
-		バスト種別 = 2
-	CASE 2, 3
-		バスト種別 = 3
-ENDSELECT
-
-SELECTCASE 種族
-	CASE 2
-		RETURNF @"エルーン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
-	CASE 3
-		バスト種別 = (バスト <= 2) ? 3 # 4
-		RETURNF @"ドラフ\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
-	CASE 4
-		バスト種別 = 0
-		RETURNF @"ハーヴィン{NAMEHASH(名前, 4)}_{バスト種別}"
-	CASE 6
-		IF 特殊種族 == "ワーウルフ"
-			RETURNF @"ワーウルフ\@ (体格 <= -2) ? 小 # \@{OPTION変数:ワーウルフ画像ケモ度}{NAMEHASH(名前, 4)}_{バスト種別}"
-		ELSEIF 特殊種族 == "ヴァンパイア"
-			RETURNF @"ヴァンパイア\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
-		ENDIF
-ENDSELECT
-;ここまで来るのはヒューマンor固有グラフィックがない種族
-RETURNF @"ヒューマン\@ (体格 <= -2) ? 小 # \@{NAMEHASH(名前, 4)}_{バスト種別}"
