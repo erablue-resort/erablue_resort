@@ -692,45 +692,51 @@ CFLAG:ARG:酔いすぎ = 0
 ; 	CFLAG:ARG:発情期フラグ = RAND:9 + 1
 
 IF 引き継ぎキャラフラグ == 0
-	VARSET LOCALS
 	;招待時同行キャラ
-	REPLACE CSTR:ARG:同行キャラ, " ", ""
-	SPLIT RESULTS, "%", LOCALS
-	LOCAL:2 = RESULT - 1
-	FOR LOCAL, 0, LOCAL:2
-		SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
-		;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
-		LOCAL:10 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
-		IF LOCAL:10 >= 0
-			同行候補キャラ番号:ARG:LOCAL = LOCAL:10
-			同行候補キャラ確率:ARG:LOCAL = TOINT(CSTR切り分け文字列格納:1)
-		ENDIF
-	NEXT
+	IF CSTR:ARG:同行キャラ != ""
+		VARSET LOCALS
+		REPLACE CSTR:ARG:同行キャラ, " ", ""
+		SPLIT RESULTS, "%", LOCALS
+		LOCAL:2 = RESULT - 1
+		FOR LOCAL, 0, LOCAL:2
+			SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+			;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+			LOCAL:10 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+			IF LOCAL:10 >= 0
+				同行候補キャラ番号:ARG:LOCAL = LOCAL:10
+				同行候補キャラ確率:ARG:LOCAL = TOINT(CSTR切り分け文字列格納:1)
+			ENDIF
+		NEXT
+	ENDIF
 
 	;性別保存
 	CFLAG:ARG:元性別保存 = TALENT:ARG:性別
 
-	VARSET LOCALS
 	;知識素質
-	SUBSTRING CSTR:ARG:知識素質設定, 1, -1
-	SPLIT RESULTS, " ", LOCALS
-	LOCAL:2 = RESULT - 1
-	FOR LOCAL, 0, LOCAL:2
-		SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
-		;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
-		知識素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
-	NEXT
+	IF CSTR:ARG:知識素質設定 != ""
+		VARSET LOCALS
+		SUBSTRING CSTR:ARG:知識素質設定, 1, -1
+		SPLIT RESULTS, " ", LOCALS
+		LOCAL:2 = RESULT - 1
+		FOR LOCAL, 0, LOCAL:2
+			SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+			;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+			知識素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
+		NEXT
+	ENDIF
 
-	VARSET LOCALS
 	;性癖素質
-	SUBSTRING CSTR:ARG:性癖素質設定, 1, -1
-	SPLIT RESULTS, " ", LOCALS
-	LOCAL:2 = RESULT - 1
-	FOR LOCAL, 0, LOCAL:2
-		SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
-		;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
-		性癖素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
-	NEXT
+	IF CSTR:ARG:性癖素質設定 != ""
+		VARSET LOCALS
+		SUBSTRING CSTR:ARG:性癖素質設定, 1, -1
+		SPLIT RESULTS, " ", LOCALS
+		LOCAL:2 = RESULT - 1
+		FOR LOCAL, 0, LOCAL:2
+			SPLIT LOCALS:LOCAL, "Lv", CSTR切り分け文字列格納
+			;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+			性癖素質:ARG:(CSTR切り分け文字列格納:0) = TOINT(CSTR切り分け文字列格納:1)
+		NEXT
+	ENDIF
 
 	;素質切り替え
 	IF TALENT:ARG:陥没乳首 && 素質切り替えOPTION記憶:陥没乳首_なし
@@ -750,10 +756,12 @@ IF 引き継ぎキャラフラグ == 0
 	SIF ARG == MASTER
 		RETURN 0
 
-	VARSET LOCALS
 	;戦闘ステータス
-	SUBSTRING CSTR:ARG:戦闘基礎ステータス設定, 1, -1
-	SPLIT RESULTS, " ", LOCALS
+	IF CSTR:ARG:戦闘基礎ステータス設定 != ""
+		VARSET LOCALS
+		SUBSTRING CSTR:ARG:戦闘基礎ステータス設定, 1, -1
+		SPLIT RESULTS, " ", LOCALS
+
 		;属性
 		SPLIT LOCALS:0, "_", CSTR切り分け文字列格納
 		基礎BATTLE_STATE:ARG:属性 = 属性文字列数値変換(CSTR切り分け文字列格納:1)
@@ -770,16 +778,17 @@ IF 引き継ぎキャラフラグ == 0
 		SPLIT LOCALS:2, "_", CSTR切り分け文字列格納
 		CALL 初期ステータス設定_テンプレート適用(CSTR切り分け文字列格納:1, ARG)
 		TRYCALLFORM 戦闘初期ステータス設定_{NO:ARG}(ARG)
+	ENDIF
 	;表示奥義設定
-	VARSET LOCALS
 	IF CSTR:ARG:表示奥義設定 != ""
+		VARSET LOCALS
 		SPLIT CSTR:ARG:表示奥義設定, "_", LOCALS
 		表示奥義:ARG:0 '= LOCALS:0
 		表示奥義:ARG:1 '= LOCALS:1
 		表示奥義:ARG:2 '= LOCALS:2
 	ENDIF
-	VARSET LOCALS
 	IF CSTR:ARG:陥落奥義設定 != ""
+		VARSET LOCALS
 		SPLIT CSTR:ARG:陥落奥義設定, "_", LOCALS
 		陥落奥義:ARG:0 '= LOCALS:0
 		陥落奥義:ARG:1 '= LOCALS:1
