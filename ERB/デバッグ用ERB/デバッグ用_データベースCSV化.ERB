@@ -1,0 +1,47 @@
+﻿;デバッグモードのコンソールで次のように打って使う
+;データベースCSV出力("人物データベース", "debug/人物DB.csv")
+@データベースCSV出力(ＤＢ名, 出力先)
+#FUNCTION
+#DIMS ＤＢ名
+#DIMS 出力先
+#DIM RESULT退避
+#DIM 列数
+#DIMS DYNAMIC 列名一覧, 30
+#DIM DYNAMIC 列型一覧, 30
+#DIMS 出力文字列
+#DIM ループ用, 2
+
+SIF !DT_EXIST(ＤＢ名)
+	RETURNF 1
+
+RESULT退避 = RESULT
+
+列数 = DT_COLUMN_NAMES(ＤＢ名, 列名一覧)
+
+出力文字列 '= ""
+FOR ループ用:1, 0, 列数
+	SIF ループ用:1 > 0
+		出力文字列 += ","
+	出力文字列 += 列名一覧:(ループ用:1)
+	列型一覧:(ループ用:1) = DT_COLUMN_EXIST(ＤＢ名, 列名一覧:(ループ用:1))
+NEXT
+出力文字列 += UNICODE(0x0D) + UNICODE(0x0A)
+
+FOR ループ用:0, 0, DT_ROW_LENGTH(ＤＢ名)
+	FOR ループ用:1, 0, 列数
+		SIF ループ用:1 > 0
+			出力文字列 += ","
+		IF DT_CELL_ISNULL(ＤＢ名, ループ用:0, 列名一覧:(ループ用:1)) != 0
+		ELSEIF 列型一覧:(ループ用:1) == 5
+			出力文字列 += "\"" + DT_CELL_GETS(ＤＢ名, ループ用:0, 列名一覧:(ループ用:1)) + "\""
+		ELSE
+			出力文字列 += TOSTR(DT_CELL_GET(ＤＢ名, ループ用:0, 列名一覧:(ループ用:1)))
+		ENDIF
+	NEXT
+	出力文字列 += UNICODE(0x0D) + UNICODE(0x0A)
+NEXT
+
+SAVETEXT 出力文字列, 出力先
+
+RESULT = RESULT退避
+RETURNF 0

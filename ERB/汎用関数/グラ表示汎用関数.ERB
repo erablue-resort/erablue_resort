@@ -410,6 +410,11 @@ NEXT
 SELECTCASE F_NUM
 	CASE IS < 1
 		;- 有効な画像フォルダなし
+		IF NO:対象キャラ == 999
+			CALL 別キャラ画像フォルダ選択(対象キャラ)
+			SIF RESULT == 1
+				RETURN
+		ENDIF
 		; 画像フォルダ設定の修正
 		CALL FIX_RESOURCES_FOLDER(対象キャラ)
 		IF RESULT
@@ -470,9 +475,126 @@ CLEARLINE LINECOUNT - LNCOUNT
 REDRAW T_REDRAW
 SIF LOCAL == 200
 	RESTART
-PRINTFORML 現在の画像フォルダは%CSTR:対象キャラ:画像フォルダ%です
+;PRINTFORML 現在の画像フォルダは%CSTR:対象キャラ:画像フォルダ%です
 CALL CLOTHES_TODAY(対象キャラ)
 RETURN
+
+;********************************************************************************************
+;@親画像フォルダ(対象キャラ)
+;  親の画像フォルダを使えるかどうか、ダメなら-2を返す
+;********************************************************************************************
+
+@親画像フォルダ(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+
+RESULT = FIND_MOTHER_CHARA_FROM_PERSON_ID(CFLAG:対象キャラ:人物番号)
+RESULT:1 = FIND_FATHER_CHARA_FROM_PERSON_ID(CFLAG:対象キャラ:人物番号)
+IF RESULT < 0 && RESULT:1 < 0
+	RETURNF -2
+ELSE
+	RETURNF RESULT
+ENDIF
+
+;********************************************************************************************
+;@別キャラ画像フォルダ選択(対象キャラ)
+;  別キャラ(親)の画像フォルダ内で"顔_デフォルト"という名前の画像を含むフォルダ（親フォルダ、サブフォルダ含む）を
+;  探して、そのフォルダ内の画像ファイルを一覧で表示し、どのフォルダの画像を使用するかを選択させる
+;********************************************************************************************
+
+@別キャラ画像フォルダ選択(対象キャラ)
+#DIM 対象キャラ
+#DIM 画像キャラ,2
+#DIM L_CNT, 3
+#DIM LNCOUNT
+#DIM G_NUM
+#DIM C_NUM
+#DIM F_NUM,2
+#DIM T_REDRAW
+#DIMS G_NAME
+#DIMS FOLDER, 20
+#DIM CONST FOLDER_NUM_MAX = 10
+
+画像キャラ = 親画像フォルダ(対象キャラ)
+画像キャラ:1 = RESULT:1
+SIF 画像キャラ < 0 && 画像キャラ:1 < 0
+	RETURN
+
+LNCOUNT = LINECOUNT
+VARSET LOCAL
+VARSET F_NUM
+VARSET FOLDER
+T_REDRAW = CURRENTREDRAW()
+REDRAW 0
+
+IF 画像キャラ >= 0
+	; 画像フォルダ数を取得
+	F_NUM = GET_ALL_RESOURCES_FOLDERS(画像キャラ)
+	; 取得した結果を退避
+	FOR L_CNT, 0, MIN(F_NUM, FOLDER_NUM_MAX)
+		FOLDER:L_CNT '= RESULTS:L_CNT
+	NEXT
+ENDIF
+IF 画像キャラ:1 >= 0
+	; 画像フォルダ数を取得
+	F_NUM:1 = GET_ALL_RESOURCES_FOLDERS(画像キャラ:1)
+	; 取得した結果を退避
+	FOR L_CNT, 0, MIN(F_NUM:1, FOLDER_NUM_MAX)
+		FOLDER:(F_NUM + L_CNT) '= RESULTS:L_CNT
+	NEXT
+ENDIF
+
+SIF F_NUM < 1 && F_NUM:1 < 1
+	RETURN
+
+$LOOP
+PRINTL
+DRAWLINE
+PRINTL 使用する画像フォルダを選択してください
+PRINTL ※親の画像フォルダを使用可能です
+IF F_NUM > FOLDER_NUM_MAX
+	PRINTFORML (%CALLNAME:画像キャラ%の有効な画像フォルダが多すぎます。最初に見つかった{FOLDER_NUM_MAX}個のみが有効となります。)
+	F_NUM = FOLDER_NUM_MAX
+ENDIF
+IF F_NUM:1 > FOLDER_NUM_MAX
+	PRINTFORML (%CALLNAME:(画像キャラ:1)%の有効な画像フォルダが多すぎます。最初に見つかった{FOLDER_NUM_MAX}個のみが有効となります。)
+	F_NUM:1 = FOLDER_NUM_MAX
+ENDIF
+PRINTL ※例としてデフォルト画像＋ランダムな画像を４つ表示中
+DRAWLINE
+CALL ランダム画像表示(FOLDER, F_NUM + F_NUM:1)
+G_NUM = RESULT
+
+; 5枚以上画像がある場合はリロールボタンを表示
+SIF G_NUM > 5
+	PRINTL [200] 画像のランダム表示をリロール
+PRINTL [100] ランダムキャラ画像を使う
+BINPUT
+LOCAL = RESULT
+IF INRANGE(LOCAL, 0, F_NUM - 1)
+	CSTR:対象キャラ:画像フォルダ '= FOLDER:LOCAL
+	CSTR:対象キャラ:フォルダ判定キー '= CALLNAME:画像キャラ
+	PRINTFORMW %CSTR:対象キャラ:画像フォルダ%の画像フォルダを使用します
+	SUBSTRING CSTR:対象キャラ:画像フォルダ, STRLENS(TOSTR(NO:画像キャラ) + CALLNAME:画像キャラ), -1
+ELSEIF INRANGE(LOCAL, F_NUM, F_NUM + F_NUM:1 - 1)
+	CSTR:対象キャラ:画像フォルダ '= FOLDER:LOCAL
+	CSTR:対象キャラ:フォルダ判定キー '= CALLNAME:(画像キャラ:1)
+	PRINTFORMW %CSTR:対象キャラ:画像フォルダ%の画像フォルダを使用します
+	SUBSTRING CSTR:対象キャラ:画像フォルダ, STRLENS(TOSTR(NO:(画像キャラ:1)) + CALLNAME:(画像キャラ:1)), -1
+ELSEIF LOCAL == 100
+	PRINTFORMW ランダムキャラ画像を使用します
+	CSTR:対象キャラ:フォルダ判定キー = 
+	CSTR:対象キャラ:画像フォルダ = 
+ENDIF
+
+CALL ランダム画像表示_リソース解放(F_NUM)
+
+CLEARLINE LINECOUNT - LNCOUNT
+REDRAW T_REDRAW
+SIF LOCAL == 200
+	GOTO LOOP
+CALL CLOTHES_TODAY(対象キャラ)
+RETURN 1
 
 ;********************************************************************************************
 ;@グラ表示用文字列算出(ARG, TYPE="顔_")
