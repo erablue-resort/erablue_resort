@@ -117,6 +117,7 @@ RETURN 0
 
 
 @子供成長処理(子供人物番号, 成長後年齢層)
+#LOCALSIZE 1
 #DIM 子供人物番号
 #DIM 成長後年齢層
 #DIM MOTHER
@@ -151,17 +152,24 @@ NAME:TARGET '= GET_PERSON_名前(子供人物番号)
 CALLNAME:TARGET '= GET_PERSON_呼び名(子供人物番号)
 CALL SET_PERSON_ナンバー(子供人物番号, 999)
 
-;戦闘関連設定
+;属性
 PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
 基礎BATTLE_STATE:属性 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:属性 # RAND:6
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
-基礎BATTLE_STATE:得意武器 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:得意武器 # RAND:10
-PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
-基礎BATTLE_STATE:ステータスタイプ保存 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:ステータスタイプ保存 # RAND:8
-SIF 基礎BATTLE_STATE:ステータスタイプ保存 < 0
-	基礎BATTLE_STATE:ステータスタイプ保存 = RAND:8
-CSTR:戦闘基礎ステータス設定 '= @" 属性_%属性数値文字列変換(基礎BATTLE_STATE:属性)% 得意武器_"
+CSTR:戦闘基礎ステータス設定 '= @" 属性_%属性数値文字列変換(基礎BATTLE_STATE:属性)%"
 
+;得意武器
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
+IF PARENT >= 0
+	基礎BATTLE_STATE:得意武器 = 基礎BATTLE_STATE:PARENT:得意武器
+ELSE
+	基礎BATTLE_STATE:得意武器 = 0
+	SETBIT 基礎BATTLE_STATE:得意武器, RAND:10
+	;10％で2種得意持ちが現れる
+	SIF RAND:10 == 0
+		SETBIT 基礎BATTLE_STATE:得意武器, RAND:10
+ENDIF
+
+CSTR:戦闘基礎ステータス設定 += " 得意武器_"
 複数得意フラグ = 0
 FOR LOCAL, 0, 10
 	IF GETBIT(基礎BATTLE_STATE:得意武器, LOCAL)
@@ -172,6 +180,11 @@ FOR LOCAL, 0, 10
 	ENDIF
 NEXT
 
+;ステータスタイプ
+PARENT = 遺伝元(DOMINANT, RECESSIVE, "変異あり", "あなた除外")
+基礎BATTLE_STATE:ステータスタイプ保存 = (PARENT >= 0) ? 基礎BATTLE_STATE:PARENT:ステータスタイプ保存 # RAND:8
+SIF 基礎BATTLE_STATE:ステータスタイプ保存 < 0
+	基礎BATTLE_STATE:ステータスタイプ保存 = RAND:8
 CSTR:戦闘基礎ステータス設定 += @" 初期ステータスタイプ_%成長タイプ:(基礎BATTLE_STATE:ステータスタイプ保存)%"
 
 ;種族・特殊種族
@@ -462,6 +475,7 @@ RETURN 部屋決定フラグ
 
 @遺伝元(PARENT:0, PARENT:1, ランダム性 = "両親のみ", ARGS:0 = "", ARGS:1 = "")
 #FUNCTION
+#LOCALSIZE 1
 #DIM PARENT, 2
 #DIM 候補, 4
 #DIM 性器要求
@@ -525,6 +539,7 @@ RETURNF 候補:(RAND:4)
 
 @ベース種族検索(ID)
 #FUNCTION
+#LOCALSIZE 1
 #DIM ID
 #DIM ベース候補リスト, 31
 #DIM ベース候補数
@@ -558,6 +573,7 @@ WEND
 RETURNF GET_PERSON_種族(ID)
 
 @素質遺伝(CHILD, PARENT, PERCENTAGE)
+#LOCALSIZE 1
 #DIM CHILD
 #DIM PARENT
 #DIM PERCENTAGE
@@ -595,6 +611,7 @@ FOR LOCAL, 0, 遺伝候補数
 NEXT
 
 @素質削減(CHILD, QUANTITY)
+#LOCALSIZE 1
 #DIM CHILD
 #DIM QUANTITY
 #DIM 削減候補, VARSIZE("遺伝可能配列")
@@ -689,6 +706,7 @@ RETURNF 男性器サイズ格納 - 男性器サイズ_平均(ベース種族, TA
 
 
 @子供相性初期化(CHILD)
+#LOCALSIZE 1
 #DIM CONST 親子同行確率 = 50
 #DIM CONST 姉妹同行確率 = 30
 #DIM CONST 双子同行確率 = 100
