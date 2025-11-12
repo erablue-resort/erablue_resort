@@ -151,43 +151,54 @@ SELECTCASE ARG
 		RETURNF "刀"
 ENDSELECT
 
+@得意武器表示文字列数値変換(表示文字列)
+#FUNCTION
+#DIMS 表示文字列
+#DIM 得意数値
+#DIM 文字位置, 2
+#DIM 終了フラグ
+
+;SPLITを使うとRESULTを汚染するのでSUBSTRINGUで対応する
+;長さ10の文字列配列も不要だし……
+得意数値 = 0
+文字位置:0 = 0
+終了フラグ = 1
+DO
+	;基点文字位置より後ろにある"・"を探す
+	文字位置:1 = STRFINDU(表示文字列, "・", 文字位置:0)
+	IF 文字位置:1 == -1
+		;見つからなければ末尾まで
+		終了フラグ = 0
+		文字位置:1 = STRLENSU(表示文字列)
+	ENDIF
+
+	;今の位置から"・"の位置の前まで切り出して、数値に変換し、SETBIT
+	SETBIT 得意数値, 得意武器文字列数値変換(SUBSTRINGU(表示文字列, 文字位置:0, 文字位置:1 - 文字位置:0))
+
+	;読み終わった位置まで基点文字位置を進める
+	文字位置:0 = 文字位置:1 + 1
+LOOP 終了フラグ
+RETURNF 得意数値
+
 @得意武器表示文字列(得意数値)
 #FUNCTIONS
 #DIM 得意数値
+#DIMS 表示文字列
+#DIM 複数フラグ
+#DIM ループ用
 
-LOCALS = 
-LOCAL:1 = 0
-FOR LOCAL, 0, 10
-	IF GETBIT(得意数値, LOCAL)
-		SIF LOCAL:1
-			LOCALS += "・"
-		SELECTCASE LOCAL
-			CASE 0
-				LOCALS += "剣"
-			CASE 1
-				LOCALS += "短剣"
-			CASE 2
-				LOCALS += "槍"
-			CASE 3
-				LOCALS += "斧"
-			CASE 4
-				LOCALS += "杖"
-			CASE 5
-				LOCALS += "銃"
-			CASE 6
-				LOCALS += "格闘"
-			CASE 7
-				LOCALS += "弓"
-			CASE 8
-				LOCALS += "楽器"
-			CASE 9
-				LOCALS += "刀"
-		ENDSELECT
-		LOCAL:1 ++
+表示文字列 '= ""
+複数フラグ = 0
+FOR ループ用, 0, 10
+	IF GETBIT(得意数値, ループ用)
+		SIF 複数フラグ
+			表示文字列 += "・"
+		表示文字列 += 得意武器数値文字列変換(ループ用)
+
+		複数フラグ ++
 	ENDIF
 NEXT
-
-RETURNF LOCALS
+RETURNF 表示文字列
 
 @タイプ数値文字列変換(ARG)
 #FUNCTIONS

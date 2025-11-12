@@ -1,0 +1,245 @@
+﻿
+;CSVのデータを読み込んでデータベースにセットする処理
+@ランダムキャラデータ_LOAD_FROM_CSV(ＤＢ名, ＣＳＶ番号, 空値無視 = 1)
+#DIMS ＤＢ名
+#DIM ＣＳＶ番号
+#DIM 空値無視
+#DIM 管理番号
+#DIM ループ用
+#DIM TMP_VARI
+#DIMS TMP_VARS
+#DIMS CSTR切り分け文字列格納, 2
+
+SIF !EXISTCSV(ＣＳＶ番号)
+	RETURN 0
+
+CALL ランダムキャラデータ_NEW(ＤＢ名)
+管理番号 = RESULT
+
+;番号
+CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "番号", , ＣＳＶ番号)
+
+;助手は対応関数が無いので取り出すことはできない
+
+;名前
+CALL ランダムキャラデータ_SETS(ＤＢ名, 管理番号, "名前", , CSVNAME(ＣＳＶ番号))
+
+;呼び名
+CALL ランダムキャラデータ_SETS(ＤＢ名, 管理番号, "呼び名", , CSVCALLNAME(ＣＳＶ番号))
+
+;あだ名
+;未使用なのでSKIP
+
+;主人の呼び方
+;未使用なのでSKIP
+
+;基礎
+FOR ループ用, 0, VARSIZE("BASE")
+	TMP_VARI = CSVBASE(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "基礎", ループ用, TMP_VARI)
+NEXT
+
+;素質
+FOR ループ用, 0, VARSIZE("TALENT")
+	TMP_VARI = CSVTALENT(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "素質", ループ用, TMP_VARI)
+NEXT
+
+;能力
+FOR ループ用, 0, VARSIZE("ABL")
+	TMP_VARI = CSVABL(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "能力", ループ用, TMP_VARI)
+NEXT
+
+;経験
+FOR ループ用, 0, VARSIZE("EXP")
+	TMP_VARI = CSVEXP(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "経験", ループ用, TMP_VARI)
+NEXT
+
+;刻印
+FOR ループ用, 0, VARSIZE("MARK")
+	TMP_VARI = CSVMARK(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "刻印", ループ用, TMP_VARI)
+NEXT
+
+;相性は使用禁止に設定されているので無視
+
+;珠
+FOR ループ用, 0, VARSIZE("JUEL")
+	TMP_VARI = CSVJUEL(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "珠", ループ用, TMP_VARI)
+NEXT
+
+;装着物
+FOR ループ用, 0, VARSIZE("EQUIP")
+	TMP_VARI = CSVEQUIP(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "装着物", ループ用, TMP_VARI)
+NEXT
+
+;フラグ
+FOR ループ用, 0, VARSIZE("CFLAG")
+	TMP_VARI = CSVCFLAG(ＣＳＶ番号, ループ用)
+	SIF TMP_VARI == 0 && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SET(ＤＢ名, 管理番号, "フラグ", ループ用, TMP_VARI)
+NEXT
+
+;CSTR
+FOR ループ用, 0, VARSIZE("CSTR")
+	TMP_VARS '= CSVCSTR(ＣＳＶ番号, ループ用)
+	SIF TMP_VARS == "" && 空値無視
+		CONTINUE
+	CALL ランダムキャラデータ_SETS(ＤＢ名, 管理番号, "CSTR", ループ用, TMP_VARS)
+NEXT
+
+;知識素質
+CALL ランダムキャラデータ_知識素質設定展開(ＤＢ名, 管理番号, CSVCSTR(ＣＳＶ番号, GETNUM(CSTR, "知識素質設定")))
+
+;性癖素質
+CALL ランダムキャラデータ_性癖素質設定展開(ＤＢ名, 管理番号, CSVCSTR(ＣＳＶ番号, GETNUM(CSTR, "性癖素質設定")))
+
+
+;基礎BATTLE_STATE
+CALL ランダムキャラデータ_戦闘基礎ステータス設定展開(ＤＢ名, 管理番号, CSVCSTR(ＣＳＶ番号, GETNUM(CSTR, "戦闘基礎ステータス設定")))
+
+;表示奥義
+CALL ランダムキャラデータ_表示奥義設定展開(ＤＢ名, 管理番号, CSVCSTR(ＣＳＶ番号, GETNUM(CSTR, "表示奥義設定")))
+
+;陥落奥義
+CALL ランダムキャラデータ_陥落奥義設定展開(ＤＢ名, 管理番号, CSVCSTR(ＣＳＶ番号, GETNUM(CSTR, "陥落奥義設定")))
+
+;管理番号を返す
+RETURN 管理番号
+
+
+;次のような形式でCSTRに入っている知識素質設定をデータベースに展開する
+; " 性知識Lv0 調合知識Lv1 魔法知識Lv0 機械知識Lv1 錬金知識Lv0 魔物知識Lv0 絵師Lv0 高貴Lv0 釣り好きLv0 踊り子Lv0 歌唱技能Lv0 料理人Lv0 "
+@ランダムキャラデータ_知識素質設定展開(ＤＢ名, 管理番号, CSTR設定値)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS CSTR設定値
+#DIM 文字位置, 2
+#DIMS CSTR切り分け文字列格納, 2
+
+文字位置:0 = 1
+DO
+	文字位置:1 = STRFINDU(CSTR設定値, " ", 文字位置:0)
+	SIF 文字位置:1 == -1
+		BREAK
+
+	;SUBSTRINGUが"○○Lv1"の部分だけ切り取るはず
+	SPLIT SUBSTRINGU(CSTR設定値, 文字位置:0, 文字位置:1 - 文字位置:0), "Lv", CSTR切り分け文字列格納
+	;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "知識素質", CSTR切り分け文字列格納:0, TOINT(CSTR切り分け文字列格納:1))
+
+	文字位置:0 = 文字位置:1 + 1
+LOOP 1
+
+
+;次のような形式でCSTRに入っている性癖素質設定をデータベースに展開する
+; " 野外オナニーLv0 逆アナルLv0 搾乳プレイLv0 触手プレイLv0 精飲Lv0 膣内射精Lv0 腸内射精Lv0 同性愛Lv1 寝取られLv0 首絞めLv0 キスLv0 ゆきずりセックスLv0 "
+@ランダムキャラデータ_性癖素質設定展開(ＤＢ名, 管理番号, CSTR設定値)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS CSTR設定値
+#DIM 文字位置, 2
+#DIMS CSTR切り分け文字列格納, 2
+
+文字位置:0 = 1
+DO
+	文字位置:1 = STRFINDU(CSTR設定値, " ", 文字位置:0)
+	SIF 文字位置:1 == -1
+		BREAK
+
+	;SUBSTRINGUが"○○Lv1"の部分だけ切り取るはず
+	SPLIT SUBSTRINGU(CSTR設定値, 文字位置:0, 文字位置:1 - 文字位置:0), "Lv", CSTR切り分け文字列格納
+	;CSTR切り分け文字列格納:0に素質名、CSTR切り分け文字列格納:1に数値が入っているはず
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "性癖素質", CSTR切り分け文字列格納:0, TOINT(CSTR切り分け文字列格納:1))
+
+	文字位置:0 = 文字位置:1 + 1
+LOOP 1
+
+
+;次のような形式でCSTRに入っている戦闘基礎ステータス設定をデータベースに展開する
+; " 属性_闇 得意武器_短剣・格闘 初期ステータスタイプ_攻撃 "
+@ランダムキャラデータ_戦闘基礎ステータス設定展開(ＤＢ名, 管理番号, CSTR設定値)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS CSTR設定値
+#DIM 文字位置, 2
+#DIMS CSTR切り分け文字列格納, 2
+
+文字位置:0 = 1
+DO
+	文字位置:1 = STRFINDU(CSTR設定値, " ", 文字位置:0)
+	SIF 文字位置:1 == -1
+		BREAK
+
+	;SUBSTRINGUが"属性_闇"や"得意武器_短剣・格闘"の部分だけ切り取るはず
+	SPLIT SUBSTRINGU(CSTR設定値, 文字位置:0, 文字位置:1 - 文字位置:0), "_", CSTR切り分け文字列格納
+	;CSTR切り分け文字列格納:0に項目名、CSTR切り分け文字列格納:1に文字列が入っているはず
+	SELECTCASE CSTR切り分け文字列格納:0
+		CASE "属性"
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "基礎BATTLE_STATE", "属性", 属性文字列数値変換(CSTR切り分け文字列格納:1))
+		CASE "得意武器"
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "基礎BATTLE_STATE", "得意武器", 得意武器表示文字列数値変換(CSTR切り分け文字列格納:1))
+		CASE "初期ステータスタイプ"
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "基礎BATTLE_STATE", "ステータスタイプ保存", タイプ文字列数値変換(CSTR切り分け文字列格納:1))
+	ENDSELECT
+
+	文字位置:0 = 文字位置:1 + 1
+LOOP 1
+
+
+;次のような形式でCSTRに入っている表示奥義設定をデータベースに展開する
+; "テラ・イーラ_テラ・イラエ_コル・イーオン"
+@ランダムキャラデータ_表示奥義設定展開(ＤＢ名, 管理番号, CSTR設定値)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS CSTR設定値
+#DIM ループ用
+#DIMS DYNAMIC CSTR切り分け文字列格納, VARSIZE("陥落奥義")
+
+SPLIT CSTR設定値, "_", CSTR切り分け文字列格納
+FOR ループ用, 0, VARSIZE("表示奥義")
+	CALL ランダムキャラデータ_SETS(ＤＢ名, 管理番号, "表示奥義", ループ用, CSTR切り分け文字列格納:ループ用)
+NEXT
+
+
+;次のような形式でCSTRに入っている陥落奥義設定をデータベースに展開する
+; "アフェクション・アビス_イーリアス・ヴィジョン_イーリアス・ジャッジメント"
+@ランダムキャラデータ_陥落奥義設定展開(ＤＢ名, 管理番号, CSTR設定値)
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIMS CSTR設定値
+#DIM ループ用
+#DIMS DYNAMIC CSTR切り分け文字列格納, VARSIZE("陥落奥義")
+
+SPLIT CSTR設定値, "_", CSTR切り分け文字列格納
+FOR ループ用, 0, VARSIZE("陥落奥義")
+	CALL ランダムキャラデータ_SETS(ＤＢ名, 管理番号, "陥落奥義", ループ用, CSTR切り分け文字列格納:ループ用)
+NEXT
+
+
+;TODO CSTR:同行キャラ
+;キャラがキャラとして存在していない (このDBやCSVデータになっている) ことを想定したランダムキャラデータベースで扱うにはどうしたらよいか
+;形式 : " [西南西の守護神]アンチラ_30% [西の守護神]マキラ_20% [西北西の守護神]ヴァジラ_20% [北北西の守護神]クビラ_20% [北の守護神]ビカラ_20% "
+
+;TODO CSTR:初期関係性
+;形式 : " [先代丑神]シャトラのママ_恋慕% "
+
