@@ -10,17 +10,18 @@ TSTR:コマンド名受渡 = 呼び出す
 ;===================================================
 @COMTYPE_210
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("特殊プレイ")
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_特殊プレイ")
 
 @COM_TOOLTIP_210
 LOCALS = <br>■呼び出す<br>
-LOCALS += "性交渉中、他のキャラをこの場に呼び出すコマンド。<br>現在対象、及び呼び出す対象は[恋慕]か[セフレ]を所持していなければならない。"
+LOCALS += "[恋慕]か[セフレ]を所持しているキャラをこの場に呼び出して性交渉をするコマンド。"
+LOCALS += "<br>性交渉中に追加で呼び出す場合、現在の性交渉対象も[恋慕]か[セフレ]を所持していなければならない。"
 LOCALS += "<br>COMタイプ：特殊プレイ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM210
-#DIM 表示候補, 5000
+#DIM DYNAMIC 表示候補, キャラクタ数上限
 #DIM 現在ページ
 #DIM 呼び出し人数
 #DIM 対象キャラ
@@ -260,25 +261,32 @@ RETURN 実行結果
 ;-------------------------------------------------
 @呼び出す候補キャラ登録(表示候補)
 #DIM REF 表示候補
-LOCAL:1 = 0
-FOR LOCAL, 1, CHARANUM
+#DIM 配列長さ
+#DIM 候補数
+#DIM ループ用
+
+配列長さ = VARSIZE("表示候補")
+候補数 = 0
+FOR ループ用, 1, CHARANUM
 	;滞在してないキャラは出さない
-	SIF CFLAG:LOCAL:滞在期間 < 0
+	SIF CFLAG:ループ用:滞在期間 < 0
 		CONTINUE
 	;セフレでも恋慕でもないキャラは出さない
-	SIF !TALENT:LOCAL:恋慕 && !TALENT:LOCAL:セフレ
+	SIF !TALENT:ループ用:恋慕 && !TALENT:ループ用:セフレ
 		CONTINUE
 	;睡眠中はアウト
-	SIF CFLAG:LOCAL:睡眠
+	SIF CFLAG:ループ用:睡眠
 		CONTINUE
 	;既に同室者はアウト
-	SIF MATCH(TARGET, LOCAL)
+	SIF MATCH(TARGET, ループ用)
 		CONTINUE
-	表示候補:(LOCAL:1) = LOCAL
-	LOCAL:1 += 1
+	表示候補:候補数 = ループ用
+	候補数 ++
+	SIF 候補数 >= 配列長さ
+		BREAK
 NEXT
 
-RETURN LOCAL:1
+RETURN 候補数
 
 ;-------------------------------------------------
 ;実行判定処理
@@ -287,6 +295,9 @@ RETURN LOCAL:1
 #DIM CONST 必要実行値 = 40
 #DIM 実行値
 #DIM ＋表示フラグ
+
+SIF RFLAG:指示モード対象あなたフラグ
+	RETURN 1
 
 SKIPDISP ARG
 PRINTFORML 他のキャラを呼び出す(%CALLNAME:TARGET%)
@@ -381,28 +392,61 @@ RETURN 1
 ;実行判定
 ;-------------------------------------------------
 @COM_ABLE210
+#DIM ループ用
+#DIM 表示候補, 1
+
 ;呼び出す
 SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;複数人プレイに入るためのコマンドのため、一括管理はせずここで全部記述する
-SIF TFLAG:調教モード != 2
-	RETURN 0
-SIF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || CFLAG:隠密
-	RETURN 0
-;隠密プレイ時は除外
-SIF CFLAG:PLAYER:隠密 || CFLAG:TARGET:隠密
-	RETURN 0
-;相手が恋慕、あるいはセフレでないときアウト
-SIF !TALENT:恋慕 && !TALENT:セフレ
-	RETURN 0
-;指示モード時はだめ
-SIF PLAYER != MASTER
-	RETURN 0
-;寝取らせ夜這い中はダメ
-SIF TCVAR:言いなり
-	RETURN 0
+SELECTCASE TFLAG:調教モード
+	CASE 0, 1
+		;誰もいないorあなた以外全員ダウンしている場で、新たなキャラを呼び出す場合
+		;私室のみ
+		SIF !自由利用BEDROOM(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
+			RETURN 0
+		;隠密プレイ時は除外
+		SIF CFLAG:MASTER:隠密
+			RETURN 0
+		;指示モード時はだめ
+		SIF PLAYER != MASTER
+			RETURN 0
+		;その場の全員ダウンしてないとダメ
+		FOR ループ用, 1, VARSIZE("TARGET")
+			SIF TARGET:ループ用 <= 0
+				BREAK
+			SIF !CFLAG:(TARGET:ループ用):体力限界
+				RETURN 0
+		NEXT
+		;呼び出す相手が最低1人はいないとダメ
+		CALL 呼び出す候補キャラ登録(表示候補)
+		SIF RESULT == 0
+			RETURN 0
+		RETURN 1
+	CASE 2
+		;性交渉中、他のキャラをこの場に呼び出す場合
+		SIF TARGET:1 <= 0 || CFLAG:TARGET:睡眠 == 1
+			RETURN 0
+		;隠密プレイ時は除外
+		SIF CFLAG:PLAYER:隠密 || CFLAG:TARGET:隠密
+			RETURN 0
+		;相手が恋慕、あるいはセフレでないときアウト
+		SIF !TALENT:TARGET:恋慕 && !TALENT:TARGET:セフレ
+			RETURN 0
+		;指示モード時はだめ
+		SIF PLAYER != MASTER
+			RETURN 0
+		;寝取らせ夜這い中はダメ
+		SIF TCVAR:TARGET:言いなり
+			RETURN 0
+		;呼び出す相手が最低1人はいないとダメ
+		CALL 呼び出す候補キャラ登録(表示候補)
+		SIF RESULT == 0
+			RETURN 0
 
-RETURN 1
+		RETURN 1
+ENDSELECT
+RETURN 0
 
 
 ;-------------------------------------------------
