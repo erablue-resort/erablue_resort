@@ -338,6 +338,138 @@ FOR LOCAL, 0, シャッフル数
 		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
 		CONTINUE
 	ENDIF
+	;先にハーレム夜這いだけセットするので、ハーレムの心得がないキャラはスルー
+	SIF !TALENT:(順番シャッフル用配列:LOCAL):ハーレムの心得
+		CONTINUE
+	IF (順番シャッフル用配列:LOCAL) == FLAG:挿入睡眠相手記録
+		;挿入睡眠相手の時は性欲チャレンジもオナニーも発生しない
+	ELSEIF TCVAR:(順番シャッフル用配列:LOCAL):夜這い済み
+		;夜這いされた側については性癖チャレンジもオナニーも発生しない
+	ELSEIF 性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数
+		;性癖チャレンジ時は夜這い発生しない
+	ELSE
+		;一日終了時
+		;夜這い判定、性癖取得や成長のメッセージをキャンセルするために一旦SKIPDISP
+		SKIPDISP 1
+		;この文字列に結果を保存して後で格納する
+		RSTR:コマンド結果受渡し文字列 = 
+		CALL 一日終了時夜這い判定((順番シャッフル用配列:LOCAL))
+		結果保存 = RESULT
+		SKIPDISP 0
+		IF 結果保存 < 0
+			;夜這い失敗時
+			RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は夜這い出来なかったようだ…", 80, LEFT%"
+			RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存 = ABS(結果保存 + 1)
+			TRYCCALLFORM KOJO_夜這い失敗時_{NO:(順番シャッフル用配列:LOCAL)}(順番シャッフル用配列:LOCAL, RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存)
+				IF 口上有無確認(0,1)
+					RSTR:夜這い報告_記録文字列 += @"<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+					レポート強調フラグ:夜這い報告 = 1
+				ELSE
+					RSTR:夜這い報告_記録文字列 += @"　<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+				ENDIF
+			CATCH
+				RSTR:夜這い報告_記録文字列 += @"　<button value='{40000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDCATCH
+			RSTR:夜這い報告_記録文字列 += "<br>"
+		ELSEIF 結果保存 >= 100
+			;夜這い成功時
+			フォント色変更 = 1
+			RSTR:夜這い報告_記録文字列 += @"<font color='#%カラーパレット_HTML("青緑")%'>"
+			RSTR:夜這い報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は%CALLNAME:(結果保存 - 100)%と熱い夜を過ごした…", 80, LEFT%"
+			CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列 = %RSTR:コマンド結果受渡し文字列%
+			;性癖自動取得チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動取得性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名が入ってるはず
+				TRYCCALLFORM KOJO_性癖開拓_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0), 2)
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;性癖自動成長チェック
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):自動成長性癖_記録文字列, "___", RESULTS
+			FOR 分割番号, 0, RESULT
+				CALL 口上変数初期化
+				VARSET 分割用文字列
+				SPLIT RESULTS:分割番号, "+++", 分割用文字列
+				;分割用文字列:0に対象キャラ、:1に性癖名、:2に上がる前のレベルが入ってるはず
+				TRYCCALLFORM KOJO_性癖成長_%分割用文字列:1%_{NO:(TOINT(分割用文字列:0))}(TOINT(分割用文字列:0))
+					IF 口上有無確認(0,1)
+						口上あり = 1
+					ENDIF
+				CATCH
+				ENDCATCH
+			NEXT
+			;夜這い実行時口上チェック
+			CALL 口上変数初期化
+			VARSET RESULTS
+			SPLIT CSTR:(順番シャッフル用配列:LOCAL):夜這い口上渡し_記録文字列, "+++", RESULTS
+			RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存 = TOINT(RESULTS:0)
+			TRYCCALLFORM KOJO_夜這い実行時_{NO:(順番シャッフル用配列:LOCAL)}(順番シャッフル用配列:LOCAL, RCVAR:(順番シャッフル用配列:LOCAL):夜這い相手保存, TOINT(RESULTS:1), TOINT(RESULTS:2))
+				IF 口上有無確認(0,1)
+					口上あり = 1
+				ENDIF
+			CATCH
+			ENDCATCH
+			IF 口上あり
+				RSTR:夜這い報告_記録文字列 += @"<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+			ELSE
+				RSTR:夜這い報告_記録文字列 += @"　<button value='{50000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+			ENDIF
+			IF フォント色変更
+				RSTR:夜這い報告_記録文字列 += "</font>"
+				フォント色変更 = 0
+			ENDIF
+			RSTR:夜這い報告_記録文字列 += "<br>"
+			;###
+			;レポート強調用記憶：夜這い報告(＋夜這い成功)
+			レポート強調フラグ:夜這い報告 = 1
+		ELSEIF 結果保存 == 0
+			;自慰判定
+			CALL 一日終了時オナニー判定((順番シャッフル用配列:LOCAL))
+			RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存 = RESULT
+			;オプションによる制御
+			IF 一日終了時オナニーOPTION:(TALENT:(順番シャッフル用配列:LOCAL):性別) == 0
+				SELECTCASE RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存
+					CASE -1
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%はただ悶々としている…", 80, LEFT%"
+					CASE 1
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%はオナニーで性欲を発散している", 80, LEFT%"
+					CASE 2
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は自らの母乳を絞っている", 80, LEFT%"
+					CASE 3
+						RSTR:オナニー報告_記録文字列 += @"%@"%CALLNAME:(順番シャッフル用配列:LOCAL)%は覚えたばかりの自慰の虜になっている", 80, LEFT%"
+				ENDSELECT
+				IF RCVAR:(順番シャッフル用配列:LOCAL):オナニー結果保存
+					CALL 口上変数初期化
+					TRYCCALLFORM KOJO_一日終了時オナニー_{NO:(順番シャッフル用配列:LOCAL)}((順番シャッフル用配列:LOCAL))
+						IF 口上有無確認(0,1)
+							RSTR:オナニー報告_記録文字列 += @"<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[口上を表示]</button>"
+						ELSE
+							RSTR:オナニー報告_記録文字列 += @"　<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+						ENDIF
+					CATCH
+						RSTR:オナニー報告_記録文字列 += @"　<button value='{30000 + (順番シャッフル用配列:LOCAL)}'>[詳細表示]</button>"
+					ENDCATCH
+					RSTR:オナニー報告_記録文字列 += "<br>"
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+FOR LOCAL, 0, シャッフル数
+	;滞在してないキャラはスルー
+	IF CFLAG:(順番シャッフル用配列:LOCAL):滞在期間 < 0
+		性癖素質:(順番シャッフル用配列:LOCAL):性癖開発用フラグ変数 = 0
+		CONTINUE
+	ENDIF
 	CALL JUEL_CHECK((順番シャッフル用配列:LOCAL))
 	CALL DENIAL_CHECK((順番シャッフル用配列:LOCAL))
 
@@ -411,8 +543,9 @@ FOR LOCAL, 0, シャッフル数
 			フォント色変更 = 0
 		ENDIF
 		RSTR:性癖開拓報告_記録文字列 += "<br>"
-	ELSE
+	ELSEIF !TALENT:(順番シャッフル用配列:LOCAL):ハーレムの心得
 		;一日終了時
+		;ハーレム心得持ちは上で先に判定してるのでスキップ
 		;夜這い判定、性癖取得や成長のメッセージをキャンセルするために一旦SKIPDISP
 		SKIPDISP 1
 		;この文字列に結果を保存して後で格納する
