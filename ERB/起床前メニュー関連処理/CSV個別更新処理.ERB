@@ -11,9 +11,13 @@ LOCAL:1 = 0
 FOR 対象キャラ, 現在ページ * 30 + 1, CHARANUM
 	SIF LOCAL:1 >= 30
 		BREAK
-	SIF NO:対象キャラ == 999
-		CONTINUE
-	PRINTBUTTON @"[{対象キャラ, 3}] %NAME表示省略(NAME表示(対象キャラ)), 41, LEFT%", 対象キャラ
+	IF NO:対象キャラ == 999
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTPLAINFORM [{対象キャラ, 3}] %NAME表示省略(NAME表示(対象キャラ)), 41, LEFT%
+		RESETCOLOR
+	ELSE
+		PRINTBUTTON @"[{対象キャラ, 3}] %NAME表示省略(NAME表示(対象キャラ)), 41, LEFT%", 対象キャラ
+	ENDIF
 	LOCAL:1 ++
 	SIF LOCAL:1 % 2 == 0
 		PRINTL 
@@ -25,16 +29,49 @@ IF 現在ページ > 0
 ELSE
 	PRINTLC 　
 ENDIF
+PRINTFORMLC {現在ページ + 1}/{(CHARANUM - 2) / 30  + 1}
 IF CHARANUM > 対象キャラ
 	PRINTBUTTONLC "[9998] 次ページへ", 9998
 ENDIF
 PRINTL
+
+IF 現在ページ > 0
+	PRINTBUTTON "[|≪]", 9993
+	PRINT 　
+	PRINTBUTTON "[－５]", 9994
+	PRINT 　　　　　　
+ELSE
+	PRINTLC 　
+ENDIF
+PRINTBUTTONLC "[CSV番号入力]", 9992
+IF CHARANUM > 対象キャラ
+	PRINTBUTTON "[＋５]", 9995
+	PRINT 　
+	PRINTBUTTON "[≫|]", 9996
+ENDIF
+PRINTL
+
 PRINTBUTTON "[9999] 戻る", 9999
 PRINTL
 BINPUT
 
 ボタン結果 = RESULT
 SELECTCASE ボタン結果
+	CASE 9992
+		PRINTL CSV番号を入力してください(0や999、存在しない番号などの場合はキャンセル)
+		PRINTL 
+		INPUT
+		GETCHARA RESULT
+		SIF RESULT > 0 && RESULT != 999
+			CALL CSV個別更新処理(RESULT)
+	CASE 9993
+		現在ページ = 0
+	CASE 9994
+		現在ページ = MAX(現在ページ - 5, 0)
+	CASE 9995
+		現在ページ = MIN(現在ページ + 5, (CHARANUM - 2) / 30)
+	CASE 9996
+		現在ページ = (CHARANUM - 2) / 30
 	CASE 9997
 		現在ページ --
 	CASE 9998
