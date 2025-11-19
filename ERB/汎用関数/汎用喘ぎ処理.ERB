@@ -16,6 +16,10 @@ ENDIF
 #DIM 文節数
 #DIM 基準快楽量
 #DIM 喘ぎレベル
+#DIMS 自称単語
+#DIMS 他称単語
+#DIM 実行者番号
+
 
 基準快楽量 = CUP:キャラ番号:快Ｃ + CUP:キャラ番号:快Ｂ + CUP:キャラ番号:快Ｖ + CUP:キャラ番号:快Ａ + CUP:キャラ番号:快Ｓ
 IF 基準快楽量 < 1
@@ -80,7 +84,32 @@ IF CFLAG:キャラ番号:睡眠
 	文節数 = 1
 ENDIF
 
-KSTR:(K++) = %汎用喘ぎ基礎文節(文節数, 喘ぎレベル)%
+;汎用喘ぎに一人称・二人称を導入
+;DEBUGPRINTFORM 対象:{TARGET} 実行:{PLAYER} A対象:{AUTOCOM_対象番号保存} A実行:{AUTOCOM_実行番号保存}
+実行者番号 = -1
+;あなた以外に快楽を与えられた場合、与えてきた相手を特定
+IF AUTOCOM_対象番号保存 == キャラ番号 && INRANGE(AUTOCOM_実行番号保存, 0 , CHARANUM-1) && AUTOCOM_実行番号保存 != キャラ番号
+	実行者番号 = AUTOCOM_実行番号保存
+ELSEIF AUTOCOM_実行番号保存 == キャラ番号 && INRANGE(AUTOCOM_対象番号保存, 0 , CHARANUM-1) && AUTOCOM_対象番号保存 != キャラ番号
+	実行者番号 = AUTOCOM_対象番号保存
+ELSEIF !(TARGET == キャラ番号 && PLAYER == MASTER) && !(TARGET == MASTER && PLAYER == キャラ番号)
+	IF TARGET == キャラ番号 && INRANGE(PLAYER, 0 , CHARANUM-1) && PLAYER != キャラ番号
+		実行者番号 = PLAYER
+	ELSEIF PLAYER == キャラ番号 && INRANGE(TARGET, 0 , CHARANUM-1) && TARGET != キャラ番号
+		実行者番号 = TARGET
+	ENDIF
+ENDIF
+
+TRYCCALLFORM 汎用喘ぎ時使用時設定_{NO:キャラ番号}(キャラ番号, 実行者番号, 自称単語, 他称単語)
+CATCH
+	自称単語 '= CSTR:キャラ番号:一人称
+	他称単語 '= CSTR:キャラ番号:二人称
+	SIF INRANGE(実行者番号, 0, CHARANUM-1)
+		他称単語 '= CALLNAME:実行者番号
+ENDCATCH
+
+;DEBUGPRINTFORML 　%自称単語%/%他称単語%
+KSTR:(K++) = %汎用喘ぎ基礎文節(文節数, 喘ぎレベル, 自称単語, 他称単語)%
 RETURN 1
 
 
@@ -152,23 +181,47 @@ ENDDATA
 
 RETURNF 文字返り値
 
-@汎用喘ぎ基礎文節(文節数, 喘ぎレベル)
+@汎用喘ぎ基礎文節(文節数, 喘ぎレベル, 一人称, 二人称)
 #FUNCTIONS
 #DIM 喘ぎレベル
 #DIM 文節数
 #DIMS 文字返り値
 #DIMS 文節保存
+#DIMS 一人称
+#DIMS 二人称
+
 
 SELECTCASE 文節数
 	CASE 1
+		STRDATA LOCALS
+			DATAFORM 
+			DATAFORM 
+			DATAFORM %二人称%… 
+			DATAFORM %二人称%_H_ 
+			DATAFORM %二人称%…だめっ… 
+			DATAFORM %二人称%…やっ_H_ 
+		ENDDATA
 		STRDATA 文字返り値
-			DATAFORM 「%汎用喘ぎ基礎文字(喘ぎレベル)%っ……%汎用喘ぎハート数返り(喘ぎレベル)%」
-			DATAFORM 「%汎用喘ぎ基礎文字(喘ぎレベル)%%汎用喘ぎ接続文字()%%汎用喘ぎハート数返り(喘ぎレベル)%」
-			DATAFORM 「%汎用喘ぎ接続文字()%%汎用喘ぎ基礎文字(喘ぎレベル)%%汎用喘ぎハート数返り(喘ぎレベル)%」
-			DATAFORM 「%汎用喘ぎ接続文字()%っ%汎用喘ぎハート数返り(喘ぎレベル)%」
+			DATAFORM 「%汎用喘ぎ基礎文字(喘ぎレベル)%っ……%LOCALS%%汎用喘ぎハート数返り(喘ぎレベル)%」
+			DATAFORM 「%汎用喘ぎ基礎文字(喘ぎレベル)%%汎用喘ぎ接続文字()% %LOCALS%%汎用喘ぎハート数返り(喘ぎレベル)%」
+			DATAFORM 「%LOCALS%%汎用喘ぎ接続文字()%%汎用喘ぎ基礎文字(喘ぎレベル)%%汎用喘ぎハート数返り(喘ぎレベル)%」
+			DATAFORM 「%LOCALS%%汎用喘ぎ接続文字()%っ%汎用喘ぎハート数返り(喘ぎレベル)%」
 		ENDDATA
 	CASEELSE
 		文字返り値 = 
+		STRDATA LOCALS
+			DATAFORM 
+			DATAFORM 
+			DATAFORM %一人称%っ 
+			DATAFORM %一人称%_H_ 
+			DATAFORM %一人称%、もぅ… 
+			DATAFORM %SUBSTRINGU(一人称, 0, 1)%っ %一人称%_H_ 
+			DATAFORM %二人称%… 
+			DATAFORM %二人称%_H_ 
+			DATAFORM %二人称%…だめっ… 
+			DATAFORM %二人称%…やっ_H_ 
+		ENDDATA
+		LOCAL:1 = RAND:文節数
 		FOR LOCAL, 0, 文節数
 			STRDATA 文節保存
 				DATAFORM %汎用喘ぎ基礎文字(喘ぎレベル)%%汎用喘ぎハート数返り(喘ぎレベル)%
@@ -184,6 +237,8 @@ SELECTCASE 文節数
 				DATAFORM %汎用喘ぎ基礎文字(喘ぎレベル)%──っ%汎用喘ぎハート数返り(喘ぎレベル)%
 				DATAFORM %汎用喘ぎ基礎文字(喘ぎレベル)%……っ%汎用喘ぎハート数返り(喘ぎレベル)%
 			ENDDATA
+			SIF LOCAL == LOCAL:1
+				文字返り値 += @"　%LOCALS%"
 			文字返り値 += @"　%文節保存%"
 		NEXT
 		;先頭の全角スペースを削除
