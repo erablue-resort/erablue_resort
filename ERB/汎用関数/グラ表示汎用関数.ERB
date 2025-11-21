@@ -674,6 +674,7 @@ IF D_NAME == "" && MODE_存在判定_ターゲット側("Ｖ挿入系", ARG)
 				ELSEIF 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
 					IF !OPTION変数:射精後の挿入系立ち絵制御 || !立ち絵乱数
 						D_NAME '= RESULTS
+					;ELSEIF !GETBIT(OPTION変数:差分エフェクト制御, 3)
 					ELSE
 						差分エフェクト:0 '= "エフェクト_" + TYPE + "膣内射精"
 					ENDIF
@@ -708,6 +709,7 @@ IF D_NAME == "" && MODE_存在判定_ターゲット側("Ｖ挿入系", ARG)
 				ELSEIF 差分抽出(ARG, TYPE, LOCALS, "膣内射精", "膣内射精")
 					IF !OPTION変数:射精後の挿入系立ち絵制御 || !立ち絵乱数
 						D_NAME '= RESULTS
+					;ELSEIF !GETBIT(OPTION変数:差分エフェクト制御, 3)
 					ELSE
 						差分エフェクト:0 '= "エフェクト_" + TYPE + "膣内射精"
 					ENDIF
@@ -1196,13 +1198,23 @@ RETURNF LOCALS
 #FUNCTION
 #DIMS TYPE, 3
 #DIMS DIFF, 4
+#DIM DIFF_KEY, 4
+#DIM L_CNT
+
+VARSET DIFF_KEY
+FOR L_CNT, 0, 3
+	FOR LOCAL, 0, VARSIZE("差分エフェクト種類")
+		SIF GETBIT(OPTION変数:差分エフェクト制御, LOCAL) && STRCOUNT(DIFF:(L_CNT+1), 差分エフェクト種類:LOCAL)
+			DIFF_KEY:L_CNT = 1
+	NEXT
+NEXT
 
 ;エフェクトが既に設定されていなければエフェクトを追加
-SIF 差分エフェクト:0 == "" && DIFF:1 != ""
+SIF 差分エフェクト:0 == "" && DIFF:1 != "" && !DIFF_KEY:0
 	差分エフェクト:0 '= "エフェクト_" + TYPE + DIFF:1
-SIF 差分エフェクト:1 == "" && DIFF:2 != ""
+SIF 差分エフェクト:1 == "" && DIFF:2 != "" && !DIFF_KEY:1
 	差分エフェクト:1 '= "エフェクト_" + TYPE + DIFF:2
-SIF 差分エフェクト:2 == "" && DIFF:3 != ""
+SIF 差分エフェクト:2 == "" && DIFF:3 != "" && !DIFF_KEY:2
 	差分エフェクト:2 '= "エフェクト_" + TYPE + DIFF:3
 
 IF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%/", @"%TYPE:1 + TYPE:2 +DIFF%*.*")
@@ -1326,3 +1338,35 @@ IF EXISTFILE(@"%ファイルパス%.webp")
 ELSE
 	RETURNF EXISTFILE(@"%ファイルパス%.png")
 ENDIF
+
+@GET_差分エフェクト抽出(L_STR)
+#FUNCTION
+#DIMS L_STR
+
+VARSET LOCALS
+DEBUGPRINTFORM %L_STR%→
+L_STR '= REPLACE(L_STR, "\\++", "+")
+DEBUGPRINTFORM %L_STR%→
+SPLIT L_STR, "+", LOCALS
+DEBUGPRINTFORM %LOCALS:1%
+FOR LOCAL:1, 1, 4
+	FOR LOCAL, 0, VARSIZE("差分エフェクト種類")
+		IF STRCOUNT(LOCALS:(LOCAL:1), 差分エフェクト種類:LOCAL)
+			RESULTS '= LOCALS:(LOCAL:1)
+			DEBUGPRINTFORML 　{LOCAL}%RESULTS%
+			RETURNF LOCAL+1
+		ENDIF
+	NEXT
+	IF STRCOUNT(LOCALS:(LOCAL:1), "欲情")
+		RESULTS '= LOCALS:(LOCAL:1)
+		DEBUGPRINTFORML 　11%RESULTS%
+		RETURNF 11
+	ENDIF
+	IF STRCOUNT(LOCALS:(LOCAL:1), "絶頂")
+		RESULTS '= LOCALS:(LOCAL:1)
+		DEBUGPRINTFORML 　21%RESULTS%
+		RETURNF 21
+	ENDIF
+NEXT
+DEBUGPRINTFORML
+RETURNF 0
