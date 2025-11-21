@@ -2450,7 +2450,7 @@ RESULTS '= LOCALS
 
 @機能オプション右枠_3(画面表示用変数)
 #DIM 画面表示用変数
-#DIM L_CNT
+#DIM L_CNT, 2
 #DIMS T_COLOR, 3
 ;画像機能
 
@@ -2539,23 +2539,33 @@ SELECTCASE 画面表示用変数
 		LOCALS += "欲情時や絶頂時、各種行動に対応した画像が表示される場合でも<br>対応するエフェクトを、さらに被せて表示するかを選択できます。<br>"
 		LOCALS += "<br>"
 		;Bitを用いて一括管理 0:挿入 1:フェラチオ 2:パイズリ 3:腟内射精 4:口内射精 5:乳内射精
-		LOCALS += "　　　　　 膣への挿入 フェラチオ 　パイズリ 　膣内射精 　口内射精 　乳内射精<br>"
-		LOCALS += "エフェクト:"
-		FOR L_CNT, 0, 6
-			T_COLOR:0 = #EEEEEE
-			T_COLOR:1 = #666666
-			SIF GETBIT(OPTION変数:差分エフェクト制御, L_CNT)
-				SWAP T_COLOR:0, T_COLOR:1
-			LOCALS += @" <button value='{510 + L_CNT}'>[<font color='%T_COLOR:0%'>ON</font> /<font color='%T_COLOR:1%'>OFF</font>]</button> "
-		NEXT
-		LOCALS += "<br>"
-		LOCALS += "　　　　　　<button value='518'>[一括ON]</button>/<button value='519'>[一括OFF]</button><br>"
+		LOCAL = 3
+		DO
+			LOCALS:1 '= "　"
+			LOCALS:2 '= "　"
+			FOR L_CNT, LOCAL, VARSIZE("差分エフェクト種類")
+				LOCALS:1 += @"%差分エフェクト種類:L_CNT, 11, LEFT%"
+				T_COLOR:0 = #EEEEEE
+				T_COLOR:1 = #666666
+				SIF GETBIT(OPTION変数:差分エフェクト制御, L_CNT)
+					SWAP T_COLOR:0, T_COLOR:1
+				LOCALS:2 += @" <button value='{517 + L_CNT}'>[<font color='%T_COLOR:0%'>ON</font> /<font color='%T_COLOR:1%'>OFF</font>]</button> "
+				IF STRLENS(LOCALS:1) > 64 || L_CNT == VARSIZE("差分エフェクト種類") - 1
+					LOCALS += LOCALS:1 + "<br>" + LOCALS:2 + "<br>"
+					LOCAL = L_CNT + 1
+					BREAK
+				ENDIF
+			NEXT
+		LOOP L_CNT < VARSIZE("差分エフェクト種類")
+		LOCALS:1 '= "<button value='506'>[一括ON]</button> / <button value='507'>[一括OFF]</button><br>"
+		LOCALS:1 '= " " * (74 - HTML_STRINGLEN(LOCALS:1)) + LOCALS:1
+		LOCALS += LOCALS:1
 		VARSET T_COLOR, "#666666"
 		T_COLOR:(OPTION変数:欲情エフェクト制御) = #EEEEEE
-		LOCALS += @"欲情エフェクト：[<button value='520'><font color='%T_COLOR:0%'>常にON</font></button> / <button value='521'><font color='%T_COLOR:1%'>欲情画像にはOFF</font></button> / <button value='522'><font color='%T_COLOR:2%'>常にOFF</font></button>]<br>"
+		LOCALS += @"欲情エフェクト：[<button value='510'><font color='%T_COLOR:0%'>常にON</font></button> / <button value='511'><font color='%T_COLOR:1%'>欲情画像にはOFF</font></button> / <button value='512'><font color='%T_COLOR:2%'>常にOFF</font></button>]<br>"
 		VARSET T_COLOR, "#666666"
 		T_COLOR:(OPTION変数:絶頂エフェクト制御) = #EEEEEE
-		LOCALS += @"絶頂エフェクト：[<button value='525'><font color='%T_COLOR:0%'>常にON</font></button> / <button value='526'><font color='%T_COLOR:1%'>絶頂画像にはOFF</font></button> / <button value='527'><font color='%T_COLOR:2%'>常にOFF</font></button>]<br>"
+		LOCALS += @"絶頂エフェクト：[<button value='515'><font color='%T_COLOR:0%'>常にON</font></button> / <button value='516'><font color='%T_COLOR:1%'>絶頂画像にはOFF</font></button> / <button value='517'><font color='%T_COLOR:2%'>常にOFF</font></button>]<br>"
 		LOCALS += "----------------------------------------------------------------------------<br>"
 		LOCALS += "・妊娠時オーバーレイ設定<br>"
 		LOCALS += "妊娠したキャラに妊娠時用の画像ファイルがない場合、既存の画像ファイルに<br>被せて表示する画像を選択します。<br>"
@@ -2675,18 +2685,18 @@ SELECTCASE 入力値
 		FLAG_妊娠エフェクトフィルタ = 入力値 - 501
 	CASE 505
 		INVERTBIT OPTION変数:欲情絶頂エフェクト制御, 0
-	CASE 510 TO 517
-		INVERTBIT OPTION変数:差分エフェクト制御, 入力値 - 510
-	CASE 518
+	CASE 506
 		OPTION変数:差分エフェクト制御 = 0
-	CASE 519
-		FOR LOCAL, 0, 9
+	CASE 507
+		FOR LOCAL, 3, VARSIZE("差分エフェクト種類")
 			SETBIT OPTION変数:差分エフェクト制御, LOCAL
 		NEXT
-	CASE 520 TO 522
-		OPTION変数:欲情エフェクト制御 = 入力値 - 520
-	CASE 525 TO 527
-		OPTION変数:絶頂エフェクト制御 = 入力値 - 525
+	CASE 510 TO 512
+		OPTION変数:欲情エフェクト制御 = 入力値 - 510
+	CASE 515 TO 517
+		OPTION変数:絶頂エフェクト制御 = 入力値 - 515
+	CASE 520 TO 520 + VARSIZE("差分エフェクト種類")
+		INVERTBIT OPTION変数:差分エフェクト制御, 入力値 - 517
 	CASE 601
 		INVERTBIT OPTION変数:射精後の挿入系立ち絵制御, 0
 	CASE 602

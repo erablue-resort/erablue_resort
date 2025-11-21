@@ -664,26 +664,32 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 	IF GETBIT(画像サイズ切り替えOPTION記憶, 0)
 		LOCALS:1 '= 短冊グラ表示用文字列関数(TARGET,,,1)
 		LOCALS:2 '= RESULTS:2
-		LOCAL = GET_差分エフェクト抽出(RSTR:表示グラ記録)
-		SIF LOCAL
-			LOCALS:2 += "&#13;&#10;" + RESULTS
+		RCVAR:差分保存 = 0
+		FOR ループ用, 0, 3
+			IF GETVAR(@"RCVAR:差分保存_{ループ用}")
+				LOCALS:2 += @"&#13;&#10;エフェクト_短冊_" + 差分エフェクト種類:GETVAR(@"RCVAR:差分保存_{ループ用}")
+				SIF !RCVAR:差分保存
+					RCVAR:差分保存 = GETVAR(@"RCVAR:差分保存_{ループ用}")
+			ENDIF
+		NEXT
 		LOCALS '= @"<div rect='0, 0, 1125, 2475'><button value='889' title='画像表示:短冊→正方形&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
 		LOCALS += @"%"<br>" * 20%[表示方法変更:正方形]</button>"
 	ELSE
 		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET,,,,1)
 		LOCALS:2 '= RESULTS:2
-		LOCAL = GET_差分エフェクト抽出(RSTR:表示グラ記録)
-		SIF LOCAL
-			LOCALS:2 += "&#13;&#10;" + RESULTS
+		RCVAR:差分保存 = 0
+		FOR ループ用, 0, 3
+			IF GETVAR(@"RCVAR:差分保存_{ループ用}")
+				LOCALS:2 += @"&#13;&#10;エフェクト_顔_" + 差分エフェクト種類:GETVAR(@"RCVAR:差分保存_{ループ用}")
+				SIF !RCVAR:差分保存
+					RCVAR:差分保存 = GETVAR(@"RCVAR:差分保存_{ループ用}")
+			ENDIF
+		NEXT
 		LOCALS '= @"<div rect='0, 0, 1125, 1350'><button value='889' title='画像表示:正方形→短冊&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
 		LOCALS += @"%"<br>" * 10%[表示方法変更:短冊]</button>"
 	ENDIF
-	IF LOCAL > 0
-		LOCAL--
-		IF LOCAL < VARSIZE("差分エフェクト種類")
-			LOCALS:1 = \@ GETBIT(OPTION変数:差分エフェクト制御, LOCAL) ? ON # OFF \@
-			LOCALS:2 '= @"エフェクト[%差分エフェクト種類:LOCAL%]を%LOCALS:1%にする"
-		ELSEIF LOCAL == 10
+	IF RCVAR:差分保存 > 0
+		IF RCVAR:差分保存 == 1
 			IF OPTION変数:欲情エフェクト制御 == 2
 				LOCALS:1 = ON
 				LOCALS:2 = エフェクト[欲情]をONにする
@@ -694,7 +700,7 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 				LOCALS:1 = 一部OFF
 				LOCALS:2 = エフェクト[欲情]を、欲情差分画像に対してのみOFFにする
 			ENDIF
-		ELSEIF LOCAL == 20
+		ELSEIF RCVAR:差分保存 == 2
 			IF OPTION変数:絶頂エフェクト制御 == 2
 				LOCALS:1 = ON
 				LOCALS:2 = エフェクト[絶頂]をONにする
@@ -705,6 +711,9 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 				LOCALS:1 = 一部OFF
 				LOCALS:2 = エフェクト[絶頂]を、絶頂差分画像に対してのみOFFにする
 			ENDIF
+		ELSEIF RCVAR:差分保存 < VARSIZE("差分エフェクト種類")
+			LOCALS:1 = \@ GETBIT(OPTION変数:差分エフェクト制御, RCVAR:差分保存) ? ON # OFF \@
+			LOCALS:2 '= @"エフェクト[%差分エフェクト種類:(RCVAR:差分保存)%]を%LOCALS:1%にする"
 		ENDIF
 		LOCALS += @"<button value='888' title='%LOCALS:2%'>[エフェクト:%LOCALS:1%]</button>"
 	ENDIF
