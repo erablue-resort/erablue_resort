@@ -2,9 +2,11 @@
 @所持ミルク一覧表示
 #DIM ページ数
 #DIM 表示数カウント
+#DIM ミルク番号
 #DIM ボタン記録
 #DIM 一括削除モード
 #DIM 一括削除件数
+#DIM 次ページフラグ
 #DIMS 削除番号
 #DIMS 削除番号配列, 101
 #DIMS ミルク名
@@ -19,18 +21,26 @@ ELSE
 ENDIF
 DRAWLINE
 
-FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
-	IF DT_ROW_LENGTH("ミルクデータベース") > 表示数カウント
-		SIF DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態") == "フタ"
+FOR ミルク番号, 0, DT_ROW_LENGTH("ミルクデータベース") + (15 - DT_ROW_LENGTH("ミルクデータベース") % 15)
+	IF 表示数カウント >= 15
+		;表示スキップした中に表示するミルクがあるなら次ページフラグを立てとく
+		SIF DT_ROW_LENGTH("ミルクデータベース") > ミルク番号 && DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") != "フタ"
+			次ページフラグ = 1
+		CONTINUE
+	ENDIF
+	IF DT_ROW_LENGTH("ミルクデータベース") > ミルク番号
+		SIF DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") == "フタ"
 			CONTINUE
-		SIF 一括削除モード && STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", 表示数カウント, "id")}_")
+		SIF ページ数 !=  表示数カウント / 15 
+			CONTINUE
+		SIF 一括削除モード && STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", ミルク番号, "id")}_")
 			SETCOLOR カラーパレット("黄")
-		IF DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態") == "通常"
-			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%のミルク
+		IF DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") == "通常"
+			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ミルク番号, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", ミルク番号, "生産元名称"), "]") + 1, -1)%のミルク
 		ELSE
-			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", 表示数カウント, "生産元名称"), "]") + 1, -1)%の%DT_CELL_GETS("ミルクデータベース", 表示数カウント, "状態")%ミルク
+			ミルク名 = %SUBSTRING(DT_CELL_GETS("ミルクデータベース", ミルク番号, "生産元名称"), STRFIND(DT_CELL_GETS("ミルクデータベース", ミルク番号, "生産元名称"), "]") + 1, -1)%の%DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態")%ミルク
 		ENDIF
-		SELECTCASE DAY - DT_CELL_GET("ミルクデータベース", 表示数カウント, "生産日")
+		SELECTCASE DAY - DT_CELL_GET("ミルクデータベース", ミルク番号, "生産日")
 			CASE 0
 				消費期限 = あと３日
 			CASE 1
@@ -42,42 +52,43 @@ FOR 表示数カウント, ページ数 * 15, ページ数 * 15 + 15
 			CASEELSE
 				消費期限 = 期限切れ
 		ENDSELECT
-		PRINTBUTTON @"[{表示数カウント, 3}] - %ミルク名, 50, LEFT% - 消費期限：%消費期限%", 表示数カウント
+		PRINTBUTTON @"[{ミルク番号, 3}] - %ミルク名, 50, LEFT% - 消費期限：%消費期限%", ミルク番号
 		RESETCOLOR
 		PRINTL
 	ELSE
 		PRINTL
 	ENDIF
+	表示数カウント ++
 NEXT
 
 DRAWLINE
 IF ページ数 > 0
-	PRINTBUTTONLC "[1000] 前のページ", 1000
+	PRINTBUTTONLC "[9000] 前のページ", 9000
 ELSE
 	PRINTC  
 ENDIF
-IF DT_ROW_LENGTH("ミルクデータベース") > ページ数 * 15 + 15
-	PRINTBUTTONLC "[1001] 次のページ", 1001
+IF 次ページフラグ
+	PRINTBUTTONLC "[9001] 次のページ", 9001
 ELSE
 	PRINTC  
 ENDIF
-PRINTBUTTONLC "[999] 戻る", 999
+PRINTBUTTONLC "[9999] 戻る", 9999
 IF 一括削除モード && 削除番号 != ""
-	PRINTBUTTONLC "[998] 廃棄する", 998
+	PRINTBUTTONLC "[9998] 廃棄する", 9998
 ELSEIF 一括削除モード
 	SETCOLOR カラーパレット("グレーアウト")
-	PRINTPLAIN [998] 廃棄する
+	PRINTPLAIN [9998] 廃棄する
 	PRINT            
 	RESETCOLOR
 ELSE
-	PRINTBUTTONLC "[998] 一括削除", 998
+	PRINTBUTTONLC "[9998] 一括削除", 9998
 ENDIF
 
 BINPUT
 
 ボタン記録 = RESULT
 SELECTCASE ボタン記録
-	CASE 999
+	CASE 9999
 		IF 一括削除モード
 			一括削除件数 = 0
 			一括削除モード = 0
@@ -86,13 +97,13 @@ SELECTCASE ボタン記録
 		ENDIF
 		ページ数 = 0
 		RETURN 0
-	CASE 998
+	CASE 9998
 		;一括削除へ
 		IF 一括削除モード
 			VARSET 削除番号配列
 			SPLIT 削除番号, "_", 削除番号配列
-			FOR 表示数カウント, 1, 一括削除件数 + 1
-				DT_CELL_SET "ミルクデータベース", TOINT(削除番号配列:表示数カウント), "状態", "フタ", 1
+			FOR ミルク番号, 1, 一括削除件数 + 1
+				DT_CELL_SET "ミルクデータベース", TOINT(削除番号配列:ミルク番号), "状態", "フタ", 1
 			NEXT
 			PRINTFORMW {一括削除件数}枚のミルクを削除しました
 			一括削除モード = 0
@@ -104,10 +115,10 @@ SELECTCASE ボタン記録
 			削除番号 = 
 		ENDIF
 		RESTART
-	CASE 1000
+	CASE 9000
 		ページ数 -= 1
 		RESTART
-	CASE 1001
+	CASE 9001
 		ページ数 += 1
 		RESTART
 	CASEELSE
