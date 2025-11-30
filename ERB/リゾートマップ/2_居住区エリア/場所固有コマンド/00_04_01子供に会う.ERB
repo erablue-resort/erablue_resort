@@ -359,32 +359,158 @@ ENDIF
 
 @子供プレゼント(CHILD_ID)
 #DIM CHILD_ID
-#DIMS カテゴリ配列, 10
 #DIM 選択プレゼント番号
+#DIMS 子供好み
+#DIMS 好み情報
+#DIMS 絞り込み文字列
+#DIMS 選択カテゴリ
+#DIMS CONST 表示条件_共通 = "プレゼントカテゴリ NOT LIKE '%肉%' And プレゼントカテゴリ NOT LIKE '%魚%' And プレゼントカテゴリ NOT LIKE '%野菜%' And プレゼントカテゴリ NOT LIKE '%お菓子%' And プレゼントカテゴリ NOT LIKE '%珍味%' And プレゼントカテゴリ NOT LIKE '%酒%' And プレゼントカテゴリ NOT LIKE '%茶類%' And プレゼントカテゴリ NOT LIKE '%飲食系%'"
+#DIMS 表示条件
 #DIMS プレゼントアイテム名
-#DIM プレゼント成功率
 
-;まずプレゼントアイテム一覧を出す（食べ物と酒はダメ）
-CALL 素材アイテム一覧表示("プレゼントカテゴリ not in ('', '飲食系', '酒') and 所持素材数 > 0", 1)
+絞り込み文字列 = 
+
+; 対象の好みの情報を取得(ただし表示には要フレンドリーセンス)
+子供好み '= GET_PERSON_プレゼント好み(CHILD_ID)
+IF あなた特殊能力:フレンドリーセンス
+	好み情報 = %GET_PERSON_呼び名(CHILD_ID)%のプレゼントの好み：%REPLACE(子供好み, "_", "、")%
+ELSE
+	好み情報 '= ""
+ENDIF
+
+$表示_LOOP
+
+DRAWLINE
+PRINTL ・表示カテゴリ絞り込み
+SETCOLOR カラーパレット("グレーアウト")
+PRINTPLAIN [飲食系]：子供にはプレゼントできません
+RESETCOLOR
+PRINTL
+SIF 絞り込み文字列 == "芸術品"
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[芸術品]", -200
+RESETCOLOR
+PRINT ：
+FOR LOCAL, 0, VARSIZE("好物一覧_芸術品")
+	SIF 絞り込み文字列 == "芸術品"
+		SETCOLOR カラーパレット("黄")
+	SIF 絞り込み文字列 == 好物一覧_芸術品:LOCAL
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[%好物一覧_芸術品:LOCAL%]", -201 - LOCAL
+	RESETCOLOR
+	PRINT  
+NEXT
+PRINTL
+SIF 絞り込み文字列 == "美容系"
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[美容系]", -300
+RESETCOLOR
+PRINT ：
+FOR LOCAL, 0, VARSIZE("好物一覧_美容系")
+	SIF 絞り込み文字列 == "美容系"
+		SETCOLOR カラーパレット("黄")
+	SIF 絞り込み文字列 == 好物一覧_美容系:LOCAL
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[%好物一覧_美容系:LOCAL%]", -301 - LOCAL
+	RESETCOLOR
+	PRINT  
+NEXT
+PRINTL
+SIF 絞り込み文字列 == "実用品"
+	SETCOLOR カラーパレット("黄")
+PRINTBUTTON "[実用品]", -400
+RESETCOLOR
+PRINT ：
+FOR LOCAL, 0, VARSIZE("好物一覧_実用品")
+	SIF 絞り込み文字列 == "実用品"
+		SETCOLOR カラーパレット("黄")
+	SIF 絞り込み文字列 == 好物一覧_実用品:LOCAL
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[%好物一覧_実用品:LOCAL%]", -401 - LOCAL
+	RESETCOLOR
+	PRINT  
+NEXT
+PRINTL
+FOR LOCAL, 0, VARSIZE("好物一覧_その他")
+	SIF 絞り込み文字列 == 好物一覧_その他:LOCAL
+		SETCOLOR カラーパレット("黄")
+	PRINTBUTTON @"[%好物一覧_その他:LOCAL%]", -501 - LOCAL
+	RESETCOLOR
+	PRINT  
+NEXT
+PRINTL
+DRAWLINE
+
+;まずプレゼントアイテム一覧を出す
+IF 絞り込み文字列 == ""
+	CALL 素材アイテム一覧表示(@"プレゼントカテゴリ <> '' and (%表示条件_共通%) and 所持素材数 > 0", 1, , 好み情報)
+ELSE
+	IF 絞り込み文字列 == "芸術品"
+		表示条件 = プレゼントカテゴリ LIKE '\%宝石\%' Or プレゼントカテゴリ LIKE '\%絵画\%' Or プレゼントカテゴリ LIKE '\%彫刻\%' Or プレゼントカテゴリ LIKE '\%詩\%' Or プレゼントカテゴリ LIKE '\%芸術品\%'
+	ELSEIF 絞り込み文字列 == "美容系"
+		表示条件 = プレゼントカテゴリ LIKE '\%アクセサリ\%' Or プレゼントカテゴリ LIKE '\%化粧品\%' Or プレゼントカテゴリ LIKE '\%美容系\%'
+	ELSEIF 絞り込み文字列 == "実用品"
+		表示条件 = プレゼントカテゴリ LIKE '\%文房具\%' Or プレゼントカテゴリ LIKE '\%健康器具\%' Or プレゼントカテゴリ LIKE '\%日用品\%' Or プレゼントカテゴリ LIKE '\%調理器具\%' Or プレゼントカテゴリ LIKE '\%工具\%' Or プレゼントカテゴリ LIKE '\%実用品\%'
+	ELSE
+		表示条件 = プレゼントカテゴリ LIKE '\%%絞り込み文字列%\%'
+	ENDIF
+	CALL 素材アイテム一覧表示(@"(%表示条件%) and (%表示条件_共通%) and 所持素材数 > 0", 1, , 好み情報)
+ENDIF
 SIF RESULT == -1
 	RETURN -1
+IF RESULT <= -100
+	SELECTCASE RESULT
+		CASE -200
+			選択カテゴリ = 芸術品
+		CASE -300
+			選択カテゴリ = 美容系
+		CASE -400
+			選択カテゴリ = 実用品
+		CASE -299 TO -201
+			選択カテゴリ '= 好物一覧_芸術品:(ABS(RESULT + 201))
+		CASE -399 TO -301
+			選択カテゴリ '= 好物一覧_美容系:(ABS(RESULT + 301))
+		CASE -499 TO -401
+			選択カテゴリ '= 好物一覧_実用品:(ABS(RESULT + 401))
+		CASE -599 TO -501
+			選択カテゴリ '= 好物一覧_その他:(ABS(RESULT + 501))
+	ENDSELECT
+	IF 絞り込み文字列 == 選択カテゴリ
+		絞り込み文字列 = 
+	ELSE
+		絞り込み文字列 '= 選択カテゴリ
+	ENDIF
+	GOTO 表示_LOOP
+ENDIF
 ;選択プレゼント番号には行ではなくIDが入っているので注意
 選択プレゼント番号 = RESULT
 DT_CELL_SET "所持素材データベース", 選択プレゼント番号, "所持素材数", DT_CELL_GET("所持素材データベース", 選択プレゼント番号, "所持素材数", 1) - 1, 1
 
 プレゼントアイテム名 '= DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "素材アイテム名", 1)
-;子供の評価はプレゼントランクに依存しない
+;子供からの評価は渡したアイテムのランクに関係しない
+;子供はプレゼントを飲み食いしないので渡したアイテムのカロリーは関係しない
 
-;子供の好みカテゴリを取得
-VARSET カテゴリ配列
-SPLIT GET_PERSON_プレゼント好み(CHILD_ID), "_", カテゴリ配列
-
-;好みに含まれているか判定
+;子供の専用分岐
 IF プレゼントアイテム名 == "Ｅマッサージャ"
+	;Ｅマッサージャに興味を示さない
 	RESULTS = 興味なし
-ELSEIF MATCH(カテゴリ配列, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1))
-	RESULTS = 好み
+ELSEIF プレゼントアイテム名 == "おままごとセット"
+	;飲食系が好みに含まれているか判定
+	IF プレゼント好み判定(子供好み, "飲食系_" + STRJOIN(好物一覧_飲食系, "_"), -1)
+		;好みに含まれる
+		RESULTS = 好み
+	ELSE
+		;好みに含まれない
+		RESULTS = 興味あり
+	ENDIF
 ELSE
-	RESULTS = 興味あり
+	;好みに含まれているか判定
+	IF プレゼント好み判定(子供好み, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1), -1)
+		;好みに含まれる
+		RESULTS = 好み
+	ELSE
+		;好みに含まれない
+		RESULTS = 興味あり
+	ENDIF
 ENDIF
 RETURN 0
