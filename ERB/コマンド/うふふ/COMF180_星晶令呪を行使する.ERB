@@ -1,0 +1,150 @@
+﻿;-------------------------------------------------
+;星晶令呪を行使する
+;コミュニケーション系コマンド、レベル1
+;-------------------------------------------------
+@COMNAME180
+#FUNCTIONS
+TSTR:コマンド名受渡 = 星晶令呪を行使する
+
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_180
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
+
+@COM_TOOLTIP_180
+LOCALS = <br>■星晶令呪を行使する<br>
+LOCALS += "精力とZPを消費することで、相手に絶対的な命令を下すコマンド。"
+LOCALS += "<br>特定の素質を持つ相手にしか効果がない。"
+LOCALS += "<br>精力は、すなわち魔力である。膨大な精力を持つ%CALLNAME:PLAYER%はつまり、膨大な魔力を抱えているに等しい。"
+LOCALS += "<br>ZPによりこちらの世界に「喚んだ」繋がりを辿り、万能のエネルギーリソース・ZPと合わせて解き放てば、"
+LOCALS += "<br>異なる世界においては英霊であった存在であっても抗うことは不可能だろう。"
+LOCALS += "<br>COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：征服(PLAYER)・苦痛(一定条件時)・反感(一定条件時)"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+
+@COM180
+;-------------------------------------------------
+;ソース追加処理
+;-------------------------------------------------
+
+CALL SOURCE_CALC_征服(PLAYER, TARGET, 1000)
+IF 陥落チェック(TARGET) == 0
+	;抵抗しようとすることで発生する苦痛
+	CALL SOURCE_CALC_苦痛(TARGET, PLAYER, 500)
+	CALL SOURCE_CALC_反感(TARGET, PLAYER, 1000)
+ENDIF
+RCVAR:TARGET:苦痛コマンドフラグ = 1
+RCVAR:PLAYER:嗜虐コマンドフラグ = 1
+
+;サドは嗜虐快楽
+SIF ABL:PLAYER:サド性感
+	EXP:PLAYER:嗜虐快楽経験 ++
+
+BASE:PLAYER:精力 -= 9000
+FLAG:ZP所持量 -= 10
+PRINTL ZP -10
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+
+
+RETURN 1
+
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE180
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(180)
+	RETURN RESULT
+SIF あなた特殊能力:星晶令呪回路 == 0
+	RETURN 0
+
+;口を何かに使ってるなら無理
+IF TEQUIP:PLAYER:口
+	RETURN 0
+ENDIF
+
+;精力の残りが9000以上、ZP250以上所持
+SIF BASE:PLAYER:精力 <= 9000
+	RETURN 0
+SIF FLAG:ZP所持量 < 10
+	RETURN 0
+
+
+;相手が固有素質の中に［サーヴァント］[ムーンキャンサー]を持つかどうか
+;デミサーヴァントはどうしようね？本家ではできないけどこっちはできるとかしてもいい。
+SIF 固有素質チェック(TARGET, "サーヴァント", "ムーンキャンサー") == 0
+	RETURN 0
+
+;オートコマンド中の制限
+IF FLAG:オートコマンド判定中フラグ
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM180
+#DIM 同時キャラ番号
+
+PRINTFORMW %CALLNAME:PLAYER%は自身の体内の精力を特殊な魔力へと変換し、%CALLNAME:TARGET%に向けて命令を告げた。
+PRINTL
+PRINTFORMW ────令呪を以て告げる。%CALLNAME:TARGET%よ────
+PRINTL
+PRINTBUTTON "[0] 一日言いなりになれ", 0
+PRINTL
+PRINTBUTTON "[1] 孕める体になれ", 1
+PRINTL
+PRINTBUTTON "[2] 排卵しろ", 2
+PRINTL
+PRINTBUTTON "[3] 発情しろ", 3
+PRINTL
+BINPUT
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%の令呪に抗えず、悔しそうに顔を歪めて体の自由を明け渡した……。
+		PRINTFORML これで%CALLNAME:TARGET%は今日一日%CALLNAME:PLAYER%の
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [言いなり]
+		RESETCOLOR
+		PRINTFORMW だ。どんなことをしてもらおうか……。
+		TCVAR:言いなり = 1
+	CASE 1
+		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [妊娠可能]
+		RESETCOLOR
+		PRINTFORMW に変化させた……。
+		TALENT:対象キャラ:妊娠不可 = 0
+	CASE 2
+	;排卵誘発剤から処理そのまま
+		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の卵巣を刺激し
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [排卵]
+		RESETCOLOR
+		PRINTFORMW させた……。
+		TCVAR:ARG:排卵誘発薬 += 1
+	CASE 3
+	;この辺は処理わからん。実機でやってみた感じ発情期は付与できるが発情はしない(危険日にはならない)感じ
+	;桃色の風みたいな一時的発情があればそれがいちばん丸い
+		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を強制的に
+		SETCOLOR カラーパレット("えっちな色")
+		PRINT [発情]
+		RESETCOLOR
+		PRINTFORMW させた……。
+		CFLAG:TARGET:発情期フラグ = -1
+
+ENDSELECT
