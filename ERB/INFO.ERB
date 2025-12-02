@@ -191,7 +191,7 @@ IF TFLAG:調教モード == 3
 		SIF 飲み会TARGET:LOCAL < 1
 			BREAK
 		;合意がないと2以上にならない
-		IF GETBIT(CFLAG:(飲み会TARGET:LOCAL):1,0) || TALENT:(飲み会TARGET:LOCAL):疑似恋慕
+		IF 陥落チェック_性的＋疑似恋慕(飲み会TARGET:LOCAL)
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = CFLAG:(飲み会TARGET:LOCAL):態度保存
 		;飲み会中は酩酊数値一定以上でも2以上になる
 		ELSEIF BASE:(飲み会TARGET:LOCAL):酩酊 > 500
@@ -200,8 +200,8 @@ IF TFLAG:調教モード == 3
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(飲み会TARGET:LOCAL):態度保存 , 1)
 		ENDIF
 		;言いなり状態なら常に最大でセクハラ全開放
-		IF TCVAR:(TARGET:LOCAL):言いなり == 1
-			TCVAR:(TARGET:LOCAL):馴れ合い強度 = 3
+		IF TCVAR:(飲み会TARGET:LOCAL):言いなり == 1
+			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = 3
 		;自室で遊ぶ場合は１以上保証
 		ELSEIF CFLAG:(飲み会TARGET:LOCAL):一緒に遊ぶ && CFLAG:(飲み会TARGET:LOCAL):現在位置 == CFLAG:MASTER:自室位置
 			TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 = MAX(TCVAR:(飲み会TARGET:LOCAL):馴れ合い強度 , 1)
@@ -215,7 +215,7 @@ ELSE
 		SIF TARGET:LOCAL < 1
 			BREAK
 		;合意がないと2以上にならない
-		IF 陥落チェック_性的(TARGET:LOCAL) || TALENT:(TARGET:LOCAL):疑似恋慕
+		IF 陥落チェック_性的＋疑似恋慕(TARGET:LOCAL)
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = CFLAG:(TARGET:LOCAL):態度保存
 		ELSE
 			TCVAR:(TARGET:LOCAL):馴れ合い強度 = MIN(CFLAG:(TARGET:LOCAL):態度保存 , 1)
@@ -746,7 +746,11 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 	SIF CFLAG:TARGET:ゲージ起動分類 == 1
 		PRINT (恋慕対象)
 	IF CFLAG:TARGET:発情期フラグ < 0
-		PRINT (発情期
+		IF TCVAR:強制発情フラグ == 1
+			PRINT (発情中
+		ELSE
+			PRINT (発情期
+		ENDIF
 		PRINT_IMG "えっちハート"
 		PRINT )
 	ENDIF
@@ -852,7 +856,7 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 	IF CSTR:TARGET:着せ替え服 != ""
 		VARSET RESULTS
 		ツールチップフラグ = 0
-		TRYCALLFORM CLOTHES_販売説明_%CSTR:TARGET:着せ替え服%
+		TRYCALLFORM CLOTHES_衣装説明_%CSTR:TARGET:着せ替え服%
 		IF OPTION変数:ツールチップ切り替え == 0 && RESULTS != ""
 			LOCALS += @"<nonbutton title = '%RESULTS%"
 			IF RESULTS:1 != ""

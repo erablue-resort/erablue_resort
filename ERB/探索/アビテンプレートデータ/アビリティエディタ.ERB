@@ -1,0 +1,75 @@
+﻿;場所確保
+@アビリティエディタ()
+#DIM 対象NO
+#DIM 既存アビ数
+#DIM 表示Lv
+#DIM アビ作成中フラグ
+#DIMS HTML文字列
+
+;初期化部分
+HTML文字列 = 
+アビ作成中フラグ = 0
+表示Lv = 1
+;アビ名を呼び出すためにキャラを１人追加する
+ADDCHARA 0
+
+対象NO = 1
+基礎BATTLE_STATE:0:Lv = 表示Lv
+
+;選択キャラ表示枠
+HTML文字列 += "<div rect='50, 0, 5000, 600' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+IF 対象NO > 0
+	HTML文字列 += @"%CSVNAME(対象NO)%<br>"
+	;現在あるアビリティを呼んでくる
+	既存アビ数 = ENUMFUNCBEGINSWITH(@"固有アビ_{対象NO}_")
+	IF 既存アビ数 > 0
+		HTML文字列 += @"Lv{表示Lv, 2}時アビリティ："
+		FOR LOCAL, 0, 既存アビ数
+			TSTR:コマンド名受渡 = 
+			詳細文文字列受け渡し変数 = 
+			CALLFORM %RESULTS:LOCAL%("アビ名", 0)
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
+			CALLFORM %RESULTS:LOCAL%("アビ説明文_詳細", 0)
+			SIF 詳細文文字列受け渡し変数 == ""
+				CALLFORM %RESULTS:LOCAL%("アビ説明文", 0)
+			HTML文字列 += @"<nonbutton title='<br>%詳細文文字列受け渡し変数%<br>'>■%TSTR:コマンド名受渡%</nonbutton>　　"
+		NEXT
+	ENDIF
+	HTML文字列 += "<br>"
+	HTML文字列 += "<br>"
+ELSE
+	HTML文字列 += "（選択なし）<br>"
+	HTML文字列 += "<br>"
+	HTML文字列 += "<br>"
+ENDIF
+HTML文字列 += "<button value='200'>[作成キャラを変更する]</button> / <button value='201'>[表示レベルを変更する]</button>"
+HTML文字列 += "</div>"
+
+;操作パネル
+HTML文字列 += "<div rect='50, 650, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+IF アビ作成中フラグ == 0
+	HTML文字列 += "<button value='100'>[100] 新規アビリティ作成</button><br>"
+	HTML文字列 += "<button value='101'>[101] アビデータ読込</button><br>"
+ELSE
+ENDIF
+HTML文字列 += "<br>"
+HTML文字列 += "<br>"
+HTML文字列 += "<button value='999'>[999] 戻る</button><br>"
+HTML文字列 += "</div>"
+
+;作成アビリティ効果表示枠
+HTML文字列 += "<div rect='1700, 650, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "</div>"
+
+
+HTML_PRINT HTML文字列, 1
+FOR LOCAL, 0, 42
+	PRINTL
+NEXT
+
+BINPUT
+
+
+;追加したキャラを削除
+DELCHARA CHARANUM - 1

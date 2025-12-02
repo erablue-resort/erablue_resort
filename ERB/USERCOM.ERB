@@ -12,8 +12,14 @@ RETURN RESULT
 
 @SHOW_USERCOM_通常モード
 #DIM コマンド数
+#DIM コマンド番号
+#DIM 表示数
 #DIM 同行者フラグ
+#DIMS コマンド配列, 100
+
 VARSET LOCAL
+VARSET コマンド配列
+表示数 = 0
 
 ;コマンド表示
 CALL SHOW_COMMAND
@@ -22,25 +28,6 @@ IF OPTION変数:サイド領域非表示 == 0
 ENDIF
 DRAWLINE
 
-RESETCOLOR
-PRINTC 能力表示(マスター)[804]
-IF CFLAG:うふふ && TARGET > 0
-	SIF TALENT:PLAYER:脱衣不可 == 0
-		PRINTC 服を脱ぐ[820]
-	IF CFLAG:うふふ == 2
-		PRINTC 抜け出す[999]
-	ELSE
-		PRINTC 逢引終了[999]
-	ENDIF
-ENDIF
-IF CFLAG:飲み会 && TARGET > 0
-	PRINTC 飲み会終了[998]
-ENDIF
-PRINTC 探索系情報一覧[830]
-;add ahyanosia
-SIF イベント完了フラグ確認("使い魔の創造")
-	PRINTC 覗き見[831]
-
 同行者フラグ = 0
 FOR LOCAL, 1, CHARANUM
 	SIF TARGET:LOCAL < 1
@@ -48,46 +35,117 @@ FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
 		同行者フラグ = 1
 NEXT
-SIF !同行者フラグ && !CFLAG:MASTER:隠密
-	PRINTC 物陰に隠れる[840]
-SIF 同行者フラグ && !CFLAG:MASTER:隠密
-	PRINTC 一緒に隠れる[840]
-SIF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() == 同行者フラグ)
-	PRINTC 物陰から出る[841]
-IF TARGET
-	PRINTC アイテム使用[850]
-ELSE
-	PRINTC 自分にアイテム使用[850]
-ENDIF
-PRINTL
-PRINTC 写真一覧[856]
+
+RESETCOLOR
 PRINTC OPTION[809]
-IF OPTION変数:連れ込み制御
-	SETCOLOR カラーパレット("黄")
-	PRINTBUTTONC "連れ込み禁止:ON[892]", 892
-	RESETCOLOR
-ELSE
-	PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
-ENDIF
-IF OPTION変数:休憩制御
-	SETCOLOR カラーパレット("黄")
-	PRINTBUTTONC "休憩時訪問禁止:ON[893]", 893
-	RESETCOLOR
-ELSE
-	PRINTBUTTONC "休憩時訪問禁止:OFF[893]", 893
-ENDIF
-SIF あなた特殊能力:居場所感知
-	PRINTC キャラ居場所感知[860]
-PRINTC 雇用レポート[861]
-IF PLAYER == MASTER && ABL:PLAYER:腰使い > 4
-	IF あなた挿入最適化フラグ
-		SETCOLOR カラーパレット("黄")
-		PRINTBUTTONC "挿入最適化:ON[895]", 895
-		RESETCOLOR
-	ELSE
-		PRINTBUTTONC "挿入最適化:OFF[895]", 895
+表示数 ++
+SPLIT USERCOM表示文字列, "_", コマンド配列
+コマンド数 = RESULT
+FOR コマンド番号, 0, コマンド数
+	;一応（ありえないはずだけど）数値解釈出来るかをチェック
+	SIF !ISNUMERIC(コマンド配列:コマンド番号)
+		CONTINUE
+	SELECTCASE TOINT(コマンド配列:コマンド番号)
+		CASE 804
+			PRINTC 能力表示(マスター)[804]
+		CASE 820
+			IF CFLAG:うふふ && TARGET > 0 && TALENT:PLAYER:脱衣不可 == 0
+				PRINTC 服を脱ぐ[820]
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 999
+			IF CFLAG:うふふ && TARGET > 0
+				IF CFLAG:うふふ == 2
+					PRINTC 抜け出す[999]
+				ELSE
+					PRINTC 逢引終了[999]
+				ENDIF
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 998
+			IF CFLAG:飲み会 && TARGET > 0
+				PRINTC 飲み会終了[998]
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 830
+			PRINTC 探索系情報一覧[830]
+		CASE 831
+			;add ahyanosia
+			IF イベント完了フラグ確認("使い魔の創造")
+				PRINTC 覗き見[831]
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 840
+			SIF !同行者フラグ && !CFLAG:MASTER:隠密
+				PRINTC 物陰に隠れる[840]
+			SIF 同行者フラグ && !CFLAG:MASTER:隠密
+				PRINTC 一緒に隠れる[840]
+			SIF CFLAG:MASTER:隠密
+				CONTINUE
+		CASE 841
+			IF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() == 同行者フラグ)
+				PRINTC 物陰から出る[841]
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 850
+			IF TARGET
+				PRINTC アイテム使用[850]
+			ELSE
+				PRINTC 自分にアイテム使用[850]
+			ENDIF
+		CASE 856
+			PRINTC 写真一覧[856]
+		CASE 892
+			IF OPTION変数:連れ込み制御
+				SETCOLOR カラーパレット("黄")
+				PRINTBUTTONC "連れ込み禁止:ON[892]", 892
+				RESETCOLOR
+			ELSE
+				PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
+			ENDIF
+		CASE 893
+			IF OPTION変数:休憩制御
+				SETCOLOR カラーパレット("黄")
+				PRINTBUTTONC "休憩時訪問禁止:ON[893]", 893
+				RESETCOLOR
+			ELSE
+				PRINTBUTTONC "休憩時訪問禁止:OFF[893]", 893
+			ENDIF
+		CASE 860
+			IF あなた特殊能力:居場所感知
+				PRINTC キャラ居場所感知[860]
+			ELSE
+				CONTINUE
+			ENDIF
+		CASE 861
+			PRINTC 雇用レポート[861]
+		CASE 895
+			IF PLAYER == MASTER && ABL:PLAYER:腰使い > 4
+				IF あなた挿入最適化フラグ
+					SETCOLOR カラーパレット("黄")
+					PRINTBUTTONC "挿入最適化:ON[895]", 895
+					RESETCOLOR
+				ELSE
+					PRINTBUTTONC "挿入最適化:OFF[895]", 895
+				ENDIF
+			ELSE
+				CONTINUE
+			ENDIF
+	ENDSELECT
+	表示数 ++
+	IF 表示数 >= 6
+		表示数 = 0
+		PRINTL
 	ENDIF
-ENDIF
+NEXT
+SIF !LINEISEMPTY()
+	PRINTL
+
 RESETCOLOR
 
 PRINTL 

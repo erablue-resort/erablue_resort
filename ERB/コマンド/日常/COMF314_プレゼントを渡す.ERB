@@ -17,9 +17,8 @@ LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM314
-#DIMS カテゴリ配列, 10
-#DIMS カテゴリ配列_プレゼント, 10
 #DIM 選択プレゼント番号
+#DIMS キャラ好み
 #DIMS 好み情報
 #DIMS 絞り込み文字列
 #DIMS 選択カテゴリ
@@ -27,11 +26,13 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 絞り込み文字列 = 
 
-; 対象の好みの情報を取得(要:フレンドリーセンス)
+; 対象の好みの情報を取得(ただし表示には要フレンドリーセンス)
+キャラ好み '= CSTR:TARGET:プレゼント好み
+SIF CSTR:TARGET:プレゼント好み_恋慕影響 != ""
+	キャラ好み += "_" + CSTR:TARGET:プレゼント好み_恋慕影響
+
 IF あなた特殊能力:フレンドリーセンス
-	好み情報 = %CALLNAME:TARGET%のプレゼントの好み：%REPLACE(CSTR:TARGET:プレゼント好み, "_", "、")%
-	SIF CSTR:TARGET:プレゼント好み_恋慕影響 != ""
-		好み情報 += @"、%CSTR:TARGET:プレゼント好み_恋慕影響%"
+	好み情報 = %CALLNAME:TARGET%のプレゼントの好み：%REPLACE(キャラ好み, "_", "、")%
 ELSE
 	好み情報 '= ""
 ENDIF
@@ -174,67 +175,15 @@ IF GETNUM(プレゼント履歴, @"%RSTR:コマンド結果受渡し文字列%")
 		プレゼント履歴:TARGET:(RSTR:コマンド結果受渡し文字列) = DAY
 ENDIF
 
-;TARGETの好みカテゴリを取得
-VARSET カテゴリ配列
-SPLIT CSTR:TARGET:プレゼント好み, "_", カテゴリ配列
-SIF CSTR:TARGET:プレゼント好み_恋慕影響 != ""
-	カテゴリ配列:RESULT '= CSTR:TARGET:プレゼント好み_恋慕影響
-
-;好みに含まれているか判定
+;キャラの特殊反応の確認
 RESULT = 0
 TRYCALLFORM プレゼント特殊反応_CHARAEVENT_{NO:TARGET}(RSTR:コマンド結果受渡し文字列)
 IF RESULT
 	;特殊反応あり
 	RFLAG:コマンド結果受渡し変数 = 2
 ELSE
-	VARSET カテゴリ配列_プレゼント
-	SPLIT DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1), "_", カテゴリ配列_プレゼント
-	FOR LOCAL, 0, RESULT
-		IF LOCAL == 0
-			;先頭の要素だけは大カテゴリも見る
-			IF MATCH(カテゴリ配列, カテゴリ配列_プレゼント:LOCAL)
-				;好みに含まれる
-				RFLAG:コマンド結果受渡し変数 = 1
-				BREAK
-			ELSE
-				;大カテゴリ判定
-				SELECTCASE カテゴリ配列_プレゼント:LOCAL
-					CASE "肉","魚","野菜","お菓子","珍味","酒","茶類"
-						IF MATCH(カテゴリ配列, "飲食系")
-							;好みに含まれる
-							RFLAG:コマンド結果受渡し変数 = 1
-							BREAK
-						ENDIF
-					CASE "宝石","絵画","彫刻","詩"
-						IF MATCH(カテゴリ配列, "芸術品")
-							;好みに含まれる
-							RFLAG:コマンド結果受渡し変数 = 1
-							BREAK
-						ENDIF
-					CASE "アクセサリ","化粧品"
-						IF MATCH(カテゴリ配列, "美容系")
-							;好みに含まれる
-							RFLAG:コマンド結果受渡し変数 = 1
-							BREAK
-						ENDIF
-					CASE "文房具","健康器具","日用品","調理器具","工具"
-						IF MATCH(カテゴリ配列, "実用品")
-							;好みに含まれる
-							RFLAG:コマンド結果受渡し変数 = 1
-							BREAK
-						ENDIF
-				ENDSELECT
-			ENDIF
-		ELSE
-			;あとは完全一致だけ
-			IF MATCH(カテゴリ配列, カテゴリ配列_プレゼント:LOCAL)
-				;好みに含まれる
-				RFLAG:コマンド結果受渡し変数 = 1
-				BREAK
-			ENDIF
-		ENDIF
-	NEXT
-	IF MATCH(カテゴリ配列, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1))
+	;好みに含まれているか判定
+	IF プレゼント好み判定(キャラ好み, DT_CELL_GETS("所持素材データベース", 選択プレゼント番号, "プレゼントカテゴリ", 1), TALENT:TARGET:飲兵衛)
 		;好みに含まれる
 		RFLAG:コマンド結果受渡し変数 = 1
 	ELSE
@@ -270,6 +219,88 @@ TIME += 5
 TCVAR:TARGET:プレゼント時刻 = TIME
 
 RETURN 1
+
+
+;プレゼントが好みか判定する関数
+@プレゼント好み判定(キャラ好み, プレゼントカテゴリ, 飲兵衛)
+#FUNCTION
+#DIMS キャラ好み         ;"_"を含む
+#DIMS プレゼントカテゴリ ;"_"を含む
+#DIM 飲兵衛
+#DIM 文字位置, 2
+#DIM 終了フラグ
+
+終了フラグ = 1
+文字位置:0 = 0
+DO
+	文字位置:1 = STRFINDU(キャラ好み, "_", 文字位置:0)
+	IF 文字位置:1 == -1
+		終了フラグ = 0
+		文字位置:1 = STRLENSU(キャラ好み)
+	ENDIF
+	SIF プレゼント好み判定_1_N(SUBSTRINGU(キャラ好み, 文字位置:0, 文字位置:1 - 文字位置:0), プレゼントカテゴリ, 飲兵衛)
+		RETURNF 1
+	文字位置:0 = 文字位置:1 + 1
+LOOP 終了フラグ
+RETURNF 0
+
+
+@プレゼント好み判定_1_N(キャラ好み, プレゼントカテゴリ, 飲兵衛)
+#FUNCTION
+#DIMS キャラ好み         ;"_"を含まない
+#DIMS プレゼントカテゴリ ;"_"を含む
+#DIM 飲兵衛
+#DIM 文字位置, 2
+#DIM 終了フラグ
+
+SIF キャラ好み == ""
+	RETURNF 0
+
+終了フラグ = 1
+文字位置:0 = 0
+DO
+	文字位置:1 = STRFINDU(プレゼントカテゴリ, "_", 文字位置:0)
+	IF 文字位置:1 == -1
+		終了フラグ = 0
+		文字位置:1 = STRLENSU(プレゼントカテゴリ)
+	ENDIF
+	SIF プレゼント好み判定_1_1(キャラ好み, SUBSTRINGU(プレゼントカテゴリ, 文字位置:0, 文字位置:1 - 文字位置:0), 飲兵衛)
+		RETURNF 1
+	文字位置:0 = 文字位置:1 + 1
+LOOP 終了フラグ
+RETURNF 0
+
+
+@プレゼント好み判定_1_1(キャラ好み, プレゼントカテゴリ, 飲兵衛)
+#FUNCTION
+#DIMS キャラ好み         ;"_"を含まない
+#DIMS プレゼントカテゴリ ;"_"を含まない
+#DIM 飲兵衛
+
+SIF プレゼントカテゴリ == ""
+	RETURNF 0
+SIF キャラ好み == プレゼントカテゴリ
+	RETURNF 1
+
+SELECTCASE キャラ好み
+	CASE "飲食系"
+		IF 飲兵衛 < 0 && プレゼントカテゴリ == "酒"
+			;酒嫌いは酒を飲食系として扱わない
+		ELSE
+			SIF MATCH(好物一覧_飲食系, プレゼントカテゴリ)
+				RETURNF 1
+		ENDIF
+	CASE "芸術品"
+		SIF MATCH(好物一覧_芸術品, プレゼントカテゴリ)
+			RETURNF 1
+	CASE "美容系"
+		SIF MATCH(好物一覧_美容系, プレゼントカテゴリ)
+			RETURNF 1
+	CASE "実用品"
+		SIF MATCH(好物一覧_実用品, プレゼントカテゴリ)
+			RETURNF 1
+ENDSELECT
+RETURNF 0
 
 ;-------------------------------------------------
 ;実行判定

@@ -72,14 +72,22 @@ FOR LOCAL, 年齢層_幼い, 年齢層_壮年
 	PRINTBUTTON @"[{LOCAL, 2}]%GET_TALENTNAME(164, LOCAL, 0)%", LOCAL
 	PRINTFORML 　　　必要ZP:{COST_BASE + COST_PER_AGE * (LOCAL - 年齢層_乳幼児)}
 NEXT
+PRINTBUTTON "[998]名前を付け直す", 998
+PRINTL
 PRINTBUTTON "[999]戻る", 999
 PRINTL
 
 BINPUT
-SIF RESULT == 999
-	RETURN -1
+SELECTCASE RESULT
+	CASE 998
+		CALL ZP_子供リネーム(子供人物番号)
+		RESTART
+	CASE 999
+		RETURN -1
+	CASEELSE
+		成長後年齢層 = RESULT
+ENDSELECT
 
-成長後年齢層 = RESULT
 必要COST = COST_BASE + COST_PER_AGE * (成長後年齢層 - 年齢層_乳幼児)
 
 IF FLAG:ZP所持量 < 必要COST
@@ -114,6 +122,59 @@ ENDIF
 PRINTW 
 
 RETURN 0
+
+
+@ZP_子供リネーム(子供人物番号)
+#DIM 子供人物番号
+#DIM CONST 必要COST = 100
+#DIMS 子供名前
+
+DRAWLINE
+PRINTL {必要COST}ZPを消費してゲーム開始時の子供の名前を付け直すことができます。
+PRINTFORML 所持ZP:%ZP所持量全文字列()%
+DRAWLINE
+
+;ZP足りる？
+IF FLAG:ZP所持量 < 必要COST
+	PRINTW ZPが足りません
+	RETURN 0
+ENDIF
+
+PRINTFORML {必要COST}ZPを支払い、名前を付け直しますか？
+PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+SIF RESULT != 0
+	RETURN 0
+
+DO
+	PRINTL 名前を入力してください。（９文字まで）
+	INPUTS
+	IF RESULTS == ""
+		PRINTL 名前が入力されていません。名前変更をやめますか？
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		SIF RESULT == 0
+			RETURN 0
+	ELSE
+		子供名前 '= SUBSTRING(RESULTS, 0, 18)
+		PRINTFORML %子供名前%でよろしいですか？
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		SIF RESULT == 0
+			BREAK
+	ENDIF
+LOOP 1
+
+PRINTFORMW %GET_PERSON_呼び名(子供人物番号)%の名前を%子供名前%に変更しました。
+FLAG:ZP所持量 -= 必要COST
+CALL SET_PERSON_呼び名(子供人物番号, 子供名前)
+CALL SET_PERSON_名前(子供人物番号, @"[%CALLNAME:(FIND_MOTHER_CHARA_FROM_PERSON_ID(子供人物番号))%の子供]%子供名前%")
+
+RETURN 1
 
 
 @子供成長処理(子供人物番号, 成長後年齢層)
@@ -405,7 +466,7 @@ ENDIF
 ;プレゼント好み
 CSTR:プレゼント好み '= GET_PERSON_プレゼント好み(子供人物番号)
 SIF TALENT:飲兵衛 > 0
-	CSTR:プレゼント好み += "_酒"
+	CSTR:プレゼント好み '= SUBSTRINGU(CSTR:プレゼント好み, 0, STRFINDU(CSTR:プレゼント好み, "_")) + "_酒"
 
 CFLAG:人物番号 = 子供人物番号
 CALL コマンド存在チェック
