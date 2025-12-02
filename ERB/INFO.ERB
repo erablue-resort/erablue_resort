@@ -658,6 +658,7 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 		
 	;ここで立ち絵表示
 	;LOCAL = (画像二人目番号 ? 画像二人目番号# 二人目画像表示用())
+	divHTML = 
 	IF GETBIT(FLAG:モード管理, モードビット_指示) && TARGET == PLAYER
 		TARGET = MASTER
 	ENDIF
@@ -672,8 +673,11 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 					RCVAR:差分保存 = GETVAR(@"RCVAR:差分保存_{ループ用}")
 			ENDIF
 		NEXT
-		LOCALS '= @"<div rect='0, 0, 1125, 2475'><button value='889' title='画像表示:短冊→正方形&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
-		LOCALS += @"%"<br>" * 20%[表示方法変更:正方形]</button>"
+		LOCALS:3 '= @"エフェクト_短冊_%差分エフェクト種類:(RCVAR:差分保存)%"
+		SIF GROUPMATCH(差分エフェクト種類:(RCVAR:差分保存), "パイズリ", "乳内射精", "授乳手こき")
+			LOCALS:3 += TOSTR(TALENT:バストサイズ + 2)
+		divHTML '= @"<div rect='0, 0, 1150, 2600'><button value='889' title='画像表示:短冊→正方形&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
+		divHTML += @"%"<br>" * 20%[表示方法変更:正方形]</button>"
 	ELSE
 		LOCALS:1 '= 顔グラ表示用文字列関数(TARGET,,,,1)
 		LOCALS:2 '= RESULTS:2
@@ -685,40 +689,45 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 					RCVAR:差分保存 = GETVAR(@"RCVAR:差分保存_{ループ用}")
 			ENDIF
 		NEXT
-		LOCALS '= @"<div rect='0, 0, 1125, 1350'><button value='889' title='画像表示:正方形→短冊&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
-		LOCALS += @"%"<br>" * 10%[表示方法変更:短冊]</button>"
+		LOCALS:3 '= @"エフェクト_短冊_%差分エフェクト種類:(RCVAR:差分保存)%"
+		SIF GROUPMATCH(差分エフェクト種類:(RCVAR:差分保存), "パイズリ", "乳内射精", "授乳手こき")
+			LOCALS:3 += TOSTR(TALENT:バストサイズ + 2)
+		divHTML '= @"<div rect='0, 0, 1150, 1480'><button value='889' title='画像表示:正方形→短冊&#13;&#10;（現在の画像）%LOCALS:2%'>%LOCALS:1%"
+		divHTML += @"%"<br>" * 10%[表示方法変更:短冊]</button>"
 	ENDIF
-	IF RCVAR:差分保存 > 0
-		IF RCVAR:差分保存 == 1
-			IF OPTION変数:欲情エフェクト制御 == 2
-				LOCALS:1 = ON
-				LOCALS:2 = エフェクト[欲情]をONにする
-			ELSEIF OPTION変数:欲情エフェクト制御 == 1
-				LOCALS:1 = OFF
-				LOCALS:2 = エフェクト[欲情]をOFFにする
-			ELSE
-				LOCALS:1 = 一部OFF
-				LOCALS:2 = エフェクト[欲情]を、欲情差分画像に対してのみOFFにする
-			ENDIF
-		ELSEIF RCVAR:差分保存 == 2
-			IF OPTION変数:絶頂エフェクト制御 == 2
-				LOCALS:1 = ON
-				LOCALS:2 = エフェクト[絶頂]をONにする
-			ELSEIF OPTION変数:絶頂エフェクト制御 == 1
-				LOCALS:1 = OFF
-				LOCALS:2 = エフェクト[絶頂]をOFFにする
-			ELSE
-				LOCALS:1 = 一部OFF
-				LOCALS:2 = エフェクト[絶頂]を、絶頂差分画像に対してのみOFFにする
-			ENDIF
-		ELSEIF RCVAR:差分保存 < VARSIZE("差分エフェクト種類")
-			LOCALS:1 = \@ GETBIT(OPTION変数:差分エフェクト制御, RCVAR:差分保存) ? ON # OFF \@
-			LOCALS:2 '= @"エフェクト[%差分エフェクト種類:(RCVAR:差分保存)%]を%LOCALS:1%にする"
+
+	IF INRANGE(RCVAR:差分保存, 3, VARSIZE("差分エフェクト種類")-1) && SPRITECREATED(LOCALS:3)
+		LOCALS:1 = %TOHALF(差分エフェクト種類:(RCVAR:差分保存))%\@ GETBIT(OPTION変数:差分エフェクト制御, RCVAR:差分保存) ? ON # OFF \@
+		LOCALS:2 '= @"エフェクト[%差分エフェクト種類:(RCVAR:差分保存)%]を%LOCALS:1%にする"
+		divHTML += @"<button value='887' title='%LOCALS:2%'>[ｴﾌｪｸﾄ切替:%LOCALS:1%]</button>"
+	ENDIF
+	IF TCVAR:前ターン絶頂;RCVAR:差分保存_1 == 2;
+		IF OPTION変数:絶頂エフェクト制御 == 2
+			LOCALS:1 = ON
+			LOCALS:2 = エフェクト[絶頂]をONにする
+		ELSEIF OPTION変数:絶頂エフェクト制御 == 1
+			LOCALS:1 = OFF
+			LOCALS:2 = エフェクト[絶頂]をOFFにする
+		ELSE
+			LOCALS:1 = 一部OFF
+			LOCALS:2 = エフェクト[絶頂]を、絶頂差分画像に対してのみOFFにする
 		ENDIF
-		LOCALS += @"<button value='888' title='%LOCALS:2%'>[エフェクト:%LOCALS:1%]</button>"
+		divHTML += @"<button value='888' title='%LOCALS:2%'>[絶頂ｴﾌｪｸﾄ切替:%LOCALS:1%]</button>"
+	ELSEIF GETPALAMLV(PALAM:欲情,15) > 3;RCVAR:差分保存_1 == 1;
+		IF OPTION変数:欲情エフェクト制御 == 2
+			LOCALS:1 = ON
+			LOCALS:2 = エフェクト[欲情]をONにする
+		ELSEIF OPTION変数:欲情エフェクト制御 == 1
+			LOCALS:1 = OFF
+			LOCALS:2 = エフェクト[欲情]をOFFにする
+		ELSE
+			LOCALS:1 = 一部OFF
+			LOCALS:2 = エフェクト[欲情]を、欲情差分画像に対してのみOFFにする
+		ENDIF
+		divHTML += @"<button value='888' title='%LOCALS:2%'>[欲情ｴﾌｪｸﾄ切替:%LOCALS:1%]</button>"
 	ENDIF
-	LOCALS += @"</div>"
-	HTML_PRINT LOCALS, 1
+	divHTML += @"</div>"
+	HTML_PRINT divHTML, 1
 	;画像二人目番号 = 0
 	PRINT 　　　　　　　　　　　 
 	IF CFLAG:TARGET:ゲージ起動分類 == 1 || CFLAG:TARGET:発情期フラグ < 0
