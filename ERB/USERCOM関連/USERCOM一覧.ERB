@@ -5,6 +5,8 @@
 #DIMS 動作モード
 
 SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 能力表示(マスター)
 	CASE "コマンド表示"
 		PRINTC 能力表示(マスター)[804]
 	CASE "コマンド条件"
@@ -21,22 +23,356 @@ ENDSELECT
 #DIMS 動作モード
 
 SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 服を脱ぐ
 	CASE "コマンド表示"
 		PRINTC 服を脱ぐ[820]
 	CASE "コマンド条件"
 		;コマンドの表示条件を処理する
+		;表示したら1を返す
+		SIF CFLAG:うふふ && TARGET > 0 && TALENT:PLAYER:脱衣不可 == 0
+			RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		IF CFLAG:うふふ
+			CALL CLOTHES_SETTING_TRAIN(PLAYER)
+		ENDIF
+ENDSELECT
+
+
+@USERCOM関数_999(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 逢引終了
+	CASE "コマンド表示"
+		IF CFLAG:うふふ == 2
+			PRINTC 抜け出す[999]
+		ELSE
+			PRINTC 逢引終了[999]
+		ENDIF
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
 		;表示するなら1を返す
-		IF CFLAG:うふふ && TARGET > 0 && TALENT:PLAYER:脱衣不可 == 0
+		IF CFLAG:うふふ && TARGET > 0
 			RETURN 1
 		ELSE
 			RETURN 0
 		ENDIF
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
-		CALL PRINT_STATE(MASTER)
+		IF CFLAG:うふふ
+			IF 連れ込みパターン != ""
+				PRINTFORMW %CALLNAME:(TARGET)%が離してくれない…
+				CALL KOJO_EVENT, 13, TARGET, 1
+			ELSE
+				CALL うふふ終了処理("通常終了")
+			ENDIF
+		ENDIF
 ENDSELECT
 
 
+@USERCOM関数_998(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 飲み会終了
+	CASE "コマンド表示"
+		PRINTC 飲み会終了[998]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		IF CFLAG:飲み会 && TARGET > 0
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		IF CFLAG:飲み会
+			CALL 飲み会終了処理()
+		ENDIF
+ENDSELECT
 
 
+@USERCOM関数_830(動作モード)
+#DIMS 動作モード
 
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 探索系情報一覧
+	CASE "コマンド表示"
+		PRINTC 探索系情報一覧[830]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		表示切り替え文字列 = 探索集約_探索メンバー
+		CALL 探索系集約表示
+ENDSELECT
+
+
+@USERCOM関数_831(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 覗き見
+	CASE "コマンド表示"
+		PRINTC 覗き見[831]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		IF イベント完了フラグ確認("使い魔の創造")
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		表示切り替え文字列 = 覗き見一覧
+		CALL 覗き見一覧表示
+ENDSELECT
+
+
+@USERCOM関数_840(動作モード)
+#DIMS 動作モード
+#DIM 同行者フラグ
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 物陰に隠れる
+	CASE "コマンド表示"
+		同行者フラグ = 0
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+				同行者フラグ = 1
+		NEXT
+
+		SIF !同行者フラグ && !CFLAG:MASTER:隠密
+			PRINTC 物陰に隠れる[840]
+		SIF 同行者フラグ && !CFLAG:MASTER:隠密
+			PRINTC 一緒に隠れる[840]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		IF CFLAG:MASTER:隠密
+			RETURN 0
+		ELSE
+			RETURN 1
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		CFLAG:MASTER:隠密 = 1
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+				CFLAG:(TARGET:LOCAL):隠密 = 1
+		NEXT
+ENDSELECT
+
+
+@USERCOM関数_841(動作モード)
+#DIMS 動作モード
+#DIM 同行者フラグ
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 物陰から出る
+	CASE "コマンド表示"
+		PRINTC 物陰から出る[841]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		同行者フラグ = 0
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+				同行者フラグ = 1
+		NEXT
+
+		IF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() == 同行者フラグ)
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		IF 連れ込みパターン != ""
+			PRINTFORMW %CALLNAME:TARGET%が離してくれない…
+			CALL KOJO_EVENT, 13, TARGET, 1
+		ELSE
+			CFLAG:MASTER:隠密 = 0
+			FOR LOCAL, 1, CHARANUM
+				SIF TARGET:LOCAL < 1
+					BREAK
+				SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+					CFLAG:(TARGET:LOCAL):隠密 = 0
+			NEXT
+			PREVCOM = 841
+		ENDIF
+ENDSELECT
+
+
+@USERCOM関数_850(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = アイテム使用
+	CASE "コマンド表示"
+		IF TARGET
+			PRINTC アイテム使用[850]
+		ELSE
+			PRINTC 自分にアイテム使用[850]
+		ENDIF
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		CALL ITEM_PROTO(TARGET)
+ENDSELECT
+
+
+@USERCOM関数_856(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 写真一覧
+	CASE "コマンド表示"
+		PRINTC 写真一覧[856]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		CALL 所持写真一覧表示
+ENDSELECT
+
+
+@USERCOM関数_892(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 連れ込み禁止
+	CASE "コマンド表示"
+		IF OPTION変数:連れ込み制御
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTONC "連れ込み禁止:ON[892]", 892
+			RESETCOLOR
+		ELSE
+			PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
+		ENDIF
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		INVERTBIT OPTION変数:連れ込み制御, 0
+ENDSELECT
+
+
+@USERCOM関数_893(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 休憩時訪問禁止
+	CASE "コマンド表示"
+		IF OPTION変数:休憩制御
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTONC "休憩時訪問禁止:ON[893]", 893
+			RESETCOLOR
+		ELSE
+			PRINTBUTTONC "休憩時訪問禁止:OFF[893]", 893
+		ENDIF
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		INVERTBIT OPTION変数:休憩制御, 0
+ENDSELECT
+
+
+@USERCOM関数_860(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = キャラ居場所感知
+	CASE "コマンド表示"
+		PRINTC キャラ居場所感知[860]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		IF あなた特殊能力:居場所感知
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		CALL キャラ居場所感知処理
+ENDSELECT
+
+
+@USERCOM関数_861(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 雇用レポート
+	CASE "コマンド表示"
+		PRINTC 雇用レポート[861]
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		RETURN 1
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		CALL 雇用レポート表示
+ENDSELECT
+
+
+@USERCOM関数_895(動作モード)
+#DIMS 動作モード
+
+SELECTCASE 動作モード
+	CASE "コマンド名"
+		TSTR:コマンド名受渡 = 挿入最適化
+	CASE "コマンド表示"
+		IF あなた挿入最適化フラグ
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTONC "挿入最適化:ON[895]", 895
+			RESETCOLOR
+		ELSE
+			PRINTBUTTONC "挿入最適化:OFF[895]", 895
+		ENDIF
+	CASE "コマンド条件"
+		;コマンドの表示条件を処理する
+		;表示するなら1を返す
+		IF PLAYER == MASTER && ABL:PLAYER:腰使い > 4
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "コマンド動作"
+		;コマンド選択時の動作を処理する
+		INVERTBIT あなた挿入最適化フラグ, 0
+ENDSELECT

@@ -28,13 +28,6 @@ IF OPTION変数:サイド領域非表示 == 0
 ENDIF
 DRAWLINE
 
-同行者フラグ = 0
-FOR LOCAL, 1, CHARANUM
-	SIF TARGET:LOCAL < 1
-		BREAK
-	SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
-		同行者フラグ = 1
-NEXT
 
 RESETCOLOR
 PRINTC OPTION[809]
@@ -45,98 +38,13 @@ FOR コマンド番号, 0, コマンド数
 	;一応（ありえないはずだけど）数値解釈出来るかをチェック
 	SIF !ISNUMERIC(コマンド配列:コマンド番号)
 		CONTINUE
-	SELECTCASE TOINT(コマンド配列:コマンド番号)
-		CASE 804
-			PRINTC 能力表示(マスター)[804]
-		CASE 820
-			IF CFLAG:うふふ && TARGET > 0 && TALENT:PLAYER:脱衣不可 == 0
-				PRINTC 服を脱ぐ[820]
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 999
-			IF CFLAG:うふふ && TARGET > 0
-				IF CFLAG:うふふ == 2
-					PRINTC 抜け出す[999]
-				ELSE
-					PRINTC 逢引終了[999]
-				ENDIF
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 998
-			IF CFLAG:飲み会 && TARGET > 0
-				PRINTC 飲み会終了[998]
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 830
-			PRINTC 探索系情報一覧[830]
-		CASE 831
-			;add ahyanosia
-			IF イベント完了フラグ確認("使い魔の創造")
-				PRINTC 覗き見[831]
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 840
-			SIF !同行者フラグ && !CFLAG:MASTER:隠密
-				PRINTC 物陰に隠れる[840]
-			SIF 同行者フラグ && !CFLAG:MASTER:隠密
-				PRINTC 一緒に隠れる[840]
-			SIF CFLAG:MASTER:隠密
-				CONTINUE
-		CASE 841
-			IF CFLAG:MASTER:隠密 && (!CFLAG:うふふ || GET_TARGETNUM() == 同行者フラグ)
-				PRINTC 物陰から出る[841]
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 850
-			IF TARGET
-				PRINTC アイテム使用[850]
-			ELSE
-				PRINTC 自分にアイテム使用[850]
-			ENDIF
-		CASE 856
-			PRINTC 写真一覧[856]
-		CASE 892
-			IF OPTION変数:連れ込み制御
-				SETCOLOR カラーパレット("黄")
-				PRINTBUTTONC "連れ込み禁止:ON[892]", 892
-				RESETCOLOR
-			ELSE
-				PRINTBUTTONC "連れ込み禁止:OFF[892]", 892
-			ENDIF
-		CASE 893
-			IF OPTION変数:休憩制御
-				SETCOLOR カラーパレット("黄")
-				PRINTBUTTONC "休憩時訪問禁止:ON[893]", 893
-				RESETCOLOR
-			ELSE
-				PRINTBUTTONC "休憩時訪問禁止:OFF[893]", 893
-			ENDIF
-		CASE 860
-			IF あなた特殊能力:居場所感知
-				PRINTC キャラ居場所感知[860]
-			ELSE
-				CONTINUE
-			ENDIF
-		CASE 861
-			PRINTC 雇用レポート[861]
-		CASE 895
-			IF PLAYER == MASTER && ABL:PLAYER:腰使い > 4
-				IF あなた挿入最適化フラグ
-					SETCOLOR カラーパレット("黄")
-					PRINTBUTTONC "挿入最適化:ON[895]", 895
-					RESETCOLOR
-				ELSE
-					PRINTBUTTONC "挿入最適化:OFF[895]", 895
-				ENDIF
-			ELSE
-				CONTINUE
-			ENDIF
-	ENDSELECT
+	RESULT = 0
+	TRYCALLFORM USERCOM関数_{TOINT(コマンド配列:コマンド番号)}("コマンド条件")
+	IF RESULT
+		TRYCALLFORM USERCOM関数_{TOINT(コマンド配列:コマンド番号)}("コマンド表示")
+	ELSE
+		CONTINUE
+	ENDIF
 	表示数 ++
 	IF 表示数 >= 6
 		表示数 = 0
@@ -562,9 +470,6 @@ ELSEIF RESULT == 803
 		GOTO 能力表示_LOOP
 	ENDIF
 	RETURN 1
-ELSEIF RESULT == 804
-	CALL PRINT_STATE(MASTER)
-	RETURN 1
 ELSEIF RESULT == 805
 	IF あなた追跡キャラ
 		あなた追跡キャラ = 0
@@ -582,57 +487,6 @@ ELSEIF RESULT == 807
 	RETURN 1
 ELSEIF RESULT == 809
 	CALL OPTION
-	RETURN 1
-ELSEIF RESULT == 820 && CFLAG:うふふ
-	CALL CLOTHES_SETTING_TRAIN(PLAYER)
-	RETURN 1
-ELSEIF RESULT == 830
-	表示切り替え文字列 = 探索集約_探索メンバー
-	CALL 探索系集約表示
-	RETURN 1
-
-;* add ahyanosia
-ELSEIF RESULT == 831
-	表示切り替え文字列 = 覗き見一覧
-	CALL 覗き見一覧表示
-	RETURN 1
-;*
-
-ELSEIF RESULT == 840
-	CFLAG:MASTER:隠密 = 1
-	FOR LOCAL, 1, CHARANUM
-		SIF TARGET:LOCAL < 1
-			BREAK
-		SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
-			CFLAG:(TARGET:LOCAL):隠密 = 1
-	NEXT
-	RETURN 1
-ELSEIF RESULT == 841
-	IF 連れ込みパターン != ""
-		PRINTFORMW %CALLNAME:TARGET%が離してくれない…
-		CALL KOJO_EVENT, 13, TARGET, 1
-	ELSE
-		CFLAG:MASTER:隠密 = 0
-		FOR LOCAL, 1, CHARANUM
-			SIF TARGET:LOCAL < 1
-				BREAK
-			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
-				CFLAG:(TARGET:LOCAL):隠密 = 0
-		NEXT
-		PREVCOM = 841
-	ENDIF
-	RETURN 1
-ELSEIF RESULT == 850
-	CALL ITEM_PROTO(TARGET)
-	RETURN 1
-ELSEIF RESULT == 856
-	CALL 所持写真一覧表示
-	RETURN 1
-ELSEIF RESULT == 860
-	CALL キャラ居場所感知処理
-	RETURN 1
-ELSEIF RESULT == 861
-	CALL 雇用レポート表示
 	RETURN 1
 ELSEIF RESULT == 887
 	IF INRANGE(RCVAR:差分保存, 3, VARSIZE("差分エフェクト種類"))
@@ -670,31 +524,14 @@ ELSEIF RESULT == 890
 ELSEIF RESULT == 891
 	CALL オート射精先設定
 	RETURN 1
-ELSEIF RESULT == 892
-	INVERTBIT OPTION変数:連れ込み制御, 0
-	RETURN 1
-ELSEIF RESULT == 893
-	INVERTBIT OPTION変数:休憩制御, 0
-	RETURN 1
 ELSEIF RESULT == 894
 	INVERTBIT OPTION変数:射精ゲージ濃縮切り替え_あなた, 0
 	RETURN 1
 ELSEIF RESULT == 895
 	INVERTBIT あなた挿入最適化フラグ, 0
 	RETURN 1
-ELSEIF RESULT == 999 && CFLAG:うふふ
-	IF 連れ込みパターン != ""
-		PRINTFORMW %CALLNAME:(TARGET)%が離してくれない…
-		CALL KOJO_EVENT, 13, TARGET, 1
-		RETURN 1
-	ELSE
-		CALL うふふ終了処理("通常終了")
-		RETURN 1
-	ENDIF
-ELSEIF RESULT == 998 && CFLAG:飲み会
-	CALL 飲み会終了処理()
-	RETURN 1
 ELSE
+	TRYCALLFORM USERCOM関数_{RESULT}("コマンド動作")
 	RETURN 1
 ENDIF
 RETURN 0
