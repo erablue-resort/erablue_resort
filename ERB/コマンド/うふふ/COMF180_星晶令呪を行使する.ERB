@@ -15,13 +15,14 @@ TSTR:コマンド名受渡 = 星晶令呪を行使する
 TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ_被挿入中_セクハラ")
 
 @COM_TOOLTIP_180
-LOCALS = <br>■星晶令呪を行使する<br>
-LOCALS += "精力とZPを消費することで、相手に絶対的な命令を下すコマンド。"
+LOCALS = <br>■星晶令呪を行使する
+LOCALS += "<br>精力とZPを消費することで、相手に絶対的な命令を下すコマンド。"
 LOCALS += "<br>特定の素質を持つ相手にしか効果がない。"
 LOCALS += "<br>精力は、すなわち魔力である。膨大な精力を持つ%CALLNAME:PLAYER%はつまり、膨大な魔力を抱えているに等しい。"
 LOCALS += "<br>ZPによりこちらの世界に「喚んだ」繋がりを辿り、万能のエネルギーリソース・ZPと合わせて解き放てば、"
 LOCALS += "<br>異なる世界においては英霊であった存在であっても抗うことは不可能だろう。"
-LOCALS += "<br>COMタイプ：うふふor被挿入中orセクハラ<br>取得ソース：征服(PLAYER)・苦痛(一定条件時)・反感(一定条件時)"
+LOCALS += "<br>COMタイプ：うふふor被挿入中orセクハラ"
+LOCALS += "<br>取得ソース：征服(PLAYER)・苦痛(一定条件時)・反感(一定条件時)"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
@@ -44,9 +45,6 @@ RCVAR:PLAYER:嗜虐コマンドフラグ = 1
 SIF ABL:PLAYER:サド性感
 	EXP:PLAYER:嗜虐快楽経験 ++
 
-BASE:PLAYER:精力 -= 9000
-FLAG:ZP所持量 -= 10
-PRINTL ZP -10
 
 ;-------------------------------------------------
 ;経験の処理
@@ -75,7 +73,7 @@ IF TEQUIP:PLAYER:口
 	RETURN 0
 ENDIF
 
-;精力の残りが9000以上、ZP250以上所持
+;精力の残りが9000以上、ZP10以上所持
 SIF BASE:PLAYER:精力 <= 9000
 	RETURN 0
 SIF FLAG:ZP所持量 < 10
@@ -86,6 +84,10 @@ SIF FLAG:ZP所持量 < 10
 ;デミサーヴァントはどうしようね？本家ではできないけどこっちはできるとかしてもいい。
 SIF 固有素質チェック(TARGET, "サーヴァント", "ムーンキャンサー") == 0
 	RETURN 0
+
+;「コマンド番号１個を使うには贅沢すぎないか？」という感じではあるので
+;例えば、「従業員として雇っている対象には使える」とかもありかなという感
+
 
 ;オートコマンド中の制限
 IF FLAG:オートコマンド判定中フラグ
@@ -99,22 +101,73 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM180
 #DIM 同時キャラ番号
+#DIM 令呪消費軽減フラグ
+
+;消費軽減フラグを折っておく
+;原作的には多分、無効な命令でも使った時と同様に消耗してしまう気がするが……
+;ZPを使用する以上、多分星晶獣eraを通しているので、そこで止めてくれていると思おう
+令呪消費軽減フラグ = 0
 
 PRINTFORMW %CALLNAME:PLAYER%は自身の体内の精力を特殊な魔力へと変換し、%CALLNAME:TARGET%に向けて命令を告げた。
 PRINTL
 PRINTFORMW ────令呪を以て告げる。%CALLNAME:TARGET%よ────
 PRINTL
-PRINTBUTTON "[0] 一日言いなりになれ", 0
+PRINTBUTTON "[0] 今すぐ絶頂しろ！", 0
 PRINTL
-PRINTBUTTON "[1] 孕める体になれ", 1
+PRINTBUTTON "[1] 一日言いなりになれ", 1
 PRINTL
-PRINTBUTTON "[2] 排卵しろ", 2
+PRINTBUTTON "[2] 発情せよ", 2
 PRINTL
-PRINTBUTTON "[3] 発情しろ", 3
+PRINTBUTTON "[3] その身を修復せよ", 3
+PRINTL
+;女性である（女性器がある）
+IF GETBIT(TALENT:TARGET:性別, 0)
+	PRINTBUTTON "[4] 孕める体になれ", 4
+	PRINTL
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTFORML [4] 孕める体になれ
+	RESETCOLOR
+ENDIF
+
+;男性である（男性器がある）
+IF GETBIT(TALENT:TARGET:性別, 1)
+	PRINTBUTTON "[5] 金玉フルチャージ状態になってフル勃起しろ", 5
+	PRINTL
+ELSE
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTFORML [5] 金玉フルチャージ状態になってフル勃起しろ
+	RESETCOLOR
+ENDIF
+
+PRINTBUTTON @"[6] %CALLNAME:PLAYER%に惚れろ！", 6
+PRINTL
+PRINTBUTTON "[9] やっぱりなんでもないです", 9
 PRINTL
 BINPUT
+
+
 SELECTCASE RESULT
+	;今すぐ絶頂しろ！
 	CASE 0
+		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を
+		SETCOLOR カラーパレット("えっちな色")
+		IF 0
+		ELSEIF !RAND:3
+			PRINT ぶるるっ
+		ELSEIF !RAND:2
+			PRINT ビグッ
+		ELSE
+			PRINT ビグンッ
+		ENDIF
+		PRINT_IMG "えっちハート"
+		RESETCOLOR
+		PRINTFORMW 　と跳ねさせた……
+
+		;快Sを5万ぶちこむ
+		CALL SOURCE_CALC_快Ｓ(TARGET, PLAYER, 50000)
+	;１日言いなりになれ！
+	CASE 1
 		PRINTFORML %CALLNAME:TARGET%は%CALLNAME:PLAYER%の令呪に抗えず、悔しそうに顔を歪めて体の自由を明け渡した……。
 		PRINTFORML これで%CALLNAME:TARGET%は今日一日%CALLNAME:PLAYER%の
 		SETCOLOR カラーパレット("えっちな色")
@@ -122,24 +175,10 @@ SELECTCASE RESULT
 		RESETCOLOR
 		PRINTFORMW だ。どんなことをしてもらおうか……。
 		TCVAR:言いなり = 1
-	CASE 1
-		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を
-		SETCOLOR カラーパレット("えっちな色")
-		PRINT [妊娠可能]
-		RESETCOLOR
-		PRINTFORMW に変化させた……。
-		TALENT:TARGET:妊娠不可 = 0
+	;発情せよ
 	CASE 2
-	;排卵誘発剤から処理そのまま
-		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の卵巣を刺激し
-		SETCOLOR カラーパレット("えっちな色")
-		PRINT [排卵]
-		RESETCOLOR
-		PRINTFORMW させた……。
-		TCVAR:TARGET:排卵誘発薬 += 1
-	CASE 3
-	;この辺は処理わからん。実機でやってみた感じ発情期は付与できるが発情はしない(危険日にはならない)感じ
-	;桃色の風みたいな一時的発情があればそれがいちばん丸い
+		;この辺は処理わからん。実機でやってみた感じ発情期は付与できるが発情はしない(危険日にはならない)感じ
+		;桃色の風みたいな一時的発情があればそれがいちばん丸い
 		PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を強制的に
 		SETCOLOR カラーパレット("えっちな色")
 		PRINT [発情]
@@ -147,5 +186,179 @@ SELECTCASE RESULT
 		PRINTFORMW させた……。
 		TCVAR:強制発情フラグ = 1
 		CFLAG:TARGET:発情期フラグ = -1
+	;その身を修復せよ
+	CASE 3
+		;FGOだと３画使って全員HP最大で復活！の「霊基復元」もあるけど、これは単体用の「霊基修復」想定
+		PRINTFORMW 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を強制的に全回復させた……。
+		;現在体力を最大体力で上書き
+		;なんらかのなんかで最大体力を一時的に上回っている場合もあるので、MAX()を使っておく
+		BASE:TARGET:体力 = MAX(MAXBASE:TARGET:体力, BASE:TARGET:体力)
+	;孕める体になれ！
+	;……女性のみ。一応こちらでも弾くおまじないをかけておく。
+	CASE 4
+		;女性BITが立っていない、またはV感度が-2（女性器が無い）場合はこっち
+		IF !GETBIT(TALENT:TARGET:性別, 0) || TALENT:TARGET:Ｖ感度 == -2
+			PRINTFORML ……どこからともなく、eraの声が聞こえる。
+			PRINTL 　
+			CALL 画像表示("顔エラ","LEFT",,,,1,)
+			PRINTFORML 星晶獣era：
+			PRINTFORML 「おおっと、今この場で単純に変えられるものではなさそうだ。
+			PRINTFORML 　女性器を作るところからだからな……
+			PRINTFORML 　また夜にでも、改めてZPを使ってくれたまえよ」
+			PRINTFORMW 　
+			令呪消費軽減フラグ = 1
+		;既に妊娠している場合
+		ELSEIF TALENT:TARGET:妊娠
+			PRINTFORML ……どこからともなく、eraの声が聞こえる。
+			PRINTL 　
+			CALL 画像表示("顔エラ","LEFT",,,,1,)
+			PRINTFORML 星晶獣era：
+			PRINTFORML 「おおっと？　もう妊娠しているようだぞ。
+			PRINTFORML 　このうえさらに妊娠できるようにさせるのは、生理・生体的に良くないな。
+			PRINTFORML 　また今度にしてくれたまえ」
+			PRINTFORMW 　
+			令呪消費軽減フラグ = 1
+		;妊娠不可である場合
+		;妊娠不可は、１が理由不問、２は初潮前
+		ELSEIF TALENT:TARGET:妊娠不可
+			PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT [妊娠可能]
+			RESETCOLOR
+			PRINTFORML に変化させた。
+			TALENT:TARGET:妊娠不可 = 0
+
+			PRINTFORM さらになんと、余剰の魔力が%CALLNAME:TARGET%の卵巣を刺激し
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT [排卵]
+			RESETCOLOR
+			PRINTFORMW させたようだ……。
+			TCVAR:TARGET:排卵誘発薬 += 1
+		;妊娠不可でないなら排卵日にさせるだけ
+		ELSE
+			;排卵誘発剤から処理そのまま
+			PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の卵巣を刺激し
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT [排卵]
+			RESETCOLOR
+			PRINTFORMW させた……。
+			TCVAR:TARGET:排卵誘発薬 += 1
+		ENDIF
+	;金玉フルチャージ状態になってフル勃起しろ
+	;同上のおまじないかけておくね。
+	CASE 5
+		;男性BITが立っていない、またはC感度が-2（男性器が無い）場合はこっち
+		IF !GETBIT(TALENT:TARGET:性別, 1) || TALENT:TARGET:Ｃ感度 == -2
+			PRINTFORML ……どこからともなく、eraの声が聞こえる。
+			PRINTL 　
+			CALL 画像表示("顔エラ","LEFT",,,,1,)
+			PRINTFORML 星晶獣era：
+			PRINTFORML 「おおっと、今この場で単純に変えられるものではなさそうだ。
+			PRINTFORML 　男性器を作るところからだからな……
+			PRINTFORML 　また夜にでも、改めてZPを使ってくれたまえよ」
+			PRINTFORMW 　
+			令呪消費軽減フラグ = 1
+		;射精不可であるかEDである場合
+		;射精不可は、１が理由不問、２は精通前
+		ELSEIF TALENT:TARGET:射精不可 || TALENT:TARGET:ＥＤ
+			;EDがある場合
+			IF TALENT:TARGET:ＥＤ
+				PRINTFORML 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の男性自身をすさまじく元気にしていく！
+				PRINTFORM 勃起障害を患っていた%CALLNAME:TARGET%の股間が、力強く
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT 勃起！
+				RESETCOLOR
+				PRINTFORML 　した！
+			;射精不可だけ
+			ELSE
+				PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の体を
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT [射精可能]
+				RESETCOLOR
+				PRINTFORML に変化させた。
+				;排卵誘発剤から処理そのまま
+				PRINTFORM さらに、余剰の魔力が%CALLNAME:TARGET%の男性器を刺激し、力強く
+				SETCOLOR カラーパレット("えっちな色")
+				PRINT 勃起
+				RESETCOLOR
+				PRINTFORML させた……。
+			ENDIF
+			;射精不可とEDを解除しておく
+			TALENT:TARGET:射精不可 = 0
+			TALENT:TARGET:ＥＤ = 0
+
+			;フル勃起させてキンタマフルチャージ
+			BASE:TARGET:勃起 = 1500
+			BASE:TARGET:精力 = MAXBASE:TARGET:精力
+			;さらに、孕ませパワーも大増加
+			RCVAR:TARGET:妊娠率補正_加算値 += 50
+
+		;射精不可でもEDでもないなら金玉フルチャージでフル勃起させるだけ
+		ELSE
+			;排卵誘発剤から処理そのまま
+			PRINTFORM 命令とともに注ぎ込まれた%CALLNAME:PLAYER%の魔力は、%CALLNAME:TARGET%の睾丸をムラつかせ、
+			SETCOLOR カラーパレット("えっちな色")
+			PRINT 勃起
+			RESETCOLOR
+			PRINTFORMW させた……。
+
+			;フル勃起させてキンタマフルチャージ
+			BASE:TARGET:勃起 = 1500
+			BASE:TARGET:精力 = MAXBASE:TARGET:精力
+			;さらに、孕ませパワーも大増加
+			RCVAR:TARGET:妊娠率補正_加算値 += 50
+		ENDIF
+	;俺に惚れろ！
+	CASE 6
+		PRINTFORML ……どこからともなく、eraの声が聞こえる。
+		PRINTL 　
+		CALL 画像表示("顔エラ","LEFT",,,,1,)
+		PRINTFORML 星晶獣era：
+		PRINTFORML 「すまないがそれは別の製品でやってほしい。
+		PRINTFORML 　なに、該当の製品を持ってない？　足りない？
+		PRINTFORML 　ログインをしっかり頑張ってくれたまえ」
+		PRINTFORML 　
+		PRINTFORML ……脳裏にera印のアニマのチラシが浮かび上がってきた。くそがよ。
+		PRINTFORMW 　
+		令呪消費軽減フラグ = 1
+	;あっなんでもないです……
+	CASE 9
+		;サーヴァント勢
+		IF 固有素質チェック(TARGET, "サーヴァント", "ムーンキャンサー") == 0
+			PRINTFORML ……やっぱりなんでもないです。
+			PRINTFORML 引き下がったが、%CALLNAME:TARGET%は少し気分を害したようだ。
+			PRINTFORML サーヴァントにとって、令呪は使われて気持ちのいいものではないだろう。
+			PRINTFORML 冗談で使おうとしないほうがよさそうだ。
+		;将来の拡張を見越して、非サーヴァント用も。
+		ELSE
+			PRINTFORML ……やっぱりなんでもないです。
+			PRINTFORML 引き下がると、%CALLNAME:TARGET%は首を傾げた……
+		ENDIF
+		令呪消費軽減フラグ = 1
 
 ENDSELECT
+
+
+;消費軽減フラグが立っていないなら、精力・ZPを消耗する
+IF 令呪消費軽減フラグ == 0
+	PRINTFORML 
+	PRINTFORML 星晶令呪を使用したことにより、精力とZPを消費した……
+	PRINTFORML 精力 -9000
+	PRINTFORML   ZP -10
+
+	BASE:PLAYER:精力 -= 9000
+	FLAG:ZP所持量 -= 10
+;消費軽減フラグが立っている
+;無消費でもいいんだけど連打させないようにする……？
+ELSE
+	PRINTFORML 
+	PRINTFORML 星晶令呪差し止めの反動が%CALLNAME:PLAYER%の身を苛んだ！
+	PRINTFORML （あとZPをちょろまかされた）
+	PRINTFORML 精力 -1000
+	PRINTFORML   ZP -5
+
+	BASE:PLAYER:精力 -= 1000
+	FLAG:ZP所持量 -= 5
+
+ENDIF
+
