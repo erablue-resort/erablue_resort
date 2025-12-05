@@ -16,6 +16,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		CALL PRINT_STATE(MASTER)
+		RETURN 1
 ENDSELECT
 
 
@@ -37,6 +38,7 @@ SELECTCASE 動作モード
 		IF CFLAG:うふふ
 			CALL CLOTHES_SETTING_TRAIN(PLAYER)
 		ENDIF
+		RETURN 1
 ENDSELECT
 
 
@@ -70,6 +72,7 @@ SELECTCASE 動作モード
 				CALL うふふ終了処理("通常終了")
 			ENDIF
 		ENDIF
+		RETURN 1
 ENDSELECT
 
 
@@ -94,6 +97,7 @@ SELECTCASE 動作モード
 		IF CFLAG:飲み会
 			CALL 飲み会終了処理()
 		ENDIF
+		RETURN 1
 ENDSELECT
 
 
@@ -113,6 +117,7 @@ SELECTCASE 動作モード
 		;コマンド選択時の動作を処理する
 		表示切り替え文字列 = 探索集約_探索メンバー
 		CALL 探索系集約表示
+		RETURN 1
 ENDSELECT
 
 
@@ -136,6 +141,7 @@ SELECTCASE 動作モード
 		;コマンド選択時の動作を処理する
 		表示切り替え文字列 = 覗き見一覧
 		CALL 覗き見一覧表示
+		RETURN 1
 ENDSELECT
 
 
@@ -176,6 +182,7 @@ SELECTCASE 動作モード
 			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
 				CFLAG:(TARGET:LOCAL):隠密 = 1
 		NEXT
+		RETURN 1
 ENDSELECT
 
 
@@ -219,6 +226,7 @@ SELECTCASE 動作モード
 			NEXT
 			PREVCOM = 841
 		ENDIF
+		RETURN 1
 ENDSELECT
 
 
@@ -241,6 +249,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		CALL ITEM_PROTO(TARGET)
+		RETURN 1
 ENDSELECT
 
 
@@ -259,6 +268,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		CALL 所持写真一覧表示
+		RETURN 1
 ENDSELECT
 
 
@@ -283,6 +293,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		INVERTBIT OPTION変数:連れ込み制御, 0
+		RETURN 1
 ENDSELECT
 
 
@@ -307,6 +318,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		INVERTBIT OPTION変数:休憩制御, 0
+		RETURN 1
 ENDSELECT
 
 
@@ -329,6 +341,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		CALL キャラ居場所感知処理
+		RETURN 1
 ENDSELECT
 
 
@@ -347,6 +360,7 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		CALL 雇用レポート表示
+		RETURN 1
 ENDSELECT
 
 
@@ -375,4 +389,112 @@ SELECTCASE 動作モード
 	CASE "コマンド動作"
 		;コマンド選択時の動作を処理する
 		INVERTBIT あなた挿入最適化フラグ, 0
+		RETURN 1
 ENDSELECT
+
+
+; @USERCOM関数_821(動作モード)
+; #DIMS 動作モード
+
+; SELECTCASE 動作モード
+; 	CASE "コマンド名"
+; 		TSTR:コマンド名受渡 = 登録先移動１
+; 	CASE "コマンド表示"
+; 		PRINTFORMC 移動：%GETPLACENAME(FLAG:登録先移動１_移動マップ種別, FLAG:登録先移動１_移動位置)%[821]
+; 	CASE "コマンド条件"
+; 		;コマンドの表示条件を処理する
+; 		;表示したら1を返す
+; 		SIF !CFLAG:PLAYER:うふふ && !CFLAG:PLAYER:飲み会 && FLAG:登録先移動１_移動位置 != 0
+; 			RETURN 1
+; 		;移動先が0になることはないのでこれで良いはず
+; 	CASE "コマンド動作"
+; 		;コマンド選択時の動作を処理する
+; 		CALL 登録移動処理(FLAG:登録先移動１_移動マップ種別, FLAG:登録先移動１_移動位置)
+; 		RETURN RESULT
+; ENDSELECT
+
+
+@登録移動処理(移動マップ, 移動位置)
+#DIM 移動マップ
+#DIM 移動位置
+#DIM 入力数値
+
+;クイック移動処理
+SIF CFLAG:MASTER:現在マップ種別 == 移動マップ && CFLAG:MASTER:現在位置 == 移動位置
+	RETURN 1
+IF CFLAG:PLAYER:現在マップ種別 == 移動マップ
+	RESULTS = サイド領域_{移動位置}
+ELSE
+	;まずエリア移動
+	TFLAG:SELECTCOM受け渡し = 400
+	SELECTCOM = 400
+	TFLAG:エリア切り替え時_目的地格納 = 100 + 移動マップ
+	CALL COM400
+	;どっかで立ち止まったなら以降の処理キャンセル
+	SIF RFLAG:立ち止まらないフラグ < 0
+		RETURN 1
+	;次にエリア内移動
+	IF 移動位置 != CFLAG:MASTER:現在位置
+		RESULTS = サイド領域_{移動位置}
+	ENDIF
+ENDIF
+
+
+入力数値 = 0
+入力数値 = TOINT(REPLACE(RESULTS, "サイド領域_", ""))
+SIF 入力数値 == 0
+	RETURN 1
+
+CALL 表示マップ切り替え判定(入力数値)
+LOCAL = RESULT
+IF 入力数値 == 99
+	;エリア移動選択
+	IF RFLAG:追跡フラグ
+		;追跡中は自動で移動
+		RESULT = 1
+	ELSE
+		CALL エリア移動選択画面表示
+	ENDIF
+	IF RESULT == -1
+		;移動しない場合
+		RETURN 1
+	ELSEIF RESULT == 1
+		;移動処理へ進む
+		サイド描画横スクロール保存 = 0
+		CALL COM400
+		SELECTCOM = 400
+		TFLAG:SELECTCOM受け渡し = 400
+		SIF RESULT == -1
+			RETURN -1
+		RETURN 0
+	ENDIF
+ELSEIF CFLAG:PLAYER:現在位置 == 入力数値
+	RETURN 1
+ELSEIF LOCAL
+	サイド描画横スクロール保存 = 0
+	RETURN 1
+ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, 入力数値)
+	RETURN 1
+ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	;商業区や居住区の個別部屋にいると考えられるので、即座に移動する
+	CFLAG:MASTER:現在位置 = 入力数値
+ELSE
+	;目的地が離れているので、最終目的地として設定
+	TFLAG:長距離移動時_目的地格納 = 入力数値
+	CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, 入力数値)
+	;現在位置を更新し、次も移動の扱いにする
+	CFLAG:MASTER:現在位置 = RESULT
+	TIME += 1
+	TFLAG:SELECTCOM受け渡し = 400
+	SELECTCOM = 400
+	CALL COM400
+	SIF RESULT == -1
+		RETURN -1
+	RETURN 0
+ENDIF
+;移動処理
+TIME += 1
+TFLAG:SELECTCOM受け渡し = 400
+SELECTCOM = 400
+
+RETURN 0
