@@ -868,12 +868,13 @@ ENDIF
 ; ENDIF
 
 危険日感知フラグ = 0
-SIF あなた特殊能力:朔望鑑定術 >= 1 && 発情期判定(ARG)
+SIF あなた特殊能力:朔望鑑定術 >= 1 && 発情期存在判定(ARG)
 	SETBIT 危険日感知フラグ, 0
 SIF あなた特殊能力:朔望鑑定術 >= 2 && GETBIT(TALENT:ARG:性別, 0) && TALENT:ARG:Ｖ感度 > -2
 	SETBIT 危険日感知フラグ, 1
 
 IF 危険日感知フラグ
+	;ここはサイクルを確認するための領域なので強制発情は意図的に無視する
 	IF GETBIT(危険日感知フラグ, 1)
 		PRINTL □ 危険日 □-------------------------------------------------------------------
 	ELSE
@@ -894,9 +895,9 @@ IF 危険日感知フラグ
 			CASE 2
 				IF GETBIT(危険日感知フラグ, 1)
 					LOCALS '= "超危険日"
-					SIF 発情期判定(ARG)
+					SIF 発情期存在判定(ARG)
 						LOCALS += "・強発情中"
-				ELSEIF 発情期判定(ARG)
+				ELSEIF 発情期存在判定(ARG)
 					LOCALS '= "強発情中"
 				ENDIF
 
@@ -909,9 +910,9 @@ IF 危険日感知フラグ
 			CASE 1
 				IF GETBIT(危険日感知フラグ, 1)
 					LOCALS '= "危険日"
-					SIF 発情期判定(ARG)
+					SIF 発情期存在判定(ARG)
 						LOCALS += "・発情中"
-				ELSEIF 発情期判定(ARG)
+				ELSEIF 発情期存在判定(ARG)
 					LOCALS '= "発情中"
 				ENDIF
 
@@ -1651,7 +1652,9 @@ SIF TALENT:ARG:発情期あり < 0
 	名前格納 += "（発情期なし）"
 名前格納 '= REPLACE(名前格納, "）（", "／")
 LOCALS += 名前格納
-IF 発情期判定(ARG)
+IF SAVESTR:ゲームフェイズ管理 != "" && TCVAR:ARG:強制発情フラグ > 0
+	LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（強制発情中<img src='えっちハート'>）</font>"
+ELSEIF 発情期存在判定(ARG)
 	SELECTCASE RISKY_DAY(ARG)
 		CASE 1
 			LOCALS += @"<font color='#%カラーパレット_HTML("薄ピンク")%'>（発情中<img src='えっちハート'>）</font>"

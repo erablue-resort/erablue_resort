@@ -492,6 +492,7 @@ WAIT
 #DIM COM保存
 #DIMS キャラ衣装識別
 #DIMS 母乳種別
+#DIM 発情期フラグ_旧
 
 SIF !TFLAG:オートコマンドフラグ
 	自慰ターゲット保存 = -1
@@ -716,59 +717,54 @@ FOR LOCAL,0,CHARANUM
 	CALL EXP変動記録処理(LOCAL)
 
 	;発情期フラグの更新
-	IF 発情期判定(LOCAL)
-		IF TALENT:LOCAL:性欲 == -2
-			CFLAG:LOCAL:発情期フラグ = 0
-		ELSEIF TCVAR:LOCAL:強制発情フラグ > 0
-			CFLAG:LOCAL:発情期フラグ = -1
-		ELSE
-			IF CFLAG:LOCAL:発情期フラグ < 0
-				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
-				IF CFLAG:LOCAL:発情期フラグ > -1
-					;発情期が終わった時、性欲を大きく減らす
-					BASE:LOCAL:性欲 = MAX(0, BASE:LOCAL:性欲 - 1500)
-				ENDIF
-			ELSE
-				CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
-			ENDIF
-		ENDIF
-		;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
-		;発情期に母乳体質化するオプションがあるキャラも処理する
-		IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
-			IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 2) ||キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || OPTION変数:男ドラフ母乳)
-				IF CFLAG:LOCAL:発情期フラグ < 0
-					SIF TALENT:LOCAL:母乳体質 == 0
-						TALENT:LOCAL:母乳体質 = 2
-				ELSE
-					SIF TALENT:LOCAL:母乳体質 == 2
-						TALENT:LOCAL:母乳体質 = 0
-				ENDIF
-			ENDIF
-		ENDIF
-		;発情期にふたなり化するキャラを処理
-		IF GETBIT(TALENT:LOCAL:発情期あり, 3) && 素質切り替えOPTION記憶:ふたなり_女性 == 0
-			IF CFLAG:LOCAL:発情期フラグ < 0
-				TALENT:LOCAL:性別 = 3
-			ELSE
-				;女性器ないキャラがふたなり化妊娠中の時は戻さない
-				IF GETBIT(CFLAG:LOCAL:元性別保存, 0) != 0 || TALENT:LOCAL:妊娠 == 0
-					TALENT:LOCAL:性別 = CFLAG:LOCAL:元性別保存
-				ENDIF
-			ENDIF
-		ELSEIF GETBIT(TALENT:LOCAL:発情期あり, 8)
-			IF CFLAG:LOCAL:発情期フラグ < 0
-				TALENT:LOCAL:性別 = 1
-			ELSE
-				;女性器ないキャラが女体化妊娠中の時は戻さない
-				IF GETBIT(CFLAG:LOCAL:元性別保存, 0) != 0 || TALENT:LOCAL:妊娠 == 0
-					TALENT:LOCAL:性別 = CFLAG:LOCAL:元性別保存
-				ENDIF
-			ENDIF
-		ENDIF
-	ELSEIF TCVAR:LOCAL:強制発情フラグ > 0
-		CFLAG:LOCAL:発情期フラグ = -1
+	発情期フラグ_旧 = CFLAG:LOCAL:発情期フラグ
+	IF 発情期存在判定(LOCAL)
+		CFLAG:LOCAL:発情期フラグ = RISKY_DAY(LOCAL) * -1
 	ELSE
 		CFLAG:LOCAL:発情期フラグ = 0
+	ENDIF
+	IF TCVAR:LOCAL:強制発情フラグ > 0
+		CFLAG:LOCAL:発情期フラグ = -1
+	ELSEIF TCVAR:LOCAL:強制発情フラグ < 0
+		CFLAG:LOCAL:発情期フラグ = 0
+	ENDIF
+	;発情期フラグの変化による各種素質の更新
+	;発情期が終わった時、性欲を大きく減らす
+	IF 発情期フラグ_旧 < 0 && CFLAG:LOCAL:発情期フラグ >= 0
+		BASE:LOCAL:性欲 = MAX(0, BASE:LOCAL:性欲 - 1500)
+	ENDIF
+	;ドラフorドラフまぜまぜは発情期に母乳体質化＆発情期でなくなったら母乳を止める
+	;発情期に母乳体質化するオプションがあるキャラも処理する
+	IF 素質切り替えOPTION記憶:母乳体質_発情期_なし == 0
+		IF (TALENT:LOCAL:種族 == 3 || GETBIT(TALENT:LOCAL:発情期あり, 2) ||キャラ一致チェック(LOCAL, "[六竜の『金』]ガレヲン")) && TALENT:LOCAL:母乳体質 != 3 && (GETBIT(TALENT:LOCAL:性別, 0) || OPTION変数:男ドラフ母乳)
+			IF CFLAG:LOCAL:発情期フラグ < 0
+				SIF TALENT:LOCAL:母乳体質 == 0
+					TALENT:LOCAL:母乳体質 = 2
+			ELSE
+				SIF TALENT:LOCAL:母乳体質 == 2
+					TALENT:LOCAL:母乳体質 = 0
+			ENDIF
+		ENDIF
+	ENDIF
+	;発情期にふたなり化するキャラを処理
+	IF GETBIT(TALENT:LOCAL:発情期あり, 3) && 素質切り替えOPTION記憶:ふたなり_女性 == 0
+		IF CFLAG:LOCAL:発情期フラグ < 0
+			TALENT:LOCAL:性別 = 3
+		ELSE
+			;女性器ないキャラがふたなり化妊娠中の時は戻さない
+			IF GETBIT(CFLAG:LOCAL:元性別保存, 0) != 0 || TALENT:LOCAL:妊娠 == 0
+				TALENT:LOCAL:性別 = CFLAG:LOCAL:元性別保存
+			ENDIF
+		ENDIF
+	ELSEIF GETBIT(TALENT:LOCAL:発情期あり, 8)
+		IF CFLAG:LOCAL:発情期フラグ < 0
+			TALENT:LOCAL:性別 = 1
+		ELSE
+			;女性器ないキャラが女体化妊娠中の時は戻さない
+			IF GETBIT(CFLAG:LOCAL:元性別保存, 0) != 0 || TALENT:LOCAL:妊娠 == 0
+				TALENT:LOCAL:性別 = CFLAG:LOCAL:元性別保存
+			ENDIF
+		ENDIF
 	ENDIF
 NEXT
 
