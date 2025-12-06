@@ -1,4 +1,13 @@
-﻿;場所確保
+﻿
+@アビエディタデータベースセット()
+DT_CREATE "アビエディタデータベース"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ名"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ対象"
+DT_COLUMN_ADD "アビエディタデータベース", "ダメージ能力値"
+DT_COLUMN_ADD "アビエディタデータベース", "ダメージ属性", 1
+DT_COLUMN_ADD "アビエディタデータベース", "ダメージ倍率", 3
+DT_COLUMN_ADD "アビエディタデータベース", "ダメージ回数", 1
+
 @アビリティエディタ()
 #DIM 対象NO
 #DIM 既存アビ数
@@ -7,17 +16,23 @@
 #DIMS HTML文字列
 
 ;初期化部分
-HTML文字列 = 
 アビ作成中フラグ = 0
 表示Lv = 1
+基礎BATTLE_STATE:0:Lv = 表示Lv
+CALL アビエディタデータベースセット()
 ;アビ名を呼び出すためにキャラを１人追加する
 ADDCHARA 0
 
 対象NO = 1
-基礎BATTLE_STATE:0:Lv = 表示Lv
 
 $動作LOOP
 
+DRAWLINE
+PRINTL 固有アビリティを作成するためのエディタです。
+PRINTL 現在開発中のため、作成出来る機能に制限があります。
+DRAWLINE
+
+HTML文字列 = 
 ;選択キャラ表示枠
 HTML文字列 += "<div rect='50, 0, 5000, 600' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF 対象NO > 0
@@ -52,11 +67,16 @@ HTML文字列 += "</div>"
 HTML文字列 += "<div rect='50, 650, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF アビ作成中フラグ == 0
 	HTML文字列 += "<button value='100'>[100] 新規アビリティ作成</button><br>"
-	HTML文字列 += "<button value='101'>[101] アビデータ読込</button><br>"
+	;作成中
+	;HTML文字列 += "<button value='101'>[101] アビデータ読込</button><br>"
 ELSE
+	;アビパーツの選択肢を並べる
+	HTML文字列 += "<button value='1'>[ 1] ダメージ効果を追加</button><br>"
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
+SIF アビ作成中フラグ
+	HTML文字列 += "<button value='998'>[998] アビリティERBを生成する</button><br>"
 HTML文字列 += "<button value='999'>[999] 戻る</button><br>"
 HTML文字列 += "</div>"
 
@@ -71,13 +91,40 @@ FOR LOCAL, 0, 42
 NEXT
 
 BINPUT
+PRINTL
+PRINTL
 
 SELECTCASE RESULT
+	CASE 200
+		CALL CSVコピー処理(2)
+		SIF RESULT > 0
+			対象NO = RESULT
+	CASE 201
+		PRINTL 1～80の範囲でLvを設定してください。
+		INPUT
+		IF RESULT < 1 || RESULT > 80
+			PRINTW 数値が不正です。
+		ELSE
+			表示Lv = RESULT
+			基礎BATTLE_STATE:0:Lv = 表示Lv
+		ENDIF
+	CASE 100
+		アビ作成中フラグ = 1
+		PRINTW 新しいアビリティを作成します。
 	CASE 999
 		;追加したキャラを削除
 		DELCHARA CHARANUM - 1
 		RETURN 0
+	CASE 1
+		;ダメージ効果
+		CALL アビエディタ_ダメージ効果追加()
 ENDSELECT
 
 
 GOTO 動作LOOP
+
+
+@アビエディタ_ダメージ効果追加()
+
+
+
