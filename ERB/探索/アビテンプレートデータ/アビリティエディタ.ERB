@@ -2,11 +2,20 @@
 @アビエディタデータベースセット()
 DT_CREATE "アビエディタデータベース"
 DT_COLUMN_ADD "アビエディタデータベース", "アビ名"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ効果種別"
 DT_COLUMN_ADD "アビエディタデータベース", "アビ対象"
-DT_COLUMN_ADD "アビエディタデータベース", "ダメージ能力値"
-DT_COLUMN_ADD "アビエディタデータベース", "ダメージ属性", 1
-DT_COLUMN_ADD "アビエディタデータベース", "ダメージ倍率", 3
-DT_COLUMN_ADD "アビエディタデータベース", "ダメージ回数", 1
+DT_COLUMN_ADD "アビエディタデータベース", "アビ段階", 1
+DT_COLUMN_ADD "アビエディタデータベース", "アビ段階条件"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列１"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列２"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列３"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列４"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列５"
+DT_COLUMN_ADD "アビエディタデータベース", "アビ数値１", 3
+DT_COLUMN_ADD "アビエディタデータベース", "アビ数値２", 3
+DT_COLUMN_ADD "アビエディタデータベース", "アビ数値３", 3
+DT_COLUMN_ADD "アビエディタデータベース", "アビ数値４", 3
+DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 
 @アビリティエディタ()
 #DIM 対象NO
@@ -14,6 +23,7 @@ DT_COLUMN_ADD "アビエディタデータベース", "ダメージ回数", 1
 #DIM 表示Lv
 #DIM アビ作成中フラグ
 #DIMS HTML文字列
+#DIM 枠配置縦位置
 
 ;初期化部分
 アビ作成中フラグ = 0
@@ -66,7 +76,7 @@ HTML文字列 += "</div>"
 ;操作パネル
 HTML文字列 += "<div rect='50, 650, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF アビ作成中フラグ == 0
-	HTML文字列 += "<button value='100'>[100] 新規アビリティ作成</button><br>"
+	HTML文字列 += "<button value='900'>[900] 新規アビリティ作成</button><br>"
 	;作成中
 	;HTML文字列 += "<button value='101'>[101] アビデータ読込</button><br>"
 ELSE
@@ -83,6 +93,34 @@ HTML文字列 += "</div>"
 ;作成アビリティ効果表示枠
 HTML文字列 += "<div rect='1700, 650, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 HTML文字列 += "</div>"
+IF アビ作成中フラグ
+	枠配置縦位置 = 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
+		SELECTCASE DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ効果種別")
+			CASE "ダメージ効果"
+				HTML文字列 += @"<div rect='1800, {700 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ対象")%に"
+				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１") > 0
+					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１")}％］の"
+				ELSE
+					HTML文字列 += @"［{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値２")}］の"
+				ENDIF
+				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３") < 0
+					HTML文字列 += "自属性ダメージを"
+				ELSE
+					HTML文字列 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３"))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３"))%属性</font>ダメージを"
+				ENDIF
+				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値４") < 2
+					HTML文字列 += "与える。"
+				ELSE
+					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値４")}回与える。"
+				ENDIF
+				HTML文字列 += "<br>"
+				HTML文字列 += @"<button value='{LOCAL + 100}'>[この効果を変更する]</button><br>"
+				HTML文字列 += "</div>"
+		ENDSELECT
+	NEXT
+ENDIF
 
 
 HTML_PRINT HTML文字列, 1
@@ -108,23 +146,266 @@ SELECTCASE RESULT
 			表示Lv = RESULT
 			基礎BATTLE_STATE:0:Lv = 表示Lv
 		ENDIF
-	CASE 100
+	CASE 900
 		アビ作成中フラグ = 1
 		PRINTW 新しいアビリティを作成します。
+	CASE 998
+		CALL アビエディタ_ERB生成()
 	CASE 999
 		;追加したキャラを削除
 		DELCHARA CHARANUM - 1
+		;データベースの削除
+		DT_RELEASE "アビエディタデータベース"
 		RETURN 0
 	CASE 1
 		;ダメージ効果
 		CALL アビエディタ_ダメージ効果追加()
+	CASE 100 TO 199
+		;効果変更
+		SELECTCASE DT_CELL_GETS("アビエディタデータベース", RESULT - 100, "アビ効果種別")
+			CASE "ダメージ効果"
+				CALL アビエディタ_ダメージ効果追加(DT_CELL_GET("アビエディタデータベース", RESULT - 100, "id"))
+		ENDSELECT
 ENDSELECT
 
 
 GOTO 動作LOOP
 
 
-@アビエディタ_ダメージ効果追加()
+@アビエディタ_ダメージ効果追加(変更ID = 0)
+;アビ文字列１ ダメージ倍率に使用する能力値
+;アビ文字列２
+;アビ文字列３
+;アビ文字列４
+;アビ文字列５
+;アビ数値１ ダメージ倍率
+;アビ数値２ ダメージ固定値
+;アビ数値３ ダメージ属性
+;アビ数値４ ダメージ回数
+;アビ数値５
+#DIM DYNAMIC ダメージ倍率
+#DIM DYNAMIC ダメージ固定値
+#DIM DYNAMIC ダメージ属性
+#DIM DYNAMIC ダメージ回数
+#DIMS DYNAMIC ダメージ能力値
+#DIMS DYNAMIC ダメージ対象
+#DIM ダメージモード
+#DIM 変更ID
+#DIMS HTML文字列
+
+IF 変更ID
+	ダメージ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
+	ダメージ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
+	ダメージ固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
+	ダメージ属性 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
+	ダメージ回数 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値４", 1)
+	ダメージ能力値 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+ENDIF
+SIF ダメージ対象 == ""
+	ダメージ対象 = 敵単体
+SIF ダメージ回数 < 1
+	ダメージ回数 = 1
+SIF ダメージ能力値 == ""
+	ダメージ能力値 = 攻撃力
+SIF ダメージ倍率 == 0
+	ダメージ倍率 = 100
+
+$動作LOOP
+
+DRAWLINE
+PRINTL ダメージ効果の設定を選択してください。
+DRAWLINE
+
+PRINTL ・現在の効果
+PRINT 　　
+PRINTFORM %ダメージ対象%に
+IF ダメージモード == 0
+	PRINTFORM ［%ダメージ能力値%✕{ダメージ倍率}％］の
+ELSE
+	PRINTFORM ［{ダメージ固定値}］の
+ENDIF
+IF ダメージ属性 < 0
+	PRINT 自属性ダメージを
+ELSE
+	SETCOLOR カラーパレット(@"%属性数値文字列変換(ダメージ属性)%属性")
+	PRINTFORM %属性数値文字列変換(ダメージ属性)%属性
+	RESETCOLOR
+	PRINT ダメージを
+ENDIF
+IF ダメージ回数 < 2
+	PRINT 与える。
+ELSE
+	PRINTFORM {ダメージ回数}回与える。
+ENDIF
+PRINTL
+DRAWLINE
+
+HTML文字列 = 
+HTML文字列 += "<div rect='50, 0, 5000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += @"<button value='1'>[1] ダメージ対象を変更する</button>　　　　現在：%ダメージ対象%<br>"
+IF ダメージモード == 0
+	HTML文字列 += @"<button value='2'>[2] 使用する能力値を変更する</button>　　　現在：%ダメージ能力値%<br>"
+	HTML文字列 += @"<button value='3'>[3] ダメージ倍率を変更する</button>　　　　現在：{ダメージ倍率}％<br>"
+ELSE
+	HTML文字列 += @"<button value='3'>[3] ダメージ値を変更する</button>　　　　　現在：{ダメージ固定値}<br>"
+ENDIF
+IF ダメージ属性 < 0
+	HTML文字列 += @"<button value='4'>[4] ダメージの属性を変更する</button>　　　現在：自属性<br>"
+ELSE
+	HTML文字列 += @"<button value='4'>[4] ダメージの属性を変更する</button>　　　現在：<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(ダメージ属性)%属性")%'>%属性数値文字列変換(ダメージ属性)%属性</font><br>"
+ENDIF
+HTML文字列 += @"<button value='5'>[5] ダメージの回数を変更する</button>　　　現在：{ダメージ回数}回<br>"
+HTML文字列 += "<br>"
+HTML文字列 += "<br>"
+HTML文字列 += @"<button value='998'>[998] この設定で効果を決定する</button><br>"
+HTML文字列 += @"<button value='999'>[999] 保存せず戻る</button><br>"
+HTML文字列 += "</div>"
+
+
+HTML_PRINT HTML文字列, 1
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+BINPUT
+PRINTL
+PRINTL
+SELECTCASE RESULT
+	CASE 1
+		CALL アビエディタ_対象選択(ダメージ対象)
+	CASE 2
+		DRAWLINE
+		PRINTFORML 使用する能力値を選択してください。 現在：%ダメージ能力値%
+		PRINTL
+		FOR LOCAL, 6, 10
+			PRINTBUTTON @"[{LOCAL}] %ERDNAME(基礎BATTLE_STATE, LOCAL)%", LOCAL
+			PRINTL
+		NEXT
+		BINPUT
+		PRINTL
+		PRINTL
+		ダメージ能力値 '= ERDNAME(基礎BATTLE_STATE, RESULT)
+	CASE 3
+		DRAWLINE
+		IF ダメージモード == 0
+			PRINTFORML ダメージ倍率を入力してください。 現在：{ダメージ倍率}
+		ELSE
+			PRINTFORML ダメージ値を入力してください。 現在：{ダメージ固定値}
+		ENDIF
+		PRINTL
+		INPUT
+		IF RESULT < 1
+			PRINTW ０や負の値は指定出来ません
+		ENDIF
+		IF ダメージモード == 0
+			ダメージ倍率 = RESULT
+		ELSE
+			ダメージ固定値 = RESULT
+		ENDIF
+	CASE 4
+		DRAWLINE
+		PRINT ダメージの属性を選択してください。 現在：
+		IF ダメージ属性 < 0
+			PRINT 自属性
+		ELSE
+			PRINTFORM %属性数値文字列変換(ダメージ属性)%属性
+		ENDIF
+		PRINTL
+		PRINTL
+			PRINTBUTTON @"[-1] 自属性", -1
+			PRINTL
+		FOR LOCAL, 0, 7
+			SETCOLOR カラーパレット(@"%属性数値文字列変換(LOCAL)%属性")
+			PRINTBUTTON @"[{LOCAL}] %属性数値文字列変換(LOCAL)%属性", LOCAL
+			PRINTL
+		NEXT
+		RESETCOLOR
+		BINPUT
+		PRINTL
+		PRINTL
+		ダメージ属性 = RESULT
+	CASE 5
+		DRAWLINE
+		PRINTFORML ダメージの回数を入力してください。 現在：{ダメージ回数}回
+		PRINTL
+		INPUT
+		IF RESULT < 1
+			PRINTW ０や負の値は指定出来ません
+		ENDIF
+		ダメージ回数 = RESULT
+	CASE 998
+		IF 変更ID
+			;既存効果変更
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", ダメージ対象, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値３", ダメージ属性, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値４", ダメージ回数, 1
+			IF ダメージモード == 0
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", ダメージ能力値, 1
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", ダメージ倍率, 1
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", 0, 1
+			ELSE
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", ダメージ固定値, 1
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", "", 1
+				DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", 0, 1
+			ENDIF
+			PRINTW ダメージ効果を変更しました。
+		ELSE
+			;新規効果追加
+			IF ダメージモード == 0
+				DT_ROW_ADD "アビエディタデータベース", "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ文字列１", ダメージ能力値, "アビ数値１", ダメージ倍率, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+			ELSE
+				DT_ROW_ADD "アビエディタデータベース", "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ数値２", ダメージ固定値, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+			ENDIF
+			PRINTW 新しいダメージ効果を追加しました。
+		ENDIF
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+GOTO 動作LOOP
 
 
 
+@アビエディタ_対象選択(ダメージ対象)
+#DIMS REF ダメージ対象
+
+DRAWLINE
+PRINTFORML 対象を選択してください。 現在：%ダメージ対象%
+PRINTL
+PRINTBUTTON "[1] 味方単体", 1
+PRINTL
+PRINTBUTTON "[2] 味方全体", 2
+PRINTL
+PRINTBUTTON "[10] 敵単体", 10
+PRINTL
+PRINTBUTTON "[11] 敵横列", 11
+PRINTL
+PRINTBUTTON "[12] 敵縦列", 12
+PRINTL
+PRINTBUTTON "[13] 敵全体", 13
+PRINTL
+PRINTL
+BINPUT
+PRINTL
+PRINTL
+SELECTCASE RESULT
+	CASE 1
+		ダメージ対象 = 味方単体
+	CASE 2
+		ダメージ対象 = 味方全体
+	CASE 10
+		ダメージ対象 = 敵単体
+	CASE 11
+		ダメージ対象 = 敵横列
+	CASE 12
+		ダメージ対象 = 敵縦列
+	CASE 13
+		ダメージ対象 = 敵全体
+ENDSELECT
+
+
+@アビエディタ_ERB生成()
+
+
+PRINTW まだ開発中です。
