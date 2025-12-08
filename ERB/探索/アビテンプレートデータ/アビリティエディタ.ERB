@@ -24,11 +24,18 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 #DIM アビ作成中フラグ
 #DIMS HTML文字列
 #DIM 枠配置縦位置
+#DIM アビ段階
+#DIMS アビ名, 10
+#DIM 消費ＭＰ, 10
 
 ;初期化部分
-アビ作成中フラグ = 0
+;アビ作成中フラグ = 0
+;開発中のためいきなり作成中に飛ぶ
+アビ作成中フラグ = 1
 表示Lv = 1
 基礎BATTLE_STATE:0:Lv = 表示Lv
+アビ名 = （未定）
+消費ＭＰ = -1
 CALL アビエディタデータベースセット()
 ;アビ名を呼び出すためにキャラを１人追加する
 ADDCHARA 0
@@ -81,6 +88,7 @@ IF アビ作成中フラグ == 0
 	;HTML文字列 += "<button value='101'>[101] アビデータ読込</button><br>"
 ELSE
 	;アビパーツの選択肢を並べる
+	HTML文字列 += "<button value='0'>[ 0] アビ名を変更する</button><br>"
 	HTML文字列 += "<button value='1'>[ 1] ダメージ効果を追加</button><br>"
 ENDIF
 HTML文字列 += "<br>"
@@ -92,13 +100,21 @@ HTML文字列 += "</div>"
 
 ;作成アビリティ効果表示枠
 HTML文字列 += "<div rect='1700, 650, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += @"<button value='0'>■%アビ名, 30, LEFT%</button>取得条件：Lv 1　　<button value='202'>[取得条件を変更する]</button><br>"
+HTML文字列 += @"消費ＭＰ："
+IF 消費ＭＰ < 0
+	HTML文字列 += @"自動設定（現在{ABS(消費ＭＰ)}）　　<button value='203'>[手動で設定する]</button><br>"
+ELSE
+	HTML文字列 += @"{消費ＭＰ}　　<button value='203'>[自動で設定する]</button><br>"
+ENDIF
+HTML文字列 += "-----------------------------------------------------------------------------------<br>"
 HTML文字列 += "</div>"
 IF アビ作成中フラグ
 	枠配置縦位置 = 0
 	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ効果種別")
 			CASE "ダメージ効果"
-				HTML文字列 += @"<div rect='1800, {700 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"<div rect='1800, {1050 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ対象")%に"
 				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１") > 0
 					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１")}％］の"
@@ -116,8 +132,9 @@ IF アビ作成中フラグ
 					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値４")}回与える。"
 				ENDIF
 				HTML文字列 += "<br>"
-				HTML文字列 += @"<button value='{LOCAL + 100}'>[この効果を変更する]</button><br>"
+				HTML文字列 += @"<button value='{LOCAL + 100}'>[効果を変更する]</button>　　<button value='{LOCAL + 300}'>[効果を削除する]</button><br>"
 				HTML文字列 += "</div>"
+				枠配置縦位置 += 430
 		ENDSELECT
 	NEXT
 ENDIF
@@ -138,6 +155,7 @@ SELECTCASE RESULT
 		SIF RESULT > 0
 			対象NO = RESULT
 	CASE 201
+		DRAWLINE
 		PRINTL 1～80の範囲でLvを設定してください。
 		INPUT
 		IF RESULT < 1 || RESULT > 80
@@ -146,33 +164,81 @@ SELECTCASE RESULT
 			表示Lv = RESULT
 			基礎BATTLE_STATE:0:Lv = 表示Lv
 		ENDIF
+	CASE 202
+		PRINTW 未実装です。
+	CASE 203
+		IF 消費ＭＰ < 0
+			;自動＞手動
+			$MPLOOP
+			DRAWLINE
+			PRINTL 消費するＭＰの値を入力してください。
+			INPUT
+			IF RESULT < 0
+				PRINTW 負の値は指定出来ません。
+				GOTO MPLOOP
+			ELSE
+				消費ＭＰ = RESULT
+			ENDIF
+		ELSE
+			;手動＞自動
+			消費ＭＰ = -1
+		ENDIF
 	CASE 900
 		アビ作成中フラグ = 1
 		PRINTW 新しいアビリティを作成します。
 	CASE 998
-		CALL アビエディタ_ERB生成()
+		IF DT_ROW_LENGTH("アビエディタデータベース") < 1
+			PRINTW 効果が設定されていません。
+			GOTO 動作LOOP
+		ENDIF
+		IF アビ名 == "" || アビ名 == "（未定）"
+			PRINTW アビ名が入力されていません。
+			GOTO 動作LOOP
+		ENDIF
+		CALL アビエディタ_ERB生成(対象NO, アビ名, 消費ＭＰ)
+
+		;追加したキャラを削除
+		DELCHARA CHARANUM - 1
+		;データベースの削除
+		DT_RELEASE "アビエディタデータベース"
+		RETURN 0
 	CASE 999
 		;追加したキャラを削除
 		DELCHARA CHARANUM - 1
 		;データベースの削除
 		DT_RELEASE "アビエディタデータベース"
 		RETURN 0
+	CASE 0
+		$NAMELOOP
+		DRAWLINE
+		PRINTL アビ名を入力してください。
+		INPUTS
+		IF RESULTS == ""
+			PRINTW アビ名は空白に出来ません。
+			GOTO NAMELOOP
+		ELSE
+			アビ名 '= RESULTS
+		ENDIF
 	CASE 1
 		;ダメージ効果
-		CALL アビエディタ_ダメージ効果追加()
+		CALL アビエディタ_ダメージ効果追加(0, アビ段階)
 	CASE 100 TO 199
 		;効果変更
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", RESULT - 100, "アビ効果種別")
 			CASE "ダメージ効果"
 				CALL アビエディタ_ダメージ効果追加(DT_CELL_GET("アビエディタデータベース", RESULT - 100, "id"))
 		ENDSELECT
+	CASE 300 TO 399
+		;効果削除
+		DT_ROW_REMOVE "アビエディタデータベース", DT_CELL_GET("アビエディタデータベース", RESULT - 300, "id")
 ENDSELECT
 
-
+SIF 消費ＭＰ < 0
+	CALL ＭＰ自動計算(消費ＭＰ)
 GOTO 動作LOOP
 
 
-@アビエディタ_ダメージ効果追加(変更ID = 0)
+@アビエディタ_ダメージ効果追加(変更ID = 0, アビ段階 = 0)
 ;アビ文字列１ ダメージ倍率に使用する能力値
 ;アビ文字列２
 ;アビ文字列３
@@ -189,6 +255,7 @@ GOTO 動作LOOP
 #DIM DYNAMIC ダメージ回数
 #DIMS DYNAMIC ダメージ能力値
 #DIMS DYNAMIC ダメージ対象
+#DIM アビ段階
 #DIM ダメージモード
 #DIM 変更ID
 #DIMS HTML文字列
@@ -200,6 +267,7 @@ IF 変更ID
 	ダメージ属性 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
 	ダメージ回数 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値４", 1)
 	ダメージ能力値 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
 ENDIF
 SIF ダメージ対象 == ""
 	ダメージ対象 = 敵単体
@@ -369,9 +437,16 @@ GOTO 動作LOOP
 
 @アビエディタ_対象選択(ダメージ対象)
 #DIMS REF ダメージ対象
+#DIM ランダム被りなし
+#DIM ランダム体数記録
+
+SIF ランダム体数記録 < 1
+	ランダム体数記録 = 1
 
 DRAWLINE
 PRINTFORML 対象を選択してください。 現在：%ダメージ対象%
+PRINTL
+PRINTBUTTON "[0] 自身", 0
 PRINTL
 PRINTBUTTON "[1] 味方単体", 1
 PRINTL
@@ -385,11 +460,15 @@ PRINTBUTTON "[12] 敵縦列", 12
 PRINTL
 PRINTBUTTON "[13] 敵全体", 13
 PRINTL
+PRINTBUTTON "[14] 敵ランダム◯体", 14
+PRINTL
 PRINTL
 BINPUT
 PRINTL
 PRINTL
 SELECTCASE RESULT
+	CASE 0
+		ダメージ対象 = 自身
 	CASE 1
 		ダメージ対象 = 味方単体
 	CASE 2
@@ -402,10 +481,221 @@ SELECTCASE RESULT
 		ダメージ対象 = 敵縦列
 	CASE 13
 		ダメージ対象 = 敵全体
+	CASE 14
+		$ランダムLOOP
+		DRAWLINE
+		PRINTL ランダムで選ぶ対象数を入力してください。
+		IF ランダム被りなし
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTBUTTON "[ターゲット重複あり]", 1
+			RESETCOLOR
+			PRINT  / 
+			PRINTPLAIN [ターゲット重複なし]
+		ELSE
+			PRINTPLAIN [ターゲット重複あり]
+			PRINT  / 
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTBUTTON "[ターゲット重複なし]", 1
+			RESETCOLOR
+		ENDIF
+		PRINTBUTTON "[0] 対象数を変更する", 0
+		PRINTFORM 　　現在：{ランダム体数記録}体
+		PRINTL
+		PRINTBUTTON "[9] これで決定", 9
+		PRINTL
+		PRINTL
+		BINPUT
+		PRINTL
+		PRINTL
+		SELECTCASE RESULT
+			CASE 1
+				INVERTBIT ランダム被りなし, 0
+			CASE 0
+				DRAWLINE
+				PRINTL 対象数を入力してください
+				INPUT
+				IF RESULT < 1
+					PRINTW １未満の数は入力出来ません
+				ELSE
+					ランダム体数記録 = RESULT
+				ENDIF
+			CASE 9
+				IF ランダム被りなし
+					ダメージ対象 = 敵ランダム{ランダム体数記録}体（重複なし）
+				ELSE
+					ダメージ対象 = 敵ランダム{ランダム体数記録}体
+				ENDIF
+				RETURN 0
+		ENDSELECT
+		GOTO ランダムLOOP
 ENDSELECT
 
 
-@アビエディタ_ERB生成()
+@アビエディタ_ERB生成(対象No, アビ名, 消費ＭＰ)
+#DIM DB行数
+#DIMS アビERB記述
+#DIMS アビ説明記述, 10
+#DIMS アビ効果記述, 10
+#DIM アビ段階
+#DIM 最大アビ段階
+#DIM 対象No
+#DIM 消費ＭＰ
+#DIMS アビ名
+
+VARSET アビ説明記述
+VARSET アビ効果記述
+
+アビERB記述 = @固有アビ_{対象No}_YYYY(ARGS, キャラ番号)<br>
+アビERB記述 += "#DIM キャラ番号<br>"
+アビERB記述 += "#DIM 消費ＭＰ<br>"
+アビERB記述 += "#DIMS アビ名<br>"
+アビERB記述 += "<br>"
+
+;ここに習得条件入れる
+
+アビERB記述 += @"アビ名 = %アビ名%<br>"
+アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ)}<br><br>"
+
+FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
+	アビ段階 = DT_CELL_GET("アビエディタデータベース", DB行数, "アビ段階")
+	SELECTCASE DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ効果種別")
+		CASE "ダメージ効果"
+			アビ説明記述:アビ段階 += "<br>"
+			アビ説明記述:アビ段階 += @"%DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ対象")%に"
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") > 0
+				アビ説明記述:アビ段階 += @"［%DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１")}％］の"
+			ELSE
+				アビ説明記述:アビ段階 += @"［{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２")}］の"
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３") < 0
+				アビ説明記述:アビ段階 += "自属性ダメージを"
+			ELSE
+				アビ説明記述:アビ段階 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性</font>ダメージを"
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") < 2
+				アビ説明記述:アビ段階 += "与える。"
+			ELSE
+				アビ説明記述:アビ段階 += @"{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")}回与える。"
+			ENDIF
+
+			アビ効果記述:アビ段階 += "CALL アビ汎用変数文字列リセット<br>"
+			アビ効果記述:アビ段階 += アビエディタ_対象CALL変換(DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ対象"))
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") > 0
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果割合 = {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１")}<br>"
+				アビ効果記述:アビ段階 += @"アビ汎用文字列:攻撃側使用能力値 = %DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ文字列１")%<br>"
+			ELSE
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果量 = {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２")}<br>"
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３") < 0
+				LOCALS = CALL アビテンプレート_ダメージ処理_自属性
+			ELSE
+				LOCALS = CALL アビテンプレート_ダメージ処理_%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") > 1
+				アビ効果記述:アビ段階 += @"FOR LOCAL, 0, {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")}<br>"
+				アビ効果記述:アビ段階 += @"	%LOCALS%<br>"
+				アビ効果記述:アビ段階 += @"NEXT<br>"
+			ELSE
+				アビ効果記述:アビ段階 += @"%LOCALS%<br>"
+			ENDIF
+	ENDSELECT
+	SIF 最大アビ段階 < アビ段階
+		最大アビ段階 = アビ段階
+NEXT
+FOR LOCAL, 0, 最大アビ段階 + 1
+	アビ説明記述:アビ段階 '= @"消費ＭＰ：{ABS(消費ＭＰ)}%アビ説明記述:アビ段階%"
+NEXT
+
+CLEARLINE MAX(LINECOUNT, 1000)
+TWAIT 100, 1
+
+アビERB記述 += "SELECTCASE ARGS<br>"
+アビERB記述 += "	CASE \"アビ名\"<br>"
+アビERB記述 += "		TSTR:コマンド名受渡 = \%アビ名\%<br>"
+アビERB記述 += "	CASE \"アビ説明文\"<br>"
+アビERB記述 += @"		詳細文文字列受け渡し変数 = "
+HTML_PRINT アビERB記述, 1
+VARSET RESULTS
+SPLIT アビ説明記述:アビ段階, "<br>", RESULTS
+PRINTFORML %RESULTS:0%
+FOR LOCAL, 1, RESULT
+	PRINTFORML 		詳細文文字列受け渡し変数 += "<br>%RESULTS:LOCAL%"
+NEXT
+アビERB記述 = 
+アビERB記述 += "	CASE \"アビ効果\"<br>"
+アビERB記述 += @"		%REPLACE(アビ効果記述:アビ段階, "<br>", "<br>		")%"
+アビERB記述 '= SUBSTRING(アビERB記述, 0, STRLENS(アビERB記述) - 2)
+アビERB記述 += "ENDSELECT<br><br><br>"
 
 
-PRINTW まだ開発中です。
+HTML_PRINT アビERB記述
+PRINTL 
+OUTPUTLOG @"ERB_EDITFILE/固有アビリティ_%CSVCALLNAME(対象No)%.ERB", 1
+PRINTW ERB_EDITFILEフォルダに出力しました。ERB/口上_キャラ個別ERBのキャラクターフォルダに移動して再起動してください
+
+
+@アビエディタ_対象CALL変換(対象文字列)
+#FUNCTIONS
+#DIMS 対象文字列
+#DIM 対象数
+
+SELECTCASE 対象文字列
+	CASE "自身"
+		RETURNF "CALL アビ対象選択テンプレート_自己のみ<br>"
+	CASE "味方単体"
+		RETURNF "CALL アビ対象選択テンプレート_味方単体<br>"
+	CASE "味方全体"
+		RETURNF "CALL アビ対象選択テンプレート_味方全体<br>"
+	CASE "敵単体"
+		RETURNF "CALL アビ対象選択テンプレート_敵単体<br>"
+	CASE "敵横列"
+		RETURNF "CALL アビ対象選択テンプレート_敵横列<br>"
+	CASE "敵縦列"
+		RETURNF "CALL アビ対象選択テンプレート_敵縦列<br>"
+	CASE "敵全体"
+		RETURNF "CALL アビ対象選択テンプレート_敵全体_生者のみ<br>"
+	CASEELSE
+		IF STRFIND(対象文字列, "敵ランダム") >= 0
+			対象数 = TOINT(REPLACE(REPLACE(REPLACE(対象文字列, "敵ランダム", ""), "体", ""), "（重複なし）", ""))
+			IF STRFIND(対象文字列, "（重複なし）") >= 0
+				RETURNF @"CALL アビ対象選択テンプレート_敵ランダムＸ体_重複無し({対象数})<br>"
+			ELSE
+				RETURNF @"CALL アビ対象選択テンプレート_敵ランダムＸ体({対象数})<br>"
+			ENDIF
+		ENDIF
+ENDSELECT
+
+
+@ＭＰ自動計算(消費ＭＰ)
+#DIM REF 消費ＭＰ
+#DIM ダメージ総倍率
+#DIM ダメージ総値
+#DIM DB行数
+#DIM 基礎消費MP
+#DIM 補正回数
+#DIM ループ用
+
+ダメージ総倍率 = 0
+ダメージ総値 = 0
+FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
+	SELECTCASE DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ効果種別")
+		CASE "ダメージ効果"
+			ダメージ総倍率 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")
+			ダメージ総値 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")
+	ENDSELECT
+NEXT
+
+基礎消費MP = 5
+補正回数 = ダメージ総倍率 / 50 + 1
+FOR ループ用, 0, 補正回数
+	IF ループ用 == 補正回数 - 1
+		;基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
+		基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用)) / 40
+	ELSE
+		;基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
+		基礎消費MP += 50 * POWER(2, MAX(0, ループ用)) / 40
+	ENDIF
+NEXT
+
+
+消費ＭＰ = 基礎消費MP * -1
