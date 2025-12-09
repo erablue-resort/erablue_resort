@@ -29,6 +29,9 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 #DIM 消費ＭＰ, 10
 
 ;初期化部分
+
+;アビ名を呼び出すためにキャラを１人追加する
+ADDCHARA 0
 ;アビ作成中フラグ = 0
 ;開発中のためいきなり作成中に飛ぶ
 アビ作成中フラグ = 1
@@ -37,8 +40,6 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 アビ名 = （未定）
 消費ＭＰ = -1
 CALL アビエディタデータベースセット()
-;アビ名を呼び出すためにキャラを１人追加する
-ADDCHARA 0
 
 対象NO = 1
 
@@ -51,7 +52,7 @@ DRAWLINE
 
 HTML文字列 = 
 ;選択キャラ表示枠
-HTML文字列 += "<div rect='50, 0, 5000, 600' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "<div rect='50, 0, 5000, 1200' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF 対象NO > 0
 	HTML文字列 += @"%CSVNAME(対象NO)%<br>"
 	;現在あるアビリティを呼んでくる
@@ -79,9 +80,17 @@ ELSE
 ENDIF
 HTML文字列 += "<button value='200'>[作成キャラを変更する]</button> / <button value='201'>[表示レベルを変更する]</button>"
 HTML文字列 += "</div>"
+IF 対象NO > 0 && EXIST画像FILE(@"resources/{対象NO}%CSVCALLNAME(対象NO)%/顔_デフォルト")
+	;何番でもいいけどとりあえず20000以降を使用
+	GDISPOSE 20000
+	SPRITEDISPOSE @"口上用画像0"
+	CALL GCREATE_拡張子(20000, @"{対象NO}%CSVCALLNAME(対象NO)%/顔_デフォルト")
+	SPRITECREATE @"口上用画像0", 20000
+	HTML文字列 += @"<div rect='3900, 50, 1500, 1500'><img src='口上用画像0' height='{GHEIGHT(20000) / 16 * 100}' width='{GWIDTH(20000) / 16 * 100}'></div>"
+ENDIF
 
 ;操作パネル
-HTML文字列 += "<div rect='50, 650, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "<div rect='50, 1250, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF アビ作成中フラグ == 0
 	HTML文字列 += "<button value='900'>[900] 新規アビリティ作成</button><br>"
 	;作成中
@@ -99,7 +108,7 @@ HTML文字列 += "<button value='999'>[999] 戻る</button><br>"
 HTML文字列 += "</div>"
 
 ;作成アビリティ効果表示枠
-HTML文字列 += "<div rect='1700, 650, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "<div rect='1700, 1250, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 HTML文字列 += @"<button value='0'>■%アビ名, 30, LEFT%</button>取得条件：Lv 1　　<button value='202'>[取得条件を変更する]</button><br>"
 HTML文字列 += @"消費ＭＰ："
 IF 消費ＭＰ < 0
@@ -114,7 +123,7 @@ IF アビ作成中フラグ
 	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ効果種別")
 			CASE "ダメージ効果"
-				HTML文字列 += @"<div rect='1800, {1050 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"<div rect='2000, {1450 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ対象")%に"
 				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１") > 0
 					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１")}％］の"
@@ -141,7 +150,7 @@ ENDIF
 
 
 HTML_PRINT HTML文字列, 1
-FOR LOCAL, 0, 42
+FOR LOCAL, 0, 47
 	PRINTL
 NEXT
 
@@ -631,7 +640,8 @@ NEXT
 HTML_PRINT アビERB記述
 PRINTL 
 OUTPUTLOG @"ERB_EDITFILE/固有アビリティ_%CSVCALLNAME(対象No)%.ERB", 1
-PRINTW ERB_EDITFILEフォルダに出力しました。ERB/口上_キャラ個別ERBのキャラクターフォルダに移動して再起動してください
+PRINTL ERB_EDITFILEフォルダに出力しました。
+PRINTW 関数名のYYYYの部分を任意の文字列に変更し、ERB/口上_キャラ個別ERBのキャラクターフォルダに移動して再起動してください
 
 
 @アビエディタ_対象CALL変換(対象文字列)
@@ -690,10 +700,10 @@ NEXT
 FOR ループ用, 0, 補正回数
 	IF ループ用 == 補正回数 - 1
 		;基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
-		基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用)) / 40
+		基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - 1)) / 40
 	ELSE
 		;基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
-		基礎消費MP += 50 * POWER(2, MAX(0, ループ用)) / 40
+		基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - 1)) / 40
 	ENDIF
 NEXT
 
