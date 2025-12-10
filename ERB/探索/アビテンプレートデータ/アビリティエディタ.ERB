@@ -27,6 +27,10 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 #DIM アビ段階
 #DIMS アビ名, 10
 #DIM 消費ＭＰ, 10
+#DIMS 取得条件, 10
+
+#DIM 取得条件_Lv
+#DIMS 取得条件_陥落
 
 ;初期化部分
 
@@ -109,7 +113,7 @@ HTML文字列 += "</div>"
 
 ;作成アビリティ効果表示枠
 HTML文字列 += "<div rect='1700, 1250, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
-HTML文字列 += @"<button value='0'>■%アビ名, 30, LEFT%</button>取得条件：Lv 1　　<button value='202'>[取得条件を変更する]</button><br>"
+HTML文字列 += @"<button value='0'>■%アビ名, 30, LEFT%</button>取得条件：%アビエディタ_取得条件文章化(取得条件)%　　<button value='202'>[取得条件変更]</button><br>"
 HTML文字列 += @"消費ＭＰ："
 IF 消費ＭＰ < 0
 	HTML文字列 += @"自動設定（現在{ABS(消費ＭＰ)}）　　<button value='203'>[手動で設定する]</button><br>"
@@ -123,7 +127,7 @@ IF アビ作成中フラグ
 	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ効果種別")
 			CASE "ダメージ効果"
-				HTML文字列 += @"<div rect='2000, {1450 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"<div rect='1800, {1650 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ対象")%に"
 				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１") > 0
 					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１")}％］の"
@@ -174,7 +178,136 @@ SELECTCASE RESULT
 			基礎BATTLE_STATE:0:Lv = 表示Lv
 		ENDIF
 	CASE 202
-		PRINTW 未実装です。
+		;取得条件を解析
+
+		VARSET RESULTS
+		取得条件_Lv = 0
+		取得条件_陥落 = 
+		SPLIT 取得条件, "***", RESULTS
+		FOR LOCAL, 0, RESULT
+			IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
+				取得条件_Lv = TOINT(REPLACE(RESULTS:LOCAL, "Lv_", ""))
+			ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
+				取得条件_陥落 '= REPLACE(RESULTS:LOCAL, "陥落_", "")
+			ENDIF
+		NEXT
+
+		$取得LOOP
+
+		DRAWLINE
+		PRINTL 取得条件を設定してください。
+		PRINTFORM 現在の取得条件：
+		IF 取得条件_Lv > 0
+			PRINTFORM Lv{取得条件_Lv}　　
+		ENDIF
+		IF 取得条件_陥落 != ""
+			PRINTFORM 陥落条件：%取得条件_陥落%　　
+		ENDIF
+		PRINTL
+		DRAWLINE
+		IF 取得条件_Lv > 0
+			PRINTBUTTON @"[0] Lv条件を設定する　　現在：Lv{取得条件_Lv}条件", 0
+			PRINTL
+			PRINTBUTTON "[1] Lv条件を削除する", 1
+		ELSE
+			PRINTBUTTON "[0] Lv条件を設定する　　現在：Lv条件なし", 0
+		ENDIF
+		PRINTL
+		IF 取得条件_陥落 == "陥落"
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTON "[10] 陥落：種類不問", 10
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[10] 陥落：種類不問", 10
+		ENDIF
+		PRINTL
+		IF 取得条件_陥落 == "恋慕"
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTON "[11] 陥落：恋慕系", 11
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[11] 陥落：恋慕系", 11
+		ENDIF
+		PRINTL
+		IF 取得条件_陥落 == "セフレ"
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTON "[12] 陥落：セフレ系", 12
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[12] 陥落：セフレ系", 12
+		ENDIF
+		PRINTL
+		IF 取得条件_陥落 == "非エロ"
+			SETCOLOR カラーパレット("黄")
+			PRINTBUTTON "[13] 陥落：非エロ系", 13
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[13] 陥落：非エロ系", 13
+		ENDIF
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[999] これで決定", 999
+		PRINTL
+		PRINTL
+		BINPUT
+		PRINTL
+		PRINTL
+		SELECTCASE RESULT
+			CASE 999
+				取得条件 = 
+				IF 取得条件_Lv > 0
+					取得条件 += @"Lv_{取得条件_Lv}"
+				ENDIF
+				IF 取得条件_陥落 != ""
+					SIF 取得条件 != ""
+						取得条件 += "***"
+					取得条件 += @"陥落_%取得条件_陥落%"
+				ENDIF
+				SIF 消費ＭＰ < 0
+					CALL ＭＰ自動計算(消費ＭＰ, 取得条件)
+				GOTO 動作LOOP
+			CASE 0
+				$LvLOOP
+				DRAWLINE
+				PRINTL 取得Lvを入力してください。
+				DRAWLINE
+				PRINTL
+				INPUT
+				IF RESULT < 1 || RESULT > 80
+					PRINTW １未満、あるいは８０を越える数値は入力できません。
+					GOTO LvLOOP
+				ELSE
+					取得条件_Lv = RESULT
+				ENDIF
+			CASE 1
+				取得条件_Lv = 0
+			CASE 10
+				IF 取得条件_陥落 == "陥落"
+					取得条件_陥落 = 
+				ELSE
+					取得条件_陥落 = 陥落
+				ENDIF
+			CASE 11
+				IF 取得条件_陥落 == "恋慕"
+					取得条件_陥落 = 
+				ELSE
+					取得条件_陥落 = 恋慕
+				ENDIF
+			CASE 12
+				IF 取得条件_陥落 == "セフレ"
+					取得条件_陥落 = 
+				ELSE
+					取得条件_陥落 = セフレ
+				ENDIF
+			CASE 13
+				IF 取得条件_陥落 == "非エロ"
+					取得条件_陥落 = 
+				ELSE
+					取得条件_陥落 = 非エロ
+				ENDIF
+		ENDSELECT
+
+		GOTO 取得LOOP
 	CASE 203
 		IF 消費ＭＰ < 0
 			;自動＞手動
@@ -204,7 +337,7 @@ SELECTCASE RESULT
 			PRINTW アビ名が入力されていません。
 			GOTO 動作LOOP
 		ENDIF
-		CALL アビエディタ_ERB生成(対象NO, アビ名, 消費ＭＰ)
+		CALL アビエディタ_ERB生成(対象NO, アビ名, 消費ＭＰ, 取得条件)
 
 		;追加したキャラを削除
 		DELCHARA CHARANUM - 1
@@ -243,7 +376,7 @@ SELECTCASE RESULT
 ENDSELECT
 
 SIF 消費ＭＰ < 0
-	CALL ＭＰ自動計算(消費ＭＰ)
+	CALL ＭＰ自動計算(消費ＭＰ, 取得条件)
 GOTO 動作LOOP
 
 
@@ -540,7 +673,7 @@ SELECTCASE RESULT
 ENDSELECT
 
 
-@アビエディタ_ERB生成(対象No, アビ名, 消費ＭＰ)
+@アビエディタ_ERB生成(対象No, アビ名, 消費ＭＰ, 取得条件)
 #DIM DB行数
 #DIMS アビERB記述
 #DIMS アビ説明記述, 10
@@ -550,6 +683,8 @@ ENDSELECT
 #DIM 対象No
 #DIM 消費ＭＰ
 #DIMS アビ名
+#DIMS 取得条件
+#DIMS 取得条件_文字列
 
 VARSET アビ説明記述
 VARSET アビ効果記述
@@ -561,9 +696,40 @@ VARSET アビ効果記述
 アビERB記述 += "<br>"
 
 ;ここに習得条件入れる
+IF 取得条件 != ""
+	;取得条件を解析
 
-アビERB記述 += @"アビ名 = %アビ名%<br>"
-アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ)}<br><br>"
+	VARSET RESULTS
+	取得条件_文字列 = 
+	SPLIT 取得条件, "***", RESULTS
+	FOR LOCAL, 0, RESULT
+		IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
+			SIF 取得条件_文字列 != ""
+				取得条件_文字列 += " &amp;&amp; "
+			取得条件_文字列 += @"基礎BATTLE_STATE:キャラ番号:Lv >= %REPLACE(RESULTS:LOCAL, "Lv_", "")%"
+		ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
+			SIF 取得条件_文字列 != ""
+				取得条件_文字列 += " &amp;&amp; "
+			SELECTCASE REPLACE(RESULTS:LOCAL, "陥落_", "")
+				CASE "陥落"
+					取得条件_文字列 += "陥落チェック(キャラ番号)"
+				CASE "恋慕"
+					取得条件_文字列 += "陥落チェック_恋慕系(キャラ番号)"
+				CASE "セフレ"
+					取得条件_文字列 += "GETBIT(陥落チェック(キャラ番号), 1)"
+				CASE "非エロ"
+					取得条件_文字列 += "陥落チェック_非性的(キャラ番号)"
+			ENDSELECT
+		ENDIF
+	NEXT
+	アビERB記述 += @"IF %取得条件_文字列%<br>"
+	アビERB記述 += @"	アビ名 = %アビ名%<br>"
+	アビERB記述 += @"	消費ＭＰ = {ABS(消費ＭＰ)}<br>"
+	アビERB記述 += "ENDIF<br><br>"
+ELSE
+	アビERB記述 += @"アビ名 = %アビ名%<br>"
+	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ)}<br><br>"
+ENDIF
 
 FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
 	アビ段階 = DT_CELL_GET("アビエディタデータベース", DB行数, "アビ段階")
@@ -676,7 +842,7 @@ SELECTCASE 対象文字列
 ENDSELECT
 
 
-@ＭＰ自動計算(消費ＭＰ)
+@ＭＰ自動計算(消費ＭＰ, 取得条件)
 #DIM REF 消費ＭＰ
 #DIM ダメージ総倍率
 #DIM ダメージ総値
@@ -684,6 +850,30 @@ ENDSELECT
 #DIM 基礎消費MP
 #DIM 補正回数
 #DIM ループ用
+#DIM レベル補正
+#DIMS 取得条件
+#DIM 取得条件_Lv
+#DIMS 取得条件_陥落
+
+;取得条件を解析
+
+VARSET RESULTS
+取得条件_Lv = 0
+取得条件_陥落 = 
+SPLIT 取得条件, "***", RESULTS
+FOR LOCAL, 0, RESULT
+	IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
+		取得条件_Lv = TOINT(REPLACE(RESULTS:LOCAL, "Lv_", ""))
+	ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
+		取得条件_陥落 '= REPLACE(RESULTS:LOCAL, "陥落_", "")
+	ENDIF
+NEXT
+
+;陥落は２５Lv分として計算
+SIF 取得条件_陥落 != ""
+	取得条件_Lv += 25
+
+レベル補正 = 取得条件_Lv / 10 + 1
 
 ダメージ総倍率 = 0
 ダメージ総値 = 0
@@ -699,13 +889,33 @@ NEXT
 補正回数 = ダメージ総倍率 / 50 + 1
 FOR ループ用, 0, 補正回数
 	IF ループ用 == 補正回数 - 1
-		;基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
-		基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - 1)) / 40
+		基礎消費MP += (ダメージ総倍率 % 50) * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
 	ELSE
-		;基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
-		基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - 1)) / 40
+		基礎消費MP += 50 * POWER(2, MAX(0, ループ用 - レベル補正)) / 40
 	ENDIF
 NEXT
 
 
 消費ＭＰ = 基礎消費MP * -1
+
+
+@アビエディタ_取得条件文章化(取得条件)
+#FUNCTIONS
+#DIMS 取得条件
+#DIMS 文章化
+
+SIF 取得条件 == ""
+	RETURNF ""
+
+文章化 = 
+VARSET RESULTS
+SPLIT 取得条件, "***", RESULTS
+FOR LOCAL, 0, RESULT
+	IF RESULTS:LOCAL != ""
+		文章化 += REPLACE(RESULTS:LOCAL, "_", ":")
+		文章化 += "　"
+	ENDIF
+NEXT
+
+RETURNF 文章化
+
