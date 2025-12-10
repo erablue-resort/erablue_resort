@@ -127,6 +127,7 @@ ENDIF
 
 SELECTCASE サイド描画表示種類
 	CASE "クイック移動"
+		RFLAG:サイドボタン操作 = 0
 		IF STRCOUNT(RESULTS, "サイド領域_スクロール_")
 			IF RESULTS == "サイド領域_スクロール_左"
 				サイド描画横スクロール保存 = MAX(0, サイド描画横スクロール保存 - 84)
@@ -151,34 +152,11 @@ SELECTCASE サイド描画表示種類
 		SIF CFLAG:PLAYER:飲み会
 			RETURN 1
 		IF RESULTS == "サイド領域_自室に戻る"
-			;クイック移動処理
-			SIF CFLAG:MASTER:現在マップ種別 == 0 && CFLAG:MASTER:現在位置 == CFLAG:MASTER:自室位置
-				RETURN 1
-			IF CFLAG:PLAYER:現在マップ種別 == 0
-				RESULTS = サイド領域_{CFLAG:PLAYER:自室位置}
-			ELSE
-				;まずエリア移動
-				TFLAG:SELECTCOM受け渡し = 400
-				SELECTCOM = 400
-				IF CFLAG:MASTER:現在マップ種別 == 999
-					CFLAG:MASTER:現在マップ種別 = 0
-					IF 施設改造度:20:0
-						CFLAG:MASTER:現在位置 = 2001
-					ELSE
-						CFLAG:MASTER:現在位置 = 20
-					ENDIF
-				ELSE
-					TFLAG:エリア切り替え時_目的地格納 = 100
-					CALL COM400
-				ENDIF
-				;どっかで立ち止まったなら以降の処理キャンセル
-				SIF RFLAG:立ち止まらないフラグ < 0
-					RETURN 1
-				;次にエリア内移動
-				IF CFLAG:MASTER:自室位置 != CFLAG:MASTER:現在位置
-					RESULTS = サイド領域_{CFLAG:PLAYER:自室位置}
-				ENDIF
-			ENDIF
+			TFLAG:SELECTCOM受け渡し = 400
+			SELECTCOM = 400
+			TFLAG:エリア切り替え時_目的地格納 = 100
+			TFLAG:コマンド外移動時_目的地格納 = CFLAG:PLAYER:自室位置
+			RETURN 0
 		ENDIF
 		入力数値 = 0
 		入力数値 = TOINT(REPLACE(RESULTS, "サイド領域_", ""))
@@ -200,42 +178,29 @@ SELECTCASE サイド描画表示種類
 				RETURN 1
 			ELSEIF RESULT == 1
 				;移動処理へ進む
-				サイド描画横スクロール保存 = 0
-				CALL COM400
+				;サイド描画横スクロール保存 = 0
 				SELECTCOM = 400
 				TFLAG:SELECTCOM受け渡し = 400
-				SIF RESULT == -1
-					RETURN -1
-				RETURN 0
+				;SIF RESULT == -1
+				;	RETURN -1
+				;RETURN 0
 			ENDIF
-		ELSEIF CFLAG:PLAYER:現在位置 == 入力数値
-			RETURN 1
+		;ELSEIF CFLAG:PLAYER:現在位置 == 入力数値
+		;	RETURN 1
 		ELSEIF LOCAL
-			サイド描画横スクロール保存 = 0
+			;サイド描画横スクロール保存 = 0
 			RETURN 1
-		ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, 入力数値)
-			RETURN 1
-		ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-			;商業区や居住区の個別部屋にいると考えられるので、即座に移動する
-			CFLAG:MASTER:現在位置 = 入力数値
+		;ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, 入力数値)
+		;	RETURN 1
+		;ELSEIF 存在しない移動先(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		;商業区や居住区の個別部屋にいると考えられるので、即座に移動する
+		;	CFLAG:MASTER:現在位置 = 入力数値
 		ELSE
-			;目的地が離れているので、最終目的地として設定
-			TFLAG:長距離移動時_目的地格納 = 入力数値
-			CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, 入力数値)
-			;現在位置を更新し、次も移動の扱いにする
-			CFLAG:MASTER:現在位置 = RESULT
-			TIME += 1
 			TFLAG:SELECTCOM受け渡し = 400
 			SELECTCOM = 400
-			CALL COM400
-			SIF RESULT == -1
-				RETURN -1
-			RETURN 0
+			TFLAG:エリア切り替え時_目的地格納 = CFLAG:PLAYER:現在マップ種別 + 100
+			TFLAG:コマンド外移動時_目的地格納 = 入力数値
 		ENDIF
-		;移動処理
-		TIME += 1
-		TFLAG:SELECTCOM受け渡し = 400
-		SELECTCOM = 400
 	CASE "能力表示"
 		SIF RESULTS == "サイド領域_弱点コマンド全表示"
 			CALL 弱点コマンド全表示(TARGET)

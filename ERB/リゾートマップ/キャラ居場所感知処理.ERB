@@ -332,7 +332,7 @@ ENDIF
 LOCAL = TOINT(RESULTS)
 SELECTCASE LOCAL
 	CASE 9999
-		RETURN 0
+		RETURN 1
 	CASE 9998
 		ページ数 -= 1
 		GOTO 表示_LOOP
@@ -341,85 +341,15 @@ SELECTCASE LOCAL
 		GOTO 表示_LOOP
 	CASEELSE
 		;クイック移動処理
-		SIF 表示マップ種別 == CFLAG:MASTER:現在マップ種別 && LOCAL == CFLAG:MASTER:現在位置
-			RETURN 0
+		;SIF 表示マップ種別 == CFLAG:MASTER:現在マップ種別 && LOCAL == CFLAG:MASTER:現在位置
+		;	RETURN 1
 		;まずはエリア移動から
 		TFLAG:SELECTCOM受け渡し = 400
 		SELECTCOM = 400
-		IF 表示マップ種別 != CFLAG:MASTER:現在マップ種別
-			IF 表示マップ種別 == 999
-				IF CFLAG:MASTER:現在マップ種別 != 0
-					TFLAG:エリア切り替え時_目的地格納 = 100
-					CALL COM400
-				ENDIF
-			ELSEIF CFLAG:MASTER:現在マップ種別 == 999
-				CFLAG:MASTER:現在マップ種別 = 0
-				IF 施設改造度:20:0
-					CFLAG:MASTER:現在位置 = 2001
-				ELSE
-					CFLAG:MASTER:現在位置 = 20
-				ENDIF
-				IF 表示マップ種別 != 0
-					TFLAG:エリア切り替え時_目的地格納 = 表示マップ種別 + 100
-					CALL COM400
-				ENDIF
-			ELSE
-				TFLAG:エリア切り替え時_目的地格納 = 表示マップ種別 + 100
-				CALL COM400
-			ENDIF
-		ENDIF
-		;どっかで立ち止まったなら以降の処理キャンセル
-		SIF RFLAG:立ち止まらないフラグ < 0
-			RETURN 0
-		;次にエリア内移動
-		CALL 入室不可処理(表示マップ種別, LOCAL, 0)
-		入室禁止フラグ = RESULT
-		IF 表示マップ種別 == 999
-			IF 入室禁止フラグ
-				CFLAG:MASTER:現在マップ種別 = 0
-				IF 施設改造度:20:0
-					CFLAG:MASTER:現在位置 = 2001
-				ELSE
-					CFLAG:MASTER:現在位置 = 20
-				ENDIF
-			ELSE
-				CFLAG:MASTER:現在マップ種別 = 999
-				CFLAG:MASTER:現在位置 = LOCAL
-				SIF TARGET登録
-					TFLAG:TARGET変更用 = TARGET登録
-			ENDIF
-		ELSEIF LOCAL != CFLAG:MASTER:現在位置
-			IF CFLAG:MASTER:現在マップ種別 == 2 && LOCAL >= 1000
-				;そのまま目的地に移動させる
-				IF 入室禁止フラグ
-					RETURN 0
-				ENDIF
-				CFLAG:MASTER:現在位置 = LOCAL
-			ELSEIF CFLAG:MASTER:現在マップ種別 == 1 && LOCAL >= 1000
-				;そのまま目的地に移動させる
-				IF 入室禁止フラグ
-					RETURN 0
-				ENDIF
-				CFLAG:MASTER:現在位置 = LOCAL
-			ELSE
-				TFLAG:長距離移動時_目的地格納 = LOCAL
-				CALL SKIP_MOVE(CFLAG:MASTER:現在マップ種別, LOCAL)
-				;現在位置を更新し、次も移動の扱いにする
-				CFLAG:MASTER:現在位置 = RESULT
-				;マップ間をまたいで移動時の処理
-				CALL マップ遷移判定処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)
-				IF RESULT
-					CFLAG:MASTER:現在位置 = RESULT
-				ENDIF
-				TIME += 1
-				TFLAG:SELECTCOM受け渡し = 400
-				SELECTCOM = 400
-				CALL COM400
-				CALL 入室不可処理(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置, 1)
-				SIF TARGET登録
-					TFLAG:TARGET変更用 = TARGET登録
-			ENDIF
-		ENDIF
+		TFLAG:エリア切り替え時_目的地格納 = 表示マップ種別 + 100
+		TFLAG:コマンド外移動時_目的地格納 = LOCAL
+		SIF TARGET登録
+			TFLAG:TARGET変更用 = TARGET登録
 ENDSELECT
 
 @枠選択_リスト式()

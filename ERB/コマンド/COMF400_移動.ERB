@@ -34,10 +34,74 @@ CALL 移動時モード消去(PLAYER)
 ;表示マップ種類を代入
 TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 
+IF TFLAG:エリア切り替え時_目的地格納 - 100 == CFLAG:MASTER:現在マップ種別 && TFLAG:コマンド外移動時_目的地格納 == CFLAG:MASTER:現在位置
+	CALL 移動初期化処理
+	RETURN -1
+ENDIF
+
+;キャラ居場所感知などでの移動用処理
+IF TFLAG:エリア切り替え時_目的地格納 == 1099
+	;客室間の移動
+	IF CFLAG:MASTER:現在マップ種別 == 999
+		CALL 入室時処理(TFLAG:コマンド外移動時_目的地格納)
+		RETURN
+	ELSEIF CFLAG:MASTER:現在マップ種別 == 0
+		CALLFORM エリア情報登録_{CFLAG:PLAYER:現在マップ種別}("エリア移動可能場所")
+		;移動可能場所、位置20（自室）、家
+		IF CFLAG:PLAYER:現在位置 == RESULT || CFLAG:PLAYER:現在位置 == 20 || CFLAG:PLAYER:現在位置 / 100 == 20
+			CALL 入室時処理(TFLAG:コマンド外移動時_目的地格納)
+			RETURN
+		ENDIF
+		TFLAG:長距離移動時_目的地格納 = RESULT
+		TFLAG:エリア切り替え時_目的地格納 = 0
+		CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, TFLAG:長距離移動時_目的地格納)
+		CFLAG:PLAYER:現在位置 = RESULT
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	ELSE
+		TFLAG:エリア切り替え時_目的地格納 = 100
+	ENDIF
+	TFLAG:コマンド外移動時_目的地格納 += 10000
+ELSEIF INRANGE(TFLAG:コマンド外移動時_目的地格納, 1, 9999)
+	IF CFLAG:MASTER:現在マップ種別 == 999
+		CFLAG:MASTER:現在マップ種別 = 0
+		IF 施設改造度:20:0
+			CFLAG:MASTER:現在位置 = 2001
+		ELSE
+			CFLAG:MASTER:現在位置 = 20
+		ENDIF
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		IF TFLAG:エリア切り替え時_目的地格納 == 100
+			TFLAG:長距離移動時_目的地格納 = TFLAG:コマンド外移動時_目的地格納
+			TFLAG:エリア切り替え時_目的地格納 = 0
+			TFLAG:コマンド外移動時_目的地格納 = 0
+		ELSE
+			;移動済みなのでエリア切り替え時の処理用にマイナスに
+			TFLAG:エリア切り替え時_目的地格納 *= -1
+		ENDIF
+	ELSEIF CFLAG:PLAYER:現在マップ種別 == TFLAG:エリア切り替え時_目的地格納 - 100
+		TFLAG:長距離移動時_目的地格納 = TFLAG:コマンド外移動時_目的地格納
+		TFLAG:エリア切り替え時_目的地格納 = 0
+		TFLAG:コマンド外移動時_目的地格納 = 0
+		IF TFLAG:長距離移動時_目的地格納 >= 1000 && GROUPMATCH(CFLAG:PLAYER:現在マップ種別, 1, 2)
+			CALL 入室時処理(TFLAG:長距離移動時_目的地格納)
+			RETURN
+		ELSE
+			CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, TFLAG:長距離移動時_目的地格納)
+			CFLAG:PLAYER:現在位置 = RESULT
+			TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		ENDIF
+	ENDIF
+ENDIF
+
 ;エリア切り替え時の処理
 IF TFLAG:エリア切り替え時_目的地格納
 	CALLFORM エリア情報登録_{CFLAG:PLAYER:現在マップ種別}("エリア移動可能場所")
-	IF CFLAG:PLAYER:現在位置 == RESULT
+	IF TFLAG:エリア切り替え時_目的地格納 < 0
+		TFLAG:長距離移動時_目的地格納 = RESULT
+		TFLAG:エリア切り替え時_目的地格納 *= -1
+	ELSEIF TFLAG:長距離移動時_目的地格納 == -1
+		;なし
+	ELSEIF CFLAG:PLAYER:現在位置 == RESULT
 		CFLAG:PLAYER:現在マップ種別 = TFLAG:エリア切り替え時_目的地格納 - 100
 		CALLFORM エリア情報登録_{TFLAG:エリア切り替え時_目的地格納 - 100}("エリア移動可能場所")
 		CFLAG:PLAYER:現在位置 = RESULT
@@ -50,31 +114,33 @@ IF TFLAG:エリア切り替え時_目的地格納
 		ELSE
 			TIME += 15
 		ENDIF
-		RETURN 0
-	ELSE
+		IF !TFLAG:コマンド外移動時_目的地格納 || TFLAG:コマンド外移動時_目的地格納 == CFLAG:PLAYER:現在位置 || 同一場所判定(TFLAG:コマンド外移動時_目的地格納, CFLAG:MASTER:現在位置)
+			CALL 移動初期化処理
+			RETURN
+		ELSE
+			TFLAG:長距離移動時_目的地格納 = TFLAG:コマンド外移動時_目的地格納
+			SIF TFLAG:コマンド外移動時_目的地格納 < 10000
+				TFLAG:コマンド外移動時_目的地格納 = 0
+		ENDIF
+	ELSEIF !TFLAG:長距離移動時_目的地格納
 		TFLAG:長距離移動時_目的地格納 = RESULT
 		CALL SKIP_MOVE(CFLAG:PLAYER:現在マップ種別, TFLAG:長距離移動時_目的地格納)
 		;現在位置を更新し、次も移動の扱いにする
 		CFLAG:PLAYER:現在位置 = RESULT
+		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	ENDIF
 ENDIF
 
 ;遠距離移動中の処理
 IF TFLAG:長距離移動時_目的地格納
 	TIME += 1
-	IF TFLAG:長距離移動時_目的地格納 == CFLAG:MASTER:現在位置
+	IF TFLAG:コマンド外移動時_目的地格納 >= 10000
+		;なし
+	ELSEIF TFLAG:長距離移動時_目的地格納 == CFLAG:MASTER:現在位置 || 同一場所判定(TFLAG:長距離移動時_目的地格納, CFLAG:MASTER:現在位置)
 		TFLAG:長距離移動時_目的地格納 = 0
 		IF !TFLAG:エリア切り替え時_目的地格納
+			CALL 移動初期化処理
 			RETURN 0
-		ELSE
-			RESTART
-		ENDIF
-	ELSEIF 同一場所判定(TFLAG:長距離移動時_目的地格納, CFLAG:MASTER:現在位置)
-		TFLAG:長距離移動時_目的地格納 = 0
-		IF !TFLAG:エリア切り替え時_目的地格納
-			RETURN 0
-		ELSE
-			RESTART
 		ENDIF
 	ENDIF
 	CALL CHARA_MOVEMENT
@@ -101,8 +167,7 @@ IF TFLAG:長距離移動時_目的地格納
 			PRINTFORML %RESULTS:0%がこちらに近づいてくる……！
 			PRINTFORMW %CALLNAME:PLAYER%たちは見つかる前に急いでこの場から立ち去った……
 			CALL 全裸散歩終了処理()
-			TFLAG:長距離移動時_目的地格納 = 0
-			TFLAG:エリア切り替え時_目的地格納 = 0
+			CALL 移動初期化処理
 			;エリアまたぎ移動キャンセル用にフラグを突っ込む
 			RFLAG:立ち止まらないフラグ = -1
 			RETURN -1
@@ -140,8 +205,7 @@ IF TFLAG:長距離移動時_目的地格納
 					;もう立ち止まらないフラグを立てとく
 					RFLAG:立ち止まらないフラグ = 1
 				ELSE
-					TFLAG:長距離移動時_目的地格納 = 0
-					TFLAG:エリア切り替え時_目的地格納 = 0
+					CALL 移動初期化処理
 					;エリアまたぎ移動キャンセル用にフラグを突っ込む
 					RFLAG:立ち止まらないフラグ = -1
 					RETURN 0
@@ -152,13 +216,29 @@ IF TFLAG:長距離移動時_目的地格納
 	
 		LOCAL:1 = IN_ROOM("MIN", 18, "CFLAG", 6)
 	;遠距離移動
-	IF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
+	IF TFLAG:コマンド外移動時_目的地格納 >= 10000 && !TFLAG:エリア切り替え時_目的地格納 && CFLAG:PLAYER:現在マップ種別 == 0
+		CALLFORM エリア情報登録_{CFLAG:PLAYER:現在マップ種別}("エリア移動可能場所")
+		IF CFLAG:PLAYER:現在位置 == RESULT
+			CALL 入室時処理(TFLAG:コマンド外移動時_目的地格納 - 10000)
+			RETURN
+		ENDIF
+	ENDIF
+	IF TFLAG:長距離移動時_目的地格納 < 1
+		TFLAG:長距離移動時_目的地格納 = 0
+	ELSEIF TFLAG:長距離移動時_目的地格納 >= 1000 && GROUPMATCH(CFLAG:PLAYER:現在マップ種別, 1, 2) && !TFLAG:エリア切り替え時_目的地格納
+		CALL 入室時処理(TFLAG:長距離移動時_目的地格納)
+		RETURN
+	ELSEIF CAN_MOVE(CFLAG:PLAYER:現在マップ種別, CFLAG:MASTER:現在位置, TFLAG:長距離移動時_目的地格納) & 1
 		CFLAG:MASTER:現在位置 = (TFLAG:長距離移動時_目的地格納)
 		TFLAG:マップ種別 = 派生マップ番号取得(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 		;遠距離移動フラグ消去
-		TFLAG:長距離移動時_目的地格納 = 0
-		SIF !TFLAG:エリア切り替え時_目的地格納
+		IF !TFLAG:エリア切り替え時_目的地格納
+			CALL 移動初期化処理
+			TIME += 1
 			RETURN 0
+		ENDIF
+		;エリア移動可能場所で一回立ち止まる処理入れるためにマイナスを
+		TFLAG:長距離移動時_目的地格納 = -1
 		; FOR LOCAL,1,CHARANUM
 		; 	SIF CFLAG:LOCAL:同行
 		; 		CFLAG:LOCAL:現在位置 = CFLAG:MASTER:現在位置
@@ -308,3 +388,22 @@ RETURN 1
 ;-------------------------------------------------
 
 
+;-------------------------------------------------
+;入室時処理
+;-------------------------------------------------
+@入室時処理(ARG)
+
+SIF !CFLAG:MASTER:現在マップ種別
+	CFLAG:MASTER:現在マップ種別 = 999
+CFLAG:MASTER:現在位置 = ARG
+TIME += 1
+CALL 移動初期化処理
+
+;-------------------------------------------------
+;移動初期化処理
+;-------------------------------------------------
+@移動初期化処理
+
+TFLAG:コマンド外移動時_目的地格納 = 0
+TFLAG:長距離移動時_目的地格納 = 0
+TFLAG:エリア切り替え時_目的地格納 = 0
