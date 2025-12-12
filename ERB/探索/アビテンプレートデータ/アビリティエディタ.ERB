@@ -3,6 +3,7 @@
 DT_CREATE "アビエディタデータベース"
 DT_COLUMN_ADD "アビエディタデータベース", "アビ効果種別"
 DT_COLUMN_ADD "アビエディタデータベース", "アビ対象"
+DT_COLUMN_ADD "アビエディタデータベース", "効果順番", 1
 DT_COLUMN_ADD "アビエディタデータベース", "アビ段階", 1
 DT_COLUMN_ADD "アビエディタデータベース", "アビ段階条件"
 DT_COLUMN_ADD "アビエディタデータベース", "アビ文字列１"
@@ -21,12 +22,15 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 #DIM 既存アビ数
 #DIM 表示Lv
 #DIM アビ作成中フラグ
+#DIM アビID, 100
 #DIMS HTML文字列
 #DIM 枠配置縦位置
 #DIM アビ段階
 #DIMS アビ名, 5
 #DIM 消費ＭＰ, 5
 #DIMS 取得条件, 5
+#DIM 表示候補数
+#DIM 選択番号
 
 #DIM 取得条件_Lv
 #DIMS 取得条件_陥落
@@ -43,6 +47,7 @@ ADDCHARA 0
 VARSET アビ名, "（未定）"
 VARSET 消費ＭＰ, -1
 VARSET 取得条件
+アビ段階 = 0
 CALL アビエディタデータベースセット()
 
 対象NO = 1
@@ -124,28 +129,43 @@ HTML文字列 += "--------------------------------------------------------------
 HTML文字列 += "</div>"
 IF アビ作成中フラグ
 	枠配置縦位置 = 0
-	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
-		SELECTCASE DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ効果種別")
+	VARSET RESULT
+	表示候補数 = DT_SELECT("アビエディタデータベース", @"アビ段階 = {アビ段階}", "効果順番 ASC")
+	;配列に保存
+	ARRAYCOPY "RESULT", "アビID"
+	ARRAYSHIFT アビID, -1, 0
+	FOR LOCAL, 0, 表示候補数
+		SELECTCASE DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ効果種別", 1)
 			CASE "ダメージ効果"
 				HTML文字列 += @"<div rect='1800, {1650 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
-				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ対象")%に"
-				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１") > 0
-					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", LOCAL, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値１")}％］の"
+				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ対象", 1)%に"
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1) > 0
+					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ文字列１", 1)%✕{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1)}％］の"
 				ELSE
-					HTML文字列 += @"［{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値２")}］の"
+					HTML文字列 += @"［{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値２", 1)}］の"
 				ENDIF
-				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３") < 0
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値３", 1) < 0
 					HTML文字列 += "自属性ダメージを"
 				ELSE
-					HTML文字列 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３"))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値３"))%属性</font>ダメージを"
+					HTML文字列 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値３", 1))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値３", 1))%属性</font>ダメージを"
 				ENDIF
-				IF DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値４") < 2
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値４", 1) < 2
 					HTML文字列 += "与える。"
 				ELSE
-					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", LOCAL, "アビ数値４")}回与える。"
+					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値４", 1)}回与える。"
 				ENDIF
 				HTML文字列 += "<br>"
-				HTML文字列 += @"<button value='{LOCAL + 100}'>[効果を変更する]</button>　　<button value='{LOCAL + 300}'>[効果を削除する]</button><br>"
+				HTML文字列 += @"<button value='{LOCAL + 100}'>[効果を変更する]</button>　　<button value='{LOCAL + 300}'>[効果を削除する]</button>　　"
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "効果順番", 1) > 0
+					HTML文字列 += @"<button value='{LOCAL + 400}'>[↑]</button>"
+				ELSE
+					HTML文字列 += "　　"
+				ENDIF
+				HTML文字列 += "　"
+				IF 表示候補数 > LOCAL + 1
+					HTML文字列 += @"<button value='{LOCAL + 500}'>[↓]</button>"
+				ENDIF
+				HTML文字列 += "<br>"
 				HTML文字列 += "</div>"
 				枠配置縦位置 += 430
 		ENDSELECT
@@ -162,19 +182,20 @@ BINPUT
 PRINTL
 PRINTL
 
-SELECTCASE RESULT
+選択番号 = RESULT
+SELECTCASE 選択番号
 	CASE 200
 		CALL CSVコピー処理(2)
-		SIF RESULT > 0
-			対象NO = RESULT
+		SIF 選択番号 > 0
+			対象NO = 選択番号
 	CASE 201
 		DRAWLINE
 		PRINTL 1～80の範囲でLvを設定してください。
 		INPUT
-		IF RESULT < 1 || RESULT > 80
+		IF 選択番号 < 1 || 選択番号 > 80
 			PRINTW 数値が不正です。
 		ELSE
-			表示Lv = RESULT
+			表示Lv = 選択番号
 			基礎BATTLE_STATE:0:Lv = 表示Lv
 		ENDIF
 	CASE 202
@@ -184,7 +205,7 @@ SELECTCASE RESULT
 		取得条件_Lv = 0
 		取得条件_陥落 = 
 		SPLIT 取得条件:アビ段階, "***", RESULTS
-		FOR LOCAL, 0, RESULT
+		FOR LOCAL, 0, 選択番号
 			IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
 				取得条件_Lv = TOINT(REPLACE(RESULTS:LOCAL, "Lv_", ""))
 			ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
@@ -315,11 +336,11 @@ SELECTCASE RESULT
 			DRAWLINE
 			PRINTL 消費するＭＰの値を入力してください。
 			INPUT
-			IF RESULT < 0
+			IF 選択番号 < 0
 				PRINTW 負の値は指定出来ません。
 				GOTO MPLOOP
 			ELSE
-				消費ＭＰ = RESULT
+				消費ＭＰ = 選択番号
 			ENDIF
 		ELSE
 			;手動＞自動
@@ -366,13 +387,51 @@ SELECTCASE RESULT
 		CALL アビエディタ_ダメージ効果追加(0, アビ段階)
 	CASE 100 TO 199
 		;効果変更
-		SELECTCASE DT_CELL_GETS("アビエディタデータベース", RESULT - 100, "アビ効果種別")
+		SELECTCASE DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 100), "アビ効果種別", 1)
 			CASE "ダメージ効果"
-				CALL アビエディタ_ダメージ効果追加(DT_CELL_GET("アビエディタデータベース", RESULT - 100, "id"))
+				CALL アビエディタ_ダメージ効果追加(アビID:(選択番号 - 100))
 		ENDSELECT
 	CASE 300 TO 399
 		;効果削除
-		DT_ROW_REMOVE "アビエディタデータベース", DT_CELL_GET("アビエディタデータベース", RESULT - 300, "id")
+		DT_ROW_REMOVE "アビエディタデータベース", アビID:(選択番号 - 300)
+	CASE 400 TO 499
+		;上に移動
+		LOCAL = DT_CELL_GET("アビエディタデータベース", アビID:(選択番号 - 400), "効果順番", 1)
+		DT_SELECT "アビエディタデータベース", @"効果順番 = {LOCAL - 1}"
+		DT_CELL_SET "アビエディタデータベース", RESULT:1, "効果順番", LOCAL, 1
+		DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 400), "効果順番", LOCAL - 1, 1
+		;もしも下に移動した効果が二番目以降不可の対象だった時、入れ替え対象だったものと効果対象を入れ替える
+		IF GROUPMATCH(DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1), "味方単体", "敵単体", "敵横列", "敵縦列")
+			LOCALS '= DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1)
+			DT_CELL_SET "アビエディタデータベース", RESULT:1, "アビ対象", DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 400), "アビ対象", 1), 1
+			DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 400), "アビ対象", LOCALS, 1
+		ENDIF
+		;もしも一番上に来た効果の位置が最初、かつ対象が「上と同じ」だった場合、入れ替え対象だったものと効果対象を入れ替える
+		LOCALS '= DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 400), "アビ対象", 1)
+		IF LOCAL - 1 == 0 && LOCALS == "上と同じ相手"
+			LOCALS '= DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1)
+			DT_CELL_SET "アビエディタデータベース", RESULT:1, "アビ対象", DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 400), "アビ対象", 1), 1
+			DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 400), "アビ対象", LOCALS, 1
+		ENDIF
+	CASE 500 TO 599
+		;下に移動
+		LOCAL = DT_CELL_GET("アビエディタデータベース", アビID:(選択番号 - 500), "効果順番", 1)
+		DT_SELECT "アビエディタデータベース", @"効果順番 = {LOCAL + 1}"
+		DT_CELL_SET "アビエディタデータベース", RESULT:1, "効果順番", LOCAL, 1
+		DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 500), "効果順番", LOCAL + 1, 1
+		;もしも下に移動した効果が二番目以降不可の対象だった時、入れ替え対象だったものと効果対象を入れ替える
+		IF GROUPMATCH(DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", 1), "味方単体", "敵単体", "敵横列", "敵縦列")
+			LOCALS '= DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", 1)
+			DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1), 1
+			DT_CELL_SET "アビエディタデータベース", RESULT:1, "アビ対象", LOCALS, 1
+		ENDIF
+		;もしも一番上に来た効果の位置が最初、かつ対象が「上と同じ」だった場合、入れ替え対象だったものと効果対象を入れ替える
+		LOCALS '= DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1)
+		IF LOCAL - 1 == 0 && LOCALS == "上と同じ相手"
+			LOCALS '= DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", 1)
+			DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1), 1
+			DT_CELL_SET "アビエディタデータベース", RESULT:1, "アビ対象", LOCALS, 1
+		ENDIF
 ENDSELECT
 
 SIF 消費ＭＰ < 0
@@ -391,6 +450,7 @@ GOTO 動作LOOP
 ;アビ数値３ ダメージ属性
 ;アビ数値４ ダメージ回数
 ;アビ数値５
+#DIM 効果順番
 #DIM DYNAMIC ダメージ倍率
 #DIM DYNAMIC ダメージ固定値
 #DIM DYNAMIC ダメージ属性
@@ -402,6 +462,21 @@ GOTO 動作LOOP
 #DIM 変更ID
 #DIMS HTML文字列
 
+;効果の最初かどうかを判定
+IF 変更ID == 0
+	;アビ段階が同じ効果がある、かつ新規効果追加状態＝最初ではない
+	LOCAL = DT_SELECT("アビエディタデータベース", @"アビ段階 = {アビ段階}")
+	効果順番 = LOCAL
+ELSE
+	;既存効果変更の場合、行数を見る
+	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
+		IF DT_CELL_GET("アビエディタデータベース", LOCAL, "id") == 変更ID
+			効果順番 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
 IF 変更ID
 	ダメージ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
 	ダメージ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
@@ -411,8 +486,13 @@ IF 変更ID
 	ダメージ能力値 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
 	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
 ENDIF
-SIF ダメージ対象 == ""
-	ダメージ対象 = 敵単体
+IF ダメージ対象 == ""
+	IF 効果順番 < 1
+		ダメージ対象 = 敵単体
+	ELSE
+		ダメージ対象 = 上と同じ相手
+	ENDIF
+ENDIF
 SIF ダメージ回数 < 1
 	ダメージ回数 = 1
 SIF ダメージ能力値 == ""
@@ -482,7 +562,7 @@ PRINTL
 PRINTL
 SELECTCASE RESULT
 	CASE 1
-		CALL アビエディタ_対象選択(ダメージ対象)
+		CALL アビエディタ_対象選択(ダメージ対象, 効果順番)
 	CASE 2
 		DRAWLINE
 		PRINTFORML 使用する能力値を選択してください。 現在：%ダメージ能力値%
@@ -562,9 +642,9 @@ SELECTCASE RESULT
 		ELSE
 			;新規効果追加
 			IF ダメージモード == 0
-				DT_ROW_ADD "アビエディタデータベース", "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ文字列１", ダメージ能力値, "アビ数値１", ダメージ倍率, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", 0, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ文字列１", ダメージ能力値, "アビ数値１", ダメージ倍率, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
 			ELSE
-				DT_ROW_ADD "アビエディタデータベース", "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ数値２", ダメージ固定値, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", 0, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ数値２", ダメージ固定値, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
 			ENDIF
 			PRINTW 新しいダメージ効果を追加しました。
 		ENDIF
@@ -577,28 +657,65 @@ GOTO 動作LOOP
 
 
 
-@アビエディタ_対象選択(ダメージ対象)
+@アビエディタ_対象選択(ダメージ対象, 効果順番 = 0)
 #DIMS REF ダメージ対象
 #DIM ランダム被りなし
 #DIM ランダム体数記録
+#DIM 効果順番
 
 SIF ランダム体数記録 < 1
 	ランダム体数記録 = 1
 
+
 DRAWLINE
 PRINTFORML 対象を選択してください。 現在：%ダメージ対象%
+IF 効果順番 > 0
+	PRINTL 最初の効果以外の時、対象指定操作を挟む対象は選択出来ません。
+ENDIF
+PRINTL
+IF 効果順番 < 1
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [-1] 直前の効果と同じ
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[-1] 直前の効果と同じ", -1
+ENDIF
 PRINTL
 PRINTBUTTON "[0] 自身", 0
 PRINTL
-PRINTBUTTON "[1] 味方単体", 1
+IF 効果順番 > 0
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [1] 味方単体
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[1] 味方単体", 1
+ENDIF
 PRINTL
 PRINTBUTTON "[2] 味方全体", 2
 PRINTL
-PRINTBUTTON "[10] 敵単体", 10
+IF 効果順番 > 0
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [10] 敵単体
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[10] 敵単体", 10
+ENDIF
 PRINTL
-PRINTBUTTON "[11] 敵横列", 11
+IF 効果順番 > 0
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [11] 敵横列
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[11] 敵横列", 11
+ENDIF
 PRINTL
-PRINTBUTTON "[12] 敵縦列", 12
+IF 効果順番 > 0
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [12] 敵縦列
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[12] 敵縦列", 12
+ENDIF
 PRINTL
 PRINTBUTTON "[13] 敵全体", 13
 PRINTL
@@ -609,6 +726,8 @@ BINPUT
 PRINTL
 PRINTL
 SELECTCASE RESULT
+	CASE -1
+		ダメージ対象 = 上と同じ相手
 	CASE 0
 		ダメージ対象 = 自身
 	CASE 1
@@ -685,6 +804,7 @@ ENDSELECT
 #DIMS アビ名
 #DIMS 取得条件
 #DIMS 取得条件_文字列
+#DIM アビID, 100
 
 VARSET アビ説明記述
 VARSET アビ効果記述
@@ -731,43 +851,51 @@ ELSE
 	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ)}<br><br>"
 ENDIF
 
+VARSET RESULT
+DT_SELECT "アビエディタデータベース", "", "アビ段階 ASC, 効果順番 ASC"
+;配列に保存
+ARRAYCOPY "RESULT", "アビID"
+ARRAYSHIFT アビID, -1, 0
+アビ段階 = 0
+
 FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
-	アビ段階 = DT_CELL_GET("アビエディタデータベース", DB行数, "アビ段階")
-	SELECTCASE DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ効果種別")
+	SIF アビ段階 != DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ段階", 1)
+		アビ段階 = DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ段階", 1)
+	SELECTCASE DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ効果種別", 1)
 		CASE "ダメージ効果"
 			アビ説明記述:アビ段階 += "<br>"
-			アビ説明記述:アビ段階 += @"%DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ対象")%に"
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") > 0
-				アビ説明記述:アビ段階 += @"［%DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ文字列１")%✕{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１")}％］の"
+			アビ説明記述:アビ段階 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ対象", 1)%に"
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1) > 0
+				アビ説明記述:アビ段階 += @"［%DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ文字列１", 1)%✕{DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1)}％］の"
 			ELSE
-				アビ説明記述:アビ段階 += @"［{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２")}］の"
+				アビ説明記述:アビ段階 += @"［{DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1)}］の"
 			ENDIF
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３") < 0
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値３", 1) < 0
 				アビ説明記述:アビ段階 += "自属性ダメージを"
 			ELSE
-				アビ説明記述:アビ段階 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性</font>ダメージを"
+				アビ説明記述:アビ段階 += @"<font color='#%カラーパレット_HTML(@"%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値３", 1))%属性")%'>%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値３", 1))%属性</font>ダメージを"
 			ENDIF
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") < 2
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1) < 2
 				アビ説明記述:アビ段階 += "与える。"
 			ELSE
-				アビ説明記述:アビ段階 += @"{DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")}回与える。"
+				アビ説明記述:アビ段階 += @"{DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1)}回与える。"
 			ENDIF
 
 			アビ効果記述:アビ段階 += "CALL アビ汎用変数文字列リセット<br>"
-			アビ効果記述:アビ段階 += アビエディタ_対象CALL変換(DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ対象"))
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") > 0
-				アビ効果記述:アビ段階 += @"アビ汎用変数:効果割合 = {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１")}<br>"
-				アビ効果記述:アビ段階 += @"アビ汎用文字列:攻撃側使用能力値 = %DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ文字列１")%<br>"
+			アビ効果記述:アビ段階 += アビエディタ_対象CALL変換(DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ対象", 1))
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1) > 0
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果割合 = {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1)}<br>"
+				アビ効果記述:アビ段階 += @"アビ汎用文字列:攻撃側使用能力値 = %DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ文字列１", 1)%<br>"
 			ELSE
-				アビ効果記述:アビ段階 += @"アビ汎用変数:効果量 = {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２")}<br>"
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果量 = {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1)}<br>"
 			ENDIF
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３") < 0
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値３", 1) < 0
 				LOCALS = CALL アビテンプレート_ダメージ処理_自属性
 			ELSE
-				LOCALS = CALL アビテンプレート_ダメージ処理_%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値３"))%属性
+				LOCALS = CALL アビテンプレート_ダメージ処理_%属性数値文字列変換(DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値３", 1))%属性
 			ENDIF
-			IF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") > 1
-				アビ効果記述:アビ段階 += @"FOR LOCAL, 0, {DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")}<br>"
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1) > 1
+				アビ効果記述:アビ段階 += @"FOR LOCAL, 0, {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1)}<br>"
 				アビ効果記述:アビ段階 += @"	%LOCALS%<br>"
 				アビ効果記述:アビ段階 += @"NEXT<br>"
 			ELSE
@@ -816,6 +944,8 @@ PRINTW 関数名のYYYYの部分を任意の文字列に変更し、ERB/口上_�
 #DIM 対象数
 
 SELECTCASE 対象文字列
+	CASE "上と同じ相手"
+		;直前と同じなので記述しない
 	CASE "自身"
 		RETURNF "CALL アビ対象選択テンプレート_自己のみ<br>"
 	CASE "味方単体"
