@@ -285,7 +285,7 @@ SELECTCASE 選択番号
 					取得条件 += @"陥落_%取得条件_陥落%"
 				ENDIF
 				SIF 消費ＭＰ < 0
-					CALL ＭＰ自動計算(消費ＭＰ, 取得条件)
+					CALL ＭＰ自動計算(消費ＭＰ, 取得条件, アビ段階)
 				GOTO 動作LOOP
 			CASE 0
 				$LvLOOP
@@ -435,7 +435,7 @@ SELECTCASE 選択番号
 ENDSELECT
 
 SIF 消費ＭＰ < 0
-	CALL ＭＰ自動計算(消費ＭＰ, 取得条件)
+	CALL ＭＰ自動計算(消費ＭＰ, 取得条件, アビ段階)
 GOTO 動作LOOP
 
 
@@ -972,7 +972,7 @@ SELECTCASE 対象文字列
 ENDSELECT
 
 
-@ＭＰ自動計算(消費ＭＰ, 取得条件)
+@ＭＰ自動計算(消費ＭＰ, 取得条件, アビ段階 = 0)
 #DIM REF 消費ＭＰ
 #DIM ダメージ総倍率
 #DIM ダメージ総値
@@ -980,7 +980,11 @@ ENDSELECT
 #DIM 基礎消費MP
 #DIM 補正回数
 #DIM ループ用
+#DIM アビ段階
 #DIM レベル補正
+#DIM 対象補正
+#DIM 対象数
+#DIMS 対象文字列
 #DIMS 取得条件
 #DIM 取得条件_Lv
 #DIMS 取得条件_陥落
@@ -1008,10 +1012,30 @@ SIF 取得条件_陥落 != ""
 ダメージ総倍率 = 0
 ダメージ総値 = 0
 FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
+	SIF DT_CELL_GET("アビエディタデータベース", DB行数, "アビ段階") != アビ段階
+		CONTINUE
+	対象文字列 '= DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ対象")
+	SELECTCASE 対象文字列
+		CASE "敵横列"
+			対象補正 = 2
+		CASE "敵縦列"
+			対象補正 = 3
+		CASE "敵全体"
+			対象補正 = 4
+		CASE "味方全体"
+			対象補正 = 3
+		CASEELSE
+			IF STRFIND(対象文字列, "敵ランダム") >= 0
+				対象数 = TOINT(REPLACE(REPLACE(REPLACE(対象文字列, "敵ランダム", ""), "体", ""), "（重複なし）", ""))
+				対象補正 = 対象数 / 2 + 1
+			ELSE
+				対象補正 = 1
+			ENDIF
+	ENDSELECT
 	SELECTCASE DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ効果種別")
 		CASE "ダメージ効果"
-			ダメージ総倍率 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")
-			ダメージ総値 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４")
+			ダメージ総倍率 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値１") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") * 対象補正
+			ダメージ総値 += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２") * DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値４") * 対象補正
 	ENDSELECT
 NEXT
 
