@@ -26,6 +26,7 @@ DT_COLUMN_ADD "アビエディタデータベース", "アビ数値５", 3
 #DIMS HTML文字列
 #DIM 枠配置縦位置
 #DIM アビ段階
+#DIM 最大アビ段階
 #DIMS アビ名, 5
 #DIM 消費ＭＰ, 5
 #DIMS 取得条件, 5
@@ -48,6 +49,7 @@ VARSET アビ名, "（未定）"
 VARSET 消費ＭＰ, -1
 VARSET 取得条件
 アビ段階 = 0
+最大アビ段階 = 0
 CALL アビエディタデータベースセット()
 
 対象NO = 1
@@ -99,7 +101,7 @@ IF 対象NO > 0 && EXIST画像FILE(@"resources/{対象NO}%CSVCALLNAME(対象NO)%
 ENDIF
 
 ;操作パネル
-HTML文字列 += "<div rect='50, 1250, 1600, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "<div rect='50, 1250, 1600, 4200' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 IF アビ作成中フラグ == 0
 	HTML文字列 += "<button value='900'>[900] 新規アビリティ作成</button><br>"
 	;作成中
@@ -111,14 +113,17 @@ ELSE
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
-SIF アビ作成中フラグ
+IF アビ作成中フラグ
+	HTML文字列 += "<button value='997'>[997] アビ段階を増やす</button><br>"
+	HTML文字列 += "<br>"
 	HTML文字列 += "<button value='998'>[998] アビリティERBを生成する</button><br>"
+ENDIF
 HTML文字列 += "<button value='999'>[999] 戻る</button><br>"
 HTML文字列 += "</div>"
 
 ;作成アビリティ効果表示枠
-HTML文字列 += "<div rect='1700, 1250, 4050, 4000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
-HTML文字列 += @"<button value='0'>■%アビ名:アビ段階, 30, LEFT%</button>取得条件：%アビエディタ_取得条件文章化(取得条件)%　　<button value='202'>[取得条件変更]</button><br>"
+HTML文字列 += "<div rect='1700, 1425, 4050, 4025' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += @"<button value='0'>■%アビ名:アビ段階, 30, LEFT%</button>取得条件：%アビエディタ_取得条件文章化(取得条件:アビ段階)%　　<button value='202'>[取得条件変更]</button><br>"
 HTML文字列 += @"消費ＭＰ："
 IF 消費ＭＰ:アビ段階 < 0
 	HTML文字列 += @"自動設定（現在{ABS(消費ＭＰ:アビ段階)}）　　<button value='203'>[手動で設定する]</button><br>"
@@ -137,7 +142,7 @@ IF アビ作成中フラグ
 	FOR LOCAL, 0, 表示候補数
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ効果種別", 1)
 			CASE "ダメージ効果"
-				HTML文字列 += @"<div rect='1800, {1650 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"<div rect='1800, {1825 + 枠配置縦位置}, 3850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ対象", 1)%に"
 				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1) > 0
 					HTML文字列 += @"［%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ文字列１", 1)%✕{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1)}％］の"
@@ -172,9 +177,20 @@ IF アビ作成中フラグ
 	NEXT
 ENDIF
 
+;アビ段階タブ表示
+FOR LOCAL, 0, 最大アビ段階 + 1
+	IF LOCAL == アビ段階
+		HTML文字列 += @"<div rect='{1700 + LOCAL * 350}, 1250, 300, 200' padding='25' color='#101010' border='31,31,0' bcolor='#C0C0C0'><nobr>"
+	ELSE
+		HTML文字列 += @"<div rect='{1700 + LOCAL * 350}, 1250, 300, 200' padding='25' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+	ENDIF
+	HTML文字列 += @"<button value='{LOCAL + 1000}'> {LOCAL}  </button>"
+	HTML文字列 += "</div>"
+NEXT
+
 
 HTML_PRINT HTML文字列, 1
-FOR LOCAL, 0, 47
+FOR LOCAL, 0, 49
 	PRINTL
 NEXT
 
@@ -275,17 +291,17 @@ SELECTCASE 選択番号
 		PRINTL
 		SELECTCASE RESULT
 			CASE 999
-				取得条件 = 
+				取得条件:アビ段階 = 
 				IF 取得条件_Lv > 0
-					取得条件 += @"Lv_{取得条件_Lv}"
+					取得条件:アビ段階 += @"Lv_{取得条件_Lv}"
 				ENDIF
 				IF 取得条件_陥落 != ""
-					SIF 取得条件 != ""
-						取得条件 += "***"
-					取得条件 += @"陥落_%取得条件_陥落%"
+					SIF 取得条件:アビ段階 != ""
+						取得条件:アビ段階 += "***"
+					取得条件:アビ段階 += @"陥落_%取得条件_陥落%"
 				ENDIF
 				SIF 消費ＭＰ < 0
-					CALL ＭＰ自動計算(消費ＭＰ, 取得条件, アビ段階)
+					CALL ＭＰ自動計算(消費ＭＰ, 取得条件:アビ段階, アビ段階)
 				GOTO 動作LOOP
 			CASE 0
 				$LvLOOP
@@ -349,15 +365,19 @@ SELECTCASE 選択番号
 	CASE 900
 		アビ作成中フラグ = 1
 		PRINTW 新しいアビリティを作成します。
+	CASE 997
+		最大アビ段階 ++
 	CASE 998
-		IF DT_ROW_LENGTH("アビエディタデータベース") < 1
-			PRINTW 効果が設定されていません。
-			GOTO 動作LOOP
-		ENDIF
-		IF アビ名 == "" || アビ名 == "（未定）"
-			PRINTW アビ名が入力されていません。
-			GOTO 動作LOOP
-		ENDIF
+		FOR LOCAL, 0, 最大アビ段階 + 1
+			IF アビ名:LOCAL == "" || アビ名:LOCAL == "（未定）"
+				PRINTFORMW 段階{LOCAL}のアビ名が入力されていません。
+				GOTO 動作LOOP
+			ENDIF
+			IF DT_SELECT("アビエディタデータベース", @"アビ段階 = {LOCAL}") < 1
+				PRINTFORMW 段階{LOCAL}の効果が設定されていません。
+				GOTO 動作LOOP
+			ENDIF
+		NEXT
 		CALL アビエディタ_ERB生成(対象NO, アビ名, 消費ＭＰ, 取得条件)
 
 		;追加したキャラを削除
@@ -380,7 +400,7 @@ SELECTCASE 選択番号
 			PRINTW アビ名は空白に出来ません。
 			GOTO NAMELOOP
 		ELSE
-			アビ名 '= RESULTS
+			アビ名:アビ段階 '= RESULTS
 		ENDIF
 	CASE 1
 		;ダメージ効果
@@ -432,10 +452,12 @@ SELECTCASE 選択番号
 			DT_CELL_SET "アビエディタデータベース", アビID:(選択番号 - 500), "アビ対象", DT_CELL_GETS("アビエディタデータベース", RESULT:1, "アビ対象", 1), 1
 			DT_CELL_SET "アビエディタデータベース", RESULT:1, "アビ対象", LOCALS, 1
 		ENDIF
+	CASE 1000 TO 1010
+		アビ段階 = 選択番号 - 1000
 ENDSELECT
 
 SIF 消費ＭＰ < 0
-	CALL ＭＰ自動計算(消費ＭＰ, 取得条件, アビ段階)
+	CALL ＭＰ自動計算(消費ＭＰ, 取得条件:アビ段階, アビ段階)
 GOTO 動作LOOP
 
 
@@ -642,9 +664,9 @@ SELECTCASE RESULT
 		ELSE
 			;新規効果追加
 			IF ダメージモード == 0
-				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", 0, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ文字列１", ダメージ能力値, "アビ数値１", ダメージ倍率, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ文字列１", ダメージ能力値, "アビ数値１", ダメージ倍率, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
 			ELSE
-				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", 0, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ数値２", ダメージ固定値, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
+				DT_ROW_ADD "アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "ダメージ効果", "アビ対象", ダメージ対象, "アビ数値２", ダメージ固定値, "アビ数値３", ダメージ属性, "アビ数値４", ダメージ回数
 			ENDIF
 			PRINTW 新しいダメージ効果を追加しました。
 		ENDIF
@@ -800,14 +822,20 @@ ENDSELECT
 #DIM アビ段階
 #DIM 最大アビ段階
 #DIM 対象No
-#DIM 消費ＭＰ
-#DIMS アビ名
-#DIMS 取得条件
-#DIMS 取得条件_文字列
+#DIM REF 消費ＭＰ
+#DIMS REF アビ名
+#DIMS REF 取得条件
+#DIMS 取得条件_文字列, 10
 #DIM アビID, 100
 
 VARSET アビ説明記述
 VARSET アビ効果記述
+
+;アビ段階は連番であること、全てにアビ名が設定されていることを前提とする
+FOR アビ段階, 0, VARSIZE("アビ名")
+	SIF アビ名:アビ段階 != "" && アビ名:アビ段階 != "（未定）"
+		最大アビ段階 = アビ段階
+NEXT
 
 アビERB記述 = @固有アビ_{対象No}_YYYY(ARGS, キャラ番号)<br>
 アビERB記述 += "#DIM キャラ番号<br>"
@@ -816,39 +844,47 @@ VARSET アビ効果記述
 アビERB記述 += "<br>"
 
 ;ここに習得条件入れる
-IF 取得条件 != ""
-	;取得条件を解析
-
-	VARSET RESULTS
-	取得条件_文字列 = 
-	SPLIT 取得条件, "***", RESULTS
-	FOR LOCAL, 0, RESULT
-		IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
-			SIF 取得条件_文字列 != ""
-				取得条件_文字列 += " &amp;&amp; "
-			取得条件_文字列 += @"基礎BATTLE_STATE:キャラ番号:Lv >= %REPLACE(RESULTS:LOCAL, "Lv_", "")%"
-		ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
-			SIF 取得条件_文字列 != ""
-				取得条件_文字列 += " &amp;&amp; "
-			SELECTCASE REPLACE(RESULTS:LOCAL, "陥落_", "")
-				CASE "陥落"
-					取得条件_文字列 += "陥落チェック(キャラ番号)"
-				CASE "恋慕"
-					取得条件_文字列 += "陥落チェック_恋慕系(キャラ番号)"
-				CASE "セフレ"
-					取得条件_文字列 += "GETBIT(陥落チェック(キャラ番号), 1)"
-				CASE "非エロ"
-					取得条件_文字列 += "陥落チェック_非性的(キャラ番号)"
-			ENDSELECT
+IF MATCH(取得条件, "") < VARSIZE("取得条件") || MATCH(アビ名, "（未定）") < VARSIZE("アビ名") - 1
+	;取得条件存在、もしくはアビ名複数時にIF文を記述する
+	VARSET 取得条件_文字列 
+	FOR アビ段階, 最大アビ段階, -1, -1
+		;取得条件を解析
+		VARSET RESULTS
+		SPLIT 取得条件:アビ段階, "***", RESULTS
+		FOR LOCAL, 0, RESULT
+			IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
+				SIF 取得条件_文字列:アビ段階 != ""
+					取得条件_文字列:アビ段階 += " &amp;&amp; "
+				取得条件_文字列:アビ段階 += @"基礎BATTLE_STATE:キャラ番号:Lv >= %REPLACE(RESULTS:LOCAL, "Lv_", "")%"
+			ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
+				SIF 取得条件_文字列:アビ段階 != ""
+					取得条件_文字列:アビ段階 += " &amp;&amp; "
+				SELECTCASE REPLACE(RESULTS:LOCAL, "陥落_", "")
+					CASE "陥落"
+						取得条件_文字列:アビ段階 += "陥落チェック(キャラ番号)"
+					CASE "恋慕"
+						取得条件_文字列:アビ段階 += "陥落チェック_恋慕系(キャラ番号)"
+					CASE "セフレ"
+						取得条件_文字列:アビ段階 += "GETBIT(陥落チェック(キャラ番号), 1)"
+					CASE "非エロ"
+						取得条件_文字列:アビ段階 += "陥落チェック_非性的(キャラ番号)"
+				ENDSELECT
+			ENDIF
+		NEXT
+		SIF 取得条件_文字列:アビ段階 == ""
+			取得条件_文字列:アビ段階 = 1
+		IF アビ段階 == 最大アビ段階
+			アビERB記述 += @"IF %取得条件_文字列:アビ段階%<br>"
+		ELSE
+			アビERB記述 += @"ELSEIF %取得条件_文字列:アビ段階%<br>"
 		ENDIF
+		アビERB記述 += @"	アビ名 = %アビ名:アビ段階%<br>"
+		アビERB記述 += @"	消費ＭＰ = {ABS(消費ＭＰ:アビ段階)}<br>"
 	NEXT
-	アビERB記述 += @"IF %取得条件_文字列%<br>"
-	アビERB記述 += @"	アビ名 = %アビ名%<br>"
-	アビERB記述 += @"	消費ＭＰ = {ABS(消費ＭＰ)}<br>"
 	アビERB記述 += "ENDIF<br><br>"
 ELSE
-	アビERB記述 += @"アビ名 = %アビ名%<br>"
-	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ)}<br><br>"
+	アビERB記述 += @"アビ名 = %アビ名:アビ段階%<br>"
+	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ:アビ段階)}<br><br>"
 ENDIF
 
 VARSET RESULT
@@ -905,8 +941,8 @@ FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
 	SIF 最大アビ段階 < アビ段階
 		最大アビ段階 = アビ段階
 NEXT
-FOR LOCAL, 0, 最大アビ段階 + 1
-	アビ説明記述:アビ段階 '= @"消費ＭＰ：{ABS(消費ＭＰ)}%アビ説明記述:アビ段階%"
+FOR アビ段階, 0, 最大アビ段階 + 1
+	アビ説明記述:アビ段階 '= @"消費ＭＰ：{ABS(消費ＭＰ:アビ段階)}%アビ説明記述:アビ段階%"
 NEXT
 
 CLEARLINE MAX(LINECOUNT, 1000)
@@ -916,18 +952,34 @@ TWAIT 100, 1
 アビERB記述 += "	CASE \"アビ名\"<br>"
 アビERB記述 += "		TSTR:コマンド名受渡 = \%アビ名\%<br>"
 アビERB記述 += "	CASE \"アビ説明文\"<br>"
-アビERB記述 += @"		詳細文文字列受け渡し変数 = "
 HTML_PRINT アビERB記述, 1
-VARSET RESULTS
-SPLIT アビ説明記述:アビ段階, "<br>", RESULTS
-PRINTFORML %RESULTS:0%
-FOR LOCAL, 1, RESULT
-	PRINTFORML 		詳細文文字列受け渡し変数 += "<br>%RESULTS:LOCAL%"
+FOR アビ段階, 最大アビ段階, -1, -1
+	IF アビ段階 == 最大アビ段階
+		PRINTFORML 		IF %取得条件_文字列:アビ段階%
+	ELSE
+		PRINTFORML 		ELSEIF %取得条件_文字列:アビ段階%
+	ENDIF
+	PRINTFORM 			詳細文文字列受け渡し変数 = 
+	VARSET RESULTS
+	SPLIT アビ説明記述:アビ段階, "<br>", RESULTS
+	PRINTFORML %RESULTS:0%
+	FOR LOCAL, 1, RESULT
+		PRINTFORML 			詳細文文字列受け渡し変数 += "<br>%RESULTS:LOCAL%"
+	NEXT
 NEXT
+PRINTFORML 		ENDIF
 アビERB記述 = 
 アビERB記述 += "	CASE \"アビ効果\"<br>"
-アビERB記述 += @"		%REPLACE(アビ効果記述:アビ段階, "<br>", "<br>		")%"
-アビERB記述 '= SUBSTRING(アビERB記述, 0, STRLENS(アビERB記述) - 2)
+FOR アビ段階, 最大アビ段階, -1, -1
+	IF アビ段階 == 最大アビ段階
+		アビERB記述 += @"		IF %取得条件_文字列:アビ段階%<br>"
+	ELSE
+		アビERB記述 += @"		ELSEIF %取得条件_文字列:アビ段階%<br>"
+	ENDIF
+	アビERB記述 += @"			%REPLACE(アビ効果記述:アビ段階, "<br>", "<br>			")%"
+	アビERB記述 '= SUBSTRING(アビERB記述, 0, STRLENS(アビERB記述) - 3)
+NEXT
+	アビERB記述 += "		ENDIF<br>"
 アビERB記述 += "ENDSELECT<br><br><br>"
 
 
@@ -1050,7 +1102,7 @@ FOR ループ用, 0, 補正回数
 NEXT
 
 
-消費ＭＰ = 基礎消費MP * -1
+消費ＭＰ:アビ段階 = 基礎消費MP * -1
 
 
 @アビエディタ_取得条件文章化(取得条件)
