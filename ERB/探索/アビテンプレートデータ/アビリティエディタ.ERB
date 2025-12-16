@@ -677,6 +677,283 @@ ENDSELECT
 
 GOTO 動作LOOP
 
+@アビエディタ_ステータスバフ効果追加(変更ID = 0, アビ段階 = 0)
+;アビ文字列１ バフ対象のステータス
+;アビ文字列２ バフ枠
+;アビ文字列３ 持続種類（ターンや回数、行動回数など）
+;アビ文字列４ その他オプション（消去不可など）
+;アビ文字列５
+;アビ数値１ バフ倍率
+;アビ数値２ バフ固定値
+;アビ数値３ 持続数値
+;アビ数値４ 
+;アビ数値５
+#DIM 効果順番
+#DIM DYNAMIC バフ倍率
+#DIM DYNAMIC バフ固定値
+#DIM DYNAMIC 持続数値
+#DIMS DYNAMIC バフ対象能力
+#DIMS DYNAMIC バフ枠
+#DIMS DYNAMIC 持続種類
+#DIMS DYNAMIC オプション
+#DIMS DYNAMIC バフ対象
+#DIM アビ段階
+#DIM 変更ID
+#DIMS HTML文字列
+
+;効果の最初かどうかを判定
+IF 変更ID == 0
+	;アビ段階が同じ効果がある、かつ新規効果追加状態＝最初ではない
+	LOCAL = DT_SELECT("アビエディタデータベース", @"アビ段階 = {アビ段階}")
+	効果順番 = LOCAL
+ELSE
+	;既存効果変更の場合、行数を見る
+	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
+		IF DT_CELL_GET("アビエディタデータベース", LOCAL, "id") == 変更ID
+			効果順番 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+IF 変更ID
+	バフ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
+	バフ対象能力 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	バフ枠 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
+	持続種類 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列３", 1)
+	オプション '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列４", 1)
+	バフ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
+	バフ固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
+	持続数値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
+	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
+ENDIF
+IF バフ対象 == ""
+	IF 効果順番 < 1
+		バフ対象 = 味方単体
+	ELSE
+		バフ対象 = 上と同じ相手
+	ENDIF
+ENDIF
+SIF バフ対象能力 == ""
+	バフ対象能力 = 攻撃力
+SIF バフ枠 == ""
+	バフ枠 = 攻撃力A
+SIF 持続種類 == ""
+	持続種類 = ターン
+SIF バフ倍率 == 0 && バフ固定値 == 0
+	バフ倍率 = 10
+SIF 持続数値 == 0
+	持続数値 = 3
+
+$動作LOOP
+
+DRAWLINE
+PRINTL バフ効果の設定を選択してください。
+DRAWLINE
+
+PRINTL ・現在の効果
+PRINT 　　
+PRINTFORM %バフ対象%に
+PRINT ［
+IF バフ倍率 > 0
+	PRINTFORM {バフ倍率}％
+ENDIF
+IF バフ固定値 > 0
+	SIF バフ倍率 > 0
+		PRINT ＋
+	PRINTFORM {バフ固定値}
+ENDIF
+PRINTFORM ］（
+IF STRFIND(バフ枠, バフ対象能力) == 0
+	PRINTFORM %TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%
+ELSE
+	PRINT 独自枠
+ENDIF
+IF 持続数値 > 0
+	PRINTFORM ・{持続数値}%持続種類%
+ENDIF
+IF STRFIND(オプション, "消去不可") >= 0
+	PRINT ・消去不可
+ENDIF
+PRINTFORM ）の%バフ対象能力%上昇効果を与える。
+PRINTL
+DRAWLINE
+
+HTML文字列 = 
+HTML文字列 += "<div rect='50, 0, 5000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += @"<button value='1'>[1] バフ対象を変更する</button>　　　　　　現在：%バフ対象%<br>"
+HTML文字列 += @"<button value='2'>[2] バフする能力値を変更する</button>　　　現在：%バフ対象能力%<br>"
+HTML文字列 += @"<button value='3'>[3] バフ倍率を変更する</button>　　　　　　現在：{バフ倍率}％<br>"
+HTML文字列 += @"<button value='4'>[4] バフ固定値を変更する</button>　　　　　現在：{バフ固定値}<br>"
+IF 持続数値 < 1
+	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：永続<br>"
+ELSE
+	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：{持続数値}%持続種類%<br>"
+ENDIF
+IF STRFIND(オプション, "消去不可") >= 0
+	HTML文字列 += @"<button value='6'>[6] 消去不可オプションを消す</button>　　　現在：あり<br>"
+ELSE
+	HTML文字列 += @"<button value='6'>[6] 消去不可オプションをつける</button>　　現在：なし<br>"
+ENDIF
+HTML文字列 += "<br>"
+HTML文字列 += "<br>"
+HTML文字列 += @"<button value='998'>[998] この設定で効果を決定する</button><br>"
+HTML文字列 += @"<button value='999'>[999] 保存せず戻る</button><br>"
+HTML文字列 += "</div>"
+
+
+HTML_PRINT HTML文字列, 1
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+BINPUT
+PRINTL
+PRINTL
+SELECTCASE RESULT
+	CASE 1
+		CALL アビエディタ_対象選択(バフ対象, 効果順番)
+	CASE 2
+		DRAWLINE
+		PRINTFORML バフする能力値を選択してください。 現在：%バフ対象能力%
+		PRINTL
+		FOR LOCAL, 6, 28
+			SIF GROUPMATCH(LOCAL, 16, 17, 20, 22, 23, 24, 25, 26, 27)
+				CONTINUE
+			PRINTBUTTON @"[{LOCAL}] %ERDNAME(BATTLE_STATE, LOCAL)%", LOCAL
+			PRINTL
+		NEXT
+		BINPUT
+		PRINTL
+		PRINTL
+		バフ対象能力 '= ERDNAME(BATTLE_STATE, RESULT)
+	CASE 3
+		DRAWLINE
+		PRINTFORML バフ倍率を入力してください。 現在：{バフ倍率}％
+		PRINTL
+		INPUT
+		IF RESULT < 0
+			PRINTW 負の値は指定出来ません
+		ENDIF
+		バフ倍率 = RESULT
+	CASE 4
+		DRAWLINE
+		PRINTFORML バフ固定値を入力してください。 現在：{バフ固定値}
+		PRINTL
+		INPUT
+		IF RESULT < 0
+			PRINTW 負の値は指定出来ません
+		ENDIF
+		バフ固定値 = RESULT
+	CASE 5
+		$持続LOOP
+		DRAWLINE
+		IF 持続数値 < 1
+			PRINTFORML バフの持続時間を設定してください。 現在：永続
+		ELSE
+			PRINTFORML バフの持続時間を設定してください。 現在：{持続数値}%持続種類%
+		ENDIF
+		PRINTL
+		PRINTL
+		PRINTBUTTON @"[0] 数値の変更", 0
+		PRINTL 　　：０にした時、永続効果になります
+		PRINTL
+		PRINTL ・持続種類の変更
+		IF 持続種類 == "ターン"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [ターン]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[ターン]", 10
+		ENDIF
+		PRINTL 　　：ターン終了時に数値が減少し、０になった時に解除
+		IF 持続種類 == "回"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [回数]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[回数]", 11
+		ENDIF
+		PRINTL 　　　：バフが発動した後に減少し、０になった時に解除
+		IF 持続種類 == "行動"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [行動]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[行動]", 12
+		ENDIF
+		PRINTL 　　　：行動終了時に減少し、０になった時に解除
+		IF 持続種類 == "被ダメ"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [被ダメ]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[被ダメ]", 13
+		ENDIF
+		PRINTL 　　：被ダメージ後に減少し、０になった時に解除
+		PRINTL
+		PRINTBUTTON @"[999] 戻る", 999
+		BINPUT
+		PRINTL
+		PRINTL
+		SELECTCASE RESULT
+			CASE 0
+				$数値LOOP
+				DRAWLINE
+				PRINTL 数値を入力してください
+				PRINTL
+				INPUT
+				IF RESULT < 0
+					PRINTW 負の値は入力出来ません
+					GOTO 数値LOOP
+				ENDIF
+				持続数値 = RESULT
+			CASE 10
+				持続種類 = ターン
+			CASE 11
+				持続種類 = 回
+			CASE 12
+				持続種類 = 行動
+			CASE 13
+				持続種類 = 被ダメ
+			CASE 999
+				GOTO 動作LOOP
+		ENDSELECT
+		GOTO 持続LOOP
+	CASE 6
+		IF STRFIND(オプション, "消去不可") >= 0
+			オプション '= REPLACE(オプション, "消去不可", "")
+		ELSE
+			オプション += "消去不可"
+		ENDIF
+	CASE 998
+		IF 変更ID
+			;既存効果変更
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", バフ対象, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", バフ倍率, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", バフ固定値, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値３", 持続数値, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", バフ対象能力, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列２", バフ枠, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列３", 持続種類, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列４", オプション, 1
+			PRINTW バフ効果を変更しました。
+		ELSE
+			;新規効果追加
+			{
+			DT_ROW_ADD 
+			"アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "バフ効果", "アビ対象", バフ対象, 
+			"アビ数値１", バフ倍率, "アビ数値２", バフ固定値, "アビ数値３", 持続数値,
+			"アビ文字列１", バフ対象能力, "アビ文字列２", バフ枠, "アビ文字列３", 持続種類, "アビ文字列４", オプション
+			}
+			PRINTW 新しいバフ効果を追加しました。
+		ENDIF
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+GOTO 動作LOOP
 
 
 @アビエディタ_対象選択(ダメージ対象, 効果順番 = 0)
