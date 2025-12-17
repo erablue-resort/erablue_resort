@@ -1,0 +1,443 @@
+﻿
+@アビエディタ_バフ効果追加(変更ID = 0, アビ段階 = 0)
+;アビ文字列１ バフ対象のステータス
+;アビ文字列２ バフ枠
+;アビ文字列３ 持続種類（ターンや回数、行動回数など）
+;アビ文字列４ その他オプション（消去不可など）
+;アビ文字列５
+;アビ数値１ バフ倍率
+;アビ数値２ バフ固定値
+;アビ数値３ 持続数値
+;アビ数値４ 
+;アビ数値５
+#DIM 効果順番
+#DIM DYNAMIC バフ倍率
+#DIM DYNAMIC バフ固定値
+#DIM DYNAMIC 持続数値
+#DIMS DYNAMIC バフ対象能力
+#DIMS DYNAMIC バフ枠
+#DIMS DYNAMIC 持続種類
+#DIMS DYNAMIC オプション
+#DIMS DYNAMIC バフ対象
+#DIM アビ段階
+#DIM 変更ID
+#DIMS HTML文字列
+
+;効果の最初かどうかを判定
+IF 変更ID == 0
+	;アビ段階が同じ効果がある、かつ新規効果追加状態＝最初ではない
+	LOCAL = DT_SELECT("アビエディタデータベース", @"アビ段階 = {アビ段階}")
+	効果順番 = LOCAL
+ELSE
+	;既存効果変更の場合、行数を見る
+	FOR LOCAL, 0, DT_ROW_LENGTH("アビエディタデータベース")
+		IF DT_CELL_GET("アビエディタデータベース", LOCAL, "id") == 変更ID
+			効果順番 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+IF 変更ID
+	バフ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
+	バフ対象能力 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	バフ枠 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
+	持続種類 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列３", 1)
+	オプション '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列４", 1)
+	バフ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
+	バフ固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
+	持続数値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
+	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
+ENDIF
+IF バフ対象 == ""
+	IF 効果順番 < 1
+		バフ対象 = 味方単体
+	ELSE
+		バフ対象 = 上と同じ相手
+	ENDIF
+ENDIF
+SIF バフ対象能力 == ""
+	バフ対象能力 = 攻撃力
+SIF バフ枠 == ""
+	バフ枠 = 攻撃力A
+SIF 持続種類 == ""
+	持続種類 = ターン
+SIF バフ倍率 == 0 && バフ固定値 == 0
+	バフ倍率 = 10
+SIF 持続数値 == 0
+	持続数値 = 3
+
+$動作LOOP
+
+DRAWLINE
+PRINTL バフ効果の設定を選択してください。
+DRAWLINE
+
+PRINTL ・現在の効果
+PRINT 　　
+PRINTFORM %バフ対象%に
+PRINT ［
+IF バフ倍率 > 0
+	PRINTFORM {バフ倍率}％
+ENDIF
+IF バフ固定値 > 0
+	SIF バフ倍率 > 0
+		PRINT ＋
+	PRINTFORM {バフ固定値}
+ENDIF
+PRINTFORM ］（
+IF STRFIND(バフ枠, バフ対象能力) == 0
+	PRINTFORM %TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠
+ELSE
+	PRINT 独自枠
+ENDIF
+IF 持続数値 > 0
+	PRINTFORM ・{持続数値}%持続種類%
+ENDIF
+IF STRFIND(オプション, "消去不可") >= 0
+	PRINT ・消去不可
+ENDIF
+IF バフ対象能力 == "ストレングス" || バフ対象能力 == "逆境"
+	PRINTFORM ）の%バフ能力表示変換(バフ対象能力)%効果を与える。
+ELSE
+	PRINTFORM ）の%バフ能力表示変換(バフ対象能力)%上昇効果を与える。
+ENDIF
+PRINTL
+DRAWLINE
+
+HTML文字列 = 
+HTML文字列 += "<div rect='50, 0, 5000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += @"<button value='1'>[1] バフ対象を変更する</button>　　　　　　現在：%バフ対象%<br>"
+HTML文字列 += @"<button value='2'>[2] バフする能力値を変更する</button>　　　現在：%バフ能力表示変換(バフ対象能力)%<br>"
+HTML文字列 += @"<button value='3'>[3] バフ倍率を変更する</button>　　　　　　現在：{バフ倍率}％<br>"
+HTML文字列 += @"<button value='4'>[4] バフ固定値を変更する</button>　　　　　現在：{バフ固定値}<br>"
+IF 持続数値 < 1
+	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：永続<br>"
+ELSE
+	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：{持続数値}%持続種類%<br>"
+ENDIF
+IF STRFIND(オプション, "消去不可") >= 0
+	HTML文字列 += @"<button value='6'>[6] 消去不可オプションを消す</button>　　　現在：あり<br>"
+ELSE
+	HTML文字列 += @"<button value='6'>[6] 消去不可オプションをつける</button>　　現在：なし<br>"
+ENDIF
+HTML文字列 += "<br>"
+HTML文字列 += "<br>"
+HTML文字列 += @"<button value='998'>[998] この設定で効果を決定する</button><br>"
+HTML文字列 += @"<button value='999'>[999] 保存せず戻る</button><br>"
+HTML文字列 += "</div>"
+
+
+HTML_PRINT HTML文字列, 1
+FOR LOCAL, 0, 35
+	PRINTL
+NEXT
+
+BINPUT
+PRINTL
+PRINTL
+SELECTCASE RESULT
+	CASE 1
+		CALL アビエディタ_対象選択(バフ対象, 効果順番)
+	CASE 2
+		CALL アビエディタ_バフ種類選択(バフ対象能力)
+	CASE 3
+		DRAWLINE
+		PRINTFORML バフ倍率を入力してください。 現在：{バフ倍率}％
+		PRINTL
+		INPUT
+		IF RESULT < 0
+			PRINTW 負の値は指定出来ません
+		ENDIF
+		バフ倍率 = RESULT
+	CASE 4
+		DRAWLINE
+		PRINTFORML バフ固定値を入力してください。 現在：{バフ固定値}
+		PRINTL
+		INPUT
+		IF RESULT < 0
+			PRINTW 負の値は指定出来ません
+		ENDIF
+		バフ固定値 = RESULT
+	CASE 5
+		$持続LOOP
+		DRAWLINE
+		IF 持続数値 < 1
+			PRINTFORML バフの持続時間を設定してください。 現在：永続
+		ELSE
+			PRINTFORML バフの持続時間を設定してください。 現在：{持続数値}%持続種類%
+		ENDIF
+		PRINTL
+		PRINTL
+		PRINTBUTTON @"[0] 数値の変更", 0
+		PRINTL 　　：０にした時、永続効果になります
+		PRINTL
+		PRINTL ・持続種類の変更
+		IF 持続種類 == "ターン"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [ターン]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[ターン]", 10
+		ENDIF
+		PRINTL 　　：ターン終了時に数値が減少し、０になった時に解除
+		IF 持続種類 == "回"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [回数]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[回数]", 11
+		ENDIF
+		PRINTL 　　　：バフが発動した後に減少し、０になった時に解除
+		IF 持続種類 == "行動"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [行動]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[行動]", 12
+		ENDIF
+		PRINTL 　　　：行動終了時に減少し、０になった時に解除
+		IF 持続種類 == "被ダメ"
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [被ダメ]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[被ダメ]", 13
+		ENDIF
+		PRINTL 　　：被ダメージ後に減少し、０になった時に解除
+		PRINTL
+		PRINTBUTTON @"[999] 戻る", 999
+		BINPUT
+		PRINTL
+		PRINTL
+		SELECTCASE RESULT
+			CASE 0
+				$数値LOOP
+				DRAWLINE
+				PRINTL 数値を入力してください
+				PRINTL
+				INPUT
+				IF RESULT < 0
+					PRINTW 負の値は入力出来ません
+					GOTO 数値LOOP
+				ENDIF
+				持続数値 = RESULT
+			CASE 10
+				持続種類 = ターン
+			CASE 11
+				持続種類 = 回
+			CASE 12
+				持続種類 = 行動
+			CASE 13
+				持続種類 = 被ダメ
+			CASE 999
+				GOTO 動作LOOP
+		ENDSELECT
+		GOTO 持続LOOP
+	CASE 6
+		IF STRFIND(オプション, "消去不可") >= 0
+			オプション '= REPLACE(オプション, "消去不可", "")
+		ELSE
+			オプション += "消去不可"
+		ENDIF
+	CASE 998
+		IF 変更ID
+			;既存効果変更
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", バフ対象, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", バフ倍率, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", バフ固定値, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値３", 持続数値, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", バフ対象能力, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列２", バフ枠, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列３", 持続種類, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列４", オプション, 1
+			PRINTW バフ効果を変更しました。
+		ELSE
+			;新規効果追加
+			{
+			DT_ROW_ADD 
+			"アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "バフ効果", "アビ対象", バフ対象, 
+			"アビ数値１", バフ倍率, "アビ数値２", バフ固定値, "アビ数値３", 持続数値,
+			"アビ文字列１", バフ対象能力, "アビ文字列２", バフ枠, "アビ文字列３", 持続種類, "アビ文字列４", オプション
+			}
+			PRINTW 新しいバフ効果を追加しました。
+		ENDIF
+		RETURN 1
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+GOTO 動作LOOP
+
+
+
+@アビエディタ_バフ種類選択(バフ対象能力)
+#DIMS REF バフ対象能力
+#DIM 表示数
+
+DRAWLINE
+PRINTFORML バフする能力値を選択してください。 現在：%バフ能力表示変換(バフ対象能力)%
+DRAWLINE
+PRINTL ・基礎ステータス
+表示数 = 0
+FOR LOCAL, 6, 28
+	SIF GROUPMATCH(LOCAL, 16, 17, 20, 22, 23, 24, 25, 26, 27)
+		CONTINUE
+	PRINTBUTTONLC @"[{LOCAL}] %ERDNAME(BATTLE_STATE, LOCAL, 2)%", LOCAL
+	表示数 ++
+	IF 表示数 >= 4
+		PRINTL
+		表示数 = 0
+	ENDIF
+NEXT
+PRINTBUTTONLC @"[50] 連続攻撃率", 50
+PRINTL
+DRAWLINE
+PRINTL ・ダメージ補正　　（同じ効果はバフ量・デバフ量が合算されて計算されます）
+PRINTBUTTONLC "[100] 通常攻撃ダメージ", 100
+PRINTBUTTONLC "[101] アビリティダメージ", 101
+PRINTBUTTONLC "[102] 奥義ダメージ", 102
+PRINTBUTTONLC "[103] チェンバダメージ", 103
+PRINTL
+DRAWLINE
+PRINTL ・与ダメージ　　（与ダメージバフ・デバフが計算されてから被ダメージバフ・デバフが計算されます）
+PRINTBUTTONLC "[200] 与ダメージ", 200
+PRINTBUTTONLC "[201] 火属性攻撃", 201
+PRINTBUTTONLC "[202] 水属性攻撃", 202
+PRINTBUTTONLC "[203] 風属性攻撃", 203
+PRINTL
+PRINTBUTTONLC "[204] 土属性攻撃", 204
+PRINTBUTTONLC "[205] 光属性攻撃", 205
+PRINTBUTTONLC "[206] 闇属性攻撃", 206
+PRINTL
+DRAWLINE
+PRINTL ・被ダメージ
+PRINTBUTTONLC "[300] 被ダメージ", 300
+PRINTBUTTONLC "[301] 火属性耐性", 301
+PRINTBUTTONLC "[302] 水属性耐性", 302
+PRINTBUTTONLC "[303] 風属性耐性", 303
+PRINTL
+PRINTBUTTONLC "[304] 土属性耐性", 304
+PRINTBUTTONLC "[305] 光属性耐性", 305
+PRINTBUTTONLC "[306] 闇属性耐性", 306
+PRINTL
+DRAWLINE
+PRINTL ・その他バフ
+PRINTBUTTONLC "[400] 与回復量", 400
+PRINTBUTTONLC "[401] 被回復量", 401
+PRINTBUTTONLC "[402] テンション", 402
+PRINTBUTTONLC "[403] ストレングス", 403
+PRINTL
+PRINTBUTTONLC "[404] 逆境", 404
+PRINTL
+PRINTBUTTONLC "[499] その他バフ解説", 499
+PRINTL
+DRAWLINE
+PRINTL
+	
+BINPUT
+PRINTL
+PRINTL
+SELECTCASE RESULT
+	CASE IS < 50
+		;基礎ステバフ
+		バフ対象能力 '= ERDNAME(BATTLE_STATE, RESULT, 2)
+	CASE 50
+		;連撃率
+		バフ対象能力 = 連続攻撃率
+	CASE 100
+		バフ対象能力 = ダメージ補正_通常攻撃ダメージ
+	CASE 101
+		バフ対象能力 = ダメージ補正_アビリティダメージ
+	CASE 102
+		バフ対象能力 = ダメージ補正_奥義ダメージ
+	CASE 103
+		バフ対象能力 = ダメージ補正_チェンバダメージ
+	CASE 200
+		バフ対象能力 = 与ダメージ
+	CASE 201 TO 206
+		バフ対象能力 = 属性与ダメージ_%属性数値文字列変換(RESULT - 201)%
+	CASE 300
+		バフ対象能力 = 被ダメージ
+	CASE 301 TO 306
+		バフ対象能力 = 属性被ダメージ_%属性数値文字列変換(RESULT - 301)%
+	CASE 400
+		バフ対象能力 = 与回復量
+	CASE 400
+		バフ対象能力 = 被回復量
+	CASE 400
+		バフ対象能力 = テンション
+	CASE 400
+		バフ対象能力 = ストレングス
+	CASE 400
+		バフ対象能力 = 逆境
+	CASE 499
+		DRAWLINE
+		PRINTL ・与回復量
+		PRINTL 　　効果の掛かったキャラが使用する回復効果が上下します。
+		PRINTL
+		PRINTL ・被回復量
+		PRINTL 　　効果の掛かったキャラが受ける回復効果が上下します。
+		PRINTL
+		PRINTL ・テンション
+		PRINTL 　　攻撃力を上昇させます。４段階存在し、効果量は以下の通りです。
+		PRINTL 　　１：110％　２：130％　３：160％　４：200％
+		PRINTL 　　バフ固定値のみ効果を発揮します。
+		PRINTL
+		PRINTL ・ストレングス
+		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラのHPが高いほど効果が大きくなります。
+		PRINTL 　　バフ割合のみ効果を発揮します。
+		PRINTL
+		PRINTL ・逆境
+		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラの最大HPと現在HPの差が大きいほど効果が大きくなります。
+		PRINTL 　　バフ割合のみ効果を発揮します。
+		PRINTL
+		WAIT
+		RESTART
+ENDSELECT
+
+
+@バフ能力表示変換(バフ対象能力)
+#FUNCTIONS
+#DIMS バフ対象能力
+#DIMS 返り文字列
+
+返り文字列 '= バフ対象能力
+
+;登録内容を表示用に変えるだけ
+SELECTCASE バフ対象能力
+	CASE "属性与ダメージ_火"
+		返り文字列 = 火属性攻撃
+	CASE "属性与ダメージ_水"
+		返り文字列 = 水属性攻撃
+	CASE "属性与ダメージ_風"
+		返り文字列 = 風属性攻撃
+	CASE "属性与ダメージ_土"
+		返り文字列 = 土属性攻撃
+	CASE "属性与ダメージ_光"
+		返り文字列 = 光属性攻撃
+	CASE "属性与ダメージ_闇"
+		返り文字列 = 闇属性攻撃
+	CASE "属性被ダメージ_火"
+		返り文字列 = 火属性耐性
+	CASE "属性被ダメージ_水"
+		返り文字列 = 水属性耐性
+	CASE "属性被ダメージ_風"
+		返り文字列 = 風属性耐性
+	CASE "属性被ダメージ_土"
+		返り文字列 = 土属性耐性
+	CASE "属性被ダメージ_光"
+		返り文字列 = 光属性耐性
+	CASE "属性被ダメージ_闇"
+		返り文字列 = 闇属性耐性
+	CASE "ダメージ補正_通常攻撃ダメージ"
+		返り文字列 = 通常攻撃ダメージ
+	CASE "ダメージ補正_アビリティダメージ"
+		返り文字列 = アビリティダメージ
+	CASE "ダメージ補正_奥義ダメージ"
+		返り文字列 = 奥義ダメージ
+	CASE "ダメージ補正_チェンバダメージ"
+		返り文字列 = チェンバダメージ
+ENDSELECT
+
+RETURNF 返り文字列
