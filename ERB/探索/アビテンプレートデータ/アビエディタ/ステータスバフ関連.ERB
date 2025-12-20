@@ -22,6 +22,7 @@
 #DIM アビ段階
 #DIM 変更ID
 #DIMS HTML文字列
+#DIMS 計算式タイプ
 
 ;効果の最初かどうかを判定
 IF 変更ID == 0
@@ -69,6 +70,9 @@ SIF 持続数値 == 0
 
 $動作LOOP
 
+;バフの計算式タイプ取得
+計算式タイプ '= アビエディタ_ＭＰ自動計算_バフ種類(バフ対象能力)
+
 DRAWLINE
 PRINTL バフ効果の設定を選択してください。
 DRAWLINE
@@ -109,17 +113,31 @@ HTML文字列 =
 HTML文字列 += "<div rect='50, 0, 5000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 HTML文字列 += @"<button value='1'>[1] バフ対象を変更する</button>　　　　　　現在：%バフ対象%<br>"
 HTML文字列 += @"<button value='2'>[2] バフする能力値を変更する</button>　　　現在：%バフ能力表示変換(バフ対象能力)%<br>"
-HTML文字列 += @"<button value='3'>[3] バフ倍率を変更する</button>　　　　　　現在：{バフ倍率}％<br>"
-HTML文字列 += @"<button value='4'>[4] バフ固定値を変更する</button>　　　　　現在：{バフ固定値}<br>"
+IF STRFIND(計算式タイプ, "割合") >= 0
+	HTML文字列 += @"<button value='3'>[3] バフ倍率を変更する</button>　　　　　　現在：{バフ倍率}％<br>"
+ELSE
+	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[3] バフ倍率を変更する</font><br>"
+ENDIF
+IF STRFIND(計算式タイプ, "固定値") >= 0
+	HTML文字列 += @"<button value='4'>[4] バフ固定値を変更する</button>　　　　　現在：{バフ固定値}<br>"
+ELSE
+	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[4] バフ固定値を変更する</font><br>"
+ENDIF
 IF 持続数値 < 1
 	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：永続<br>"
 ELSE
 	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：{持続数値}%持続種類%<br>"
 ENDIF
-IF STRFIND(オプション, "消去不可") >= 0
-	HTML文字列 += @"<button value='6'>[6] 消去不可オプションを消す</button>　　　現在：あり<br>"
+HTML文字列 += "<button value='6'>[6] バフの枠を変更する</button>　　　　　　現在："
+IF STRFIND(バフ枠, バフ対象能力) == 0
+	HTML文字列 += @"%TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠<br>"
 ELSE
-	HTML文字列 += @"<button value='6'>[6] 消去不可オプションをつける</button>　　現在：なし<br>"
+	HTML文字列 += "独自枠<br>"
+ENDIF
+IF STRFIND(オプション, "消去不可") >= 0
+	HTML文字列 += @"<button value='7'>[7] 消去不可オプションを消す</button>　　　現在：あり<br>"
+ELSE
+	HTML文字列 += @"<button value='7'>[7] 消去不可オプションをつける</button>　　現在：なし<br>"
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
@@ -235,12 +253,60 @@ SELECTCASE RESULT
 		ENDSELECT
 		GOTO 持続LOOP
 	CASE 6
+		DRAWLINE
+		PRINTFORM バフ枠を選択してください。 現在：
+		IF STRFIND(バフ枠, バフ対象能力) == 0
+			PRINTFORM %TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠
+		ELSE
+			PRINTFORM 独自枠（%バフ枠%）
+		ENDIF
+		PRINTL
+		PRINTFORML ※枠とはバフの共存関係を管理するための文字列です。
+		PRINTFORML 　バフの対象能力と枠が両方同じ効果は共存せず、効果の高い方に上書きされます。
+		PRINTL
+		PRINTBUTTON "[0] Ａ枠", 0
+		PRINTL
+		PRINTBUTTON "[1] Ｂ枠", 1
+		PRINTL
+		PRINTBUTTON "[2] Ｃ枠", 2
+		PRINTL
+		PRINTBUTTON "[3] Ｄ枠", 3
+		PRINTL
+		PRINTBUTTON "[10] 任意入力する", 10
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				バフ枠 = %バフ対象能力%A
+			CASE 1
+				バフ枠 = %バフ対象能力%B
+			CASE 2
+				バフ枠 = %バフ対象能力%C
+			CASE 3
+				バフ枠 = %バフ対象能力%D
+			CASE 10
+				$任意枠LOOP
+				DRAWLINE
+				PRINTFORML 任意の枠名を入力してください。
+				IF RESULTS == ""
+					PRINTW 空白は入力できません。
+					GOTO 任意枠LOOP
+				ENDIF
+				バフ枠 '= RESULTS
+		ENDSELECT
+	CASE 7
 		IF STRFIND(オプション, "消去不可") >= 0
 			オプション '= REPLACE(オプション, "消去不可", "")
 		ELSE
 			オプション += "消去不可"
 		ENDIF
 	CASE 998
+		IF STRFIND(計算式タイプ, "割合") < 0
+			バフ倍率 = 0
+		ENDIF
+		IF STRFIND(計算式タイプ, "固定値") < 0
+			バフ固定値 = 0
+		ENDIF
 		IF 変更ID
 			;既存効果変更
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", バフ対象, 1
@@ -387,10 +453,12 @@ SELECTCASE RESULT
 		PRINTL ・ストレングス
 		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラのHPが高いほど効果が大きくなります。
 		PRINTL 　　バフ割合のみ効果を発揮します。
+		PRINTL 　　計算式は「（（ＨＰ ✕ 200 / 最大ＨＰ）+ 100）✕（バフ効果量 / 3） / 100」％。
 		PRINTL
 		PRINTL ・逆境
 		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラの最大HPと現在HPの差が大きいほど効果が大きくなります。
 		PRINTL 　　バフ割合のみ効果を発揮します。
+		PRINTL 　　計算式は「（（（最大ＨＰ - ＨＰ） ✕ 200 / 最大ＨＰ）+ 100）✕（バフ効果量 / 3） / 100」％。
 		PRINTL
 		WAIT
 		RESTART
@@ -441,3 +509,95 @@ SELECTCASE バフ対象能力
 ENDSELECT
 
 RETURNF 返り文字列
+
+
+@アビエディタ_ＭＰ自動計算_バフ種類(バフ対象能力)
+#FUNCTIONS
+#DIMS バフ対象能力
+
+;自動計算に使う係数と、計算式タイプを返す
+
+SELECTCASE バフ対象能力
+	CASE "攻撃力"
+		RFLAG:アビMP係数 = 100
+		RETURNF "青天井_割合_固定値"
+	CASE "防御力"
+		RFLAG:アビMP係数 = 80
+		RETURNF "青天井_割合_固定値"
+	CASE "回復力"
+		RFLAG:アビMP係数 = 70
+		RETURNF "青天井_割合_固定値"
+	CASE "行動速度"
+		RFLAG:アビMP係数 = 60
+		RETURNF "青天井_割合_固定値"
+	CASE "ダメージ補正_通常攻撃ダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "ダメージ補正_アビリティダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "ダメージ補正_奥義ダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "ダメージ補正_チェンバダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "与ダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "属性与ダメージ_火", "属性与ダメージ_水", "属性与ダメージ_風", "属性与ダメージ_土", "属性与ダメージ_光", "属性与ダメージ_闇"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "被ダメージ"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "属性被ダメージ_火", "属性被ダメージ_水", "属性被ダメージ_風", "属性被ダメージ_土", "属性被ダメージ_光", "属性被ダメージ_闇"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "与回復量"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "被回復量"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合_固定値"
+	CASE "ストレングス"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合"
+	CASE "逆境"
+		RFLAG:アビMP係数 = 0
+		RETURNF "青天井_割合"
+	CASE "DA率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "TA率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "連続攻撃率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "ゲージ上昇効率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_割合_固定値"
+	CASE "命中率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_割合_固定値"
+	CASE "回避率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "クリティカル率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "クリティカルダメージ率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_割合_固定値"
+	CASE "弱体成功率"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_割合_固定値"
+	CASE "弱体耐性"
+		RFLAG:アビMP係数 = 0
+		RETURNF "最大100_固定値"
+	CASE "テンション"
+		RFLAG:アビMP係数 = 100
+		;テンションは1～4しかないので計算タイプは特殊
+		RETURNF "テンション_固定値"
+ENDSELECT
