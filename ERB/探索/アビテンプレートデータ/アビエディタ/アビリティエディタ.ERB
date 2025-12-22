@@ -111,6 +111,7 @@ ELSE
 	HTML文字列 += "<button value='0'>[ 0] アビ名を変更する</button><br>"
 	HTML文字列 += "<button value='1'>[ 1] ダメージ効果を追加</button><br>"
 	HTML文字列 += "<button value='2'>[ 2] バフ効果を追加</button><br>"
+	HTML文字列 += "<button value='3'>[ 3] その他有利効果を追加</button><br>"
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
@@ -202,6 +203,33 @@ IF アビ作成中フラグ
 				ELSE
 					HTML文字列 += @"）の%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ文字列１", 1)%上昇効果を与える。"
 				ENDIF
+				HTML文字列 += "<br>"
+				HTML文字列 += @"<button value='{LOCAL + 100}'>[効果を変更する]</button>　　<button value='{LOCAL + 300}'>[効果を削除する]</button>　　"
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "効果順番", 1) > 0
+					HTML文字列 += @"<button value='{LOCAL + 400}'>[↑]</button>"
+				ELSE
+					HTML文字列 += "　　"
+				ENDIF
+				HTML文字列 += "　"
+				IF 表示候補数 > LOCAL + 1
+					HTML文字列 += @"<button value='{LOCAL + 500}'>[↓]</button>"
+				ENDIF
+				HTML文字列 += "<br>"
+				HTML文字列 += "</div>"
+				枠配置縦位置 += 430
+			CASE "その他有利効果"
+				HTML文字列 += @"<div rect='1800, {1825 + 枠配置縦位置}, 4850, 380' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+				HTML文字列 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ対象", 1)%に［"
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1) > 0
+					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1)}％"
+				ENDIF
+				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値２", 1) > 0
+					SIF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値１", 1) > 0
+						HTML文字列 += "＋"
+					HTML文字列 += @"{DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "アビ数値２", 1)}"
+				ENDIF
+				HTML文字列 += "］"
+				HTML文字列 += @"の%DT_CELL_GETS("アビエディタデータベース", アビID:LOCAL, "アビ文字列１", 1)%効果を与える。"
 				HTML文字列 += "<br>"
 				HTML文字列 += @"<button value='{LOCAL + 100}'>[効果を変更する]</button>　　<button value='{LOCAL + 300}'>[効果を削除する]</button>　　"
 				IF DT_CELL_GET("アビエディタデータベース", アビID:LOCAL, "効果順番", 1) > 0
@@ -451,6 +479,9 @@ SELECTCASE 選択番号
 	CASE 2
 		;バフ効果
 		CALL アビエディタ_バフ効果追加(0, アビ段階)
+	CASE 3
+		;その他有利効果
+		CALL アビエディタ_その他有利効果追加(0, アビ段階)
 	CASE 100 TO 199
 		;効果変更
 		SELECTCASE DT_CELL_GETS("アビエディタデータベース", アビID:(選択番号 - 100), "アビ効果種別", 1)
@@ -833,6 +864,39 @@ FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
 			ENDIF
 
 			アビ効果記述:アビ段階 += "CALL アビテンプレート_有利効果_バフ効果セット<br>"
+		CASE "その他有利効果"
+			アビ説明記述:アビ段階 += "<br>"
+			IF DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ対象", 1) != "上と同じ相手"
+				アビ説明記述:アビ段階 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ対象", 1)%に"
+			ENDIF
+			アビ説明記述:アビ段階 += "［"
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1) > 0
+				アビ説明記述:アビ段階 += @"{DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1)}％"
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1) > 0
+				SIF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1) > 0
+					アビ説明記述:アビ段階 += "＋"
+				アビ説明記述:アビ段階 += @"{DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1)}"
+			ENDIF
+			アビ説明記述:アビ段階 += "］"
+			アビ説明記述:アビ段階 += "の"
+			アビ説明記述:アビ段階 += @"%DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ文字列１", 1)%効果を与える。"
+
+			アビ効果記述:アビ段階 += "CALL アビ汎用変数文字列リセット<br>"
+			アビ効果記述:アビ段階 += アビエディタ_対象CALL変換(DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ対象", 1))
+
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1) > 0
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果割合 = {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値１", 1)}<br>"
+			ENDIF
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1) > 0
+				アビ効果記述:アビ段階 += @"アビ汎用変数:効果量 = {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値２", 1)}<br>"
+			ENDIF
+
+			IF DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1) > 0
+				アビ効果記述:アビ段階 += @"アビ汎用変数:基礎成功確率 = {DT_CELL_GET("アビエディタデータベース", アビID:DB行数, "アビ数値４", 1)}<br>"
+			ENDIF
+
+			アビ効果記述:アビ段階 += @"CALL アビテンプレート_有利効果_%DT_CELL_GETS("アビエディタデータベース", アビID:DB行数, "アビ文字列１", 1)%<br>"
 	ENDSELECT
 	SIF 最大アビ段階 < アビ段階
 		最大アビ段階 = アビ段階
@@ -1049,6 +1113,13 @@ FOR DB行数, 0, DT_ROW_LENGTH("アビエディタデータベース")
 
 				基礎消費MP += (バフ総値:2 * バフ総値:2 * バフ総値:2 * バフ総値:2) * 5 * 対象補正 * 持続係数
 			ENDIF
+		CASE "その他有利効果"
+			;更に効果で分岐
+			SELECTCASE DT_CELL_GETS("アビエディタデータベース", DB行数, "アビ文字列１")
+				CASE "奥義ゲージUP"
+					;単純に１％＝１ＭＰ、レベル補正ごとに0.05軽減
+					基礎消費MP += DT_CELL_GET("アビエディタデータベース", DB行数, "アビ数値２") * 対象補正 * (100 - ((レベル補正 - 1) * 5)) / 100
+			ENDSELECT
 	ENDSELECT
 NEXT
 
