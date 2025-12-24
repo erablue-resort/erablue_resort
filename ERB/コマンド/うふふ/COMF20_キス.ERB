@@ -46,9 +46,82 @@ TSTR:ツールチップ受渡 = %LOCALS%
 
 
 @COM20
+#DIM 実行キャラ
+#DIM 対象キャラ
+#DIM スワップあり
 ;-------------------------------------------------
 ;モードの設定
 ;-------------------------------------------------
+;キスでＶＡ挿入系が解除されないように体位変更
+IF MODE_存在判定_順不同("ＶＡ挿入系", PLAYER, TARGET)
+	LOCALS = %DT_CELL_GETS("体位モードデータベース", モードID受渡し, "モード名", 1)%
+	LOCALS:1 '= LOCALS
+	;60,73,78行目と61,74,79行目のコメントアウトを入れ替えれば同時挿入だと体位変更なしに変更
+	;IF !GROUPMATCH(LOCALS, "駅弁", "Ａ駅弁", "同時挿入", "Ａ同時挿入")
+	IF !GROUPMATCH(LOCALS, "駅弁", "Ａ駅弁")
+		対象キャラ = DT_CELL_GET("体位モードデータベース", モードID受渡し, "対象キャラ", 1)
+		実行キャラ = DT_CELL_GET("体位モードデータベース", モードID受渡し, "実行キャラ", 1)
+		TRYCALLFORM MODETYPE_%LOCALS%(部位_口, "", 実行キャラ, 対象キャラ)
+		;どちらかが3P中は無理
+		IF !(MODE_存在判定_ターゲット側("Ｖ挿入系", 対象キャラ) && MODE_存在判定_ターゲット側("Ａ挿入系", 対象キャラ) || MODE_存在判定_プレイヤー側("ＶＡ挿入系", 対象キャラ)) && !MODE_存在判定_ターゲット側("ＶＡ挿入系", 実行キャラ)
+			IF RESULT == 2
+				スワップあり = 0
+				IF 実行キャラ == TARGET
+					SWAP PLAYER, TARGET
+					スワップあり = 1
+				ENDIF
+				;IF GROUPMATCH(LOCALS, "後背位", "寝バック", "側位", "屈曲位")
+				IF GROUPMATCH(LOCALS, "後背位", "寝バック", "側位", "屈曲位", "同時挿入")
+					CALL COM_ABLE60_0
+					SIF RESULT
+						LOCALS '= "正常位"
+				;ELSEIF GROUPMATCH(LOCALS, "Ａ後背位", "Ａ寝バック", "Ａ側位", "Ａ屈曲位")
+				ELSEIF GROUPMATCH(LOCALS, "Ａ後背位", "Ａ寝バック", "Ａ側位", "Ａ屈曲位", "Ａ同時挿入")
+					CALL COM_ABLE62_0
+					SIF RESULT
+						LOCALS '= "Ａ正常位"
+				ELSEIF GROUPMATCH(LOCALS, "背面座位")
+					CALL COM_ABLE60_3
+					SIF RESULT
+						LOCALS '= "対面座位"
+				ELSEIF GROUPMATCH(LOCALS, "Ａ背面座位")
+					CALL COM_ABLE62_3
+					SIF RESULT
+						LOCALS '= "Ａ対面座位"
+				ELSEIF GROUPMATCH(LOCALS, "立ちバック")
+					CALL COM_ABLE60_10
+					SIF RESULT
+						LOCALS '= "対面立位"
+				ELSEIF GROUPMATCH(LOCALS, "Ａ立ちバック")
+					CALL COM_ABLE62_10
+					SIF RESULT
+						LOCALS '= "Ａ対面立位"
+				ENDIF
+				IF LOCALS:1 == LOCALS
+					RESULT = 2
+				ELSE
+					TRYCALLFORM MODETYPE_%LOCALS%(部位_口, "", 実行キャラ, 対象キャラ)
+				ENDIF
+				IF RESULT == 2
+					IF STRCOUNT(LOCALS, "Ａ")
+						CALL COM_ABLE60_8
+						SIF RESULT
+							LOCALS '= "Ａ駅弁"
+					ELSE
+						CALL COM_ABLE60_8
+						SIF RESULT
+							LOCALS '= "駅弁"
+					ENDIF
+				ENDIF
+				SIF LOCALS:1 != LOCALS
+					CALL MODE_CHANGE(LOCALS, 実行キャラ, 対象キャラ)
+				SIF スワップあり
+					SWAP PLAYER, TARGET
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
 CALL MODE_CHANGE("キス", PLAYER, TARGET)
 ;-------------------------------------------------
 ;COM別FLAGの設定

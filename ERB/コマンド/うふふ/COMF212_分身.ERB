@@ -1,0 +1,100 @@
+﻿
+;----------------------------------------------------
+;キャラ固有コマンド処理
+;----------------------------------------------------
+;コマンド名
+;----------------------------------------------------
+@COMNAME212
+#FUNCTIONS
+	TSTR:コマンド名受渡 = 分身の術
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_212
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("特殊プレイ")
+
+
+@COM_TOOLTIP_212
+LOCALS = <br>分身の術<br>
+LOCALS += "自身の分身を作りだし、個別に活動する術。<br>うふふ中のみ、複数人いるかのように振る舞うことが出来る。<br>分身が得た経験は本体に還元される。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM212
+
+ADDCOPYCHARA PLAYER
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:0 < 1
+		分身登録:LOCAL:0 = CHARANUM - 1
+		分身登録:LOCAL:1 = MASTER
+		NAME:(分身登録:LOCAL:0) = %NAME表示((分身登録:LOCAL:0))%%TOFULL(TOSTR(LOCAL + 2))%
+		CALLNAME:(分身登録:LOCAL:0) = %CALLNAME:(分身登録:LOCAL:0)%%TOFULL(TOSTR(LOCAL + 2))%
+		TALENT:(分身登録:LOCAL:0):分身 = 2
+		CFLAG:(分身登録:LOCAL:0):人物番号 = -1
+		CFLAG:(分身登録:LOCAL:0):友情度 = 100500
+		CFLAG:(分身登録:LOCAL:0):信頼度 = 100500
+		CFLAG:(分身登録:LOCAL:0):恋心度 = 0
+		CFLAG:(分身登録:LOCAL:0):性愛度 = 0
+		BASE:(分身登録:LOCAL:0):体力 = MAXBASE:(分身登録:LOCAL:0):体力
+		CFLAG:(分身登録:LOCAL:0):同室 = 1
+		FOR LOCAL:1, 101, 111
+			;部位占有を解放
+			TEQUIP:(分身登録:LOCAL:0):(LOCAL:1) = 0
+		NEXT
+		FOR LOCAL:1, 0, 200
+			;分身時点でのEXPを保存
+			分身EXP保存:LOCAL:(LOCAL:1) = EXP:MASTER:(LOCAL:1)
+		NEXT
+		BREAK
+	ENDIF
+NEXT
+CALL SORT_CHARALIST()
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE212
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+
+;特殊プレイに入るためのコマンドのため、一括管理はせずここで全部記述する
+SIF TFLAG:調教モード != 2
+	RETURN 0
+SIF TARGET:1 <= 0 || CFLAG:睡眠 == 1 || CFLAG:隠密
+	RETURN 0
+
+;特殊能力必須
+SIF あなた特殊能力:分身の術 < 1
+	RETURN 0
+
+;隠密時はバグるのでダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+
+;あなた以外ダメ
+SIF PLAYER != MASTER
+	RETURN 0
+
+;2体(アンチラのと合わせて分身最大数)まで
+LOCAL:1 = 0
+FOR LOCAL, 0, 分身最大数
+	IF 分身登録:LOCAL:0 && 分身登録:LOCAL:1 == MASTER
+		LOCAL:1 ++
+	ENDIF
+NEXT
+SIF LOCAL:1 >= 2
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM212
+PRINTFORML %CALLNAME:MASTER%は分身を作り出した。
