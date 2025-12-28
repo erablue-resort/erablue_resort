@@ -278,16 +278,16 @@ PRINTL
 SELECTCASE 選択番号
 	CASE 200
 		CALL CSVコピー処理(2)
-		SIF 選択番号 > 0
-			対象NO = 選択番号
+		SIF RESULT > 0
+			対象NO = RESULT
 	CASE 201
 		DRAWLINE
 		PRINTL 1～80の範囲でLvを設定してください。
 		INPUT
-		IF 選択番号 < 1 || 選択番号 > 80
+		IF RESULT < 1 || RESULT > 80
 			PRINTW 数値が不正です。
 		ELSE
-			表示Lv = 選択番号
+			表示Lv = RESULT
 			基礎BATTLE_STATE:0:Lv = 表示Lv
 		ENDIF
 	CASE 202
@@ -297,7 +297,7 @@ SELECTCASE 選択番号
 		取得条件_Lv = 0
 		取得条件_陥落 = 
 		SPLIT 取得条件:アビ段階, "***", RESULTS
-		FOR LOCAL, 0, 選択番号
+		FOR LOCAL, 0, RESULT
 			IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
 				取得条件_Lv = TOINT(REPLACE(RESULTS:LOCAL, "Lv_", ""))
 			ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
@@ -376,8 +376,8 @@ SELECTCASE 選択番号
 						取得条件:アビ段階 += "***"
 					取得条件:アビ段階 += @"陥落_%取得条件_陥落%"
 				ENDIF
-				SIF 消費ＭＰ < 0
-					CALL ＭＰ自動計算(消費ＭＰ, 取得条件:アビ段階, アビ段階)
+				SIF 消費ＭＰ:アビ段階 < 0
+					CALL ＭＰ自動計算(消費ＭＰ:アビ段階, 取得条件:アビ段階, アビ段階)
 				GOTO 動作LOOP
 			CASE 0
 				$LvLOOP
@@ -422,21 +422,21 @@ SELECTCASE 選択番号
 
 		GOTO 取得LOOP
 	CASE 203
-		IF 消費ＭＰ < 0
+		IF 消費ＭＰ:アビ段階 < 0
 			;自動＞手動
 			$MPLOOP
 			DRAWLINE
 			PRINTL 消費するＭＰの値を入力してください。
 			INPUT
-			IF 選択番号 < 0
+			IF RESULT < 0
 				PRINTW 負の値は指定出来ません。
 				GOTO MPLOOP
 			ELSE
-				消費ＭＰ = 選択番号
+				消費ＭＰ:アビ段階 = RESULT
 			ENDIF
 		ELSE
 			;手動＞自動
-			消費ＭＰ = -1
+			消費ＭＰ:アビ段階 = -1
 		ENDIF
 	CASE 900
 		アビ作成中フラグ = 1
@@ -542,7 +542,7 @@ SELECTCASE 選択番号
 		アビ段階 = 選択番号 - 1000
 ENDSELECT
 
-SIF 消費ＭＰ < 0
+SIF 消費ＭＰ:アビ段階 < 0
 	CALL ＭＰ自動計算(消費ＭＰ, 取得条件:アビ段階, アビ段階)
 GOTO 動作LOOP
 
@@ -689,7 +689,7 @@ ENDSELECT
 #DIMS アビ説明記述, 10
 #DIMS アビ効果記述, 10
 #DIM アビ段階
-#DIM 最大アビ段階
+#DIM DYNAMIC 最大アビ段階
 #DIM 対象No
 #DIM REF 消費ＭＰ
 #DIMS REF アビ名
@@ -752,8 +752,8 @@ IF MATCH(取得条件, "") < VARSIZE("取得条件") || MATCH(アビ名, "（未
 	NEXT
 	アビERB記述 += "ENDIF<br><br>"
 ELSE
-	アビERB記述 += @"アビ名 = %アビ名:アビ段階%<br>"
-	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ:アビ段階)}<br><br>"
+	アビERB記述 += @"アビ名 = %アビ名:0%<br>"
+	アビERB記述 += @"消費ＭＰ = {ABS(消費ＭＰ:0)}<br><br>"
 ENDIF
 
 VARSET RESULT
