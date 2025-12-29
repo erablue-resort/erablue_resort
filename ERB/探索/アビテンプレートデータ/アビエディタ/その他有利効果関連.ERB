@@ -1,7 +1,7 @@
 ﻿
 @アビエディタ_その他有利効果追加(変更ID = 0, アビ段階 = 0)
 ;アビ文字列１ 有利効果の種類
-;アビ文字列２ 
+;アビ文字列２ 延長・短縮対象
 ;アビ文字列３ 
 ;アビ文字列４ 
 ;アビ文字列５
@@ -16,6 +16,7 @@
 #DIMS DYNAMIC 有利効果
 #DIMS DYNAMIC 効果対象
 #DIM DYNAMIC 効果成功率
+#DIMS DYNAMIC 延長・短縮対象
 #DIM アビ段階
 #DIM 変更ID
 #DIMS HTML文字列
@@ -39,6 +40,7 @@ ENDIF
 IF 変更ID
 	効果対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
 	有利効果 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	延長・短縮対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
 	効果倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
 	効果固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
 	効果成功率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値４", 1)
@@ -57,6 +59,9 @@ SIF 有利効果 == ""
 $動作LOOP
 ;バフの計算式タイプ取得
 計算式タイプ '= アビエディタ_ＭＰ自動計算_有利効果種類(有利効果)
+IF 有利効果 == "バフ効果延長" && 延長・短縮対象 == ""
+	延長・短縮対象 = ターン
+ENDIF
 
 DRAWLINE
 PRINTL 有利効果の設定を選択してください。
@@ -77,6 +82,9 @@ ELSE
 			PRINT ＋
 		PRINTFORM {効果固定値}
 	ENDIF
+	IF 有利効果 == "バフ効果延長"
+		PRINTFORM %延長・短縮対象%
+	ENDIF
 	PRINTFORM ］
 	PRINTFORM の%有利効果%効果を与える。
 ENDIF
@@ -96,6 +104,9 @@ IF STRFIND(計算式タイプ, "固定値") >= 0
 	HTML文字列 += @"<button value='4'>[4] 効果固定値を変更する</button>　　　　　現在：{効果固定値}<br>"
 ELSE
 	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[4] 効果固定値を変更する</font><br>"
+ENDIF
+IF 有利効果 == "バフ効果延長"
+	HTML文字列 += @"<button value='5'>[5] 延長する持続種別を変更する</button>　　現在：%延長・短縮対象%<br>"
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
@@ -135,12 +146,38 @@ SELECTCASE RESULT
 			PRINTW 負の値は指定出来ません
 		ENDIF
 		効果固定値 = RESULT
+	CASE 5
+		DRAWLINE
+		PRINTFORML 延長する持続種別を選択してください。 現在：%延長・短縮対象%
+		PRINTL
+		PRINTBUTTON "[0] ターンを延長する", 0
+		PRINTL
+		PRINTBUTTON "[1] 回（効果回数）を延長する", 1
+		PRINTL
+		PRINTBUTTON "[2] 行動（行動回数）を延長する", 2
+		PRINTL
+		PRINTBUTTON "[3] 被ダメ（被ダメ回数）を延長する", 3
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 0
+				延長・短縮対象 = ターン
+			CASE 1
+				延長・短縮対象 = 回
+			CASE 2
+				延長・短縮対象 = 行動
+			CASE 3
+				延長・短縮対象 = 被ダメ
+		ENDSELECT
 	CASE 998
 		IF STRFIND(計算式タイプ, "割合") < 0
 			効果倍率 = 0
 		ENDIF
 		IF STRFIND(計算式タイプ, "固定値") < 0
 			効果固定値 = 0
+		ENDIF
+		IF 有利効果 != "バフ効果延長"
+			延長・短縮対象 = 
 		ENDIF
 		IF 変更ID
 			;既存効果変更
@@ -149,6 +186,7 @@ SELECTCASE RESULT
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", 効果固定値, 1
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値４", 効果成功率, 1
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", 有利効果, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列２", 延長・短縮対象, 1
 			PRINTW バフ効果を変更しました。
 		ELSE
 			;新規効果追加
@@ -156,7 +194,7 @@ SELECTCASE RESULT
 			DT_ROW_ADD 
 			"アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "その他有利効果", "アビ対象", 効果対象, 
 			"アビ数値１", 効果倍率, "アビ数値２", 効果固定値, "アビ数値４", 効果成功率,
-			"アビ文字列１", 有利効果
+			"アビ文字列１", 有利効果, "アビ文字列２", 延長・短縮対象
 			}
 			PRINTW 新しい有利効果を追加しました。
 		ENDIF
@@ -182,8 +220,8 @@ PRINTBUTTONLC @"[1] ウェポンバースト", 1
 PRINTL
 PRINTBUTTONLC @"[2] デバフ消去", 2
 PRINTL
-; PRINTBUTTONLC @"[3] バフ効果延長", 3
-; PRINTL
+PRINTBUTTONLC @"[3] バフ効果延長", 3
+PRINTL
 ; PRINTBUTTONLC @"[4] デバフ効果短縮", 4
 ; PRINTL
 PRINTL
@@ -202,6 +240,8 @@ SELECTCASE RESULT
 		有利効果 = ウェポンバースト
 	CASE 2
 		有利効果 = デバフ消去
+	CASE 3
+		有利効果 = バフ効果延長
 	CASE 499
 		DRAWLINE
 		PRINTL ・奥義ゲージUP
@@ -235,5 +275,7 @@ SELECTCASE 有利効果
 	CASE "ウェポンバースト"
 		RETURNF ""
 	CASE "デバフ消去"
+		RETURNF "固定値"
+	CASE "バフ効果延長"
 		RETURNF "固定値"
 ENDSELECT
