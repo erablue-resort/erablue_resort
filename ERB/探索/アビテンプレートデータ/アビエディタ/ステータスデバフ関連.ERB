@@ -1,24 +1,25 @@
 ﻿
-@アビエディタ_バフ効果追加(変更ID = 0, アビ段階 = 0)
-;アビ文字列１ バフ対象のステータス
-;アビ文字列２ バフ枠
+@アビエディタ_デバフ効果追加(変更ID = 0, アビ段階 = 0)
+;アビ文字列１ デバフ対象のステータス
+;アビ文字列２ デバフ枠
 ;アビ文字列３ 持続種類（ターンや回数、行動回数など）
 ;アビ文字列４ その他オプション（消去不可など）
 ;アビ文字列５
-;アビ数値１ バフ倍率
-;アビ数値２ バフ固定値
+;アビ数値１ デバフ倍率
+;アビ数値２ デバフ固定値
 ;アビ数値３ 持続数値
 ;アビ数値４ 基礎成功率
 ;アビ数値５
 #DIM 効果順番
-#DIM DYNAMIC バフ倍率
-#DIM DYNAMIC バフ固定値
+#DIM DYNAMIC デバフ倍率
+#DIM DYNAMIC デバフ固定値
 #DIM DYNAMIC 持続数値
-#DIMS DYNAMIC バフ対象能力
-#DIMS DYNAMIC バフ枠
+#DIM DYNAMIC 基礎成功率
+#DIMS DYNAMIC デバフ対象能力
+#DIMS DYNAMIC デバフ枠
 #DIMS DYNAMIC 持続種類
 #DIMS DYNAMIC オプション
-#DIMS DYNAMIC バフ対象
+#DIMS DYNAMIC デバフ対象
 #DIM アビ段階
 #DIM 変更ID
 #DIM 枠補正フラグ
@@ -42,38 +43,39 @@ ELSE
 ENDIF
 
 IF 変更ID
-	バフ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
-	バフ対象能力 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
-	バフ枠 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
+	デバフ対象 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ対象", 1)
+	デバフ対象能力 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	デバフ枠 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
 	持続種類 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列３", 1)
 	オプション '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列４", 1)
-	バフ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
-	バフ固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
+	デバフ倍率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値１", 1)
+	デバフ固定値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値２", 1)
 	持続数値 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
+	基礎成功率 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値４", 1)
 	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
 ENDIF
-IF バフ対象 == ""
+IF デバフ対象 == ""
 	IF 効果順番 < 1
-		バフ対象 = 味方単体
+		デバフ対象 = 敵単体
 	ELSE
-		バフ対象 = 上と同じ相手
+		デバフ対象 = 上と同じ相手
 	ENDIF
 ENDIF
-SIF バフ対象能力 == ""
-	バフ対象能力 = 攻撃力
-SIF バフ枠 == ""
-	バフ枠 = 攻撃力A
+SIF デバフ対象能力 == ""
+	デバフ対象能力 = 攻撃力
+SIF デバフ枠 == ""
+	デバフ枠 = 攻撃力A
 SIF 持続種類 == ""
 	持続種類 = ターン
-SIF バフ倍率 == 0 && バフ固定値 == 0
-	バフ倍率 = 10
+SIF デバフ倍率 == 0 && デバフ固定値 == 0
+	デバフ倍率 = 10
 SIF 持続数値 == 0
 	持続数値 = 3
 
 $動作LOOP
 
 ;バフの計算式タイプ取得
-計算式タイプ '= アビエディタ_ＭＰ自動計算_バフ種類(バフ対象能力)
+計算式タイプ '= アビエディタ_ＭＰ自動計算_デバフ種類(デバフ対象能力)
 
 DRAWLINE
 PRINTL バフ効果の設定を選択してください。
@@ -81,19 +83,19 @@ DRAWLINE
 
 PRINTL ・現在の効果
 PRINT 　　
-PRINTFORM %バフ対象%に
+PRINTFORM %デバフ対象%に
 PRINT ［
-IF バフ倍率 > 0
-	PRINTFORM {バフ倍率}％
+IF デバフ倍率 > 0
+	PRINTFORM {デバフ倍率}％
 ENDIF
-IF バフ固定値 > 0
-	SIF バフ倍率 > 0
+IF デバフ固定値 > 0
+	SIF デバフ倍率 > 0
 		PRINT ＋
-	PRINTFORM {バフ固定値}
+	PRINTFORM {デバフ固定値}
 ENDIF
 PRINTFORM ］（
-IF STRFIND(バフ枠, バフ対象能力) == 0
-	PRINTFORM %TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠
+IF STRFIND(デバフ枠, デバフ対象能力) == 0
+	PRINTFORM %TOFULL(REPLACE(デバフ枠, デバフ対象能力, ""))%枠
 ELSE
 	PRINT 独自枠
 ENDIF
@@ -103,36 +105,36 @@ ENDIF
 IF STRFIND(オプション, "消去不可") >= 0
 	PRINT ・消去不可
 ENDIF
-IF バフ対象能力 == "ストレングス" || バフ対象能力 == "逆境"
-	PRINTFORM ）の%バフ能力表示変換(バフ対象能力)%効果を与える。
-ELSE
-	PRINTFORM ）の%バフ能力表示変換(バフ対象能力)%上昇効果を与える。
+PRINTFORM ）の%デバフ能力表示変換(デバフ対象能力)%減少効果を与える。
+IF 基礎成功率 > 0
+	PRINTFORM 成功率{基礎成功率}％。
 ENDIF
+
 PRINTL
 DRAWLINE
 
 HTML文字列 = 
 HTML文字列 += "<div rect='50, 0, 5000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
-HTML文字列 += @"<button value='1'>[1] バフ対象を変更する</button>　　　　　　現在：%バフ対象%<br>"
-HTML文字列 += @"<button value='2'>[2] バフする能力値を変更する</button>　　　現在：%バフ能力表示変換(バフ対象能力)%<br>"
+HTML文字列 += @"<button value='1'>[1] デバフ対象を変更する</button>　　　　　現在：%デバフ対象%<br>"
+HTML文字列 += @"<button value='2'>[2] デバフする能力値を変更する</button>　　現在：%デバフ能力表示変換(デバフ対象能力)%<br>"
 IF STRFIND(計算式タイプ, "割合") >= 0
-	HTML文字列 += @"<button value='3'>[3] バフ倍率を変更する</button>　　　　　　現在：{バフ倍率}％<br>"
+	HTML文字列 += @"<button value='3'>[3] デバフ倍率を変更する</button>　　　　　現在：{デバフ倍率}％<br>"
 ELSE
-	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[3] バフ倍率を変更する</font><br>"
+	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[3] デバフ倍率を変更する</font><br>"
 ENDIF
 IF STRFIND(計算式タイプ, "固定値") >= 0
-	HTML文字列 += @"<button value='4'>[4] バフ固定値を変更する</button>　　　　　現在：{バフ固定値}<br>"
+	HTML文字列 += @"<button value='4'>[4] デバフ固定値を変更する</button>　　　　現在：{デバフ固定値}<br>"
 ELSE
-	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[4] バフ固定値を変更する</font><br>"
+	HTML文字列 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[4] デバフ固定値を変更する</font><br>"
 ENDIF
 IF 持続数値 < 1
-	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：永続<br>"
+	HTML文字列 += @"<button value='5'>[5] デバフの持続時間を変更する</button>　　現在：永続<br>"
 ELSE
-	HTML文字列 += @"<button value='5'>[5] バフの持続時間を変更する</button>　　　現在：{持続数値}%持続種類%<br>"
+	HTML文字列 += @"<button value='5'>[5] デバフの持続時間を変更する</button>　　現在：{持続数値}%持続種類%<br>"
 ENDIF
-HTML文字列 += "<button value='6'>[6] バフの枠を変更する</button>　　　　　　現在："
-IF STRFIND(バフ枠, バフ対象能力) == 0
-	HTML文字列 += @"%TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠<br>"
+HTML文字列 += "<button value='6'>[6] デバフの枠を変更する</button>　　　　　現在："
+IF STRFIND(デバフ枠, デバフ対象能力) == 0
+	HTML文字列 += @"%TOFULL(REPLACE(デバフ枠, デバフ対象能力, ""))%枠<br>"
 ELSE
 	HTML文字列 += "独自枠<br>"
 ENDIF
@@ -140,6 +142,11 @@ IF STRFIND(オプション, "消去不可") >= 0
 	HTML文字列 += @"<button value='7'>[7] 消去不可オプションを消す</button>　　　現在：あり<br>"
 ELSE
 	HTML文字列 += @"<button value='7'>[7] 消去不可オプションをつける</button>　　現在：なし<br>"
+ENDIF
+IF 基礎成功率 > 0
+	HTML文字列 += @"<button value='8'>[8] デバフ成功率を設定する</button>　　　　現在：{基礎成功率}％<br>"
+ELSE
+	HTML文字列 += @"<button value='8'>[8] デバフ成功率を設定する</button>　　　　現在：100％<br>"
 ENDIF
 HTML文字列 += "<br>"
 HTML文字列 += "<br>"
@@ -158,42 +165,42 @@ PRINTL
 PRINTL
 SELECTCASE RESULT
 	CASE 1
-		CALL アビエディタ_対象選択(バフ対象, 効果順番)
+		CALL アビエディタ_対象選択(デバフ対象, 効果順番)
 	CASE 2
 		枠補正フラグ = 0
-		IF STRFIND(バフ枠, バフ対象能力) >= 0
-			枠保存 '= バフ対象能力
+		IF STRFIND(デバフ枠, デバフ対象能力) >= 0
+			枠保存 '= デバフ対象能力
 			枠補正フラグ = 1
 		ENDIF
-		CALL アビエディタ_バフ種類選択(バフ対象能力)
+		CALL アビエディタ_デバフ種類選択(デバフ対象能力)
 		IF 枠補正フラグ
-			バフ枠 '= REPLACE(バフ枠, 枠保存, バフ対象能力)
+			デバフ枠 '= REPLACE(デバフ枠, 枠保存, デバフ対象能力)
 		ENDIF
 	CASE 3
 		DRAWLINE
-		PRINTFORML バフ倍率を入力してください。 現在：{バフ倍率}％
+		PRINTFORML デバフ倍率を入力してください。 現在：{デバフ倍率}％
 		PRINTL
 		INPUT
 		IF RESULT < 0
 			PRINTW 負の値は指定出来ません
 		ENDIF
-		バフ倍率 = RESULT
+		デバフ倍率 = RESULT
 	CASE 4
 		DRAWLINE
-		PRINTFORML バフ固定値を入力してください。 現在：{バフ固定値}
+		PRINTFORML デバフ固定値を入力してください。 現在：{デバフ固定値}
 		PRINTL
 		INPUT
 		IF RESULT < 0
 			PRINTW 負の値は指定出来ません
 		ENDIF
-		バフ固定値 = RESULT
+		デバフ固定値 = RESULT
 	CASE 5
 		$持続LOOP
 		DRAWLINE
 		IF 持続数値 < 1
-			PRINTFORML バフの持続時間を設定してください。 現在：永続
+			PRINTFORML デバフの持続時間を設定してください。 現在：永続
 		ELSE
-			PRINTFORML バフの持続時間を設定してください。 現在：{持続数値}%持続種類%
+			PRINTFORML デバフの持続時間を設定してください。 現在：{持続数値}%持続種類%
 		ENDIF
 		PRINTL
 		PRINTL
@@ -216,7 +223,7 @@ SELECTCASE RESULT
 		ELSE
 			PRINTBUTTON "[回数]", 11
 		ENDIF
-		PRINTL 　　　：バフが発動した後に減少し、０になった時に解除
+		PRINTL 　　　：デバフが発動した後に減少し、０になった時に解除
 		IF 持続種類 == "行動"
 			SETCOLOR カラーパレット("黄")
 			PRINTPLAIN [行動]
@@ -264,15 +271,15 @@ SELECTCASE RESULT
 		GOTO 持続LOOP
 	CASE 6
 		DRAWLINE
-		PRINTFORM バフ枠を選択してください。 現在：
-		IF STRFIND(バフ枠, バフ対象能力) == 0
-			PRINTFORM %TOFULL(REPLACE(バフ枠, バフ対象能力, ""))%枠
+		PRINTFORM デバフ枠を選択してください。 現在：
+		IF STRFIND(デバフ枠, デバフ対象能力) == 0
+			PRINTFORM %TOFULL(REPLACE(デバフ枠, デバフ対象能力, ""))%枠
 		ELSE
-			PRINTFORM 独自枠（%バフ枠%）
+			PRINTFORM 独自枠（%デバフ枠%）
 		ENDIF
 		PRINTL
-		PRINTFORML ※枠とはバフの共存関係を管理するための文字列です。
-		PRINTFORML 　バフの対象能力と枠が両方同じ効果は共存せず、効果の高い方に上書きされます。
+		PRINTFORML ※枠とはデバフの共存関係を管理するための文字列です。
+		PRINTFORML 　デバフの対象能力と枠が両方同じ効果は共存せず、効果の高い方に上書きされます。
 		PRINTFORML 　バフとデバフで枠が同じである場合は共存し、両方とも効果を発揮します。
 		PRINTL
 		PRINTBUTTON "[0] Ａ枠", 0
@@ -288,13 +295,13 @@ SELECTCASE RESULT
 		BINPUT
 		SELECTCASE RESULT
 			CASE 0
-				バフ枠 = %バフ対象能力%A
+				デバフ枠 = %デバフ対象能力%A
 			CASE 1
-				バフ枠 = %バフ対象能力%B
+				デバフ枠 = %デバフ対象能力%B
 			CASE 2
-				バフ枠 = %バフ対象能力%C
+				デバフ枠 = %デバフ対象能力%C
 			CASE 3
-				バフ枠 = %バフ対象能力%D
+				デバフ枠 = %デバフ対象能力%D
 			CASE 10
 				$任意枠LOOP
 				DRAWLINE
@@ -304,7 +311,7 @@ SELECTCASE RESULT
 					PRINTW 空白は入力できません。
 					GOTO 任意枠LOOP
 				ENDIF
-				バフ枠 '= RESULTS
+				デバフ枠 '= RESULTS
 		ENDSELECT
 	CASE 7
 		IF STRFIND(オプション, "消去不可") >= 0
@@ -312,33 +319,51 @@ SELECTCASE RESULT
 		ELSE
 			オプション += "消去不可"
 		ENDIF
+	CASE 8
+		DRAWLINE
+		IF 基礎成功率 > 0
+			PRINTFORML デバフ成功率を入力してください。 現在：{基礎成功率}％
+		ELSE
+			PRINTFORML デバフ成功率を入力してください。 現在：100％
+		ENDIF
+		PRINTL
+		INPUT
+		IF RESULT < 1
+			PRINTW １未満の値は指定出来ません
+		ENDIF
+		IF RESULT == 100
+			基礎成功率 = 0
+		ELSE
+			基礎成功率 = RESULT
+		ENDIF
 	CASE 998
 		IF STRFIND(計算式タイプ, "割合") < 0
-			バフ倍率 = 0
+			デバフ倍率 = 0
 		ENDIF
 		IF STRFIND(計算式タイプ, "固定値") < 0
-			バフ固定値 = 0
+			デバフ固定値 = 0
 		ENDIF
 		IF 変更ID
 			;既存効果変更
-			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", バフ対象, 1
-			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", バフ倍率, 1
-			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", バフ固定値, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ対象", デバフ対象, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値１", デバフ倍率, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値２", デバフ固定値, 1
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値３", 持続数値, 1
-			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", バフ対象能力, 1
-			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列２", バフ枠, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ数値４", 基礎成功率, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列１", デバフ対象能力, 1
+			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列２", デバフ枠, 1
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列３", 持続種類, 1
 			DT_CELL_SET "アビエディタデータベース", 変更ID, "アビ文字列４", オプション, 1
-			PRINTW バフ効果を変更しました。
+			PRINTW デバフ効果を変更しました。
 		ELSE
 			;新規効果追加
 			{
 			DT_ROW_ADD 
-			"アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "バフ効果", "アビ対象", バフ対象, 
-			"アビ数値１", バフ倍率, "アビ数値２", バフ固定値, "アビ数値３", 持続数値,
-			"アビ文字列１", バフ対象能力, "アビ文字列２", バフ枠, "アビ文字列３", 持続種類, "アビ文字列４", オプション
+			"アビエディタデータベース", "効果順番", 効果順番, "アビ段階", アビ段階, "アビ効果種別", "デバフ効果", "アビ対象", デバフ対象, 
+			"アビ数値１", デバフ倍率, "アビ数値２", デバフ固定値, "アビ数値３", 持続数値, "アビ数値４", 基礎成功率,
+			"アビ文字列１", デバフ対象能力, "アビ文字列２", デバフ枠, "アビ文字列３", 持続種類, "アビ文字列４", オプション
 			}
-			PRINTW 新しいバフ効果を追加しました。
+			PRINTW 新しいデバフ効果を追加しました。
 		ENDIF
 		RETURN 1
 	CASE 999
@@ -349,12 +374,12 @@ GOTO 動作LOOP
 
 
 
-@アビエディタ_バフ種類選択(バフ対象能力)
-#DIMS REF バフ対象能力
+@アビエディタ_デバフ種類選択(デバフ対象能力)
+#DIMS REF デバフ対象能力
 #DIM 表示数
 
 DRAWLINE
-PRINTFORML バフする能力値を選択してください。 現在：%バフ能力表示変換(バフ対象能力)%
+PRINTFORML バフする能力値を選択してください。 現在：%デバフ能力表示変換(デバフ対象能力)%
 DRAWLINE
 PRINTL ・基礎ステータス
 表示数 = 0
@@ -370,13 +395,13 @@ FOR LOCAL, 6, 28
 NEXT
 PRINTBUTTONLC @"[50] 連続攻撃率", 50
 PRINTL
-DRAWLINE
-PRINTL ・ダメージ補正　　（同じ効果はバフ量・デバフ量が合算されて計算されます）
-PRINTBUTTONLC "[100] 通常攻撃ダメージ", 100
-PRINTBUTTONLC "[101] アビリティダメージ", 101
-PRINTBUTTONLC "[102] 奥義ダメージ", 102
-PRINTBUTTONLC "[103] チェンバダメージ", 103
-PRINTL
+; DRAWLINE
+; PRINTL ・ダメージ補正　　（同じ効果はバフ量・デバフ量が合算されて計算されます）
+; PRINTBUTTONLC "[100] 通常攻撃ダメージ", 100
+; PRINTBUTTONLC "[101] アビリティダメージ", 101
+; PRINTBUTTONLC "[102] 奥義ダメージ", 102
+; PRINTBUTTONLC "[103] チェンバダメージ", 103
+; PRINTL
 DRAWLINE
 PRINTL ・与ダメージ　　（与ダメージバフ・デバフが計算されてから被ダメージバフ・デバフが計算されます）
 PRINTBUTTONLC "[200] 与ダメージ", 200
@@ -400,15 +425,11 @@ PRINTBUTTONLC "[305] 光属性耐性", 305
 PRINTBUTTONLC "[306] 闇属性耐性", 306
 PRINTL
 DRAWLINE
-PRINTL ・その他バフ
+PRINTL ・その他デバフ
 PRINTBUTTONLC "[400] 与回復量", 400
 PRINTBUTTONLC "[401] 被回復量", 401
-PRINTBUTTONLC "[402] テンション", 402
-PRINTBUTTONLC "[403] ストレングス", 403
 PRINTL
-PRINTBUTTONLC "[404] 逆境", 404
-PRINTL
-PRINTBUTTONLC "[499] その他バフ解説", 499
+PRINTBUTTONLC "[499] その他デバフ解説", 499
 PRINTL
 DRAWLINE
 PRINTL
@@ -418,37 +439,37 @@ PRINTL
 PRINTL
 SELECTCASE RESULT
 	CASE IS < 50
-		;基礎ステバフ
-		バフ対象能力 '= ERDNAME(BATTLE_STATE, RESULT, 2)
+		;基礎ステデバフ
+		デバフ対象能力 '= ERDNAME(BATTLE_STATE, RESULT, 2)
 	CASE 50
 		;連撃率
-		バフ対象能力 = 連続攻撃率
-	CASE 100
-		バフ対象能力 = ダメージ補正_通常攻撃ダメージ
-	CASE 101
-		バフ対象能力 = ダメージ補正_アビリティダメージ
-	CASE 102
-		バフ対象能力 = ダメージ補正_奥義ダメージ
-	CASE 103
-		バフ対象能力 = ダメージ補正_チェンバダメージ
+		デバフ対象能力 = 連続攻撃率
+	; CASE 100
+	; 	デバフ対象能力 = ダメージ補正_通常攻撃ダメージ
+	; CASE 101
+	; 	デバフ対象能力 = ダメージ補正_アビリティダメージ
+	; CASE 102
+	; 	デバフ対象能力 = ダメージ補正_奥義ダメージ
+	; CASE 103
+	; 	デバフ対象能力 = ダメージ補正_チェンバダメージ
 	CASE 200
-		バフ対象能力 = 与ダメージ
+		デバフ対象能力 = 与ダメージ
 	CASE 201 TO 206
-		バフ対象能力 = 属性与ダメージ_%属性数値文字列変換(RESULT - 201)%
+		デバフ対象能力 = 属性与ダメージ_%属性数値文字列変換(RESULT - 201)%
 	CASE 300
-		バフ対象能力 = 被ダメージ
+		デバフ対象能力 = 被ダメージ
 	CASE 301 TO 306
-		バフ対象能力 = 属性被ダメージ_%属性数値文字列変換(RESULT - 301)%
+		デバフ対象能力 = 属性被ダメージ_%属性数値文字列変換(RESULT - 301)%
 	CASE 400
-		バフ対象能力 = 与回復量
+		デバフ対象能力 = 与回復量
 	CASE 400
-		バフ対象能力 = 被回復量
+		デバフ対象能力 = 被回復量
 	CASE 400
-		バフ対象能力 = テンション
+		デバフ対象能力 = テンション
 	CASE 400
-		バフ対象能力 = ストレングス
+		デバフ対象能力 = ストレングス
 	CASE 400
-		バフ対象能力 = 逆境
+		デバフ対象能力 = 逆境
 	CASE 499
 		DRAWLINE
 		PRINTL ・与回復量
@@ -456,37 +477,28 @@ SELECTCASE RESULT
 		PRINTL
 		PRINTL ・被回復量
 		PRINTL 　　効果の掛かったキャラが受ける回復効果が上下します。
+		; PRINTL
+		; PRINTL ・テンション
+		; PRINTL 　　攻撃力を上昇させます。４段階存在し、同じ効果を掛けるたびに段階が加算されます。
+		; PRINTL 　　効果量は以下の通りです。
+		; PRINTL 　　１：110％　２：130％　３：160％　４：200％
+		; PRINTL 　　バフ固定値のみ効果を発揮します。５以上に増加しても効果は４と同じままです。
 		PRINTL
-		PRINTL ・テンション
-		PRINTL 　　攻撃力を上昇させます。４段階存在し、同じ効果を掛けるたびに段階が加算されます。
-		PRINTL 　　効果量は以下の通りです。
-		PRINTL 　　１：110％　２：130％　３：160％　４：200％
-		PRINTL 　　バフ固定値のみ効果を発揮します。５以上に増加しても効果は４と同じままです。
-		PRINTL
-		PRINTL ・ストレングス
-		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラのHPが高いほど効果が大きくなります。
-		PRINTL 　　バフ割合のみ効果を発揮します。
-		PRINTL 　　計算式は「（（ＨＰ ✕ 200 / 最大ＨＰ）+ 100）✕（バフ効果量 / 3） / 100」％。
-		PRINTL
-		PRINTL ・逆境
-		PRINTL 　　攻撃力を上昇させます。効果の掛かったキャラの最大HPと現在HPの差が大きいほど効果が大きくなります。
-		PRINTL 　　バフ割合のみ効果を発揮します。
-		PRINTL 　　計算式は「（（（最大ＨＰ - ＨＰ） ✕ 200 / 最大ＨＰ）+ 100）✕（バフ効果量 / 3） / 100」％。
 		PRINTL
 		WAIT
 		RESTART
 ENDSELECT
 
 
-@バフ能力表示変換(バフ対象能力)
+@デバフ能力表示変換(デバフ対象能力)
 #FUNCTIONS
-#DIMS バフ対象能力
+#DIMS デバフ対象能力
 #DIMS 返り文字列
 
-返り文字列 '= バフ対象能力
+返り文字列 '= デバフ対象能力
 
 ;登録内容を表示用に変えるだけ
-SELECTCASE バフ対象能力
+SELECTCASE デバフ対象能力
 	CASE "属性与ダメージ_火"
 		返り文字列 = 火属性攻撃
 	CASE "属性与ダメージ_水"
@@ -524,24 +536,24 @@ ENDSELECT
 RETURNF 返り文字列
 
 
-@アビエディタ_ＭＰ自動計算_バフ種類(バフ対象能力)
+@アビエディタ_ＭＰ自動計算_デバフ種類(デバフ対象能力)
 #FUNCTIONS
-#DIMS バフ対象能力
+#DIMS デバフ対象能力
 
 ;自動計算に使う係数と、計算式タイプを返す
 
-SELECTCASE バフ対象能力
+SELECTCASE デバフ対象能力
 	CASE "攻撃力"
-		RFLAG:アビMP係数 = 100
-		RETURNF "青天井_割合_固定値"
-	CASE "防御力"
 		RFLAG:アビMP係数 = 80
 		RETURNF "青天井_割合_固定値"
+	CASE "防御力"
+		RFLAG:アビMP係数 = 100
+		RETURNF "青天井_割合_固定値"
 	CASE "回復力"
-		RFLAG:アビMP係数 = 70
+		RFLAG:アビMP係数 = 60
 		RETURNF "青天井_割合_固定値"
 	CASE "行動速度"
-		RFLAG:アビMP係数 = 60
+		RFLAG:アビMP係数 = 70
 		RETURNF "青天井_割合_固定値"
 	CASE "ダメージ補正_通常攻撃ダメージ"
 		RFLAG:アビMP係数 = 90
@@ -573,12 +585,6 @@ SELECTCASE バフ対象能力
 	CASE "被回復量"
 		RFLAG:アビMP係数 = 80
 		RETURNF "青天井_割合_固定値"
-	CASE "ストレングス"
-		RFLAG:アビMP係数 = 90
-		RETURNF "青天井_割合"
-	CASE "逆境"
-		RFLAG:アビMP係数 = 90
-		RETURNF "青天井_割合"
 	CASE "DA率"
 		RFLAG:アビMP係数 = 30
 		RETURNF "最大100_固定値"
@@ -609,8 +615,4 @@ SELECTCASE バフ対象能力
 	CASE "弱体耐性"
 		RFLAG:アビMP係数 = 50
 		RETURNF "最大100_固定値"
-	CASE "テンション"
-		RFLAG:アビMP係数 = 100
-		;テンションは1～4しかないので計算タイプは特殊
-		RETURNF "テンション_固定値"
 ENDSELECT
