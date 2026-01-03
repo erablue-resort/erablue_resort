@@ -17,11 +17,15 @@ WAIT
 DRAWLINE
 ;１００以上になった関係を完了させる
 CALL 縁結び完了処理()
+DAY_RAND = RAND:1000
 
 ;初期化・滞在期間処理
 FOR LOCAL,0,CHARANUM
 	;危険日などを設定する
 	CALL SET_PREGNANCY_PALAM(LOCAL)
+
+	;乱数のセット
+	CFLAG:LOCAL:C_DAY_RAND = RAND:1000
 
 	;同棲処理
 	IF TALENT:LOCAL:定住者 == 1 && RAND:10 == 0
@@ -163,6 +167,8 @@ FOR LOCAL,0,CHARANUM
 
 	;キャラ個別処理があれば呼び出す
 	TRYCALLFORM DAYFIRST_CHARAEVENT_{NO:LOCAL}
+	;その他の固有処理を呼び出す
+	TRYCALLFORM DAYFIRST_CHARAEVENT_ETC(LOCAL)
 	;滞在してないキャラはスルー
 	IF CFLAG:LOCAL:滞在期間 == -1
 		RCVAR:LOCAL:表示カット = 1
@@ -911,3 +917,21 @@ SIF TALENT:ARG:発情期あり > 0 && TALENT:ARG:性別 == 2 && GETBIT(OPTION変
 	RETURNF 1
 
 RETURNF 0
+
+
+@DAYFIRST_CHARAEVENT_ETC(対象キャラ)
+#DIM 対象キャラ
+
+;キャラ個別ではないが、特定の条件を満たしたキャラの処理を分ける場所
+;延々とEVENTTRAIN0のループが長くなるのを防ぐ意図
+
+;デレマス処理
+IF CSTR:対象キャラ:出演作品 == "アイドルマスターシンデレラガールズ"
+	;個別口上の外でこれ使いたくないけど、CFLAGに新設するよりはマシなので……
+	特定状況口上用フラグ:対象キャラ:0 = 0
+	IF イベント完了フラグ確認("『シンデレラ』と『舞踏会』") > 0
+		IF CFLAG:LOCAL:C_DAY_RAND % 33 == 0 || NAME:対象キャラ == "[アイドル事務所のアシスタント]千川ちひろ" || DAY_RAND % 192 == 0
+			特定状況口上用フラグ:対象キャラ:0 = 1
+		ENDIF
+	ENDIF
+ENDIF

@@ -515,6 +515,9 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 				ENDIF
 				SIF CFLAG:(TARGET:LOCAL):マッサージ助手
 					ボタン表示格納用 += "(助)"
+				RESULTS = 
+				CALL 追加アイコン表示処理(TARGET:LOCAL, ボタン表示格納用)
+				ボタン表示格納用 += RESULTS
 				ボタン表示格納用 += "]"
 				文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
 				IF 文字数カウント > 101
@@ -602,6 +605,9 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 							ENDIF
 						ENDIF
 					ENDIF
+					RESULTS = 
+					CALL 追加アイコン表示処理(飲み会TARGET:LOCAL, ボタン表示格納用)
+					ボタン表示格納用 += RESULTS
 					ボタン表示格納用 += "]"
 					文字数カウント += STRLENS(REPLACE((ボタン表示格納用), "<.*>", "　"))
 					IF 文字数カウント > 85
@@ -778,6 +784,7 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 	ELSEIF LOCAL
 		PRINTFORM 　　怒り:%"！" * LOCAL%
 	ENDIF
+	CALL 追加アイコン表示処理(TARGET, "PRINT")
 	PRINTL
 
 	IF CFLAG:デート
@@ -1981,3 +1988,28 @@ NEXT
 SIF ピアス名札あり
 	RETURNF 2
 RETURNF 1
+
+
+;-------------------------------------------------
+; 全裸かチェック。全裸なら1、ピアス名札のみだったら2を返す
+;-------------------------------------------------
+@追加アイコン表示処理(対象キャラ, 表示文字列)
+#DIM 対象キャラ
+#DIMS 表示文字列
+
+;キャラ固有の表示を呼ぶ前に、素質や出典作品などで一括表示をする処理を噛ませる
+;結果はRESULTSで返すかPRINTで表示する
+
+;デレマス処理
+IF CSTR:対象キャラ:出演作品 == "アイドルマスターシンデレラガールズ"
+	IF 特定状況口上用フラグ:対象キャラ:0
+		IF 表示文字列 == "PRINT"
+			PRINT_IMG "デレマス_マーク"
+		ELSE
+			RESULTS += "<img src='デレマス_マーク'>"
+		ENDIF
+	ENDIF
+ENDIF
+
+;その他固有処理
+TRYCALLFORM キャラ固有_名前横アイコン表示_{NO:対象キャラ}(対象キャラ, 表示文字列)
