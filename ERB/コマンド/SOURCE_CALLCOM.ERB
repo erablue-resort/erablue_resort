@@ -1,5 +1,6 @@
 ﻿@CALL_COM振り分け()
 #DIM TARGET保存
+#DIM PLAYER保存
 
 SELECTCASE SAVESTR:ゲームフェイズ管理
 	CASE "通常モード"
@@ -91,12 +92,18 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 			;複数モード時か否か
 			IF GETBIT(FLAG:モード管理, モードビット_同時)
 				TARGET保存 = TARGET
+				PLAYER保存 = PLAYER
 				;同時モード時は全員分回す
 				同時実行ID保存 = 0
 				FOR LOCAL, 0, 同時モード_選択数
 					SIF 同時モード_選択キャラ:LOCAL < 0
 						BREAK
-					TARGET = 同時モード_選択キャラ:LOCAL
+					IF RFLAG:入替えコマンドフラグ
+						;入れ替え時は既にTARGETとPLAYERが入れ替わっているのでPLAYER側だけ変える
+						PLAYER = 同時モード_選択キャラ:LOCAL
+					ELSE
+						TARGET = 同時モード_選択キャラ:LOCAL
+					ENDIF
 					;シチュエーション弱点判定
 					IF 弱点チェック(TARGET, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
 						CALL 弱点の欠片取得処理(@"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
@@ -109,6 +116,7 @@ SELECTCASE SAVESTR:ゲームフェイズ管理
 				NEXT
 				同時実行ID保存 = 0
 				TARGET = TARGET保存
+				PLAYER = PLAYER保存
 			ELSE
 				;シチュエーション弱点判定
 				IF 弱点チェック(TARGET, @"SITUATION_%CSTR:TARGET:うふふシチュ記録%")
