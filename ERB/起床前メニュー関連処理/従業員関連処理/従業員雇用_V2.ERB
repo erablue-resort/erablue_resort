@@ -11,6 +11,7 @@
 #DIM 改行フラグ
 #DIM 追加キャラ番号
 #DIM 画像フラグ, 2
+#DIM 候補キャラ
 
 VARSET メニュー調理法一時保存
 FOR LOCAL, 1, 6
@@ -19,6 +20,9 @@ NEXT
 CALL 料理メニューコンボ判定処理
 SIF !RESULT
 	発動中コンボ名 '= ""
+IF そっくりさん画像枚数_閾値 < 1
+	そっくりさん画像枚数_閾値 = 10
+ENDIF
 
 $従業員_LOOP
 DRAWLINE
@@ -38,6 +42,8 @@ DRAWLINE
 表示文字列 += "<br>"
 表示文字列 += "<button value='130'>[130] ワーウルフの立ち絵を変更する</button>"
 表示文字列 += "<br>"
+; 表示文字列 += "<button value='131'>[131] そっくりさん立ち絵を変更する</button>"
+; 表示文字列 += "<br>"
 表示文字列 += "<br>"
 表示文字列 += "<button value='999'>[999] 戻る</button>"
 表示文字列 += "</div>"
@@ -93,7 +99,9 @@ ENDIF
 CALL ランダムキャラ生成(Ｒキャラ追加候補記録, 管理番号)
 
 ;そっくりさん処理
-
+IF そっくりさんフラグ && RAND:3 == 0
+	CALL ランダムキャラそっくりさん適用(Ｒキャラ追加候補記録, 管理番号)
+ENDIF
 
 ;メインパネル (キャラデータ表示処理)
 表示文字列 += "<div rect='2125,156,3675,2812'>"
@@ -342,11 +350,19 @@ IF OPTION変数:汎用立ち絵制御
 	ELSE
 		SPRITEDISPOSE @"顔グラ3000"
 		GDISPOSE 3000
-		CALL GCREATE_拡張子(3000, @"汎用グラフィック/顔_%LOCALS%")
+		IF STRFIND(LOCALS, "そっくりさん設定_") == 0
+			CALL GCREATE_拡張子(3000, @"%REPLACE(LOCALS, "そっくりさん設定_", "")%/顔_デフォルト")
+		ELSE
+			CALL GCREATE_拡張子(3000, @"汎用グラフィック/顔_%LOCALS%")
+		ENDIF
 		画像フラグ:0 = RESULT
 		SPRITEDISPOSE @"短冊グラ3000"
 		GDISPOSE 3001
-		CALL GCREATE_拡張子(3001, @"汎用グラフィック/短冊_%LOCALS%")
+		IF STRFIND(LOCALS, "そっくりさん設定_") == 0
+			CALL GCREATE_拡張子(3000, @"%REPLACE(LOCALS, "そっくりさん設定_", "")%/短冊_デフォルト")
+		ELSE
+			CALL GCREATE_拡張子(3001, @"汎用グラフィック/短冊_%LOCALS%")
+		ENDIF
 		画像フラグ:1 = RESULT
 		;設定中の顔グラが存在すればそちらを拡縮で表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
@@ -354,9 +370,9 @@ IF OPTION変数:汎用立ち絵制御
 		SIF !ワーウルフフラグ
 			追加表示格納 += "<clearbutton>"
 		SIF 画像フラグ:0 && スプライト作成(@"顔グラ3000", 3000, 0)
-			追加表示格納 += @"<button value='130'><img src='顔グラ3000'height='1125'></button>"
+			追加表示格納 += @"<button value='130' title='%LOCALS%'><img src='顔グラ3000'height='1125'></button>"
 		SIF 画像フラグ:1 && スプライト作成(@"短冊グラ3000", 3001, 0)
-			追加表示格納 += @"<button value='130'><img src='短冊グラ3000'height='1125'></button>"
+			追加表示格納 += @"<button value='130' title='%LOCALS%'><img src='短冊グラ3000'height='1125'></button>"
 		SIF !ワーウルフフラグ
 			追加表示格納 += "</clearbutton>"
 		画像サイズ切り替えOPTION記憶:1 = LOCAL
@@ -417,6 +433,77 @@ SELECTCASE RESULT
 	CASE 130
 		INVERTBIT OPTION変数:ワーウルフ画像ケモ度, 0
 		GOTO 表示_LOOP
+	CASE 131
+		$そっくりさんLOOP
+		DRAWLINE
+		PRINTL ランダムキャラの立ち絵に既存キャラの立ち絵を適用することが出来ます。
+		PRINTL 使用する場合、ランダムキャラ生成時に33％の確率でそっくりさんが出現します。
+		PRINTL
+		PRINT ・そっくりさん立ち絵を使用 
+		IF そっくりさんフラグ == 0
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTBUTTON "[する]", 0
+			RESETCOLOR
+			PRINTPLAIN  / [しない]
+		ELSE
+			PRINTPLAIN [する] / 
+			SETCOLOR カラーパレット("グレーアウト")
+			PRINTBUTTON "[しない]", 0
+			RESETCOLOR
+		ENDIF
+		PRINTL
+		IF そっくりさんフラグ
+			PRINT ・そっくりさん候補になる画像枚数
+			PRINTFORM 　　{そっくりさん画像枚数_閾値, 2}枚　
+			PRINTBUTTON "[変更]", 1
+			PRINTL
+		ENDIF
+		PRINTBUTTON "[999] 戻る", 999
+		PRINTL
+
+		PRINTL
+		BINPUT
+		PRINTL
+		PRINTL
+		SELECTCASE RESULT
+			CASE 0
+				INVERTBIT そっくりさんフラグ, 0
+				GOTO そっくりさんLOOP
+			CASE 1
+				$枚数LOOP
+				DRAWLINE
+				PRINTL そっくりさん候補になる画像の最低枚数を設定出来ます。
+				PRINTL 1以上の数値を入力してください。デフォルトは10枚以上です。
+				PRINTL
+				INPUT
+				PRINTL
+				IF RESULT < 1
+					PRINTW 0以下の数値は入力出来ません。
+					GOTO 枚数LOOP
+				ENDIF
+				そっくりさん画像枚数_閾値 = RESULT
+				GOTO そっくりさんLOOP
+			CASE 999
+				IF そっくりさんフラグ
+					VARSET LOCAL
+					FOR 候補キャラ, 1, CHARANUM
+						;ランダムキャラは対象にしない
+						SIF NO:候補キャラ == 999
+							CONTINUE
+						;画像枚数OK？
+						SIF GET_RESOURCES_FILES(CSTR:候補キャラ:画像フォルダ, "*.webp", 1) < そっくりさん画像枚数_閾値
+							CONTINUE
+						IF CSVTALENT(NO:候補キャラ, GETNUM(TALENT, "性別")) != 2
+							そっくりさん候補配列_非男:LOCAL = 候補キャラ
+							LOCAL ++
+						ELSE
+							そっくりさん候補配列_男:(LOCAL:1) = 候補キャラ
+							LOCAL:1 ++
+						ENDIF
+					NEXT
+				ENDIF
+				GOTO 従業員_LOOP
+		ENDSELECT
 	CASE 999
 		RETURN 0
 	CASEELSE
