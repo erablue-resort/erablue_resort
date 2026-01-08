@@ -477,4 +477,73 @@ ENDIF
 ;画像フォルダを指定
 CALL ランダムキャラデータ_SETS_B(ＤＢ名, 管理番号, "CSTR", "汎用立ち絵登録文字列", @"そっくりさん設定_%CSTR:そっくりキャラ:画像フォルダ%")
 
-;素質を共通化、容姿を削除
+;素質を共通化、容姿を専用化
+IF CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "角あり")) > 0
+	;角あるならドラフ化
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "種族", 種族_ドラフ)
+ELSEIF CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "エルーン耳")) > 0
+	;ケモミミあるならエルーン化
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "種族", 種族_エルーン)
+ELSEIF CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "体格")) == -3 || (CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "身長")) > 0 && CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "身長")) <= 1000)
+	;体格ハーヴィン並、あるいは設定身長が100cm以下ならハーヴィン化
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "種族", 種族_ハーヴィン)
+ELSE
+	;どれにも引っかからないならヒューマン
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "種族", 種族_ヒューマン)
+ENDIF
+;特殊種族は使わない
+CALL ランダムキャラデータ_SETS_B(ＤＢ名, 管理番号, "CSTR", "特殊種族", "")
+;種族特徴コピー
+CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "角あり", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "角あり")))
+CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "ハーヴィン耳", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "ハーヴィン耳")))
+CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "エルーン耳", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "エルーン耳")))
+
+;体格
+IF CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "身長")) > 0
+	;正確な計算式ではなくざっくりで出す
+	SELECTCASE CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "身長"))
+		CASE IS <= 100
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", -3)
+		CASE IS <= 135
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", -2)
+		CASE IS <= 155
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", -1)
+		CASE IS <= 175
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", 0)
+		CASE IS <= 195
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", 1)
+		CASEELSE
+			CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", 2)
+	ENDSELECT
+ELSE
+	CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体格", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "体格")))
+ENDIF
+
+;体型
+CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "体型", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "体型")))
+
+IF ランダムキャラデータ_GET_B(ＤＢ名, 管理番号, "素質", "性別") != 2
+	;バスト
+	IF CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "バスト")) > 0
+		;正確な計算式ではなくざっくりで出す
+		SELECTCASE CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "バスト")) * 10000 / CSVBASE(NO:そっくりキャラ, GETNUM(BASE, "身長")) / 53
+			CASE IS <= 90
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_絶壁)
+			CASE IS <= 96
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_貧乳)
+			CASE IS <= 101
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_並乳)
+			CASE IS <= 110
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_巨乳)
+			CASE IS <= 116
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_爆乳)
+			CASEELSE
+				CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", バストサイズ_魔乳)
+		ENDSELECT
+	ELSE
+		CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "バストサイズ", CSVTALENT(NO:そっくりキャラ, GETNUM(TALENT, "バストサイズ")))
+	ENDIF
+ENDIF
+
+;容姿そっくりさん
+CALL ランダムキャラデータ_SET_B(ＤＢ名, 管理番号, "素質", "容姿", 10)
