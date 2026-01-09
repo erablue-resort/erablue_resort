@@ -5,7 +5,7 @@
 #DIM ソートフラグ
 #DIM 表示のみフラグ
 #DIM 表示行数 = 20; 履歴の表示行数
-#DIMS CONST 表示文字列 = "通常能力", "性的能力", "戦闘能力", "キャラ解説", "血縁関係", "キャラ履歴"
+#DIMS CONST 表示文字列 = "通常能力", "性的能力", "戦闘能力", "キャラ解説", "血縁関係", "その他能力", "キャラ履歴"
 
 $STATE_START
 ;ツールチップ設定
@@ -49,11 +49,13 @@ ELSEIF 能力表示 == 3
 ELSEIF 能力表示 == 4
 	CALL 血縁関係表示画面(ARG)
 ELSEIF 能力表示 == 5
+	CALL その他表示画面(ARG)
+ELSEIF 能力表示 == 6
 	CALL キャラ履歴表示画面(ARG)
 	イベント件数 = RESULT
-ELSEIF 能力表示 == 6
-	CALL デート履歴表示画面(ソートフラグ)
 ELSEIF 能力表示 == 7
+	CALL デート履歴表示画面(ソートフラグ)
+ELSEIF 能力表示 == 8
 	CALL 弱点の欠片表示画面(ソートフラグ)
 ENDIF
 
@@ -103,27 +105,34 @@ IF EXIST_FAMILY(CFLAG:ARG:人物番号)
 	ENDIF
 ENDIF
 IF 能力表示 != 5
-	PRINTBUTTON "[95]キャラ履歴　　", 95
+	PRINTBUTTON "[95]その他能力　　", 95
 ELSE
 	SETCOLOR カラーパレット("黄")
-	PRINTPLAIN [95]キャラ履歴　　
+	PRINTPLAIN [95]その他能力　　
+	RESETCOLOR
+ENDIF
+IF 能力表示 != 6
+	PRINTBUTTON "[96]キャラ履歴　　", 96
+ELSE
+	SETCOLOR カラーパレット("黄")
+	PRINTPLAIN [96]キャラ履歴　　
 	RESETCOLOR
 ENDIF
 IF ARG == MASTER
-	IF 能力表示 != 6
-		PRINTBUTTON "[96]デート履歴　", 96
+	IF 能力表示 != 7
+		PRINTBUTTON "[97]デート履歴　", 97
 	ELSE
 		SETCOLOR カラーパレット("黄")
-		PRINTPLAIN [96]デート履歴　
+		PRINTPLAIN [97]デート履歴　
 		RESETCOLOR
 	ENDIF
 ENDIF
 IF ARG == MASTER
-	IF 能力表示 != 7
-		PRINTBUTTON "[97]弱点の欠片　", 97
+	IF 能力表示 != 8
+		PRINTBUTTON "[98]弱点の欠片　", 98
 	ELSE
 		SETCOLOR カラーパレット("黄")
-		PRINTPLAIN [97]弱点の欠片　
+		PRINTPLAIN [98]弱点の欠片　
 		RESETCOLOR
 	ENDIF
 ENDIF
@@ -261,7 +270,7 @@ SELECTCASE RESULT
 	CASE 101
 		能力表示現在ページ = 0
 		RETURN 101
-	CASE 90 TO 97
+	CASE 90 TO 98
 		能力表示 = RESULT - 90
 		能力表示現在ページ = 0
 		RESTART
@@ -480,11 +489,11 @@ FOR LOCAL, 0, 100
 	同行キャラ番:LOCAL = 同行候補キャラ番号:ARG:LOCAL
 	同行キャラ値:LOCAL = 同行候補キャラ確率:ARG:LOCAL
 NEXT
-IF 同行キャラ番:15 > 0
+IF 同行キャラ番:10 > 0
 	;同行候補キャラが15人以上いる場合、確率の高い順でソートする
 	ARRAYMSORTEX 同行キャラ値, Arrays, 0
 ENDIF
-FOR LOCAL, 0, 15
+FOR LOCAL, 0, 10
 	IF 同行キャラ番:LOCAL < 1
 		BREAK
 	ENDIF
@@ -497,14 +506,18 @@ FOR LOCAL, 0, 15
 	[ENDIF]
 	LOCALS += "％<br>"
 NEXT
-SIF 同行キャラ番:15 > 0
-	LOCALS += @"　他、{(FINDELEMENT(同行キャラ番, 0) >  0 ? FINDELEMENT(同行キャラ番, 0)# 100) - 15}名<br>"
+SIF 同行キャラ番:10 > 0
+	LOCALS += @"　他、{(FINDELEMENT(同行キャラ番, 0) >  0 ? FINDELEMENT(同行キャラ番, 0)# 100) - 10}名<br>"
 
 
 LOCALS += "<br>"
 CALL PRINT_STATE_弱点コマンド(ARG, "998")
 LOCALS += @"%RESULTS%"
-L_C:0 = 360 / GETCONFIG("フォントサイズ") + STRCOUNT(LOCALS, "<br>")
+IF GETBIT(画像サイズ切り替えOPTION記憶, 1)
+	L_C:0 = 360 / GETCONFIG("フォントサイズ") + STRCOUNT(LOCALS, "<br>")
+ELSE
+	L_C:0 = 180 / GETCONFIG("フォントサイズ") + STRCOUNT(LOCALS, "<br>")
+ENDIF
 
 IF GETBIT(画像サイズ切り替えOPTION記憶, 1)
 	HTML_PRINT @"<div rect = '4000, 2393, 2500, 4375'>%LOCALS%</div>", 1
@@ -539,16 +552,9 @@ L_C:1 -= RESULT
 PRINTL
 IF ARG != MASTER
 	CALL PRINT_STATE_好感度詳細(ARG)
-	IF TALENT:ARG:従業員
-		CALL PRINT_STATE_仕事レベル表示(ARG)
-	ENDIF
-ELSE
-	CALL PRINT_STATE_仕事レベル表示(ARG)
-	CALL PRINT_ITEMCOUNT
-	CALL PRINT_STATE_あなた特殊能力
-	PRINTL
 ENDIF
 L_C:1 = LINECOUNT - L_C:1
+DEBUGPRINTFORML {L_C:0}、{L_C:1}
 IF  L_C:0 > L_C:1
 	FOR LOCAL, 0, L_C:0 - L_C:1
 		PRINTL
@@ -2621,3 +2627,40 @@ PRINTL
 
 WAIT
 DRAWLINE
+
+
+@その他表示画面(対象キャラ)
+#DIM 対象キャラ
+#DIM L_C
+
+;ここで立ち絵表示
+CALL 画像描画終了
+L_C = LINECOUNT
+
+IF GETBIT(画像サイズ切り替えOPTION記憶, 2)
+	HTML_PRINT @"<div rect='4062, 237, 1125, 2250'>%短冊グラ表示用文字列関数(対象キャラ)%</div>", 1
+ELSE
+	HTML_PRINT @"<div rect='4062, 237, 1125, 1125'>%顔グラ表示用文字列関数(対象キャラ)%</div>", 1
+ENDIF
+PRINTL
+PRINTFORM ■%NAME表示(対象キャラ)%
+PRINTL
+
+IF 対象キャラ != MASTER
+	CALL PRINT_STATE_好感度詳細(対象キャラ)
+	IF TALENT:対象キャラ:従業員
+		CALL PRINT_STATE_仕事レベル表示(対象キャラ)
+	ENDIF
+ELSE
+	CALL PRINT_STATE_仕事レベル表示(対象キャラ)
+	CALL PRINT_ITEMCOUNT
+	CALL PRINT_STATE_あなた特殊能力
+	PRINTL
+ENDIF
+
+FOR LOCAL, 0, 29 - (LINECOUNT - L_C)
+	PRINTL
+NEXT
+
+
+
