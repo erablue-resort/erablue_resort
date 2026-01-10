@@ -5,6 +5,9 @@
 #DIM ソートフラグ
 #DIM 表示のみフラグ
 #DIM 表示行数 = 20; 履歴の表示行数
+#DIM g_loop
+#DIM 画像数
+#DIM L_C
 #DIMS CONST 表示文字列 = "通常能力", "性的能力", "戦闘能力", "キャラ解説", "血縁関係", "その他能力", "キャラ履歴"
 
 $STATE_START
@@ -37,9 +40,35 @@ PRINTL
 PRINTL
 
 DRAWLINE
+L_C = LINECOUNT
+
+;大画像表示
+SIF CSTR:ARG:画像フォルダ == ""
+	CSTR:ARG:画像フォルダ '= GET_RESOURCES_BASE_FOLDER(ARG)
+
+VARSET RESULTS
+画像数 = ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%", "能力表示画面*.*", 0) > 0
+IF 画像数 > 0
+	g_loop = 0
+	;リソース解放
+	SPRITEDISPOSE @"能力グラ{g_loop}"
+	GDISPOSE 3000 + g_loop
+	
+	LOCALS '= RESULTS:(RAND:画像数)
+	LOCALS '= SUBSTRING(LOCALS, STRFIND(LOCALS, "能力表示画面"), -1)
+	CALLF GCREATE_拡張子F(3000 + g_loop, @"%CSTR:ARG:画像フォルダ%/%LOCALS%")
+	IF スプライト作成(@"能力グラ{g_loop}", 3000 + g_loop, 1)
+		HTML_PRINT @"<div rect='6000, 0, 2410, 4460' padding='50' border='30' bcolor='#C0C0C0'><img src='能力グラ{g_loop}' width='2250' height='4300'></div>", 1
+	ENDIF
+ELSE
+	IF ENUMFILES(@"resources/%CSTR:ARG:画像フォルダ%", "短冊_デフォルト.*", 0) > 0
+		HTML_PRINT @"<div rect='6000, 0, 2410, 4460' padding='50' border='30' bcolor='#C0C0C0'>%短冊グラ表示用文字列関数(ARG, , 2250)%</div>", 1
+	ENDIF
+ENDIF
 
 IF 能力表示 == 0
 	CALL 通常能力表示画面(ARG)
+	L_C = LINECOUNT - RESULT + 1
 ELSEIF 能力表示 == 1
 	CALL 性的能力表示画面(ARG)
 ELSEIF 能力表示 == 2
@@ -62,6 +91,13 @@ ENDIF
 
 ;CALL CHOICE_LOVE(ARG)
 PRINTL
+
+IF LINECOUNT - L_C < 40
+	FOR LOCAL, 0, 40 - (LINECOUNT - L_C)
+		PRINTL 
+	NEXT
+ENDIF
+
 DRAWLINE
 IF 能力表示 != 0
 	PRINTBUTTON "[90]通常能力　　", 90
@@ -554,12 +590,13 @@ IF ARG != MASTER
 	CALL PRINT_STATE_好感度詳細(ARG)
 ENDIF
 L_C:1 = LINECOUNT - L_C:1
-DEBUGPRINTFORML {L_C:0}、{L_C:1}
-IF  L_C:0 > L_C:1
+
+IF L_C:0 > L_C:1
 	FOR LOCAL, 0, L_C:0 - L_C:1
 		PRINTL
 	NEXT
 ENDIF
+RETURN L_C:1
 
 @戦闘能力表示画面(ARG)
 #DIMS 装備証名
