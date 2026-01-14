@@ -7,11 +7,12 @@
 #DIM 表示数
 #DIM CSVページ数
 #DIM 次ページフラグ
-#DIM 表示配列, 3000
+#DIM 表示配列, 5000
+#DIM 最終ページ
 
 VARSET 表示配列
 表示数 = 0
-FOR CSV番号, 1, 3000
+FOR CSV番号, 1, 5000
 	SIF EXISTCSV(CSV番号) == 0
 		CONTINUE
 	SIF CSV番号 == 999
@@ -19,6 +20,7 @@ FOR CSV番号, 1, 3000
 	表示配列:表示数 = CSV番号
 	表示数 ++
 NEXT
+最終ページ = (表示数 - 1) / 30
 
 $処理部分
 
@@ -45,16 +47,42 @@ IF CSVページ数 > 0
 ELSE
 	PRINTLC 　
 ENDIF
-IF CSVページ数 * 30 + 30 < 3000 && 表示配列:(CSVページ数 * 30 + 30) > 0
+PRINTFORMLC {CSVページ数 + 1}/{最終ページ  + 1}
+IF CSVページ数 < 最終ページ
 	PRINTBUTTONLC "[9998] 次ページへ", 9998
 ENDIF
 PRINTL
+IF CSVページ数 > 0
+	PRINTBUTTON "[|≪]", 9993
+	PRINT 　
+	PRINTBUTTON "[－５]", 9994
+	PRINT 　　　　　　
+ELSE
+	PRINTLC 　
+ENDIF
 PRINTBUTTONLC "[9999] 戻る", 9999
+IF CSVページ数 < 最終ページ
+	PRINTBUTTON "[＋５]", 9995
+	PRINT 　
+	PRINTBUTTON "[≫|]", 9996
+ENDIF
 PRINTL
 
 BINPUT
 LOCAL = RESULT
 SELECTCASE RESULT
+	CASE 9993
+		CSVページ数 = 0
+		GOTO 処理部分
+	CASE 9994
+		CSVページ数 = MAX(CSVページ数 - 5, 0)
+		GOTO 処理部分
+	CASE 9995
+		CSVページ数 = MIN(CSVページ数 + 5, 最終ページ)
+		GOTO 処理部分
+	CASE 9996
+		CSVページ数 = 最終ページ
+		GOTO 処理部分
 	CASE 9997
 		CSVページ数 --
 		GOTO 処理部分
