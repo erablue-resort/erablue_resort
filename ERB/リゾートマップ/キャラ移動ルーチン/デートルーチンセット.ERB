@@ -197,10 +197,17 @@ IF うふふアリフラグ
 	ENDIF
 ENDIF
 
-
 ; ;デバッグ用にセット
 ; 移動ルーチン:先導キャラ:ルーチンID = 自室でうふふ
 ; 移動ルーチン:先導キャラ:PMルーチンID = 自室でうふふ
+
+IF 移動ルーチン:追従キャラ:ルーチンID == "自室でうふふ"
+	CALL 多人数NPCうふふ判定処理(先導キャラ, 追従キャラ)
+ENDIF
+IF 移動ルーチン:追従キャラ:PMルーチンID == "自室でうふふ"
+	CALL 多人数NPCうふふ判定処理(先導キャラ, 追従キャラ, 1)
+ENDIF
+
 
 移動ルーチン:追従キャラ:ルーチンID '= 移動ルーチン:先導キャラ:ルーチンID
 移動ルーチン:追従キャラ:PMルーチンID '= 移動ルーチン:先導キャラ:PMルーチンID
@@ -220,3 +227,86 @@ DO
 LOOP 移動スケジュール文字列:先導キャラ:配列番号:スケジュール != ""
 
 
+
+@多人数NPCうふふ判定処理(先導キャラ, 追従キャラ, PMフラグ = 0)
+#DIM 先導キャラ
+#DIM 追従キャラ
+#DIM 相手キャラ
+#DIM PMフラグ
+#DIM 関係数
+#DIM id番号
+#DIM メンツ記録, 100
+#DIM メンツ数
+#DIMS 保存文字列
+
+VARSET メンツ記録
+メンツ数 = 0
+VARSET RESULT
+;他に関係性あるキャラがいるか？
+関係数 = DT_SELECT("関係性データベース", @"((対象キャラ１ = {CFLAG:先導キャラ:人物番号} And 対象キャラ２ != {CFLAG:追従キャラ:人物番号}) Or (対象キャラ１ != {CFLAG:追従キャラ:人物番号} And 対象キャラ２ = {CFLAG:先導キャラ:人物番号})) And (関係性種別 = '恋慕' Of 関係性種別 = 'セフレ')")
+IF 関係数 > 0
+	FOR id番号, 1, 関係数 + 1
+		IF DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ１", 1) == CFLAG:先導キャラ:人物番号
+			相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ２", 1))
+		ELSE
+			相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ１", 1))
+		ENDIF
+		IF PMフラグ
+			SIF CSTR:相手キャラ:多人数NPCうふふ_メンツ記録_PM != ""
+				CONTINUE
+		ELSE
+			SIF CSTR:相手キャラ:多人数NPCうふふ_メンツ記録_AM != ""
+				CONTINUE
+		ENDIF
+		SIF CFLAG:相手キャラ:滞在期間 < 1
+			CONTINUE
+		SIF TALENT:相手キャラ:従業員 && !TCVAR:相手キャラ:休暇中
+			CONTINUE
+		メンツ記録:メンツ数 = 相手キャラ
+		メンツ数 ++
+	NEXT
+ENDIF
+関係数 = DT_SELECT("関係性データベース", @"((対象キャラ１ = {CFLAG:追従キャラ:人物番号} And 対象キャラ２ != {CFLAG:先導キャラ:人物番号}) Or (対象キャラ１ != {CFLAG:先導キャラ:人物番号} And 対象キャラ２ = {CFLAG:追従キャラ:人物番号})) And (関係性種別 = '恋慕' Of 関係性種別 = 'セフレ')")
+IF 関係数 > 0
+	FOR id番号, 1, 関係数 + 1
+		IF DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ１", 1) == CFLAG:追従キャラ:人物番号
+			相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ２", 1))
+		ELSE
+			相手キャラ = FIND_CHARA_FROM_PERSON_ID(DT_CELL_GET("関係性データベース", RESULT:id番号, "対象キャラ１", 1))
+		ENDIF
+		IF PMフラグ
+			SIF CSTR:相手キャラ:多人数NPCうふふ_メンツ記録_PM != ""
+				CONTINUE
+		ELSE
+			SIF CSTR:相手キャラ:多人数NPCうふふ_メンツ記録_AM != ""
+				CONTINUE
+		ENDIF
+		SIF CFLAG:相手キャラ:滞在期間 < 1
+			CONTINUE
+		SIF TALENT:相手キャラ:従業員 && !TCVAR:相手キャラ:休暇中
+			CONTINUE
+		メンツ記録:メンツ数 = 相手キャラ
+		メンツ数 ++
+	NEXT
+ENDIF
+
+IF メンツ数 > 0
+	保存文字列 = {先導キャラ}_{追従キャラ}
+	FOR 関係数, 0, メンツ数
+		保存文字列 += @"_{メンツ記録:関係数}"
+	NEXT
+
+	IF PMフラグ
+		CSTR:先導キャラ:多人数NPCうふふ_メンツ記録_AM '= 保存文字列
+		CSTR:追従キャラ:多人数NPCうふふ_メンツ記録_AM '= 保存文字列
+		FOR 関係数, 0, メンツ数
+			CSTR:(メンツ記録:関係数):多人数NPCうふふ_メンツ記録_AM '= 保存文字列
+		NEXT
+	ELSE
+		CSTR:先導キャラ:多人数NPCうふふ_メンツ記録_PM '= 保存文字列
+		CSTR:追従キャラ:多人数NPCうふふ_メンツ記録_PM '= 保存文字列
+		FOR 関係数, 0, メンツ数
+			CSTR:(メンツ記録:関係数):多人数NPCうふふ_メンツ記録_PM '= 保存文字列
+		NEXT
+	ENDIF
+ENDIF
