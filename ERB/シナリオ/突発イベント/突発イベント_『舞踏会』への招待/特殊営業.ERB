@@ -1,0 +1,365 @@
+﻿@特殊営業処理
+#DIM キャスト番号取得
+#DIM シチュ受渡し
+#DIM むりやりフラグ
+#DIMS 撮影日時一時記録
+#DIMS チェキコメント一時保存
+;キャラごと、あるいは複数キャラに用意された、ユニークなプレイ。
+;『招待状』に同封された説明書きに従い、シナリオに沿ったイメージプレイを楽しめる。
+;……正直なところ、汎用でも個別に書いたし今更分ける必要あんのか？と思わなくもない
+;正直デレマスに詳しいと言えるわけじゃないので……追記者求む
+
+;文香の書店借金取り立てシチュ
+;実家太い勢(桃華・琴歌)やラグジュアリーな大人勢(楓・美優)の貢ぎマゾシチュ。時子やつかさは厳しいか？
+;優等生(みく、PCS、蘭子)の生徒指導シチュ
+;菜々のメイドシチュ
+;U142とかのロリキャラの性教育シチュ
+;大人勢(楓・美優・早苗・菜々・心)の飲酒接待シチュ(酒を口移しで飲ませてくれたり？)
+;無謀な賭けを挑んでくる子をイカサマポーカーで負かして体を貪ろうシチュ
+
+;リゾートにＡＶ機能ができたら、これを撮影してたことにするのもいい
+
+シチュ受渡し = 0
+むりやりフラグ = 0
+
+;まず、選定シチュエーションを決める
+SELECTCASE RAND:1
+CASE 0
+;優等生に『指導』シチュ
+	IF RAND:2 == 0
+	;みく
+		キャスト番号取得 = GETCHARA(1484)
+	ELSE
+	;蘭子
+		キャスト番号取得 = GETCHARA(1667)
+	ENDIF
+	シチュ受渡し = 1
+ENDSELECT
+IF 天使のような悪魔の事務員イベフラグ <= 2
+	PRINTFORML 今回の招待状はやけに重い……。
+	PRINTFORMW 開けてみると招待状のほかにもいろいろと入っているようだった。
+	DRAWLINE
+	CALL PRINT_STRL(@"千川ちひろのひとくちメモ_H_ 特殊な舞踏会について")
+	PRINTL
+	CALL PRINT_STRL(@"『招待状』に同封された筋書きに従い、シナリオに沿ったイメージプレイを楽しめる特別な『舞踏会』です_H_")
+	CALL PRINT_STRW(@"アイドルの子たちの演技力を存分に生かした、通常の『舞踏会』よりも凝ったロールプレイをお楽しみいただけます_H_")
+	天使のような悪魔の事務員イベフラグ = 3
+ENDIF
+DRAWLINE
+CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/枕用宣材写真") 
+CALL PRINT_STR(@"_H_")
+PRINTFORM %TEXTR("今晩の夜の華/本日のキャスト/本日の女の子/今夜の『シンデレラ』")%
+CALL PRINT_STRL(@"_H_")
+PRINTFORML %SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%
+IF キャスト番号取得 == 1415
+	PRINTFORM 年齢：永遠の１７歳　　
+ELSE
+	PRINTFORM 年齢：{BASE:キャスト番号取得:年齢}歳　　
+ENDIF
+IF 固有素質チェック(キャスト番号取得, "大学生")
+	PRINTFORM 大学生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "女子高生") || 固有素質チェック(キャスト番号取得, "高校生") 
+	PRINTFORM 高校生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "中学生") || 固有素質チェック(キャスト番号取得, "女子中学生") 
+	PRINTFORM 中学生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "小学生")
+	PRINTFORM 小学生　　
+ENDIF
+IF TALENT:キャスト番号取得:処女
+	CALL PRINT_STRL(@"処女_H_")
+ELSE
+	PRINTL
+ENDIF
+PRINTFORML 身長：%DECIMAL_STRING(BASE:キャスト番号取得:身長, 1)%cm
+PRINTFORML Ｂ：%DECIMAL_STRING(補正込みバストサイズ(キャスト番号取得), 1)%cm%GET_CUPSIZE(キャスト番号取得)%-Ｗ：%DECIMAL_STRING(補正込みウエストサイズ(キャスト番号取得), 1)%cm-Ｈ：%DECIMAL_STRING(補正込みヒップサイズ(キャスト番号取得), 1)%cm
+DRAWLINE
+CALL PRINT_STR(@"_H_Special Situation_H_")
+PRINTL
+SELECTCASE シチュ受渡し
+CASE 1
+	CALL PRINT_STRL(@"現役の学生アイドルにセクハラ生徒指導しちゃいましょう_H_")
+ENDSELECT
+DRAWLINE
+PRINTW
+PRINTFORML 『招待状』によると、どうやら今回はちょっと凝ったシチュを用意してくれたようだ……。
+PRINTL
+PRINTFORML 招待を受けますか？
+PRINTL
+PRINTBUTTON "[0] 受ける", 0
+PRINTL
+PRINTBUTTON "[1] やめておく", 1
+PRINTL
+BINPUT
+PRINTL
+SELECTCASE RESULT
+	CASE 0
+		SIF CFLAG:キャスト番号取得:滞在期間 < 1
+			CFLAG:キャスト番号取得:滞在期間 = 1
+		PRINTFORML 中々楽しそうな催しだ。
+		PRINTFORMW %CALLNAME:PLAYER%は『招待状』に同封された筋書きをよく読み込むと、指示に従い目的地へと向かった……。
+		PRINTL
+		PRINTL ──
+		PRINTL
+		PRINTL ────
+		PRINTL
+		PRINTW ────────
+		PRINTL
+		SELECTCASE シチュ受渡し
+		CASE 1
+		;優等生に『指導』シチュ
+		;マジモンの校舎を使っているわけじゃなく、撮影用のセットでやってる設定。なので他の生徒は存在しない。
+		;名字呼びのほうがシチュに合うか？
+			CALL CLOTHES_CHANGE_学生服(キャスト番号取得)
+			PRINTBUTTON "[0] むりやりルート", 0
+			PRINTL
+			PRINTBUTTON "[1] 形だけでも合意ルート", 1
+			PRINTL
+			BINPUT
+			PRINTL
+			SELECTCASE RESULT
+			CASE 0
+				むりやりフラグ = 1
+			CASE 1
+				むりやりフラグ = 0
+			ENDSELECT
+			PRINTFORML こじんまりとした部屋は、閉めきったカーテンが夕日を遮り、薄暗い。
+			PRINTFORMW 「生徒指導室」とプレートが掲げられたこの部屋は、ソファと長机が鎮座するばかりのシンプルなつくりだ。
+			PRINTL
+			PRINTFORML 「先生」である%CALLNAME:PLAYER%がソファに腰掛け待っていると、やがて廊下から足音が聞こえ、
+			PRINTFORMW 部屋の前でいくらかの逡巡ののち、がらりと部屋のドアが開いた。
+			PRINTL
+			CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導1") 
+			PRINTFORMW 「…………し、失礼します……」
+			PRINTL
+			PRINTFORMW いささか緊張した面持ちで、一人の女子生徒が入ってくる。
+			PRINTL
+			PRINTFORM %SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%。
+			IF キャスト番号取得 == GETCHARA(1484)
+				PRINTFORML 高校１年生。
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+				PRINTFORML 中学２年生。
+			ENDIF
+			PRINTFORMW 校内では誰もが知る有名人だ。なにせ、学校では真面目で学業優秀な優等生でありながら、事務所に所属するアイドルでもあるというのだから。
+			PRINTL
+			PRINTFORMW ドアを閉めた彼女に「呼び出された」理由はわかっているかと問えば、%CALLNAME:キャスト番号取得%は暗い顔でこくりと頷く……。
+			PRINTL
+			;正直男あなた前提で命令口調のほうがシチュにはあってると思うんだけど……女あなたの場合も対応するかぁ？
+			PRINTBUTTON "[0] ──見せてみなさい", 0
+			BINPUT
+			PRINTL
+			PRINTFORMW 「っ…………はい……」
+			PRINTL
+			PRINTFORMW %CALLNAME:PLAYER%がそう命令すると、%CALLNAME:キャスト番号取得%は躊躇いながら、震える手でスカートの裾を掴んだ。
+			PRINTL
+			;grokくんはスカートたくしあげくらいならまだ作ってくれる。
+			;スカートを押さえてる直前の画像を用意して、lifting skirt slowly+下着の形状とかで試行錯誤してみよう！
+			CALL PRINT_STR(@"VIDEOPATH_%CSTR:キャスト番号取得:画像フォルダ%/たくしあげ動画") 
+			PRINTL
+			PRINTFORMW ──なんだ、このけしからん下着は。
+			PRINTL
+			PRINTFORML 校則では「下着は華美でない白かグレー」と定められているのにも関わらず……学校指定のプリーツスカートの下から現れたのは、煽情的な黒のレース。
+			PRINTFORMW まだ{BASE:キャスト番号取得:年齢}歳の%CALLNAME:キャスト番号取得%が履いていいものではない！明らかに校則違反だ！
+			PRINTL
+			PRINTFORMW こんな淫らな下着を履いて……ほかの男子学生が劣情に駆られて非行に走ったらどうする気だ？
+			PRINTL
+			PRINTFORMW 「っ…………はい……ごめん、なさい……」
+			PRINTL
+			;バストサイズが大きくないと話が噛み合わないので、巨乳でない(紗枝はんとか)場合この部分は飛ばす感じ
+			;IF ちっぱい
+			;ELSE
+			PRINTBUTTON "[0] ──それに……", 0
+			BINPUT
+			PRINTL
+			CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導2")
+			PRINTFORMW 「ひ、っ……！ うぅ…………」
+			PRINTL
+			PRINTFORMW ──なんだ、この破廉恥な胸は。
+			PRINTL
+			;言いがかり
+			IF キャスト番号取得 == GETCHARA(1484)
+				PRINTFORMW まだ高校１年生だというのに、この指が沈み込むデカパイ。アイドルとしてのプロフィールには「Ｂ８５」とあったはずだが、この感触……明らかにそれよりデカいだろう。
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+				PRINTFORMW まだ中学２年生だというのに、この指が沈み込むデカパイ。アイドルとしてのプロフィールには「Ｂ８１」とあったはずだが、この感触……明らかにそれよりデカいだろう。
+			ENDIF
+			PRINTL
+			;デカパイ！！スケベすぎるだろ！！！罪の意識はあるのか！？(そろそろパイを揉まないと死ぬぜ！の名ゼリフ)
+			PRINTFORML これでまだまだ育ちかけだというのだから末恐ろしい。どれだけいやらしく育てば気が済むんだ……罪の意識は？
+			PRINTFORMW 男子をいたずらに欲情させないようにと下着の色すら校則に定めてあるのに……これでは台無しだ！校則違反甚だしい！
+			PRINTL
+			PRINTFORMW 淫らに育った体と煽情的な下着で男子生徒や男性教諭を誑かし非行に誘うとは……子供のくせになんたる悪女か！
+			PRINTL
+			PRINTFORMW 「っ、く…………うぅ…………誘って、なんか……あぅ、っ！」
+			PRINTL
+			IF むりやりフラグ == 1
+				PRINTFORML これを看過しては、%CALLNAME:キャスト番号取得%のせいでムラついた男子生徒がいつ道を踏み外してしまってもおかしくない……。
+				PRINTFORMW 純朴な未来ある若者が、持て余した思春期の性欲で人生を台無しにしてしまう事態になってからでは遅いのだ。
+				PRINTL
+				PRINTFORMW ……だが幸い、今ならまだ間に合う。
+				PRINTL
+				PRINTFORML %CALLNAME:PLAYER%なら、ほかの男子生徒がいくら性欲を滾らせようとも、%CALLNAME:キャスト番号取得%に手を出せなくなるようにすることができるのだ。
+				PRINTFORMW %CALLNAME:キャスト番号取得%の胸をぐにぐにと揉みしだきながら「どういうことかわかるか？」と問うと、%CALLNAME:キャスト番号取得%は悲哀に曇った顔をふるふると横に振る。
+				PRINTL
+				PRINTFORMW わからないなら教えてやろう。それはつまり……
+				PRINTL
+				PRINTBUTTON "[0] ──先生の女になることだ", 0
+				BINPUT
+				PRINTL
+				PRINTFORMW 「ひ、っ……！ ぃ、やぁ、っ……！」
+				PRINTL
+				PRINTFORML 年頃のオスを狂わせる%CALLNAME:キャスト番号取得%には「教育的指導」が必要だ。
+				PRINTFORMW 体の奥まで躾けてメスとしての自覚を促すことは、「先生」である%CALLNAME:PLAYER%の使命であり義務といえる。
+				PRINTL
+				PRINTFORML さらには%CALLNAME:PLAYER%専用の交尾メスとして体の隅々までマーキングしてやることで、他の男の魔の手から守ってやろうというのだ。
+				PRINTFORMW まさに教師の鑑。合理に則った、これ以上ない解決策。%CALLNAME:PLAYER%の体を張った「指導」に、感謝の言葉すらあっていいはずだ。
+				PRINTL
+				PRINTFORMW ……だというのに。
+				PRINTL
+				PRINTFORMW 「ぃ、イヤっ！ はなっ、離して、っ！」
+				PRINTL
+				PRINTFORML 聞き分けのない%CALLNAME:キャスト番号取得%は、とたんに激しく抵抗する。
+				PRINTFORMW ……当然、{BASE:キャスト番号取得:年齢}歳の女子生徒が%CALLNAME:PLAYER%に敵うはずもないのだが。
+				PRINTL
+				PRINTFORML 抱きすくめるように体を抑え込み、ソファへと押し倒してもなお抵抗を続ける%CALLNAME:キャスト番号取得%の聞き分けのなさには呆れるが……
+				PRINTFORMW 反抗的な生徒に根気よく向き合い、正しい道へと導いてやるのもまた「先生」たる%CALLNAME:PLAYER%の務め。
+				PRINTL
+				PRINTFORML 体の下でもがく%CALLNAME:キャスト番号取得%の制服をボタンごと引きちぎるように剥ぎとって、
+				PRINTFORMW %CALLNAME:PLAYER%の有無を言わさぬ「生徒指導」がはじまった……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導3")
+				PRINTFORMW 「ぅ、ぐ……っ！ ひ、だれっ、だれかっ、たすけ、っ！！ ヤダっ、やだぁ、っ！！！」
+				;撮影セットでやってる設定なので『』がついている
+				STR:イベントうふふ場所名 = 『生徒指導室』
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待","むりやりうふふモード")
+			ELSE
+				PRINTFORML 校則に違反し学校の風紀を乱す不埒な「不良生徒」には、「教育的指導」が必要だ。
+				PRINTFORMW さもなくば、学外でのアイドル活動などとても認められるはずもない。
+				PRINTL
+				PRINTFORML %CALLNAME:キャスト番号取得%の胸をぐにぐにと揉みしだきながら、アイドル活動の継続を盾に%CALLNAME:PLAYER%が「どうすればいいかわかるね？」と問うと、
+				PRINTFORMW 息を呑んで唇を噛みしめた%CALLNAME:キャスト番号取得%はしばらくの逡巡ののち、悲哀に曇った顔で制服に手をかけた……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導4")
+				PRINTFORMW 「っ…………は、ぃ…………」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導5")
+				PRINTFORMW 「…………ゎ、私、%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%は……おとこのひとを、たぶらかす……ふ、不良生徒、です……っ」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導6")
+				PRINTFORMW 「…………っ……この、ぃ、いやらしく育ってしまった、カラダに……し、『指導』して、ください…………っ」
+				PRINTL
+				PRINTFORML 屈辱と羞恥に涙をこらえながら、%CALLNAME:キャスト番号取得%が%CALLNAME:PLAYER%に慈悲を懇願する。
+				PRINTFORMW 現役アイドルの生徒に「指導」を乞われるなんて、なんとも教師冥利に尽きるではないか。
+				PRINTL
+				PRINTFORML まずは男の劣情を煽るとどんな目にあってしまうのか、そのカラダにたっぷり実技で教えるところからだ。
+				PRINTFORMW 目の前の美少女に「更生」の機会を与えるべく、%CALLNAME:PLAYER%は嫌がる%CALLNAME:キャスト番号取得%をソファへと押し倒した……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導7")
+				PRINTFORMW 「ひぐ……っ！ ぃ、ゃ、やっぱりイヤぁっ！！ だれか、たすけ、っ！！ ヤダっ、やだぁ、っ！！！」
+				STR:イベントうふふ場所名 = 『生徒指導室』
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+			ENDIF
+			CALL PRINT_STRW(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導8")
+			PRINTL
+			PRINTL ────────
+			PRINTL
+			PRINTL ────
+			PRINTL
+			PRINTW ──
+			PRINTL
+			PRINTFORML %CALLNAME:キャスト番号取得%のカラダを隅々まで堪能し尽くした%CALLNAME:PLAYER%は最後に、
+			PRINTFORMW 用意してあったカメラ──こちらの世界の景切鏡を取り出し、パシャリとシャッターを切る……。
+			PRINTL
+			PRINTFORML 現役未成年アイドルのあられもない姿を収めた秘蔵の淫行写真。いかがわしいスキャンダルの、これ以上ない証拠品。
+			PRINTFORMW これが%CALLNAME:PLAYER%の手にある限り、%CALLNAME:キャスト番号取得%は%CALLNAME:PLAYER%に逆らえない……。
+			PRINTL
+			PRINTFORM こうして
+			IF キャスト番号取得 == GETCHARA(1484)
+				PRINTFORM 高校１年生にして
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+				PRINTFORM 中学２年生にして
+			ENDIF
+			PRINTFORML 大人気アイドルの%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%は、
+			;精液便所アイドルとかだと生えてないあなたに対応できない。……めんどいな！！
+			PRINTFORMW 何でも言うことを聞く、セクハラ教師専用のいつでも使える生オナホとしての学校生活をスタートさせたのだった……。
+			PRINTL
+			PRINTW
+			PRINTL
+			;は～いカット！おつかれさまでーす！
+			PRINTFORMW ────というところで%CALLNAME:PLAYER%が一息つくと、いまだに荒い吐息をついてソファにくたりと横たわる%CALLNAME:キャスト番号取得%が力なく頬を緩めた。
+			PRINTL
+			IF キャスト番号取得 == GETCHARA(1484)
+				CALL PRINT_STRW(@"「ふぅ……_H_ はふ……_H_ お疲れ様にゃ……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「んふふ～_H_ オーナーさん、中々の演技っぷりだったにゃ_H_ みく、夢中になっちゃった……_H_」")
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+				CALL PRINT_STRW(@"「はーっ……_H_ はぅ……_H_ お疲れ、さまでしたぁ……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「オーナーさん、すっごかったです……_H_ 襲われるの、クセになっちゃったかも……_H_」")
+			ENDIF
+			PRINTL
+			PRINTFORML 「セクハラ教師に手籠めにされるかわいそうな女子生徒」の役はもう終わりらしい。
+			PRINTFORMW いまだ尾を引く絶頂の余韻を楽しむように、%CALLNAME:キャスト番号取得%は自身を掻き抱いてぞくりと体を震わせた。
+			PRINTL
+			PRINTFORMW ……そう。思わず夢中になってしまったが、これまでの全ては設定に沿った演技……。
+			PRINTL
+			PRINTFORMW 『招待状』にあった脚本が全て終わり「セクハラ教師」と「生徒」の役を降りれば、そこにいるのは『王子様』と『シンデレラ』。
+			PRINTL
+			PRINTFORML 筋書きをなぞったとはいえ、思い返せば随分と激しくしてしまった……。
+			PRINTFORMW %CALLNAME:PLAYER%がソファに横たわる%CALLNAME:キャスト番号取得%の身を案じると、%CALLNAME:キャスト番号取得%はくすくすと笑ってそっと%CALLNAME:PLAYER%の頬に口づけた……。
+			PRINTL
+			IF キャスト番号取得 == GETCHARA(1484)
+				CALL PRINT_STRW(@"「ムリヤリされちゃうの、す～～っごく気持ちよかったにゃ_H_ またシようね_H_」")
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+				CALL PRINT_STRW(@"「とっても、ドキドキしちゃいました_H_ リゾートでお会いできたら、また……_H_」")
+			ENDIF
+			PRINTL
+			PRINTL ────────
+			PRINTL
+			PRINTL ────
+			PRINTL
+			PRINTW ──
+			DRAWLINE
+			PRINTFORMW 別れ際、%CALLNAME:キャスト番号取得%は記念にと%CALLNAME:PLAYER%が最後に撮った写真をくれた……。
+			PRINTL
+			CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導事後チェキ")
+			PRINTFORMW 写真一覧に記録されます。
+			;撮影日時一時記録 = 
+			IF キャスト番号取得 == GETCHARA(1484)
+			;みく
+				チェキコメント一時保存 = 「ムリヤリされちゃうの、す～～っごく気持ちよかったにゃ❤ またシようね❤」
+			ELSEIF キャスト番号取得 == GETCHARA(1667)
+			;蘭子 熊本弁無理だわ……
+				チェキコメント一時保存 = 「とっても、ドキドキしちゃいました❤ リゾートでお会いできたら、また……❤」
+			ENDIF
+			{
+			DT_ROW_ADD "写真データベース", "写真タイトル", @"%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%にセクハラ生徒指導", 
+			"撮影日時", @"%TOSTR(DAY, "00000")%の『舞踏会』", 
+			"撮影マップ種別", , "撮影場所", , 
+			"撮影場所名前", , 
+			"撮影対象NAME", NAME:キャスト番号取得, "撮影対象NO", NO:キャスト番号取得, "撮影シチュカテゴリ", 1, 
+			"撮影対象画像リソース", @"%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_特殊_生徒指導事後チェキ", 
+			"撮影時追加文字列１", ,
+			"撮影時追加文字列２", , 
+			"撮影時追加文字列３", "抵抗をねじ伏せられながら荒々しく犯され、幾度も望まぬ絶頂を迎えたその余韻に浸ってぐったりと身を投げ出した現役女学生アイドルの姿が写っている……", 
+			"写真添付口上", チェキコメント一時保存
+			}
+			履歴用実績:キャスト番号取得:被写体回数 += 1
+			履歴用実績:キャスト番号取得:ハメ撮り回数 += 1
+			DRAWLINE
+		ENDSELECT
+	CASE 1
+		PRINTFORML せっかくの招待だが、今日はそういう気分ではない……。
+		PRINTL 
+		PRINTFORMW %CALLNAME:PLAYER%は今週の『舞踏会』は欠席することにした……。
+ENDSELECT
+
+CALL イベント完了フラグ汎用処理_再視聴不可("『舞踏会』への招待")

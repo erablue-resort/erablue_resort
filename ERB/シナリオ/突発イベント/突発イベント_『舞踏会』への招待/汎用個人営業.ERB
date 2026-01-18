@@ -1,0 +1,910 @@
+﻿@汎用個人営業処理
+#DIM キャスト番号取得
+#DIM 隠しキャラ番号取得
+#DIM 上昇量
+#DIMS 名前格納
+#DIM テストカウンター
+
+上昇量 = 0
+
+;まず、あなたを接待するキャラを決める。
+;「キャラが選べない状態で展開を強制される」という都合上、かなり人気上位のキャラに絞らないと「ﾌｪｲﾌｪｲﾀﾞﾖ-」「え、誰？」とかなっちゃいそう。１９０人いるからなぁ……
+;全員対応コンテンツは『シンデレラ』があるから、こっちは有名どころに絞ってもいい……よね？キャラごとにちょっとしたセリフくらいは用意しときたいし、わかる子だけ。
+;どこまでを有名とするか微妙なので、個人の独断と偏見と趣向。
+;たぶん地道なSELECTCASEでやるのが一番確実？
+;雫はあえて省いた。口上作者さんがいるのでそっちに任せる
+SELECTCASE 5
+CASE 0
+;島村卯月 響子、美穂はユニットのほうで
+	キャスト番号取得 = GETCHARA(1004)
+CASE 1
+;渋谷凛 奈緒、加蓮はユニットのほうで
+	キャスト番号取得 = GETCHARA(1005)
+CASE 2
+;本田未央 ポジパはユニットで……といきたかったところだけど、正直わかんない
+	キャスト番号取得 = GETCHARA(1006)
+CASE 3
+;藍子 ポジパで触れられない分。おっぱいちっちゃくてすきだけど、おっぱいちっちゃいこと以外あんま知らない
+	キャスト番号取得 = GETCHARA(1309)
+CASE 4
+;一ノ瀬志希 書けなくもなさそうなので
+	キャスト番号取得 = GETCHARA(1401)
+CASE 5
+;鷺沢文香 個人の趣味
+	キャスト番号取得 = GETCHARA(1407)
+CASE 6
+;橘ありす 個人の趣味
+	キャスト番号取得 = GETCHARA(1408)
+CASE 7
+;安部菜々 書けなくもなさそう？
+	キャスト番号取得 = GETCHARA(1412)
+CASE 8
+;小早川紗枝
+	キャスト番号取得 = GETCHARA(1551)
+CASE 9
+;櫻井桃華
+	キャスト番号取得 = GETCHARA(1671)
+CASE 10
+;佐々木千枝 with mother
+	キャスト番号取得 = GETCHARA(1952)
+ENDSELECT
+
+DRAWLINE
+
+CALL PRINT_STR(@"_H_")
+PRINTFORM %TEXTR("今晩の夜の華/本日のキャスト/本日の女の子/今夜の『シンデレラ』")%
+CALL PRINT_STRL(@"_H_")
+CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/枕用宣材写真") 
+PRINTFORML %SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%
+IF キャスト番号取得 == 1415
+	PRINTFORM 年齢：永遠の１７歳　　
+ELSE
+	PRINTFORM 年齢：{BASE:キャスト番号取得:年齢}歳　　
+ENDIF
+IF 固有素質チェック(キャスト番号取得, "大学生")
+	PRINTFORM 大学生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "女子高生") || 固有素質チェック(キャスト番号取得, "高校生") 
+	PRINTFORM 高校生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "中学生") || 固有素質チェック(キャスト番号取得, "女子中学生") 
+	PRINTFORM 中学生　　
+ELSEIF 固有素質チェック(キャスト番号取得, "小学生")
+	PRINTFORM 小学生　　
+ENDIF
+IF TALENT:キャスト番号取得:処女
+	CALL PRINT_STRL(@"処女_H_")
+ELSE
+	PRINTL
+ENDIF
+PRINTFORML 身長：%DECIMAL_STRING(BASE:キャスト番号取得:身長, 1)%cm
+PRINTFORML Ｂ：%DECIMAL_STRING(補正込みバストサイズ(キャスト番号取得), 1)%cm%GET_CUPSIZE(キャスト番号取得)%-Ｗ：%DECIMAL_STRING(補正込みウエストサイズ(キャスト番号取得), 1)%cm-Ｈ：%DECIMAL_STRING(補正込みヒップサイズ(キャスト番号取得), 1)%cm
+DRAWLINE
+PRINTL
+PRINTFORML 招待を受けますか？
+PRINTL
+PRINTBUTTON "[0] 受ける", 0
+PRINTL
+PRINTBUTTON "[1] やめておく", 1
+PRINTL
+BINPUT
+PRINTL
+SELECTCASE RESULT
+	CASE 0
+		SIF CFLAG:キャスト番号取得:滞在期間 < 1
+			CFLAG:キャスト番号取得:滞在期間 = 1
+		PRINTFORML 魅力的な子だ……この子と一晩を共にできる期待に、今から興奮が収まらない……！
+		PRINTFORMW %CALLNAME:PLAYER%は用意されていた『招待状』を確認すると、その指示に従い目的地へと向かった……。
+		PRINTL
+		PRINTL ──
+		PRINTL
+		PRINTL ────
+		PRINTL
+		PRINTW ────────
+		PRINTL
+		;パターン分岐はキャラごとに。全員に全種用意するよりも書くのが楽
+		;ホテル(デフォルト)、３４６社屋の応接室(デフォルト)、撮影の控え室(スターリースカイブライト、水着)、女子寮の部屋の鍵渡されて夜這い(むりやりうふふ)、温泉宿(浴衣・湯浴み着)
+		;ある程度使いまわしやすい感じでシチュ例をいくつか置いておいて、これを元手に有識者が加筆してくれるのを待つって寸法よォ！！
+		;画像は……追加んときにハードルあがるから別になくてもよくない？とは思いつつ自分で書いた分に関してはなんだかんだ用意してしまった。
+		;使いまわしやすいように%CALLNAME:キャスト番号取得%で書いたりしてるけど、特定個人分岐なので普通に名前書いちゃってもいいやつ。コピペめんどい時は普通に書いてるし。
+		;ホテルの名前は適当に決めた。実在の社名とは一切の関係はございません。
+
+		;ライブバトルで負かした相手をあなたに捧げてご褒美貰うみたいなシチュでシャニマスや学マスのアイドル引っぱってきてもいいかも。発生する不都合はera様パワーでどうにか……
+		;負かした相手差し出しながら猗窩座ごっことか
+		;「素晴らしい提案をしましょう……あなたもオーナーさんのモノになりませんか？♡」
+		;「先程のステージを見ればわかります。練り上げられている……顔も、体も、パフォーマンスも。シンデレラガールにだって、きっと届くほど……」
+		;「なぜあなたが今日負けたか、教えてさしあげます」
+		;「オーナーさんを……本当のオスを知らないから♡処女だから♡」
+		;「オーナーさんの女になりましょう？〇〇さん……そうすれば、アイドルとしてもっともっと、輝けるはずですから♡」
+
+		;アイドルにEXP:性接待経験を、プレイヤーにEXP:被接待経験をつけて回数を記録しておく。
+		;被接待経験一定以上で、「あなたとの交流のおかげでアイドルの魅力が上がって業績伸びてるんです」とかでシリーズの他事務所を傘下に置いて『シンデレラ』対象を増やすとかもいいかもね
+		;その場合は「出展作品名を書き換える」という前代未聞の手段とか、楽しそうな気はするよね！
+
+		;ハード目なプレイの時には、「事後に体を気遣うと頬にキスしてくれた」みたいな、海外モノのＢＢＱみたいなのを入れるのがいいかも？う～ん、仲良くしてるしこれは合意だな！ヨシ！
+		IF キャスト番号取得 == GETCHARA(1004)
+			;島村卯月
+				PRINTFORML %CALLNAME:PLAYER%が通されたのは、雑誌の撮影に使用されるスタジオなのだというビルの一室。
+				PRINTFORM 今日はここで、
+				PRINTFORM ライブ衣装を使った
+				CALL CLOTHES_CHANGE_スターリースカイ・ブライト(キャスト番号取得)
+				PRINTFORMW グラビア撮影があるのだという。
+				PRINTL
+				PRINTFORML 明らかに場違いなベッドが置かれた控え室で%CALLNAME:PLAYER%がしばらく待っていると、やがてドアが開き
+				PRINTFORMW 撮影を終えた%CALLNAME:キャスト番号取得%が部屋へと戻ってきた。
+				PRINTL
+				PRINTFORMW 「ぇ……オーナーさん……？ ぁ、そっか今日、『舞踏会』……」
+				PRINTL
+				PRINTFORML ガチャリとドアを開けた卯月が、%CALLNAME:PLAYER%を見て赤面する。
+				PRINTFORMW １７歳……摘み取るのにちょうどよく実ったカラダ。可愛らしい顔で恥じらう姿はやはりそそるものがある……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/コマンド実行時_スターリースカイ・ブライト_肩組み乳揉み") 
+				CALL PRINT_STRW(@"「ひゃ、っ……_H_ ぁ、あの、っ……！」")
+				PRINTL
+				PRINTFORML 撮影で蒸れたのだろう。肩を抱いて衣装の胸元に手を差し込むと、しっとりとした柔肌が手に吸い付く。
+				PRINTFORMW 雑誌の華として紙面を飾るだろう彼女の、ファンは見れない衣装の下の感触が%CALLNAME:PLAYER%の期待を煽る……。
+				PRINTL
+				CALL PRINT_STRW(@"「んっ_H_ ぇ、と、その……シャワーとか、先に……やぁ、っ_H_」")
+				PRINTL
+				PRINTFORML 年頃の乙女としての卯月の恥じらいは、しかし%CALLNAME:PLAYER%の欲望を阻むことはない。シンデレラは王子様には逆らえないのだ。
+				PRINTFORMW むにゅむにゅと好き勝手に胸をまさぐりながら、%CALLNAME:PLAYER%はささやかな抵抗ごと卯月をベッドに押し倒した……。
+				STR:イベントうふふ場所名 = 某出版社フォトスタジオ 楽屋
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1005)
+			;渋谷凛
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				PRINTFORMW 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには男に連れられた少女の姿があった。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1") 
+				PRINTFORMW 「こんばんは、オーナーさん。%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%です」
+				PRINTL
+				PRINTFORML 赤らんだ顔でぺこりとお辞儀をする%CALLNAME:キャスト番号取得%。招待状の写真で見るより断然かわいい子だ……。
+				PRINTFORMW こんな子と一晩たっぷり仲を深められるのだという実感が、%CALLNAME:PLAYER%の期待と股間を膨らませる。
+				PRINTL
+				PRINTFORMW 「じゃあプロデューサー、明日の朝、迎えに……」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル2") 
+				CALL PRINT_STRW(@"「ぁ、んっ_H_ オーナーさん、もう我慢できないの？ ぁ、はぁ、っ_H_」")
+				PRINTL
+				PRINTFORML まだドアの前でもお構いなしに、%CALLNAME:キャスト番号取得%の胸を鷲掴みにする。
+				PRINTFORML 彼女を連れてきたプロデューサーの前で見せつけるように%CALLNAME:キャスト番号取得%の胸を揉みしだき、
+				PRINTFORMW 腕の中に抱きすくめて煽るように耳を甘噛みすると、%CALLNAME:キャスト番号取得%はぞくぞくと身を震わせ、情欲の籠った吐息をついた。
+				PRINTL
+				CALL PRINT_STRW(@"「っ_H_ プロデューサー、そういうことみたい、だから……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「んっ、ふふ_H_ じゃあ……いっぱい楽しんで、くるね……_H_」")
+				PRINTL
+				PRINTFORML 既に期待に蕩けた表情で腕の中から%CALLNAME:PLAYER%を見上げた%CALLNAME:キャスト番号取得%が、プロデューサーをちらと一瞥だけしてひらひらと手を振る。
+				PRINTFORM ぱたりと閉まるドアの向こうに
+				;ちょっと悪辣になりすぎるか
+				;PRINTFORM 悔しそうに%TEXTR("拳を握り締める/歯噛みする")%
+				PRINTFORMW プロデューサーを残して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+				STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1006)
+			;本田未央 みんなのだった本田さんはいまやあなたの
+				PRINTFORML 今回%CALLNAME:PLAYER%に用意されたのは、結構なサイズの黒い車両。
+				PRINTFORMW こちらの世界で「ワンボックスカー」と呼ばれるらしいその車内後部は、取り払われた座席のかわりにマットレスが敷かれていた。
+				;いわゆるハイエース
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ハイエース1") 
+				PRINTFORMW 「ぁ……し、失礼しま～す……」
+				PRINTL
+				;絵出せなかった……流石に生成できん……
+				PRINTFORML 黒っぽい遮光ガラスの窓から景色を眺め、近くの建物から鳴る時刻を告げるチャイムを耳にして、しばし。
+				PRINTFORMW 車内で%CALLNAME:PLAYER%が待っていると後部のドアが開き、いささか緊張した面持ちの%CALLNAME:キャスト番号取得%が入ってきた。
+				PRINTL
+				PRINTFORMW 「仕事のため」と早退した%CALLNAME:キャスト番号取得%は制服のまま車に乗り込むと、そのままマットレスに上がる。
+				PRINTL
+				PRINTFORML 時刻はまだ昼前。すぐそばの校舎でまだ同級生たちが授業を受けている時間。
+				PRINTFORML その日常の裏に用意された『仕事』を前に、%CALLNAME:キャスト番号取得%の普段の快活さは鳴りをひそめ、
+				PRINTFORMW もじもじと腿を擦り合わせて%CALLNAME:PLAYER%を見上げる……。
+				PRINTL
+				PRINTFORML 整った顔立ち。レッスンで引き締まりながらもまだまだ成長を感じさせるプロポーション。
+				PRINTFORMW 休み時間に見せる魅力的な笑顔。なにより「アイドルである」という特別感……。
+				PRINTL
+				PRINTFORML 同級生から教師にいたるまで、学校中の男の視線を一身に集める高嶺の花。
+				PRINTFORML %CALLNAME:キャスト番号取得%と同じ学校に通う思春期の男子であれば「彼女にしたい」「ヤりたい」と欲望を向けずにはいられない極上のメスを、
+				PRINTFORMW 彼らのすぐそばで好き放題味わってしまえる優越感が%CALLNAME:PLAYER%の欲望を焚きつける。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ハイエース2") 
+				CALL PRINT_STRW(@"「ぇ、と……ほ、本当に、ここで……？ さ、さすがの未央ちゃんも、ちょっとココじゃ、恥ずかしっ、ん_H_」")
+				PRINTL
+				PRINTFORML 周囲の男を誘惑してやまない危険な果実を無造作に鷲掴みにし、%CALLNAME:キャスト番号取得%の声に態度で答える%CALLNAME:PLAYER%に
+				PRINTFORMW %CALLNAME:キャスト番号取得%はぞくぞくと身を震わせ、恥じらいに目を伏せる。
+				PRINTL
+				PRINTFORMW たった一枚の壁で日常と隔てただけの密室で、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の白昼の『舞踏会』がひっそりと幕をあげた……。
+				STR:イベントうふふ場所名 = 社用ワンボックス 後部座席
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1309)
+			;高森藍子
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				PRINTFORMW 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには男に連れられた少女の姿があった。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1") 
+				PRINTFORMW 「こんばんは、オーナーさん。%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%です」
+				PRINTL
+				PRINTFORML 赤らんだ顔でぺこりとお辞儀をする%CALLNAME:キャスト番号取得%。招待状の写真で見るより断然かわいい子だ……。
+				PRINTFORMW こんな子と一晩たっぷり仲を深められるのだという実感が、%CALLNAME:PLAYER%の期待と股間を膨らませる。
+				PRINTL
+				PRINTFORMW 「ではプロデューサーさん、明日の朝に……」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル2") 
+				CALL PRINT_STRW(@"「ゃ、んっ_H_ ダメです、オーナーさんっ_H_ プロデューサーさんが、見て……ぁ、はぁ、っ_H_」")
+				PRINTL
+				PRINTFORML まだドアの前でもお構いなしに、%CALLNAME:キャスト番号取得%の小さくも柔らかい胸に手を伸ばす。
+				PRINTFORML 彼女を連れてきたプロデューサーの前で見せつけるように%CALLNAME:キャスト番号取得%の胸を揉みしだき、
+				PRINTFORMW 腕の中に抱きすくめて煽るように耳を甘噛みすると、%CALLNAME:キャスト番号取得%はぞくぞくと身を震わせ、情欲の籠った吐息をついた。
+				PRINTL
+				CALL PRINT_STRW(@"「っ_H_ ぷ、プロデューサーさん、見ないでぇ……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「んっ、ぉ、オーナーさんっ_H_ ベッド行きましょう？ ね？_H_」")
+				PRINTL
+				PRINTFORML 羞恥に赤く染まった顔で%CALLNAME:PLAYER%を見上げる%CALLNAME:キャスト番号取得%が、プロデューサーの顔を見れないまま%CALLNAME:PLAYER%の腕の中でひらひらと手を振る。
+				PRINTFORMW ぱたりと閉まるドアの向こうにプロデューサーを残して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+				STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1401)
+			;一ノ瀬志希
+				PRINTFORML %CALLNAME:PLAYER%が通されたのは、雑誌の撮影に使用されるスタジオなのだというビルの一室。
+				PRINTFORM 今日はここで、
+				;SELECTCASE RAND:2
+				;CASE 0
+				;	PRINTFORM ライブ衣装を使った
+				;	CALL CLOTHES_CHANGE_スターリースカイ・ブライト(キャスト番号取得)
+				;CASE 1
+					PRINTFORM 水着での屋内
+					CALL CLOTHES_CHANGE_水着(キャスト番号取得)
+				;ENDSELECT
+				PRINTFORMW 撮影があるのだという。
+				PRINTL
+				PRINTFORML 明らかに場違いなベッドが置かれた控え室で%CALLNAME:PLAYER%がしばらく待っていると、やがてドアが開き
+				PRINTFORMW 撮影を終えた%CALLNAME:キャスト番号取得%が部屋へと戻ってきた。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_楽屋1") 
+				CALL PRINT_STRW(@"「あ！ オーナーさんやっぱりこっち来たんだ_H_ にゃはは、ベッドあるからそーだろーなーって思った♪」")
+				PRINTL
+				PRINTFORMW がちゃりとドアを開けた志希が、%CALLNAME:PLAYER%を見るや駆け寄り、抱きついて顔をうずめてくる。奔放な子だ……。
+				PRINTL
+				CALL PRINT_STRW(@"「ハスハス……んはぁ……_H_ キくぅ……_H__H_ ん～この絶妙なアンドロステノン臭……_H_ やっぱり素敵なスメル……ふす～……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「つよ～いオスのにおい……_H__H_ テストステロン、ドバドバなんだろ～な～……ん～たまんなぁい……_H_ す～～……んふ～～……_H__H_ にゃは_H_ ちひろさんも見る目あるよね～_H_」")
+				PRINTL
+				PRINTFORML 端正な顔を胸元にぐりぐりと押し付け、一心に%CALLNAME:PLAYER%のにおいを嗅ぐ志希。
+				CALL PRINT_STRW(@"すり……_H_すり……_H_と擦り付けられるほどよく実った体を%CALLNAME:PLAYER%が抱き返しむぎゅっ_H_と尻を掴むと、志希はぞくぞくと腰を震わせた。")
+				PRINTL
+				CALL PRINT_STRW(@"「～～～っ_H__H_ にゃは、は……_H_ ちょっとイっちゃった……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「あ～～、も～ダメ_H_ アタシムラムラとまんないや_H_ ね、いいでしょ？ もうシちゃお？_H__H_」")
+				PRINTL
+				PRINTFORMW においフェチらしい志希は胸元から顔をあげると、すっかり蕩けた表情で%CALLNAME:PLAYER%の手を取りベッドへと引っぱっていく……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_楽屋2") 
+				CALL PRINT_STRW(@"「んふ～_H_ 一ノ瀬志希で～す_H_ 可愛がってくださ～い_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「はい、挨拶終わり～_H_ ね_H_ ね_H_ はやく～_H__H_」")
+				PRINTL
+				PRINTFORMW 挨拶もそこそこに我慢できない様子の志希に急かされながら、%CALLNAME:PLAYER%は志希をベッドへと押し倒した……。
+				STR:イベントうふふ場所名 = 某出版社フォトスタジオ 楽屋
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1407)
+			;鷺沢文香
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				PRINTFORMW 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには男に連れられた少女の姿があった。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1") 
+				PRINTFORMW 「こんばんは……オーナーさん……。 鷺沢、文香です……」
+				PRINTL
+				PRINTFORML 赤らんだ顔でぺこりとお辞儀をする%CALLNAME:キャスト番号取得%。招待状の写真で見るより断然かわいい子だ……。
+				PRINTFORMW こんな子と一晩たっぷり仲を深められるのだという実感が、%CALLNAME:PLAYER%の期待と股間を膨らませる。
+				PRINTL
+				PRINTFORMW 「では、プロデューサーさん……お迎えのほうは、明日の朝に……」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル2") 
+				CALL PRINT_STRW(@"「ん、ぁっ_H_ いきなり……こんな……っ_H_ ぁ、はぁ、っ_H_」")
+				PRINTL
+				PRINTFORML まだドアの前でもお構いなしに、%CALLNAME:キャスト番号取得%のたわわな胸を鷲掴みにする。
+				PRINTFORML 彼女を連れてきたプロデューサーの前で見せつけるように%CALLNAME:キャスト番号取得%の胸を揉みしだき、
+				PRINTFORMW 腕の中に抱きすくめて煽るように耳を甘噛みすると、%CALLNAME:キャスト番号取得%はぞくぞくと身を震わせ、情欲の籠った吐息をついた。
+				PRINTL
+				CALL PRINT_STRW(@"「まだ、プロデューサーさんが……そこに……っ_H_ っは、ぁぅ_H_」")
+				PRINTL
+				IF RAND:2 == 0
+				;文香は行間を読む能力に長けているので、あなたの意図を勝手に汲んでシチュエーションプレイを申し出てくれる(ド偏見)
+					CALL PRINT_STRL(@"「っ、ぁ……_H_ ふふ……_H_ それとも……見せつけたいのですか……？_H_ 私が……誰のモノなのか……_H_」")
+					CALL PRINT_STRW(@"「……オーナーさんがお望みでしたら、私……頑張って、みます……_H_ プロデューサーさんに見られてしまうのは……恥ずかしい、ですが……_H_」")
+					PRINTL
+					PRINTFORML 文香は艶っぽくプロデューサーに流し目を送り、%CALLNAME:PLAYER%を煽るように密やかに囁く……。
+					PRINTFORMW ──どうしようか？
+					PRINTL
+					PRINTBUTTON "[0] プロデューサーを部屋に招き入れ、見せつける", 0
+					PRINTL
+					PRINTBUTTON "[1] 文香の痴態は独占したい", 1
+					PRINTL
+					BINPUT
+					PRINTL
+					SELECTCASE RESULT
+					CASE 0
+						PRINTFORMW 文香からの折角の提案だ。それもいいだろう。
+						PRINTL
+						PRINTFORMW %CALLNAME:PLAYER%が首を縦に振ると、文香はくすりと笑って、胸をまさぐる%CALLNAME:PLAYER%の手にそっと手を重ねた……。
+						PRINTL
+						CALL PRINT_STRW(@"「ん、っ……_H_ では、プロデューサーさんも、どうぞ中へ……_H_」")
+						PRINTL
+						PRINTFORMW プロデューサーを招き入れた文香が、%CALLNAME:PLAYER%の手を引いてベッドへと向かう
+						PRINTL
+						CALL PRINT_STRW(@"「それでは……_H_ プロデューサーさん……そこで、見ていてくださいね……_H_」")
+						PRINTL
+						CALL PRINT_STRW(@"「唇も、胸も、お尻も……私のカラダぜんぶ使って、オーナーさんをおもてなしさせていただくのを……_H_」")
+						PRINTL
+						CALL PRINT_STRW(@"「私がちゃんと、身も心も、オーナーさんのモノになれているか……そこから見て、確かめてくださいね……_H_」")
+						PRINTL
+						PRINTFORML 部屋の隅にプロデューサーを残して%CALLNAME:PLAYER%の前に立った%CALLNAME:キャスト番号取得%が、振り返りながら告げる。
+						PRINTFORMW プロデューサーの食い入るような視線の中で、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+						STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+						FLAG:イベントうふふベッドルーム = 1
+						TCVAR:キャスト番号取得:言いなり = 1
+						CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+						EXP:キャスト番号取得:性接待経験 += 1
+						EXP:MASTER:被接待経験 += 1
+						BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+						SIF GETBIT(TALENT:PLAYER:性別, 1) == 0
+							CALL MODE_CHANGE("ペニスバンド", PLAYER, PLAYER)
+						CALL イベント中うふふ移行処理("『舞踏会』への招待")
+						PRINTW
+						PRINTL ────────
+						PRINTL
+						PRINTL ────
+						PRINTL
+						PRINTW ──
+						PRINTL
+						PRINTFORML %CALLNAME:キャスト番号取得%が%CALLNAME:PLAYER%に犯され、その極上の裸体と快楽に満ちた嬌声をあげている姿を目の前で見せつけられたプロデューサーは、
+						PRINTFORML その光景に耐えきれず%TEXTR("手も触れないままズボンの中で惨めに/部屋の隅でこっそりと自慰に励み、")%３回射精したようだ……。
+						PRINTL
+						FLAG:ZP所持量 += 3
+						PRINTFORMW ZP所持量 + 3
+					CASE 1
+						PRINTFORMW ──文香の痴態は、%CALLNAME:PLAYER%が独占すべきものだ。たとえプロデューサーであろうと見せてやる義理はない。
+						PRINTL
+						PRINTFORMW 提案には感謝しながらも%CALLNAME:PLAYER%が首を横に振ると、文香はくすりと笑って%CALLNAME:PLAYER%の腰に手を回した……。
+						PRINTL
+						CALL PRINT_STRL(@"「ん、っ……_H_ そう、ですね……_H_ 私のカラダは、オーナーさんのモノですから……_H_ 安売りは、いけませんね……_H_」")
+						CALL PRINT_STRW(@"「ふふ……_H_ では、そういうことですので……プロデューサーさん、また明日……_H_」")
+						PRINTL
+						PRINTFORML %CALLNAME:PLAYER%が見せた独占欲に表情の蕩けた%CALLNAME:キャスト番号取得%が、プロデューサーをちらと一瞥だけして%CALLNAME:PLAYER%の腕の中でひらひらと手を振る。
+						PRINTFORMW ぱたりと閉まるドアの向こうにプロデューサーを残して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+						STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+						FLAG:イベントうふふベッドルーム = 1
+						TCVAR:キャスト番号取得:言いなり = 1
+						CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+						EXP:キャスト番号取得:性接待経験 += 1
+						EXP:MASTER:被接待経験 += 1
+						CALL イベント中うふふ移行処理("『舞踏会』への招待")
+					ENDSELECT
+				ELSE
+					CALL PRINT_STRL(@"「っ……_H_ あの、オーナーさん……_H_ ひょっとして……むりやり手籠めになさるのが……お好き、なのでしょうか……_H_」")
+					CALL PRINT_STRW(@"「こんな……プロデューサーさんに、見せつけるように、触って……揉んで……っ_H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「ん、っ_H_ いかがでしょう……プロデューサーさんの元から、私を奪って……嫌がる私を、組み伏せて……むりやり、犯したい、ですか……？_H_」")
+					PRINTL
+					PRINTFORML %CALLNAME:PLAYER%の欲望のかたちを探るように、文香は胸をまさぐられながらそっと耳元で囁く……。
+					PRINTFORMW ──どうしようか？
+					PRINTL
+					PRINTBUTTON "[0] むりやり犯したい", 0
+					PRINTL
+					PRINTBUTTON "[1] むしろイチャイチャを見せつけたい", 1
+					PRINTL
+					BINPUT
+					PRINTL
+					SELECTCASE RESULT
+					CASE 0
+						CALL PRINT_STRL(@"囁きに煽られた%CALLNAME:PLAYER%の嗜虐心が手から溢れ、思わずぎゅっ_H_と一際強く胸を握ると")
+						PRINTFORMW びくりと体を跳ねさせた文香は黙って頷き、腕の中でわずかにもがきはじめた……。
+						PRINTL
+						PRINTFORML 「っ、痛っ……！ ぃ、っ……ぃ、イヤっ……やっぱり、イヤです……プロデューサーさん……っ！」
+						PRINTFORMW 「ひぅ、っ……！ はな、っ……はなして、くださ……っ！ ゃ、っ！ イヤぁ、っっ！」
+						;ここまではちゃんとした演技
+						PRINTL
+						PRINTFORML 嫌がりはじめた担当アイドルの姿に「鷺沢さん！」と思わず手を伸ばしたプロデューサーを遮るように、バタンとドアが閉まる。
+						PRINTFORMW ドンドンドン！と拳がドアを叩く音が響く部屋の入口で、悪い笑みを浮かべた文香はそのまま自ら床に倒れ込んだ……。
+						;ここからはだいぶエンジョイ半分の演技
+						PRINTL
+						CALL PRINT_STRW(@"「っあ、っ_H_ イヤっ_H_ やあぁ、っ_H_ たすけっ、プロデュー……んぐ、っ_H__H_」")
+						PRINTL
+						PRINTFORMW %CALLNAME:PLAYER%の下敷きになるように、どさり、とわざとらしく音をたてて倒れ込んだ文香がか弱く暴れ、もがき、服を乱れさせていく……。
+						PRINTL
+						PRINTFORML 湧き出る嗜虐心の求めるままに%CALLNAME:PLAYER%が片手で文香の口を塞ぎ、もう片方の手で服をたくし上げてその下に隠されていたアイドルの秘密を乱暴にもみくちゃにすると、
+						PRINTFORMW 潤んだ瞳に被虐の情欲を灯した文香は赤子ほどの力すらない形だけの抵抗をより激しくした。
+						PRINTL
+						CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル3") 
+						CALL PRINT_STRW(@"「んﾞっ……_H_ んﾞん～～……っ_H_ っ、はっ_H_ ひ、っ！！_H__H_」")
+						PRINTL
+						PRINTFORMW ばたばたと音だけ激しい抵抗を続ける文香の口元から手を放し、太腿を抱えながらペニスを取り出すと、文香はわざとらしく声をあげた。
+						PRINTL
+						CALL PRINT_STRW(@"「そ、そんなの……はいるはず、ありません……っ_H_ ぃ、イヤ……っ_H_ それだけは……_H_」")
+						PRINTL
+						;面倒なのでチンポある想定で書いてるし画像作ってる。とても面倒なので。
+						PRINTFORML 既にぐしょぐしょに濡れた下着をずらした%CALLNAME:PLAYER%が秘所に亀頭をあてがうと、
+						;脳裏をちらつく浮世英寿。ギーツ見てたのが悪いよ……
+						PRINTFORMW ここからがハイライトとばかりに文香は、期待に口元を緩めながらも目尻に涙さえ浮かべて、喚いた。
+						PRINTL
+						CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル4") 
+						CALL PRINT_STRW(@"──つぷ、っ_H_")
+						PRINTL
+						IF TALENT:キャスト番号取得:処女 == 1
+							CALL PRINT_STRW(@"「っ、ひっ……_H_ ゎ、わたし、まだ……っ_H_ はじめて、なんです……っ_H__H_」")
+							PRINTL
+							CALL PRINT_STRW(@"「ぃ、イヤっ_H__H_ おちんちんでも……お尻の穴にだって、お口でご奉仕しますからぁ……っ_H_ おねがいですっ、それだけは……っ_H_」")
+							PRINTL
+						ELSE
+							CALL PRINT_STRW(@"「っ、ひっ……_H_ ゎ、わた、っ……わたし、なんでもしますから……！_H_ もう、抵抗しませんから……っ_H_ だから、それだけはぁ……っ_H__H_」")
+							PRINTL
+						ENDIF
+						PRINTFORMW 密室内のクライマックスの予感に、聞き耳をたてる観客がドアを叩く音が激しくなる。無論、止まるはずもない。
+						PRINTL
+						CALL PRINT_STRW(@"「ひぎ、っ_H__H_ せ、せめて、ゴムを、ひに、ん、を……」")
+						PRINTL
+						CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル5") 
+						;アイマス世界なのでゴムはある。当然使わないし名前以外出すつもりもないが
+						IF TALENT:キャスト番号取得:処女 == 1
+							CALL PRINT_STRW(@"────ぷちっ_H__H__H_ ぐぷぷぅぅ～～～っ_H__H__H__H_")
+						ELSE
+							CALL PRINT_STRW(@"────にゅぷ、ぷ_H__H__H_ ぐぷぷぅぅ～～～っ_H__H__H__H_")
+						ENDIF
+						PRINTL
+						CALL PRINT_STRW(@"「っあﾞ_H__H__H_ ああああぁぁぁぁ！！_H__H__H_」")
+						PRINTL
+						PRINTFORML 亀頭をめり込ませ、濡れそぼった雌穴にずぷずぷと押し入っていく%CALLNAME:PLAYER%に、文香はひときわ甲高く鳴き、
+						PRINTFORMW ドアを叩く音が止んだ背後からは、無力に打ちひしがれた観客が膝をつく音が聞こえる。
+						PRINTL
+						PRINTFORMW 文香の最も近しいファンだった観客を部屋の外に置き去りにして、文香と%CALLNAME:PLAYER%の『悲劇の舞踏会』はこうして幕をあげた……。
+						STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室 ドア前の床
+						FLAG:イベントうふふベッドルーム = 1
+						TCVAR:キャスト番号取得:言いなり = 1
+						CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+						BASE:PLAYER:勃起 = MAXBASE:PLAYER:勃起
+						SIF GETBIT(TALENT:PLAYER:性別, 1) == 0
+							CALL MODE_CHANGE("ペニスバンド", PLAYER, PLAYER)
+						PALAM:キャスト番号取得:潤滑 = 30000
+						EXP:キャスト番号取得:性接待経験 += 1
+						EXP:MASTER:被接待経験 += 1
+						SIF TALENT:キャスト番号取得:処女 
+							CALL 履歴データベース登録(CFLAG:キャスト番号取得:人物番号, @"<font color='#%カラーパレット_HTML("赤ピンク")%'>プロデューサーとドア１枚を隔てたホテルの床で、強姦される演技で%CALLNAME:PLAYER%を誘い処女を奪ってもらった……</font><img src='えっちハート'>","うふふ実績")
+						CALL MODE_CHANGE("正常位", PLAYER, キャスト番号取得)
+						CALL イベント中うふふ移行処理("『舞踏会』への招待","むりやりうふふモード")
+						PRINTW
+						PRINTL ────────
+						PRINTL
+						PRINTL ────
+						PRINTL
+						PRINTW ──
+						PRINTL
+						;海外AVのBBQみたいなもん。これは和姦！和姦なんです！！プロデューサーいじめる合意はとってないけど……！！
+						PRINTFORML ……文香から煽られたとはいえ、だいぶ激しく求めてしまったが大丈夫だっただろうか……。
+						PRINTFORMW ベッドの上へと運んだ文香を労わると、裸体を晒して絶頂の余韻に微睡みながら文香はくすくすと笑った。
+						PRINTL
+						CALL PRINT_STRW(@"「ふふ……ご心配には及びません……_H_ 私、こうやって強く求められるの、好きみたい、ですから……_H_」")
+						PRINTL
+						CALL PRINT_STRL(@"「力で組み伏せられて、おなかの奥までかき回されて……カラダの中も外も、たくさんマーキングされて……_H_」")
+						CALL PRINT_STRW(@"「書に浸って文字を追うばかりでは、こんなの、知りませんでした……_H_ やみつきに、なってしまいそうです……_H__H_」")
+						PRINTL
+						;
+						CALL PRINT_STRW(@"「…………ですから、その……またいつでも、閨にお呼びください……_H__H_ オーナーさんとの千一夜、心待ちにしていますね……_H__H_」")
+						PRINTL
+						PRINTFORMW 恥じらいながら『王子様』の喉元に小さくキスを落として、%CALLNAME:PLAYER%の腕の中で文香はそっと眠りに落ちていった……。
+						PRINTL
+						DRAWLINE
+						PRINTW
+						PRINTFORML 大事な担当アイドルが%CALLNAME:PLAYER%に犯されるのをドアの向こうからただ聞いていることしかできなかったプロデューサーは、
+						PRINTFORML ズボンの中で２回、屈辱的な射精をしてしまったようだ……。
+						PRINTL
+						FLAG:ZP所持量 += 2
+						PRINTFORMW ZP所持量 + 2
+					CASE 1
+						PRINTFORML プロデューサーから感じる視線……。
+						PRINTFORMW 嫌そうに、あるいは悔しそうに%CALLNAME:PLAYER%を睨むこれは「文香を傷つけるな」だろうか……それとも「文香は俺のアイドルなのに」だろうか？
+						PRINTL
+						PRINTFORMW ならば、これが文香の合意のうえだということをいま一度見せつけてやらねばなるまい。
+						PRINTFORMW %CALLNAME:PLAYER%が耳元で「無理やりじゃなく、イチャイチャしよう」と囁くと、文香はくすりと笑って%CALLNAME:PLAYER%の腰に手を回した……。
+						PRINTL
+						CALL PRINT_STRL(@"「ん、っ……_H_ それは……楽しみです……_H_ 恋物語のように……甘く、熱い逢瀬……_H_ 私も、精一杯の愛を、お返しいたしますので……_H_」")
+						CALL PRINT_STRW(@"「ふふ……_H_ では、プロデューサーさん……また明日……_H_ ここからは、『恋人の時間』ですから……_H__H_」")
+						PRINTL
+						PRINTFORML 溺れるような愛と快楽への期待に表情を蕩けさせた%CALLNAME:キャスト番号取得%が、プロデューサーをちらと一瞥だけしてドアを閉める。
+						PRINTFORMW ぱたりと閉まるドアの向こうにプロデューサーを残して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+						STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+						FLAG:イベントうふふベッドルーム = 1
+						TCVAR:キャスト番号取得:言いなり = 1
+						CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+						EXP:キャスト番号取得:性接待経験 += 1
+						EXP:MASTER:被接待経験 += 1
+						CALL イベント中うふふ移行処理("『舞踏会』への招待")
+						PRINTW
+						PRINTL ────────
+						PRINTL
+						PRINTL ────
+						PRINTL
+						PRINTW ──
+					ENDSELECT
+				ENDIF
+		ELSEIF キャスト番号取得 == GETCHARA(1408)
+			;橘ありす U149を見るに都内私立小(制服アリ)っぽいしランドセルじゃなく鞄っぽいのでハイエースする際は注意されたし
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、３４６プロダクション本社の一室だった。
+				;Ａ～Ｇは普通のレッスンルームらしいよ！
+				PRINTFORMW 防音の壁に囲まれた部屋の中央には整えられた大きなベッド。入口に掲げられたプレートには「レッスンルームＨ」とあった。
+				PRINTL
+				PRINTFORML 渡された「特別講師」のネームプレートを弄びながら部屋の中で待つことしばし。
+				PRINTFORMW 響いたノックに%CALLNAME:PLAYER%が返事をかえすとガチャリとドアが開き、ひょこりと少女が顔を出した。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン1") 
+				;芸能業界では挨拶は時刻によらず「おはようございます」らしいよ！ここは社内だからそれを適用！
+				PRINTFORMW 「おはようございます、オーナーさん。レッスン、ここで合ってますよね？」
+				PRINTL
+				PRINTFORMW ぺこりとお辞儀をする%CALLNAME:キャスト番号取得%。まだ幼いのに礼儀正しい、落ち着いた子だ……。
+				PRINTL
+				PRINTFORML ベッドの置かれた、二人きりの部屋。レッスン室とは名ばかりの%CALLNAME:PLAYER%のために用意された「ヤリ部屋」ですることといったら、一つしかない。
+				PRINTFORMW かちゃりと鍵を閉めた%CALLNAME:キャスト番号取得%は壁際に寄ると、%CALLNAME:PLAYER%の見ている前で服に手をかけた……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン2") 
+				PRINTFORML 「……実は、楽しみにしてたんです、今日の『レッスン』」
+				PRINTFORMW 「ちひろさんから話は聞いてましたけど、私みたいな子供にも、してもらえるんだぁ、って」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン3")
+				PRINTFORML 「だから、ちょっと早めに来たつもりだったんですけど……お待たせしちゃいましたか？」
+				CALL PRINT_STRW(@"「……オーナーさんも楽しみにしていてくれたなら、その……うれしいです。 えへへ……」")
+				PRINTL
+				PRINTFORML ちらちらと%CALLNAME:PLAYER%を気にしながら、服を脱いでいく%CALLNAME:キャスト番号取得%。
+				PRINTFORML 手を伸ばせば触れる距離で鑑賞する、ジュニアアイドルの極上ストリップ。
+				PRINTFORMW 他愛のない会話の中で衣擦れが音をたてるたび、まだ肉付きの薄い華奢な体躯が、穢れを知らない無垢な素肌が、徐々に露わになっていく……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン4") 
+				PRINTFORMW 「……さ、さすがに下着は、恥ずかしいですね……」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン5") 
+				CALL PRINT_STRW(@"「…………、っ_H_」")
+				PRINTL
+				PRINTFORMW やがて下着まで脱ぎ終えた%CALLNAME:キャスト番号取得%は服を畳んでまとめると、恥ずかしそうに頬を染めながら%CALLNAME:PLAYER%の前に立った。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン6") 
+				PRINTL
+				CALL PRINT_STRW(@"「……じゅ、準備、できました……_H_」")
+				PRINTL
+				PRINTFORMW 恥じらいの奥に期待を灯した瞳でそう言って、ありすは後ろ手に持っていたものをそっと口元に掲げた。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_レッスン7") 
+				CALL PRINT_STRW(@"「だ、第三芸能課の、橘ありす。 １２歳、小学６年生です……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「まだ、子供ですけど、今日は『オトナのレッスン』、よろしくお願いします……っ_H_」")
+				PRINTL
+				PRINTFORML 白昼のアイドル事務所で行われる、ジュニアアイドルとの性交渉。背徳の極致のようなシチュエーションに、%CALLNAME:PLAYER%の心臓が高鳴る。
+				PRINTFORMW ファンにも誰にも知られてはいけない、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の秘密の『舞踏会』の幕がいま、上がった……。
+				STR:イベントうふふ場所名 = ３４６プロダクション レッスンルームＨ
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1412)
+			;安部菜々
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				PRINTFORML 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには男に連れられた少女の姿があった。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1") 
+				CALL PRINT_STRW(@"「こ、こんばんは～、オーナーさんっ_H_ ウサミン星からやってきた声優アイドル！ 安部菜々、じゅーななさいです_H_ キャハ☆」")
+				PRINTL
+				PRINTFORML 開けたドアの前で元気な挨拶とともにビシッと決めポーズを取る%CALLNAME:キャスト番号取得%。なんだか自己紹介が堂に入っている……。
+				PRINTFORML 『招待状』には１７歳の前に『永遠の』とついていたが……これはいったい……？
+				PRINTFORMW それにウサミン星とは一体……ひょっとして彼女は、星の民のようなものなのだろうか？
+				PRINTL
+				PRINTFORML いろいろと疑問は浮かぶが、アイドルだけあってルックスは申し分ない。
+				PRINTFORMW 女らしく出るところの出た小柄な体躯はドラフ女性にも近く、抱き心地のよさそうなカラダを前に%CALLNAME:PLAYER%の期待と股間が膨らむ……。
+				PRINTL
+				PRINTFORMW 「じゃあプロデューサーさん、お迎えのほうは明日の……」
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル2") 
+				CALL PRINT_STRW(@"「ひゃわぁっ！？_H_ あああああのっ、オーナーさんっ！？_H_ ん、っ_H_ のっ、ノウっ_H_ まだダ、めっ、ぁ、はぁぅ_H_」")
+				PRINTL
+				PRINTFORML まだドアの前でもお構いなしに、%CALLNAME:キャスト番号取得%の胸を鷲掴みにする。
+				PRINTFORML 彼女を連れてきたプロデューサーの前で見せつけるように%CALLNAME:キャスト番号取得%の胸を揉みしだき、
+				PRINTFORMW 腕の中に抱きすくめて煽るように耳を甘噛みすると、%CALLNAME:キャスト番号取得%はぞくぞくと身を震わせ、情欲の籠った吐息をついた。
+				PRINTL
+				CALL PRINT_STRW(@"「っ_H_ ぉ、オーナーさん、こんな……っ_H_ ガマンできないくらい、ナナを気に入って……？_H__H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「んぁ、っ_H_ わか、っ_H_ わかりましたからっ_H_ お部屋、入りましょ？_H_ ね？_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「プロデューサーさんに、見られちゃ、んっ_H__H_ ナナ、逃げたりなんかしませんからぁ、っ_H__H_」")
+				PRINTL
+				PRINTFORML 染まった頬は、羞恥か期待か。腕の中から%CALLNAME:PLAYER%を見上げた%CALLNAME:キャスト番号取得%が、プロデューサーの視線から逃げるようにドアを閉める。
+				PRINTFORM ばたんと勢いよく閉まったドアの向こうに
+				;ちょっと悪辣になりすぎるか
+				;PRINTFORM 悔しそうに%TEXTR("拳を握り締める/歯噛みする")%
+				PRINTFORMW プロデューサーを残して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の『舞踏会』の幕がいま、上がった……。
+				PRINTL
+				CALL PRINT_STRL(@"「んっ、も～……いきなりは、びっくりしちゃうじゃないですかぁ……_H_」")
+				CALL PRINT_STRW(@"「コホン。 では改めまして……ナナをた～っくさん可愛がって、愛してくださいね_H_ オーナーさんっ_H__H_ キャハ_H_」")
+				STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1551)
+			;小早川紗枝
+				PRINTFORML %CALLNAME:PLAYER%が通されたのは、イベントホールだという建物の控え室。
+				PRINTFORMW 示された部屋のドアをノックし、開けると……
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_握手会前1")
+				CALL PRINT_STRW(@"「遠いところ、ようおこしやす、オーナーはん……_H_」")
+				PRINTL
+				PRINTFORMW ドアの前で三つ指をついた少女の姿があった。
+				PRINTL
+				CALL PRINT_STRW(@"「うち、小早川紗枝いいます。どうぞよろしゅう申しあげます……_H_」")
+				PRINTL
+				PRINTFORML リノリウムといったか……硬い床の上、ずっと正座で待っていたのだろうか……。
+				PRINTFORMW ドアを開けてすぐの歓待に戸惑う%CALLNAME:PLAYER%をよそに、紗枝は深々と頭を下げた。
+				PRINTL
+				CALL PRINT_STRW(@"「ふふ_H_ ちゃんとした挨拶はこのへんにして、さ、オーナーはん、どうぞベッドへ……_H_」")
+				PRINTL
+				PRINTFORML 紗枝に促されるまま中に入ると、たしかにベッドがある。控え室なのに。
+				PRINTFORMW %CALLNAME:PLAYER%がベッドわきに腰掛けると、紗枝はぴたりと寄り添うように隣に腰を下ろした……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_握手会前2")
+				PRINTFORML 「ご足労いただいてしもて、堪忍なぁ」
+				PRINTFORMW 「うちもほんまは、ほてるでぎょうさん可愛らしいして欲しかったんやけど、仕事でなぁ……ほんま、プロデューサーはいけずやわ……」
+				PRINTL
+				PRINTFORMW 「うちなぁ、あと４時間くらいしたら、このいべんとほーるで握手会があるんよ。 写真集の発売記念いべんとでなぁ」
+				PRINTL
+				PRINTFORMW 「やけどなぁ？ ちひろさんも言うてはった通り、うちらアイドルは、オーナーはんのオンナやろ？」
+				PRINTL
+				PRINTFORML 「身ぃも心も、恋も未来もぜぇんぶオーナーはんのモノや。 当然、この手ぇもそう。 やからなぁ？」
+				PRINTFORMW 「握手かて、ほかの殿方に手ぇ触られる行為やから、オーナーはん、ええ気せんのちゃうかなぁ思て、こうやってお越しいただいたんどす」
+				PRINTL
+				PRINTFORMW 「うちも、なんや浮気みたいで気ぃ引けてまうし……このまんまじゃぁ仕事んならんもん」
+				PRINTL
+				PRINTFORMW やからなぁ？と続けて、紗枝はそっと着物の胸元に手をかけた……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_握手会前3")
+				CALL PRINT_STRW(@"「やからオーナーはん、握手会の前に、うちの体じゅうぜぇんぶ、まーきんぐしてもろてんか……？_H_」")
+				PRINTL
+				CALL PRINT_STRL(@"「うちの衣装の下を、吸って、揉んで……_H_ きすまーくも、ぎょうさん付けてもろて……_H_」")
+				CALL PRINT_STRW(@"「噛み痕でも、ひっぱたいた手形でもええよ……_H_ あぁ……むしろ、痛いん残るほうがええかもしれへん……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「そんでな？ 唇も、乳首も、おそその奥の奥までオーナーはんにみぃんなお手付きしてもろたら、うち、安心できる思うんよ……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「ふぁんの男の人に手ぇ触られても、『うちのこの体はオーナーはんのもんや』て、ず～っと想ってたいねん……_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「やから、な？ 今からうちの体はめ潰して、ふぁんに触られる前に、オーナーさんのもんやて、わからせたって……_H_」")
+				PRINTL
+				PRINTFORML 淑やかで気品ある美少女アイドルに体を捧げられ、被所有の証まで求められるなんて、まさに最高の気分だ。
+				PRINTFORMW 彼女のファン達への圧倒的な優越感を肴に、紗枝と%CALLNAME:PLAYER%の内緒の『舞踏会』が幕を開けた……。
+				STR:イベントうふふ場所名 = 某イベントホール 控え室
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1671)
+			;櫻井桃華
+			;あまりにも話が早いため薄味になってしまった気がする……
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW 廊下を歩いているだけでわかる豪奢さ。どうやら相当にグレードの高いホテルのようだ……。
+				PRINTL
+				PRINTFORML コンシェルジュに案内されるまま部屋へと入る。
+				PRINTFORMW 仄暗い部屋の中を進むと、天蓋付きのベッドの前に幼い少女が立っていた。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1")
+				CALL PRINT_STRW(@"「お待ちしておりましたわ_H_ ごきげんよう、オーナーちゃま_H_」")
+				PRINTL
+				PRINTFORMW ゆったりと優雅にカーテシーをする幼い淑女がうやうやしく%CALLNAME:PLAYER%を迎える。
+				PRINTL
+				CALL PRINT_STRW(@"「今宵、オーナーちゃまの夜の華をつとめさせていただく栄誉を授かった、櫻井桃華と申しますわ_H_」")
+				PRINTL
+				CALL PRINT_STRW(@"「この身をオーナーちゃまに捧げ、癒してさしあげられるのはレディーの誉れ……_H_ 誠心誠意、務めさせていただきますわ_H_」")
+				CALL PRINT_STRW(@"「まだ胸も実らぬ生馴れの蕾ではございますが、どうかこのカラダ、存分にお楽しみくださいませ……_H_」")
+				PRINTL
+				PRINTFORML 見るからに育ちのいいお嬢様が%CALLNAME:PLAYER%にへりくだり、喜んでその無垢な幼い体を差し出す。
+				PRINTFORMW 背徳的な光景に吸い込まれるように手を伸ばした%CALLNAME:PLAYER%の指先が桃華に触れ、今夜の『舞踏会』の幕があがった……。
+				STR:イベントうふふ場所名 = ホテルニューサクライ東京 ロイヤルスイート
+				;ニューオータニ的な
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ELSEIF キャスト番号取得 == GETCHARA(1952)
+			;佐々木千枝
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				PRINTFORML 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには……
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル1") 
+				CALL PRINT_STRW(@"「こ、こんばんは、オーナーさん……_H_ 佐々木千枝っていいます」")
+				PRINTL
+				PRINTFORMW 開けたドアの前には、招待状の子とは別にもう一人。大人の女性の姿があった。
+				PRINTL
+				;公式には名前は出てない
+				PRINTFORML 　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　ももえ
+				PRINTFORML 「突然押しかけてしまって、申し訳ありません。 この子の母の、佐々木百枝と申します」
+				CALL PRINT_STRL(@"「千川さんから伺いまして。 千枝がお世話になるそうですから、せっかくですしご挨拶を、と……_H_」")
+				PRINTL
+				PRINTFORMW 「もう、ママったら……一人でも大丈夫なのに」
+				PRINTL
+				PRINTFORMW 言われてみれば確かに千枝によく似た顔つき。千枝が大きくなったらこんな感じだろうな、と思わせる美人だ。
+				PRINTL
+				PRINTFORML 招待状にはなかったが……ちひろの手引きというのなら、もしかして……。
+				PRINTFORMW いやそもそも、こんな夜分に平然と１１歳の娘を男の待つホテルに送ってきたのだ。これは……間違いない、はずだ……。
+				PRINTL
+				PRINTFORML 千枝の頭を優しくひと撫でし、内心の緊張を必死で抑えながら、百枝へと手を伸ばす……。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル2") 
+				CALL PRINT_STRW(@"「ひゃ、っ……_H_ あ、あの、オーナーさん……？」")
+				PRINTL
+				PRINTFORML 柔らかく実った人妻の巨乳に指が沈み込む。
+				PRINTFORMW %CALLNAME:PLAYER%にいきなり胸を鷲掴みにされても、驚き恥じらう百枝の表情には嫌悪や抵抗は感じられない……。
+				PRINTL
+				PRINTFORML ──これは、ヤれる。
+				PRINTFORMW そう確信した%CALLNAME:PLAYER%が手の中の胸をもみもみと弄んでいると、もの言いたげな目をした千枝が%CALLNAME:PLAYER%の服の裾を引いた。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル3") 
+				PRINTFORMW ──さて、どうしようか？
+				PRINTL
+				隠しキャラ番号取得 = キャラ検索("[佐々木千枝の母]佐々木百枝")
+				SIF CFLAG:隠しキャラ番号取得:招待不可フラグ != 0
+					CFLAG:隠しキャラ番号取得:招待不可フラグ = 0
+				PRINTBUTTON "[0] 千枝だけいただく", 0
+				PRINTL
+				PRINTBUTTON "[1] 百枝もいただく", 1
+				PRINTL
+				BINPUT
+				PRINTL
+				SELECTCASE RESULT
+				CASE 0
+					PRINTFORML ……ヤれる確信はあるが、千枝にこんな目をされてはかなわない。
+					PRINTFORMW 今日の『シンデレラ』は千枝なのだ。目移りしてはかわいそうだろう。
+					PRINTL
+					PRINTFORMW 百枝の胸から手を離した%CALLNAME:PLAYER%が今夜の相手に千枝だけを選ぶと、むっとしていた千枝は花咲くようにぱあっと笑顔になった。
+					PRINTL
+					CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル6") 
+					CALL PRINT_STRL(@"「えへへ_H_千枝だけを選んでくれて、うれしいです！_H_」")
+					CALL PRINT_STRW(@"「た～っくさん、ごほうしがんばりますねっ_H__H_」")
+					PRINTL
+					PRINTFORMW 「じゃあママ、がんばってくるね！」
+					PRINTL
+					PRINTFORML 今にも踊りだしそうなほど上機嫌になった千枝が、%CALLNAME:PLAYER%の手を引いてぐいぐいとベッドに向かう。
+					PRINTFORMW 「いってらっしゃい、千枝」と百枝の見送る声と、がちゃりと閉まるドアの音を背に、千枝とふたりきりの『舞踏会』の幕が上がった……。
+					;千枝のみを選んだことで恋心度がぐいっと上がる
+					上昇量 = 経験値テーブル:41 - CFLAG:キャスト番号取得:恋心度
+					IF 上昇量 > 0
+						NOWEX:キャスト番号取得:恋心度上昇格納 += 上昇量
+					ELSE
+						;既にLv21以上なのでなんか当たり障りのない量を上げる
+						NOWEX:キャスト番号取得:恋心度上昇格納 += 5000
+					ENDIF
+					STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+					FLAG:イベントうふふベッドルーム = 1
+					TCVAR:キャスト番号取得:言いなり = 1
+					CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+					EXP:キャスト番号取得:性接待経験 += 1
+					EXP:MASTER:被接待経験 += 1
+					CALL イベント中うふふ移行処理("『舞踏会』への招待")
+					DRAWLINE
+					PRINTFORML 今回挨拶をした縁で、百枝がリゾートに訪れるようになった！
+					PRINTL
+					PRINTFORMW 隠しキャラ [佐々木千枝の母]佐々木百枝 が解放されました。
+					DRAWLINE
+				CASE 1
+					PRINTFORML シンデレラを送ってきたカボチャの馬車まで食べられるとは、至れり尽くせりとはこのことだ。
+					PRINTFORMW %CALLNAME:PLAYER%が「お母様もどうですか」と声をかけると、百枝は胸を揉みしだかれながら困ったように笑う。
+					PRINTL
+					CALL PRINT_STRW(@"「っ……_H_ いえ、私は……今日は、千枝の『お仕事』ですし……ん、っ_H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「セックスするには、千枝はまだ小さいですけど……娘ならちゃんとできるって、信じていますし……」")
+					PRINTL
+					CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル4")
+					CALL PRINT_STRW(@"「っっ！！_H__H_ ん、あっ_H_ ヤダ、っ_H__H_」")
+					PRINTL
+					PRINTFORML 『交渉』の隙を見て百枝のズボンのボタンを外し中に手を差し込むと、指先にはねっとりと愛液が絡みついた。
+					PRINTFORMW 言い訳を並べ立ててはいるが、娘の前で雑に胸を揉まれただけでこの濡れよう……この人妻、どうやら相当に溜まっているようだ……。
+					PRINTL
+					CALL PRINT_STRW(@"「んんっ_H__H_ ダメっ_H__H_ 久しぶりだからすぐイっちゃ……っ_H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「っ、あ…………なんで、とめちゃ……ゃう、っ_H__H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「ん_H_ ふうﾞ、っ_H__H_ …………っあ……またイけな、っ……。 ……くぅ、んﾞっ_H__H_ やぁ_H__H_ 焦らさ、な……あﾞっ_H__H__H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「っ_H__H__H_ わかっ_H__H_ わかりましたっ_H__H__H_ 千枝といっしょに、ご奉仕させていただきますからぁっ_H__H__H_」")
+					PRINTL
+					CALL PRINT_STRW(@"「だから、もっ、ゆるし、っぐ_H__H__H__H_ イっ、ぎゅ、っっっっ_H__H__H__H__H__H_」")
+					PRINTL
+					PRINTFORML ちょっと焦らしただけで、２分もしないうちにあっさり降参し合意を口にした百枝を指先でイかせてふと横を見ると、
+					PRINTFORMW ジト目の千枝が%CALLNAME:PLAYER%を見つめていた……。
+					PRINTL
+					CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/舞踏会_ホテル5")
+					PRINTFORMW 「…………やっぱりオーナーさんも、ママみたいなオトナの女の人がいいんですか……」
+					PRINTL
+					PRINTFORMW 「むぅ～～……ママには負けませんから！」
+					PRINTL
+					PRINTFORML 妙な感じで決意を新たにした千枝に手を引かれ、ベッドへと上がる。
+					PRINTFORMW 母と娘の両方をいちどに楽しめる、心躍る『舞踏会』の幕が今、あがった……。
+					STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+					FLAG:イベントうふふベッドルーム = 1
+					TCVAR:キャスト番号取得:言いなり = 1
+					TCVAR:隠しキャラ番号取得:言いなり = 1
+					CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+					CFLAG:隠しキャラ番号取得:イベントうふふ対象フラグ = 1
+					PALAM:隠しキャラ番号取得:潤滑 = 10000
+					EXP:キャスト番号取得:性接待経験 += 1
+					EXP:MASTER:被接待経験 += 1
+					EXP:隠しキャラ番号取得:性接待経験 += 1
+					CALL イベント中うふふ移行処理("『舞踏会』への招待")
+					DRAWLINE
+					PRINTFORML %CALLNAME:PLAYER%に抱かれる快楽を知ってしまった百枝は、別れ際、いずれリゾートを訪れることを約束し帰路についた……。
+					PRINTL
+					PRINTFORMW 隠しキャラ [佐々木千枝の母]佐々木百枝 が解放されました。
+					DRAWLINE
+				ENDSELECT
+			ELSE
+			;その他個別が未実装のキャラ セリフを出さないし画像も用意しない最低限なので超薄味
+				PRINTFORML 今回%CALLNAME:PLAYER%が通されたのは、とあるホテルの一室だった。
+				PRINTFORMW グレードよりも秘匿性を重視したというその部屋は、それでいて中々に洒落た内装をしており、空の世界との技術差を思わせる。
+				PRINTL
+				;プロデューサー同伴じゃない
+				PRINTFORMW 部屋でしばし寛ぐなか響いたノックに%CALLNAME:PLAYER%がドアを開けると、そこには少女の姿があった。
+				PRINTL
+				CALL PRINT_STR(@"IMAGEPATH_%CSTR:キャスト番号取得:画像フォルダ%/短冊_デフォルト") 
+				PRINTFORML 赤く染まった頬で「%SUBSTRING(NAME:キャスト番号取得, STRFIND(NAME:キャスト番号取得, "]") + 1, -1)%です」と名乗った少女がぺこりとお辞儀をする。
+				PRINTFORMW 彼女が今夜の『シンデレラ』。%CALLNAME:PLAYER%を楽しませてくれる夜の華だ。
+				PRINTL
+				PRINTFORML 肩を抱いて部屋へと連れ込み、食べ頃メスの甘い香りに期待を昂らせながら%CALLNAME:キャスト番号取得%をベッドへと導く。
+				PRINTFORMW 会話もそこそこに%CALLNAME:キャスト番号取得%をどさりとベッドに押し倒して、%CALLNAME:PLAYER%と%CALLNAME:キャスト番号取得%の欲望の『舞踏会』がいま、幕をあげた……。
+				STR:イベントうふふ場所名 = 会員制ホテル『H@rvest』 306号室
+				FLAG:イベントうふふベッドルーム = 1
+				TCVAR:キャスト番号取得:言いなり = 1
+				CFLAG:キャスト番号取得:イベントうふふ対象フラグ = 1
+				EXP:キャスト番号取得:性接待経験 += 1
+				EXP:MASTER:被接待経験 += 1
+				CALL イベント中うふふ移行処理("『舞踏会』への招待")
+		ENDIF
+	CASE 1
+		PRINTFORML せっかくの招待だが、この子とはもっと違う関係性を持ちたい……。
+		PRINTL 
+		PRINTFORMW %CALLNAME:PLAYER%は今週の『舞踏会』は欠席することにした……。
+ENDSELECT
+
+CALL イベント完了フラグ汎用処理_再視聴不可("『舞踏会』への招待")

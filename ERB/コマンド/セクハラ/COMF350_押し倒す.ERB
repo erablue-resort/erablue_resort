@@ -82,7 +82,7 @@ SIF MODE_存在判定_プレイヤー側("全裸散歩", PLAYER)
 SIF CFLAG:TARGET:デート && CFLAG:TARGET:デート != PLAYER + 100 && TCVAR:TARGET:デートちょっかい値 < 1
 	RETURN 0
 ;馴れ合い強度2
-SIF TCVAR:PLAYER:馴れ合い強度 < 2
+SIF TCVAR:PLAYER:馴れ合い強度 < 2 && TCVAR:TARGET:言いなり == 0 && TCVAR:TARGET:特殊言いなり == 0
 	RETURN 0
 ;隠密中は一緒に隠密してるキャラを見る
 IF フィールド展開:うふふ目撃スルー == 0
@@ -90,7 +90,7 @@ IF フィールド展開:うふふ目撃スルー == 0
 		FOR LOCAL, 1, CHARANUM
 			SIF TARGET:LOCAL < 1
 				BREAK
-			SIF CFLAG:(TARGET:LOCAL):隠密 && 陥落チェック_性的＋疑似恋慕(TARGET:LOCAL) == 0
+			SIF CFLAG:(TARGET:LOCAL):隠密 && (陥落チェック_性的＋疑似恋慕(TARGET:LOCAL) == 0 && TCVAR:(TARGET:LOCAL):言いなり == 0 && TCVAR:(TARGET:LOCAL):特殊言いなり == 0)
 				RETURN 0
 		NEXT
 	ELSE
@@ -98,12 +98,12 @@ IF フィールド展開:うふふ目撃スルー == 0
 		FOR LOCAL,1,CHARANUM
 			SIF TARGET:LOCAL < 1
 				BREAK
-			SIF 陥落チェック_性的＋疑似恋慕(TARGET:LOCAL) == 0
+			SIF 陥落チェック_性的＋疑似恋慕(TARGET:LOCAL) == 0 && TCVAR:(TARGET:LOCAL):言いなり == 0 && TCVAR:(TARGET:LOCAL):特殊言いなり == 0
 				RETURN 0
 		NEXT
 	ENDIF
 ELSE
-	SIF 陥落チェック_性的＋疑似恋慕(TARGET) == 0
+	SIF 陥落チェック_性的＋疑似恋慕(TARGET) == 0 && TCVAR:TARGET:言いなり == 0 && TCVAR:TARGET:特殊言いなり == 0
 		RETURN 0
 ENDIF
 ;睡眠中
@@ -140,13 +140,24 @@ ELSEIF GET_TARGETNUM() > 1 && フィールド展開:うふふ目撃スルー == 
 ELSE
 	PRINTFORM %CALLNAME:PLAYER%は
 	IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == 0 && フィールド展開:うふふ目撃スルー == 0
-		PRINT あたりに人がいないことを確認すると
+		PRINT あたりに人がいないことを確認すると、
+	ENDIF
+	IF TCVAR:TARGET:言いなり
+		PRINTFORM %CALLNAME:PLAYER%の言いなりになることしかできない
+	ELSEIF TCVAR:TARGET:特殊言いなり == 1
+	;シンデレラ
+		PRINTFORM 今日の『シンデレラ』に選ばれた
+	ELSEIF TCVAR:TARGET:特殊言いなり == 2
+	;アゼリューゼ
+		PRINTFORM 「服従させる魔法」で体の自由を奪われた
 	ENDIF
 	PRINTFORML %CALLNAME:TARGET%を抱き寄せた…
 ENDIF
 IF TCVAR:TARGET:初うふふフラグ
 	IF 知識素質:TARGET:性知識 < 0
 		PRINTFORML %CALLNAME:TARGET%は不思議そうな顔で%CALLNAME:PLAYER%を見つめている…
+	ELSEIF 陥落チェック_性的＋疑似恋慕(TARGET) == 0 && (TCVAR:TARGET:言いなり || TCVAR:TARGET:特殊言いなり)
+		PRINTFORML %CALLNAME:TARGET%はなにやらもの言いたげな目で%CALLNAME:PLAYER%を見つめている…
 	ELSE
 		PRINTFORML %CALLNAME:TARGET%は覚悟を決めたような目で%CALLNAME:PLAYER%を見つめている…
 	ENDIF
