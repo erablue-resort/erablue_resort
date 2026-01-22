@@ -306,6 +306,8 @@ SELECTCASE LOCAL
 ENDSELECT
 
 @イベント発生条件チェック
+#DIM スキップフラグ
+
 FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	;初回発生チェック
 	イベント消滅日数渡し = 0
@@ -388,6 +390,8 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", イベント消滅確率渡し
 		ENDIF
 	ENDIF
+
+	スキップフラグ = 0
 	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント発生フラグ") == 1 && DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント完了フラグ") == 0
 		;条件消失チェック、単純にフラグを戻すだけなので条件が整った時に即再発生する
 		RESULT = 0
@@ -406,8 +410,10 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント消滅確率", 0
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生CT", 0
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント再発生確率", 0
+			スキップフラグ = 1
 		ENDIF
-	ELSEIF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -1
+	ENDIF
+	IF DT_CELL_GET("各イベント用変数配列", LOCAL, "イベント消滅CT") == -1 && スキップフラグ == 0
 		;自然消滅チェック、こっちは再発生CTや確率がセット出来る
 		IF LOCAL:1 == 0
 			PRINTL
