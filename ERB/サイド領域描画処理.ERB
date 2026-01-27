@@ -34,7 +34,16 @@ SIF サイド描画表示種類 == "能力表示"
 IF SAVESTR:ゲームフェイズ管理 == "通常モード"
 	LOCAL += LOCAL:1 + 50
 	LOCAL:1 = 500
-	表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_同室者'>同室者<font color='#ff3399'>\@ サイド領域_同室者表示フラグ? 口# 田\@</font></button></div>"
+	SELECTCASE サイド領域_同室者表示フラグ
+		CASE 0
+			LOCALS '= "田"
+		CASE 1
+			LOCALS '= "口"
+		CASE 2
+			LOCALS '= "罒"
+	ENDSELECT
+	表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_同室者'>同室者<font color='#ff3399'>%LOCALS%</font></button></div>"
+	;表示文字列 += @"<div rect='{LOCAL}, {LOCAL:2 - 15}, {LOCAL:1}, 200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='サイド領域_サイド切り替え_同室者'>同室者<font color='#ff3399'>\@ サイド領域_同室者表示フラグ? 口# 田\@</font></button></div>"
 	SIF サイド描画表示種類 == "同室者"
 		表示文字列 += @"<div rect='{LOCAL + 25}, {LOCAL:2 - 35}, {LOCAL:1 - 40}, 60' color='#101010'></div>"
 ENDIF
@@ -118,8 +127,11 @@ NEXT
 #DIM 入力数値
 
 IF STRCOUNT(RESULTS, "サイド領域_サイド切り替え_")
-	SIF サイド描画表示種類 == "同室者" && STRCOUNT(RESULTS, "同室者")
-		INVERTBIT サイド領域_同室者表示フラグ, 0
+	IF サイド描画表示種類 == "同室者" && STRCOUNT(RESULTS, "同室者")
+		サイド領域_同室者表示フラグ ++
+		SIF サイド領域_同室者表示フラグ > 2
+			サイド領域_同室者表示フラグ = 0
+	ENDIF
 	サイド描画表示種類 = %REPLACE(RESULTS, "サイド領域_サイド切り替え_", "")%
 	サイド領域_同室者表示ページ数 = 0
 	RETURN 1
@@ -353,7 +365,57 @@ VARSET 助手候補
 画像表示文字列 '= ""
 ;横に何人入るか
 表示可能人数 = ((1600 / GETCONFIG("フォントサイズ")) - 55 ) / 8
-IF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || サイド領域_同室者表示フラグ)
+IF 表示可能人数 > 1 && GET_TARGETNUM() > 1 && サイド領域_同室者表示フラグ == 2
+	VARSET LOCALS
+	助手人数 = 二人目画像表示用(-1)
+	;LOCAL:1 = 1 + MIN(助手人数, 表示可能人数)
+	LOCAL = ((1600 / GETCONFIG("フォントサイズ")) - 55 ) / 11
+	IF 助手人数 > LOCAL
+		横幅 = 800
+	ELSE
+		表示可能人数 = LOCAL
+		横幅 =  1100
+	ENDIF
+	L_CNT = 0
+	WHILE L_CNT < 助手人数
+		助手候補:L_CNT = 二人目画像表示用(L_CNT + 1)
+		L_CNT ++
+	WEND
+	FOR L_CNT, 0, 助手人数
+		IF L_CNT < サイド領域_同室者表示ページ数 * 表示可能人数 * 2
+			CONTINUE
+		ENDIF
+		SIF L_CNT - (サイド領域_同室者表示ページ数 * 表示可能人数 * 2) == 表示可能人数 * 2
+			BREAK
+		IF L_CNT - (サイド領域_同室者表示ページ数 * 表示可能人数 * 2) == 表示可能人数
+			;1度だけ折り返す
+			表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%"
+			ボタン文字列 '= ""
+			画像表示文字列 '= ""
+		ENDIF
+		LOCAL = 助手候補:L_CNT
+		CALL サイド領域_エロステータス把握(LOCAL)
+		LOCALS '= RESULTS
+		LOCALS:1 '= RESULTS:1
+		SIF STRLENS(CALLNAME:LOCAL + LOCALS) + 2 > (横幅 * 2 / 100)
+			LOCALS '= ""
+		LOCALS:2 '= 短冊グラ表示用文字列関数(LOCAL, 1 + L_CNT, 横幅)
+		画像表示文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%&#13;&#10;%RESULTS:(3+L_CNT)%'>%LOCALS:2%</button>"
+		ボタン文字列 += @"<button value='{LOCAL + 2000}' title='%CALLNAME:LOCAL + LOCALS%'><font face='' %LOCALS:1%>%"[" + CALLNAME:LOCAL + "]" + LOCALS, MIN((横幅 * 2 / 100), 40), LEFT%</font></button>"
+	NEXT
+	追加表示文字列 += "<div rect='5600, 4125, 4225, 100'>"
+	IF サイド領域_同室者表示ページ数 > 0
+		追加表示文字列 += "<button value='サイド領域_前ページ'>[前のページへ]</button>"
+	ELSE
+		追加表示文字列 += "　　　　　　　"
+	ENDIF
+	追加表示文字列 += "　　　"
+	IF 表示可能人数 * 2 * (サイド領域_同室者表示ページ数 + 1) < 助手人数 + 1
+		追加表示文字列 += "<button value='サイド領域_次ページ'>[次のページへ]</button>"
+	ENDIF
+	追加表示文字列 += "</div>"
+	表示文字列 += @"%ボタン文字列%<br>%画像表示文字列%%"<br>" * (1 + 横幅 * GETCONFIG("フォントサイズ") / (GETCONFIG("一行の高さ") * 50))%"
+ELSEIF 表示可能人数 > 0 && (GET_TARGETNUM() == 1 || サイド領域_同室者表示フラグ)
 	;対象が一人、または複数プレイ時はなるべく大きく短冊を表示
 	VARSET LOCALS
 	;ターゲット

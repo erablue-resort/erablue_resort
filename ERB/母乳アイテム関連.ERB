@@ -12,6 +12,8 @@
 #DIMS ミルク名
 #DIMS 消費期限
 
+CALL 期限切れミルク自動破棄()
+
 DRAWLINE
 PRINTL 所持しているミルクの一覧です
 IF 一括削除モード
@@ -25,15 +27,19 @@ DRAWLINE
 FOR ミルク番号, 0, DT_ROW_LENGTH("ミルクデータベース") + (15 - DT_ROW_LENGTH("ミルクデータベース") % 15)
 	IF 表示数カウント >= 15
 		;表示スキップした中に表示するミルクがあるなら次ページフラグを立てとく
-		SIF DT_ROW_LENGTH("ミルクデータベース") > ミルク番号 && DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") != "フタ"
+		IF DT_ROW_LENGTH("ミルクデータベース") > ミルク番号 && DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") != "フタ"
 			次ページフラグ = 1
+			BREAK
+		ENDIF
 		CONTINUE
 	ENDIF
 	IF DT_ROW_LENGTH("ミルクデータベース") > ミルク番号
 		SIF DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") == "フタ"
 			CONTINUE
-		SIF ページ数 !=  表示数カウント / 15 
+		IF ページ数 !=  表示数カウント / 15
+			表示数カウント ++
 			CONTINUE
+		ENDIF
 		SIF 一括削除モード && STRCOUNT(削除番号, @"_{DT_CELL_GET("ミルクデータベース", ミルク番号, "id")}_")
 			SETCOLOR カラーパレット("黄")
 		IF DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") == "通常"
@@ -325,6 +331,24 @@ SELECTCASE RESULT
 ENDSELECT
 
 
+
+@期限切れミルク自動破棄()
+#DIM ミルク番号
+#DIM 削除数
+
+削除数 = 0
+FOR ミルク番号, 0, DT_ROW_LENGTH("ミルクデータベース")
+	SIF DT_CELL_GETS("ミルクデータベース", ミルク番号, "状態") == "フタ"
+		CONTINUE
+	IF DAY - DT_CELL_GET("ミルクデータベース", ミルク番号, "生産日") > 3
+		DT_CELL_SET "ミルクデータベース", ミルク番号, "状態", "フタ"
+		削除数 ++
+	ENDIF
+NEXT
+
+IF 削除数 > 0
+	PRINTFORMW 消費期限の切れた{削除数}個のミルクを破棄しました。
+ENDIF
 
 
 
