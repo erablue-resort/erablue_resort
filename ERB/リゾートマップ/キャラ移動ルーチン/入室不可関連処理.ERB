@@ -367,20 +367,40 @@ TRYCALLFORM 部屋施錠時_睡眠口上_{NO:睡眠キャラ}(睡眠キャラ)
 #DIM 配列番号
 #DIMS モード名
 #DIM 表示フラグ
+#DIMS 呼び寄せ配列, 100
+#DIM 参加人数
 
 ;キャラがうふふ中で施錠されてる時の表示文章を制御する
-;以下、受け攻めの設定を見て口上などを呼び出す
-CALL 受け攻め関係性算出(対象キャラ１, 対象キャラ２)
-IF RESULT >= 0
-	攻めキャラ = RESULT:10
-	受けキャラ = RESULT:11
-
-	;攻め受けが決定したのでそれに応じたメッセージ
-	PRINTFORML 中から%CALLNAME:攻めキャラ%の声と、%CALLNAME:受けキャラ%の喘ぎ声が聞こえてくる……
-	PRINTFORMW どうやら二人でお楽しみ中のようだ…
+;まず複数人うふふ、メンツ記録は両方に入るのでどっち見てもいいはず
+VARSET 呼び寄せ配列
+参加人数 = 0
+IF TIME <= 720 && CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM != ""
+	SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM, "_", 呼び寄せ配列
+	参加人数 = RESULT
+	IF 参加人数 >= 3
+		PRINTFORML 中から複数人の嬌声が聞こえてくる……どうやら{RESULT}人でお楽しみ中のようだ
+	ENDIF
+ELSEIF TIME > 720 && CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM != ""
+	SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM, "_", 呼び寄せ配列
+	参加人数 = RESULT
+	IF 参加人数 >= 3
+		PRINTFORML 中から複数人の嬌声が聞こえてくる……どうやら{RESULT}人でお楽しみ中のようだ
+	ENDIF
 ELSE
-	;多分存在しないはずなんだけど、関係性がない二人の場合はシンプルメッセージ
-	PRINTFORMW 中から%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%の嬌声が聞こえてくる……どうやらお楽しみ中のようだ…
+	;以下、受け攻めの設定を見て口上などを呼び出す
+	CALL 受け攻め関係性算出(対象キャラ１, 対象キャラ２)
+	IF RESULT >= 0
+		攻めキャラ = RESULT:10
+		受けキャラ = RESULT:11
+
+		;攻め受けが決定したのでそれに応じたメッセージ
+		PRINTFORML 中から%CALLNAME:攻めキャラ%の声と、%CALLNAME:受けキャラ%の喘ぎ声が聞こえてくる……
+		PRINTFORMW どうやら二人でお楽しみ中のようだ…
+	ELSE
+		;多分存在しないはずなんだけど、関係性がない二人の場合はシンプルメッセージ
+		PRINTFORMW 中から%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%の嬌声が聞こえてくる……どうやらお楽しみ中のようだ…
+	ENDIF
+	参加人数 = 2
 ENDIF
 
 ;一定条件で乱入可能
@@ -391,7 +411,7 @@ IF あなた単独() == 0
 	PRINTBUTTONLC "[2] はい", 2
 	PRINTBUTTONLC "[1] いいえ", 1
 	BINPUT
-ELSEIF (TALENT:対象キャラ１:恋慕 && TALENT:対象キャラ２:恋慕) || (TALENT:対象キャラ１:セフレ || TALENT:対象キャラ２:セフレ)
+ELSEIF 参加人数 == 2 && (TALENT:対象キャラ１:恋慕 && TALENT:対象キャラ２:恋慕) || (TALENT:対象キャラ１:セフレ || TALENT:対象キャラ２:セフレ)
 	PRINTL 
 	PRINTFORML 乱入しますか？
 	PRINTBUTTONLC "[0] はい", 0
