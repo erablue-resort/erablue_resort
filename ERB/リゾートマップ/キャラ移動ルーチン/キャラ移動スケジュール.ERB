@@ -1294,7 +1294,9 @@ ENDSELECT
 #DIM 受けキャラ
 #DIM 配列番号
 #DIM 相手キャラ
+#DIM 判定キャラ
 #DIMS 呼び寄せ配列, 100
+#DIM 同室人数
 
 SELECTCASE 処理内容
 	CASE "開始処理"
@@ -1322,6 +1324,10 @@ SELECTCASE 処理内容
 				FOR 配列番号, 2, RESULT
 					相手キャラ = TOINT(呼び寄せ配列:配列番号)
 					TCVAR:相手キャラ:追従先キャラ指定 = キャラ番号
+					IF CFLAG:相手キャラ:現在位置 == スケジュール状態:キャラ番号:目的地 && CFLAG:相手キャラ:現在マップ種別 == スケジュール状態:キャラ番号:目的マップ
+						CFLAG:相手キャラ:キャラ同士うふふ = 1
+						CALL CLOTHES_CHANGE(相手キャラ, "全裸")
+					ENDIF
 				NEXT
 			ENDIF
 		ENDIF
@@ -1339,66 +1345,76 @@ SELECTCASE 処理内容
 				CFLAG:キャラ番号:キャラ同士うふふ = 1
 				CALL CLOTHES_CHANGE(キャラ番号, "全裸")
 				;多人数うふふ
+				VARSET 呼び寄せ配列
+				同室人数 = 0
+				IF TIME <= 720
+					IF CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM != ""
+						SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM, "_", 呼び寄せ配列
+					ENDIF
+				ELSE
+					IF CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM != ""
+						SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM, "_", 呼び寄せ配列
+					ENDIF
+				ENDIF
+				同室人数 = RESULT
 				IF CFLAG:キャラ番号:デート > 0
-					RESULT = 0
-					VARSET 呼び寄せ配列
-					IF TIME <= 720
-						IF CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM != ""
-							SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_AM, "_", 呼び寄せ配列
+					FOR 配列番号, 0, 同室人数
+						相手キャラ = TOINT(呼び寄せ配列:配列番号)
+						IF CFLAG:キャラ番号:現在位置 == CFLAG:相手キャラ:現在位置 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:相手キャラ:現在マップ種別
+							CFLAG:相手キャラ:キャラ同士うふふ = 1
+							CALL CLOTHES_CHANGE(相手キャラ, "全裸")
 						ENDIF
-					ELSE
-						IF CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM != ""
-							SPLIT CSTR:キャラ番号:多人数NPCうふふ_メンツ記録_PM, "_", 呼び寄せ配列
-						ENDIF
-					ENDIF
-					IF RESULT >= 3
-						FOR 配列番号, 2, RESULT
-							相手キャラ = TOINT(呼び寄せ配列:配列番号)
-							IF CFLAG:相手キャラ:現在位置 == CFLAG:相手キャラ:現在位置 && CFLAG:キャラ番号:現在マップ種別 == CFLAG:相手キャラ:現在マップ種別
-								CFLAG:相手キャラ:キャラ同士うふふ = 1
-								CALL CLOTHES_CHANGE(相手キャラ, "全裸")
-							ENDIF
-						NEXT
-					ENDIF
+					NEXT
 				ENDIF
 				;ランダムにモードをセット、モードの切り替えはインターバル時間を流用
 				;時間を共通させるため、追従キャラの時は処理しない
 				IF CFLAG:キャラ番号:デート > 0 && TCVAR:キャラ番号:移動ルーチンインターバル時間 < 1
 					;まずモードリセット
-					CALL 特定キャラモードリセット(キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+					FOR LOCAL, 0, 同室人数
+						判定キャラ = TOINT(呼び寄せ配列:LOCAL)
+						CALL 特定キャラモードリセット(判定キャラ)
+					NEXT
 					;PLAYERが観測してないなら文章表示しない
 					SIF CFLAG:キャラ番号:現在位置 != CFLAG:PLAYER:現在位置 || CFLAG:キャラ番号:現在マップ種別 != CFLAG:PLAYER:現在マップ種別
 						SKIPDISP 1
 					;以下、ランダムでモードを設定
-					;キス
-					IF RAND:2 == 0 || TALENT:キャラ番号:キス嗜好 || TALENT:(ABS(CFLAG:キャラ番号:デート) - 100):キス嗜好
-						IF RAND:3 == 0 || TALENT:キャラ番号:キス嗜好 || TALENT:(ABS(CFLAG:キャラ番号:デート) - 100):キス嗜好
-							CALL MODE_CHANGE("ディープキス", キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
-						ELSE
-							CALL MODE_CHANGE("キス", キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
+					FOR LOCAL, 0, 同室人数
+						判定キャラ = TOINT(呼び寄せ配列:LOCAL)
+						相手キャラ = TOINT(RAND_EXCLUDE_S(呼び寄せ配列, 呼び寄せ配列:LOCAL, 同室人数))
+						SIF 相手キャラ < 1
+							CONTINUE
+						SIF CFLAG:判定キャラ:現在位置 != CFLAG:相手キャラ:現在位置 || CFLAG:判定キャラ:現在マップ種別 != CFLAG:相手キャラ:現在マップ種別
+							CONTINUE
+						;キス
+						IF RAND:2 == 0 || TALENT:判定キャラ:キス嗜好 || TALENT:相手キャラ:キス嗜好
+							IF RAND:3 == 0 || TALENT:判定キャラ:キス嗜好 || TALENT:相手キャラ:キス嗜好
+								CALL MODE_CHANGE("ディープキス", 判定キャラ, 相手キャラ)
+							ELSE
+								CALL MODE_CHANGE("キス", 判定キャラ, 相手キャラ)
+							ENDIF
 						ENDIF
-					ENDIF
-					;アイテム・自慰系、それぞれにどれか一個しかセットされない
-					IF RAND:2
-						CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(キャラ番号), ABS(CFLAG:キャラ番号:デート) - 100, キャラ番号)
-					ENDIF
-					IF RAND:2
-						CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(ABS(CFLAG:キャラ番号:デート) - 100), キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
-					ENDIF
-					;愛撫系、それぞれにどれか一個しかセットされない
-					CALL MODE_CHANGE(ランダム愛撫モード算出(キャラ番号), ABS(CFLAG:キャラ番号:デート) - 100, キャラ番号)
-					CALL MODE_CHANGE(ランダム愛撫モード算出(ABS(CFLAG:キャラ番号:デート) - 100), キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
-					;挿入系、受け攻めを見て算出
-					IF RAND:2
-						CALL 受け攻め関係性算出(キャラ番号, ABS(CFLAG:キャラ番号:デート) - 100)
-						IF RESULT >= 0
-							攻めキャラ = RESULT:10
-							受けキャラ = RESULT:11
-
-							CALL ランダム挿入モードセット(攻めキャラ, 受けキャラ)
+						;アイテム・自慰系、それぞれにどれか一個しかセットされない
+						IF RAND:2
+							CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(判定キャラ), 相手キャラ, 判定キャラ)
 						ENDIF
-					ENDIF
+						IF RAND:2
+							CALL MODE_CHANGE(ランダム自慰・アイテムモード算出(相手キャラ), 判定キャラ, 相手キャラ)
+						ENDIF
+						;愛撫系、それぞれにどれか一個しかセットされない
+						CALL MODE_CHANGE(ランダム愛撫モード算出(判定キャラ), 相手キャラ, 判定キャラ)
+						CALL MODE_CHANGE(ランダム愛撫モード算出(相手キャラ), 判定キャラ, 相手キャラ)
+						;挿入系、受け攻めを見て算出、既に挿入している・されてる場合は動かない
+						IF MODE_存在判定_いずれか側("ＶＡ挿入系", 判定キャラ) == 0 && MODE_存在判定_いずれか側("ＶＡ挿入系", 相手キャラ) == 0
+							IF RAND:2
+								CALL 受け攻め関係性算出(判定キャラ, 相手キャラ, 1)
+								攻めキャラ = RESULT:10
+								受けキャラ = RESULT:11
+								CALL ランダム挿入モードセット(攻めキャラ, 受けキャラ)
+							ENDIF
+						ENDIF
+					NEXT
 					TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(30, 60)
+					TCVAR:(ABS(CFLAG:キャラ番号:デート) - 100):移動ルーチンインターバル時間 = TCVAR:キャラ番号:移動ルーチンインターバル時間 + 10
 					SKIPDISP 0
 				ENDIF
 			ENDIF
