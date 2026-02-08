@@ -368,6 +368,8 @@ FOR LOCAL, 1, CHARANUM
 	ENDIF
 	SIF !CFLAG:(TARGET:LOCAL):体力限界 && CFLAG:(TARGET:LOCAL):隠密 == CFLAG:MASTER:隠密
 		モード中キャラカウント += 1
+	SIF TCVAR:(TARGET:LOCAL):ダウン後いたずら
+		モード中キャラカウント += 1
 NEXT
 IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
 	CALL 呼び出す候補キャラ登録(表示候補)
@@ -379,18 +381,29 @@ IF CFLAG:MASTER:うふふ && モード中キャラカウント == 0
 		PRINTL
 		PRINTBUTTON "[1] いいえ", 1
 		PRINTL
+		PRINTBUTTON "[10] ダウンしたキャラにもう少しいたずらする", 10
+		PRINTL
 		BINPUT
-		IF RESULT == 0
-			CALL COM210
-			IF RESULT == -1
+		SELECTCASE RESULT
+			CASE 0
+				CALL COM210
+				IF RESULT == -1
+					CALL うふふ終了処理("全員ダウン")
+				ELSE
+					;呼び出した相手をTARGETに
+					TFLAG:TARGET変更用 = RFLAG:コマンド結果受渡し変数
+				ENDIF
+			CASE 10
+				FOR LOCAL, 1, CHARANUM
+					SIF TARGET:LOCAL < 1
+						BREAK
+					IF CFLAG:(TARGET:LOCAL):体力限界 && CFLAG:(TARGET:LOCAL):うふふ
+						TCVAR:(TARGET:LOCAL):ダウン後いたずら = 1
+					ENDIF
+				NEXT
+			CASEELSE
 				CALL うふふ終了処理("全員ダウン")
-			ELSE
-				;呼び出した相手をTARGETに
-				TFLAG:TARGET変更用 = RFLAG:コマンド結果受渡し変数
-			ENDIF
-		ELSE
-			CALL うふふ終了処理("全員ダウン")
-		ENDIF
+		ENDSELECT
 	ELSE
 		CALL うふふ終了処理("全員ダウン")
 	ENDIF
