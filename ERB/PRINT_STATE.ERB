@@ -380,6 +380,9 @@ SELECTCASE RESULT
 	CASE 200
 		INVERTBIT 全表示フラグ:0, 0
 		RESTART
+	CASE 201
+		INVERTBIT 子供_詳細表示フラグ, 0
+		RESTART
 	CASE 301 TO 399
 		;性癖素質の無効化
 		性癖素質:ARG:(RESULT - 300) = 性癖素質:ARG:(RESULT - 300) * -1
@@ -1136,9 +1139,15 @@ NEXT
 #DIM BIRTHDAY
 #DIM LAP
 #DIM CHILD_COUNT
+#DIM CHILD_COUNT_MAN
 #DIMS CHILD_NAME
 #DIM MASTERとの子供人数
+#DIM それ以外の子供人数
+#DIM 相手ID
+#DIM 子供_相手配列, キャラクタ数上限
+#DIM 子供_人数配列, キャラクタ数上限
 #DIM 子供表示人数
+#DIM 配列番号
 
 ;ここで立ち絵表示
 CALL 画像描画終了
@@ -1159,6 +1168,9 @@ IF ARG != MASTER
 	PRINT 　
 	CALL 通常時性欲ゲージ表示(ARG, 1)
 	PRINTL 
+; ELSE
+; 	PRINT 孕ませた人数：
+
 ENDIF
 PRINTL 
 
@@ -1193,12 +1205,49 @@ CHILD_COUNT = RESULT
 IF CHILD_COUNT > 0
 	PRINTL □ 子供 □---------------------------------------------------------------------
 	MASTERとの子供人数 = 0
-	FOR LOCAL, 1, (1 + CHILD_COUNT)
-		SIF GET_PERSON_父親(RESULT:LOCAL) == CFLAG:MASTER:人物番号
-			MASTERとの子供人数 ++
-	NEXT
-	PRINTFORML 　%CALLNAME:MASTER%との子供：{MASTERとの子供人数, 2}人
-	PRINTFORML 　それ以外の子供：{EXP:ARG:出産経験 - MASTERとの子供人数, 2}人
+	それ以外の子供人数 = 0
+	VARSET 子供_相手配列
+	VARSET 子供_人数配列
+	IF 子供_詳細表示フラグ
+		FOR LOCAL, 1, (1 + CHILD_COUNT)
+			相手ID = GET_PERSON_父親(RESULT:LOCAL)
+			IF MATCH(子供_相手配列, 相手ID)
+				FINDELEMENT 子供_相手配列, 相手ID
+				子供_人数配列:RESULT ++
+			ELSE
+				子供_相手配列:それ以外の子供人数 = 相手ID
+				子供_人数配列:それ以外の子供人数 = 1
+				それ以外の子供人数 ++
+			ENDIF
+		NEXT
+		
+		FOR 配列番号, 0, それ以外の子供人数
+			相手ID = FIND_CHARA_FROM_PERSON_ID(子供_相手配列:配列番号)
+			PRINTFORML 　%CALLNAME:相手ID%との子供：{子供_人数配列:配列番号, 2}人
+		NEXT
+		PRINT 　
+		PRINTBUTTON "[省略表示]", 201
+	ELSE
+		FOR LOCAL, 1, (1 + CHILD_COUNT)
+			IF GET_PERSON_父親(RESULT:LOCAL) == CFLAG:MASTER:人物番号
+				MASTERとの子供人数 ++
+			ELSE
+				それ以外の子供人数 ++
+			ENDIF
+		NEXT
+		
+		IF ARG != MASTER
+			PRINTFORML 　%CALLNAME:MASTER%との子供：{MASTERとの子供人数, 2}人
+			PRINTFORM 　それ以外の子供：{それ以外の子供人数, 2}人
+		ELSE
+			PRINTFORM 　自分が産んだ子供：{それ以外の子供人数, 2}人
+		ENDIF
+		PRINTL 
+		PRINT 　
+		PRINTBUTTON "[詳細表示]", 201
+	ENDIF
+
+	PRINTL 
 	PRINTL 
 	FOR LOCAL, (1 + 子供表示人数 * 能力表示現在ページ), MIN(1 + CHILD_COUNT, 1 + 子供表示人数 * (能力表示現在ページ + 1))
 		PRINTFORM 　%"第" + TOSTR(LOCAL + MAX(0, EXP:ARG:出産経験 - CHILD_COUNT)) + "子", 7, LEFT% 
@@ -1240,7 +1289,100 @@ IF CHILD_COUNT > 0
 		ENDIF
 		PRINTL 
 	NEXT
+ENDIF
 
+CALL FIND_CHILDREN(0, CFLAG:ARG:人物番号)
+CHILD_COUNT_MAN = RESULT
+IF CHILD_COUNT_MAN > 0
+	;男側は出産経験に相当するものがないので、子供を全部見てチェック
+	MASTERとの子供人数 = 0
+	それ以外の子供人数 = 0
+	VARSET 子供_相手配列
+	VARSET 子供_人数配列
+	IF 子供_詳細表示フラグ
+		FOR LOCAL, 1, (1 + CHILD_COUNT_MAN)
+			相手ID = GET_PERSON_母親(RESULT:LOCAL)
+			IF MATCH(子供_相手配列, 相手ID)
+				FINDELEMENT 子供_相手配列, 相手ID
+				子供_人数配列:RESULT ++
+			ELSE
+				子供_相手配列:それ以外の子供人数 = 相手ID
+				子供_人数配列:それ以外の子供人数 = 1
+				それ以外の子供人数 ++
+			ENDIF
+		NEXT
+		
+		SIF CHILD_COUNT < 1
+			PRINTL □ 子供 □---------------------------------------------------------------------
+		FOR 配列番号, 0, それ以外の子供人数
+			相手ID = FIND_CHARA_FROM_PERSON_ID(子供_相手配列:配列番号)
+			PRINTFORML 　%CALLNAME:相手ID%との子供：{子供_人数配列:配列番号, 2}人
+		NEXT
+		PRINT 　
+		PRINTBUTTON "[省略表示]", 201
+	ELSE
+		FOR LOCAL, 1, (1 + CHILD_COUNT_MAN)
+			IF GET_PERSON_母親(RESULT:LOCAL) == CFLAG:MASTER:人物番号
+				MASTERとの子供人数 ++
+			ELSE
+				それ以外の子供人数 ++
+			ENDIF
+		NEXT
+		
+		SIF CHILD_COUNT < 1
+			PRINTL □ 子供 □---------------------------------------------------------------------
+		IF ARG != MASTER
+			PRINTFORML 　%CALLNAME:MASTER%との子供：{MASTERとの子供人数, 2}人
+			PRINTFORM 　それ以外の子供：{それ以外の子供人数, 2}人
+		ELSE
+			PRINTFORM 　産んでもらった子供：{それ以外の子供人数, 2}人
+		ENDIF
+		PRINTL 
+		PRINT 　
+		PRINTBUTTON "[詳細表示]", 201
+	ENDIF
+	PRINTL 
+	PRINTL 
+	FOR LOCAL, (1 + 子供表示人数 * 能力表示現在ページ), MIN(1 + CHILD_COUNT_MAN, 1 + 子供表示人数 * (能力表示現在ページ + 1))
+		PRINTFORM 　%"第" + TOSTR(LOCAL + MAX(0, MASTERとの子供人数 + それ以外の子供人数 - CHILD_COUNT_MAN)) + "子", 7, LEFT% 
+		CHILD_NAME '= GET_PERSON_呼び名(RESULT:LOCAL)
+		IF CHILD_NAME != ""
+			PRINTFORM %CHILD_NAME%
+			SELECTCASE GET_PERSON_性別(RESULT:LOCAL)
+				CASE 1
+					PRINT (♀) 
+				CASE 2
+					PRINT (♂) 
+				CASE 3
+					PRINT (♀?) 
+				CASEELSE
+					PRINT (？) 
+			ENDSELECT
+		ENDIF
+		BIRTHDAY = GET_PERSON_生年日(RESULT:LOCAL)
+		IF BIRTHDAY >= 0
+			LAP = GET_PERSON_出会った周回(RESULT:LOCAL)
+			SIF LAP >= 0 && LAP != 周回回数累計:0
+				PRINTFORM {LAP + 1}周目 
+			PRINTFORM {BIRTHDAY / 120 + 1}年目 %月登録:((BIRTHDAY / 30) % 4)% {BIRTHDAY % 30 + 1}日(%曜日登録:(BIRTHDAY % 7)%)に
+		ENDIF
+		PERSON = GET_PERSON_母親(RESULT:LOCAL)
+		IF PERSON == CFLAG:ARG:人物番号
+			PRINT 自分で産んだ
+		ELSEIF PERSON != 0
+			PRINTFORM %GET_PERSON_呼び名_代替あり(PERSON)%との間に生まれた
+		ELSEIF BIRTHDAY >= 0
+			PRINT 生まれた
+		ENDIF
+		IF CHILD_NAME == ""
+			IF GET_PERSON_性別(RESULT:LOCAL) == 2
+				PRINT 男の子
+			ELSE
+				PRINT 女の子
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
 ENDIF
 
 FOR LOCAL, 0, 27 - (LINECOUNT - L_C)
@@ -1248,15 +1390,15 @@ FOR LOCAL, 0, 27 - (LINECOUNT - L_C)
 NEXT
 
 PRINTL 
-IF CHILD_COUNT > 0
-	IF CHILD_COUNT > 子供表示人数 && 能力表示現在ページ > 0
+IF CHILD_COUNT + CHILD_COUNT_MAN > 0
+	IF CHILD_COUNT + CHILD_COUNT_MAN > 子供表示人数 && 能力表示現在ページ > 0
 		PRINTBUTTONLC "[900]前のページへ", 900
 	ELSE
 		SETCOLOR カラーパレット("グレーアウト")
 		PRINTLC [---]前のページへ
 		RESETCOLOR
 	ENDIF
-	IF CHILD_COUNT > 子供表示人数 && 能力表示現在ページ < (CHILD_COUNT - 1) / 子供表示人数
+	IF CHILD_COUNT + CHILD_COUNT_MAN > 子供表示人数 && 能力表示現在ページ < (CHILD_COUNT + CHILD_COUNT_MAN - 1) / 子供表示人数
 		PRINTBUTTONLC "[901]次のページへ", 901
 	ELSE
 		SETCOLOR カラーパレット("グレーアウト")
