@@ -11,6 +11,12 @@
 #DIMS 連動衣装
 #DIMS CONST 服種別 = "汎用衣装", "エロ衣装", "条件付き汎用", "条件付きエロ"
 #DIMS CONST 入手手段 = "別途設定", "初期制服", "購入", "他の衣装に連動"
+#DIM 服装総数
+#DIMS 一時服装名称
+
+TOOLTIP_CUSTOM 1
+TOOLTIP_SETFONTSIZE 12
+TOOLTIP_SETDURATION 100000
 
 LOCALS = 
 ;左ウインドウ表示
@@ -41,6 +47,8 @@ ELSE
 	LOCALS += "<button value='998'>[998] この設定で生成する</button><br>"
 ENDIF
 LOCALS += "<button value='999'>[999] 生成せず戻る</button><br>"
+LOCALS += "<br>"
+LOCALS += "<button value='-1'>[-1] 服装一覧表示</button><br>"
 LOCALS += "</div>"
 
 ;右ウインドウ表示
@@ -158,6 +166,52 @@ NEXT
 
 BINPUT
 SELECTCASE RESULT
+	CASE -1
+		;服の関数を取得
+		DRAWLINE
+		PRINTL ・条件無し衣装（全員着用可能）
+		服装総数 = ENUMFUNCBEGINSWITH("CLOTHES_CHANGE_")
+		ARRAYCOPY "RESULTS", "LOCALS"
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 服装総数
+			一時服装名称 '= REPLACE(LOCALS:LOCAL, "CLOTHES_CHANGE_", "")
+			IF EXISTFUNCTION(@"CLOTHES_着用条件_%一時服装名称%") == 0
+				IF LOCAL:1 >= 3
+					PRINTL
+					LOCAL:1 = 0
+				ENDIF
+				RESULTS = 
+				TRYCALLFORM CLOTHES_衣装説明_%一時服装名称%
+				IF RESULTS != ""
+					HTML_PRINT @"<nonbutton title='<br>%RESULTS%'><font color='#%カラーパレット_HTML("黄")%'>%一時服装名称, 40%</font></nonbutton>", 1
+				ELSE
+					HTML_PRINT @"%一時服装名称, 40%", 1
+				ENDIF
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		PRINTL
+		DRAWLINE
+		PRINTL ・条件付き衣装
+		LOCAL:1 = 0
+		FOR LOCAL, 0, 服装総数
+			一時服装名称 '= REPLACE(LOCALS:LOCAL, "CLOTHES_CHANGE_", "")
+			IF EXISTFUNCTION(@"CLOTHES_着用条件_%一時服装名称%")
+				IF LOCAL:1 >= 3
+					PRINTL
+					LOCAL:1 = 0
+				ENDIF
+				RESULTS = 
+				TRYCALLFORM CLOTHES_衣装説明_%一時服装名称%
+				IF RESULTS != ""
+					HTML_PRINT @"<nonbutton title='<br>%RESULTS%'><font color='#%カラーパレット_HTML("黄")%'>%一時服装名称, 40%</font></nonbutton>", 1
+				ELSE
+					HTML_PRINT @"%一時服装名称, 40%", 1
+				ENDIF
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		FORCEWAIT
 	CASE 100
 		DRAWLINE
 		PRINTL 服の名称を入力してください。
