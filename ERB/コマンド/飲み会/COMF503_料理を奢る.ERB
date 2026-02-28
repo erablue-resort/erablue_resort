@@ -1,0 +1,64 @@
+﻿
+@COMNAME503
+#FUNCTIONS
+TSTR:コマンド名受渡 = 料理を奢る
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_503
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("飲み会")
+
+@COM_TOOLTIP_503
+LOCALS = <br>料理を奢る<br>
+LOCALS += "飲み会に参加している皆に料理を振る舞うコマンド。<br>その場にいるキャラクターの酩酊ゲージが微量減少する。<br>摂取カロリー+500kcal。"
+LOCALS += "<br>COMタイプ：飲み会<br>取得ソース：歓楽"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM503
+
+FOR LOCAL, 1, CHARANUM
+	SIF 飲み会TARGET:LOCAL < 1
+		BREAK
+	BASE:(飲み会TARGET:LOCAL):酩酊 -= RAND:50 + 20
+	BASE:(飲み会TARGET:LOCAL):酩酊 = MAX(BASE:(飲み会TARGET:LOCAL):酩酊, 0)
+	CALL SOURCE_CALC_歓楽((飲み会TARGET:LOCAL), PLAYER, 200)
+	CALL SOURCE_CALC_好感度要素_友情度UP(TARGET, PLAYER, 80)
+
+	TCVAR:(飲み会TARGET:LOCAL):摂取カロリー += 500
+NEXT
+
+TCVAR:MASTER:摂取カロリー += 500
+
+TIME += 15
+
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE503
+;会話実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(503)
+	RETURN RESULT
+SIF TALENT:TARGET:飲食不可
+	RETURN 0
+SIF IS_FOOD_COURT(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置) == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM503
+PRINTFORM %CALLNAME:PLAYER%は%CALLNAME:TARGET%
+SIF GET_飲み会TARGETNUM() > 1
+	PRINT たち
+PRINTL に美味しい料理を振る舞った。
+
+PRINTFORML （摂取カロリー：500kcal）
+
