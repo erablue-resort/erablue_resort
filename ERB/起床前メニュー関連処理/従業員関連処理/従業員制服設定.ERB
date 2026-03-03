@@ -30,7 +30,11 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	ELSE
 		LOCALS += @"%SUBSTRING(現在制服:(従業員一覧:LOCAL):0, 0, 17)%"
 	ENDIF
-	LOCALS += "]</button><br>"
+	LOCALS += "]"
+	IF 現在制服:(従業員一覧:LOCAL):セットアイテム != ""
+		LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>★</font>"
+	ENDIF
+	LOCALS += "</button><br>"
 NEXT
 IF ページ数 > 0
 	LOCALS += "<button value='1000'>　＜ 前ページ</button>"
@@ -119,6 +123,7 @@ LOOP 1
 #DIM 表示許可数
 #DIM CONST 表示数 = 20
 #DIMS 解説文
+#DIMS アイテム名
 
 DRAWLINE
 PRINTL 従業員が着用する制服の設定を行います。
@@ -138,13 +143,64 @@ IF 対象キャラ != 9999
 	IF フィールド展開:エロ制服許可 && (対象キャラ == MASTER || 陥落チェック_性的＋疑似恋慕(対象キャラ))
 		LOCALS += "<br>"
 		LOCALS += "<br>"
-		LOCALS += "<button value='-1'>[-1] クリキャップ "
-		IF 現在制服:対象キャラ:セットアイテム != ""
-			LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
-		ELSE
-			LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+		IF HAS_CLITORIS(対象キャラ)
+			LOCALS += "<button value='-1'>[-1] クリキャップ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_クリキャップ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
 		ENDIF
-		LOCALS += "</button>"
+		IF TALENT:対象キャラ:Ｂ感度 != -2
+			LOCALS += "<button value='-2'>[-2] ニプルキャップ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_ニプルキャップ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
+		IF HAS_VAGINA(対象キャラ)
+			LOCALS += "<button value='-3'>[-3] バイブ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_バイブ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
+		IF TALENT:対象キャラ:Ａ感度 != -2
+			LOCALS += "<button value='-4'>[-4] アナルバイブ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_アナルバイブ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+			LOCALS += "<button value='-5'>[-5] アナルビーズ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_アナルビーズ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
+		IF HAS_PENIS(対象キャラ)
+			LOCALS += "<button value='-6'>[-6] オナホール "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_オナホール_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
 	ENDIF
 ELSE
 	LOCALS += @"一括設定"
@@ -271,11 +327,31 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE -1
-		IF STRFIND(現在制服:対象キャラ:セットアイテム, "クリキャップ") >= 0
-			現在制服:対象キャラ:セットアイテム = 
+	CASE IS < 0
+		SELECTCASE LOCAL
+			CASE -1
+				アイテム名 = クリキャップ
+			CASE -2
+				アイテム名 = ニプルキャップ
+			CASE -3
+				アイテム名 = バイブ
+			CASE -4
+				アイテム名 = アナルバイブ
+			CASE -5
+				アイテム名 = アナルビーズ
+			CASE -6
+				アイテム名 = オナホール
+		ENDSELECT
+		IF STRFIND(現在制服:対象キャラ:セットアイテム, @"_%アイテム名%_") >= 0
+			現在制服:対象キャラ:セットアイテム '= REPLACE(現在制服:対象キャラ:セットアイテム, @"_%アイテム名%_", "")
 		ELSE
-			現在制服:対象キャラ:セットアイテム = クリキャップ
+			現在制服:対象キャラ:セットアイテム += @"_%アイテム名%_"
+			;アナル系だけ排他
+			IF アイテム名 == "アナルバイブ" && STRFIND(現在制服:対象キャラ:セットアイテム, @"_アナルビーズ_") >= 0
+				現在制服:対象キャラ:セットアイテム '= REPLACE(現在制服:対象キャラ:セットアイテム, @"_アナルビーズ_", "")
+			ELSEIF アイテム名 == "アナルビーズ" && STRFIND(現在制服:対象キャラ:セットアイテム, @"_アナルバイブ_") >= 0
+				現在制服:対象キャラ:セットアイテム '= REPLACE(現在制服:対象キャラ:セットアイテム, @"_アナルバイブ_", "")
+			ENDIF
 		ENDIF
 		RESTART
 	CASE 1000
