@@ -138,6 +138,8 @@ NEXT
 SIF SAVESTR:0 == ""
 	SAVESTR:0 = /
 DRAWLINE
+PRINTL 通常のコマンドについて、実行コマンド一覧に表示するかどうかを切り替えます。
+DRAWLINE
 フェイズ保存 = %SAVESTR:ゲームフェイズ管理%
 SAVESTR:ゲームフェイズ管理 = 通常モード
 LOCALS:1 = 
@@ -196,6 +198,10 @@ PRINTL [1020] - 固有コマンドフィルタへ
 PRINTL [1021] - 派生コマンドフィルタへ
 PRINTL [1022] - オートコマンドフィルタへ
 BINPUT
+PRINTL
+PRINTL
+PRINTL
+PRINTL
 IF RESULT == 1000
 	SAVESTR:ゲームフェイズ管理 = %フェイズ保存%
 	RETURN 0
@@ -341,6 +347,8 @@ NEXT
 ;お祭りコマンドはフィルタ不可
 SIF SAVESTR:1 == ""
 	SAVESTR:1 = /
+DRAWLINE
+PRINTL キャラクター固有コマンド・場所固有コマンドについて、実行コマンド一覧に表示するかどうかを切り替えます。
 DRAWLINE
 SAVESTR:ゲームフェイズ管理 = 通常モード
 
@@ -557,6 +565,8 @@ NEXT
 SIF SAVESTR:2 == ""
 	SAVESTR:2 = /
 DRAWLINE
+PRINTL コマンドから派生するコマンドについて、実行コマンド一覧に表示するかどうかを切り替えます。
+DRAWLINE
 SAVESTR:ゲームフェイズ管理 = 通常モード
 
 改行用 = 0
@@ -710,19 +720,17 @@ RESTART
 #DIMS フェイズ保存
 #DIM 改行用
 #DIM 派生番号
+#DIMS RESULTS分割, 10
 
 TOOLTIP_CUSTOM 1
 TOOLTIP_SETFONTSIZE 12
 TOOLTIP_SETDURATION 100000
 
-VARSET LOCAL
-FOR COUNT,0,500
-	LOCALS = /{COUNT}/
-	SIF STRCOUNT(SAVESTR:3,LOCALS)
-		LOCAL:COUNT = 1
-NEXT
 SIF SAVESTR:3 == ""
 	SAVESTR:3 = /
+DRAWLINE
+PRINTL キャラクターが自動で実行するコマンドについて、実行の許可・禁止を切り替えます。
+PRINTL 現状、各キャラクター個別の設定は出来ず一律のON/OFFのみです。
 DRAWLINE
 フェイズ保存 = %SAVESTR:ゲームフェイズ管理%
 SAVESTR:ゲームフェイズ管理 = 通常モード
@@ -771,6 +779,57 @@ IF LOCALS:1 != ""
 	改行用 = 0
 	HTML_PRINT LOCALS:1
 	LOCALS:1 = 
+ENDIF
+
+改行用 = 0
+VARSET RESULTS
+ENUMFUNCBEGINSWITH @"COMNAME_S"
+FOR 派生番号, 0, RESULT
+	LOCALS = /%REPLACE(RESULTS:派生番号, "COMNAME_S", "")%/
+	VARSET RESULTS分割
+	SPLIT RESULTS:派生番号, "_", RESULTS分割
+	COM番号 = TOINT(SUBSTRING(RESULTS分割:1, 1, -1))
+	LOCALS:1 = {COM番号}_%RESULTS分割:2%
+	;派生コマンドのABLEがあれば当然COMNAMEもあるはずなのでTRYCCALLで判定
+	TRYCCALLFORM COM_ABLE_S%LOCALS:1%
+		オートコマンド許可 = 0
+		TRYCALLFORMF COMTYPE_S_%LOCALS:1%
+		SIF オートコマンド許可 < 1
+			CONTINUE
+		IF TRAIN_COMNAME_S(LOCALS:1) != ""
+			TSTR:ツールチップ受渡 = TRAIN_COMNAME_S(LOCALS:1)
+			IF STRCOUNT(SAVESTR:3,LOCALS)
+				LOCALS:2 += @"<font color='#666666'><button value = '%LOCALS:1%'"
+			ELSE
+				LOCALS:2 += @"<button value = '%LOCALS:1%'"
+			ENDIF
+			TRYCCALLFORM COM_TOOLTIP_S{COM番号}_{派生番号}
+				IF OPTION変数:ツールチップ切り替え == 0
+					LOCALS:2 += @" title = '%TSTR:ツールチップ受渡%'>"
+				ELSE
+					LOCALS:2 += @">"
+				ENDIF
+			CATCH
+				LOCALS:2 += @">"
+			ENDCATCH
+			LOCALS:2 += @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{派生番号,2}]</button>"
+			SIF STRCOUNT(SAVESTR:3,LOCALS)
+				LOCALS:2 += "</font>"
+			改行用 += 1
+			;PRINTBUTTON @"%TRAIN_COMNAME(COM番号), 20, RIGHT%派生 - %TRAIN_COMNAME_S(LOCALS:1), 20, LEFT%[{COM番号}_{派生番号,2}]", @"%LOCALS:1%"
+		ENDIF
+	CATCH
+	ENDCATCH
+	IF 改行用 >= 2
+		改行用 = 0
+		HTML_PRINT LOCALS:2
+		LOCALS:2 = 
+	ENDIF
+NEXT
+IF LOCALS:2 != ""
+	改行用 = 0
+	HTML_PRINT LOCALS:2
+	LOCALS:2 = 
 ENDIF
 
 PRINTL 
