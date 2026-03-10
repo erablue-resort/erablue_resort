@@ -1,5 +1,8 @@
 ﻿
 @食堂メニュー設定処理
+#DIM 増加ルピ
+#DIM 増加ZP
+#DIM 食材ID
 
 DRAWLINE
 PRINTL 所持しているメニューから、どれを提供するかを選びます。
@@ -23,6 +26,29 @@ FOR LOCAL, 1, 6
 	ENDIF
 	LOCALS += @"　<button value='{LOCAL}'>メニュー%TOFULL(TOSTR(LOCAL))%「%LOCALS:1%」</button><br>"
 NEXT
+LOCALS += @"<br>"
+増加ルピ = 0
+増加ZP = 0
+FOR LOCAL, 1, 6
+	IF 現在設定メニュー:LOCAL
+		増加ルピ += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "ルピ収入補正", 1) * 滞在キャラ数算出関数() / 5
+		食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "メイン食材ID", 1)
+		増加ルピ -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+		食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "追加食材１ID", 1)
+		SIF 食材ID
+			増加ルピ -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+		食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "追加食材２ID", 1)
+		SIF 食材ID
+			増加ルピ -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+		食材ID = DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "追加食材３ID", 1)
+		SIF 食材ID
+			増加ルピ -= DT_CELL_GET("所持素材データベース", 食材ID, "素材ランク", 1) * 滞在キャラ数算出関数() / 5 * DT_CELL_GET("所持素材データベース", 食材ID, "素材値相場", 1) / 100
+		増加ZP += DT_CELL_GET("料理メニューデータベース", 現在設定メニュー:LOCAL, "ZP収入補正", 1) * 滞在キャラ数算出関数() / 5
+	ENDIF
+NEXT
+LOCALS:1 = {増加ZP / 1000}.{(増加ZP % 1000) / 100}{(増加ZP % 100) / 10}{(増加ZP % 10)}
+LOCALS += @"　ルピ収入目安：%NUM_FORMAT(増加ルピ), 8%ルピ<br>　　ZP収入目安：%LOCALS:1, 8%ZP"
+LOCALS += @"<br>"
 LOCALS += @"<br><button value='996'>[996] システムの説明</button>"
 LOCALS += @"<br><button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
