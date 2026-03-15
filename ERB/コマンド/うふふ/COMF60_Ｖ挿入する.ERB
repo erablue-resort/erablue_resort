@@ -36,7 +36,6 @@ SIF CFLAG:TARGET:睡眠
 同時モード拡張許可 = 1
 オートコマンド許可 = 3
 反転オート許可 = 3
-ダウン中許可 = 1
 
 @COM_TOOLTIP_60
 LOCALS = <br>■Ｖ挿入する<br>
@@ -50,6 +49,7 @@ TSTR:ツールチップ受渡 = %LOCALS%
 #DIM 強さ初期値記録
 #DIM 速さ初期値記録
 #DIMS 体位名
+#DIM 候補数
 
 IF TFLAG:オートコマンドフラグ
 	;オートで実行する場合
@@ -71,12 +71,54 @@ IF TFLAG:オートコマンドフラグ
 	RETURN 1
 ELSEIF GETBIT(FLAG:モード管理, モードビット_同時)
 	;同時挿入
-	IF RFLAG:コマンド結果受渡し変数 == 12
-		TRYCALLFORM COM60_12(強さ初期値記録, 速さ初期値記録)
+	IF GROUPMATCH(RFLAG:コマンド結果受渡し変数, 12, 13, 14) && LOCAL == RFLAG:コマンド結果受渡し変数
+		TRYCALLFORM COM60_{RFLAG:コマンド結果受渡し変数}(強さ初期値記録, 速さ初期値記録)
 	ELSE
+	$体位_LOOP_1
+	DRAWLINE
+	PRINTL ■体位を選んでください
+	PRINTL
+	;退避用にTARGETの現在値を保存（関数から出る時は忘れずにTARGETを戻すこと）
+		LOCAL:10 = TARGET
+		FOR LOCAL, 12, 20
+			LOCAL:3 = 0
+			FOR LOCAL:2, 0, 同時モード_選択数
+				TARGET = 同時モード_選択キャラ:(LOCAL:2)
+				TRYCCALLFORM COM_ABLE60_{LOCAL}
+				SIF !RESULT
+					LOCAL:3 = 1
+				CATCH
+					LOCAL:3 = 1
+					CONTINUE
+				ENDCATCH
+			NEXT
+			SELECTCASE LOCAL
+				CASE 12
+					体位名 = 正常位-後背位
+				CASE 13
+					体位名 = 側位-側位
+				CASE 14
+					体位名 = 後背位-後背位
+				CASEELSE
+					LOCAL:3 = 1
+			ENDSELECT
+			IF !LOCAL:3
+				LOCAL:1 ++
+				PRINTBUTTONLC @"[{LOCAL}]%体位名%", LOCAL
+				PRINTBUTTON "[?]", LOCAL + 10
+				PRINTL 
+			ENDIF
+		NEXT
+		PRINTL 
+		TARGET = LOCAL:10
+		IF !LOCAL:1
+			PRINTW 現在選べる体位がないのでキャンセルします
+			RETURN -1
+		ENDIF
+	
 		強さ初期値記録 = 0
 		速さ初期値記録 = 0
-		$体位_LOOP2
+		$体位_LOOP2_1
 		DRAWLINE
 		PRINTL ■速さ・強さの初期値を選んでください
 		PRINT 　　Ｖ挿入強さ：
@@ -113,60 +155,129 @@ ELSEIF GETBIT(FLAG:モード管理, モードビット_同時)
 			ENDIF
 			PRINTL
 		ENDIF
-		PRINTBUTTONLC "[998]決定", 998
 		PRINTBUTTONLC "[999]戻る", 999
-
+		$INPUT_LOOP_1
 		BINPUT
 
 		LOCAL = RESULT
 		SELECTCASE LOCAL
+			CASE 12 TO 14
+				LOCAL:2 = 1
+				FOR  LOCAL:1, 0, 同時モード_選択数
+					TARGET = 同時モード_選択キャラ:(LOCAL:1)
+					TRYCALLFORM COM_ABLE60_{LOCAL}
+					SIF !RESULT
+						LOCAL:2 = 0
+				NEXT
+				IF LOCAL:2
+					FOR LOCAL:1, 0, 同時モード_選択数
+						TARGET = 同時モード_選択キャラ:(LOCAL:1)
+						IF TARGET == MASTER
+							TARGET = PLAYER
+							PLAYER = MASTER
+							RFLAG:指示モード対象あなたフラグ = 1
+							TRYCALLFORM CAN_体位{LOCAL}(1)
+							IF !RESULT
+								TRYCALLFORM CAN_体位{LOCAL}(0)
+								PLAYER = TARGET
+								TARGET = LOCAL:10
+								GOTO 体位_LOOP_1
+							ENDIF
+							RFLAG:指示モード対象あなたフラグ = 0
+							PLAYER = TARGET
+							TARGET = MASTER
+						ELSE
+							TRYCALLFORM CAN_体位{LOCAL}(1)
+							IF !RESULT
+								TRYCALLFORM CAN_体位{LOCAL}(0)
+								TARGET = LOCAL:10
+								GOTO 体位_LOOP_1
+							ENDIF
+						ENDIF
+					NEXT
+					PRINTL 1
+					FOR LOCAL:1, 0, 同時モード_選択数
+						TARGET = 同時モード_選択キャラ:(LOCAL:1)
+						TRYCALLFORM COM60_{LOCAL}(強さ初期値記録, 速さ初期値記録)
+					NEXT
+
+					TARGET = LOCAL:10
+					;メッセージ用に体位の種類を保存
+					RFLAG:コマンド結果受渡し変数 = LOCAL
+					RETURN 1
+				ENDIF
+				GOTO INPUT_LOOP_1
+			CASE 22
+				PRINTL
+				DRAWLINE
+				VARSET RESULTS
+				PRINTL ・正常位-後背位
+				PRINTL 一方のキャラを仰向けにし、その上にもう一方のキャラを四つん這いにする形の体位です。
+				候補数 = ENUMFILES(@"resources/体位サンプル", "正常位-後背位*.*")
+				IF 候補数 > 0
+					PRINTL
+					PRINTL ・サンプル画像
+					CALL PRINT_STRL(@"IMAGEPATH_%REPLACE(RESULTS:(RAND:候補数), "resources\\\\", "")%")
+				ENDIF
+				PRINTL
+				WAIT
+				GOTO 体位_LOOP_1
+			CASE 23
+				PRINTL
+				DRAWLINE
+				VARSET RESULTS
+				PRINTL ・側位-側位
+				PRINTL 横向きになり、二人向かい合わせになる体位です。
+				候補数 = ENUMFILES(@"resources/体位サンプル", "側位-側位*.*")
+				IF 候補数 > 0
+					PRINTL
+					PRINTL ・サンプル画像
+					CALL PRINT_STRL(@"IMAGEPATH_%REPLACE(RESULTS:(RAND:候補数), "resources\\\\", "")%")
+				ENDIF
+				PRINTL
+				WAIT
+				GOTO 体位_LOOP_1
+			CASE 24
+				PRINTL
+				DRAWLINE
+				VARSET RESULTS
+				PRINTL ・後背位-後背位
+				PRINTL 全員を四つん這いにし、横に並べる形の体位です。
+				候補数 = ENUMFILES(@"resources/体位サンプル", "後背位-後背位*.*")
+				IF 候補数 > 0
+					PRINTL
+					PRINTL ・サンプル画像
+					CALL PRINT_STRL(@"IMAGEPATH_%REPLACE(RESULTS:(RAND:候補数), "resources\\\\", "")%")
+				ENDIF
+				PRINTL
+				WAIT
+				GOTO 体位_LOOP_1
 			CASE 900 TO 905
 				強さ初期値記録 = LOCAL - 900
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 910 TO 915
 				速さ初期値記録 = LOCAL - 910
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 899
 				強さ初期値記録 = MAX(強さ初期値記録 - 1, 0)
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 906
 				強さ初期値記録 = MIN(強さ初期値記録 + 1, 5)
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 909
 				速さ初期値記録 = MAX(速さ初期値記録 - 1, 0)
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 916
 				速さ初期値記録 = MIN(速さ初期値記録 + 1, 5)
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 920
 				INVERTBIT あなた挿入最適化フラグ, 0
-				GOTO 体位_LOOP2
+				GOTO 体位_LOOP2_1
 			CASE 999
 				RETURN -1
+			CASEELSE
+				GOTO INPUT_LOOP_1
 		ENDSELECT
-		LOCAL:10 = TARGET
-		FOR LOCAL, 0, 同時モード_選択数
-			SIF 同時モード_選択キャラ:LOCAL < 1
-				BREAK
-			RESULT = 0
-			TARGET = 同時モード_選択キャラ:LOCAL
-			TRYCALLFORM COM_ABLE60_12
-			IF RESULT == 0
-				TARGET = LOCAL:10
-				RETURN -1
-			ENDIF
-			RESULT = 1
-			TRYCALLFORM CAN_体位12(1)
-			IF !RESULT
-				TRYCALLFORM CAN_体位12(0)
-				RETURN -1
-			ENDIF
-		NEXT
-		TARGET = LOCAL:10
-
-		TRYCALLFORM COM60_12(強さ初期値記録, 速さ初期値記録)
-		;メッセージ用に体位の種類を保存
-		RFLAG:コマンド結果受渡し変数 = 12
 	ENDIF
 	RETURN 1
 ELSE
@@ -264,74 +375,76 @@ ELSE
 		ENDIF
 		PRINTL
 	ENDIF
+ENDIF
 	PRINTBUTTONLC "[999]戻る", 999
 
-	$INPUT_LOOP
-	BINPUT
+$INPUT_LOOP
+BINPUT
 
-	LOCAL = RESULT
-	SELECTCASE LOCAL
-		CASE 0 TO 11
-			TRYCALLFORM COM_ABLE60_{LOCAL}
-			IF RESULT
-				IF TARGET == MASTER
-					TARGET = PLAYER
-					PLAYER = MASTER
-					RFLAG:指示モード対象あなたフラグ = 1
-					TRYCALLFORM CAN_体位{LOCAL}(1)
-					IF !RESULT
-						TRYCALLFORM CAN_体位{LOCAL}(0)
-						PLAYER = TARGET
-						TARGET = MASTER
-						GOTO 体位_LOOP
-					ENDIF
-					RFLAG:指示モード対象あなたフラグ = 0
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 11
+		
+		TRYCALLFORM COM_ABLE60_{LOCAL}
+		IF RESULT
+			IF TARGET == MASTER
+				TARGET = PLAYER
+				PLAYER = MASTER
+				RFLAG:指示モード対象あなたフラグ = 1
+				TRYCALLFORM CAN_体位{LOCAL}(1)
+				IF !RESULT
+					TRYCALLFORM CAN_体位{LOCAL}(0)
 					PLAYER = TARGET
 					TARGET = MASTER
-				ELSE
-					TRYCALLFORM CAN_体位{LOCAL}(1)
-					IF !RESULT
-						TRYCALLFORM CAN_体位{LOCAL}(0)
-						GOTO 体位_LOOP
-					ENDIF
+					GOTO 体位_LOOP
 				ENDIF
-				TRYCALLFORM COM60_{LOCAL}(強さ初期値記録, 速さ初期値記録)
-				;メッセージ用に体位の種類を保存
-				RFLAG:コマンド結果受渡し変数 = LOCAL
-				
-				CALL オート体位変更Ｖ
-				RETURN 1
+				RFLAG:指示モード対象あなたフラグ = 0
+				PLAYER = TARGET
+				TARGET = MASTER
+			ELSE
+				TRYCALLFORM CAN_体位{LOCAL}(1)
+				IF !RESULT
+					TRYCALLFORM CAN_体位{LOCAL}(0)
+					GOTO 体位_LOOP
+				ENDIF
 			ENDIF
-			GOTO INPUT_LOOP
-		CASE 900 TO 905
-			強さ初期値記録 = LOCAL - 900
-			GOTO 体位_LOOP
-		CASE 910 TO 915
-			速さ初期値記録 = LOCAL - 910
-			GOTO 体位_LOOP
-		CASE 899
-			強さ初期値記録 = MAX(強さ初期値記録 - 1, 0)
-			GOTO 体位_LOOP
-		CASE 906
-			強さ初期値記録 = MIN(強さ初期値記録 + 1, 5)
-			GOTO 体位_LOOP
-		CASE 909
-			速さ初期値記録 = MAX(速さ初期値記録 - 1, 0)
-			GOTO 体位_LOOP
-		CASE 916
-			速さ初期値記録 = MIN(速さ初期値記録 + 1, 5)
-			GOTO 体位_LOOP
-		CASE 920
-			INVERTBIT あなた挿入最適化フラグ, 0
-			GOTO 体位_LOOP
-		CASE 999
-			V挿入強さ = 強さ初期値記録
-			V挿入速さ = 速さ初期値記録
-			RETURN -1
-		CASEELSE
-			GOTO INPUT_LOOP
-	ENDSELECT
-ENDIF
+			TRYCALLFORM COM60_{LOCAL}(強さ初期値記録, 速さ初期値記録)
+			;メッセージ用に体位の種類を保存
+			RFLAG:コマンド結果受渡し変数 = LOCAL
+			
+			CALL オート体位変更Ｖ
+			RETURN 1
+		ENDIF
+		GOTO INPUT_LOOP
+	CASE 900 TO 905
+		強さ初期値記録 = LOCAL - 900
+		GOTO 体位_LOOP
+	CASE 910 TO 915
+		速さ初期値記録 = LOCAL - 910
+		GOTO 体位_LOOP
+	CASE 899
+		強さ初期値記録 = MAX(強さ初期値記録 - 1, 0)
+		GOTO 体位_LOOP
+	CASE 906
+		強さ初期値記録 = MIN(強さ初期値記録 + 1, 5)
+		GOTO 体位_LOOP
+	CASE 909
+		速さ初期値記録 = MAX(速さ初期値記録 - 1, 0)
+		GOTO 体位_LOOP
+	CASE 916
+		速さ初期値記録 = MIN(速さ初期値記録 + 1, 5)
+		GOTO 体位_LOOP
+	CASE 920
+		INVERTBIT あなた挿入最適化フラグ, 0
+		GOTO 体位_LOOP
+	CASE 999
+		V挿入強さ = 強さ初期値記録
+		V挿入速さ = 速さ初期値記録
+		RETURN -1
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
 
 @オート体位変更Ｖ
 ;Ａ挿入中
@@ -457,7 +570,48 @@ RETURN RESULT
 @COM60_12(強さ初期値記録, 速さ初期値記録)
 #DIM 強さ初期値記録
 #DIM 速さ初期値記録
-;同時挿入
+;正常位-後背位
+;組み合わせ固定になるか判定
+LOCAL:1 = -1
+;既に同じコマンドの対象がいるか判定
+IF TARGET == 同時モード_選択キャラ:1
+	IF MODE_存在判定_ターゲット側("正常位", 同時モード_選択キャラ:0)
+		LOCAL:1 = 1
+	ELSE
+		LOCAL:1 = 0
+	ENDIF
+ELSE
+	;この分岐に来た時点でTARGETは0番
+	;0が後背位側
+	SIF 体格差計算(同時モード_選択キャラ:0, 同時モード_選択キャラ:1) >= 3
+		LOCAL:1 = 1
+	;1が後背位側
+	SIF 体格差計算(同時モード_選択キャラ:1, 同時モード_選択キャラ:0) >= 3
+		LOCAL:1 = 0
+ENDIF
+;ここまで固定されていなければランダム
+SIF LOCAL:1 < 0
+	LOCAL:1 = RAND(2)
+CALL 体位COM(350, 70, 90)
+IF LOCAL:1
+	CALL MODE_CHANGE("後背位", PLAYER, TARGET, , , 強さ初期値記録, 速さ初期値記録)
+ELSE
+	CALL MODE_CHANGE("正常位", PLAYER, TARGET, , , 強さ初期値記録, 速さ初期値記録)
+ENDIF
+RETURN RESULT
+
+@COM60_13(強さ初期値記録, 速さ初期値記録)
+#DIM 強さ初期値記録
+#DIM 速さ初期値記録
+;側位-側位
+CALL 体位COM(350, 70, 90)
+CALL MODE_CHANGE("側位", PLAYER, TARGET, , , 強さ初期値記録, 速さ初期値記録)
+RETURN RESULT
+
+@COM60_14(強さ初期値記録, 速さ初期値記録)
+#DIM 強さ初期値記録
+#DIM 速さ初期値記録
+;後背位-後背位
 CALL 体位COM(350, 70, 90)
 IF BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	CALL MODE_CHANGE("後背位", PLAYER, TARGET, , , 強さ初期値記録, 速さ初期値記録)
@@ -630,6 +784,24 @@ SKIPDISP 0
 RETURN LOCAL
 
 
+@CAN_体位13(ARG)
+;同時挿入
+;数値は側位に準拠
+SKIPDISP ARG
+CALL CAN_体位(30)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
+
+
+@CAN_体位14(ARG)
+;同時挿入
+;数値は側位に準拠
+SKIPDISP ARG
+CALL CAN_体位(30)
+LOCAL = RESULT
+SKIPDISP 0
+RETURN LOCAL
 
 
 @CAN_体位(必要実行値)
@@ -1080,8 +1252,8 @@ ENDIF
 ;Ａ挿入中ダメ
 SIF MODE_存在判定_ターゲット側("Ａ挿入系", TARGET)
 	RETURN 0
-;相手が別人と立位中だとダメ
-SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET)
+;相手が別人と立位中だとベッドがないとダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ立位挿入系", TARGET) && !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
 	RETURN 0
 
 RETURN 1
@@ -1196,29 +1368,130 @@ SIF MODE_存在判定_プレイヤー側("ＶＡ非立位挿入系", TARGET) && 
 
 RETURN 1
 
+;正常位-後背位
 @COM_ABLE60_12
-;同時挿入
-;TARGETのほうが4サイズ大きいならプレイマットかベッドが必要
-IF 体格差計算(PLAYER, TARGET) >= 4
-	IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-		SIF ITEM:20 == 0 && NOITEM == 0
-			RETURN 0
-	ELSE
-		SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
-			RETURN 0
-	ENDIF
+#DIM 対象１
+#DIM 対象２
+;同時モードでないとダメ
+SIF !GETBIT(FLAG:モード管理, モードビット_同時)
+	RETURN 0
+;対象が三人以上だとダメ
+SIF 同時モード_選択数 > 2
+	RETURN 0
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
 ENDIF
-;Ａ挿入中ダメ
-SIF MODE_存在判定_ターゲット側("Ａ挿入系", TARGET)
+対象１ = 同時モード_選択キャラ:0
+対象２ = 同時モード_選択キャラ:1
+;どっちも寝てたらダメ
+SIF CFLAG:対象１:睡眠 && CFLAG:対象２:睡眠
 	RETURN 0
-;睡眠中ダメ
-SIF CFLAG:TARGET:睡眠
+;上下固定時に後背位側が寝てたらダメ
+SIF CFLAG:対象１:睡眠 && 体格差計算(対象１, 対象２) >= 3
 	RETURN 0
-;ダウン中ダメ
-SIF CFLAG:TARGET:体力限界
+SIF CFLAG:対象２:睡眠 && 体格差計算(対象２, 対象１) >= 3
+	RETURN 0
+;挿入してたりされてたらダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", TARGET) || MODE_存在判定_ターゲット側("ＶＡ挿入系", TARGET) 
+	RETURN 0
+
+
+;処理の関係上、同時挿入の固有体位縛り判定はCOM_ABLE側でやる
+RESULT = 1
+TRYCALLFORM 固有Ｖ体位ABLE_プレイヤー側正常位_{NO:PLAYER}(PLAYER)
+TRYCALLFORM 固有Ｖ体位ABLE_プレイヤー側後背位_{NO:PLAYER}(PLAYER)
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側正常位_{NO:対象１}(対象１)
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側後背位_{NO:対象１}(対象１)
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側正常位_{NO:対象２}(対象２)
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側後背位_{NO:対象２}(対象２)
+SIF !RESULT
 	RETURN 0
 
 RETURN 1
+
+;側位-側位
+@COM_ABLE60_13
+#DIM 対象１
+#DIM 対象２
+;同時モードでないとダメ
+SIF !GETBIT(FLAG:モード管理, モードビット_同時)
+	RETURN 0
+;対象が三人以上だとダメ
+SIF 同時モード_選択数 > 2
+	RETURN 0
+;お風呂場プレイ中はプレイマットが無いとダメ
+IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+	SIF ITEM:20 == 0 && NOITEM == 0
+		RETURN 0
+ELSE
+	;ベッドがないとダメ
+	SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+		RETURN 0
+ENDIF
+対象１ = 同時モード_選択キャラ:0
+対象２ = 同時モード_選択キャラ:1
+;どちらか挿入してたりされてたらダメ
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", 対象１) || MODE_存在判定_ターゲット側("ＶＡ挿入系", 対象１) 
+	RETURN 0
+SIF MODE_存在判定_プレイヤー側("ＶＡ挿入系", 対象２) || MODE_存在判定_ターゲット側("ＶＡ挿入系", 対象２) 
+	RETURN 0
+
+;処理の関係上、同時挿入の固有体位縛り判定はCOM_ABLE側でやる
+TRYCALLFORM 固有Ｖ体位ABLE_プレイヤー側側位_{NO:PLAYER}(PLAYER)
+SIF !RESULT
+	RETURN 0
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側側位_{NO:対象１}(対象１)
+SIF !RESULT
+	RETURN 0
+TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側側位_{NO:対象２}(対象２)
+SIF !RESULT
+	RETURN 0
+
+RETURN 1
+
+;後背位-後背位
+@COM_ABLE60_14
+;同時モードでないとダメ
+SIF !GETBIT(FLAG:モード管理, モードビット_同時)
+	RETURN 0
+FOR LOCAL, 0, 同時モード_選択数
+	;TARGETのほうが4サイズ大きいならプレイマットかベッドが必要
+	IF 体格差計算(PLAYER,  同時モード_選択キャラ:LOCAL) >= 4
+		IF BATHROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+			SIF ITEM:20 == 0 && NOITEM == 0
+				RETURN 0
+		ELSE
+			SIF !BEDROOM(CFLAG:PLAYER:現在マップ種別, CFLAG:PLAYER:現在位置)
+				RETURN 0
+		ENDIF
+	ENDIF
+
+	;Ａ挿入中ダメ
+	SIF MODE_存在判定_ターゲット側("Ａ挿入系", 同時モード_選択キャラ:LOCAL)
+		RETURN 0
+NEXT
+RESULT = 1
+;処理の関係上、同時挿入の固有体位縛り判定はCOM_ABLE側でやる
+FOR LOCAL, 0, 同時モード_選択数
+	IF 体格差計算(PLAYER,  同時モード_選択キャラ:LOCAL) >= 4
+		TRYCALLFORM 固有Ｖ体位ABLE_プレイヤー側立ちバック_{NO:PLAYER}(PLAYER)
+		TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側立ちバック_{NO:(同時モード_選択キャラ:LOCAL)}(同時モード_選択キャラ:LOCAL)
+	ELSE
+		TRYCALLFORM 固有Ｖ体位ABLE_プレイヤー側後背位_{NO:PLAYER}(PLAYER)
+		TRYCALLFORM 固有Ｖ体位ABLE_ターゲット側後背位_{NO:(同時モード_選択キャラ:LOCAL)}(同時モード_選択キャラ:LOCAL)
+	ENDIF
+NEXT
+SIF !RESULT
+	RETURN 0
+
+RETURN 1
+
 
 ;-------------------------------------------------
 ;実行時メッセージ
@@ -1422,7 +1695,23 @@ ELSE
 			;立ちバック
 			PRINTFORML %CALLNAME:PLAYER%は後ろ向きに尻を突き出した%CALLNAME:TARGET%の膣内へと%LOCALS%を挿入した
 		CASE 12
-			;同時挿入
+			;正常位-後背位
+			;どっちが正常位側か判定しておく
+			LOCAL = 0
+			SIF MODE_存在判定_ターゲット側("正常位", 同時モード_選択キャラ:0)
+				LOCAL = 1
+			PRINTFORM  %CALLNAME:PLAYER%は仰向けになった
+			IF LOCAL
+				PRINTFORM %CALLNAME:(同時モード_選択キャラ:0)%の上にうつ伏せのまま重なった%CALLNAME:(同時モード_選択キャラ:1)%
+			ELSE
+				PRINTFORM %CALLNAME:(同時モード_選択キャラ:1)%の上にうつ伏せのまま重なった%CALLNAME:(同時モード_選択キャラ:0)%
+			ENDIF
+			PRINTFORML の尻を掴むと、そのまま二人の腟内に交互に%LOCALS%を挿入した
+		CASE 13
+			;側位-側位
+			PRINTFORML %CALLNAME:PLAYER%は並んで横向きに寝転んだ%CALLNAME:(同時モード_選択キャラ:0)%と%CALLNAME:(同時モード_選択キャラ:1)%の膣内に交互に%LOCALS%を挿入した
+		CASE 14
+			;後背位-後背位
 			PRINTFORM %CALLNAME:PLAYER%は
 			FOR 同時キャラ番号, 0, 同時モード_選択数
 				SIF 同時キャラ番号 > 0
@@ -1497,7 +1786,7 @@ IF TALENT:TARGET:処女
 				PRINTFORM %TEXTR("ファンの誰にも触れさせなかった/親しいらしいプロデューサーにも許しはしなかった/ファンの誰もが一晩だけでもと願うことしかできなかった/ファンが必死で妄想してオカズにすることしかできない/異性の目を惹きつけてやまない/ファンもプロデューサーも誰一人辿り着くことなどできなかった")%
 			ENDSELECT
 			PRINTFORML %CALLNAME:TARGET%の%TEXTR("カラダのいちばん奥/雌芯のいちばん奥/極上のカラダの最深部/魅惑のボディのいちばん奥/女の最も大事な場所")%には、%TEXTR("最初に体を許した相手/ハジメテを捧げた相手/純潔を捧げた相手/初体験の証/「経験済み」の証/ファンには内緒のスキャンダルの証拠/ファンには言えない密通の証拠/バレたら引退必至のスキャンダルの証拠/お手付き済みアイドルの証/ファンへの裏切りの証/経験人数最初の一人/一生に一度の傷痕")%として%CALLNAME:PLAYER%のカタチが%TEXTR("深く深く刻まれた/刻みつけられた")%……
-		ELSEIF 高貴知識_初期所持判定(TARGET) >= 1
+		ELSEIF 知識素質:TARGET:高貴 >= 1
 			PRINTFORML 故郷にあっては%TEXTR("血筋に操をたてていた/かたく守ってきた")%だろう%SUBSTRING(NAME:TARGET, STRFIND(NAME:TARGET, "]") + 1, -1)%の%TEXTR("高貴なる/至上の価値を持つ")%処女膜はいま、
 			IF CFLAG:TARGET:睡眠
 				PRINTFORM %CALLNAME:TARGET%が%TEXTR("寝息をたてている/夢の中にいる")%あいだに、
