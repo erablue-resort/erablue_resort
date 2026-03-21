@@ -4,6 +4,8 @@
 #DIM 関数総数
 #DIM 服値段
 #DIMS 衣装関数登録, 500
+#DIM DYNAMIC 現在ページ
+#DIM 表示数
 
 LOCALS = 
 DRAWLINE
@@ -17,6 +19,7 @@ LOCALS += "<div rect='62,0,4375,3000' padding='50, 25, 50' border='31' bcolor='#
 VARSET RESULTS
 関数総数 = ENUMFUNCBEGINSWITH("CLOTHES_衣装説明_")
 ARRAYCOPY "RESULTS", "衣装関数登録"
+表示数 = 0
 FOR LOCAL, 0, 関数総数
 	SIF STRFIND(所持制服文字列, @"汎用/%REPLACE(衣装関数登録:LOCAL, "CLOTHES_衣装説明_", "")%_") > -1
 		CONTINUE
@@ -25,9 +28,12 @@ FOR LOCAL, 0, 関数総数
 	VARSET RESULTS
 	販売禁止フラグ = 0
 	CALLFORM %衣装関数登録:LOCAL%()
+	服値段 = RESULT
 	SIF 販売禁止フラグ
 		CONTINUE
-	服値段 = RESULT
+	表示数 ++
+	SIF 現在ページ != 表示数 / 22
+		CONTINUE
 	LOCALS += @"<button value='{LOCAL}'>[{LOCAL, 2}] %RESULTS:2%：%REPLACE(衣装関数登録:LOCAL, "CLOTHES_衣装説明_", ""), 30, LEFT%を購入する</button>　　"
 	LOCALS += @"値段：%NUM_FORMAT(服値段), 10%ルピ"
 	LOCALS += "<br>"
@@ -36,6 +42,20 @@ NEXT
 LOCALS += "</div>"
 
 
+LOCALS += "<div rect='1000,2712,4375,281'>"
+IF 現在ページ > 0
+	LOCALS += "<button value='1000'>[1000] 前ページへ</button>"
+ELSE
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[1000] 前ページへ</font>"
+ENDIF
+LOCALS += @"　　　- {現在ページ + 1} -　　　"
+IF 関数総数 >= (現在ページ + 1) * 22
+	LOCALS += "<button value='1001'>[1001] 次ページへ</button>"
+ELSE
+	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[1001] 次ページへ</font>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "</div>"
 LOCALS += "<div rect='1550,2812,5125,281'>"
 LOCALS += "<button value='998'>[998] システムの説明</button>　　"
 LOCALS += "<button value='999'>[999] 戻る</button>"
@@ -69,6 +89,12 @@ SELECTCASE LOCAL
 		PRINTL 
 		CALL 異世界裁店システムチュートリアル
 		DRAWLINE
+		RESTART
+	CASE 1000
+		現在ページ --
+		RESTART
+	CASE 1001
+		現在ページ ++
 		RESTART
 	CASEELSE
 		;詳細表示
