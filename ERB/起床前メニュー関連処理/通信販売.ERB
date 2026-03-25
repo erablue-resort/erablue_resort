@@ -367,7 +367,6 @@ ENDSELECT
 @通信販売_品揃え登録(HTML文字列, 右側表示モード)
 #DIMS REF HTML文字列
 #DIMS 右側表示モード
-#DIM 家具Lv
 #DIM 値段
 
 SELECTCASE 右側表示モード
@@ -452,22 +451,24 @@ SELECTCASE 右側表示モード
 		FOR LOCAL, 1, VARSIZE("客室設備")
 			SIF ERDNAME(客室設備, LOCAL) == ""
 				CONTINUE
-			IF 購入済み非表示フラグ && 客室設備:LOCAL > 1
-				FOR 家具Lv, 1, 客室設備:LOCAL
-					TSTR:コマンド名受渡 = 
-					CALLFORM 客室設備_%ERDNAME(客室設備, LOCAL)%("名前取得", 家具Lv)
-					値段 = RESULT
-					IF TSTR:コマンド名受渡 != ""
-						HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL * 10 + 家具Lv, 2}] %TSTR:コマンド名受渡, 20, LEFT% （購入済み）　　価格：%NUM_FORMAT(値段), 6%ルピ</font></nonbutton>"
-					ENDIF
-				NEXT
+			IF 購入済み非表示フラグ == 0 && 客室設備:LOCAL > 1
+				TSTR:コマンド名受渡 = 
+				CALLFORM 客室設備_%ERDNAME(客室設備, LOCAL)%("名前取得", 客室設備:LOCAL)
+				値段 = RESULT
+				IF TSTR:コマンド名受渡 != ""
+					HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL * 10 + 客室設備:LOCAL, 2}] %TSTR:コマンド名受渡, 20, LEFT% （購入済み）</font></nonbutton>"
+				ENDIF
 			ENDIF
 			TSTR:コマンド名受渡 = 
 			CALLFORM 客室設備_%ERDNAME(客室設備, LOCAL)%("名前取得", 客室設備:LOCAL + 1)
 			値段 = RESULT
 			SIF TSTR:コマンド名受渡 == ""
 				CONTINUE
-			HTML文字列 += @"<button value='{LOCAL * 10 + 客室設備:LOCAL + 1}'>[{LOCAL * 10 + 客室設備:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
+			IF 客室設備:LOCAL > 1
+				HTML文字列 += @"<button value='{LOCAL * 10 + 客室設備:LOCAL + 1}'>[{LOCAL * 10 + 客室設備:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% にグレードアップする</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
+			ELSE
+				HTML文字列 += @"<button value='{LOCAL * 10 + 客室設備:LOCAL + 1}'>[{LOCAL * 10 + 客室設備:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
+			ENDIF
 			HTML文字列 += "<br>"
 		NEXT
 		HTML文字列 += "</div>"
