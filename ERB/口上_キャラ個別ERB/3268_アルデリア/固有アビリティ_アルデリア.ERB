@@ -5,6 +5,7 @@
 #DIMS アビ名
 #DIM 威力値
 #DIM 効果値
+#DIM タゲ候補, 10
 
 ;レベルなどの条件でアビを強化する場合、アビ名の文字列を条件分岐で変化させる
 IF 基礎BATTLE_STATE:キャラ番号:Lv >= 25
@@ -38,19 +39,22 @@ SELECTCASE ARGS
 			アビ汎用変数:効果割合 = 効果値
 			アビ汎用変数:持続ターン = 5
 			CALL アビテンプレート_不利効果_デバフ効果セット
-
-			LOCAL:1 = -1
-			FOR LOCAL, 10, 20
-				SIF アビテンプレート用_対象保存:0 == LOCAL
+			
+			;腐敗(対象能力ではなく枠)条件だとアビ対象選択テンプレートのデバフ条件が使えないので独自処理
+			VARSET LOCAL
+			VARSET タゲ候補, -1
+			FOR LOCAL:1, 10, 20
+				SIF アビテンプレート用_対象保存:0 == LOCAL:1
 					CONTINUE
-				IF デバフ番号取得_枠("腐敗", LOCAL) > -1
-					LOCAL:1 = LOCAL
-					BREAK
+				IF デバフ番号取得_枠("腐敗", LOCAL:1) > -1
+					タゲ候補:LOCAL = LOCAL:1
+					LOCAL ++
 				ENDIF
 			NEXT
-			IF LOCAL:1 > -1
+			IF LOCAL
+				アビテンプレート用_対象保存:0 = タゲ候補:(RAND:LOCAL)
+				CALL アビテンプレート用_表示メッセージ変換処理
 				CALL アビ汎用変数文字列リセット
-				アビテンプレート用_対象保存:0 = LOCAL:1
 				アビ汎用変数:効果割合 = 威力値
 				CALL アビテンプレート_ダメージ処理_土属性
 
