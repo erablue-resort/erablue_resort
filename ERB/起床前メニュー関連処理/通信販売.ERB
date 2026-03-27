@@ -49,6 +49,11 @@ IF 右側表示モード == "客室設備"
 ELSE
 	LOCALS += "<button value='-5'>[-5] 客室設備</button><br>"
 ENDIF
+IF 右側表示モード == "アメニティ"
+	LOCALS += @"<nonbutton><font color='#%カラーパレット_HTML("黄")%'>[-6] アメニティ</font></nonbutton><br>"
+ELSE
+	LOCALS += "<button value='-6'>[-6] アメニティ</button><br>"
+ENDIF
 LOCALS += "<br>"
 LOCALS += "<button value='-100'>[-100] システムの説明</button><br>"
 LOCALS += "<br>"
@@ -122,6 +127,28 @@ IF 右側表示モード == "客室設備"
 	ENDIF
 	PRINTFORMW %TSTR:コマンド名受渡%を購入しました。
 	客室設備:(LOCAL / 10) = LOCAL % 10
+	MONEY -= 値段
+	RESTART
+ENDIF
+
+IF 右側表示モード == "アメニティ"
+	TSTR:コマンド名受渡 = 
+	CALLFORM アメニティ_%ERDNAME(アメニティ, (LOCAL / 10))%("名前取得", LOCAL % 10)
+	値段 = RESULT
+	SIF TSTR:コマンド名受渡 == ""
+		RESTART
+	;CALL 通信販売_アイテム説明(ITEMNAME:LOCAL)
+	PRINTFORML %TSTR:コマンド名受渡%を購入しますか？
+	PRINTL [0] - はい  [1] - いいえ
+	INPUT
+	SIF RESULT
+		RESTART
+	IF MONEY < 値段
+		PRINTW ルピが足りません。
+		RESTART
+	ENDIF
+	PRINTFORMW %TSTR:コマンド名受渡%を購入しました。
+	アメニティ:(LOCAL / 10) = LOCAL % 10
 	MONEY -= 値段
 	RESTART
 ENDIF
@@ -451,12 +478,12 @@ SELECTCASE 右側表示モード
 		FOR LOCAL, 1, VARSIZE("客室設備")
 			SIF ERDNAME(客室設備, LOCAL) == ""
 				CONTINUE
-			IF 購入済み非表示フラグ == 0 && 客室設備:LOCAL > 1
+			IF 購入済み非表示フラグ == 0 && 客室設備:LOCAL > 0
 				TSTR:コマンド名受渡 = 
 				CALLFORM 客室設備_%ERDNAME(客室設備, LOCAL)%("名前取得", 客室設備:LOCAL)
 				値段 = RESULT
 				IF TSTR:コマンド名受渡 != ""
-					HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL * 10 + 客室設備:LOCAL, 2}] %TSTR:コマンド名受渡, 20, LEFT% （購入済み）</font></nonbutton>"
+					HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL * 10 + 客室設備:LOCAL, 2}] %TSTR:コマンド名受渡, 20, LEFT% （購入済み）</font></nonbutton><br>"
 				ENDIF
 			ENDIF
 			TSTR:コマンド名受渡 = 
@@ -464,10 +491,41 @@ SELECTCASE 右側表示モード
 			値段 = RESULT
 			SIF TSTR:コマンド名受渡 == ""
 				CONTINUE
-			IF 客室設備:LOCAL > 1
+			IF 客室設備:LOCAL > 0
 				HTML文字列 += @"<button value='{LOCAL * 10 + 客室設備:LOCAL + 1}'>[{LOCAL * 10 + 客室設備:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% にグレードアップする</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
 			ELSE
 				HTML文字列 += @"<button value='{LOCAL * 10 + 客室設備:LOCAL + 1}'>[{LOCAL * 10 + 客室設備:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
+			ENDIF
+			HTML文字列 += "<br>"
+		NEXT
+		HTML文字列 += "</div>"
+		IF 購入済み非表示フラグ
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 <font color='#%カラーパレット_HTML("グレーアウト")%'>する</font> / しない</button>"
+		ELSE
+			HTML文字列 += @"<div rect='2250,3044,3875,2812'><button value='-98'>[-98] 購入済みアイテムを表示 する / <font color='#%カラーパレット_HTML("グレーアウト")%'>しない</font></button>"
+		ENDIF
+	CASE "アメニティ"
+		HTML文字列 += "・客室に設定出来るアメニティアイテムカテゴリです。<br><br>"
+		FOR LOCAL, 1, VARSIZE("アメニティ")
+			SIF ERDNAME(アメニティ, LOCAL) == ""
+				CONTINUE
+			IF 購入済み非表示フラグ == 0 && アメニティ:LOCAL > 0
+				TSTR:コマンド名受渡 = 
+				CALLFORM アメニティ_%ERDNAME(アメニティ, LOCAL)%("名前取得", アメニティ:LOCAL)
+				値段 = RESULT
+				IF TSTR:コマンド名受渡 != ""
+					HTML文字列 += @"<nonbutton><font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL * 10 + アメニティ:LOCAL, 2}] %TSTR:コマンド名受渡, 20, LEFT% （購入済み）</font></nonbutton><br>"
+				ENDIF
+			ENDIF
+			TSTR:コマンド名受渡 = 
+			CALLFORM アメニティ_%ERDNAME(アメニティ, LOCAL)%("名前取得", アメニティ:LOCAL + 1)
+			値段 = RESULT
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
+			IF アメニティ:LOCAL > 0
+				HTML文字列 += @"<button value='{LOCAL * 10 + アメニティ:LOCAL + 1}'>[{LOCAL * 10 + アメニティ:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% にグレードアップする</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
+			ELSE
+				HTML文字列 += @"<button value='{LOCAL * 10 + アメニティ:LOCAL + 1}'>[{LOCAL * 10 + アメニティ:LOCAL + 1, 2}] %TSTR:コマンド名受渡, 20, LEFT% を購入する</button>　　　価格：%NUM_FORMAT(値段), 6%ルピ"
 			ENDIF
 			HTML文字列 += "<br>"
 		NEXT
