@@ -3,7 +3,8 @@
 #DIM キャラ番号
 #DIM 候補番号
 #DIM 候補数
-#DIM モブ客
+#DIM モブ客 ; -1=見た目なし, 0=ネームド, 1=ランダム女性客, 2=ランダム男性客, 3=ランダムふたなり客
+#DIM 管理番号
 ;マッサージ客待ち時、キャラがマッサージを受けに来る処理
 
 
@@ -13,167 +14,434 @@
 IF ABL:MASTER:マッサージ技能 >= 4
 	SELECTCASE RAND:2
 	CASE 0
-		モブ客 = 1
-	ENDSELECT	
+		モブ客 = -1
+	ENDSELECT
 ELSE
 	SELECTCASE RAND:3
 	CASE 0
 		RETURN -1
 	CASE 1
-		モブ客 = 1
+		モブ客 = -1
 	ENDSELECT
 ENDIF
 
-;候補者リスト作成
 候補番号 = 0
-FOR キャラ番号, 1, CHARANUM
-	;もう今日は遊びに来た
-	SIF TCVAR:キャラ番号:マッサージ来店フラグ
-		CONTINUE
-	;島にいる
-	SIF CFLAG:キャラ番号:滞在期間 < 1
-		CONTINUE
-	;寝てる
-	SIF CFLAG:キャラ番号:睡眠
-		CONTINUE
-	;何らかの原因で隠密
-	SIF CFLAG:キャラ番号:隠密
-		CONTINUE
-	;デート中
-	SIF CFLAG:キャラ番号:デート
-		CONTINUE
-	;体力限界
-	SIF CFLAG:キャラ番号:体力限界
-		CONTINUE
-	;男湯側にいるときに性別が女
-	SIF CFLAG:MASTER:現在位置 == 711 && TALENT:キャラ番号:性別 != 2
-		CONTINUE
-	;女湯側にいるときに性別が男
-	SIF CFLAG:MASTER:現在位置 == 811 && TALENT:キャラ番号:性別 == 2
-		CONTINUE
-	来店候補者:候補番号 = キャラ番号
-	候補番号 += 1
-	IF TALENT:キャラ番号:恋慕
-		;恋慕は確率３倍
+IF モブ客 == 0
+	;候補者リスト作成
+	FOR キャラ番号, 1, CHARANUM
+		;もう今日は遊びに来た
+		SIF TCVAR:キャラ番号:マッサージ来店フラグ
+			CONTINUE
+		;島にいる
+		SIF CFLAG:キャラ番号:滞在期間 < 1
+			CONTINUE
+		;寝てる
+		SIF CFLAG:キャラ番号:睡眠
+			CONTINUE
+		;何らかの原因で隠密
+		SIF CFLAG:キャラ番号:隠密
+			CONTINUE
+		;デート中
+		SIF CFLAG:キャラ番号:デート
+			CONTINUE
+		;体力限界
+		SIF CFLAG:キャラ番号:体力限界
+			CONTINUE
+		;男湯側にいるときに性別が女
+		SIF CFLAG:MASTER:現在位置 == 711 && TALENT:キャラ番号:性別 != 2
+			CONTINUE
+		;女湯側にいるときに性別が男
+		SIF CFLAG:MASTER:現在位置 == 811 && TALENT:キャラ番号:性別 == 2
+			CONTINUE
 		来店候補者:候補番号 = キャラ番号
 		候補番号 += 1
-		来店候補者:候補番号 = キャラ番号
-		候補番号 += 1
-	ELSEIF TALENT:キャラ番号:セフレ
-		;セフレは確率２倍
-		来店候補者:候補番号 = キャラ番号
-		候補番号 += 1
-	ENDIF
-NEXT
-
-;一人も候補がいないなら戻る
-;-1を返すことで口上などの処理をスキップ
-SIF 候補番号 == 0
-	RETURN -1
+		IF TALENT:キャラ番号:恋慕
+			;恋慕は確率３倍
+			来店候補者:候補番号 = キャラ番号
+			候補番号 += 1
+			来店候補者:候補番号 = キャラ番号
+			候補番号 += 1
+		ELSEIF TALENT:キャラ番号:セフレ
+			;セフレは確率２倍
+			来店候補者:候補番号 = キャラ番号
+			候補番号 += 1
+		ENDIF
+	NEXT
+ENDIF
 
 ;来店キャラ決定
-AUTOCOM_実行番号保存 = 来店候補者:(RAND:候補番号)
-TCVAR:AUTOCOM_実行番号保存:マッサージ来店フラグ = 1
+IF 候補番号 > 0
+	AUTOCOM_実行番号保存 = 来店候補者:(RAND:候補番号)
+	TCVAR:AUTOCOM_実行番号保存:マッサージ来店フラグ = 1
+ELSE
+	;一人も候補がいないならモブ客に変更
+	モブ客 = -1
+ENDIF
+
+;モブ客をキャラとして生成できるか確認
+IF モブ客 && TFLAG:キャラ中途追加人数 == 0
+	IF CFLAG:MASTER:現在位置 == 811
+		IF !GETBIT(OPTION変数:性別招待制御, 0)
+			モブ客 = 1
+			SIF !GETBIT(OPTION変数:性別招待制御, 2) && !素質切り替えOPTION記憶:ふたなり_女性 && RAND:20 == 0
+				モブ客 = 3
+		ELSEIF !GETBIT(OPTION変数:性別招待制御, 2) && !素質切り替えOPTION記憶:ふたなり_女性
+			モブ客 = 3
+		ENDIF
+	ELSE
+		SIF GETBIT(OPTION変数:性別招待制御, 1)
+			モブ客 = 2
+	ENDIF
+ENDIF
+
+IF モブ客 == -1
+	;モブ客をキャラ生成できない場合、簡易来店処理
+	DRAWLINE
+	PRINTFORM %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた
+	SELECTCASE RAND:10
+		CASE 0, 1
+			PRINT 若い
+		CASE 2 TO 4
+			;修飾語なし
+		CASE 5 TO 7
+			PRINT 壮年の
+		CASE 8
+			PRINT 中年の
+		CASE 9
+			PRINT 年老いた
+	ENDSELECT
+	IF CFLAG:MASTER:現在位置 == 811
+		PRINTFORM %TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の女性客
+	ELSE
+		PRINTFORM %TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の男性客
+	ENDIF
+	PRINTFORMW がマッサージ室に入ってきた。
+	PRINTL
+	PRINTFORML %CALLNAME:PLAYER%が%TEXTR("普段通りのマッサージを施す/肩と腰のコリ解消コースを施術する/骨盤を中心に骨格矯正の指圧マッサージを施術する/肌ケアオイルエステを施す")%と、
+	PRINTFORML 満足した客は笑顔を浮かべ、%CALLNAME:PLAYER%にお礼を言ってリゾートへと戻っていった…
+	PRINTFORMW 料金として1000ルピ手に入れた！
+	MONEY += 1000
+	EXP:PLAYER:マッサージ施術経験 += 10
+	TIME += 30
+	RETURN 0
+ELSEIF モブ客
+	;生成可能な場合、1回生成
+	DRAWLINE
+	PRINTFORML %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた\@ (モブ客 == 2) ? 男性客 # 女性客 \@がマッサージ室に入ってきた。
+	PRINTFORML 客を施術台に案内しながら%CALLNAME:PLAYER%はその容姿を値踏みする…
+	PRINTL
+	CALL ランダムマッサージ客生成(モブ客)
+	管理番号 = RESULT
+ENDIF
 
 
 ;来店処理
 $来店ラベル
-IF モブ客 == 1
+IF モブ客
 	DRAWLINE
-		PRINTFORM %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた
-		IF CFLAG:MASTER:現在位置 == 811
-			PRINTFORM %TEXTR("若い/")%%TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の女性客
-		ELSE
-			PRINTFORM %TEXTR("若い//中年の/年老いた")%%TEXTR("ヒューマン/エルーン/ドラフ/ハーヴィン")%の男性客
-		ENDIF
-		PRINTFORMW がマッサージ室に入ってきた。
-		PRINTL
-		PRINTFORML %CALLNAME:PLAYER%が%TEXTR("普段通りのマッサージを施す/肩と腰のコリ解消コースを施術する/骨盤を中心に骨格矯正の指圧マッサージを施術する/肌ケアオイルエステを施す")%と、
-		PRINTFORML 満足した客は笑顔を浮かべ、%CALLNAME:PLAYER%にお礼を言ってリゾートへと戻っていった…
-		PRINTFORMW 料金として1000ルピ手に入れた！
-		MONEY += 1000
-		EXP:PLAYER:マッサージ施術経験 += 10
+	PRINTFORML %CALLNAME:PLAYER%は%ランダムキャラデータ_GETS(Ｒキャラ追加候補記録, 管理番号, "呼び名")%へのマッサージの方針を考える…
+	DRAWLINE
+	PRINTBUTTON "[0] 念入りにマッサージする", 0
+	PRINTL
+	PRINTBUTTON "[1] 普段通りマッサージする", 1
+	PRINTL
+	PRINTBUTTON "[100] 選択肢について説明", 100
+	BINPUT
+	SELECTCASE RESULT
+		CASE 0
+			;キャラを正式追加
+			キャラ番号 = CHARANUM
+
+			ADDCHARA 999
+			CALL ランダムキャラデータ復元(Ｒキャラ追加候補記録, キャラ番号, 管理番号)
+			TFLAG:キャラ中途追加人数 += 1
+
+			CALL ADD_PERSON_FROM_CHARA(キャラ番号)
+			CALL コマンド存在チェック
+			CALL キャラクター初期化(キャラ番号)
+
+			CFLAG:キャラ番号:招待不可フラグ = 0
+			CALL ステータス記録_ランダムキャラデータベース(Ｒキャラ追加候補記録, 管理番号, CFLAG:キャラ番号:人物番号)
+
+			;日中にキャラを挿入する際に必要な処理
+			CALL 日帰り開始処理(キャラ番号)
+			;マッサージ客の性欲をある程度確保しておく
+			CALL 性欲ゲージ増加(キャラ番号, MAXBASE:キャラ番号:性欲 * 5)
+			CALL SORT_CHARALIST()
+
+			AUTOCOM_実行番号保存 = キャラ番号
+			TCVAR:AUTOCOM_実行番号保存:マッサージ来店フラグ = 1
+
+			CFLAG:PLAYER:現在マップ種別 = 0
+			CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
+			CFLAG:AUTOCOM_実行番号保存:同室 = 1
+			CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
+			;処理のためTARGET配列をセット
+			CALL TARGET_SET()
+
+			;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
+			IF チュートリアルフラグ:マッサージモード == 0
+				CALL マッサージチュートリアル
+			ENDIF
+
+			;移動しないように同行セット
+			SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
+				CFLAG:AUTOCOM_実行番号保存:同行 = 1
+
+			あなた追跡キャラ = 0
+
+			;ターンエンドまでいかないのでメッセージはここで処理
+			;SELECTCOM = 382
+			CALL KOJO_MESSAGE_COM_通常モード
+
+			;マッサージモードに移行
+			サイド描画表示種類 = 能力表示
+			CALL ゲームフェイズ変更("マッサージモード")
+			CALL 警戒度初期値セット(キャラ番号)
+			;服着替え
+			;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
+			SIF CSTR:キャラ番号:コスプレ前の服 == "" && CSTR:キャラ番号:表示グラフィックカテゴリ != ""
+				CSTR:キャラ番号:コスプレ前の服 '= CSTR:キャラ番号:表示グラフィックカテゴリ
+
+			IF RSTR:服装名受け渡し != ""
+				CALL CLOTHES_CHANGE(キャラ番号, RSTR:服装名受け渡し)
+			ELSE
+				IF フィールド展開:水泳時全裸化
+					CALL CLOTHES_CHANGE(キャラ番号, "全裸")
+				ELSEIF EXIST画像FILE("resources/" + CSTR:キャラ番号:画像フォルダ + "/短冊_マッサージ着")
+					CALL CLOTHES_CHANGE(キャラ番号, "マッサージ着")
+				ELSE
+					CALL CLOTHES_CHANGE(キャラ番号, "水着")
+				ENDIF
+			ENDIF
+			RETURN -1
+		CASE 1
+			PRINTFORML %CALLNAME:PLAYER%が%TEXTR("普段通りのマッサージを施す/肩と腰のコリ解消コースを施術する/骨盤を中心に骨格矯正の指圧マッサージを施術する/肌ケアオイルエステを施す")%と、
+			PRINTFORML 満足した%ランダムキャラデータ_GETS(Ｒキャラ追加候補記録, 管理番号, "呼び名")%は笑顔を浮かべ、%CALLNAME:PLAYER%にお礼を言ってリゾートへと戻っていった…
+			PRINTFORMW 料金として1000ルピ手に入れた！
+			MONEY += 1000
+			EXP:PLAYER:マッサージ施術経験 += 10
+			TIME += 30
+		CASE 100
+			DRAWLINE
+			PRINTL 念入りにマッサージする：この客をキャラとして追加後、マッサージモードに移行します。
+			PRINTL 　　　　　　その後の行動について制限はありません。
+			PRINTL
+			PRINTL 普段通りマッサージする：簡単な描写でマッサージが実行されます。
+			PRINTL 　　　　　　この客のことは忘れ、二度と出会えなくなります。
+			PRINTL 
+			WAIT
+			GOTO 来店ラベル
+	ENDSELECT
 ELSE
 	DRAWLINE
-		PRINTFORML %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた%CALLNAME:AUTOCOM_実行番号保存%がマッサージ室に入ってきた。
-		PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%を施術台に案内しながら%CALLNAME:PLAYER%はマッサージの方針を考える…
-		DRAWLINE
-		PRINTBUTTON "[0] 念入りにマッサージする", 0
-		PRINTL
-		PRINTBUTTON "[1] 普段通りマッサージする（簡易版）", 1
-		PRINTL
-		PRINTBUTTON "[100] 選択肢について説明", 100
+	PRINTFORML %CALLNAME:PLAYER%が客を待っていると施術衣に着替えた%CALLNAME:AUTOCOM_実行番号保存%がマッサージ室に入ってきた。
+	PRINTFORML %CALLNAME:AUTOCOM_実行番号保存%を施術台に案内しながら%CALLNAME:PLAYER%はマッサージの方針を考える…
+	DRAWLINE
+	PRINTBUTTON "[0] 念入りにマッサージする", 0
+	PRINTL
+	PRINTBUTTON "[1] 普段通りマッサージする（簡易版）", 1
+	PRINTL
+	PRINTBUTTON "[100] 選択肢について説明", 100
 	BINPUT
 	;口上用に選択肢を記録
 	RFLAG:コマンド結果受渡し変数２ = RESULT
 
 	SELECTCASE RFLAG:コマンド結果受渡し変数２
-			CASE 0
-				CFLAG:PLAYER:現在マップ種別 = 0
-				CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
-				CFLAG:AUTOCOM_実行番号保存:同室 = 1
-				CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
-				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
-				;処理のためTARGET配列をセット
-				CALL TARGET_SET()
+		CASE 0
+			CFLAG:PLAYER:現在マップ種別 = 0
+			CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
+			CFLAG:AUTOCOM_実行番号保存:同室 = 1
+			CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
+			;処理のためTARGET配列をセット
+			CALL TARGET_SET()
 
-				;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
-				IF チュートリアルフラグ:マッサージモード == 0
-					CALL マッサージチュートリアル
-				ENDIF
-					
-				;移動しないように同行セット
-				SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
-					CFLAG:AUTOCOM_実行番号保存:同行 = 1
-				
-				あなた追跡キャラ = 0
-				
-				;ターンエンドまでいかないのでメッセージはここで処理
-				;SELECTCOM = 382
-				CALL KOJO_MESSAGE_COM_通常モード
-				
-				;マッサージモードに移行
-				LOCAL = AUTOCOM_実行番号保存
-				サイド描画表示種類 = 能力表示
-				CALL ゲームフェイズ変更("マッサージモード")
-				CALL 警戒度初期値セット(LOCAL)
-				;服着替え
-				;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
-				SIF CSTR:LOCAL:コスプレ前の服 == "" && CSTR:LOCAL:表示グラフィックカテゴリ != ""
-					CSTR:LOCAL:コスプレ前の服 '= CSTR:LOCAL:表示グラフィックカテゴリ
-			
-				TRYCALLFORM マッサージ時固有着替え処理_{NO:LOCAL}(LOCAL)
-				IF RSTR:服装名受け渡し != ""
-					CALL CLOTHES_CHANGE(LOCAL, RSTR:服装名受け渡し)
+			;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
+			IF チュートリアルフラグ:マッサージモード == 0
+				CALL マッサージチュートリアル
+			ENDIF
+
+			;移動しないように同行セット
+			SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
+				CFLAG:AUTOCOM_実行番号保存:同行 = 1
+
+			あなた追跡キャラ = 0
+
+			;ターンエンドまでいかないのでメッセージはここで処理
+			;SELECTCOM = 382
+			CALL KOJO_MESSAGE_COM_通常モード
+
+			;マッサージモードに移行
+			キャラ番号 = AUTOCOM_実行番号保存
+			サイド描画表示種類 = 能力表示
+			CALL ゲームフェイズ変更("マッサージモード")
+			CALL 警戒度初期値セット(キャラ番号)
+			;服着替え
+			;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
+			SIF CSTR:キャラ番号:コスプレ前の服 == "" && CSTR:キャラ番号:表示グラフィックカテゴリ != ""
+				CSTR:キャラ番号:コスプレ前の服 '= CSTR:キャラ番号:表示グラフィックカテゴリ
+
+			TRYCALLFORM マッサージ時固有着替え処理_{NO:キャラ番号}(キャラ番号)
+			IF RSTR:服装名受け渡し != ""
+				CALL CLOTHES_CHANGE(キャラ番号, RSTR:服装名受け渡し)
+			ELSE
+				IF フィールド展開:水泳時全裸化
+					CALL CLOTHES_CHANGE(キャラ番号, "全裸")
+				ELSEIF EXIST画像FILE("resources/" + CSTR:キャラ番号:画像フォルダ + "/短冊_マッサージ着")
+					CALL CLOTHES_CHANGE(キャラ番号, "マッサージ着")
 				ELSE
-					IF フィールド展開:水泳時全裸化
-						CALL CLOTHES_CHANGE(LOCAL, "全裸")
-					ELSEIF EXIST画像FILE("resources/" + CSTR:LOCAL:画像フォルダ + "/短冊_マッサージ着")
-						CALL CLOTHES_CHANGE(LOCAL, "マッサージ着")
-					ELSE
-						CALL CLOTHES_CHANGE(LOCAL, "水着")
-					ENDIF
+					CALL CLOTHES_CHANGE(キャラ番号, "水着")
 				ENDIF
-				RETURN -1
-			CASE 1
-				TIME += 30
-				TARGET = AUTOCOM_実行番号保存
-				PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%に%TEXTR("普段通りのマッサージを施した/肩と腰のコリ解消コースを施術した/骨盤を中心に骨格矯正の指圧マッサージを施術した/肌ケアオイルエステを施した")%。
-				PRINTFORML 満足した%CALLNAME:AUTOCOM_実行番号保存%はリゾートへと戻っていった。
-				PRINTFORMW 料金として1000ルピ手に入れた！
-				MONEY += 1000
-				CALL SOURCE_CALC_歓楽(AUTOCOM_実行番号保存, PLAYER, 500)
-				CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_実行番号保存, PLAYER, 250)
-				EXP:PLAYER:マッサージ施術経験 += 10
-			CASE 100
-				DRAWLINE
-				PRINTL 念入りにマッサージする：マッサージモードに移行します
-				PRINTL 　　　　　　その後の行動について制限はありません。
-				PRINTL
-				PRINT 普段通りマッサージする（簡易版）：
-				PRINTL 簡単な描写と一定の好感度変化が実行されます。（未調整）
-				PRINTL 
-				WAIT
-				GOTO 来店ラベル
+			ENDIF
+			RETURN -1
+		CASE 1
+			TARGET = AUTOCOM_実行番号保存
+			PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%に%TEXTR("普段通りのマッサージを施した/肩と腰のコリ解消コースを施術した/骨盤を中心に骨格矯正の指圧マッサージを施術した/肌ケアオイルエステを施した")%。
+			PRINTFORML 満足した%CALLNAME:AUTOCOM_実行番号保存%はリゾートへと戻っていった。
+			PRINTFORMW 料金として1000ルピ手に入れた！
+			CALL SOURCE_CALC_歓楽(AUTOCOM_実行番号保存, PLAYER, 500)
+			CALL SOURCE_CALC_好感度要素_友情度UP(AUTOCOM_実行番号保存, PLAYER, 250)
+			MONEY += 1000
+			EXP:PLAYER:マッサージ施術経験 += 10
+			TIME += 30
+		CASE 100
+			DRAWLINE
+			PRINTL 念入りにマッサージする：マッサージモードに移行します。
+			PRINTL 　　　　　　その後の行動について制限はありません。
+			PRINTL
+			PRINTL 普段通りマッサージする（簡易版）：簡単な描写と一定の好感度変化が実行されます。（未調整）
+			PRINTL 
+			WAIT
+			GOTO 来店ラベル
 	ENDSELECT
 ENDIF
+
+
+@ランダムマッサージ客生成(Ｒキャラ性別)
+#LOCALSIZE 2
+#LOCALSSIZE 1
+#DIM Ｒキャラ性別
+#DIM Ｒキャラ属性
+#DIM Ｒキャラ種族
+#DIMS Ｒキャラ特殊種族
+#DIM Ｒキャラ年齢層
+#DIM Ｒキャラ外見年齢
+#DIMS 表示文字列
+#DIMS 追加表示格納
+#DIM 管理番号
+#DIM 特殊種族フラグ, 1 ; 0=ワーウルフ
+
+;次の候補を確認する際にリセットしない処理群
+;そっくりさん関連
+SIF そっくりさん画像枚数_閾値 < 1
+	そっくりさん画像枚数_閾値 = 10
+SIF そっくりさんフラグ
+	CALL ランダムキャラそっくりさん候補リスト作成
+
+;左パネル (メニュー)
+表示文字列 '= ランダムキャラ表示_左パネル("", "", "確認")
+
+;キャラ生成処理
+CALL ランダムキャラ生成準備開始(Ｒキャラ追加候補記録, 1)
+管理番号 = RESULT
+
+;マッサージ客固有の仕様
+;属性：先に判定
+Ｒキャラ属性 = RAND:6
+CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "基礎BATTLE_STATE", "属性", Ｒキャラ属性)
+
+;種族：先に判定
+Ｒキャラ種族 = ランダム種族(Ｒキャラ属性, Ｒキャラ特殊種族)
+IF Ｒキャラ特殊種族 == "クリスタリア" && Ｒキャラ性別 == 2
+	;女性のみの種族なので、マッサージ室の性別と一致していないときはヒューマンに置き換え
+	Ｒキャラ種族 = 種族_ヒューマン
+	Ｒキャラ特殊種族 '= ""
+ENDIF
+CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "素質", "種族", Ｒキャラ種族)
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "特殊種族", Ｒキャラ特殊種族)
+
+;年齢層/外見年齢：大人以上が出やすい
+IF Ｒキャラ種族 == 5
+	;星晶獣は人外の域の長命者
+	Ｒキャラ年齢層 = 年齢層_人外
+	Ｒキャラ外見年齢 = RAND(年齢層_幼い, 年齢層_大人)
+ELSE
+	SELECTCASE RAND:200
+		CASE 0
+			Ｒキャラ年齢層 = 年齢層_幼い
+			Ｒキャラ外見年齢 = 0
+		CASE 1 TO 9
+			Ｒキャラ年齢層 = 年齢層_若い
+			Ｒキャラ外見年齢 = 0
+		CASE 10 TO 49
+			Ｒキャラ年齢層 = 年齢層_成人
+			Ｒキャラ外見年齢 = 0
+		CASE 50 TO 139
+			Ｒキャラ年齢層 = 年齢層_大人
+			Ｒキャラ外見年齢 = 0
+		CASE 140 TO 179
+			Ｒキャラ年齢層 = 年齢層_壮年
+			Ｒキャラ外見年齢 = 0
+		CASE 180 TO 189
+			;長命者
+			Ｒキャラ年齢層 = RAND:5 ? 年齢層_老年 # 年齢層_人外
+			Ｒキャラ外見年齢 = RAND(年齢層_若い, 年齢層_大人 + 1)
+		CASE 190 TO 199
+			;ロリババア/ショタジジイ
+			Ｒキャラ年齢層 = RAND:4 ? 年齢層_老年 # 年齢層_人外
+			Ｒキャラ外見年齢 = 年齢層_幼い
+	ENDSELECT
+ENDIF
+CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "素質", "年齢層", Ｒキャラ年齢層)
+CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "素質", "外見年齢", Ｒキャラ外見年齢)
+
+;残りは標準設定でランダム生成実行
+CALL ランダムキャラ生成(Ｒキャラ追加候補記録, 管理番号)
+
+;そっくりさん処理
+IF そっくりさんフラグ && RAND:3 == 0
+	CALL ランダムキャラそっくりさん適用(Ｒキャラ追加候補記録, 管理番号)
+ENDIF
+
+;メインパネル (キャラデータ表示処理)
+表示文字列 += ランダムキャラ表示_メインパネル(Ｒキャラ追加候補記録, 管理番号, 特殊種族フラグ)
+
+$表示_LOOP
+;上パネル (汎用立ち絵表示)
+CALL ランダムキャラ表示_上パネル(Ｒキャラ追加候補記録, 管理番号, 特殊種族フラグ)
+追加表示格納 '= RESULTS
+
+HTML_PRINT 追加表示格納
+FOR LOCAL, 0, 10
+	PRINTL
+NEXT
+
+HTML_PRINT 表示文字列
+FOR LOCAL, 0, 25
+	PRINTL
+NEXT
+DRAWLINE
+
+$INPUT_LOOP
+INPUT
+
+SELECTCASE RESULT
+	CASE 120
+		INVERTBIT OPTION変数:汎用立ち絵制御, 0
+		GOTO 表示_LOOP
+	CASE 130
+		INVERTBIT OPTION変数:ワーウルフ画像ケモ度, 0
+		;今の従業員がワーウルフなら即時適用
+		SIF 特殊種族フラグ:0
+			CALL ランダムキャラ画像キー再選択(Ｒキャラ追加候補記録, 管理番号)
+		GOTO 表示_LOOP
+	CASE 131
+		CALL ランダムキャラそっくりさん設定
+		GOTO 表示_LOOP
+	CASE 999
+		RETURN 管理番号
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
