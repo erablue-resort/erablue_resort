@@ -169,7 +169,7 @@ FOR LOCAL,0,CHARANUM
 
 	;性欲
 	SIF !CFLAG:LOCAL:睡眠
-		CALL 性欲ゲージ増加(LOCAL)
+		CALL 性欲ゲージ自然増加_時間(LOCAL)
 
 	;現在何らかのモードに入っているか
 	モード実行中フラグ = 0
@@ -352,6 +352,7 @@ RETURNF TIME + DAY * 1440 - ARG
 
 @CHARA_SLEEP, ARG
 #DIM 睡眠場所指定
+#DIM 睡眠場所追従不能フラグ
 #DIM 睡眠マップ
 #DIM 睡眠場所
 #DIM 部屋割
@@ -386,11 +387,14 @@ VARSET LOCAL
 ;ENDIF
 
 IF !CFLAG:ARG:睡眠
+	睡眠場所追従不能フラグ = 0
 	CALL CHARA_ROUTINE_STATUS(ARG, "就寝場所")
 	睡眠場所指定 = RESULT
 	IF 睡眠場所指定
 		睡眠マップ = RESULT:1
 		睡眠場所 = RESULT:2
+		SIF 睡眠マップ == 0 && 睡眠場所 == 999
+			睡眠場所追従不能フラグ = 1
 	ENDIF
 	CFLAG:ARG:同行 = 0
 	CFLAG:ARG:睡眠 = 1
@@ -402,7 +406,19 @@ IF !CFLAG:ARG:睡眠
 		CALL デート採点処理(ARG)
 	ENDIF
 
-	IF CFLAG:ARG:酔いすぎ == 1
+	IF TCVAR:ARG:日帰りフラグ
+		;日帰りキャラの睡眠時間は仮置きなので、メッセージを非表示にする
+		CFLAG:ARG:現在位置 = 0
+		CFLAG:ARG:現在マップ種別 = 999
+		GOTO リセット位置
+	ELSEIF 睡眠場所追従不能フラグ
+		;リゾート外へ行く場合はあなたはついていけない 泥酔・ダウン時も頑張って自力で帰る
+		PRINTFORMW %CALLNAME:ARG%はリゾートから帰って眠るようだ。
+		TRYCALLFORM KOJO_EVENT_移動おやすみ_{NO:ARG}(ARG)
+		CFLAG:ARG:現在位置 = 0
+		CFLAG:ARG:現在マップ種別 = 999
+		GOTO リセット位置
+	ELSEIF CFLAG:ARG:酔いすぎ == 1
 		LOCAL = キャラクター部屋検索(ARG)
 		IF CFLAG:MASTER:酔いすぎ != 1 && CFLAG:MASTER:現在位置 == CFLAG:ARG:現在位置
 			;あなたがいる場合は部屋へと運ぶ
