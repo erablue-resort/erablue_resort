@@ -697,7 +697,10 @@ CFLAG:ARG:酔いすぎ = 0
 
 IF 引き継ぎキャラフラグ == 0
 	;招待時同行キャラ
-	IF CSTR:ARG:同行キャラ != ""
+	IF NO:ARG == 999
+		;ランダムキャラの場合、招待時同行キャラを初期値記録ＤＢの値で初期化
+		CALL ランダムキャラ初期化処理_同行候補キャラ(, ARG, 0)
+	ELSEIF CSTR:ARG:同行キャラ != ""
 		VARSET LOCALS
 		REPLACE CSTR:ARG:同行キャラ, " ", ""
 		SPLIT RESULTS, "%", LOCALS
@@ -858,7 +861,7 @@ ELSE
 	SIF !BASE:ARG:身長
 		CALL INIT_BODYSIZE(ARG)
 
-	;同行キャラをCSVを見て入れ直す
+	;同行キャラを入れ直す
 	VARSET LOCAL
 	VARSET LOCALS
 	;まず引き継ぎキャラ同士の同行記録を見る
@@ -876,25 +879,33 @@ ELSE
 			LOCAL += 1
 		NEXT
 	ENDIF
-	;招待時同行キャラをCSVから見直す
-	VARSET LOCALS
-	CSTR:ARG:同行キャラ = %CSVCSTR(NO:ARG, GETNUM(CSTR, "同行キャラ"))%
-	REPLACE CSTR:ARG:同行キャラ, " ", ""
-	SPLIT RESULTS, "%", LOCALS
-	FOR LOCAL, 0, 100
-		SIF LOCALS:LOCAL == ""
-			BREAK
-		SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
-		キャラ番号記録 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
-		SIF キャラ番号記録 < 0
-			CONTINUE
-		SIF FINDELEMENT(同行候補キャラ番号:ARG:0, キャラ番号記録) > -1
-			CONTINUE
-		;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
-		同行候補キャラ番号:ARG:(LOCAL:1) = キャラ番号記録
-		同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
-		LOCAL:1 += 1
-	NEXT
+	IF NO:ARG == 999
+		;ランダムキャラの場合、招待時同行キャラを初期値記録ＤＢから見直す
+		CALL ランダムキャラ初期化処理_同行候補キャラ(, ARG, LOCAL:1)
+		LOCAL:1 = RESULT
+	ELSE
+		;非ランダムキャラの場合、招待時同行キャラをCSVから見直す
+		CSTR:ARG:同行キャラ '= CSVCSTR(NO:ARG, GETNUM(CSTR, "同行キャラ"))
+		IF CSTR:ARG:同行キャラ != ""
+			VARSET LOCALS
+			REPLACE CSTR:ARG:同行キャラ, " ", ""
+			SPLIT RESULTS, "%", LOCALS
+			FOR LOCAL, 0, 100
+				SIF LOCALS:LOCAL == ""
+					BREAK
+				SPLIT LOCALS:LOCAL, "_", CSTR切り分け文字列格納
+				キャラ番号記録 = FINDCHARA(NAME, CSTR切り分け文字列格納:0)
+				SIF キャラ番号記録 < 0
+					CONTINUE
+				SIF FINDELEMENT(同行候補キャラ番号:ARG:0, キャラ番号記録) > -1
+					CONTINUE
+				;同行キャラ格納格納:0に名前、同行キャラ格納:1に確率が入っているはず
+				同行候補キャラ番号:ARG:(LOCAL:1) = キャラ番号記録
+				同行候補キャラ確率:ARG:(LOCAL:1) = TOINT(CSTR切り分け文字列格納:1)
+				LOCAL:1 += 1
+			NEXT
+		ENDIF
+	ENDIF
 	;キャラ妊娠引き継ぎ時
 	IF TALENT:ARG:妊娠
 		;引き継ぎキャラが種親の場合、-10000するとキャラIDになるようにいじってある
@@ -927,6 +938,11 @@ CALL INIT_RELATION(ARG)
 
 ;初期関係性のセット、引き継ぎキャラの場合は先に設定してあるので同じ処理でOK
 CALL 初期関係性データベース登録(ARG)
+
+;ランダムキャラの場合、親子関係を初期化
+IF NO:ARG == 999
+	CALL ランダムキャラ初期化処理_出生(, ARG)
+ENDIF
 
 ;性癖の設定
 IF TALENT:ARG:性愛傾向 == 3
@@ -2432,7 +2448,10 @@ GOTO 表示ループ
 #DIM キャラ番号記録
 #DIMS CSTR切り分け文字列格納, 2
 
-IF CSTR:対象キャラ:初期関係性 != ""
+IF NO:対象キャラ == 999
+	;ランダムキャラの場合、初期値記録ＤＢの値で初期化
+	CALL ランダムキャラ初期化処理_初期関係性(, 対象キャラ)
+ELSEIF CSTR:対象キャラ:初期関係性 != ""
 	VARSET LOCALS
 	REPLACE CSTR:対象キャラ:初期関係性, " ", ""
 	SPLIT RESULTS, "%", LOCALS
