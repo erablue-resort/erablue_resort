@@ -14,13 +14,26 @@ ENDIF
 RETURNF 表示文字列
 
 
-@ランダムキャラ表示_メインパネル(ＤＢ名, 管理番号, 特殊種族フラグ)
+@ランダムキャラ表示_特殊種族フラグ(ＤＢ名, 管理番号)
+#FUNCTION
+#DIMS ＤＢ名
+#DIM 管理番号
+#DIM 特殊種族フラグ ; bit0=ワーウルフ
+
+特殊種族フラグ = 0
+SELECTCASE ランダムキャラデータ_GETS_B(ＤＢ名, 管理番号, "CSTR", "特殊種族")
+	CASE "ワーウルフ"
+		SETBIT 特殊種族フラグ, 0
+ENDSELECT
+RETURNF 特殊種族フラグ
+
+
+@ランダムキャラ表示_メインパネル(ＤＢ名, 管理番号)
 #FUNCTIONS
 #LOCALSIZE 2
 #LOCALSSIZE 1
 #DIMS ＤＢ名
 #DIM 管理番号
-#DIM REF 特殊種族フラグ, 0
 #DIMS 表示文字列
 #DIMS 追加表示格納
 #DIMS 素質行格納
@@ -46,12 +59,8 @@ LOCAL = ランダムキャラデータ_GET_B(ＤＢ名, 管理番号, "基礎BAT
 
 表示文字列 += @"　種族：%GET_TALENTNAME(200, ランダムキャラデータ_GET(ＤＢ名, 管理番号, "素質", 200))%"
 LOCALS '= ランダムキャラデータ_GETS_B(ＤＢ名, 管理番号, "CSTR", "特殊種族")
-特殊種族フラグ:0 = 0
-IF LOCALS != ""
+SIF LOCALS != ""
 	表示文字列 += @" [%LOCALS%]"
-	SIF LOCALS == "ワーウルフ"
-		特殊種族フラグ:0 = 1
-ENDIF
 
 追加表示格納 '= ""
 SIF ランダムキャラデータ_GET_B(ＤＢ名, 管理番号, "素質", "角あり")
@@ -260,7 +269,7 @@ RETURNF 表示文字列
 #LOCALSSIZE 1
 #DIMS ＤＢ名
 #DIM 管理番号
-#DIM REF 特殊種族フラグ, 0
+#DIM 特殊種族フラグ ; bit0=ワーウルフ
 #DIMS 表示文字列
 #DIM 画像フラグ, 2
 
@@ -302,7 +311,7 @@ IF OPTION変数:汎用立ち絵制御
 		;設定中の顔グラが存在すればそちらを拡縮で表示
 		LOCAL = 画像サイズ切り替えOPTION記憶:1
 		画像サイズ切り替えOPTION記憶:1 = 1
-		IF 特殊種族フラグ:0
+		IF GETBIT(特殊種族フラグ, 0)
 			;ワーウルフの場合のボタン追加処理
 			SIF 画像フラグ:0 && スプライト作成(@"顔グラ3000", 3000, 0)
 				表示文字列 += @"<button value='130' title='%LOCALS%'><img src='顔グラ3000'height='1125'></button>"

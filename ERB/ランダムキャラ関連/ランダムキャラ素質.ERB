@@ -145,13 +145,16 @@ ELSE
 ENDIF
 
 
-@ランダム年齢(種族)
+@ランダム年齢層(種族, 外見年齢受渡し)
 #FUNCTION
 #DIM 種族
+#DIM REF 外見年齢受渡し
 
+外見年齢受渡し = 0
 IF 種族 == 5
 	;星晶獣は人外の域の長命者
-	RETURNF RAND(年齢層_幼い, 年齢層_大人) + 20000
+	外見年齢受渡し = RAND(年齢層_幼い, 年齢層_大人 + 1)
+	RETURNF 年齢層_人外
 ENDIF
 SELECTCASE RAND:200
 	CASE 0 TO 9
@@ -166,48 +169,34 @@ SELECTCASE RAND:200
 		RETURNF 年齢層_壮年
 	CASE 198
 		;長命者
-		RETURNF RAND(年齢層_若い, 年齢層_大人 + 1) + 10000 * (RAND:5 ? 1 # 2)
+		外見年齢受渡し = RAND(年齢層_若い, 年齢層_大人 + 1)
+		RETURNF RAND:5 ? 年齢層_老年 # 年齢層_人外
 	CASE 199
 		;ロリババア/ショタジジイ
-		RETURNF 年齢層_幼い + 10000 * (RAND:4 ? 1 # 2)
+		外見年齢受渡し = 年齢層_幼い
+		RETURNF RAND:4 ? 年齢層_老年 # 年齢層_人外
 ENDSELECT
 
-;TALENT:年齢層と一致
-@ランダムキャラ年齢層(ARG)
+@ランダムキャラ長命チェック(年齢層, 外見年齢)
 #FUNCTION
-IF ARG > 20000
-	RETURNF 年齢層_人外
-ELSEIF ARG > 10000
-	RETURNF 年齢層_老年
-ELSE
-	RETURNF ARG % 10000
-ENDIF
+#DIM 年齢層
+#DIM 外見年齢
 
-;TALENT:外見年齢と一致
-@ランダムキャラ外見年齢(ARG)
-#FUNCTION
-IF ARG > 10000
-	RETURNF ARG % 10000
-ELSE
-	RETURNF 0
-ENDIF
-
-;キャラ見た目年齢(対象キャラ)と一致
-@ランダムキャラ見た目年齢(ARG)
-#FUNCTION
-RETURNF ARG % 10000
-
-@ランダムキャラ長命チェック(ARG)
-#FUNCTION
-RETURNF (ARG > 10000)
+;実年齢が人外の域、または老年で外見年齢を持つキャラは長命者
+RETURNF 年齢層 == 年齢層_人外 || (年齢層 == 年齢層_老年 && 外見年齢)
 
 
-@ランダム交際経験(未経験, 見た目年齢, 長命フラグ)
+@ランダム交際状態(未経験, 年齢層, 外見年齢)
 #FUNCTION
 #DIM 未経験
+#DIM 年齢層
+#DIM 外見年齢
 #DIM 見た目年齢
 #DIM 長命フラグ
-#DIM 恋人持ち
+#DIM 交際状態
+
+見た目年齢 = GET_見た目年齢(年齢層, 外見年齢)
+長命フラグ = ランダムキャラ長命チェック(年齢層, 外見年齢)
 
 IF !未経験
 	;非処女の場合
@@ -217,18 +206,18 @@ IF !未経験
 			CASE IS >= 年齢層_中年
 				;中年～老年 50%で未亡人
 				IF RAND:2
-					恋人持ち = 3
+					交際状態 = 3
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
 			CASEELSE
 				;幼い～壮年 50%で未亡人、25%でセフレあり
 				IF RAND:2
-					恋人持ち = 3
+					交際状態 = 3
 				ELSEIF RAND:2
-					恋人持ち = -2
+					交際状態 = -2
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
 		ENDSELECT
 	ELSE
@@ -237,56 +226,58 @@ IF !未経験
 			CASE 年齢層_幼い
 				;幼い 50%でセフレあり、25%で恋人持ち
 				IF RAND:2
-					恋人持ち = -2
+					交際状態 = -2
 				ELSEIF RAND:2
-					恋人持ち = 1
+					交際状態 = 1
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
-			CASE 年齢層_若い, 年齢層_成人
-				;若い～成人 想い人あり、恋人持ち、セフレありが各20%ずつ
+			CASE 年齢層_若い
+				;若い 想い人あり、恋人持ち、セフレありが各20%ずつ
 				IF RAND:5
-					恋人持ち = RAND:4 - 2
+					交際状態 = RAND:4 - 2
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
+				ENDIF
+			CASE 年齢層_成人
+				;成人 想い人あり、恋人持ちが各20%ずつ、セフレあり、人妻が各10%ずつ
+				IF RAND:5
+					交際状態 = RAND:4 - 2
+					SIF 交際状態 == -2 && RAND:2
+						交際状態 = 2
+				ELSE
+					交際状態 = 0
 				ENDIF
 			CASE 年齢層_壮年
-				;壮年 恋人持ち、人妻が各20%ずつ、想い人あり、セフレありが各10%ずつ
-				IF RAND:5
-					恋人持ち = RAND:4 - 1
-					SIF 恋人持ち == -1 && RAND:2
-						恋人持ち = -2
+				;壮年 人妻が40%、恋人持ち、想い人ありが各10%ずつ、セフレあり、未亡人が各5%ずつ
+				IF RAND:5 < 2
+					交際状態 = 2
+				ELSEIF RAND:3
+					交際状態 = RAND:4 - 2
+					SIF 交際状態 == -2 && RAND:2
+						交際状態 = 3
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
 			CASE 年齢層_中年, 年齢層_老年, 年齢層_人外
 				;中年～老年 50%で人妻、25%で未亡人
 				IF RAND:2
-					恋人持ち = 2
+					交際状態 = 2
 				ELSEIF RAND:2
-					恋人持ち = 3
+					交際状態 = 3
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
 			CASEELSE
-				;大人 想い人あり、恋人持ちが各20%ずつ、セフレあり、人妻が各10%ずつ
+				;大人 恋人持ち、人妻が各20%ずつ、想い人あり、セフレありが各10%ずつ
 				IF RAND:5
-					恋人持ち = RAND:4 - 2
-					SIF 恋人持ち == -2 && RAND:2
-						恋人持ち = 2
+					交際状態 = RAND:4 - 1
+					SIF 交際状態 == -1 && RAND:2
+						交際状態 = -2
 				ELSE
-					恋人持ち = 0
+					交際状態 = 0
 				ENDIF
 		ENDSELECT
-	ENDIF
-
-	;出産経験
-	IF 恋人持ち == 2 || 恋人持ち == 3
-		;人妻or未亡人に+0～3
-		恋人持ち += 10000 * (RAND:2 + RAND:2 + RAND:2)
-	ELSEIF 恋人持ち == -2 && RAND:50 == 0
-		;セフレありに2%で+1
-		恋人持ち -= 10000
 	ENDIF
 ELSE
 	;処女の場合
@@ -295,13 +286,13 @@ ELSE
 		SELECTCASE 見た目年齢
 			CASE 年齢層_中年, 年齢層_老年, 年齢層_人外
 				;中年～老年 なし
-				恋人持ち = 0
+				交際状態 = 0
 			CASEELSE
 				;幼い～壮年 10%で想い人あり
 				IF RAND:10
-					恋人持ち = 0
+					交際状態 = 0
 				ELSE
-					恋人持ち = -1
+					交際状態 = -1
 				ENDIF
 		ENDSELECT
 	ELSE
@@ -310,66 +301,104 @@ ELSE
 			CASE 年齢層_幼い
 				;幼い 5%で想い人あり
 				IF RAND:20
-					恋人持ち = 0
+					交際状態 = 0
 				ELSE
-					恋人持ち = -1
+					交際状態 = -1
 				ENDIF
 			CASE 年齢層_若い
 				;若い 10%で想い人あり、2.5%で恋人持ち
 				IF RAND:8
-					恋人持ち = 0
+					交際状態 = 0
 				ELSEIF RAND:5
-					恋人持ち = -1
+					交際状態 = -1
 				ELSE
-					恋人持ち = 1
+					交際状態 = 1
 				ENDIF
 			CASE 年齢層_中年, 年齢層_老年, 年齢層_人外
 				;中年～老年 なし
-				恋人持ち = 0
+				交際状態 = 0
 			CASEELSE
 				;成人～壮年 10%で恋人持ち、2.5%で想い人あり
 				IF RAND:8
-					恋人持ち = 0
+					交際状態 = 0
 				ELSEIF RAND:5
-					恋人持ち = 1
+					交際状態 = 1
 				ELSE
-					恋人持ち = -1
+					交際状態 = -1
 				ENDIF
 		ENDSELECT
 	ENDIF
 ENDIF
-RETURNF 恋人持ち
+RETURNF 交際状態
 
-@ランダムキャラ出産経験(ARG)
-#FUNCTION
-RETURNF ABS(ARG) / 10000
 
-@ランダムキャラ恋人持ち(ARG)
+@ランダム子供人数(交際状態, 種族, 特殊種族)
 #FUNCTION
-#DIM 素質値
-素質値 = SIGN(ARG) * (ABS(ARG) % 10000)
-IF 素質値 == -2
+#DIM 交際状態
+#DIM 種族
+#DIMS 特殊種族
+
+IF 種族 == 種族_星晶獣
+	;星晶獣は子供なし(星晶獣は子供とかできないそうなので)
 	RETURNF 0
-ELSE
-	RETURNF 素質値
-ENDIF
-
-@ランダムキャラセフレあり(ARG)
-#FUNCTION
-#DIM 素質値
-素質値 = SIGN(ARG) * (ABS(ARG) % 10000)
-IF 素質値 == -2
+ELSEIF 種族 == 種族_その他
+	;その他種族は子供が四種族と比べて少ない
+	;というよりは世にはびこる四種族が繁殖力に優れている
+	SELECTCASE 特殊種族
+		CASE "クリスタリア", "スヴァル"
+			;普通の生殖方式じゃないタイプ
+			IF 交際状態 == 2 || 交際状態 == 3
+				;人妻or未亡人相当なら子供1人確定
+				;クリスタリアで言うところのこうしんの間へ行った個体
+				RETURNF 1
+			ENDIF
+		CASEELSE
+			;一般的な雌雄いるタイプ
+			IF 交際状態 == 2 || 交際状態 == 3
+				;人妻or未亡人は0～1人
+				RETURNF MIN(1, RAND:4)
+			ENDIF
+	ENDSELECT
+	RETURNF 0
+ELSEIF 交際状態 == 2 || 交際状態 == 3
+	;ここから四種族
+	;人妻or未亡人は0～3人
+	RETURNF RAND:2 + RAND:2 + RAND:2
+ELSEIF 交際状態 == -2 && RAND:50 == 0
+	;セフレありに2%で1人
 	RETURNF 1
-ELSE
-	RETURNF 0
 ENDIF
+RETURNF 0
 
 
-@ランダム性知識(未経験, 年齢層, エルーンフラグ)
+@ランダム性知識(未経験, 年齢層, 種族, 特殊種族)
 #FUNCTION
 #DIM 未経験
 #DIM 年齢層
-#DIM エルーンフラグ
+#DIM 種族
+#DIMS 特殊種族
+#DIM 獣フラグ
+
+IF 種族 == 種族_星晶獣 || (種族 == 種族_その他 && GROUPMATCH(特殊種族, "クリスタリア", "スヴァル"))
+	;普通の生殖方式じゃないタイプの種族の特別処理
+	SELECTCASE RAND:4
+		CASE 0
+			;無知(処女)/疎い(非処女)
+			RETURNF 未経験 ? -2 # 0
+		CASE 1, 2
+			;獣並み
+			RETURNF -1
+		CASEELSE
+			;疎い
+			RETURNF 0
+	ENDSELECT
+ELSEIF 種族 == 種族_エルーン
+	獣フラグ = 1
+ELSEIF 種族 == 種族_その他 && 特殊種族 == "ワーウルフ"
+	獣フラグ = 1
+ELSE
+	獣フラグ = 0
+ENDIF
 
 IF !未経験
 	;非処女の場合
@@ -378,8 +407,8 @@ IF !未経験
 			;疎い
 			RETURNF 0
 		CASE 1
-			;獣並み(エルーン)/耳年増(それ以外)
-			RETURNF エルーンフラグ ? -1 # 1
+			;獣並み(けもの)/耳年増(それ以外)
+			RETURNF 獣フラグ ? -1 # 1
 		CASE 2, 3
 			;耳年増
 			RETURNF 1
@@ -397,8 +426,8 @@ ELSEIF 年齢層 == 年齢層_幼い || 年齢層 == 年齢層_若い
 			;無知
 			RETURNF -2
 		CASE 1 TO 3
-			;獣並み(エルーン)/無知(それ以外)
-			RETURNF エルーンフラグ ? -1 # -2
+			;獣並み(けもの)/無知(それ以外)
+			RETURNF 獣フラグ ? -1 # -2
 		CASE 4 TO 15
 			;疎い
 			RETURNF 0
@@ -410,8 +439,8 @@ ELSE
 	;大人処女の場合
 	SELECTCASE RAND:20
 		CASE 0
-			;獣並み(エルーン)/疎い(それ以外)
-			RETURNF エルーンフラグ ? -1 # 0
+			;獣並み(けもの)/疎い(それ以外)
+			RETURNF 獣フラグ ? -1 # 0
 		CASE 1 TO 6
 			;疎い
 			RETURNF 0
@@ -443,14 +472,19 @@ SELECTCASE RAND:100
 ENDSELECT
 
 
-@ランダム体格(種族, 性別, 見た目年齢, バストサイズ, 長命フラグ)
+@ランダム体格(種族, 性別, 年齢層, 外見年齢, バストサイズ)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 見た目年齢
+#DIM 年齢層
+#DIM 外見年齢
 #DIM バストサイズ
+#DIM 見た目年齢
 #DIM 長命フラグ
 #DIM 体格
+
+見た目年齢 = GET_見た目年齢(年齢層, 外見年齢)
+長命フラグ = ランダムキャラ長命チェック(年齢層, 外見年齢)
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
@@ -518,13 +552,18 @@ SELECTCASE 種族
 ENDSELECT
 RETURNF 体格
 
-@体格_平均(種族, 性別, 見た目年齢, バストサイズ, 長命フラグ)
+@体格_平均(種族, 性別, 年齢層, 外見年齢, バストサイズ)
 #FUNCTION
 #DIM 種族
 #DIM 性別
-#DIM 見た目年齢
+#DIM 年齢層
+#DIM 外見年齢
 #DIM バストサイズ
+#DIM 見た目年齢
 #DIM 長命フラグ
+
+見た目年齢 = GET_見た目年齢(年齢層, 外見年齢)
+長命フラグ = ランダムキャラ長命チェック(年齢層, 外見年齢)
 
 SELECTCASE 種族
 	CASE 種族_ドラフ
