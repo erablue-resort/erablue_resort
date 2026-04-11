@@ -67,27 +67,24 @@ IF コマンド画像名称 == ""
 		キャラ衣装識別 = デフォルト
 	コマンド画像名称 '= GRAP_COM_RAND(実行キャラ, "コマンド実行時_プレイヤー側_", キャラ衣装識別, コマンド名)
 
-	IF コマンド画像名称 != ""
-		コマンド画像名称 '= "プレイヤー側_" + コマンド画像名称
-		RETURNF コマンド画像名称
-	ENDIF
+	;IF コマンド画像名称 != ""
+	;	コマンド画像名称 '= "プレイヤー側_" + コマンド画像名称
+	;	RETURNF コマンド画像名称
+	;ENDIF
 	LOCALS '= ""
 	SELECTCASE 1
 		CASE GROUPMATCH(コマンド名, "Ｖ挿入する", "Ｇスポ責め", "ポルチオ責め", "種付けプレス", "子宮口挿入", "角ハンドル", "尻尾ひっぱり後背位", "首筋甘噛み交尾", "おっぱい手綱正常位") > 0
 			;V性交系
-			LOCALS '= コマンド実行時画像文字列算出処理(実行キャラ, コマンド名)
+			LOCALS '= コマンド実行時画像文字列算出処理_プレイヤー側(実行キャラ, コマンド名)
 		CASE GROUPMATCH(コマンド名, "Ａ挿入する", "入口を責める", "子宮裏を責める", "Ｓ字結腸責め", "角ハンドルＡ", "尻尾ひっぱり後背位Ａ") > 0
 			;A性交系
-			LOCALS '= コマンド実行時画像文字列算出処理(実行キャラ, コマンド名)
+			LOCALS '= コマンド実行時画像文字列算出処理_プレイヤー側(実行キャラ, コマンド名)
 		CASEELSE
 	ENDSELECT
 	SIF LOCALS != ""
-		RETURNF "プレイヤー側_" + LOCALS
-
-	IF コマンド画像名称 != ""
+		RETURNF LOCALS
+	SIF コマンド画像名称 != ""
 		コマンド画像名称 '= "プレイヤー側_" + コマンド画像名称
-		RETURNF コマンド画像名称
-	ENDIF
 ENDIF
 
 RETURNF コマンド画像名称
@@ -113,7 +110,7 @@ IF LOCALS == ""
 	SIF CSTR:対象キャラ:表示グラフィックカテゴリ == ""
 		CSTR:対象キャラ:表示グラフィックカテゴリ = デフォルト
 	;LOCALS = %TYPE + CSTR:対象キャラ:表示グラフィックカテゴリ%
-	LOCALS = %CSTR:対象キャラ:表示グラフィックカテゴリ%
+	LOCALS = コマンド実行時_%CSTR:対象キャラ:表示グラフィックカテゴリ%
 ENDIF
 
 LOCALS '= LOCALS + "_"
@@ -193,6 +190,110 @@ ENDIF
 
 RETURNF ""
 
+@コマンド実行時画像文字列算出処理_プレイヤー側(対象キャラ, コマンド名)
+#FUNCTIONS
+#DIM  対象キャラ
+#DIMS 文字列記憶
+#DIMS D_NAME
+#DIMS コマンド名
+#DIM DYNAMIC NO_CLOTH
+#DIM 再確認
+
+VARSET LOCAL
+VARSET 差分エフェクト
+
+D_NAME '= ""
+
+LOCALS '= REPLACE(CSTR:対象キャラ:短冊グラ表示切り替え用文字列, "短冊_", "コマンド実行時_プレイヤー側_")
+SIF LOCALS == ""
+	LOCALS '= REPLACE(CSTR:対象キャラ:顔グラ表示切り替え用文字列, "顔_", "コマンド実行時_プレイヤー側_")
+
+IF LOCALS == ""
+	SIF CSTR:対象キャラ:表示グラフィックカテゴリ == ""
+		CSTR:対象キャラ:表示グラフィックカテゴリ = デフォルト
+	;LOCALS = %TYPE + CSTR:対象キャラ:表示グラフィックカテゴリ%
+	LOCALS = コマンド実行時_プレイヤー側_%CSTR:対象キャラ:表示グラフィックカテゴリ%
+ENDIF
+
+LOCALS '= LOCALS + "_"
+
+$処理部分
+
+IF MODE_存在判定_プレイヤー側("Ｖ挿入系", 対象キャラ)
+	;各体位の挿入差分があればそれを表示する
+	FOR LOCAL, 0, VARSIZE("V_FRONT")
+		IF 再確認 || MODE_存在判定_プレイヤー側(V_FRONT:LOCAL, 対象キャラ)
+			SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, V_FRONT:LOCAL + コマンド名, "", "")
+				D_NAME '= RESULTS
+			;なければ正常位を探す
+			IF LOCAL && D_NAME == ""
+				LOCAL = -1
+				再確認 = 1
+			ELSE
+				再確認 = 0
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	IF D_NAME == ""
+		FOR LOCAL, 0, VARSIZE("V_BACK")
+			IF 再確認 || MODE_存在判定_プレイヤー側(V_BACK:LOCAL, 対象キャラ)
+				SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, V_BACK:LOCAL + コマンド名, "", "")
+					D_NAME '= RESULTS
+				IF LOCAL && D_NAME == ""
+					LOCAL = -1
+					再確認 = 1
+				ELSE
+					再確認 = 0
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
+IF D_NAME == "" && MODE_存在判定_プレイヤー側("Ａ挿入系", 対象キャラ)
+	;各体位の挿入差分があればそれを表示する
+	FOR LOCAL, 0, VARSIZE("A_FRONT")
+		IF 再確認 || MODE_存在判定_プレイヤー側(A_FRONT:LOCAL, 対象キャラ)
+			SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, A_FRONT:LOCAL + コマンド名, "", "")
+				D_NAME '= RESULTS
+			IF LOCAL && D_NAME == ""
+				LOCAL = -1
+				再確認 = 1
+			ELSE
+				再確認 = 0
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+	IF D_NAME == ""
+		FOR LOCAL, 0, VARSIZE("A_BACK")
+			IF 再確認 || MODE_存在判定_プレイヤー側(A_BACK:LOCAL, 対象キャラ)
+				SIF コマンド画像差分抽出(対象キャラ, "", LOCALS, A_BACK:LOCAL + コマンド名, "", "")
+					D_NAME '= RESULTS
+				IF LOCAL && D_NAME == ""
+					LOCAL = -1
+					再確認 = 1
+				ELSE
+					再確認 = 0
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
+
+;差分が見つかればそれを、なければ空文字
+SIF D_NAME != ""
+	RETURNF D_NAME
+
+IF NO_CLOTH == 0
+	LOCALS = コマンド実行時_プレイヤー側_
+	NO_CLOTH ++
+	GOTO 処理部分
+ENDIF
+
+RETURNF ""
 
 @コマンド画像差分抽出(対象キャラ, TYPE, TYPE:1, DIFF, DIFF:1="", DIFF:2="", TYPE:2="", DIFF:3="")
 #FUNCTION
