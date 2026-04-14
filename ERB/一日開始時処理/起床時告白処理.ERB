@@ -39,6 +39,9 @@ FOR キャラ番号, 1, CHARANUM
 	;一回したらもう来ない
 	SIF CFLAG:キャラ番号:起床時告白済み
 		CONTINUE
+	;確率25％
+	SIF RAND:4
+		CONTINUE
 	候補配列:候補数 = キャラ番号
 	候補数 ++
 NEXT
@@ -107,5 +110,137 @@ ELSE
 		PRINTFORMW %CALLNAME:MASTER%が少し考えさせて欲しいと返すと、%CALLNAME:告白キャラ%は答えは急がないからと帰っていった……
 	ENDIF
 	CFLAG:告白キャラ:起床時告白済み = 1
+ENDIF
+
+
+
+
+
+
+
+@起床時プロポーズキャラ判定()
+#FUNCTION
+#DIM キャラ番号
+#DIM 候補配列, 2000
+#DIM 候補数
+
+;まずオプション
+IF OPTION変数:起床時告白禁止
+	RETURNF 0
+;自室にいなかったらダメ
+ELSEIF CFLAG:MASTER:自室位置 != CFLAG:MASTER:現在位置 || CFLAG:MASTER:現在マップ種別
+	RETURNF 0
+ENDIF
+;式場必須
+SIF 居住区改造度:14:0 < 1
+	RETURN 0
+
+候補数 = 0
+;恋慕候補で結婚条件を満たしてるが結婚でないキャラを探す
+FOR キャラ番号, 1, CHARANUM
+	SIF CFLAG:キャラ番号:滞在期間 < 1
+		CONTINUE
+	;恋慕でない時、既に結婚済みはだめ
+	SIF TALENT:キャラ番号:恋慕 == 0 && TALENT:キャラ番号:疑似恋慕 == 0
+		CONTINUE
+	SIF TALENT:キャラ番号:恋慕 == 2 || TALENT:キャラ番号:疑似恋慕 == 2
+		CONTINUE
+	;フラグチェック
+	SIF CFLAG:キャラ番号:結婚イベント解放 > 0
+		CONTINUE
+	SIF CFLAG:キャラ番号:結婚イベント禁止 > 0
+		CONTINUE
+	;恋慕100必須
+	SIF CFLAG:キャラ番号:恋慕レベル < 100
+		CONTINUE
+	;同棲条件
+	SIF TALENT:キャラ番号:定住者 != 2
+		CONTINUE
+	;eraは一旦封印
+	SIF NO:キャラ番号 == 998
+		CONTINUE
+	; ;人妻系はあっちからは来ない
+	; SIF TALENT:キャラ番号:恋人持ち
+	; 	CONTINUE
+	;一回したらもう来ない
+	SIF CFLAG:キャラ番号:起床時プロポーズ済み
+		CONTINUE
+	;確率25％
+	SIF RAND:4
+		CONTINUE
+	候補配列:候補数 = キャラ番号
+	候補数 ++
+NEXT
+
+IF 候補数 > 0
+	RETURNF 候補配列:(RAND:候補数)
+ELSE
+	RETURNF 0
+ENDIF
+
+
+@起床時プロポーズ処理(告白キャラ)
+#DIM 告白キャラ
+DRAWLINE
+;あっちから告白してくる処理
+
+;口上があるならそっちを表示
+CALL 口上変数初期化
+TRYCALLFORM KOJO_EVENT_起床時プロポーズ_開始時_{NO:告白キャラ}(告白キャラ)
+IF !口上有無確認(0, 1)
+	;汎用告白処理
+	PRINTFORMW %CALLNAME:MASTER%が起きて朝の支度をしていると、%CALLNAME:告白キャラ%が部屋にやってきた。
+	PRINTFORMW 真剣な顔をしている。どうやら大事な話があるようだ。
+	PRINTL
+	PRINTFORMW %CALLNAME:告白キャラ%は少し緊張した面持ちで、%CALLNAME:MASTER%に指輪を差し出す。
+	PRINTFORMW 結婚を申し込むため、%CALLNAME:MASTER%の部屋を訪れたらしい。
+ENDIF
+
+PRINTFORML %CALLNAME:告白キャラ%の想いに、%CALLNAME:MASTER%は……
+PRINTBUTTONLC "[0] 想いに応える", 0
+PRINTBUTTONLC "[1] 少し考えさせて欲しいと言う", 1
+PRINTL
+
+BINPUT
+IF RESULT == 0
+	TARGET = 告白キャラ
+	CALL 口上変数初期化
+	TRYCALLFORM KOJO_EVENT_起床時プロポーズ_成功_{NO:TARGET}(TARGET)
+	IF !口上有無確認(0, 1)
+		PRINTFORMW %CALLNAME:MASTER%が承諾の返事を返すと、%CALLNAME%は笑顔を浮かべて喜んだ。
+	ENDIF
+	
+	CFLAG:TARGET:結婚イベント解放 = 1
+	;イベントを登録
+
+	IF NO:TARGET == 999
+		DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%NAME:TARGET%結婚イベント", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", TARGET + 90000
+	ELSE
+		;固有の結婚イベがあるかどうかチェック
+		IF DT_SELECT("各イベント用変数配列", @"特殊イベント = '結婚イベント{NO:TARGET}_'") < 1
+			DT_ROW_ADD "各イベント用変数配列", "イベント名", @"【汎用】%NAME:TARGET%結婚イベント", "イベントカテゴリ", "キャライベント", "汎用イベ用_キャラNO保存", NO:TARGET
+		ENDIF
+	ENDIF
+
+	CFLAG:現在位置 = CFLAG:MASTER:現在位置
+	CFLAG:現在マップ種別 = CFLAG:MASTER:現在マップ種別
+	CFLAG:睡眠 = 0
+	SIF BASE:酩酊
+		CFLAG:酔いすぎ = 2
+	;野外オナニー時に備えて隠密を消す
+	CALL 野外オナニー途中終了(TARGET)
+	CFLAG:隠密 = 0
+	;先に同室フラグを建てることで発覚口上をスキップする
+	CFLAG:同室 = 1
+	CALL 特定キャラモードリセット(TARGET)
+	CFLAG:同行 = 60 + (CFLAG:好感度レベル - 関係閾値:2) * 5
+	BASE:ムード = MAXBASE:ムード
+ELSE
+	CALL 口上変数初期化
+	TRYCALLFORM KOJO_EVENT_起床時プロポーズ_保留_{NO:告白キャラ}(告白キャラ)
+	IF !口上有無確認(0, 1)
+		PRINTFORMW %CALLNAME:MASTER%が少し考えさせて欲しいと返すと、%CALLNAME:告白キャラ%は答えは急がないからと帰っていった……
+	ENDIF
+	CFLAG:告白キャラ:起床時プロポーズ済み = 1
 ENDIF
 

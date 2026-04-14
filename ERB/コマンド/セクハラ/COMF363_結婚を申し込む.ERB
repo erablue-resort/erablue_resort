@@ -13,7 +13,7 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("セクハラ")
 @COM_TOOLTIP_363
 LOCALS = <br>■告白する<br>
 LOCALS += "相手と婚姻状態になるためのコマンド。以下の条件を全て満たす必要がある。<br>１．相手の恋慕レベルが100、かつ恋慕陥落状態である。<br>２．同棲状態であること。"
-LOCALS += "<br>３．リゾートに結婚式場があり、プロポーズ用のアイテムを所持していること。"
+LOCALS += "<br>３．リゾートに結婚式場があり、プロポーズ用のアイテムを所持していること。（相手からプロポーズ済みならアイテム不要）"
 LOCALS += "<br>COMタイプ：セクハラ<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
@@ -23,13 +23,19 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM363
 #DIM 部屋上限
 
-IF ITEM:婚姻アイテムカッコカリ < 1
-	PRINTW プロポーズ用のアイテムを所持していない！
-	RETURN -1
+IF CFLAG:TARGET:起床時告白済み
+	DRAWLINE
+	PRINTFORML %CALLNAME:TARGET%からのプロポーズに応えようと思っている。
+ELSE
+	IF ITEM:婚姻アイテムカッコカリ < 1
+		PRINTW プロポーズ用のアイテムを所持していない！
+		RETURN -1
+	ENDIF
+
+	DRAWLINE
+	PRINTFORML %CALLNAME:TARGET%に結婚を申し込もうとしている。
 ENDIF
 
-DRAWLINE
-PRINTFORML %CALLNAME:TARGET%に結婚を申し込もうとしている。
 PRINTL 本当によろしいですか？
 DRAWLINE
 PRINTBUTTONLC "[0] はい", 0
@@ -43,14 +49,15 @@ IF RESULT
 	RETURN -1
 ENDIF
 
-ITEM:婚姻アイテムカッコカリ -= 1
+SIF !CFLAG:TARGET:起床時告白済み
+	ITEM:婚姻アイテムカッコカリ -= 1
 
 CALL SOURCE_CALC_歓楽(TARGET, PLAYER, 1500)
 CALL SOURCE_CALC_征服(TARGET, PLAYER, 500)
 CALL SOURCE_CALC_好感度要素_恋心度UP(TARGET, PLAYER, 1500)
 IF CFLAG:PLAYER:現在マップ種別 == 100 ;お祭り会場
 	TRYCALLFORMF GETPLACENAME_100_%開催予定祭り名%(CFLAG:MASTER:現在位置)
-	IF TSTR:場所名受渡 != ""
+	IF TSTR:場所名受渡 != "" && !CFLAG:TARGET:起床時告白済み
 		CALL 履歴データベース登録(CFLAG:MASTER:人物番号, @"%CALLNAME:TARGET%に%TSTR:場所名受渡%でプロポーズした","日常")
 		CALL 履歴データベース登録(CFLAG:TARGET:人物番号, @"%CALLNAME:MASTER%に%TSTR:場所名受渡%でプロポーズされた","日常")
 	ENDIF
@@ -100,6 +107,9 @@ SIF GLOBAL_COMABLE(363)
 ;二人きりでないとだめ
 SIF GET_TARGETNUM() > 1
 	RETURN 0
+;式場必須
+SIF 居住区改造度:14:0 < 1
+	RETURN 0
 ;フラグチェック
 SIF CFLAG:TARGET:結婚イベント解放 > 0
 	RETURN 0
@@ -127,8 +137,14 @@ RETURN 1
 ;-------------------------------------------------
 @MESSAGE_COM363
 
-PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%にプロポーズした。
-PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%の想いを受け入れてくれた…
+IF CFLAG:TARGET:起床時告白済み
+	PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%からのプロポーズに応えることにした。
+	PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%を幸せにすると意気込んでいるようだ…
+ELSE
+	PRINTFORML %CALLNAME:PLAYER%は意を決して%CALLNAME:TARGET%にプロポーズした。
+	PRINTFORML %CALLNAME:TARGET%は喜び、%CALLNAME:PLAYER%の想いを受け入れてくれた…
+ENDIF
+
 PRINTFORML ※%NAME:TARGET%との結婚イベントが解放されました。
 ; PRINTFORML %CALLNAME:TARGET%は［伴侶］を得ました。
 ; IF GETBIT(RFLAG:コマンド結果受渡し変数３, 0)
