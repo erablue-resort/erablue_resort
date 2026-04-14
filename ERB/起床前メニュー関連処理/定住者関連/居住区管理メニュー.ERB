@@ -1,0 +1,86 @@
+﻿@居住区管理メニュー
+#DIMS 表示文字列
+#DIM ページ数
+#DIM ページ最大数
+#DIM ループ用
+#DIM 部屋主配列, 100
+#DIM 入力値
+
+ページ数 = 0
+
+$RESTART_LABEL
+
+DRAWLINE
+PRINTL 住宅街エリアの居住キャラを確認・管理することができます。
+DRAWLINE
+表示文字列 '= "<div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>"
+表示文字列 += "<div rect='156,156,1187,2812'>"
+IF あなた特殊能力:任意引っ越し術
+	表示文字列 += "<button value='501'>[501] 引っ越しさせる</button>"
+ELSE
+	表示文字列 += "<font color='#666666'><nonbutton>[501] 引っ越しさせる</nonbutton></font>"
+ENDIF
+表示文字列 += "<br>"
+表示文字列 += "<br>"
+表示文字列 += "<button value='999'>[999] 戻る</button>"
+表示文字列 += "<br>"
+表示文字列 += "<br>"
+表示文字列 += "<br>"
+表示文字列 += "<br>"
+表示文字列 += @"<button value='998'><font color='#%カラーパレット_HTML("赤")%'>[998] 立ち退かせる</font></button>"
+表示文字列 += "</div>"
+
+CALL 居住区エリア_住宅街_表示(ページ数)
+
+;RESULTにページ数上限が入っている
+ページ最大数 = RESULT
+
+HTML_PRINT 表示文字列, 1
+
+FOR ループ用, 0, 27
+	PRINTL
+NEXT
+$INPUT_LOOP
+BINPUT
+入力値 = RESULT
+
+SELECTCASE 入力値
+	CASE 1000
+		IF ページ数 <= 0
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 -= 1
+		GOTO RESTART_LABEL
+	CASE 1001
+		IF ページ数 >= ページ最大数
+			REUSELASTLINE 
+			GOTO INPUT_LOOP
+		ENDIF
+		ページ数 += 1
+		GOTO RESTART_LABEL
+	CASE 999
+		RETURN 0
+	CASE 998
+		CALL 立ち退き処理()
+		GOTO RESTART_LABEL
+	CASE 501
+		CALL 引っ越し処理()
+		GOTO RESTART_LABEL
+	CASEELSE
+		;確認中は部屋のキャラを表示するのみ
+		DRAWLINE
+		PRINTL ■居住キャラ
+		VARSET 部屋主配列
+		VARSET RESULTS
+		SPLIT 定住者部屋割り配列:入力値, "_", RESULTS
+		FOR ループ用, 0, RESULT
+			SIF RESULTS:ループ用 == ""
+				BREAK
+			部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			PRINTFORML %NAME表示(部屋主配列:ループ用)%
+		NEXT
+		DRAWLINE
+		WAIT
+		GOTO RESTART_LABEL
+ENDSELECT
