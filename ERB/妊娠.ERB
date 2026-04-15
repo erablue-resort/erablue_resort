@@ -398,7 +398,6 @@ RESULTS:1 '= 関係性M
 #DIM MOTHER
 #DIM FATHER
 #DIM DOMINANT
-#DIM 子供性別候補, 2
 #DIM 子供性別
 #DIM 子供種族
 #DIM 子供人数
@@ -419,40 +418,19 @@ ENDIF
 ;子供の性別・種族の決定
 IF (FATHER == MASTER || MOTHER == MASTER) && あなた特殊能力:潜性の血 > 0
 	;潜性のあなたの場合、常にもう片方の親と同じ性別・種族
-	子供性別 = TALENT:DOMINANT:性別
+	子供性別 = 子供性別選択(TALENT:DOMINANT:性別, TALENT:DOMINANT:性別)
 	子供種族 = TALENT:DOMINANT:種族
 ELSE
-	;性別 両親の性別のどちらか（父親不明の場合は男性扱いとする）
-	子供性別候補:0 = TALENT:MOTHER:性別
-	IF FATHER < 0
-		子供性別候補:1 = 2
-	ELSE
-		子供性別候補:1 = TALENT:FATHER:性別
-	ENDIF
-	子供性別 = 子供性別候補:(RAND:2)
+	;性別 両親の性別のどちらか（「見た目をよく引き継ぐ側の親」は無視する）
+	;父親不明の場合は男性扱いとする
+	子供性別 = 子供性別選択(TALENT:MOTHER:性別, (FATHER < 0) ? 2 # TALENT:FATHER:性別)
 
 	;種族 親の種族が一致していればその種族、それ以外はその他
+	;父親不明の場合は種族は一致していないものとする
 	IF FATHER < 0 || TALENT:MOTHER:種族 != TALENT:FATHER:種族 || (TALENT:MOTHER:種族 == 種族_その他 && CSTR:MOTHER:特殊種族 == CSTR:FATHER:特殊種族)
 		子供種族 = 6
 	ELSE
 		子供種族 = TALENT:MOTHER:種族
-	ENDIF
-ENDIF
-;男性が許可されてないならふたなり化
-SIF GETBIT(OPTION変数:性別招待制御, 1) && 子供性別 == 2
-	子供性別 = 3
-;ふたなりが許可されてないなら女化
-SIF (素質切り替えOPTION記憶:ふたなり_女性 || GETBIT(OPTION変数:性別招待制御, 2)) && 子供性別 == 3
-	子供性別 = 1
-;その他が許可されてないなら女化
-SIF GETBIT(OPTION変数:性別招待制御, 3) && 子供性別 == 0
-	子供性別 = 1
-;女性が許可されてないなら男化orふたなり化
-IF GETBIT(OPTION変数:性別招待制御, 0) && 子供性別 == 1
-	IF 素質切り替えOPTION記憶:ふたなり_女性 == 0 && GETBIT(OPTION変数:性別招待制御, 2) == 0
-		子供性別 = 3
-	ELSEIF GETBIT(OPTION変数:性別招待制御, 1) == 0
-		子供性別 = 2
 	ENDIF
 ENDIF
 
@@ -558,6 +536,56 @@ ELSE
 	CALL 履歴データベース登録(CFLAG:FATHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:0%%CALLNAME:MOTHER%との子供が%TOFULL(TOSTR(子供人数))%人産まれた</font><img src='えっちハート'>","うふふ実績")
 	CALL 履歴データベース登録(CFLAG:MOTHER:人物番号, @"<font color='#%カラーパレット_HTML("薄ピンク")%'>%RESULTS:1%%CALLNAME:FATHER%との子供を%TOFULL(TOSTR(子供人数))%人出産した</font><img src='えっちハート'>","うふふ実績")
 ENDIF
+
+
+@子供性別選択(子供性別候補:0, 子供性別候補:1)
+#FUNCTION
+; その他(0)=bit3, 女(1)=bit0, 男(2)=bit1, ふたなり(3)=bit2
+#DIM CONST 対応ビット = 3, 0, 1, 2
+#DIM 子供性別候補, 5
+#DIM ループ用
+
+;主な性別は子供性別候補:0と子供性別候補:1の1/2
+SIF RAND:2
+	SWAP 子供性別候補:0, 子供性別候補:1
+
+;どちらも生成不可の場合、許可されている性別を探す
+;子供性別候補:0によって順序が異なる
+SELECTCASE 子供性別候補:0
+	CASE 1
+		;女性 ふたなり>男性
+		子供性別候補:2 = 3
+		子供性別候補:3 = 2
+		子供性別候補:4 = -1
+	CASE 2
+		;男性 ふたなり>女性
+		子供性別候補:2 = 3
+		子供性別候補:3 = 1
+		子供性別候補:4 = -1
+	CASE 3
+		;ふたなり 女性>男性
+		子供性別候補:2 = 1
+		子供性別候補:3 = 2
+		子供性別候補:4 = -1
+	CASEELSE
+		;その他 女性>ふたなり>男性
+		子供性別候補:2 = 1
+		子供性別候補:3 = 3
+		子供性別候補:4 = 2
+ENDSELECT
+
+;子供性別候補:0から順番に許可されているか確認し、最初に許可されていた性別になる
+FOR ループ用, 0, 5
+	SIF !INRANGE(子供性別候補:ループ用, 0, 3)
+		CONTINUE
+	SIF GETBIT(OPTION変数:性別招待制御, 対応ビット:(子供性別候補:ループ用))
+		CONTINUE
+	SIF 子供性別候補:ループ用 == 3 && 素質切り替えOPTION記憶:ふたなり_女性
+		CONTINUE
+	RETURNF 子供性別候補:ループ用
+NEXT
+;何も許可されていない場合は女性になる
+RETURNF 1
 
 
 @子供描写(MOTHER, FATHER, DOMINANT, 子供性別, 子供人数)
