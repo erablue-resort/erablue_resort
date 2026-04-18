@@ -1,0 +1,179 @@
+﻿
+
+;-------------------------------------------------
+;家畜設定
+;-------------------------------------------------
+@COMNAME_PLACE_380_4_4
+#FUNCTION
+TSTR:コマンド名受渡 = 家畜設定
+RETURNF 1
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_380_4_4
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+
+@COM_TOOLTIP_380_4_4
+LOCALS = <br>■家畜設定<br>
+LOCALS += "畜舎で何の家畜を飼うかを決めるコマンド。時間消費なし。"
+LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+LOCALS += "<br>固有の取得経験：なし<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+		
+@COM380_4_4
+#DIM 消費ルピ
+
+家畜設定上限 = 4
+
+DRAWLINE
+PRINTL 何の家畜を飼うかを設定します。
+DRAWLINE
+
+
+LOCALS = <div rect='81,31,5925,2412' padding='50,25,50' border='31' bcolor='#C0C0C0'>
+LOCALS += "<br>■現在の家畜一覧<br><br>"
+LOCALS += "・第一畜舎<br>"
+FOR LOCAL, 0, 家畜設定上限
+	IF 現在設定家畜:LOCAL != ""
+		LOCALS += @"　<button value='{LOCAL}'>[%現在設定家畜:LOCAL%]</button><br>"
+	ELSE
+		LOCALS += @"　<button value='{LOCAL}'>[--------------------]</button><br>"
+	ENDIF
+NEXT
+LOCALS += @"<br>"
+消費ルピ = 0
+FOR LOCAL, 0, 家畜設定上限
+	IF 現在設定家畜:LOCAL != ""
+		RESULT = 0
+		TRYCALLFORM 家畜情報_%現在設定家畜:LOCAL%("基礎情報")
+		消費ルピ += RESULT
+	ENDIF
+NEXT
+LOCALS += @"　維持費：%NUM_FORMAT(消費ルピ), 8%ルピ"
+LOCALS += @"<br>"
+LOCALS += @"<br>"
+;LOCALS += @"<br><button value='996'>[996] システムの説明</button>"
+LOCALS += @"<br><button value='999'>[999] 戻る</button>"
+LOCALS += "</div>"
+LOCALS += "<div rect='3156,100,2770,2270' padding='50,25,50' border='20' bcolor='#C0C0C0'>"
+FOR LOCAL, 0, 家畜設定上限
+	SIF 現在設定家畜:LOCAL == ""
+		CONTINUE
+	LOCALS += @"■%現在設定家畜:LOCAL%の特殊効果<br>"
+
+	詳細文文字列受け渡し変数２ = 
+	TRYCALLFORM 家畜情報_%現在設定家畜:LOCAL%("基礎情報")
+
+	IF 詳細文文字列受け渡し変数２ != ""
+		LOCALS += @"%詳細文文字列受け渡し変数２%<br><br>"
+	ELSE
+		LOCALS += "　なし<br><br>"
+	ENDIF
+NEXT
+LOCALS += "</div>"
+
+
+HTML_PRINT LOCALS, 1
+FOR LOCAL, 0, 22
+	PRINTL
+NEXT
+
+; IF チュートリアルフラグ:食事設定 == 0
+; 	RESULT = 996
+; ELSE
+	BINPUT
+;ENDIF
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 0 TO 家畜設定上限 - 1
+		CALL 家畜設定画面(LOCAL)
+		; LOCAL:1 = RESULT
+		; IF LOCAL:1 == -2
+		; 	現在設定メニュー:LOCAL = 0
+		; ELSEIF LOCAL:1 > 0 && !MATCH(現在設定メニュー, LOCAL:1)
+		; 	現在設定メニュー:LOCAL = LOCAL:1
+		; ENDIF
+		RESTART
+	; CASE 996
+	; 	CALL 食事メニュー設定チュートリアル()
+	; 	RESTART
+	CASE 999
+		RETURN -1
+ENDSELECT
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE380_4_4
+;条件に合う場合0（不許可）を返す
+;どの条件にも引っかからないなら1（許可）を返す
+;一括管理
+SIF GLOBAL_COMABLE(380)
+	RETURN RESULT
+;睡眠中
+SIF CFLAG:睡眠
+	RETURN 0
+;隠密中はダメ
+SIF CFLAG:PLAYER:隠密
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM380_4_4
+;ただの設定コマンドなのでメッセージなし
+
+
+
+@家畜設定画面(選択番号)
+#DIM 候補数
+#DIM 選択番号
+#DIMS 家畜名
+#DIMS 関数配列, 100
+
+VARSET RESULTS
+VARSET 関数配列
+候補数 = ENUMFUNCBEGINSWITH("家畜情報_")
+ARRAYCOPY "RESULTS", "関数配列"
+
+DRAWLINE
+PRINT 現在の設定家畜：
+IF 現在設定家畜:選択番号 != ""
+	PRINTFORM %現在設定家畜:選択番号%
+ELSE
+	PRINT --------------------
+ENDIF
+PRINTL
+DRAWLINE
+
+FOR LOCAL, 0, 候補数
+	RESULT = 0
+	TRYCALLFORM %関数配列:LOCAL%("出現条件")
+	IF RESULT
+		家畜名 = %SUBSTRING(関数配列:LOCAL, 9)%
+		SIF 現在設定家畜:選択番号 == 家畜名
+			CONTINUE
+		PRINTBUTTON @"[{LOCAL}] %家畜名%", LOCAL
+		PRINTL
+	ENDIF
+NEXT
+PRINTL
+PRINTBUTTON "[999] 変更せずに戻る", 999
+PRINTL
+PRINTL
+BINPUT
+PRINTL
+PRINTL
+PRINTL
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASEELSE
+		現在設定家畜:選択番号 '= SUBSTRING(関数配列:LOCAL, 9)
+		RETURN 0
+ENDSELECT
