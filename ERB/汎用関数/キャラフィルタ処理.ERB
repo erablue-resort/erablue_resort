@@ -253,19 +253,39 @@ FOR 配列番号, 0, CHARANUM
 	FOR LOCAL, 0, 99
 		SIF キャラ一覧素質絞り込み:LOCAL == ""
 			BREAK
+		VARSET LOCALS
 		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		IF キャラ一覧素質絞り込み:99 == "AND"
-			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
-				;ANDの場合は一個でもアウトだとNG
+		IF LOCALS:2 == "▲"
+			;マイナス検索
+			IF キャラ一覧素質絞り込み:99 == "AND"
+				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+					;ANDの場合は一個でも合致だとNG
+					合致フラグ = 0
+					BREAK
+				ENDIF
+			ELSE
 				合致フラグ = 0
-				BREAK
+				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+					;OR条件の場合は一個アウトならOK
+					合致フラグ = 1
+					BREAK
+				ENDIF
 			ENDIF
 		ELSE
-			合致フラグ = 0
-			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
-				;OR条件の場合は一個当てはまればOK
-				合致フラグ = 1
-				BREAK
+			;通常検索
+			IF キャラ一覧素質絞り込み:99 == "AND"
+				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+					;ANDの場合は一個でもアウトだとNG
+					合致フラグ = 0
+					BREAK
+				ENDIF
+			ELSE
+				合致フラグ = 0
+				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+					;OR条件の場合は一個当てはまればOK
+					合致フラグ = 1
+					BREAK
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
@@ -826,6 +846,8 @@ RESTART
 JUMP SHOW_CHARADATA_素質絞り込み
 
 @SHOW_CHARADATA_素質絞り込み
+#DIM DYNAMIC マイナス検索フラグ
+
 DRAWLINE
 PRINTL キャラクターの表示を素質の有無で絞り込みします。
 PRINTL 複数選択時はAND条件とOR条件を切り替えることができます。
@@ -843,12 +865,11 @@ IF キャラ一覧素質絞り込み:0 != ""
 	ENDIF
 	PRINT 現在の絞り込み素質：
 	FOR LOCAL, 0, 99
-		LOCALS:0 = 
-		LOCALS:1 = 
+		VARSET LOCALS
 		SIF キャラ一覧素質絞り込み:LOCAL == ""
 			CONTINUE
 		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		PRINTBUTTON @"[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]", LOCAL
+		PRINTBUTTON @"%LOCALS:2%[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]", LOCAL
 		LOCAL:10 += STRLENS(GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)))
 		IF LOCAL:10 > 50
 			PRINTL
@@ -860,6 +881,15 @@ ELSE
 	PRINT 現在の絞り込み素質：なし
 ENDIF
 PRINTL
+
+DRAWLINE
+IF マイナス検索フラグ
+	PRINTBUTTON "[通常検索へ切り替え]", 202
+ELSE
+	PRINTBUTTON "[マイナス検索へ切り替え]", 202
+ENDIF
+PRINTL
+
 DRAWLINE
 FOR LOCAL, 0, 1000
 	SIF TALENTNAME:LOCAL == ""
@@ -875,7 +905,11 @@ FOR LOCAL, 0, 1000
 			SIF MATCH(キャラ一覧素質絞り込み, @"{LOCAL}_{LOCAL:1}")
 				SETCOLOR カラーパレット("黄")
 			LOCALS = [%GET_TALENTNAME(LOCAL, LOCAL:1)%]
-			PRINTBUTTON @"%LOCALS, 20, LEFT%", @"{LOCAL}_{LOCAL:1}"
+			IF マイナス検索フラグ
+				PRINTBUTTON @"▲%LOCALS, 20, LEFT%", @"{LOCAL}_{LOCAL:1}"
+			ELSE
+				PRINTBUTTON @"%LOCALS, 20, LEFT%", @"{LOCAL}_{LOCAL:1}"
+			ENDIF
 			RESETCOLOR
 		ENDIF
 	NEXT
@@ -891,6 +925,9 @@ VARSET LOCALS
 INPUTANY
 IF RESULT == 999
 	RETURN 0
+ELSEIF RESULT == 202
+	INVERTBIT マイナス検索フラグ, 0
+	RESTART
 ELSEIF RESULT == 201
 	IF キャラ一覧素質絞り込み:99 == "AND"
 		キャラ一覧素質絞り込み:99 = 
@@ -915,13 +952,16 @@ ELSEIF RESULT >= 0 && RESULT < 99
 ENDIF
 LOCALS = %RESULTS%
 IF STRCOUNT(LOCALS, "_")
+	IF マイナス検索フラグ
+		LOCALS = %LOCALS%_▲
+	ENDIF
 	IF MATCH(キャラ一覧素質絞り込み, LOCALS)
 		キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, LOCALS)) = 
 		RESTART
 	ELSE
 		SPLIT LOCALS, "_", LOCALS
 		IF GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1)) != ""
-			キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, "", , , 1)) = %LOCALS:0%_%LOCALS:1%
+			キャラ一覧素質絞り込み:(FINDELEMENT(キャラ一覧素質絞り込み, "", , , 1)) = %LOCALS:0%_%LOCALS:1%_%LOCALS:2%
 			RESTART
 		ENDIF
 	ENDIF
@@ -1047,8 +1087,9 @@ IF キャラ一覧素質絞り込み:0 != ""
 			BREAK
 		LOCALS:0 = 
 		LOCALS:1 = 
+		LOCALS:2 = 
 		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
-		設定内容 += @"[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]"
+		設定内容 += @"%LOCALS:2%[%GET_TALENTNAME(TOINT(LOCALS:0), TOINT(LOCALS:1))%]"
 	NEXT
 ELSE
 	設定内容 += "なし"
