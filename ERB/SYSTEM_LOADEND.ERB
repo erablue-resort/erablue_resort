@@ -52,7 +52,7 @@ FOR LOCAL, 0, CHARANUM
 		FOR CSV番号, 1, キャラクタ数上限
 			SIF !EXISTCSV(CSV番号)
 				CONTINUE
-			SIF CSV番号 == 999
+			SIF ランダムキャラ判定(CSV番号)
 				CONTINUE
 			IF NAME:LOCAL == CSVNAME(CSV番号)
 				;全く同じ名前のCSVがある場合
@@ -83,7 +83,7 @@ FOR LOCAL, 0, CHARANUM
 		FOR CSV番号, 1, キャラクタ数上限
 			SIF !EXISTCSV(CSV番号)
 				CONTINUE
-			SIF CSV番号 == 999
+			SIF ランダムキャラ判定(CSV番号)
 				CONTINUE
 			IF NAME:LOCAL == CSVNAME(CSV番号)
 				;全く同じ名前のCSVがある場合、NOをそれに変更する
@@ -97,17 +97,40 @@ SIF LOCAL:1
 	THROW CSVが存在しなかったキャラがいたのでゲームを終了します。CSV再読み込みのため再起動してください
 追加前キャラ数保存 = CHARANUM
 
+CALL ランダムCSVデータベースセット
+
 ;CSVを全部読んでキャラがADDってなければADDる
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
 		CONTINUE
-	SIF LOCAL == 999
+
+	;ついでにランダムキャラのCSVデータベースをチェック
+	IF CSVCSTR(LOCAL, GETNUM(CSTR, "ランダムキャラ設定")) != ""
+		IF DT_SELECT("ランダムCSVデータベース", @"CSV番号 = {LOCAL}") < 1
+			;データベースにない時登録
+			VARSET LOCALS
+			;追加文字列があるかチェック
+			SELECTCASE CSVCSTR(LOCAL, GETNUM(CSTR, "ランダムキャラ設定"))
+				CASE "デジモン"
+					;デジモンの場合はワクチン種やウィルス種などの種別を記録
+					FOR LOCAL:1, GETNUM(CSTR, "固有素質0"), GETNUM(CSTR, "固有素質9") + 1
+						IF GROUPMATCH(CSVCSTR(LOCAL, LOCAL:1), "フリー種", "データ種", "ワクチン種", "ウィルス種")
+							LOCALS '= CSVCSTR(LOCAL, LOCAL:1)
+							BREAK
+						ENDIF
+					NEXT
+			ENDSELECT
+			;データベースにセット
+			DT_ROW_ADD "ランダムCSVデータベース", "CSV番号", LOCAL, "ランダムキャラ設定", CSVCSTR(LOCAL, GETNUM(CSTR, "ランダムキャラ設定")), "フリー文字列１", LOCALS
+		ENDIF
+	ENDIF
+
+	SIF ランダムキャラ判定(LOCAL)
 		CONTINUE
 	SIF GETCHARA(LOCAL) >= 0
 		CONTINUE
 	ADDCHARA LOCAL
 	CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
-
 NEXT
 
 SIF 追加前キャラ数保存 != CHARANUM
