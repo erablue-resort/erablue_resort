@@ -354,6 +354,94 @@ SELECTCASE 移動先マップ種別
 				ENDIF
 			ENDIF
 		ENDIF
+	CASE 4
+		IF 移動先位置 >= 1000 && 移動先位置 <= 6000
+			LOCAL = 移動先位置 - 1000
+			;部屋の居住者を配列化
+			VARSET 部屋主配列
+			VARSET RESULTS
+			SPLIT 飼育区部屋割り配列:LOCAL, "_", RESULTS
+			FOR ループ用, 0, RESULT
+				SIF RESULTS:ループ用 == ""
+					BREAK
+				部屋主配列:ループ用 = TOINT(RESULTS:ループ用)
+			NEXT
+			IF 部屋主配列:0 > 0
+				;睡眠時
+				LOCAL:2 = 0
+				VARSET 在宅配列
+				在宅者数 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 大規模番号_牧場エリア && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						;在宅状況チェック
+						IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
+							;相手を探す
+							うふふ相手 = ABS(CFLAG:(部屋主配列:ループ用):デート) - 100
+							IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 大規模番号_牧場エリア && CFLAG:うふふ相手:現在位置 == LOCAL + 1000
+								LOCAL:2 = 2
+								VARSET 在宅配列
+								在宅配列:0 = 部屋主配列:ループ用
+								在宅配列:1 = うふふ相手
+								BREAK
+							ENDIF
+						ELSEIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0 && LOCAL:2 >= 0
+							;非陥落の睡眠が一人でもいると入れない
+							LOCAL:2 = 1
+						ELSEIF !CFLAG:(部屋主配列:ループ用):睡眠
+							;一人でも起きてたら入れる
+							LOCAL:2 = -1
+						ENDIF
+						在宅配列:在宅者数 = 部屋主配列:ループ用
+						在宅者数 ++
+					ENDIF
+				NEXT
+				IF LOCAL:2 > 0
+					あなた追跡キャラ = 0
+					RFLAG:追跡フラグ = 0
+					CALLF GETPLACENAME_4_10(移動先位置)
+					IF LOCAL:2 == 1
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						;寝てるキャラからランダムで選ぶ
+						CALL 睡眠時表示文章(在宅配列:(RAND:在宅者数))
+					ELSEIF LOCAL:2 == 2
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
+						SIF RESULT
+							RETURN 0
+					ENDIF
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 大規模番号_牧場エリア
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					RETURN 1
+				ENDIF
+				;全員外出時
+				LOCAL:2 = 0
+				FOR ループ用, 0, 10
+					SIF 部屋主配列:ループ用 < 1
+						BREAK
+					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 大規模番号_牧場エリア && CFLAG:(部屋主配列:ループ用):現在位置 == LOCAL + 1000
+						LOCAL:2 = 1
+					ELSEIF 追従中キャラ(部屋主配列:ループ用)
+						LOCAL:2 = 1
+					ENDIF
+				NEXT
+				IF LOCAL:2 == 0
+					あなた追跡キャラ = 0
+					RFLAG:追跡フラグ = 0
+					CALLF GETPLACENAME_4_10(移動先位置)
+					PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+					PRINTW どうやら家に誰もいないようだ…
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 大規模番号_牧場エリア
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					RETURN 1
+				ENDIF
+			ENDIF
+		ENDIF
 ENDSELECT
 
 RETURN 0

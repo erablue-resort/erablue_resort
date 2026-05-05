@@ -16,7 +16,7 @@ SELECTCASE 動作モード
 		;フレーバーの解説
 		詳細文文字列受け渡し変数 = 幼年期デジモンの一種。丸い身体で元気に動き回る。<br>
 		詳細文文字列受け渡し変数 += "５日間飼うことでランダムなデジモンに進化する。<br>"
-		詳細文文字列受け渡し変数 += "（ワクチン種のデジモンに進化しやすい）<br>"
+		詳細文文字列受け渡し変数 += "（ウィルス種のデジモンに進化しやすい）<br>"
 		詳細文文字列受け渡し変数 += "進化前に切り替えると期間がリセットされるので注意。<br>"
 
 		;特殊効果の解説
@@ -25,7 +25,6 @@ SELECTCASE 動作モード
 			詳細文文字列受け渡し変数２ += @"（現在{家畜_記録変数:家畜番号}日経過）"
 		ENDIF
 		詳細文文字列受け渡し変数２ += "<br>"
-		詳細文文字列受け渡し変数２ += "※開発中のため、進化未実装です。何日飼っても進化しません。<br>"
 		RETURN 1000
 	CASE "通常_一日終了時効果"
 		;一日終了時レポート処理_その他報告で呼ばれる
@@ -40,21 +39,28 @@ SELECTCASE 動作モード
 		;レポート閉じた後に一つずつ呼ばれる
 		IF 家畜_記録変数:家畜番号 >= 5
 			;進化する処理
-			; ;進化先決定
-			; IF RAND:2
-			; 	;50%で特定種のデジモンへ
-			; 	候補数 = DT_SELECT("ランダムCSVデータベース", "ランダムキャラ設定 = 'デジモン' And フリー文字列１ = 'ウィルス種'")
-			; ELSE
-			; 	;それ以外は全部から抽選
-			; 	候補数 = DT_SELECT("ランダムCSVデータベース", "ランダムキャラ設定 = 'デジモン'")
-			; ENDIF
-			; 進化先No = DT_CELL_GET("ランダムCSVデータベース", RESULT:(RAND:候補数 + 1), "CSV番号", 1)
+			家畜_記録変数:家畜番号 = 0
 
-			; DRAWLINE
-			; PRINTFORMW パグモンは%CSVCALLNAME(進化先No)%に進化した！
-			; DRAWLINE
-			; CALL ランダムキャラ加入確認_デジモンシリーズ(進化先No)
-			; 家畜_記録変数:家畜番号 = 0
+			;進化先決定
+			IF RAND:2
+				;50%で特定種のデジモンへ
+				候補数 = DT_SELECT("ランダムCSVデータベース", "ランダムキャラ設定 = 'デジモン' And フリー文字列１ = 'ウィルス種'")
+			ELSE
+				;それ以外は全部から抽選
+				候補数 = DT_SELECT("ランダムCSVデータベース", "ランダムキャラ設定 = 'デジモン'")
+			ENDIF
+			IF 候補数 < 1
+				DRAWLINE
+				PRINTFORMW パグモンは進化出来なかった……
+				RETURN 0
+			ENDIF
+
+			進化先No = DT_CELL_GET("ランダムCSVデータベース", RESULT:(RAND:候補数 + 1), "CSV番号", 1)
+
+			DRAWLINE
+			PRINTFORMW パグモンは%CSVCALLNAME(進化先No)%に進化した！
+			DRAWLINE
+			CALL ランダムキャラ加入確認_デジモンシリーズ(進化先No)
 		ENDIF
 ENDSELECT
 
@@ -71,7 +77,14 @@ $選択部分
 
 PRINTL 進化したデジモンをどうしますか？
 
-PRINTBUTTON "[0] 引き続きリゾートで面倒を見る", 0
+;特別飼育区が一杯
+IF 特別飼育区満杯()
+	SETCOLOR カラーパレット("グレーアウト")
+	PRINTPLAIN [0] 引き続きリゾートで面倒を見る（特別飼育区が一杯です）
+	RESETCOLOR
+ELSE
+	PRINTBUTTON "[0] 引き続きリゾートで面倒を見る", 0
+ENDIF
 PRINTL
 PRINTBUTTON "[1] 元の世界に帰す", 1
 PRINTL
@@ -81,79 +94,9 @@ BINPUT
 SELECTCASE RESULT
 	CASE 0
 		;キャラを正式追加
-		キャラ番号 = CHARANUM
-
-		ADDCHARA 999
-		CALL ランダムキャラデータ復元(Ｒキャラ追加候補記録, キャラ番号, 管理番号)
-		TFLAG:キャラ中途追加人数 += 1
-
-		CALL ADD_PERSON_FROM_CHARA(キャラ番号)
-		CALL コマンド存在チェック
-		CALL キャラクター初期化(キャラ番号)
-
-		CFLAG:キャラ番号:招待不可フラグ = 0
-		CALL ステータス記録_ランダムキャラデータベース(Ｒキャラ追加候補記録, 管理番号, CFLAG:キャラ番号:人物番号)
-
-		;日中にキャラを挿入する際に必要な処理
-		CALL 日帰り開始処理(キャラ番号)
-		;マッサージ客の性欲をある程度確保しておく
-		CALL 性欲ゲージ増加(キャラ番号, MAXBASE:キャラ番号:性欲 * 5)
-		CALL SORT_CHARALIST()
-
-		AUTOCOM_実行番号保存 = キャラ番号
-		TCVAR:AUTOCOM_実行番号保存:マッサージ来店フラグ = 1
-
-		CFLAG:PLAYER:現在マップ種別 = 0
-		CFLAG:AUTOCOM_実行番号保存:現在マップ種別 = 0
-		CFLAG:AUTOCOM_実行番号保存:同室 = 1
-		CFLAG:AUTOCOM_実行番号保存:現在位置 = CFLAG:PLAYER:現在位置
-		PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:AUTOCOM_実行番号保存%へのマッサージを始めた…
-		;処理のためTARGET配列をセット
-		CALL TARGET_SET()
-
-		;マッサージ開始処理(07_711_01マッサージを始める.ERBよりコピー)
-		IF チュートリアルフラグ:マッサージモード == 0
-			CALL マッサージチュートリアル
-		ENDIF
-
-		;移動しないように同行セット
-		SIF CFLAG:AUTOCOM_実行番号保存:同行 < 1
-			CFLAG:AUTOCOM_実行番号保存:同行 = 1
-
-		あなた追跡キャラ = 0
-
-		;ターンエンドまでいかないのでメッセージはここで処理
-		;SELECTCOM = 382
-		CALL KOJO_MESSAGE_COM_通常モード
-
-		;マッサージモードに移行
-		サイド描画表示種類 = 能力表示
-		CALL ゲームフェイズ変更("マッサージモード")
-		CALL 警戒度初期値セット(キャラ番号)
-		;服着替え
-		;コスプレと同時に行うことはないのでコスプレ前の服位置を再利用
-		SIF CSTR:キャラ番号:コスプレ前の服 == "" && CSTR:キャラ番号:表示グラフィックカテゴリ != ""
-			CSTR:キャラ番号:コスプレ前の服 '= CSTR:キャラ番号:表示グラフィックカテゴリ
-
-		IF RSTR:服装名受け渡し != ""
-			CALL CLOTHES_CHANGE(キャラ番号, RSTR:服装名受け渡し)
-		ELSE
-			IF フィールド展開:水泳時全裸化
-				CALL CLOTHES_CHANGE(キャラ番号, "全裸")
-			ELSEIF EXIST画像FILE("resources/" + CSTR:キャラ番号:画像フォルダ + "/短冊_マッサージ着")
-				CALL CLOTHES_CHANGE(キャラ番号, "マッサージ着")
-			ELSE
-				CALL CLOTHES_CHANGE(キャラ番号, "水着")
-			ENDIF
-		ENDIF
-		RETURN -1
+		CALL 特別飼育区_ランダムキャラ追加(管理番号)
 	CASE 1
-		PRINTFORML %CALLNAME:PLAYER%が%TEXTR("普段通りのマッサージを施す/肩と腰のコリ解消コースを施術する/骨盤を中心に骨格矯正の指圧マッサージを施術する/肌ケアオイルエステを施す")%と、
-		PRINTFORML 満足した%ランダムキャラデータ_GETS(Ｒキャラ追加候補記録, 管理番号, "呼び名")%は笑顔を浮かべ、%CALLNAME:PLAYER%にお礼を言ってリゾートへと戻っていった…
-		PRINTFORMW 料金として1000ルピ手に入れた！
-		MONEY += 1000
-		EXP:PLAYER:マッサージ施術経験 += 10
-		TIME += 30
+		PRINTFORML %ランダムキャラデータ_GETS(Ｒキャラ追加候補記録, 管理番号, "呼び名")%は野生を取り戻し、故郷であるデジタルワールドへと帰っていった。
 	CASE 100
 		DRAWLINE
 		PRINTL 引き続きリゾートで面倒を見る：進化したデジモンがキャラクター化し、リゾートに定住します。
@@ -219,6 +162,16 @@ CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理
 ;種族：固定
 CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "素質", "種族", 種族_その他)
 CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "特殊種族", "デジモン")
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質0", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質0")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質1", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質1")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質2", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質2")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質3", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質3")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質4", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質4")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質5", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質5")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質6", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質6")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質7", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質7")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質8", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質8")))
+CALL ランダムキャラデータ_SETS_B(Ｒキャラ追加候補記録, 管理番号, "CSTR", "固有素質9", CSVCSTR(進化先No, GETNUM(CSTR, "固有素質9")))
 
 ;年齢層/外見年齢：固定
 CALL ランダムキャラデータ_SET_B(Ｒキャラ追加候補記録, 管理番号, "素質", "年齢層", CSVTALENT(進化先No, GETNUM(TALENT, "年齢層")))
