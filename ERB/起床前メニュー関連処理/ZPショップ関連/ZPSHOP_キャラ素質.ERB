@@ -32,10 +32,12 @@
 #DIM ソートボタン番号
 #DIM ソート順ボタン番号
 #DIM 素質絞込ボタン番号
+#DIM DYNAMIC 複数人モード
 
 IF 初回実行フラグ
 	初回実行フラグ = 0
 	VARSET 表示候補, -1
+	VARSET 汎用キャラ配列, -1
 	現在ページ = 0
 	描画開始行 = LINECOUNT
 	REDRAW_TEMP = CURRENTREDRAW()
@@ -76,7 +78,12 @@ ENDIF
 ;変更対象の表示
 PRINTL
 DRAWLINE
-PRINTL 誰の素質を強化しますか？
+PRINT 誰の素質を強化しますか？
+IF 複数人モード
+	PRINTL （複数人選択モード）
+ELSE
+	PRINTL （単体選択モード）
+ENDIF
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 PRINTSL "-" * LINE_LEN
 
@@ -92,6 +99,8 @@ FOR 表示番号, (現在ページ * ページ表示人数), (現在ページ + 
 		PRINTL
 		CONTINUE
 	ENDIF
+	SIF FINDELEMENT(汎用キャラ配列, 表示番号) >= 0
+		SETCOLOR カラーパレット("黄")
 	ソート情報 '= ソート情報表示(対象キャラ)
 	IF ソート情報 != ""
 		PRINTBUTTON @"[{表示番号, NO_LEN}] %GET_NAME(対象キャラ, 1)%", 表示番号
@@ -99,6 +108,7 @@ FOR 表示番号, (現在ページ * ページ表示人数), (現在ページ + 
 	ELSE
 		PRINTBUTTON @"[{表示番号, NO_LEN}] %GET_NAME(対象キャラ)%", 表示番号
 	ENDIF
+	RESETCOLOR
 	PRINTL
 NEXT
 
@@ -189,6 +199,20 @@ PRINTSL "-" * LINE_LEN
 CALL フィルタソートボタンセット表示(フィルタボタン番号, ソートボタン番号, ソート順ボタン番号, 素質絞込ボタン番号)
 
 PRINTSL "-" * LINE_LEN
+BTN_NUM   = 9997
+IF 複数人モード
+	BTN_TEXT '= @"[{BTN_NUM}]単体モードに切り替え"
+ELSE
+	BTN_TEXT '= @"[{BTN_NUM}]複数人モードに切り替え"
+ENDIF
+; PRINTBUTTON BTN_TEXT, BTN_NUM
+IF 複数人モード && MAXARRAY(汎用キャラ配列) > -1
+	PRINT 　　　
+	BTN_NUM   = 9996
+	BTN_TEXT '= @"[{BTN_NUM}]選択中のキャラを変更する"
+	PRINTBUTTON BTN_TEXT, BTN_NUM
+ENDIF
+PRINTL
 ; 戻るボタン
 BTN_NUM   = 9999
 BTN_TEXT '= @"[{BTN_NUM}]戻る"
@@ -220,32 +244,47 @@ SELECTCASE 入力値
 	CASE 9999
 		; 戻る
 		RETURN_VAL = -1
+	CASE 9996
+		; 複数人変更処理
+		CALL ZP_素質変化_複数人モード()
+	CASE 9997
+		; 複数人モード切り替え
+		VARSET 汎用キャラ配列, -1
+		INVERTBIT 複数人モード, 0
 	CASE 9998
 		; キャラ選択：あなた
 		CALL ZP_素質変化(MASTER)
 
 	CASEELSE
-		; キャラ選択
-		表示番号 = 入力値
-		DO
-			CALL ZP_素質変化(表示候補:表示番号)
-			SELECTCASE RESULT
-				CASE 1
-					; 前のキャラ
-					表示番号 --
-					SIF 表示番号 < 0
-						表示番号 = 表示候補人数 - 1
-				CASE 2
-					; 次のキャラ
-					表示番号 ++
-					SIF 表示候補人数 <= 表示番号
-						表示番号 = 0
-				CASE -1
-					; 終了
-					リスト生成フラグ = 1
-					BREAK
-			ENDSELECT
-		LOOP 1
+		IF 複数人モード
+			IF FINDELEMENT(汎用キャラ配列, 入力値) >= 0
+				汎用キャラ配列:(FINDELEMENT(汎用キャラ配列, 入力値)) = -1
+			ELSE
+				汎用キャラ配列:(FINDELEMENT(汎用キャラ配列, -1)) = 入力値
+			ENDIF
+		ELSE
+			; キャラ選択
+			表示番号 = 入力値
+			DO
+				CALL ZP_素質変化(表示候補:表示番号)
+				SELECTCASE RESULT
+					CASE 1
+						; 前のキャラ
+						表示番号 --
+						SIF 表示番号 < 0
+							表示番号 = 表示候補人数 - 1
+					CASE 2
+						; 次のキャラ
+						表示番号 ++
+						SIF 表示候補人数 <= 表示番号
+							表示番号 = 0
+					CASE -1
+						; 終了
+						リスト生成フラグ = 1
+						BREAK
+				ENDSELECT
+			LOOP 1
+		ENDIF
 ENDSELECT
 IF !RETURN_VAL
 	CLEARLINE LINECOUNT - 描画開始行
