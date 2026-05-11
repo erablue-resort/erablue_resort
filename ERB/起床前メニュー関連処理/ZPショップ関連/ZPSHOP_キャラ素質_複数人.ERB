@@ -167,6 +167,8 @@ ENDSELECT
 #DIM CONST COST_TO_通常 = 100
 #DIM CONST COST_TO_鈍感 = 300
 #DIM 必要COST
+#DIM 必要COST_計算値
+#DIM 素質番号
 #DIMS 段階名
 
 DRAWLINE
@@ -185,23 +187,23 @@ FOR LOCAL:1 , 101, 106
 	PRINTL
 NEXT
 
-; PRINTBUTTON @"[241] [即イキ]を取得する", 241
-; PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}（1キャラ分）
+PRINTBUTTON @"[241] [即イキ]を取得する", 241
+PRINTFORML 　　　必要ZP:{COST_TO_敏感 * 2}（1キャラ分）
 
-; PRINTBUTTON @"[242] [早イキ]を取得する", 242
-; PRINTFORML 　　　必要ZP:{COST_TO_敏感}（1キャラ分）
+PRINTBUTTON @"[242] [早イキ]を取得する", 242
+PRINTFORML 　　　必要ZP:{COST_TO_敏感}（1キャラ分）
 
-; PRINTBUTTON @"[243] イキやすさ素質を削除する", 243
-; PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
+PRINTBUTTON @"[243] イキやすさ素質を削除する", 243
+PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
 
-; PRINTBUTTON @"[244] [遅イキ]を取得する", 244
-; PRINTFORML 　　　必要ZP:{COST_TO_通常 / 2}（1キャラ分）
+PRINTBUTTON @"[244] [遅イキ]を取得する", 244
+PRINTFORML 　　　必要ZP:{COST_TO_通常 / 2}（1キャラ分）
 
-; PRINTBUTTON @"[250] [ＥＤ]を取得する", 250
-; PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
+PRINTBUTTON @"[250] [ＥＤ]を取得する", 250
+PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
 
-; PRINTBUTTON @"[251] [ＥＤ]を削除する", 251
-; PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
+PRINTBUTTON @"[251] [ＥＤ]を削除する", 251
+PRINTFORML 　　　必要ZP:{COST_TO_通常}（1キャラ分）
 
 PRINTL
 PRINTBUTTON "[999]戻る", 999
@@ -235,33 +237,35 @@ SELECTCASE LOCAL:1
 			FOR LOCAL, 0, キャラクタ数上限
 				SIF 汎用キャラ配列:LOCAL < 0
 					BREAK
+				必要COST_計算値 = 0
 				SELECTCASE LOCAL:1 % 10
 					CASE 0
 						;鈍感まで上げ
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) >= -1
 							CONTINUE
-						必要COST += COST_TO_鈍感
+						必要COST_計算値 += COST_TO_鈍感
 					CASE 1
 						;通常まで上げ
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) >= 0
 							CONTINUE
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) == -2
-							必要COST += COST_TO_鈍感
-						必要COST += COST_TO_通常
+							必要COST_計算値 += COST_TO_鈍感
+						必要COST_計算値 += COST_TO_通常
 					CASE 2
 						;敏感まで上げ
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) >= 1
 							CONTINUE
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) == -2
-							必要COST += COST_TO_鈍感 + COST_TO_通常
+							必要COST_計算値 += COST_TO_鈍感 + COST_TO_通常
 						SIF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) == -1
-							必要COST += COST_TO_通常
-						必要COST += COST_TO_敏感
+							必要COST_計算値 += COST_TO_通常
+						必要COST_計算値 += COST_TO_敏感
 				ENDSELECT
-				IF 必要COST > FLAG:ZP所持量
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
 					PRINTL 必要ZPが不足したので処理を停止しました。
 					BREAK
 				ENDIF
+				必要COST += 必要COST_計算値
 				IF TALENT:(汎用キャラ配列:LOCAL):(LOCAL:1 / 10) == 0
 					PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: 通常 > 
 				ELSE
@@ -279,111 +283,192 @@ SELECTCASE LOCAL:1
 		ENDIF
 		RETURN 0
 	CASE 241
-		必要COST = COST_TO_敏感 * 2
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
-		PRINTFORML {必要COST}ZPを支払い、［即イキ］を取得しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		素質番号 = 241
+		PRINTFORML ［即イキ］を持たないキャラに取得させますか？
+		PRINTFORML ※他のイキやすさ素質を上書きします
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				必要COST_計算値 = COST_TO_敏感 * 2
+				IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ != 2
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ == 0
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: 通常 > 
+					ELSE
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(素質番号, TALENT:(汎用キャラ配列:LOCAL):素質番号, , 汎用キャラ配列:LOCAL)% > 
+					ENDIF
+					PRINTL 即イキ
+					TALENT:(汎用キャラ配列:LOCAL):素質番号 = 2
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW イキやすさが[即イキ]に変化しました。
-			TALENT:対象キャラ:イキやすさ = 2
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASE 242
-		必要COST = COST_TO_敏感
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
+		素質番号 = 242
 		PRINTFORML {必要COST}ZPを支払い、［早イキ］を取得しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTFORML ※他のイキやすさ素質を上書きします
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				必要COST_計算値 = COST_TO_敏感
+				IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ != 1
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ == 0
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: 通常 > 
+					ELSE
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(素質番号, TALENT:(汎用キャラ配列:LOCAL):素質番号, , 汎用キャラ配列:LOCAL)% > 
+					ENDIF
+					PRINTL 早イキ
+					TALENT:(汎用キャラ配列:LOCAL):素質番号 = 1
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW イキやすさが［早イキ］に変化しました。
-			TALENT:対象キャラ:イキやすさ = 1
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASE 243
-		必要COST = COST_TO_通常
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
+		素質番号 = 243
 		PRINTFORML {必要COST}ZPを支払い、イキやすさ素質を削除しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTFORML ※他のイキやすさ素質を上書きします
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				必要COST_計算値 = COST_TO_通常
+				IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ != 0
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(素質番号, TALENT:(汎用キャラ配列:LOCAL):素質番号, , 汎用キャラ配列:LOCAL)% > 
+					PRINTL 通常
+					TALENT:(汎用キャラ配列:LOCAL):素質番号 = 0
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW イキやすさ素質を削除しました。
-			TALENT:対象キャラ:イキやすさ = 0
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASE 244
+		素質番号 = 244
 		必要COST = COST_TO_通常 / 2
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
 		PRINTFORML {必要COST}ZPを支払い、［遅イキ］を取得しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTFORML ※他のイキやすさ素質を上書きします
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				必要COST_計算値 = COST_TO_通常 / 2
+				IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ != -1
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					IF TALENT:(汎用キャラ配列:LOCAL):イキやすさ == 0
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: 通常 > 
+					ELSE
+						PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(素質番号, TALENT:(汎用キャラ配列:LOCAL):素質番号, , 汎用キャラ配列:LOCAL)% > 
+					ENDIF
+					PRINTL 遅イキ
+					TALENT:(汎用キャラ配列:LOCAL):素質番号 = -1
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW イキやすさが［遅イキ］に変化しました。
-			TALENT:対象キャラ:イキやすさ = -1
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASE 250
 		必要COST = COST_TO_通常
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
 		PRINTFORML {必要COST}ZPを支払い、[ＥＤ]を取得しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTFORML ※ペニスを所持するキャラにのみ適用されます
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			必要COST_計算値 = COST_TO_通常
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF !GETBIT(TALENT:(汎用キャラ配列:LOCAL):性別, 1)
+					CONTINUE
+				IF TALENT:(汎用キャラ配列:LOCAL):ＥＤ != 1
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					PRINTFORML %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+					TALENT:(汎用キャラ配列:LOCAL):ＥＤ = 1
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW [ＥＤ]を取得しました。
-			TALENT:対象キャラ:ＥＤ = 1
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASE 251
 		必要COST = COST_TO_通常
-		;ZP足りる？
-		IF FLAG:ZP所持量 < 必要COST
-			PRINTW ZPが足りません
-			RESTART
-		ENDIF
 		PRINTFORML {必要COST}ZPを支払い、[ＥＤ]を削除しますか？
-		PRINTFORML （所持ZP：{FLAG:ZP所持量}）
+		PRINTFORML ※ペニスを所持するキャラにのみ適用されます
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
 		PRINTBUTTONLC "[0]はい", 0
 		PRINTBUTTONLC "[1]いいえ", 1
 		INPUT
 		IF RESULT == 0
+			必要COST = 0
+			必要COST_計算値 = COST_TO_通常
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF !GETBIT(TALENT:(汎用キャラ配列:LOCAL):性別, 1)
+					CONTINUE
+				IF TALENT:(汎用キャラ配列:LOCAL):ＥＤ != 0
+					IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+						PRINTL 必要ZPが不足したので処理を停止しました。
+						BREAK
+					ENDIF
+					PRINTFORML %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+					TALENT:(汎用キャラ配列:LOCAL):ＥＤ = 0
+					必要COST += 必要COST_計算値
+				ENDIF
+			NEXT
 			FLAG:ZP所持量 -= 必要COST
-			PRINTFORMW [ＥＤ]を削除しました。
-			TALENT:対象キャラ:ＥＤ = 0
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
 		RETURN 0
 	CASEELSE
