@@ -12,8 +12,8 @@ PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 10
 DRAWLINE
 PRINTBUTTONLC "[1]感覚系素質を強化する", 1
 PRINTL
-; PRINTBUTTONLC "[2]乳を変化させる", 2
-; PRINTL
+PRINTBUTTONLC "[2]乳を変化させる", 2
+PRINTL
 ; PRINTBUTTONLC "[3]男性器を変化させる", 3
 ; PRINTL
 ; PRINTBUTTONLC "[4]性別を変化させる", 4
@@ -53,9 +53,9 @@ SELECTCASE RESULT
 	CASE 1
 		CALL 敏感素質変化_複数人()
 		RESTART
-	; CASE 2
-	; 	CALL バスト素質変化_複数人()
-	; 	RESTART
+	CASE 2
+		CALL バスト素質変化_複数人()
+		RESTART
 	; CASE 3
 	; 	CALL 男性器素質変化_複数人()
 	; 	RESTART
@@ -173,7 +173,6 @@ ENDSELECT
 
 DRAWLINE
 PRINTL ZPを消費してキャラに敏感系素質を付与することが出来ます。
-PRINTL 鈍感>敏感など2段階以上上昇するZPについてはそれぞれの段階を加算して計算してください。
 PRINTL どの部位を敏感化しますか？
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
@@ -475,4 +474,117 @@ SELECTCASE LOCAL:1
 		REUSELASTLINE 
 		GOTO INPUT_LOOP2
 ENDSELECT
+
+@バスト素質変化_複数人()
+#DIM CONST COST_胸定数 = 20
+#DIM 必要COST
+#DIM 必要COST_計算値
+
+DRAWLINE
+PRINTL ZPを消費してキャラの乳の大きさなどを変化させることができます。
+PRINTL 任意の大きさを選択してください
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+FOR LOCAL:1 , -2, 4
+	PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(205, LOCAL:1), 20, LEFT%にする", LOCAL:1
+	PRINTL
+NEXT
+IF 素質切り替えOPTION記憶:陥没乳首_なし == 0
+	PRINTL
+	PRINTBUTTON @"[10] 陥没乳首素質を付与する", 10
+	PRINTFORML :{COST_胸定数}ZP（1キャラ分）
+	PRINTBUTTON @"[11] 陥没乳首素質を削除する", 11
+	PRINTFORML :{COST_胸定数}ZP（1キャラ分）
+ENDIF
+PRINTL
+PRINTBUTTON "[999]戻る", 999
+$INPUT_LOOP3
+BINPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 999
+		RETURN 0
+	CASE 10
+		PRINTFORML 陥没乳首素質を付与しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):陥没乳首
+					CONTINUE
+				必要COST_計算値 = COST_胸定数
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+				TALENT:(汎用キャラ配列:LOCAL):陥没乳首 = 1
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+		ENDIF
+
+		RETURN 0
+	CASE 11
+		PRINTFORML 陥没乳首素質を削除しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):陥没乳首 == 0
+					CONTINUE
+				必要COST_計算値 = COST_胸定数
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+				TALENT:(汎用キャラ配列:LOCAL):陥没乳首 = 0
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+		ENDIF
+	CASE -2 TO 3
+		;バスト変化
+		PRINTFORML バストサイズを%GET_TALENTNAME(205, LOCAL:1)%に変更しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		INPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):バストサイズ == LOCAL:1
+					CONTINUE
+				必要COST_計算値 = ABS(TALENT:(汎用キャラ配列:LOCAL):バストサイズ - LOCAL:1) * COST_胸定数
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(205, TALENT:(汎用キャラ配列:LOCAL):バストサイズ, , 汎用キャラ配列:LOCAL), 15, LEFT% > 
+				PRINTFORML %GET_TALENTNAME(205, LOCAL:1, , 汎用キャラ配列:LOCAL)%
+				TALENT:(汎用キャラ配列:LOCAL):バストサイズ = LOCAL:1
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+		ENDIF
+
+		RETURN 0
+ENDSELECT
+
 
