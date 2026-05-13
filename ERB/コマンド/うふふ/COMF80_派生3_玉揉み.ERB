@@ -1,0 +1,89 @@
+﻿
+@COMNAME_S80_3
+#FUNCTIONS
+TSTR:コマンド名受渡 = 玉揉み
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_S_80_3
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("うふふ")
+弱点コマンドカテゴリ = C_ちんこ
+オートコマンド許可 = 1
+
+@COM_TOOLTIP_S80_3
+LOCALS = <br>■玉揉み<br>
+LOCALS += "手コキ中、相手の睾丸を揉んで刺激を与えるコマンド。"
+LOCALS += "<br>COMタイプ：うふふ<br>取得ソース：快Ｃ・露出・接触"
+LOCALS += "<br>固有の取得経験：手淫経験(PLAYER)<br>"
+TSTR:ツールチップ受渡 = %LOCALS%
+
+@COM_S80_3
+;奉仕快楽
+RCVAR:TARGET:奉仕コマンドフラグ = 1
+RCVAR:TARGET:汎用喘ぎ_文節低減フラグ = 1
+
+RCVAR:TARGET:睾丸コマンドフラグ = 2
+CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 200)
+SIF TALENT:TARGET:器用な指
+	CALL SOURCE_CALC_快Ｃ(TARGET, PLAYER, 50)
+
+CALL SOURCE_CALC_露出(TARGET, PLAYER, 50)
+CALL SOURCE_CALC_接触(TARGET, PLAYER, 50)
+
+CALL SOURCE_CALC_接触(PLAYER, TARGET, 50)
+CALL SOURCE_CALC_奉仕(PLAYER, TARGET, 250)
+CALL SOURCE_CALC_不潔(PLAYER, TARGET, 100)
+
+;-------------------------------------------------
+;経験の処理
+;-------------------------------------------------
+;手淫経験
+EXP:PLAYER:手淫経験 += 1
+
+;同性愛
+SIF 同性愛性癖判定(TARGET,PLAYER)
+	EXP:TARGET:同性愛経験 += 4
+SIF 同性愛性癖判定(PLAYER,TARGET)
+	EXP:PLAYER:同性愛経験 += 4
+
+EXP:愛情経験 += TALENT:恋慕 * 2
+
+RETURN 1
+
+;-------------------------------------------------
+;実行判定
+;-------------------------------------------------
+@COM_ABLE_S80_3
+;実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE_S("80_3")
+	RETURN RESULT
+;手コキ系モードじゃない時はアウト
+SIF !MODE_存在判定_完全一致("手コキ系", PLAYER, TARGET)
+	RETURN 0
+;相手に金玉がないとダメ
+SIF !GETBIT(TALENT:TARGET:性別, 1) || (TALENT:TARGET:性別 == 3 && フレーバー素質:TARGET:ふたなり時_玉ありなし != フレーバー素質_ふたなり時_玉あり && OPTION変数:ふたなり玉設定 != 2)
+	RETURN 0
+
+;下半身着衣
+;前鎧、めくれない服、タイツ、前張りがあると無理
+SIF TEQUIP:下腹部前鎧あり
+	RETURN 0
+SIF TEQUIP:下タイツあり && !TEQUIP:下タイツ破れ
+	RETURN 0
+SIF TEQUIP:下半身下着あり == 2
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;実行時メッセージ
+;-------------------------------------------------
+@MESSAGE_COM_S80_3
+PRINTFORML %CALLNAME:PLAYER%は%CALLNAME:TARGET%の睾丸を手のひらで包み、ゆっくり揉み込んだ…
+
+
