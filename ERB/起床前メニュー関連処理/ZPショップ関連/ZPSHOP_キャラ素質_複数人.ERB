@@ -62,12 +62,12 @@ SELECTCASE RESULT
 	CASE 4
 		CALL 性別素質変化_複数人()
 		RESTART
-	; CASE 5
-	; 	CALL 種族素質変化_複数人()
-	; 	RESTART
-	; CASE 6
-	; 	CALL 妊娠不可素質変化_複数人()
-	; 	RESTART
+	CASE 5
+		CALL 種族素質変化_複数人()
+		RESTART
+	CASE 6
+		CALL 妊娠不可素質変化_複数人()
+		RESTART
 	; CASE 7
 	; 	CALL 受胎体質素質変化_複数人()
 	; 	RESTART
@@ -663,7 +663,7 @@ SELECTCASE LOCAL:1
 					BREAK
 				ENDIF
 				必要COST += 必要COST_計算値
-				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(246, TALENT:(汎用キャラ配列:LOCAL):男性器サイズ, , 汎用キャラ配列:LOCAL), 12, LEFT% > なし
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(246, TALENT:(汎用キャラ配列:LOCAL):射精不可, , 汎用キャラ配列:LOCAL), 12, LEFT% > なし
 				TALENT:(汎用キャラ配列:LOCAL):射精不可 = 0
 			NEXT
 			FLAG:ZP所持量 -= 必要COST
@@ -830,3 +830,110 @@ SELECTCASE LOCAL:1
 ENDSELECT
 
 
+
+@種族素質変化_複数人()
+#DIM 対象キャラ
+#DIM 必要COST
+#DIM CONST COST_種族変化 = 200
+#DIMS 特殊種族一時保存
+#DIM 必要COST_計算値
+
+DRAWLINE
+PRINTL ZPを消費してキャラの種族を変化させることができます。
+PRINTL 任意の種族を選択してください
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+FOR LOCAL:1 , 1, 7
+	PRINTBUTTON @"[{LOCAL:1}]%GET_TALENTNAME(200, LOCAL:1,,対象キャラ), 14, LEFT%必要ZP:{COST_種族変化}（1キャラ分）", LOCAL:1
+	PRINTL
+NEXT
+PRINTBUTTON "[999]戻る", 999
+BINPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 999
+		RETURN 0
+	CASE 1 TO 6
+		特殊種族一時保存 = 
+		IF LOCAL:1 == 6
+			DRAWLINE
+			PRINTL 追加種族名を指定出来ます。
+			PRINTL 任意の種族名を入力してください。
+			INPUTS
+			特殊種族一時保存 = %RESULTS%
+			PRINTL
+			DRAWLINE
+			PRINTFORML 種族を［%GET_TALENTNAME(200, LOCAL:1)%（%特殊種族一時保存%）］に変更しますか？
+		ELSE
+			PRINTFORML 種族を［%GET_TALENTNAME(200, LOCAL:1)%］に変更しますか？
+		ENDIF
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):種族 == LOCAL:1
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):種族 == 6 && CSTR:(汎用キャラ配列:LOCAL):特殊種族 == 特殊種族一時保存
+				必要COST_計算値 = COST_種族変化
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(200, TALENT:(汎用キャラ配列:LOCAL):種族, , 汎用キャラ配列:LOCAL), 12, LEFT% > %GET_TALENTNAME(200, LOCAL:1, , 汎用キャラ配列:LOCAL)%
+				SIF 特殊種族一時保存 != ""
+					PRINTFORM （%特殊種族一時保存%）
+
+				CSTR:(汎用キャラ配列:LOCAL):特殊種族 = %特殊種族一時保存%
+				TALENT:(汎用キャラ配列:LOCAL):種族 = LOCAL:1
+				CALL ZP_SHOP_種族特徴変換(汎用キャラ配列:LOCAL, TALENT:(汎用キャラ配列:LOCAL):種族, LOCAL:1)
+				SIF RESULT == 0
+					CALL SET_BODYSIZE(汎用キャラ配列:LOCAL,0)
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+		ENDIF
+
+		RETURN 0
+ENDSELECT
+
+
+@妊娠不可素質変化_複数人()
+#DIM 対象キャラ
+#DIM CONST COST_TO_妊娠可能 = 300
+#DIM 必要COST
+#DIM 必要COST_計算値
+
+DRAWLINE
+PRINTL ZPを消費して妊娠不可素質を削除することができます。
+PRINTFORML ［妊娠不可］［初潮前］を削除しますか？　消費ZP:{COST_TO_妊娠可能}（1キャラ分）
+PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+PRINTBUTTONLC "[0]はい", 0
+PRINTBUTTONLC "[1]いいえ", 1
+BINPUT
+IF RESULT == 0
+	必要COST = 0
+	FOR LOCAL, 0, キャラクタ数上限
+		SIF 汎用キャラ配列:LOCAL < 0
+			BREAK
+		SIF TALENT:(汎用キャラ配列:LOCAL):妊娠不可 == 0
+			CONTINUE
+		必要COST_計算値 = COST_TO_妊娠可能
+		IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+			PRINTL 必要ZPが不足したので処理を停止しました。
+			BREAK
+		ENDIF
+		必要COST += 必要COST_計算値
+		PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(238, TALENT:(汎用キャラ配列:LOCAL):妊娠不可, , 汎用キャラ配列:LOCAL), 12, LEFT% > なし
+		TALENT:(汎用キャラ配列:LOCAL):妊娠不可 = 0
+	NEXT
+	FLAG:ZP所持量 -= 必要COST
+	PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+ENDIF
+
+RETURN 0
