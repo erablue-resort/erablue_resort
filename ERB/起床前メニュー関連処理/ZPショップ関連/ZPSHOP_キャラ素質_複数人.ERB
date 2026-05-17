@@ -24,22 +24,19 @@ PRINTBUTTONLC "[6]妊娠を可能にさせる", 6
 PRINTL
 PRINTBUTTONLC "[7]受胎体質を変化させる", 7
 PRINTL
-; PRINTBUTTONLC "[8]発情期素質を変化させる", 8
-; PRINTL
+PRINTBUTTONLC "[8]発情期素質を変化させる", 8
+PRINTL
 ; PRINTBUTTONLC "[9]体格・体型を変化させる", 9
 ; PRINTL
-; IF あなた特殊能力:ハーレム >= 2
-; 	;ハーレム一人前以上だと他者にハーレムの心得を付与可能
-; 	PRINTBUTTONLC "[10]ハーレムの心得を取得させる", 10
-; 	PRINTL
-; ENDIF
+IF あなた特殊能力:ハーレム >= 2
+	;ハーレム一人前以上だと他者にハーレムの心得を付与可能
+	PRINTBUTTONLC "[10]ハーレムの心得を取得させる", 10
+	PRINTL
+ENDIF
 ; PRINTBUTTONLC "[30]弱点コマンドを追加する", 30
 ; PRINTL
 ; DRAWLINE
 ; PRINTBUTTONLC "[100]素質［長乳］を消去する", 100
-; PRINTL
-; DRAWLINE
-; PRINTBUTTONLC "[101]性知識の成長を禁止する", 101
 ; PRINTL
 
 DRAWLINE
@@ -71,15 +68,15 @@ SELECTCASE RESULT
 	CASE 7
 		CALL 受胎体質素質変化_複数人()
 		RESTART
-	; CASE 8
-	; 	CALL 発情期素質設定_複数人()
-	; 	RESTART
+	CASE 8
+		CALL 発情期素質設定_複数人()
+		RESTART
 	; CASE 9
 	; 	CALL 体格・体型素質設定_複数人()
 	; 	RESTART
-	; CASE 10
-	; 	CALL ハーレムの心得素質設定_複数人()
-	; 	RESTART
+	CASE 10
+		CALL ハーレムの心得素質設定_複数人()
+		RESTART
 	; CASE 20
 	; 	CALL フレーバー素質再設定_複数人()
 	; 	RESTART
@@ -103,47 +100,6 @@ SELECTCASE RESULT
 			CFLAG:キャラ番号:おっぱい引っぱりカウント = 0
 			TALENT:キャラ番号:長乳 = 0
 			PRINTW 素質［長乳］を消去しました。
-		ENDIF
-		RESTART
-	CASE 101
-		PRINTL
-		DRAWLINE
-		IF CFLAG:キャラ番号:性知識成長禁止
-			PRINTFORML 0ZPを消費し、の性知識の成長を解禁します。
-			PRINTL 再び禁止する際はまたZPが必要になります。
-			PRINTL 
-			PRINTL 性知識の成長を解禁しますか？
-			PRINTBUTTONLC "[0] 解禁する", 0
-			PRINTBUTTONLC "[1] 解禁しない", 1
-			PRINTL
-			PRINTL
-			BINPUT
-			PRINTL
-			IF RESULT == 0
-				CFLAG:キャラ番号:性知識成長禁止 = 0
-				PRINTW 性知識の成長を解禁しました。
-			ENDIF
-		ELSE
-			IF FLAG:ZP所持量 < 20
-				PRINTW ZPが足りません。
-				RESTART
-			ENDIF
-			PRINTFORML 20ZPを消費し、の性知識の成長を禁止します。
-			PRINTL 成長の解禁はいつでも可能です。
-			PRINTL ※禁止していても固有のキャライベントなどで成長することがあります。
-			PRINTL 
-			PRINTL 性知識の成長を禁止しますか？
-			PRINTBUTTONLC "[0] 禁止する", 0
-			PRINTBUTTONLC "[1] 禁止しない", 1
-			PRINTL
-			PRINTL
-			BINPUT
-			PRINTL
-			IF RESULT == 0
-				CFLAG:キャラ番号:性知識成長禁止 = 1
-				PRINTW 性知識の成長を禁止しました。
-				FLAG:ZP所持量 -= 20
-			ENDIF
 		ENDIF
 		RESTART
 	CASE 995
@@ -1014,9 +970,10 @@ ENDIF
 RETURN 0
 
 @受胎体質素質変化_複数人()
-#DIM 対象キャラ
-#DIM CONST 必要COST = 100
+#DIM CONST COST_TO_受胎 = 100
+#DIM 必要COST
 #DIM CONST 必要蓄積度 = 2, 2, 400, 1200
+#DIM 必要COST_計算値
 
 DRAWLINE
 PRINTL ZPを消費してキャラの受胎体質を変化させることができます。
@@ -1027,7 +984,7 @@ PRINTL ※条件を満たさないキャラはスキップされます。
 PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
 DRAWLINE
 FOR LOCAL:1 , 0, 4
-	PRINTBUTTON @"[{LOCAL:1}]%受胎体質素質名(LOCAL:1)%（必要ZP:{必要COST}）", LOCAL:1
+	PRINTBUTTON @"[{LOCAL:1}]%受胎体質素質名(LOCAL:1)%　消費ZP:{COST_TO_受胎}（1キャラ分）", LOCAL:1
 	PRINTL
 NEXT
 PRINTBUTTON "[999]戻る", 999
@@ -1038,22 +995,334 @@ SELECTCASE LOCAL:1
 	CASE 999
 		RETURN 0
 	CASE 0 TO 3
+		PRINTFORML 受胎体質を［%受胎体質素質名(LOCAL:1)%］に変更しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):受胎体質 == LOCAL:1
+					CONTINUE
+				SIF CFLAG:(汎用キャラ配列:LOCAL):特殊妊娠蓄積度 < 必要蓄積度:(LOCAL:1)
+					CONTINUE
+				必要COST_計算値 = COST_TO_受胎
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %受胎体質素質名(TALENT:(汎用キャラ配列:LOCAL):受胎体質), 12, LEFT% > %受胎体質素質名(LOCAL:1)%
+				TALENT:(汎用キャラ配列:LOCAL):受胎体質 = LOCAL:1
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+
+		RETURN 0
+ENDSELECT
+
+@発情期素質設定_複数人(対象キャラ)
+#DIM 対象キャラ
+#DIM 表示番号
+#DIM 発情不可フラグ
+#DIM 必要COST
+#DIM 必要COST_計算値
+#DIM CONST COST_TO_発情期 = 20
+VARSET LOCALS
+表示番号 = 0
+発情不可フラグ = 0
+
+DRAWLINE
+PRINTL ZPを消費してキャラの発情期を設定したり、特殊発情を付与・削除することができます。
+PRINTL 種族によっては一部の特殊発情が外せないことがあります。
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+PRINT 発情期を
+PRINTBUTTON "　[100] なしに変更", 100
+PRINTBUTTON "　[0] ありに変更", 0
+PRINTFORML  …  なし：1ZP あり：{COST_TO_発情期}ZP（1キャラ分）
+PRINTL
+PRINT 欲情ブースト（大）を
+PRINTBUTTON "　[101] なしに変更", 101
+PRINTBUTTON "　[1] ありに変更", 1
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 母乳体質化を
+PRINTBUTTON "　[102] なしに変更", 102
+PRINTBUTTON "　[2] ありに変更", 2
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT ふたなり化を
+PRINTBUTTON "　[103] なしに変更", 103
+PRINTBUTTON "　[3] ありに変更", 3
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 危険日周期短縮を
+PRINTBUTTON "　[104] なしに変更", 104
+PRINTBUTTON "　[4] ありに変更", 4
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 体力自動回復を
+PRINTBUTTON "　[105] なしに変更", 105
+PRINTBUTTON "　[5] ありに変更", 5
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 過敏体質（快楽・苦痛＋）を
+PRINTBUTTON "　[106] なしに変更", 106
+PRINTBUTTON "　[6] ありに変更", 6
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 陥没乳首常時勃起を
+PRINTBUTTON "　[107] なしに変更", 107
+PRINTBUTTON "　[7] ありに変更", 7
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINT 女体化を
+PRINTBUTTON "　[108] なしに変更", 108
+PRINTBUTTON "　[8] ありに変更", 8
+PRINTFORML  …  {COST_TO_発情期}ZP（1キャラ分）
+PRINTL
+PRINTBUTTON "　[999] 戻る", 999
+PRINTL
+PRINTL
+
+BINPUT
+LOCAL:1 = RESULT
+SELECTCASE LOCAL:1
+	CASE 100
+		PRINTFORML 発情期を なし に変更します。よろしいですか？
+		PRINTL ※特殊発情は種族に付随するものを除きリセットされます。
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):発情期あり < 0
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):性別 == 0
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):妊娠不可 == 2
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):射精不可 == 2
+					CONTINUE
+				必要COST_計算値 = 1
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+				TALENT:(汎用キャラ配列:LOCAL):発情期あり = -1
+				IF CFLAG:(汎用キャラ配列:LOCAL):発情期フラグ < 0 && GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, 3) && TALENT:(汎用キャラ配列:LOCAL):性別 == 3
+					;女性器ないキャラがふたなり化妊娠中の時は戻さない
+					IF GETBIT(CFLAG:(汎用キャラ配列:LOCAL):元性別保存, 0) != 0 || TALENT:(汎用キャラ配列:LOCAL):妊娠 == 0
+						TALENT:(汎用キャラ配列:LOCAL):性別 = CFLAG:(汎用キャラ配列:LOCAL):元性別保存
+					ENDIF
+				ENDIF
+				IF CFLAG:(汎用キャラ配列:LOCAL):発情期フラグ < 0 && GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, 8) && TALENT:(汎用キャラ配列:LOCAL):性別 == 1
+					;女性器ないキャラが女体化妊娠中の時は戻さない
+					IF GETBIT(CFLAG:(汎用キャラ配列:LOCAL):元性別保存, 0) != 0 || TALENT:(汎用キャラ配列:LOCAL):妊娠 == 0
+						TALENT:(汎用キャラ配列:LOCAL):性別 = CFLAG:(汎用キャラ配列:LOCAL):元性別保存
+					ENDIF
+				ENDIF
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+	CASE 0
+		PRINTL 発情期を あり に変更します。よろしいですか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF 発情期存在判定(汎用キャラ配列:LOCAL)
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):性別 == 0
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):妊娠不可 == 2
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):射精不可 == 2
+					CONTINUE
+				必要COST_計算値 = COST_TO_発情期
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+				TALENT:(汎用キャラ配列:LOCAL):発情期あり = 1
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+	CASE 999
+		RETURN 0
+	CASEELSE
+		SELECTCASE LOCAL:1 % 100
+			CASE 1
+				PRINT 欲情ブースト（大）
+			CASE 2
+				PRINT 母乳体質化
+			CASE 3
+				PRINT ふたなり化
+			CASE 4
+				PRINT 危険日周期短縮
+			CASE 5
+				PRINT 体力自動回復
+			CASE 6
+				PRINT 過敏体質（快楽・苦痛＋）
+			CASE 7
+				PRINT 陥没乳首常時勃起
+			CASE 8
+				PRINT 女体化
+		ENDSELECT
+		IF LOCAL:1 > 100
+			PRINTL を なし に変更します。よろしいですか？
+		ELSE
+			PRINTL を あり に変更します。よろしいですか？
+		ENDIF
+		IF LOCAL:1 == 8
+			PRINTL ※ふたなり化の発情がありの場合、そちらが優先されます。
+		ENDIF
+		PRINTFORML 使用ZP： {必要COST}
+		PRINTBUTTONLC "[0] はい", 0
+		PRINTBUTTONLC "[1] いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF 発情期存在判定(汎用キャラ配列:LOCAL)
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):性別 == 0
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):妊娠不可 == 2
+					CONTINUE
+				SIF TALENT:(汎用キャラ配列:LOCAL):射精不可 == 2
+					CONTINUE
+				IF LOCAL:1 > 100
+					SIF GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, LOCAL:1 % 100) == 0
+						CONTINUE
+				ELSE
+					SIF GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, LOCAL:1 % 100)
+						CONTINUE
+				ENDIF
+				必要COST_計算値 = COST_TO_発情期
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: 
+				SELECTCASE LOCAL:1 % 100
+					CASE 1
+						PRINT 欲情ブースト（大）
+					CASE 2
+						PRINT 母乳体質化
+					CASE 3
+						PRINT ふたなり化
+					CASE 4
+						PRINT 危険日周期短縮
+					CASE 5
+						PRINT 体力自動回復
+					CASE 6
+						PRINT 過敏体質（快楽・苦痛＋）
+					CASE 7
+						PRINT 陥没乳首常時勃起
+					CASE 8
+						PRINT 女体化
+				ENDSELECT
+				IF LOCAL:1 > 100
+					PRINT 削除
+				ELSE
+					PRINT 追加
+				ENDIF
+				IF LOCAL:1 == 103 && CFLAG:(汎用キャラ配列:LOCAL):発情期フラグ < 0 && GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, 3) && TALENT:(汎用キャラ配列:LOCAL):性別 == 3
+					;女性器ないキャラがふたなり化妊娠中の時は戻さない
+					IF GETBIT(CFLAG:(汎用キャラ配列:LOCAL):元性別保存, 0) != 0 || TALENT:(汎用キャラ配列:LOCAL):妊娠 == 0
+						TALENT:(汎用キャラ配列:LOCAL):性別 = CFLAG:(汎用キャラ配列:LOCAL):元性別保存
+					ENDIF
+				ENDIF
+				IF LOCAL:1 == 108 && CFLAG:(汎用キャラ配列:LOCAL):発情期フラグ < 0 && GETBIT(TALENT:(汎用キャラ配列:LOCAL):発情期あり, 8) && TALENT:(汎用キャラ配列:LOCAL):性別 == 1
+					;女性器ないキャラが女体化妊娠中の時は戻さない
+					IF GETBIT(CFLAG:(汎用キャラ配列:LOCAL):元性別保存, 0) != 0 || TALENT:(汎用キャラ配列:LOCAL):妊娠 == 0
+						TALENT:(汎用キャラ配列:LOCAL):性別 = CFLAG:(汎用キャラ配列:LOCAL):元性別保存
+					ENDIF
+				ENDIF
+				INVERTBIT TALENT:(汎用キャラ配列:LOCAL):発情期あり, LOCAL % 100
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+
+ENDSELECT
+
+RESTART
+
+@ハーレムの心得素質設定_複数人()
+#DIM 対象キャラ
+#DIM CONST 消費ZP = 200
+#DIM 必要COST
+#DIM 必要COST_計算値
+
+DRAWLINE
+PRINTFORML キャラクターにハーレムの心得を取得させます。
+PRINTFORML 恋慕の縁結びをする際、自身が恋慕を既に持っていても縁結びが進行するようになります。
+PRINTFORML 変更時に{消費ZP}ZP（1キャラ分）消費します。
+PRINTFORML 所持ZP:{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}
+DRAWLINE
+PRINTBUTTON "[0] 取得する", 0
+PRINTL
+PRINTBUTTON "[999] 取得せず戻る", 999
+PRINTL
+PRINTL
+
+
+BINPUT
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE 999
+		RETURN 0
+	CASE 0
 		必要COST = 0
 		FOR LOCAL, 0, キャラクタ数上限
 			SIF 汎用キャラ配列:LOCAL < 0
 				BREAK
-			SIF TALENT:(汎用キャラ配列:LOCAL):受胎体質 == LOCAL:1
+			SIF TALENT:(汎用キャラ配列:LOCAL):ハーレムの心得
 				CONTINUE
-			SIF CFLAG:(汎用キャラ配列:LOCAL):特殊妊娠蓄積度 < 必要蓄積度:(LOCAL:1)
-				CONTINUE
-			必要COST_計算値 = COST_TO_妊娠可能
+			必要COST_計算値 = 消費ZP
 			IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
 				PRINTL 必要ZPが不足したので処理を停止しました。
 				BREAK
 			ENDIF
 			必要COST += 必要COST_計算値
-			PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %受胎体質素質名(TALENT:(汎用キャラ配列:LOCAL):受胎体質), 12, LEFT% > %受胎体質素質名(LOCAL:1)%
-			TALENT:(汎用キャラ配列:LOCAL):受胎体質 = LOCAL:1
+			PRINTFORM %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%
+			TALENT:(汎用キャラ配列:LOCAL):ハーレムの心得 = 1
 		NEXT
 		FLAG:ZP所持量 -= 必要COST
 		IF 必要COST <= 0
@@ -1061,6 +1330,4 @@ SELECTCASE LOCAL:1
 		ELSE
 			PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
 		ENDIF
-
-		RETURN 0
 ENDSELECT
