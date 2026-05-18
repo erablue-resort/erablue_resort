@@ -16,6 +16,8 @@
 #DIM 得意武器記録
 #DIM 対象キャラ
 #DIM ループ番号
+#DIM ダミー番号, 100
+#DIM 削除回数
 
 #DIMS 比較用一時保存配列, 1000
 #DIMS 素材名分割用, 2
@@ -26,6 +28,8 @@ VARSET 同時モード_選択キャラ, -1
 
 VARSET 追加キャラ保存
 LOCAL:1 = 0
+VARSET ダミー番号
+削除回数 = 0
 
 ダンジョン表示モード = 
 
@@ -42,8 +46,9 @@ PRINTL ロード時対応中…
 FOR LOCAL, 0, CHARANUM
 	SIF LOCAL >= CHARANUM
 		BREAK
-	IF CSTR:LOCAL:出演作品 == "超かぐや姫！"
+	IF NO:LOCAL == 3242 || NO:LOCAL == 3244  || NO:LOCAL == 3245
 		CFLAG:LOCAL:招待不可フラグ = 2
+		NO:LOCAL = 3242
 		CONTINUE
 	ENDIF
 	IF !EXISTCSV(NO:LOCAL)
@@ -124,6 +129,8 @@ CALL ランダムCSVデータベースセット
 FOR LOCAL, 1, キャラクタ数上限
 	SIF !EXISTCSV(LOCAL)
 		CONTINUE
+	SIF LOCAL == 3242 || LOCAL == 3244  || LOCAL == 3245
+		CONTINUE
 
 	;ついでにランダムキャラのCSVデータベースをチェック
 	IF CSVCSTR(LOCAL, GETNUM(CSTR, "ランダムキャラ設定")) != ""
@@ -151,14 +158,28 @@ FOR LOCAL, 1, キャラクタ数上限
 	SIF GETCHARA(LOCAL) >= 0
 		CONTINUE
 	ADDCHARA LOCAL
-	CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
+	;ダミーキャラがいる場合入れ替え後ダミーキャラ削除
+	ダミー番号:削除回数 = GETCHARA(3242)
+	IF ダミー番号:削除回数 >= 0 && CFLAG:(ダミー番号:削除回数):招待不可フラグ == 2
+		SIF 削除回数 > 100
+			THROW ダミーキャラが多すぎて不具合が疑われるためゲームを終了します
+		SWAPCHARA ダミー番号:削除回数, CHARANUM - 1
+		DELCHARA CHARANUM - 1
+		CALL ADD_PERSON_FROM_CHARA(ダミー番号:削除回数)
+		削除回数 ++
+	ELSE
+		CALL ADD_PERSON_FROM_CHARA(CHARANUM - 1)
+	ENDIF
 NEXT
 
-SIF 追加前キャラ数保存 != CHARANUM
+SIF 追加前キャラ数保存 != CHARANUM + 削除回数
 	CALL コマンド存在チェック
 
 FOR LOCAL, 追加前キャラ数保存, CHARANUM
 	CALL キャラクター初期化(LOCAL)
+NEXT
+FOR LOCAL, 0, 削除回数
+	CALL キャラクター初期化(ダミー番号:LOCAL)
 NEXT
 
 PRINTL 追加CSVチェック完了
