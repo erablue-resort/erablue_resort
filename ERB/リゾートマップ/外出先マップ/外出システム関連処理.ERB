@@ -2,10 +2,11 @@
 #DIM 対象キャラ
 #DIM EXP番号
 
+TFLAG:外出中フラグ = 1
 ;あなたの居場所変更
-CFLAG:MASTER:現在マップ種別 = FLAG:お出かけ先フラグ
+CFLAG:MASTER:現在マップ種別 = FLAG:外出先番号
 RESULT = 1
-TRYCALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("エリア移動可能場所")
+TRYCALLFORM エリア情報登録_{FLAG:外出先番号}("エリア移動可能場所")
 CFLAG:MASTER:現在位置 = RESULT
 
 ;キャラの滞在期間を保存＆新規セット
@@ -13,7 +14,7 @@ FOR 対象キャラ, 1, CHARANUM
 	CFLAG:対象キャラ:滞在期間_外出時保存 = CFLAG:対象キャラ:滞在期間
 
 	RESULT = 0
-	TRYCALLFORM 外出先_登場キャラ設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+	TRYCALLFORM 外出先_登場キャラ設定_{FLAG:外出先番号}(対象キャラ)
 	IF CFLAG:対象キャラ:滞在期間 > 0
 		;リゾートに今いるキャラは基本出てこない
 		CFLAG:対象キャラ:滞在期間 = -1
@@ -21,7 +22,7 @@ FOR 対象キャラ, 1, CHARANUM
 		;登場条件を満たしてれば出る
 		CFLAG:対象キャラ:滞在期間 = 999
 		;外出時用ルーチンをセット
-		TRYCALLFORM 外出先_ルーチン設定_{FLAG:お出かけ先フラグ}(対象キャラ)
+		TRYCALLFORM 外出先_ルーチン設定_{FLAG:外出先番号}(対象キャラ)
 		CALL キャラ就寝場所セット(対象キャラ)	;一日開始時のEXP数値を記録
 		FOR EXP番号, 0, 200
 			EXP記録_一日開始時:対象キャラ:EXP番号 = EXP:対象キャラ:EXP番号
@@ -38,9 +39,9 @@ PRINTL
 DRAWLINE
 
 TSTR:場所名受渡 = 
-CALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("選択肢名")
+CALLFORM エリア情報登録_{FLAG:外出先番号}("選択肢名")
 IF TSTR:場所名受渡 == ""
-	CALLFORM エリア情報登録_{FLAG:お出かけ先フラグ}("エリア名")
+	CALLFORM エリア情報登録_{FLAG:外出先番号}("エリア名")
 ENDIF
 PRINTL 今日は外出をする予定だ。
 PRINTFORMW %CALLNAME:MASTER%は出かける準備を整え、%TSTR:場所名受渡%に向けて出発した。
@@ -53,11 +54,13 @@ PRINTFORML %TSTR:場所名受渡%に無事到着した！
 FORCEWAIT
 
 ;外出後に来訪イベントを挟む
-TRYCALLFORM エリア来訪時イベント_{FLAG:お出かけ先フラグ}
+TRYCALLFORM エリア来訪時イベント_{FLAG:外出先番号}
 
 
 @外出共通終了処理()
 #DIM 対象キャラ
+
+TFLAG:外出中フラグ = 0
 
 ;あなたの居場所変更
 CFLAG:MASTER:現在位置 =  キャラクター部屋検索(MASTER)
@@ -69,7 +72,7 @@ FOR 対象キャラ, 1, CHARANUM
 	CFLAG:対象キャラ:滞在期間_外出時保存 = -1
 NEXT
 
-FLAG:お出かけ先フラグ = 0
+FLAG:外出先番号 = 0
 
 
 @外出先一覧表示()

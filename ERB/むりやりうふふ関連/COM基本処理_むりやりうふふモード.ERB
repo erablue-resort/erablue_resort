@@ -708,6 +708,7 @@ ENDIF
 #DIM 回数保存
 #DIM 表示候補, 1000
 #DIM わからせフラグ
+#DIM COM保存
 
 IF TFLAG:オートコマンドフラグ || TFLAG:オートコマンド連続発動
 ELSE
@@ -856,16 +857,34 @@ ENDSELECT
 ;わからせ交尾
 IF わからせフラグ
 	;色々リセットしてフェイズ変更
-	VARSET PREVCOM, 0
-	VARSET コマンド履歴, -2
-	VARSET 派生コマンド履歴, 
-	VARSET NEXTCOM, -1
-	VARSET SELECTCOM, 0
+	; VARSET PREVCOM, 0
+	; VARSET コマンド履歴, -2
+	; VARSET 派生コマンド履歴, 
+	; VARSET NEXTCOM, -1
+	; VARSET SELECTCOM, 0
 	
-	SAVESTR:ゲームフェイズ管理 = 通常モード
+	; SAVESTR:ゲームフェイズ管理 = 通常モード
 
-	;言いなり付与
-	TCVAR:TARGET:言いなり = 1
+	;通常モードに移行してうふふへ
+	LOCALS '= CSTR:TARGET:コスプレ前の服
+	LOCALS:1 '= CSTR:TARGET:着せ替え服
+	TARGET保存 = TARGET
+	;ゲームフェイズ変更でリセットされるのでSELECTCOM保存
+	SWAP SELECTCOM, COM保存
+	CALL ゲームフェイズ変更("通常モード")
+	;SELECTCOM復帰
+	SWAP SELECTCOM, COM保存
+	;食いしばり時などはうふふに入らない
+	IF CFLAG:TARGET:体力限界 == 0
+		TARGET = TARGET保存
+		CSTR:TARGET:コスプレ前の服 '= LOCALS
+		CALL CLOTHES_CHANGE(TARGET, LOCALS:1)
+		;うふふに移行
+		CALL うふふ開始キャラ処理(TARGET, "わからせ")
+		CFLAG:PLAYER:うふふ = 1
+		;言いなり付与
+		TCVAR:TARGET:言いなり = 1
+	ENDIF
 ENDIF
 
 ;設定している食事メニューによって回復量設定
@@ -889,7 +908,7 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 ;寝落ち
-IF FLAG:お出かけ先フラグ > 0 && TIME > 1260
+IF FLAG:外出先番号 > 0 && TIME > 1260
 	TFLAG:オートコマンドフラグ = 0
 
 	PRINTW （そろそろ帰宅する時間だ…　一日を終了します）
