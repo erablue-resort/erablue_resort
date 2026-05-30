@@ -23,6 +23,9 @@
 #DIMS 計算式タイプ
 #DIMS 取得条件
 
+#DIM 取得条件_Lv
+#DIMS 取得条件_陥落
+
 ;効果の最初かどうかを判定
 IF 変更ID == 0
 	;アビ段階が同じ効果がある、かつ新規効果追加状態＝最初ではない
@@ -115,6 +118,35 @@ HTML文字列 += "<br>"
 HTML文字列 += "<br>"
 HTML文字列 += @"<button value='998'>[998] この設定で効果を決定する</button><br>"
 HTML文字列 += @"<button value='999'>[999] 保存せず戻る</button><br>"
+HTML文字列 += "</div>"
+
+;効果目安
+VARSET RESULTS
+取得条件_Lv = 0
+取得条件_陥落 = 
+SPLIT 取得条件, "***", RESULTS
+FOR LOCAL, 0, RESULT
+	IF STRFIND(RESULTS:LOCAL, "Lv") >= 0
+		取得条件_Lv = TOINT(REPLACE(RESULTS:LOCAL, "Lv_", ""))
+	ELSEIF STRFIND(RESULTS:LOCAL, "陥落") >= 0
+		取得条件_陥落 '= REPLACE(RESULTS:LOCAL, "陥落_", "")
+	ENDIF
+NEXT
+
+HTML文字列 += "<div rect='5100, 0, 3000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
+HTML文字列 += "■参考情報　　"
+IF 取得条件_Lv > 0 || 取得条件_陥落 != ""
+	HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>{MAX(1, 取得条件_Lv), 2}"
+	IF 取得条件_陥落 != ""
+		HTML文字列 += "＋陥落時"
+	ENDIF
+	HTML文字列 += "</font> 時点<br>"
+	HTML文字列 += アビエディタ_効果目安_有利効果種類(有利効果, 取得条件_Lv, 取得条件_陥落)
+ELSE
+	HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>1</font> 時点<br>"
+	HTML文字列 += アビエディタ_効果目安_有利効果種類(有利効果, 1, "")
+ENDIF
+HTML文字列 += "<br>"
 HTML文字列 += "</div>"
 
 
@@ -296,3 +328,73 @@ SELECTCASE 有利効果
 	CASE "デバフ効果短縮"
 		RETURNF "固定値"
 ENDSELECT
+
+
+
+@アビエディタ_効果目安_有利効果種類(有利効果, 取得条件_Lv, 取得条件_陥落)
+#FUNCTIONS
+#DIMS 有利効果
+#DIM 取得条件_Lv
+#DIMS 取得条件_陥落
+#DIMS HTML文字列
+
+;目安説明を返す
+
+HTML文字列 = 
+SELECTCASE 有利効果
+	CASE "奥義ゲージUP"
+		SELECTCASE 取得条件_Lv + (取得条件_陥落 != "" ? 20 # 0)
+			CASE 1 TO 20
+				LOCAL = 20
+			CASE 20 TO 40
+				LOCAL = 30
+			CASE 40 TO 60
+				LOCAL = 35
+			CASEELSE
+				LOCAL = 40
+		ENDSELECT
+		HTML文字列 += @"　　単体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 3 / 2, 4}</font><br>"
+		HTML文字列 += @"　　全体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font><br>"
+	CASE "ウェポンバースト"
+		IF 取得条件_Lv + (取得条件_陥落 != "" ? 20 # 0) < 50
+			HTML文字列 += "　　単体対象を推奨<br>"
+		ELSE
+			HTML文字列 += "　　単体対象を推奨<br>"
+			HTML文字列 += "　　複数対象の場合、消費ＭＰを増やす・アビの効果数を減らすなどを推奨<br>"
+		ENDIF
+	CASE "デバフ消去"
+		SELECTCASE 取得条件_Lv + (取得条件_陥落 != "" ? 20 # 0)
+			CASE 1 TO 20
+				LOCAL = 1
+			CASE 20 TO 50
+				LOCAL = 2
+			CASEELSE
+				LOCAL = 3
+		ENDSELECT
+		HTML文字列 += @"　　単体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font><br>"
+		HTML文字列 += @"　　全体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{MAX(1, LOCAL - 1), 4}</font><br>"
+	CASE "バフ効果延長"
+		SELECTCASE 取得条件_Lv + (取得条件_陥落 != "" ? 20 # 0)
+			CASE 1 TO 20
+				LOCAL = 1
+			CASE 20 TO 50
+				LOCAL = 2
+			CASEELSE
+				LOCAL = 3
+		ENDSELECT
+		HTML文字列 += @"　　単体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 2, 4}</font><br>"
+		HTML文字列 += @"　　全体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font><br>"
+	CASE "デバフ効果短縮"
+		SELECTCASE 取得条件_Lv + (取得条件_陥落 != "" ? 20 # 0)
+			CASE 1 TO 20
+				LOCAL = 1
+			CASE 20 TO 50
+				LOCAL = 2
+			CASEELSE
+				LOCAL = 3
+		ENDSELECT
+		HTML文字列 += @"　　単体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 3 / 2, 4}</font><br>"
+		HTML文字列 += @"　　全体対象　効果固定値目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font><br>"
+ENDSELECT
+
+RETURNF HTML文字列
