@@ -7,20 +7,29 @@ DRAWLINE
 PRINTL 射精時、選択なしで射精する設定を行います。
 PRINTL 設定されている射精先が選択可能な場合、自動的にその射精先を選択します。
 PRINTL 複数の選択可能な射精先が設定されている場合、優先度の数字が小さい方が優先して選択されます。
+PRINTL 優先度の共有を行うと、同一優先度内でランダムに射精先が選ばれるようになります。
 DRAWLINE
 
 FOR LOCAL, 0, 31
 	IF オート射精先オプション:LOCAL == -1
-		PRINTBUTTON @"[{LOCAL}] オート射精先を設定する", LOCAL
+		PRINTBUTTON @"[{LOCAL}] オート射精先を追加する", LOCAL
 		PRINTL
 		BREAK
 	ELSE
 		TSTR:コマンド名受渡 = 
-		TRYCALLFORM SHOOT_NAME_{オート射精先オプション:LOCAL}(-1)
-		SIF TSTR:コマンド名受渡 == ""
-			CONTINUE
+		IF オート射精先オプション:LOCAL >= 10000
+			TRYCALLFORM SHOOT_NAME_{オート射精先オプション:LOCAL - 10000}(-1)
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
 
-		PRINTFORM 優先度{LOCAL}：%TSTR:コマンド名受渡, 20, LEFT%　　
+			PRINTFORM └優先度-：%TSTR:コマンド名受渡, 18, LEFT%　　
+		ELSE
+			TRYCALLFORM SHOOT_NAME_{オート射精先オプション:LOCAL}(-1)
+			SIF TSTR:コマンド名受渡 == ""
+				CONTINUE
+
+			PRINTFORM 優先度{LOCAL}：%TSTR:コマンド名受渡, 20, LEFT%　　
+		ENDIF
 		IF LOCAL > 0
 			PRINTBUTTON "[↑]", LOCAL + 100
 		ELSE
@@ -35,6 +44,14 @@ FOR LOCAL, 0, 31
 		PRINTBUTTON "[変更]", LOCAL
 		PRINT   
 		PRINTBUTTON "[解除]", LOCAL + 300
+		IF LOCAL > 0
+			PRINT 　　
+			IF オート射精先オプション:LOCAL >= 10000
+				PRINTBUTTON "[優先度の共有を解除]", LOCAL + 400
+			ELSE
+				PRINTBUTTON "[上と優先度を共有]", LOCAL + 400
+			ENDIF
+		ENDIF
 		PRINTL
 	ENDIF
 NEXT
@@ -71,9 +88,22 @@ SELECTCASE LOCAL
 	CASE IS < 300
 		;下に移動
 		SWAP オート射精先オプション:(LOCAL - 200), オート射精先オプション:(LOCAL - 199)
-	CASEELSE
+	CASE IS < 400
+		;削除
 		ARRAYSHIFT オート射精先オプション, -1, -1, LOCAL - 300
+	CASEELSE
+		;優先度共有
+		IF オート射精先オプション:(LOCAL - 400) >= 10000
+			オート射精先オプション:(LOCAL - 400) = オート射精先オプション:(LOCAL - 400) - 10000
+		ELSE
+			オート射精先オプション:(LOCAL - 400) = オート射精先オプション:(LOCAL - 400) + 10000
+		ENDIF
 ENDSELECT
+
+;一番上が優先度共有になってたら戻す
+IF オート射精先オプション:0 >= 10000
+	オート射精先オプション:0 = オート射精先オプション:0 - 10000
+ENDIF
 
 RESTART
 
