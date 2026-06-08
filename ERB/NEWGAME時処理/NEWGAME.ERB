@@ -119,6 +119,8 @@ RESTART
 #DIM 引き継いだキャラ人数
 #DIMS 分割文字列, 3
 #DIM era番号
+#DIM キャラ番号記録, 2
+#DIM 対象キャラ
 
 VARSET LOCAL
 VARSET LOCALS
@@ -332,15 +334,40 @@ PRINTL
 SAVESTR:10 = /
 LOCAL:1 = CHARANUM / 100
 REDRAW 0
-IF 引き継ぎ中フラグ && キャラ同士関係性データ != ""
-	VARSET LOCALS
-	SPLIT キャラ同士関係性データ, "+++", LOCALS
-	FOR LOCAL, 0, RESULT
-		SPLIT LOCALS:LOCAL, "_", 分割文字列
-		LOCAL:2 = キャラ検索(分割文字列:0)
-		LOCAL:3 = キャラ検索(分割文字列:1)
-		SIF LOCAL:2 > 0 && LOCAL:3 > 0
-			DT_ROW_ADD "関係性データベース", "対象キャラ１", CFLAG:(LOCAL:2):人物番号, "対象キャラ２", CFLAG:(LOCAL:3):人物番号, "関係性種別", 分割文字列:2
+IF 引き継ぎ中フラグ && キャラ縁結び引き継ぎフラグ
+	CALL 周回時縁結び引き継ぎデータベースセット
+	LOADTEXT "dat/縁結び引き継ぎDT_XML.txt"
+	LOCALS:0 = %RESULTS%
+	LOADTEXT "dat/縁結び引き継ぎDT_schema.txt"
+	LOCALS:1 = %RESULTS%
+	DT_FROMXML "縁結び引き継ぎデータベース", LOCALS:1, LOCALS:0
+	FOR LOCAL, 0, DT_ROW_LENGTH("縁結び引き継ぎデータベース")
+		IF DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ１") > 0
+			;通常キャラ
+			キャラ番号記録:0 = GETCHARA(DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ１"))
+		ELSE
+			;ランダムキャラ
+			FOR 対象キャラ, 1, キャラクタ数上限
+				IF ランダムキャラ引き継ぎナンバー記録:対象キャラ:0 == DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ１")
+					キャラ番号記録:0 = 対象キャラ
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		IF DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ２") > 0
+			;通常キャラ
+			キャラ番号記録:1 = GETCHARA(DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ２"))
+		ELSE
+			;ランダムキャラ
+			FOR 対象キャラ, 1, キャラクタ数上限
+				IF ランダムキャラ引き継ぎナンバー記録:対象キャラ:0 == DT_CELL_GET("縁結び引き継ぎデータベース", LOCAL, "対象キャラ２")
+					キャラ番号記録:1 = 対象キャラ
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+
+		DT_ROW_ADD "縁結びデータベース", "対象キャラ１", CFLAG:(キャラ番号記録:0):人物番号, "対象キャラ２", CFLAG:(キャラ番号記録:1):人物番号, "進展度", 100, "縁結び種別", DT_CELL_GETS("縁結び引き継ぎデータベース", LOCAL, "関係性種別"), "受け攻め設定", DT_CELL_GETS("縁結び引き継ぎデータベース", LOCAL, "受け攻め設定")
 	NEXT
 ENDIF
 FOR LOCAL, 0, CHARANUM
@@ -362,8 +389,6 @@ CLEARLINE 1
 PRINTL 進行度……100%
 
 REDRAW 1
-
-
 
 PRINTW パラメータの初期化処理が終了しました
 
@@ -506,7 +531,7 @@ IF 引き継ぎ中フラグ
 	VARSET あなた特殊能力引き継ぎ
 	引き継ぎ中フラグ = 0
 	あなた引き継ぎ = 0
-	キャラ同士関係性データ = 
+	キャラ縁結び引き継ぎフラグ = 0
 
 	最大レベル保存_周回 = 最大レベル引き継ぎ
 	;最大レベルに応じて経験値アイテム配布
@@ -537,6 +562,11 @@ SIF OPTION変数:招待画像枚数閾値 < 1
 LOCAL = GETSECOND() / 3600
 ;日単位
 LOCAL:1 = (LOCAL + 19) / 24
+
+;縁結び引き継ぎ用
+SKIPDISP 1
+CALL 縁結び完了処理()
+SKIPDISP 0
 
 IF (REAL_TIME < LOCAL:1)
 	REAL_TIME = LOCAL:1
@@ -650,6 +680,7 @@ IF 引き継ぎ中フラグ
 		TALENT:設定中キャラ番号:従業員 = 0
 		TALENT:設定中キャラ番号:定住者 = 0
 		CFLAG:設定中キャラ番号:招待不可フラグ = 0
+		ランダムキャラ引き継ぎナンバー記録:設定中キャラ番号:0 = LOCAL * -1
 
 		LOCAL ++
 	WEND
@@ -2475,7 +2506,7 @@ ELSEIF CSTR:対象キャラ:初期関係性 != ""
 			CALL SET_同行候補(対象キャラ, キャラ番号記録, 8000)
 		ENDIF
 		;同一組み合わせはスキップ
-		SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:キャラ番号記録:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号記録:人物番号})")
+		SIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号}) And (対象キャラ１ = {CFLAG:キャラ番号記録:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号記録:人物番号}) And 関係性種別 = '%CSTR切り分け文字列格納:1%'")
 			CONTINUE
 		;既に恋慕があるなら恋慕初期はスキップ
 		SIF CSTR切り分け文字列格納:1 == "恋慕" && (DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ２ = {CFLAG:対象キャラ:人物番号} Or 対象キャラ１ = {CFLAG:キャラ番号記録:人物番号} Or 対象キャラ２ = {CFLAG:キャラ番号記録:人物番号}) And 関係性種別 = '恋慕'") || TALENT:対象キャラ:恋慕 || TALENT:キャラ番号記録:恋慕)
