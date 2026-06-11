@@ -672,3 +672,122 @@ SELECTCASE 処理モード
 		ENDIF
 		集客人数 = 集客人数保存
 ENDSELECT
+
+
+@特殊広告_ランダムに運命を導く(処理モード, 入力数値 = 0)
+#DIMS 処理モード
+#DIM 入力数値
+#DIM 集客候補, キャラクタ数上限
+#DIM 候補人数
+VARSET 集客候補
+
+SELECTCASE 処理モード
+	CASE "右側表示"
+		詳細文文字列受け渡し変数 += "■ランダムに運命を導く<br><br>"
+		詳細文文字列受け渡し変数 += "ZPで解放可能なキャラからランダムで１０人を解放し、リゾートに招待します。<br>ルピは消費せず、500ZPが費用として掛かります。人気の上昇は発生しません。<br>"
+		詳細文文字列受け渡し変数 += "解放するキャラクターの候補は招待制御オプションに準じて選出されます。<br>キャラの同行は発生しません。<br><br>"
+		詳細文文字列受け渡し変数 += "候補が１０人以下の場合、候補者が全員解放されます。<br>（０人の場合は解放されません）<br>候補者が１０人以下の場合でもZPはそのまま消費されます。<br>"
+		詳細文文字列受け渡し変数 += "客室の空きが１０人未満の時は招待されませんが、解放は行われます。<br><br>"
+		IF FLAG:ZP所持量 < 500
+			詳細文文字列受け渡し変数 += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[100] ランダムに運命を導く（所持ZP不足）</font>"
+		ELSE
+			詳細文文字列受け渡し変数 += "<button value='100'>[100] ランダムに運命を導く</button><br>"
+		ENDIF
+	CASE "実処理"
+		PRINTFORMW ランダムに運命を導きました。
+		FLAG:ZP所持量 -= 500
+
+		;実処理
+		;上限以下にする
+		CALL ユニーク客人数チェック()
+		集客人数 = MIN(10, (滞在キャラ上限 - 滞在キャラ数))
+
+		LOCAL:1 = 0
+		FOR LOCAL, 1, CHARANUM
+			;ZPでの解放キャラのみ
+			SIF CFLAG:LOCAL:招待不可フラグ != 3
+				CONTINUE
+			;オプションによる制御
+			SIF 性別招待制御_実処理(LOCAL)
+				CONTINUE
+			集客候補:(LOCAL:1) = LOCAL
+			LOCAL:1 += 1
+		NEXT
+		候補人数 = LOCAL:1
+
+		;候補人数が０の場合はそのまま終わる
+		IF 候補人数 == 0
+			集客人数 = 0
+			PRINTFORMW しかし、誰の運命も導けませんでした…。
+			RETURN 0
+		ENDIF
+
+		;候補人数が集客人数より少ない場合は全員登録
+		IF 候補人数 <= 10
+			IF 候補人数 <= 集客人数
+				集客人数 = 候補人数
+				FOR LOCAL, 0, 候補人数
+					PRINTFORM %NAME表示(集客候補:LOCAL), 41, LEFT%が導かれました。
+					PRINTL 起床後にリゾートを訪れます。
+					IF CSTR:(集客候補:LOCAL):出演作品 == ""
+						PRINTFORML 出演作品：グランブルーファンタジー
+					ELSE
+						PRINTFORML 出演作品：%CSTR:(集客候補:LOCAL):出演作品%
+					ENDIF
+					CFLAG:(集客候補:LOCAL):招待不可フラグ = 0
+					通常キャラ招待:LOCAL = 集客候補:LOCAL
+					CALL 顔グラ単発表示_デフォルト(集客候補:LOCAL)
+					WAIT
+				NEXT
+			ELSE
+				FOR LOCAL, 0, 候補人数
+					PRINTFORM %NAME表示(集客候補:LOCAL), 41, LEFT%が導かれました。
+					CFLAG:(集客候補:LOCAL):招待不可フラグ = 0
+					IF LOCAL < 集客人数
+						PRINTL 起床後にリゾートを訪れます。
+						通常キャラ招待:LOCAL = 集客候補:LOCAL
+					ELSE
+						PRINTL 滞在人数がいっぱいのため、今後の招待対象に追加します。
+					ENDIF
+					IF CSTR:(集客候補:LOCAL):出演作品 == ""
+						PRINTFORML 出演作品：グランブルーファンタジー
+					ELSE
+						PRINTFORML 出演作品：%CSTR:(集客候補:LOCAL):出演作品%
+					ENDIF
+					CALL 顔グラ単発表示_デフォルト(集客候補:LOCAL)
+					WAIT
+				NEXT
+			ENDIF
+		ELSE
+			LOCAL:2 = 0
+			LOCAL = 候補人数 - 1
+			;集客候補配列をシャッフル
+			WHILE LOCAL > 1
+				LOCAL:1 = RAND:(LOCAL - 1)
+				SWAP 集客候補:LOCAL, 集客候補:(LOCAL:1)
+				LOCAL -= 1
+				LOCAL:2 += 1
+				;必要分集まったらおしまい
+				SIF LOCAL:2 >= 10
+					BREAK
+			WEND
+			;配列の後ろの方にランダムシャッフルされた候補が集まってるはずなので集客人数分取得
+			FOR LOCAL, 0, 10
+				PRINTFORM %NAME表示(集客候補:(候補人数 - 1 - LOCAL)), 41, LEFT%が導かれました。
+				CFLAG:(集客候補:(候補人数 - 1 - LOCAL)):招待不可フラグ = 0
+				IF LOCAL < 集客人数
+					PRINTL 起床後にリゾートを訪れます。
+					通常キャラ招待:LOCAL = 集客候補:(候補人数 - 1 - LOCAL)
+				ELSE
+					PRINTL 滞在人数がいっぱいのため、今後の招待対象に追加します。
+				ENDIF
+					IF CSTR:(集客候補:(候補人数 - 1 - LOCAL)):出演作品 == ""
+						PRINTFORML 出演作品：グランブルーファンタジー
+					ELSE
+						PRINTFORML 出演作品：%CSTR:(集客候補:(候補人数 - 1 - LOCAL)):出演作品%
+					ENDIF
+				CALL 顔グラ単発表示_デフォルト(集客候補:(候補人数 - 1 - LOCAL))
+				WAIT
+			NEXT
+		ENDIF
+ENDSELECT
