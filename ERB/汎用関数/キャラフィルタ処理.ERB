@@ -250,11 +250,27 @@ FOR 配列番号, 0, CHARANUM
 
 	;条件を満たす場合は合致フラグに１以上が入る
 	合致フラグ = 1
+	SIF キャラ一覧素質絞り込み:99 != "AND" && キャラ一覧素質絞り込み:0 != ""
+		合致フラグ = 0
+
 	FOR LOCAL, 0, 99
 		SIF キャラ一覧素質絞り込み:LOCAL == ""
 			BREAK
+
 		VARSET LOCALS
 		SPLIT キャラ一覧素質絞り込み:LOCAL, "_", LOCALS
+		;素質ごとの個別分岐
+		;処理の問題で一括処理出来ないものがあるので別関数で対処
+		IF TOINT(LOCALS:0) == 228
+			CALL キャラ一覧素質絞り込み_感覚共有(対象キャラ, キャラ一覧素質絞り込み:LOCAL)
+			IF RESULT > -1
+				合致フラグ = RESULT
+				BREAK
+			ENDIF
+			CONTINUE
+		ENDIF
+
+		;以下通常対処
 		IF LOCALS:2 == "▲"
 			;マイナス検索
 			IF キャラ一覧素質絞り込み:99 == "AND"
@@ -264,7 +280,6 @@ FOR 配列番号, 0, CHARANUM
 					BREAK
 				ENDIF
 			ELSE
-				合致フラグ = 0
 				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
 					;OR条件の場合は一個アウトならOK
 					合致フラグ = 1
@@ -280,7 +295,6 @@ FOR 配列番号, 0, CHARANUM
 					BREAK
 				ENDIF
 			ELSE
-				合致フラグ = 0
 				IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
 					;OR条件の場合は一個当てはまればOK
 					合致フラグ = 1
@@ -902,6 +916,13 @@ FOR LOCAL, 0, 1000
 		CONTINUE
 	FOR LOCAL:1 , -10, 11
 		IF GET_TALENTNAME(LOCAL, LOCAL:1) != ""
+			;素質ごとの個別分岐
+			;処理の問題で一括処理出来ないものがあるのでここで対処
+			IF LOCAL == 228
+				;感覚共有・命のリンクは１と２のみ表示
+				SIF LOCAL:1 < 1 || LOCAL:1 > 2
+					CONTINUE
+			ENDIF
 			SIF MATCH(キャラ一覧素質絞り込み, @"{LOCAL}_{LOCAL:1}")
 				SETCOLOR カラーパレット("黄")
 			LOCALS = [%GET_TALENTNAME(LOCAL, LOCAL:1)%]
@@ -968,6 +989,80 @@ IF STRCOUNT(LOCALS, "_")
 ENDIF
 REUSELASTLINE 
 GOTO INPUT_LOOP_ANY
+
+
+
+@キャラ一覧素質絞り込み_感覚共有(対象キャラ, 判定文字列)
+#DIM 対象キャラ
+#DIMS 判定文字列
+
+VARSET LOCALS
+SPLIT 判定文字列, "_", LOCALS
+
+IF TOINT(LOCALS:1) == 1
+	;命のリンクパターン（グランジータルリア専用）
+	;これは数値一致なので通常処理のコピペで良い
+	IF LOCALS:2 == "▲"
+		;マイナス検索
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+				;ANDの場合は一個でも合致だとNG
+				RETURN 0
+			ENDIF
+		ELSE
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+				;OR条件の場合は一個アウトならOK
+				RETURN 1
+			ENDIF
+		ENDIF
+	ELSE
+		;通常検索
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) != TOINT(LOCALS:1)
+				;ANDの場合は一個でもアウトだとNG
+				RETURN 0
+			ENDIF
+		ELSE
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == TOINT(LOCALS:1)
+				;OR条件の場合は一個当てはまればOK
+				RETURN 1
+			ENDIF
+		ENDIF
+	ENDIF
+ELSE
+	;他、感覚共有パターン
+	;これは数値でNOを管理しているので、０と１以外は全部同じ扱い
+	IF LOCALS:2 == "▲"
+		;マイナス検索
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) > 1 || TALENT:対象キャラ:(TOINT(LOCALS:0)) < 0
+				;ANDの場合は一個でも合致だとNG
+				RETURN 0
+			ENDIF
+		ELSE
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == 0 || TALENT:対象キャラ:(TOINT(LOCALS:0)) == 1
+				;OR条件の場合は一個アウトならOK
+				RETURN 1
+			ENDIF
+		ENDIF
+	ELSE
+		;通常検索
+		IF キャラ一覧素質絞り込み:99 == "AND"
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) == 0 || TALENT:対象キャラ:(TOINT(LOCALS:0)) == 1
+				;ANDの場合は一個でもアウトだとNG
+				RETURN 0
+			ENDIF
+		ELSE
+			IF TALENT:対象キャラ:(TOINT(LOCALS:0)) > 1 || TALENT:対象キャラ:(TOINT(LOCALS:0)) < 0
+				;OR条件の場合は一個当てはまればOK
+				RETURN 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURN -1
+
 
 ;---------------------------------------------------------
 ;フィルタ/ソートボタンセット表示
