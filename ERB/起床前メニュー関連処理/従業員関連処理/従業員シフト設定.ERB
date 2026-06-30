@@ -1,0 +1,145 @@
+﻿@従業員シフト設定
+#DIM 従業員一覧, 500
+#DIM ソート配列, 500
+#DIM ページ数
+#DIM 変更キャラ
+#DIMS 屋号保存
+#DIM ソートタイプ
+#DIM 空き店舗あり
+#DIMS 常駐業務名
+#DIM 固有仕事数
+#DIMS 固有仕事配列, 50
+#DIMS 固有仕事名
+#DIM 固有仕事キー
+
+変更キャラ = -1
+
+$表示ループ
+VARSET 従業員一覧, -1
+VARSET ソート配列
+VARSET 仕事人数表示用
+
+DRAWLINE
+PRINTL 従業員の休養日の設定を行います。
+PRINTL ※開発中のため、仕事が正しく挙動しないことがあります。
+DRAWLINE
+LOCALS = <div rect='81,31,1937,3762' border='31' bcolor='#C0C0C0'></div><div rect='2050,710,3875,3080' border='31' bcolor='#C0C0C0'></div>
+
+;現在いる従業員を配列へ
+従業員一覧:0 = 0
+LOCAL:1 = 0
+FOR LOCAL, 1, CHARANUM
+	SIF TALENT:LOCAL:従業員 == 0
+		CONTINUE
+	従業員一覧:(LOCAL:1) = LOCAL
+	IF 現在仕事:LOCAL:休養日 < 10
+		ソート配列:(LOCAL:1) = (CFLAG:LOCAL:人物番号 % 7) + 10
+	ELSE
+		ソート配列:(LOCAL:1) = ((現在仕事:LOCAL:休養日 - 10) % 7) + 10
+	ENDIF
+	LOCAL:1 += 1
+NEXT
+IF ソートタイプ
+	ARRAYMSORT ソート配列, 従業員一覧
+ENDIF
+
+;一覧表示
+LOCALS += "<div rect='156,156,1737,3662'><nobr>"
+FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
+	IF 従業員一覧:LOCAL < 0
+		LOCALS += "<br>"
+		CONTINUE
+	ENDIF
+	IF 現在仕事:(従業員一覧:LOCAL):0 == -1
+		LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'><nonbutton>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%[商店経営]</nonbutton></font>"
+	ELSE
+		SIF 変更キャラ == 従業員一覧:LOCAL
+			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>"
+		LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%["
+		IF 現在仕事:(従業員一覧:LOCAL):休養日 < 10
+			LOCALS += @"%曜日登録:(CFLAG:(従業員一覧:LOCAL):人物番号 % 7)%"
+		ELSE
+			LOCALS += @"%曜日登録:((現在仕事:(従業員一覧:LOCAL):休養日 - 10) % 7)%"
+		ENDIF
+		LOCALS += "]</button>"
+		SIF 変更キャラ == 従業員一覧:LOCAL
+			LOCALS += @"</font>"
+	ENDIF
+	LOCALS += "<br>"
+NEXT
+IF ページ数 > 0
+	LOCALS += "<button value='1000'>　＜ 前ページ</button>"
+ELSE
+	LOCALS += "　　　　　　　 "
+ENDIF
+LOCALS += "　　　　"
+IF 従業員一覧:(ページ数 * 17 + 17) > -1
+	LOCALS += "<button value='1001'>次ページ ＞</button>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "<br>"
+LOCALS += "<button value='999'>[999] 戻る</button>　　"
+IF ソートタイプ
+	LOCALS += "曜日順 <button value='998'>[切替]</button>"
+ELSE
+	LOCALS += "番号順 <button value='998'>[切替]</button>"
+ENDIF
+LOCALS += "<br>"
+LOCALS += "</nobr></div>"
+
+
+;仕事の種類と現在そこに従事している人数を表示
+LOCALS += "<div rect='2125,770,3675,2812'><nobr>"
+IF 変更キャラ > -1
+	LOCALS += @"現在の休養日：%NAME表示(変更キャラ)%<br>"
+	IF 現在仕事:変更キャラ:休養日 < 10
+		LOCALS += @"■%曜日登録:(CFLAG:変更キャラ:人物番号 % 7)%曜日<br>"
+	ELSE
+		LOCALS += @"■%曜日登録:((現在仕事:変更キャラ:休養日 - 10) % 7)%曜日<br>"
+	ENDIF
+	LOCALS += "<br>"
+ELSE
+ENDIF
+LOCALS += "</nobr></div>"
+
+;仕事切り替え用枠
+LOCALS += "<div rect='2050,31,3875,650' padding='50,25,50' border='31' bcolor='#C0C0C0'>"
+IF 変更キャラ > -1
+	FOR LOCAL, 0, 7
+		IF (現在仕事:変更キャラ:休養日 < 10 && CFLAG:変更キャラ:人物番号 % 7 == LOCAL) || (現在仕事:変更キャラ:休養日 >= 10 && (現在仕事:変更キャラ:休養日 - 10) % 7 == LOCAL)
+			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[%曜日登録:LOCAL%]</font>"
+		ELSE
+			LOCALS += @"<button value='{LOCAL + 2000}'>[%曜日登録:LOCAL%]</button>"
+		ENDIF
+	NEXT
+ENDIF
+LOCALS += "</div>"
+
+
+
+HTML_PRINT LOCALS
+FOR LOCAL, 0, 34
+	PRINTL
+NEXT
+DRAWLINE
+
+BINPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+	CASE IS >= 2000
+		現在仕事:変更キャラ:休養日 = (LOCAL - 2000 + 10)
+	CASE 1000
+		ページ数 -= 1
+	CASE 1001
+		ページ数 += 1
+	CASE 999
+		ページ数 = 0
+		RETURN 0
+	CASE 998
+		INVERTBIT ソートタイプ, 0
+	CASE 0 TO 499
+		変更キャラ = 従業員一覧:LOCAL
+ENDSELECT
+
+GOTO 表示ループ
