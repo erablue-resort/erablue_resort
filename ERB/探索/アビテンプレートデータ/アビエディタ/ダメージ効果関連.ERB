@@ -1,8 +1,8 @@
 ﻿
 @アビエディタ_ダメージ効果追加(変更ID = 0, アビ段階 = 0, 取得条件)
 ;アビ文字列１ ダメージ倍率に使用する能力値
-;アビ文字列２
-;アビ文字列３
+;アビ文字列２ ダメージ種類
+;アビ文字列３ 奥義基礎攻撃 ※奥義時のみ使用
 ;アビ文字列４
 ;アビ文字列５
 ;アビ数値１ ダメージ倍率
@@ -17,6 +17,8 @@
 #DIM DYNAMIC ダメージ回数
 #DIMS DYNAMIC ダメージ能力値
 #DIMS DYNAMIC ダメージ対象
+#DIMS DYNAMIC ダメージ種類
+#DIM DYNAMIC 奥義基礎攻撃
 #DIM アビ段階
 #DIM ダメージモード
 #DIM 変更ID
@@ -48,6 +50,9 @@ IF 変更ID
 	ダメージ属性 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値３", 1)
 	ダメージ回数 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ数値４", 1)
 	ダメージ能力値 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列１", 1)
+	ダメージ種類 '= DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列２", 1)
+	SIF DT_CELL_GETS("アビエディタデータベース", 変更ID, "アビ文字列３", 1) == "奥義基礎攻撃"
+		奥義基礎攻撃 = 1
 	アビ段階 = DT_CELL_GET("アビエディタデータベース", 変更ID, "アビ段階", 1)
 ENDIF
 IF ダメージ対象 == ""
@@ -72,6 +77,9 @@ DRAWLINE
 
 PRINTL ・現在の効果
 PRINT 　　
+IF 奥義基礎攻撃
+	PRINT 奥義基礎攻撃：
+ENDIF
 PRINTFORM %ダメージ対象%に
 IF ダメージモード == 0
 	PRINTFORM ［%ダメージ能力値%✕{ダメージ倍率}％］
@@ -133,46 +141,48 @@ FOR LOCAL, 0, RESULT
 NEXT
 HTML文字列 += "<div rect='5100, 0, 3000, 3000' padding='50,25,50' color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 HTML文字列 += "■参考情報　　"
+IF 奥義基礎攻撃 == 0
 
-IF 取得条件_Lv > 0 || 取得条件_陥落 != ""
-	SELECTCASE 取得条件_Lv
-		CASE 1 TO 10
-			LOCAL = 200
-		CASE 10 TO 20
-			LOCAL = 250
-		CASE 20 TO 30
-			LOCAL = 300
-		CASE 30 TO 40
-			LOCAL = 350
-		CASE 40 TO 50
-			LOCAL = 400
-		CASE 50 TO 60
-			LOCAL = 430
-		CASE 60 TO 70
-			LOCAL = 460
-		CASEELSE
-			LOCAL = 500
-	ENDSELECT
-	HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>{MAX(1, 取得条件_Lv), 2}"
-	IF 取得条件_陥落 != ""
-		HTML文字列 += "＋陥落時"
-		LOCAL += 50
+	IF 取得条件_Lv > 0 || 取得条件_陥落 != ""
+		SELECTCASE 取得条件_Lv
+			CASE 1 TO 10
+				LOCAL = 200
+			CASE 10 TO 20
+				LOCAL = 250
+			CASE 20 TO 30
+				LOCAL = 300
+			CASE 30 TO 40
+				LOCAL = 350
+			CASE 40 TO 50
+				LOCAL = 400
+			CASE 50 TO 60
+				LOCAL = 430
+			CASE 60 TO 70
+				LOCAL = 460
+			CASEELSE
+				LOCAL = 500
+		ENDSELECT
+		HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>{MAX(1, 取得条件_Lv), 2}"
+		IF 取得条件_陥落 != ""
+			HTML文字列 += "＋陥落時"
+			LOCAL += 50
+		ENDIF
+		HTML文字列 += "</font> 時点<br>"
+		HTML文字列 += @"　　単体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font>％<br>"
+		HTML文字列 += @"　　横列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 8 / 10, 4}</font>％<br>"
+		HTML文字列 += @"　　縦列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 6 / 10, 4}</font>％<br>"
+		HTML文字列 += @"　　全体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 5 / 10, 4}</font>％<br>"
+	ELSE
+		HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>1"
+		HTML文字列 += "</font> 時点<br>"
+		HTML文字列 += @"　　単体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 200</font>％<br>"
+		HTML文字列 += @"　　横列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 160</font>％<br>"
+		HTML文字列 += @"　　縦列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 120</font>％<br>"
+		HTML文字列 += @"　　全体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 100</font>％<br>"
 	ENDIF
-	HTML文字列 += "</font> 時点<br>"
-	HTML文字列 += @"　　単体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL, 4}</font>％<br>"
-	HTML文字列 += @"　　横列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 8 / 10, 4}</font>％<br>"
-	HTML文字列 += @"　　縦列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 6 / 10, 4}</font>％<br>"
-	HTML文字列 += @"　　全体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'>{LOCAL * 5 / 10, 4}</font>％<br>"
-ELSE
-	HTML文字列 += @"Lv<font color='#%カラーパレット_HTML("黄")%'>1"
-	HTML文字列 += "</font> 時点<br>"
-	HTML文字列 += @"　　単体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 200</font>％<br>"
-	HTML文字列 += @"　　横列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 160</font>％<br>"
-	HTML文字列 += @"　　縦列対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 120</font>％<br>"
-	HTML文字列 += @"　　全体対象　ダメージ目安：<font color='#%カラーパレット_HTML("黄")%'> 100</font>％<br>"
+	HTML文字列 += "<br>"
+	HTML文字列 += "　　複数回攻撃の場合、合計をダメージ目安と同程度にすることを推奨します。<br>"
 ENDIF
-HTML文字列 += "<br>"
-HTML文字列 += "　　複数回攻撃の場合、合計をダメージ目安と同程度にすることを推奨します。<br>"
 HTML文字列 += "</div>"
 
 
