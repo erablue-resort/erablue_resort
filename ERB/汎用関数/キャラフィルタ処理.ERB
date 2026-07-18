@@ -28,6 +28,13 @@
 REDRAW_TEMP = CURRENTREDRAW()
 REDRAW 0
 
+;ソート用データベース
+DT_CREATE "ソート用データベース"
+DT_COLUMN_ADD "ソート用データベース", "対象キャラ番号", 3
+DT_COLUMN_ADD "ソート用データベース", "ソート変数１", 3
+DT_COLUMN_ADD "ソート用データベース", "ソート変数２", 3
+DT_COLUMN_ADD "ソート用データベース", "ソート変数３", 3
+
 VARSET 返し配列, 配列初期値
 候補人数 = 0
 VARSET 弱点フィルタマッチ配列
@@ -306,15 +313,26 @@ FOR 配列番号, 0, CHARANUM
 	SIF 合致フラグ == 0
 		CONTINUE
 
-	返し配列:候補人数 = 対象キャラ
-	ソート基準値:候補人数 = ソート情報登録(返し配列:候補人数, 候補人数)
-	候補人数 += 1
+	DT_ROW_ADD "ソート用データベース", "対象キャラ番号", 対象キャラ, "ソート変数１", ソート情報登録(対象キャラ)
+
+	; 返し配列:候補人数 = 対象キャラ
+	; ソート基準値:候補人数 = ソート情報登録(返し配列:候補人数, 候補人数)
+	; 候補人数 += 1
 NEXT
 
 ;ソート実行
-ARRAYMSORT ソート基準値, 返し配列
+; ARRAYMSORT ソート基準値, 返し配列
 
-ARRAYCOPY "返し配列", "対象キャラ配列"
+; ARRAYCOPY "返し配列", "対象キャラ配列"
+
+VARSET RESULT
+VARSET 対象キャラ配列
+DT_SELECT "ソート用データベース", "", "ソート変数１ ASC"
+候補人数 = RESULT
+FOR LOCAL, 1, 候補人数 + 1
+	対象キャラ配列:(LOCAL - 1) = DT_CELL_GET("ソート用データベース", RESULT:LOCAL, "対象キャラ番号", 1)
+NEXT
+DT_RELEASE "ソート用データベース"
 
 CLEARLINE 1
 PRINTL フィルタ処理進行度……100%
