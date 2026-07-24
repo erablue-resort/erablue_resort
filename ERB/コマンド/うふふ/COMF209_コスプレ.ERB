@@ -213,6 +213,8 @@ ENDIF
 #DIM キャラ番号
 #DIM ページ数
 #DIM 表示許可数
+#DIM 横位置
+#DIM 表示モード
 #DIM CONST 表示数 = 44
 #DIM 実行難易度
 #DIMS コスプレ一時配列, 1980
@@ -223,16 +225,20 @@ ENDIF
 DRAWLINE
 PRINTFORML %CALLNAME:キャラ番号%に着せたい服を選んでください
 DRAWLINE
-LOCALS = <div rect='81,31,5844,2812' border='31' bcolor='#C0C0C0'></div>
 
+VARSET LOCALS
+
+
+LOCALS += "<div rect='81,175,5844,2812' padding='50' border='31' bcolor='#C0C0C0'>"
 ;服の説明を表示
-LOCALS += "<div rect='156,156,5750,2812'>"
-IF TFLAG:調教モード != 2 && フィールド展開:エロ制服許可 == 0
-	;エロ制服ダメパターン
-	コスプレ一時配列:0 = %所持制服文字列%
-ELSE
-	コスプレ一時配列:0 = %所持制服文字列%%所持エロ衣装文字列%
-ENDIF
+SELECTCASE 表示モード
+	CASE 0
+		;通常衣装
+		コスプレ一時配列:0 = %所持制服文字列%
+	CASE 1
+		;エロ衣装
+		コスプレ一時配列:0 = %所持エロ衣装文字列%
+ENDSELECT
 SPLIT コスプレ一時配列:0, "_", コスプレ一時配列
 VARSET LOCAL
 表示許可数 = 0
@@ -299,9 +305,28 @@ ENDIF
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "</div>"
 
+;タブを表示
+横位置 = 81
+IF 表示モード == 0
+	LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>通常衣装</font>"
+ELSE
+	LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='990'>通常衣装</button>"
+ENDIF
+LOCALS += "</div>"
+IF TFLAG:調教モード == 2 || フィールド展開:エロ制服許可 != 0
+	横位置 += 550
+	IF 表示モード == 1
+		LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>エロ衣装</font>"
+	ELSE
+		LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='991'>エロ衣装</button>"
+	ENDIF
+	LOCALS += "</div>"
+ELSEIF 表示モード == 1
+	表示モード = 0
+ENDIF
 
 HTML_PRINT LOCALS, 1
-FOR LOCAL, 0, 25
+FOR LOCAL, 0, 28
 	PRINTL
 NEXT
 DRAWLINE
@@ -310,6 +335,9 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
+	CASE 990, 991
+		表示モード = LOCAL - 990
+		RESTART
 	CASE 999
 		ページ数 = 0
 		RETURN -1
