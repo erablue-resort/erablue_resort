@@ -66,6 +66,40 @@ IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 	ENDIF
 ENDIF
 SELECTCASE 移動先マップ種別
+	CASE 0
+		;同棲相手
+		IF INRANGE(移動先位置, 2011, 2032) && 同棲キャラ取得(移動先位置) > 0
+			LOCAL = 同棲キャラ取得(移動先位置)
+			IF CFLAG:LOCAL:現在マップ種別 == 0 && CFLAG:LOCAL:現在位置 == 移動先位置
+				IF CFLAG:LOCAL:睡眠 && 陥落チェック(LOCAL) == 0
+					あなた追跡キャラ = 0
+					RFLAG:追跡フラグ = 0
+					PRINTFORML %CALLNAME:LOCAL%の部屋には鍵が掛かっている。
+					CALL 睡眠時表示文章(LOCAL)
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 2005
+					ENDIF
+					RETURN 1
+				ELSEIF CFLAG:LOCAL:キャラ同士うふふ
+					;相手を探す
+					うふふ相手 = ABS(CFLAG:LOCAL:デート) - 100
+					IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 0 && CFLAG:うふふ相手:現在位置 == 移動先位置
+						あなた追跡キャラ = 0
+						RFLAG:追跡フラグ = 0
+						PRINTFORML %CALLNAME:LOCAL%の部屋には鍵が掛かっている。
+						CALL キャラ同士うふふ時表示文章(LOCAL, うふふ相手)
+						SIF RESULT
+							RETURN 0
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 2005
+						ENDIF
+						RETURN 1
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDIF
 	CASE 999
 		IF 移動先位置 == 999
 			era番号 = GETCHARA(998)
@@ -582,6 +616,7 @@ ELSEIF フィールド展開:うふふ目撃スルー
 	PRINTFORML 部屋の中に入りますか？
 	PRINTBUTTONLC "[10] 性行為に加わらず部屋に入る", 10
 	PRINTBUTTONLC "[1] いいえ", 1
+	BINPUT
 	IF RESULT == 10
 		IF 参加人数 < 3
 			PRINTFORMW %CALLNAME:PLAYER%は合鍵で扉を開け、そっと%CALLNAME:対象キャラ１%と%CALLNAME:対象キャラ２%が睦み合う部屋に入った。
