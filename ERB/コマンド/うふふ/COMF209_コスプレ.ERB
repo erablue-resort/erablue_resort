@@ -220,26 +220,52 @@ ENDIF
 #DIMS コスプレ一時配列, 1980
 #DIMS 分割文字列配列, 2
 #DIMS 解説文
+#DIMS 衣装名
+#DIMS 表示名
 #DIMS CONST アクセサリ文字列 = "付け角", "付け尻尾", "付け耳（エルーン）", "付け耳（ハーヴィン）"
+#DIM 衣装キャラNO
 
 DRAWLINE
 PRINTFORML %CALLNAME:キャラ番号%に着せたい服を選んでください
+PRINTFORML ※キャラ衣装の元の持ち主はツールチップにて表示されます
 DRAWLINE
 
 VARSET LOCALS
 
 
 LOCALS += "<div rect='81,175,5844,2812' padding='50' border='31' bcolor='#C0C0C0'>"
+VARSET コスプレ一時配列
 ;服の説明を表示
 SELECTCASE 表示モード
 	CASE 0
 		;通常衣装
 		コスプレ一時配列:0 = %所持制服文字列%
+		SPLIT コスプレ一時配列:0, "_", コスプレ一時配列
 	CASE 1
 		;エロ衣装
 		コスプレ一時配列:0 = %所持エロ衣装文字列%
+		SPLIT コスプレ一時配列:0, "_", コスプレ一時配列
+	CASE 2
+		;キャラ衣装
+		LOCAL:1 = 0
+		FOR LOCAL, 1, CHARANUM
+			;陥落キャラのみ
+			SIF !陥落チェック(LOCAL)
+				CONTINUE
+			IF ランダムキャラ判定(LOCAL)
+				;汎用ランダムキャラは無し
+				SIF NO:LOCAL == 999
+					CONTINUE
+				;汎用以外なら重複がないかチェック
+				SIF MATCH(コスプレ一時配列, @"キャラ服/{NO:LOCAL}")
+					CONTINUE
+			ENDIF
+
+			;配列に突っ込む
+			コスプレ一時配列:(LOCAL:1) '= @"キャラ服/{NO:LOCAL}"
+			LOCAL:1 ++
+		NEXT
 ENDSELECT
-SPLIT コスプレ一時配列:0, "_", コスプレ一時配列
 VARSET LOCAL
 表示許可数 = 0
 FOR LOCAL, 0, 990
@@ -247,18 +273,31 @@ FOR LOCAL, 0, 990
 		BREAK
 	ENDIF
 	SPLIT コスプレ一時配列:LOCAL, "/", 分割文字列配列
-	TRYCCALLFORM CLOTHES_着用条件_%分割文字列配列:1%(キャラ番号)
-		SIF RESULT == 0
-			CONTINUE
-	CATCH
-	ENDCATCH
+	衣装名 = %分割文字列配列:1%
+	表示名 = %分割文字列配列:1%
+	IF 分割文字列配列:0 == "キャラ服"
+		衣装キャラNO = TOINT(衣装名)
+		衣装名 = {衣装キャラNO}
+		表示名 = %CSVCSTR(衣装キャラNO, GETNUM(CSTR, "服名称"))%
+		TRYCCALLFORM CLOTHES_着用条件_%衣装名%(キャラ番号)
+			SIF RESULT == 0
+				CONTINUE
+		CATCH
+		ENDCATCH
+	ELSE
+		TRYCCALLFORM CLOTHES_着用条件_%衣装名%(キャラ番号)
+			SIF RESULT == 0
+				CONTINUE
+		CATCH
+		ENDCATCH
+	ENDIF
 	表示許可数 ++
 	SIF ページ数 != (表示許可数 - 1) / 表示数
 		CONTINUE
 	VARSET RESULTS
 	IF OPTION変数:ツールチップ切り替え == 0
 		解説文 = 
-		TRYCCALLFORM CLOTHES_衣装説明_%分割文字列配列:1%()
+		TRYCCALLFORM CLOTHES_衣装説明_%衣装名%()
 			LOCAL:1 = HTML_STRINGLEN(RESULTS)
 			IF RESULTS != ""
 				解説文 += @"<br>%RESULTS%"
@@ -269,13 +308,18 @@ FOR LOCAL, 0, 990
 			解説文 '= REPLACE(解説文, "<(?!br).*?>", "")
 		CATCH
 		ENDCATCH
-		LOCALS += @"<button value='{LOCAL+1}' title='%解説文%'>[{LOCAL+1, 3}] %分割文字列配列:1, 30, LEFT%に変更</button>"
+		IF 分割文字列配列:0 == "キャラ服"
+			SIF 解説文 == ""
+				解説文 += "<br>"
+			解説文 += @"元の持ち主：%CSVNAME(衣装キャラNO)%<br>"
+		ENDIF
+		LOCALS += @"<button value='{LOCAL+1}' title='%解説文%'>[{LOCAL+1, 3}] %表示名, 30, LEFT%に変更</button>"
 	ELSE
-		LOCALS += @"<button value='{LOCAL+1}'>[{LOCAL+1, 3}] %分割文字列配列:1, 30, LEFT%に変更</button>"
+		LOCALS += @"<button value='{LOCAL+1}'>[{LOCAL+1, 3}] %表示名, 30, LEFT%に変更</button>"
 	ENDIF
 	SIF CSTR:キャラ番号:画像フォルダ == ""
 		CSTR:キャラ番号:画像フォルダ '= GET_RESOURCES_BASE_FOLDER(キャラ番号)
-	IF EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/顔_%分割文字列配列:1%") || EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/短冊_%分割文字列配列:1%")
+	IF EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/顔_%衣装名%") || EXIST画像FILE(@"resources/%CSTR:キャラ番号:画像フォルダ%/短冊_%衣装名%")
 		LOCALS += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>　　"
 	ELSE
 		LOCALS += "　　　　　　　"
@@ -324,6 +368,14 @@ IF TFLAG:調教モード == 2 || フィールド展開:エロ制服許可 != 0
 ELSEIF 表示モード == 1
 	表示モード = 0
 ENDIF
+横位置 += 550
+; IF 表示モード == 2
+; 	LOCALS += @"<div rect='{横位置},0,600,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>キャラ衣装</font>"
+; ELSE
+; 	LOCALS += @"<div rect='{横位置},0,600,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='992'>キャラ衣装</button>"
+; ENDIF
+; LOCALS += "</div>"
+; 横位置 += 650
 
 HTML_PRINT LOCALS, 1
 FOR LOCAL, 0, 28
@@ -335,7 +387,7 @@ DO
 BINPUT
 LOCAL = RESULT
 SELECTCASE LOCAL
-	CASE 990, 991
+	CASE 990, 991, 992
 		表示モード = LOCAL - 990
 		RESTART
 	CASE 999
@@ -393,6 +445,7 @@ SELECTCASE LOCAL
 		LOCAL -= 1
 		;一般衣装とエロ衣装で難易度を変える予定だが未実装、とりあえず15で固定
 		SPLIT コスプレ一時配列:LOCAL, "/", 分割文字列配列
+		衣装名 = %分割文字列配列:1%
 		IF 分割文字列配列:0 == "エロ"
 			実行難易度 = 25
 		ELSE
@@ -406,8 +459,7 @@ SELECTCASE LOCAL
 		SIF CSTR:キャラ番号:コスプレ前の服 == "" && CSTR:キャラ番号:表示グラフィックカテゴリ != ""
 			CSTR:キャラ番号:コスプレ前の服 '= CSTR:キャラ番号:表示グラフィックカテゴリ
 		LOCALS '= CSTR:キャラ番号:脱ぐ前の服
-		SPLIT コスプレ一時配列:LOCAL, "/", 分割文字列配列
-		CALL CLOTHES_CHANGE(キャラ番号, 分割文字列配列:1)
+		CALL CLOTHES_CHANGE(キャラ番号, 衣装名)
 		;初回フラグに記録
 		IF STRFIND(CSTR:キャラ番号:衣装初回_着用うふふ, @"_%CSTR:キャラ番号:着せ替え服%_") < 0
 			SIF CSTR:キャラ番号:衣装初回_着用うふふ == ""
@@ -415,7 +467,13 @@ SELECTCASE LOCAL
 			CSTR:キャラ番号:衣装初回_着用うふふ += @"%CSTR:キャラ番号:着せ替え服%_"
 		ENDIF
 		CSTR:キャラ番号:脱ぐ前の服 '= LOCALS
-		RSTR:コマンド結果受渡し文字列 = %分割文字列配列:1%
+		IF ISNUMERIC(衣装名)
+			;数字として解釈出来る＝キャラ服と見る
+			;数字の服を作れなくなるけど、そんな服存在せぇへんやろ！！
+			RSTR:コマンド結果受渡し文字列 = %CSVCSTR(TOINT(衣装名), GETNUM(CSTR, "服名称"))%
+		ELSE
+			RSTR:コマンド結果受渡し文字列 = %衣装名%
+		ENDIF
 		ページ数 = 0
 		RETURN 1
 ENDSELECT

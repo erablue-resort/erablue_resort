@@ -93,9 +93,9 @@ ENDIF
 IF ARGS == "" || ARGS == "デフォルト"
 	CALL CLOTHES_RESET(ARG)
 ELSE
-	IF STRCOUNT(ARGS, "キャラ専用")
-		;キャラ個別服装への着せ替え処理
-	ELSE
+	; IF STRCOUNT(ARGS, "キャラ服")
+	; 	;キャラ個別服装への着せ替え処理
+	; ELSE
 		;汎用服への着せ替え処理
 		服装名文字列 '= CSTR:ARG:着せ替え服
 		TRYCCALLFORM CLOTHES_CHANGE_%ARGS%(ARG)
@@ -135,8 +135,28 @@ ELSE
 				CSTR:ARG:短冊グラ表示切り替え用文字列 = 短冊_%服装名文字列%
 			ENDIF
 		CATCH
+			IF ISNUMERIC(ARGS)
+				;数字として解釈出来る＝キャラ服と見る
+				;数字の服を作れなくなるけど、そんな服存在せぇへんやろ！！
+				CALL CLOTHES_CHANGE_CHARA(ARG, TOINT(ARGS))
+				;初回フラグに記録
+				IF STRFIND(CSTR:ARG:衣装初回_着用, @"_%CSTR:ARG:着せ替え服%_") < 0
+					SIF CSTR:ARG:衣装初回_着用 == ""
+						CSTR:ARG:衣装初回_着用 = _
+					CSTR:ARG:衣装初回_着用 += @"%CSTR:ARG:着せ替え服%_"
+				ENDIF
+				;全裸または湯浴み着から着替えた場合、脱ぐ前の服をデフォルトに設定
+				;（風呂→プール→プール外へ一気に連れ出すと全裸で連れ回せるようになるため）
+				SIF GROUPMATCH(CSTR:ARG:脱ぐ前の服, "全裸", "湯浴み着")
+					CSTR:ARG:脱ぐ前の服 '= ""
+				IF 服装名文字列 != CSTR:ARG:着せ替え服
+					服装名文字列 = %GRAP_RAND(ARG, "顔_", ARGS)%
+					CSTR:ARG:顔グラ表示切り替え用文字列 = 顔_%服装名文字列%
+					CSTR:ARG:短冊グラ表示切り替え用文字列 = 短冊_%服装名文字列%
+				ENDIF
+			ENDIF
 		ENDCATCH
-	ENDIF
+	; ENDIF
 ENDIF
 ;服装構文はCLOTHES_汎用服データなどに記載
 
@@ -514,4 +534,41 @@ SELECTCASE RESULT
 ENDSELECT
 
 RESTART
+
+
+
+@CLOTHES_CHANGE_CHARA(対象キャラ, 衣装キャラNO)
+#DIM 対象キャラ
+#DIM 衣装キャラNO
+
+;キャラの初期衣装に着替える処理
+
+;一個前の服装を保持
+SIF CSTR:対象キャラ:着せ替え服 != @"{衣装キャラNO}"
+	CSTR:対象キャラ:脱ぐ前の服 = %CSTR:対象キャラ:着せ替え服%
+
+CSTR:対象キャラ:着せ替え服 = {衣装キャラNO}
+CSTR:対象キャラ:着せ替え服追加名 = 
+TEQUIP:対象キャラ:上半身鎧あり = CSVEQUIP(衣装キャラNO, 1)
+TEQUIP:対象キャラ:上半身服あり = CSVEQUIP(衣装キャラNO, 2)
+TEQUIP:対象キャラ:脇出し = CSVEQUIP(衣装キャラNO, 3)
+TEQUIP:対象キャラ:へそ出し = CSVEQUIP(衣装キャラNO, 4)
+TEQUIP:対象キャラ:はだけ可 = CSVEQUIP(衣装キャラNO, 5)
+TEQUIP:対象キャラ:手差し込み可 = CSVEQUIP(衣装キャラNO, 6)
+TEQUIP:対象キャラ:パイズリ可 = CSVEQUIP(衣装キャラNO, 7)
+TEQUIP:対象キャラ:上タイツあり = CSVEQUIP(衣装キャラNO, 8)
+TEQUIP:対象キャラ:上半身下着あり = CSVEQUIP(衣装キャラNO, 9)
+TEQUIP:対象キャラ:上半身下着抜き取り可 = CSVEQUIP(衣装キャラNO, 10)
+TEQUIP:対象キャラ:下腹部後鎧あり = CSVEQUIP(衣装キャラNO, 11)
+TEQUIP:対象キャラ:下腹部前鎧あり = CSVEQUIP(衣装キャラNO, 12)
+TEQUIP:対象キャラ:下半身服あり = CSVEQUIP(衣装キャラNO, 13)
+TEQUIP:対象キャラ:スカートめくり可 = CSVEQUIP(衣装キャラNO, 14)
+TEQUIP:対象キャラ:ずらし可 = CSVEQUIP(衣装キャラNO, 15)
+TEQUIP:対象キャラ:下タイツあり = CSVEQUIP(衣装キャラNO, 16)
+TEQUIP:対象キャラ:下半身下着あり = CSVEQUIP(衣装キャラNO, 17)
+TEQUIP:対象キャラ:下半身下着抜き取り可 = CSVEQUIP(衣装キャラNO, 18)
+TEQUIP:対象キャラ:上下一体服 = CSVEQUIP(衣装キャラNO, 19)
+TEQUIP:対象キャラ:上下一体タイツ = CSVEQUIP(衣装キャラNO, 20)
+TEQUIP:対象キャラ:上タイツ破れ = CSVEQUIP(衣装キャラNO, 21)
+TEQUIP:対象キャラ:下タイツ破れ = CSVEQUIP(衣装キャラNO, 22)
 
