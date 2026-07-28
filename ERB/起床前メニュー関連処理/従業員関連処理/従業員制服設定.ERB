@@ -27,6 +27,8 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%["
 	IF 現在制服:(従業員一覧:LOCAL):0 == ""
 		LOCALS += "普段着"
+	ELSEIF ISNUMERIC(現在制服:(従業員一覧:LOCAL):0)
+		LOCALS += @"%CSVCSTR(TOINT(現在制服:(従業員一覧:LOCAL):0), GETNUM(CSTR, "服名称"))%"
 	ELSE
 		LOCALS += @"%SUBSTRING(現在制服:(従業員一覧:LOCAL):0, 0, 17)%"
 	ENDIF
@@ -121,22 +123,58 @@ LOOP 1
 #DIMS 衣装合算
 #DIM 文字長さ
 #DIM 表示許可数
+#DIM 表示モード
+#DIM 横位置
+#DIMS 衣装名
+#DIMS 表示名
 #DIM CONST 表示数 = 20
 #DIMS 解説文
 #DIMS アイテム名
+#DIM 衣装キャラNO
 
 DRAWLINE
 PRINTL 従業員が着用する制服の設定を行います。
 PRINTL ※開発中のため、正しく挙動しないことがあります。
 DRAWLINE
-LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
-LOCALS += "<div rect='156,156,1937,2812'>"
+LOCALS = <div rect='81,175,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,175,3875,2812' border='31' bcolor='#C0C0C0'></div>
+
+;衣装種類タブ
+横位置 = 2050
+IF 表示モード == 0
+	LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>通常衣装</font>"
+ELSE
+	LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='990'>通常衣装</button>"
+ENDIF
+LOCALS += "</div>"
+IF フィールド展開:エロ制服許可 != 0
+	横位置 += 550
+	IF 表示モード == 1
+		LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>エロ衣装</font>"
+	ELSE
+		LOCALS += @"<div rect='{横位置},0,500,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='991'>エロ衣装</button>"
+	ENDIF
+	LOCALS += "</div>"
+ELSEIF 表示モード == 1
+	表示モード = 0
+ENDIF
+横位置 += 550
+IF 表示モード == 2
+	LOCALS += @"<div rect='{横位置},0,600,200' padding='25,15,0' color='#101010' border='31, 31, 0' bcolor='#C0C0C0'><font color='#%カラーパレット_HTML("黄")%'>キャラ衣装</font>"
+ELSE
+	LOCALS += @"<div rect='{横位置},0,600,200' padding='25,15,0' color='#101010' border='31' bcolor='#C0C0C0'><button value='992'>キャラ衣装</button>"
+ENDIF
+LOCALS += "</div>"
+横位置 += 650
+
+LOCALS += "<div rect='156,300,1937,2812'>"
 IF 対象キャラ != 9999
 	LOCALS += @"%CALLNAME:対象キャラ, 16, LEFT%["
 	IF 現在制服:対象キャラ:0 == ""
 		LOCALS += "普段着]"
 	ELSEIF 現在制服:対象キャラ:0 == "浴衣"
 		LOCALS += "ユカタヴィラ]"
+	ELSEIF ISNUMERIC(現在制服:対象キャラ:0)
+		LOCALS += @"%CSVCSTR(TOINT(現在制服:対象キャラ:0), GETNUM(CSTR, "服名称"))%]"
 	ELSE
 		LOCALS += @"%現在制服:対象キャラ:0%]"
 	ENDIF
@@ -210,12 +248,44 @@ LOCALS += "<br>"
 LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
-IF フィールド展開:エロ制服許可
-	衣装合算 = %所持制服文字列%%所持エロ衣装文字列%
-	SPLIT 衣装合算, "_", 制服一時配列
-ELSE
-	SPLIT 所持制服文字列, "_", 制服一時配列
-ENDIF
+; IF フィールド展開:エロ制服許可
+; 	衣装合算 = %所持制服文字列%%所持エロ衣装文字列%
+; 	SPLIT 衣装合算, "_", 制服一時配列
+; ELSE
+; 	SPLIT 所持制服文字列, "_", 制服一時配列
+; ENDIF
+VARSET 制服一時配列
+SELECTCASE 表示モード
+	CASE 0
+		;通常衣装
+		SPLIT 所持制服文字列, "_", 制服一時配列
+	CASE 1
+		;エロ衣装
+		SPLIT 所持エロ衣装文字列, "_", 制服一時配列
+	CASE 2
+		;キャラ衣装
+		LOCAL:1 = 0
+		FOR LOCAL, 1, CHARANUM
+			;陥落キャラのみ
+			SIF !陥落チェック(LOCAL)
+				CONTINUE
+			;自分はスキップ
+			SIF LOCAL == 対象キャラ
+				CONTINUE
+			IF ランダムキャラ判定(LOCAL)
+				;汎用ランダムキャラは無し
+				SIF NO:LOCAL == 999
+					CONTINUE
+				;汎用以外なら重複がないかチェック
+				SIF MATCH(制服一時配列, @"キャラ服/{NO:LOCAL}")
+					CONTINUE
+			ENDIF
+
+			;配列に突っ込む
+			制服一時配列:(LOCAL:1) '= @"キャラ服/{NO:LOCAL}"
+			LOCAL:1 ++
+		NEXT
+ENDSELECT
 
 文字長さ = 18
 FOR LOCAL, 0, 990
@@ -225,10 +295,10 @@ FOR LOCAL, 0, 990
 	;DEBUGPRINTFORML %分割文字列配列:1%
 NEXT
 
-LOCALS:1 = <div rect='2125,156,3675,2812'>
+LOCALS:1 = <div rect='2125,300,3675,2812'>
 ;普段着と全裸分
 表示許可数 = 2
-IF ページ数 == 0
+IF ページ数 == 0 && 表示モード == 0
 	LOCALS:1 += @"<button value='996'>[996] %"普段着", 文字長さ, LEFT%に変更</button>"
 	IF 対象キャラ != 9999
 		SIF CSTR:対象キャラ:画像フォルダ == ""
@@ -253,28 +323,39 @@ FOR LOCAL, 0, 990
 		BREAK
 	ENDIF
 	SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
-	IF 対象キャラ != 9999
-		TRYCCALLFORM CLOTHES_着用条件_%分割文字列配列:1%(対象キャラ)
+	衣装名 = %分割文字列配列:1%
+	表示名 = %分割文字列配列:1%
+	IF 分割文字列配列:0 == "キャラ服"
+		衣装キャラNO = TOINT(衣装名)
+		衣装名 = {衣装キャラNO}
+		表示名 = %CSVCSTR(衣装キャラNO, GETNUM(CSTR, "服名称"))%
+		TRYCCALLFORM CLOTHES_着用条件_%衣装名%(対象キャラ)
 			SIF RESULT == 0
 				CONTINUE
 		CATCH
 		ENDCATCH
 	ELSE
-		SIF EXISTFUNCTION(@"CLOTHES_着用条件_%分割文字列配列:1%")
-			CONTINUE
+		IF 対象キャラ != 9999
+			TRYCCALLFORM CLOTHES_着用条件_%衣装名%(対象キャラ)
+				SIF RESULT == 0
+					CONTINUE
+			CATCH
+			ENDCATCH
+		ELSE
+			SIF EXISTFUNCTION(@"CLOTHES_着用条件_%衣装名%")
+				CONTINUE
+		ENDIF
 	ENDIF
 	表示許可数 ++
 	SIF ページ数 != (表示許可数 - 1) / 表示数
 		CONTINUE
-	IF 分割文字列配列:1 == "浴衣"
-		LOCALS:2 = ユカタヴィラ
-	ELSE
-		LOCALS:2 '= 分割文字列配列:1
+	IF 衣装名 == "浴衣"
+		表示名 = ユカタヴィラ
 	ENDIF
 	VARSET RESULTS
 	IF OPTION変数:ツールチップ切り替え == 0
 		解説文 = 
-		TRYCCALLFORM CLOTHES_衣装説明_%分割文字列配列:1%()
+		TRYCCALLFORM CLOTHES_衣装説明_%衣装名%()
 			LOCAL:1 = HTML_STRINGLEN(RESULTS)
 			IF RESULTS != ""
 				解説文 += @"<br>%RESULTS%"
@@ -285,12 +366,17 @@ FOR LOCAL, 0, 990
 			解説文 '= REPLACE(解説文, "<(?!br).*?>", "")
 		CATCH
 		ENDCATCH
-		LOCALS:1 += @"<button value='{LOCAL}' title='%解説文%'>[{LOCAL, 3, RIGHT}] %LOCALS:2, 文字長さ, LEFT%に変更</button>"
+		IF 分割文字列配列:0 == "キャラ服"
+			SIF 解説文 == ""
+				解説文 += "<br>"
+			解説文 += @"元の持ち主：%CSVNAME(衣装キャラNO)%<br>"
+		ENDIF
+		LOCALS:1 += @"<button value='{LOCAL}' title='%解説文%'>[{LOCAL, 3, RIGHT}] %表示名, 文字長さ, LEFT%に変更</button>"
 	ELSE
-		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 3, RIGHT}] %LOCALS:2, 文字長さ, LEFT%に変更</button>"
+		LOCALS:1 += @"<button value='{LOCAL}'>[{LOCAL, 3, RIGHT}] %表示名, 文字長さ, LEFT%に変更</button>"
 	ENDIF
 	IF 対象キャラ != 9999
-		IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_%分割文字列配列:1%") || EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/短冊_%分割文字列配列:1%")
+		IF EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_%衣装名%") || EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/短冊_%衣装名%")
 			LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
 		ENDIF
 	ENDIF
@@ -318,7 +404,7 @@ LOCALS:1 += "</div>"
 
 HTML_PRINT LOCALS, 1
 HTML_PRINT LOCALS:1, 1
-FOR LOCAL, 0, 25
+FOR LOCAL, 0, 28
 	PRINTL
 NEXT
 DRAWLINE
@@ -360,8 +446,13 @@ SELECTCASE LOCAL
 	CASE 1001
 		ページ数 ++
 		RESTART
+	CASE 990, 991, 992
+		表示モード = LOCAL - 990
+		ページ数 = 0
+		RESTART
 	CASE 999
 		ページ数 = 0
+		表示モード = 0
 		RETURN 0
 	CASE 998
 		RETURN 0
@@ -403,16 +494,14 @@ SELECTCASE LOCAL
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
+				SIF NO:LOCAL == TOINT(分割文字列配列:1)
+					CONTINUE
 				現在制服:LOCAL:0 = %分割文字列配列:1%
 				CALL CLOTHES_RESET(LOCAL)
 				CALL CLOTHES_RESET_TRAIN(LOCAL)
 			NEXT
 		ELSE
-			IF STRCOUNT(制服一時配列:LOCAL, "キャラ専用")
-				現在制服:対象キャラ:0 = %分割文字列配列:1%
-			ELSE
-				現在制服:対象キャラ:0 = %分割文字列配列:1%
-			ENDIF
+			現在制服:対象キャラ:0 = %分割文字列配列:1%
 			CALL CLOTHES_RESET(対象キャラ)
 			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
