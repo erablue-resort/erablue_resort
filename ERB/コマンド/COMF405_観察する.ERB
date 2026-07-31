@@ -54,6 +54,9 @@ IF TARGET > 0 && CFLAG:睡眠
 		CALL CHARA_ROUTINE_STATUS(TARGET, "起床時刻")
 		RFLAG:コマンド結果受渡し変数２ = MAX(RESULT + TCVAR:行動時間ゆらぎ - TIME, 0)
 	ENDIF
+ELSEIF TARGET > 0 && CFLAG:キャラ同士うふふ
+	;キャラ同士でうふふしてるとき
+	RFLAG:コマンド結果受渡し変数 = 20
 ENDIF
 
 TIME += 3
@@ -79,6 +82,9 @@ RETURN 1
 ;実行時メッセージ
 ;-------------------------------------------------
 @MESSAGE_COM405
+#DIM 候補配列, 100
+#DIM 候補番号
+#DIM 表示id
 
 SELECTCASE RFLAG:コマンド結果受渡し変数
 	CASE 0
@@ -140,4 +146,46 @@ SELECTCASE RFLAG:コマンド結果受渡し変数
 			CASEELSE
 				PRINTFORML %CALLNAME:TARGET%はすやすや寝息を立てている…
 		ENDSELECT
+	CASE 20
+		PRINTFORM %CALLNAME:TARGET%は
+		;モード候補登録
+		VARSET 候補配列
+		候補番号 = 0
+		FOR LOCAL, 0, DT_ROW_LENGTH("体位モードデータベース")
+			IF DT_CELL_GET("体位モードデータベース", LOCAL, "対象キャラ") == TARGET || DT_CELL_GET("体位モードデータベース", LOCAL, "実行キャラ") == TARGET
+				SIF 系統リスト_アイテム系(DT_CELL_GETS("体位モードデータベース", LOCAL, "モード名")) && DT_CELL_GET("体位モードデータベース", LOCAL, "実行キャラ") == TARGET
+					CONTINUE
+				候補配列:候補番号 = DT_CELL_GET("体位モードデータベース", LOCAL, "id")
+				候補番号 ++
+			ENDIF
+		NEXT
+		IF 候補番号 > 0
+			;モードがある
+			表示id = 候補配列:(RAND:候補番号)
+			IF 系統リスト_アイテム系(DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1))
+				;相手なし時
+				PRINTFORML %DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1)%を使って快楽に浸っている……
+			ELSEIF 系統リスト_自慰系(DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1))
+				PRINTFORML 自ら%DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1)%をして興奮を高めている……
+			ELSEIF DT_CELL_GET("体位モードデータベース", 表示id, "対象キャラ", 1) == TARGET
+				;TARGETが対象の時
+				PRINTFORM %CALLNAME:(DT_CELL_GET("体位モードデータベース", 表示id, "実行キャラ", 1))%から%DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1)%で責められ、快楽に喘いでいる……
+			ELSE
+				;TARGETが実行者の時
+				PRINTFORM %CALLNAME:(DT_CELL_GET("体位モードデータベース", 表示id, "対象キャラ", 1))%を%DT_CELL_GETS("体位モードデータベース", 表示id, "モード名", 1)%で責めたて、相手に悦楽を与えている……
+			ENDIF
+		ELSE
+			VARSET 候補配列
+			候補番号 = 0
+			FOR LOCAL, 1, CHARANUM
+				SIF TARGET:LOCAL == TARGET
+					CONTINUE
+				IF CFLAG:(TARGET:LOCAL):キャラ同士うふふ && !恋愛対象外チェック(TARGET, TARGET:LOCAL)
+					候補配列:候補番号 = TARGET:LOCAL
+					候補番号 ++
+				ENDIF
+			NEXT
+			;流石に相手はいるはずなのでそのまま表示構文
+			PRINTFORML %CALLNAME:(候補配列:(RAND:候補番号))%と一緒にベッドで性行為を行っている……
+		ENDIF
 ENDSELECT
