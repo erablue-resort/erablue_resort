@@ -18,15 +18,6 @@ RETURN 1
 ;あなたが必要
 SIF GETBIT(AUTOCOM_相手判別関数(対象キャラ), 0) == 0
 	RETURN 0
-;ターゲットが陥落済み
-SIF 陥落チェック_性的(対象キャラ) == 0
-	RETURN 0
-;初うふふ済
-SIF 初体験日取得("初うふふ", 対象キャラ, MASTER) == 0
-	RETURN 0
-;二人っきりのみ
-SIF GET_TARGETNUM() > 1
-	RETURN 0
 ;スカート必須、鎧はダメ
 SIF TEQUIP:対象キャラ:下半身服あり == 0
 	RETURN 0
@@ -40,6 +31,18 @@ SIF CFLAG:対象キャラ:うふふ
 ;２時間に１回のみ発動、チラ見せと時間共通
 ;SIF TIME - TIME_胸部チラ見せ:対象キャラ:0 < 120
 ;	RETURN 0
+;デレイベ
+SIF 特定状況口上用フラグ:対象キャラ:0 == 4
+	RETURN 1
+;ターゲットが陥落済み
+SIF 陥落チェック_性的(対象キャラ) == 0
+	RETURN 0
+;初うふふ済
+SIF 初体験日取得("初うふふ", 対象キャラ, MASTER) == 0
+	RETURN 0
+;羞恥心持ちは二人っきりのみ
+SIF GET_TARGETNUM() > 1 && TALENT:対象キャラ:羞恥心 > 0
+	RETURN 0
 ;性欲一定以上
 SIF BASE:対象キャラ:性欲 < 1000
 	RETURN 0
@@ -52,10 +55,19 @@ SIF 知識素質:対象キャラ:性知識 < -1
 RETURN 1
 
 @MESSAGE_AUTOCOM7
-PRINTFORM %CALLNAME:AUTOCOM_実行番号保存%は%CALLNAME:PLAYER%に向けて
+PRINTFORM %CALLNAME:AUTOCOM_実行番号保存%は
+IF GET_TARGETNUM() > 1
+	PRINTFORM %CALLNAME:PLAYER%にだけ見える%TEXTR("よう/角度で")%こっそりと、
+ELSE
+	PRINTFORM %CALLNAME:PLAYER%に向けて
+ENDIF
 
 IF TALENT:AUTOCOM_実行番号保存:羞恥心 > 0
-	PRINT 顔を真っ赤に染めながら
+	PRINTFORM %TEXTR("顔を真っ赤に染めながら/頬を染め目を逸らしながら/恥じらいながら")%
+ELSEIF GET_TARGETNUM() > 1
+	PRINTFORM %TEXTR("挑発的に微笑みながら/色っぽく流し目を送りながら/悪戯っぽい笑みを浮かべながら/「し～っ」と指を口元にあてながら")%
+ELSE
+	PRINTFORM %TEXTR("挑発的に微笑みながら/色っぽく流し目を送りながら/悪戯っぽい笑みを浮かべながら")%
 ENDIF
 
 PRINT 服をたくしあげ、
@@ -77,5 +89,15 @@ ELSE
 	PRINTFORML %今日の下着文字列生成(AUTOCOM_実行番号保存)%を見せて誘惑してきた…
 ENDIF
 
+IF 特定状況口上用フラグ:TARGET:0 == 4
+	PRINTL
+	SETCOLOR カラーパレット("えっちな色")
+	PRINTFORM たくし上げたスカートの下、%CALLNAME:TARGET%の太ももの付け根に
+	PRINT_IMG "デレマス_マーク"
+	CALL PRINT_STRL(@"マークが見つかった_H_")
+	PRINTFORMW %CALLNAME:TARGET%は今日の『シンデレラ』だったようだ
+	特定状況口上用フラグ:TARGET:0 = 1
+	RESETCOLOR
+ENDIF
 
 
