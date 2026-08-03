@@ -28,11 +28,13 @@ ARRAYSORT 衣装登録, FORWARD, 0, 衣装数
 ARRAYSHIFT 衣装登録, 1, "デフォルト"
 VARSET RESULTS
 画像数 = ENUMFILES(@"resources/%CSTR:対象キャラ:画像フォルダ%", "*.*", 0)
-
 FOR 配列番号, 0, 衣装数
 	SIF 衣装登録:配列番号 == ""
 		BREAK
 	判定衣装 '= REPLACE(衣装登録:配列番号, "CLOTHES_CHANGE_", "")
+	;基礎画像なければスキップ
+	SIF MATCH(RESULTS, @"resources\\%CSTR:対象キャラ:画像フォルダ%\\短冊_%判定衣装%.webp") < 1
+		CONTINUE
 	VARSET 判定数
 	FOR 画像番号, 0, 画像数
 		IF STRFIND(RESULTS:画像番号, @"短冊_%判定衣装%") >= 0
@@ -50,6 +52,46 @@ FOR 配列番号, 0, 衣装数
 	NEXT
 	IF SUMARRAY(判定数) > 0
 		PRINTFORML ■%判定衣装%画像
+		PRINT 　　
+		IF 判定数:0 > 0
+			PRINTFORM 立ち絵：{判定数:0, 4}枚　　
+		ENDIF
+		IF 判定数:1 > 0
+			PRINTFORM 妊娠立ち絵：{判定数:1, 4}枚　　
+		ENDIF
+		IF 判定数:2 > 0
+			PRINTFORM コマンド画像：{判定数:2, 4}枚　　
+		ENDIF
+		IF 判定数:3 > 0
+			PRINTFORM 妊娠コマンド画像：{判定数:3, 4}枚　　
+		ENDIF
+		PRINTL
+	ENDIF
+NEXT
+
+FOR 配列番号, 1, キャラクタ数上限
+	;キャラ衣装画像の判定
+	SIF !EXISTCSV(配列番号)
+		CONTINUE
+	SIF ランダムキャラ判定(配列番号)
+		CONTINUE
+	;基礎画像なければスキップ
+	SIF MATCH(RESULTS, @"resources\\%CSTR:対象キャラ:画像フォルダ%\\短冊_{配列番号}.webp") < 1
+		CONTINUE
+	VARSET 判定数
+	FOR 画像番号, 0, 画像数
+		IF STRFIND(RESULTS:画像番号, @"短冊_{配列番号}") >= 0
+			判定数:0 ++
+		ELSEIF STRFIND(RESULTS:画像番号, @"短冊_妊娠{配列番号}") >= 0
+			判定数:1 ++
+		ELSEIF STRFIND(RESULTS:画像番号, @"コマンド実行時_{配列番号}") >= 0
+			判定数:2 ++
+		ELSEIF STRFIND(RESULTS:画像番号, @"コマンド実行時_妊娠{配列番号}") >= 0
+			判定数:3 ++
+		ENDIF
+	NEXT
+	IF SUMARRAY(判定数) > 0
+		PRINTFORML ■%CSVCSTR(配列番号, GETNUM(CSTR, "服名称"))%（%CSVNAME(配列番号)%）画像
 		PRINT 　　
 		IF 判定数:0 > 0
 			PRINTFORM 立ち絵：{判定数:0, 4}枚　　
