@@ -1,5 +1,7 @@
 ﻿@周回引き継ぎ処理(戻れないフラグ = 0)
 #DIM 引き継ぎ枠
+#DIM 自動引き継ぎ枠
+#DIM 引き継ぎ枠空位置
 #DIM 同行枠
 #DIM 戻れないフラグ
 #DIMS HTML文
@@ -8,6 +10,25 @@
 IF 起動直後 == 0
 	VARSET 引き継ぎキャラ番号
 	VARSET キャラ妊娠引き継ぎ
+	;時空移動セット
+	FOR LOCAL, 1, CHARANUM
+		;素質なしと既に引き継ぎの時スキップ
+		SIF TALENT:LOCAL:時空移動 <= 0 || TALENT:LOCAL:時空移動 >= 2
+			CONTINUE
+		RESULT = 0
+		TRYCALLFORM 時空移動有効化_{NO:LOCAL}(LOCAL)
+		SELECTCASE RESULT
+			CASE 0
+				;通常条件、婚姻状態なら許可
+				SIF TALENT:LOCAL:恋慕 >= 2
+					TALENT:LOCAL:時空移動 = 2
+			CASE 1
+				;許可
+				TALENT:LOCAL:時空移動 = 2
+			CASE -1
+				;不許可なのでなにもしない
+		ENDSELECT
+	NEXT
 	起動直後 = 1
 ENDIF
 
@@ -47,6 +68,16 @@ FOR LOCAL, 0, 引き継ぎ枠
 		PRINTL
 	ENDIF
 NEXT
+自動引き継ぎ枠 = 0
+PRINTL ■自動引き継ぎキャラ
+FOR LOCAL, 1, CHARANUM
+	IF TALENT:LOCAL:時空移動 == 2
+		PRINTFORML %NAME表示(LOCAL)%
+		自動引き継ぎ枠 ++
+	ENDIF
+NEXT
+SIF 自動引き継ぎ枠 == 0
+	PRINTL なし
 PRINTL
 IF ランダムキャラ引き継ぎフラグ
 	HTML_PRINT @"<button value='100'>[100] ランダムキャラの存在を引き継ぐ / <font color='#%カラーパレット_HTML("グレーアウト")%'>引き継がない</font></button>", 1
@@ -203,13 +234,26 @@ SELECTCASE LOCAL
 			RESTART
 		ENDIF
 	CASE 998
-		CALL 周回実処理(引き継ぎ枠)
+		;自動引き継ぎ枠を引き継ぎ変数に挿入
+		FOR LOCAL, 0, VARSIZE("引き継ぎキャラ番号")
+			IF 引き継ぎキャラ番号:LOCAL < 1
+				引き継ぎ枠空位置 = LOCAL
+				BREAK
+			ENDIF
+		NEXT
+		FOR LOCAL, 1, CHARANUM
+			IF TALENT:LOCAL:時空移動 == 2
+				引き継ぎキャラ番号:引き継ぎ枠空位置 = LOCAL
+				引き継ぎ枠空位置 ++
+			ENDIF
+		NEXT
+		CALL 周回実処理(引き継ぎ枠 + 自動引き継ぎ枠)
 		RETURN -1
 	CASE 200 TO 299
 		INVERTBIT キャラ妊娠引き継ぎ:(LOCAL - 200), 0
 		RESTART
 	CASEELSE
-		CALL 陥落キャラ選択()
+		CALL 引き継ぎキャラ選択()
 		引き継ぎキャラ番号:LOCAL = RESULT
 		RESTART
 ENDSELECT
@@ -269,7 +313,7 @@ RETURNF 引き継ぎ枠
 RESULTS '= ""
 RETURNF 0
 
-@陥落キャラ選択
+@引き継ぎキャラ選択
 #DIM 現在ページ
 #DIM 表示候補, 500
 #DIM ソート基準値, 500
@@ -284,6 +328,8 @@ VARSET LOCALS
 ;陥落者のみ
 FOR LOCAL, 1, CHARANUM
 	SIF MATCH(引き継ぎキャラ番号, LOCAL)
+		CONTINUE
+	SIF TALENT:LOCAL:時空移動 == 2
 		CONTINUE
 	IF TALENT:LOCAL:恋慕 || TALENT:LOCAL:セフレ
 		表示候補:(LOCAL:1) = LOCAL
@@ -547,6 +593,8 @@ FOR LOCAL, 0, 引き継ぎ枠
 		CFLAG:(引き継ぎキャラ番号:LOCAL):長期雇用 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):定住者 = 0
 		TALENT:(引き継ぎキャラ番号:LOCAL):店持ち = 0
+		SIF TALENT:(引き継ぎキャラ番号:LOCAL):恋慕 > 1
+			TALENT:(引き継ぎキャラ番号:LOCAL):恋慕 = 1
 		IF TALENT:(引き継ぎキャラ番号:LOCAL):妊娠
 			IF キャラ妊娠引き継ぎ:LOCAL == 0
 				TALENT:(引き継ぎキャラ番号:LOCAL):妊娠 = 0
