@@ -1,0 +1,129 @@
+﻿@イベント関数_エンディングイベント_空と星の家族(動作モード, イベント行id)
+#DIMS 動作モード
+#DIM イベント行id
+#DIM era番号
+
+era番号 = GETCHARA(998)
+SELECTCASE 動作モード
+	CASE "設定取得"
+		;CH:Character Endingの略。キャラ個別エンドの意
+		;CSV番号＋そのキャラのエンディング通し番号、で登録することを推奨
+		;複数エンディングを持たないキャラならCSV番号のみでもOK
+		TSTR:コマンド名受渡 = CH998_01
+
+		;解説文もここで取得
+		TSTR:ツールチップ受渡 = 
+		TSTR:ツールチップ受渡 += "■エンディングNo.CH998_01『空と星の家族』<br>"
+		TSTR:ツールチップ受渡 += "<br>"
+		TSTR:ツールチップ受渡 += "星晶獣eraとの信頼を深め、家族として一生を過ごすキャラ個別エンド。<br>"
+		TSTR:ツールチップ受渡 += "空と星の間にも絆は芽生える。性を介さない関係でも、確かに愛は存在する。<br>"
+		TSTR:ツールチップ受渡 += "<br>"
+		TSTR:ツールチップ受渡 += "実行条件：キャラ「era」の友情度・信頼度が201000以上（表示最大値の２倍）<br>"
+		TSTR:ツールチップ受渡 += "解放要素：ZPをルピに変換する機能の解放。<br>"
+		TSTR:ツールチップ受渡 += "エンディング視聴後：周回に移行<br>"
+	CASE "発生条件"
+		;リストに表示するための条件
+		;一回表示したらその後条件を満たさなくなっても表示したままなので注意
+		SIF リゾートランク < 2
+			RETURN 0
+		IF エンディングイベント完了フラグ確認("era") > 0
+			;eraエンドを見ている（＝初期からera解放済み）の場合、友情信頼条件
+			SIF CFLAG:era番号:信頼度 < 経験値テーブル:99 * 3 / 2 || CFLAG:era番号:友情度 < 経験値テーブル:99 * 3 / 2
+				RETURN 0
+		ELSE
+			;eraエンドを見ていない（＝初期からeraは未解放）の場合、前提イベント必須
+			SIF イベント完了フラグ確認("星の獣、気を許す") < 1
+				RETURN 0
+		ENDIF
+		RETURN 1
+	CASE "実行条件"
+		;リストから実行するための条件
+		;満たしてない間は実行ボタンが灰色で表示され、クリック不可
+		SIF CFLAG:era番号:信頼度 < 経験値テーブル:99 * 2
+			RETURN 0
+		SIF CFLAG:era番号:友情度 < 経験値テーブル:99 * 2
+			RETURN 0
+		RETURN 1
+	CASE "実処理"
+
+		;文章部分はここに記載するよりも別関数に分ける方が見やすいし書きやすいので推奨
+		CALL エンディングイベント_シナリオ_空と星の家族()
+		;周回に移行するので１を返す
+		RETURN 1
+ENDSELECT
+
+
+
+@エンディングイベント_シナリオ_空と星の家族()
+#DIM era番号
+#DIMS 呼称設定
+
+era番号 = GETCHARA(998)
+DRAWLINE
+PRINTL 
+PRINTL 
+PRINTFORMW ──ある未来の話。
+PRINTFORMW 柔らかな春の日差しの中、一人の老人──年老いた%CALLNAME:MASTER%が椅子に座って微睡んでいた。
+PRINTFORMW %CALLNAME:MASTER%の隣には、和服を着た白髪の少女が一人。
+PRINTL 
+CALL 画像表示("顔エラ","LEFT",,,,1,)
+PRINTL
+PRINTFORMW 昔から変わらぬ姿を持つ、星晶獣eraである。
+PRINTFORMW 寝ぼけまなこで彼女を見つめていると、視線に気づいたeraが優しげに話しかけてきた。
+PRINTL 
+PRINTL 星晶獣era：
+PRINTFORMW 「おや、起きたかい。
+PRINTFORMW 　最近は眠る時間が長くなったね。まあ、お前に出会うまで100年眠っていた私が言うことではないが」
+PRINTL
+PRINTFORMW くすくす、とeraが笑う。
+PRINTFORMW 昔はもっと皮肉げな性格だったが、最近はなんだか丸くなった気がする。
+PRINTFORMW いつからこうなったか……少し前のことが思い出しにくくなっている。年は取りたくないものだ。
+PRINTL 
+PRINTL 星晶獣era：
+PRINTFORMW 「今日は日差しが心地良いね。
+PRINTFORMW 　あとで散歩にでも行ってみるかい。そろそろ桜が見頃のはずだ」
+PRINTL
+PRINTFORMW こうやってeraに世話を焼いてもらうようになったのも、いつからなのか思い出せない。
+PRINTFORMW 昔は、だらけておやつを食べるeraの世話を、自分が焼いていたような気がする。
+PRINTFORMW いつも迷惑を掛けるね、と冗談めかしてeraに言ってみた。
+PRINTL 
+PRINTL 星晶獣era：
+PRINTFORMW 「ん？　ははは、なんだい今更。
+;呼称設定
+IF CSTR:era番号:非エロ陥落名称 == "契約星晶獣"
+	呼称設定 = 姉のようなもの
+ELSE
+	呼称設定 '= REPLACE(CSTR:era番号:非エロ陥落名称, @"%CALLNAME:MASTER%の", "")
+ENDIF
+PRINTFORMW 　私はお前の%呼称設定%だからね。こうするのも当然さ。
+PRINTFORMW 　変なこと考えてないで、晩ごはんは何が食べたいかなー、とか考えたまえよ」
+PRINTL
+PRINTFORMW 晩ごはんか。その前に、もう少し眠りたいな、と%CALLNAME:MASTER%はeraへ語りかける。
+PRINTL 
+PRINTL 星晶獣era：
+PRINTFORMW 「…………そうか。ゆっくり眠りたまえ、我が契約者」
+PRINTL
+PRINTFORMW あぁ、と%CALLNAME:MASTER%は緩慢に頷く。
+PRINTFORMW 春の陽気に誘われたか。なんだか今日は、ひどく眠い。
+PRINTFORMW %CALLNAME:MASTER%はゆっくりと目を閉じ、一つ、深い呼吸をしてから……少しずつ、息が小さくなっていく。
+PRINTL 
+PRINTL 星晶獣era：
+PRINTFORMW 「まったく……もう少しは、一緒にいられると思ってたんだが。
+PRINTFORMW 　空の民はせっかちすぎる。まだまだこっちでだらけていればいいものを」
+PRINTL
+PRINTFORMW eraは目を閉じた%CALLNAME:MASTER%の頭を撫でる。
+PRINTFORMW 子を慈しむように、親を慕うかのように。
+PRINTFORMW %CALLNAME:MASTER%と一緒に過ごした時間は、eraに少なくない変化を与えた。
+PRINTL
+PRINTFORMW もはやここにいるのは、空を滅ぼしうる星晶獣eraではなく。
+PRINTFORMW %CALLNAME:MASTER%の%呼称設定%として、空に生きる一つの命として、どこにでもいるありふれた少女であった。
+PRINTL
+PRINTFORMW 少女はこれからも空で生きる。
+PRINTFORMW 自分の家族がそうしたように、命尽きるまで穏やかにこの世界で生きていく。
+PRINTL 
+PRINTL 
+PRINTW 
+PRINTW エンディングNo.CH998_01『空と星の家族』
+PRINTW 
+
+
