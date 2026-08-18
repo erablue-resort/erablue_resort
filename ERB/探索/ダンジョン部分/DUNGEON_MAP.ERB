@@ -404,6 +404,7 @@ IF ダンジョン表示モード == "マップ画面"
 	LOCALS += "　<button value='p'>[p]ダンジョンから抜ける</button>"
 	LOCALS += "　　　　　<button value='o'>[o]OPTION</button></div>"
 	LOCALS += @"%TSTR:メッセージ欄文字列受け渡し_下側%"
+	LOCALS += イベント画像表示処理("ダンジョン画面")
 
 	HTML_PRINT LOCALS, 1
 	
@@ -427,6 +428,8 @@ ELSEIF ダンジョン表示モード == "アイテム画面"
 	LOCALS += "</div><br>"
 	;LOCALS += "<div rect='200,2937,4375,125'><nonbutton><font color='yellow'>[i]アイテム</font></nonbutton>　<nonbutton><font color='#666666'>[m]素材アイテム一覧</font></nonbutton>　<nonbutton><font color='#666666'>[t]仲間と会話</font></nonbutton>　<nonbutton><font color='#666666'>[p]ダンジョンから抜ける</font></nonbutton></div>"
 	LOCALS += @"%TSTR:メッセージ欄文字列受け渡し_下側%"
+	LOCALS += イベント画像表示処理("ダンジョン画面")
+
 	HTML_PRINT LOCALS, 1
 	
 	RETURN 36
@@ -694,3 +697,64 @@ SELECTCASE RESULTS
 		CLEARLINE 1
 		GOTO LOOP_MESSAGE
 ENDSELECT
+
+
+@イベント画像表示処理(画面種類)
+#FUNCTIONS
+#DIMS 画面種類
+#DIMS ファイル名
+#DIMS 返し文字列
+#DIM 縦幅
+#DIM 横幅
+#DIM グラID
+
+SIF イベント画像表示文字列 == ""
+	RETURNF ""
+
+;画面種類に応じた位置に文字列に登録されている画像を表示する
+
+DEBUGPRINTFORML %イベント画像表示文字列%
+;画像は存在する？
+IF ENUMFILES(@"%イベント画像表示文字列%.webp")
+	ファイル名 = %イベント画像表示文字列%.webp
+ELSE
+	IF ENUMFILES(@"%イベント画像表示文字列%.png")
+		ファイル名 = %イベント画像表示文字列%.png
+	ELSE
+		;ファイルがないので戻る
+		RETURNF ""
+	ENDIF
+ENDIF
+DEBUGPRINTFORML %ファイル名%
+
+;画像を取得
+;何番でもいいけどとりあえず口上に合わせて20000以降を使用
+グラID = 20000 + TFLAG:口上用画像表示番号
+TFLAG:口上用画像表示番号 ++
+
+GDISPOSE グラID
+SPRITEDISPOSE @"イベント画像{グラID}"
+GCREATEFROMFILE グラID, ファイル名
+SPRITECREATE @"イベント画像{グラID}", グラID
+
+;サイズ取得
+;文字サイズ割合に変換
+縦幅 = GHEIGHT(グラID) / GETCONFIG("フォントサイズ") * 100
+横幅 = GWIDTH(グラID) / GETCONFIG("フォントサイズ") * 100
+
+;サイズに合わせてdivを作成
+SELECTCASE 画面種類
+	CASE "ダンジョン画面"
+		返し文字列 = <div rect='{2900 - (横幅 / 2)}, {1500 - (縦幅 / 2)}, {横幅}, {縦幅}'
+	CASE "戦闘画面"
+		返し文字列 = <div rect='{2900 - (横幅 / 2)}, {1500 - (縦幅 / 2) + 987}, {横幅}, {縦幅}'
+ENDSELECT
+
+返し文字列 += @"padding='25' color='#%TOSTR(GETBGCOLOR(), "X")%' border='30' bcolor='#C0C0C0'>"
+
+返し文字列 += @"<img src='イベント画像{グラID}' height='{縦幅 + 50}' width='{横幅 + 50}'>"
+
+返し文字列 += "</div>"
+
+RETURNF 返し文字列
+
