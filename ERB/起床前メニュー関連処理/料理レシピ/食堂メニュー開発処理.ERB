@@ -3,6 +3,52 @@
 #DIM サブ食材ランク補正
 #DIM ルピ収入
 #DIM ZP収入
+#DIMS DYNAMIC 冠詞文字列
+#DIMS DYNAMIC 文字色文字列
+#DIMS DYNAMIC 表示用料理名
+
+
+IF 使用食材:9 != 0 && 使用食材:0 != 0
+	特殊料理フラグ = 0
+
+	開発料理ランク保存 = DT_CELL_GET("所持素材データベース", 使用食材:0, "素材ランク", 1)
+	LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:1, "素材ランク", 1)
+	LOCAL:2 = DT_CELL_GET("所持素材データベース", 使用食材:2, "素材ランク", 1)
+	LOCAL:3 = DT_CELL_GET("所持素材データベース", 使用食材:3, "素材ランク", 1)
+	IF MAX(LOCAL:1, LOCAL:2, LOCAL:3) == 0
+		;なんも食材登録されてないorランク０は寄与しない
+	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存
+		;全部違うメインと同ランク食材ならランク＋２
+		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
+			開発料理ランク保存 += 2
+		ELSE
+			開発料理ランク保存 += 1
+		ENDIF
+	ELSEIF MAX(LOCAL:1, LOCAL:2, LOCAL:3) >= 開発料理ランク保存
+		開発料理ランク保存 += 1
+	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存 - 1
+		;全部違うメインと同ランク食材ならランク＋１
+		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
+			開発料理ランク保存 += 1
+		ENDIF
+	ENDIF
+	;基本方針
+	IF 条例発布:0 == 3
+		開発料理ランク保存 += 1
+	ENDIF
+	文字色文字列 = %属性数値文字色変換_HTML(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%
+	CALL 生成予定メニュー名算出()
+	表示用料理名 '= 料理名受け渡し
+	IF 特殊料理フラグ
+		冠詞文字列 = 
+		SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
+			表示用料理名 = ？？？？？？？？？？
+	ELSE
+		冠詞文字列 = 汎用料理
+	ENDIF
+ENDIF
+
+$表示部分
 
 DRAWLINE
 PRINTL 食材を組み合わせ、リゾートで提供する料理メニューを開発します。
@@ -50,41 +96,7 @@ LOCALS += "■完成予定メニュー<br><br>　　"
 IF 使用食材:9 == 0 || 使用食材:0 == 0
 	LOCALS += "--------------------<br><br><br>"
 ELSE
-	開発料理ランク保存 = DT_CELL_GET("所持素材データベース", 使用食材:0, "素材ランク", 1)
-	LOCAL:1 = DT_CELL_GET("所持素材データベース", 使用食材:1, "素材ランク", 1)
-	LOCAL:2 = DT_CELL_GET("所持素材データベース", 使用食材:2, "素材ランク", 1)
-	LOCAL:3 = DT_CELL_GET("所持素材データベース", 使用食材:3, "素材ランク", 1)
-	IF MAX(LOCAL:1, LOCAL:2, LOCAL:3) == 0
-		;なんも食材登録されてないorランク０は寄与しない
-	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存
-		;全部違うメインと同ランク食材ならランク＋２
-		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
-			開発料理ランク保存 += 2
-		ELSE
-			開発料理ランク保存 += 1
-		ENDIF
-	ELSEIF MAX(LOCAL:1, LOCAL:2, LOCAL:3) >= 開発料理ランク保存
-		開発料理ランク保存 += 1
-	ELSEIF MIN(LOCAL:1, LOCAL:2, LOCAL:3) == 開発料理ランク保存 - 1
-		;全部違うメインと同ランク食材ならランク＋１
-		IF NOSAMES(使用食材:1, 使用食材:2, 使用食材:3)
-			開発料理ランク保存 += 1
-		ENDIF
-	ENDIF
-	;基本方針
-	IF 条例発布:0 == 3
-		開発料理ランク保存 += 1
-	ENDIF
-	LOCALS:1 = %属性数値文字色変換_HTML(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%
-	CALL 生成予定メニュー名算出()
-	IF 特殊料理フラグ
-		LOCALS:2 = 
-		SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
-			料理名受け渡し = ？？？？？？？？？？
-	ELSE
-		LOCALS:2 = 汎用料理
-	ENDIF
-	LOCALS += @"%LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%料理名受け渡し%</font><br><br><br>"
+	LOCALS += @"%冠詞文字列%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%文字色文字列%'>%表示用料理名%</font><br><br><br>"
 ENDIF
 IF 使用食材:9 == 0 || 使用食材:0 == 0
 	LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[100] これでメニューを開発する</font>"
@@ -117,13 +129,13 @@ LOCAL = RESULT
 SELECTCASE LOCAL
 	CASE 996
 		CALL 食事メニュー開発チュートリアル()
-		RESTART
+		GOTO 表示部分
 	CASE 997
 		CALL レシピブック閲覧()
-		RESTART
+		GOTO 表示部分
 	CASE 998
 		CALL 既存メニュー閲覧(0)
-		RESTART
+		GOTO 表示部分
 	CASE 999
 		FOR LOCAL, 0, 4
 			IF 使用食材:LOCAL
@@ -160,7 +172,6 @@ SELECTCASE LOCAL
 	CASE 100
 		;ルピ収入補正とZP収入補正をセットする
 		VARSET RESULT
-		CALL 生成予定メニュー名算出()
 		IF 特殊料理フラグ
 			IF 料理名受け渡し == "失敗料理"
 				CALL 特殊料理_1種レシピ_失敗料理("料理基礎ステータス")
@@ -191,12 +202,12 @@ SELECTCASE LOCAL
 		LOCALS:1 = %属性数値文字色変換_HTML(DT_CELL_GET("所持素材データベース", 使用食材:0, "素材属性", 1))%
 		IF 特殊料理フラグ
 			LOCALS:2 = 
+			SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
+				開発済み料理名フラグ文字列 += @"%料理名受け渡し%_"
 		ELSE
 			LOCALS:2 = 汎用料理
 		ENDIF
 		LOCALS = %LOCALS:2%ランク%TOFULL(TOSTR(開発料理ランク保存))%：<font color='#%LOCALS:1%'>%料理名受け渡し%</font>のレシピを開発しました。
-		SIF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
-			開発済み料理名フラグ文字列 += @"%料理名受け渡し%_"
 		HTML_PRINT LOCALS
 		PRINTL
 		WAIT
@@ -440,20 +451,44 @@ ENDSELECT
 
 @生成予定メニュー名算出()
 #DIM 関数総数
+#DIM 候補数
+#DIM 未調理候補数
+#DIMS 未調理特殊料理候補, 50
+#DIMS 特殊料理候補, 50
 VARSET RESULTS
 
 ;特殊料理条件との照らし合わせ
 ;使用している食材の数に応じて呼ぶ関数を絞る
 関数総数 = ENUMFUNCBEGINSWITH(@"特殊料理_{9 - MATCH(使用食材, 0)}種レシピ_")
 料理名受け渡し = 
+候補数 = 0
+未調理候補数 = 0
+VARSET 特殊料理候補
 FOR LOCAL, 0, 関数総数
 	CALLFORM %RESULTS:LOCAL%("レシピ参照")
 	IF RESULT > 0
-		;フラグに使用食材数を入れる
+		IF STRCOUNT(開発済み料理名フラグ文字列, @"_%料理名受け渡し%_") == 0
+			未調理特殊料理候補:未調理候補数 '= 料理名受け渡し
+			未調理候補数 ++
+		ELSE
+			特殊料理候補:候補数 '= 料理名受け渡し
+			候補数 ++
+		ENDIF
+	ENDIF
+NEXT
+
+;フラグに使用食材数を入れる
+IF 未調理候補数 > 0
+	料理名受け渡し '= 未調理特殊料理候補:(RAND:未調理候補数)
+	特殊料理フラグ = 9 - MATCH(使用食材, 0)
+	RETURN 1
+ELSE
+	IF 候補数 > 0
+		料理名受け渡し '= 特殊料理候補:(RAND:候補数)
 		特殊料理フラグ = 9 - MATCH(使用食材, 0)
 		RETURN 1
 	ENDIF
-NEXT
+ENDIF
 
 ;ないなら汎用料理を見る
 特殊料理フラグ = 0
