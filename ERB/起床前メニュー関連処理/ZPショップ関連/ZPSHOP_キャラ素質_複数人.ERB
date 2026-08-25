@@ -628,6 +628,8 @@ NEXT
 PRINTL
 PRINTBUTTON @"[10] 射精不可・未精通を削除する:{COST_TO_射精可能}ZP（1キャラ分）", 10
 PRINTL
+PRINTBUTTON @"[20] 希釈精液を付与する:{COST_TO_射精可能}ZP（1キャラ分）", 20
+PRINTL （中出ししても妊娠しなくなる）
 PRINTL 
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP3
@@ -695,6 +697,40 @@ SELECTCASE LOCAL:1
 				必要COST += 必要COST_計算値
 				PRINTFORML %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %GET_TALENTNAME(246, TALENT:(汎用キャラ配列:LOCAL):射精不可, , 汎用キャラ配列:LOCAL), 12, LEFT% > なし
 				TALENT:(汎用キャラ配列:LOCAL):射精不可 = 0
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+
+		RETURN 0
+	CASE 20
+		PRINTFORML ［希釈精液］を付与しますか？
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SIF TALENT:(汎用キャラ配列:LOCAL):希釈精液 == 1
+					CONTINUE
+				SIF GETBIT(TALENT:(汎用キャラ配列:LOCAL):性別, 1) == 0
+					CONTINUE
+				必要COST_計算値 = COST_TO_射精可能
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORML %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: なし > %GET_TALENTNAME(246, TALENT:(汎用キャラ配列:LOCAL):希釈精液, , 汎用キャラ配列:LOCAL), 12, LEFT%
+				TALENT:(汎用キャラ配列:LOCAL):希釈精液 = 1
 			NEXT
 			FLAG:ZP所持量 -= 必要COST
 			
