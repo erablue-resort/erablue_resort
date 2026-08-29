@@ -3,6 +3,8 @@
 #DIMS DYNAMIC 料理名
 #DIMS DYNAMIC 設定食材, 10
 #DIMS DYNAMIC その他設定, 10
+#DIM DYNAMIC 収入補正値, 2
+#DIM DYNAMIC 収入補正マニュアル化, 2
 #DIM 食材メニュー開閉
 #DIMS ジャンル登録, 50
 
@@ -12,6 +14,8 @@ IF 初期動作 == 0
 	VARSET ジャンル登録
 	CALL 素材アイテムデータベースセット
 	CALL 素材アイテム登録処理
+	収入補正値:0 = 3
+	収入補正値:1 = 1
 	LOCAL:1 = 0
 	FOR LOCAL, 0, DT_ROW_LENGTH("所持素材データベース")
 		IF DT_CELL_GETS("所持素材データベース", LOCAL, "食材分類") != ""
@@ -22,6 +26,29 @@ IF 初期動作 == 0
 		ENDIF
 	NEXT
 	初期動作 = 1
+ENDIF
+
+IF 収入補正マニュアル化:0 == 0
+	SELECTCASE GROUPMATCH("", 設定食材:0, 設定食材:1, 設定食材:2, 設定食材:3)
+		CASE 0
+			収入補正値:0 = 8
+		CASE 1
+			収入補正値:0 = 6
+		CASE 2
+			収入補正値:0 = 3
+		CASEELSE
+			収入補正値:0 = 1
+	ENDSELECT
+ENDIF
+IF 収入補正マニュアル化:1 == 0
+	SELECTCASE GROUPMATCH("", 設定食材:0, 設定食材:1, 設定食材:2, 設定食材:3)
+		CASE 0
+			収入補正値:1 = 3
+		CASE 1
+			収入補正値:1 = 2
+		CASEELSE
+			収入補正値:1 = 1
+	ENDSELECT
 ENDIF
 
 LOCALS = 
@@ -130,16 +157,26 @@ ELSE
 ENDIF
 LOCALS += "<br>"
 LOCALS += "<br>"
-LOCALS += "　　ルピ収入　："
+LOCALS += @"　ルピ収入補正：%\@収入補正値:0 >= 0 ? ＋ # \@%%TOFULL(TOSTR(収入補正値:0))%"
+IF 収入補正マニュアル化:0
+	LOCALS += "　<button value='200'>[↑]</button> <button value='201'>[↓]</button> <button value='210'>[自動化]</button>"
+ELSE
+	LOCALS += "　自動設定中 <button value='210'>[手動化]</button>"
+ENDIF
 LOCALS += "<br>"
-LOCALS += "　　ＺＰ収入　："
+LOCALS += @"　ＺＰ収入補正：%\@収入補正値:1 >= 0 ? ＋ # \@%%TOFULL(TOSTR(収入補正値:1))%"
+IF 収入補正マニュアル化:1
+	LOCALS += "　<button value='202'>[↑]</button> <button value='203'>[↓]</button> <button value='211'>[自動化]</button>"
+ELSE
+	LOCALS += "　自動設定中 <button value='211'>[手動化]</button>"
+ENDIF
 LOCALS += "<br>"
 LOCALS += "<br>"
 LOCALS += "　　特殊効果名："
 IF その他設定:0 == ""
-	LOCALS += @"<button value='116'>[--------------------]</button>"
+	LOCALS += @"<button value='300'>[--------------------]</button>"
 ELSE
-	LOCALS += @"<button value='116'>[%その他設定:0%]</button>"
+	LOCALS += @"<button value='300'>[%その他設定:0%]</button>"
 ENDIF
 LOCALS += "<br>"
 LOCALS += "　　特殊効果　："
@@ -228,6 +265,25 @@ SELECTCASE LOCAL
 		CALL 調理道具選択処理
 		SIF RESULT != -1
 			設定食材:9 '= 調理器具名:RESULT
+	CASE 200
+		収入補正値:0 ++
+	CASE 201
+		収入補正値:0 --
+	CASE 202
+		収入補正値:1 ++
+	CASE 203
+		収入補正値:1 --
+	CASE 210 TO 211
+		INVERTBIT 収入補正マニュアル化:(LOCAL - 210), 0
+	CASE 300
+		PRINTL
+		PRINTL
+		PRINTL
+		DRAWLINE
+		PRINTL 特殊効果名を入力してください。
+		DRAWLINE
+		INPUTS
+		料理名 '= RESULTS
 ENDSELECT
 
 RESTART
