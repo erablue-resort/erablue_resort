@@ -1,0 +1,90 @@
+﻿;===================================================
+;観光客をナンパ
+;===================================================
+@COMNAME419
+#FUNCTIONS
+#DIM 同行者フラグ
+IF CFLAG:MASTER:隠密
+	TSTR:コマンド名受渡 = 物陰から出る
+ELSE
+	TSTR:コマンド名受渡 = 物陰に隠れる
+
+	同行者フラグ = 0
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+			同行者フラグ = 1
+	NEXT
+
+	SIF 同行者フラグ && !CFLAG:MASTER:隠密
+		TSTR:コマンド名受渡 = 一緒に隠れる
+ENDIF
+
+;===================================================
+;コマンドタイプ
+;===================================================
+@COMTYPE_419
+#FUNCTION
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_隠密")
+
+
+;===================================================
+;ツールチップ文章
+;===================================================
+@COM_TOOLTIP_419
+TSTR:ツールチップ受渡 '= "<br>物陰に隠れる<br>"
+TSTR:ツールチップ受渡 += "物陰に隠れ、同室者から見つからなくするコマンド。<br>同行者やうふふ相手がいる場合、相手も一緒に隠れる。"
+TSTR:ツールチップ受渡 += "<br>COMタイプ：単独可能<br>取得ソース：なし"
+TSTR:ツールチップ受渡 += "<br>固有の取得経験：なし<br>"
+
+
+;===================================================
+;コマンド実行処理
+;===================================================
+@COM419
+#LOCALSIZE 1
+
+IF CFLAG:MASTER:隠密 == 0
+	CFLAG:MASTER:隠密 = 1
+	FOR LOCAL, 1, CHARANUM
+		SIF TARGET:LOCAL < 1
+			BREAK
+		SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+			CFLAG:(TARGET:LOCAL):隠密 = 1
+	NEXT
+ELSE
+	IF 連れ込みパターン != ""
+		PRINTFORMW %CALLNAME:TARGET%が離してくれない…
+		CALL KOJO_EVENT, 13, TARGET, 1
+	ELSE
+		CFLAG:MASTER:隠密 = 0
+		FOR LOCAL, 1, CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			SIF CFLAG:(TARGET:LOCAL):同行 || CFLAG:(TARGET:LOCAL):うふふ
+				CFLAG:(TARGET:LOCAL):隠密 = 0
+		NEXT
+		PREVCOM = 841
+	ENDIF
+ENDIF
+RETURN -1
+
+
+;===================================================
+;実行可能判定
+;===================================================
+@COM_ABLE419
+;隠れる実行判定
+SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
+	RETURN 0
+;一括管理
+SIF GLOBAL_COMABLE(419)
+	RETURN RESULT
+
+RETURN 1
+
+
+;===================================================
+;実行時メッセージ
+;===================================================
