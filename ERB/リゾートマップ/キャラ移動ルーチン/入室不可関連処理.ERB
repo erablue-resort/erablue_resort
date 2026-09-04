@@ -12,6 +12,7 @@
 #DIM ROOMSEX数値
 #DIM キャラSEX数値
 #DIM era番号
+#DIM ゆきずりキャラ
 
 ROOMSEX数値 = ROOM_SEX(移動先マップ種別, 移動先位置)
 IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
@@ -81,6 +82,16 @@ SELECTCASE 移動先マップ種別
 						CFLAG:PLAYER:現在位置 = 2005
 					ENDIF
 					RETURN 1
+				ELSEIF IS_ゆきずりセックス中(LOCAL)
+					PRINTFORML %CALLNAME:LOCAL%の部屋には鍵が掛かっている。
+					CALL ゆきずりセックス_訪問描写(LOCAL)
+					;SIF RESULT
+					;	RETURN 0
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					RETURN 1
 				ELSEIF CFLAG:LOCAL:キャラ同士うふふ
 					;相手を探す
 					うふふ相手 = ABS(CFLAG:LOCAL:デート) - 100
@@ -95,7 +106,7 @@ SELECTCASE 移動先マップ種別
 							CFLAG:PLAYER:現在マップ種別 = 0
 							CFLAG:PLAYER:現在位置 = 2005
 						ENDIF
-						RETURN 1
+						RETURN 1	
 					ENDIF
 				ENDIF
 			ENDIF
@@ -110,6 +121,16 @@ SELECTCASE 移動先マップ種別
 					RFLAG:追跡フラグ = 0
 					PRINTFORML %CALLNAME:era番号%の部屋には鍵が掛かっている。
 					CALL 睡眠時表示文章(era番号)
+					IF 自動移動フラグ
+						CFLAG:PLAYER:現在マップ種別 = 0
+						CFLAG:PLAYER:現在位置 = 1
+					ENDIF
+					RETURN 1
+				ELSEIF IS_ゆきずりセックス中(era番号)
+					PRINTFORML %CALLNAME:era番号%の部屋には鍵が掛かっている。
+					CALL ゆきずりセックス_訪問描写(era番号)
+					;SIF RESULT
+					;	RETURN 0
 					IF 自動移動フラグ
 						CFLAG:PLAYER:現在マップ種別 = 0
 						CFLAG:PLAYER:現在位置 = 1
@@ -143,6 +164,16 @@ SELECTCASE 移動先マップ種別
 						RFLAG:追跡フラグ = 0
 						PRINTFORML %CALLNAME:(滞在者部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
 						CALL 睡眠時表示文章(滞在者部屋割り配列:LOCAL)
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						RETURN 1
+					ELSEIF IS_ゆきずりセックス中(滞在者部屋割り配列:LOCAL)
+						PRINTFORML %CALLNAME:(滞在者部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						CALL ゆきずりセックス_訪問描写(滞在者部屋割り配列:LOCAL)
+						;SIF RESULT
+						;	RETURN 0
 						IF 自動移動フラグ
 							CFLAG:PLAYER:現在マップ種別 = 0
 							CFLAG:PLAYER:現在位置 = 1
@@ -182,6 +213,16 @@ SELECTCASE 移動先マップ種別
 							CFLAG:PLAYER:現在位置 = 1
 						ENDIF
 						RETURN 1
+					ELSEIF IS_ゆきずりセックス中(従業員部屋割り配列:LOCAL)
+						PRINTFORML %CALLNAME:(従業員部屋割り配列:LOCAL)%の部屋には鍵が掛かっている。
+						CALL ゆきずりセックス_訪問描写(従業員部屋割り配列:LOCAL)
+						;SIF RESULT
+						;	RETURN 0
+						IF 自動移動フラグ
+							CFLAG:PLAYER:現在マップ種別 = 0
+							CFLAG:PLAYER:現在位置 = 1
+						ENDIF
+						RETURN 1
 					ELSEIF CFLAG:(従業員部屋割り配列:LOCAL):キャラ同士うふふ
 						;相手を探す
 						うふふ相手 = ABS(CFLAG:(従業員部屋割り配列:LOCAL):デート) - 100
@@ -199,6 +240,7 @@ SELECTCASE 移動先マップ種別
 							RETURN 1
 						ENDIF
 					ENDIF
+					
 				ENDIF
 			ENDIF
 		ELSEIF 移動先位置 >= 2000 && 移動先位置 < 3000
@@ -219,12 +261,19 @@ SELECTCASE 移動先マップ種別
 				LOCAL:2 = 0
 				VARSET 在宅配列
 				在宅者数 = 0
+				;ゆきずりキャラを初期化
+				ゆきずりキャラ = -1
 				FOR ループ用, 0, 部屋人数
 					SIF 部屋主配列:ループ用 < 1
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 999 && CFLAG:(部屋主配列:ループ用):現在位置 == 移動先位置
+						;ゆきずりを最優先で確認
+						IF IS_ゆきずりセックス中(部屋主配列:ループ用)
+							LOCAL:2 = 3
+							ゆきずりキャラ = 部屋主配列:ループ用
+							BREAK
 						;うふふが見つかってない時は睡眠をチェックしておく
-						IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
+						ELSEIF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
 							;相手を探す
 							うふふ相手 = ABS(CFLAG:(部屋主配列:ループ用):デート) - 100
 							IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 999 && CFLAG:うふふ相手:現在位置 == 移動先位置
@@ -237,9 +286,11 @@ SELECTCASE 移動先マップ種別
 						ELSEIF CFLAG:(部屋主配列:ループ用):睡眠 && 陥落チェック(部屋主配列:ループ用) == 0 && LOCAL:2 >= 0
 							;非陥落の睡眠が一人でもいると入れない
 							LOCAL:2 = 1
+						
 						ELSEIF !CFLAG:(部屋主配列:ループ用):睡眠
 							;一人でも起きてたら入れる
 							LOCAL:2 = -1
+						
 						ENDIF
 						在宅配列:在宅者数 = 部屋主配列:ループ用
 						在宅者数 ++
@@ -260,6 +311,11 @@ SELECTCASE 移動先マップ種別
 						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
 						SIF RESULT
 							RETURN 0
+					ELSEIF LOCAL:2 == 3
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						CALL ゆきずりセックス_訪問描写(ゆきずりキャラ) 
+						;SIF RESULT
+						;	RETURN 0
 					ENDIF
 					IF 自動移動フラグ
 						CFLAG:PLAYER:現在マップ種別 = 0
@@ -327,12 +383,18 @@ SELECTCASE 移動先マップ種別
 				LOCAL:2 = 0
 				VARSET 在宅配列
 				在宅者数 = 0
+				ゆきずりキャラ = -1
 				FOR ループ用, 0, 10
 					SIF 部屋主配列:ループ用 < 1
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 2 && CFLAG:(部屋主配列:ループ用):現在位置 == 移動先位置
+						
+						IF IS_ゆきずりセックス中(部屋主配列:ループ用)
+							LOCAL:2 = 3
+							ゆきずりキャラ = 部屋主配列:ループ用
+							BREAK
 						;在宅状況チェック
-						IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
+						ELSEIF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
 							;相手を探す
 							うふふ相手 = ABS(CFLAG:(部屋主配列:ループ用):デート) - 100
 							IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 2 && CFLAG:うふふ相手:現在位置 == 移動先位置
@@ -366,6 +428,11 @@ SELECTCASE 移動先マップ種別
 						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
 						SIF RESULT
 							RETURN 0
+					ELSEIF LOCAL:2 == 3
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						CALL ゆきずりセックス_訪問描写(ゆきずりキャラ)
+						;SIF RESULT
+						;	RETURN 0
 					ENDIF
 					IF 自動移動フラグ
 						CFLAG:PLAYER:現在マップ種別 = 2
@@ -415,12 +482,17 @@ SELECTCASE 移動先マップ種別
 				LOCAL:2 = 0
 				VARSET 在宅配列
 				在宅者数 = 0
+				ゆきずりキャラ = -1
 				FOR ループ用, 0, 10
 					SIF 部屋主配列:ループ用 < 1
 						BREAK
 					IF CFLAG:(部屋主配列:ループ用):現在マップ種別 == 大規模番号_牧場エリア && CFLAG:(部屋主配列:ループ用):現在位置 == 移動先位置
+						IF IS_ゆきずりセックス中(部屋主配列:ループ用)
+							LOCAL:2 = 3
+							ゆきずりキャラ = 部屋主配列:ループ用
+							BREAK
 						;在宅状況チェック
-						IF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
+						ELSEIF CFLAG:(部屋主配列:ループ用):キャラ同士うふふ && CFLAG:(部屋主配列:ループ用):デート
 							;相手を探す
 							うふふ相手 = ABS(CFLAG:(部屋主配列:ループ用):デート) - 100
 							IF うふふ相手 >= 0 && CFLAG:うふふ相手:現在マップ種別 == 大規模番号_牧場エリア && CFLAG:うふふ相手:現在位置 == 移動先位置
@@ -454,6 +526,11 @@ SELECTCASE 移動先マップ種別
 						CALL キャラ同士うふふ時表示文章(在宅配列:0, 在宅配列:1)
 						SIF RESULT
 							RETURN 0
+					ELSEIF LOCAL:2 == 3
+						PRINTFORML %TSTR:場所名受渡%の家には鍵が掛かっている。
+						CALL ゆきずりセックス_訪問描写(ゆきずりキャラ)
+						;SIF RESULT
+						;	RETURN 0
 					ENDIF
 					IF 自動移動フラグ
 						CFLAG:PLAYER:現在マップ種別 = 大規模番号_牧場エリア

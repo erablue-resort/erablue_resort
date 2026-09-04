@@ -1,4 +1,4 @@
-﻿;時間経過処理
+;時間経過処理
 @CHARA_MOVEMENT(追従モード = 0)
 #DIM DYNAMIC 追従モード
 #DIM 追い出し先
@@ -163,9 +163,13 @@ FOR LOCAL,0,CHARANUM
 		あなた追従中 = 1
 	ENDIF
 
-	;うふふ中ではない、かつ同行終わったら隠密消去
-	SIF !CFLAG:LOCAL:同行 && !CFLAG:LOCAL:うふふ && LOCAL > 0 && 連れ込みパターン == ""
+	;その場ゆきずり中は隠密を維持
+	IF IS_ゆきずりセックス中(LOCAL) && !GETBIT(TCVAR:LOCAL:ゆきずりセックス_誘い, 1)
+		CFLAG:LOCAL:隠密 = 1
+	;うふふ中ではなく、同行が終わったら隠密消去
+	ELSEIF !CFLAG:LOCAL:同行 && !CFLAG:LOCAL:うふふ && LOCAL > 0 && 連れ込みパターン == ""
 		CFLAG:LOCAL:隠密 = 0
+	ENDIF
 
 	;性欲
 	SIF !CFLAG:LOCAL:睡眠
@@ -196,7 +200,8 @@ FOR LOCAL,0,CHARANUM
 	;Add ahyanosia
 	;ゆきずりセックス処理
 	;女性は従来の性癖、男性は攻め側の性癖を参照する
-	IF !CFLAG:LOCAL:うふふ && ((GETBIT(TALENT:LOCAL:性別, 0) && 性癖素質:LOCAL:ゆきずりセックス > 0) || (!GETBIT(TALENT:LOCAL:性別, 0) && GETBIT(TALENT:LOCAL:性別, 1) && 性癖素質:LOCAL:ゆきずりセックス（攻め） > 0))
+	;IF !CFLAG:LOCAL:うふふ && ((GETBIT(TALENT:LOCAL:性別, 0) && 性癖素質:LOCAL:ゆきずりセックス > 0) || (!GETBIT(TALENT:LOCAL:性別, 0) && GETBIT(TALENT:LOCAL:性別, 1) && 性癖素質:LOCAL:ゆきずりセックス（攻め） > 0))
+	IF !CFLAG:LOCAL:うふふ && 性癖素質:LOCAL:ゆきずりセックス > 0
 		CALL ゆきずりセックス判定(LOCAL)
 		;性行為中は移動しない
 		SIF IS_ゆきずりセックス中(LOCAL)
@@ -291,7 +296,7 @@ SIF CFLAG:ARG:酔いすぎ == 1
 SIF CFLAG:ARG:体力限界 == 1
 	寝る = 0
 ;泥酔眠姦とかに使う分岐
-SIF TCVAR:ARG:泥酔眠姦 == 1
+SIF TCVAR:ARG:言いなり == 1
 	寝る = 0
 
 

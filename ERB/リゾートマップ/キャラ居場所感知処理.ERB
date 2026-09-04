@@ -11,6 +11,7 @@
 #DIMS フォント格納用
 #DIMS ボタン表示格納用
 #DIM 文字数カウント
+#DIM 表示人数
 
 表示マップ種別 = CFLAG:MASTER:現在マップ種別
 入室禁止フラグ = 0
@@ -30,6 +31,8 @@ FOR 対象キャラ, 1, CHARANUM
 	SIF CFLAG:対象キャラ:現在位置 == 999 && 表示マップ種別 != 999
 		CONTINUE
 	SIF CFLAG:対象キャラ:現在位置 == 998
+		CONTINUE
+	SIF !居場所感知表示可能(対象キャラ)
 		CONTINUE
 	IF FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置 + 1000) > -1
 		滞在者保存:(FINDELEMENT(滞在部屋番号保存, CFLAG:対象キャラ:現在位置 + 1000)) += @"{対象キャラ}_"
@@ -54,7 +57,7 @@ FOR LOCAL, 0, 3
 	ELSE
 		LOCALS += " color='#101010' border='31' bcolor='#666666'><nobr><font color='#666666'><clearbutton>"
 	ENDIF
-	IF 個別移動管理キャラ:LOCAL > 0
+	IF 個別移動管理キャラ:LOCAL > 0 && 居場所感知個別枠表示可能(個別移動管理キャラ:LOCAL)
 		LOCALS += @"■%NAME表示((個別移動管理キャラ:LOCAL))%<br>"
 		CALLFORM エリア情報登録_{CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別}("エリア名")
 		IF MODE_存在判定_完全一致("ハーヴィンオナホ系", PLAYER, 個別移動管理キャラ:LOCAL)
@@ -63,7 +66,7 @@ FOR LOCAL, 0, 3
 			LOCALS += @"外出中につき感知不可<br><br>"
 		ELSEIF CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別 == 0 && CFLAG:(個別移動管理キャラ:LOCAL):現在位置 == 999
 			LOCALS += @"現在リゾートの外にいます<br><br>"
-		ELSEIF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ
+		ELSEIF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ || CFLAG:MASTER:使い魔覗き状態
 			;モード中は移動禁止
 			LOCALS += @"現在マップ：%TSTR:場所名受渡%<br>"
 			LOCALS += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%<br>"
@@ -89,13 +92,16 @@ FOR LOCAL, 3, 6
 	ELSE
 		LOCALS:1 += " color='#101010' border='31' bcolor='#C0C0C0'><nobr>"
 	ENDIF
-	IF 個別移動管理キャラ:LOCAL > 0
+	IF 個別移動管理キャラ:LOCAL > 0 && 居場所感知個別枠表示可能(個別移動管理キャラ:LOCAL)
 		LOCALS:1 += @"■%NAME表示((個別移動管理キャラ:LOCAL))%<br>"
 		CALLFORM エリア情報登録_{CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別}("エリア名")
 		IF MODE_存在判定_完全一致("ハーヴィンオナホ系", PLAYER, 個別移動管理キャラ:LOCAL)
 			LOCALS:1 += @"<font color='#%カラーパレット_HTML("赤ピンク")%'><img src='えっちハート'>%DT_CELL_GETS("体位モードデータベース", モードID受渡し, "モード名", 1)%中<img src='えっちハート'></font><br><br>"
 		ELSEIF CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別 == 0 && CFLAG:(個別移動管理キャラ:LOCAL):現在位置 == 999
 			LOCALS:1 += @"現在リゾートの外にいます<br><br>"
+		ELSEIF CFLAG:MASTER:使い魔覗き状態
+			LOCALS:1 += @"現在マップ：%TSTR:場所名受渡%<br>"
+			LOCALS:1 += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%<br>"
 		ELSE
 			LOCALS:1 += @"<button value='追跡移動_{LOCAL}'>現在マップ：%TSTR:場所名受渡%<br>"
 			LOCALS:1 += @"現在位置：%GETPLACENAME(CFLAG:(個別移動管理キャラ:LOCAL):現在マップ種別, CFLAG:(個別移動管理キャラ:LOCAL):現在位置)%</button><br>"
@@ -161,7 +167,7 @@ FOR LOCAL, 0, 500
 	ENDIF
 	
 	;うふふ中・飲み会中は移動なし
-	IF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ
+	IF CFLAG:MASTER:飲み会 || CFLAG:MASTER:うふふ || CFLAG:MASTER:使い魔覗き状態
 		PRINTFORML ■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL - 1000)%
 	ELSE
 		PRINTBUTTON @"■%GETPLACENAME(表示マップ種別, 滞在部屋番号保存:LOCAL - 1000)%", 滞在部屋番号保存:LOCAL - 1000
@@ -170,12 +176,22 @@ FOR LOCAL, 0, 500
 	VARSET RESULTS
 	SPLIT 滞在者保存:LOCAL, "_", RESULTS
 	文字数カウント = 0
+	表示人数 = 0
+	
 	FOR 配列番号, 0, CHARANUM
 		SIF RESULTS:配列番号 == ""
 			BREAK
-		SIF 配列番号 > 0
-			PRINT 、
+		
 		表示キャラ = TOINT(RESULTS:配列番号)
+		
+		;一覧と対象選択で同じ表示条件を使う
+		SIF !居場所感知表示可能(表示キャラ)
+			CONTINUE
+		
+		SIF 表示人数 > 0
+			PRINT 、
+		表示人数 += 1
+		
 		フォント格納用 = 
 		IF CSTR:表示キャラ:同室者一覧表示名 != ""
 			ボタン表示格納用 = %CSTR:表示キャラ:同室者一覧表示名%
@@ -274,6 +290,8 @@ IF ISNUMERIC(RESULTS) == 0
 	IF STRFIND(RESULTS, "追跡_") > -1
 		;追跡キャラ設定
 		対象キャラ = TOINT(SUBSTRING(RESULTS, 5))
+		SIF 対象キャラ <= 0 || !居場所感知表示可能(対象キャラ)
+			GOTO 表示_LOOP
 		DRAWLINE
 		LOCAL:1 = 0
 		FOR LOCAL, 0, 6
@@ -291,8 +309,11 @@ IF ISNUMERIC(RESULTS) == 0
 			PRINTL 誰と入れ替えますか？
 			DRAWLINE
 			FOR LOCAL, 0, 6
-				IF 個別移動管理キャラ:LOCAL > 0
+				IF 個別移動管理キャラ:LOCAL > 0 && 居場所感知個別枠表示可能(個別移動管理キャラ:LOCAL)
 					PRINTBUTTON @"[{LOCAL}] %NAME表示(個別移動管理キャラ:LOCAL)%", LOCAL
+					PRINTL
+				ELSE
+					PRINTBUTTON @"[{LOCAL}] 非表示の登録枠", LOCAL
 					PRINTL
 				ENDIF
 			NEXT
@@ -325,7 +346,12 @@ IF ISNUMERIC(RESULTS) == 0
 		ページ数 = 0
 		GOTO RE_LOOP
 	ELSEIF STRFIND(RESULTS, "追跡移動_") > -1
-		対象キャラ = 個別移動管理キャラ:(TOINT(SUBSTRING(RESULTS, 9)))
+		LOCAL = TOINT(SUBSTRING(RESULTS, 9))
+		SIF LOCAL < 0 || LOCAL >= 6
+			GOTO 表示_LOOP
+		対象キャラ = 個別移動管理キャラ:LOCAL
+		SIF 対象キャラ <= 0 || !居場所感知個別枠表示可能(対象キャラ)
+			GOTO 表示_LOOP
 		RESULTS = {CFLAG:対象キャラ:現在位置}
 		表示マップ種別 = CFLAG:対象キャラ:現在マップ種別
 		TARGET登録 = 対象キャラ
@@ -345,6 +371,9 @@ SELECTCASE LOCAL
 		ページ数 += 1
 		GOTO 表示_LOOP
 	CASEELSE
+		;使い魔覗き中は移動先を設定しない
+		SIF CFLAG:MASTER:使い魔覗き状態
+			GOTO 表示_LOOP
 		;クイック移動処理
 		;SIF 表示マップ種別 == CFLAG:MASTER:現在マップ種別 && LOCAL == CFLAG:MASTER:現在位置
 		;	RETURN 1
@@ -369,6 +398,8 @@ VARSET LOCALS
 ;フィルタ処理・絞り込み処理
 FOR LOCAL, 1, CHARANUM
 	SIF CFLAG:LOCAL:滞在期間 < 0
+		CONTINUE
+	SIF !居場所感知表示可能(LOCAL)
 		CONTINUE
 	表示候補:(候補人数) = LOCAL
 	候補人数 += 1
@@ -428,5 +459,42 @@ SELECTCASE RESULT
 		現在ページ += 1
 		GOTO 表示_LOOP
 	CASEELSE
+		SIF RESULT <= 0 || !居場所感知表示可能(RESULT)
+			GOTO 表示_LOOP
+		SIF FINDELEMENT(表示候補, RESULT) < 0
+			GOTO 表示_LOOP
 		RETURN RESULT
 ENDSELECT
+
+
+;==================================================================================================
+@居場所感知表示可能(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+;-------------------------------------------------
+;居場所感知で表示可能なキャラか判定する。
+;MASTER自身の隠密状態には影響されず、ステルス・隠密中の対象だけを除外する。
+;--------------------------------------------------------------------------------------------------
+SIF 対象キャラ < 0 || 対象キャラ >= CHARANUM
+	RETURNF 0
+SIF TCVAR:対象キャラ:ステルス
+	RETURNF 0
+SIF CFLAG:対象キャラ:隠密
+	RETURNF 0
+
+RETURNF 1
+
+
+;==================================================================================================
+@居場所感知個別枠表示可能(対象キャラ)
+#FUNCTION
+#DIM 対象キャラ
+;-------------------------------------------------
+;居場所感知の個別追跡枠で表示可能なキャラか判定する。
+;登録済みキャラは隠密中でも表示し、ステルス中の対象だけを除外する。
+;--------------------------------------------------------------------------------------------------
+SIF 対象キャラ < 0 || 対象キャラ >= CHARANUM
+	RETURNF 0
+SIF TCVAR:対象キャラ:ステルス
+	RETURNF 0
+RETURNF 1

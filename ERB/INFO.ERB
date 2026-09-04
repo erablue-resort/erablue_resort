@@ -76,10 +76,10 @@ IF TFLAG:調教モード == 3
 ELSE
 	SIF FINDELEMENT(TARGET, TARGET:0, 1) < 0
 		TARGET = TARGET:1
-	SIF あなた追跡キャラ && IS_SAME_ROOM(MASTER, あなた追跡キャラ)
+	SIF あなた追跡キャラ && 通常キャラ表示可能(あなた追跡キャラ) && IS_SAME_ROOM(MASTER, あなた追跡キャラ)
 		TARGET = あなた追跡キャラ
 	IF GETBIT(FLAG:モード管理, モードビット_指示)
-		IF TFLAG:あなたターゲット用
+		IF TFLAG:あなたターゲット用 && 通常キャラ表示可能(MASTER)
 			TFLAG:TARGET変更用 = 0
 			TARGET = 0
 		ENDIF
@@ -107,6 +107,21 @@ ELSE
 			ENDIF
 		NEXT
 	ENDIF
+	;ゆきずりセックス覗き中でも固定
+	IF IS_ゆきずりセックス中(TARGET)
+		FOR LOCAL,1,CHARANUM
+			SIF TARGET:LOCAL < 1
+				BREAK
+			IF ゆきずり覗き中？(TARGET:LOCAL)
+				TARGET = TARGET:LOCAL
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+	
+	SIF CFLAG:MASTER:使い魔覗き状態
+		TARGET = CFLAG:MASTER:使い魔覗き状態
+	
 ENDIF
 SIF !LOCAL:1
 	TFLAG:TARGET変更用 = 0
@@ -220,7 +235,7 @@ FOR LOCAL,1,CHARANUM
 				CALL デートちょっかい終了処理(CFLAG_SORTARRAY:LOCAL)
 				うふふ終了フラグ = 2
 			ENDIF
-		ELSEIF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):体力限界
+		ELSEIF !CFLAG:(CFLAG_SORTARRAY:LOCAL):同室 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):体力限界 && !TCVAR:(CFLAG_SORTARRAY:LOCAL):ステルス
 			;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 			SIF RESULT > 0
@@ -231,7 +246,8 @@ FOR LOCAL,1,CHARANUM
 			ENDIF
 			SIF RESULT < 0
 				RESTART
-		ELSEIF !TCVAR:(CFLAG_SORTARRAY:LOCAL):挨拶フラグ && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):体力限界 && PREVCOM == 841
+		ELSEIF !TCVAR:(CFLAG_SORTARRAY:LOCAL):挨拶フラグ && !CFLAG:(CFLAG_SORTARRAY:LOCAL):睡眠 && !CFLAG:(CFLAG_SORTARRAY:LOCAL):体力限界 && PREVCOM == 841 && !TCVAR:(CFLAG_SORTARRAY:LOCAL):ステルス
+			;遭遇口上（ターゲットになってなくても喋る）と情事発覚口上
 			CALL AFFAIR_DISCLOSURE((CFLAG_SORTARRAY:LOCAL), うふふ終了フラグ, LOCALS, LOCALS:1)
 			SIF RESULT < 0
 				RESTART
@@ -254,10 +270,12 @@ IF 追い出されフラグ
 	追い出されフラグ = 0
 	RESTART
 ENDIF
+
 SIF LOCALS != ""
 	PRINTFORMW %LOCALS%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に居た
 SIF LOCALS:1 != ""
 	PRINTFORMW %LOCALS:1%が%GETPLACENAME(CFLAG:MASTER:現在マップ種別, CFLAG:MASTER:現在位置)%に来た
+
 ;馴れ合い強度決定
 ;TARGET側
 IF TFLAG:調教モード == 3
@@ -332,8 +350,10 @@ FOR LOCAL,0,CHARANUM
 	IF LOCAL == MASTER && あなた追跡キャラ
 	ELSEIF (CSTR:うふふシチュ記録 == "物陰連れ込み" || CSTR:PLAYER:うふふシチュ記録 == "物陰連れ込み") && (LOCAL == PLAYER || LOCAL == TARGET)
 	ELSE
-		IF CFLAG:LOCAL:現在位置 != CFLAG:LOCAL:前ターン位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:LOCAL:前マップ種別 || (CFLAG:MASTER:隠密 != CFLAG:LOCAL:隠密 && !CFLAG:LOCAL:キャラ同士うふふ)
-			CALL 移動時モード消去(LOCAL)
+		IF !IS_ゆきずりセックス中(LOCAL)
+			IF CFLAG:LOCAL:現在位置 != CFLAG:LOCAL:前ターン位置 || CFLAG:LOCAL:現在マップ種別 != CFLAG:LOCAL:前マップ種別 || (CFLAG:MASTER:隠密 != CFLAG:LOCAL:隠密 && !CFLAG:LOCAL:キャラ同士うふふ)
+				CALL 移動時モード消去(LOCAL)
+			ENDIF
 		ENDIF
 	ENDIF
 	
@@ -530,10 +550,14 @@ IF TARGET || (GETBIT(FLAG:モード管理, モードビット_指示) && PLAYER 
 			SIF TARGET:LOCAL < 1
 				BREAK
 			IF TARGET:LOCAL == PLAYER
-				IF TARGET != MASTER && GETBIT(FLAG:モード管理, モードビット_指示)
+				IF TARGET != MASTER && GETBIT(FLAG:モード管理, モードビット_指示) && 通常キャラ表示可能(MASTER)
 					divHTML += @"<button value='2000'>[%CALLNAME:MASTER%]</button> "
 				ENDIF
 			ELSEIF TARGET:LOCAL == TARGET
+				CONTINUE
+			ELSEIF TCVAR:(TARGET:LOCAL):ステルス ;ステルスフラグを表示させない
+				CONTINUE
+			ELSEIF !通常キャラ表示可能(TARGET:LOCAL)
 				CONTINUE
 			ELSE
 				フォント格納用 = 
@@ -1014,7 +1038,9 @@ IF TARGET > 0
 	divHTML += "<font color='#FFD900'><button value='803'>[能力表示]</button>　　　　　　 　"
 	IF CFLAG:PLAYER:うふふ == 0
 		PRINT 　　　
-		IF あなた追跡キャラ
+		IF あなた追跡キャラ && !通常キャラ表示可能(あなた追跡キャラ)
+			divHTML += @"　　　<button value='805'>[追跡を解除]</button>"
+		ELSEIF あなた追跡キャラ
 			divHTML += @"　　　<button value='805'>[追跡中：%CALLNAME:あなた追跡キャラ%]</button>"
 		ELSE
 			divHTML += @"　　　<button value='805'>[このキャラを追跡]</button>"
@@ -1592,6 +1618,8 @@ IF TFLAG:調教モード == 3
 			CONTINUE
 		SIF CFLAG:MASTER:現在位置 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置
 			CONTINUE
+		SIF !通常キャラ表示可能(CFLAG_SORTARRAY:LOCAL)
+			CONTINUE
 		IF CFLAG:(CFLAG_SORTARRAY:LOCAL):飲み会
 			LOCAL:1 ++
 			飲み会TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
@@ -1613,6 +1641,8 @@ ELSE
 		SIF CFLAG:MASTER:現在マップ種別 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在マップ種別
 			CONTINUE
 		SIF CFLAG:MASTER:現在位置 != CFLAG:(CFLAG_SORTARRAY:LOCAL):現在位置
+			CONTINUE
+		SIF !通常キャラ表示可能(CFLAG_SORTARRAY:LOCAL)
 			CONTINUE
 		LOCAL:1 ++
 		TARGET:(LOCAL:1) = CFLAG_SORTARRAY:LOCAL
@@ -1758,7 +1788,7 @@ ENDIF
 ;通常遭遇
 ;先んじて部屋にいたのか、あるいは後から来たのか
 
-IF (CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:前マップ種別 == CFLAG:対象キャラ:現在マップ種別)
+IF (CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位置 && CFLAG:対象キャラ:前マップ種別 == CFLAG:対象キャラ:現在マップ種別) && !CFLAG:対象キャラ:隠密
 	IF REGEXPMATCH(在室キャラ, "たち$", L_TMP, L_TMPS)
 	ELSEIF STRLENSU(在室キャラ) > 30
 		在室キャラ += "たち"
@@ -1767,7 +1797,7 @@ IF (CFLAG:対象キャラ:前ターン位置 == CFLAG:対象キャラ:現在位�
 			在室キャラ += "、"
 		在室キャラ += CALLNAME:対象キャラ
 	ENDIF
-ELSEIF (CFLAG:対象キャラ:前ターン位置 != CFLAG:対象キャラ:現在位置 || CFLAG:対象キャラ:前マップ種別 != CFLAG:対象キャラ:現在マップ種別) && (CFLAG:MASTER:前ターン位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:前マップ種別 == CFLAG:MASTER:現在マップ種別)
+ELSEIF (CFLAG:対象キャラ:前ターン位置 != CFLAG:対象キャラ:現在位置 || CFLAG:対象キャラ:前マップ種別 != CFLAG:対象キャラ:現在マップ種別) && (CFLAG:MASTER:前ターン位置 == CFLAG:MASTER:現在位置 && CFLAG:MASTER:前マップ種別 == CFLAG:MASTER:現在マップ種別) && !CFLAG:対象キャラ:隠密
 	IF REGEXPMATCH(在室キャラ:1, "たち$", L_TMP, L_TMPS)
 	ELSEIF STRLENSU(在室キャラ:1) > 30
 		在室キャラ:1 += "たち"
@@ -1777,8 +1807,8 @@ ELSEIF (CFLAG:対象キャラ:前ターン位置 != CFLAG:対象キャラ:現在
 		在室キャラ:1 += CALLNAME:対象キャラ
 	ENDIF
 ENDIF
-IF CFLAG:MASTER:隠密
-	;隠密だと話しかけてこない
+IF CFLAG:MASTER:隠密 || CFLAG:対象キャラ:隠密
+	;どちらかが隠密だと話しかけてこない
 	LOCAL:3 = 0
 ELSE
 	LOCAL:3 = 1

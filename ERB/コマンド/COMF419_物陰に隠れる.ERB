@@ -33,8 +33,13 @@ TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_隠密")
 ;ツールチップ文章
 ;===================================================
 @COM_TOOLTIP_419
-TSTR:ツールチップ受渡 '= "<br>■物陰に隠れる<br>"
-TSTR:ツールチップ受渡 += "物陰に隠れ、同室者から見つからなくするコマンド。<br>同行者やうふふ相手がいる場合、相手も一緒に隠れる。"
+IF !CFLAG:MASTER:隠密
+	TSTR:ツールチップ受渡 '= "<br>■物陰に隠れる<br>"
+	TSTR:ツールチップ受渡 += "物陰に隠れ、同室者から見つからなくするコマンド。<br>同行者やうふふ相手がいる場合、相手も一緒に隠れる。"
+ELSE
+	TSTR:ツールチップ受渡 '= "<br>■物陰から出る<br>"
+	TSTR:ツールチップ受渡 += "物陰から出て、自身の隠密状態を解除するコマンド。<br>同行者やうふふ相手がいる場合、相手も一緒に出る。"
+ENDIF
 TSTR:ツールチップ受渡 += "<br>COMタイプ：単独可能<br>取得ソース：なし"
 TSTR:ツールチップ受渡 += "<br>固有の取得経験：なし<br>"
 
@@ -54,6 +59,10 @@ IF CFLAG:MASTER:隠密 == 0
 			CFLAG:(TARGET:LOCAL):隠密 = 1
 	NEXT
 ELSE
+	;ゆきずり覗き中なら覗かれフラグを解除する
+	SIF IS_ゆきずり覗かれ中(TARGET)
+		TCVAR:TARGET:ゆきずりセックス_覗かれ中 = 0
+	
 	IF 連れ込みパターン != ""
 		PRINTFORMW %CALLNAME:TARGET%が離してくれない…
 		CALL KOJO_EVENT, 13, TARGET, 1
@@ -79,7 +88,7 @@ RETURN -1
 SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 	RETURN 0
 ;一括管理
-SIF GLOBAL_COMABLE(419)
+SIF GLOBAL_COMABLE(419) && GLOBAL_COMABLE_TYPE("隠密")
 	RETURN RESULT
 
 RETURN 1
