@@ -425,9 +425,15 @@ PRINTBUTTON "[2] 戦闘勝利時", 2
 PRINTL
 PRINTL
 PRINTL
+PRINTBUTTONLC "[999] 変更せず戻る", 999
+PRINTL
+PRINTL
+PRINTL
 
 BINPUT
 SELECTCASE RESULT
+	CASE 999
+		RESULTS '= 発動タイミング
 	CASE 0
 		RESULTS = メニューによる収入算出時
 	CASE 1
@@ -439,6 +445,7 @@ ENDSELECT
 @料理エディタ_発動先効果変更(発動先効果, 発動タイミング)
 #DIMS 発動先効果
 #DIMS 発動タイミング
+#DIM 改行カウント
 
 DRAWLINE
 PRINTL 料理効果の内容を選択してください。
@@ -454,23 +461,62 @@ DRAWLINE
 SELECTCASE 発動タイミング
 	CASE "メニューによる収入算出時"
 		PRINTL
-		PRINTBUTTON "[0] ルピ収入増加", 0
-		PRINTL
-		PRINTBUTTON "[1] ZP収入増加", 1
+		PRINTBUTTONLC "[0] ルピ収入増加", 0
+		PRINTBUTTONLC "[1] ZP収入増加", 1
 		PRINTL
 		PRINTL
 		PRINTL
 	CASE "装備ステータス算出時"
 		PRINTL
-		PRINTBUTTON "[10] ルピ収入増加", 10
-		PRINTL
-		PRINTBUTTON "[11] ZP収入増加", 11
+		改行カウント = 0
+		FOR LOCAL, 1, 30
+			;とりあえず基礎ステータスのみ対象
+			;属性は無視
+			SIF LOCAL == 16
+				CONTINUE
+			;名前が取れないものは無視
+			SIF ERDNAME(装備ステータス補正保存, LOCAL) == ""
+				CONTINUE
+
+			PRINTBUTTONLC @"[{LOCAL + 100}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
+			;４つ並んだら改行
+			改行カウント ++
+			IF 改行カウント >= 4
+				PRINTL
+				改行カウント = 0
+			ENDIF
+		NEXT
 		PRINTL
 		PRINTL
 		PRINTL
 	CASE "戦闘勝利時"
+		PRINTL
+		PRINTBUTTONLC "[200] ルピ収入増加", 0
+		PRINTBUTTONLC "[201] 経験値収入増加", 1
+		PRINTL
+		PRINTL
+		PRINTL
 ENDSELECT
+PRINTBUTTONLC "[999] 変更せず戻る", 999
+PRINTL
+PRINTL
+PRINTL
+BINPUT
 
+SELECTCASE RESULT
+	CASE 999
+		RESULTS '= 発動先効果
+	CASE 0
+		RESULTS = ルピ収入増加
+	CASE 1
+		RESULTS = ZP収入増加
+	CASE 100 TO 199
+		RESULTS = %ERDNAME(装備ステータス補正保存, RESULT - 100)%
+	CASE 200
+		RESULTS = ルピ収入増加
+	CASE 201
+		RESULTS = 経験値収入増加
+ENDSELECT
 
 
 @料理エディタ_発動効果量変更(発動効果量, 発動先効果)
