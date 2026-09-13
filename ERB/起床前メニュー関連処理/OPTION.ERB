@@ -1,10 +1,28 @@
 ﻿;オプション設定処理
 @OPTION
+#DIM 追加MOD_OPTION数
+
+;MOD設定を検索する
+VARSET RESULTS
+ENUMFUNCBEGINSWITH "追加MOD_OPTION項目_"
+追加MOD_OPTION数 = RESULT
+
+$表示LOOP
+
 PRINTL 設定項目を選択してください
 PRINTL [1] - コマンドフィルタ
 PRINTL [2] - 特定素質の切り替え
 PRINTL [3] - 機能切り替え
 PRINTL [4] - 起床時刻の設定
+
+IF 追加MOD_OPTION数 > 0
+	FOR LOCAL, 0, 追加MOD_OPTION数
+		PRINTBUTTON @"[{200 + LOCAL}] %REPLACE(RESULTS:LOCAL, "追加MOD_OPTION項目_", "")%オプション", 200 + LOCAL
+		PRINTL
+	NEXT
+ENDIF
+
+
 PRINTL 
 PRINTL [100] - 周回引き継ぎバグ対応ボタン
 PRINTL [101] - 履歴多重登録バグ対応ボタン
@@ -14,109 +32,113 @@ PRINTL [999]-戻る
 
 $INPUT_LOOP
 BINPUT
-IF RESULT == 1
-	CALL OPTION_COMMAND_FILTER
-ELSEIF RESULT == 2
-	CALL OPTION_素質切り替え
-ELSEIF RESULT == 3
-	CALL OPTION_機能切り替え
-ELSEIF RESULT == 4
-	IF SAVESTR:ゲームフェイズ管理 != ""
-		PRINTW 起床予定時刻は起床前にしか設定出来ません。
-	ELSE
-		PRINTL 何時に起床しますか？
-		PRINTFORML 現在の起床予定時刻は%CONVERT_HOURS(CFLAG:MASTER:起床予定時刻)%時です
-		IF DAY > 1 && CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) >= CFLAG:MASTER:起床予定時刻
-			;０時よりも前に寝た場合はその日のうちに起きないようにしておく
-			PRINTFORML 前日の就寝時刻である%CONVERT_HOURS(CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440))%時より後には設定出来ません。
-		ENDIF
+PRINTL
 
-		LOCAL:1 = 0
-		FOR LOCAL, 0, 24
+SELECTCASE RESULT
+	CASE IS >= 200
+		TRYCALLFORM %RESULTS:(RESULT - 200)%()
+	CASE 1
+		CALL OPTION_COMMAND_FILTER
+	CASE 2
+		CALL OPTION_素質切り替え
+	CASE 3
+		CALL OPTION_機能切り替え
+	CASE 4
+		IF SAVESTR:ゲームフェイズ管理 != ""
+			PRINTW 起床予定時刻は起床前にしか設定出来ません。
+		ELSE
+			PRINTL 何時に起床しますか？
+			PRINTFORML 現在の起床予定時刻は%CONVERT_HOURS(CFLAG:MASTER:起床予定時刻)%時です
 			IF DAY > 1 && CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) >= CFLAG:MASTER:起床予定時刻
-				SIF CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) <= LOCAL * 60
-					CONTINUE
+				;０時よりも前に寝た場合はその日のうちに起きないようにしておく
+				PRINTFORML 前日の就寝時刻である%CONVERT_HOURS(CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440))%時より後には設定出来ません。
 			ENDIF
-			PRINTFORM [{LOCAL, 2}] 
-			LOCAL:1 ++
-			SIF LOCAL:1 % 10 == 9
-				PRINTL
-		NEXT
-		PRINTL
-		PRINTBUTTON "[変更しない]", 99
 
-		$INPUT_LOOP2
-		INPUT
-		SIF RESULT == 99
-			RESTART
-		SIF RESULT < 0 || RESULT > 23
-			GOTO INPUT_LOOP2
-		CFLAG:MASTER:起床予定時刻 = RESULT * 60
-	ENDIF
-ELSEIF RESULT == 100
-	PRINTL 周回でキャラを引き継いだ時にエラーが発生してしまう現象へ対処するボタンです
-	PRINTL 現在存在するキャラの関係性を全てリセットし、初期状態に戻します
-	PRINTL ※詰みを回避するための非常用処理です。通常は実行しないでください。
-	PRINTL 
-	PRINTL 実行してよろしいですか？
-	PRINTL [0] はい
-	PRINTL [1] いいえ
-	BINPUT
-	IF RESULT == 0
-		FOR LOCAL, 0, CHARANUM
-			CALL INIT_RELATION(LOCAL)
-		NEXT
-		PRINTW 実行しました。
-	ENDIF
-ELSEIF RESULT == 101
-	PRINTL キャラクターの履歴が大量に重複して登録されてしまうバグに対応するボタンです。
-	PRINTL 現在存在するキャラの履歴を全てリセットし、初期状態に戻します。
-	PRINTL ※削除時に達成している履歴について再登録はされないので注意してください
-	PRINTL 
-	PRINTL 実行してよろしいですか？
-	PRINTL [0] はい
-	PRINTL [1] いいえ
-	BINPUT
-	IF RESULT == 0
-		DT_CLEAR "履歴データベース"
-		PRINTW 実行しました。
-	ENDIF
-ELSEIF RESULT == 102
-	PRINTL キャラクターのCSVが変更された際、既にセーブされているデータを更新するボタンです。
-	PRINTL 仕様上、素質や経験がリセットされてしまうことがあります。
-	PRINTL 使用時には十分に注意してください。
-	PRINTL 
-	PRINTL [0] 更新キャラを選択する
-	PRINTL [1] ゲーム中変更されない要素をまとめて更新
-	PRINTL [2] 戻る
-	BINPUT
-	IF RESULT == 0
-		CALL CSV更新処理リスト()
-	ELSEIF RESULT == 1
-		PRINTL
-		PRINTL
-		DRAWLINE
-		PRINTL 通常ゲーム中に変更されない要素のCSV変更を全てのキャラにまとめて適用します。
-		PRINTL キャラによっては特殊処理で変更されていることがあるので注意してください。
-		PRINTL ・変更を適用する要素
-		PRINTL 　　名前、呼び名、画像フォルダ、出展作品、プレゼント好み、戦闘タイプ
-		PRINTL 　　年齢素質、固有素質、通常服装、奥義名設定
-		DRAWLINE
-		PRINTL まとめて変更を適用しますか？
-		PRINTBUTTONLC "[0] はい", 0
-		PRINTBUTTONLC "[1] いいえ", 1
+			LOCAL:1 = 0
+			FOR LOCAL, 0, 24
+				IF DAY > 1 && CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) >= CFLAG:MASTER:起床予定時刻
+					SIF CFLAG:MASTER:就寝時刻 % ((DAY - 1) * 1440) <= LOCAL * 60
+						CONTINUE
+				ENDIF
+				PRINTFORM [{LOCAL, 2}] 
+				LOCAL:1 ++
+				SIF LOCAL:1 % 10 == 9
+					PRINTL
+			NEXT
+			PRINTL
+			PRINTBUTTON "[変更しない]", 99
+
+			$INPUT_LOOP2
+			INPUT
+			SIF RESULT == 99
+				RESTART
+			SIF RESULT < 0 || RESULT > 23
+				GOTO INPUT_LOOP2
+			CFLAG:MASTER:起床予定時刻 = RESULT * 60
+		ENDIF
+	CASE 100
+		PRINTL 周回でキャラを引き継いだ時にエラーが発生してしまう現象へ対処するボタンです
+		PRINTL 現在存在するキャラの関係性を全てリセットし、初期状態に戻します
+		PRINTL ※詰みを回避するための非常用処理です。通常は実行しないでください。
+		PRINTL 
+		PRINTL 実行してよろしいですか？
+		PRINTL [0] はい
+		PRINTL [1] いいえ
 		BINPUT
 		IF RESULT == 0
-			CALL 影響低い部分まとめて適用()
-			PRINTW 変更を適用しました。
+			FOR LOCAL, 0, CHARANUM
+				CALL INIT_RELATION(LOCAL)
+			NEXT
+			PRINTW 実行しました。
 		ENDIF
-	ENDIF
-ELSEIF RESULT == 999
-	RETURN 0
-ELSE
-	GOTO INPUT_LOOP
-ENDIF
-RESTART
+	CASE 101
+		PRINTL キャラクターの履歴が大量に重複して登録されてしまうバグに対応するボタンです。
+		PRINTL 現在存在するキャラの履歴を全てリセットし、初期状態に戻します。
+		PRINTL ※削除時に達成している履歴について再登録はされないので注意してください
+		PRINTL 
+		PRINTL 実行してよろしいですか？
+		PRINTL [0] はい
+		PRINTL [1] いいえ
+		BINPUT
+		IF RESULT == 0
+			DT_CLEAR "履歴データベース"
+			PRINTW 実行しました。
+		ENDIF
+	CASE 102
+		PRINTL キャラクターのCSVが変更された際、既にセーブされているデータを更新するボタンです。
+		PRINTL 仕様上、素質や経験がリセットされてしまうことがあります。
+		PRINTL 使用時には十分に注意してください。
+		PRINTL 
+		PRINTL [0] 更新キャラを選択する
+		PRINTL [1] ゲーム中変更されない要素をまとめて更新
+		PRINTL [2] 戻る
+		BINPUT
+		IF RESULT == 0
+			CALL CSV更新処理リスト()
+		ELSEIF RESULT == 1
+			PRINTL
+			PRINTL
+			DRAWLINE
+			PRINTL 通常ゲーム中に変更されない要素のCSV変更を全てのキャラにまとめて適用します。
+			PRINTL キャラによっては特殊処理で変更されていることがあるので注意してください。
+			PRINTL ・変更を適用する要素
+			PRINTL 　　名前、呼び名、画像フォルダ、出展作品、プレゼント好み、戦闘タイプ
+			PRINTL 　　年齢素質、固有素質、通常服装、奥義名設定
+			DRAWLINE
+			PRINTL まとめて変更を適用しますか？
+			PRINTBUTTONLC "[0] はい", 0
+			PRINTBUTTONLC "[1] いいえ", 1
+			BINPUT
+			IF RESULT == 0
+				CALL 影響低い部分まとめて適用()
+				PRINTW 変更を適用しました。
+			ENDIF
+		ENDIF
+	CASE 999
+		RETURN 0
+ENDSELECT
+
+GOTO 表示LOOP
 
 
 ;文字列変数に保存してみた
