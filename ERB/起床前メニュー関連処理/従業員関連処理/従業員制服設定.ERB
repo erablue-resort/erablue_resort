@@ -25,7 +25,9 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 		CONTINUE
 	ENDIF
 	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%["
-	IF 現在制服:(従業員一覧:LOCAL):0 == ""
+	IF CFLAG:(従業員一覧:LOCAL):制服ランダムフラグ > 0
+		LOCALS += "ランダム"
+	ELSEIF 現在制服:(従業員一覧:LOCAL):0 == ""
 		LOCALS += "普段着"
 	ELSEIF ISNUMERIC(現在制服:(従業員一覧:LOCAL):0)
 		LOCALS += @"%CSVCSTR(TOINT(現在制服:(従業員一覧:LOCAL):0), GETNUM(CSTR, "服名称"))%"
@@ -169,7 +171,9 @@ LOCALS += "</div>"
 LOCALS += "<div rect='156,300,1937,2812'>"
 IF 対象キャラ != 9999
 	LOCALS += @"%CALLNAME:対象キャラ, 16, LEFT%["
-	IF 現在制服:対象キャラ:0 == ""
+	IF CFLAG:対象キャラ:制服ランダムフラグ > 0
+		LOCALS += "ランダム]"
+	ELSEIF 現在制服:対象キャラ:0 == ""
 		LOCALS += "普段着]"
 	ELSEIF 現在制服:対象キャラ:0 == "浴衣"
 		LOCALS += "ユカタヴィラ]"
@@ -298,7 +302,7 @@ LOCALS:1 = <div rect='2125,300,3675,2812'>
 ;普段着と全裸分
 表示許可数 = 2
 IF ページ数 == 0 && 表示モード == 0
-	LOCALS:1 += @"<button value='996'>[996] %"普段着", 文字長さ, LEFT%に変更</button>"
+	LOCALS:1 += @"<button value='995'>[995] %"普段着", 文字長さ, LEFT%に変更</button>"
 	IF 対象キャラ != 9999
 		SIF CSTR:対象キャラ:画像フォルダ == ""
 			CSTR:対象キャラ:画像フォルダ '= GET_RESOURCES_BASE_FOLDER(対象キャラ)
@@ -306,6 +310,8 @@ IF ページ数 == 0 && 表示モード == 0
 			LOCALS:1 += @"　<font color='#%カラーパレット_HTML("黄")%'>画像あり</font>"
 		ENDIF
 	ENDIF
+	LOCALS:1 += "<br>"
+	LOCALS:1 += @"<button value='996'>[996] %"ランダム", 文字長さ, LEFT%に変更</button>"
 	LOCALS:1 += "<br>"
 	IF フィールド展開:エロ制服許可
 		LOCALS:1 += @"<button value='997'>[997] %"全裸", 文字長さ, LEFT%に変更</button>"
@@ -456,6 +462,7 @@ SELECTCASE LOCAL
 	CASE 998
 		RETURN 0
 	CASE 997
+		CFLAG:対象キャラ:制服ランダムフラグ = 0
 		IF 対象キャラ == 9999
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
@@ -476,6 +483,25 @@ SELECTCASE LOCAL
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
+				CFLAG:LOCAL:制服ランダムフラグ = 1
+				現在制服:LOCAL:0 = 
+				CALL CLOTHES_RESET(LOCAL)
+				CALL CLOTHES_RESET_TRAIN(LOCAL)
+			NEXT
+		ELSE
+			CFLAG:対象キャラ:制服ランダムフラグ = 1
+			現在制服:対象キャラ:0 = 
+			CALL CLOTHES_RESET(対象キャラ)
+			CALL CLOTHES_RESET_TRAIN(対象キャラ)
+		ENDIF
+		ページ数 = 0
+		RETURN 0
+	CASE 995
+		CFLAG:対象キャラ:制服ランダムフラグ = 0
+		IF 対象キャラ == 9999
+			FOR LOCAL, 1, CHARANUM
+				SIF TALENT:LOCAL:従業員 == 0
+					CONTINUE
 				現在制服:LOCAL:0 = 
 				CALL CLOTHES_RESET(LOCAL)
 				CALL CLOTHES_RESET_TRAIN(LOCAL)
@@ -488,6 +514,7 @@ SELECTCASE LOCAL
 		ページ数 = 0
 		RETURN 0
 	CASE 0 TO 990
+		CFLAG:対象キャラ:制服ランダムフラグ = 0
 		SPLIT 制服一時配列:LOCAL, "/", 分割文字列配列
 		IF 対象キャラ == 9999
 			FOR LOCAL, 1, CHARANUM
@@ -1454,3 +1481,73 @@ SELECTCASE LOCALS:1
 		
 ENDSELECT
 RETURNF LOCALS
+
+
+@CLOTHES_ランダム制服(対象キャラ)
+#DIM 対象キャラ
+#DIMS 制服一時配列, 990
+#DIMS 分割文字列配列, 2
+#DIM 衣装番号
+#DIM キャラ番号
+#DIM 候補数
+
+VARSET 制服一時配列
+候補数 = 0
+VARSET RESULTS
+SPLIT 所持制服文字列, "_", RESULTS
+FOR 衣装番号, 0, RESULT
+	SIF 候補数 >= VARSIZE("制服一時配列")
+		BREAK
+	SPLIT RESULTS:衣装番号, "/", 分割文字列配列
+	TRYCCALLFORM CLOTHES_着用条件_%分割文字列配列:1%(対象キャラ)
+		SIF RESULT == 0
+			CONTINUE
+	CATCH
+	ENDCATCH
+	制服一時配列:候補数 = %分割文字列配列:1%
+	候補数 ++
+NEXT
+VARSET RESULTS
+SPLIT 所持エロ衣装文字列, "_", RESULTS
+FOR 衣装番号, 0, RESULT
+	SIF 候補数 >= VARSIZE("制服一時配列")
+		BREAK
+	SPLIT RESULTS:衣装番号, "/", 分割文字列配列
+	TRYCCALLFORM CLOTHES_着用条件_%分割文字列配列:1%(対象キャラ)
+		SIF RESULT == 0
+			CONTINUE
+	CATCH
+	ENDCATCH
+	制服一時配列:候補数 = %分割文字列配列:1%
+	候補数 ++
+NEXT
+FOR キャラ番号, 1, CHARANUM
+	SIF 候補数 >= VARSIZE("制服一時配列")
+		BREAK
+	;衣装所持フラグチェック
+	IF キャラ衣装所持フラグ:(NO:キャラ番号) > 0
+		;自分はスキップ
+		SIF キャラ番号 == 対象キャラ
+			CONTINUE
+		IF ランダムキャラ判定(NO:キャラ番号)
+			;汎用ランダムキャラは無し
+			SIF NO:LOCAL == 999
+				CONTINUE
+			;汎用以外なら重複がないかチェック
+			SIF MATCH(制服一時配列, @"{NO:キャラ番号}")
+				CONTINUE
+		ENDIF
+		TRYCCALLFORM CLOTHES_着用条件_{NO:キャラ番号}(対象キャラ)
+			SIF RESULT == 0
+				CONTINUE
+		CATCH
+		ENDCATCH
+		;配列に突っ込む
+		制服一時配列:候補数 = {NO:キャラ番号}
+		候補数 ++
+	ENDIF
+NEXT
+
+現在制服:対象キャラ:0 = %制服一時配列:(RAND:候補数)%
+
+
