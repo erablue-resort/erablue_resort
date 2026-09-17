@@ -18,7 +18,7 @@ FOR LOCAL, 1, CHARANUM
 	従業員一覧:(LOCAL:1) = LOCAL
 	LOCAL:1 += 1
 NEXT
-LOCALS += "<div rect='156,156,1937,2812'>"
+LOCALS += "<div rect='156,156,1837,2812'><nobr>"
 FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	IF 従業員一覧:LOCAL < 0
 		LOCALS += "<br>"
@@ -27,6 +27,8 @@ FOR LOCAL, ページ数 * 17, ページ数 * 17 + 17
 	LOCALS += @"<button value='{LOCAL}'>%CALLNAME:(従業員一覧:LOCAL), 16, LEFT%["
 	IF CFLAG:(従業員一覧:LOCAL):制服ランダムフラグ > 0
 		LOCALS += "ランダム"
+		SIF CFLAG:(従業員一覧:LOCAL):制服ランダムフラグ == 2
+			LOCALS += "（画像優先）"
 	ELSEIF 現在制服:(従業員一覧:LOCAL):0 == ""
 		LOCALS += "普段着"
 	ELSEIF ISNUMERIC(現在制服:(従業員一覧:LOCAL):0)
@@ -138,7 +140,7 @@ DRAWLINE
 PRINTL 従業員が着用する制服の設定を行います。
 PRINTL ※開発中のため、正しく挙動しないことがあります。
 DRAWLINE
-LOCALS = <div rect='81,175,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,175,3875,2812' border='31' bcolor='#C0C0C0'></div>
+LOCALS = <nobr><div rect='81,175,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,175,3875,2812' border='31' bcolor='#C0C0C0'></div>
 
 ;衣装種類タブ
 横位置 = 2050
@@ -168,11 +170,14 @@ ENDIF
 LOCALS += "</div>"
 横位置 += 650
 
-LOCALS += "<div rect='156,300,1937,2812'>"
+LOCALS += "<div rect='156,300,1837,2812'><nobr>"
 IF 対象キャラ != 9999
 	LOCALS += @"%CALLNAME:対象キャラ, 16, LEFT%["
 	IF CFLAG:対象キャラ:制服ランダムフラグ > 0
-		LOCALS += "ランダム]"
+		LOCALS += "ランダム"
+		SIF CFLAG:対象キャラ:制服ランダムフラグ == 2
+			LOCALS += "（画像優先）"
+		LOCALS += "]"
 	ELSEIF 現在制服:対象キャラ:0 == ""
 		LOCALS += "普段着]"
 	ELSEIF 現在制服:対象キャラ:0 == "浴衣"
@@ -311,7 +316,11 @@ IF ページ数 == 0 && 表示モード == 0
 		ENDIF
 	ENDIF
 	LOCALS:1 += "<br>"
-	LOCALS:1 += @"<button value='996'>[996] %"ランダム", 文字長さ, LEFT%に変更</button>"
+	衣装名 = ランダム
+	SIF 制服ランダム設定 == 1
+		衣装名 += "（画像優先）"
+	LOCALS:1 += @"<button value='996'>[996] %衣装名, 文字長さ, LEFT%に変更</button>"
+	LOCALS:1 += "　<button value='994'>[設定変更]</button>"
 	LOCALS:1 += "<br>"
 	IF フィールド展開:エロ制服許可
 		LOCALS:1 += @"<button value='997'>[997] %"全裸", 文字長さ, LEFT%に変更</button>"
@@ -483,19 +492,52 @@ SELECTCASE LOCAL
 			FOR LOCAL, 1, CHARANUM
 				SIF TALENT:LOCAL:従業員 == 0
 					CONTINUE
-				CFLAG:LOCAL:制服ランダムフラグ = 1
+				CFLAG:LOCAL:制服ランダムフラグ = 制服ランダム設定 + 1
 				現在制服:LOCAL:0 = 
 				CALL CLOTHES_RESET(LOCAL)
 				CALL CLOTHES_RESET_TRAIN(LOCAL)
 			NEXT
 		ELSE
-			CFLAG:対象キャラ:制服ランダムフラグ = 1
+			CFLAG:対象キャラ:制服ランダムフラグ = 制服ランダム設定 + 1
 			現在制服:対象キャラ:0 = 
 			CALL CLOTHES_RESET(対象キャラ)
 			CALL CLOTHES_RESET_TRAIN(対象キャラ)
 		ENDIF
 		ページ数 = 0
 		RETURN 0
+	CASE 994
+		;ランダムの選出方法を変える
+		DRAWLINE
+		PRINTL 制服のランダム化時の設定を変更します
+		DRAWLINE
+		IF 制服ランダム設定 == 0
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [0] 完全ランダム
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[0] 完全ランダム", 0
+		ENDIF
+		PRINTL
+		IF 制服ランダム設定 == 1
+			SETCOLOR カラーパレット("黄")
+			PRINTPLAIN [1] 画像ありを優先
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON "[1] 画像ありを優先", 1
+		ENDIF
+		PRINTL
+		PRINTL
+		PRINTBUTTON "[999] 変更せず戻る", 999
+		PRINTL
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 999
+				RESTART
+			CASEELSE
+				制服ランダム設定 = RESULT
+				RESTART
+		ENDSELECT
 	CASE 995
 		CFLAG:対象キャラ:制服ランダムフラグ = 0
 		IF 対象キャラ == 9999
@@ -1490,6 +1532,7 @@ RETURNF LOCALS
 #DIM 衣装番号
 #DIM キャラ番号
 #DIM 候補数
+#DIM DYNAMIC 優先設定無効化
 
 VARSET 制服一時配列
 候補数 = 0
@@ -1504,6 +1547,15 @@ FOR 衣装番号, 0, RESULT
 			CONTINUE
 	CATCH
 	ENDCATCH
+	;優先設定を見る
+	IF 優先設定無効化 == 0
+		SELECTCASE CFLAG:対象キャラ:制服ランダムフラグ
+			CASE 2
+				IF !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_%分割文字列配列:1%") && !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/短冊_%分割文字列配列:1%")
+					CONTINUE
+				ENDIF
+		ENDSELECT
+	ENDIF
 	制服一時配列:候補数 = %分割文字列配列:1%
 	候補数 ++
 NEXT
@@ -1518,6 +1570,15 @@ FOR 衣装番号, 0, RESULT
 			CONTINUE
 	CATCH
 	ENDCATCH
+	;優先設定を見る
+	IF 優先設定無効化 == 0
+		SELECTCASE CFLAG:対象キャラ:制服ランダムフラグ
+			CASE 2
+				IF !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_%分割文字列配列:1%") && !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/短冊_%分割文字列配列:1%")
+					CONTINUE
+				ENDIF
+		ENDSELECT
+	ENDIF
 	制服一時配列:候補数 = %分割文字列配列:1%
 	候補数 ++
 NEXT
@@ -1542,11 +1603,31 @@ FOR キャラ番号, 1, CHARANUM
 				CONTINUE
 		CATCH
 		ENDCATCH
+		;優先設定を見る
+		IF 優先設定無効化 == 0
+			SELECTCASE CFLAG:対象キャラ:制服ランダムフラグ
+				CASE 2
+					IF !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/顔_%分割文字列配列:1%") && !EXIST画像FILE(@"resources/%CSTR:対象キャラ:画像フォルダ%/短冊_%分割文字列配列:1%")
+						CONTINUE
+					ENDIF
+			ENDSELECT
+		ENDIF
 		;配列に突っ込む
 		制服一時配列:候補数 = {NO:キャラ番号}
 		候補数 ++
 	ENDIF
 NEXT
+
+IF 候補数 < 1
+	IF CFLAG:対象キャラ:制服ランダムフラグ > 1 && 優先設定無効化 == 0
+		優先設定無効化 = 1
+		RESTART
+	ELSE
+		;制服何もなしはありえないが一応フォロー
+		現在制服:対象キャラ:0 = 
+		RETURN 0
+	ENDIF
+ENDIF
 
 現在制服:対象キャラ:0 = %制服一時配列:(RAND:候補数)%
 
