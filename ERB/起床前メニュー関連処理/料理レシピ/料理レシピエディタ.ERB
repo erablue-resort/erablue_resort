@@ -445,13 +445,40 @@ ENDSELECT
 @料理エディタ_発動先効果変更(発動先効果, 発動タイミング)
 #DIMS 発動先効果
 #DIMS 発動タイミング
+#DIMS 対象範囲_変更後
+#DIMS 発動先効果_変更後
 #DIM 改行カウント
+#DIM DYNAMIC 初回フラグ
+
+IF 初回フラグ == 0
+	;最初に現在の設定を読み込み
+	IF STRFIND(発動先効果, "_") >= 0
+		VARSET RESULTS
+		SPLIT 発動先効果, "_", RESULTS
+		対象範囲_変更後 '= RESULTS:0
+		発動先効果_変更後 '= RESULTS:1
+	ELSE
+		対象範囲_変更後 = 
+		発動先効果_変更後 '= 発動先効果
+	ENDIF
+	初回フラグ = 1
+ENDIF
 
 DRAWLINE
 PRINTL 料理効果の内容を選択してください。
-PRINT 現在の設定：
+PRINT 変更前の設定：
 IF 発動先効果 != ""
 	PRINTFORM %発動先効果%
+ELSE
+	PRINT なし
+ENDIF
+PRINTL
+PRINT 変更後の設定：
+IF 発動先効果_変更後 != ""
+	IF 対象範囲_変更後 != ""
+		PRINTFORM %対象範囲_変更後%に
+	ENDIF
+	PRINTFORM %発動先効果_変更後%
 ELSE
 	PRINT なし
 ENDIF
@@ -468,6 +495,24 @@ SELECTCASE 発動タイミング
 		PRINTL
 	CASE "装備ステータス算出時"
 		PRINTL
+		;対象キャラの選択
+		FOR LOCAL, 0, 6
+			;とりあえず基礎ステータスのみ対象
+			;属性は無視
+			SIF LOCAL == 16
+				CONTINUE
+			;名前が取れないものは無視
+			SIF ERDNAME(装備ステータス補正保存, LOCAL) == ""
+				CONTINUE
+
+			PRINTBUTTONLC @"[{LOCAL + 200}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
+			;４つ並んだら改行
+			改行カウント ++
+			IF 改行カウント >= 4
+				PRINTL
+				改行カウント = 0
+			ENDIF
+		NEXT
 		改行カウント = 0
 		FOR LOCAL, 1, 30
 			;とりあえず基礎ステータスのみ対象
@@ -478,7 +523,7 @@ SELECTCASE 発動タイミング
 			SIF ERDNAME(装備ステータス補正保存, LOCAL) == ""
 				CONTINUE
 
-			PRINTBUTTONLC @"[{LOCAL + 100}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
+			PRINTBUTTONLC @"[{LOCAL + 200}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
 			;４つ並んだら改行
 			改行カウント ++
 			IF 改行カウント >= 4
@@ -491,31 +536,35 @@ SELECTCASE 発動タイミング
 		PRINTL
 	CASE "戦闘勝利時"
 		PRINTL
-		PRINTBUTTONLC "[200] ルピ収入増加", 0
-		PRINTBUTTONLC "[201] 経験値収入増加", 1
+		PRINTBUTTONLC "[300] ルピ収入増加", 0
+		PRINTBUTTONLC "[301] 経験値収入増加", 1
 		PRINTL
 		PRINTL
 		PRINTL
 ENDSELECT
-PRINTBUTTONLC "[999] 変更せず戻る", 999
+PRINTBUTTONLC "[998] 変更せず戻る", 998
+PRINTL
+PRINTBUTTONLC "[999] 変更を保存して戻る", 999
 PRINTL
 PRINTL
 PRINTL
 BINPUT
 
 SELECTCASE RESULT
-	CASE 999
+	CASE 998
 		RESULTS '= 発動先効果
+	CASE 999
+		RESULTS = %対象範囲_変更後%_%発動先効果_変更後%
 	CASE 0
-		RESULTS = ルピ収入増加
+		発動先効果_変更後 = ルピ収入増加
 	CASE 1
-		RESULTS = ZP収入増加
-	CASE 100 TO 199
-		RESULTS = %ERDNAME(装備ステータス補正保存, RESULT - 100)%
-	CASE 200
-		RESULTS = ルピ収入増加
-	CASE 201
-		RESULTS = 経験値収入増加
+		発動先効果_変更後 = ZP収入増加
+	CASE 200 TO 299
+		発動先効果_変更後 = %ERDNAME(装備ステータス補正保存, RESULT - 100)%増加
+	CASE 300
+		発動先効果_変更後 = ルピ収入増加
+	CASE 301
+		発動先効果_変更後 = 経験値収入増加
 ENDSELECT
 
 
