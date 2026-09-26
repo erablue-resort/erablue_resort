@@ -112,7 +112,7 @@ IF 変更キャラ > -1
 		;常駐業務名 '= MAP_GET("常駐業務名", REPLACE(GETPLACENAME(現在仕事:変更キャラ:1 / 10000, 現在仕事:変更キャラ:1 % 10000), "『.*』", ""))
 		常駐業務名 '= 常駐業務_業務名取得(現在仕事:変更キャラ:1)
 		LOCALS += @"現在の%常駐業務名%レベル：{常駐業務レベル:変更キャラ:(GETNUM(常駐業務レベル, 常駐業務名))}"
-	ELSEIF 仕事レベル存在チェック(現在仕事:変更キャラ:0)
+	ELSEIF GETMETH(@"従業員業務_数値取得_{現在仕事:変更キャラ:0}", 0, "仕事レベル有無", 変更キャラ)
 		LOCALS += @"現在の%現在仕事数字文字列変換(現在仕事:変更キャラ:0, 0, 変更キャラ)%レベル：{仕事レベル:変更キャラ:(現在仕事:変更キャラ:0)}"
 	ELSEIF 現在仕事:変更キャラ:0 == 9
 		LOCALS += @"現在の知識素質：料理人レベル：{知識素質:変更キャラ:料理人}"
@@ -122,7 +122,7 @@ IF 変更キャラ > -1
 ELSE
 	LOCALS += "仕事内容と従事人数一覧<br><br>"
 	FOR LOCAL, 0, 50
-		IF 現在仕事数字文字列変換(LOCAL) != ""
+		IF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事発生条件", 0)
 			LOCALS += @"■%現在仕事数字文字列変換(LOCAL), 16, LEFT%：従事人数{仕事人数表示用:LOCAL,3}人<br>"
 		ENDIF
 	NEXT
@@ -134,8 +134,8 @@ LOCALS += "<div rect='2050,31,3875,650' padding='50,25,50' border='31' bcolor='#
 IF 変更キャラ > -1
 	改行判定文字列 = 
 	FOR LOCAL, 0, 50
-		IF 現在仕事数字文字列変換(LOCAL) != ""
-			SIF 仕事条件判定関数(変更キャラ, LOCAL) == 0
+		IF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事発生条件", 0)
+			SIF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事実行条件", 変更キャラ) == 0
 				CONTINUE
 			IF LOCAL > 0
 				IF STRLENS(改行判定文字列 + 現在仕事数字文字列変換(LOCAL)) > 75
@@ -326,8 +326,8 @@ LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rec
 LOCALS += "<div rect='156,156,1937,2812'>"
 LOCALS += @"■%CALLNAME:ARG%の業務を<br>"
 FOR LOCAL, 0, 50
-	IF 現在仕事数字文字列変換(LOCAL) != ""
-		SIF 仕事条件判定関数(ARG, LOCAL) == 0
+	IF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事発生条件", 0)
+		SIF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事実行条件", ARG) == 0
 			CONTINUE
 		IF 現在仕事:ARG:0 == LOCAL
 			LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL}] %現在仕事数字文字列変換(LOCAL), 14, LEFT%</font><br>"
@@ -366,7 +366,7 @@ LOCALS:1 += "<div rect='2312,437,3675,2812'>"
 LOCALS:1 += @"<nobr>%現在仕事数字文字列変換(現在仕事:ARG:0, 1, ARG)%</nobr>"
 LOCALS:1 += "<br><br>"
 ;仕事レベルが存在するなら表示
-IF 仕事レベル存在チェック(現在仕事:ARG:0)
+IF GETMETH(@"従業員業務_数値取得_{現在仕事:ARG:0}", 0, "仕事レベル有無", ARG)
 	LOCALS:1 += @"現在の%現在仕事数字文字列変換(現在仕事:ARG:0, 0, ARG)%レベル：{仕事レベル:ARG:(現在仕事:ARG:0)}"
 ELSEIF 現在仕事:ARG:0 == 9
 	LOCALS:1 += @"現在の知識素質：料理人レベル：{知識素質:ARG:料理人}"
@@ -432,8 +432,8 @@ SELECTCASE LOCAL
 		ELSE
 			RESTART
 		ENDIF
-	CASE 0 TO 11
-		IF 仕事条件判定関数(ARG, LOCAL) == 0
+	CASE 0 TO 100
+		IF GETMETH(@"従業員業務_数値取得_{LOCAL}", 0, "仕事実行条件", ARG) == 0
 			PRINTFORMW %CALLNAME:ARG%は%現在仕事数字文字列変換(LOCAL)%の仕事に付くことは出来ません。
 			REUSELASTLINE 
 			GOTO INPUT_LOOP
@@ -467,222 +467,12 @@ SELECTCASE ARG
 			RETURNF "港エリアにて、商店を経営してもらっている状態。<br>効果：特になし<br>　　　通常の店舗持ちキャラと同じように行動する。"
 		ENDIF
 		RETURNF "商店経営"
-	CASE 0
+	CASEELSE
 		IF ARG:1
-			RETURNF "特に仕事を申し付けず、待機している状態。<br>効果：特になし<br>　　　通常の客と同じように行動する。"
+			RETURNF GETMETHS(@"従業員業務_文字列取得_{ARG}", "", "業務説明", キャラ番号)
 		ENDIF
-		RETURNF "なし"
-	CASE 1
-		IF ARG:1
-			RETURNF "リゾート内の細々とした雑務を処理する業務。<br>効果：一日の最後に、全ての場所の雑務ゲージが<br>　　　［（仕事レベル＋１）＾２×１００］減少する。<br>　　　リゾート内をランダムに移動する。"
-		ENDIF
-		RETURNF "雑務"
-	CASE 2
-		IF ARG:1
-			LOCALS = 特定の場所で専門的な仕事を行う業務。<br>効果：一日の最後に、ルピが<br>　　　［滞在者数×（仕事レベル＋１）＾３］増加する。
-			LOCALS += "<br><br>"
-			IF 現在仕事:キャラ番号:1 == 1
-				LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3001] ロビー ：現在常駐場所</font><br>"
-			ELSE
-				LOCALS += @"<button value='3001'>[3001] ロビー でロビー受付として働く</button><br>"
-			ENDIF
-			IF 施設改造度:5:0
-				IF 現在仕事:キャラ番号:1 == 2
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3002] バーエリア ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3002'>[3002] バーエリア でバーテンダーとして働く</button><br>"
-				ENDIF
-			ENDIF
-			IF 施設改造度:5:6
-				IF 現在仕事:キャラ番号:1 == 3
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3003] 図書室 ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3003'>[3003] 図書室 で司書として働く</button><br>"
-				ENDIF
-			ENDIF
-			IF 施設改造度:15:0
-				IF 現在仕事:キャラ番号:1 == 4
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3004] プールサイド ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3004'>[3004] プールサイド で監視員として働く</button><br>"
-				ENDIF
-			ELSE
-				IF 現在仕事:キャラ番号:1 == 4
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3004] プール ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3004'>[3004] プール で監視員として働く</button><br>"
-				ENDIF
-			ENDIF
-			IF 空艇港初来訪イベントフラグ
-				FOR LOCAL, 3, 9
-					IF 空艇港店舗状況:LOCAL:0 > 0
-						CALLFORMF 空艇港店舗名表示_{空艇港店舗状況:LOCAL:0}(LOCAL)
-						IF 現在仕事:キャラ番号:1 == LOCAL + 100
-							LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{3100 + LOCAL}] 店舗{LOCAL}:%TSTR:場所名受渡% ：現在常駐場所</font><br>"
-						ELSE
-							LOCALS += @"<button value='{3100 + LOCAL}'>[{3100 + LOCAL}] 店舗{LOCAL}:%TSTR:場所名受渡% で店員として働く</button><br>"
-						ENDIF
-					ENDIF
-				NEXT
-			ENDIF
-			IF 海改造度:6:0
-				IF 現在仕事:キャラ番号:1 == 5
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3005] 漁船団 ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3005'>[3005] 漁船団 で漁師として働く</button><br>"
-				ENDIF
-			ENDIF
-			IF 海改造度:6:1 || 海改造度:6:2
-				IF 海改造度:6:1
-					IF 海改造度:6:2
-						一時文字列 = 遊覧船・海底散歩
-					ELSE
-						一時文字列 = 遊覧船
-					ENDIF
-				ELSE
-					一時文字列 = 海底散歩
-				ENDIF
-				IF 現在仕事:キャラ番号:1 == 6
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[3006] %一時文字列% ：現在常駐場所</font><br>"
-				ELSE
-					LOCALS += @"<button value='3006'>[3006] %一時文字列% でシーガイドとして働く</button><br>"
-				ENDIF
-			ENDIF
-			RETURNF LOCALS
-		ENDIF
-		RETURNF "常駐業務"
-	CASE 3
-		IF ARG:1
-			LOCALS = %CALLNAME:PLAYER%の補佐を行う業務。<br>効果：一日の最後に、好感度要素：信頼度が<br>　　　［（仕事レベル＋１）＾２×２００］増加する。<br>　　　リゾート内をランダムに移動する。
-			;ここに秘書起床業務の切り替えボタンを仕込む
-			LOCALS += "<br><br>"
-			LOCALS += "自発的に行ったことのある目覚まし行為を依頼することができる<br>（必ず実行してくれるわけではないが、他の起こし方は発生しにくくなる）<br>"
-			;母乳体質が消えている場合、授乳は選択不可
-			SIF GETBIT(秘書起床業務:キャラ番号:0, 起こし方_授乳) && !TALENT:キャラ番号:母乳体質
-				CLEARBIT 秘書起床業務:キャラ番号:0, 起こし方_授乳
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_騎乗位), TOSTR(1300 + 起こし方_騎乗位), "膣奉仕", "朝勃ちを騎乗位で処理してくれる", 1, 射精可能(MASTER), !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_騎乗位)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_Ａ騎乗位), TOSTR(1300 + 起こし方_Ａ騎乗位), "肛門奉仕", "朝勃ちをＡ騎乗位で処理してくれる", 1, 射精可能(MASTER), !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_Ａ騎乗位)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_授乳), TOSTR(1300 + 起こし方_授乳), "授乳", "朝一番の搾りたてミルクを飲ませてくれる。素質[母乳体質]が必要", 1, TALENT:キャラ番号:母乳体質, !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_授乳)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_フェラチオ), TOSTR(1300 + 起こし方_フェラチオ), "口奉仕", "朝勃ちをフェラチオで処理してくれる", 1, 射精可能(MASTER), !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_フェラチオ)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_パイズリ), TOSTR(1300 + 起こし方_パイズリ), "乳奉仕", "朝勃ちをパイズリで処理してくれる", 1 ,射精可能(MASTER), !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_パイズリ)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_手コキ), TOSTR(1300 + 起こし方_手コキ), "手淫奉仕", "朝勃ちを手コキで処理してくれる", 1 , 射精可能(MASTER), !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_手コキ)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_ペッティング), TOSTR(1300 + 起こし方_ペッティング), "愛撫", "ペッティングで起こしてくれる", 1, 1,!(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_ペッティング)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_キス), TOSTR(1300 + 起こし方_キス), "キス", "キスして起こしてくれる", 1, 1, !(陥落チェック_性的(キャラ番号) && GETBIT(秘書起床経験:キャラ番号:0, 起こし方_キス)))
-			LOCALS += HTMLボタン_条件付き(GETBIT(秘書起床業務:キャラ番号:0, 起こし方_ノーマル), TOSTR(1300 + 起こし方_ノーマル), "声掛け", "部屋まで起こしに来てくれる", 1, 1)
-			RETURNF LOCALS
-		ENDIF
-		RETURNF "秘書"
-	CASE 4
-		IF ARG:1
-			RETURNF @"手紙や広告などでリゾートを宣伝する業務。<br>効果：一日の最後に、リゾートの人気度が<br>　　　［（仕事レベル＋１）＾２×１］増加する。<br>　　　従業員部屋の自室でチラシ作りなどを行う。"
-		ENDIF
-		RETURNF "宣伝"
-	CASE 5
-		IF 施設改造度:3:8 == 0
-			RETURNF ""
-		ENDIF
-		IF ARG:1
-			RETURNF @"訓練場で戦闘能力を鍛える業務。<br>効果：一日の最後にEXPを獲得する。<br>　　　獲得量は全キャラ中最も高いレベルに応じて変動する。<br>　　　（全キャラ中最も高いレベルより上には成長しない）<br>　　　一日につき500kcal消費する。<br>　　　訓練場に常駐する。"
-		ENDIF
-		RETURNF "訓練"
-	CASE 6
-		IF あなた特殊能力:ダンジョン探索PRO < 1
-			RETURNF ""
-		ENDIF
-		IF ARG:1
-			RETURNF @"クリア済みのダンジョンに赴き、素材を集めてくる業務。<br>効果：一日の最後に素材やEXPを獲得する。<br>　　　獲得量は赴いたダンジョンによって変動する。<br>　　　（赴くダンジョンの設定は「探索へ出かける」から行う）<br>　　　%CALLNAME:MASTER%が探索をしていない日は効果が増加する。<br>　　　日中はリゾートにおらず、夕方以降は自室にいる。<br>　　　一日につき400kcal消費する。<br>　　　この業務に業務レベルは存在しない。"
-		ENDIF
-		RETURNF "自動探索"
-	CASE 7
-		IF 居住区改造度:0:0 == 0
-			RETURNF ""
-		ENDIF
-		IF ARG:1
-			LOCALS = 学校に赴き、指定された知識について学習する業務。<br>効果：午前と午後の学習終了時に知識経験値を得る。<br>　　　学校にいない時間帯は自室にいる。<br>　　　Lv2に到達した知識は選択出来ない。
-			LOCALS += "<br><br>"
-			LOCAL:1 = 0
-			FOR LOCAL, 1, 100
-				SIF ERDNAME(知識素質, LOCAL) == ""
-					BREAK
-				IF 知識素質:キャラ番号:LOCAL > 1
-					LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})</font>　　　"
-				ELSEIF 現在仕事:キャラ番号:1 == LOCAL
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})選択</font>　"
-				ELSE
-					LOCALS += @"<button value='{LOCAL + 3000}'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%を学ぶ(現在Lv{知識素質:キャラ番号:LOCAL})</button>　　　"
-				ENDIF
-				LOCAL:1 ++
-				SIF LOCAL:1 % 2 == 0
-					LOCALS += "<br>"
-			NEXT
-			RETURNF LOCALS
-		ENDIF
-		RETURNF "知識習得"
-	CASE 8
-		IF 居住区改造度:0:0 == 0
-			RETURNF ""
-		ENDIF
-		IF ARG:1
-			LOCALS = 学校に赴き、指定された知識について講義を行う業務。<br>効果：学校で学ぶキャラの学習効率が上昇する。<br>　　　学校にいない時間帯は自室にいる。<br>　　　Lv2以上の知識のみ選択可能。
-			LOCALS += "<br><br>"
-			LOCAL:1 = 0
-			FOR LOCAL, 1, 100
-				SIF ERDNAME(知識素質, LOCAL) == ""
-					BREAK
-				IF 知識素質:キャラ番号:LOCAL < 2
-					LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})</font>　　　　"
-				ELSEIF 現在仕事:キャラ番号:1 == LOCAL
-					LOCALS += @"<font color='#%カラーパレット_HTML("黄")%'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})選択</font>　　"
-				ELSE
-					LOCALS += @"<button value='{LOCAL + 3000}'>[{LOCAL + 3000}] %ERDNAME(知識素質, LOCAL), 9, LEFT%教師(現在Lv{知識素質:キャラ番号:LOCAL})</button>　　　　"
-				ENDIF
-				LOCAL:1 ++
-				SIF LOCAL:1 % 2 == 0
-					LOCALS += "<br>"
-			NEXT
-			RETURNF LOCALS
-		ENDIF
-		RETURNF "教師"
-	CASE 9
-		IF ARG:1
-			RETURNF "リゾート内の食堂で料理を担当する業務。<br>効果：料理メニューの効果によるZP収入が<br>　　　［（知識素質：料理人レベル＋１）✕５］％増加する。<br>　　　複数人の効果は加算されるが、上限は<br>　　　［滞在人数÷１０］％まで。（モブ・ユニーク合算）<br>　　　料理人レベルがマイナスのキャラをこの業務に就けてはいけない。"
-		ENDIF
-		RETURNF "調理師"
-	CASE 10
-		IF ARG:1
-			RETURNF "リゾート内の食堂で給仕を担当する業務。<br>効果：料理メニューの効果によるルピ収入が<br>　　　［（仕事レベル＋１）✕５］％増加する。<br>　　　複数人の効果は加算されるが、上限は<br>［滞在人数÷１０］％まで。（モブ・ユニーク合算）"
-		ENDIF
-		RETURNF "給仕"
-	CASE 11
-		IF ARG:1
-			RETURNF @"高速船に乗り込み、派遣先に向かう業務。<br>効果：派遣先により変化。"
-		ENDIF
-		RETURNF "高速船員"
-	CASE 12
-		IF ARG:1
-			RETURNF "リゾートを襲う外敵を排除する業務。<br>効果：一日の最後に、特定のイベントが発生している場合<br>　　　仕事レベルに応じた確率でイベントを解決する。<br>　　　（複数人いる場合、確率は加算）<br>　　　リゾート内をランダムに移動する。"
-		ENDIF
-		RETURNF "警備員"
+		RETURNF GETMETHS(@"従業員業務_文字列取得_{ARG}", "", "業務名", キャラ番号)
 ENDSELECT
-
-@仕事条件判定関数(キャラ番号, 仕事番号)
-#FUNCTION
-#DIM キャラ番号
-#DIM 仕事番号
-
-SELECTCASE 仕事番号
-	CASE 2,3,7,8,9,10,11
-		SIF キャラ番号 == PLAYER
-			RETURNF 0
-	CASE 5,6,12
-		SIF キャラ番号 == PLAYER
-			RETURNF 0
-		SIF TALENT:キャラ番号:非戦闘キャラ
-			RETURNF 0
-ENDSELECT
-
-RETURNF 1
-
 
 @仕事追加処理関数(キャラ番号, 選択番号)
 #DIM キャラ番号
@@ -699,84 +489,3 @@ SELECTCASE 現在仕事:キャラ番号:0
 		;知識を選べる
 		現在仕事:キャラ番号:1 = 選択番号 - 3000
 ENDSELECT
-
-@仕事レベル存在チェック(チェック番号)
-#FUNCTION
-#DIM チェック番号
-
-IF GROUPMATCH(チェック番号, 1, 2, 3, 4, 8, 10, 12)
-	RETURNF 1
-ELSE
-	RETURNF 0
-ENDIF
-
-@常駐業務_場所番号変換(常駐番号)
-#FUNCTION
-#DIM 常駐番号
-
-SELECTCASE 常駐番号
-	CASE 1
-		;ロビー受付
-		部屋検索_マップ種別 = 0
-		RETURNF 2
-	CASE 2
-		;バーテンダー
-		部屋検索_マップ種別 = 0
-		RETURNF 503
-	CASE 3
-		;司書
-		部屋検索_マップ種別 = 0
-		RETURNF 506
-	CASE 4
-		部屋検索_マップ種別 = 0
-		IF 施設改造度:15:0
-			;プールサイドで監視員
-			RETURNF 1503
-		ELSE
-			;プールで監視員
-			RETURNF 15
-		ENDIF
-	CASE 5
-		;漁船団で漁師
-		部屋検索_マップ種別 = 3
-		RETURNF 103
-	CASE 6
-		;海でシーガイド
-		部屋検索_マップ種別 = 3
-		RETURNF 104
-	CASE IS > 100
-		;店舗で店員、何番目の店舗かは常駐番号から算出
-		部屋検索_マップ種別 = 1
-		RETURNF 常駐番号 - 100
-ENDSELECT
-
-
-@常駐業務_業務名取得(常駐番号)
-#FUNCTIONS
-#DIM 常駐番号
-
-SELECTCASE 常駐番号
-	CASE 1
-		RETURNF "ロビー受付"
-	CASE 2
-		RETURNF "バーテンダー"
-	CASE 3
-		RETURNF "司書"
-	CASE 4
-		RETURNF "プール監視員"
-	CASE 5
-		RETURNF "漁師"
-	CASE 6
-		RETURNF "シーガイド"
-	CASE IS > 100
-		RETURNF REPLACE(GETPLACENAME(1, 常駐番号 - 100), "『.*』", "")
-ENDSELECT
-
-@常駐業務_場所名取得(常駐番号)
-#FUNCTIONS
-#DIM 常駐番号
-#DIM 場所番号
-
-場所番号 = 常駐業務_場所番号変換(常駐番号)
-
-RETURNF GETPLACENAME(部屋検索_マップ種別, 場所番号)
