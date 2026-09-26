@@ -1542,6 +1542,9 @@ RETURNF TOSTR(NO:対象キャラ) + CSTR:対象キャラ:フォルダ判定キ�
 #DIM  CONST サブフォルダ検索なし = 0
 #DIM  CONST サブフォルダ検索あり = 1
 #DIMS CONST フォルダベース = "resources/"
+;
+#DIMS 候補フォルダ
+#DIM  有効フォルダ数
 
 ;- 「***キャラ名」フォルダ内のデフォルト画像を取得(サブフォルダ検索あり)
 対象フォルダ '= GET_RESOURCES_BASE_FOLDER(対象キャラ)
@@ -1550,11 +1553,35 @@ VARSET RESULTS
 ファイル数 = ENUMFILES(フォルダベース + 対象フォルダ, 対象ファイル, サブフォルダ検索あり)
 
 ; 取得結果(resources\***キャラ名\ファイル名)から不要部分(resources\と\ファイル名)を削除
+有効フォルダ数 = 0
+
 FOR L_CNT, 0, ファイル数
-	RESULTS:L_CNT '= SUBSTRING(RESULTS:L_CNT, STRLENS(フォルダベース), STRFIND(RESULTS:L_CNT, "顔_デフォルト") - STRLENS(フォルダベース) - 1)
+	候補フォルダ '= SUBSTRING(RESULTS:L_CNT, STRLENS(フォルダベース), STRFIND(RESULTS:L_CNT, "顔_デフォルト") - STRLENS(フォルダベース) - 1)
+
+	;キャラ個別の画像フォルダ表示条件
+	;個別関数がなければ、初期値1のまま許可される
+	RESULT = 1
+	TRYCALLFORMF 画像フォルダ個別処理_{NO:対象キャラ}(対象キャラ, 候補フォルダ)
+
+	SIF RESULT == 0
+		CONTINUE
+
+	RESULTS:有効フォルダ数 '= 候補フォルダ
+	有効フォルダ数 ++
 NEXT
 
-RETURNF ファイル数
+;除外前の候補が後ろに残らないよう初期化
+FOR L_CNT, 有効フォルダ数, ファイル数
+	RESULTS:L_CNT =
+NEXT
+
+RETURNF 有効フォルダ数
+
+;FOR L_CNT, 0, ファイル数
+;	RESULTS:L_CNT '= SUBSTRING(RESULTS:L_CNT, STRLENS(フォルダベース), STRFIND(RESULTS:L_CNT, "顔_デフォルト") - STRLENS(フォルダベース) - 1)
+;NEXT
+
+;RETURNF ファイル数
 
 ;-------------------------------------------------
 ;対象画像フォルダ内のファイルを取得
