@@ -1,0 +1,1245 @@
+﻿; ドンキホーテ（1389）・ジョブ証別固有アビリティ試作 v0.2.2
+; status: candidate / 数値は仮調整。Emuera実戦未確認
+; source: erablue-resort/erablue_resort main（2026-09-27参照）
+; updated: 2026-09-27
+;
+; 設計:
+;   固定1アビ「過度な熱情」
+;   プレーン2/3アビ「束刺し」「正義のため！」
+;   通常ジョブ証12種で2/3アビを差し替える。
+;   固有奥義「ラ・サングレ・デ・サンチョ」は別ファイルで実装する。
+;
+; ドンキホーテの人格アビ方針:
+;   「与えられた役割はきちんと遂行する。ただし加減がおかしい」
+;   2アビは各ジョブの基本業務、3アビは強力だが反動・隙・過剰さを持つ技を中心にする。
+;
+; 戦闘中カウント自由枠（1389の隊列のみ使用）:
+;   0/1/2 = 1/2/3アビを再使用できる絶対ターン
+;   3/4   = 潜入の被弾確認開始時の被ダメ合計 / 確認中の敵隊列+1
+;   8     = メカニック「機関停止」中の行動開始時エネルギー保存
+;
+; 注意:
+;   このゲームの「持続ターン」はターン終了時に減る。
+;   使用ターンの次の手番まで残したい効果は、原則2ターン以上で設定する。
+;
+; =====================================================================
+; 調整用データ
+; MP / CD / 主倍率P / 補助X / 補助Y / 補助Z / 持続T
+; CDは使用ターンを含む。T1でCT4なら次回使用はT5。
+; 2/3アビは「潜入」を除きCT0。
+; =====================================================================
+@ドンキ試作_技データ(L_JOB, L_SLOT)
+#DIM DYNAMIC L_JOB
+#DIM DYNAMIC L_SLOT
+#DIM DYNAMIC L_KEY
+#DIM DYNAMIC L_MP
+#DIM DYNAMIC L_CD
+#DIM DYNAMIC L_P
+#DIM DYNAMIC L_X
+#DIM DYNAMIC L_Y
+#DIM DYNAMIC L_Z
+#DIM DYNAMIC L_T
+#DIMS DYNAMIC L_NAME
+#DIMS DYNAMIC L_DESC
+
+L_KEY = L_JOB * 10 + L_SLOT
+SIF L_SLOT == 1
+    L_KEY = 1
+
+L_MP = 0
+L_CD = 0
+L_P = 0
+L_X = 0
+L_Y = 0
+L_Z = 0
+L_T = 0
+L_NAME =
+L_DESC =
+
+SELECTCASE L_KEY
+    CASE 1
+        ; 共通 / 過度な熱情
+        ; MP=MP消費 / X=最大HP消費率 / T=各バフ持続
+        L_MP = 20
+        L_X = 3
+        L_T = 3
+        L_NAME = 過度な熱情
+        L_DESC '= @"最大HPの{L_X}％を消費し、自身にランダムな強化効果を1つ付与（{L_T}ターン／非累積）。<br>HPは1で止まり、行動回数を消費しない。"
+    CASE 2
+        ; プレーン / 束刺し
+        L_MP = 20
+        L_P = 180
+        L_NAME = 束刺し
+        L_DESC '= @"敵全体へ自属性{L_P}％。"
+    CASE 3
+        ; プレーン / 正義のため！
+        ; X=攻撃力DOWN / T=持続
+        L_MP = 25
+        L_P = 260
+        L_X = 20
+        L_T = 3
+        L_NAME = 正義のため！
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>攻撃後、攻撃力を{L_T}ターン{L_X}％低下（B枠）。"
+    CASE 12
+        ; ファイター / 猛進
+        ; X=攻撃UP / Y=防御DOWN / T=持続
+        L_MP = 25
+        L_P = 220
+        L_X = 30
+        L_Y = 20
+        L_T = 3
+        L_NAME = 猛進
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身の攻撃力{L_X}％UP、防御力{L_Y}％DOWN（{L_T}ターン）。"
+    CASE 13
+        ; ファイター / 破陣
+        ; X=猛進中の追加倍率
+        L_MP = 35
+        L_P = 320
+        L_X = 120
+        L_NAME = 破陣
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>「猛進」の攻撃力UP中なら倍率＋{L_X}％。"
+    CASE 22
+        ; ナイト / 護衛
+        ; X=防御UP
+        L_MP = 25
+        L_X = 35
+        L_NAME = 護衛
+        L_DESC '= @"自身に次の行動時まで単体かばうを付与。<br>同時に防御力{L_X}％UP。"
+    CASE 23
+        ; ナイト / 断罪
+        ; X=護衛中の追加倍率 / T=強圧持続
+        L_MP = 30
+        L_P = 280
+        L_X = 120
+        L_T = 3
+        L_NAME = 断罪
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身が「護衛」中なら倍率＋{L_X}％。攻撃後、強圧を{L_T}ターン付与。"
+    CASE 32
+        ; プリースト / 救護
+        ; P=回復力倍率
+        L_MP = 30
+        L_P = 80
+        L_NAME = 救護
+        L_DESC '= @"味方単体のHPを回復力×{L_P}％回復し、デバフを1つ消去。"
+    CASE 33
+        ; プリースト / 博愛
+        ; P=全体回復倍率 / X=再生倍率 / Y=敵対心固定値 / T=持続
+        L_MP = 50
+        L_P = 50
+        L_X = 10
+        L_Y = 200
+        L_T = 3
+        L_NAME = 博愛
+        L_DESC '= @"味方全体のHPを回復力×{L_P}％回復。<br>再生（回復力×{L_X}％／上限500）と、自身に敵対心＋{L_Y}を{L_T}ターン付与。"
+    CASE 42
+        ; ウィザード / 魔弾
+        L_MP = 25
+        L_P = 200
+        L_NAME = 魔弾
+        L_DESC '= @"敵全体へ自属性{L_P}％。"
+    CASE 43
+        ; ウィザード / 大魔砲
+        ; X=最大MP消費率 / Y=消費MPによる追加倍率の除数
+        L_MP = 0
+        L_P = 520
+        L_X = 30
+        L_Y = 2
+        L_NAME = 大魔砲
+        L_DESC '= @"最大MPの{L_X}％を消費し、敵単体へ自属性「{L_P}＋消費MP÷{L_Y}」％（追加分は切り捨て）。"
+    CASE 52
+        ; エンハンサー / 鼓舞
+        ; X=攻防UP / T=持続
+        L_MP = 25
+        L_X = 30
+        L_T = 3
+        L_NAME = 鼓舞
+        L_DESC '= @"味方単体の攻撃力・防御力を{L_T}ターン{L_X}％UP。"
+    CASE 53
+        ; エンハンサー / 号令
+        ; X=味方攻撃UP / Y=速度UP / Z=自己防御DOWN / T=持続
+        L_MP = 40
+        L_X = 25
+        L_Y = 25
+        L_Z = 30
+        L_T = 3
+        L_NAME = 号令
+        L_DESC '= @"味方全体の攻撃力・行動速度を{L_T}ターン{L_X}％UP。<br>自身の防御力を{L_T}ターン{L_Z}％DOWN。"
+    CASE 62
+        ; グラップラー / 奮迅
+        ; P=1Hit倍率 / X=回数 / Y=回避pt / T=持続
+        L_MP = 25
+        L_P = 100
+        L_X = 3
+        L_Y = 25
+        L_T = 3
+        L_NAME = 奮迅
+        L_DESC '= @"敵単体へ自属性{L_P}％×{L_X}回。<br>自身の回避率を{L_T}ターン＋{L_Y}ポイント。"
+    CASE 63
+        ; グラップラー / 肉切骨断
+        ; X=DApt / Y=TApt / Z=防御DOWN / T=連撃持続
+        L_MP = 35
+        L_P = 360
+        L_X = 40
+        L_Y = 20
+        L_Z = 40
+        L_T = 3
+        L_NAME = 肉切骨断
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身のDA率＋{L_X}、TA率＋{L_Y}（{L_T}ターン）。<br>自身に防御力{L_Z}％DOWN（1回／最長5ターン）。"
+    CASE 72
+        ; ランサー / 疾駆
+        ; X=速度UP / T=持続
+        L_MP = 25
+        L_P = 220
+        L_X = 30
+        L_T = 3
+        L_NAME = 疾駆
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身の行動速度を{L_T}ターン{L_X}％UP。"
+    CASE 73
+        ; ランサー / 突貫
+        ; P=通常倍率 / X=速度優位倍率 / Y=反動の除数 / Z=最大HP反動率
+        L_MP = 35
+        L_P = 300
+        L_X = 550
+        L_Y = 2
+        L_Z = 10
+        L_NAME = 突貫
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身の行動速度が対象より高い場合は{L_X}％になり、攻撃後に「（敵の実際のHP減少量＋自身の最大HPの{L_Z}％）÷{L_Y}」の反動ダメージ（HP1で止まる）。"
+    CASE 82
+        ; レンジャー / 追跡
+        ; X=速度DOWN / T=持続
+        L_MP = 20
+        L_P = 180
+        L_X = 25
+        L_T = 3
+        L_NAME = 追跡
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>行動速度を{L_T}ターン{L_X}％DOWN。"
+    CASE 83
+        ; レンジャー / 捕縛
+        ; X=暗闇率 / Y=麻痺行動不能率 / Z=スロウ量 / T=麻痺持続
+        L_MP = 35
+        L_P = 180
+        L_X = 30
+        L_Y = 50
+        L_Z = 1
+        L_T = 2
+        L_NAME = 捕縛
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>暗闇、スロウ、麻痺（行動不能率{L_Y}％／{L_T}ターン）を付与。麻痺の付与に成功した場合のみ、自身にも同じ麻痺を付与。"
+    CASE 92
+        ; シーフ / 潜入
+        ; X=回避pt / Y=クリpt / T=持続
+        L_MP = 20
+        L_CD = 4
+        L_X = 30
+        L_Y = 40
+        L_T = 3
+        L_NAME = 潜入
+        L_DESC '= @"行動を消費せず、自身の回避率＋{L_X}、クリティカル率＋{L_Y}（{L_T}ターン）。<br>敵からの攻撃でダメージを受けると解除。自傷、毒、火傷では解除されない。"
+    CASE 93
+        ; シーフ / 奪取
+        ; X=トレハン判定回数
+        L_MP = 30
+        L_P = 160
+        L_X = 2
+        L_NAME = 奪取
+        L_DESC '= @"敵全体にトレハンを{L_X}回判定し、その後自属性{L_P}％。"
+    CASE 102
+        ; ハーピスト / 行進
+        ; X=防御UP / Y=再生倍率 / T=持続
+        L_MP = 30
+        L_X = 25
+        L_Y = 10
+        L_T = 3
+        L_NAME = 行進
+        L_DESC '= @"味方全体の防御力を{L_T}ターン{L_X}％UP。<br>再生（回復力×{L_Y}％／上限500）を付与。"
+    CASE 103
+        ; ハーピスト / 凱歌
+        ; X=攻撃UP / Y=DApt / Z=TApt / T=持続
+        L_MP = 40
+        L_X = 25
+        L_Y = 30
+        L_Z = 15
+        L_T = 3
+        L_NAME = 凱歌
+        L_DESC '= @"味方全体の攻撃力{L_X}％UP、DA率＋{L_Y}、TA率＋{L_Z}（{L_T}ターン）。<br>使用後、自身に火傷（Lv×10／3ターン）。"
+    CASE 112
+        ; ダンサー / 独舞
+        ; X=速度UP / Y=回避pt / T=持続
+        L_MP = 25
+        L_P = 200
+        L_X = 25
+        L_Y = 20
+        L_T = 3
+        L_NAME = 独舞
+        L_DESC '= @"敵単体へ自属性{L_P}％。<br>自身の行動速度{L_X}％UP、回避率＋{L_Y}（{L_T}ターン）。"
+    CASE 113
+        ; ダンサー / 群舞
+        ; X=速度UP / Y=クリpt / Z=自己防御DOWN / T=味方強化持続
+        L_MP = 40
+        L_X = 20
+        L_Y = 25
+        L_Z = 40
+        L_T = 3
+        L_NAME = 群舞
+        L_DESC '= @"味方全体の行動速度{L_X}％UP、クリティカル率＋{L_Y}（{L_T}ターン）。<br>自身に防御力{L_Z}％DOWN（1回／最長5ターン）。"
+    CASE 122
+        ; メカニック / 整備
+        ; X=エネルギー獲得 / Y=防御UP / T=持続
+        L_MP = 20
+        L_X = 4
+        L_Y = 30
+        L_T = 3
+        L_NAME = 整備
+        L_DESC '= @"エネルギーを{L_X}獲得（最大10）し、自身の防御力を{L_T}ターン{L_Y}％UP。<br>「機関停止」中はエネルギー獲得量0。"
+    CASE 123
+        ; メカニック / 過負荷
+        ; X=エネルギー消費 / T=機関停止持続
+        L_MP = 20
+        L_P = 420
+        L_X = 6
+        L_T = 2
+        L_NAME = 過負荷
+        L_DESC '= @"エネルギーを{L_X}消費し、敵全体へ自属性{L_P}％。<br>使用後「機関停止」（{L_T}ターン）：エネルギー獲得量が0になる。"
+ENDSELECT
+
+TSTR:コマンド名受渡 '= L_NAME
+詳細文文字列受け渡し変数 '= L_DESC
+RETURN L_MP, L_CD, L_P, L_X, L_Y, L_Z, L_T
+
+
+; =====================================================================
+; ジョブ判定
+; =====================================================================
+@ドンキ試作_ジョブ番号(L_CHARA)
+#FUNCTION
+#DIM DYNAMIC L_CHARA
+#DIMS DYNAMIC L_JOBNAME
+
+SIF L_CHARA < 1
+    RETURNF 0
+
+L_JOBNAME '= DT_CELL_GETS("所持ジョブ証データベース", 装備ステータス補正保存:L_CHARA:装備証番号, "ジョブ証名", 1)
+
+SELECTCASE L_JOBNAME
+    CASE "ファイターの証"
+        RETURNF 1
+    CASE "ナイトの証"
+        RETURNF 2
+    CASE "プリーストの証"
+        RETURNF 3
+    CASE "ウィザードの証"
+        RETURNF 4
+    CASE "エンハンサーの証"
+        RETURNF 5
+    CASE "グラップラーの証"
+        RETURNF 6
+    CASE "ランサーの証"
+        RETURNF 7
+    CASE "レンジャーの証"
+        RETURNF 8
+    CASE "シーフの証"
+        RETURNF 9
+    CASE "ハーピストの証"
+        RETURNF 10
+    CASE "ダンサーの証"
+        RETURNF 11
+    CASE "メカニックの証"
+        RETURNF 12
+ENDSELECT
+
+RETURNF 0
+
+
+; =====================================================================
+; 本体から列挙される固有アビは3枠だけ
+; =====================================================================
+@固有アビ_1389_1(ARGS, キャラ番号)
+#DIM DYNAMIC キャラ番号
+CALL ドンキ試作_アビ(ARGS, キャラ番号, 1)
+RETURN RESULT
+
+@固有アビ_1389_2(ARGS, キャラ番号)
+#DIM DYNAMIC キャラ番号
+CALL ドンキ試作_アビ(ARGS, キャラ番号, 2)
+RETURN RESULT
+
+@固有アビ_1389_3(ARGS, キャラ番号)
+#DIM DYNAMIC キャラ番号
+CALL ドンキ試作_アビ(ARGS, キャラ番号, 3)
+RETURN RESULT
+
+
+; =====================================================================
+; アビリティ本体
+; =====================================================================
+@ドンキ試作_アビ(L_MODE, L_CHARA, L_SLOT)
+#DIMS DYNAMIC L_MODE
+#DIM DYNAMIC L_CHARA
+#DIM DYNAMIC L_SLOT
+#DIM DYNAMIC L_JOB
+#DIM DYNAMIC L_KEY
+#DIM DYNAMIC L_MP
+#DIM DYNAMIC L_CD
+#DIM DYNAMIC L_P
+#DIM DYNAMIC L_X
+#DIM DYNAMIC L_Y
+#DIM DYNAMIC L_Z
+#DIM DYNAMIC L_T
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_TARGET
+#DIM DYNAMIC L_I
+#DIM DYNAMIC L_TMP
+#DIM DYNAMIC L_TMP2
+#DIM DYNAMIC L_POWER
+#DIM DYNAMIC L_DAMAGE
+#DIM DYNAMIC L_RECOIL
+#DIM DYNAMIC L_MP_COST
+#DIM DYNAMIC L_SPEED_SELF
+#DIM DYNAMIC L_SPEED_TARGET
+#DIM DYNAMIC L_RAND
+#DIM DYNAMIC L_ROW
+#DIM DYNAMIC L_TARGETS, アビ対象最大数
+#DIM DYNAMIC L_ENEMY_HP, 10
+#DIMS DYNAMIC L_NAME
+#DIMS DYNAMIC L_DESC
+#DIMS DYNAMIC L_MSG
+
+L_JOB = ドンキ試作_ジョブ番号(L_CHARA)
+L_KEY = L_JOB * 10 + L_SLOT
+SIF L_SLOT == 1
+    L_KEY = 1
+
+CALL ドンキ試作_技データ(L_JOB, L_SLOT)
+L_MP = RESULT:0
+L_CD = RESULT:1
+L_P = RESULT:2
+L_X = RESULT:3
+L_Y = RESULT:4
+L_Z = RESULT:5
+L_T = RESULT:6
+L_NAME '= TSTR:コマンド名受渡
+L_DESC '= 詳細文文字列受け渡し変数
+
+; 台詞は固有アビ発動時の口上で表示する。照会中はRESULTSを変更しない。
+L_MSG =
+
+L_SELF = -1
+SIF ダンジョン表示モード == "戦闘画面" && L_CHARA > 0
+    L_SELF = キャラ隊列検索(L_CHARA)
+
+SELECTCASE L_MODE
+    CASE "アビ名"
+        TSTR:コマンド名受渡 '= L_NAME
+        RETURN 0
+
+    CASE "アビ説明文", "アビ説明文_詳細"
+        IF L_KEY == 43
+            詳細文文字列受け渡し変数 '= @"消費MP：最大MPの{L_X}％<br>%L_DESC%"
+        ELSE
+            詳細文文字列受け渡し変数 '= @"消費MP：{L_MP}<br>%L_DESC%"
+        ENDIF
+
+        IF L_CD > 0
+            IF L_MODE == "アビ説明文"
+                詳細文文字列受け渡し変数 += @"<br>CT:{L_CD}ターン"
+            ELSE
+                詳細文文字列受け渡し変数 += @"<br>再使用：{L_CD}ターン（使用ターンを含む）"
+            ENDIF
+            IF L_SELF >= 0 && L_SELF < 4
+                L_TMP = MAX(0, 戦闘中カウント:L_SELF:(L_SLOT - 1) - 現在ターン数)
+                IF L_TMP > 0
+                    詳細文文字列受け渡し変数 += @"<br>あと{L_TMP}ターン使用不可"
+                    アビテンプレート用_アビ封印用フラグ = 1
+                ENDIF
+            ENDIF
+        ENDIF
+
+        IF L_SELF >= 0 && L_SELF < 4
+            IF L_KEY == 43
+                L_MP_COST = (BATTLE_STATE:L_SELF:最大ＭＰ * L_X + 99) / 100
+                IF BATTLE_STATE:L_SELF:ＭＰ < L_MP_COST
+                    詳細文文字列受け渡し変数 += @"<br>必要MP：{L_MP_COST}"
+                    アビテンプレート用_アビ封印用フラグ = 1
+                ENDIF
+            ELSEIF L_KEY == 123
+                IF 刻印現在数確認("エネルギー_メカニック", L_SELF) < L_X
+                    詳細文文字列受け渡し変数 += "<br>エネルギーが足りません。"
+                    アビテンプレート用_アビ封印用フラグ = 1
+                ENDIF
+            ENDIF
+        ENDIF
+
+        RETURN L_MP
+
+    CASE "アビ効果"
+        ; 下へ
+    CASEELSE
+        RETURN 0
+ENDSELECT
+
+; 戦闘中の本人行動以外からの呼び出しを拒否
+IF L_SELF < 0 || L_SELF > 3 || L_SELF != 戦闘行動キャラ
+    CALL ドンキ試作_取消("ドンキホーテの戦闘中の行動から使用してください。")
+    RETURN -1
+ENDIF
+
+; CD
+IF L_CD > 0 && 戦闘中カウント:L_SELF:(L_SLOT - 1) > 現在ターン数
+    CALL ドンキ試作_取消("このアビリティはクールダウン中です。")
+    RETURN -1
+ENDIF
+
+; 個別リソース確認
+IF L_KEY == 1 && BATTLE_STATE:L_SELF:ＭＰ < L_MP
+    CALL ドンキ試作_取消("MPが足りません。")
+    RETURN -1
+ELSEIF L_KEY == 43
+    L_MP_COST = (BATTLE_STATE:L_SELF:最大ＭＰ * L_X + 99) / 100
+    IF BATTLE_STATE:L_SELF:ＭＰ < L_MP_COST
+        CALL ドンキ試作_取消("MPが足りません。")
+        RETURN -1
+    ENDIF
+ELSEIF L_KEY == 123 && 刻印現在数確認("エネルギー_メカニック", L_SELF) < L_X
+    CALL ドンキ試作_取消("エネルギーが足りません。")
+    RETURN -1
+ENDIF
+
+; ---------------------------------------------------------------------
+; 対象選択
+; コストはキャンセル確認後に支払う。
+; ---------------------------------------------------------------------
+CALL アビ汎用変数文字列リセット
+SELECTCASE L_KEY
+    CASE 1, 22, 92, 122
+        CALL アビ対象選択テンプレート_自己のみ
+    CASE 2, 42, 93, 123
+        CALL アビ対象選択テンプレート_敵全体_生者のみ
+    CASE 32, 52
+        CALL アビ対象選択テンプレート_味方単体_生者のみ
+    CASE 33, 53, 102, 103, 113
+        CALL アビ対象選択テンプレート_味方全体_生者のみ
+    CASEELSE
+        CALL アビ対象選択テンプレート_敵単体
+ENDSELECT
+
+SIF アビテンプレート用_キャンセルフラグ
+    RETURN -1
+
+ARRAYCOPY "アビテンプレート用_対象保存", "L_TARGETS"
+L_TARGET = L_TARGETS:0
+
+; 個別コスト支払い
+IF L_KEY == 1
+    L_TMP = MIN(BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100, MAX(0, BATTLE_STATE:L_SELF:ＨＰ - 1))
+    BATTLE_STATE:L_SELF:ＨＰ -= L_TMP
+ELSEIF L_KEY == 43
+    BATTLE_STATE:L_SELF:ＭＰ -= L_MP_COST
+ELSEIF L_KEY == 123
+    CALL エネルギー_メカニック消費(L_X)
+    SIF アビテンプレート用_キャンセルフラグ
+        RETURN -1
+ENDIF
+
+; =====================================================================
+; 効果
+; =====================================================================
+SELECTCASE L_KEY
+    CASE 1
+        ; 過度な熱情
+        アビテンプレート用_行動消費無しフラグ = 1
+        L_RAND = RAND:11
+        CALL ドンキ試作_熱情バフ(L_SELF, L_RAND, L_T, L_MSG)
+
+    CASE 2
+        ; 束刺し
+        CALL ドンキ試作_攻撃保存対象(L_P, 1, "攻撃力", L_MSG)
+
+    CASE 3
+        ; 正義のため！
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        L_TARGET = アビテンプレート用_対象保存:0
+        IF L_TARGET >= 10
+            CALL アビ汎用変数文字列リセット
+            CALL アビ対象選択テンプレート_指定(L_TARGET)
+            アビ汎用文字列:バフ・デバフ枠 = 攻撃力B
+            アビ汎用文字列:バフ・デバフ対象能力 = 攻撃力
+            アビ汎用変数:効果割合 = L_X
+            アビ汎用変数:持続ターン = L_T
+            アビ汎用変数:基礎成功確率 = 100
+            CALL アビテンプレート_不利効果_デバフ効果セット
+        ENDIF
+
+    CASE 12
+        ; 猛進
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_猛進_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, "")
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_猛進_防御力", "防御力", L_Y, 0, L_T, 100, 0, 0, 1, "")
+
+    CASE 13
+        ; 破陣
+        L_POWER = L_P
+        SIF バフ番号取得_枠("ドンキ_猛進_攻撃力", L_SELF) >= 0
+            L_POWER += L_X
+        CALL ドンキ試作_攻撃保存対象(L_POWER, 0, "攻撃力", L_MSG)
+
+    CASE 22
+        ; 護衛
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_護衛_単体かばう", "単体かばう", 0, 0, 0, 2, 0, L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_護衛_防御力", "防御力", L_X, 0, 0, 2, 0, "")
+
+    CASE 23
+        ; 断罪
+        L_POWER = L_P
+        SIF バフ番号取得_枠("ドンキ_護衛_単体かばう", L_SELF) >= 0
+            L_POWER += L_X
+        CALL ドンキ試作_攻撃保存対象(L_POWER, 0, "攻撃力", L_MSG)
+        L_TARGET = アビテンプレート用_対象保存:0
+        SIF L_TARGET >= 10
+            CALL ドンキ試作_弱体(L_TARGET, "ドンキ_断罪_強圧", "強圧", 0, 0, L_T, 100, 0, 0, 0, "")
+
+    CASE 32
+        ; 救護
+        CALL アビ汎用変数文字列リセット
+        アビ汎用文字列:実行時メッセージ１ '= L_MSG
+        ARRAYCOPY "L_TARGETS", "アビテンプレート用_対象保存"
+        アビ汎用変数:効果割合 = L_P
+        CALL アビテンプレート_回復処理_MAXでも回復
+        CALL アビ汎用変数文字列リセット
+        ARRAYCOPY "L_TARGETS", "アビテンプレート用_対象保存"
+        CALL アビテンプレート_有利効果_デバフ消去
+
+    CASE 33
+        ; 博愛
+        CALL アビ汎用変数文字列リセット
+        アビ汎用文字列:実行時メッセージ１ '= L_MSG
+        ARRAYCOPY "L_TARGETS", "アビテンプレート用_対象保存"
+        アビ汎用変数:効果割合 = L_P
+        CALL アビテンプレート_回復処理_MAXでも回復
+
+        ; 再生
+        CALL バフ込み数値算出("回復力")
+        L_TMP = MIN(RESULT * L_X / 100, 500)
+        FOR L_I, 0, アビ対象最大数
+            SIF L_TARGETS:L_I < 0 || L_TARGETS:L_I > 3
+                CONTINUE
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_博愛_再生", "再生", 0, L_TMP, L_T, 0, 0, "")
+        NEXT
+        ; 張り切りすぎて自分が前へ出る
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_博愛_敵対心", "敵対心", 0, L_Y, L_T, 0, 0, "")
+
+    CASE 42
+        ; 魔弾
+        CALL ドンキ試作_攻撃保存対象(L_P, 1, "攻撃力", L_MSG)
+
+    CASE 43
+        ; 大魔砲
+        L_POWER = L_P + L_MP_COST / L_Y
+        CALL ドンキ試作_攻撃保存対象(L_POWER, 0, "攻撃力", L_MSG)
+
+    CASE 52
+        ; 鼓舞
+        CALL ドンキ試作_強化(L_TARGET, "ドンキ_鼓舞_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, L_MSG)
+        CALL ドンキ試作_強化(L_TARGET, "ドンキ_鼓舞_防御力", "防御力", L_X, 0, L_T, 0, 0, "")
+
+    CASE 53
+        ; 号令
+        FOR L_I, 0, アビ対象最大数
+            SIF L_TARGETS:L_I < 0 || L_TARGETS:L_I > 3
+                CONTINUE
+            IF L_I == 0
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_号令_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, L_MSG)
+            ELSE
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_号令_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, "")
+            ENDIF
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_号令_行動速度", "行動速度", L_Y, 0, L_T, 0, 0, "")
+        NEXT
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_号令_防御力", "防御力", L_Z, 0, L_T, 100, 0, 0, 1, "")
+
+    CASE 62
+        ; 奮迅
+        FOR L_I, 0, L_X
+            SIF !ドンキ試作_敵生存(L_TARGET)
+                BREAK
+            IF L_I == 0
+                CALL ドンキ試作_攻撃単体(L_TARGET, L_P, "攻撃力", L_MSG)
+            ELSE
+                CALL ドンキ試作_攻撃単体(L_TARGET, L_P, "攻撃力", "")
+            ENDIF
+        NEXT
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_奮迅_回避率", "回避率", 0, L_Y, L_T, 0, 0, "")
+
+    CASE 63
+        ; 肉切骨断
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_肉切骨断_DA率", "DA率", 0, L_X, L_T, 0, 0, "")
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_肉切骨断_TA率", "TA率", 0, L_Y, L_T, 0, 0, "")
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_肉切骨断_防御力", "防御力", L_Z, 0, 5, 100, 0, 1, 1, "")
+
+    CASE 72
+        ; 疾駆
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_疾駆_行動速度", "行動速度", L_X, 0, L_T, 0, 0, "")
+
+    CASE 73
+        ; 突貫
+        CALL バフ込み数値算出("行動速度", L_SELF)
+        L_SPEED_SELF = RESULT
+        CALL バフ込み数値算出("行動速度", L_TARGET)
+        L_SPEED_TARGET = RESULT
+        L_POWER = L_P
+        IF L_SPEED_SELF > L_SPEED_TARGET
+            L_POWER = L_X
+        ENDIF
+
+        ; かばう先を含む敵のHPを記録し、オーバーキルやバリア吸収を反動に含めない。
+        FOR L_I, 0, 10
+            L_ENEMY_HP:L_I = MAX(0, 敵BATTLE_STATE:L_I:ＨＰ)
+        NEXT
+        CALL ドンキ試作_攻撃保存対象(L_POWER, 0, "攻撃力", L_MSG)
+        L_DAMAGE = 0
+        FOR L_I, 0, 10
+            L_DAMAGE += MAX(0, L_ENEMY_HP:L_I - MAX(0, 敵BATTLE_STATE:L_I:ＨＰ))
+        NEXT
+        IF L_SPEED_SELF > L_SPEED_TARGET
+            L_RECOIL = (L_DAMAGE + BATTLE_STATE:L_SELF:最大ＨＰ * L_Z / 100) / L_Y
+            L_RECOIL = MIN(MAX(0, L_RECOIL), MAX(0, BATTLE_STATE:L_SELF:ＨＰ - 1))
+            IF L_RECOIL > 0
+                BATTLE_STATE:L_SELF:ＨＰ -= L_RECOIL
+                CALL ドンキ試作_通知(@"突貫の反動で%戦闘キャラ名前取得(L_SELF)%は{L_RECOIL}ダメージを受けた！")
+            ENDIF
+        ENDIF
+
+    CASE 82
+        ; 追跡
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        L_TARGET = アビテンプレート用_対象保存:0
+        SIF L_TARGET >= 10
+            CALL ドンキ試作_弱体(L_TARGET, "ドンキ_追跡_行動速度", "行動速度", L_X, 0, L_T, 100, 0, 0, 0, "")
+
+    CASE 83
+        ; 捕縛
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        L_TARGET = アビテンプレート用_対象保存:0
+        IF L_TARGET >= 10 && ドンキ試作_敵生存(L_TARGET)
+            ; 暗闇
+            CALL ドンキ試作_弱体(L_TARGET, "ドンキ_捕縛_暗闇", "暗闇", L_X, 0, 3, 100, 0, 0, 0, "")
+
+            ; スロウ
+            IF 敵BATTLE_STATE:(L_TARGET - 10):チャージターン > 0
+                CALL アビ汎用変数文字列リセット
+                CALL アビ対象選択テンプレート_指定(L_TARGET)
+                アビ汎用変数:効果量 = L_Z
+                アビ汎用変数:基礎成功確率 = 100
+                CALL アビテンプレート_不利効果_スロウ
+            ENDIF
+
+            ; 敵への麻痺
+            L_TMP = -1
+            L_ROW = デバフ番号取得_枠("ドンキ_捕縛_麻痺", L_TARGET)
+            SIF L_ROW >= 0
+                L_TMP = DT_CELL_GET("戦闘効果データベース", L_ROW, "id")
+            CALL ドンキ試作_弱体(L_TARGET, "ドンキ_捕縛_麻痺", "麻痺", L_Y, 0, L_T, 100, 0, 0, 0, "")
+            ; テンプレートのRETURNでは成功を判別できないため、付与前後の行IDで確認する。
+            L_ROW = デバフ番号取得_枠("ドンキ_捕縛_麻痺", L_TARGET)
+            IF L_ROW >= 0
+                IF DT_CELL_GET("戦闘効果データベース", L_ROW, "id") != L_TMP
+                    CALL ドンキ試作_弱体(L_SELF, "ドンキ_捕縛_自己麻痺", "麻痺", L_Y, 0, L_T, 100, 0, 0, 1, "")
+                ENDIF
+            ENDIF
+        ENDIF
+
+    CASE 92
+        ; 潜入
+        アビテンプレート用_行動消費無しフラグ = 1
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_潜入_回避率", "回避率", 0, L_X, L_T, 0, 0, L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_潜入_クリティカル率", "クリティカル率", 0, L_Y, L_T, 0, 0, "")
+
+    CASE 93
+        ; 奪取
+        ; 先にトレハンを2回判定し、撃破時にもドロップ率UPが乗るようにする。
+        FOR L_I, 0, L_X
+            CALL アビ汎用変数文字列リセット
+            SIF L_I == 0
+                アビ汎用文字列:実行時メッセージ１ '= L_MSG
+            ARRAYCOPY "L_TARGETS", "アビテンプレート用_対象保存"
+            CALL アビテンプレート_不利効果_トレハン
+        NEXT
+        CALL ドンキ試作_攻撃保存対象(L_P, 1, "攻撃力", "")
+
+    CASE 102
+        ; 行進
+        CALL バフ込み数値算出("回復力")
+        L_TMP = MIN(RESULT * L_Y / 100, 500)
+        FOR L_I, 0, アビ対象最大数
+            SIF L_TARGETS:L_I < 0 || L_TARGETS:L_I > 3
+                CONTINUE
+            IF L_I == 0
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_行進_防御力", "防御力", L_X, 0, L_T, 0, 0, L_MSG)
+            ELSE
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_行進_防御力", "防御力", L_X, 0, L_T, 0, 0, "")
+            ENDIF
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_行進_再生", "再生", 0, L_TMP, L_T, 0, 0, "")
+        NEXT
+
+    CASE 103
+        ; 凱歌
+        FOR L_I, 0, アビ対象最大数
+            SIF L_TARGETS:L_I < 0 || L_TARGETS:L_I > 3
+                CONTINUE
+            IF L_I == 0
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_凱歌_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, L_MSG)
+            ELSE
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_凱歌_攻撃力", "攻撃力", L_X, 0, L_T, 0, 0, "")
+            ENDIF
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_凱歌_DA率", "DA率", 0, L_Y, L_T, 0, 0, "")
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_凱歌_TA率", "TA率", 0, L_Z, L_T, 0, 0, "")
+        NEXT
+        L_TMP = BATTLE_STATE:L_SELF:Lv * 10
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_凱歌_火傷", "火傷", 0, L_TMP, 3, 100, 0, 0, 1, "")
+
+    CASE 112
+        ; 独舞
+        CALL ドンキ試作_攻撃保存対象(L_P, 0, "攻撃力", L_MSG)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_独舞_行動速度", "行動速度", L_X, 0, L_T, 0, 0, "")
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_独舞_回避率", "回避率", 0, L_Y, L_T, 0, 0, "")
+
+    CASE 113
+        ; 群舞
+        FOR L_I, 0, アビ対象最大数
+            SIF L_TARGETS:L_I < 0 || L_TARGETS:L_I > 3
+                CONTINUE
+            IF L_I == 0
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_群舞_行動速度", "行動速度", L_X, 0, L_T, 0, 0, L_MSG)
+            ELSE
+                CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_群舞_行動速度", "行動速度", L_X, 0, L_T, 0, 0, "")
+            ENDIF
+            CALL ドンキ試作_強化(L_TARGETS:L_I, "ドンキ_群舞_クリティカル率", "クリティカル率", 0, L_Y, L_T, 0, 0, "")
+        NEXT
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_群舞_防御力", "防御力", L_Z, 0, 5, 100, 0, 1, 1, "")
+
+    CASE 122
+        ; 整備
+        ; 機関停止中もアビ自体は使用できる。獲得したエネルギーは行動直後フックで0に戻される。
+        CALL アビ汎用変数文字列リセット
+        アビ汎用文字列:実行時メッセージ１ '= L_MSG
+        CALL アビ対象選択テンプレート_自己のみ
+        アビ汎用変数:累積上限_固定値 = 10
+        アビ汎用文字列:バフ・デバフ対象能力 = エネルギー_メカニック
+        CALL アビテンプレート_刻印追加(L_X)
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_整備_防御力", "防御力", L_Y, 0, L_T, 0, 0, "")
+
+    CASE 123
+        ; 過負荷
+        ARRAYCOPY "L_TARGETS", "アビテンプレート用_対象保存"
+        CALL ドンキ試作_攻撃保存対象(L_P, 1, "攻撃力", L_MSG)
+        CALL ドンキ試作_弱体(L_SELF, "ドンキ_機関停止", "ドンキ_機関停止", 0, 0, L_T, 100, 0, 0, 1, "")
+ENDSELECT
+
+SIF アビテンプレート用_キャンセルフラグ
+    RETURN -1
+
+; 絶対ターン式CD。CT0は現在ターンを保存するだけ。
+戦闘中カウント:L_SELF:(L_SLOT - 1) = 現在ターン数 + L_CD
+RETURN 0
+
+
+; =====================================================================
+; 技ごとの発動メッセージ
+; =====================================================================
+@ドンキ試作_技メッセージ(L_KEY)
+#FUNCTIONS
+#DIM DYNAMIC L_KEY
+SELECTCASE L_KEY
+    CASE 1
+        RETURNF "「胸が高鳴ってまいりましたぞ！」"
+    CASE 2
+        RETURNF "「まとめて参りまする！」"
+    CASE 3
+        RETURNF "「正義のため！　覚悟召されよ！」"
+    CASE 12
+        RETURNF "「先陣は私が務めましょう！　いざ！」"
+    CASE 13
+        RETURNF "「守りを固める暇など与えませぬ！」"
+    CASE 22
+        RETURNF "「ご安心召されよ！　私がお守りいたしまする！」"
+    CASE 23
+        RETURNF "「悪漢め！　そこになおるのでありまする！」"
+    CASE 32
+        RETURNF "「お怪我でありますな！　ただちに手当てを！」"
+    CASE 33
+        RETURNF "「皆々様はお下がりくだされ！　あとは私が！」"
+    CASE 42
+        RETURNF "「これぞ魔術の力！　とくとご覧あれ！」"
+    CASE 43
+        RETURNF "「偉大なる愛の力を示さんことを……アルカナ・スレイヴ！」"
+    CASE 52
+        RETURNF "「貴殿ならば成し遂げられまする！　さあ！」"
+    CASE 53
+        RETURNF "「皆の衆！　私に続くのでありまする！」"
+    CASE 62
+        RETURNF "「正面より参りますぞ！　受けて立たれよ！」"
+    CASE 63
+        RETURNF "「一太刀くらい、くれてやりましょう！　その代わり……こちらも参りまする！」"
+    CASE 72
+        RETURNF "「ロシナンテ！　共に駆けるのでありまする！」"
+    CASE 73
+        RETURNF "「道は真っ直ぐ前方！　突撃ィ！」"
+    CASE 82
+        RETURNF "「逃げても無駄でありますぞ！　追いまする！」"
+    CASE 83
+        RETURNF "「目標確認！　絶対に逃がしませぬ！」"
+    CASE 92
+        RETURNF "「気配を殺し……忍び足で参りましょう。」"
+    CASE 93
+        RETURNF "「任務の品、まとめて頂戴いたしまする！」"
+    CASE 102
+        RETURNF "「足並みを揃えて参りましょう！　一、二！」"
+    CASE 103
+        RETURNF "「勝利の歌を高らかに！　声を合わせられよ！」"
+    CASE 112
+        RETURNF "「華麗なる舞をご覧に入れましょう！」"
+    CASE 113
+        RETURNF "「さあ皆々様もご一緒に！　踊りましょうぞ！」"
+    CASE 122
+        RETURNF "「点検良し、稼働良し！　万事整いましたぞ！」"
+    CASE 123
+        RETURNF "「出力限界？　ならば超えてみせましょう！」"
+    CASEELSE
+        RETURNF ""
+ENDSELECT
+RETURNF ""
+
+
+; =====================================================================
+; 過度な熱情
+; 11種から等確率。全て非累積。同じ効果を引くと同枠を更新する。
+;
+;  0 攻撃力 +25%
+;  1 防御力 +30%
+;  2 行動速度 +25%
+;  3 DA率 +40pt
+;  4 TA率 +20pt
+;  5 ゲージ上昇効率 +30%
+;  6 命中率 +30pt
+;  7 回避率 +20pt
+;  8 クリティカル率 +30pt
+;  9 ストレングス 30%
+; 10 逆境 30%
+; =====================================================================
+@ドンキ試作_熱情バフ(L_SELF, L_RAND, L_TURN, L_MSG)
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_RAND
+#DIM DYNAMIC L_TURN
+#DIMS DYNAMIC L_MSG
+
+SELECTCASE L_RAND
+    CASE 0
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_攻撃力", "攻撃力", 25, 0, L_TURN, 0, 0, L_MSG)
+    CASE 1
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_防御力", "防御力", 30, 0, L_TURN, 0, 0, L_MSG)
+    CASE 2
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_行動速度", "行動速度", 25, 0, L_TURN, 0, 0, L_MSG)
+    CASE 3
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_DA率", "DA率", 0, 40, L_TURN, 0, 0, L_MSG)
+    CASE 4
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_TA率", "TA率", 0, 20, L_TURN, 0, 0, L_MSG)
+    CASE 5
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_ゲージ上昇効率", "ゲージ上昇効率", 30, 0, L_TURN, 0, 0, L_MSG)
+    CASE 6
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_命中率", "命中率", 0, 30, L_TURN, 0, 0, L_MSG)
+    CASE 7
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_回避率", "回避率", 0, 20, L_TURN, 0, 0, L_MSG)
+    CASE 8
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_クリティカル率", "クリティカル率", 0, 30, L_TURN, 0, 0, L_MSG)
+    CASE 9
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_ストレングス", "ストレングス", 30, 0, L_TURN, 0, 0, L_MSG)
+    CASE 10
+        CALL ドンキ試作_強化(L_SELF, "ドンキ_熱情_逆境", "逆境", 30, 0, L_TURN, 0, 0, L_MSG)
+ENDSELECT
+RETURN 0
+
+
+; =====================================================================
+; 共通部品
+; =====================================================================
+@ドンキ試作_敵生存(L_TARGET)
+#FUNCTION
+#DIM DYNAMIC L_TARGET
+SIF L_TARGET < 10 || L_TARGET >= 20
+    RETURNF 0
+SIF 敵BATTLE_STATE_STR:(L_TARGET - 10):エネミー名 == ""
+    RETURNF 0
+RETURNF 敵BATTLE_STATE:(L_TARGET - 10):ＨＰ > 0
+
+
+@ドンキ試作_通知(L_TEXT)
+#DIMS DYNAMIC L_TEXT
+SIF A_M_NUM:システムメッセージ番号 >= メッセージ格納最大行数
+    RETURN 0
+アビテンプレート用_表示メッセージ格納:システムメッセージ番号:(A_M_NUM:システムメッセージ番号++) '= L_TEXT
+RETURN 0
+
+
+@ドンキ試作_取消(L_TEXT)
+#DIMS DYNAMIC L_TEXT
+CALL 口上変数初期化
+WSTR:(K++) '= L_TEXT
+CALL メッセージ欄表示用関数(,,,0)
+アビテンプレート用_キャンセルフラグ = 1
+RETURN -1
+
+
+; 保存済み対象へ攻撃。RETURNは本体テンプレートの「算出ダメージ合計」。
+; 敵の実際のHP減少量とは異なるため、突貫の反動は攻撃前後のHP差から算出する。
+@ドンキ試作_攻撃保存対象(L_POWER, L_ALL, L_STAT, L_MSG)
+#DIM DYNAMIC L_POWER
+#DIM DYNAMIC L_ALL
+#DIMS DYNAMIC L_STAT
+#DIMS DYNAMIC L_MSG
+
+CALL アビ汎用変数文字列リセット
+SIF L_MSG != ""
+    アビ汎用文字列:実行時メッセージ１ '= L_MSG
+アビテンプレート用_全体フラグ = L_ALL
+アビテンプレート用_回避フラグ = 0
+アビ汎用文字列:ダメージ種類 = アビリティダメージ
+アビ汎用文字列:攻撃側使用能力値 '= L_STAT
+アビ汎用変数:効果割合 = L_POWER
+CALL アビテンプレート_ダメージ処理_自属性
+RETURN RESULT
+
+
+@ドンキ試作_攻撃単体(L_TARGET, L_POWER, L_STAT, L_MSG)
+#DIM DYNAMIC L_TARGET
+#DIM DYNAMIC L_POWER
+#DIMS DYNAMIC L_STAT
+#DIMS DYNAMIC L_MSG
+
+CALL アビ汎用変数文字列リセット
+SIF L_MSG != ""
+    アビ汎用文字列:実行時メッセージ１ '= L_MSG
+CALL アビ対象選択テンプレート_指定(L_TARGET)
+アビテンプレート用_全体フラグ = 0
+アビテンプレート用_回避フラグ = 0
+アビ汎用文字列:ダメージ種類 = アビリティダメージ
+アビ汎用文字列:攻撃側使用能力値 '= L_STAT
+アビ汎用変数:効果割合 = L_POWER
+CALL アビテンプレート_ダメージ処理_自属性
+RETURN RESULT
+
+
+; 非累積の独自バフ。同枠の上書き／持続更新は本体テンプレートに任せる。
+@ドンキ試作_強化(L_TARGET, L_FRAME, L_ABILITY, L_PERCENT, L_FLAT, L_TURN, L_ACTION, L_HIT, L_MSG)
+#DIM DYNAMIC L_TARGET
+#DIMS DYNAMIC L_FRAME
+#DIMS DYNAMIC L_ABILITY
+#DIM DYNAMIC L_PERCENT
+#DIM DYNAMIC L_FLAT
+#DIM DYNAMIC L_TURN
+#DIM DYNAMIC L_ACTION
+#DIM DYNAMIC L_HIT
+#DIMS DYNAMIC L_MSG
+
+CALL アビ汎用変数文字列リセット
+SIF L_MSG != ""
+    アビ汎用文字列:実行時メッセージ１ '= L_MSG
+CALL アビ対象選択テンプレート_指定(L_TARGET)
+アビ汎用文字列:バフ・デバフ枠 '= L_FRAME
+アビ汎用文字列:バフ・デバフ対象能力 '= L_ABILITY
+アビ汎用変数:効果割合 = L_PERCENT
+アビ汎用変数:効果量 = L_FLAT
+SIF L_TURN != 0
+    アビ汎用変数:持続ターン = L_TURN
+SIF L_ACTION != 0
+    アビ汎用変数:持続行動回数 = L_ACTION
+SIF L_HIT != 0
+    アビ汎用変数:持続被ダメ回数 = L_HIT
+CALL アビテンプレート_有利効果_バフ効果セット
+RETURN RESULT
+
+
+; 非累積の独自デバフ。同枠の上書き／持続更新は本体テンプレートに任せる。
+@ドンキ試作_弱体(L_TARGET, L_FRAME, L_ABILITY, L_PERCENT, L_FLAT, L_TURN, L_CHANCE, L_ACTION, L_HIT, L_PIERCE, L_MSG)
+#DIM DYNAMIC L_TARGET
+#DIMS DYNAMIC L_FRAME
+#DIMS DYNAMIC L_ABILITY
+#DIM DYNAMIC L_PERCENT
+#DIM DYNAMIC L_FLAT
+#DIM DYNAMIC L_TURN
+#DIM DYNAMIC L_CHANCE
+#DIM DYNAMIC L_ACTION
+#DIM DYNAMIC L_HIT
+#DIM DYNAMIC L_PIERCE
+#DIMS DYNAMIC L_MSG
+
+CALL アビ汎用変数文字列リセット
+SIF L_MSG != ""
+    アビ汎用文字列:実行時メッセージ１ '= L_MSG
+CALL アビ対象選択テンプレート_指定(L_TARGET)
+アビ汎用文字列:バフ・デバフ枠 '= L_FRAME
+アビ汎用文字列:バフ・デバフ対象能力 '= L_ABILITY
+アビ汎用変数:効果割合 = L_PERCENT
+アビ汎用変数:効果量 = L_FLAT
+SIF L_TURN != 0
+    アビ汎用変数:持続ターン = L_TURN
+SIF L_ACTION != 0
+    アビ汎用変数:持続行動回数 = L_ACTION
+SIF L_HIT != 0
+    アビ汎用変数:持続被ダメ回数 = L_HIT
+アビ汎用変数:基礎成功確率 = L_CHANCE
+SIF L_PIERCE
+    アビ汎用変数:弱体耐性貫通オプション = 1
+SIF L_ABILITY == "ドンキ_機関停止"
+    アビ汎用変数:特殊表示オプション = 1
+CALL アビテンプレート_不利効果_デバフ効果セット
+RETURN RESULT
+
+
+; =====================================================================
+; メカニック「機関停止」
+; 2ターン中のエネルギー獲得を、行動開始前の値まで巻き戻す。
+; 自分の行動で発生するエナジーゲイン／整備などをまとめて0化する。
+; =====================================================================
+@固有行動開始時処理_キャラ_1389
+#DIM DYNAMIC L_SELF
+L_SELF = 戦闘行動キャラ
+SIF L_SELF < 0 || L_SELF > 3
+    RETURN 0
+戦闘中カウント:L_SELF:8 = 刻印現在数確認("エネルギー_メカニック", L_SELF)
+RETURN 0
+
+
+@固有行動直後処理_キャラ_1389
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_BEFORE
+#DIM DYNAMIC L_NOW
+#DIM DYNAMIC L_GAIN
+
+L_SELF = 戦闘行動キャラ
+SIF L_SELF < 0 || L_SELF > 3
+    RETURN 0
+SIF デバフ番号取得_枠("ドンキ_機関停止", L_SELF) < 0
+    RETURN 0
+
+L_BEFORE = 戦闘中カウント:L_SELF:8
+L_NOW = 刻印現在数確認("エネルギー_メカニック", L_SELF)
+L_GAIN = MAX(0, L_NOW - L_BEFORE)
+IF L_GAIN > 0
+    CALL アビ汎用変数文字列リセット
+    CALL アビ対象選択テンプレート_指定(L_SELF)
+    アビ汎用文字列:バフ・デバフ対象能力 = エネルギー_メカニック
+    CALL アビテンプレート_刻印減少(L_GAIN)
+    CALL ドンキ試作_通知(@"機関停止：エネルギー{L_GAIN}の獲得が無効化された。")
+ENDIF
+RETURN 0
+
+
+@バフ・デバフ特殊表示_ドンキ_機関停止(L_TARGET, L_ROW)
+#DIM DYNAMIC L_TARGET
+#DIM DYNAMIC L_ROW
+PRINTFORML エネルギーを新たに獲得できない状態。
+PRINTFORML 残りターン：{DT_CELL_GET("戦闘効果データベース", L_ROW, "持続ターン")}。
+RETURN 0
+
+
+; =====================================================================
+; アビリティ使用時の台詞。奥義と同じ顔付きメッセージ欄へ表示する。
+; 本体のアビ列挙で使うRESULTSには触れない。
+; =====================================================================
+@KOJO_DUNGEON_固有アビ発動時_1389_1(L_CHARA, L_NAME)
+#DIM DYNAMIC L_CHARA
+#DIMS DYNAMIC L_NAME
+CALL ドンキ試作_アビ台詞(L_CHARA, 1)
+RETURN 0
+
+@KOJO_DUNGEON_固有アビ発動時_1389_2(L_CHARA, L_NAME)
+#DIM DYNAMIC L_CHARA
+#DIMS DYNAMIC L_NAME
+CALL ドンキ試作_アビ台詞(L_CHARA, 2)
+RETURN 0
+
+@KOJO_DUNGEON_固有アビ発動時_1389_3(L_CHARA, L_NAME)
+#DIM DYNAMIC L_CHARA
+#DIMS DYNAMIC L_NAME
+CALL ドンキ試作_アビ台詞(L_CHARA, 3)
+RETURN 0
+
+@ドンキ試作_アビ台詞(L_CHARA, L_SLOT)
+#DIM DYNAMIC L_CHARA
+#DIM DYNAMIC L_SLOT
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_KEY
+#DIMS DYNAMIC L_SPEECH
+L_SELF = キャラ隊列検索(L_CHARA)
+SIF L_SELF < 0 || L_SELF > 3
+    RETURN 0
+L_KEY = ドンキ試作_ジョブ番号(L_CHARA) * 10 + L_SLOT
+SIF L_SLOT == 1
+    L_KEY = 1
+L_SPEECH '= ドンキ試作_技メッセージ(L_KEY)
+SIF L_SPEECH == ""
+    RETURN 0
+CALL 口上変数初期化
+KSTR:(K++) '= L_SPEECH
+CALL メッセージ欄表示用関数(@"探索用_{L_SELF}_顔", CALLNAME:L_CHARA,,0)
+RETURN 0
+
+
+; =====================================================================
+; 潜入の解除。敵の反撃を含む攻撃がHPに届いた場合のみ、攻撃完了後に解除する。
+; 被ダメ時反応は特殊反撃で省略されるため、計算時に確認用の無効果バフを置く。
+; そのバフは攻撃テンプレート末尾で消費され、実際の被ダメ合計を確認できる。
+; =====================================================================
+@固有バフ・デバフ処理_キャラ_1389_被ダメージ(L_SELF, L_VALUE)
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_VALUE
+#DIM DYNAMIC L_ROW
+SIF L_SELF < 0 || L_SELF > 3
+    RETURN L_VALUE
+SIF 戦闘行動キャラ < 10 || 戦闘行動キャラ >= 20
+    RETURN L_VALUE
+SIF バフ番号取得_枠("ドンキ_潜入_回避率", L_SELF) < 0 && バフ番号取得_枠("ドンキ_潜入_クリティカル率", L_SELF) < 0
+    RETURN L_VALUE
+
+L_ROW = バフ番号取得_枠("ドンキ_潜入被弾確認", 戦闘行動キャラ)
+; 多段攻撃でも、同じ攻撃の最初の計算より前の値を保持する。
+IF L_ROW < 0 || 戦闘中カウント:L_SELF:4 != 戦闘行動キャラ + 1
+    戦闘中カウント:L_SELF:3 = 戦闘中カウント:L_SELF:被ダメ合計
+    戦闘中カウント:L_SELF:4 = 戦闘行動キャラ + 1
+ENDIF
+IF L_ROW < 0
+    ; カウンターではダメージ種類が空になるため、ダメージ補正_も有効な確認先。
+    {
+    DT_ROW_ADD "戦闘効果データベース", "効果名", "", "バフ・デバフフラグ", "バフ",
+        "適用範囲", @"{戦闘行動キャラ}", "効果枠", "ドンキ_潜入被弾確認",
+        "対象能力", @"ダメージ補正_%アビ汎用文字列:ダメージ種類%",
+        "効果量_割合", 0, "効果量_固定値", 0,
+        "持続ターン", 0, "持続回数", 1, "持続行動回数", 0, "持続被ダメ回数", 0,
+        "消去不可フラグ", 1, "特殊表示オプション", -1
+    }
+ENDIF
+RETURN L_VALUE
+
+
+@バフ消滅時処理_ドンキ_潜入被弾確認
+#DIM DYNAMIC L_SELF
+#DIM DYNAMIC L_ROW
+FOR L_SELF, 0, 4
+    SIF BATTLE_STATE:L_SELF:キャラ登録番号 < 1
+        CONTINUE
+    SIF NO:(BATTLE_STATE:L_SELF:キャラ登録番号) != 1389
+        CONTINUE
+    SIF 戦闘中カウント:L_SELF:4 != 戦闘行動キャラ + 1
+        CONTINUE
+    IF 戦闘中カウント:L_SELF:被ダメ合計 > 戦闘中カウント:L_SELF:3
+        ; 外側の戦闘効果削除へ再帰しない。潜入には独自の消滅処理がない。
+        L_ROW = バフ番号取得_枠("ドンキ_潜入_回避率", L_SELF)
+        SIF L_ROW >= 0
+            DT_ROW_REMOVE "戦闘効果データベース", DT_CELL_GET("戦闘効果データベース", L_ROW, "id")
+        L_ROW = バフ番号取得_枠("ドンキ_潜入_クリティカル率", L_SELF)
+        SIF L_ROW >= 0
+            DT_ROW_REMOVE "戦闘効果データベース", DT_CELL_GET("戦闘効果データベース", L_ROW, "id")
+    ENDIF
+    戦闘中カウント:L_SELF:3 = 0
+    戦闘中カウント:L_SELF:4 = 0
+NEXT
+RETURN 0
