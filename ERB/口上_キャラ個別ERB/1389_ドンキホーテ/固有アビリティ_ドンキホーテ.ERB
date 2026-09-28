@@ -1,7 +1,7 @@
-﻿; ドンキホーテ（1389）・ジョブ証別固有アビリティ試作 v0.2.2
+﻿; ドンキホーテ（1389）・ジョブ証別固有アビリティ試作 v0.2.3
 ; status: candidate / 数値は仮調整。Emuera実戦未確認
 ; source: erablue-resort/erablue_resort main（2026-09-27参照）
-; updated: 2026-09-27
+; updated: 2026-09-28
 ;
 ; 設計:
 ;   固定1アビ「過度な熱情」
@@ -59,12 +59,13 @@ L_DESC =
 SELECTCASE L_KEY
     CASE 1
         ; 共通 / 過度な熱情
-        ; MP=MP消費 / X=最大HP消費率 / T=各バフ持続
+        ; MP=MP消費 / X=最大HP消費率 / Y=奥義ゲージ消費量 / T=各バフ持続
         L_MP = 20
-        L_X = 3
+        L_X = 2
+        L_Y = 10
         L_T = 3
         L_NAME = 過度な熱情
-        L_DESC '= @"最大HPの{L_X}％を消費し、自身にランダムな強化効果を1つ付与（{L_T}ターン／非累積）。<br>HPは1で止まり、行動回数を消費しない。"
+        L_DESC '= @"奥義ゲージ{L_Y}％と最大HPの{L_X}％を消費し、自身にランダムな強化効果を1つ付与（{L_T}ターン／非累積）。<br>HPを1残せない場合は使用不可。行動回数を消費しない。"
     CASE 2
         ; プレーン / 束刺し
         L_MP = 20
@@ -393,6 +394,7 @@ RETURN RESULT
 #DIM DYNAMIC L_DAMAGE
 #DIM DYNAMIC L_RECOIL
 #DIM DYNAMIC L_MP_COST
+#DIM DYNAMIC L_HP_COST
 #DIM DYNAMIC L_SPEED_SELF
 #DIM DYNAMIC L_SPEED_TARGET
 #DIM DYNAMIC L_RAND
@@ -454,7 +456,17 @@ SELECTCASE L_MODE
         ENDIF
 
         IF L_SELF >= 0 && L_SELF < 4
-            IF L_KEY == 43
+            IF L_KEY == 1
+                L_HP_COST = MAX(1, BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100)
+                IF BATTLE_STATE:L_SELF:奥義ゲージ < L_Y
+                    詳細文文字列受け渡し変数 += "<br>奥義ゲージが足りません。"
+                    アビテンプレート用_アビ封印用フラグ = 1
+                ENDIF
+                IF BATTLE_STATE:L_SELF:ＨＰ <= L_HP_COST
+                    詳細文文字列受け渡し変数 += "<br>HPが足りません。"
+                    アビテンプレート用_アビ封印用フラグ = 1
+                ENDIF
+            ELSEIF L_KEY == 43
                 L_MP_COST = (BATTLE_STATE:L_SELF:最大ＭＰ * L_X + 99) / 100
                 IF BATTLE_STATE:L_SELF:ＭＰ < L_MP_COST
                     詳細文文字列受け渡し変数 += @"<br>必要MP：{L_MP_COST}"
@@ -489,9 +501,20 @@ IF L_CD > 0 && 戦闘中カウント:L_SELF:(L_SLOT - 1) > 現在ターン数
 ENDIF
 
 ; 個別リソース確認
-IF L_KEY == 1 && BATTLE_STATE:L_SELF:ＭＰ < L_MP
-    CALL ドンキ試作_取消("MPが足りません。")
-    RETURN -1
+IF L_KEY == 1
+    L_HP_COST = MAX(1, BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100)
+    IF BATTLE_STATE:L_SELF:奥義ゲージ < L_Y
+        CALL ドンキ試作_取消("奥義ゲージが足りません。")
+        RETURN -1
+    ENDIF
+    IF BATTLE_STATE:L_SELF:ＨＰ <= L_HP_COST
+        CALL ドンキ試作_取消("HPが足りません。")
+        RETURN -1
+    ENDIF
+    IF BATTLE_STATE:L_SELF:ＭＰ < L_MP
+        CALL ドンキ試作_取消("MPが足りません。")
+        RETURN -1
+    ENDIF
 ELSEIF L_KEY == 43
     L_MP_COST = (BATTLE_STATE:L_SELF:最大ＭＰ * L_X + 99) / 100
     IF BATTLE_STATE:L_SELF:ＭＰ < L_MP_COST
@@ -529,8 +552,13 @@ L_TARGET = L_TARGETS:0
 
 ; 個別コスト支払い
 IF L_KEY == 1
-    L_TMP = MIN(BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100, MAX(0, BATTLE_STATE:L_SELF:ＨＰ - 1))
-    BATTLE_STATE:L_SELF:ＨＰ -= L_TMP
+    ; 対象選択中に状態が変化した場合も、三つの支払いを部分実行しない。
+    IF BATTLE_STATE:L_SELF:奥義ゲージ < L_Y || BATTLE_STATE:L_SELF:ＨＰ <= L_HP_COST || BATTLE_STATE:L_SELF:ＭＰ < L_MP
+        CALL ドンキ試作_取消("発動に必要な奥義ゲージ、HP、MPが足りません。")
+        RETURN -1
+    ENDIF
+    BATTLE_STATE:L_SELF:奥義ゲージ -= L_Y
+    BATTLE_STATE:L_SELF:ＨＰ -= L_HP_COST
 ELSEIF L_KEY == 43
     BATTLE_STATE:L_SELF:ＭＰ -= L_MP_COST
 ELSEIF L_KEY == 123
