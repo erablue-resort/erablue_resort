@@ -350,6 +350,8 @@ LOCALS += "<br>"
 
 IF 発動効果量 != ""
 	LOCALS += @"■発動効果量：%発動効果量%"
+	SIF STRCOUNT(発動先効果, "ルピ") > 0
+		LOCALS += "ルピ"
 ELSE
 	LOCALS += @"■発動効果量：なし"
 ENDIF
@@ -497,15 +499,9 @@ SELECTCASE 発動タイミング
 		PRINTL
 		;対象キャラの選択
 		FOR LOCAL, 0, 6
-			;とりあえず基礎ステータスのみ対象
-			;属性は無視
-			SIF LOCAL == 16
-				CONTINUE
-			;名前が取れないものは無視
-			SIF ERDNAME(装備ステータス補正保存, LOCAL) == ""
-				CONTINUE
+			;キャラの対象範囲を属性で設定
 
-			PRINTBUTTONLC @"[{LOCAL + 200}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
+			PRINTBUTTONLC @"[{LOCAL + 100}] 対象：%属性数値文字列変換(LOCAL)%属性キャラ", LOCAL + 100
 			;４つ並んだら改行
 			改行カウント ++
 			IF 改行カウント >= 4
@@ -513,6 +509,7 @@ SELECTCASE 発動タイミング
 				改行カウント = 0
 			ENDIF
 		NEXT
+		PRINTBUTTONLC @"[106] 対象：すべてのキャラ", 106
 		改行カウント = 0
 		FOR LOCAL, 1, 30
 			;とりあえず基礎ステータスのみ対象
@@ -523,7 +520,7 @@ SELECTCASE 発動タイミング
 			SIF ERDNAME(装備ステータス補正保存, LOCAL) == ""
 				CONTINUE
 
-			PRINTBUTTONLC @"[{LOCAL + 200}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 100
+			PRINTBUTTONLC @"[{LOCAL + 200}] %ERDNAME(装備ステータス補正保存, LOCAL)%", LOCAL + 200
 			;４つ並んだら改行
 			改行カウント ++
 			IF 改行カウント >= 4
@@ -557,17 +554,26 @@ SELECTCASE RESULT
 		RESULTS = %対象範囲_変更後%_%発動先効果_変更後%
 	CASE 0
 		発動先効果_変更後 = ルピ収入増加
+		対象範囲_変更後 = 
 	CASE 1
 		発動先効果_変更後 = ZP収入増加
+		対象範囲_変更後 = 
+	CASE 100 TO 105
+		対象範囲_変更後 = %属性数値文字列変換(RESULT - 100)%属性キャラ
+	CASE 106
+		対象範囲_変更後 = 全てのキャラ
 	CASE 200 TO 299
-		発動先効果_変更後 = %ERDNAME(装備ステータス補正保存, RESULT - 100)%増加
+		発動先効果_変更後 = %ERDNAME(装備ステータス補正保存, RESULT - 200)%増加
 	CASE 300
 		発動先効果_変更後 = ルピ収入増加
+		対象範囲_変更後 = 
 	CASE 301
 		発動先効果_変更後 = 経験値収入増加
+		対象範囲_変更後 = 
 ENDSELECT
 
 
 @料理エディタ_発動効果量変更(発動効果量, 発動先効果)
 #DIMS 発動先効果
 #DIMS REF 発動効果量
+

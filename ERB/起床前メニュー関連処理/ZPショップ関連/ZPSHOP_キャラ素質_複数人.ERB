@@ -1047,6 +1047,9 @@ FOR LOCAL:1 , 0, 4
 	PRINTBUTTON @"[{LOCAL:1}]%受胎体質素質名(LOCAL:1)%　消費ZP:{COST_TO_受胎}（1キャラ分）", LOCAL:1
 	PRINTL
 NEXT
+PRINTBUTTON @"[10]可能な限り最大の素質を与える　消費ZP:{COST_TO_受胎}（1キャラ分）", 10
+PRINTL
+PRINTL
 PRINTBUTTON "[999]戻る", 999
 $INPUT_LOOP3
 BINPUT
@@ -1069,6 +1072,55 @@ SELECTCASE LOCAL:1
 				SIF TALENT:(汎用キャラ配列:LOCAL):受胎体質 == LOCAL:1
 					CONTINUE
 				SIF CFLAG:(汎用キャラ配列:LOCAL):特殊妊娠蓄積度 < 必要蓄積度:(LOCAL:1)
+					CONTINUE
+				SIF GETBIT(TALENT:(汎用キャラ配列:LOCAL):性別, 0) == 0
+					CONTINUE
+				必要COST_計算値 = COST_TO_受胎
+				IF 必要COST + 必要COST_計算値 > FLAG:ZP所持量
+					PRINTL 必要ZPが不足したので処理を停止しました。
+					BREAK
+				ENDIF
+				必要COST += 必要COST_計算値
+				PRINTFORML %GET_NAME(汎用キャラ配列:LOCAL, 1, 50), 50, LEFT%: %受胎体質素質名(TALENT:(汎用キャラ配列:LOCAL):受胎体質), 12, LEFT% > %受胎体質素質名(LOCAL:1)%
+				TALENT:(汎用キャラ配列:LOCAL):受胎体質 = LOCAL:1
+			NEXT
+			FLAG:ZP所持量 -= 必要COST
+			IF 必要COST <= 0
+				PRINTW 変更条件を満たすキャラが存在しません。
+			ELSE
+				PRINTFORMW 以上のキャラについて処理を実行しました。（消費ZP:{必要COST}）
+			ENDIF
+		ENDIF
+
+		RETURN 0
+	CASE 10
+		PRINTFORML 全員の受胎体質を可能な限り最大の素質に変更しますか？
+		PRINTFORML （畜生胎、多産、双子胎の順番で判定します）
+		PRINTFORML （所持ZP：{FLAG:ZP所持量}.{(ZP小数点以下所持量 % 1000) / 100}{(ZP小数点以下所持量 % 100) / 10}{(ZP小数点以下所持量 % 10)}）
+		PRINTBUTTONLC "[0]はい", 0
+		PRINTBUTTONLC "[1]いいえ", 1
+		BINPUT
+		
+		IF RESULT == 0
+			必要COST = 0
+			FOR LOCAL, 0, キャラクタ数上限
+				SIF 汎用キャラ配列:LOCAL < 0
+					BREAK
+				SELECTCASE CFLAG:(汎用キャラ配列:LOCAL):特殊妊娠蓄積度
+					CASE IS < 必要蓄積度:1
+						;何もしない
+						CONTINUE
+					CASE IS < 必要蓄積度:2
+						;双子胎
+						LOCAL:1 = 1
+					CASE IS < 必要蓄積度:3
+						;多産
+						LOCAL:1 = 2
+					CASEELSE
+						;畜生胎
+						LOCAL:1 = 3
+				ENDSELECT
+				SIF TALENT:(汎用キャラ配列:LOCAL):受胎体質 == LOCAL:1
 					CONTINUE
 				SIF GETBIT(TALENT:(汎用キャラ配列:LOCAL):性別, 0) == 0
 					CONTINUE
