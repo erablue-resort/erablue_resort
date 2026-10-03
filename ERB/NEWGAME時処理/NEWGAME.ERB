@@ -689,11 +689,14 @@ FOR キャラ番号, 1, キャラクタ数上限
 		NEXT
 		CALL 弱点妥当性チェック(設定中キャラ番号)
 	ENDIF
+	;別人版口上の存在チェック
+	CALL 口上切り替えキーチェック(設定中キャラ番号)
 	;初期履歴の登録
 	VARSET RESULTS
 	関数総数 = ENUMFUNCENDSWITH(@"_初期履歴登録_{キャラ番号}")
 	FOR 関数番号, 0, 関数総数
-		CALLFORM %RESULTS:関数番号%(設定中キャラ番号)
+		SIF STRFIND(RESULTS:関数番号, @"%CSTR:設定中キャラ番号:口上切り替えキー%口上_ステータス画面_") == 0
+			CALLFORM %RESULTS:関数番号%(設定中キャラ番号)
 	NEXT
 	IF LOCAL % 100 == 1
 		CLEARLINE 1
@@ -2704,4 +2707,53 @@ SELECTCASE RESULT
 ENDSELECT
 
 RESTART
+
+
+@口上切り替えキーチェック(対象キャラ)
+#DIM 対象キャラ
+#DIM キー数
+#DIM 入力
+
+VARSET RESULTS
+
+キー数 = ENUMFUNCBEGINSWITH(@"口上切り替え用関数_{NO:対象キャラ}_")
+
+$表示位置
+
+IF キー数 > 0
+	DRAWLINE
+	PRINTFORML %NAME:対象キャラ%には複数バージョンの口上が存在します。
+	PRINTL どの口上を適用するかを選択してください。
+	DRAWLINE
+	PRINTBUTTON "[0] 通常の口上", 0
+	PRINTL
+	FOR LOCAL, 0, キー数
+		CALLFORM %RESULTS:LOCAL%()
+		PRINTBUTTON @"[{LOCAL + 100}] %TSTR:コマンド名受渡%口上", LOCAL + 100
+		PRINT 　　　
+		PRINTBUTTON "[解説]", LOCAL + 200
+		PRINTL
+	NEXT
+	
+	PRINTL
+	PRINTL
+	BINPUT
+	入力 = RESULT
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW %NAME:対象キャラ%は通常の口上で開始します。
+		CASE IS >= 200
+			CALLFORM %RESULTS:(入力 - 200)%()
+			DRAWLINE
+			HTML_PRINT TSTR:ツールチップ受渡
+			PRINTL 
+			DRAWLINE
+			WAIT
+			GOTO 表示位置
+		CASE IS >= 100
+			CALLFORM %RESULTS:(入力 - 100)%()
+			PRINTFORMW %NAME:対象キャラ%は%TSTR:コマンド名受渡%口上で開始します。
+			CSTR:対象キャラ:口上切り替えキー '= TSTR:コマンド名受渡
+	ENDSELECT
+ENDIF
 
