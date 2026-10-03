@@ -34,14 +34,38 @@ IF 常駐業務フォロー == 0
 ENDIF
 
 @VERUP_110()
+#DIM 関数総数
+#DIMS 関数名
 
 ; IF なんらかフォロー == 0
 ; 	;なんらかのフォロー処理
 ; 	;ここで"なんらかフォロー = 1"しない
 ; ENDIF
 
+IF キャライベントNO追加フォロー == 0
+	FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
+		SIF DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ") != "キャライベント"
+			CONTINUE
+		SIF STRFIND(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "【汎用】") >= 0
+			CONTINUE
+		関数総数 = ENUMFUNCENDSWITH(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"))
+		IF 関数総数 > 0
+			FOR LOCAL:1, 0, 関数総数
+				IF STRFIND(RESULTS:(LOCAL:1), "イベント関数_キャライベント_") >= 0
+					関数名 '= RESULTS:(LOCAL:1)
+					BREAK
+				ENDIF
+			NEXT
+			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント名", SUBSTRING(関数名, 28)
+			;確認
+			PRINTFORMW %DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+		ENDIF
+	NEXT
+ENDIF
+
 ;対応処理用フラグを対応済状態にセット
 @VERUP_110_FINISH()
 ; なんらかフォロー = 1
 
 常駐業務フォロー = 1
+キャライベントNO追加フォロー = 1
