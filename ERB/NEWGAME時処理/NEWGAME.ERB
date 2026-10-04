@@ -448,7 +448,7 @@ PRINTW フレーバー素質の設定を呼び出します。
 PRINTL
 ;先に口上側の設定を読み込んでおく
 FOR COUNT, 1, CHARANUM
-	TRYCALLFORM フレーバー素質初期設定変更_{COUNT}
+	TRYCALLFORM フレーバー素質初期設定変更_%CSTR:COUNT:口上切り替えキー%{COUNT}
 NEXT
 CALL フレーバー素質初期設定
 PRINTL
@@ -689,8 +689,9 @@ FOR キャラ番号, 1, キャラクタ数上限
 		NEXT
 		CALL 弱点妥当性チェック(設定中キャラ番号)
 	ENDIF
-	;別人版口上の存在チェック
-	CALL 口上切り替えキーチェック(設定中キャラ番号)
+	;作成中
+	; ;別人版口上の存在チェック
+	; CALL 口上切り替えキーチェック(設定中キャラ番号)
 	;初期履歴の登録
 	VARSET RESULTS
 	関数総数 = ENUMFUNCENDSWITH(@"_初期履歴登録_{キャラ番号}")
@@ -825,7 +826,7 @@ IF 引き継ぎキャラフラグ == 0
 
 	;性別保存
 	CFLAG:ARG:元性別保存 = TALENT:ARG:性別
-	TRYCALLFORM 特殊性別設定_{NO:ARG}(ARG)
+	TRYCALLFORM 特殊性別設定_%CSTR:ARG:口上切り替えキー%{NO:ARG}(ARG)
 
 	;知識素質
 	IF CSTR:ARG:知識素質設定 != ""
@@ -913,7 +914,7 @@ IF 引き継ぎキャラフラグ == 0
 	ENDIF
 
 	CALL 弱点コマンド初期設定(ARG)
-	TRYCALLFORM 口上側初期パラメータ変更_{NO:ARG}
+	TRYCALLFORM 口上側初期パラメータ変更_%CSTR:ARG:口上切り替えキー%{NO:ARG}
 	;この時点で身長・スリーサイズが入っている場合、それを初期値として登録
 	SIF BASE:ARG:身長
 		CFLAG:ARG:身長初期値 = BASE:ARG:身長
@@ -1084,7 +1085,7 @@ SIF MATCH(弱点コマンド枠:ARG:0, "", 0, 5) == 0 && MATCH(弱点コマン�
 VARSET 弱点コマンド枠:ARG:0
 
 ;まず口上側で弱点の設定があるか見に行く
-TRYCCALLFORM 弱点コマンド変更_{NO:ARG}
+TRYCCALLFORM 弱点コマンド変更_%CSTR:ARG:口上切り替えキー%{NO:ARG}
 	;弱点が全て埋まった場合はここで処理終了
 	SIF MATCH(弱点コマンド枠:ARG:0, "", 0, 5) == 0 && MATCH(弱点コマンド枠:ARG:0, "-1", 0, 5) == 0
 		RETURN
@@ -1576,11 +1577,11 @@ ENDIF
 MAXBASE:キャラ番号:性欲 = MIN(性欲計算値, 9999)
 
 RESULT = 体力計算値
-TRYCALLFORM 固有体力補正_{NO:キャラ番号}(キャラ番号, 体力計算値)
+TRYCALLFORM 固有体力補正_%CSTR:キャラ番号:口上切り替えキー%{NO:キャラ番号}(キャラ番号, 体力計算値)
 MAXBASE:キャラ番号:体力 = MIN(RESULT, 9999)
 
 RESULT = 性欲計算値
-TRYCALLFORM 固有性欲補正_{NO:キャラ番号}(キャラ番号, 性欲計算値)
+TRYCALLFORM 固有性欲補正_%CSTR:キャラ番号:口上切り替えキー%{NO:キャラ番号}(キャラ番号, 性欲計算値)
 MAXBASE:キャラ番号:性欲 = MIN(RESULT, 9999)
 
 BASE:キャラ番号:体力 = MIN(MAXBASE:キャラ番号:体力, BASE:キャラ番号:体力)
@@ -2744,6 +2745,8 @@ IF キー数 > 0
 			PRINTFORMW %NAME:対象キャラ%は通常の口上で開始します。
 		CASE IS >= 200
 			CALLFORM %RESULTS:(入力 - 200)%()
+			DRAWLINE
+			PRINTFORML ・%TSTR:コマンド名受渡%口上
 			DRAWLINE
 			HTML_PRINT TSTR:ツールチップ受渡
 			PRINTL 
