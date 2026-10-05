@@ -310,6 +310,7 @@ ENDSELECT
 
 @イベント発生条件チェック
 #DIM スキップフラグ
+#DIM 対象キャラ
 #DIMS リスト表示名
 
 FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
@@ -327,6 +328,22 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 				TRYCALLFORM イベント発生条件_サブイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
 			CASE "キャライベント"
 				TRYCCALLFORM イベント発生条件_キャライベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+					;口上切り替えキーが設定されている時はそれを見る
+					VARSET RESULTS
+					SPLIT DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "_", RESULTS
+					;最初の区切りが数字かどうかを見る
+					;これあんま信頼性のある方法じゃないなぁ……まあでもしょうがないか……
+					IF ISNUMERIC(RESULTS:0)
+						;数字なので＝キャラNO
+						対象キャラ = GETCHARA(TOINT(RESULTS:0))
+						SIF CSTR:対象キャラ:口上切り替えキー != ""
+							RESULT = 0
+					ELSE
+						;先頭が数字じゃないのでRESULTS:1がキャラNO
+						対象キャラ = GETCHARA(TOINT(RESULTS:1))
+						SIF CSTR:対象キャラ:口上切り替えキー != RESULTS:0
+							RESULT = 0
+					ENDIF
 				CATCH
 					IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "【汎用】")
 						IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "恋慕不可]解除")
@@ -441,6 +458,22 @@ FOR LOCAL, 0, DT_ROW_LENGTH("エンディング用変数配列")
 		RESULT = 0
 		TRYCALLFORM イベントメッセージ_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("発生時")
 		TRYCALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("発生条件", LOCAL)
+		;口上切り替えキーが設定されている時はそれを見る
+		VARSET RESULTS
+		SPLIT DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名"), "_", RESULTS
+		;最初の区切りが数字かどうかを見る
+		;これあんま信頼性のある方法じゃないなぁ……まあでもしょうがないか……
+		IF ISNUMERIC(RESULTS:0)
+			;数字なので＝キャラNO
+			対象キャラ = GETCHARA(TOINT(RESULTS:0))
+			SIF CSTR:対象キャラ:口上切り替えキー != ""
+				RESULT = 0
+		ELSE
+			;先頭が数字じゃないのでRESULTS:1がキャラNO
+			対象キャラ = GETCHARA(TOINT(RESULTS:1))
+			SIF CSTR:対象キャラ:口上切り替えキー != RESULTS:0
+				RESULT = 0
+		ENDIF
 		IF RESULT
 			DT_CELL_SET "エンディング用変数配列", LOCAL, "イベント発生フラグ", 1
 			IF LOCAL:1 == 0

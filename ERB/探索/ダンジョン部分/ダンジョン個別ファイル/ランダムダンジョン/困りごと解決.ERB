@@ -137,10 +137,14 @@ CALL ドロップ判定処理(ドロップ確率, ドロップアイテム)
 VARSET RESULTS
 VARSET LOCALS
 LOCAL:1 = 0
-キャライベ数 = ENUMFUNCBEGINSWITH("イベント_困りごと解決_キャラ依頼_")
+キャライベ数 = ENUMFUNCBEGINSWITH(@"イベント_困りごと解決_キャラ依頼_")
 FOR LOCAL, 0, キャライベ数
 	;依頼のキャラを引っ張ってくる
-	対象キャラ = TOINT(SUBSTRING(RESULTS:LOCAL, 33))
+	IF STRFIND(SUBSTRING(RESULTS:LOCAL, 33, -1), "_") >= 0
+		対象キャラ = GETCHARA(TOINT(SUBSTRING(RESULTS:LOCAL, STRFIND(RESULTS:LOCAL, "_", 33), -1)))
+	ELSE
+		対象キャラ = GETCHARA(TOINT(SUBSTRING(RESULTS:LOCAL, 33, -1)))
+	ENDIF
 	SIF 対象キャラ < 1
 		CONTINUE
 	;キャラが島にいないとダメ
@@ -151,6 +155,9 @@ FOR LOCAL, 0, キャライベ数
 		CONTINUE
 	;キャラがPTメンバーにいるとダメ
 	SIF GROUPMATCH(対象キャラ, BATTLE_STATE:0:キャラ登録番号, BATTLE_STATE:1:キャラ登録番号, BATTLE_STATE:2:キャラ登録番号, BATTLE_STATE:3:キャラ登録番号, BATTLE_STATE:10:キャラ登録番号, BATTLE_STATE:11:キャラ登録番号, BATTLE_STATE:12:キャラ登録番号, BATTLE_STATE:13:キャラ登録番号)
+		CONTINUE
+	;別人版制御
+	SIF STRFIND(RESULTS:LOCAL, @"%CSTR:対象キャラ:口上切り替えキー%{NO:対象キャラ}") < 0
 		CONTINUE
 	LOCALS:(LOCAL:1) = %RESULTS:LOCAL%
 	LOCAL:1 += 1
