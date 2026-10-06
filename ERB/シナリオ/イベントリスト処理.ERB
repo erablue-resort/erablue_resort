@@ -312,6 +312,7 @@ ENDSELECT
 #DIM スキップフラグ
 #DIM 対象キャラ
 #DIMS リスト表示名
+#DIM 発生成否
 
 FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 	;初回発生チェック
@@ -324,10 +325,13 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 		SELECTCASE DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベントカテゴリ")
 			CASE "メインシナリオ"
 				TRYCALLFORM イベント発生条件_メインシナリオ_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+				発生成否 = RESULT
 			CASE "サブイベント"
 				TRYCALLFORM イベント発生条件_サブイベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+				発生成否 = RESULT
 			CASE "キャライベント"
 				TRYCCALLFORM イベント発生条件_キャライベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+					発生成否 = RESULT
 					;口上切り替えキーが設定されている時はそれを見る
 					VARSET RESULTS
 					SPLIT DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "_", RESULTS
@@ -337,12 +341,12 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 						;数字なので＝キャラNO
 						対象キャラ = GETCHARA(TOINT(RESULTS:0))
 						SIF CSTR:対象キャラ:口上切り替えキー != ""
-							RESULT = 0
+							発生成否 = 0
 					ELSE
 						;先頭が数字じゃないのでRESULTS:1がキャラNO
 						対象キャラ = GETCHARA(TOINT(RESULTS:1))
 						SIF CSTR:対象キャラ:口上切り替えキー != RESULTS:0
-							RESULT = 0
+							発生成否 = 0
 					ENDIF
 				CATCH
 					IF STRCOUNT(DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名"), "【汎用】")
@@ -357,8 +361,9 @@ FOR LOCAL, 0, DT_ROW_LENGTH("各イベント用変数配列")
 				ENDCATCH
 			CASE "突発イベント"
 				TRYCALLFORM イベント発生条件_突発イベント_%DT_CELL_GETS("各イベント用変数配列", LOCAL, "イベント名")%
+				発生成否 = RESULT
 		ENDSELECT
-		IF RESULT
+		IF 発生成否
 			DT_CELL_SET "各イベント用変数配列", LOCAL, "イベント発生フラグ", 1
 			IF LOCAL:1 == 0
 				PRINTL
@@ -458,6 +463,7 @@ FOR LOCAL, 0, DT_ROW_LENGTH("エンディング用変数配列")
 		RESULT = 0
 		TRYCALLFORM イベントメッセージ_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("発生時")
 		TRYCALLFORM イベント関数_エンディングイベント_%DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名")%("発生条件", LOCAL)
+		発生成否 = RESULT
 		;口上切り替えキーが設定されている時はそれを見る
 		VARSET RESULTS
 		SPLIT DT_CELL_GETS("エンディング用変数配列", LOCAL, "イベント名"), "_", RESULTS
@@ -467,14 +473,14 @@ FOR LOCAL, 0, DT_ROW_LENGTH("エンディング用変数配列")
 			;数字なので＝キャラNO
 			対象キャラ = GETCHARA(TOINT(RESULTS:0))
 			SIF CSTR:対象キャラ:口上切り替えキー != ""
-				RESULT = 0
+				発生成否 = 0
 		ELSE
 			;先頭が数字じゃないのでRESULTS:1がキャラNO
 			対象キャラ = GETCHARA(TOINT(RESULTS:1))
 			SIF CSTR:対象キャラ:口上切り替えキー != RESULTS:0
-				RESULT = 0
+				発生成否 = 0
 		ENDIF
-		IF RESULT
+		IF 発生成否
 			DT_CELL_SET "エンディング用変数配列", LOCAL, "イベント発生フラグ", 1
 			IF LOCAL:1 == 0
 				PRINTL
