@@ -11,23 +11,61 @@ TSTR:コマンド名受渡 = 着替える
 ;===================================================
 @COMTYPE_334
 #FUNCTION
-TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能")
+TFLAG:コマンドタイプ受渡 = COMTYPE("単独可能_日常")
 
 @COM_TOOLTIP_334
 LOCALS = <br>■着替える<br>
-LOCALS += "自室で別の服に着替えるコマンド。自身の制服・現在の衣装を変更出来る。"
+LOCALS += "自室で別の服に着替えるコマンド。自身の制服・現在の衣装を変更出来る。<br>"
+LOCALS += "同行者がいる場合、同行者の制服・現在の衣装も変更出来る。"
 LOCALS += "<br>COMタイプ：単独可能<br>取得ソース：なし"
 LOCALS += "<br>固有の取得経験：なし<br>"
 TSTR:ツールチップ受渡 = %LOCALS%
 
 @COM334
+#DIM 同行者, 10
+#DIM 着替え対象
+着替え対象 = PLAYER
 
-CALL コスプレ実処理(PLAYER)
-IF RSTR:コマンド結果受渡し文字列 != "元の衣装"
-	現在制服:PLAYER:0 '= RSTR:コマンド結果受渡し文字列
-ELSE
-	現在制服:PLAYER:0 = 
+;同行者判定
+VARSET 同行者
+LOCAL:1 = 0
+FOR LOCAL,1,CHARANUM
+	SIF TARGET:LOCAL <= 0
+		BREAK
+	SIF !CFLAG:(TARGET:LOCAL):同行 && !CFLAG:(TARGET:LOCAL):デート残り時間
+		CONTINUE
+	SIF CFLAG:(TARGET:LOCAL):うふふ
+		CONTINUE
+	同行者:(LOCAL:1) = TARGET:LOCAL
+	LOCAL:1 ++
+NEXT
+
+IF LOCAL:1 > 0
+	DRAWLINE
+	PRINTL 誰の衣装を変更しますか？
+	DRAWLINE
+	PRINTBUTTON @"[10] %NAME:PLAYER%", 10
+	PRINTL
+	FOR LOCAL, 0, LOCAL:1
+		PRINTBUTTON @"[{LOCAL}] %NAME:(同行者:LOCAL)%", LOCAL
+		PRINTL
+	NEXT
+	PRINTL
+	BINPUT
+	IF RESULT == 10
+		着替え対象 = PLAYER
+	ELSE
+		着替え対象 = 同行者:RESULT
+	ENDIF
 ENDIF
+
+CALL コスプレ実処理(着替え対象)
+IF RSTR:コマンド結果受渡し文字列 != "元の衣装"
+	現在制服:着替え対象:0 '= RSTR:コマンド結果受渡し文字列
+ELSE
+	現在制服:着替え対象:0 = 
+ENDIF
+RFLAG:コマンド結果受渡し変数 = 着替え対象
 RETURN RESULT
 
 ;-------------------------------------------------
@@ -41,6 +79,13 @@ SIF SAVESTR:ゲームフェイズ管理 != "通常モード"
 ;一括管理
 SIF GLOBAL_COMABLE(334)
 	RETURN RESULT
+;私室設定
+IF CFLAG:MASTER:現在マップ種別 == 0
+	SIF CFLAG:MASTER:現在位置 != CFLAG:MASTER:自室位置
+		RETURN 0
+ELSE
+	RETURN 0
+ENDIF
 
 
 RETURN 1
@@ -52,12 +97,12 @@ RETURN 1
 @MESSAGE_COM334
 #DIM 同時キャラ番号
 
-PRINTFORML %CALLNAME:PLAYER%は%RSTR:コマンド結果受渡し文字列%に着替えた。
+PRINTFORML %CALLNAME:(RFLAG:コマンド結果受渡し変数)%は%RSTR:コマンド結果受渡し文字列%に着替えた。
 
 ;画像表示、元の衣装以外の時に表示
 IF RSTR:コマンド結果受渡し文字列 != "元の衣装"
-	IF EXIST画像FILE(@"resources/%CSTR:PLAYER:画像フォルダ%/短冊_%RSTR:コマンド結果受渡し文字列%")
-		CALL PRINT_STRL(@"IMAGEPATH_%CSTR:PLAYER:画像フォルダ%/短冊_%RSTR:コマンド結果受渡し文字列%")
+	IF EXIST画像FILE(@"resources/%CSTR:(RFLAG:コマンド結果受渡し変数):画像フォルダ%/短冊_%RSTR:コマンド結果受渡し文字列%")
+		CALL PRINT_STRL(@"IMAGEPATH_%CSTR:(RFLAG:コマンド結果受渡し変数):画像フォルダ%/短冊_%RSTR:コマンド結果受渡し文字列%")
 	ENDIF
 ENDIF
 
