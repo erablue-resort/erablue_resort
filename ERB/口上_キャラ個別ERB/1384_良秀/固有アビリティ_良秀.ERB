@@ -26,7 +26,7 @@
 ; =====================================================================
 ; 調整用データ（MP / CD / 倍率 / 追加値X / 追加値Y / 持続T）
 ; CDは使用ターンを含む。T1にCD3の技を使用すると次はT4。
-; バランス調整: 2アビと3アビは全ジョブでCD0。共通1アビ「塗る」はCD3。
+; バランス調整: 2アビと3アビは原則CD0。共通1アビ「塗る」と、行動消費なしのシーフ「拍を盗む」はCD3。
 ; 技キー: 1=共通、2/3=プレーン、ジョブ番号*10+枠番号=人格。
 ; =====================================================================
 @良秀試作_技データ(L_JOB, L_SLOT)
@@ -129,11 +129,11 @@ SELECTCASE L_KEY
         L_MP = 20
         L_CD = 0
         L_P = 350
-        L_X = 15
+        L_X = 10
         L_Y = 0
         L_T = 0
         L_NAME = 血の署名
-        L_DESC '= @"現在HPを{L_X}％消費し、敵単体へ自属性{L_P}％。"
+        L_DESC '= @"最大HPの{L_X}％を消費し、敵単体へ自属性{L_P}％。<br>HPが消費量以下のときは使用できない。"
     CASE 33
         ; プリースト / 命の勘定
         L_MP = 20
@@ -176,14 +176,14 @@ SELECTCASE L_KEY
         L_DESC '= @"敵単体へ自属性{L_P}％。攻撃前の敵CTが0なら{L_X}％の追加攻撃。"
     CASE 53
         ; エンハンサー / 傷口を固定する
-        L_MP = 10
+        L_MP = 25
         L_CD = 0
-        L_P = 0
-        L_X = 1
+        L_P = 180
+        L_X = 15
         L_Y = 100
-        L_T = 0
+        L_T = 3
         L_NAME = 傷口を固定する
-        L_DESC '= @"敵単体の攻撃力A、防御力A、連続攻撃率Aの弱体を{L_X}ターン延長。"
+        L_DESC '= @"敵単体へ自属性{L_P}％。命中時、傷口を{L_T}ターン付与。<br>傷口：被ダメージ＋{L_X}％（独自枠・非累積／基礎成功率{L_Y}％）。"
     CASE 62
         ; グラップラー / 肉を糧に
         L_MP = 25
@@ -211,7 +211,7 @@ SELECTCASE L_KEY
         L_P = 60
         L_X = 0
         L_Y = 0
-        L_T = 3
+        L_T = 5
         L_NAME = 刺し継ぎ
         L_DESC '= @"自身に{L_T}ターン、通常攻撃の連撃時に追加攻撃。<br>2撃目以降、1回につき{L_P}％（最大2回）。"
     CASE 73
@@ -247,10 +247,11 @@ SELECTCASE L_KEY
     CASE 92
         ; シーフ / 拍を盗む
         L_MP = 20
-        L_CD = 1
+        L_CD = 3
         L_P = 0
         L_X = 1
-        L_Y = 90
+        ; 100を超えた分はボスの累積スロウ耐性を相殺する。CT3なので確定でもロックにはならない。
+        L_Y = 120
         L_T = 0
         L_NAME = 拍を盗む
         L_DESC '= @"行動を消費せず、敵単体のCTを{L_X}減少（基礎成功率{L_Y}％）。<br>さらにトレハンを1回行う。"
@@ -263,7 +264,7 @@ SELECTCASE L_KEY
         L_Y = 40
         L_T = 0
         L_NAME = 鑑定料
-        L_DESC '= @"敵単体のトレハンLv×{L_X}だけ自身のMP回復（最大{L_Y}）。"
+        L_DESC '= @"敵単体のトレハンLv×{L_X}だけ自身のMP回復（最大{L_Y}）。<br>同じ敵には1戦闘1回まで。"
     CASE 102
         ; ハーピスト / 不協和音
         L_MP = 25
@@ -416,7 +417,6 @@ RETURN RESULT
 #DIM DYNAMIC L_TARGETS, アビ対象最大数
 #DIMS DYNAMIC L_NAME
 #DIMS DYNAMIC L_DESC
-#DIMS DYNAMIC L_FRAME
 
 L_JOB = 良秀試作_ジョブ番号(L_CHARA)
 L_KEY = L_JOB * 10 + L_SLOT
@@ -468,6 +468,12 @@ SELECTCASE L_MODE
                 アビテンプレート用_アビ封印用フラグ = 1
             ENDIF
         ENDIF
+        IF L_SELF >= 0 && L_SELF < 4 && L_KEY == 32
+            IF BATTLE_STATE:L_SELF:ＨＰ <= MAX(1, BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100)
+                詳細文文字列受け渡し変数 += "<br>HPが足りません。"
+                アビテンプレート用_アビ封印用フラグ = 1
+            ENDIF
+        ENDIF
         RETURN L_MP
     CASE "アビ効果"
         ; 処理は下へ。
@@ -485,6 +491,10 @@ IF L_CD > 0 && 戦闘中カウント:L_SELF:(L_SLOT - 1) > 現在ターン数
 ENDIF
 IF L_KEY == 123 && 刻印現在数確認("エネルギー_メカニック", L_SELF) < L_X
     CALL 良秀試作_取消("エネルギーが足りません。")
+    RETURN -1
+ENDIF
+IF L_KEY == 32 && BATTLE_STATE:L_SELF:ＨＰ <= MAX(1, BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100)
+    CALL 良秀試作_取消("HPが足りません。")
     RETURN -1
 ENDIF
 
@@ -561,7 +571,8 @@ SELECTCASE L_KEY
         戦闘中カウント:L_SELF:7 = 戦闘中カウント:L_SELF:被ヒット数合計
         戦闘中カウント:L_SELF:8 = 0
     CASE 32
-        L_TMP = MIN(BATTLE_STATE:L_SELF:ＨＰ - 1, MAX(1, BATTLE_STATE:L_SELF:ＨＰ * L_X / 100))
+        ; 最大HP基準。使用前の確認でHPが消費量を上回っているので、HPは必ず1以上残る。
+        L_TMP = MIN(BATTLE_STATE:L_SELF:ＨＰ - 1, MAX(1, BATTLE_STATE:L_SELF:最大ＨＰ * L_X / 100))
         BATTLE_STATE:L_SELF:ＨＰ -= MAX(0, L_TMP)
         CALL 良秀試作_通知(@"血の署名：自身のHPを{MAX(0, L_TMP)}消費。")
         CALL 良秀試作_攻撃(L_TARGET, L_P)
@@ -615,33 +626,12 @@ SELECTCASE L_KEY
         SIF L_OLD == 0 && 良秀試作_敵生存(L_TARGET)
             CALL 良秀試作_攻撃(L_TARGET, L_X)
     CASE 53
-        ; 本体の延長テンプレートへ枠を個別に渡す。ALLは使わない。
-        L_N = 0
-        FOR L_I, 0, 3
-            SELECTCASE L_I
-                CASE 0
-                    L_FRAME = 攻撃力A
-                CASE 1
-                    L_FRAME = 防御力A
-                CASE 2
-                    L_FRAME = 連続攻撃率A
-            ENDSELECT
-            L_ROW = デバフ番号取得_枠(L_FRAME, L_TARGET)
-            SIF L_ROW < 0
-                CONTINUE
-            SIF DT_CELL_GET("戦闘効果データベース", L_ROW, "持続ターン") < 1
-                CONTINUE
-            L_N += 1
-            CALL アビ汎用変数文字列リセット
-            CALL アビ対象選択テンプレート_指定(L_TARGET)
-            アビ汎用文字列:バフ・デバフ枠 '= L_FRAME
-            アビ汎用変数:効果量 = L_X
-            アビ汎用変数:基礎成功確率 = L_Y
-            CALL アビテンプレート_不利効果_デバフ効果延長_持続ターン
-        NEXT
-        IF L_N == 0
-            CALL 良秀試作_取消("延長対象の能力低下がありません。")
-            RETURN -1
+        CALL 良秀試作_攻撃(L_TARGET, L_P)
+        L_HIT = RESULT:1
+        L_TARGET = RESULT:3
+        ; 実際に命中した敵だけに付ける。同じ独自枠なので重ね掛けは上書き（非累積）。
+        IF L_HIT > 0 && 良秀試作_敵生存(L_TARGET)
+            CALL 良秀試作_弱体(L_TARGET, "良秀試作_傷口", "被ダメージ", L_X, 0, L_T, L_Y, "傷口")
         ENDIF
     CASE 62
         CALL 良秀試作_攻撃(L_TARGET, L_P)
@@ -705,6 +695,10 @@ SELECTCASE L_KEY
             CALL 良秀試作_取消("先にトレジャーハントで獲物を調べてください。")
             RETURN -1
         ENDIF
+        IF デバフ番号取得_枠("良秀試作_鑑定済", L_TARGET) >= 0
+            CALL 良秀試作_取消("この獲物はもう鑑定済みです。")
+            RETURN -1
+        ENDIF
         L_TMP = MIN(L_Y, MAX(0, DT_CELL_GET("戦闘効果データベース", L_ROW, "効果量_固定値")) * L_X)
         IF L_TMP <= 0 || BATTLE_STATE:L_SELF:ＭＰ >= BATTLE_STATE:L_SELF:最大ＭＰ
             CALL 良秀試作_取消("今はMPを回復できません。")
@@ -714,6 +708,15 @@ SELECTCASE L_KEY
         SIF アビテンプレート用_キャンセルフラグ
             RETURN -1
         CALL 良秀試作_MP回復(L_SELF, L_TMP)
+        ; 同じ敵への再使用を防ぐ非表示の印。トレハンと同じく戦闘終了まで残る。
+        ; 非表示なので弱体数の算出には数えられない。
+        {
+        DT_ROW_ADD "戦闘効果データベース", "効果名", "鑑定済み", "バフ・デバフフラグ", "デバフ",
+            "適用範囲", @"{L_TARGET}", "効果枠", "良秀試作_鑑定済",
+            "対象能力", "良秀試作_鑑定済",
+            "効果量_割合", 0, "効果量_固定値", 0,
+            "持続ターン", -1, "消去不可フラグ", 1, "特殊表示オプション", -1
+        }
     CASE 102
         L_TMP = L_P
         SIF デバフ番号取得("魅了", L_TARGET) >= 0
@@ -828,7 +831,7 @@ ENDIF
 CALL アビテンプレート_有利効果_バフ効果セット
 RETURN RESULT
 
-@良秀試作_弱体(L_TARGET, L_FRAME, L_ABILITY, L_PERCENT, L_FLAT, L_TURN, L_CHANCE)
+@良秀試作_弱体(L_TARGET, L_FRAME, L_ABILITY, L_PERCENT, L_FLAT, L_TURN, L_CHANCE, L_LABEL = "")
 #DIM DYNAMIC L_TARGET
 #DIMS DYNAMIC L_FRAME
 #DIMS DYNAMIC L_ABILITY
@@ -836,12 +839,16 @@ RETURN RESULT
 #DIM DYNAMIC L_FLAT
 #DIM DYNAMIC L_TURN
 #DIM DYNAMIC L_CHANCE
+#DIMS DYNAMIC L_LABEL
 SIF !良秀試作_敵生存(L_TARGET)
     RETURN 0
 CALL アビ汎用変数文字列リセット
 CALL アビ対象選択テンプレート_指定(L_TARGET)
 アビ汎用文字列:バフ・デバフ枠 '= L_FRAME
 アビ汎用文字列:バフ・デバフ対象能力 '= L_ABILITY
+; 一覧で「被ダメージデバフ：傷口」のように表示する名前。空なら能力名だけ。
+SIF L_LABEL != ""
+    アビ汎用文字列:バフ・デバフ名 '= L_LABEL
 アビ汎用変数:効果割合 = L_PERCENT
 アビ汎用変数:効果量 = L_FLAT
 アビ汎用変数:持続ターン = L_TURN
