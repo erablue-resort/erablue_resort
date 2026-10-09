@@ -18,6 +18,8 @@ ROOMSEX数値 = ROOM_SEX(移動先マップ種別, 移動先位置)
 IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 	VARSET LOCAL
 	VARSET LOCALS
+	VARSET 在宅配列
+	在宅者数 = 0
 	SIF TALENT:MASTER:性別 != ROOMSEX数値 && (TALENT:MASTER:性別 != 0 && TALENT:MASTER:性別 != 3)
 		LOCAL:1 = 1
 	FOR LOCAL,1,CHARANUM
@@ -29,6 +31,8 @@ IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 			LOCALS += CALLNAME:(TARGET:LOCAL)
 			LOCAL:2 = CFLAG:(TARGET:LOCAL):現在マップ種別
 			LOCAL:3 = CFLAG:(TARGET:LOCAL):現在位置
+			在宅配列:在宅者数 = TARGET:LOCAL
+			在宅者数 ++
 		ENDIF
 
 		RESULT = 0
@@ -46,6 +50,11 @@ IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 		IF 自動移動フラグ
 			DRAWLINE
 			PRINTFORMW %LOCALS%に%GETPLACENAME(移動先マップ種別, 移動先位置)%へ行くのを止められてしまった……。
+
+			;口上を呼ぶ、同行者からランダム
+			LOCAL = 在宅配列:(RAND:在宅者数)
+			TRYCALLFORM KOJO_EVENT_異性入室不可_同行時_%CSTR:LOCAL:口上切り替えキー%{NO:LOCAL}(LOCAL)
+
 			あなた追跡キャラ = 0
 			RFLAG:追跡フラグ = 0
 			IF 移動先マップ種別 == 0
@@ -66,6 +75,7 @@ IF フィールド展開:異性施設侵入 == 0 && ROOMSEX数値
 		RETURN 1
 	ENDIF
 ENDIF
+
 SELECTCASE 移動先マップ種別
 	CASE 0
 		;同棲相手
