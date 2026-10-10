@@ -68,32 +68,8 @@ FOR LOCAL, 0, CHARANUM
 				;全く同じ名前のCSVがある場合
 				;流れとしては「CSVが存在しないキャラが先にいて、後からCSVのNOが変更されて
 				;変更された後のNOのキャラが追加された」のはずなのでこっちをダミー化する
-				LOCAL:2 = GETCHARA(CSV番号)
+				CALL キャラクターダミー化(GETCHARA(CSV番号))
 				NO:LOCAL = CSV番号
-				IF LOCAL:2 >= 0
-					NO:(LOCAL:2) = 3242
-					CFLAG:(LOCAL:2):招待不可フラグ = 2
-					CFLAG:(LOCAL:2):滞在期間 = -1
-					IF TALENT:(LOCAL:2):定住者 == 2
-						FOR ループ番号, 0, VARSIZE("同棲部屋割り配列")
-							IF 同棲部屋割り配列:ループ番号 == LOCAL:2
-								同棲部屋割り配列:ループ番号 = 0
-								BREAK
-							ENDIF
-						NEXT
-					ELSEIF TALENT:(LOCAL:2):定住者
-						CALL 滞在者部屋割り配列削除処理(LOCAL:2)
-					ELSEIF TALENT:(LOCAL:2):従業員
-						FOR ループ番号, 0, 従業員部屋数
-							IF 従業員部屋割り配列:ループ番号 == LOCAL:2
-								従業員部屋割り配列:ループ番号 = 0
-								BREAK
-							ENDIF
-						NEXT
-					ELSE
-						CALL 滞在者部屋割り配列削除処理(LOCAL:2)
-					ENDIF
-				ENDIF
 				LOCAL -= 1
 				BREAK
 			ENDIF
@@ -760,3 +736,33 @@ ELSE
 ENDIF
 
 
+@キャラクターダミー化(対象キャラ)
+#DIM 対象キャラ
+
+;指定したキャラをリゾートから排除してダミー化する
+
+
+IF 対象キャラ >= 0
+	NO:対象キャラ = 3242
+	CFLAG:対象キャラ:招待不可フラグ = 2
+	CFLAG:対象キャラ:滞在期間 = -1
+	IF TALENT:対象キャラ:定住者 == 2
+		FOR LOCAL, 0, VARSIZE("同棲部屋割り配列")
+			IF 同棲部屋割り配列:LOCAL == 対象キャラ
+				同棲部屋割り配列:LOCAL = 0
+				BREAK
+			ENDIF
+		NEXT
+	ELSEIF TALENT:(対象キャラ):定住者
+		CALL 滞在者部屋割り配列削除処理(対象キャラ)
+	ELSEIF TALENT:(対象キャラ):従業員
+		FOR LOCAL, 0, 従業員部屋数
+			IF 従業員部屋割り配列:LOCAL == 対象キャラ
+				従業員部屋割り配列:LOCAL = 0
+				BREAK
+			ENDIF
+		NEXT
+	ELSE
+		CALL 滞在者部屋割り配列削除処理(対象キャラ)
+	ENDIF
+ENDIF

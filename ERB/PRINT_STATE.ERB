@@ -1163,6 +1163,8 @@ NEXT
 
 @血縁関係表示画面(ARG)
 #DIM L_C
+#DIM PERSON_M
+#DIM PERSON_F
 #DIM PERSON
 #DIM BIRTHDAY
 #DIM LAP
@@ -1176,6 +1178,7 @@ NEXT
 #DIM 子供_人数配列, キャラクタ数上限
 #DIM 子供表示人数
 #DIM 配列番号
+#DIMS 表示名
 
 ;ここで立ち絵表示
 CALL 画像描画終了
@@ -1213,19 +1216,38 @@ IF BIRTHDAY >= 0
 	PRINTL 
 ENDIF
 
-PERSON = GET_PERSON_母親(CFLAG:ARG:人物番号)
-IF PERSON != 0
+PERSON_M = GET_PERSON_母親(CFLAG:ARG:人物番号)
+表示名 '= GET_PERSON_名前(PERSON_M)
+IF PERSON_M != 0 && 表示名 != ""
 	PRINTL □ 母親 □---------------------------------------------------------------------
-	PRINTFORML 　%GET_PERSON_名前(PERSON)%
+	PRINTFORML 　%表示名%
 	PRINTL 
 ENDIF
 
-PERSON = GET_PERSON_父親(CFLAG:ARG:人物番号)
-IF PERSON != 0
+PERSON_F = GET_PERSON_父親(CFLAG:ARG:人物番号)
+表示名 '= GET_PERSON_名前(PERSON_F)
+IF PERSON_F != 0 && 表示名 != ""
 	PRINTL □ 父親 □---------------------------------------------------------------------
-	PRINTFORML 　%GET_PERSON_名前(PERSON)%
+	PRINTFORML 　%表示名%
 	PRINTL 
 ENDIF
+
+LOCAL:1 = 0
+IF PERSON_M != 0 || PERSON_F != 0
+	FOR LOCAL, 1, CHARANUM
+		SIF LOCAL == ARG
+			CONTINUE
+		IF PERSON_M == GET_PERSON_母親(CFLAG:LOCAL:人物番号) && PERSON_F == GET_PERSON_父親(CFLAG:LOCAL:人物番号)
+			SIF LOCAL:1 == 0
+				PRINTL □ 兄弟姉妹 □-----------------------------------------------------------------
+			PRINTFORML 　%NAME:LOCAL%
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	SIF LOCAL:1 > 0
+		PRINTL 
+ENDIF
+
 子供表示人数 = 27 - (LINECOUNT - L_C) - 4
 
 CALL FIND_CHILDREN(CFLAG:ARG:人物番号)
