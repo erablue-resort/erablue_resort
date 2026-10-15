@@ -20,7 +20,10 @@ TSTR:ツールチップ受渡 = %LOCALS%
 ;可視化できるよう別関数化
 @COM353_SUB(ARG)
 #FUNCTION
+#DIM 陰性合計
+#DIM 絶頂カット
 VARSET LOCAL
+陰性合計 = 0
 SWAP LOCAL:1, TARGET
 TARGET = ARG
 
@@ -35,56 +38,88 @@ ELSEIF BASE:酩酊 > 0
 ENDIF
 SIF TALENT:処女
 	LOCAL -= 20
+SIF TALENT:処女
+	陰性合計 -= 20
 SIF TALENT:度胸 == -1
 	LOCAL -= 5
+SIF TALENT:度胸 == -1
+	陰性合計 -= 5
 SIF TALENT:マイペース == -1
 	LOCAL += 10
 SIF TALENT:態度
 	LOCAL -= TALENT:態度 * 5
+SIF TALENT:態度 > 0
+	陰性合計 -= TALENT:態度 * 5
 SIF TALENT:応答
 	LOCAL -= TALENT:応答 * 5
+SIF TALENT:応答 > 0
+	陰性合計 -= TALENT:応答 * 5
 SIF TALENT:プライド
 	LOCAL -= TALENT:プライド * 10
+SIF TALENT:プライド > 0
+	陰性合計 -= TALENT:プライド * 10
 SIF TALENT:ツンデレ
 	LOCAL += 5
 SIF TALENT:自制心
 	LOCAL -= TALENT:自制心 * 5
+SIF TALENT:自制心 > 0
+	陰性合計 -= TALENT:自制心 * 5
 SIF TALENT:感情乏しい
 	LOCAL += 5
 SIF TALENT:性的興味
 	LOCAL += TALENT:性的興味 * 10
+SIF TALENT:性的興味 < 0
+	陰性合計 += TALENT:性的興味 * 10
 SIF TALENT:一線越えない
 	LOCAL -= 15
+SIF TALENT:一線越えない
+	陰性合計 -= 15
 SIF TALENT:性欲
 	LOCAL += TALENT:性欲 * 5
+SIF TALENT:性欲 < 0
+	陰性合計 += TALENT:性欲 * 5
 SIF TALENT:貞操
 	LOCAL -= TALENT:貞操 * 15
+SIF TALENT:貞操 > 0
+	陰性合計 -= TALENT:貞操 * 15
 SIF TALENT:抵抗
 	LOCAL -= 10
+SIF TALENT:抵抗
+	陰性合計 -= 10
 SIF TALENT:羞恥心
 	LOCAL -= TALENT:羞恥心 * 5
+SIF TALENT:羞恥心 > 0
+	陰性合計 -= TALENT:羞恥心 * 5
 SIF TALENT:献身的
 	LOCAL += 5
 SIF TALENT:倒錯的
 	LOCAL += 10
 IF TALENT:性別嗜好 == 1 && TALENT:PLAYER:性別 == 2
 	LOCAL -= 20
+	陰性合計 -= 20
 ELSEIF TALENT:性別嗜好 == 2 && TALENT:PLAYER:性別 == 1
 	LOCAL -= 20
+	陰性合計 -= 20
 ELSEIF TALENT:性別嗜好 == 3
 	LOCAL -= 20
+	陰性合計 -= 20
 ENDIF
 IF TALENT:恋人持ち == 1
 	LOCAL -= 20
+	陰性合計 -= 20
 ELSEIF TALENT:恋人持ち == 2
 	LOCAL -= 30
+	陰性合計 -= 30
 ELSEIF DT_SELECT("関係性データベース", @"(対象キャラ１ = {CFLAG:TARGET:人物番号} Or 対象キャラ２ = {CFLAG:TARGET:人物番号}) And 関係性種別 = '恋慕'")
 	LOCAL -= 20
+	陰性合計 -= 20
 ELSEIF TALENT:恋人持ち == 3
 	LOCAL -= 10
+	陰性合計 -= 10
 ENDIF
 IF TALENT:子持ち == 1
 	LOCAL -= 10
+	陰性合計 -= 10
 ENDIF
 SIF TALENT:淫乱 == 1
 	LOCAL += 999
@@ -95,6 +130,12 @@ SIF 性癖素質:ゆきずりセックス > 0
 LOCAL += ABL:欲望 * 5
 LOCAL += TALENT:従業員 * 10
 LOCAL += TALENT:定住者 * 10
+
+;絶頂チャンス補正: 積算したマイナス補正(陰性合計)にカット率を掛けて相殺 + フラット+10
+絶頂カット = 絶頂チャンス_カット率(TARGET)
+IF 絶頂カット > 0
+	LOCAL += ABS(陰性合計) * 絶頂カット / 100 + 10
+ENDIF
 
 SWAP LOCAL:1, TARGET
 
