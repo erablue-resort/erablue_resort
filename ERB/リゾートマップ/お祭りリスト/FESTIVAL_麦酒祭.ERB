@@ -1,0 +1,423 @@
+﻿@MOVE_ROUTINE_FESTIVAL_麦酒祭(キャラ番号, ARGS)
+#DIM キャラ番号
+#DIM 時間計算
+#DIM CONST 開催費用 = 20000
+
+SELECTCASE ARGS
+	CASE "お祭り説明"
+		LOCALS = <div rect='2125,500,3762,2812'>
+		LOCALS += "■麦酒祭<br>"
+		LOCALS += "<br>"
+		LOCALS += "収穫の秋、豊かな実りに感謝を捧げる伝統の祭典「麦酒祭」が今年もついに幕を開ける！<br>"
+		LOCALS += "立ち並ぶテントからは香ばしく焼き上げられた肉の匂いが漂い、木樽から溢れ出す黄金の雫が騎空士たちを誘う。<br>"
+		LOCALS += "剣を置き、肩を組み、ただ笑い、ただ語らう――。<br>"
+		LOCALS += "<br>"
+		LOCALS += "伝説の英雄も、名もなき旅人も、ここでは等しく宴の主役。<br>"
+		LOCALS += "さあ、ジョッキを満たせ。空を震わせるどんちゃん騒ぎの始まりだ！<br>"
+		LOCALS += "<br>"
+		IF 開催費用 > MONEY
+			LOCALS += @"ルピが不足しています。（必要ルピ：%NUM_FORMAT(開催費用)%）<br>"
+		ELSE
+			LOCALS += @"<button value='0'>[0] このお祭りを企画する（必要ルピ：%NUM_FORMAT(開催費用)%）</button><br>"
+		ENDIF
+		LOCALS += "</div>"
+		HTML_PRINT LOCALS, 1
+	CASE "出現条件"
+		;秋の月限定
+		SIF DAY % 120 / 30 != 2
+			RETURN -1
+		RETURN 1
+	CASE "参加判定"
+		IF TALENT:キャラ番号:飲兵衛 > 0
+			;飲兵衛は絶対参加
+			RETURN 1
+		ELSEIF TALENT:キャラ番号:従業員 > 0
+			;従業員は店員になるので参加
+			RETURN 1
+		ELSEIF TALENT:キャラ番号:飲兵衛 < 0
+			;酒嫌いは不参加
+			RETURN 0
+		ELSEIF TALENT:キャラ番号:飲酒拒否 > 0
+			;飲酒拒否は不参加
+			RETURN 0
+		ELSEIF TALENT:キャラ番号:飲食不可 > 0
+			;飲食不可は不参加
+			RETURN 0
+		ELSEIF TALENT:キャラ番号:年齢層 == 10 || TALENT:キャラ番号:年齢層 == 11
+			;幼い、若い場合は確率低め
+			SIF RAND:4
+				RETURN 0
+		ELSE
+			;それ以外は2/3が参加
+			SIF RAND:3 == 0
+				RETURN 0
+		ENDIF
+
+		RETURN 1
+	CASE "特設マップ"
+		;存在する
+		RETURN 1
+	CASE "起床時刻"
+		時間計算 = 480 - (TALENT:キャラ番号:早起き * 30)
+		RETURN 時間計算
+	CASE "就寝時刻"
+		時間計算 = 1380 - (TALENT:キャラ番号:早寝 * 60)
+		RETURN 時間計算
+	CASE "就寝場所"
+		RETURN 0
+	CASE "初期位置"
+		CFLAG:キャラ番号:現在位置 = キャラクター部屋検索(キャラ番号)
+		CFLAG:キャラ番号:現在マップ種別 = 部屋検索_マップ種別
+	CASE "お祭り補正条件"
+		;麦酒祭マップに居る時
+		IF CFLAG:キャラ番号:現在マップ種別 == 100
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	CASE "お祭り補正内容"
+		IF GROUPMATCH(CFLAG:キャラ番号:現在位置, 1, 2, 3, 4)
+			;入り口、出店、飲食、宴会だと好感度要素：友情に補正
+			NOWEX:キャラ番号:友情度上昇格納 = MAX(NOWEX:キャラ番号:友情度上昇格納 * 13 / 10, 0)
+		ELSEIF GROUPMATCH(CFLAG:キャラ番号:現在位置, 5, 6)
+			;池、静かな場所だと恋心に補正
+			NOWEX:キャラ番号:恋心度上昇格納 = MAX(NOWEX:キャラ番号:恋心度上昇格納 * 13 / 10, 0)
+		ENDIF
+	CASE "服装変更"
+		;お祭り開催で服入手
+		CALL 制服登録処理("ディアンドル")
+		;女性のみ
+		RESULT = 0
+		TRYCALLFORMF 性別処理制御_%CSTR:キャラ番号:口上切り替えキー%{NO:キャラ番号}(キャラ番号, "服着用性別")
+		IF GETBIT(TALENT:キャラ番号:性別, 0) || RESULT == 1
+			IF TALENT:キャラ番号:従業員
+				;従業員は全員着る
+				RSTR:服装名受け渡し = ディアンドル
+			ENDIF
+		ENDIF
+ENDSELECT
+
+
+@ROUTINE_SCHEDULE_FESTIVAL_麦酒祭(キャラ番号)
+#DIM キャラ番号
+#DIM スケジュール番号
+
+CALL RESET_SCHEDULE(キャラ番号)
+スケジュール番号 = 0
+
+;起床後はは自室
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 480 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+
+;10時頃からロビー
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 600 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+スケジュール番号++
+
+;12時から屋台
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 720 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;13時からお祭りへ
+IF TALENT:キャラ番号:従業員 > 0
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭で勤務", "所要時間", "150")
+ELSEIF TALENT:キャラ番号:飲兵衛 > 0
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ", "所要時間", "150")
+ELSEIF TALENT:キャラ番号:年齢層 == 10 || TALENT:キャラ番号:年齢層 == 11
+	;幼い、若い場合は飲まない
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ_非飲酒", "所要時間", "150")
+ELSE
+	;飲むか飲まないかはランダム
+	IF RAND:2
+		CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ", "所要時間", "150")
+	ELSE
+		CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ_非飲酒", "所要時間", "150")
+	ENDIF
+ENDIF
+スケジュール番号++
+
+;18時半から夕休憩
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1110 + TCVAR:キャラ番号:行動時間ゆらぎ, "食事", "小分類", "屋台", "所要時間", "40", "優先度", "4")
+スケジュール番号++
+
+;19時半からお祭りへ
+IF TALENT:キャラ番号:従業員 > 0
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭で勤務", "所要時間", "150")
+ELSEIF TALENT:キャラ番号:飲兵衛 > 0
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ", "所要時間", "150")
+ELSEIF TALENT:キャラ番号:年齢層 == 10 || TALENT:キャラ番号:年齢層 == 11
+	;幼い、若い場合は飲まない
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ_非飲酒", "所要時間", "150")
+ELSE
+	;飲むか飲まないかはランダム
+	IF RAND:2
+		CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ", "所要時間", "150")
+	ELSE
+		CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 0, "麦酒祭を楽しむ_非飲酒", "所要時間", "150")
+	ENDIF
+ENDIF
+スケジュール番号++
+
+;21時からお風呂
+CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1260 + TCVAR:キャラ番号:行動時間ゆらぎ, "お風呂", "所要時間", "60", "優先度", "2")
+スケジュール番号++
+
+IF TALENT:キャラ番号:早寝 > 0
+	;早寝のキャラは22時半の15分前(着替え時間)から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1335 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ELSE
+	;22時半からロビーへ
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1350 + TCVAR:キャラ番号:行動時間ゆらぎ, "交流")
+	スケジュール番号++
+
+	;23時から寝るまでは自室
+	CALL SET_SCHEDULE(キャラ番号, スケジュール番号, 1380 + TCVAR:キャラ番号:行動時間ゆらぎ, "休憩")
+	スケジュール番号++
+ENDIF
+
+@SCHEDULE_麦酒祭を楽しむ(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		スケジュール状態:キャラ番号:目的マップ = 100
+		;宴会場
+		スケジュール状態:キャラ番号:目的地 = 4
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+	CASE "経過処理"
+		IF CFLAG:キャラ番号:現在位置 != 4 || CFLAG:キャラ番号:現在マップ種別 != 100
+			CFLAG:キャラ番号:飲み会 = 0
+			RETURN
+		ENDIF
+		CFLAG:キャラ番号:飲み会 = 2
+
+		SIF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+			RETURN
+		SIF BASE:キャラ番号:酩酊 > 800
+			RETURN
+
+		BASE:キャラ番号:酩酊 += 150 + RAND(-30, 30)
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(60, 120)
+	CASE "終了処理"
+		CFLAG:キャラ番号:飲み会 = 0
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+ENDSELECT
+
+@SCHEDULE_麦酒祭で勤務(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		スケジュール状態:キャラ番号:目的マップ = 100
+		;宴会場
+		スケジュール状態:キャラ番号:目的地 = 2
+		RETURN 1
+	CASE "経過処理"
+	CASE "終了処理"
+		RETURN 1
+ENDSELECT
+
+@SCHEDULE_麦酒祭を楽しむ_非飲酒(キャラ番号, 小分類, 処理内容)
+#DIM キャラ番号
+#DIMS 小分類
+#DIMS 処理内容
+
+SELECTCASE 処理内容
+	CASE "開始処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+	CASE "経過処理"
+		SIF TCVAR:キャラ番号:移動ルーチンインターバル時間 > 0
+			RETURN
+
+		スケジュール状態:キャラ番号:目的マップ = 100
+		;出店、飲食、池のどこか
+		スケジュール状態:キャラ番号:目的地 = RAND:3 + 2
+		SIF スケジュール状態:キャラ番号:目的地 == 4
+			スケジュール状態:キャラ番号:目的地 = 5
+			
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = RAND(60, 120)
+	CASE "終了処理"
+		TCVAR:キャラ番号:移動ルーチンインターバル時間 = 0
+		RETURN 1
+ENDSELECT
+
+@マップ移動初期位置_FESTIVAL_麦酒祭(移動前マップ, 移動後マップ)
+#FUNCTION
+#DIM 移動前マップ
+#DIM 移動後マップ
+
+RESULT = 1
+
+@MAP_RESORT_100_FESTIVAL_麦酒祭(AA)
+#DIMS REF AA, 0
+
+LOCAL = 0
+AA:(LOCAL++) = 木木木木木木　　01　　木木木木木木木木木木木木木木木木木木木木木木木木木木木
+AA:(LOCAL++) = 木木木木　　　　　　　　　　　　　　木　　　　　木木　　　　　　　　　　木木
+AA:(LOCAL++) = 木木　　　　　　　　　　　　　　　　　　　　　　木　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　　　┌─┐　　　┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐　　木
+AA:(LOCAL++) = 木　　　│　│　　　│　│　│　│　│　│　│　│　│　│　│　│　│　　木
+AA:(LOCAL++) = 木　┌─┼─┘　　　└─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘　　木
+AA:(LOCAL++) = 木　│　│　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　木　木
+AA:(LOCAL++) = 木　├─┤　　　02　　　　　　　　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　│　│　　　　　┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐　　木
+AA:(LOCAL++) = 木　├─┤　　　　　│　│　│　│　│　│　│　│　│　│　│　│　│　　木
+AA:(LOCAL++) = 木　│　│　　　　　└─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘　　木
+AA:(LOCAL++) = 木　└─┘　　　　　　　　　木　　　　　　木木　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　　木　　　　　　　　　　　　　　　　　　　　　　　　　　　木　　　　　木
+AA:(LOCAL++) = 木　┌　─　─　─　┐　　　　┌　─　─　─　─　─　─　─　─　─　┐　木
+AA:(LOCAL++) = 木　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　│　　　　　　　│　　　　│　　　　　　　　　　　　　　　　　　　│　木
+AA:(LOCAL++) = 木　　　　　03　　　　　　　　　　　　　　　　　　04　　　　　　　　　　　木
+AA:(LOCAL++) = 木　│　　　　　　　│　　　　│　　　　　　　　　　　　　　　　　　　│　木
+AA:(LOCAL++) = 木　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木　└　─　─　─　┘　　　　└　─　─　─　─　─　─　─　─　─　┘　木
+AA:(LOCAL++) = 木木　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木木木木木木木木木木木木　木木木　　　　　　　　　　　　　　　　　　　　　木
+AA:(LOCAL++) = 木木木木木木木木木木木木　木木木木　　　　　　　　　　　　　　　　　　　木木
+AA:(LOCAL++) = 木木木木木木木木木木木木　木木木木　　　木　　　　　　　　　　　　　　　木池
+AA:(LOCAL++) = 木木木木木木木木木木木　　木木木木　　　　　　　　　　　05　　　　　　池池池
+AA:(LOCAL++) = 木木　　　　　木木　　　木木木木木　木木　　　　　　　　　　池池池池池池池池
+AA:(LOCAL++) = 木木　　06　　　　　木木木木木木木木　　　　木　　池池池池池池池池池池池池池
+AA:(LOCAL++) = 木木　　　　　木木木木木木木木木木木木　　　　池池池池池池池池池池池池池池池
+AA:(LOCAL++) = 木木木木木木木木木木木木木木木木木木木木木木池池池池池池池池池池池池池池池池
+AA:(LOCAL++) = 　
+AA:(LOCAL++) = 01：会場入口　　02：出店エリア　03：食事会場　　04：宴会会場　　05：池のほとり
+AA:(LOCAL++) = 06：静かな場所
+
+@GETPLACENAME_100_FESTIVAL_麦酒祭(ARG)
+#FUNCTION
+SELECTCASE ARG
+	CASE 1
+		TSTR:場所名受渡 = 会場入口
+	CASE 2
+		TSTR:場所名受渡 = 出店エリア
+	CASE 3
+		TSTR:場所名受渡 = 食事会場
+	CASE 4
+		TSTR:場所名受渡 = 宴会会場
+	CASE 5
+		TSTR:場所名受渡 = 池のほとり
+	CASE 6
+		TSTR:場所名受渡 = 静かな場所
+ENDSELECT
+
+@SKIP_MOVE_100_FESTIVAL_麦酒祭(ARG, ARG:1)
+#DIM スタート地点
+#DIM スタートマップ
+#DIM 目的マップ
+#DIM 移動キャラ = 0
+
+;現在位置取得
+移動キャラ = 0
+スタート地点 = CFLAG:MASTER:現在位置
+IF ARG:1
+	移動キャラ = ARG:1
+	スタート地点 = CFLAG:移動キャラ:現在位置
+ENDIF
+
+$LOOP
+
+;暫定目的地に直接移動できる場合
+IF CAN_MOVE(CFLAG:移動キャラ:現在マップ種別, スタート地点, ARG) & 1
+	;そこに移動
+	RETURN ARG
+ENDIF
+
+;袋小路から行ける場所は固定なので、そこを目指す
+SELECTCASE スタート地点
+	CASE 1
+		RETURN 2
+	CASE 5
+		RETURN 4
+	CASE 6
+		RETURN 3
+ENDSELECT
+
+;直接移動できない場合、1つ近い位置を暫定目的地に設定し直してループ
+;地点追加時要フォロー（全ケース修正すること）
+SELECTCASE ARG
+	CASE 1
+	;入口からは屋台のみ
+		RETURN 2
+	CASE 5
+	;池は宴会経由
+		RETURN 4
+	CASE 6
+	;静かな場所へは飲食経由
+		RETURN 3
+ENDSELECT
+GOTO LOOP
+
+@DRAW_MAP_BG_100_FESTIVAL_麦酒祭(SLICED, 表示文字列)
+#DIMS REF 表示文字列
+#DIMS SLICED
+SELECTCASE SLICED
+	CASEELSE
+		表示文字列 += @"%SLICED%"
+ENDSELECT
+
+@CAN_MOVE_FESTIVAL_麦酒祭(ARG, ARG:1)
+;ARG 移動元
+;ARG:1 移動先
+#FUNCTION
+
+SELECTCASE ARG
+	CASE 1
+		;屋台のみ
+		IF GROUPMATCH(ARG:1, 2)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 2
+		;入口、飲食、宴会
+		IF GROUPMATCH(ARG:1, 1, 3, 4)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 3
+		;屋台、宴会、静かな場所
+		IF GROUPMATCH(ARG:1, 2, 4, 6)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 4
+		;屋台、飲食、池
+		IF GROUPMATCH(ARG:1, 2, 3, 5)
+			RESULT = 3
+			RETURNF 3
+		ELSEIF GROUPMATCH(ARG:1, 6)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+	CASE 5
+		;宴会のみ
+		IF GROUPMATCH(ARG:1, 4)
+			RESULT = 3
+			RETURNF 3
+		ENDIF
+	CASE 6
+		;飲食のみ
+		IF GROUPMATCH(ARG:1, 3)
+			RESULT = 1
+			RETURNF 1
+		ENDIF
+ENDSELECT
+RESULT = 0
+
+@存在しない移動先_FESTIVAL_麦酒祭(ARG)
+#FUNCTION
+IF ARG < 1 || ARG > 6
+	RESULT = 1
+	RETURNF 1
+ELSE
+	RESULT = 0
+	RETURNF 0
+ENDIF
