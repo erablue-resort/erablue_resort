@@ -10,47 +10,46 @@ AI画像生成のローカル環境の構築や各種ウェブサイトの使い
 ## 共通で使用するおまじない
 `masterpiece, best quality, amazing quality, very aesthetic, absurdres, (painted by minaba hideo), granblue fantasy, official art, solo, `  
 painted～以降はお好みで。
-
 ## キャラの特徴
 `1girl, [キャラ名], [作品名], [髪の色], [髪の長さ], [瞳の色], [頭の装飾品], `
-
 ## 表情や背景、構図、体位など
 danbooruから検索かけて探してみましょう。  
 見つけにくい所だと、着衣のマンスジは`cameltoe, `、全裸の一本スジは`cleft of venus, `です。自作なら`uncensored, `で無修正も表示し放題！やったね！  
 下の呪文を試してみて、思ったような構図にならない場合は、表示されないはずの部分の単語を消してみてください。  
 足を入れたくない場合、`cowboy shot, `や`upper body, `を加筆すると共に、`boots, `や`shoe, `、`legwear, `などの単語を含む部分を削るといった具合です。  
 再現度が低い場合、https://civitai.com/ からLoRAを探してみるのも一つの手です。
-
 ## 要素の強調、抑制
 強調したい部分は`(XXX:1.2), `、ふんわりと入れたい部分は`(XXX:0.8), `といった具合に()で括り、:の後ろに数字を入れて強弱をつけてみましょう。  
 1を基準に小数点で調節しますが、0.6～1.4から逸脱すると出来上がりが破綻しやすくなるので注意。  
 ()で1回括るごとに1.1倍されたり、[]で1回括るごとに0.91倍されますが、後から確認しづらくなるので数字で指定したほうが無難です。  
 出るのを抑制したい要素がある場合はネガティブプロンプトに記載しましょう。  
 それでも出る場合は上記の強調と同じように1.0より大きい数字を入れるとよいでしょう。
-
 ## 想定外の要素が頻出する場合
 ネットで調べたプロンプトを試していると、想定外の要素が頻出する場合、上記のdanbooruの検索窓に一つずつプロンプトを入れて、登録されているか、登録数は800以上あるかを確認してみましょう。  
 ない場合や、検索して出てくるイラスト一覧にその想定外の要素をよく見かける場合は、そのプロンプトが余計な働きをしている可能性があります。一度、削除して作成してみましょう。  
 一例として、「fair skin（肌を美白するプロンプトとしてよく紹介されている）」がエルフ耳のトリガーになっていたことがありました。 
-
 ## PixAiを使っているがクレジットが足りない場合
 LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。  
 このLoRAを適応した上で、STEP:8 CFG:1.5で作成すると高速生成でも1200クレジットで生成可能です。  
 他、「Illustrious XL personal merge (noob v-pred0.5 test merge updated)」などの低STEP対応のモデルを使用してみるのも手です。  
 ただし書き込みが過剰になる場合があるのと、ネガティブプロンプトが効かなくなる点には注意が必要です。
-
 ## コスプレさせたい場合
 以下の呪文はあくまで一例です。再現率が低いと感じた場合、LoRAを探してみてください。  
 キャラクターLoRAを使用し、`\(cosplay\), `を追記するとうまくいくこともあります。  
-{}内は書きたい衣装に応じて|で区切られているどれかを使用するといいかも。  
+##  選択式のプロンプトの注意点
+{AA|BB|CC}は|で区切られた中からどれか１つを選択  
+{XX}は入れたい場合に{}を外して追加  
 （ローカルならDynamic Promptsってオプションを有効化してそのまま放りこんだら勝手にランダムで選んでくれます）  
-{AA|BB|CC}は|で区切られた中からどれか１つを選択、{XX}は入れたい場合に{}を外して追加
-
+## （顔｜短冊）妊娠（衣装名）を作りたい場合
+`pregnant, `を追加しましょう。
+## 存在するが表示される機会のない衣装
+- 湯上がり（内部処理でのみ使用されるため）  
+湯浴み着→（湯上がり）→浴衣/バスローブ
 # 衣装プロンプト
 ## 一般的な衣装
 ### 全裸
 `completely nude, nipples, `  
-必要に応じて下の毛`pubic hair`やら縦スジ`cleft of venus`やらマンコ`pussy`やら
+必要に応じて下の毛`pubic hair, `やら縦スジ`cleft of venus, `やらマンコ`pussy, `やら
 ### 湯浴み着
 `naked towel, towel on head, `
 ### バスローブ
@@ -73,24 +72,37 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 `naked apron, `
 ### つやつや光沢服
 `seamless latex bodysuits, `  
-お好みでzipper, stitch, seam, をネガティブプロンプトに入れるとジッパーや縫い目が消えて見た目がすっきりします。
-
+お好みで`zipper, stitch, seam, `をネガティブプロンプトに入れるとジッパーや縫い目が消えて見た目がすっきりします。
+## お祭り衣装
+### 祭り法被
+`happi, sarashi, fundoshi, `
+### 淫習祭乃法被
+`naked happi, {front tied happi}, areola slip, pussy, `
+### サンバ衣装
+`samba costume, detailed clothes, exquisite clothes, ornate clothes, showgirl, {blue|gold|pink|など好きな色} samba costume, {blue|pink|black|など好きな色} feather headdress, (belly chain:1.25), {blue|pink|black|など好きな色} huge feather wings, {blue|pink|black|など好きな色} feather skirt, `
+### エロティコ・ド・サンバ
+`samba costume, detailed clothes, exquisite clothes, ornate clothes, showgirl, {blue|gold|pink|など好きな色} samba costume, cupless bikini, crotchless bikini, {blue|pink|black|など好きな色} feather headdress, (belly chain:1.25), {blue|pink|black|など好きな色} huge feather wings, {blue|pink|black|など好きな色} feather skirt, `
+### 仮面舞踏祭衣装
+`masquerade mask, {blue|pink|black|など好きな色} victorian dress, hoop skirt, long skirt, `  
+かなり高確率で胸がはだけたり、スカートにくぼみができるのでネガティブに`cleavage, covered groin, `を追加して抑えることをお勧めします。
 ## 水着類
 ### 水着
-`swimsuit, {bikini| one-piece swimsuit| bikini shorts| slingshot swimsuit}, `
+`swimsuit, {bikini| one-piece swimsuit| bikini shorts}, `
 ### マイクロビキニ
 `micro bikini, `
+### ゴールデンマイクロビキニ
+`gold metallic micro bikini, `
 ### ウエディングビキニ
 `wedding dress, bridal veil, white bikini, garter belt, white garter belt, lace bra, side-tie panties, white thighhighs, underwear, midriff, `
 ### 逮捕しちゃうゾ
 `highleg bikini, stomach, police, police uniform, jacket, cropped jacket, policewoman, green armband, blue bikini, blue necktie, long sleeves, underboob, sideboob, cleavage, ((blue shirt)), groin, open clothes, tie clip, star (symbol), garrison cap, open jacket, shrug (clothing), collared shirt, blue headwear, string bikini, blue jacket, micro bikini, police hat, necktie between breasts, sleeve cuffs, skindentation, epaulettes, aiguillette, police badge, white gloves, blue thighhighs, thigh boots, `
 ### スリングショット
 `slingshot swimsuit, {blue|pink|black|など好きな色} slingshot swimsuit, {areola slip}, {criss-cross halter}, `
-
 ## 仕事の制服
 ### リゾート従業員制服
 `{juliet sleeves|compression sleeve}, black sleeves, long sleeves, red necktie, {上}, {下}, `  
-{上}・{下}は以下の要素の区分を一つずつ選び{上}・{下}に入れてください。
+<details><summary>{上}・{下}はクリックして見れる要素の区分を一つずつ選び{上}・{下}に入れてください。</summary>
+  
 | 区分 | 種類 | プロンプト | 
 | :---: | :---: | --- | 
 | 上 | スーツ | `black suit, white shirt, dress shirt, business suit` |
@@ -101,6 +113,8 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 | 下 | ミニスカート | `black skirt, miniskirt, pencil skirt` |
 | 下 | スカート | `black skirt, long skirt, pencil skirt` |
 | 下 | ボトムレス | `bottomless, cleft of venus, black kneehighs, (black shoes:0.8)` |
+</details>
+
 ### つやつや従業員制服
 `black latex suit vest, red bolo tie, long sleeves, (white latex shirt:1.25), collared shirt, name tag, black latex pencil skirt, black thigh boots, high heel boots, `
 ### バニー服
@@ -135,7 +149,7 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 胸ベルトはいらない！と思ったらchest harnessをネガティブに入れるといいと思います。  
 逆に欲しい！って人はchest harnessを追加してください。
 ### セクシーポリス
-`policewoman, police uniform, blue headwear, {police hat|garrison cap}, police badge, jacket, blue latex jacket, cropped jacket, open jacket, shrug clothing, open clothes, long sleeves, sleeve cuffs, police badge, blue necktie, (white shirt:1.25), collared shirt, breastless shirt, bare stomach, gold star pasties, white gloves, blue latex skirt, ultra microskirt, lowleg skirt, pencil skirt, lowleg,  black string panties, latex panties, thigh boots, high heel boots, {chest harness, shoulder holster|black duty belt, holster|thigh holster}, `  
+`policewoman, police uniform, blue headwear, {police hat|garrison cap}, police badge, jacket, blue latex jacket, cropped jacket, open jacket, shrug clothing, open clothes, long sleeves, sleeve cuffs, police badge, blue necktie, (white shirt:1.25), collared shirt, breastless shirt, bare stomach, gold star pasties, white gloves, blue latex skirt, ultra microskirt, lowleg skirt, pencil skirt, lowleg, black string panties, latex panties, thigh boots, high heel boots, {chest harness, shoulder holster|black duty belt, holster|thigh holster}, `  
 ホルスター位置は上から順に脇｜腰｜太ももとなっております。
 ### 花魁ノ御華
 `oiran, kimono, japanese clothes, nihongami, obi, sash, bare shoulders, wide sleeves, `
@@ -145,7 +159,9 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 `{denimなどの好きな素材} overalls, super micro skirt overalls, naked overalls, `
 ### スーパーセクシー巫女服
 `nontraditional miko, miko clothes, shrug miko clothes, wide sleeves, nipples, midriff, navel, red hakama, hakama skirt, microskirt, lowleg skirt, pussy, white thighhighs, `  
-bare pussyで思った通りの袴の位置にならないことが多いがご愛嬌ということで！いいプロンプトがあれば教えてほしいです！改定案をAIプロンプト談議で待っております！
+`bare pussy, `で思った通りの袴の位置にならないことが多いがご愛嬌ということで！いいプロンプトがあれば教えてほしいです！改定案をAIプロンプト談議で待っております！
+### ディアンドル
+`dirndl, `
 ### 破廉恥麦酒祭従業員制服
 `dirndl, breastless dirndl, long sleeves, crop top dirndl, micro apron, bare pussy, `
 ## 学校関係
@@ -194,7 +210,6 @@ bare pussyで思った通りの袴の位置にならないことが多いがご�
 `furisode, kimono, obijime, obiage, sash, fur trim, `
 ### ロングドレス
 `long dress, {white|blue|red|など好きな色} dress, juliet sleeves, puffy sleeves, long sleeves, `
-
 ## ランジェリー
 ### セクシーランジェリー
 `underwear only, lingerie, lace trim, black bra, black panties, black garter belt, black thighhighs, `  
@@ -206,7 +221,6 @@ bare pussyで思った通りの袴の位置にならないことが多いがご�
 ### すけすけボディースーツ
 `black see-through bodystocking, shiny seamless bodystocking, see-through nipples, see-through pussy, `  
 お好みで`zipper, stitch, seam, `をネガティブプロンプトに入れるとジッパーや縫い目が消えて見た目がすっきりします。
-
 ## セーター
 ### バックレスセーター
 `virgin killer sweater, `
@@ -216,7 +230,6 @@ bare pussyで思った通りの袴の位置にならないことが多いがご�
 `virgin destroyer sweater, `
 ### フロントオープンセーター
 `backwards virgin killer sweater, virgin killer sweater, bare shoulders, groin, naked sweater, navel, neck ribbon, stomach, `
-
 ## コスプレ
 ### トリック・オア・トリートメント
 `florence nightingale \(trick or treatment\) \(fate\), florence nightingale \(trick or treatment\) \(fate\) \(cosplay\), `
@@ -233,18 +246,20 @@ bare pussyで思った通りの袴の位置にならないことが多いがご�
 ### ユスティナ聖徒会礼装
 `(alternate costume:1.2), (justina follower (blue archive):1.2), cosplay, nun, shiny clothes, skin tight, black leotard, black veil, (short veil:1.2), halo, guimpe, highleg leotard, impossible leotard, latex, latex leotard, black glove, black thighhighss, ass visible through thighs, black boots, high heel boots, `
 ### オルターエゴ・マリシャス
-`collarbone, alternate costume, alter ego malevolent \(granblue fantasy\), goth fashion, punk, navel,  camisole, black camisole, crop top, feather boa, choker, bare shoulders, black skirt, miniskirt, thigh strap, single fishnet legwear, fishnet thighhighs, black thighhighs, boots, black boots, `
+`collarbone, alternate costume, alter ego malevolent \(granblue fantasy\), goth fashion, punk, navel, camisole, black camisole, crop top, feather boa, choker, bare shoulders, black skirt, miniskirt, thigh strap, single fishnet legwear, fishnet thighhighs, black thighhighs, boots, black boots, `
 ### 白いワンピース
-`alternate costume,  lyria (granblue fantasy) (cosplay), white dress, jewelry, choker,  bridal gauntlets,  golden bridal gauntlets, strapless, (collarbone:0.8), (bare shoulders:0.8), thigh strap, `
+`alternate costume, lyria (granblue fantasy) (cosplay), white dress, jewelry, choker, bridal gauntlets, golden bridal gauntlets, strapless, (collarbone:0.8), (bare shoulders:0.8), thigh strap, `
 ### サキュバスギャル服
 `<lora:s-gal-clothes:1> succubus-gal \(clothes\), collar, cardigan, navel, loose socks, demon horns, demon wings, white cardigan, demon tail, bare shoulders, (microskirt:0.7), (pubic tattoo:0.8), {convenient censoring | (pussy:0.7), nipples}, `  
 https://civitai.red/models/1382150/bombergirlsuccubus-gyaruoutfit のLoraを使用しますが、それでも多少のガチャが必要
 ### サキュバスチアコス
 `<lora:succubus0cheer:0.8>cheerleader, breast cutout, (slingshot swimsuit:0.6), navel, skirt, microskirt, lowleg skirt, demon horns, wings, low wings, `  
 https://civitai.com/models/1421698/costume-succubus-cheer-bomber-girl のLoraを使用
- 
-
+### ブーム・アンド・ショック
+`yellow bikini, slingshot swimsuit, heart cutout, black choker, armband, see-through, yellow gloves, `
+https://civitai.red/models/1809818/elegg-boom-and-shock-goddess-of-victory-nikke-or-goofy-ai?modelVersionId=2048130 を使用
 # 改定記録
 | 改定日 | 改定内容 | 更新者 | 
-| :---: | --- |  --- | 
+| :---: | --- | --- | 
 | 2026/10/22 | マークダウン版の作成 | 774san |
+| 2026/11/01 | `（顔｜短冊）妊娠（衣装名）を作りたい場合`の追加<br>`存在するが表示される機会のない衣装`の追加<br>衣装グループ`お祭り衣装`の作成<br>`リゾート従業員制服の上・下衣装プロンプトの折畳化`<br>`選択式のプロンプトの注意点の明記`<br>`祭り法被`、`淫習祭乃法被`、`サンバ衣装`、`エロティコ・ド・サンバ`、`仮面舞踏祭衣装`、`ゴールデンマイクロビキニ`、`ディアンドル`、`ブーム・アンド・ショック`のプロンプト追加 | 774san |
