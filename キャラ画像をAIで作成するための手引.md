@@ -81,7 +81,7 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 ### サンバ衣装
 `samba costume, detailed clothes, exquisite clothes, ornate clothes, showgirl, {blue|gold|pink|など好きな色} samba costume, {blue|pink|black|など好きな色} feather headdress, (belly chain:1.25), {blue|pink|black|など好きな色} huge feather wings, {blue|pink|black|など好きな色} feather skirt, `
 ### エロティコ・ド・サンバ
-`samba costume, detailed clothes, exquisite clothes, ornate clothes, showgirl, {blue|gold|pink|など好きな色} samba costume, cupless bikini, crotchless bikini, {blue|pink|black|など好きな色} feather headdress, (belly chain:1.25), {blue|pink|black|など好きな色} huge feather wings, {blue|pink|black|など好きな色} feather skirt, `
+`samba costume, cupless bikini, crotchless bikini, {blue|pink|black|など好きな色} feather headdress, (belly chain:1.25), {blue|pink|black|など好きな色} huge feather wings, {blue|pink|black|など好きな色} feather skirt, `
 ### 仮面舞踏祭衣装
 `masquerade mask, {blue|pink|black|など好きな色} victorian dress, hoop skirt, long skirt, `  
 かなり高確率で胸がはだけたり、スカートにくぼみができるのでネガティブに`cleavage, covered groin, `を追加して抑えることをお勧めします。
