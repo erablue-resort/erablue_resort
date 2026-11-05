@@ -255,6 +255,28 @@ IF 対象キャラ != 9999
 			LOCALS += "</button>"
 			LOCALS += "<br>"
 		ENDIF
+		CALL 制服数値取得(対象キャラ, 現在制服:対象キャラ:0, "上半身下着あり")
+		IF CFLAG:対象キャラ:制服ランダムフラグ > 0 || RESULT > 0
+			LOCALS += "<button value='-10'>[-10] ノーブラ "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_ノーブラ_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
+		CALL 制服数値取得(対象キャラ, 現在制服:対象キャラ:0, "下半身下着あり")
+		IF CFLAG:対象キャラ:制服ランダムフラグ > 0 || RESULT > 0
+			LOCALS += "<button value='-11'>[-11] ノーパン "
+			IF STRFIND(現在制服:対象キャラ:セットアイテム, "_ノーパン_") >= 0
+				LOCALS += @"ON / <font color='#%カラーパレット_HTML("グレーアウト")%'>OFF</font>"
+			ELSE
+				LOCALS += @"<font color='#%カラーパレット_HTML("グレーアウト")%'>ON</font> / OFF"
+			ENDIF
+			LOCALS += "</button>"
+			LOCALS += "<br>"
+		ENDIF
 	ENDIF
 ELSE
 	LOCALS += @"一括設定"
@@ -448,6 +470,10 @@ SELECTCASE LOCAL
 				アイテム名 = アナルビーズ
 			CASE -6
 				アイテム名 = オナホール
+			CASE -10
+				アイテム名 = ノーブラ
+			CASE -11
+				アイテム名 = ノーパン
 		ENDSELECT
 		IF STRFIND(現在制服:対象キャラ:セットアイテム, @"_%アイテム名%_") >= 0
 			現在制服:対象キャラ:セットアイテム '= REPLACE(現在制服:対象キャラ:セットアイテム, @"_%アイテム名%_", "")
@@ -1645,3 +1671,26 @@ ENDIF
 現在制服:対象キャラ:0 = %制服一時配列:(RAND:候補数)%
 
 
+@制服数値取得(対象キャラ, 服装名, 部位名)
+#DIM 対象キャラ
+#DIMS 服装名
+#DIMS 部位名
+#DIM ダミー
+#DIM 返り値
+
+IF 服装名 == ""
+	;普段着
+	RETURN CSVEQUIP(NO:対象キャラ, GETNUM(EQUIP, 部位名))
+ELSEIF ISNUMERIC(服装名)
+	;他キャラ服
+	RETURN CSVEQUIP(TOINT(現在制服:対象キャラ:0), GETNUM(EQUIP, 部位名))
+ELSE
+	;服ERBが存在するはず
+	;一旦ダミーキャラを作って数値を取り出す
+	ダミー = CHARANUM
+	ADDCHARA 0
+	CALLFORM CLOTHES_CHANGE_%現在制服:対象キャラ:0%(ダミー)
+	返り値 = TEQUIP:ダミー:GETNUM(TEQUIP, 部位名)
+	DELCHARA ダミー
+	RETURN 返り値
+ENDIF
