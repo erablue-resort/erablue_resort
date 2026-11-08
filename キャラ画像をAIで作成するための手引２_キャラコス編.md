@@ -52,6 +52,8 @@
 `silica \(sword art online\) \(cosplay\), red clothes, breastplate, black skirt, pleated skirt, black thighhighs, `
 ### 1764（スカサハ[fate]）
 `scathach \(fgo\) \(cosplay\), shoulder armor, cape, purple bodysuit, black bodysuit, tight, thighhighs, `
+### 1195 （マシュ・キリエライト）
+`mash kyrielight \(cosplay\), black body armor, armored dress, bare shoulders, black armored skirt, purple gloves, elbow gloves, black gauntlets, thigh strap, thighhighs, knee boots, armored boots, `
 ### 2010（井ノ上たきな）
 `lycoris uniform, navy blue uniform, `
 ### 2011（錦木千束）
@@ -59,7 +61,7 @@
 ### 2119（ユーベル）
 `ubel \(sousou no frieren\) \(cosplay\), halterneck, off-shoulder dress, belt, thigh strap, `  
 長髪の人は`side ponytail, `を入れるといいでしょう。
-### 2156 ヘスティア
+### 2156 （ヘスティア）
 `hestia \(danmachi\) \(cosplay\), one-piece dress, blue bowtie, blue ribbon, `
 ### 2479（ホシノ・ルリ）
 `kidou senkan nadesico uniform, orange vest, white shirt, long sleeves, pencil skirt, `
@@ -76,9 +78,9 @@
 *1 コスプレ用にキツネ耳と尻尾に`fake `を追加してます。
 ### 2520（ミスマル・ユリカ）
 `misumaru yurika \(martian successor nadesico\) uniform, white capelet, white shirt, long sleeves, white gloves, black skirt, pencil skirt, grey pantyhose, `
-### 2633 フェイト・テスタロッサ
+### 2633 （フェイト・テスタロッサ）
 `fate testarossa \(lightning form\) \(cosplay\), black cape, chest belt, fingerless gloves, crossed belts, miniskirt, showgirl skirt, thighhighs, `
-### 2634 高町なのは
+### 2634 （高町なのは）
 `takamachi nanoha \(sacred mode\) \(cosplay\), `
 ### 2745（ヨル・フォージャー）
 `yor briar \(cosplay\), `
@@ -90,7 +92,7 @@
 `kuromorimine military uniform, red skirt, pleated skirt, `
 ### 3057（ブラック★ロックシューター）
 `black rock shooter \(cosplay\),  black hoodie jacket, open jacket, black bikini, black shorts, short shorts, white belt, black thighhighs, long boots, `
-### 3186 八神はやて
+### 3186 （八神はやて）
 `yagami hayate \(cosplay\), white beret, short white jacket, black dress, fingerless gloves, black wings, mini pencil skirt, `
 ### 3374（断頭台のアウラ）
 `aura \(sousou no frieren\) \(cosplay\), necklace, elbow gloves, navel cutout, white skirt, black thigh boots, `
@@ -122,7 +124,7 @@ fateシリーズに結構いると思います。
 1195 （マシュ・キリエライト）、2012 （藤丸立香[女]）  
 `chaldea uniform, white collared shirt, long sleeves, black pleated skirt, black belt, pantyhose, `
 ### 彩南高校制服
-ToLOVEるに結構いると思います。
+ToLOVEるに結構いると思います。  
 `sainan high school \(to love-ru\) uniform, white shirt, short sleeves, yelolow vest, green bowtie, pleated skirt, green checked skirt, miniskirt, `
 ### 調査兵団
 進撃の巨人のほぼ全員  
@@ -134,8 +136,14 @@ ToLOVEるに結構いると思います。
 2443（毒島冴子）、2444（宮本麗）、2445（高城沙耶）  
 `fujimi academy school \(highschool of the dead\) uniform, serafuku, green collar,  black ribbon tie, green skirt, `
 ### 私立聖祥大附属小学校制服
-2633 フェイト・テスタロッサ、2634 高町なのは、3186 八神はやて  
+2633 （フェイト・テスタロッサ）、2634 （高町なのは）、3186 （八神はやて）  
 `seishou elementary school uniform, `
+## ランダムモブが着ている衣装
+### 正義実現委員会のモブ
+`\(justice task force member: blue archive\)\(cosplay\), halo, beret, choker, black serafuku, black sailor collar, red neckerchief, gloves, black skirt, pleated skirt, `
+### 3rdリコリス衣装
+`lycoris uniform, beige uniform, `  
+打率低めです。
 # 改定記録
 | 改定日 | 改定内容 | 更新者 | 
 | :---: | --- | --- | 
