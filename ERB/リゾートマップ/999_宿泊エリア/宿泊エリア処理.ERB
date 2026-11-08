@@ -172,15 +172,23 @@ ELSE
 		CASE 700
 			LOCALS += "<nonbutton><font color='#FFFF00'>[700] 牧場特別飼育区</font></nonbutton>"
 			LOCALS += "<br>"
+			IF あなた特殊能力:任意引っ越し術
+				LOCALS += "<button value='501'>[501] 引っ越しさせる</button>"
+				LOCALS += "<br>"
+			ENDIF
 	ENDSELECT
 ENDIF
 LOCALS += "<br>"
 IF 確認フラグ
 	LOCALS += "<button value='999'>[999] 戻る</button>"
-	IF 表示エリア種類 == 500
+	IF 表示エリア種類 == 500 || 表示エリア種類 == 700
 		LOCALS += "<br>"
 		LOCALS += "<br>"
 		LOCALS += "<br>"
+		IF あなた特殊能力:任意引っ越し術
+			LOCALS += "<button value='501'>[501] 引っ越しさせる</button>"
+			LOCALS += "<br>"
+		ENDIF
 		LOCALS += "<br>"
 		LOCALS += @"<button value='998'><font color='#%カラーパレット_HTML("赤")%'>[998] 立ち退かせる</font></button>"
 	ENDIF
@@ -195,6 +203,11 @@ ELSEIF 宿泊エリア表示種別 == 1
 	LOCALS += "<button value='999'>[999] 空艇港に戻る</button>"
 ELSEIF 宿泊エリア表示種別 == 4
 	LOCALS += "<button value='999'>[999] 牧場に戻る</button>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += "<br>"
+	LOCALS += @"<button value='998'><font color='#%カラーパレット_HTML("赤")%'>[998] 立ち退かせる</font></button>"
 ELSE
 	IF CFLAG:GETCHARA(998):滞在期間 > 0
 		LOCALS += "<button value='990'>[990] eraの部屋に行く</button>"
@@ -312,10 +325,10 @@ SELECTCASE LOCAL
 		ENDIF
 		CALL 移動時モード消去(PLAYER)
 	CASE 998
-		CALL 立ち退き処理()
+		CALL 立ち退き処理(表示エリア種類)
 		GOTO RESTART_LABEL
 	CASE 501
-		CALL 引っ越し処理()
+		CALL 引っ越し処理(表示エリア種類)
 		GOTO RESTART_LABEL
 	CASEELSE
 		IF 確認フラグ
@@ -1049,7 +1062,7 @@ ELSEIF TALENT:ARG:定住者 == 1
 		ENDIF
 	NEXT
 ELSEIF TALENT:ARG:定住者 == 3
-	FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+	FOR LOCAL, 0, VARSIZE("飼育区部屋割り配列")
 		SIF 飼育区部屋割り配列:LOCAL == ""
 			CONTINUE
 		;部屋の居住者を見る
@@ -1288,6 +1301,87 @@ IF キャラクター部屋検索(対象キャラ) == -1 && CFLAG:対象キャ�
 		ENDIF
 	ENDIF
 ENDIF
+
+@非存在キャラ滞在チェック()
+#DIM 配列番号
+
+;分身、モブが入り込んでないかチェック
+FOR 配列番号, 0, 従業員部屋数
+	IF 従業員部屋割り配列:配列番号 >= CHARANUM
+		従業員部屋割り配列:配列番号 = 0
+	ELSEIF TALENT:(従業員部屋割り配列:配列番号):従業員 < 1
+		従業員部屋割り配列:配列番号 = 0
+	ENDIF
+NEXT
+
+FOR 配列番号, 0, 滞在部屋拡張上限
+	IF 滞在者部屋割り配列:配列番号 >= CHARANUM
+		滞在者部屋割り配列:配列番号 = 0
+	ELSEIF CFLAG:(滞在者部屋割り配列:配列番号):滞在期間 < 0
+		滞在者部屋割り配列:配列番号 = 0
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+	SIF 定住者部屋割り配列:LOCAL == ""
+		CONTINUE
+	;部屋の居住者を配列へ
+	VARSET RESULTS
+	SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+	FOR 配列番号, 0, RESULT
+		IF ISNUMERIC(RESULTS:配列番号)
+			IF TOINT(RESULTS:配列番号) >= CHARANUM
+				IF STRFIND(定住者部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_") > -1
+					定住者部屋割り配列:LOCAL = %REPLACE(定住者部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_", "_")%
+				ELSEIF STRFIND(定住者部屋割り配列:LOCAL, @"%RESULTS:配列番号%_") == 0
+					定住者部屋割り配列:LOCAL = %SUBSTRING(定住者部屋割り配列:LOCAL, STRLENS(@"%RESULTS:配列番号%_"), -1)%
+				ENDIF
+			ELSEIF CFLAG:(TOINT(RESULTS:配列番号)):滞在期間 < 0
+				IF STRFIND(定住者部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_") > -1
+					定住者部屋割り配列:LOCAL = %REPLACE(定住者部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_", "_")%
+				ELSEIF STRFIND(定住者部屋割り配列:LOCAL, @"%RESULTS:配列番号%_") == 0
+					定住者部屋割り配列:LOCAL = %SUBSTRING(定住者部屋割り配列:LOCAL, STRLENS(@"%RESULTS:配列番号%_"), -1)%
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+
+;同棲
+FOR 配列番号, 0, VARSIZE("同棲部屋割り配列")
+	IF 同棲部屋割り配列:配列番号 >= CHARANUM
+		同棲部屋割り配列:配列番号 = 0
+	ELSEIF CFLAG:(同棲部屋割り配列:配列番号):滞在期間 < 0
+		同棲部屋割り配列:配列番号 = 0
+	ENDIF
+NEXT
+
+;飼育
+FOR LOCAL, 0, VARSIZE("飼育区部屋割り配列")
+	SIF 飼育区部屋割り配列:LOCAL == ""
+		CONTINUE
+	;部屋の居住者を配列へ
+	VARSET RESULTS
+	SPLIT 飼育区部屋割り配列:LOCAL, "_", RESULTS
+	FOR 配列番号, 0, RESULT
+		IF ISNUMERIC(RESULTS:配列番号)
+			IF TOINT(RESULTS:配列番号) >= CHARANUM
+				IF STRFIND(飼育区部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_") > -1
+					飼育区部屋割り配列:LOCAL = %REPLACE(飼育区部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_", "_")%
+				ELSEIF STRFIND(飼育区部屋割り配列:LOCAL, @"%RESULTS:配列番号%_") == 0
+					飼育区部屋割り配列:LOCAL = %SUBSTRING(飼育区部屋割り配列:LOCAL, STRLENS(@"%RESULTS:配列番号%_"), -1)%
+				ENDIF
+			ELSEIF CFLAG:(TOINT(RESULTS:配列番号)):滞在期間 < 0
+				IF STRFIND(飼育区部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_") > -1
+					飼育区部屋割り配列:LOCAL = %REPLACE(飼育区部屋割り配列:LOCAL, @"_%RESULTS:配列番号%_", "_")%
+				ELSEIF STRFIND(飼育区部屋割り配列:LOCAL, @"%RESULTS:配列番号%_") == 0
+					飼育区部屋割り配列:LOCAL = %SUBSTRING(飼育区部屋割り配列:LOCAL, STRLENS(@"%RESULTS:配列番号%_"), -1)%
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+NEXT
+
 
 @空艇港エリア_商業区_表示(ページ数)
 #DIM ページ数

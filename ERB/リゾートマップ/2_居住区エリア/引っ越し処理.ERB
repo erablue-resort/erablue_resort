@@ -1,8 +1,10 @@
-﻿@引っ越し処理
+﻿@引っ越し処理(表示エリア種類 = 500)
 #DIM ページ数
 #DIM ループ用
 #DIM 部屋主配列, 10
 #DIM CONST 部屋定員 = 5
+#DIM 表示エリア種類
+;500:居住区 700:牧場
 
 VARSET LOCAL
 VARSET LOCALS
@@ -12,11 +14,21 @@ PRINTFORML 引っ越しさせるキャラを選んでください。（一軒に
 DRAWLINE
 LOCALS = <div rect='81,31,1231,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1187,2812'>"
-LOCALS += "<button value='999'>[999] 住宅街に戻る</button>"
+SELECTCASE 表示エリア種類
+	CASE 500
+		LOCALS += "<button value='999'>[999] 住宅街に戻る</button>"
+	CASE 700
+		LOCALS += "<button value='999'>[999] 飼育区に戻る</button>"
+ENDSELECT
 LOCALS += "<br>"
 LOCALS += "</div>"
 
-CALL 居住区エリア_住宅街_表示(ページ数, 1)
+SELECTCASE 表示エリア種類
+	CASE 500
+		CALL 居住区エリア_住宅街_表示(ページ数, 1)
+	CASE 700
+		CALL 牧場エリア_特別飼育区_表示(ページ数, 1)
+ENDSELECT
 ;RESULTにページ数上限が入っている
 LOCAL:10 = RESULT
 
@@ -44,7 +56,7 @@ SELECTCASE RESULT
 		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
 		IF RESULT == 2
 			;一人だけなら即座に引越し先選択へ
-			CALL 引っ越し先選択処理(TOINT(RESULTS:0))
+			CALL 引っ越し先選択処理(TOINT(RESULTS:0), 表示エリア種類)
 		ELSE
 			;複数人いるなら誰を引っ越させるかを選択
 			DRAWLINE
@@ -64,14 +76,16 @@ SELECTCASE RESULT
 			IF RESULT == 999
 				RESTART
 			ELSE
-				CALL 引っ越し先選択処理(部屋主配列:RESULT)
+				CALL 引っ越し先選択処理(部屋主配列:RESULT, 表示エリア種類)
 			ENDIF
 		ENDIF
 ENDSELECT
 
 RESTART
 
-@引っ越し先選択処理(対象キャラ)
+@引っ越し先選択処理(対象キャラ, 表示エリア種類 = 500)
+#DIM 表示エリア種類
+;500:居住区 700:牧場
 #DIM 対象キャラ
 #DIM 引っ越し不許可フラグ
 #DIM ページ数
@@ -97,7 +111,8 @@ LOCALS += "<button value='999'>[999] 戻る</button>"
 LOCALS += "<br>"
 LOCALS += "</div>"
 
-CALL 居住区エリア_引っ越し先_表示(ページ数, 対象キャラ)
+CALL 引っ越し先表示(ページ数, 対象キャラ, 表示エリア種類)
+
 ;RESULTにページ数上限が入っている
 LOCAL:10 = RESULT
 
@@ -125,7 +140,12 @@ SELECTCASE RESULT
 		;部屋の居住者を配列化
 		VARSET 部屋主配列
 		VARSET RESULTS
-		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+		SELECTCASE 表示エリア種類
+			CASE 500
+				SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			CASE 700
+				SPLIT 飼育区部屋割り配列:LOCAL, "_", RESULTS
+		ENDSELECT
 		引っ越し不許可フラグ = 0
 		最高値記録 = 0
 		無視閾値 = 50
@@ -170,7 +190,12 @@ SELECTCASE RESULT
 				CFLAG:対象キャラ:現在位置 = LOCAL + 1000
 			ENDIF
 			CALL 滞在者部屋割り配列削除処理(対象キャラ)
-			定住者部屋割り配列:LOCAL += @"{対象キャラ}_"
+			SELECTCASE 表示エリア種類
+				CASE 500
+					定住者部屋割り配列:LOCAL += @"{対象キャラ}_"
+				CASE 700
+					飼育区部屋割り配列:LOCAL += @"{対象キャラ}_"
+			ENDSELECT
 			ページ数 = 0
 			RETURN 0
 		ENDIF
@@ -209,7 +234,8 @@ ENDIF
 RETURNF 1
 
 
-@居住区エリア_引っ越し先_表示(ページ数, 引っ越しキャラ)
+@引っ越し先表示(ページ数, 引っ越しキャラ, 表示エリア種類 = 500)
+#DIM 表示エリア種類
 #DIM ページ数
 #DIM 引っ越しキャラ
 #DIM 家最大数
@@ -230,24 +256,45 @@ RETURNF 1
 ;元の部屋保存
 元の部屋 = キャラクター部屋検索(引っ越しキャラ)
 
-VARSET LOCAL
-家最大数 = 住宅街広さ()
-FOR LOCAL, 499, 49, -1
-	IF 定住者部屋割り配列:LOCAL != ""
-		家最大数 = LOCAL + 1 
-		BREAK
-	ENDIF
-NEXT
-
+SELECTCASE 表示エリア種類
+	CASE 500
+		VARSET LOCAL
+		家最大数 = 住宅街広さ()
+		FOR LOCAL, 499, 住宅街広さ() - 1, -1
+			IF 定住者部屋割り配列:LOCAL != ""
+				家最大数 = LOCAL + 1 
+				BREAK
+			ENDIF
+		NEXT
+	CASE 700
+		VARSET LOCAL
+		家最大数 = 特別飼育区広さ()
+		FOR LOCAL, 499, 特別飼育区広さ() - 1, -1
+			IF 飼育区部屋割り配列:LOCAL != ""
+				家最大数 = LOCAL + 1 
+				BREAK
+			ENDIF
+		NEXT
+ENDSELECT
 
 LOCALS = <div rect='1375,0,5000,125'>
 IF ページ数 > 0
-	LOCALS += "<button value='1000'>[1000]前の住宅街エリアへ</button>　　　　　　　　　"
+	SELECTCASE 表示エリア種類
+		CASE 500
+			LOCALS += "<button value='1000'>[1000]前の住宅街エリアへ</button>　　　　　　　　　"
+		CASE 700
+			LOCALS += "<button value='1000'>[1000]前の飼育区エリアへ</button>　　　　　　　　　"
+	ENDSELECT
 ELSE
 	LOCALS += "　　　　　　　　　　　　　　　　　　　　　"
 ENDIF
 IF ページ数 < (家最大数 - 1) / 16
-	LOCALS += "<button value='1001'>[1001]次の住宅街エリアへ</button>"
+	SELECTCASE 表示エリア種類
+		CASE 500
+			LOCALS += "<button value='1001'>[1001]次の住宅街エリアへ</button>"
+		CASE 700
+			LOCALS += "<button value='1001'>[1001]次の飼育区エリアへ</button>"
+	ENDSELECT
 ENDIF
 LOCALS += "</div>"
 
@@ -264,7 +311,12 @@ FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
 	引っ越し不許可フラグ = 0
 	最高値記録 = 0
 	無視閾値 = 50
-	SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+	SELECTCASE 表示エリア種類
+		CASE 500
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+		CASE 700
+			SPLIT 飼育区部屋割り配列:LOCAL, "_", RESULTS
+	ENDSELECT
 	FOR ループ用, 0, RESULT
 		SIF RESULTS:ループ用 == ""
 			BREAK
@@ -286,11 +338,20 @@ FOR LOCAL, (ページ数 * 16), (ページ数 * 16) + 16
 		引っ越し不許可フラグ = 0
 	ENDIF
 	
-	IF 元の部屋 == LOCAL + 1000
-		引っ越し不許可フラグ = 1
-	ELSEIF STRCOUNT(定住者部屋割り配列:LOCAL, "_") >= 部屋定員
-		引っ越し不許可フラグ = 2
-	ENDIF
+	SELECTCASE 表示エリア種類
+		CASE 500
+			IF 元の部屋 == LOCAL + 1000
+				引っ越し不許可フラグ = 1
+			ELSEIF STRCOUNT(定住者部屋割り配列:LOCAL, "_") >= 部屋定員
+				引っ越し不許可フラグ = 2
+			ENDIF
+		CASE 700
+			IF 元の部屋 == LOCAL + 1000
+				引っ越し不許可フラグ = 1
+			ELSEIF STRCOUNT(飼育区部屋割り配列:LOCAL, "_") >= 部屋定員
+				引っ越し不許可フラグ = 2
+			ENDIF
+	ENDSELECT
 
 	位置基準 = LOCAL - (ページ数 * 16)
 	縦位置 = 31 + (位置基準 / 4 * 625) + ((位置基準 / 4 + 1) / 2 * 175)
@@ -332,3 +393,6 @@ NEXT
 HTML_PRINT LOCALS, 1
 
 RETURN (家最大数 - 1) / 16
+
+
+

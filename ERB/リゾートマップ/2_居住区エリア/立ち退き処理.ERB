@@ -1,13 +1,22 @@
-﻿@立ち退き処理
+﻿@立ち退き処理(表示エリア種類)
+#DIM 表示エリア種類
+#DIM 初期フラグ
 #DIM ループ用
 #DIM 定住者一覧, 500
 #DIM ページ数
 #DIM 配列番号
 #DIM 選択定住者番号
-#DIM 動作モード ;0:定住立ち退き 1:同棲解除
+#DIM 動作モード ;0:定住立ち退き 1:同棲解除 2:飼育キャラ逃がす
 #DIM 降順ソート用配列, 200
 #DIM 降順ソート用番号配列, 200
 #DIMS Arrays = "降順ソート用配列", "降順ソート用番号配列"
+
+IF 初期フラグ == 0
+	SIF 表示エリア種類 == 700
+		動作モード = 2
+
+	初期フラグ = 1
+ENDIF
 
 VARSET 定住者一覧
 
@@ -16,51 +25,88 @@ PRINTL 定住者を立ち退かせます。
 PRINTL 立ち退かせたキャラは好感度要素：友情度と信頼度が大きく下がりますので注意してください。
 PRINTL
 DRAWLINE
-IF 動作モード
-	SETCOLOR カラーパレット("グレーアウト")
-	PRINTBUTTON "[定住者を立ち退かせる]", 1003
-	RESETCOLOR
-	PRINT  / 
-	PRINTPLAIN [同棲を解除する]
-ELSE
-	PRINTPLAIN [定住者を立ち退かせる]
-	PRINT  / 
-	SETCOLOR カラーパレット("グレーアウト")
-	PRINTBUTTON "[同棲を解除する]", 1003
-	RESETCOLOR
-ENDIF
+SELECTCASE 動作モード
+	CASE 0
+		PRINTPLAIN [定住者を立ち退かせる]
+		PRINT  / 
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[同棲を解除する]", 1011
+		RESETCOLOR
+		PRINT  / 
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[飼育キャラを逃がす]", 1012
+		RESETCOLOR
+	CASE 1
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[定住者を立ち退かせる]", 1010
+		RESETCOLOR
+		PRINT  / 
+		PRINTPLAIN [同棲を解除する]
+		PRINT  / 
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[飼育キャラを逃がす]", 1012
+		RESETCOLOR
+	CASE 2
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[定住者を立ち退かせる]", 1010
+		RESETCOLOR
+		PRINT  / 
+		SETCOLOR カラーパレット("グレーアウト")
+		PRINTBUTTON "[同棲を解除する]", 1011
+		RESETCOLOR
+		PRINT  / 
+		PRINTPLAIN [飼育キャラを逃がす]
+ENDSELECT
 PRINTL
 DRAWLINE
 
-IF 動作モード == 0
-	;現在いる定住者を一覧表示
-	LOCAL:1 = 0
+SELECTCASE 動作モード
+	CASE 0
+		;現在いる定住者を一覧表示
+		LOCAL:1 = 0
 
-	FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
-		SIF 定住者部屋割り配列:LOCAL == ""
-			CONTINUE
-		;部屋の居住者を配列へ
-		VARSET RESULTS
-		SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
-		FOR 配列番号, 0, RESULT
-			IF ISNUMERIC(RESULTS:配列番号)
-				定住者一覧:(LOCAL:1) = TOINT(RESULTS:配列番号)
+		FOR LOCAL, 0, VARSIZE("定住者部屋割り配列")
+			SIF 定住者部屋割り配列:LOCAL == ""
+				CONTINUE
+			;部屋の居住者を配列へ
+			VARSET RESULTS
+			SPLIT 定住者部屋割り配列:LOCAL, "_", RESULTS
+			FOR 配列番号, 0, RESULT
+				IF ISNUMERIC(RESULTS:配列番号)
+					定住者一覧:(LOCAL:1) = TOINT(RESULTS:配列番号)
+					LOCAL:1 += 1
+				ENDIF
+			NEXT
+		NEXT
+	CASE 1
+		;現在いる同棲相手を一覧表示
+		LOCAL:1 = 0
+
+		FOR 配列番号, 0, VARSIZE("同棲部屋割り配列")
+			;一部屋ずつ見て突っ込む
+			IF 同棲部屋割り配列:配列番号 > 0
+				定住者一覧:(LOCAL:1) = 同棲部屋割り配列:配列番号
 				LOCAL:1 += 1
 			ENDIF
 		NEXT
-	NEXT
-ELSE
-	;現在いる同棲相手を一覧表示
-	LOCAL:1 = 0
+	CASE 2
+		;現在いる飼育キャラを一覧表示
+		LOCAL:1 = 0
 
-	FOR 配列番号, 0, VARSIZE("同棲部屋割り配列")
-		;一部屋ずつ見て突っ込む
-		IF 同棲部屋割り配列:配列番号 > 0
-			定住者一覧:(LOCAL:1) = 同棲部屋割り配列:配列番号
-			LOCAL:1 += 1
-		ENDIF
-	NEXT
-ENDIF
+		FOR LOCAL, 0, VARSIZE("飼育区部屋割り配列")
+			SIF 飼育区部屋割り配列:LOCAL == ""
+				CONTINUE
+			;部屋の居住者を配列へ
+			VARSET RESULTS
+			SPLIT 飼育区部屋割り配列:LOCAL, "_", RESULTS
+			FOR 配列番号, 0, RESULT
+				IF ISNUMERIC(RESULTS:配列番号)
+					定住者一覧:(LOCAL:1) = TOINT(RESULTS:配列番号)
+					LOCAL:1 += 1
+				ENDIF
+			NEXT
+		NEXT
+ENDSELECT
 
 LOCALS = <div rect='81,31,1937,2812' border='31' bcolor='#C0C0C0'></div><div rect='2050,31,3875,2812' border='31' bcolor='#C0C0C0'></div>
 LOCALS += "<div rect='156,156,1937,2812'>"
@@ -267,6 +313,7 @@ SELECTCASE LOCAL
 	CASE 999
 		選択定住者番号 = -1
 		ページ数 = 0
+		初期フラグ = 0
 		RETURN 0
 	CASE 1001
 		ページ数 -= 1
@@ -274,19 +321,24 @@ SELECTCASE LOCAL
 	CASE 1002
 		ページ数 += 1
 		RESTART
-	CASE 1003
-		INVERTBIT 動作モード, 0
+	CASE 1010 TO 1019
+		動作モード = LOCAL - 1010
+		選択定住者番号 = -1
 		ページ数 = 0
 		RESTART
 	CASE 1000
 		SIF 選択定住者番号 < 0
 			RESTART
 		PRINTL
-		IF 動作モード == 0
-			PRINTFORML 本当に%NAME表示((定住者一覧:選択定住者番号))%を立ち退かせますか？
-		ELSE
-			PRINTFORML 本当に%NAME表示((定住者一覧:選択定住者番号))%との同棲を解除しますか？
-		ENDIF
+		
+		SELECTCASE 動作モード
+			CASE 0
+				PRINTFORML 本当に%NAME表示((定住者一覧:選択定住者番号))%を立ち退かせますか？
+			CASE 1
+				PRINTFORML 本当に%NAME表示((定住者一覧:選択定住者番号))%との同棲を解除しますか？
+			CASE 2
+				PRINTFORML 本当に飼育している%NAME表示((定住者一覧:選択定住者番号))%を逃がしますか？
+		ENDSELECT
 		PRINTBUTTON "[0]はい", 0
 		PRINTL
 		PRINTBUTTON "[1]いいえ", 1
@@ -322,11 +374,15 @@ ENDIF
 ; 	RETURN 0
 ; ENDIF
 
-IF 動作モード
-	PRINTFORML %NAME表示(キャラ番号)%との同棲を解除しました。
-ELSE
-	PRINTFORML %NAME表示(キャラ番号)%を立ち退かせました。
-ENDIF
+SELECTCASE 動作モード
+	CASE 0
+		PRINTFORML %NAME表示(キャラ番号)%を立ち退かせました。
+	CASE 1
+		PRINTFORML %NAME表示(キャラ番号)%との同棲を解除しました。
+	CASE 2
+		PRINTFORML %NAME表示(キャラ番号)%を野生に逃がしました。
+ENDSELECT
+
 TRYCALLFORM KOJO_EVENT_立ち退き_%CSTR:キャラ番号:口上切り替えキー%{NO:キャラ番号}(キャラ番号)
 
 IF TALENT:キャラ番号:従業員
