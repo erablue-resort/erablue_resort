@@ -107,10 +107,11 @@
 `kirito \(sword art online\) \(cosplay\), black coat, long sleeves, black shirt, t-shirt, fingerless gloves, black belt, black pants, `  
 ネガティブに`breastplate, `を入れないと胸当てがついてきたりします。
 #### GGO衣装
-`kirito \(sword art online:phantom bullet\) \(cosplay\), black coat, long sleeves, black shirt, t-shirt, bateau neck, sliver breastplate, fingerless gloves, black belt, black pants, `
+`kirito \(gun gale online\) \(cosplay\), black coat, shrug coat, long sleeves coat, black shirt, t-shirt, long sleeves shirt, collar bone, sliver breastplate, fingerless gloves, black belt, black front open skirt, black pants, `
 ### 3746（巡音ルカ）
 `megurine luka \(vocaloid\) \(cosplay\), headset, sleeveless shirt, (upper-arms detached sleeves:1.25), (single arm cover:1.25), long skirt, thighhighs, `
-
+### 3774 （ミーア・キャンベル）
+`meer campbell \(gundam seed destiny\) \(cosplay\), sleeveless, highleg leotard, multicolored leotard, halter neck, white collar, gold trim, impossible clothes, covered navel, purple skirt, white gloves, star hair ornament, `
 ## 複数キャラが着用している衣装
 ### 穂群原学園
 fateシリーズに結構いると思います。
@@ -120,15 +121,18 @@ fateシリーズに結構いると思います。
 `homurabara academy school uniform \(cosplay\), white shirt, brown long sleeves vest, black skirt, `
 #### 半袖
 `homurabara academy elementary school uniform \(cosplay\), white shirt, short sleeves, black skirt, `
-### カルデア制服
-1195 （マシュ・キリエライト）、2012 （藤丸立香[女]）  
-`chaldea uniform, white collared shirt, long sleeves, black pleated skirt, black belt, pantyhose, `
 ### 彩南高校制服
 ToLOVEるに結構いると思います。  
 `sainan high school \(to love-ru\) uniform, white shirt, short sleeves, yelolow vest, green bowtie, pleated skirt, green checked skirt, miniskirt, `
 ### 調査兵団
 進撃の巨人のほぼ全員  
 `paradis military uniform \(shingeki no kyojin\), shirt, boots, `
+### 国立音ノ木坂学院制服
+1022 （東條希）、  1023 （絢瀬絵里）、1024 （矢澤にこ）  
+`otonokizaka school uniform, white shirt, sweater vest, plaid skirt, check blue skirt, green striped bowtie, `
+### カルデア制服
+1195 （マシュ・キリエライト）、2012 （藤丸立香[女]）  
+`chaldea uniform, white collared shirt, long sleeves, black pleated skirt, black belt, pantyhose, `
 ### アッシュフォード学園制服
 1831 (紅月カレン)、2268 （ミレイ・アッシュフォード）、2982 （シャーリー・フェネット）、3721 （アーニャ・アールストレイム）  
 `ashford academy \(code geass\) uniform, cream military uniform, double breasted jacket, gold buttons, green necktie, black skirt, `
@@ -138,13 +142,8 @@ ToLOVEるに結構いると思います。
 ### 私立聖祥大附属小学校制服
 2633 （フェイト・テスタロッサ）、2634 （高町なのは）、3186 （八神はやて）  
 `seishou elementary school uniform, `
-## ランダムモブが着ている衣装
-### 正義実現委員会のモブ
-`\(justice task force member: blue archive\)\(cosplay\), halo, beret, choker, black serafuku, black sailor collar, red neckerchief, gloves, black skirt, pleated skirt, `
-### 3rdリコリス衣装
-`lycoris uniform, beige uniform, `  
-打率低めです。
 # 改定記録
 | 改定日 | 改定内容 | 更新者 | 
 | :---: | --- | --- | 
 | 2026/11/08 | 新規作成 | 774san |
+| 2026/11/10 | 国立音ノ木坂学院制服の追加<br>3731（キリト）GGO衣装の更新<br> 3774 （ミーア・キャンベル）の追加| 774san |
