@@ -476,9 +476,12 @@ RESTART
 #DIM 妊娠期間変化値
 #DIM フィールド期間変化値
 #DIM 消費ZP
+#DIM 無料調整
 
 フィールド期間変化値 = 0
 妊娠期間変化値 = 妊娠期間
+;妊娠期間の調整は初回のみ無料（OPTION変数で永続保持）
+無料調整 = (OPTION変数:妊娠期間調整_無料済み == 0)
 
 PRINTL
 DRAWLINE
@@ -492,7 +495,7 @@ ELSE
 	SETCOLOR 0x666666
 	PRINTPLAINFORM [0]妊娠期間を変動させる
 ENDIF
-PRINTL 　　　　　値段：（変動させる日数×1）ZP
+PRINTL 　　　　　値段：（変動させる日数×1）ZP　※初回は無料
 PRINTL 　　　　　…リゾート内において、子供を出産するまでにかかる時間を変動させます。
 PRINTL
 RESETCOLOR
@@ -537,7 +540,10 @@ SELECTCASE RESULT
 		PRINTFORML 所持ZP:%TOSTR(FLAG:ZP所持量, "#,##0")%
 		PRINTBUTTON "[<< -10] ",-999
 		PRINTBUTTON "[< -1] ",-998
-		PRINTFORM  [{妊娠期間変化値, 3}]決定({ABS(妊娠期間 - 妊娠期間変化値), 3}ZP)  
+		SIF 無料調整
+			PRINTFORM  [{妊娠期間変化値, 3}]決定(無料)  
+		SIF !無料調整
+			PRINTFORM  [{妊娠期間変化値, 3}]決定({ABS(妊娠期間 - 妊娠期間変化値), 3}ZP)  
 		PRINTBUTTON "[+1 >] ",-997
 		PRINTBUTTON "[+10 >>] " ,-996
 		PRINTL
@@ -563,7 +569,11 @@ SELECTCASE RESULT
 					妊娠期間変化値 -= 10
 			ENDSELECT
 			;上限下限処理
-			妊娠期間変化値 = LIMIT(妊娠期間変化値, MAX(妊娠期間 - FLAG:ZP所持量, 1), 妊娠期間 + FLAG:ZP所持量)
+			IF 無料調整
+				妊娠期間変化値 = LIMIT(妊娠期間変化値, 1, 9999)
+			ELSE
+				妊娠期間変化値 = LIMIT(妊娠期間変化値, MAX(妊娠期間 - FLAG:ZP所持量, 1), 妊娠期間 + FLAG:ZP所持量)
+			ENDIF
 			CLEARLINE 8
 			REUSELASTLINE 
 			GOTO INPUT_BEFORE2
@@ -571,7 +581,7 @@ SELECTCASE RESULT
 			CLEARLINE 1
 			REUSELASTLINE 0以下の値は指定できません
 			GOTO INPUT_LOOP2
-		ELSEIF 消費ZP > FLAG:ZP所持量
+		ELSEIF !無料調整 && 消費ZP > FLAG:ZP所持量
 			CLEARLINE 1
 			REUSELASTLINE ZPが足りません
 			GOTO INPUT_LOOP2
@@ -580,10 +590,17 @@ SELECTCASE RESULT
 			REUSELASTLINE 今の妊娠期間と同じ値です
 			GOTO INPUT_LOOP2
 		ELSE
-			妊娠期間変化値 = RESULT
+			IF 無料調整
+				妊娠期間変化値 = LIMIT(RESULT, 1, 9999)
+			ELSE
+				妊娠期間変化値 = RESULT
+			ENDIF
 			REDRAW 1
 			PRINTL
-			PRINTFORML {消費ZP}ZPを支払い、出産までにかかる期間を{妊娠期間}日から{妊娠期間変化値}日へと変動させますか？
+			SIF 無料調整
+				PRINTFORML 無料で、出産までにかかる期間を{妊娠期間}日から{妊娠期間変化値}日へと変動させますか？
+			SIF !無料調整
+				PRINTFORML {消費ZP}ZPを支払い、出産までにかかる期間を{妊娠期間}日から{妊娠期間変化値}日へと変動させますか？
 			PRINTL （現状のキャラごとの妊娠の進行度は再計算され引き継がれますが、多少ずれる可能性があります）
 			PRINTBUTTONLC "[0]はい", 0
 			PRINTBUTTONLC "[1]いいえ", 1
@@ -592,7 +609,11 @@ SELECTCASE RESULT
 			INPUT
 			SELECTCASE RESULT
 				CASE 0
-					FLAG:ZP所持量 -= 消費ZP
+					IF 無料調整
+						OPTION変数:妊娠期間調整_無料済み = 1
+					ELSE
+						FLAG:ZP所持量 -= 消費ZP
+					ENDIF
 					FOR LOCAL,0,CHARANUM
 						SIF CFLAG:LOCAL:妊娠経過日
 							CFLAG:LOCAL:妊娠経過日 = CFLAG:LOCAL:妊娠経過日 * 妊娠期間変化値 / 妊娠期間

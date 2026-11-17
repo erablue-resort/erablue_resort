@@ -88,16 +88,24 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 ## 水着類
 ### 水着
 `swimsuit, {bikini| one-piece swimsuit| bikini shorts}, `
+### ビニール水着
+`translucent vinyl one-piece swimsuit, see-through one-piece swimsuit, covered nipples, covered pussy, `
+### ビニールパレオ
+`translucent vinyl bikini top, see-through bikini top, micro string bikini top, covered nipples, bottomless bikini, translucent vinyl sarong, see-through sarong, covered pussy, `
 ### マイクロビキニ
 `micro bikini, `
 ### ゴールデンマイクロビキニ
 `gold metallic micro bikini, `
+### ビニールマイクロビキニ
+`translucent vinyl bikini, see-through bikini, micro string bikini, covered nipples, covered pussy, `
 ### ウエディングビキニ
 `wedding dress, bridal veil, white bikini, garter belt, white garter belt, lace bra, side-tie panties, white thighhighs, underwear, midriff, `
 ### 逮捕しちゃうゾ
 `highleg bikini, stomach, police, police uniform, jacket, cropped jacket, policewoman, green armband, blue bikini, blue necktie, long sleeves, underboob, sideboob, cleavage, ((blue shirt)), groin, open clothes, tie clip, star (symbol), garrison cap, open jacket, shrug (clothing), collared shirt, blue headwear, string bikini, blue jacket, micro bikini, police hat, necktie between breasts, sleeve cuffs, skindentation, epaulettes, aiguillette, police badge, white gloves, blue thighhighs, thigh boots, `
 ### スリングショット
 `slingshot swimsuit, {blue|pink|black|など好きな色} slingshot swimsuit, {areola slip}, {criss-cross halter}, `
+### ビニールスリングショット
+`translucent vinyl slingshot swimsuit, see-through slingshot swimsuit, micro string slingshot swimsuit, covered nipples, covered pussy, `
 ## 仕事の制服
 ### リゾート従業員制服
 `{juliet sleeves|compression sleeve}, black sleeves, long sleeves, red necktie, {上}, {下}, `  
@@ -240,7 +248,7 @@ LoRA「dmd2_sdxl_4step_lora」を使ってみましょう。
 ### ロイヤル・アイシング
 `artoria pendragon \(lancer alter\) \(royal icing\) \(fate\), artoria pendragon \(lancer alter\) \(royal icing\) \(fate\) \(cosplay\), `
 ### ミッドナイト・サキュバス
-`morrigan aensland, morrigan aensland \(cosplay\), `
+`morrigan aensland, morrigan aensland \(cosplay\), purple tights, `
 ### Ｃ・Ｃ・Ｃ
 `\bb \(swimsuit mooncancer\) \(second ascension\) \(fate\), bb \(swimsuit mooncancer\) \(second ascension\) \(fate\) \(cosplay\), bead bracelet, belt, purple bikini, bikini under clothes, black glove, black shorts, black thighhighs, choker, fingerless gloves, hair ribbon, halterneck, long ribbon, micro shorts, navel, highleg panties, sideboob, cleavage, star hairband, {dirk skin}, `
 ### ユスティナ聖徒会礼装
@@ -263,3 +271,4 @@ https://civitai.red/models/1809818/elegg-boom-and-shock-goddess-of-victory-nikke
 | :---: | --- | --- | 
 | 2026/10/22 | マークダウン版の作成 | 774san |
 | 2026/11/01 | `（顔｜短冊）妊娠（衣装名）を作りたい場合`の追加<br>`存在するが表示される機会のない衣装`の追加<br>衣装グループ`お祭り衣装`の作成<br>`リゾート従業員制服の上・下衣装プロンプトの折畳化`<br>`選択式のプロンプトの注意点の明記`<br>`祭り法被`、`淫習祭乃法被`、`サンバ衣装`、`エロティコ・ド・サンバ`、`仮面舞踏祭衣装`、`ゴールデンマイクロビキニ`、`ディアンドル`、`ブーム・アンド・ショック`のプロンプト追加 | 774san |
+| 2026/11/17 | `ビニール水着`、`ビニールパレオ`、`ビニールマイクロビキニ`、`ビニールスリングショット`のプロンプト追加 | 774san |
