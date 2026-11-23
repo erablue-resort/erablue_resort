@@ -94,23 +94,65 @@ TSTR:ツールチップ受渡 = %LOCALS%
 @COM390_ブーム・アンド・ショック
 #DIM プレイ結果
 
-;ミニゲーム作りたい……けどゲームのプレイ結果を出すだけ
+DRAWLINE
+PRINTL BOOMをプレイすることにした。どうプレイしますか？
+PRINTBUTTON "[0] ちゃんとプレイする", 0
+PRINTL
+PRINTBUTTON "[1] 適当にプレイする（ミニゲームをスキップし、スコアをランダム算出）", 1
+PRINTL
+DRAWLINE
+PRINTL
+BINPUT
 
-;ランダムでゲームの結果を算出、数値が多いほど良いスコア
-プレイ結果 = RAND:100
+SELECTCASE RESULT
+	CASE 0
+		LOCAL:0 = 0   ; 難易度（入力）: 0 = 通常 / 1 = 難しい（敵が硬く・強く、初期弾薬減）
+		LOCAL:1 = 0   ; 結果（出力）
+			; LOCAL:1 = 1 : クリア（鍵を取って出口に到達、または敵全滅）
+			; LOCAL:1 = 0 : 死亡（失敗。その時点までの撃破数などが入っている）
+			; LOCAL:1 = 2 : 中断（Esc / ウィンドウを閉じた）
+		LOCAL:2 = 0   ; 撃破数（出力）
+		LOCAL:3 = 0   ; 敵の総数（出力）
+		LOCAL:4 = 0   ; 残り体力（出力）
+		LOCAL:5 = 0   ; 経過秒数（出力）
 
-;貧乳以下だとプレイしやすい
-SIF TALENT:TARGET:バストサイズ < 0
-	プレイ結果 += 10
-;Bがない（乳首が存在しない）場合、快楽が発生しないためTARGETが動かずプレイしやすい
-SIF TALENT:TARGET:Ｂ感度 == -2
-	プレイ結果 += 15
-;B敏感だとTARGETがめっちゃ動くのでプレイしづらい
-SIF TALENT:TARGET:Ｂ感度 > 0
-	プレイ結果 -= 10
+		CALLSHARP BoomPlay(LOCAL:0, LOCAL:1, LOCAL:2, LOCAL:3, LOCAL:4, LOCAL:5)
 
-;プレイ結果表示はメッセージにて
-RFLAG:コマンド結果受渡し変数３ = プレイ結果
+		プレイ結果 = 0
+		;スコアを算出
+		IF LOCAL:1 == 1
+			;撃破数*3
+			プレイ結果 += LOCAL:2 * 3
+			;残り体力、MAXで+30
+			プレイ結果 += LOCAL:4 * 3 / 10
+			;経過秒数、60秒で40点、3秒ごとに1点減る
+			プレイ結果 += (40 - (MAX(0, LOCAL:5 - 60) / 3))
+		ELSEIF LOCAL:1 == 2
+			;中断は区別するためマイナス
+			プレイ結果 = -1
+		ELSE
+			;死亡は0点
+			プレイ結果 = 0
+		ENDIF
+		RFLAG:コマンド結果受渡し変数３ = プレイ結果
+
+	CASE 1
+		;ランダムでゲームの結果を算出、数値が多いほど良いスコア
+		プレイ結果 = RAND:100
+
+		;貧乳以下だとプレイしやすい
+		SIF TALENT:TARGET:バストサイズ < 0
+			プレイ結果 += 10
+		;Bがない（乳首が存在しない）場合、快楽が発生しないためTARGETが動かずプレイしやすい
+		SIF TALENT:TARGET:Ｂ感度 == -2
+			プレイ結果 += 15
+		;B敏感だとTARGETがめっちゃ動くのでプレイしづらい
+		SIF TALENT:TARGET:Ｂ感度 > 0
+			プレイ結果 -= 10
+
+		;プレイ結果表示はメッセージにて
+		RFLAG:コマンド結果受渡し変数３ = プレイ結果 * RAND(95, 105)
+ENDSELECT
 
 CALL セクハラ反応タイプ判定(TARGET)
 ;RFLAG:コマンド結果受渡し変数
@@ -226,17 +268,20 @@ PRINTW
 
 ;スコアに応じてメッセージ変化
 SELECTCASE RFLAG:コマンド結果受渡し変数３
+	CASE -1
+		PRINTL 途中でプレイを中断した。
+		RETURN 0
 	CASE IS < 30
-		PRINTL 序盤でやられてしまい、上手くプレイ出来なかった……
+		PRINTL 上手くプレイ出来なかった……
 	CASE IS < 60
-		PRINTL 終盤まで進んだが、クリアは出来なかった。
+		PRINTL それなりの成績を残すことが出来た。
 	CASE IS < 90
-		PRINTL 最後までゲームクリアすることが出来た！
+		PRINTL うまくプレイすることが出来た！
 	CASEELSE
 		PRINTL ハイスコアだ！　かなり良い成績でゲームをクリアすることが出来た！
 ENDSELECT
 PRINTL 
-PRINTFORMW ゲームスコア：{RFLAG:コマンド結果受渡し変数３ * RAND(95, 105)}点
+PRINTFORMW ゲームスコア：{RFLAG:コマンド結果受渡し変数３}点
 PRINTL
 
 

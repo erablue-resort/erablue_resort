@@ -119,6 +119,9 @@ ENDIF
 
 
 @仮置きCUSTOM_TERMINAL(ARG)
+#DIM ページ数
+#DIM DYNAMIC TALENT一時保存, 300
+
 LOCAL = 3
 SIF BASE:ARG:身長
 	CLEARBIT LOCAL, 0
@@ -126,6 +129,33 @@ SIF BASE:ARG:バスト
 	CLEARBIT LOCAL, 1
 SIF LOCAL
 	CALL SET_BODYSIZE(ARG, LOCAL)
+	
+VARSET LOCAL
+FOR LOCAL, 0, 300
+	IF TALENTNAME:LOCAL != "" && 素質カテゴリ(LOCAL) == "優先表示"
+		TALENT一時保存:(LOCAL:10) = LOCAL
+		LOCAL:10 += 1
+	ENDIF
+NEXT
+FOR LOCAL, 0, 300
+	IF TALENTNAME:LOCAL != "" && 素質カテゴリ(LOCAL) == "性格"
+		TALENT一時保存:(LOCAL:10) = LOCAL
+		LOCAL:10 += 1
+	ENDIF
+NEXT
+FOR LOCAL, 0, 300
+	IF TALENTNAME:LOCAL != "" && 素質カテゴリ(LOCAL) == "肉体"
+		TALENT一時保存:(LOCAL:10) = LOCAL
+		LOCAL:10 += 1
+	ENDIF
+NEXT
+FOR LOCAL, 0, 300
+	IF TALENTNAME:LOCAL != "" && 素質カテゴリ(LOCAL) == "その他"
+		TALENT一時保存:(LOCAL:10) = LOCAL
+		LOCAL:10 += 1
+	ENDIF
+NEXT
+
 
 $個別素質変更_LOOP
 PRINTL
@@ -220,6 +250,26 @@ IF TALENT:ARG:印象 == 0
 ELSE
 	HTML_PRINT GET_TALENTNAME(95, TALENT:ARG:印象, 1)
 ENDIF
+PRINTL ■その他素質一覧
+LOCAL:1 = 0
+FOR LOCAL, 10, VARSIZE("TALENT")
+	SIF GROUPMATCH(LOCAL, 34, 95, 133, 134, 135, 136, 138, 160, 161, 162, 163, 164, 165, 200, 205, 210, )
+		CONTINUE
+	SIF GET_TALENTNAME(LOCAL, TALENT:ARG:LOCAL, 0) == ""
+		CONTINUE
+	PRINTFORM [%GET_TALENTNAME(LOCAL, TALENT:ARG:LOCAL, 0)%]
+	LOCAL:1 ++
+	IF LOCAL:1 >= 10
+		PRINTL 
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+IF LOCAL:1 > 0
+	PRINTL 
+ENDIF
+PRINTL 
+PRINTBUTTON "[その他素質の設定]", 700
+PRINTL
 PRINTL
 PRINTL ■年齢
 FOR LOCAL, 年齢層_幼い, 年齢層_人外 + 1
@@ -354,6 +404,64 @@ SELECTCASE RESULT
 		CALL INIT_BODYSIZE_BUST(ARG)
 		PRINTFORMW バストサイズ素質が%GET_TALENTNAME(205, TALENT:ARG:バストサイズ)%に設定されました
 		GOTO 個別素質変更_LOOP
+	CASE 700
+		$その他素質選択_LOOP
+		DRAWLINE
+		PRINTL その他素質を設定してください
+		DRAWLINE
+		LOCALS = 
+		FOR LOCAL, ページ数 * 20, ページ数 * 20 + 20
+			SIF TALENT一時保存:LOCAL == 0
+				BREAK
+			;あなたの時のみ表示しないもの
+			SIF GROUPMATCH(TALENT一時保存:LOCAL, 255, 256, 257, 258, 250, 237, 233, 234, 235)
+				CONTINUE
+			LOCALS += @"%TALENTNAME:(TALENT一時保存:LOCAL), 18, LEFT%："
+			FOR LOCAL:1, -2, 4
+				;母乳体質は例外
+				IF TALENT一時保存:LOCAL == 149 && LOCAL:1 > 1
+					CONTINUE
+				ENDIF
+				LOCALS:2 = %GET_TALENTNAME(TALENT一時保存:LOCAL,LOCAL:1)%
+				IF LOCAL:1 == 0
+					LOCALS:2 = なし
+				ELSEIF LOCALS:2 == ""
+					CONTINUE
+				ENDIF
+				IF TALENT:ARG:(TALENT一時保存:LOCAL) == LOCAL:1
+					LOCALS:1 = C0C0C0
+				ELSE
+					LOCALS:1 = 333333
+				ENDIF
+				LOCALS += @"<font color='#%LOCALS:1%'><button value='{20000 + LOCAL * 10 + LOCAL:1 + 5}' title='%GET_TALENTNAME(TALENT一時保存:LOCAL, LOCAL:1, 1)%'>[%LOCALS:2%]</button></font>"
+			NEXT
+			LOCALS += "<br>"
+		NEXT
+		LOCALS += "<br><br>"
+		IF ページ数 > 0
+			LOCALS += "<button value='29998'>[前のページ]</button>"
+		ELSE
+			LOCALS += "　　　　　　"
+		ENDIF
+		LOCALS += "　　　　<button value='11100'>[設定画面に戻る]</button>　　　　"
+		IF ページ数 < LOCAL:10 / 20
+			LOCALS += "<button value='29999'>[次のページ]</button>"
+		ENDIF
+		LOCALS += "<br><br>"
+		HTML_PRINT LOCALS
+		PRINTL
+		BINPUT
+		SELECTCASE RESULT
+			CASE 11100
+				GOTO 個別素質変更_LOOP
+			CASE 20000 TO 29993
+				TALENT:ARG:(TALENT一時保存:((RESULT - 20000) / 10)) = (RESULT % 10) - 5
+			CASE 29998
+				ページ数 -= 1
+			CASE 29999
+				ページ数 += 1
+		ENDSELECT
+		GOTO その他素質選択_LOOP
 	CASE 999
 		RETURN 0
 ENDSELECT
